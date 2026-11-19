@@ -208,9 +208,43 @@ def committed_kills() -> dict[str, str]:
     for s in (doc.get("scripts") if isinstance(doc, dict) else None) or []:
         if not isinstance(s, dict):
             continue
+        # ⭐ a HELD kill (`status: "pending"`, `pending_kills`) is recorded, not served: the script still draws
+        if not kill_entry_is_served(s):
+            continue
         sha = s.get("sha256")
         if isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{64}", sha):
             out[sha] = s.get("reason") if isinstance(s.get("reason"), str) and s.get("reason") else ""
+    return out
+
+
+#: ⭐ (coordinator ruling 2026-11-18) — the status of a HELD kill on the committed list: a runtime-lane DIVERGE whose
+#: kill waits on a named capture ruling. It is NOT served (`committed_kills` skips it, so the script still draws), it
+#: carries a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts its one named capture as a stop only until
+#: that date: past it, the rail is red on its own, so a held kill cannot quietly become permanent. ONE list: the same
+#: file and the same rail as every kill (`tests/test_pine_capability_admission.py`). Any other status is a kill.
+KILL_PENDING = "pending"
+
+
+def kill_entry_is_served(entry: Any) -> bool:
+    """Does this committed kill-list entry KILL its script? Every entry does except a held one (`KILL_PENDING`).
+    ⛔ THE ONE RULE: every reader of `api/data/pine_runtime_killlist.json` asks it (this module's `committed_kills`,
+    the coverage census `tools/pine_coverage/coverage_map.py::runtime_killed_hashes`), so no reader counts a held
+    kill as a kill. ⚰️ 2026-11-18: the coverage census read every entry as a kill and the runtime-on ratchet lost
+    adx-and-di-for-v4, which the door still draws."""
+    return not (isinstance(entry, dict) and entry.get("status") == KILL_PENDING)
+
+
+def pending_kills() -> dict[str, dict]:
+    """The HELD kills on the committed list: ``{sha256: entry}`` for every entry whose ``status`` is ``pending``.
+    Read by the rails only; nothing serves them. An unreadable file holds none."""
+    try:
+        doc = json.loads(pathlib.Path(KILLLIST_PATH).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    out: dict[str, dict] = {}
+    for s in (doc.get("scripts") if isinstance(doc, dict) else None) or []:
+        if isinstance(s, dict) and s.get("status") == KILL_PENDING and isinstance(s.get("sha256"), str)                 and re.fullmatch(r"[0-9a-f]{64}", s["sha256"]):
+            out[s["sha256"]] = dict(s)
     return out
 
 
@@ -1403,6 +1437,35 @@ def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capab
 
 def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
                  capability: bool = True) -> dict:
+    """A stored row as SERVED: the runtime lane's stamps (`_stamp_served_runtime`), then the HOST
+    lane's known-divergence stamp (`_stamp_host_known_divergence`). Never stored; a copy when it moves."""
+    return _stamp_host_known_divergence(
+        _stamp_served_runtime(row, budget=budget, capability=capability))
+
+
+def _stamp_host_known_divergence(row: Any) -> Any:
+    """⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — an ``ast`` row whose stored script is on the
+    host list (`user_definitions._row_to_dict` carries its sentence as ``host_known_divergence``) is served
+    with ``meta.hostKnownDivergence``, which the client's install door refuses by name
+    (`nativeRegistry.validateUserDefinitions`). A stamp a client wrote back is dropped, so a stored row
+    reads today's list. Returns a copy when anything moves; the stored row is not touched."""
+    from api.services import host_known_divergence as hkd
+    definition = row.get("definition") if isinstance(row, dict) else None
+    if not hkd.applies_to(definition):
+        return row
+    why = row.get("host_known_divergence")
+    why = why if isinstance(why, str) and why else None
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    if not why and hkd.STAMP not in meta_in:
+        return row
+    meta = {k: v for k, v in meta_in.items() if k != hkd.STAMP}
+    if why:
+        meta[hkd.STAMP] = why
+    return dict(row, definition=dict(definition, meta=meta))
+
+
+def _stamp_served_runtime(row: dict, *, budget: "Optional[DetectorBudget]" = None,
+                          capability: bool = True) -> dict:
     """A stored runtime row as SERVED: the kill switch stamped on, never stored.
 
     Returns a copy; the stored row is not touched.
@@ -1461,10 +1524,12 @@ def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
 def scrub_served_stamps(definition: Any) -> Any:
     """The definition without any served stamp (`RUN_READ_STAMPS`): what the save door stores
     (re-review F4: a stamp a client wrote back is never stored). The SAME object when it carries none."""
+    from api.services import host_known_divergence as hkd
+    stamps = RUN_READ_STAMPS + (hkd.STAMP,)
     meta = definition.get("meta") if isinstance(definition, dict) else None
-    if not isinstance(meta, dict) or not any(k in meta for k in RUN_READ_STAMPS):
+    if not isinstance(meta, dict) or not any(k in meta for k in stamps):
         return definition
-    return dict(definition, meta={k: v for k, v in meta.items() if k not in RUN_READ_STAMPS})
+    return dict(definition, meta={k: v for k, v in meta.items() if k not in stamps})
 
 
 def run_read_source(definition: Any) -> Optional[str]:

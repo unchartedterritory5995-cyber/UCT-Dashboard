@@ -153,6 +153,12 @@ export function resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _eff
   return null
 }
 
+/** TERM-033: what the delta request's device-cache seed resolves to when the read FAILED or did not
+ *  land within `_IDB_TAIL_WAIT_MS`. It is "no seed", never "no bars": the request then goes out
+ *  without a `since` base (a full read), exactly as for a key the cache does not hold. */
+const NO_IDB_SEED = null
+const noIdbSeed = () => NO_IDB_SEED
+
 export function useLegacyChartBars({
   sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, dedupMs, breadthSeries, replayCutoff,
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane, _sessQ,
@@ -666,8 +672,8 @@ export function useLegacyChartBars({
           seed = { bars: mem, t: mt, rf: null }
         } else {
           const rd = _idbReadRef.current?.key === req.key ? _idbReadRef.current.p : null
-          const entry = rd ? await Promise.race([rd.catch(() => null),
-            new Promise((r) => setTimeout(() => r(null), _IDB_TAIL_WAIT_MS))]) : null
+          const entry = rd ? await Promise.race([rd.catch(noIdbSeed),
+            new Promise((r) => setTimeout(() => r(NO_IDB_SEED), _IDB_TAIL_WAIT_MS))]) : NO_IDB_SEED
           if (entry?.bars?.length && typeof entry.lastT === 'number'
               && classifyIntradayTail(entry.lastT, req.tf) !== 'gapped') {
             seed = { bars: entry.bars, t: entry.lastT, rf: typeof entry.repairFromT === 'number' ? entry.repairFromT : null }

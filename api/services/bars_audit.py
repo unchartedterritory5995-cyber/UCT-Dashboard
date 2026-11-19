@@ -174,8 +174,16 @@ def audit_universe(
     parallelism: int = 4,
     scope: str = "universe",
     scope_arg: str | None = None,
+    lane: str | None = None,
 ) -> dict:
-    """Scan every ticker in `tickers`. Persist report to /data/audits/."""
+    """Scan every ticker in `tickers`. Persist report to /data/audits/.
+
+    `lane`: background callers name their sweep and each ticker's audit takes one turn of the web
+    pod's background lane (`api/services/bg_lane.py`: after the boot settles, one item at a time, at
+    a bounded share of the clock). Measured 2026-11-17: the universe sweep's 4 threads validating
+    ~12 M bars in Python were 38% of a core in minutes 7-12 after a boot, and a run a restart cuts
+    short never finishes, so on a day of many releases it starts again after every one. None (an
+    admin's on-demand audit) runs as before."""
     _init_audit_runs_table()
     started_at = int(time.time())
     run_id = _record_audit_run(scope, scope_arg)
@@ -189,9 +197,21 @@ def audit_universe(
     bars_scanned = 0
     tickers_scanned = 0
 
+    if lane:
+        from api.services import bg_lane
+
+        def _one(t, tfs_, counts_):
+            with bg_lane.turn(lane):
+                return audit_ticker(t, tfs_, counts_)
+        if bg_lane.enabled():
+            # One worker: the lane runs one item at a time anyway, and four workers queueing for it
+            # took four turns in six from the weekly purge and the off-grid repair (measured locally).
+            parallelism = 1
+    else:
+        _one = audit_ticker
     with ThreadPoolExecutor(max_workers=parallelism) as ex:
         futures = {
-            ex.submit(audit_ticker, t, tuple(tfs), tuple(bars_counts)): t
+            ex.submit(_one, t, tuple(tfs), tuple(bars_counts)): t
             for t in tickers
         }
         for fut in as_completed(futures):

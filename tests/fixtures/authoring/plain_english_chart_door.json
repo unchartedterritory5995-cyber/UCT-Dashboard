@@ -1,9 +1,9 @@
 {
-  "_": "Plain trader English through the chart conversation door's DETERMINISTIC half (definition_conversation.understand_turn: pre-flight, member names, planner) -- no model call. `model: true` = the request reaches the model whole (nothing excised); `terms` = declared functions/expansions the planner names for the model; `refused` = the phrase refused with no model call. Synthetic phrasings only; the three owner examples of 2026-11-01 are the first three. Asserted by tests/test_plain_english_chart_door.py.",
+  "_": "Plain trader English through the chart conversation door's DETERMINISTIC half (definition_conversation.understand_turn: pre-flight, member names, planner) -- no model call. `model: true` = the request reaches the model whole (nothing excised); `terms` = declared functions/expansions the planner names for the model; `refused` = the phrase refused with no model call. A DISTINCTIVE well-known name with no checked formula (Schaff Trend Cycle, Klinger Oscillator) is a TERM since 2026-11-18: it reaches the model with the rule to build it and withhold the name; a name that is a drawing, a pattern or needs other data (Elliott Wave, McClellan Oscillator) is still refused. Synthetic phrasings only; the three owner examples of 2026-11-01 are the first three. Asserted by tests/test_plain_english_chart_door.py.",
   "chart": {"sym": "AAPL", "tf": "D"},
   "cases": [
     {"message": "Create an indicator that highlights when the 9 EMA crosses above the 20 EMA.", "model": true},
-    {"message": "Show RSI 28 with a 5-period moving average of RSI.", "model": true},
+    {"message": "Show RSI 28 with a 5-period simple moving average of RSI.", "model": true},
     {"message": "Make the chart background green when the 9 EMA is above the 20 EMA.", "model": true},
     {"message": "put a green arrow under the candle when the 10 EMA crosses the 21 EMA", "model": true},
     {"message": "color the bars red when close is below the 200 SMA", "model": true},
@@ -21,7 +21,7 @@
     {"message": "Exponential Moving Average 9 and Simple Moving Average 50", "model": true, "terms": ["ema", "sma"]},
     {"message": "show the Donchian Channel 20", "model": true, "terms": ["donchianUpper"]},
     {"message": "show the Ichimoku Cloud", "model": true, "terms": ["ichimokuSpanA"]},
-    {"message": "show the Stochastic Oscillator 14 3 3", "model": true, "terms": ["stoch"]},
+    {"message": "show the Stochastic Oscillator 14 3 3", "model": true, "terms": ["stochastic_oscillator"]},
     {"message": "add the Average Directional Index", "model": true, "terms": ["adx"]},
     {"message": "plot the Moving Average Convergence Divergence", "model": true, "terms": ["macd"]},
     {"message": "show the Bollinger Band Width", "model": true, "terms": ["bbw"]},
@@ -29,8 +29,20 @@
     {"message": "show Bollinger Bands 20 2", "model": true, "terms": ["bbUpper"]},
     {"message": "highlight when close is above the upper Bollinger Band", "model": true, "terms": ["bbUpper"]},
     {"message": "show relative strength versus SPY", "model": true, "not_terms": ["rsi"]},
-    {"message": "Add the McGinley Dynamic", "refused": "McGinley Dynamic"},
-    {"message": "show the Chaikin Money Flow", "refused": "Chaikin Money Flow"},
-    {"message": "show the Awesome Oscillator", "refused": "Awesome Oscillator"}
+    {"message": "Add the McGinley Dynamic", "model": true, "terms": ["mcginley_dynamic"]},
+    {"message": "show the Chaikin Money Flow", "model": true, "terms": ["chaikin_money_flow"]},
+    {"message": "show the Awesome Oscillator", "model": true, "terms": ["awesome_oscillator"]},
+    {"message": "add the kaufman adaptive moving average", "model": true, "terms": ["kaufman_adaptive_moving_average"], "not_terms": ["sma", "ema"]},
+    {"message": "plot connors rsi", "model": true, "terms": ["connors_rsi"], "not_terms": ["rsi"]},
+    {"message": "Highlight Mondays", "model": true},
+    {"message": "Add Inside bar", "model": true},
+    {"message": "Show Weekly pivot points", "model": true},
+    {"message": "Add the Gann Fan", "refused": "Gann Fan"},
+    {"message": "Add Gann Fan", "refused": "Gann Fan"},
+    {"message": "Add the Elliott Wave", "refused": "Elliott Wave"},
+    {"message": "show the McClellan Oscillator", "refused": "McClellan Oscillator"},
+    {"message": "Add the Schaff Trend Cycle", "model": true, "terms": ["schaff_trend_cycle"]},
+    {"message": "show the Klinger Oscillator", "model": true, "terms": ["klinger_volume_oscillator"]},
+    {"message": "add a klinger oscillator in a lower pane", "model": true, "terms": ["klinger_volume_oscillator"]}
   ]
 }

@@ -104,10 +104,15 @@ def synthetic_breadth_world(monkeypatch, sentinel: Optional[float] = None, sessi
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
 
-def install_loopback_only_guard(monkeypatch) -> None:
+def install_loopback_only_guard(monkeypatch) -> list:
     """Refuse every non-loopback connect. Loopback stays allowed: Windows asyncio builds its
-    self-pipe with a 127.0.0.1 socketpair, which a FastAPI TestClient needs (Agent review 2026-10-11)."""
+    self-pipe with a 127.0.0.1 socketpair, which a FastAPI TestClient needs (Agent review 2026-10-11).
+
+    Returns the list of refused hosts, appended BEFORE each refusal. A caller whose code under test
+    swallows exceptions (a vendor fetch that degrades to None) must assert this list is empty: the
+    AssertionError raised here never reaches the test in that case, and only the record does."""
     real_connect, real_create = socket.socket.connect, socket.create_connection
+    refused: list = []
 
     def _host(address):
         return address[0] if isinstance(address, tuple) and address else address
@@ -115,12 +120,15 @@ def install_loopback_only_guard(monkeypatch) -> None:
     def guarded_connect(self, address):
         if self.family == getattr(socket, "AF_UNIX", object()) or _host(address) in _LOOPBACK:
             return real_connect(self, address)
+        refused.append(_host(address))
         raise AssertionError(f"breadth reads must not open a network connection ({_host(address)!r})")
 
     def guarded_create(address, *a, **k):
         if _host(address) in _LOOPBACK:
             return real_create(address, *a, **k)
+        refused.append(_host(address))
         raise AssertionError(f"breadth reads must not open a network connection ({_host(address)!r})")
 
     monkeypatch.setattr(socket.socket, "connect", guarded_connect)
     monkeypatch.setattr(socket, "create_connection", guarded_create)
+    return refused

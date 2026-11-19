@@ -19,6 +19,7 @@ from api.services.cache_policy import set_by_completeness
 from api.services import provider_errors as _pe
 from api.services import provider_licensing_class as _plc
 from api.services import snapshot_hl as _snapshot_hl
+from api.services.vendor_symbols import marked as _vendor_marked
 
 _REST_BASE = "https://api.massive.com"
 
@@ -1545,7 +1546,9 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
     out: dict[str, float] = {}
     for r in (data.get("results") or []):
         tk, c = r.get("T"), r.get("c")
-        if tk and isinstance(c, (int, float)) and c > 0:
+        # A lowercase-marked ticker (a preferred, `BCpC`) is not the common stock its
+        # upper case names (`BCPC`, Balchem): skipped (api/services/vendor_symbols.py).
+        if tk and not _vendor_marked(tk) and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = float(c)
     if out:  # never cache an empty/error (would pin a non-trading-day miss)
         cache.set(ck, out, ttl=(604800 if _settled else 900))
@@ -1622,7 +1625,9 @@ def get_grouped_daily_ohlcv(day_iso: str, adjusted: bool = False) -> dict:
     out: dict[str, dict] = {}
     for r in (data.get("results") or []):
         tk, c = r.get("T"), r.get("c")
-        if tk and isinstance(c, (int, float)) and c > 0:
+        # A lowercase-marked ticker (a preferred, `BCpC`) is not the common stock its
+        # upper case names (`BCPC`, Balchem): skipped (api/services/vendor_symbols.py).
+        if tk and not _vendor_marked(tk) and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = {
                 "o": _num(r.get("o")), "h": _num(r.get("h")), "l": _num(r.get("l")),
                 "c": float(c), "v": _num(r.get("v")) or 0.0,
@@ -1817,7 +1822,9 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = 
     out: dict[str, dict] = {}
     for r in (data.get("results") or []):
         tk, c = r.get("T"), r.get("c")
-        if tk and isinstance(c, (int, float)) and c > 0:
+        # A lowercase-marked ticker (a preferred, `BCpC`) is not the common stock its
+        # upper case names (`BCPC`, Balchem): skipped (api/services/vendor_symbols.py).
+        if tk and not _vendor_marked(tk) and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = {
                 "o": _num(r.get("o")), "h": _num(r.get("h")), "l": _num(r.get("l")),
                 "c": float(c), "v": _num(r.get("v")) or 0.0,

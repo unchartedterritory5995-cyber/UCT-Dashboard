@@ -1,0 +1,85 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "HK-J1",
+   "mutant": "the member preview door does not ask the host known-divergence list",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  const hostListed = hostKnownDivergenceOf(source)",
+   "to": "  const hostListed = null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
+   "id": "HK-J2",
+   "mutant": "the install door installs a host row the server stamped",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "      if (typeof hk === 'string' && hk) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
+   "id": "HK-J4",
+   "mutant": "the editor status panel files pine:known-divergence under no family",
+   "file": "app/src/components/chart/builder/editorStatus.js",
+   "from": "    exact: ['pine:known-divergence'],",
+   "to": "    exact: [],",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
+   "id": "HK-J3",
+   "mutant": "the browser reader matches no source (a list that names nothing)",
+   "file": "app/src/components/chart/engine/hostKnownDivergence.js",
+   "from": "  let e = _entries.get(sha256Hex(source))",
+   "to": "  let e = undefined",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
+  },
+  {
+   "id": "HK-J5",
+   "mutant": "supply attribution ignores the window: a windowed plot can be attributed",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (lookback !== 0 || !Array.isArray(divergent)",
+   "to": "  if (!Array.isArray(divergent)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
+  },
+  {
+   "id": "HK-J6",
+   "mutant": "supply attribution needs only SOME divergences on differing dates",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  return divergent.every((d) => d.kind === 'value' && diffDays.has(dayOf(d.time)))",
+   "to": "  return divergent.some((d) => d.kind === 'value' && diffDays.has(dayOf(d.time)))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
+  },
+  {
+   "id": "HK-J7",
+   "mutant": "the counterfactual run is not asked (rule 3 dropped)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      if (cr && cr.steady.divergent === 0 && cr.steady.compared > 0) {",
+   "to": "      if (true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
+  },
+  {
+   "id": "HK-J8",
+   "mutant": "differing dates are counted outside the chart's window",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/supplyAttribution.js",
+   "from": "      if (!day || !chartDays.has(day) || !w.byDay.has(day)) continue",
+   "to": "      if (!day || !w.byDay.has(day)) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.supplyAttributed.test.js"
+  },
+  {
+   "id": "HK-J9",
+   "mutant": "a bar is unsettled without a contradicting witness",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (!ws.length || !Number.isFinite(implied) || ws.every((w) => w.value === implied)) return null",
+   "to": "  if (!Number.isFinite(implied)) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.otherSymbolUnsettled.test.js"
+  },
+  {
+   "id": "HK-J10",
+   "mutant": "unsettled bars are found but still graded as divergences",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      if (recs.length === r.steadyDivergent.length) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.otherSymbolUnsettled.test.js"
+  }
+ ]
+}

@@ -12,13 +12,23 @@ Storage: /data/top_flow_picks.json
       "sym": "AAPL", "cp": "C", "strike": 200.0, "exp": "6/20",
       "entry": 5.50, "grade": "A+", "dir": "BULL",
       "dateSaved": "2026-03-15", "hits": 4, "prem": 1500000,
-      "history": [ {"date":"3/15/2026","price":5.50,"oi":1200,"spot":198.0} ]
+      "history": [ {"date":"3/15/2026","price":5.50,"oi":1200,"spot":198.0,
+                    "volume":null,"src":"massive"} ]
     }
   ],
   "archived": [...]
 }
+
+Where the daily prices come from: Massive, the licensed options feed, and nothing
+else (owner, 2026-11-17: "Move Flow Record to Massive", then the same day "Move
+it, fix the status and remove schwab from everything"). Each history entry
+written since says so in `src` ("massive"). An entry with `src: "schwab"`, or
+with no `src` at all, was recorded from Schwab before that and stays as
+recorded: past entries are never rewritten. A pick Massive has no price for gets
+no entry that day.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -34,6 +44,31 @@ PICKS_FILE = os.environ.get(
 ET = ZoneInfo("America/New_York")
 
 _data: dict = {"active": [], "archived": []}
+
+# ─── Snapshot pacing ──────────────────────────────────────────────────────────
+# The daily price recording reads Massive only (see the module docstring). The
+# switch that used to choose the source, TOP_FLOW_SNAPSHOT_SOURCE, was retired on
+# 2026-11-17 with the Schwab backup it selected; a value left on Railway is inert
+# (docs/feature_flags.json, `retired`).
+#
+# Vendor pacing. The cap, the chunk and the pause are the ones this sweep has
+# always had. Within a chunk Massive makes one small single-contract call per
+# pick, at most massive_oi_snapshots.MAX_CONCURRENCY (8) at once.
+SNAPSHOT_CAP = 200              # newest open picks priced per run
+SNAPSHOT_CHUNK = 50             # picks per vendor batch
+SNAPSHOT_CHUNK_PAUSE_S = 2      # pause between batches
+# One Massive chunk is at most 50 calls of <= 12 s, 8 at a time: ~84 s worst case.
+# The sweep is single-flight, so a vendor call that never returned would otherwise
+# block every later sweep. A timed-out chunk is counted as failed.
+MASSIVE_CHUNK_TIMEOUT_S = 120
+
+# One sweep at a time, whoever starts it (the 4:30 PM scheduler or the manual
+# route). Per process: the web pod is one process.
+_snapshot_running = False
+
+
+def snapshot_in_flight() -> bool:
+    return _snapshot_running
 
 
 # ─── Persistence ──────────────────────────────────────────────────────────────
@@ -143,17 +178,188 @@ def get_all() -> dict:
     }
 
 
+# ─── Expiry dates ─────────────────────────────────────────────────────────────
+
+def _saved_date(pick: dict):
+    """The pick's `dateSaved` as a date ('YYYY-MM-DD' or 'M/D/YYYY'), or None."""
+    raw = str(pick.get("dateSaved") or "").strip()
+    if not raw:
+        return None
+    return _parse_iso_date(raw[:10]) if "-" in raw else _parse_mdy_date(raw)
+
+
+def resolve_expiry(exp_str, saved=None, today=None):
+    """A stored expiry ('M/D/YYYY', 'M/D/YY' or the year-less 'M/D') as a date.
+
+    A year-less expiry carries no year, so one has to be chosen. A contract
+    cannot expire before it was flagged, so it is the first M/D on or after the
+    day the pick was saved: "1/15" saved 2026-11-17 is 2027-01-15.
+    ⚰️ Until 2026-11-17 archive_expired() and the snapshot's own expiry test read
+    a year-less expiry as THIS calendar year, so that January contract was
+    archived as expired the day it was saved, and a December contract still
+    active in January would have been kept another year.
+
+    With no usable save date the old reading (this calendar year) is kept: there
+    is nothing better to anchor on. None when the string is not a date.
+    """
+    parts = str(exp_str or "").strip().split("/")
+    if len(parts) < 2:
+        return None
+    try:
+        m, d = int(parts[0]), int(parts[1])
+        if len(parts) >= 3:
+            y = int(parts[2])
+            return date(y + 2000 if y < 100 else y, m, d)
+        if saved is None:
+            return date((today or date.today()).year, m, d)
+    except (ValueError, TypeError):
+        return None
+    for y in range(saved.year, saved.year + 9):     # 9 years spans any gap to a Feb 29
+        try:
+            candidate = date(y, m, d)
+        except ValueError:
+            continue
+        if candidate >= saved:
+            return candidate
+    return None
+
+
+def _pick_expiry(pick: dict, today=None):
+    return resolve_expiry(pick.get("exp", ""), _saved_date(pick), today)
+
+
 # ─── Daily Snapshot (called by daily_tracker at 4:30 PM ET) ──────────────────
+
+def _et_date_str() -> str:
+    now = datetime.now(ET)
+    return f"{now.month}/{now.day}/{now.year}"      # 'M/D/YYYY', no leading zeros
+
+
+def _positive(v):
+    """v as a float when it is a real positive number, else None."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if f > 0 else None
+
+
+def _massive_entry(fields, today_str: str):
+    """One history entry from a Massive single-contract snapshot, or None when it
+    carries no usable price (nothing is then written for the pick).
+
+    THE ONE DIFFERENCE IN WHAT `price` MEANS between these entries and the ones
+    recorded from Schwab before 2026-11-17:
+      Schwab  = `mark or last`: Schwab's own mark, else its last trade.
+      Massive = the bid/ask midpoint, else the last trade.
+    Both are the option contract's price per share at the time of the run.
+    `oi`, `spot` and `volume` (the session's contract volume) mean the same
+    from either. A field Massive did not send is null, never 0: a 0 `volume`
+    would read as "nothing traded" and a 0 `oi` as "no open interest". Every
+    reader treats null as "no reading".
+    """
+    if not isinstance(fields, dict):
+        return None
+    price = _positive(fields.get("mid")) or _positive(fields.get("last"))
+    if price is None:
+        return None
+    price = round(price, 4)
+    oi = fields.get("oi")
+    return {
+        "date": today_str,
+        "price": price,
+        "oi": oi if isinstance(oi, int) and not isinstance(oi, bool) and oi >= 0 else None,
+        "spot": _positive(fields.get("underlying")),
+        "volume": _whole(fields.get("volume")),
+        "src": "massive",
+    }
+
+
+def _whole(v):
+    """v as a non-negative int, else None (a missing volume is null, never 0)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return int(f) if f >= 0 else None
+
+
+async def _massive_entries(chunk: list, expiries: list, today_str: str) -> dict:
+    """{index in chunk: history entry} for the picks Massive priced; {} when the
+    read failed. See `_massive_chunk`."""
+    return (await _massive_chunk(chunk, expiries, today_str))[0]
+
+
+async def _massive_chunk(chunk: list, expiries: list, today_str: str) -> tuple:
+    """({index in chunk: history entry}, ok) for one batch of contracts. `ok` is
+    False when Massive has no key, raises, or times out: nothing is written for
+    that batch and the caller counts it as failed. A contract Massive simply has
+    no price for is absent from the dict with `ok` True.
+    Uses the helper's own batching (one single-contract snapshot per contract,
+    bounded by its MAX_CONCURRENCY). Never raises. Shared with
+    api/daily_tracker.py (the contract-history recorder)."""
+    try:
+        from api import massive_oi_snapshots as massive
+        from api.massive_oi_snapshots import _fetch_fields_all_async, _contract_key
+        if not massive.MASSIVE_API_KEY:
+            logger.warning("[top-flow] Massive key not set; nothing can be priced.")
+            return {}, False
+        keys = {}       # index -> the helper's contract key
+        batch = []
+        for i, (pick, exp) in enumerate(zip(chunk, expiries)):
+            sym = str(pick.get("sym") or "").upper().strip()
+            cp = str(pick.get("cp") or "").upper().strip()[:1]
+            strike = _positive(pick.get("strike"))
+            if not sym or cp not in ("C", "P") or strike is None or exp is None:
+                continue
+            exp_mdy = f"{exp.month}/{exp.day}/{exp.year}"    # the 'M/D/YYYY' the helper wants
+            keys[i] = _contract_key(sym, cp, strike, exp_mdy)
+            batch.append((sym, cp, strike, exp_mdy))
+        if not batch:
+            return {}, True
+        fmap = await asyncio.wait_for(_fetch_fields_all_async(batch), timeout=MASSIVE_CHUNK_TIMEOUT_S)
+        out = {}
+        for i, key in keys.items():
+            entry = _massive_entry((fmap or {}).get(key), today_str)
+            if entry is not None:
+                out[i] = entry
+        return out, True
+    except Exception as e:  # noqa: BLE001 - a Massive failure writes nothing; it never raises
+        logger.warning("[top-flow] Massive chunk failed (%s); nothing written for it.", type(e).__name__)
+        return {}, False
+
+
+def _write_entry(pick: dict, entry: dict) -> None:
+    """Record today's entry: overwrite the same day's entry, else append."""
+    history = pick.setdefault("history", [])
+    idx = next((i for i, h in enumerate(history) if h.get("date") == entry["date"]), None)
+    if idx is not None:
+        history[idx] = entry
+    else:
+        history.append(entry)
+
 
 async def snapshot_prices() -> dict:
     """
-    Fetch live quotes (price + OI) for all active picks and append to history.
+    Record today's price + OI for the open picks, from Massive.
     Called by daily_tracker at 4:30 PM ET, or manually via /api/top-flow/snapshot.
-    Batches in chunks of 50 to avoid overwhelming Schwab API.
-    Skips already-expired contracts.
+    One sweep at a time; a second call while one runs returns at once.
+    Never raises: a failure is returned as {"status": "error"}.
     """
-    import asyncio as _aio
+    global _snapshot_running
+    if _snapshot_running:
+        return {"status": "skipped", "reason": "a snapshot is already running"}
+    _snapshot_running = True
+    try:
+        return await _snapshot_prices()
+    except Exception as e:  # noqa: BLE001 - never raise into the scheduler loop
+        logger.error("[top-flow] Snapshot failed: %s", type(e).__name__)
+        return {"status": "error", "reason": type(e).__name__}
+    finally:
+        _snapshot_running = False
 
+
+async def _snapshot_prices() -> dict:
     active = _data.get("active", [])
     if not active:
         return {"status": "skipped", "reason": "no active picks"}
@@ -165,111 +371,62 @@ async def snapshot_prices() -> dict:
         logger.info("[top-flow] Auto-archived %d expired picks before snapshot.", archived)
 
     today = date.today()
-    today_str = datetime.now(ET).strftime("%-m/%-d/%Y")
+    today_str = _et_date_str()
 
-    try:
-        from api.schwab_service import get_batch_option_quotes
-    except Exception as e:
-        logger.error("[top-flow] Cannot import schwab_service: %s", e)
-        return {"status": "error", "reason": str(e)}
-
-    def _exp_to_iso(exp_str: str) -> str:
-        parts = exp_str.split("/")
-        if len(parts) < 2:
-            return ""
-        m, d = int(parts[0]), int(parts[1])
-        if len(parts) >= 3:
-            y = int(parts[2])
-            if y < 100:
-                y += 2000
-        else:
-            y = datetime.now().year
-            if date(y, m, d) < date.today():
-                y += 1
-        return f"{y}-{m:02d}-{d:02d}"
-
-    def _is_expired(exp_str: str) -> bool:
-        parts = exp_str.split("/")
-        try:
-            m, d = int(parts[0]), int(parts[1])
-            y = int(parts[2]) + 2000 if len(parts) >= 3 and int(parts[2]) < 100 else (
-                int(parts[2]) if len(parts) >= 3 else today.year
-            )
-            return date(y, m, d) < today
-        except (ValueError, IndexError):
-            return False
-
-    # Filter to non-expired only, cap at 200 most recent by dateSaved
-    live_picks = [p for p in active if not _is_expired(p.get("exp", ""))]
-    live_picks.sort(key=lambda p: p.get("dateSaved", ""), reverse=True)
-    live_picks = live_picks[:200]
-    logger.info("[top-flow] Snapshot: %d live (capped 200) of %d total active picks.", len(live_picks), len(active))
+    # Filter to non-expired only, cap at SNAPSHOT_CAP most recent by dateSaved.
+    # A pick whose expiry cannot be read is kept (as before) and simply not priced.
+    live_picks = []
+    for p in active:
+        exp = _pick_expiry(p, today)
+        if exp is None or exp >= today:
+            live_picks.append((p, exp))
+    live_picks.sort(key=lambda t: str(t[0].get("dateSaved") or ""), reverse=True)
+    live_picks = live_picks[:SNAPSHOT_CAP]
+    logger.info("[top-flow] Snapshot (massive): %d live (capped %d) of %d total active picks.",
+                len(live_picks), SNAPSHOT_CAP, len(active))
 
     if not live_picks:
         return {"status": "skipped", "reason": "all picks expired"}
 
+    from api import massive_oi_snapshots as massive
+    if not massive.MASSIVE_API_KEY:
+        # No source can price anything: say so, and leave every history as it is.
+        return {"status": "error", "reason": "MASSIVE_API_KEY not set"}
+
     saved = 0
     skipped = 0
     errors = 0
-    CHUNK = 50
 
-    for ci in range(0, len(live_picks), CHUNK):
-        chunk = live_picks[ci:ci + CHUNK]
-        batch = [
-            {
-                "symbol": p["sym"],
-                "cp": p["cp"],
-                "strike": p["strike"],
-                "expDate": _exp_to_iso(p["exp"]),
-            }
-            for p in chunk
-        ]
+    try:
+        for ci in range(0, len(live_picks), SNAPSHOT_CHUNK):
+            pairs = live_picks[ci:ci + SNAPSHOT_CHUNK]
+            chunk = [p for p, _ in pairs]
+            expiries = [e for _, e in pairs]
 
-        try:
-            quotes = await get_batch_option_quotes(batch)
-        except Exception as e:
-            logger.error("[top-flow] Schwab chunk %d failed: %s", ci // CHUNK, e)
-            errors += len(chunk)
-            continue
-
-        for pick, q in zip(chunk, quotes):
-            if not q or q.get("error") or q.get("expired"):
-                skipped += 1
-                continue
-
-            price = q.get("mark") or q.get("last") or 0
-            oi = q.get("openInterest") or q.get("open_interest") or 0
-            spot = q.get("underlyingPrice") or q.get("spot") or 0
-            volume = q.get("volume") or 0
-
-            history = pick.setdefault("history", [])
-            entry = {
-                "date": today_str,
-                "price": price,
-                "oi": oi,
-                "spot": spot,
-                "volume": volume,
-            }
-
-            # Overwrite today's entry if exists (idempotent)
-            existing_idx = next((i for i, h in enumerate(history) if h.get("date") == today_str), None)
-            if existing_idx is not None:
-                history[existing_idx] = entry
+            priced, ok = await _massive_chunk(chunk, expiries, today_str)
+            for i, entry in priced.items():
+                # Overwrites today's entry if it exists (idempotent)
+                _write_entry(chunk[i], entry)
+                saved += 1
+            if ok:
+                skipped += len(chunk) - len(priced)   # Massive has no price: nothing is written
             else:
-                history.append(entry)
-            saved += 1
+                errors += len(chunk)                  # the read failed: nothing is written
 
-        # Small delay between chunks to stay under rate limits
-        if ci + CHUNK < len(live_picks):
-            await _aio.sleep(2)
-
-    if saved:
-        _save()
+            # Small delay between chunks to stay under rate limits
+            if ci + SNAPSHOT_CHUNK < len(live_picks):
+                await asyncio.sleep(SNAPSHOT_CHUNK_PAUSE_S)
+    finally:
+        # whatever was priced is kept, even if a later chunk fails
+        if saved:
+            _save()
 
     result = {
         "status": "ok",
         "date": today_str,
+        "source": "massive",
         "saved": saved,
+        "by_source": {"massive": saved},
         "skipped": skipped,
         "errors": errors,
         "live": len(live_picks),
@@ -529,15 +686,10 @@ def archive_expired() -> int:
     archived_count = 0
 
     for pick in _data.get("active", []):
-        exp_str = pick.get("exp", "")
-        parts = exp_str.split("/")
-        try:
-            m, d = int(parts[0]), int(parts[1])
-            y = int(parts[2]) + 2000 if len(parts) >= 3 and int(parts[2]) < 100 else (
-                int(parts[2]) if len(parts) >= 3 else today.year
-            )
-            exp_date = date(y, m, d)
-        except (ValueError, IndexError):
+        # A year-less expiry ("1/15") takes its year from the pick's save date,
+        # never from today's: see resolve_expiry.
+        exp_date = _pick_expiry(pick, today)
+        if exp_date is None:
             still_active.append(pick)
             continue
 

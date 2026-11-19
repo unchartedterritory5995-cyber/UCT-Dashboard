@@ -56,13 +56,13 @@ def env(tmp_path, monkeypatch):
     c.commit()
     c.close()
 
-    def _conn():
-        k = sqlite3.connect(db)
-        k.row_factory = sqlite3.Row
-        return k
-
+    # ⛔⛔ THE PATH, NEVER `get_connection` ITSELF: this fixture imports `api.main` below, and every
+    # module that import loads for the first time copies whatever `auth_db.get_connection` is at
+    # that moment and keeps it for the session. Patched with a local `_conn`, 67 modules kept this
+    # scratch file; later tests in the same process failed with `no such table` (2026-11-17, run
+    # 44128429459, caught by the rail in tests/conftest.py). The real function reads `_DB_PATH`.
     import api.services.auth_db as adb
-    monkeypatch.setattr(adb, "get_connection", _conn)
+    monkeypatch.setattr(adb, "_DB_PATH", str(db))
     monkeypatch.setenv("PUSH_SECRET", SECRET)
     monkeypatch.delenv("ICS_TOKEN_V2_ENABLED", raising=False)
     monkeypatch.delenv("ICS_TOKEN_TTL_DAYS", raising=False)

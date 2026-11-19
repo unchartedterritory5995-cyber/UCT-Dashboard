@@ -381,7 +381,7 @@ export const GRID_ACTIONS = [
 
 // ── the Formula Builder (components/chart/builder/BuilderSheet.jsx), through the indicator library ──
 const LIBRARY = { target: 'chart.plot', name: 'the chart', text: 'Click the chart, then press Alt+Shift+A to open the indicator library.', waitFor: 'indicators.newFormula' }
-const BUILDER_OPEN = [LIBRARY, { target: 'indicators.newFormula', name: 'New formula', text: 'Click New formula.', waitFor: 'builder.modes' }]
+const BUILDER_OPEN = [LIBRARY, { target: 'indicators.newFormula', name: 'Create indicator', text: 'Click Create indicator.', waitFor: 'builder.modes' }]
 const modeTab = (text, more = {}) => ({ within: 'builder.modes', attr: 'role', value: 'tab', text, ...more })
 // ⭐ DIRECTION A (2026-11-16): "New formula" opens a START page (describe it, or start from a script / a picture /
 // conditions / a UCT setup, or write it yourself); each start opens the EDITOR on its own tab.

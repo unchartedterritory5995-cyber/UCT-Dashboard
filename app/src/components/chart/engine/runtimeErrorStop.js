@@ -67,11 +67,13 @@ import { timeframeFlags } from '../indicators'
 import { foldBound } from './ast/bind'
 import { unknownMask } from './objectColumns'
 import { defaultNumberText } from './objectRuntime'
-import {
-  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, registerRuntimeErrorStop,
-} from './nativeRegistry'
+// ⭐ HOST WORKER — from where they live (the registry re-exports these same functions), so this
+// module, and the object reader that imports it, stay out of the chart registry's closure.
+import { resolveInputs, treeScalars, historyFromListingFor, registerRuntimeErrorStop } from './astColumns.js'
+import { bindConstsFor } from './ast/bind'
 import { periodValuesDiffer } from './periodReads'
 import { runtimeErrorWords } from './runtimeErrorText'
+import { semanticsOptsFor } from './definitionSemantics.js'
 
 export { RUNTIME_ERROR_TITLE, tradingViewErrorText } from './runtimeErrorText'
 
@@ -180,6 +182,9 @@ export function runtimeErrorStopFor(def, bars, instanceInputs, ctx = {}) {
     tf: ctx && ctx.tf,
     newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
     ...(fromListing ? { historyFromListing: true } : {}),
+    // engine 78 (#1858) -- a stop's guard compares the way its document does (a Pine document within
+    // TradingView's epsilon: `definitionSemantics.js::semanticsOptsFor`)
+    ...semanticsOptsFor(def),
   }
   const crossMemo = new Map()
   const probeMemos = new Map()

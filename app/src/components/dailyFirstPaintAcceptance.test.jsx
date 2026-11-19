@@ -43,6 +43,11 @@ const world = vi.hoisted(() => ({
   netCalls: 0,
   histCalls: 0,
   packTouches: 0,
+  // The target symbol's own late reads (name and sector, the listing date) answer only once
+  // this resolves, when it is set: see LATE READS in the fetch mock.
+  lateGate: null,
+  releaseLate: null,
+  lateServedAt: 0,
 }))
 
 vi.mock('./chart/ChartVLineOverlay', () => ({ default: () => null }))
@@ -240,6 +245,21 @@ const tick = async (ms = 40) => {
   await new Promise((r) => setTimeout(r, ms))
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
 }
+// A MEMBER'S DRAG, as the product receives one: StockChart's own pointer listeners (press on
+// the plot, travel and release on window) see a press that moves, and lightweight-charts
+// (mocked above) answers the drag by moving the range. Dragging right walks back in time.
+// ⛔ The range moving ALONE is not a member: with no pointer and no wheel the product cannot
+// tell it from drift, and correcting drift while a switch settles is its job (SETTLING below).
+function memberDrag(bars) {
+  const el = document.querySelector('[data-guide="chart.plot"]')
+  if (!el) throw new Error('the chart plot is not in the DOM: a drag could not reach the product')
+  const PE = typeof PointerEvent === 'function' ? PointerEvent : MouseEvent
+  const x0 = 400; const x1 = x0 + bars * 10; const y = 150
+  el.dispatchEvent(new PE('pointerdown', { bubbles: true, clientX: x0, clientY: y }))
+  window.dispatchEvent(new PE('pointermove', { bubbles: true, clientX: x1, clientY: y }))
+  spy.last = { from: spy.last.from - bars, to: spy.last.to - bars }
+  window.dispatchEvent(new PE('pointerup', { bubbles: true, clientX: x1, clientY: y }))
+}
 
 beforeEach(() => {
   cleanup()
@@ -250,6 +270,7 @@ beforeEach(() => {
     idbEntry: null, packBar: null, packUsable: false, liveSnap: null,
     netBars: FULL, histBars: null, netDelayMs: NET_LATENCY_MS, netResolvedAt: 0,
     netCalls: 0, histCalls: 0, packTouches: 0,
+    lateGate: null, releaseLate: null, lateServedAt: 0,
   })
   try { localStorage.clear() } catch { /* jsdom always has it */ }
   vi.stubGlobal('fetch', vi.fn(async (url) => {
@@ -268,6 +289,16 @@ beforeEach(() => {
       if (world.netDelayMs) await new Promise((r) => setTimeout(r, world.netDelayMs))
       world.netResolvedAt = Date.now()
       return { ok: true, json: async () => ({ ticker: world.sym, tf: 'D', bars: world.netBars || [] }) }
+    }
+    // ── LATE READS. The target symbol's name-and-sector and listing-date reads are two of the
+    // reads the rest gate (lib/symbolPace.js, #1207) holds back while the member races through
+    // symbols, so on a racing switch they answer AFTER the chart has painted, and each answer
+    // re-runs the chart's framing pass. A case that needs that answer to land after a stated
+    // moment sets `lateGate`; only the TARGET symbol's reads wait (the prior symbol's answers
+    // would land on a key nobody shows, and must not satisfy the "it landed" check).
+    if (world.lateGate && /\/api\/ticker-(meta|ipo)\//.test(u) && u.split('?')[0].endsWith(`/${world.sym}`)) {
+      await world.lateGate
+      world.lateServedAt = Date.now()
     }
     return { ok: true, json: async () => ({}) }
   }))
@@ -320,12 +351,24 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
   if (!firstFrame) { unmount(); return { name, verdict: 'INVALID', why: 'no effective visible range observed' } }
 
   const marks = seriesLog.calls.length
+  // `cameraKick`: the range moves with no pointer and no wheel (NOT the member).
+  // `memberPan`: the member drags the chart that many bars back (see memberDrag).
+  const movedAt = Date.now()
   if (opts.cameraKick) spy.last = { from: spy.last.from + opts.cameraKick, to: spy.last.to + opts.cameraKick }
+  if (opts.memberPan) memberDrag(opts.memberPan)
+  if (world.releaseLate) world.releaseLate()
   await tick(settleMs)
   const finalPaint = renderedCandles()
   const postOps = seriesLog.calls.slice(marks).filter((c) => c.id === candleSeriesId()).map((c) => c.op)
   const finalFrame = frame()
   unmount()
+  // ⛔ FAIL-CLOSED: a case that holds the late reads is scoring what their answer does to a
+  // camera that moved first. If no answer landed after the move (with 100 ms of the watched
+  // window left for the framing pass it triggers), nothing re-ran that pass after the move,
+  // and "the camera stayed where it was put" would be a pass by absence.
+  if (world.lateGate && !(world.lateServedAt >= movedAt && world.lateServedAt <= movedAt + settleMs - 100)) {
+    return { name, verdict: 'INVALID', why: `the late reads did not land inside the watched window (served ${world.lateServedAt ? world.lateServedAt - movedAt : 'never'} ms after the move)` }
+  }
 
   // WHICH source got the screen first. Inferred from the clock, not from the data,
   // so it stays true even when two sources agree on values.
@@ -387,6 +430,7 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
     framePad: `${firstPad}->${finalPad}`,
     postOps: postOps.join(',') || '-',
     netCalls: world.netCalls,
+    lateMs: world.lateGate ? world.lateServedAt - movedAt : null,
   }
 }
 
@@ -399,7 +443,7 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
   beforeAll(async () => {
     const m = await loadWithBarStore(barStoreOn, () => import('./StockChart'))
     StockChart = m.default; __barStore = m.__barStore
-    RESULTS.length = 0   // the summary counts THIS mode's 22 rows
+    RESULTS.length = 0   // the summary counts THIS mode's 23 rows
   })
   it('the module graph under test holds this switch value (non-vacuity)', () => {
     expect(__barStore).toBe(barStoreOn)
@@ -583,9 +627,31 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
       expectFlag(await runCase('NC-C stale wick', 'cache'), 'TODAY_OHLC_CORRECTED_AFTER_PAINT')
     }, 30000)
 
-    it('NC-D camera moved after first paint', async () => {
+    it('NC-D camera moved BY THE MEMBER after first paint, and the late reads land after it', async () => {
+      // The harness must see the camera move, and the product must leave the member where they
+      // put it: a member who drags a chart the moment it appears keeps that view when the
+      // symbol's late reads land a beat later and re-run the framing pass.
+      // ⚰️ (2026-11-17) This planted the range change with no pointer and no wheel (now the
+      // SETTLING row below) and went red with #1207 (the rest gate, 2e3c9289de). Root cause:
+      // the switch's settling guard (StockChart `pendingTfReframeRef`) stays armed until the
+      // first framing pass after the paint, and re-asserted its frame on that pass WITHOUT
+      // asking whether the member had moved since. The rest gate moved the symbol's
+      // name-and-sector and listing-date answers past the first paint, so that pass now came
+      // after the camera moved — and a real drag (or wheel, or Go-to-date) was undone the same
+      // way. The late reads are held explicitly here so the pass always comes after the move.
       world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
-      expectFlag(await runCase('NC-D camera move', 'cache', 700, { cameraKick: 4 }), 'VISIBLE_RANGE_DRIFT')
+      world.lateGate = new Promise((r) => { world.releaseLate = r })
+      expectFlag(await runCase('NC-D member drag', 'cache', 700, { memberPan: 4 }), 'VISIBLE_RANGE_DRIFT')
+    }, 30000)
+
+    it('SETTLING — a camera change that is NOT the member\'s is put back when the late reads land', async () => {
+      // The other half of NC-D, and what keeps the fix narrow: the same late framing pass after
+      // a range change with no pointer and no wheel (drift, to the product) still re-asserts the
+      // settling frame, so the first frame and the final frame agree.
+      world.idbEntry = { bars: FULL, lastT: FRONTIER, savedAt: Date.now() }
+      world.lateGate = new Promise((r) => { world.releaseLate = r })
+      const r = report(await runCase('SETTLE non-member move', 'cache', 700, { cameraKick: 4 }))
+      expect(r.verdict, `${r.name}: ${JSON.stringify(r.flags || r.why)}`).toBe('PASS')
     }, 30000)
 
     it('NC-E dead observation returns INVALID, never PASS', async () => {
@@ -613,11 +679,13 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
             `to ${r.frameTo}`,
             `${r.latencyMs}ms`,
             `ops ${r.postOps}`,
+            ...(r.lateMs != null ? [`late +${r.lateMs}ms`] : []),
           ].join(' | ')
       )).join('\n'))
       // +1 (2026-10-16): the after-bell row split into mid-session vs sealed
       // +4 (2026-11-11): D1 switched to from symbols priced 0.05x .. 25x
-      expect(RESULTS.length).toBe(22)
+      // +1 (2026-11-17): SETTLING, the non-member half of NC-D
+      expect(RESULTS.length).toBe(23)
     })
   })
 })

@@ -26,6 +26,33 @@
 }
 .search::placeholder { color: var(--text-muted); }
 
+/* ── "Showing": the one control that chooses which list the sheet holds (`libraryShelves.js`).
+   A native select, dressed as the search box above it: the same height, edge and radius. At the
+   touch width its text is 16px, the size below which iOS zooms the page on focus. */
+.shelf {
+  display: flex; align-items: center; gap: 10px;
+  min-height: var(--tap-min, 44px);
+}
+.shelfLabel {
+  flex: 0 0 auto;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted, #a9a59b);
+}
+.shelfSelect {
+  flex: 1 1 auto; min-width: 0;
+  box-sizing: border-box;
+  min-height: var(--tap-min, 44px);
+  padding: 0 10px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--text-bright, #ededed);
+  background: var(--bg-surface, #1a1b1f);
+  border: 1px solid var(--border, #2c2c30);
+  border-radius: var(--radius-md, 8px);
+}
+.shelfSelect:focus { outline: none; border-color: var(--border-accent, #3a3a40); }
+.shelfSelect:focus-visible { outline: 2px solid var(--ut-gold, #dcbb5e); outline-offset: 2px; }
+@media (max-width: 1024px) { .shelfSelect { font-size: 16px; } }
+
 /* ── "＋ New formula" — the criteria builder's door on `/charts` ─────────────
    Gold-edged so it reads as the one AUTHORING affordance among a list of
    things to switch on, and full-width so it survives a 375px phone sheet

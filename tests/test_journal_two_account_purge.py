@@ -204,6 +204,10 @@ _SELF_ENSURED_ELSEWHERE = {
     "watchlist_origins": "api/services/watchlist_origin.py",
     "what_else_open_occasions": "api/services/what_else_open.py",
     "j2_earnings_followup_log": "api/services/journal_two/earnings_followup.py",
+    # Community scan-board layouts (2026-11-17): created on first use by their own service.
+    "screener_layout_gallery": "api/services/screener_layout_gallery.py",
+    "screener_layout_gallery_reports": "api/services/screener_layout_gallery.py",
+    "screener_layout_gallery_uses": "api/services/screener_layout_gallery.py",
 }
 
 

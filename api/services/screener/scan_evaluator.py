@@ -1401,7 +1401,9 @@ def _block_runs_withheld(definition: Any, key: Optional[str], bars: list, scalar
             "varOriginAbsolute":
                 ast_interpret.bar_index_absolute_for(definition),
             "semantics":
-                ast_interpret.semantics_for(definition)}
+                ast_interpret.semantics_for(definition),
+            # engine 78 (#1858) -- a Pine document compares within TradingView's epsilon
+            **ast_interpret.pine_compare_opts_for(definition)}
     return block_runs.block_runs_refusal(
         definition, key,
         lambda guard: ast_interpret.interpret(guard, bars, scalars=scalars, opts=dict(opts)))
@@ -2197,7 +2199,9 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                                                    "varOriginAbsolute":
                                                        ast_interpret.bar_index_absolute_for(definition),
                                                    "semantics":
-                                                       ast_interpret.semantics_for(definition)})
+                                                       ast_interpret.semantics_for(definition),
+                                                   # engine 78 (#1858) -- the Pine compare
+                                                   **ast_interpret.pine_compare_opts_for(definition)})
             # ⭐⭐ C48 / C45 — A PLOT THE MEMBER'S CHART WITHHOLDS ON THESE BARS IS
             # NOT COMPUTABLE HERE EITHER (`_block_runs_withheld`, under the opts
             # above), never answered off the every-bar value. Asked AFTER the tree.

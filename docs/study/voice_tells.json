@@ -1,0 +1,163 @@
+{
+  "_about": "What makes a course question sound AI-written instead of like us. Read by scripts/study/voice_lint.py. Built 2026-11-17 from every review note the owner has given (docs/study/REVIEW_LEARNINGS.md rules 16, 19, 21, 25-28; docs/study/VOICE.md sections 6 and 10). 'hard' tells must be zero in any lesson we rework; 'soft' tells are counted and kept rare. Add a tell here when a new note names one, with his words in 'from'.",
+  "hard": [
+    {
+      "id": "internal_card",
+      "pattern": "(?<!picture )(?<!report )(?<!credit )(?<!debit )(?<!score)(?<!flash)\\bcards?('s)?\\b",
+      "fields": [
+        "q",
+        "story",
+        "sentence",
+        "choices",
+        "why",
+        "simple",
+        "wrong",
+        "lesson_line"
+      ],
+      "instead": "Say what we look for as ours: 'we want three taps', 'we look for'. A member never sees our setup cards.",
+      "from": "rule 22 (scanner numbers are not trading rules); our card is internal"
+    },
+    {
+      "id": "internal_rulebook",
+      "pattern": "\\brulebook('s)?\\b",
+      "fields": [
+        "q",
+        "story",
+        "sentence",
+        "choices",
+        "why",
+        "simple",
+        "wrong",
+        "lesson_line",
+        "deeper"
+      ],
+      "instead": "'our rules', or just state the rule as ours: 'Below the 200-day we don't buy stocks.'",
+      "from": "rule 25 (his voice)"
+    },
+    {
+      "id": "internal_ids",
+      "pattern": "\\bD-\\d{3}\\b|\\b(our|the card's|the setup's) criteri(a|on)\\b|\\bcriteria card\\b|\\bcriterion\\b",
+      "fields": [
+        "q",
+        "story",
+        "sentence",
+        "choices",
+        "why",
+        "simple",
+        "wrong",
+        "lesson_line",
+        "deeper"
+      ],
+      "instead": "Plain words. Decision numbers and our 'criteria' files are working material, not the course. (A member's own criteria, in plain English, is fine.)",
+      "from": "rule 25"
+    },
+    {
+      "id": "banned_names",
+      "pattern": "\\bthe firm\\b|\\bthe owner\\b|stock talk|\\bthe member\\b",
+      "fields": [
+        "q",
+        "story",
+        "sentence",
+        "choices",
+        "why",
+        "simple",
+        "wrong",
+        "lesson_line",
+        "deeper"
+      ],
+      "instead": "'we', 'us', 'you'",
+      "from": "'quit calling us THE FIRM'; 'don't use the word stock talk'"
+    },
+    {
+      "id": "em_dash",
+      "pattern": "—",
+      "fields": [
+        "q",
+        "story",
+        "sentence",
+        "choices",
+        "why",
+        "simple",
+        "wrong",
+        "lesson_line",
+        "deeper"
+      ],
+      "instead": "A comma, a period, or keep talking.",
+      "from": "VOICE.md section 6"
+    },
+    {
+      "id": "formula_stem",
+      "pattern": "^(Our rule\\??|By our guide\\b)|\\bour rule\\?\\s*$|fits our rule|one thing you never do|Our card's name",
+      "fields": [
+        "q"
+      ],
+      "instead": "Ask what a trader would ask at the screen: 'Do you buy it?', 'Where's your stop?', 'What's this telling you?'",
+      "from": "rule 25 ('sounds way too AI')"
+    },
+    {
+      "id": "textbook_phrase",
+      "pattern": "lifts? the grade|primary stop|catch(es|ing)? its breath|let the trade come to you|at every timeframe|buyers (are )?(still )?in control|the level it must trade through|it'?s important to|it is important to|in order to|key takeaway|it is worth noting|may potentially|\\butilize|\\brobust\\b|\\bcrucial\\b|\\bcomprehensive\\b|\\bframework\\b|\\bdive in(to)?\\b|great job",
+      "fields": [
+        "q",
+        "story",
+        "sentence",
+        "choices",
+        "why",
+        "simple",
+        "wrong",
+        "lesson_line",
+        "deeper"
+      ],
+      "instead": "Say it the way you'd say it across the desk. See VOICE.md section 10.",
+      "from": "rule 25; VOICE.md section 6"
+    }
+  ],
+  "soft": [
+    {
+      "id": "semicolon_choice",
+      "pattern": ";",
+      "fields": [
+        "choices"
+      ],
+      "instead": "Choices are short plain options ('Just the A+', 'All three, full size'), not 'No; ...' clauses.",
+      "from": "rule 25"
+    },
+    {
+      "id": "source_in_why",
+      "pattern": "\\b(Bulkowski|Kullamagi|Qullamaggie|Minervini|O'Neil|IBD|MarketSmith|TraderLion|Zanger|Weinstein|Investopedia|Kell)\\b",
+      "fields": [
+        "why",
+        "simple"
+      ],
+      "instead": "Teach it as ours, from the chart and the numbers. A source belongs in 'deeper' unless the question is about that trader's principle (rule 13).",
+      "from": "rule 25 (mentor, not research summary)"
+    },
+    {
+      "id": "formal_it_is",
+      "pattern": "\\b(That|It|This) is (a|an|the)\\b",
+      "fields": [
+        "why",
+        "simple",
+        "wrong"
+      ],
+      "instead": "Contractions are fine and sound like a person: 'That's the stop.'",
+      "from": "VOICE.md section 3"
+    },
+    {
+      "id": "hedge",
+      "pattern": "\\b(usually|by default|typically|generally)\\b",
+      "fields": [
+        "why",
+        "simple"
+      ],
+      "instead": "Say what we do. Where it really depends, say what it depends on.",
+      "from": "rule 25"
+    }
+  ],
+  "unit_checks": {
+    "opener_share_max": 0.25,
+    "opener_words": 2,
+    "voice_share_min": 0.6,
+    "voice_pattern": "\\b(I|I'd|I'm|I'll|we|We|we'd|we're|our|Our|you|You|your|Your|you're|you'd)\\b"
+  }
+}

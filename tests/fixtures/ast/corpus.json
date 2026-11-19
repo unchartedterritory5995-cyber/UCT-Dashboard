@@ -3008,6 +3008,50 @@
       }
     },
     {
+      "id": "clock_regularhours",
+      "source": "regularhours",
+      "why": "(2026-11-17) 1 on a bar that opens inside the REGULAR session as the vendor calendar has it (09:30 New York to that day's close), 0 on every other bar. `sessionfirst` is the calendar day's and reads 04:00 on these extended-hours bars; this is the leaf the regular session's readers stand on. Three sessions, 78 regular five-minute bars each, and the 09:30 open moves by one UTC hour across the daylight-saving change.",
+      "ast": {"type": "series", "name": "regularhours"}
+    },
+    {
+      "id": "clock_regularfirst",
+      "source": "regularfirst",
+      "why": "(2026-11-17) 1 on the FIRST regular-hours bar of each New York day and 0 on every other bar: exactly three 1s here, each at 09:30, none at the 04:00 bar `sessionfirst` marks. It is blank only on an oldest bar that opens later in a regular session (a window cut mid-session), which this series, opening at 04:00, never does.",
+      "ast": {"type": "series", "name": "regularfirst"}
+    },
+    {
+      "id": "session_regular_open",
+      "source": "sessionOpen()",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `sessionOpen()` is the 09:30 bar's open, held.",
+      "ast": {"type": "call", "name": "sessionOpen", "args": []}
+    },
+    {
+      "id": "session_regular_high",
+      "source": "sessionHigh()",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `sessionHigh()` is the running high since the regular open: pre-market and after-hours highs never enter it.",
+      "ast": {"type": "call", "name": "sessionHigh", "args": []}
+    },
+    {
+      "id": "session_regular_low",
+      "source": "sessionLow()",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `sessionLow()` is the running low since the regular open.",
+      "ast": {"type": "call", "name": "sessionLow", "args": []}
+    },
+    {
+      "id": "opening_range_high_30",
+      "source": "openingRangeHigh(30)",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `openingRangeHigh(30)` is the same running high over the six bars that open before 10:00, frozen after. On a chart whose bars are longer than the range, or do not divide it, both lanes answer nothing and name why (`opening-range:bars-longer` / `opening-range:bars-do-not-divide`).",
+      "ast": {"type": "call", "name": "openingRangeHigh", "args": [{"type": "num", "value": 30}]},
+      "opts": {"tf": "5"}
+    },
+    {
+      "id": "opening_range_low_30",
+      "source": "openingRangeLow(30)",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `openingRangeLow(30)`: the first thirty minutes' low, frozen after.",
+      "ast": {"type": "call", "name": "openingRangeLow", "args": [{"type": "num", "value": 30}]},
+      "opts": {"tf": "5"}
+    },
+    {
       "id": "avwap_from_a_mid_series_instant",
       "source": "avwap(1762189200)",
       "why": "the same accumulator restarted at an INSTANT -- 2025-11-03 12:00 ET, the middle of this corpus's second ET session -- which is the only anchor a closed-table formula can spell, because the table has exactly two argument kinds and no string literal. ⛔ THE COLUMN IS BLANK BEFORE THE ANCHOR AND EXACT AFTER IT, never a partial accumulation of the bars that came first, so a lane that started its total at bar 0 disagrees on every bar of the first session rather than on none. ⚠️ The anchor is INSIDE the series on purpose: an anchor before the first bar is NOT COMPUTABLE by declaration, because 'the first bar at or after it' would be whichever bar the caller happened to fetch",

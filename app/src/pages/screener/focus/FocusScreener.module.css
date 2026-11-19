@@ -137,7 +137,7 @@
 .iconBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
 .menuWrap { position: relative; display: inline-flex; }
 /* Floating menu (spec "Floating menu"): graphite panel, one outline, radius 10, rows of 13px. */
-.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-dropdown); min-width: 220px; box-sizing: border-box; background: var(--scr-menu); border: 1px solid var(--scr-outline); border-radius: 10px; padding: 5px; display: flex; flex-direction: column; gap: 1px; box-shadow: var(--scr-shadow); }
+.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-dropdown); min-width: 220px; box-sizing: border-box; background: var(--scr-menu); border: 1px solid var(--scr-outline); border-radius: 10px; padding: 5px; display: flex; flex-direction: column; gap: 1px; box-shadow: var(--scr-shadow); max-height: calc(100vh - 64px); overflow-y: auto; overscroll-behavior: contain; }
 .menuRight { left: auto; right: 0; }
 .menuItem { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--scr-text); padding: 7px 10px; border-radius: 6px; font: inherit; font-family: var(--font-sans); font-size: 13px; font-weight: 500; line-height: 1.3; cursor: pointer; min-height: 32px; }
 .menuItem:hover, .menuItem:focus-visible { background: var(--scr-card); color: var(--scr-bright); outline: none; }
@@ -367,6 +367,9 @@ button.pill:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 
 .page[data-board] .topBar > * { flex-shrink: 0; }
 .page[data-board] .topBar > .spacer { flex: 1 1 0; min-width: 0; }
 .page[data-board] .topBar > [aria-label='Pinned screens'] { flex-shrink: 1; min-width: 0; }
+/* a tablet's board (SCREENER_SCAN_BOARD_TABLET_ENABLED): the bar may take a second line, so Save, More and Help
+   are never pushed off the side when the tablet is held upright */
+@media (max-width: 1024px) { .page[data-board] .topBar { flex-wrap: wrap; row-gap: 6px; padding-right: 10px; } }
 .page[data-board] .subBar { border-bottom: 0; padding: 2px 14px 4px; min-height: 36px; }
 .page[data-board] .notices { border-bottom: 0; padding: 0 14px 6px; min-height: 0; }
 .page[data-board] .listWrap { flex: 1 1 auto; min-width: 0; border-right: 0; }

@@ -14,7 +14,7 @@ import {
   savedVersion, DOOR_NOTHING_TO_DRAW, RUNTIME_UNDRAWN_NOTE,
 } from './editorStatus'
 import { SCRIPT_ENGINE_VERSION } from '../engine/scriptEngineVersion'
-import { parseFormula } from '../engine/ast/parse'
+import { parseFormula, TABLE } from '../engine/ast/parse'
 import { evaluability, LANES } from '../engine/evaluability'
 import { assessObjectLoss, objectLossNote } from '../engine/ast/objectLoss'
 
@@ -867,5 +867,26 @@ describe('the runtime lane\'s own disclosure of the calls it never draws is a wi
     expect(editorStatus({ report, pane: runtimeOf(host, []) }).items.some((x) => x.kind === 'undrawn')).toBe(false)
     const candles = editorStatus({ report, pane: runtimeOf(host, [said('candles')]) }).items.filter((x) => x.kind === 'undrawn')
     expect(candles.map((x) => [x.name, x.line])).toEqual([['`plotcandle`', null]])
+  })
+})
+
+describe('a fold note is headed by its member label, never its channel key (2026-11-17, live panel finding)', () => {
+  // The owner's own reproduction: a daily request.security folds into the chart's own daily bars, and the
+  // panel printed "Line 6  baseTimeframeFolds" above the sentence. The heading is the label declared beside
+  // the sentence (closedTable `_folds.baseTimeframeFolds.memberLabel`, read by parse.js::noteHeading).
+  const src = '//@version=6\nindicator("Fold heading")\nspy = request.security("SPY", "D", close)\n'
+    + 'wk = request.security(syminfo.tickerid, "W", close)\nplot(spy, "SPY")\nplot(wk, "Weekly")'
+  const CHANNEL = 'baseTimeframe' + 'Folds'
+  it('no item is named by the internal channel, and the fold\'s note carries its declared label', () => {
+    const { status } = statusOf(src)
+    const items = (status.items || []).concat(...Object.values(status).filter(Array.isArray))
+    const names = items.filter((x) => x && typeof x === 'object').map((x) => x.name)
+    expect(names).not.toContain(CHANNEL)
+    const label = TABLE._folds[CHANNEL].memberLabel
+    expect(typeof label).toBe('string')
+    // non-vacuity: the fold note is really in the status (its sentence), under the label
+    const fold = items.find((x) => x && typeof x.reason === 'string' && x.reason === TABLE._folds[CHANNEL].memberNote)
+    expect(fold, 'the fold note itself must be present, or this test proves nothing').toBeTruthy()
+    expect(fold.name).toBe(label)
   })
 })

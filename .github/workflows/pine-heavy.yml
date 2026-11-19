@@ -39,6 +39,14 @@
 # tests/test_ci_pine_heavy.py derives which files read history and fails if a leg that runs one is shallow).
 # And a dispatch that only wants the mutant job can skip the legs its PR already ran (`skip_legs`).
 #
+# ⚰️ WHOLE-APP RAILS (2026-11-17). Some engine tests read files OUTSIDE the engine (memberPaneGate walks the
+# import graph from src/main.jsx; suiteCoverage lists the test folders under components/chart). Only this
+# workflow ran them and it does not trigger on app/src/**, so #1662 and #1670 merged green while breaking them.
+# They now also run on every PR touching what they read, in `whole-app engine rails` (whole-app-engine-rails.yml). Its list is
+# derived HERE: every engine leg records which files each test file reads (UCT_READ_CAPTURE_DIR,
+# app/src/test-read-capture.cjs), and `union` fails when a test reading outside this trigger's paths is missing
+# from tools/whole_app_engine_rails.txt (tools/ci_whole_app_rails.py).
+#
 # No secrets, no pull_request_target, read-only token. tests/test_ci_pine_heavy.py rails this file.
 name: pine heavy (PR, parallel)
 
@@ -72,6 +80,55 @@ on:
       - 'corpus/**'
       - 'api/services/pine_capabilities.py'
       - 'app/src/components/chart/builder/memberPane/**'
+      # ⭐ (2026-11-17) the Pine fixtures, tools outputs and docs the engine tests READ, measured by the read
+      # capture over every engine test file: a PR changing one of these now runs the tests that read it.
+      # `union` fails when an engine test reads a path neither this list nor whole-app-engine-rails.yml covers.
+      - 'tests/fixtures/ast/**'
+      - 'tests/fixtures/alerts/**'
+      - 'tests/fixtures/member/**'
+      - 'tests/fixtures/pine*/**'
+      - 'tests/fixtures/pine_*.json'
+      - 'tests/fixtures/thinkscript*/**'
+      - 'tests/fixtures/vendor-supply/**'
+      - 'tests/fixtures/indicators/**'
+      - 'tests/fixtures/oos2_parity/**'
+      - 'tests/fixtures/xmap/**'
+      - 'tests/fixtures/p0_pineack/**'
+      - 'tests/fixtures/p2x/**'
+      - 'tests/fixtures/c3b_live/**'
+      - 'tests/fixtures/door_stamps/**'
+      - 'tests/fixtures/door_stamp_cases.json'
+      - 'tests/fixtures/runtime_documents/**'
+      - 'tests/fixtures/runtime_repaint/**'
+      - 'tests/fixtures/runtime_objects_schema.json'
+      - 'tests/fixtures/enum_input_parity.json'
+      - 'tests/fixtures/line_width_cap.json'
+      - 'tests/fixtures/saved_document_upgrade_cases.json'
+      - 'tests/fixtures/stale_handle_cases.json'
+      - 'tools/c0_*_fixtures/**'
+      - 'tools/bind_fold_parity.json'
+      - 'tools/clock_parity.json'
+      - 'tools/conformance_log.json'
+      - 'tools/corpus_metric.json'
+      - 'tools/lookback_agreement.json'
+      - 'tools/multi_tree_parity.json'
+      - 'tools/scalars.json'
+      - 'tools/pine_runtime_host_parity.mjs'
+      - 'docs/pine/evidence/**'
+      - 'docs/pine/rs-rating/**'
+      - 'docs/pine/param-ids.json'
+      - 'docs/pine/pine-*.md'
+      - 'docs/pine/target-scripts.json'
+      - 'docs/formulas/GRAMMAR.md'
+      - 'api/data/pine_runtime_*.json'
+      # HISTORY_WINDOW_BARS, the Pine history window: the strategy lane and the corpus harness read it
+      - 'api/services/bars_window.py'
+      # the read capture and the whole-app list it keeps honest (`union` runs the check)
+      - 'app/src/test-read-capture*'
+      - 'tools/ci_whole_app_rails.py'
+      - 'tools/whole_app_engine_rails.txt'
+      - '.github/workflows/whole-app-engine-rails.yml'
+      - 'tests/test_ci_whole_app_rails.py'
   workflow_dispatch:
     inputs:
       ref:
@@ -157,6 +214,8 @@ jobs:
           LEG_EXCLUDE: ${{ matrix.exclude }}
           VENDOR_HARNESS_RUNTIME_ON: ${{ matrix.lane }}
           VENDOR_HARNESS_OUT: ${{ matrix.out && format('../harness-out/{0}', matrix.out) || '' }}
+          # which files each test file reads, for the whole-app list (`union`; header above)
+          UCT_READ_CAPTURE_DIR: ${{ github.workspace }}/read-capture/${{ matrix.leg }}
         run: |
           set -euo pipefail
           if [ "$LEG_FILTER" = "@top" ]; then
@@ -179,6 +238,12 @@ jobs:
         with:
           name: pine-heavy-vitest-${{ matrix.leg }}
           path: reports/${{ matrix.leg }}.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-reads-${{ matrix.leg }}
+          path: read-capture/
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always() && matrix.out
@@ -215,6 +280,7 @@ jobs:
         env:
           VENDOR_HARNESS_RUNTIME_ON: '1'
           VENDOR_HARNESS_OUT: ../harness-out/runtime-on
+          UCT_READ_CAPTURE_DIR: ${{ github.workspace }}/read-capture/harness-runtime-on
         run: |
           set -euo pipefail
           files="$(grep -rl --include='*.test.*' 'HARNESS_RUNTIME_ENV' src/components/chart/engine | sort)"
@@ -232,6 +298,12 @@ jobs:
         with:
           name: pine-heavy-harness-runtime-on
           path: harness-out/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-reads-harness-runtime-on
+          path: read-capture/
           if-no-files-found: error
 
   # ── 3. the Pine Python twins (the section-8 list is a subset; tests/test_ci_pine_heavy.py proves it)
@@ -314,6 +386,10 @@ jobs:
           pattern: pine-heavy-harness-*
           path: harness
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pine-heavy-reads-*
+          path: captures
       - name: Expected file list
         working-directory: app
         run: npx vitest list $VITEST_ROOTS --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
@@ -323,6 +399,12 @@ jobs:
             --floor 1000 \
             --must-include src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js \
                            src/components/chart/engine/defSchema.test.js
+      # ⛔ the whole-app list (tools/whole_app_engine_rails.txt) is exactly the engine tests that read outside this
+      # workflow's trigger paths, and every such read triggers `whole-app engine rails`. The two controls are the
+      # rails whose miss started this (#1662, #1670): a capture that sees no reads cannot pass.
+      - name: The whole-app engine rails list is what the legs read (tools/ci_whole_app_rails.py)
+        run: |
+          python3 "$CI_TOOLS/tools/ci_whole_app_rails.py" --check --repo . --captures captures             --expected expected-files.txt --root app --report whole-app-out/reads.json             --must-include app/src/components/chart/engine/__tests__/memberPaneGate.test.js                            app/src/components/chart/engine/__tests__/suiteCoverage.test.js
       - name: Both harness lanes wrote verdicts, each the lane it was asked for
         run: |
           python3 - <<'EOF'
@@ -352,6 +434,12 @@ jobs:
           name: pine-heavy-verdicts
           path: harness/
           if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-whole-app-reads
+          path: whole-app-out/
+          if-no-files-found: warn
 
   # ── the rails that hold this file (cheap; they run whenever it changes) ─────────────────────
   rails:
@@ -376,7 +464,7 @@ jobs:
           python -m pip install --quiet --upgrade pip
           python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
       - name: pytest the CI rails
-        run: python -m pytest tests/test_ci_cost_rails.py tests/test_ci_pine_heavy.py tests/test_run_gate_pine_rails.py -q -p no:cacheprovider
+        run: python -m pytest tests/test_ci_cost_rails.py tests/test_ci_pine_heavy.py tests/test_run_gate_pine_rails.py tests/test_ci_whole_app_rails.py -q -p no:cacheprovider
 
   # ── the derived evidence is what its tool derives (capture queue, broker pins) ───────────────
   # Both checks always run; the job fails when either does (each exit is kept, neither swallowed).

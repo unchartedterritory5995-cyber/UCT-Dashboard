@@ -55,6 +55,8 @@ import time
 from functools import lru_cache
 from typing import Iterable, Optional
 
+from api.services import bg_lane
+
 _log = logging.getLogger(__name__)
 
 #: The intraday timeframes the grid applies to (custom tfs are resampled client-side).
@@ -433,18 +435,22 @@ def sweep(tickers: Optional[Iterable[str]] = None, days: Optional[float] = None)
         # ⛔ A FRESH connection per ticker: a snapshot install bumps the db epoch and
         # closes this thread's cached one; a handle held across the walk then fails
         # every later pair (review #1062, LOW 3).
-        c = bars_sqlite._conn()
-        for tf in STEP_S:
-            try:
-                mx = c.execute("SELECT MAX(ts) FROM ohlcv WHERE ticker=? AND tf=?",
-                               (tkr, tf)).fetchone()[0]
-                if mx is None:
-                    continue
-                r = repair_pair(tkr, tf, int(mx) - reach)
-                deleted += r["deleted"]
-                snapped += r["snapped"]
-            except Exception as e:  # noqa: BLE001 — one pair never stops the sweep
-                _log.warning("[bars-grid] sweep %s tf=%s failed (non-fatal): %s", tkr, tf, e)
+        # ⚡ One ticker per lane turn on the web pod (api/services/bg_lane.py). SWEEP_PAUSE_S
+        # alone (2 ms after ~110 ms of contended work per ticker, measured 2026-11-17: 13,355
+        # tickers in 1,480 s) never gave the interpreter back to requests.
+        with bg_lane.turn("bars-offgrid-sweep"):
+            c = bars_sqlite._conn()
+            for tf in STEP_S:
+                try:
+                    mx = c.execute("SELECT MAX(ts) FROM ohlcv WHERE ticker=? AND tf=?",
+                                   (tkr, tf)).fetchone()[0]
+                    if mx is None:
+                        continue
+                    r = repair_pair(tkr, tf, int(mx) - reach)
+                    deleted += r["deleted"]
+                    snapped += r["snapped"]
+                except Exception as e:  # noqa: BLE001 — one pair never stops the sweep
+                    _log.warning("[bars-grid] sweep %s tf=%s failed (non-fatal): %s", tkr, tf, e)
         if SWEEP_PAUSE_S > 0:
             time.sleep(SWEEP_PAUSE_S)
     took = time.monotonic() - t0

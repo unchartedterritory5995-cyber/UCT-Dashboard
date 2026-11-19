@@ -42,7 +42,7 @@ import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/run
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
@@ -60,6 +60,13 @@ import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import { instanceDocumentForFetch } from '../../symbolInputs.js'
+// ⭐⭐ THE STRATEGY ON THE RUNTIME LANE (2026-11-17, strategy-decl admission evidence): a broker document the
+// member door minted (`strategyWindow.js`, possible only with the strategy broker gate on) is handed the
+// server's history window exactly as the binder hands it (`binder.js`, W9-T11-F1), and its run's record is
+// read back off the columns (`strategyRecord.js::runtimeStrategyOf`), never re-run here.
+import { isStrategyWindowDefinition } from '../../strategyWindow'
+import { runtimeStrategyOf } from '../../runtime/strategyRecord.js'
+import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -283,6 +290,14 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
     if (!forms[2] && !(typeof e.source === 'string' && e.source && typeof e.servedBy === 'string' && e.servedBy)) {
       bad(`other.${ticker} records bars without naming \`source\` and \`servedBy\``)
     }
+    // ⭐ RS RATING L11 PR 2 — the server's `newest_bar_is_forming` for this series, as the bars route
+    // answered beside the capture (the chart's cache entry carries it, `secondaryBars._read`): it decides
+    // what the chart's newest bar reads (`otherSymbols.newestOwnPeriodOf`). Optional; when present it is
+    // the route's tri-state exactly, and a record without it supplies an entry without it, as before.
+    if (Object.prototype.hasOwnProperty.call(e, 'newestBarIsForming')
+        && ![true, false, null].includes(e.newestBarIsForming)) {
+      bad(`other.${ticker}.newestBarIsForming must be the route's tri-state (true, false or null), not ${JSON.stringify(e.newestBarIsForming)}`)
+    }
     if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
   }
   for (const [field, e] of Object.entries(rec.symbol || {})) {
@@ -358,8 +373,9 @@ function recordedClassificationOf(capture) {
 }
 
 /** The secondary supply a capture's script asks for, and the notes naming what
- *  could not be supplied. */
-function otherSymbolSupply(def, capture) {
+ *  could not be supplied. (Exported for RS RATING L11's rail, which grades a probe's daily reads
+ *  below a weekly chart on the runtime lane with this same supply.) */
+export function otherSymbolSupply(def, capture) {
   const requests = otherSymbolRequestsOf(def)
   if (!requests.length) return { secondary: null, exchangeOf: null, notes: [] }
   const tf = tfCodeOf(capture.timeframe)
@@ -375,19 +391,31 @@ function otherSymbolSupply(def, capture) {
     // `SEED_FRED6725_RS_RATING:RSRATING`), else our store's ticker (`fetchableOtherSymbols`)
     const row = (spellings || []).map((v) => witnessRowOf(v, ticker)).find(Boolean)
     const storeKey = row ? row.store : storeTickerOf(ticker)
+    // ⭐ RS RATING L11 — a spelling this capture's timeframe HOLDS at another one (SP:SPX and the seed on
+    // a weekly chart: their DAILY rows, `heldFetchOf`) is filed under the key the chart files it under
+    // (`SPX@D`); the record keeps it under its store key, as the server serves it
+    const held = row ? heldFetchOf(storeKey, tf) : null
+    const cacheKey = held ? held.key : storeKey
     const rec = recorded && recorded.other ? recorded.other[storeKey] : null
     if (rec) {
       if (Array.isArray(rec.bars)) {
-        secondary.set(storeKey, { bars: rec.bars, status: 'available' })
+        // SUPPLY-ATTRIBUTED (2026-11-17): the counterfactual run (`runOurSideWithSupply`) replaces these
+        // bars for ONE run; every graded run reads the recorded supply as served
+        const over = _supplyOverride && Array.isArray(_supplyOverride[storeKey]) ? _supplyOverride[storeKey] : null
+        const flagged = Object.prototype.hasOwnProperty.call(rec, 'newestBarIsForming')
+        secondary.set(cacheKey, { bars: over || rec.bars, status: 'available',
+          ...(flagged ? { newestBarIsForming: rec.newestBarIsForming } : {}) })
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
+          + (flagged ? `; newest bar forming: ${rec.newestBarIsForming}` : '')
+          + (held ? `; held at ${held.tf} on this ${tf} chart` : '')
           + (rec.rows ? `; kept out of git, read from the local supply store as ${rec.rows.file} (sha256 ${rec.rows.sha256.slice(0, 12)})` : ''))
       } else if (rec.notOnThisMachine) {
-        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        secondary.set(cacheKey, { bars: [], status: 'no_data' })
         notes.push(`other symbol ${ticker}: not supplied: ${rec.notOnThisMachine}`)
         unrecorded.push(`other symbol ${ticker}: ${rec.notOnThisMachine}`)
       } else {
-        secondary.set(storeKey, { bars: [], status: 'no_data' })
+        secondary.set(cacheKey, { bars: [], status: 'no_data' })
         notes.push(`other symbol ${ticker}: not supplied: ${rec.notRecorded}`)
         unrecorded.push(`other symbol ${ticker}: ${rec.notRecorded}`)
       }
@@ -623,7 +651,15 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
   const metas = (warmCandidates({ dir, useIndex }).get(key) || [])
     // only a capture that starts BEFORE the window and reaches its first bar
     .filter((meta) => meta.timeUnit === capture.bars.timeUnit && meta.firstT < first && meta.lastT >= first)
-  /** One candidate: its prehistory when every overlapping window bar is equal, else why not. */
+  let windowTimes = null
+  /** One candidate: its prehistory when the overlap is the SAME SERIES as the window, else why not.
+   *  The same series means both directions: every window bar is in the candidate, equal, AND every
+   *  candidate bar inside the window's span is in the window. ⛔ (2026-11-17) The second direction
+   *  was missing: an extended-hours capture holds every regular-hours bar, equal, so it proved
+   *  against a regular-hours window and handed it extended-hours prehistory.
+   *  `rolling-vwap-spy-5-2026-11-16` (session 0400-2000) supplied three 0930-1600 SPY 5m windows
+   *  that way. The bars decide, not the `symbol.session` label: the label is a claim, the bars are
+   *  what gets replayed. */
   const prove = (meta) => {
     const candRows = warmCandidateRowsOf(meta.file, dir)
     if (!candRows) return { refused: `${meta.file}: its receipt does not validate` }
@@ -637,6 +673,13 @@ export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = tr
       if (!c) return { refused: `${meta.file}: window bar ${w[0]} is absent from it inside its span` }
       for (let k = 1; k < OHLCV_FIELDS.length; k += 1) {
         if (c[k] !== w[k]) return { refused: `${meta.file}: bar ${w[0]} ${OHLCV_FIELDS[k]} ${c[k]} vs the capture's ${w[k]}` }
+      }
+    }
+    windowTimes = windowTimes || new Set(rows.map((r) => r[0]))
+    const windowLast = rows[rows.length - 1][0]
+    for (let i = at; i < candRows.length && candRows[i][0] <= windowLast; i += 1) {
+      if (!windowTimes.has(candRows[i][0])) {
+        return { refused: `${meta.file}: its bar ${candRows[i][0]} lies inside the window's span and the window has no such bar (another session's series)` }
       }
     }
     return { proved: { file: meta.file, rows: candRows.slice(0, at), listing: meta.listing, capturedAt: meta.capturedAt } }
@@ -1067,6 +1110,9 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     secondary: ctx.secondary || null,
     exchangeOf: ctx.exchangeOf,
     lowerTf: ctx.lowerTf || null,
+    // ⭐⭐ (2026-11-17) — a broker document's window, as StockChart hands the binder `strategyHistoryWindow`
+    // (absent for every other document, whose ctx carries none)
+    ...(ctx.historyWindowBars != null ? { historyWindowBars: ctx.historyWindowBars } : {}),
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -1402,6 +1448,29 @@ export function enterMemberDoor(source) {
   return { built, def: installed[0], stage: null, refusal: null }
 }
 
+/**
+ * ⭐⭐ (2026-11-17) — WHAT A BROKER DOCUMENT'S RUN PUBLISHED, read back off the columns the product computed
+ * (`registry.computeFor`, the binder's call): its strategy record (`runtimeStrategyOf`), its own drawings, and,
+ * when it published no record, the refusal the columns carry by name (a run stopped at an unpinned or unsettled
+ * rule, a window it cannot start from, a build the lane refused). Nothing is re-run or re-derived here.
+ * The record's times are the run's own (each bar's opening instant, `runtimeColumns.js::brokerBarTimes`): they
+ * are graded as recorded, never mapped onto the capture's clock (2026-11-17, strategy-epoch-bar-times).
+ */
+export function strategyRunOf(cols, bars, rows) {
+  const record = runtimeStrategyOf(cols)
+  let refusal = null
+  if (!record) {
+    const errs = (typeof registry.columnErrors === 'function' ? registry.columnErrors(cols) : null) || {}
+    const first = Object.values(errs).find((e) => e && e.guard) || null
+    refusal = first
+      ? { guard: String(first.guard), message: String(first.message || '') }
+      : { guard: 'harness:no-record', message: 'the broker document ran and published no strategy record' }
+  }
+  // `unixAt[x]`: the capture's time of run bar `x` (a drawing's `bar_index` x)
+  const unixAt = bars.map((b, i) => (rows[i] ? rows[i][0] : null))
+  return { record, refusal, objects: runtimeObjectsOf(cols), objectsWithheld: runtimeObjectsWithheldOf(cols), unixAt }
+}
+
 /** ⭐⭐ THE PARITY CLOCK: one that never moves. A grade is a question about VALUES, so
  *  the runtime pane's wall-clock stop (`RUNTIME_PANE_TIME_BUDGET_MS`) must not answer it:
  *  on a busy box delta-rsi's cold run passed 1,000 ms and graded INCONCLUSIVE ("no
@@ -1476,6 +1545,21 @@ export function substitutedInputsOf(capture, declared = []) {
   return list.map((e) => ({ ...e }))
 }
 
+// SUPPLY-ATTRIBUTED (coordinator ruling on #1541, 2026-11-17): the counterfactual run of
+// `supplyAttribution.js` - our side on the recorded supply with TradingView's witnessed values on the
+// dates they differ. ONLY that file calls it; it never feeds a grade a member reads (the grade runs on
+// the recorded supply, RS RATING L8), it only proves which side of a difference is the data.
+let _supplyOverride = null
+/** Our side, once, with `overrides` (`{<store ticker>: bars}`) in place of the recorded supply. */
+export function runOurSideWithSupply(capture, overrides) {
+  _supplyOverride = overrides || null
+  try {
+    return runOurSide(capture)
+  } finally {
+    _supplyOverride = null
+  }
+}
+
 export function runOurSide(capture) {
   setRuntimeDoorClock(PARITY_CLOCK)
   try {
@@ -1530,6 +1614,11 @@ function runOurSideOnTheParityClock(capture) {
       // exactly as the member's chart withholds it.
       barIndexFromFirstBar: barIndexStartsAtZero(capture),
     }
+    // ⭐⭐ THE STRATEGY WINDOW, AS THE BINDER HANDS IT (`binder.js` W9-T11-F1): a broker document is handed the
+    // server's `bars_window.HISTORY_WINDOW_BARS` (what `GET /api/pine/history-window` answers a member's tab);
+    // every other document is handed nothing, so an indicator's ctx is unchanged.
+    const strategyDoc = isStrategyWindowDefinition(def)
+    if (strategyDoc) ctx.historyWindowBars = historyWindowBarsOf(path.resolve(process.cwd(), '..'))
     // ⭐ C26 — another symbol's bars, from committed captures only.
     // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
     // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)
@@ -1593,6 +1682,10 @@ function runOurSideOnTheParityClock(capture) {
     notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
     const calcCols = registry.computeFor(def, calcBars, instanceInputs, calcCtx)
     const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
+    // ⭐⭐ THE STRATEGY'S OWN OUTPUT (2026-11-17): what the broker document's run published beside its columns
+    const strategy = strategyDoc
+      ? strategyRunOf(calcCols, calcBars, replay ? replaySupply.rows.concat(capture.bars.rows) : capture.bars.rows)
+      : null
     // ⭐ B1 — each carried paint's colour on every bar, through the binder's own
     // `paintColoursFor` (the function the chart draws with), keyed as the binder keys.
     // ⭐⭐ RC1 — over [prehistory + window] when a proved supplier exists
@@ -1758,6 +1851,8 @@ function runOurSideOnTheParityClock(capture) {
       const themeRelative = !wholeWithheld && isThemeColour(rawColour)
       plots.push({
         title: o ? o.title : null,
+        // the call that made it (`plot`, `plotshape`, ...): the strategy grade pairs `plot()` outputs only
+        kind: o && typeof o.kind === 'string' ? o.kind : null,
         formula: o ? o.formula : null,
         key: row ? row.key : null,
         withheldBy: heldBy || null,
@@ -1837,7 +1932,15 @@ function runOurSideOnTheParityClock(capture) {
       paintSupply: paintSupply ? { kind: paintSupply.kind, file: paintSupply.file, bars: paintSupply.bars,
         replayed: warm,
         historyFromListing: warm ? paintCtx.historyFromListing : ctx.historyFromListing,
-        refused: paintSupply.refused, reason: paintSupply.reason } : null,
+        refused: paintSupply.refused, reason: paintSupply.reason,
+        // ⭐ NUMBER PENDING (harness, fix/kill-spy-runtime-diverges) — the bars of the window the RUNTIME lane withholds
+        // by name off the listing (its warm-up curtain, `runtimeColumns.js::computeOffListing`): no colour is drawn
+        // there, exactly as no plot value is (the plot grade's `lookback`). `gradePaints` excuses a withheld bar there,
+        // never a bar painted differently.
+        curtainBars: (() => {
+          const c = built.lane === 'runtime' ? runtimeWarmupOf(paintColsRaw || {}) : null
+          return c && Number.isInteger(c.withheldBars) ? Math.max(0, c.withheldBars - pre) : 0
+        })() } : null,
       // ⭐ DIV-1 — which bars the PLOT and OBJECT lanes were computed over.
       historyReplay: { kind: decision.kind, file: replay ? replaySupply.file : null, bars: replayPre,
         historyFromListing: calcCtx.historyFromListing === true, reason: decision.why,
@@ -1854,6 +1957,9 @@ function runOurSideOnTheParityClock(capture) {
       // (`substitutedInputsOf`); `[]` until a lane feeds one.
       // ⭐ RS RATING L3 — `syminfo.industry` / `sector`, fed the capture's value (`symbolOf`).
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
+      // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
+      // null for every other document. Graded by `strategyLane.js`.
+      strategy,
     }
   } finally {
     registry.uninstallUserDefinition(HARNESS_DEF_ID)

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import Select from '../../../../components/ui/Select'
 import { GROUP_HUES, UNCLASSIFIED } from './scanDeckModel'
 import ws from '../../../charts/ChartsWorkspace.module.css'
 import styles from './ScanDeck.module.css'
@@ -22,9 +23,8 @@ export function ScanHeader({
           {drillCols?.length > 1 && onPickMetric ? (
             <>
               <label htmlFor={metricId} className="sr-only">Breadth list</label>
-              <select id={metricId} className={styles.metric} value={colKey || ''} onChange={e => onPickMetric(e.target.value)}>
-                {drillCols.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-              </select>
+              <Select id={metricId} className={styles.metric} value={colKey || ''} onChange={e => onPickMetric(e.target.value)}
+                options={drillCols.map(c => ({ value: c.key, label: c.label }))} />
             </>
           ) : (
             <span className={styles.metric}>{label}</span>

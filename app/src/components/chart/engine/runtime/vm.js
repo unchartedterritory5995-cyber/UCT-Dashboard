@@ -22,7 +22,8 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2, requestAlignment } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED_PINE, CARRIED2, requestAlignment } from '../ast/interpret.js'
+import { PINE_CMP } from '../pineCompare.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
@@ -39,8 +40,7 @@ import {
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
 // ⭐⭐ S1 — the strategy broker (`broker.js`).
-import { makeBroker, BrokerRefusal, BrokerStart, BrokerUnpinned } from './broker.js'
-import { pinned as ledgerPinned } from './brokerPins.js'
+import { makeBroker, BrokerRefusal, BrokerStart, BROKER_ORDER_OPS } from './broker.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
 
@@ -73,14 +73,34 @@ const CLOCK_GETTER = Object.freeze(CLOCK_FIELDS.map((f) => {
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
-const LT = BINARY['<'], GT = BINARY['>'], LE = BINARY['<='], GE = BINARY['>=']
-const EQ = BINARY['=='], NE = BINARY['!=']
+// ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2): the SIX COMPARISONS are Pine's, not the host table's IEEE ones.
+// The runtime lane runs only Pine, and Pine compares two floats within TradingView's absolute epsilon in every
+// version at run time (`pineCompare.js::PINE_CMP`); a v1-v4 comparison of two compile-time constants, the one
+// exact case, never reaches the VM: the frontend folds it (`pine.js::constCompareFold`).
+const LT = PINE_CMP['<'], GT = PINE_CMP['>'], LE = PINE_CMP['<='], GE = PINE_CMP['>=']
+const EQ = PINE_CMP['=='], NE = PINE_CMP['!=']
 const AND = BINARY['&&'], OR = BINARY['||']
 const NOT = UNARY['!'], NEG = UNARY['u-']
 const PW = POINTWISE_FOR_PARITY
 
 export class VmError extends Error {
   constructor(message) { super(message); this.name = 'VmError' }
+}
+
+/** ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — the broker operations a DISARMED run (`brokerDisarmed`)
+ *  treats as placing nothing: the order commands (`broker.js::BROKER_ORDER_OPS`, every void `strategy.*` op). */
+const DISARMED_NO_OPS = new Set(BROKER_ORDER_OPS)
+/** A disarmed run reached a broker read it cannot answer `na` for (a TEXT read: an order id or comment), so it
+ *  cannot stand in for the broker run (the caller keeps the broker's own refusal). ⚰️ Until engine 77
+ *  (#1833, fix/strategy-disarmed-taint) EVERY read stopped the run, and a strategy whose ORDER logic reads
+ *  `strategy.position_size` (macd-shortlong-strategy-for-tradingview-input-optimizer: six plain MACD plots) lost every
+ *  plot the host lane draws for it. */
+export class DisarmedBrokerRead extends Error {
+  constructor(fn) {
+    super(`\`${fn}\` reads the strategy broker, which a run without its broker does not hold`)
+    this.name = 'DisarmedBrokerRead'
+    this.fn = fn
+  }
 }
 
 /**
@@ -335,7 +355,16 @@ export function execute(program, ctx, limits, opts) {
   // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
   const brokerOps = program.brokerOps || []
   let broker = null
-  if (program.broker && !(opts && opts.entry !== undefined)) {
+  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots), Engine 77 (#1833, fix/strategy-disarmed-taint) — A DISARMED RUN
+  // (`opts.brokerDisarmed`): the program's plots and paints computed with NO broker, as the host lane computes them
+  // (every bar, the forming one included). An order command places nothing; a NUMBER read of a broker value is `na`,
+  // only so the order logic around it can finish: it never decides what is drawn. What is drawn was decided
+  // statically, before this run, by the host lane's own taint (`strategyTaint.js::strategyDisarmOf`, the program's
+  // `broker.disarm`): every output a broker value reaches is withheld by name by the caller. A TEXT read stops the
+  // run (`DisarmedBrokerRead`). Asked by `runtimeColumns.js` after the broker run refused by name: the member keeps
+  // the plots no broker value reaches, and the backtest alone is refused.
+  const disarmed = !!(opts && opts.brokerDisarmed === true)
+  if (program.broker && !disarmed && !(opts && opts.entry !== undefined)) {
     // [B-START] a backtest is path-dependent: served only from TradingView's own first bar.
     if (program.broker.fromListing !== true) {
       throw new BrokerRefusal("this strategy's trades depend on the bar its backtest starts from, and this run is "
@@ -365,15 +394,16 @@ export function execute(program, ctx, limits, opts) {
       // W9-T8 — `ctx.tradingDays`: each bar's trading day, when the CALLER knows the session and exchange time zone.
       // No product caller sets it yet, so max_intraday_filled_orders refuses by name (W9-R1i).
       tradingDays: ctx.tradingDays,
+      // [B-EXEC] the forming newest bar this run does not execute (below), or none: the broker asks the rule
+      formingBar: ctx.confirmed === false && ctx.bars > 0 ? ctx.bars - 1 : null,
     })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
   // it has not run yet, so nothing it computes exists there.
-  // [B-EXEC] is a rule like any other: unpinned, a forming bar stops the run instead of reading `na`.
-  if (broker && ctx.confirmed === false) {
-    const pinOk = opts && typeof opts.brokerPinned === 'function' ? opts.brokerPinned : (id) => ledgerPinned(id)
-    if (!pinOk('B-EXEC')) throw new BrokerUnpinned('B-EXEC')
-  }
+  // [B-EXEC] is a rule like any other: unpinned, a forming bar stops the run instead of reading `na`. The
+  // BROKER asks it (`makeBroker`, `formingBar` above), so a run that served on a forming bar records it in
+  // `rulesUsed` and a capture can pin it. ⚰️ (2026-11-18) the vm asked it here, outside the broker's ledger: no run
+  // could ever report B-EXEC exercised, so no capture could pin it, and every in-session backtest was refused.
   const runBars = broker && ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars
 
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
@@ -400,7 +430,9 @@ export function execute(program, ctx, limits, opts) {
   // bug in the other.
   const carPlan = program.carried || []
   const carSpec = carPlan.map((c) => {
-    const spec = CARRIED[c.fn]
+    // ⭐ engine 78 (#1858) — the runtime lane runs only Pine: `CARRIED_PINE` (`ta.rising` / `ta.falling`
+    // compare within TradingView's epsilon, Q-FCMP2 B24 / B25; every other carried kernel is `CARRIED`'s own)
+    const spec = CARRIED_PINE[c.fn]
     if (!spec) throw new VmError(`no carried-state implementation for \`${c.fn}\``)
     return spec
   })
@@ -1054,6 +1086,13 @@ export function execute(program, ctx, limits, opts) {
         // back onto the op's parameter list (`undefined` where the script passed none).
         case 100 /* OP.BROKER */: {
           const bop = brokerOps[a]
+          if (!broker && disarmed) {
+            // an order command (and the symbol hand-off) places nothing in a disarmed run; a number read is `na`
+            // (what it reaches is withheld by the static taint); a text read stops it
+            if (bop.returns === 'void' && (bop.fn === '#symbol' || DISARMED_NO_OPS.has(bop.fn))) { sp -= b; break }
+            if (bop.returns === 'number') { sp -= b; stack[sp++] = NaN; break }
+            throw new DisarmedBrokerRead(bop.fn)
+          }
           if (!broker) {
             throw new VmError(`pc ${pc - 1}: \`${bop.fn}\` is a broker op, and this run holds no broker `
               + '(a request of other bars)')

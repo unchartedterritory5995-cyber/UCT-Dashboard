@@ -369,12 +369,32 @@ def test_a_console_that_can_encode_is_still_printed_to(tmp_path, monkeypatch):
 # encoding the way Task Scheduler will, because those are different claims.
 # ─────────────────────────────────────────────────────────────────────────────
 
+#: A pool of FAKE samples for the subprocess rails. ⛔ They used to read the REAL pool, at the
+#: owner's-box default (C:/Users/Patrick/uct-breadth-pool), so on any other machine (a GitHub
+#: runner, measured 2026-11-17) the body was "no sample file at ..." and the BODY assertion went
+#: red for a reason that had nothing to do with encoding. The pool is now handed over through
+#: BREADTH_SAMPLER_LOG, the SAMPLER's own override, so the report still has to reach it through
+#: the sampler's constant (`_pool_default`): a report that re-typed its own path would read
+#: nothing here and red, which is the 2026-09 "pool moved without the report" defect.
+#: The failure row makes the body print a ⛔ line, so cp1252 has something to choke on.
+_FAKE_POOL = [
+    {"ok": True, "kind": "deep_cold", "sha": "0" * 40,
+     "timing": {"total": 812.5, "reader": 640.0, "rf_pagecache": True}},
+    {"ok": True, "kind": "deep_cold", "sha": "0" * 40,
+     "timing": {"total": 905.0, "reader": 700.0, "rf_pagecache": True}},
+    {"ok": False, "error": "fake timeout"},
+]
+
+
 def _run_report(tmp_path, encoding):
     import os as _os
     import subprocess as _sp
+    tmp_path.mkdir(parents=True, exist_ok=True)
     summary = tmp_path / "sampler-summary.md"
+    pool = tmp_path / "breadth-samples.jsonl"
+    pool.write_text("".join(json.dumps(r) + "\n" for r in _FAKE_POOL), encoding="utf-8")
     env = {**_os.environ, "PYTHONIOENCODING": encoding,
-           "BREADTH_SAMPLER_SUMMARY": str(summary)}
+           "BREADTH_SAMPLER_SUMMARY": str(summary), "BREADTH_SAMPLER_LOG": str(pool)}
     repo = pathlib.Path(__file__).resolve().parents[1]
     p = _sp.run([sys.executable, str(repo / "tools" / "breadth_sampler_report.py")],
                 cwd=str(repo), env=env, capture_output=True)
@@ -398,6 +418,8 @@ def test_the_report_survives_a_forced_cp1252_stdout_and_writes_a_complete_summar
         assert marker in text, f"summary is missing {marker!r} — written but incomplete"
     assert text.rstrip().endswith("```"), "the fenced block is not closed — truncated"
     assert "BREADTH SAMPLER" in text, "the report body never reached the file"
+    assert "breadth-samples.jsonl" in text and "rows 3" in text, "the body is not the fixture pool's"
+    assert "⛔ FAILURES" in text, "the ⛔ line must reach the file verbatim, not degraded"
 
 
 def test_the_same_run_under_utf8_produces_the_same_file(tmp_path):

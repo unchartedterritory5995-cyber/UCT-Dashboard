@@ -286,7 +286,9 @@ describe('STATE RAIL · adding to a list leaves the displayed list unchanged unl
 
 // ── AUDIT #1247 rulings: a carried-over clause DESTROYS only the object the clause before it named or made ──
 describe('STATE RAIL · an inherited destroy / replace licence binds to the OBJECT the previous clause named — never the whole class', () => {
-  it('"add a 20 EMA, then remove it": removing RSI (14) → refused; removing that 20 EMA → allowed', async () => {
+  // ⛔ CHANGED by the D31 oracle ruling (AUDIT 11-16, supersedes this #1247 allowance): "add a 20 EMA, then remove it" means the EMA 20
+  // THIS turn makes — a PRE-EXISTING EMA 20 is no longer licensed by it; the one this request made (`made`) still is
+  it('"add a 20 EMA, then remove it": removing RSI (14) → refused; the PRE-EXISTING 20 EMA → refused; the one just made → allowed', async () => {
     const fx = stateFixture()
     const rsi = await planOf(fx, WRONG.indicator['indicator.remove (the RSI)'])
     const ema20 = await planOf(fx, [op('indicator.remove', 'ixe:c1', { instance: 'ovl:1' })])
@@ -294,7 +296,8 @@ describe('STATE RAIL · an inherited destroy / replace licence binds to the OBJE
     expect(stateEffects(ema20)[0].label).toMatch(/EMA 20/)
     for (const w of ['add a 20 EMA, then remove it', 'Add a 20 ema. Remove it', 'add a 20 EMA and remove it']) {
       expect(stateRailRefusal(rsi, { words: w }), w).toMatch(/^I didn’t change anything/)
-      expect(stateRailRefusal(ema20, { words: w }), w).toBe(null)
+      expect(stateRailRefusal(ema20, { words: w }), w).toMatch(/^I didn’t change anything/)
+      expect(stateRailRefusal(ema20, { words: w, made: new Set([stateEffects(ema20)[0].id]) }), w).toBe(null)
     }
   })
   it('"add a trendline. clear it": a plan clearing all drawings → refused (and deleting the existing trendline too)', async () => {

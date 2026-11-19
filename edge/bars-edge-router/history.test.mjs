@@ -15,6 +15,7 @@ import { brotliDecompressSync } from "node:zlib";
 import worker from "./worker.js";
 import {
   parseHistoryPath, splitPiece, handleHistory, crc32, encodeSymbol, HEADER_NAME, COLUMNS_TYPE, PIECE_TYPE, MAX_PIECE_BYTES,
+  HIST_PREFIX, edgeCacheKey, readObject,
 } from "./history.js";
 import { decodeColumns, decodePiece, encodeSymbol as appEncodeSymbol } from "../../app/src/data/historyLake/piece.js";
 
@@ -319,6 +320,147 @@ test("splitPiece refuses what does not start with a whole piece header", () => {
   assert.equal(splitPiece(good.subarray(0, end + 4)), null);          // no body
   assert.equal(splitPiece(good.subarray(0, 9)), null);
   assert.equal(splitPiece("UBH"), null);
+});
+
+// ── the edge's own copy of a piece (Cache API) ──────────────────────────────────────────────────────
+
+/** A stand-in for `caches.default`: one data center's cache, keyed by URL. */
+function fakeCache({ broken = false } = {}) {
+  const store = new Map();
+  const log = { match: [], put: [] };
+  return {
+    store, log,
+    async match(k) {
+      log.match.push(String(k));
+      if (broken) throw new Error("cache down");
+      const v = store.get(String(k));
+      return v ? new Response(v.slice()) : undefined;
+    },
+    async put(k, res) {
+      log.put.push(String(k));
+      if (broken) throw new Error("cache down");
+      store.set(String(k), new Uint8Array(await res.arrayBuffer()));
+    },
+  };
+}
+
+/** `ask`, with `cache` installed as `caches.default` and the Worker's `ctx.waitUntil` awaited. */
+async function askEdge(path, cache, opts = {}) {
+  const had = Object.getOwnPropertyDescriptor(globalThis, "caches");
+  Object.defineProperty(globalThis, "caches", { value: { default: cache }, configurable: true, writable: true });
+  const waits = [];
+  const ctx = { waitUntil: (p) => waits.push(p) };
+  const h = { "accept-encoding": "gzip, deflate, br", ...(opts.headers || {}) };
+  if (opts.cookie !== false) h.cookie = `uct_session=abc; uct_chart_edge=${await mint()}`;
+  const e = opts.env || { CHART_EDGE_SECRET: SECRET, HISTORY: bucket() };
+  try {
+    const res = await worker.fetch(new Request("https://uctintelligence.com" + path, { headers: h }), e, ctx);
+    await Promise.all(waits);
+    return { res, env: e };
+  } finally {
+    if (had) Object.defineProperty(globalThis, "caches", had); else delete globalThis.caches;
+  }
+}
+
+test("edge copy: a piece is read from R2 once, then from the copy, and the member gets the same reply", async () => {
+  const c = CASES[1];
+  const cache = fakeCache();
+  const env = { CHART_EDGE_SECRET: SECRET, HISTORY: bucket() };
+  const first = await askEdge(pathOf(c), cache, { env });
+  assert.equal(first.res.status, 200);
+  assert.equal(first.res.headers.get("x-bars-edge"), "history");
+  assert.equal(env.HISTORY.asked.length, 1);
+  assert.equal(cache.store.size, 1, "a piece that validated is kept");
+  const [key] = cache.store.keys();
+  assert.ok(key.startsWith("https://uctintelligence.com/api/hist/__edge/"), key);
+  assert.ok(key.includes(`c=${c.header.crc}`), "the key carries the CRC");
+
+  const second = await askEdge(pathOf(c), cache, { env });
+  assert.equal(second.res.status, 200);
+  assert.equal(second.res.headers.get("x-bars-edge"), "history-edge");
+  assert.equal(env.HISTORY.asked.length, 1, "the second read never reached R2");
+  for (const h of ["content-type", "content-encoding", "cache-control", HEADER_NAME]) {
+    assert.equal(second.res.headers.get(h), first.res.headers.get(h), h);
+  }
+  assert.deepEqual(new Uint8Array(await second.res.arrayBuffer()), new Uint8Array(await first.res.arrayBuffer()));
+});
+
+test("edge copy: a piece with another CRC at the same place is another key (a republished pack is never served stale)", async () => {
+  const c = CASES[1];
+  const pl = PLACE.get(c.name);
+  const range = { offset: pl.off, length: pl.n, crc: c.header.crc };
+  const cache = fakeCache();
+  const b = bucket();
+  // the OLD piece of this place, kept before a republish
+  cache.store.set(edgeCacheKey("https://uctintelligence.com", pl.key, range), bytesOf(c.b64));
+  const same = await readObject(b, pl.key, range, { origin: "https://uctintelligence.com", cache });
+  assert.equal(same.cached, true);
+  assert.deepEqual(b.asked, []);
+  // the NEW index names a new CRC for the same (o, n): R2, never the old copy
+  const moved = await readObject(b, pl.key, { ...range, crc: range.crc + 1 }, { origin: "https://uctintelligence.com", cache });
+  assert.equal(moved.cached, false);
+  assert.equal(b.asked.length, 1);
+});
+
+test("edge copy: bytes that did not validate are never kept, and kept bytes are validated again on every read", async () => {
+  const [a, b] = CASES.filter((c) => c.series === "1" && c.period === "2026-11");
+  const pb = PLACE.get(b.name);
+  const cache = fakeCache();
+  for (const path of [pathOf(a, { crc: a.header.crc + 1 }), pathOf(a, { off: pb.off, n: pb.n }), pathOf(b, { n: pb.n + 100000 })]) {
+    const { res } = await askEdge(path, cache);
+    assert.equal(res.status, 409, path);
+  }
+  assert.equal(cache.store.size, 0);
+  assert.deepEqual(cache.log.put, []);
+  // whatever sits under a key, a read still checks it: B's bytes under A's key are a 409, not B
+  const pa = PLACE.get(a.name);
+  cache.store.set(edgeCacheKey("https://uctintelligence.com", pa.key, { offset: pa.off, length: pa.n, crc: a.header.crc }),
+    bytesOf(b.b64).subarray(0, pa.n));
+  const env = { CHART_EDGE_SECRET: SECRET, HISTORY: bucket() };
+  const { res } = await askEdge(pathOf(a), cache, { env });
+  assert.equal(res.status, 409);
+  assert.deepEqual(env.HISTORY.asked, []);
+});
+
+test("edge copy: an index is never kept (a 409 re-read must reach R2)", async () => {
+  const cache = fakeCache();
+  const env = { CHART_EDGE_SECRET: SECRET, HISTORY: bucket() };
+  for (let i = 0; i < 2; i++) {
+    const { res } = await askEdge("/api/hist/v1/index/s-ZZTEST.json", cache, { env });
+    assert.equal(res.status, 200);
+  }
+  assert.equal(env.HISTORY.asked.length, 2);
+  assert.equal(cache.store.size, 0);
+  assert.deepEqual(cache.log.match, []);
+});
+
+test("edge copy: only an entitled caller reaches it, and its own URL is not a history path", async () => {
+  const c = CASES[1];
+  const cache = fakeCache();
+  await askEdge(pathOf(c), cache);
+  const [key] = cache.store.keys();
+  const matches = cache.log.match.length;
+  const anon = await askEdge(pathOf(c), cache, { cookie: false });
+  assert.equal(anon.res.status, 401);
+  assert.equal(cache.log.match.length, matches, "an unentitled request never consults the copy");
+  // the copy lives under the path this Worker owns (a Worker runs in front of the CDN cache) ...
+  assert.ok(new URL(key).pathname.startsWith(HIST_PREFIX));
+  // ... and asking for that URL, even entitled, is a 404 that never touches the copy or R2
+  assert.equal(parseHistoryPath(new URL(key).pathname), null);
+  const env = { CHART_EDGE_SECRET: SECRET, HISTORY: bucket() };
+  const direct = await askEdge(new URL(key).pathname + new URL(key).search, cache, { env });
+  assert.equal(direct.res.status, 404);
+  assert.equal(cache.log.match.length, matches);
+  assert.deepEqual(env.HISTORY.asked, []);
+});
+
+test("edge copy: a broken cache is a miss, never an error", async () => {
+  const cache = fakeCache({ broken: true });
+  const env = { CHART_EDGE_SECRET: SECRET, HISTORY: bucket() };
+  const { res } = await askEdge(pathOf(CASES[1]), cache, { env });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("x-bars-edge"), "history");
+  assert.equal(env.HISTORY.asked.length, 1);
 });
 
 test("other paths are untouched by the history branch", async () => {

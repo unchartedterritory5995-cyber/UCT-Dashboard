@@ -20,6 +20,7 @@ function edge(over = {}) {
   const state = { index: over.index === undefined ? INDEX : over.index, indexStatus: 200, ...over, calls, peak: () => peak, pieces }
   const answer = async (url) => {
     const [path, query = ''] = url.split('?')
+    if (state.indexes && Object.hasOwn(state.indexes, path)) return new Response(JSON.stringify(state.indexes[path]), { status: 200 })
     if (path === `/api/hist/${fixture.index_relpath}`) {
       if (state.indexStatus !== 200) return new Response('{}', { status: state.indexStatus })
       const doc = typeof state.index === 'function' ? state.index() : state.index
@@ -226,5 +227,57 @@ describe('history-lake source', () => {
     expect(periodsFor(idx, '5', { from: 20 }).map((p) => p.period)).toEqual(['b'])
     expect(periodsFor(idx, '5', { from: 30 })).toEqual([])
     expect(new HistoryError('x').stale).toBe(false)
+  })
+})
+
+// A reused ticker (tools/history_lake/identity.py): the index narrows a piece to the bars of THIS
+// company (`from` / `until`), and names pieces stored under the symbol it traded as before (`sym`).
+describe('history-lake source: identity windows and stitched history', () => {
+  const Q = INDEX.series['5']
+  const whole = fixture.expected['5']
+  const pieceUrlOf = (p) => `/api/hist/v1/5/s-MU_2ELT/${p}.ubh?c=${Q[p].crc}&o=0&n=${Q[p].bytes}`
+  const NEW_INDEX_PATH = '/api/hist/v1/index/s-NEWCO.json'
+
+  it('a symbol whose history is another symbol\'s pieces reads them under that symbol, adjusted by its own table', async () => {
+    const stitched = { v: 1, symbol: 'NEWCO', splits: INDEX.splits, series: { 5: Object.fromEntries(
+      Object.entries(Q).map(([p, e]) => [`${p}~MU.LT`, { ...e, period: p, sym: SYM }])) } }
+    const e = edge({ indexes: { [NEW_INDEX_PATH]: stitched } })
+    const got = await createHistorySource({ fetch: e.fetch }).loadBars('NEWCO', '5')
+    expect(got).toMatchObject({ symbol: 'NEWCO', pieces: 3 })
+    expectBars(got, '5')
+    expect(e.calls.slice(1).map((c) => c.url)).toEqual(['2026Q2', '2026Q3', '2026Q4'].map(pieceUrlOf))
+  })
+
+  it('an entry cut at `from` keeps only the bars from it on, and reports that window', async () => {
+    const at = whole.raw.t.indexOf(Q['2026Q3'].first) + 7
+    const cut = whole.raw.t[at]
+    const idx = { ...INDEX, series: { 5: { '2026Q3': { ...Q['2026Q3'], from: cut }, '2026Q4': Q['2026Q4'] } } }
+    expect(periodsFor(idx, '5')[0]).toMatchObject({ period: '2026Q3', first: cut, last: Q['2026Q3'].last })
+    const got = await createHistorySource({ fetch: edge({ index: idx }).fetch }).loadBars(SYM, '5')
+    expect(got.t[0]).toBe(cut)
+    expect(Array.from(got.t)).toEqual(whole.raw.t.slice(at))
+    expect(Array.from(got.c)).toEqual(whole.adjusted.c.slice(at))
+    // a range wholly before the cut asks for nothing
+    expect(periodsFor(idx, '5', { to: cut - 1 })).toEqual([])
+  })
+
+  it('one period from two pieces with complementary windows joins in order, every bar once', async () => {
+    const lo = whole.raw.t.indexOf(Q['2026Q3'].first)
+    const mid = whole.raw.t[lo + 11]
+    const idx = { ...INDEX, series: { 5: {
+      '2026Q3': { ...Q['2026Q3'], from: mid },                                   // this company's own piece
+      '2026Q3~MU.LT': { ...Q['2026Q3'], period: '2026Q3', sym: SYM, until: mid },  // the earlier symbol's
+    } } }
+    expect(periodsFor(idx, '5').map((p) => [p.first, p.last])).toEqual([[Q['2026Q3'].first, mid - 1], [mid, Q['2026Q3'].last]])
+    const got = await createHistorySource({ fetch: edge({ index: idx }).fetch }).loadBars(SYM, '5')
+    const n = Q['2026Q3'].bars
+    expect(Array.from(got.t)).toEqual(whole.raw.t.slice(lo, lo + n))
+  })
+
+  it('warms a stitched piece at the URL the read uses', async () => {
+    const e = edge()
+    const src = createHistorySource({ fetch: e.fetch })
+    await src.warmPieces('NEWCO', '5', [{ ...Q['2026Q4'], period: '2026Q4', sym: SYM }])
+    expect(e.calls.map((c) => c.url)).toEqual([pieceUrlOf('2026Q4')])
   })
 })

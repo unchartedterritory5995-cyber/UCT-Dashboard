@@ -42,9 +42,23 @@
 //   * the run is handed them apart from the numbers (`runtimeBuildInputs`): the front end
 //     puts the member's colour or source where the author's default was
 //     (`pineRuntimeFrontend.js::applyMemberDefault`).
-//   ⛔ `input.timeframe` stays SKIPPED, by name: a timeframe setting changes which bars a
-//   script reads, and this pane is handed only the chart's own (`request.*` is refused
-//   here, `runtime:request`) — another timeframe's bars are not fabricated.
+//   ⛔ `input.timeframe` stays SKIPPED, by name, in what the member door MINTS
+//   (`runtimeInputSpecsOf(source)`): a timeframe setting changes which bars a script
+//   reads, and a stored document does not change for it.
+//
+// ⭐⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — A TIMEFRAME INPUT IS A SETTING OF A
+// RUNTIME DOCUMENT, DECLARED ON LOAD. Since RS RATING L5 the run IS handed other bars: the
+// request supply (`runtime/requestSupply.js`) serves the chart's own symbol at a weekly or
+// monthly merge above the chart, and refuses every other timeframe BY NAME. So:
+//   * on load, a runtime document declares each `name = input.timeframe(…)` whose default is a
+//     timeframe written as text as an `enum` setting (`withTimeframeInputs`, `fromTimeframe`:
+//     never stored, `paramInputs.stripParamInputs`): its menu is the author's `options = […]`,
+//     else TradingView's own list (`TIMEFRAME_MENU`); the stored document is byte-identical;
+//   * a member's value replaces the input's DEFAULT NODE in the run
+//     (`pineRuntimeFrontend.js::applyMemberDefault`), so the request's host reader
+//     (`Resolver.requestTargetOf`) reads it exactly as it reads a literal, and the supply applies
+//     its rules unchanged: a timeframe it does not serve is refused with its own sentence;
+//   * at the default nothing is handed, and the run builds the author's program, exactly.
 import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName } from '../ast/pine.js'
 import { KEY_RE } from '../ast/parse.js'
 import { pineColourHex } from '../pinePalette.js'
@@ -71,6 +85,49 @@ const ENUM_SKIP = 'an enum menu is not offered here yet (the member input menu, 
   + 'field stays'
 const TIMEFRAME_SKIP = 'a timeframe setting changes which bars the script reads, and this pane is handed only '
   + "the chart's own — another timeframe's bars are not made up; its default stays"
+/** ⭐ SETTINGS PARITY (timeframe) — TradingView's own timeframe menu, `[value, label]` as the settings form
+ *  draws an enum option, the value spelled as TradingView records it in a capture (`'1W'`, `'1M'`). */
+export const TIMEFRAME_MENU = Object.freeze([
+  ['1', '1 minute'], ['3', '3 minutes'], ['5', '5 minutes'], ['15', '15 minutes'], ['30', '30 minutes'],
+  ['45', '45 minutes'], ['60', '1 hour'], ['120', '2 hours'], ['180', '3 hours'], ['240', '4 hours'],
+  ['1D', '1 day'], ['1W', '1 week'], ['1M', '1 month'],
+].map((p) => Object.freeze(p)))
+/** A timeframe as Pine writes one in text: the chart's own (`''`), a count of minutes, or a count of
+ *  seconds / days / weeks / months (`'1S'`, `'D'`, `'1D'`, `'2W'`, `'3M'`). */
+const TIMEFRAME_TEXT_RX = /^(?:[1-9]\d{0,3}[SDWM]?|[DWM])$/
+/** Is `v` a timeframe written as text (the default a timeframe setting may have, and the value a member may
+ *  give one)? The ONE reader: the settings and the run (`pineRuntimeFrontend.js::applyMemberDefault`). */
+export function isTimeframeText(v) {
+  return typeof v === 'string' && (v === '' || TIMEFRAME_TEXT_RX.test(v))
+}
+const timeframeLabel = (v) => {
+  if (v === '') return 'Chart'
+  const hit = TIMEFRAME_MENU.find((p) => p[0] === v)
+  return hit ? hit[1] : v
+}
+
+/** A timeframe input's setting: an `enum` over the author's `options`, else TradingView's menu (with the
+ *  author's default first when the menu does not hold it), `timeframe: true`; or `{ skip }`. */
+function timeframeSpecOf(name, node, def, label) {
+  if (!def || def.type !== 'string' || !isTimeframeText(def.value)) {
+    return { skip: 'its default is not a timeframe written as text' }
+  }
+  const opts = argOf(node, 'options', null)
+  let values
+  if (opts && opts.type === 'collection' && Array.isArray(opts.elements)) {
+    const strs = opts.elements.filter((x) => x && x.type === 'string').map((x) => x.value)
+    if (strs.length !== opts.elements.length || !strs.length) return { skip: 'its options are not literal text' }
+    if (!strs.every(isTimeframeText)) return { skip: 'its options are not timeframes written as text' }
+    if (!strs.includes(def.value)) return { skip: "its default is not one of its author's options" }
+    values = strs
+  } else {
+    const menu = TIMEFRAME_MENU.map((p) => p[0])
+    values = menu.includes(def.value) ? menu : [def.value, ...menu]
+  }
+  return { spec: { key: name, type: 'enum', default: def.value, label,
+    options: values.map((v) => [v, timeframeLabel(v)]), timeframe: true } }
+}
+
 // ⭐ PHASE 3 WS-D — the same ruling, for the same reason, read for a symbol: a symbol setting
 // changes WHICH INSTRUMENT the script reads, and this pane is handed only the chart's own.
 const SYMBOL_SKIP = 'a symbol setting changes which instrument the script reads, and this pane is handed only '
@@ -492,7 +549,7 @@ export function foldConstantVarsIntoInputs(node, consts) {
   return node
 }
 
-function specOf(name, node, rhsToks, version, lookup) {
+function specOf(name, node, rhsToks, version, lookup, opts = {}) {
   const call = node.name
   const legacyType = call === 'input' ? argOf(node, 'type', 2) : undefined
   const legacy = legacyType && legacyType.type === 'name' ? legacyType.name : null
@@ -502,12 +559,14 @@ function specOf(name, node, rhsToks, version, lookup) {
   if (UNSERVED.has(call)) return { skip: `\`${call}\` is not a setting this pane can carry yet` }
   let type = TYPE_OF_CALL[call]
   const def = argOf(node, 'defval', 0)
-  if (call === 'input.timeframe' || legacy === 'input.resolution' || legacy === 'input.timeframe') {
-    return { skip: TIMEFRAME_SKIP }
-  }
   const titleOf = () => {
     const t = argOf(node, 'title', 1)
     return t && t.type === 'string' && t.value ? t.value : name
+  }
+  if (call === 'input.timeframe' || legacy === 'input.resolution' || legacy === 'input.timeframe') {
+    // ⭐ SETTINGS PARITY (timeframe) — a setting only where it is asked for (the load-time projection,
+    // `withTimeframeInputs`); what the door mints keeps the skip, byte for byte
+    return opts.timeframes === true ? timeframeSpecOf(name, node, def, titleOf()) : { skip: TIMEFRAME_SKIP }
   }
   // ⭐⭐ PHASE 3 WS-D — A TIME INPUT: UNIX milliseconds, the value Pine's `input.time` returns,
   // read by the SAME reader the run uses (`timeInputDefaultOf`), so the dialog's default is the
@@ -601,8 +660,9 @@ function specOf(name, node, rhsToks, version, lookup) {
 
 /** The script's literal `name = input.*(…)` settings, in source order, as `defSchema`
  *  inputs, plus every one skipped with its reason. Never throws: a source this cannot
- *  read declares nothing. */
-export function runtimeInputSpecsOf(source) {
+ *  read declares nothing. `{ timeframes: true }` (the load-time projection only,
+ *  `withTimeframeInputs`) reads a timeframe input as a setting instead of skipping it. */
+export function runtimeInputSpecsOf(source, opts = {}) {
   const specs = []
   const skipped = []
   let stmts
@@ -651,7 +711,7 @@ export function runtimeInputSpecsOf(source) {
           else if (!KEY_RE.test(name)) skipped.push({ key: name, reason: 'its name cannot key a setting' })
           else {
             seen.add(name)
-            const r = specOf(name, node, rhs, version, lookup)
+            const r = specOf(name, node, rhs, version, lookup, opts)
             if (r.spec) specs.push(r.spec)
             else skipped.push({ key: name, call: node.name, reason: r.skip })
           }
@@ -699,8 +759,73 @@ export function runtimeBuildInputs(def, values) {
     // that reads the call statically sees the member's text: `request.security(lineTicker, …)` resolves its
     // symbol from it (`Resolver.otherSymbolOf`), as the resolver's value serves every comparison
     if (spec && spec.type === 'string' && typeof v === 'string') inputDefaults[k] = v
+    // ⭐ SETTINGS PARITY (timeframe) — and a TIMEFRAME setting's, for the same reason: the request's host reader
+    // reads the timeframe off the input's default node (the front end also takes it from `inputs` alone,
+    // for a caller that hands no declared inputs: `applyMemberDefault`)
+    if (spec && spec.timeframe === true && typeof v === 'string') inputDefaults[k] = v
   }
   return { inputs, inputDefaults }
+}
+
+// ⭐⭐ SETTINGS PARITY (timeframe) — A MOVED TIMEFRAME IS DRAWN ONLY ON RECORDED EVIDENCE, the rule a run
+// half's moved settings follow (`runHalfSettingsAdmitted`). The first captures at a moved timeframe
+// (PA ZigZag at 1W / 1M, run rozz-2026-11-18) DIVERGE on 9 of 10 items, so no script is admitted: a member
+// who moves one is refused by name (`pineRuntimeFrontend.js::applyMemberDefault`), never shown an
+// unwitnessed picture. The runtime-on harness lane grades them anyway (`__serveEveryTimeframeSettingForTests`),
+// so the evidence that would admit one is measured on every run.
+let _serveMovedTimeframes = false
+/** Is a timeframe setting moved off its author's default drawn? Never on a member surface yet. */
+export function movedTimeframeServed() { return _serveMovedTimeframes }
+/** Rails / the runtime-on harness lane only. */
+export function __serveEveryTimeframeSettingForTests() { _serveMovedTimeframes = true }
+/** Rails only. */
+export function __resetTimeframeSettingForTests() { _serveMovedTimeframes = false }
+/** ⭐ The line a member reads beside a timeframe setting while no evidence admits a move (coordinator UI
+ *  ruling 2026-11-18): the setting is shown READ-ONLY at its default, never as a control that refuses. */
+export const TIMEFRAME_LOCKED_SENTENCE = "Changing this script's timeframe isn't available yet: our weekly and "
+  + "monthly results for it don't match TradingView yet."
+
+/** The one sentence a member reads when they move a timeframe setting. */
+export function movedTimeframeRefusal(name, value) {
+  return '`' + name + '` is set to ' + JSON.stringify(value) + ": a timeframe setting moved off its author's default "
+    + 'is drawn only where a TradingView capture at that timeframe grades MATCH, and none does yet for this script, '
+    + 'so nothing is drawn rather than an unwitnessed picture (its default draws as before)'
+}
+
+const _timeframeSpecs = new Map()
+const TIMEFRAME_SPECS_MEMO = 64
+
+/** The timeframe settings a runtime document's script declares (`runtimeInputSpecsOf` with
+ *  `{ timeframes: true }`), memoised per source text (a bounded map: a chart installs few sources). */
+function timeframeSpecsOf(source) {
+  let hit = _timeframeSpecs.get(source)
+  if (!hit) {
+    hit = runtimeInputSpecsOf(source, { timeframes: true }).specs.filter((s) => s.timeframe === true)
+    if (_timeframeSpecs.size >= TIMEFRAME_SPECS_MEMO) _timeframeSpecs.delete(_timeframeSpecs.keys().next().value)
+    _timeframeSpecs.set(source, hit)
+  }
+  return hit
+}
+
+/** ⭐⭐ SETTINGS PARITY (timeframe) — a RUNTIME document with its timeframe settings declared on load
+ *  (`fromTimeframe: true`, never stored: `paramInputs.stripParamInputs`). Idempotent; a key the document
+ *  already declares is left alone. ⛔ A host (`ast`) document, and a run half, declare nothing: the host
+ *  lane folds a timeframe into its trees and reads no member value for it. */
+export function withTimeframeInputs(def) {
+  const compute = def && def.compute
+  if (!compute || compute.kind !== 'runtime' || typeof compute.source !== 'string' || !compute.source) return def
+  const have = Array.isArray(def.inputs) ? def.inputs : []
+  if (have.some((i) => i && i.fromTimeframe === true)) return def
+  const specs = timeframeSpecsOf(compute.source)
+  if (!specs.length) return def
+  const taken = new Set(have.map((i) => i && i.key))
+  // ⛔ while no evidence admits a move, the setting is READ-ONLY at its default with one line saying why
+  // (`locked`, read by `indicatorRegistry.fieldFromInput`; the same line is its visible tip)
+  const lock = movedTimeframeServed() ? {} : { locked: TIMEFRAME_LOCKED_SENTENCE, tooltip: TIMEFRAME_LOCKED_SENTENCE }
+  const add = specs.filter((s) => !taken.has(s.key))
+    .map((s) => ({ ...s, options: s.options.map((p) => [...p]), fromTimeframe: true, ...lock }))
+  if (!add.length) return def
+  return { ...def, inputs: [...have, ...add] }
 }
 
 /** ⭐ UIE PHASE 3 (M4) — the colour input a `plot(…)` call on `line` names as its FIXED

@@ -1,0 +1,314 @@
+{
+ "contract": "uct.converse-eval.cases/1",
+ "_": "Indicators that carry a running state, as cases (Studio, 2026-11-17). SuperTrend and Parabolic SAR are offered to the assistant as functions; the door writes each as bounded recurrences whose update reads its own previous value. On production the door refused its own expansion of them (\"SuperTrend 10, 3\" cost two model calls and built nothing). Each case is the function called the way the assistant calls it; `expect.outputs` are the same calls. `bars` is 1,500: these are shown only after a warm-up of several hundred bars, and on the default 360 the reference is unknown on every bar.",
+ "chart": {
+  "sym": "TEST",
+  "tf": "D"
+ },
+ "bars": 1500,
+ "cases": [
+  {
+   "id": "stateful-supertrend",
+   "group": "example",
+   "turns": [
+    {
+     "words": "SuperTrend 10, 3",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "st",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "supertrend",
+         "args": [
+          {
+           "type": "num",
+           "value": 3
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "stateful-supertrend-direction",
+   "group": "example",
+   "turns": [
+    {
+     "words": "SuperTrend 10, 3 with its direction as a second line",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "st",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "supertrend",
+         "args": [
+          {
+           "type": "num",
+           "value": 3
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       },
+       {
+        "key": "dir",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "supertrendDirection",
+         "args": [
+          {
+           "type": "num",
+           "value": 3
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "stateful-parabolic-sar",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Parabolic SAR with step 0.02 and maximum 0.2",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "sar",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sar",
+         "args": [
+          {
+           "type": "num",
+           "value": 0.02
+          },
+          {
+           "type": "num",
+           "value": 0.2
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "stateful-sar-direction",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Parabolic SAR 0.02, 0.2 with its direction as a second line",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "key": "sar",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sar",
+         "args": [
+          {
+           "type": "num",
+           "value": 0.02
+          },
+          {
+           "type": "num",
+           "value": 0.2
+          }
+         ]
+        }
+       },
+       {
+        "key": "dir",
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sarDirection",
+         "args": [
+          {
+           "type": "num",
+           "value": 0.02
+          },
+          {
+           "type": "num",
+           "value": 0.2
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-unknown-name",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the Gann Fan",
+     "model_expected": false,
+     "expect": {
+      "kind": "refused",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-other-symbol",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight when the close is above the SPY close",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-screener-text",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight it when the sector is Technology",
+     "expect": {
+      "kind": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-ambiguous",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "add volume confirmation",
+     "expect": {
+      "kind": "clarify",
+      "name_fixed": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-rename-nothing",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "rename it",
+     "expect": {
+      "kind": "none",
+      "name_fixed": true
+     }
+    }
+   ]
+  }
+ ]
+}

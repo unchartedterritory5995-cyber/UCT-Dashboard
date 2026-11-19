@@ -756,6 +756,11 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/runtime/columnDigest.js':
     'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
     + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
+  // ⚰️ `engine/runtime/topLevelNames.js` stood here until 2026-11-17 (Studio R5): "Inspect a bar" imports it
+  // (`builder/inspect/inspectDoors.js`), so it is reachable from the app and needs no entry.
+  // ⚰️ `engine/headlessCompute.js` and `engine/referenceSeries.js` stood here until 2026-11-17 (Studio R6):
+  // the share page now imports both to time a formula on the viewer's own device
+  // (`pages/formulas/deviceDrawTime.js`), so they are reachable from the app and need no entry.
   'app/src/components/chart/engine/runtime/brokerPinsLock.js':
     'W9-T2 pin-ledger lock: a pure check its own header says is NOT imported by the bundle; '
     + 'its consumer is the rail __tests__/brokerPinsLock.test.js (docs/pine/W9-STRATEGY-DESIGN.md).',
@@ -814,15 +819,15 @@ const AWAITING_A_DECISION = {
   // ── TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17) ─────────────────────
   // Same shape as outcomeHarness.jsx above: their only importers are tests. The honest fix is moving
   // each under a testing/ path in the owning session's next change, never widening TEST_INFRA.
-  'app/src/components/chart/builder/builderStart.testkit.js':
-    'Shared start-state kit for the BuilderSheet.*.test.jsx files (UCT Signature Release 2, '
-    + '9f8d8ff1fa). Move under a testing/ path.',
   'app/src/components/chart/rails/railScan.js':
     'Source scanner for the chart-data P0 census rails (193c79dcb5); read only by '
     + 'oneKey.census.test.js and writerCensus.census.test.js. Move under a testing/ path.',
   'app/src/components/chart/rails/railSupport.js':
     'Shared support for the chart-data P0 rails (193c79dcb5), read only by those rails and '
     + 'railScan.js. Move under a testing/ path.',
+  'app/src/components/chart/builder/memberPane/costRouteParity.js':
+    'Route-by-cost parity checker (#1711, engine 73): compares a host document and its runtime '
+    + 'twin bar for bar; read only by routeByCost / costRoute tests. Move under a testing/ path.',
   }
 
 /**

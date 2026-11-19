@@ -99,6 +99,10 @@ DEFAULT_RUN_ROOT = pathlib.Path(
 CAPTURED = "CAPTURED"
 REFUSED_BY_TV = "REFUSED_BY_TV"
 GATE_FAILED = "GATE_FAILED"
+#: ⭐⭐ THE RIG'S PERSISTED STATE (coordinator, 2026-11-18): the batch's exit code when the rig layout, read on a
+#: FRESH load at the batch's end, carries a study or is not at the symbol / resolution the batch found. Every capture
+#: may still be good; the NEXT batch's gate would stop on the rig. (See `Driver.verify_fresh_load`.)
+RIG_DIRTY = 3
 INCONCLUSIVE = "INCONCLUSIVE"
 INCOMPLETE = "INCOMPLETE"
 OUTCOMES = (CAPTURED, REFUSED_BY_TV, GATE_FAILED, INCONCLUSIVE, INCOMPLETE)
@@ -115,7 +119,11 @@ MIN_SALT_CHARS = 16
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
 #: SYMBOL"): the flag is asserted ONLY when the loaded history stopped growing AND
 #: its first bar falls on this date in the exchange's own timezone.
-KNOWN_LISTING = {"NYSE:RDDT": "2024-03-21"}
+KNOWN_LISTING = {
+    "NYSE:RDDT": "2024-03-21",
+    # Q-SD2 (2026-11-17): two sources agree, our /api/bars/ALAB?tf=D first bar and TradingView's first NASDAQ:ALAB 1D bar.
+    "NASDAQ:ALAB": "2024-03-20",
+}
 
 
 # ─── outcomes ────────────────────────────────────────────────────────────────
@@ -579,6 +587,27 @@ class Driver:
             self.clock.sleep(self.opts.poll_s)
 
     # ── batch-level ─────────────────────────────────────────────────────────
+    def verify_fresh_load(self, original):
+        """⭐⭐ THE RIG'S PERSISTED STATE (coordinator, 2026-11-18): reload the rig layout and read it as the NEXT batch
+        will: 0 studies, and the symbol and resolution this batch found (`original`). The verdict is the FRESH load's,
+        never the page's own: on TradingView with the layout's autosave on, a study removed through the widget API
+        (`REMOVE_JS`) and a resolution set through it are NOT recorded, while an add from the Pine editor is.
+        ⚰️ MEASURED 2026-11-18: run l12-is-2026-11-18's last probe (UCTPROBE_RS_OWN_DAILY_INTRADAY, RDDT 5m) was removed
+        and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
+        saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
+        was cleared by hand. ⛔ Read only: it never removes or sets anything (a repair is the owner's)."""
+        self.page.reload(wait_until="domcontentloaded")
+        st, ok = self.poll("verify:state", STATE_JS, None,
+                           lambda s: bool(s and s.get("handle") is not None and s.get("studies") is not None and s.get("symbol")),
+                           max(self.opts.ui_timeout_s * 6, 30))
+        st = st or {}
+        studies = [{"id": s.get("id"), "name": s.get("name")} for s in (st.get("studies") or [])]
+        want = {"symbol": original.get("symbol"), "resolution": original.get("resolution")}
+        got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
+        clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
+                 and res_norm(got["resolution"]) == res_norm(want["resolution"]))
+        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got}
+
     def read_state(self, name="state"):
         st = self.ev(name, STATE_JS)
         if not st or st.get("handle") is None:
@@ -1118,6 +1147,16 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
                 rd.ledger("batch-restore", **back, steps=drv.steps)
             except Exception as exc:  # noqa: BLE001
                 rd.ledger("batch-restore", ok=False, error=f"{type(exc).__name__}: {exc}")
+            # ⭐⭐ THE RIG'S PERSISTED STATE: only a FRESH load proves the batch left nothing persisted
+            try:
+                verified = drv.verify_fresh_load(original)
+            except Exception as exc:  # noqa: BLE001
+                verified = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+            rd.ledger("batch-verify", **verified)
+            if not verified.get("ok"):
+                log(f"[batch] ⛔⛔ RIG LEFT DIRTY on a fresh load: {json.dumps(verified)} — the next batch's gate will "
+                    "stop on it; the rig needs a repair before any capture")
+                code = code or RIG_DIRTY
         rd.ledger("batch-end", counts=counts)
     log(f"[batch] done: {json.dumps(counts)}")
     return code

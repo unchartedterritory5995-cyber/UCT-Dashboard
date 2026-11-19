@@ -92,9 +92,7 @@ import {
 // on this branch returned ten matches and every one was prose in a comment).
 // ⭐ SETTINGS PARITY (2a / 2c): the migration, then the load-time settings (`memberDocumentProjection.js`)
 import { projectMemberDocument } from './memberDocumentProjection.js'
-import { inputsAsRead } from './legacyInputs.js'
-import { interpret, listingSeedIsUnpinned } from './ast/interpret'
-import { ENGINE_ERROR, isRefusal } from './ast/parse'
+import { ENGINE_ERROR } from './ast/parse'
 // ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
 // `bind.js` had ZERO live importers — the whole module, not just `foldBound` —
 // so a timeframe-conditional length refused at the door and nothing ever folded
@@ -104,23 +102,16 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // into a shared definition — and `foldBound`'s header names the cost: the next
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
-import { foldBound, bindConstsFor } from './ast/bind'
-import {
-  isPineOriginDoc, otherSymbolPending, otherSymbolRefusalOfTree, staticOtherSymbolMessage,
-  isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
-} from './otherSymbols'
-import { resolveLowerTf } from './lowerTf'
-import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
+import { bindConstsFor } from './ast/bind'
+import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage } from './otherSymbols'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
 // are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
-import {
-  chartStaticRefusals, otherSymbolsDecision, FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE,
-} from './evaluability'
+import { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE } from './evaluability'
 // ⭐⭐ P0G — the document's definition semantics (owner decisions A + C), read
 // off the store's own stamp (`meta.semantics`) and spread into every `interpret`
 // this registry runs for it. `{}` for every document saved before P0G and every
 // Pine translation, so their evaluation is the one it always was.
-import { semanticsOptsFor, semanticsOf } from './definitionSemantics'
+import { semanticsOf } from './definitionSemantics'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -170,6 +161,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 // `computeSignature` carries the benchmark tail's version into the binder's memo.
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
+import { HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
@@ -183,15 +175,30 @@ import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './ru
 import './lowerTfGate.js'
 import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf } from './runtime/runtimeObjects'
 import { LIMIT_NAMES } from './runtime/limits'
-import { registeredObjectRuntimeValues, inputsAtDefaults } from './objectRuntimeSeam.js'
+import { registeredObjectRuntimeValues, inputsAtDefaults, registerObjectComputeFor } from './objectRuntimeSeam.js'
 import { manifestAtDefaults } from './paramLiteral.js'
-// ⭐ SETTINGS PARITY (2a): one instance's parameter settings, written into its literals.
-import { specializeParams } from './paramInputs.js'
-import { specializeSymbols, originalDocumentOf } from './symbolInputs.js'
+import { originalDocumentOf } from './symbolInputs.js'
 import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
-// ⭐⭐ CBC-FMT — `calc_bars_count`: the window both lanes take (pure, imports nothing).
-import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
-  CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence } from './calcBarsWindow.js'
+// ⭐⭐ HEADLESS (R6) — THE HOST LANE'S VALUES LIVE IN `astColumns.js`, moved there unchanged so the
+// server bundle computes them without this registry (`tools/pine_runtime_closure.mjs` forbids it).
+// Every name this module exported from that code is re-exported below, so no importer moved.
+import {
+  astLaneColumns, astPlotKey, astTrees, withColumnErrors, withRuntimeErrorStop, colourReaderPaintNotices,
+  columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
+  otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
+  historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
+  resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD,
+} from './astColumns.js'
+// ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
+import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
+// ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
+import { hostLaneOffThread } from './hostLaneAsync.js'
+export {
+  columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
+  otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
+  historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
+  resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD,
+}
 // ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
 // `teaching.js` reads the readout cards off this registry, so importing it here
 // is an import cycle. `teachingData.js` imports nothing.
@@ -2209,98 +2216,8 @@ function maskMacdHead(columns) {
  */
 const COLUMN_HOLDS = MACD_HEAD_MASK ? { macd: maskMacdHead } : {}
 
-/**
- * The ONE data-bearing plot key an `ast` definition declares.
- *
- * ⛔ READ OFF `def.plots`, NOT `columnKeys(def)`, AND THE DIFFERENCE IS LOAD-
- * BEARING. `columnKeys` is the union of plots and EVENTS. If this read that
- * union, an `ast` definition that declared an event would compute its event key
- * instead of its plot — a column with the wrong name, full of the right numbers.
- * Reading the plots means an `ast` definition's events simply never come back,
- * and `validateEventColumns` — which already refuses a definition whose event
- * names no returned column — refuses it BY NAME at registration. One guard, at
- * the door it was built for, rather than a second one bolted on here.
- */
-function astPlotKey(def) {
-  const plots = Array.isArray(def?.plots) ? def.plots : []
-  const keys = plots
-    .filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
-    .map(p => p.key)
-  return keys
-}
-
-/**
- * The definition's tree MAP, or `null` for the single-tree (pre-W1b) shape.
- *
- * ⛔ ONE PREDICATE, TWO CALLERS, ON PURPOSE. `astColumnsFor` and
- * `validateAstLane` both branch on "does this document carry trees", and they
- * must branch identically or a document could validate down one shape and
- * compute down the other — the second-authority-over-one-value defect this repo
- * names most often. Anything that is not a plain object is `null` here and takes
- * the single-tree path in BOTH; `defSchema.validateTrees` is what refuses the
- * malformed map by name, and it runs first.
- */
-function astTrees(def) {
-  const trees = def && def.compute && def.compute.trees
-  return (trees && typeof trees === 'object' && !Array.isArray(trees)) ? trees : null
-}
-
-/**
- * Compute an `ast` definition: ONE TREE, ONE COLUMN — as many of each as the
- * document declares.
- *
- * `interpret` returns a single `Float64Array` of `bars.length` — the columnar
- * contract already, with no adaptation to do — so the only question this
- * function answers is WHICH KEY each one goes under.
- *
- * ⭐ TWO SHAPES, ONE RULE (W1b). A document carrying `compute.trees` names a
- * tree PER PLOT and gets a column per plot. A document without one carries a
- * single tree in `compute.ast` and must declare exactly one data plot —
- * `validateUserDefinitions` refuses a second, and the throw below is the
- * backstop for a definition that reached `computeFor` without passing through
- * that door. The second shape is every definition saved before W1b, and it
- * computes byte-identically to the way it did then.
- *
- * ⛔ IT DOES NOT CATCH. `interpret` throws `TableRefusal` for anything the table
- * refuses and a plain `RangeError` for a tree that overflows; relabelling either
- * as "computed nothing" is the wrong-door defect this phase has now found four
- * times. A refusal must reach the caller as the refusal it is.
- */
-/** The key every partial-compute result carries its reasons under.
- *  ⛔ NON-ENUMERABLE, AND THAT IS THE WHOLE DESIGN. Every consumer of a column
- *  map walks it with `Object.keys` (the binder's `for (const plotKey of
- *  Object.keys(cols))` is the one that matters), and a visible extra key would
- *  become a phantom plot on every chart. */
-const COLUMN_ERRORS = '__columnErrors'
-
-/** Attach the per-column reasons to a column map without widening its key set. */
-function withColumnErrors(out, errors) {
-  if (errors && Object.keys(errors).length) {
-    Object.defineProperty(out, COLUMN_ERRORS, { value: Object.freeze(errors), enumerable: false })
-  }
-  return out
-}
-
-/**
- * ⭐⭐ WHY A COLUMN IS MISSING — the structured state C2A.8 asks be preserved.
- *
- * A column map returned by `computeFor` holds only the columns that COMPUTED.
- * This is how a caller learns that a key is absent because it exceeded a limit
- * rather than because the definition never declared it — which are different
- * facts and, without this, indistinguishable.
- *
- * ⛔ IT IS NOT UX. No surface renders it yet, deliberately (C2A.8: "do not build
- * broad new UX in this wave"). It exists so that the day one does, the product
- * can say WHICH output and WHICH limit instead of re-deriving a guess — and so
- * that "the indicator drew nothing" and "one of its seven columns is too
- * expensive" stop being the same observation.
- *
- * @returns {Record<string, {guard: string, message: string}>} possibly empty
- */
-export function columnErrors(columns) {
-  const e = columns && columns[COLUMN_ERRORS]
-  return e || {}
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `astPlotKey`, `astTrees`, `withColumnErrors`, `columnErrors` (re-exported above).
 
 // ─── ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN ─────────────────────
 //
@@ -2391,347 +2308,11 @@ export function runtimeRunStopOf(def, cols) {
   }
 }
 
-// ─── ⭐⭐ C43 — A REACHED `runtime.error` LEAVES NO COLUMN ────────────────────────
-//
-// TradingView's study holds NOTHING once the script's own `runtime.error` is
-// reached on any bar (measured — see `runtimeErrorStop.js`). The evaluator is
-// REGISTERED here by that module rather than imported: it reads the object
-// lane's warm-up probe, and this module must not pull the object lane into its
-// chunk. Unregistered (a caller that computes columns without the object lane
-// loaded), every document computes as it always did.
-let runtimeErrorStopFn = null
-export function registerRuntimeErrorStop(fn) {
-  runtimeErrorStopFn = typeof fn === 'function' ? fn : null
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   the C43 `runtime.error` seam, `astColumnsFor` and `astColumnsUnstopped` (re-exported above where public).
 
-/** The guard a column refused by the script's own error carries. */
-export const RUNTIME_ERROR_GUARD = 'pine:runtime.error'
-
-/** The key a column map carries the stop decision under — non-enumerable for the
- *  reason `__columnErrors` is (a visible key is a phantom plot). */
-const RUNTIME_ERROR_STOP = '__runtimeErrorStop'
-
-/** What the script's `runtime.error` calls did on the bars a column map was
- *  computed over: `{reached, bar, sentence, unknown, unread, …}`, or null for a
- *  document that carries none. `unknown` names each call this binding could not
- *  evaluate — the columns are then the unstopped ones, as before C43. */
-export function runtimeErrorStopOf(columns) {
-  return (columns && columns[RUNTIME_ERROR_STOP]) || null
-}
-
-function withRuntimeErrorStop(out, stop) {
-  if (stop) Object.defineProperty(out, RUNTIME_ERROR_STOP, { value: stop, enumerable: false })
-  return out
-}
-
-function astColumnsFor(def, bars, inputs, ctx) {
-  const stop = runtimeErrorStopFn && def && def.meta && def.meta.runtimeErrors
-    ? runtimeErrorStopFn(def, bars, inputs, ctx)
-    : null
-  if (stop && stop.reached) {
-    // ⛔ EVERY COLUMN, AND BY NAME: an absent column with no reason reads as "the
-    // definition never declared it" (`columnErrors`).
-    const errors = {}
-    for (const key of astPlotKey(def)) errors[key] = { guard: RUNTIME_ERROR_GUARD, message: stop.sentence }
-    return withRuntimeErrorStop(withColumnErrors({}, errors), stop)
-  }
-  const out = astColumnsUnstopped(def, bars, inputs, ctx)
-  return stop ? withRuntimeErrorStop(out, stop) : out
-}
-
-/** ⭐⭐ ENGINE 55 (review F1) — `column:<key>` → `<key>`, or null. */
-const colourHelperKeyOf = (mode) => (typeof mode === 'string' && mode.startsWith('column:') ? mode.slice('column:'.length) : null)
-
-/** The name a member reads for a plot: its label, never its key. */
-const visiblePlotName = (p) => `\`${(p && (p.label || p.title)) || (p && p.key) || 'a plot'}\``
-
-/** ⭐⭐ ENGINE 55 (review F1) — SERVE, NEVER DEFAULT. A plot whose per-bar COLOUR (`colorMode`) or
- *  band colour (`fill.colorMode`) is read from a helper column the bind REFUSED for another
- *  symbol is refused too, by name, with the helper's guard and code and a sentence naming the
- *  visible plot and the symbol (`otherSymbols.colourReaderRefusal`). ⚰️ The helper was refused
- *  and the plot was not: the binder found no colour column, `pointColour` answered null, and the
- *  series' DEFAULT colour was drawn on every bar — a colour the script never chose.
- *  ⛔ A band's PARTNER (`fill.with`) refused is not this: that partner is a visible plot refused
- *  by name, the band has no edge to draw, and the owner's own line is still exact.
- *  ⛔ A plot whose VALUE is the `na` literal draws nothing on any bar, so its colour is never
- *  seen: it is not refused (`plotValueIsNaLiteral`). */
-function refuseColourReaders(def, out, errors) {
-  const trees = def && def.compute && def.compute.trees
-  for (const p of (def && def.plots) || []) {
-    if (!p || typeof p.key !== 'string' || errors[p.key]) continue
-    if (trees && plotValueIsNaLiteral(trees[p.key])) continue
-    const helpers = [colourHelperKeyOf(p.colorMode), p.fill ? colourHelperKeyOf(p.fill.colorMode) : null]
-      .filter((k) => typeof k === 'string' && k && k !== p.key)
-    const hit = helpers.map((k) => errors[k]).find(isOtherSymbolRefusal)
-    if (!hit) continue
-    delete out[p.key]
-    errors[p.key] = colourReaderRefusal(visiblePlotName(p), hit)
-  }
-}
-
-/** ⭐⭐ ENGINE 55 (review F1) — the paints (`bgcolor` / `barcolor`) whose colour is read from a
- *  helper column refused for another symbol, each named for the strip by its kind and line —
- *  never by the hidden helper row that carried the colour. */
-function colourReaderPaintNotices(def, columns) {
-  const errs = columnErrors(columns)
-  const out = []
-  for (const paint of (def && Array.isArray(def.paints) ? def.paints : [])) {
-    const key = paint && colourHelperKeyOf(paint.colorMode)
-    const e = key ? errs[key] : null
-    if (!isOtherSymbolRefusal(e)) continue
-    const name = `\`${paint.kind || 'bgcolor'}\`${Number.isInteger(paint.line) ? ` (line ${paint.line})` : ''}`
-    out.push({ code: e.code || e.guard, reason: colourReaderMessage(name, e.message) })
-  }
-  return out
-}
-
-function astColumnsUnstopped(def, bars, inputs, ctx) {
-  const keys = astPlotKey(def)
-  const trees = astTrees(def)
-  // ⭐⭐ C29 — a document folded at another chart period does not answer here
-  // (`periodReads.js`): every column is refused by name, none drawn off the
-  // other period's constants.
-  // ⭐⭐ P0 — A READ BELOW THE CHART (`ltf`) IN A DOCUMENT THAT IS NOT A PINE
-  // TRANSLATION IS REFUSED BY NAME, per plot. Its supply (`lowerTfFor`) is built
-  // from the member door's stamp and its admission rules (`lower-tf:expression`,
-  // `lowerTf.js`) are checked by the Pine translator — neither exists for a
-  // typed formula, so it was accepted and starved: all-NaN, no report.
-  // ⭐ P0 0F — a plot that reads a current-only scalar is refused by name
-  // (`chartScalars.js`), never drawn as the 0 a comparison makes of its hole.
-  // ⭐⭐ P1 — ALL THREE ARE DECIDED BY THE SHARED GATE (`evaluability.js::
-  // chartStaticRefusals`), so `evaluability(def, key, 'chart', ctx)` and this
-  // compute can never disagree about a pre-compute refusal. `whole` = the
-  // document computes nothing here; `staticWhy` = per plot (period > ltf > scalar).
-  const { whole, perKey: staticWhy } = chartStaticRefusals(def, ctx)
-  if (whole) return withColumnErrors({}, whole)
-  // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
-  // into the integers THIS binding needs. `Uncharted Volume` line 233's
-  // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
-  // daily one — measured against the vendor on 2026-09-10 (job B: `fold==sma20`
-  // on 400/400 daily bars, `fold==sma5` on 400/400 weekly).
-  // ⛔ COMPUTE-SCOPED AND DISCARDED. `foldBound` returns a NEW tree and mutates
-  // nothing, and `bound` is a local — the SAVED definition stays symbolic, which
-  // is the only thing that keeps the next binding free to fold it differently.
-  // ⛔ AN UNFOLDABLE LENGTH IS LEFT EXACTLY AS IT WAS, never guessed: the window
-  // check downstream then refuses the member's own expression, naming the field
-  // that stopped it. An unknown timeframe folds NOTHING — `timeframeFlags`
-  // returns null rather than a default, because a guessed `isdaily` is a
-  // confident wrong length.
-  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
-  const bound = (tree) => foldBound(tree, bindConsts)
-  // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
-  // tree of the document (`otherSymbolsFor`).
-  const other = otherSymbolsFor(def, ctx)
-  // ⭐⭐ C41 — which lower-timeframe codes this binding may read, decided ONCE for
-  // every tree of the document (`lowerTfFor`). Null for a document that reads none.
-  const lower = lowerTfFor(def, ctx)
-  // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
-  // result is keyed by the plot, which is the whole of the multi-plot lane: the
-  // MACD's three lines are three trees, not one column reshaped. The single-tree
-  // path below is untouched, so a document saved before today computes the same
-  // bytes through the same call.
-  //
-  // ⛔ A PLOT WITH NO TREE IS REFUSED BY THE PLOT'S NAME, NOT LEFT TO
-  // `interpret`. `defSchema.validateTreesAgainstPlots` already refuses the
-  // key-set disagreement in both directions, so a definition that walked through
-  // `validateUserDefinitions` cannot arrive here short a tree — but `computeFor`
-  // takes a definition object from ANY caller (which is the reason the
-  // "computes ONE column" throw below has always existed), and handing
-  // `interpret` an `undefined` tree would surface as a parse-shaped error about
-  // a node, blaming the formula for a document defect.
-  if (trees) {
-    const out = {}
-    const errors = {}
-    // ⭐⭐ C2C.11 — ONE MEMO FOR THE WHOLE DOCUMENT'S COLUMNS, CREATED HERE AND
-    // DROPPED HERE. A multi-plot import computes one consensus expression and
-    // plots several views of it (C2A: 77-84% of a real document's counted nodes
-    // are repeated subtrees), and until now every view paid for the whole thing
-    // again because `interpret`'s own memo is scoped to one tree.
-    //
-    // ⛔ ITS LIFETIME IS THIS CALL. The columns it holds were computed against
-    // THESE bars and THESE inputs; a memo that outlived the pass would serve
-    // stale numbers with nothing red anywhere. It is a local, never a module
-    // cache, and it is not keyed — so there is nothing to invalidate and no way
-    // to forget to.
-    //
-    // ⚠️ IT ONLY PAYS WHEN THE TREES ACTUALLY SHARE NODES, which is what a
-    // document stored as a shared graph gives (its expansion materialises each
-    // distinct node once). On an inlined document every lookup misses and the
-    // cost is one Map probe per self-free node.
-    const crossMemo = new Map()
-    // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
-    const clock = {}
-    // ⭐ ENGINE 56 — plot key → Map(code → 0/1 column): the bars a per-bar witness mask
-    // withheld by name (`interpret.js::spreadWitnessMask`), read by `withheldBarsReport`
-    const withheldBars = {}
-    for (const key of keys) {
-      if (!Object.prototype.hasOwnProperty.call(trees, key)) {
-        throw new Error(
-          `computeFor: plot ${JSON.stringify(key)} of ${JSON.stringify(def?.id)} has no tree in ` +
-          `compute.trees (${Object.keys(trees).join(', ') || 'none'}) — a plot with no tree is a key ` +
-          `nothing ever fills.`,
-        )
-      }
-      // ⚠️ SAME ARGUMENTS AS THE SINGLE-TREE CALL BELOW, INCLUDING `ctx.tf` AND
-      // THE `undefined` SCALARS — see that call's comments. One budget covers
-      // every tree because the budget is the DOCUMENT's (`compute.budget`), and
-      // a map over `interpret` that dropped it would run every plot uncapped.
-      //
-      // ⛔⛔ ONE COLUMN'S FAILURE IS ONE COLUMN'S FAILURE (C2A).
-      //
-      // ⚰️ MEASURED ON A REAL SCRIPT. `mid_engagement__14-master-line-lite`
-      // declares 7 columns. Three of them — Consensus and the two bands —
-      // compute cleanly at the 5,000 bars a chart loads (4,945 finite values
-      // each, 6-20 ms). The other four are `accum` recurrences whose
-      // `bars × warmup` exceeds `MAX_RECURRENCE_STEPS`, and they refuse.
-      //
-      // This loop had no `try`. The fourth tree threw, the loop unwound,
-      // `computeFor` threw, and the binder's `attempt(...)` caught it and
-      // `continue`d PAST THE WHOLE INSTANCE — so all seven plots drew nothing.
-      // Measured through this very function: OK at 1, 2 and 3 columns; throws
-      // from the 4th on. Three good columns were erased by a fourth.
-      //
-      // ⛔ THE BUDGET WAS NEVER SHARED. Each `interpret` call is capped on its
-      // own tree; nothing accumulates across siblings. The loss was CONTAINMENT,
-      // and the two are worth telling apart: a shared budget would mean the
-      // document is too big, and it is not — one column of it is.
-      //
-      // ⛔ A FAILED COLUMN IS ABSENT, NOT ALL-NaN. `hasAnyFinite` already reads
-      // an absent key as "no data" and gives the plot no series, so absence
-      // needs no new handling anywhere; a 5,000-long NaN array per failed column
-      // would allocate for nothing and read as a column that computed.
-      // The REASON is preserved instead — see `columnErrors`.
-      // ⭐ C29 — only the plots that folded the other period's value are refused.
-      // ⭐ P1 — the period / ltf / scalar refusal of THIS plot (`chartStaticRefusals`).
-      if (staticWhy.has(key)) {
-        errors[key] = staticWhy.get(key)
-        continue
-      }
-      // ⭐⭐ ENGINE 55 — a plot that reads a ticker this binding REFUSED (settled, not
-      // pending) is refused BY NAME with the bind's code and sentence, never computed
-      // into an all-`na` column (`otherSymbols.js::otherSymbolRefusalOfTree`).
-      const symWhy = otherSymbolRefusalOfTree(trees[key], other)
-      if (symWhy) {
-        errors[key] = symWhy
-        continue
-      }
-      try {
-        out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
-          // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
-          // the same way. `ctx` absent -> `null` -> UNKNOWN -> the four
-          // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
-          undefined, { tf: ctx && ctx.tf,
-            newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-            ...listingOptsFor(def, ctx),
-            ...semanticsOptsFor(def),
-            ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
-            ...(other ? { symbols: other.symbols } : {}),
-            ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
-            chartClockSink: (clock[key] = new Map()), withheldBarsSink: (withheldBars[key] = new Map()) })
-      } catch (err) {
-        // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
-        // exception a guard name, so a TypeError inside a walker was
-        // indistinguishable from the table declining to compute a column.
-        errors[key] = isRefusal(err)
-          ? { guard: err.guard, message: String(err.message) }
-          : { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error',
-            message: String((err && err.message) || err) }
-        continue
-      }
-      // ⭐⭐ C48 — a plot that reads a call in a block that may not run on every
-      // bar (`blockRuns.js`): its guard is computed over THESE bars, and where
-      // the block runs after a bar it skipped the plot is refused by name —
-      // never drawn off the every-bar number. Same budget, same options, same
-      // memo as the plot's own tree (the guard is a subtree of it).
-      // ⛔ AFTER the plot's own tree, never before it: a plot that cannot be
-      // computed at all keeps ITS reason (`interpret:bind-time-text` on a chart
-      // whose symbol is not resolved, `symbolThread.test.js`) — the guard is a
-      // subtree of that tree, and asked first it failed the same way and the
-      // member was told about blocks instead of about the symbol.
-      const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
-        undefined, { tf: ctx && ctx.tf,
-          newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-          ...listingOptsFor(def, ctx),
-          ...semanticsOptsFor(def),
-          ...(other ? { symbols: other.symbols } : {}), crossMemo,
-          chartClockSink: new Map() }))
-      if (runsWhy) {
-        delete out[key]
-        delete clock[key]
-        delete withheldBars[key]
-        errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
-      }
-    }
-    refuseColourReaders(def, out, errors)
-    return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower), withheldBars)
-  }
-  if (keys.length !== 1) {
-    throw new Error(
-      `computeFor: an "ast" definition computes ONE column and definition ` +
-      `${JSON.stringify(def?.id)} declares ${keys.length} data-bearing plots ` +
-      `(${keys.join(', ') || 'none'}). One formula is one series; a second plot would be a ` +
-      `key nothing ever fills.`,
-    )
-  }
-  // ⭐ `ctx.tf` IS THREADED (closed table v2). `computeFor` has had the timeframe
-  // all along and dropped it here, which was harmless while the table held
-  // nothing that needed one. It now holds four: `isintraday`, `isdaily`,
-  // `isweekly` and `ismonthly` are answerable ONLY from what the caller knows,
-  // and `interpret` fails them CLOSED (not-computable) when nobody says. So the
-  // cost of not passing it is not a crash — it is a member's session filter that
-  // silently never fires, which is the quietest failure this lane has.
-  //
-  // ⚠️ `undefined` FOR BUDGET'S NEIGHBOURS, NOT `{}`. `scalars` is genuinely
-  // absent on the chart lane (a chart draws one symbol's bars; the scalar map is
-  // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
-  // into "an empty scalar map was", which seeds every declared scalar NaN by a
-  // different route and reads identically at the call site.
-  // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
-  if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
-  // ⭐⭐ ENGINE 55 — the single tree's settled other-symbol refusal, by name.
-  const soleSymWhy = otherSymbolRefusalOfTree(def.compute.ast, other)
-  if (soleSymWhy) return withOtherSymbols(withColumnErrors({}, { [keys[0]]: soleSymWhy }), other)
-  const clock = { [keys[0]]: new Map() }
-  const soleWithheld = { [keys[0]]: new Map() }
-  const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
-    undefined, { tf: ctx && ctx.tf,
-      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...listingOptsFor(def, ctx),
-      ...semanticsOptsFor(def),
-      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
-      ...(other ? { symbols: other.symbols } : {}),
-      ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: clock[keys[0]], withheldBarsSink: soleWithheld[keys[0]] })
-  // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
-  // AFTER its tree computed (a tree that cannot keeps its own reason, above).
-  const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
-    undefined, { tf: ctx && ctx.tf,
-      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...listingOptsFor(def, ctx),
-      ...semanticsOptsFor(def),
-      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}), ...(varOriginAbsoluteFor(def) ? { varOriginAbsolute: true } : {}),
-      ...(other ? { symbols: other.symbols } : {}),
-      ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: new Map() }))
-  if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
-  return withWithheldBars(withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower), soleWithheld)
-}
-
-/** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
- *  (`engine/lowerTf.js::resolveLowerTf`), or null when the document reads none.
- *  Only the member door's Pine documents write an `ltf` node; the codes are its
- *  stamp (`meta.lowerTf`), so a document that reads none costs one property read.
- *  `ctx.lowerTf` is the chart's OWN symbol at each store timeframe
- *  (`useLowerTfSources`); `ctx.tf` the chart's — or the frame's — timeframe. */
-export function lowerTfFor(def, ctx) {
-  if (!def || !def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
-  if (!Array.isArray(def.meta.lowerTf) || !def.meta.lowerTf.length) return null
-  return resolveLowerTf(def, {
-    tf: ctx && ctx.tf,
-    lowerTf: ctx && ctx.lowerTf,
-    framed: !!(ctx && ctx.framed),
-  })
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `lowerTfFor` (re-exported above).
 
 /** ⭐⭐ P0 — the guard a formula document's `ltf` plot is refused under
  *  (owned by `evaluability.js` since P1; re-exported for its readers). */
@@ -2776,275 +2357,11 @@ export function externalReadNotices(def, columns) {
   return out
 }
 
-/** The key a column map carries its lower-timeframe decision under —
- *  non-enumerable, like `__otherSymbols`. */
-const LOWER_TF = '__lowerTf'
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   the lower-timeframe / other-symbol / withheld-bar / chart-clock records and their readers (re-exported above).
 
-function withLowerTf(out, lower) {
-  if (lower) {
-    Object.defineProperty(out, LOWER_TF, {
-      value: Object.freeze({ served: lower.served, refused: lower.refused }), enumerable: false,
-    })
-  }
-  return out
-}
-
-/** ⭐ C41 — which lower-timeframe codes a computed column map was served, and
- *  which were refused and why: `{served, refused: [{code, refusal, reason}]}`, or null. */
-export function lowerTfReport(columns) {
-  return (columns && columns[LOWER_TF]) || null
-}
-
-/** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
- *  or null when the document reads none.
- *
- *  ⭐⭐ P0 — EVERY DOCUMENT THAT READS ONE IS DECIDED HERE. A Pine translation by
- *  its recorded spellings (`resolveOtherSymbols`); any other document — a formula
- *  a member typed — by our store's ticker (`resolveFormulaSymbols`): served when
- *  its bars are in hand, refused by name otherwise.
- *  ⚰️ Until P0 a non-Pine `sym` "kept the unsupplied answer it always had":
- *  all-NaN, no report, never fetched — a definition accepted and starved. */
-export function otherSymbolsFor(def, ctx) {
-  // ⭐ P1 — the gate's decision, verbatim (`evaluability.js::otherSymbolsDecision`).
-  return otherSymbolsDecision(def, ctx)
-}
-
-/** The key a column map carries its other-symbol decision under — non-enumerable
- *  for the same reason `__columnErrors` is (a visible key is a phantom plot). */
-const OTHER_SYMBOLS = '__otherSymbols'
-
-function withOtherSymbols(out, other) {
-  if (other) {
-    Object.defineProperty(out, OTHER_SYMBOLS, {
-      value: Object.freeze({ served: other.served, refused: other.refused }), enumerable: false,
-    })
-  }
-  return out
-}
-
-/** ⭐ C26 — which other symbols a computed column map was served, and which were
- *  refused and why: `{served, refused: [{ticker, code, reason}]}`, or null. */
-export function otherSymbolReport(columns) {
-  return (columns && columns[OTHER_SYMBOLS]) || null
-}
-
-/** ⭐ ENGINE 56 — the key a column map carries its per-bar witness withholdings under,
- *  non-enumerable like `__chartClock`: plot key → `{code: Float64Array(0/1)}`. */
-const WITHHELD_BARS = '__withheldBars'
-function withWithheldBars(out, byKey) {
-  const rows = {}
-  for (const [key, codes] of Object.entries(byKey || {})) {
-    if (codes && codes.size) rows[key] = Object.freeze(Object.fromEntries(codes))
-  }
-  if (Object.keys(rows).length) {
-    Object.defineProperty(out, WITHHELD_BARS, { value: Object.freeze(rows), enumerable: false })
-  }
-  return out
-}
-/** ⭐ ENGINE 56 — the bars each plot was withheld on by a per-bar witness code (A3's
- *  `pine:bool-na-unwitnessed`, S4-2's `pine:tie-unwitnessed`): `{[plotKey]: {[code]: 0/1
- *  column}}`, or null. The vendor harness reads it so a withheld bar is graded "not
- *  compared", never as the `na` the column holds there. */
-export function withheldBarsReport(columns) {
-  return (columns && columns[WITHHELD_BARS]) || null
-}
-
-/** The key a column map carries its `time(<timeframe>)` withholdings under —
- *  non-enumerable for the reason `__columnErrors` is. */
-const CHART_CLOCK = '__chartClock'
-
-/** `byKey`: plot key → Map(code → sentence), filled by `interpret` through
- *  `opts.chartClockSink` (`interpret.js::periodAnchorMask` is the ONE place the
- *  decision is made). Folded to one row per code, naming the plots it covers. */
-function withChartClock(out, byKey) {
-  const rows = new Map()
-  for (const [key, reasons] of Object.entries(byKey || {})) {
-    for (const [code, reason] of reasons) {
-      if (!rows.has(code)) rows.set(code, { code, reason, plots: [] })
-      rows.get(code).plots.push(key)
-    }
-  }
-  if (rows.size) {
-    Object.defineProperty(out, CHART_CLOCK, {
-      value: Object.freeze({ withheld: Object.freeze([...rows.values()]) }), enumerable: false,
-    })
-  }
-  return out
-}
-
-/** ⭐⭐ C36 — WHY EVERY BAR OF A PLOT THAT READS `time(<timeframe>)` IS WITHHELD
- *  ON THIS CHART: `{withheld: [{code, reason, plots}]}`, or null when nothing is.
- *  The codes and sentences are `interpret.js::CHART_CLOCK_WITHHELD`'s — a chart
- *  that is not daily, daily bars that include a weekend, a chart timeframe no
- *  capture measured. The binder publishes it to the member's disclosure strip
- *  (`chartClockNotice.js`); the vendor harness prints it as a note. Modelled on
- *  `otherSymbolReport`: the decision rides on the columns it was made for. */
-export function chartClockReport(columns) {
-  const own = (columns && columns[CHART_CLOCK]) || null
-  // ⭐⭐ CBC-FMT — a `calc_bars_count` window says so on the same strip ("computed on its
-  // last N bars", and the newest bar while it is withheld), in either lane.
-  const win = calcBarsWindowReport(columns)
-  if (!win) return own
-  const rows = win.rows.map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
-  return Object.freeze({ withheld: Object.freeze([...((own && own.withheld) || []), ...rows]) })
-}
-
-/** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
- *  member door (`memberPaneDefinition`) stamps it; nothing else does. */
-export const PINE_RECURRENCE_ORIGIN = 'pine'
-
-/** Whether the listing exception (ruling R-W) applies to THIS document on THIS
- *  bar series: `interpret`'s `historyFromListing`.
- *
- *  Two facts, both required, and neither inferred:
- *   - the CALLER states the series starts at the symbol's first-ever bar
- *     (`ctx.historyFromListing === true` — `StockChart` derives it from the
- *     listing date, the vendor harness from the capture's `startsAtBar0`);
- *   - the DOCUMENT declares its `accum` recurrences are Pine translations
- *     (`meta.recurrenceOrigin === 'pine'`).
- *
- *  ⛔ WHY THE SECOND ONE EXISTS. `accum` is shared by three translators and only
- *  one of them means "carried since the first bar". TC2000's `CountTrue(b, x)`
- *  (`pcf.js`) IS a window of `x` bars — run from bar 0 it would count the whole
- *  history, a different indicator. A document that says nothing is left exactly
- *  as it was.
- *  ⛔ Absent, `false`, or anything but `true` on either side means NO. */
-export function historyFromListingFor(def, ctx) {
-  return !!(ctx && ctx.historyFromListing === true
-    && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
-}
-
-/** ⭐⭐ F1 — the listing facts `interpret` reads, as ONE spread: the listing
- *  (`historyFromListingFor`) and, with it, whether this document's Pine version
- *  reads an `na` `?:` test as false (`meta.naConditionFalse`, written by the
- *  member door from `interpret.js::naConditionIsFalse`; `interpret.js::
- *  pineTernaryFor`). Off the listing, or for a document that does not declare
- *  it, nothing changes. */
-export function listingOptsFor(def, ctx) {
-  if (!historyFromListingFor(def, ctx)) return {}
-  return { historyFromListing: true,
-    ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}),
-    ...(listingSeedUnpinnedFor(def) ? { listingSeedUnpinned: true } : {}) }
-}
-
-/** ⭐⭐ W34-I4b — does this document's Pine version leave bar 0's history
- *  unpinned (`interpret.js::listingSeedIsUnpinned`: v1/v2, or no `//@version`)?
- *  Read from the door's own stamp (`meta.pineVersion`, null for a script with no
- *  pragma), and ONLY from a stamped document (`meta.doorVersion`): an unstamped
- *  one cannot say which version it was, and — the convention every listing fact
- *  here follows — a document that says nothing is left exactly as it was. */
-export function listingSeedUnpinnedFor(def) {
-  const meta = def && def.meta
-  if (!meta || !Number.isInteger(meta.doorVersion) || !('pineVersion' in meta)) return false
-  return listingSeedIsUnpinned(meta.pineVersion)
-}
-
-/** ⭐⭐ C45 — DOES THIS DOCUMENT'S `barindex` MEAN PINE'S `bar_index`?
- *
- *  Pine's `bar_index` counts from the first bar of the symbol's history; the
- *  engine's `barindex` leaf counts from the first bar it is handed. A document
- *  the Pine member door built claims TradingView's number, so off the listing a
- *  value that depends on the count is withheld (`interpret.js::barIndexMask`).
- *  A formula a member typed in the formula language reads `barindex` by ITS
- *  declared sentence ("the bar's position in the series") and is not touched.
- *
- *  ⛔ The same declaration `historyFromListingFor` reads, and for the same
- *  reason: the tree cannot say which translator wrote it. A document that says
- *  nothing (saved before C12w, or from another translator) is left as it was.
- *
- *  ⭐ ONE OTHER FACT ANSWERS IT, AND ONLY A CALLER CAN STATE IT:
- *  `ctx.barIndexFromFirstBar === true` — the series' first bar IS the bar
- *  TradingView counts as 0. The listing implies it on a daily chart
- *  (`historyFromListing`, which `interpret` asks itself); nothing else a member
- *  surface holds does — on an intraday chart TradingView's bar 0 is the first bar
- *  ITS plan loaded, which this product cannot know. So no member surface states
- *  it (`StockChart` does not, railed). The vendor harness does, for a capture
- *  whose OWN `bar_index` control row reads 0..n-1 on its bars: there the fact is
- *  the vendor's own print, and the count is graded instead of withheld.
- *  ⛔ It says nothing about the listing: no seed is lifted, no history read is
- *  served by it. Absent, `false`, or anything but `true` means NO. */
-/** ⭐⭐ 2026-11-09 — DOES THIS DOCUMENT'S `accum` MEAN A PINE `var`, SET ON THE
- *  SYMBOL'S FIRST BAR? The declaration `historyFromListingFor` reads
- *  (`meta.recurrenceOrigin === 'pine'`). Off the listing such a `var` that still
- *  holds what it held before the loaded bars is withheld by name
- *  (`interpret.js::varOriginMask`); a formula's own `accum(…, W)` is a window by
- *  its declared sentence and is not touched. ⛔ Unlike `barIndexAbsoluteFor`,
- *  `ctx.barIndexFromFirstBar` does not lift it: that fact names TradingView's bar
- *  0, and the bounded window still re-seeds 250 bars back on every bar. */
-export function varOriginAbsoluteFor(def) {
-  return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
-}
-
-export function barIndexAbsoluteFor(def, ctx) {
-  return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
-    && !(ctx && ctx.barIndexFromFirstBar === true)
-}
-
-/** Merge a caller's inputs over the definition's declared defaults. */
-// ⭐⭐ EXPORTED FOR THE OBJECT LANE (C3B-CLOSE item 6), NOT COPIED INTO IT.
-// `objectColumns.objectReaderFor` needs exactly this merge — declared defaults
-// under the instance's overrides — to evaluate an object's coordinate the way
-// the plot beside it is evaluated. A second copy there would be a second
-// authority over one value, and the two would disagree the first time a default
-// rule moved (`lesson_a_second_authority_over_one_value`).
-export function resolveInputs(def, inputs) {
-  const out = {}
-  for (const input of def?.inputs || []) {
-    if (input && typeof input.key === 'string') out[input.key] = input.default
-  }
-  // ⭐ 3-08b: a stored legacy input reads as its successor where the successor
-  // was never stored (`legacyInputs.inputsAsRead`; read-time, never written back).
-  const stored = inputsAsRead(def, inputs)
-  if (stored) {
-    for (const [k, v] of Object.entries(stored)) {
-      if (v !== undefined) out[k] = v
-    }
-  }
-  return out
-}
-
-/**
- * ⭐⭐ THE SCALARS A TREE READS: `resolveInputs`, with every TEXT enum handed over
- * as its option's INDEX.
- *
- * A tree has no strings (`pine.js::enumCompare` writes `kind == 1` for Pine's
- * `kind == "SMA"`), so an `enum` input whose options are text reaches it as the
- * position of the member's pick. The INSTANCE keeps the text — what the dropdown
- * shows and what `defSchema` validates — and only the evaluation scope sees the
- * number.
- *
- * ⭐⭐ ONE RULE, SHARED WITH THE SERVER (`api/services/alert_user_series._inputs_for`),
- * pinned by ONE fixture both suites read (`tests/fixtures/enum_input_parity.json`):
- *   • a value that IS one of the options → that option's index;
- *   • anything else — unknown text, a number, null, a boolean — → the DEFAULT's index;
- *   • a default that is not among the options → index 0. (Pine refuses to compile
- *     such a script, so the door never mints one; this guards a hand-made document.)
- * ⚰️ An unknown value used to pass through as text, the tree compared text with a
- * number, and EVERY `kind == i` was false — the script's else arm, which the server
- * did not agree with (it took the default).
- * ⛔ Only for the TREE lanes: a native's enum (`lineStyle: 'dashed'`) is text its
- * compute reads as text, and `resolveInputs` stays exactly what it was.
- */
-export function enumIndexOf(input, value) {
-  const opts = Array.isArray(input && input.options) ? input.options.map((o) => (Array.isArray(o) ? o[0] : o)) : []
-  if (!opts.length || !opts.every((o) => typeof o === 'string')) return null
-  const at = typeof value === 'string' ? opts.indexOf(value) : -1
-  if (at >= 0) return at
-  const def = opts.indexOf(input.default)
-  return def >= 0 ? def : 0
-}
-
-export function treeScalars(def, scalars) {
-  let out = scalars
-  for (const input of def?.inputs || []) {
-    if (!input || input.type !== 'enum' || typeof input.key !== 'string') continue
-    const i = enumIndexOf(input, scalars[input.key])
-    if (i === null) continue
-    if (out === scalars) out = { ...scalars }
-    out[input.key] = i
-  }
-  return out
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `PINE_RECURRENCE_ORIGIN` .. `treeScalars` (re-exported above).
 
 // ─── public surface ──────────────────────────────────────────────────────────
 
@@ -3478,7 +2795,7 @@ export const RUN_HALF_OBJECT_RAIL = 'run-half:object-rail'
 /** Two column values agree: both `na`, or equal to 1e-9 of their size (the runtime lane's
  *  own rule, `runtimeColumns.js::sameValue`, restated as a value comparison: this module
  *  must not import the lane). */
-function sameColumnValue(x, y) {
+export function sameColumnValue(x, y) {
   if (x === y) return true
   const xn = typeof x !== 'number' || Number.isNaN(x)
   const yn = typeof y !== 'number' || Number.isNaN(y)
@@ -3579,6 +2896,10 @@ function copyColumns(out) {
  *  (`run-half:object-rail`, `run-half:host-object-withheld`), and a run half with nothing
  *  comparable is refused (`run-half:no-comparable-objects`) unless recorded evidence admits its
  *  script. A drawing-only script (no plot mapped) is therefore never served on its gates alone.
+ *  ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — when the host document DRAWS an object program, a
+ *  drawing the run makes at a call that program lost (or in a family the host withholds whole on these
+ *  bars) is the run's to draw, on the gates above (`runHalfObjectRail.js`, the lost-drawings rule);
+ *  every site the host draws is still held to the host's, and the plots stay the host's columns.
  *  Every answer is noted for the refusal telemetry (`runHalfTelemetry.js`).
  *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
  *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
@@ -3718,56 +3039,32 @@ function runHalfGateSignature(def) {
     + `${runtimeKillOf({ defId: def.id, source }) ? 'k' : ''}${runtimeNotGradedOf({ source }) ? 'g' : ''}`
 }
 
-/** The guard a parameter setting the door would refuse carries (`paramInputs.js`). */
-export const PARAM_SETTING_GUARD = 'setting:param-refused'
-/** ⭐ SETTINGS PARITY (symbol): a member's choice of a symbol setting no binding can serve. */
-export const SYMBOL_SETTING_GUARD = 'setting:symbol-refused'
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `PARAM_SETTING_GUARD`, `SYMBOL_SETTING_GUARD` (re-exported above).
 
 export function computeFor(def, bars, inputs, ctx) {
-  if (def?.compute?.kind === 'runtime') {
+  // ⭐⭐ HEADLESS (R6) — THE LANE IS DECIDED BY ONE ROUTER (`computeLane.js::computeLaneOf`), the
+  // function the headless export (`headlessCompute.js`) asks too, so a definition is never computed
+  // down one lane on the chart and another one headless.
+  const lane = computeLaneOf(def)
+  if (lane === COMPUTE_LANE.RUNTIME) {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
   }
-  if (def?.compute?.kind === 'server') {
+  if (lane === COMPUTE_LANE.SERVER) {
     return serverColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
   }
-  // ⭐ THE AST LANE (Phase D Task 8), DISPATCHED ON THE KIND AND **BEFORE** THE
-  // `NATIVE_COMPUTE` LOOKUP — exactly where Task 13 put the server lane, and for
-  // the same reason one level sharper. An `ast` definition's `compute.fn` is its
-  // `astHash`: a 71-character `sha256:…` string that has no entry in
-  // `NATIVE_COMPUTE` and never will. Placed AFTER the lookup, the throw below
-  // fires first and an `ast` definition can never draw — a lane that registers,
-  // validates, budgets and lints, and then renders nothing. The throw is right
-  // for a native that lost its function and wrong for a definition that never
-  // had one.
-  if (def?.compute?.kind === 'ast') {
-    const rows = Array.isArray(bars) ? bars : []
-    // ⭐ SETTINGS PARITY (2a): the instance's parameter settings (`param<N>` inputs) are
-    // written into the literals they stand for (`paramInputs.specializeParams`), memoised per
-    // value set, so this pane computes the tree its member chose. A value the door would refuse
-    // is refused by name on every column, never computed.
-    // ⭐ SETTINGS PARITY (symbol): the instance's choice of each symbol setting (`symbolInputs.js`), then its
-    // parameter settings. A choice no binding can serve is refused by name on every column, never fetched.
-    const symbols = specializeSymbols(def, inputs)
-    if (!symbols.ok) {
-      return withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: SYMBOL_SETTING_GUARD, message: symbols.message }])))
-    }
-    def = symbols.def
-    const special = specializeParams(def, inputs)
-    if (special && special.refused) {
-      const message = `${special.refused}: the chart does not compute a setting the indicator's own bounds refuse`
-      return withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: PARAM_SETTING_GUARD, message }])))
-    }
-    def = special
-    // ⭐⭐ CBC-FMT — `calc_bars_count`: THE ONE SEAM where the host lane takes its window
-    // (`engine/calcBarsWindow.js`). Every caller of `computeFor` (the binder, the object
-    // lane, the vendor harness) inherits it; a chart of N bars or fewer, and every document
-    // without the stamp, takes the path below unchanged.
-    const win = calcBarsWindowOf(def, rows)
-    if (win) return windowedAstColumns(def, win, inputs, ctx)
-    const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
-    const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
-    // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
-    return def.compute.runtimeObjects ? withRunHalf(def, coloured, rows, inputs, ctx) : coloured
+  // ⭐ THE AST LANE (Phase D Task 8), dispatched BEFORE the `NATIVE_COMPUTE` lookup (its
+  // `compute.fn` is an `astHash` no native table holds). Its VALUES are `astColumns.js::
+  // astLaneColumns` (moved there unchanged, with the full note); the run-read colours and the run
+  // half stay here (`astRunExtras`): they answer to this tab's gates.
+  if (lane === COMPUTE_LANE.AST) {
+    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) of a document whose recurrences hold the
+    // main thread (#1711's estimate) is computed off it (`hostLaneAsync.js`: the same values, a
+    // pending answer with the pane's last picture until they land); every other request, and every
+    // document under the budget, is answered here exactly as before.
+    const off = hostLaneOffThread(def, bars, inputs, ctx, astRunExtras)
+    if (off) return off
+    return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
@@ -3795,53 +3092,21 @@ export function computeFor(def, bars, inputs, ctx) {
   return hold ? hold(columns) : columns
 }
 
-/**
- * ⭐⭐ CBC-FMT — AN `ast` DOCUMENT'S COLUMNS OVER ITS `calc_bars_count` WINDOW.
- *
- * The run is the ordinary one (`astColumnsFor`, then the run-read colours and the run
- * half, exactly as `computeFor` composes them) over the window's rows, told its first bar
- * is the history's first bar and TradingView's `bar_index` 0 (`windowContext`, both
- * witnessed). Its columns are widened back to the chart (`NaN` before the window) and
- * carry the window's record. Three things the window does not witness are withheld or
- * refused BY NAME, never computed as if they were (`barstate.isfirst`, `last_bar_index` and
- * a history read are witnessed: the slice computes them as TradingView does, S10):
- *   · a request of other bars (`meta.calcBarsRequest`, or a `sym` / `ltf` / higher-
- *     timeframe read): every plot is refused (`CALC_BARS_REQUEST_GUARD`);
- *   · the newest bar while it may be forming (`withCalcBarsRecord`).
- */
-function windowedAstColumns(def, win, inputs, ctx) {
-  const keys = astPlotKey(def)
-  if (calcBarsRequests(def)) {
-    const errors = {}
-    for (const key of keys) errors[key] = { guard: CALC_BARS_REQUEST_GUARD, message: calcBarsRequestSentence(win.count) }
-    return withCalcBarsRecord(withColumnErrors({}, errors), win, ctx, RUNTIME_OBJECTS_KEY)
-  }
-  const wctx = windowContext(ctx)
-  const out = astColumnsFor(def, win.rows, treeScalars(def, resolveInputs(def, inputs)), wctx)
-  const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, win.rows, inputs, wctx) : out
-  const ran = def.compute.runtimeObjects ? withRunHalf(def, coloured, win.rows, inputs, wctx) : coloured
-  return withCalcBarsRecord(widenToChart(ran, win.cut, RUNTIME_OBJECTS_KEY), win, ctx, RUNTIME_OBJECTS_KEY)
+// ⭐ HOST WORKER — the object reader's one runtime-document read goes through its seam
+// (`objectRuntimeSeam.js`), so the reader's closure holds no registry; written here, on import.
+registerObjectComputeFor(computeFor)
+
+/** ⭐⭐ ENGINE 53 / DIV-4 — what an `ast` document adds to its values on THIS chart: the run-read
+ *  colours (`withRuntimeColours`) and the run half (`withRunHalf`), each answering to this tab's
+ *  gates. Handed to `astColumns.js::astLaneColumns`, which applies it inside a calc_bars window too. */
+function astRunExtras(def, out, rows, inputs, ctx) {
+  const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
+  // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
+  return def.compute.runtimeObjects ? withRunHalf(def, coloured, rows, inputs, ctx) : coloured
 }
 
-/** Does a windowed document request other bars? The door's stamp (the source's own
- *  `request.*`, the identity included) or a tree that reads them. */
-function calcBarsRequests(def) {
-  if (def.meta && (def.meta.calcBarsRequest === true
-    || (Array.isArray(def.meta.otherSymbols) && def.meta.otherSymbols.length)
-    || (Array.isArray(def.meta.lowerTf) && def.meta.lowerTf.length))) return true
-  const trees = astTrees(def)
-  const all = trees ? Object.values(trees) : [def.compute.ast]
-  const stack = [...all]
-  const seen = new Set()
-  while (stack.length) {
-    const n = stack.pop()
-    if (!n || typeof n !== 'object' || seen.has(n)) continue
-    seen.add(n)
-    if (n.type === 'sym' || n.type === 'ltf' || n.type === 'tf' || n.type === 'tf_live') return true
-    if (Array.isArray(n.args)) for (const a of n.args) stack.push(a)
-  }
-  return false
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `windowedAstColumns`, `calcBarsRequests`.
 
 /**
  * The canned series every event-declaring definition is computed over at
@@ -4439,6 +3704,16 @@ export function validateUserDefinitions(rawDefs) {
       continue
     }
     if (kind === 'ast') {
+      // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SAVED HOST DOCUMENT WHOSE SCRIPT IS ON
+      // THE HOST LIST is served stamped `meta.hostKnownDivergence` (`runtime_definitions.stamp_served`,
+      // the server's authority: a stored document does not carry its script). It is not drawn —
+      // refused with the server's sentence, by name — and it stays in the store, untouched.
+      const hk = def.meta && def.meta[HOST_KNOWN_DIVERGENCE_STAMP]
+      if (typeof hk === 'string' && hk) {
+        errors.push(`${def.id}: ${hk} — the saved definition is kept; it comes back when it is taken off the list.`)
+        killedIds.push(def.id)
+        continue
+      }
       const laneErrors = validateAstLane(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
@@ -5579,7 +4854,8 @@ const RS_LINE_V5_RAW = {
 // daily charts (`paneTable`, both hosts since U2) — and what the settings offer:
 // about a dozen controls, no presets, no Reading. The Rating, Mansfield,
 // Rotation, Quality and VARS readings are their own definitions now (U6:
-// `rsRating`, `rsPhases`, `rsVsEma`); the Agreement and Regime rows are gone.
+// `rsRating`, `rsPhases`, `rsVsEma`; 2026-11-18: the Mansfield Reading's own
+// columns are `rsMansfield`, UCT Mansfield RS); the Agreement and Regime rows are gone.
 //
 // ⛔⛔ NO SAVED INSTANCE IS DROPPED (map §(b); F20 refuses an undeclared key or an
 // illegal enum value). Every input the v5 definition rendered that this one does
@@ -6406,9 +5682,89 @@ const RS_EXIT_RAW = {
   ],
 }
 
+// ⭐⭐ UCT MANSFIELD RS (`rsMansfield`, 2026-11-18): Weinstein's Mansfield Relative
+// Strength on a pane of its own. Under the RS split the slim UCT RS Line has no Reading
+// switch, so the Mansfield line the server computes under rsLine's `view: 'mansfield'`
+// had no chart to draw it; this definition is that Reading, cut out like the four above.
+// ⭐ NO NEW MATHS: the server row (`registry_defs._rs_mansfield_row`) serves the rsLine
+// row's own Mansfield columns (`RS_MANSFIELD_WIRE_COLUMNS`, the list that Reading keeps),
+// byte for byte (`tests/test_rs_mansfield_rows.py`, against the rsLine envelope and
+// `rs_mansfield.json`). Its readout rows are rsLine's Mansfield rows, moved across.
+// ⭐ THE PLOTS ARE rsLine's MANSFIELD PLOTS: the line in the info blue, the solid zero guide
+// in the neutral, and one dot at zero on each bar the line crosses UP through it (the server
+// builds it; crosses down are not drawn, the readout names the last cross either way).
+// Intraday the line draws and the dot is blank (the server's rule).
+const RS_MANSFIELD_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsMansfield',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsMansfield', rev: 1 },
+  meta: {
+    name: 'UCT Mansfield RS', shortName: 'UCT Mansfield RS', category: CAT.RELATIVE_STRENGTH,
+    description: 'Weinstein\'s Mansfield Relative Strength: the RS line as a percent above or below its own long average, around a zero line, with a dot where it crosses up through zero.',
+    tags: ['rs', 'relative strength', 'mansfield', 'mansfield rs', 'mansfield relative strength',
+      'relative performance', 'weinstein', 'stage analysis', 'zero line', 'zero cross',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    legendParams: ['benchmark'],
+    // The pane label's value ONLY while there is nothing to draw: the server's reason
+    // (`benchmark is the symbol`, `not enough bars yet`) is `legend.blankReason`, null on a
+    // live answer, so the label prints the line's own number once.
+    legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
+    // ⭐ THE ROW'S FIVE KEYS (`registry_defs._rs_mansfield_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'mansfieldLength'],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    // The row's (`relative_strength.MANSFIELD_LENGTH_RANGE`, default 200): rsLine's own.
+    { key: 'mansfieldLength', type: 'int', label: 'Length (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Simple',
+      tooltip: 'Mansfield length in bars: the simple average the RS line is measured against. 200 on a daily chart; Weinstein used 52 weeks on a weekly chart.' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style', tooltip: 'Color of the Mansfield line; the zero line stays in the neutral' },
+    { ...colorInput('dotColor', 'Zero-cross dot', RS_INFO), group: 'Style',
+      tooltip: 'Color of the dot where the Mansfield line crosses up through zero' },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Style' },
+  ],
+  plots: [
+    // A PERCENT distance from the RS line's own average (−20…+20 on most names).
+    { key: 'mansfield', label: 'Mansfield RS', style: 'line', color: '$color', width: '$lineWidth',
+      precision: 2, role: 'primary', legend: { decimals: 2 } },
+    { key: 'zero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context' },
+    // The server's cross-up dot, value 0 on the cross bar and null elsewhere, drawn as the
+    // series' own point marker (`restyle: false`: a sparse dot column restyled as a line
+    // draws nothing).
+    { key: 'dotMansfieldCross', label: 'Zero cross', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // rsLine's Mansfield rows, moved across: the glance row is the server's sentence
+    // (`+4.1%, above zero, rising`), its numbers follow.
+    { key: 'mansfield', label: 'Mansfield RS', source: 'scalar:mansfield.summary', format: 'text',
+      card: { what: 'Mansfield Relative Strength: the RS line as a percent above or below its own simple moving average, measured over the length set on this chart, in this chart\'s bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length. Above zero, the stock is outperforming its own trend against the benchmark; below zero, it is lagging it. The dot marks a cross up through zero.',
+        origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
+        evidence: RS_HONESTY_SENTENCE } },
+    { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
+    // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only the
+    // crosses up, so the direction is the half the chart does not show.
+    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.lastCross', format: 'text', detailOf: 'mansfield' },
+    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.lengthText', format: 'text', detailOf: 'mansfield' },
+    rsSplitHistoryRow(),
+  ],
+}
+
 // Registered in this order; `registrySizes.SHIPPED_DEF_IDS.server` lists the
-// same five ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth).
-const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW])
+// same six ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth;
+// UCT Mansfield RS, 2026-11-18, the sixth).
+const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW,
+  RS_MANSFIELD_RAW])
 if (_serverRegistered.errors.length) {
   throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
 }

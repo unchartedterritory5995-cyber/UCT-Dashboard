@@ -64,8 +64,10 @@ import ListPicker from './TradeExchangeNewsListPicker'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
 const FLASH_MS = 2100
-//: Only news this recent flashes: a reconnect's replayed backlog is not "new".
-const FLASH_FRESH_MS = 60_000
+//: Only news that ARRIVED this recently flashes: a reconnect's replayed backlog is not "new". An
+//: arrival window for the highlight, not TERM-006's age-display floor (provenance/freshnessAge.js
+//: AGE_FLOOR_MS); both are 60 s today by coincidence, and moving one must not move the other.
+const FLASH_ARRIVAL_WINDOW_MS = 60_000
 const SOUND_GAP_MS = 1500
 const SEARCH_DEBOUNCE_MS = 140
 
@@ -194,7 +196,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     const newest = newestRef.current
     const now = Date.now()
     const fresh = shown.filter((it) => !seen.has(it.seq) && it.seq > newest
-      && now - (it.received_at_ms || 0) < FLASH_FRESH_MS)
+      && now - (it.received_at_ms || 0) < FLASH_ARRIVAL_WINDOW_MS)
     for (const it of feed.items) seen.add(it.seq)
     newestRef.current = Math.max(newest, ...feed.items.map((it) => it.seq))
     const live = fresh.filter((it) => !it.delayed)

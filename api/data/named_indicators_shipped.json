@@ -1,0 +1,118 @@
+{
+ "_": "THE SHIPPED-VERSION LEDGER of the named-indicator library: every (entry, version) that has shipped, and the fingerprint of its maths. Written by `python tools/named_indicators_build.py --ship`, which only ever ADDS a line. A recorded line never changes and is never removed: the build tool and tests/test_named_indicators_ledger.py refuse a library that disagrees with it. To change a formula, add a new version to the entry.",
+ "shipped": {
+  "accumulation_distribution_line": {
+   "1": "sha256:03e85afb061af5bf7eaa9a26dea468b33df4b766f7c44b4085b6c1c4f9d04625"
+  },
+  "aroon": {
+   "1": "sha256:af6aecd607bbcb2af334e64d97864ea79a2aa5f0c00b9529a63e6f6ca68feec2"
+  },
+  "awesome_oscillator": {
+   "1": "sha256:d3a7d34f7f6af22a37b9a5ced32cad2821a39c200724441650ed80636c57b15a"
+  },
+  "chaikin_money_flow": {
+   "1": "sha256:eaa3d5d0a33d84eaa50c77cba749ff94a02207660ed5af85d468b69f0dc9430e"
+  },
+  "chande_momentum_oscillator": {
+   "1": "sha256:a5b290aa0c6220283a3e776bf2ce0ec1838f3d93359bc165918351cbfa592c95"
+  },
+  "chandelier_exit": {
+   "1": "sha256:cc329c62d2e787c37d1f716a1a79e69b7276b3ae8901a7d49b49b3cef43cecc3"
+  },
+  "choppiness_index": {
+   "1": "sha256:ebe45e6c40c65fcc88aab32a4603f5a895c77169b803c226e3af3e76bad00b81"
+  },
+  "connors_rsi": {
+   "1": "sha256:9402e07ba557b49ea732547ba47684b5918c810fe48bacf9875fec3c6ed2798a"
+  },
+  "coppock_curve": {
+   "1": "sha256:beefe7aca98b9f24d66da5211174dff401c6a224b5dc96a0a4e16b000b3c48b1"
+  },
+  "detrended_price_oscillator": {
+   "1": "sha256:5f88703a6eecb03e7d1c096e833235e0de57c86c404d7d0b44f92ea1d708e074"
+  },
+  "directional_movement_index": {
+   "1": "sha256:89e51e37a7c2236198bb5f30b488b35f34c8a1a7dfa2f8a0136c02a0830d1e91"
+  },
+  "double_exponential_moving_average": {
+   "1": "sha256:c1182383600b08664f54263386f7602451c27854bdc08f191f0683cdb9722ea6"
+  },
+  "ease_of_movement": {
+   "1": "sha256:d7955d5bcf6dcd462a5d5265d0d7e7682e633a2d5554e9ddf90aadb37bf0daea",
+   "2": "sha256:ea75caf14350360abe768f0fd4c5fd67136bcb413e6ae950ee1dbdae16a62dae"
+  },
+  "elder_ray": {
+   "1": "sha256:4e4b1dc5174c708d07affc689a6c199f3823352c9ae20c2fc8aaee746d4849dd"
+  },
+  "fisher_transform": {
+   "1": "sha256:a486a62e10e82b0697be9b39773e6f902e0f50310ac4669e01631c63959b2900"
+  },
+  "force_index": {
+   "1": "sha256:e4359bd70d5f5b6ae9f923824ad9f5d27ac532e1f67fe63f1f1ac834873f651e"
+  },
+  "kaufman_adaptive_moving_average": {
+   "1": "sha256:3438275e44468d8e2a2cca9417be7459712f1bd686eeaf4f27ce56c7a373e426"
+  },
+  "know_sure_thing": {
+   "1": "sha256:369ce2136a66978afa1e88dc9f46c36ca58b9f644f4edab6094341f791a8af8b"
+  },
+  "laguerre_filter": {
+   "1": "sha256:3c4b4bf980ac37564d40e883c217f80e85bb88ab4989b78c0fe98d9ec93c3b16"
+  },
+  "laguerre_rsi": {
+   "1": "sha256:766d1ab76b4e17f1c86692e01cf43789c3497e0a3f65fdd0421400eb4c9c5c52"
+  },
+  "mass_index": {
+   "1": "sha256:fc7dae0155197a50974582ffd9774ab0f9ef50080792e5ec3d9c5d54c17b0734"
+  },
+  "mcginley_dynamic": {
+   "1": "sha256:4cfd4bbb645851d7cd5999b0aa9713b398cd63e52924f473a3c5dd1a485d3ff1"
+  },
+  "negative_volume_index": {
+   "1": "sha256:c01e1334aefef55b9918d791f833678b196d08b3ae5aa47c2f533705c26a59b5",
+   "2": "sha256:a6387ead8c6eb3abacd5178ad92735344f84b641327ceb49be628f34fb763750"
+  },
+  "on_balance_volume": {
+   "1": "sha256:3e782fc6aa52b88dea29e6b232352e1f75ecd8ebc81669305894f52ca6833358"
+  },
+  "percentage_price_oscillator": {
+   "1": "sha256:7b618c26461616ed8f5bfb976bfcb2254b8f2d57fa2e5029aabd0f6fe67ce31f"
+  },
+  "pocket_pivot": {
+   "1": "sha256:2e45632a4bf1b0e3660dabf6b61af09a146ccdb18c3c2a9f2e536bab23aec045"
+  },
+  "positive_volume_index": {
+   "1": "sha256:09b2ad3a469bfdd14274db24d3f0bf4761c7f8f809aa600e8c2a7ad33f3895f9"
+  },
+  "price_volume_trend": {
+   "1": "sha256:63416f369155d19169a378b6d342551a12a20dd31a14520604cb0c2b64d94edb"
+  },
+  "squeeze_momentum": {
+   "1": "sha256:bcbe0ed27cb47a7a75aac0ce6b172e1e158dc8bdc1a6619db3780edde9e7f911"
+  },
+  "stochastic_oscillator": {
+   "1": "sha256:12ff335c48dd5a248a5f3639f13c0af19a61f353513abe200f7f7c796f814ac3"
+  },
+  "stochastic_rsi": {
+   "1": "sha256:1f81be2d9aa61bd1d5d98f7b80e95d8ffd7275e7472d4e4b62daa4f0d20d47ab"
+  },
+  "triple_exponential_moving_average": {
+   "1": "sha256:1932845b10f0ceca3ee8dab050f55506f64d6edf4ec143ee598b8701d9605a67"
+  },
+  "trix": {
+   "1": "sha256:00256a019dff7ebc5825474cc604b52fec27336257782b8c9e5478b18002955e"
+  },
+  "true_strength_index": {
+   "1": "sha256:7cf1973b640a18b1f752299ff7e714f9acd10d60df476b4239ed482a1432c22e"
+  },
+  "ulcer_index": {
+   "1": "sha256:5c9af57ba4eb9439fca194524fd00ec892845cd90ce3de5c0bf64bad57794457"
+  },
+  "ultimate_oscillator": {
+   "1": "sha256:f8f3aed020d1d8749e716f0c6ecad1a1f758d046fd1cc05a5d34e5c4e2ff14d9"
+  },
+  "vortex_indicator": {
+   "1": "sha256:c0b7229f3ed3f9b37a55ef9d0b9506c64817bb1e8b8fa0ce148a77244d7225de"
+  }
+ }
+}

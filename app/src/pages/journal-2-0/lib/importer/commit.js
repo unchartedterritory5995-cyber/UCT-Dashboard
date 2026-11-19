@@ -420,6 +420,7 @@ const FETCH_DOOR = '/api/j2/notes/media/fetch'
 export const FETCH_REFUSED_SENTENCE = "This linked image couldn't be copied into your notebook."
 export const FETCH_TOO_SLOW_SENTENCE = 'Copying this linked image took too long, so it was stopped.'
 export const UPLOAD_TOO_SLOW_SENTENCE = 'This file took too long to upload, so it was stopped.'
+export const UPLOAD_FAILED_SENTENCE = "This file couldn't be uploaded into your notebook."
 
 const originalOf = (o) => (o && typeof o === 'object' && typeof o.url === 'string' && o.url
   ? { src: o.url, name: typeof o.name === 'string' ? o.name : null }
@@ -461,7 +462,10 @@ async function fetchRemote(importKey, item, name, retry) {
     }, retry, 2, doorTimeout(retry))
   } catch (err) {
     if (err instanceof DoorTimeoutError) return failed(FETCH_TOO_SLOW_SENTENCE)
-    return failed(`Copying the linked image failed (${err?.message || String(err)})`)
+    // The member reads the plain sentence; the exception (a fetch TypeError, an abort) goes to the
+    // console for whoever debugs it, never into the import's failure list (rawErrorSurface.test.js).
+    console.warn('[import] copying a linked image failed', err)
+    return failed(FETCH_REFUSED_SENTENCE)
   }
   if (res.status === 422) {
     // A policy refusal: the reason is the server's, passed through. The status alone decided
@@ -500,7 +504,8 @@ async function uploadLocal(noteId, item, name, retry) {
     res = await fetchWithRetry(endpoint, { method: 'POST', credentials: 'include', body: fd }, retry, 2, doorTimeout(retry))
   } catch (err) {
     if (err instanceof DoorTimeoutError) return failed(NOTICE_REASONS.uploadFailed, UPLOAD_TOO_SLOW_SENTENCE)
-    return failed(NOTICE_REASONS.uploadFailed, err?.message || String(err))
+    console.warn('[import] uploading a file failed', err)
+    return failed(NOTICE_REASONS.uploadFailed, UPLOAD_FAILED_SENTENCE)
   }
   if (!res.ok) {
     // One read of the refusal: the server's `reason` (A1 always sends one on a 400) decides the

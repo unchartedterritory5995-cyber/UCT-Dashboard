@@ -19,6 +19,7 @@
 import { reachOf } from '../../components/chart/engine/ast/vocabulary'
 import { TABLE } from '../../components/chart/engine/ast/parse'
 import { referenceSentence } from './referenceSentence'
+import { memberExcluded } from './memberReason'
 
 /** The engine's own reach sentence for a function, or nothing for a kind that declares
  *  none. ⛔ Bar fields, operators and benchmarks have no `lookback`, and inventing "0 bars"
@@ -68,7 +69,8 @@ function entryLines(item, { plain = (s) => s } = {}) {
  */
 export function buildReferenceText(vocab, { plain = (s) => s, pine = null, pineScope = '' } = {}) {
   const groups = (vocab && vocab.groups) || []
-  const excluded = (vocab && vocab.excluded) || []
+  // the roster as a member reads it: the engine's own notes are not written into the file
+  const excluded = memberExcluded((vocab && vocab.excluded) || [])
   const names = groups.reduce((n, g) => n + g.items.length, 0)
   const lines = ['# UCT formula reference', '', ...HOW_TO_USE, '',
     `${names} names can be written. ${excluded.length} are deliberately not available.`, '']
@@ -81,7 +83,7 @@ export function buildReferenceText(vocab, { plain = (s) => s, pine = null, pineS
     lines.push(`## Deliberately not available (${excluded.length})`, '',
       'These names are absent on purpose. Each says why, and most name what to write instead.', '')
     for (const e of excluded) {
-      lines.push(`- \`${e.name}\`: ${clean(plain(e.reason))}`)
+      lines.push(`- \`${e.name}\`: ${clean(e.says)}`)
       if (e.instead) lines.push(`  - Write \`${e.instead}\``)
     }
     lines.push('')

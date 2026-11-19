@@ -124,6 +124,16 @@
       "yields": "bool",
       "sentence": "1 on the first bar of a New York calendar month, otherwise 0 (blank on the oldest bar, which has no previous month to differ from). This engine's answer for Pine's timeframe.change(\"M\")"
     },
+    "regularhours": {
+      "lookback": 0,
+      "yields": "bool",
+      "sentence": "1 on a bar that opens inside the regular trading session (09:30 New York time to that day's close: 16:00, or 13:00 on a half-day), otherwise 0"
+    },
+    "regularfirst": {
+      "lookback": 1,
+      "yields": "bool",
+      "sentence": "1 on the first bar of a regular trading session (the 09:30 New York bar, or the first regular-hours bar after it), otherwise 0 (blank on an oldest bar that opens later in the session, which has no earlier bar to show whether it is the first)"
+    },
     "barindex": {
       "lookback": 0,
       "yields": "num",
@@ -1561,6 +1571,59 @@
       "lookback": "series",
       "yields": "num",
       "sentence": "the value of {1} the {2}-from-the-end time {0} was true, counting occurrences backward"
+    },
+    "sessionOpen": {
+      "args": [],
+      "argRoles": [],
+      "reads": "bars",
+      "lookback": "session",
+      "cadence": "live",
+      "yields": "num",
+      "sentence": "the regular session's opening price"
+    },
+    "sessionHigh": {
+      "args": [],
+      "argRoles": [],
+      "reads": "bars",
+      "lookback": "session",
+      "cadence": "live",
+      "yields": "num",
+      "sentence": "the highest price of the regular session so far"
+    },
+    "sessionLow": {
+      "args": [],
+      "argRoles": [],
+      "reads": "bars",
+      "lookback": "session",
+      "cadence": "live",
+      "yields": "num",
+      "sentence": "the lowest price of the regular session so far"
+    },
+    "openingRangeHigh": {
+      "args": [
+        "int"
+      ],
+      "argRoles": [
+        "minutes"
+      ],
+      "reads": "bars",
+      "lookback": "session",
+      "cadence": "live",
+      "yields": "num",
+      "sentence": "the highest price of the first {0} minutes of the regular session"
+    },
+    "openingRangeLow": {
+      "args": [
+        "int"
+      ],
+      "argRoles": [
+        "minutes"
+      ],
+      "reads": "bars",
+      "lookback": "session",
+      "cadence": "live",
+      "yields": "num",
+      "sentence": "the lowest price of the first {0} minutes of the regular session"
     },
     "vwap": {
       "args": [],
@@ -3581,7 +3644,12 @@
       "rci",
       "stochPine",
       "boolNaWithheld",
-      "tieNewest"
+      "tieNewest",
+      "sessionOpen",
+      "sessionHigh",
+      "sessionLow",
+      "openingRangeHigh",
+      "openingRangeLow"
     ]
   },
   "_functions_excluded": {

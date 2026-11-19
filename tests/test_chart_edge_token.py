@@ -219,6 +219,35 @@ def test_the_COOKIE_PATH_does_not_reach_the_historical_cache_surfaces():
     assert not rfc6265_sends(p, "/api/bars-today-pack")
     assert not rfc6265_sends(p, "/api/barspack/manifest")
     assert not rfc6265_sends(p, "/api/coverage")
+    # ⛔ and so it never reaches the history lake route — which is why a second path exists:
+    assert not rfc6265_sends(p, "/api/hist/v1/index/s-AAPL.json")
+
+    # The history lake's cookie path reaches the lake's route and nothing else.
+    h = cet.HIST_COOKIE_PATH
+    assert rfc6265_sends(h, "/api/hist/v1/index/s-AAPL.json")
+    assert rfc6265_sends(h, "/api/hist/packs/AAPL/1/2026-11.pack")
+    for other in ("/api/history/AAPL", "/api/histogram", "/api/bars/AAPL", "/api/bars-history/AAPL",
+                  "/api/bars-today-pack", "/api/coverage", "/api/auth/me"):
+        assert not rfc6265_sends(h, other), other
+    # The live chart stream's cookie path reaches that one stream and nothing else.
+    st = cet.STREAM_COOKIE_PATH
+    assert rfc6265_sends(st, "/api/stream/bars")
+    for other in ("/api/stream/prices", "/api/stream/bars-v3", "/api/stream", "/api/stream/status",
+                  "/api/bars/AAPL", "/api/auth/me"):
+        assert not rfc6265_sends(st, other), other
+    assert cet.COOKIE_PATHS == (cet.COOKIE_PATH, cet.HIST_COOKIE_PATH, cet.STREAM_COOKIE_PATH)
+
+
+def test_the_HISTORY_cookie_path_IS_the_worker_route_prefix():
+    """⛔ ONE FACT IN TWO FILES, READ FROM BOTH. The Worker answers `/api/hist/...` (history.js
+    `HIST_PREFIX`); the cookie must be scoped to exactly that prefix, or members get 401 there
+    (the 2026-11-17 production finding) or the token travels wider than the route."""
+    import pathlib
+    import re
+    src = (pathlib.Path(__file__).resolve().parents[1] / "edge" / "bars-edge-router" / "history.js").read_text(encoding="utf-8")
+    m = re.search(r'export const HIST_PREFIX = "([^"]+)";', src)
+    assert m, "HIST_PREFIX not found in history.js"
+    assert m.group(1) == cet.HIST_COOKIE_PATH + "/", (m.group(1), cet.HIST_COOKIE_PATH)
 
 
 # ── the MACHINE trust path (Phase 1.5) ──────────────────────────────────────

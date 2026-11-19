@@ -178,8 +178,11 @@ def references(which: str, bars: list[dict], spy: list[dict]) -> dict:
     elif which == "volume_with_50_average":
         a = sma(v, 50)
         R["vol"], R["avg"] = v, a
-        R["upSurge"] = [flag(ok(a[i]) and c[i] > o[i] and v[i] > a[i] * 1.4, ok(a[i])) for i in range(n)]
-        R["downSurge"] = [flag(ok(a[i]) and c[i] < o[i] and v[i] > a[i] * 1.4, ok(a[i])) for i in range(n)]
+        # ⭐ 2026-11-18 (owner ruling) -- AN UP DAY IS A CLOSE ABOVE THE PREVIOUS CLOSE, a down day a
+        # close below it. Close above the OPEN is an up BAR; version 1 of this indicator used that.
+        # The first bar has no previous close, so the day is unknown there.
+        R["upSurge"] = [flag(i >= 1 and ok(a[i]) and c[i] > c[i - 1] and v[i] > a[i] * 1.4, i >= 1 and ok(a[i])) for i in range(n)]
+        R["downSurge"] = [flag(i >= 1 and ok(a[i]) and c[i] < c[i - 1] and v[i] > a[i] * 1.4, i >= 1 and ok(a[i])) for i in range(n)]
     elif which == "tight_weekly_closes":
         weeks, idx = weekly(bars)
         wc = [w["c"] for w in weeks]
@@ -216,9 +219,12 @@ def references(which: str, bars: list[dict], spy: list[dict]) -> dict:
             out.append(flag(hh <= ll * 1.15 and c[i] >= max(h[i - 251:i + 1]) * 0.85 and c[i - 25] >= c[i - 125] * 1.2))
         R["flatBase"] = out
     elif which == "up_down_volume_ratio_50":
-        up = [v[i] if c[i] > o[i] else 0.0 for i in range(n)]
-        dn = [v[i] if c[i] < o[i] else 0.0 for i in range(n)]
-        udr = [sum(up[i - 49:i + 1]) / sum(dn[i - 49:i + 1]) if i >= 49 and sum(dn[i - 49:i + 1]) else NAN
+        # ⭐ 2026-11-18 (owner ruling): volume on days that closed above the PREVIOUS close, over
+        # volume on days that closed below it (the common up/down volume ratio). Fifty such days
+        # need fifty-one bars: the first has no previous close.
+        up = [v[i] if i >= 1 and c[i] > c[i - 1] else 0.0 for i in range(n)]
+        dn = [v[i] if i >= 1 and c[i] < c[i - 1] else 0.0 for i in range(n)]
+        udr = [sum(up[i - 49:i + 1]) / sum(dn[i - 49:i + 1]) if i >= 50 and sum(dn[i - 49:i + 1]) else NAN
                for i in range(n)]
         R["udr"] = udr
         R["strong"] = [flag(ok(u) and u > 1.2, ok(u)) for u in udr]

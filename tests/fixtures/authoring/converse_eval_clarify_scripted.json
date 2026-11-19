@@ -1,0 +1,940 @@
+{
+ "contract": "uct.converse-eval.scripted/1",
+ "_": "Scripted answers for converse_eval_clarify_cases.json.",
+ "usage": {
+  "input_tokens": 3000,
+  "output_tokens": 900
+ },
+ "turns": {
+  "clarify-kind-then-length#2": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added a 50 bar exponential average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "EMA 50",
+      "placement": "price",
+      "primary": "ema",
+      "outputs": [
+       {
+        "key": "ema",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-average-kind#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added a 200 day simple average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "SMA 200",
+      "placement": "price",
+      "primary": "sma",
+      "outputs": [
+       {
+        "key": "sma",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 200
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-average-length#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added a 20 bar exponential average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "EMA 20",
+      "placement": "price",
+      "primary": "ema",
+      "outputs": [
+       {
+        "key": "ema",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-cross-meaning#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Marked closes across the 50 day EMA.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Close above EMA 50",
+      "placement": "pane",
+      "primary": "cross",
+      "outputs": [
+       {
+        "key": "cross",
+        "tree": {
+         "type": "call",
+         "name": "crossOver",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-nothing-open#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added a 50 day exponential average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "EMA 50",
+      "placement": "price",
+      "primary": "ema",
+      "outputs": [
+       {
+        "key": "ema",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-acronym-dmi#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the ADX line of the Directional Movement Index.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Directional Movement Index",
+      "placement": "pane",
+      "primary": "adx",
+      "outputs": [
+       {
+        "key": "adx",
+        "label": "ADX",
+        "tree": {
+         "type": "call",
+         "name": "adx",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "remembered-kind-with-a-note#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added a 20 bar exponential average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "EMA 20",
+      "placement": "price",
+      "primary": "ema",
+      "outputs": [
+       {
+        "key": "ema",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "assumptions": [
+     {
+      "output": "ema",
+      "text": "Drawn on the price pane."
+     }
+    ]
+   }
+  ],
+  "remembered-acronym-library-build#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the ADX line of the Directional Movement Index.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Directional Movement Index",
+      "placement": "pane",
+      "primary": "adx",
+      "outputs": [
+       {
+        "key": "adx",
+        "label": "ADX",
+        "tree": {
+         "type": "call",
+         "name": "adx",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-acronym-adl#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the Accumulation Distribution Line.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Accumulation Distribution Line",
+      "placement": "pane",
+      "primary": "adl",
+      "outputs": [
+       {
+        "key": "adl",
+        "label": "Accumulation Distribution Line",
+        "tree": {
+         "type": "call",
+         "name": "cum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "==",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-acronym-ad#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the Accumulation Distribution Line.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Accumulation Distribution Line",
+      "placement": "pane",
+      "primary": "adl",
+      "outputs": [
+       {
+        "key": "adl",
+        "label": "Accumulation Distribution Line",
+        "tree": {
+         "type": "call",
+         "name": "cum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "==",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "ctl-other-symbol#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Above the index",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "QQQ",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-screener-text#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Technology",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "textop",
+         "name": "==",
+         "args": [
+          {
+           "type": "symtext",
+           "name": "sector"
+          },
+          {
+           "type": "str",
+           "value": "Technology"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What should confirm it?",
+      "choices": [
+       "volume above its 50-bar average",
+       "volume above 1.5x its 50-bar average"
+      ]
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ],
+  "ctl-rename-nothing#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-rename-nothing#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What would you like to call it?"
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ],
+  "clarify-benchmark#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added relative strength against SPY: the close divided by SPY's close.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Relative strength vs SPY",
+      "placement": "pane",
+      "primary": "rs",
+      "outputs": [
+       {
+        "key": "rs",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "SPY",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-breakout-window#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Marked closes above the highest high of the 50 bars before.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Close above 50 bar high",
+      "placement": "price",
+      "primary": "breakout",
+      "outputs": [
+       {
+        "key": "breakout",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "call",
+             "name": "highest",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "clarify-stochastic-kind#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Added the fast Stochastic: %K over 14 bars and its 3-bar average.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Stochastic Oscillator",
+      "placement": "pane",
+      "primary": "k",
+      "outputs": [
+       {
+        "key": "k",
+        "label": "K",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "stoch",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "key": "d",
+        "label": "D",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "call",
+             "name": "stoch",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

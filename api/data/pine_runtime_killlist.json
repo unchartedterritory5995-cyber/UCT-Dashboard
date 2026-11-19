@@ -7,10 +7,12 @@
     "An entry comes off ONLY when its `liftWhen` is met (an engine fix, then a re-grade to MATCH on the named captures).",
     "tests/test_pine_capability_admission.py holds every entry to its evidence capture (a committed runtime-on verdict",
     "that is not MATCH, on a capture whose source hashes to the entry's sha256). Edit as text.",
-    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH).",
+    "Lifted: trend-targets-algoalpha (PR #1374), parabolic-sar (2026-11-16, round_to_mintick on a half tick, both captures MATCH), contraction-box-doji-lines (engine 78, Pine's tolerant compare, #1858: the extra line was a near-tie comparison, and both SPY captures re-grade MATCH runtime-on, run 44319610649).",
     "Empty is a valid state: the by-name rails use a synthetic entry (tests/test_pine_capability_admission.py).",
     "DRAW-1 (2026-11-16): seven scripts newly admitted by obj:box / obj:table have a committed capture grading DIVERGE on",
-    "either lane, so each is killed here until its liftWhen (rail: test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed)."
+    "either lane, so each is killed here until its liftWhen (rail: test_DRAW1_every_newly_admitted_object_script_with_a_DIVERGE_capture_is_killed).",
+    "Engine 68 regrade (feat/pine-host-known-divergence, 2026-11-17): seven probes newly graded DIVERGE are killed until their liftWhen: vw-h5-format-volume, vw-w3-format-date, vw-w3-loop-helper-text, vw-w3-str-repeat-length (admitted by obj:table, DRAW-1 rule) and vw-imp-change-before-reassign, vw-w4-series-length, vw-w4-series-length-v4 (drawn by the runtime lane under admission, the REACH stop rule).",
+    "HELD kills (2026-11-18): an entry with `status: \"pending\"` is recorded here and NOT served (runtime_definitions.kill_entry_is_served is the one rule: committed_kills and the coverage census both skip it; the script still draws); it names its evidence capture, its liftWhen and a hard `expires` date (YYYY-MM-DD), and the REACH rail accepts that one capture as a stop only until then. Past `expires` the rails are red on their own. LIFTED 2026-11-18 on its liftWhen: adx-and-di-for-v4 (Q-FCMP ruled TOLERANCE, packet 56330c15e071; engine 78 #1858 compares within 1e-10; adx-and-di-for-v4-spy-1d-2026-11-17 re-graded MATCH on the runtime-on lane). The list holds no held kill now; the rails show the rule on a synthetic one."
   ],
   "scripts": [
     {
@@ -26,18 +28,6 @@
       },
       "liftWhen": "a capture witnesses per-call-site ta.crossover / ta.crossunder in a v5 arm (HIST-K2, vw-hist-callsite-kernels-v5) and the drawing build carries its labels, then a runtime-on re-grade to MATCH on RDDT",
       "addedBy": "coordinator ruling 2026-11-16 (capability admission ON: an admitted script with a DIVERGE capture is killed by source hash)"
-    },
-    {
-      "slug": "contraction-box-doji-lines",
-      "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
-      "source": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
-      "reason": "its lines can differ in number from TradingView's: on SPY daily TradingView holds one line fewer (204 vs 205; 200 vs 201 on a second capture)",
-      "evidence": {
-        "capture": "contraction-box-doji-lines-spy-1d-2026-11-15",
-        "verdict": "DIVERGE"
-      },
-      "liftWhen": "an engine fix to the line count at max_lines_count, then a runtime-on re-grade to MATCH on contraction-box-doji-lines-spy-1d-2026-10-03 and -2026-11-15",
-      "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
     },
     {
       "slug": "heat-map-seasons",
@@ -110,6 +100,90 @@
       },
       "liftWhen": "a runtime-on re-grade to MATCH on vw-object-gc-c-spy-1w-2026-09-28 (its file; the capture id reads 1d)",
       "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
+    },
+    {
+      "slug": "vw-h5-format-volume",
+      "sha256": "693f3893b23c4faaac82d6fdd5f0f157ab50d404dc4282cd19bc6905168e213e",
+      "source": "tools/visual_conformance/probes/vw-h5-format-volume.pine",
+      "reason": "a probe script: its table shows fewer cells than TradingView's (18 vs 34 on SPY daily)",
+      "evidence": {
+        "capture": "vw-h5-format-volume-spy-1d-2026-11-16",
+        "verdict": "DIVERGE"
+      },
+      "liftWhen": "an engine fix to the table's cell count, then a runtime-on re-grade to MATCH on vw-h5-format-volume-spy-1d-2026-11-16",
+      "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture of a script admitted by obj:table grades DIVERGE (DRAW-1 rule)"
+    },
+    {
+      "slug": "vw-w3-format-date",
+      "sha256": "c3b1dc12ff12ca619a2fa3e06e5192e10f92499cdbef11139ecfbe8ecbe57a02",
+      "source": "tools/visual_conformance/probes/vw-w3-format-date.pine",
+      "reason": "a probe script: its table shows no cells where TradingView's shows 6 (SPY daily)",
+      "evidence": {
+        "capture": "vw-w3-format-date-spy-1d-2026-11-16",
+        "verdict": "DIVERGE"
+      },
+      "liftWhen": "an engine fix to the table's cells, then a runtime-on re-grade to MATCH on vw-w3-format-date-spy-1d-2026-11-16",
+      "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture of a script admitted by obj:table grades DIVERGE (DRAW-1 rule)"
+    },
+    {
+      "slug": "vw-w3-loop-helper-text",
+      "sha256": "9741eb1cf23a4f93947a8c3c8474b670606cb9f2285aed53202a8acfb5fb777f",
+      "source": "tools/visual_conformance/probes/vw-w3-loop-helper-text.pine",
+      "reason": "a probe script: its table shows no cells where TradingView's shows 8 (SPY daily)",
+      "evidence": {
+        "capture": "vw-w3-loop-helper-text-spy-1d-2026-11-16",
+        "verdict": "DIVERGE"
+      },
+      "liftWhen": "an engine fix to the table's cells, then a runtime-on re-grade to MATCH on vw-w3-loop-helper-text-spy-1d-2026-11-16",
+      "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture of a script admitted by obj:table grades DIVERGE (DRAW-1 rule)"
+    },
+    {
+      "slug": "vw-w3-str-repeat-length",
+      "sha256": "9824789bac009c433ab9a4644a76bd7face8d14945851e6bdb0007f681f7c5c5",
+      "source": "tools/visual_conformance/probes/vw-w3-str-repeat-length.pine",
+      "reason": "a probe script: its table shows no cells where TradingView's shows 8 (SPY daily)",
+      "evidence": {
+        "capture": "vw-w3-str-repeat-length-spy-1d-2026-11-16",
+        "verdict": "DIVERGE"
+      },
+      "liftWhen": "an engine fix to the table's cells, then a runtime-on re-grade to MATCH on vw-w3-str-repeat-length-spy-1d-2026-11-16",
+      "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture of a script admitted by obj:table grades DIVERGE (DRAW-1 rule)"
+    },
+    {
+      "slug": "vw-imp-change-before-reassign",
+      "sha256": "7985c7adcb5db0cb6e188ea1baa8ecc73b004d0433e5e4324cff23015442cf66",
+      "source": "tools/visual_conformance/probes/vw-imp-change-before-reassign.pine",
+      "reason": "a probe script: its `ta.change` read before a reassignment differs from TradingView's on 316 of 666 bars (RDDT daily)",
+      "evidence": {
+        "capture": "vw-imp-change-before-reassign-rddt-1d-2026-11-16",
+        "verdict": "DIVERGE"
+      },
+      "liftWhen": "an engine fix to the change-before-reassign reading, then a runtime-on re-grade to MATCH on vw-imp-change-before-reassign-rddt-1d-2026-11-16",
+      "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture the RUNTIME lane draws under capability admission grades DIVERGE (the REACH stop rule)"
+    },
+    {
+      "slug": "vw-w4-series-length",
+      "sha256": "c13692c61d64127a1284bc5556706a92075c4bc17554dd70205c53801b7d1096",
+      "source": "tools/visual_conformance/probes/vw-w4-series-length.pine",
+      "reason": "a probe script: its `ta.stdev` of a flat window prints 0 where TradingView prints 9.5e-7 on one bar (SPY daily)",
+      "evidence": {
+        "capture": "vw-w4-series-length-spy-1d-2026-11-16",
+        "verdict": "DIVERGE"
+      },
+      "liftWhen": "an engine fix to the flat-window stdev residue, then a runtime-on re-grade to MATCH on vw-w4-series-length-spy-1d-2026-11-16",
+      "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture the RUNTIME lane draws under capability admission grades DIVERGE (the REACH stop rule)"
+    },
+    {
+      "slug": "vw-w4-series-length-v4",
+      "sha256": "58f85957087db5d8a4388a6b99b13363fd461ada02ec67ccc5385ecde904102b",
+      "source": "tools/visual_conformance/probes/vw-w4-series-length-v4.pine",
+      "reason": "a probe script (v4): its `stdev` of a flat window prints 0 where TradingView prints 9.5e-7 on one bar (SPY daily)",
+      "evidence": {
+        "capture": "vw-w4-series-length-v4-spy-1d-2026-11-16",
+        "verdict": "DIVERGE"
+      },
+      "liftWhen": "an engine fix to the flat-window stdev residue, then a runtime-on re-grade to MATCH on vw-w4-series-length-v4-spy-1d-2026-11-16",
+      "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture the RUNTIME lane draws under capability admission grades DIVERGE (the REACH stop rule)"
     }
   ]
 }

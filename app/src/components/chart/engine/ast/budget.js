@@ -65,6 +65,13 @@ import { SESSION_MAX_BARS } from './parse.js'
  *                     past anything a human composes and far short of anything
  *                     that blocks a frame at the 5,000-bar cap. Measured: the
  *                     whole committed AST corpus tops out at NINE nodes.
+ *                     ⚰️ "FAR SHORT OF A FRAME" IS NOT TRUE OF TODAY'S CAPS,
+ *                     measured 2026-11-17 on 5,000 daily bars: of the 90
+ *                     committed Pine scripts the member door installs on this
+ *                     lane, the median compute is 13.6 ms, 17 take over a
+ *                     second, the worst 25.8 s, and the one at exactly 128
+ *                     nodes (`keltner-center-of-gravity-channel`) 7.6 s. These
+ *                     caps bound how much worse this lane can get, not a frame.
  *  maxLookback      — the chart holds 5,000 bars on every timeframe, and the
  *                     warmup a formula may ask for is capped so the user is not
  *                     left reading a mostly-empty pane as broken. ⭐⭐ IT IS
@@ -129,11 +136,33 @@ import { SESSION_MAX_BARS } from './parse.js'
  *  (`lesson_gate_that_cannot_fail` — named here because this is an instance of
  *  it that is being DECLARED, not one that is being denied).
  *
- *  ⚰️ NUMBER PENDING (bt, 2026-11-16) — "UNREACHABLE" HELD FOR THE TABLE'S PRICE SERIES ONLY.
+ *  ⚰️ Engine 66 (#1473) (bt, 2026-11-16) — "UNREACHABLE" HELD FOR THE TABLE'S PRICE SERIES ONLY.
  *  A clock column (`hour`, `dayofweek`, `time`, …), `self` and every member input declared as a
  *  knob are `series` nodes too, so a member-door tree CAN reach the cap, and did: measured 9 and
  *  10 against 8 on `session-hilo__WM2g5GtC4h`, refused at install. The door now gives knobs back
  *  before that (`builder/builderInputs.js::memberInputTranslation`); the cap itself is unchanged.
+ *
+ *  📏 THE COMPUTE-CAP RULING (2026-11-17): ALL THREE MEASURED, NONE RAISED.
+ *  The 2026-11-17 coverage map found 9 scripts whose only blocker was a cap here. What raising each
+ *  costs was measured on the newest 5,000 daily bars, on both lanes (`computeCapCost.measure.test.js`,
+ *  `tools/pine_coverage/compute_cap_cost.py`; the record is
+ *  `docs/pine/evidence/2026-11-17-compute-caps/EVIDENCE.md`):
+ *    maxLookback (one session) → 2,560 — the lookback a Pine script needs is how deep its `var`
+ *      recurrences nest (250 bars each, `pine.js::PINE_STATE_WARMUP`), and this cap is the only bound
+ *      on that work: the scripts the raise frees cost 18.4 s, 29.8 s, 32.2 s and 441 s per compute on
+ *      this lane (the two that only wrap `vwap()` cost 33 and 110 ms: a session is a reach, not
+ *      work, and charging it apart is the follow-up the record names). And above 2,400
+ *      (= `MAX_RECURRENCE_STEPS` / the server's 5,000-bar window) a cap-deep recurrence is refused
+ *      `interpret:steps` over that window: admitted here, refused there.
+ *    maxSeriesRefs 8 → 12 — four more distinct series cost 2.6 ms: the data this cap names is cheap.
+ *      What it frees is not: `multi-timeframe-vwap-v5` costs 5.1 s on this lane and `vwap-fibo` 1.5 s.
+ *    maxNodes 128 → 384 — the count bounds how many recurrences one plot holds: 31 cap-deep ones cost
+ *      4.3 s here and 21 s a symbol on the server, 95 cost 13.1 s and 59 s.
+ *  ⛔ AND A RAISE MOVES SCRIPTS OFF THE FAST LANE. The member door asks THIS lane first and offers the
+ *  runtime lane only what it refuses, and four of the nine are served by the runtime lane today:
+ *  `check-head-and-shoulders` 16 ms there (441 s here), `range-filter-buy-and-sell-5min` 6.7 ms
+ *  (18.4 s), `multi-timeframe-vwap-v5` 101 ms (5.1 s), `tradingviews-technical-analysis` 110 ms
+ *  (1.19 s, every column withheld). `computeCapRuling.test.js` rails the facts the ruling rests on.
  */
 /** The nested-recurrence family's warmup — the driver the lookback cap had
  *  BEFORE a session had to fit inside it, kept and named rather than deleted.

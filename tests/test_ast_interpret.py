@@ -339,7 +339,10 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # `lookback: 0`, two `series` arguments. The scalar half is untouched.
     # (2026-11-14, engine 56 S1) 140 -> 141: `tieNewest(source)`, the Pine door's mark on a v4 / v5
     # `highestbars` / `lowestbars` source (TradingView names the newest of a tie there). Pointwise.
-    assert len(ast_table.bar_names()) == 141, len(ast_table.bar_names())
+    # (2026-11-17) 141 -> 148: the regular session -- two clock leaves (`regularhours`,
+    # `regularfirst`) and five bar readers beside `vwap` (`sessionOpen`, `sessionHigh`,
+    # `sessionLow`, `openingRangeHigh`, `openingRangeLow`). The scalar half is untouched.
+    assert len(ast_table.bar_names()) == 148, len(ast_table.bar_names())
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     # ⭐ 111 -> 137 (2026-09-02): the TWENTY-SIX Wave-1 screener columns promoted
@@ -407,7 +410,7 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 288 -> 289 (2026-11-14, engine 56 A3): `boolNaWithheld`; the bar half moved 139 -> 140,
     # the scalar half is untouched at 149; this is their sum.
     # 289 -> 290 (2026-11-14, engine 56 S1): `tieNewest`; the bar half moved 140 -> 141.
-    assert len(declared) == 290, f"the table declares {len(declared)} names, not 290"
+    assert len(declared) == 297, f"the table declares {len(declared)} names, not 297"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

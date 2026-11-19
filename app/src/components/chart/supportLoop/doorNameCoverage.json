@@ -3,8 +3,8 @@
  "version": 1,
  "counts": {
   "call-unmapped": 390,
-  "name-unknown": 204,
-  "reachable": 161
+  "name-unknown": 202,
+  "reachable": 163
  },
  "names": {
   "abs": {
@@ -1844,8 +1844,8 @@
    "guard": "pine:builtin"
   },
   "session.isfirstbar_regular": {
-   "status": "name-unknown",
-   "guard": "pine:builtin"
+   "status": "reachable",
+   "probe": "session.isfirstbar_regular"
   },
   "session.islastbar": {
    "status": "name-unknown",
@@ -1856,8 +1856,8 @@
    "guard": "pine:builtin"
   },
   "session.ismarket": {
-   "status": "name-unknown",
-   "guard": "pine:builtin"
+   "status": "reachable",
+   "probe": "session.ismarket"
   },
   "session.ispostmarket": {
    "status": "name-unknown",

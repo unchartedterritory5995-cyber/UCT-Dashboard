@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import path from 'node:path'
 import baseline from './swallowedFetch.baseline.json'
 import fs from 'node:fs'
+import os from 'node:os'
 import { stripComments } from '../components/chart/engine/__tests__/sourceScan'
 
 // TERM-033 (FB-A8-02) — the census of the idiom that told a member NVDA had "no recent
@@ -14,6 +15,15 @@ import { stripComments } from '../components/chart/engine/__tests__/sourceScan'
 // is the fix for one directory; this census is the rail for the rest of `app/src`.
 // Counted in CODE only (comments stripped), per file, against a shrink-only baseline:
 // `swallowedFetch.baseline.json`.
+//
+// ⛔ WHAT THE WALK SKIPS, AND WHY: test files (`*.test.*`, anything under `__tests__/`) and,
+// since 2026-11-17, any directory named `testing/`. `app/src/testing/` is the repo's test
+// infrastructure (harnesses, dev-only rigs; `components/screener/reachable.test.js` TEST_INFRA
+// names it) and no member reads anything it says, so a swallowed read there cannot tell a
+// member that an empty answer is a fact. The first `testing/` site this walk saw was the dev-only
+// browser acceptance rig (`testing/agent/acceptance/lib.mjs`, "never bundled (nothing imports it)").
+// A file merely NAMED like it (`pages/testingTools.js`) is still counted; the control below holds both.
+const SKIP_DIRS = new Set(['node_modules', 'testing'])
 
 const SWALLOW_RE = /\.catch\(\s*\(\s*\)\s*=>\s*(?:null|undefined)\s*\)/g
 
@@ -26,7 +36,8 @@ function census(root, stats = {}) {
   stats.scanned = 0
   const walk = (dir) => {
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      if (e.name === 'node_modules' || e.name.startsWith('.')) continue
+      if (e.name.startsWith('.')) continue
+      if (e.isDirectory() && SKIP_DIRS.has(e.name)) continue
       const p = path.join(dir, e.name)
       if (e.isDirectory()) { walk(p); continue }
       if (!/\.(jsx?|mjs)$/.test(e.name) || /\.test\.(jsx?|mjs)$/.test(e.name)) continue
@@ -73,6 +84,29 @@ describe('TERM-033: `.catch(() => null)` is a shrink-only census', () => {
 
   it('the stated total is the sum of the per-file counts', () => {
     expect(baseline.total).toBe(Object.values(baseline.files).reduce((a, b) => a + b, 0))
+  })
+
+  it('skips a testing/ directory at any depth, and ONLY a directory by that name (control)', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'term033-walk-'))
+    try {
+      const plant = (rel) => {
+        const p = path.join(root, ...rel.split('/'))
+        fs.mkdirSync(path.dirname(p), { recursive: true })
+        fs.writeFileSync(p, 'export const r = fetch(u).catch(() => null)\n')
+      }
+      plant('testing/agent/rig.mjs')          // the repo's test infrastructure: skipped
+      plant('pages/feature/testing/kit.js')   // a nested testing/ directory: skipped
+      plant('pages/real.js')                  // product code: counted
+      plant('pages/testingTools.js')          // a FILE named like it: still counted
+      const st = {}
+      expect(census(root, st)).toEqual({ 'pages/real.js': 1, 'pages/testingTools.js': 1 })
+      expect(st.scanned).toBe(2)
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true })
+    }
+    // ...and the exclusion is doing work in the real tree: app/src/testing holds code files.
+    const real = fs.readdirSync(path.join(SRC, 'testing'), { recursive: true })
+    expect(real.filter((f) => /\.(jsx?|mjs)$/.test(String(f))).length).toBeGreaterThan(0)
   })
 
   it('counts code only: the idiom inside a comment is not a site, and spacing variants are', () => {

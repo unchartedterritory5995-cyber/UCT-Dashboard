@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import gzip
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -28,6 +29,11 @@ def mode(request, db_path, tmp_path, monkeypatch):
     serving.clear_cache()
     P.clear_memo()
     m = request.param
+    # ⛔ ONE INSTANT FOR EVERY MODE. db mode builds the status at request time (`P.status_payload(s)`, no
+    # `now`), so it read the wall clock while local/r2 publish with `now=NOW`. ⚰️ From 2026-10-15, the seeded
+    # CPI release, `next_release` was None in db mode only: the test expired, the product did not change.
+    # Only publish's own reference to `time` is replaced, never the process clock.
+    monkeypatch.setattr(P, "time", SimpleNamespace(time=lambda: NOW))
     monkeypatch.setenv("ECON_SERVING_SOURCE", m)
     monkeypatch.setenv("ECON_DB_PATH", db_path)
     if m in ("local", "r2"):

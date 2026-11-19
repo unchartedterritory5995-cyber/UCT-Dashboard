@@ -2,7 +2,7 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 362, host refusals 386) · objects-only pane ARMED · runtime drew 69, declined 293
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 507, host refusals 539) · objects-only pane ARMED · runtime drew 194, declined 313 · strategy lane: broker gate ON, 82 graded on their trades, 67 broker run(s)
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -12,20 +12,30 @@ capture                                      symbol/tf        plots  verdict    
 3-level-zigzag-semafor-spy-60-2026-11-14     AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: runtime:request-with-state]: `time(<timeframe>)` is the OPENING TIMESTAMP of the enclosing period — the anchor Pine scripts compare with `>` to detect a new day or week. `time("D")` (or a timeframe argument that folds to `"D"`) translates, and so do `"W"`, `"M"`, `"3M"` and `"12M"` on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts (vendor captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, `vw-time-tf-spy-60-2026-09-28`); `time(timeframe.period)` is the bar's own `time` on those charts, and `time("60")` the open of its 60-minute bar (the same probe). Any OTHER period this engine does not have a node for: the clock it does declare is `dayofweek`, `dayofmonth`, `month`, `year` and `sessionfirst` — and `sessionfirst` is the closest to what an anchor comparison is usually asking
 4c-nyse-market-breadth-ratio-rddt-1d-2026-11 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: This indicator reads `USI:UVOL`: other-symbol:venue-foreign — `USI:UVOL` names the exchange `USI`, outside the US stock listings our bar store holds, so what this indicator draws from it is not computed. It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.
 4c-nyse-market-breadth-ratio-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: This indicator reads `USI:UVOL`: other-symbol:venue-foreign — `USI:UVOL` names the exchange `USI`, outside the US stock listings our bar store holds, so what this indicator draws from it is not computed. It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.
-ad-line-of-sp-sectors-rddt-1d-2026-11-14     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
-ad-line-of-sp-sectors-spy-1d-2026-11-14      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
+ad-line-of-sp-sectors-rddt-1d-2026-11-14     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: This indicator reads `SP:SPN`: other-symbol:venue-foreign — `SP:SPN` names the exchange `SP`, outside the US stock listings our bar store holds, so what this indicator draws from it is not computed.
+ad-line-of-sp-sectors-spy-1d-2026-11-14      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: This indicator reads `SP:SPN`: other-symbol:venue-foreign — `SP:SPN` names the exchange `SP`, outside the US stock listings our bar store holds, so what this indicator draws from it is not computed.
 adaptive-trend-following-suite-alpha-extract NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/10` is not in this engine's library registry, so its code cannot be compiled
-advanced-custom-multi-ma-signals-emasmavwmav NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:history-expression]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-advanced-custom-multi-ma-signals-emasmavwmav AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:history-expression]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+advanced-custom-multi-ma-signals-emasmavwmav NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+advanced-custom-multi-ma-signals-emasmavwmav AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
 adx-and-di-for-v4-rddt-1d-2026-09-27         NYSE:RDDT D      3      MATCH             all 4 items agree
     DI+                                      MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     DI-                                      MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     ADX                                      MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 2.34e-15
     objects                                  MATCH         neither side draws an object
+adx-and-di-for-v4-rddt-1d-2026-11-17         NYSE:RDDT 1D     3      MATCH             all 4 items agree
+    DI+                                      MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    DI-                                      MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    ADX                                      MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 adx-and-di-for-v4-spy-1d-2026-10-03          AMEX:SPY 1D      3      MATCH             all 4 items agree
     DI+                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     DI-                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    ADX                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.55e-15
+    ADX                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.67e-15
+    objects                                  MATCH         neither side draws an object
+adx-and-di-for-v4-spy-1d-2026-11-17          AMEX:SPY 1D      3      MATCH             all 4 items agree
+    DI+                                      MATCH             cmp 8509 ok 7930 warm 579/579 steady 0/7930 maxRel 0.00e+0
+    DI-                                      MATCH             cmp 8509 ok 7930 warm 579/579 steady 0/7930 maxRel 0.00e+0
+    ADX                                      MATCH             cmp 8509 ok 7943 warm 566/579 steady 0/7930 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 all-chart-patterns-theeccentrictrader-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `theEccentricTrader/PubLibSwing/3` is not in this engine's library registry, so its code cannot be compiled
 all-chart-patterns-theeccentrictrader-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `theEccentricTrader/PubLibSwing/3` is not in this engine's library registry, so its code cannot be compiled
@@ -105,8 +115,8 @@ atr-bands-spy-1d-2026-10-03                  AMEX:SPY 1D      4      MATCH      
     Upper Take-Profit Band                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Lower Take-Profit Band                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
-atr-god-strategy-by-tradesmart-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:conditional-history]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`)
-atr-god-strategy-by-tradesmart-spy-1d-2026-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:conditional-history]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`)
+atr-god-strategy-by-tradesmart-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:call-undeclared-builtin-state]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+atr-god-strategy-by-tradesmart-spy-1d-2026-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:call-undeclared-builtin-state]: a Pine block spans several statements and this engine stores a single expression — a Pine block spans several statements and this engine stores a single expression (reached through `switch_ma`); strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
 atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03   NYSE:RDDT 1D     3      MATCH             all 5 items agree
     ATR-Stepped, PDF MA                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 3.67e-16
     Long                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -164,7 +174,7 @@ atr-trailing-stoploss-spy-1d-2026-10-03      AMEX:SPY 1D      3      MATCH      
     SELL                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-atr-trend-bands-misu-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `Fontiramisu/fontilab/11` is not in this engine's library registry, so its code cannot be compiled
+atr-trend-bands-misu-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `Fontiramisu/fontilab/11` is not served: this library version is withheld until its drawing is verified against TradingView
 auto-harmonic-patterns-open-source-rddt-1d-2 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:conditional-history]: the pasted script offers no plot and no alert condition to filter on
 auto-trendline-dojiemoji-rddt-1d-2026-10-02  NYSE:RDDT 1D     6      DIVERGE           1 of 7 compared items diverge
     HH                                       MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -219,23 +229,25 @@ average-day-range-adr-pivots-spy-1d-2026-11- AMEX:SPY 1D      7      DIVERGE    
     MA 2                                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     MA 3                                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  DIVERGE       1 object families differ (count or text); colours agree on 15 paired slots; coordinates are NOT compared by v1
-black-scholes-option-pricing-model-w-greeks- NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
-black-scholes-option-pricing-model-w-greeks- NYSE:JPM 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
-black-scholes-option-pricing-model-w-greeks- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
-black-scholes-option-pricing-model-w-greeks- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
+black-scholes-option-pricing-model-w-greeks- NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
+black-scholes-option-pricing-model-w-greeks- NYSE:JPM 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
+black-scholes-option-pricing-model-w-greeks- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
+black-scholes-option-pricing-model-w-greeks- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
 blackflag-fts-rddt-1d-2026-11-14             NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: pine:arity]: a Pine function definition introduces a name this engine has nowhere to keep — `Wild_ma` ends in no value this engine can read (reached through `Wild_ma`)
 blackflag-fts-spy-1d-2026-11-14              AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: pine:arity]: a Pine function definition introduces a name this engine has nowhere to keep — `Wild_ma` ends in no value this engine can read (reached through `Wild_ma`)
 bolingger-bands-inside-bar-boxes-rddt-1d-202 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function-global-state]: a name that is reassigned later cannot be folded into one expression — `IBStatus` — and the fold stopped before it, at line 98: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `IBStatus`
+bolingger-bands-inside-bar-boxes-rddt-1d-202 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function-global-state]: a name that is reassigned later cannot be folded into one expression — `IBStatus` — and the fold stopped before it, at line 98: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `IBStatus`
+bolingger-bands-inside-bar-boxes-spy-1d-2026 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function-global-state]: a name that is reassigned later cannot be folded into one expression — `IBStatus` — and the fold stopped before it, at line 98: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `IBStatus`
 bollinger-band-width-percentile-rddt-1d-2026 NYSE:RDDT 1D     4      MATCH             all 6 items agree
     BBWP                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    MA                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.52e-16
+    MA                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Extreme High Alert Level                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Extreme Low Alert Level                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
 boom-hunter-entry-point-screener-alerts-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: runtime:request-with-state]: a Pine function definition introduces a name this engine has nowhere to keep — `eot_func` ends in no value this engine can read (reached through `eot_func`)
 boom-hunter-entry-point-screener-alerts-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function-def) [runtime declined: runtime:request-with-state]: a Pine function definition introduces a name this engine has nowhere to keep — `eot_func` ends in no value this engine can read (reached through `eot_func`)
-breaks-and-retests-hg-rddt-1d-2026-11-14     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:expression-statement]: a name that is reassigned later cannot be folded into one expression — sBreak
+breaks-and-retests-hg-rddt-1d-2026-11-14     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function-global-state]: a name that is reassigned later cannot be folded into one expression — sBreak
 btc-charlie-trader-xo-macro-trend-scanner-rd NYSE:RDDT 1D     5      MATCH             all 7 items agree
     Consolidated EMA                         MATCH             cmp 634 ok 634 warm 0/0 steady 0/634 maxRel 0.00e+0
     Fast EMA                                 MATCH             cmp 634 ok 634 warm 0/0 steady 0/634 maxRel 5.52e-16
@@ -243,7 +255,7 @@ btc-charlie-trader-xo-macro-trend-scanner-rd NYSE:RDDT 1D     5      MATCH      
     Bull                                     MATCH             cmp 634 ok 634 warm 0/0 steady 0/634 maxRel 0.00e+0
     Bear                                     MATCH             cmp 634 ok 634 warm 0/0 steady 0/634 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-    paints                                   MATCH         4 paints agree bar for bar; 4 paints neither side draws not graded (plot_14, plot_15, plot_16, plot_17)
+    paints                                   MATCH         8 paints agree bar for bar
 btc-charlie-trader-xo-macro-trend-scanner-sp AMEX:SPY 1D      5      MATCH             all 7 items agree
     Consolidated EMA                         MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Fast EMA                                 MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 4.77e-16
@@ -251,7 +263,7 @@ btc-charlie-trader-xo-macro-trend-scanner-sp AMEX:SPY 1D      5      MATCH      
     Bull                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Bear                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-    paints                                   MATCH         4 paints agree bar for bar; 4 paints neither side draws not graded (plot_14, plot_15, plot_16, plot_17)
+    paints                                   MATCH         8 paints agree bar for bar
 camarilla-rddt-1d-2026-11-14                 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:window) [runtime declined: runtime:request-with-state]: a Pine length has to reach the engine as a plain whole number — argument 2 of `rsi`
 camarilla-spy-1d-2026-11-14                  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:window) [runtime declined: runtime:request-with-state]: a Pine length has to reach the engine as a plain whole number — argument 2 of `rsi`
 candelacharts-equal-highslows-eqheql-rddt-1d NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:loop]: a user-defined type is outside the node shapes this engine stores — `bull_alert.ehl`
@@ -347,31 +359,31 @@ cc-yata-rddt-1d-2026-09-27                   NYSE:RDDT D      54     INCONCLUSIV
     bc13                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 cdc-btc-rainbow-road-spy-1d-2026-10-02       AMEX:SPY 1D      13     MATCH             all 14 items agree
-    Lower Channel                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.37e-15
-    Upper Channel                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.41e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.44e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.49e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.48e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.54e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.46e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.49e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.48e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.50e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.55e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.69e-15
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.44e-15
+    Lower Channel                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.64e-15
+    Upper Channel                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.64e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.64e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.77e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.61e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.76e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.73e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.65e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.65e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.73e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.77e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.83e-15
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.66e-15
     objects                                  MATCH         neither side draws an object
-chart-champions-part-1-npoc-levels-vwaps-rdd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"0000-0000:7"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
-chart-champions-part-1-npoc-levels-vwaps-spy AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"0000-0000:7"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
+chart-champions-part-1-npoc-levels-vwaps-rdd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback) [runtime declined: budget:series]: this script is not drawn: its plot `pdVWAP` needs 961 bars of history behind every bar, and one plot may reach back at most 960 here. `vwap()` reaches back one whole trading session, which is the entire lookback budget — so it can be compared and combined, but nothing can be wrapped around it (no moving average of it, no bar offset on it)
+chart-champions-part-1-npoc-levels-vwaps-spy AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback) [runtime declined: budget:series]: this script is not drawn: its plot `pdVWAP` needs 961 bars of history behind every bar, and one plot may reach back at most 960 here. `vwap()` reaches back one whole trading session, which is the entire lookback budget — so it can be compared and combined, but nothing can be wrapped around it (no moving average of it, no bar offset on it)
 chart-vwap-rddt-1d-2026-11-15                NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/VisibleChart/5` is not in this engine's library registry, so its code cannot be compiled
 contraction-box-doji-lines-rddt-1d-2026-09-2 NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 82 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 contraction-box-doji-lines-rddt-1d-2026-11-1 NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 92 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1
-contraction-box-doji-lines-spy-1d-2026-10-03 AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1
-contraction-box-doji-lines-spy-1d-2026-11-15 AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1
+contraction-box-doji-lines-spy-1d-2026-10-03 AMEX:SPY 1D      0      MATCH             all 1 items agree
+    objects                                  MATCH         object counts and texts agree; colours agree on 208 paired slots; 102 slots on objects neither side draws not graded; coordinates are NOT compared by v1
+contraction-box-doji-lines-spy-1d-2026-11-15 AMEX:SPY 1D      0      MATCH             all 1 items agree
+    objects                                  MATCH         object counts and texts agree; colours agree on 210 paired slots; 96 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 cppivot-boss-floor-pivots-with-atr-dilation- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
 cppivot-boss-floor-pivots-with-atr-dilation- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
 cpr-with-mas-super-trend-vwap-by-guruprasadm NYSE:RDDT 1D     29     MATCH             all 30 items agree
@@ -398,9 +410,9 @@ cpr-with-mas-super-trend-vwap-by-guruprasadm NYSE:RDDT 1D     29     MATCH      
     M-R1                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     M-R2                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     M-R3                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    SMA                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.75e-15
+    SMA                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.57e-15
     EMA                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.27e-15
-    VWAP                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.96e-16
+    VWAP                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     SuperTrend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
     Up Arrow                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Down Arrow                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -429,9 +441,9 @@ cpr-with-mas-super-trend-vwap-by-guruprasadm AMEX:SPY 1D      29     MATCH      
     M-R1                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     M-R2                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     M-R3                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    SMA                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.06e-15
+    SMA                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.99e-15
     EMA                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.36e-15
-    VWAP                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.98e-16
+    VWAP                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     SuperTrend                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Up Arrow                                 MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Down Arrow                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -476,8 +488,8 @@ delta-volume-candles-lucf-rddt-1d-2026-11-15 NYSE:RDDT 1D     0      INCONCLUSIV
 delta-volume-candles-lucf-spy-1d-2026-11-15  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/Time/2` is not in this engine's library registry, so its code cannot be compiled
 delta-volume-v21-by-kernel-phi-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
 delta-volume-v21-by-kernel-phi-spy-1d-2026-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request-with-state]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
-deviation-scaled-moving-average-w-dsl-loxx-r NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
-deviation-scaled-moving-average-w-dsl-loxx-s AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
+deviation-scaled-moving-average-w-dsl-loxx-r NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
+deviation-scaled-moving-average-w-dsl-loxx-s AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
 donchian-channels-rddt-1d-2026-09-28         NYSE:RDDT 1D     13     MATCH             all 14 items agree
     Basis                                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Upper Donchian                           MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -527,6 +539,8 @@ elliott-wave-3-finder-v2-spy-1d-2026-10-03   AMEX:SPY 1D      1      MATCH      
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         2 paints agree bar for bar
 ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:conditional-history]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `vwap_value`
+ema-92150-vwap-macd-rsi-pro-v6-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:conditional-history]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `vwap_value`
+ema-92150-vwap-macd-rsi-pro-v6-spy-1d-2026-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:conditional-history]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `vwap_value`
 ema-ribbon-trend-filter-strixedge-rddt-1d-20 NYSE:RDDT 1D     13     DIVERGE           1 of 15 compared items diverge
     Fast EMA                                 MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 3.66e-16
     Mid EMA                                  MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.02e-15
@@ -628,7 +642,7 @@ fibonacci-pivot-points-cc-spy-1d-2026-10-03  AMEX:SPY 1D      7      MATCH      
     S3                                       MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 14 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-fibonacci-retracement-mtflog-rddt-1d-2026-11 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:statement) [runtime declined: pine:arity]: this Pine line is not a shape the translator reads (reached through `l_0236`)
+fibonacci-retracement-mtflog-rddt-1d-2026-11 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:statement) [runtime declined: runtime:colour]: this Pine line is not a shape the translator reads (reached through `l_0236`)
 fibonacci-retracement-statistics-by-volprofe NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:prop-unreadable) [runtime declined: pine:request]: this script has no plot or alert condition, and the table it draws at line 1213 is withheld: a colour, width, count or tooltip of this drawing is a value this door cannot read; the drawing is withheld rather than drawn with a default colour, width or count
 fibonacci-retracement-statistics-by-volprofe AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:prop-unreadable) [runtime declined: pine:request]: this script has no plot or alert condition, and the table it draws at line 1213 is withheld: a colour, width, count or tooltip of this drawing is a value this door cannot read; the drawing is withheld rather than drawn with a default colour, width or count
 fibonacci-retracement-statistics-by-volprofe AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:prop-unreadable) [runtime declined: pine:request]: this script has no plot or alert condition, and the table it draws at line 1213 is withheld: a colour, width, count or tooltip of this drawing is a value this door cannot read; the drawing is withheld rather than drawn with a default colour, width or count
@@ -641,6 +655,16 @@ fvg-detector-tradingfinder-fair-value-gap-im NYSE:RDDT 1D     0      MATCH      
 fvg-trend-rddt-1d-2026-09-27                 NYSE:RDDT D      2      MATCH             all 4 items agree
     fvgCounter                               MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
     Plot                                     MATCH             cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         1 paint agree bar for bar
+fvg-trend-rddt-1d-2026-11-17                 NYSE:RDDT 1D     2      MATCH             all 4 items agree
+    fvgCounter                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         1 paint agree bar for bar
+fvg-trend-spy-1d-2026-11-17                  AMEX:SPY 1D      2      MATCH             all 4 items agree
+    fvgCounter                               MATCH             cmp 8509 ok 8254 warm 255/255 steady 0/8254 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 8509 ok 8254 warm 255/255 steady 0/8254 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
 fx-market-sessions-rddt-1d-2026-11-15        NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `boitoki/AwesomeColor/9` is not in this engine's library registry, so its code cannot be compiled
@@ -667,16 +691,18 @@ h3-alma-v4-spy-1d-2026-10-02                 AMEX:SPY 1D      8      MATCH      
 h3-vwap-source-spy-1d-2026-10-02             AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:arity) [runtime declined: pine:arity]: the engine grammar declares a different signature for that name — `ta.vwap` was given a source this table cannot weigh: the session VWAP is carried for a price the bar itself holds (`close`, `open`, `high`, `low`, `hl2`, `hlc3`, `ohlc4`, `hlcc4`) — vwap() / vwapOf(series). A computed source can be `na` on a bar, and what TradingView's session sum does with an `na` term has not been measured. TO UNBLOCK: weigh a bar price, e.g. `ta.vwap(close)`
 h3-vwap-source-spy-5-2026-10-02              AMEX:SPY 5       0      INCONCLUSIVE      refused on our side: member door refused (pine:arity) [runtime declined: pine:arity]: the engine grammar declares a different signature for that name — `ta.vwap` was given a source this table cannot weigh: the session VWAP is carried for a price the bar itself holds (`close`, `open`, `high`, `low`, `hl2`, `hlc3`, `ohlc4`, `hlcc4`) — vwap() / vwapOf(series). A computed source can be `na` on a bar, and what TradingView's session sum does with an `na` term has not been measured. TO UNBLOCK: weigh a bar price, e.g. `ta.vwap(close)`
 heat-map-seasons-rddt-1d-2026-09-28          NYSE:RDDT 1D     1      DIVERGE           1 of 3 compared items diverge
-    Plot                                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 3.16e-14
+    Plot                                     MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 1.18e-14
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 34 paired slots; coordinates are NOT compared by v1
     paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_0 "Bar Color" — `barcolor`'s colour is an expression this door cannot carry yet)
 heat-map-seasons-spy-1d-2026-10-03           AMEX:SPY 1D      1      DIVERGE           1 of 3 compared items diverge
-    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.00e-12
+    Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 9.40e-13
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 34 paired slots; coordinates are NOT compared by v1
     paints                                   INCONCLUSIVE  no paint was graded; 1 paint withheld by name, not graded (first: barcolor plot_0 "Bar Color" — `barcolor`'s colour is an expression this door cannot carry yet)
-heikin-ashi-supertrend-rddt-1d-2026-11-15    NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jordanfray/threengine_global_automation_library/89` is not in this engine's library registry, so its code cannot be compiled
-heikin-ashi-supertrend-spy-1d-2026-11-15     AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jordanfray/threengine_global_automation_library/89` is not in this engine's library registry, so its code cannot be compiled
+heikin-ashi-supertrend-rddt-1d-2026-11-15    NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jordanfray/threengine_global_automation_library/89` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+heikin-ashi-supertrend-spy-1d-2026-11-15     AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jordanfray/threengine_global_automation_library/89` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
 heikin-ashi-true-strength-index-and-optimize NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:cycle) [runtime declined: runtime:function-global-state]: this Pine name is defined in terms of itself — `ma1`
+heikin-ashi-true-strength-index-and-optimize NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:cycle) [runtime declined: runtime:function-global-state]: this Pine name is defined in terms of itself — `ma1`
+heikin-ashi-true-strength-index-and-optimize AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:cycle) [runtime declined: runtime:function-global-state]: this Pine name is defined in terms of itself — `ma1`
 high-low-open-mid-ranges-rddt-1d-2026-09-28  NYSE:RDDT 1D     7      MATCH             all 8 items agree
     plot_0                                   MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     plot_2                                   MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -712,7 +738,9 @@ ict-ipda-look-back-rddt-1d-2026-09-28        NYSE:RDDT 1D     0      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 20 paired slots; coordinates are NOT compared by v1
 ict-ipda-look-back-spy-1d-2026-10-03         AMEX:SPY 1D      0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 20 paired slots; coordinates are NOT compared by v1
-ict-killzone-index-version-rddt-1d-2026-11-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:function]: the pasted script offers no plot and no alert condition to filter on
+ict-killzone-index-version-rddt-1d-2026-11-1 NYSE:RDDT 1D     0      MATCH             all 2 items agree
+    objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+    paints                                   MATCH         1 paint agree bar for bar
 ict-killzones-pivots-tfo-rddt-1d-2026-09-28  NYSE:RDDT 1D     7      MATCH             all 8 items agree
     Chars                                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Chars                                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -732,17 +760,27 @@ ict-killzones-pivots-tfo-spy-1d-2026-10-03   AMEX:SPY 1D      7      MATCH      
     Chars                                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 9 paired slots (6 theme-relative); coordinates are NOT compared by v1
 implied-volatility-suite-rddt-1d-2026-10-02  NYSE:RDDT 1D     1      MATCH             all 2 items agree
-    Volatility Data                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.31e-14
+    Volatility Data                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.70e-14
     objects                                  MATCH         neither side draws an object
 implied-volatility-suite-spy-1d-2026-10-02   AMEX:SPY 1D      1      MATCH             all 2 items agree
-    Volatility Data                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.12e-13
+    Volatility Data                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.42e-13
     objects                                  MATCH         neither side draws an object
-initial-balance-ib-and-previous-day-week-hig NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
-initial-balance-ib-and-previous-day-week-hig AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
-inside-bar-boxes-rddt-1d-2026-11-14          NYSE:RDDT 1D     2      DIVERGE           1 of 4 compared items diverge
+initial-balance-ib-and-previous-day-week-hig NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:request]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
+initial-balance-ib-and-previous-day-week-hig AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:request]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
+inside-bar-boxes-rddt-1d-2026-11-14          NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 4 items could not be compared
     Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 100 paired slots; coordinates are NOT compared by v1
+    objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
+    paints                                   MATCH         1 paint agree bar for bar
+inside-bar-boxes-rddt-1d-2026-11-17          NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 4 items could not be compared
+    Shapes                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
+    paints                                   MATCH         1 paint agree bar for bar
+inside-bar-boxes-spy-1d-2026-11-17           AMEX:SPY 1D      2      INCONCLUSIVE      1 of 4 items could not be compared
+    Shapes                                   MATCH             cmp 8509 ok 8483 warm 26/261 steady 0/8248 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8509 ok 8493 warm 16/261 steady 0/8248 maxRel 0.00e+0
+    objects                                  INCONCLUSIVE  our boxes are withheld by name (objects:count-at-cap: No box is shown on this chart: the script holds more of them than its maximum count, and TradingView describes that count as approximate (more drawings than the specified count may be displayed), so which of the oldest ones TradingView still shows is not known here; none are drawn rather than a guess.); every other object family's counts and texts agree
     paints                                   MATCH         1 paint agree bar for bar
 inside-bar-range-mother-candle-breakoutbreak NYSE:RDDT 1D     2      MATCH             all 4 items agree
     Shapes                                   MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -754,6 +792,11 @@ inside-bar-range-mother-candle-breakoutbreak NYSE:RDDT 1D     2      MATCH      
     Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         2 paints agree bar for bar
+inside-bar-range-mother-candle-breakoutbreak NYSE:RDDT 1D     2      MATCH             all 4 items agree
+    Shapes                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
+    paints                                   MATCH         2 paints agree bar for bar
 inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      2      MATCH             all 4 items agree
     Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Shapes                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -762,6 +805,11 @@ inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      2      MATCH      
 inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      2      MATCH             all 4 items agree
     Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     Shapes                                   MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
+    paints                                   MATCH         2 paints agree bar for bar
+inside-bar-range-mother-candle-breakoutbreak AMEX:SPY 1D      2      MATCH             all 4 items agree
+    Shapes                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    Shapes                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         2 paints agree bar for bar
 institutional-smc-order-flow-matrix-pro-rddt NYSE:RDDT 1D     0      MATCH             all 1 items agree
@@ -836,7 +884,13 @@ keltner-channels-bands-spy-1d-2026-10-03     AMEX:SPY 1D      7      MATCH      
     Upper 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.70e-16
     Lower 3                                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.95e-16
     objects                                  MATCH         neither side draws an object
-kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:conditional-history]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `kernelMu`)
+kernel-channel-backquant-rddt-1d-2026-11-14  NYSE:RDDT 1D     3      MATCH             all 5 items agree
+    Kernel Midline                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Upper Band                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Lower Band                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         3 paints agree bar for bar
+lib-v5-in-v6-rddt-1d-2026-11-16              NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `BarefootJoey/AstroLib/1` is not in this engine's library registry, so its code cannot be compiled
 linear-regression-channel-200-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: runtime:directive]: this Pine call answers with several values at once and a column carries one — `price1` — `calculateRegression` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine block spans several statements and this engine stores a single expression — `for` (reached through `calculateRegression`)
 linear-regression-channel-tradingfinder-exis NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 5 paired slots; coordinates are NOT compared by v1
@@ -885,7 +939,9 @@ liquidity-heatmap-nephew-sam-rddt-1d-2026-09 NYSE:RDDT 1D     0      INCONCLUSIV
 liquidity-heatmap-nephew-sam-spy-1d-2026-10- AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
     objects                                  INCONCLUSIVE  our labels are withheld by name (objects:not-carried: No label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 liquidity-levels-sonarlab-rddt-1d-2026-11-14 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:statement]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `remove_mitigated_lines`)
+liquidity-levels-sonarlab-rddt-1d-2026-11-17 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:statement]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `remove_mitigated_lines`)
 liquidity-levels-sonarlab-spy-1d-2026-11-14  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:statement]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `remove_mitigated_lines`)
+liquidity-levels-sonarlab-spy-1d-2026-11-17  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:statement]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `remove_mitigated_lines`)
 liquidity-pools-rddt-1d-2026-09-28           NYSE:RDDT 1D     2      MATCH             all 3 items agree
     Swing High                               MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Swing Low                                MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -910,7 +966,7 @@ long_tail__09-signal-follow-through-ledger-s AMEX:SPY 1D      6      MATCH      
     Resolved: same-bar ambiguous             MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     Resolved: neither target                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 72 paired slots; coordinates are NOT compared by v1
-macd-shortlong-strategy-for-tradingview-inpu NYSE:RDDT 1D     6      MATCH             all 7 items agree
+macd-shortlong-strategy-for-tradingview-inpu NYSE:RDDT 1D     6      INCONCLUSIVE      all 7 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
     Histogram Long                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.39e-12
     MACD Long                                MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.64e-12
     Signal Long                              MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.48e-12
@@ -918,7 +974,7 @@ macd-shortlong-strategy-for-tradingview-inpu NYSE:RDDT 1D     6      MATCH      
     MACD Short                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 6.86e-12
     Signal Short                             MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 3.34e-12
     objects                                  MATCH         neither side draws an object
-macd-shortlong-strategy-for-tradingview-inpu AMEX:SPY 1D      6      MATCH             all 7 items agree
+macd-shortlong-strategy-for-tradingview-inpu AMEX:SPY 1D      6      INCONCLUSIVE      all 7 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
     Histogram Long                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 5.70e-10
     MACD Long                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.04e-10
     Signal Long                              MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 4.71e-11
@@ -927,11 +983,13 @@ macd-shortlong-strategy-for-tradingview-inpu AMEX:SPY 1D      6      MATCH      
     Signal Short                             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 6.03e-11
     objects                                  MATCH         neither side draws an object
 machine-learning-knn-based-strategy-rddt-1d- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: runtime:statement]: an array, a matrix or a map is outside the expression grammar this engine runs — `predictions` is filled by a block this engine could not read, so its slots are unknown rather than empty. Unrolling a bounded loop is item (a); a loop whose bound depends on a series is the IR lane's, item (c) — and the IR lane has no path for it yet, nor does any IR result reach a pane while ruling D2 stands.
-machine-learning-logistic-regression-v3-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:conditional-history]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
-machine-learning-logistic-regression-v3-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:conditional-history]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
+machine-learning-logistic-regression-v3-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:offset-literal) [runtime declined: runtime:conditional-history]: a bar offset has to be a plain whole number written into the script — this one moves only with `barstate.*` (whether the bar is still forming), and a per-bar index was measured on closed bars only
+machine-learning-logistic-regression-v3-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:offset-literal) [runtime declined: runtime:conditional-history]: a bar offset has to be a plain whole number written into the script — this one moves only with `barstate.*` (whether the bar is still forming), and a per-bar index was measured on closed bars only
 machine-learning-lorentzian-classification-2 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jdehorty/MLExtensions/2` is not in this engine's library registry, so its code cannot be compiled
-machine-learning-lorentzian-classification-5 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jdehorty/MLExtensions/2` is not in this engine's library registry, so its code cannot be compiled
+machine-learning-lorentzian-classification-5 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jdehorty/MLExtensions/2` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
 machine-learning-moving-average-backquant-rd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:statement]: a name that is reassigned later cannot be folded into one expression — `currentCluster` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
+machine-learning-moving-average-backquant-rd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:statement]: a name that is reassigned later cannot be folded into one expression — `currentCluster` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
+machine-learning-moving-average-backquant-sp AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:statement]: a name that is reassigned later cannot be folded into one expression — `currentCluster` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
 machine-learning-rsi-bullvision-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/7` is not in this engine's library registry, so its code cannot be compiled
 madrid-moving-average-ribbon-rddt-1d-2026-09 NYSE:RDDT 1D     18     MATCH             all 19 items agree
     MMA05                                    MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 4.49e-16
@@ -985,7 +1043,7 @@ market-structure-by-leviathan-rddt-1d-2026-0 NYSE:RDDT 1D     0      MATCH      
 market-structure-by-leviathan-spy-1d-2026-10 AMEX:SPY 1D      0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 853 paired slots (251 theme-relative); coordinates are NOT compared by v1
 market-structure-inducements-ict-tradinfinde NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:history-expression]: the pasted script offers no plot and no alert condition to filter on
-market-structure-trend-targets-chartprime-rd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:statement) [runtime declined: pine:function]: this Pine line is not a shape the translator reads
+market-structure-trend-targets-chartprime-rd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:statement) [runtime declined: runtime:conditional-history]: this Pine line is not a shape the translator reads
 mcclellan-indicators-rddt-1d-2026-09-28      NYSE:RDDT 1D     13     INCONCLUSIVE      1 of 15 items could not be compared
     Osc                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:request) — This indicator reads `ADVN`: other-symbol:bare — `"ADVN"` names no exchange, and those letters also name a market index or commodity outside our bar store, so which instrument TradingView resolves it to cannot be settled here; what this indicator draws from it is not computed. It is a market breadth series (advancing / declining issues or volume), and this breadth symbol is not available yet.
     MSI                                      MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -1030,11 +1088,13 @@ mid_engagement__20-mann-kendall-trend-signif AMEX:SPY 1D      2      MATCH      
     Z (raw)                                  MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 42 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar; 1 paint neither side draws not graded (plot_4)
-momentum-based-zigzag-rddt-1d-2026-11-14     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:timeout) [runtime declined: runtime:conditional-history]: this Pine script did not finish translating inside the time budget — resolving `QQExlong` nested past 400 levels. That is a translator defect, not a limit on the script: this door expands a variable by re-reading its definition, and a definition that reaches its own previous bar can be re-entered without end. The deepest legitimate script measured needs 20 levels.
+momentum-based-zigzag-rddt-1d-2026-11-14     NYSE:RDDT 1D     1      DIVERGE           1 of 2 compared items diverge
+    ZIGZAG                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:conditional-history)
+    objects                                  DIVERGE       TradingView holds 25 drawing object(s) at the last bar and our script has no drawing program
 momentum-volatility-scanner-rddt-1d-2026-09- NYSE:RDDT 1D     11     MATCH             all 12 items agree
     Momentum Line                            MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     Momentum Area                            MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
-    Momentum Histogram                       MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 3.75e-13
+    Momentum Histogram                       MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 3.13e-13
     Vol Upper                                MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 7.16e-13
     Vol Lower                                MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 7.16e-13
     Bullish Shift                            MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -1047,7 +1107,7 @@ momentum-volatility-scanner-rddt-1d-2026-09- NYSE:RDDT 1D     11     MATCH      
 momentum-volatility-scanner-spy-1d-2026-10-0 AMEX:SPY 1D      11     MATCH             all 12 items agree
     Momentum Line                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Momentum Area                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    Momentum Histogram                       MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 9.23e-12
+    Momentum Histogram                       MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 6.15e-12
     Vol Upper                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.80e-11
     Vol Lower                                MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 7.80e-11
     Bullish Shift                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
@@ -1058,18 +1118,20 @@ momentum-volatility-scanner-spy-1d-2026-10-0 AMEX:SPY 1D      11     MATCH      
     Bear Divergence                          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 25 paired slots; coordinates are NOT compared by v1
 moving-averages-as-support-resistance-mtf-rd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:request-with-state]: a name that is reassigned later cannot be folded into one expression — `min_higher` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
+moving-averages-as-support-resistance-mtf-rd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:request-with-state]: a name that is reassigned later cannot be folded into one expression — `min_higher` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
+moving-averages-as-support-resistance-mtf-sp AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:request-with-state]: a name that is reassigned later cannot be folded into one expression — `min_higher` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
 moving-averages-as-support-resistance-mtf-sp AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:request-with-state]: a name that is reassigned later cannot be folded into one expression — `min_higher` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
 moving-averages-as-support-resistance-mtf-sp AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:request-with-state]: a name that is reassigned later cannot be folded into one expression — `min_higher` — a running total built inside a `for` is not folded into one expression on this lane — of 1,004 counted `for` loops in the reference corpus 379 do this, and only 1 of 379 has a seed, an update shape, an iteration count and a scope this engine can settle all at once (ruling R7). The binding constraint is the ITERATION COUNT: just 63 of 379 have a bound that folds before the chart runs
 mtf-dashboard-pro-rsi-fib-sr-volume-strixedg NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `r1`: lower-tf:store-unmeasured: `15` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`)
 mtf-dashboard-pro-rsi-fib-sr-volume-strixedg AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `r1`: lower-tf:store-unmeasured: `15` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`)
-mtf-key-levels-support-and-resistance-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: install door refused: u_member-pane-vendorharness: compute.budget: exceeds the series-reference budget — this formula measures 10 and the cap is 8 (guard "budget:series"). Measured {"maxNodes":54,"maxLookback":252,"maxSeriesRefs":10} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.out2.
-mtf-key-levels-support-and-resistance-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: install door refused: u_member-pane-vendorharness: compute.budget: exceeds the series-reference budget — this formula measures 10 and the cap is 8 (guard "budget:series"). Measured {"maxNodes":54,"maxLookback":252,"maxSeriesRefs":10} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.out2.
+mtf-key-levels-support-and-resistance-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (budget:series) [runtime declined: pine:request]: this script is not drawn: its plot `W-VWAP` reads 10 different data series, and one plot may read at most 8 here
+mtf-key-levels-support-and-resistance-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (budget:series) [runtime declined: pine:request]: this script is not drawn: its plot `W-VWAP` reads 10 different data series, and one plot may read at most 8 here
 mtf-watchlist-charts-anan-rddt-1d-2026-11-14 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:request-with-state]: the pasted script offers no plot and no alert condition to filter on
 mtf-watchlist-charts-anan-spy-1d-2026-11-14  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:request-with-state]: the pasted script offers no plot and no alert condition to filter on
 mtf-watchlist-charts-anan-spy-60-2026-11-14  AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:request-with-state]: the pasted script offers no plot and no alert condition to filter on
 multi-timeframe-fvg-tfo-rddt-1d-2026-11-15   NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: lower-tf:lookahead]: the pasted script offers no plot and no alert condition to filter on
 multi-timeframe-fvg-tfo-spy-1d-2026-11-15    AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: lower-tf:lookahead]: the pasted script offers no plot and no alert condition to filter on
-multi-timeframe-rsi-buy-sell-strategy-traded AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `5` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `5` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+multi-timeframe-rsi-buy-sell-strategy-traded AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `5` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `5` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
 multi-timeframe-supply-demand-zones-rddt-1d- NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; 1008 slots on objects neither side draws not graded (16 of them hold a colour that differs); coordinates are NOT compared by v1
 multi-timeframe-supply-demand-zones-spy-1d-2 AMEX:SPY 1D      0      MATCH             all 1 items agree
@@ -1140,9 +1202,19 @@ nadaraya-watson-rational-quadratic-kernel-no NYSE:RDDT 1D     2      INCONCLUSIV
     Rational Quadratic Kernel Estimate       MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
     objects                                  MATCH         neither side draws an object
-neural-network-buy-and-sell-signals-rddt-1d- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:history-expression]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `buy_signal_shortStop[1]` reads what `buy_signal_shortStop` held on an earlier bar, and this script reassigns it
+nadaraya-watson-rational-quadratic-kernel-no NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared
+    Rational Quadratic Kernel Estimate       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
+    objects                                  MATCH         neither side draws an object
+nadaraya-watson-rational-quadratic-kernel-no AMEX:SPY 1D      2      INCONCLUSIVE      1 of 3 items could not be compared
+    Rational Quadratic Kernel Estimate       MATCH             cmp 8509 ok 8258 warm 251/277 steady 0/8232 maxRel 0.00e+0
+    Alert Stream                             INCONCLUSIVE       — our side produced no column for this plot — the translator refused this plot (pine:block)
+    objects                                  MATCH         neither side draws an object
+neural-network-buy-and-sell-signals-rddt-1d- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:block-value]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `buy_signal_shortStop[1]` reads what `buy_signal_shortStop` held on an earlier bar, and this script reassigns it
 nonlinear-regression-zero-lag-moving-average NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:output-map]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `nonLinearRegression`)
 nubia-auto-midas-anchored-vwap-xdecow-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:history-dynamic-offset]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)
+nubia-auto-midas-anchored-vwap-xdecow-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:history-dynamic-offset]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)
+nubia-auto-midas-anchored-vwap-xdecow-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:history-dynamic-offset]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)
 one-sided-gaussian-support-resistance-rate-l NYSE:RDDT 1D     4      MATCH             all 6 items agree
     OS Gaussian SR Rate                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Middle                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -1150,6 +1222,20 @@ one-sided-gaussian-support-resistance-rate-l NYSE:RDDT 1D     4      MATCH      
     Short                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
+one-sided-gaussian-support-resistance-rate-l NYSE:RDDT 1D     4      MATCH             all 6 items agree
+    OS Gaussian SR Rate                      MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Middle                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Long                                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Short                                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         1 paint agree bar for bar
+one-sided-gaussian-support-resistance-rate-l AMEX:SPY 1D      4      DIVERGE           1 of 6 compared items diverge
+    OS Gaussian SR Rate                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
+    Middle                                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
+    Long                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
+    Short                                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
+    objects                                  MATCH         neither side draws an object
+    paints                                   DIVERGE       1 paint differs (first: barcolor plot_4 "Bar Color" notDrawn)
 open-interest-suite-aggregated-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
 open-interest-suite-aggregated-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:function]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `oic1`
 opening-range-initial-balance-opening-price- NYSE:RDDT 1D     14     INCONCLUSIVE      11 of 15 items could not be compared
@@ -1264,9 +1350,9 @@ parabolic-sar-rddt-1d-2026-10-03             NYSE:RDDT 1D     1      MATCH      
 parabolic-sar-rddt-1d-2026-11-15             NYSE:RDDT 1D     1      MATCH             all 2 items agree
     Parabolic SAR                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 104 paired slots; coordinates are NOT compared by v1
-parabolic-sar-spy-1d-2026-11-15              AMEX:SPY 1D      1      DIVERGE           1 of 2 compared items diverge
+parabolic-sar-spy-1d-2026-11-15              AMEX:SPY 1D      1      MATCH             all 2 items agree
     Parabolic SAR                            MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 98 paired slots; coordinates are NOT compared by v1
+    objects                                  MATCH         object counts and texts agree; colours agree on 100 paired slots; coordinates are NOT compared by v1
 pivot-high-low-points-rddt-1d-2026-11-14     NYSE:RDDT 1D     2      MATCH             all 3 items agree
     Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Shapes                                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -1375,17 +1461,17 @@ qqe-signals-spy-1d-2026-10-03                AMEX:SPY 1D      2      MATCH      
     objects                                  MATCH         neither side draws an object
 r1-strategy-draws-indicator-rddt-1d-2026-10- NYSE:RDDT 1D     5      MATCH             all 6 items agree
     N01_bar_index_CONTROL                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    N02_fast                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 8.38e-16
+    N02_fast                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 6.99e-16
     N03_crosses_var                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     N04_lastCross_var                        MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     N05_cross_shape                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-r1-strategy-draws-rddt-1d-2026-10-02         NYSE:RDDT 1D     5      DIVERGE           N01_bar_index_CONTROL: bar 635 t=1790947800 na vendor=na ours=635
-    N01_bar_index_CONTROL                    DIVERGE           cmp 636 ok 635 warm 0/0 steady 1/636 maxRel 0.00e+0 — 1 steady-state bars disagree; first at bar 635 (na: vendor na vs ours 635) — persistent, last at bar 635
-    N02_fast                                 DIVERGE           cmp 636 ok 635 warm 0/0 steady 1/636 maxRel 8.38e-16 — 1 steady-state bars disagree; first at bar 635 (na: vendor na vs ours 145.65400000000002) — persistent, last at bar 635
-    N03_crosses_var                          DIVERGE           cmp 636 ok 635 warm 0/0 steady 1/636 maxRel 0.00e+0 — 1 steady-state bars disagree; first at bar 635 (na: vendor na vs ours 19) — persistent, last at bar 635
-    N04_lastCross_var                        DIVERGE           cmp 636 ok 635 warm 0/0 steady 1/636 maxRel 0.00e+0 — 1 steady-state bars disagree; first at bar 635 (na: vendor na vs ours 152.72) — persistent, last at bar 635
-    N05_cross_shape                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+r1-strategy-draws-rddt-1d-2026-10-02         NYSE:RDDT 1D     5      INCONCLUSIVE      all 6 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
+    N01_bar_index_CONTROL                    MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
+    N02_fast                                 MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 6.99e-16
+    N03_crosses_var                          MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
+    N04_lastCross_var                        MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
+    N05_cross_shape                          MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 rate-of-change-rddt-1d-2026-11-15            NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `ClassicScott/MyMovingAveragesLibrary/4` is not in this engine's library registry, so its code cannot be compiled
 rate-of-change-spy-1d-2026-11-15             AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `ClassicScott/MyMovingAveragesLibrary/4` is not in this engine's library registry, so its code cannot be compiled
@@ -1406,6 +1492,9 @@ relative-volume-rddt-1d-2026-11-14           NYSE:RDDT 1D     10     MATCH      
 renderingnature-smc-reversal-engine-v71-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:text-value) [runtime declined: runtime:statement]: this script uses a text feature our chart does not render yet. The numeric plots still run; the text output is skipped and named here
 renderingnature-smc-reversal-engine-v71-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:text-value) [runtime declined: runtime:statement]: this script uses a text feature our chart does not render yet. The numeric plots still run; the text output is skipped and named here
 renderingnature-smc-reversal-engine-v71-spy- AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:text-value) [runtime declined: runtime:statement]: this script uses a text feature our chart does not render yet. The numeric plots still run; the text output is skipped and named here
+renko-candles-overlay-crwv-1d-2026-11-16     NASDAQ:CRWV 1D   0      INCONCLUSIVE      1 of 2 items could not be compared
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing
+    paints                                   MATCH         1 paint agree bar for bar
 renko-candles-overlay-rddt-1d-2026-10-03     NYSE:RDDT 1D     0      MATCH             all 2 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 290 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
@@ -1452,6 +1541,7 @@ reverse-stochastic-momentum-index-on-chart-s AMEX:SPY 1D      7      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
 rolling-vwap-rddt-1d-2026-10-03              NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/ConditionalAverages/2` is not in this engine's library registry, so its code cannot be compiled
 rolling-vwap-spy-1d-2026-10-03               AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/ConditionalAverages/2` is not in this engine's library registry, so its code cannot be compiled
+rolling-vwap-spy-5-2026-11-16                AMEX:SPY 5       0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/ConditionalAverages/2` is not in this engine's library registry, so its code cannot be compiled
 rs-arm-label-last-bar-rddt-1d-2026-11-15     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:drawing) [runtime declined: pine:drawing]: a drawing object paints on a chart and answers with no number — `label.new`
 rs-arm-label-last-bar-spy-1d-2026-11-15      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:drawing) [runtime declined: pine:drawing]: a drawing object paints on a chart and answers with no number — `label.new`
 rs-rating-fred6724-alab-1d-2026-11-15        NASDAQ:ALAB 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
@@ -1478,14 +1568,44 @@ rs-rating-fred6724-crwv-1d-2026-11-16        NASDAQ:CRWV 1D   4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 411 ok 411 warm 0/0 steady 0/411 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
-rs-rating-fred6724-nvda-1d-2026-11-15        NASDAQ:NVDA 1D   4      DIVERGE           RS Line: bar 4 t=917533800 value vendor=0.11226225436176289 ours=0.1122640604261686
-    RS Line                                  DIVERGE           cmp 6997 ok 5705 warm 0/0 steady 1292/6997 maxRel 1.83e-2 — 1292 steady-state bars disagree; first at bar 4 (value: vendor 0.11226225436176289 vs ours 0.1122640604261686) — scattered, last at bar 6257
+rs-rating-fred6724-m-nvda-1m-2026-11-18      NASDAQ:NVDA 1M   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 335 ok 265 warm 0/0 steady 70/335 maxRel 5.66e-3
+    Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/21 steady 0/314 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 335 ok 335 warm 0/50 steady 0/285 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-m-rddt-1m-2026-11-18      NYSE:RDDT 1M     4      INCONCLUSIVE      1 of 5 items could not be compared
+    RS Line                                  MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/0 steady 0/33 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/21 steady 0/12 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 33 ok 33 warm 0/21 steady 0/12 maxRel 0.00e+0
+    Plot                                     INCONCLUSIVE      cmp 33 ok 33 warm 0/33 steady 0/0 maxRel 0.00e+0 — every compared bar is inside the warm-up region — nothing in steady state to judge
+    objects                                  MATCH         object counts and texts agree; colours agree on 3 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-nvda-1d-2026-11-15        NASDAQ:NVDA 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 6997 ok 5705 warm 0/0 steady 1292/6997 maxRel 1.83e-2
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 6997 ok 6997 warm 0/0 steady 0/6997 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
-rs-rating-fred6724-pm-alab-1d-2026-11-16     NASDAQ:ALAB 1D   4      DIVERGE           RS Line: bar 667 t=1794839400 value vendor=91.66778802657285 ours=89.9090280321675
-    RS Line                                  DIVERGE           cmp 668 ok 667 warm 0/0 steady 1/668 maxRel 1.92e-2 — 1 steady-state bars disagree; first at bar 667 (value: vendor 91.66778802657285 vs ours 89.9090280321675) — persistent, last at bar 667
+rs-rating-fred6724-pc-agl-1d-2026-11-17      NYSE:AGL 1D      4      DIVERGE           1 of 5 compared items diverge
+    RS Line                                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (other-symbol:no-bars)
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
+rs-rating-fred6724-pc-nvda-1d-2026-11-17     NASDAQ:NVDA 1D   4      DIVERGE           1 of 5 compared items diverge
+    RS Line                                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (other-symbol:no-bars)
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
+rs-rating-fred6724-pc-rddt-1d-2026-11-17     NYSE:RDDT 1D     4      DIVERGE           1 of 5 compared items diverge
+    RS Line                                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (other-symbol:no-bars)
+    Plot                                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (other-symbol:no-bars)
+    objects                                  DIVERGE       TradingView holds 2 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-removal-lost) — the object gate withheld the whole drawing program for a lost removal (guard:delete)
+rs-rating-fred6724-pm-alab-1d-2026-11-16     NASDAQ:ALAB 1D   4      DIVERGE           1 of 5 compared items diverge
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
@@ -1510,13 +1630,13 @@ rs-rating-fred6724-rddt-1d-2026-11-16        NYSE:RDDT 1D     4      MATCH_SUBST
     objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-seta-alab-1d-2026-11-16   NASDAQ:ALAB 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
-    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 7.45e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 1.30e-15
     objects                                  MATCH         object counts and texts agree; colours agree on 51 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-seta-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
     RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
-    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 5.62e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 1.52e-15
     objects                                  MATCH         object counts and texts agree; colours agree on 46 paired slots; coordinates are NOT compared by v1
@@ -1568,7 +1688,31 @@ rs-rating-fred6724-sete2-rddt-1d-2026-11-16  NYSE:RDDT 1D     4      MATCH_SUBST
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 18 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-setf-alab-1d-2026-11-16   NASDAQ:ALAB 1D   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 1.09e-15
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 1.09e-15
+    Plot                                     MATCH_SUBSTITUTED cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
+rs-rating-fred6724-setf-rddt-1d-2026-11-16   NYSE:RDDT 1D     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 7.75e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 7.75e-16
+    Plot                                     MATCH_SUBSTITUTED cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 4 paired slots; coordinates are NOT compared by v1
 rs-rating-fred6724-spy-1d-2026-11-15         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: the supply this grade needs is not recorded — other symbol SPX: not graded, by owner ruling 2026-11-15 ("Leave spy blank imo"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.
+rs-rating-fred6724-w-nvda-1w-2026-11-17      NASDAQ:NVDA 1W   4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 1452 ok 1186 warm 0/0 steady 266/1452 maxRel 7.62e-3
+    Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/21 steady 0/1431 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 1452 ok 1452 warm 0/50 steady 0/1402 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
+rs-rating-fred6724-w-rddt-1w-2026-11-17      NYSE:RDDT 1W     4      MATCH_SUBSTITUTED all 5 items agree, with substituted inputs fed the vendor's value (syminfo.industry); the UCT data a member is served is not proven
+    RS Line                                  MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/0 steady 0/139 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/21 steady 0/118 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/21 steady 0/118 maxRel 0.00e+0
+    Plot                                     MATCH_SUBSTITUTED cmp 139 ok 139 warm 0/50 steady 0/89 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
 rs-seed-rsrating-pm-alab-1d-2026-11-16       NASDAQ:ALAB 1D   6      DIVERGE           S01_seed_close: bar 639 t=1791379800 na vendor=199.57 ours=na
     S01_seed_close                           DIVERGE           cmp 668 ok 643 warm 0/0 steady 25/668 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 639 (na: vendor 199.57 vs ours na) — scattered, last at bar 663
     S02_seed_open                            DIVERGE           cmp 668 ok 643 warm 0/0 steady 25/668 maxRel 0.00e+0 — 25 steady-state bars disagree; first at bar 639 (na: vendor 0 vs ours na) — scattered, last at bar 663
@@ -1727,7 +1871,58 @@ rvol-spy-1d-2026-10-03                       AMEX:SPY 1D      2      MATCH      
     Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Plot                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-s1-broker-core-rddt-1d-2026-11-15            NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
+s1-broker-core-rddt-1d-2026-11-15            NYSE:RDDT 1D     50     INCONCLUSIVE      51 of 51 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unsettled
+    N01_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unsettled)
+    N02_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unsettled)
+    N03_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unsettled)
+    N04_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unsettled)
+    N05_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unsettled)
+    N06_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unsettled)
+    N07_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unsettled)
+    N08_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unsettled)
+    N09_wintrades                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unsettled)
+    N10_losstrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unsettled)
+    N11_grossprofit                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unsettled)
+    N12_grossloss                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unsettled)
+    N13_last_exit_price                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unsettled)
+    N14_first_open_entry_bar                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unsettled)
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unsettled)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unsettled)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unsettled)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unsettled)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unsettled)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unsettled)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unsettled)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unsettled)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unsettled)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unsettled)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unsettled)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unsettled)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unsettled)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unsettled)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unsettled)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unsettled)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unsettled)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unsettled)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unsettled)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unsettled)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unsettled)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unsettled)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out37 (runtime:strategy-unsettled)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out38 (runtime:strategy-unsettled)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out39 (runtime:strategy-unsettled)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out40 (runtime:strategy-unsettled)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out41 (runtime:strategy-unsettled)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out42 (runtime:strategy-unsettled)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out43 (runtime:strategy-unsettled)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out44 (runtime:strategy-unsettled)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out45 (runtime:strategy-unsettled)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out46 (runtime:strategy-unsettled)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out47 (runtime:strategy-unsettled)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out48 (runtime:strategy-unsettled)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out49 (runtime:strategy-unsettled)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out50 (runtime:strategy-unsettled)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unsettled: 2 orders fill on the same opening tick, and the order TradingView fills them in is not stated (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md))
 screener-mean-reversion-channel-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:function]: the pasted script offers no plot and no alert condition to filter on
 screener-mean-reversion-channel-spy-1d-2026- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:function]: the pasted script offers no plot and no alert condition to filter on
 sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      INCONCLUSIVE      1 of 2 items could not be compared
@@ -1736,12 +1931,58 @@ sector-rotation-rddt-1d-2026-09-28           NYSE:RDDT 1D     1      INCONCLUSIV
 sector-rotation-spy-1d-2026-10-03            AMEX:SPY 1D      1      INCONCLUSIVE      1 of 2 items could not be compared
     Current Symbol Percentage Change         MATCH             cmp 1800 ok 1799 warm 1/1 steady 0/1799 maxRel 1.95e-16
     objects                                  INCONCLUSIVE  our lines, boxes are withheld by name (objects:collector-all, objects:not-carried: No box is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
+session-highs-and-lows-indicator-smc-session NYSE:RDDT 60     16     INCONCLUSIVE      16 of 17 items could not be compared
+    london_hi                                INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    london_lo                                INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    london_hiBar                             INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    london_loBar                             INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_hi                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_lo                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_hiBar                            INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_loBar                            INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_hi                                  INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_lo                                  INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_hiBar                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_loBar                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_hi                           INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_lo                           INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_hiBar                        INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_loBar                        INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    objects                                  MATCH         object counts and texts agree; colours agree on 16 paired slots; coordinates are NOT compared by v1
+session-highs-and-lows-indicator-smc-session AMEX:SPY 60      16     INCONCLUSIVE      17 of 17 items could not be compared
+    london_hi                                INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    london_lo                                INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    london_hiBar                             INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    london_loBar                             INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_hi                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_lo                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_hiBar                            INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    newYork_loBar                            INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_hi                                  INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_lo                                  INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_hiBar                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    asia_loBar                               INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_hi                           INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_lo                           INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_hiBar                        INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    londonClose_loBar                        INCONCLUSIVE       — our side produced no column for this plot — the member pane did not carry this output (hidden helper or beyond its row ceiling)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing
 session-hilo-rddt-1d-2026-11-14              NYSE:RDDT 1D     2      MATCH             all 4 items agree
     Highest High of Session                  MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Lowest Low of Session                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; no colour slot was paired, so no colour was graded; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
-sessions-rddt-1d-2026-11-14                  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"2000-0400:1234567"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
+sessions-rddt-1d-2026-11-14                  NYSE:RDDT 1D     8      MATCH             all 10 items agree
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Plot                                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         4 paints agree bar for bar
 smart-money-breakout-channels-algoalpha-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/10` is not in this engine's library registry, so its code cannot be compiled
 smart-money-breakouts-chartprime-rddt-1d-202 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:statement]: a name that is reassigned later cannot be folded into one expression — `TradeisON` — and the fold stopped before it, at line 208: a Pine block spans several statements and this engine stores a single expression
 smart-money-concept-tradingfinder-major-mino NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TFlab/OrderBlockRefiner_TradingFinder/2` is not in this engine's library registry, so its code cannot be compiled
@@ -1762,12 +2003,12 @@ smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     20     INCONCLUSIV
     High Sell Threshold                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Buy Interest                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     Sell Interest                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    Net Buy 100                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.58e-13
-    Net Buy 80                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.58e-13
-    Net Buy 60                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.58e-13
-    Net Buy 40                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.58e-13
-    Net Buy 20                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.58e-13
-    Net Buy Line                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.58e-13
+    Net Buy 100                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.55e-13
+    Net Buy 80                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.55e-13
+    Net Buy 60                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.55e-13
+    Net Buy 40                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.55e-13
+    Net Buy 20                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.55e-13
+    Net Buy Line                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.55e-13
     Net Sell 100                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.58e-13
     Net Sell 80                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.58e-13
     Net Sell 60                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.58e-13
@@ -1779,8 +2020,8 @@ smart-money-volume-index-algoalpha-rddt-1d-2 NYSE:RDDT 1D     20     INCONCLUSIV
 smarter-snr-rddt-1d-2026-11-14               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:statement]: this Pine built-in names something the engine grammar does not hold — `str.length`
 smarter-snr-spy-1d-2026-11-14                AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:statement]: this Pine built-in names something the engine grammar does not hold — `str.length`
 smarter-snr-spy-60-2026-11-14                AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: runtime:statement]: this Pine built-in names something the engine grammar does not hold — `str.length`
-smc-structures-and-multi-timeframe-fvg-ma-py NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:function]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `structureLow` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
-smc-structures-and-multi-timeframe-fvg-ma-py AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:function]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `structureLow` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
+smc-structures-and-multi-timeframe-fvg-ma-py NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:history-dynamic-offset]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `structureLow` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
+smc-structures-and-multi-timeframe-fvg-ma-py AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:history-dynamic-offset]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `structureLow` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
 smoothed-gaussian-trend-filter-algoalpha-rdd NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: pine:statement]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `runningFilterValue` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total
 smoothed-gaussian-trend-filter-algoalpha-spy AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: pine:statement]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `runningFilterValue` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total
 smt-divergence-ict-01-tradingfinder-smart-mo NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
@@ -1801,44 +2042,57 @@ sonarlab-order-blocks-rddt-1d-2026-10-02     NYSE:RDDT 1D     0      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 10 paired slots; coordinates are NOT compared by v1
 sonarlab-order-blocks-spy-1d-2026-10-02      AMEX:SPY 1D      0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 48 paired slots; coordinates are NOT compared by v1
-std-filtered-adaptive-exponential-hull-movin NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
-std-filtered-adaptive-exponential-hull-movin AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `loxx/loxxexpandedsourcetypes/4` is not in this engine's library registry, so its code cannot be compiled
+std-filtered-adaptive-exponential-hull-movin NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
+std-filtered-adaptive-exponential-hull-movin AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:library-denied) [runtime declined: pine:library-denied]: this library version is withheld until its drawing is verified against TradingView — the library `loxx/loxxexpandedsourcetypes/4` is not served: this library version is withheld until its drawing is verified against TradingView
 strength-of-divergence-across-multiple-indic NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `reees/TA/11` is not in this engine's library registry, so its code cannot be compiled
 strong-start-rvol-dashboard-rddt-1d-2026-11- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:object-removal-lost) [runtime declined: runtime:history-dynamic-offset]: This script's drawing can't be shown yet. It removes drawings as it runs, and this chart can't follow part of that (a table clear), so drawing the rest would leave lines, labels, boxes or table cells on screen that TradingView would have removed.
 strong-start-rvol-dashboard-spy-1d-2026-11-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:object-removal-lost) [runtime declined: runtime:history-dynamic-offset]: This script's drawing can't be shown yet. It removes drawings as it runs, and this chart can't follow part of that (a table clear), so drawing the rest would leave lines, labels, boxes or table cells on screen that TradingView would have removed.
 sub-rddt-1d-2026-11-15                       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
 sub-spy-1d-2026-11-15                        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `security`
-supertrend-kivancozbilgic-rddt-1d-2026-10-02 NYSE:RDDT 1D     7      INCONCLUSIVE      1 of 8 items could not be compared
-    Up Trend                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
-    UpTrend Begins                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Down Trend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    DownTrend Begins                         MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    plot_6                                   INCONCLUSIVE      cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (fill-anchor))
-    objects                                  MATCH         neither side draws an object
 supertrend-relative-volume-kernel-optimized- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `TradingView/ta/9` is not in this engine's library registry, so its code cannot be compiled
-supertrend-strategy-rddt-1d-2026-10-02       NYSE:RDDT 1D     7      INCONCLUSIVE      1 of 9 items could not be compared
-    Up Trend                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
-    UpTrend Begins                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Down Trend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    DownTrend Begins                         MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
-    plot_6                                   INCONCLUSIVE      cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (fill-anchor))
+supertrend-strategy-alab-1d-2026-11-17       NASDAQ:ALAB 1D   7      MATCH             all 9 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar
+    Up Trend                                 MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    UpTrend Begins                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Buy                                      MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Down Trend                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    DownTrend Begins                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    plot_6                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-supertrend-strategy-spy-1d-2026-10-02        AMEX:SPY 1D      7      INCONCLUSIVE      1 of 9 items could not be compared
+supertrend-strategy-rddt-1d-2026-10-02       NYSE:RDDT 1D     7      INCONCLUSIVE      all 9 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
+    Up Trend                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
+    UpTrend Begins                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Down Trend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    DownTrend Begins                         MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    plot_6                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         1 paint agree bar for bar
+supertrend-strategy-rddt-1d-2026-11-17       NYSE:RDDT 1D     7      MATCH             all 9 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar
+    Up Trend                                 MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 4.92e-16
+    UpTrend Begins                           MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Buy                                      MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Down Trend                               MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    DownTrend Begins                         MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    plot_6                                   MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+    paints                                   MATCH         1 paint agree bar for bar
+supertrend-strategy-spy-1d-2026-10-02        AMEX:SPY 1D      7      INCONCLUSIVE      all 9 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
     Up Trend                                 MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     UpTrend Begins                           MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Buy                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Down Trend                               MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     DownTrend Begins                         MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     Sell                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
-    plot_6                                   INCONCLUSIVE      cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (fill-anchor))
+    plot_6                                   MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
 supply-demand-mtf-flux-charts-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
+supply-demand-mtf-flux-charts-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
+supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 supply-demand-mtf-flux-charts-spy-60-2026-11 AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:block-value]: a name that is reassigned later cannot be folded into one expression — `renderBreakLabelBuyside` — and the fold stopped before it, at line 431: a Pine block spans several statements and this engine stores a single expression — `for`
 support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      INCONCLUSIVE      2 of 9 items could not be compared
@@ -1851,8 +2105,10 @@ support-and-resistance-5f95e90f-rddt-1d-2026 NYSE:RDDT 1D     8      INCONCLUSIV
     .R                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     .S                                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-support-and-resistance-7538ddd8-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:conditional-history]: the pasted script offers no plot and no alert condition to filter on
-support-and-resistance-logistic-regression-f NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:loop]: a name that is reassigned later cannot be folded into one expression — `_supportRetestDetected` — and the fold stopped before it, at line 233: a Pine block spans several statements and this engine stores a single expression — `for`
+support-and-resistance-7538ddd8-rddt-1d-2026 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:statement]: the pasted script offers no plot and no alert condition to filter on
+support-and-resistance-logistic-regression-f NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function]: a name that is reassigned later cannot be folded into one expression — `_supportRetestDetected` — and the fold stopped before it, at line 233: a Pine block spans several statements and this engine stores a single expression — `for`
+support-and-resistance-logistic-regression-f NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function]: a name that is reassigned later cannot be folded into one expression — `_supportRetestDetected` — and the fold stopped before it, at line 233: a Pine block spans several statements and this engine stores a single expression — `for`
+support-and-resistance-logistic-regression-f AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:function]: a name that is reassigned later cannot be folded into one expression — `_supportRetestDetected` — and the fold stopped before it, at line 233: a Pine block spans several statements and this engine stores a single expression — `for`
 support-and-resistance-multi-time-frame-rddt NYSE:RDDT 1D     6      MATCH             all 7 items agree
     Resistance Daily                         MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Support Daily                            MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -1887,20 +2143,23 @@ swing-highlow-zigzag-chartprime-spy-1d-2026- AMEX:SPY 1D      1      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 60 paired slots (3 theme-relative); 1 slot on objects neither side draws not graded; coordinates are NOT compared by v1
 swing-points-and-liquidity-by-leviathan-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
 swing-points-and-liquidity-by-leviathan-spy- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`
+syminfo-mincontract-aapl-1d-2026-11-16       NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+syminfo-mincontract-rddt-1d-2026-11-16       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+syminfo-mincontract-spy-1d-2026-11-16        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 syminfo-roster-aapl-1d-2026-09-30            NASDAQ:AAPL 1D   0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`: what kind of instrument the symbol is (`stock`, `fund`, `crypto`…). ⭐ MEASURED 2026-09-30 (`tests/fixtures/vendor/harness/syminfo-roster-*-1d-2026-09-30.json`, S6/S8): AAPL, BRK.B and F answer `stock`, SPY answers a 4-character type that is NOT `stock` (a fund), and our symbol store holds no stock-vs-fund fact for a listing — so an answer served per exchange would call SPY a stock. It is refused until the store can tell the two apart exactly, per instrument, never per exchange.
 syminfo-roster-bitstamp-btcusd-1d-2026-09-30 BITSTAMP:BTCUSD  0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`: what kind of instrument the symbol is (`stock`, `fund`, `crypto`…). ⭐ MEASURED 2026-09-30 (`tests/fixtures/vendor/harness/syminfo-roster-*-1d-2026-09-30.json`, S6/S8): AAPL, BRK.B and F answer `stock`, SPY answers a 4-character type that is NOT `stock` (a fund), and our symbol store holds no stock-vs-fund fact for a listing — so an answer served per exchange would call SPY a stock. It is refused until the store can tell the two apart exactly, per instrument, never per exchange.
 syminfo-roster-brk-b-1d-2026-09-30           NYSE:BRK.B 1D    0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`: what kind of instrument the symbol is (`stock`, `fund`, `crypto`…). ⭐ MEASURED 2026-09-30 (`tests/fixtures/vendor/harness/syminfo-roster-*-1d-2026-09-30.json`, S6/S8): AAPL, BRK.B and F answer `stock`, SPY answers a 4-character type that is NOT `stock` (a fund), and our symbol store holds no stock-vs-fund fact for a listing — so an answer served per exchange would call SPY a stock. It is refused until the store can tell the two apart exactly, per instrument, never per exchange.
 syminfo-roster-f-1d-2026-09-30               NYSE:F 1D        0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`: what kind of instrument the symbol is (`stock`, `fund`, `crypto`…). ⭐ MEASURED 2026-09-30 (`tests/fixtures/vendor/harness/syminfo-roster-*-1d-2026-09-30.json`, S6/S8): AAPL, BRK.B and F answer `stock`, SPY answers a 4-character type that is NOT `stock` (a fund), and our symbol store holds no stock-vs-fund fact for a listing — so an answer served per exchange would call SPY a stock. It is refused until the store can tell the two apart exactly, per instrument, never per exchange.
 syminfo-roster-spy-1d-2026-09-30             AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`: what kind of instrument the symbol is (`stock`, `fund`, `crypto`…). ⭐ MEASURED 2026-09-30 (`tests/fixtures/vendor/harness/syminfo-roster-*-1d-2026-09-30.json`, S6/S8): AAPL, BRK.B and F answer `stock`, SPY answers a 4-character type that is NOT `stock` (a fund), and our symbol store holds no stock-vs-fund fact for a listing — so an answer served per exchange would call SPY a stock. It is refused until the store can tell the two apart exactly, per instrument, never per exchange.
-take-profit-multi-timeframe-rddt-1d-2026-11- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:strategy-call]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-take-profit-multi-timeframe-spy-1d-2026-11-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: pine:strategy-call]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+take-profit-multi-timeframe-rddt-1d-2026-11- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:strategy-repaint]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+take-profit-multi-timeframe-spy-1d-2026-11-1 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:strategy-repaint]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
 tehthomas-aligned-timeframe-fair-value-gaps- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:request]: the pasted script offers no plot and no alert condition to filter on
 tehthomas-aligned-timeframe-fair-value-gaps- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:request]: the pasted script offers no plot and no alert condition to filter on
-tradingview-alerts-to-mt4-mt5-forex-indices- NYSE:RDDT 1D     2      MATCH             all 3 items agree
+tradingview-alerts-to-mt4-mt5-forex-indices- NYSE:RDDT 1D     2      INCONCLUSIVE      all 3 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
     %K                                       MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.86e-15
     %D                                       MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 2.61e-15
     objects                                  MATCH         neither side draws an object
-tradingview-alerts-to-mt4-mt5-forex-indices- AMEX:SPY 1D      2      MATCH             all 3 items agree
+tradingview-alerts-to-mt4-mt5-forex-indices- AMEX:SPY 1D      2      INCONCLUSIVE      all 3 items agree; strategy INCONCLUSIVE at step 0: our side ran this strategy's broker, and the capture holds no Strategy Tester report to grade its trades (its output) against
     %K                                       MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 4.46e-15
     %D                                       MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.16e-14
     objects                                  MATCH         neither side draws an object
@@ -1912,15 +2171,15 @@ tradingview-alerts-to-mt4-mt5-strategy-examp AMEX:SPY 1D      2      MATCH      
     %K                                       MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 4.46e-15
     %D                                       MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.16e-14
     objects                                  MATCH         object counts and texts agree; colours agree on 11 paired slots; coordinates are NOT compared by v1
-trailing-take-profit-trailing-stop-loss-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jason5480/chrono_utils/7` is not in this engine's library registry, so its code cannot be compiled
+trailing-take-profit-trailing-stop-loss-rddt NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `jason5480/chrono_utils/7` is not in this engine's library registry, so its code cannot be compiled; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
 trend-duration-forecast-chartprime-rddt-1d-2 NYSE:RDDT 1D     1      MATCH             all 2 items agree
     HMA                                      MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 126 paired slots (22 theme-relative); coordinates are NOT compared by v1
 trend-duration-forecast-chartprime-spy-1d-20 AMEX:SPY 1D      1      MATCH             all 2 items agree
     HMA                                      MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 180 paired slots (22 theme-relative); coordinates are NOT compared by v1
-trend-levels-chartprime-rddt-1d-2026-11-15   NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:window) [runtime declined: pine:function]: a Pine length has to reach the engine as a plain whole number — argument 2 of `ta.highest`
-trend-levels-chartprime-spy-1d-2026-11-15    AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:window) [runtime declined: pine:function]: a Pine length has to reach the engine as a plain whole number — argument 2 of `ta.highest`
+trend-levels-chartprime-rddt-1d-2026-11-15   NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:window) [runtime declined: pine:builtin]: a Pine length has to reach the engine as a plain whole number — argument 2 of `ta.highest`
+trend-levels-chartprime-spy-1d-2026-11-15    AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:window) [runtime declined: pine:builtin]: a Pine length has to reach the engine as a plain whole number — argument 2 of `ta.highest`
 trend-line-harrybot-rddt-1d-2026-11-14       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:conditional-history]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `care`)
 trend-lines-supports-and-resistances-rddt-1d NYSE:RDDT 1D     2      DIVERGE           1 of 3 compared items diverge
     High Pivots                              MATCH             cmp 632 ok 632 warm 0/0 steady 0/632 maxRel 0.00e+0
@@ -1946,6 +2205,14 @@ trend-targets-algoalpha-rddt-1d-2026-11-15   NYSE:RDDT 1D     5      MATCH      
     Bearish Trend Change                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.48e-16
     objects                                  MATCH         object counts and texts agree; colours agree on 15 paired slots; coordinates are NOT compared by v1
     paints                                   MATCH         1 paint agree bar for bar
+trend-targets-algoalpha-rddt-1d-2026-11-17   NYSE:RDDT 1D     5      MATCH             all 7 items agree
+    Bullish Rejection                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Bearish Rejection                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 3.81e-16
+    Baseline                                 MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 6.00e-16
+    Bullish Trend Change                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 3.82e-16
+    Bearish Trend Change                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 3.48e-16
+    objects                                  MATCH         object counts and texts agree; colours agree on 15 paired slots; coordinates are NOT compared by v1
+    paints                                   MATCH         1 paint agree bar for bar
 trend-targets-algoalpha-spy-1d-2026-10-02    AMEX:SPY 1D      5      MATCH             all 7 items agree
     Bullish Rejection                        MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 2.89e-16
     Bearish Rejection                        MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 1.44e-16
@@ -1961,6 +2228,14 @@ trend-targets-algoalpha-spy-1d-2026-11-15    AMEX:SPY 1D      5      MATCH      
     Bullish Trend Change                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 5.21e-16
     Bearish Trend Change                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 4.14e-16
     objects                                  MATCH         object counts and texts agree; colours agree on 15 paired slots; coordinates are NOT compared by v1
+    paints                                   MATCH         1 paint agree bar for bar
+trend-targets-algoalpha-spy-1d-2026-11-17    AMEX:SPY 1D      5      INCONCLUSIVE      1 of 7 items could not be compared
+    Bullish Rejection                        MATCH             cmp 8509 ok 8490 warm 19/1778 steady 0/6731 maxRel 4.75e-16
+    Bearish Rejection                        MATCH             cmp 8509 ok 8506 warm 3/1778 steady 0/6731 maxRel 3.96e-16
+    Baseline                                 MATCH             cmp 8509 ok 6871 warm 1638/1778 steady 0/6731 maxRel 6.97e-16
+    Bullish Trend Change                     MATCH             cmp 8509 ok 8506 warm 3/1778 steady 0/6731 maxRel 5.21e-16
+    Bearish Trend Change                     MATCH             cmp 8509 ok 8506 warm 3/1778 steady 0/6731 maxRel 4.14e-16
+    objects                                  INCONCLUSIVE  our object lane did not run: withheld by name (runtime:objects-without-run) — This script's drawings are not drawn: this chart's history does not start at the symbol's first bar, so its plots are drawn only from bar 1779 on, where their values stop depending on where the chart begins, and where its drawings land is not proven the same way. Nothing is drawn rather than a guess.
     paints                                   MATCH         1 paint agree bar for bar
 trendline-pivots-quantvue-rddt-1d-2026-11-14 NYSE:RDDT 1D     0      MATCH             all 1 items agree
     objects                                  MATCH         object counts and texts agree; colours agree on 11 paired slots; coordinates are NOT compared by v1
@@ -2010,10 +2285,18 @@ vdubus-pattern-gen-v2-restored-refined-spy-1 AMEX:SPY 1D      0      INCONCLUSIV
 visualizing-displacement-tfo-rddt-1d-2026-11 NYSE:RDDT 1D     0      MATCH             all 2 items agree
     objects                                  MATCH         neither side draws an object
     paints                                   MATCH         1 paint agree bar for bar
-volatility-coil-edge-bullbyte-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:call-text-state]: a name that is reassigned later cannot be folded into one expression — `isContracted` — and the fold stopped before it, at line 378: a Pine block spans several statements and this engine stores a single expression — `for`
+volatility-coil-edge-bullbyte-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:colour]: a name that is reassigned later cannot be folded into one expression — `isContracted` — and the fold stopped before it, at line 378: a Pine block spans several statements and this engine stores a single expression — `for`
+volatility-coil-edge-bullbyte-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:colour]: a name that is reassigned later cannot be folded into one expression — `isContracted` — and the fold stopped before it, at line 378: a Pine block spans several statements and this engine stores a single expression — `for`
+volatility-coil-edge-bullbyte-spy-1d-2026-11 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:colour]: a name that is reassigned later cannot be folded into one expression — `isContracted` — and the fold stopped before it, at line 378: a Pine block spans several statements and this engine stores a single expression — `for`
 volatility-stop-mtf-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/Time/5` is not in this engine's library registry, so its code cannot be compiled
 volatility-stop-mtf-spy-1d-2026-11-15        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees — the library `PineCoders/Time/5` is not in this engine's library registry, so its code cannot be compiled
-volatility-trend-score-backquant-rddt-1d-202 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:colour]: a user-defined type is outside the node shapes this engine stores — `c.score`
+volatility-trend-score-backquant-rddt-1d-202 NYSE:RDDT 1D     4      INCONCLUSIVE      1 of 5 items could not be compared
+    plot_0                                   INCONCLUSIVE       — UNMAPPED — title "" could not be paired unambiguously
+    ATR On Chart                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.36e-16
+    Long Signal                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    Short Signal                             MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots (2 theme-relative); coordinates are NOT compared by v1
+    paints                                   NOT GRADED    no paint was graded; 1 paint neither side draws not graded (plot_11)
 vold-market-breadth-rddt-1d-2026-09-28       NYSE:RDDT 1D     0      DIVERGE           1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1
 vold-market-breadth-spy-1d-2026-10-03        AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
@@ -2021,6 +2304,28 @@ vold-market-breadth-spy-1d-2026-10-03        AMEX:SPY 1D      0      DIVERGE    
 volume-delta-hapharmonic-rddt-1d-2026-11-14  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:call-text-state]: a user-defined type is outside the node shapes this engine stores — `ohlcv.V`
 volume-delta-oi-delta-kioseff-trading-rddt-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:request]: the pasted script offers no plot and no alert condition to filter on
 volume-delta-oi-delta-kioseff-trading-spy-1d AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:request]: the pasted script offers no plot and no alert condition to filter on
+volume-divergence-by-mm-rddt-1d-2026-11-17   NYSE:RDDT 1D     9      MATCH             all 10 items agree
+    Volume                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Regular Bullish                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Regular Bullish Label                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Hidden Bullish                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Hidden Bullish Label                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Regular Bearish                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Regular Bearish Label                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Hidden Bearish                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    Hidden Bearish Label                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+volume-divergence-by-mm-spy-1d-2026-11-17    AMEX:SPY 1D      9      MATCH             all 10 items agree
+    Volume                                   MATCH             cmp 8509 ok 8252 warm 257/333 steady 0/8176 maxRel 0.00e+0
+    Regular Bullish                          MATCH             cmp 8509 ok 8491 warm 18/333 steady 0/8176 maxRel 0.00e+0
+    Regular Bullish Label                    MATCH             cmp 8509 ok 8504 warm 5/333 steady 0/8176 maxRel 0.00e+0
+    Hidden Bullish                           MATCH             cmp 8509 ok 8491 warm 18/333 steady 0/8176 maxRel 0.00e+0
+    Hidden Bullish Label                     MATCH             cmp 8509 ok 8509 warm 0/333 steady 0/8176 maxRel 0.00e+0
+    Regular Bearish                          MATCH             cmp 8509 ok 8494 warm 15/333 steady 0/8176 maxRel 0.00e+0
+    Regular Bearish Label                    MATCH             cmp 8509 ok 8504 warm 5/333 steady 0/8176 maxRel 0.00e+0
+    Hidden Bearish                           MATCH             cmp 8509 ok 8494 warm 15/333 steady 0/8176 maxRel 0.00e+0
+    Hidden Bearish Label                     MATCH             cmp 8509 ok 8509 warm 0/333 steady 0/8176 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 volume-open-interest-footprint-by-leviathan- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:builtin]: the pasted script offers no plot and no alert condition to filter on
 volume-open-interest-footprint-by-leviathan- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:builtin]: the pasted script offers no plot and no alert condition to filter on
 volume-profile-auto-line-v2-rddt-1d-2026-11- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:call-undeclared-builtin-state]: the pasted script offers no plot and no alert condition to filter on
@@ -2030,12 +2335,34 @@ volume-profile-rddt-1d-2026-09-28            NYSE:RDDT 1D     0      INCONCLUSIV
     objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
 volume-profile-spy-1d-2026-10-03             AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
     objects                                  INCONCLUSIVE  our lines are withheld by name (objects:not-carried: No line is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); every other object family's counts and texts agree
-volume-spikes-growing-volume-signals-with-al NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1000 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":19,"maxLookback":1000} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.value.
-volume-spikes-growing-volume-signals-with-al AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1000 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":19,"maxLookback":1000} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.value.
+volume-spikes-growing-volume-signals-with-al NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback) [runtime declined: pine:function]: this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here
+volume-spikes-growing-volume-signals-with-al AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback) [runtime declined: pine:function]: this script is not drawn: its plot `Volume Up Spike Marker` needs 1000 bars of history behind every bar, and one plot may reach back at most 960 here
 volume-suite-by-leviathan-rddt-1d-2026-11-15 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: pine:request]: this Pine call answers with several values at once and a column carries one — `vwap` — this engine has no tuple form for `ta.vwap` — the ones it can take apart are `ta.bb`, `ta.dmi`, `ta.kc`, `ta.macd`, `ta.supertrend`. Writing it WITHOUT the brackets says more about why
 volume-suite-by-leviathan-spy-1d-2026-11-15  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: pine:request]: this Pine call answers with several values at once and a column carries one — `vwap` — this engine has no tuple form for `ta.vwap` — the ones it can take apart are `ta.bb`, `ta.dmi`, `ta.kc`, `ta.macd`, `ta.supertrend`. Writing it WITHOUT the brackets says more about why
-volumized-order-blocks-flux-charts-rddt-1d-2 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:conditional-history]: the pasted script offers no plot and no alert condition to filter on
-volumized-order-blocks-flux-charts-spy-1d-20 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: runtime:conditional-history]: the pasted script offers no plot and no alert condition to filter on
+volumized-order-blocks-flux-charts-rddt-1d-2 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:builtin]: the pasted script offers no plot and no alert condition to filter on
+volumized-order-blocks-flux-charts-spy-1d-20 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:no-output) [runtime declined: pine:builtin]: the pasted script offers no plot and no alert condition to filter on
+vw-andor-history-rddt-1d-2026-11-16          NYSE:RDDT 1D     9      INCONCLUSIVE      5 of 10 items could not be compared
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E05_change_every_bar                     MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E03_sma_every_bar                        MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E07_test_CONTROL                         MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    B01_and_change_positive                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:block)
+    B02_and_close_above_sma                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:block)
+    B03_and_crossover                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (pine:block)
+    B04_or_change_positive                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:block)
+    B05_and_rising2                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (pine:block)
+    objects                                  MATCH         neither side draws an object
+vw-andor-history-spy-1d-2026-11-16           AMEX:SPY 1D      9      INCONCLUSIVE      5 of 10 items could not be compared
+    A00_bar_index_CONTROL                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    E05_change_every_bar                     MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    E03_sma_every_bar                        MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    E07_test_CONTROL                         MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    B01_and_change_positive                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:block)
+    B02_and_close_above_sma                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:block)
+    B03_and_crossover                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (pine:block)
+    B04_or_change_positive                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:block)
+    B05_and_rising2                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (pine:block)
+    objects                                  MATCH         neither side draws an object
 vw-arm-history-rddt-1d-2026-10-02            NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:roundtrip) [runtime declined: runtime:conditional-history]: the translator wrote formula text it could not read back, so it emitted none
 vw-arm-history-spy-1d-2026-10-02             AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:roundtrip) [runtime declined: runtime:conditional-history]: the translator wrote formula text it could not read back, so it emitted none
 vw-array-na-rddt-1d-2026-11-15               NYSE:RDDT 1D     13     MATCH             all 14 items agree
@@ -2261,6 +2588,34 @@ vw-bool-cast-v4-spy-60-2026-09-28            AMEX:SPY 60      11     MATCH      
     B10_iff_condition                        MATCH             cmp 20616 ok 20616 warm 0/0 steady 0/20616 maxRel 0.00e+0
     B08_t_is_na_CONTROL                      MATCH             cmp 20616 ok 20616 warm 0/0 steady 0/20616 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
+vw-bt-session-overnight-value-btcusd-1d-2026 BITSTAMP:BTCUSD  7      DIVERGE           HOUR: bar 0 t=1313625600 value vendor=0 ours=9
+    V0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    HOUR                                     DIVERGE           cmp 5537 ok 0 warm 0/0 steady 5537/5537 maxRel 0.00e+0 — 5537 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 9) — persistent, last at bar 5536
+    MINUTE                                   DIVERGE           cmp 5537 ok 0 warm 0/0 steady 5537/5537 maxRel 0.00e+0 — 5537 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 30) — persistent, last at bar 5536
+    V1_secs_wrap_half_hour                   DIVERGE           cmp 5537 ok 0 warm 0/0 steady 5537/5537 maxRel 1.00e+0 — 5537 steady-state bars disagree; first at bar 0 (value: vendor -16200 vs ours -1) — persistent, last at bar 5536
+    V2_secs_wrap_on_the_hour_CONTROL         DIVERGE           cmp 5537 ok 0 warm 0/0 steady 5537/5537 maxRel 1.00e+0 — 5537 steady-state bars disagree; first at bar 0 (value: vendor -21600 vs ours -1) — persistent, last at bar 5536
+    V3_secs_whole_day_wrap                   DIVERGE           cmp 5537 ok 0 warm 0/0 steady 5537/5537 maxRel 1.36e+0 — 5537 steady-state bars disagree; first at bar 0 (value: vendor -25200 vs ours -59400) — persistent, last at bar 5536
+    V4_secs_wrap_through_the_day             DIVERGE           cmp 5537 ok 0 warm 0/0 steady 5537/5537 maxRel 2.38e+0 — 5537 steady-state bars disagree; first at bar 0 (value: vendor -14400 vs ours -48600) — persistent, last at bar 5536
+    objects                                  MATCH         neither side draws an object
+vw-bt-session-overnight-value-btcusd-60-2026 BITSTAMP:BTCUSD  7      DIVERGE           HOUR: bar 0 t=1704067200 value vendor=0 ours=19
+    V0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    HOUR                                     DIVERGE           cmp 25216 ok 0 warm 0/0 steady 25216/25216 maxRel 2.00e+1 — 25216 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19) — persistent, last at bar 25215
+    MINUTE                                   MATCH             cmp 25216 ok 25216 warm 0/0 steady 0/25216 maxRel 0.00e+0
+    V1_secs_wrap_half_hour                   DIVERGE           cmp 25216 ok 16139 warm 0/0 steady 9077/25216 maxRel 1.80e+3 — 9077 steady-state bars disagree; first at bar 0 (value: vendor -1800 vs ours -1) — scattered, last at bar 25204
+    V2_secs_wrap_on_the_hour_CONTROL         DIVERGE           cmp 25216 ok 16137 warm 0/0 steady 9079/25216 maxRel 1.00e+0 — 9079 steady-state bars disagree; first at bar 2 (value: vendor -1 vs ours 0) — persistent, last at bar 25215
+    V3_secs_whole_day_wrap                   MATCH             cmp 25216 ok 25216 warm 0/0 steady 0/25216 maxRel 0.00e+0
+    V4_secs_wrap_through_the_day             DIVERGE           cmp 25216 ok 18913 warm 0/0 steady 6303/25216 maxRel 1.00e+0 — 6303 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours -1) — persistent, last at bar 25215
+    objects                                  MATCH         neither side draws an object
+vw-bt-session-to-midnight-daymask-btcusd-60- BITSTAMP:BTCUSD  5      DIVERGE           HOUR: bar 0 t=1704067200 value vendor=0 ours=19
+    M0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    HOUR                                     DIVERGE           cmp 25216 ok 0 warm 0/0 steady 25216/25216 maxRel 2.00e+1 — 25216 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19) — persistent, last at bar 25215
+    DOW_dayofweek                            DIVERGE           cmp 25216 ok 20677 warm 0/0 steady 4539/25216 maxRel 6.00e+0 — 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1) — scattered, last at bar 25201
+    M1_na_to_midnight_weekdays               DIVERGE           cmp 25216 ok 19218 warm 0/0 steady 5998/25216 maxRel 1.00e+0 — 5998 steady-state bars disagree; first at bar 20 (value: vendor 0 vs ours 1) — scattered, last at bar 25153
+    M2_na_to_midnight_every_day_CONTROL      DIVERGE           cmp 25216 ok 16814 warm 0/0 steady 8402/25216 maxRel 1.00e+0 — 8402 steady-state bars disagree; first at bar 1 (value: vendor 1 vs ours 0) — scattered, last at bar 25201
+    objects                                  MATCH         neither side draws an object
+vw-bt-time-1440-spy-1d-2026-11-16            AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
+vw-bt-time-1440-spy-60-2026-11-16            AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: it is read here on the chart's OWN timeframe (`timeframe.period`), which is what the vendor was measured on. A different period groups the session into bars this chart does not have, and nothing measured says how.
+vw-bt-toradians-spy-1d-2026-11-16            AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `math.toradians`. This table declares abs, accum, accum2, accum3, accum4, acos, adx, alma, aroonDown, aroonUp, atan, atr, atrPine, avwap, barsAgo, barssince, bbw, boolNaWithheld, bop, cci, ceil, change, cos, crossOver, crossUnder, cum, cumFrom, dev, donchianLower, donchianMiddle, donchianUpper, ema, exp, falling, floor, highest, highestbars, hma, ichimokuChikou, ichimokuKijun, ichimokuSpanA, ichimokuSpanB, ichimokuTenkan, idiv, ln, log10, lowest, lowestbars, macd, max, median, mfi, mfiPine, min, minusDI, mod, na, nz, obvN, openingRangeHigh, openingRangeLow, percentileLinearInterpolation, percentileNearestRank, percentrank, pivothigh, pivotlow, plusDI, pow, pvtN, rci, rising, rma, round, rsi, sessionHigh, sessionLow, sessionOpen, sign, sin, sinh, sma, sqrt, stdev, stoch, stochPine, sum, tan, tieNewest, valuewhen, valuewhenOccurrence, vwap, vwapOf, williamsR, wma
 vw-call-site-history-rddt-1d-2026-10-01      NYSE:RDDT 1D     21     INCONCLUSIVE      13 of 22 items could not be compared
     C01_highest10_cond                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:block)
     C02_lowest10_cond                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:block)
@@ -2324,7 +2679,7 @@ vw-cbc-mbb-and-input-rddt-1d-2026-11-15      NYSE:RDDT 1D     3      MATCH      
     A01_close_300                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_sma_300                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-cbc-security-rddt-1d-2026-11-15           NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: install door refused: u_member-pane-vendorharness: compute.budget: exceeds the lookback budget — this formula measures 1255 and the cap is 960 (guard "budget:lookback"). Measured {"maxNodes":17,"maxLookback":1255} against caps {"maxNodes":128,"maxLookback":960,"maxSeriesRefs":8}. The tree measured is compute.trees.out4.
+vw-cbc-security-rddt-1d-2026-11-15           NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (budget:lookback) [runtime declined: runtime:request]: this script is not drawn: its plot `S03_weekly_var_count` needs 1255 bars of history behind every bar, and one plot may reach back at most 960 here
 vw-cbc-zero-rddt-1d-2026-11-15               NYSE:RDDT 1D     1      MATCH             all 2 items agree
     A00_bar_index                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
@@ -2385,7 +2740,7 @@ vw-clock-vwap-spy-5-ext-2026-09-28           AMEX:SPY 5       15     INCONCLUSIV
     V13_year_MUST_SPAN_TWO_VALUES            MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     V14_month_MUST_SPAN_SEVERAL_VALUES       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-colour-components-spy-1d-2026-10-01       AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:colour-value) [runtime declined: runtime:colour]: a colour cannot be a value in a screened column — `color.r`: its components are served for a fixed colour (a Pine colour name, a `#RRGGBB` or `#RRGGBBAA` literal, `color.rgb` of literals, an `input.color` of one), for `color.new` of one with a literal transparency or a per-bar one that stays within 0-100, for a ternary of two such colours, for `color.from_gradient` between two fixed colours, and for `color.new(<that gradient>, <literal>)` — the colours the `vw-gradient` and `vw-colour-components` captures measured. This one is none of those (a gradient between gradients and a colour returned by a user function are measured and not served)
+vw-colour-components-spy-1d-2026-10-01       AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:colour-value) [runtime declined: runtime:statement]: a colour cannot be a value in a screened column — `color.r`: its components are served for a fixed colour (a Pine colour name, a `#RRGGBB` or `#RRGGBBAA` literal, `color.rgb` of literals, an `input.color` of one), for `color.new` of one with a literal transparency or a per-bar one that stays within 0-100, for a ternary of two such colours, for `color.from_gradient` between two fixed colours, and for `color.new(<that gradient>, <literal>)` — the colours the `vw-gradient` and `vw-colour-components` captures measured. This one is none of those (a gradient between gradients and a colour returned by a user function are measured and not served)
 vw-cond-window-extremes-rddt-1d-2026-10-02   NYSE:RDDT 1D     17     INCONCLUSIVE      7 of 18 items could not be compared
     X00_bar_index_CONTROL                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     X01_highest_bi_3_every_3rd               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (pine:block)
@@ -2426,7 +2781,7 @@ vw-cond-window-extremes-spy-1d-2026-10-02    AMEX:SPY 1D      17     INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-cs1-bool-na-v2-rddt-1d-2026-11-14         NYSE:RDDT 1D     21     INCONCLUSIVE      4 of 22 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.99e-16
+    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_na_s_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B00_c                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B01_c_eq_false                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2449,7 +2804,7 @@ vw-cs1-bool-na-v2-rddt-1d-2026-11-14         NYSE:RDDT 1D     21     INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-cs1-bool-na-v4-rddt-1d-2026-11-14         NYSE:RDDT 1D     39     INCONCLUSIVE      22 of 40 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.99e-16
+    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_na_s_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B00_c                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B01_c_eq_false                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2490,7 +2845,7 @@ vw-cs1-bool-na-v4-rddt-1d-2026-11-14         NYSE:RDDT 1D     39     INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-cs1-bool-na-v5-rddt-1d-2026-11-14         NYSE:RDDT 1D     39     INCONCLUSIVE      22 of 40 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.99e-16
+    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_na_s_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B00_c                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B01_c_eq_false                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2533,7 +2888,7 @@ vw-cs1-calc-bars-rddt-1d-2026-11-14          NYSE:RDDT 1D     5      MATCH      
     A00_bar_index                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_var_count                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    A03_sma10                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.67e-16
+    A03_sma10                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A04_close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-cs1-cell-positional-rddt-1d-2026-11-14    NYSE:RDDT 1D     1      MATCH             all 2 items agree
@@ -2541,10 +2896,10 @@ vw-cs1-cell-positional-rddt-1d-2026-11-14    NYSE:RDDT 1D     1      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 14 paired slots; coordinates are NOT compared by v1
 vw-cs1-palette-v1-rddt-1d-2026-11-14         NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 vw-cs1-palette-v2-rddt-1d-2026-11-14         NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
-vw-cs1-rci-p1-rddt-1d-2026-11-14             NYSE:RDDT 1D     5      DIVERGE           P01_rci_sma5_10: bar 42 t=1716298200 value vendor=97.87279253249042 ours=98.78787878787878
+vw-cs1-rci-p1-rddt-1d-2026-11-14             NYSE:RDDT 1D     5      MATCH             all 6 items agree
     A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A01_rci_close_10_CONTROL                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.58e-16
-    P01_rci_sma5_10                          DIVERGE           cmp 666 ok 658 warm 0/0 steady 8/666 maxRel 1.30e-1 — 8 steady-state bars disagree; first at bar 42 (value: vendor 97.87279253249042 vs ours 98.78787878787878) — scattered, last at bar 49
+    P01_rci_sma5_10                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.14e-16
     P02_rci_flat_10                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     P03_flat_source                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
@@ -2609,7 +2964,7 @@ vw-cs1-transp-v3-rddt-1d-2026-11-14          NYSE:RDDT 1D     5      INCONCLUSIV
     paints                                   MATCH         1 paint agree bar for bar
 vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15     NYSE:RDDT 1D     25     INCONCLUSIVE      5 of 26 items could not be compared
     A00_bar_index_CONTROL                    INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
-    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.99e-16
+    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_na_s_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B00_c                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B01_c_eq_false                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2636,7 +2991,7 @@ vw-cs2-bool-na-v1-cum-rddt-1d-2026-11-15     NYSE:RDDT 1D     25     INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-cs2-bool-na-v1-rddt-1d-2026-11-15         NYSE:RDDT 1D     25     INCONCLUSIVE      4 of 26 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.99e-16
+    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_na_s_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B00_c                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B01_c_eq_false                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2663,7 +3018,7 @@ vw-cs2-bool-na-v1-rddt-1d-2026-11-15         NYSE:RDDT 1D     25     INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15     NYSE:RDDT 1D     25     INCONCLUSIVE      5 of 26 items could not be compared
     A00_bar_index_CONTROL                    INCONCLUSIVE      cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
-    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.99e-16
+    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_na_s_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B00_c                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B01_c_eq_false                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2690,7 +3045,7 @@ vw-cs2-bool-na-v3-cum-rddt-1d-2026-11-15     NYSE:RDDT 1D     25     INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-cs2-bool-na-v3-rddt-1d-2026-11-15         NYSE:RDDT 1D     25     INCONCLUSIVE      4 of 26 items could not be compared
     A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.99e-16
+    A01_na_s                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     A02_na_s_is_na                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B00_c                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     B01_c_eq_false                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -2807,18 +3162,18 @@ vw-cs2-rising-falling-na-v5-rddt-1d-2026-11- NYSE:RDDT 1D     8      MATCH      
     objects                                  MATCH         neither side draws an object
 vw-cs2-sma-exact-tie-rddt-1d-2026-11-15      NYSE:RDDT 1D     6      MATCH             all 7 items agree
     T01_sma5_equals_prev                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    T02_sma5                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
-    T03_sma5_of_close_1                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
-    T04_difference                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.84e-12
-    T05_sum5                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.23e-16
+    T02_sma5                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    T03_sma5_of_close_1                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    T04_difference                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    T05_sum5                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     C01_close_CONTROL                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-cs2-sma-exact-tie-spy-1d-2026-11-15       AMEX:SPY 1D      6      DIVERGE           T01_sma5_equals_prev: bar 3665 t=1187357400 value vendor=1 ours=0
-    T01_sma5_equals_prev                     DIVERGE           cmp 8507 ok 8505 warm 0/0 steady 2/8507 maxRel 1.00e+0 — 2 steady-state bars disagree; first at bar 3665 (value: vendor 1 vs ours 0) — scattered, last at bar 4632
-    T02_sma5                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 4.11e-16
-    T03_sma5_of_close_1                      MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 4.11e-16
-    T04_difference                           MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 4.26e-11
-    T05_sum5                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 3.29e-16
+vw-cs2-sma-exact-tie-spy-1d-2026-11-15       AMEX:SPY 1D      6      MATCH             all 7 items agree
+    T01_sma5_equals_prev                     MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    T02_sma5                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    T03_sma5_of_close_1                      MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    T04_difference                           MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
+    T05_sum5                                 MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     C01_close_CONTROL                        MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-cs2-stoch-flat-rddt-1d-2026-11-15         NYSE:RDDT 1D     8      MATCH             all 9 items agree
@@ -2850,8 +3205,8 @@ vw-cs2-v4-ternary-lazy-rddt-1d-2026-11-15    NYSE:RDDT 1D     8      INCONCLUSIV
     T00_up_sma_else_close                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (pine:block)
     T01_up_barssince_else_na                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:block)
     T02_up_helper_sma_else_close             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:block)
-    C00_iff_up_sma_close                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
-    E00_sma_eager                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
+    C00_iff_up_sma_close                     MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    E00_sma_eager                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     E01_barssince_eager                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-deadband-ticks-aapl-1d-2026-09-28         NASDAQ:AAPL 1D   5      MATCH             all 7 items agree
@@ -2903,6 +3258,574 @@ vw-default-param-spy-1d-2026-10-02           AMEX:SPY 1D      16     MATCH      
     D13_two_defaults_first_given             MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     D14_two_defaults_first_given_written     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     D15_pairs_that_differ_MUST_BE_0          MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-draw-count-at-cap-rddt-1d-2026-11-16      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:object-op]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `boxesMade` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `cumFrom(<that value>, <anchor>, <bars>)` — the same running total with the starting instant STATED. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.
+vw-draw-count-at-cap-spy-1d-2026-11-16       AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:object-op]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `boxesMade` builds on its own previous bar and this engine cannot tell that it ever forgets where it started, so folding it would draw a rolling window over the last 250 bars rather than a running total. THIS ENGINE DOES DECLARE A BOUNDED FORM: `cumFrom(<that value>, <anchor>, <bars>)` — the same running total with the starting instant STATED. Stating the window is what makes the answer the same tomorrow — an all-time value moves with however many bars were fetched.
+vw-fcmp-builtins-rddt-1d-2026-11-18          NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-builtins-spy-1d-2026-11-18           AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-builtins-v2-rddt-1d-2026-11-18       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-builtins-v2-spy-1d-2026-11-18        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:collection) [runtime declined: pine:function]: an array, a matrix or a map is outside the expression grammar this engine runs — `this name` is read as an array here and nothing in this script creates it, so there are no slots to read
+vw-fcmp-const-v4-spy-1d-2026-11-18           AMEX:SPY 1D      15     INCONCLUSIVE      10 of 16 items could not be compared
+    C00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C01_literals                             INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C02_named_consts                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C03_literal_sum                          INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C04_named_sum                            INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C05_input_literal                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C06_input_input                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C07_const_series                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C08_series_series_CONTROL                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C09_reassigned                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C10_function_result                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C11_ternary_of_consts                    INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C12_int_vs_float                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C13_tie_literals                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C14_tie_inline                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-const-v5-spy-1d-2026-11-18           AMEX:SPY 1D      15     INCONCLUSIVE      10 of 16 items could not be compared
+    C00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C01_literals                             INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C02_named_consts                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C03_literal_sum                          INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C04_named_sum                            INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C05_input_literal                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C06_input_input                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C07_const_series                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C08_series_series_CONTROL                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    C09_reassigned                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C10_function_result                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C11_ternary_of_consts                    INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C12_int_vs_float                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C13_tie_literals                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    C14_tie_inline                           INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-rddt-1d-2026-11-18              NYSE:RDDT 1D     51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-spy-1d-2026-11-18               AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v1-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v2-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v3-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v4-rddt-1d-2026-11-18           NYSE:RDDT 1D     51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v4-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-form-v5-spy-1d-2026-11-18            AMEX:SPY 1D      51     INCONCLUSIVE      2 of 52 items could not be compared
+    T00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T01_ctl_eq                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T02_ctl_lt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T03_ctl_gt                               MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T04_center_1e-13                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T05_center_1e-12                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T06_center_1e-11                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T07_center_1e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T08_center_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T09_center_4.9e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T10_center_5.1e-10                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T11_center_9e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T12_center_1.4e-9                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T13_center_1e-8                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T14_edge_0491                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T15_edge_0495                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T16_edge_0499                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T17_edge_0501                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T18_edge_051                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T19_edge_059                             MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T20_straddle_1                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T21_straddle_1_rev                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T22_straddle_0.09                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T23_straddle_100                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T24_neg_bucket                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T25_neg_straddle                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T26_neg_across                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T27_zero_p4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T28_zero_m4e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T29_m4e-10_p4e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T30_zero_p6e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T31_tiny_zero                            MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T32_half_1.0000000025                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T33_half_1.0000000075                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T34_half_1.0000000015                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T35_half_1.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T36_half_-1.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T37_half_0.0000000005                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T38_half_-0.0000000005                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T39_half_2.0000000035                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T40_int1_f1.0000000003                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T41_int1_f0.9999999997                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T42_int1_f1.0000000006                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T43_f1.0000000003_int1                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T44_int7_int7_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T45_naf_naf                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T46_naf_1                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T47_1_naf                                MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T48_nai_nai                              MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    T49_const_center_3e-10                   INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    T50_const_straddle_1                     INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-magnitude-rddt-1d-2026-11-18         NYSE:RDDT 1D     35     MATCH             all 36 items agree
+    M00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M01_M1e-12_16ulp                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M02_M1e-12_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M03_M1e-12_7e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M04_M1e-10_16ulp                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M05_M1e-10_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M06_M1e-10_7e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M07_M1e-9_16ulp                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M08_M1e-9_3e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M09_M1e-9_7e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M10_M1e-6_16ulp                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M11_M1e-6_3e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M12_M1e-6_7e-10                          MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M13_M0.001_16ulp                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M14_M0.001_3e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M15_M0.001_7e-10                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M16_M1000.0_16ulp                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M17_M1000.0_3e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M18_M1000.0_7e-10                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M19_M1000000.0_16ulp                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M20_M1000000.0_3e-10                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M21_M1000000.0_7e-10                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M22_M10000000.0_16ulp                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M23_M1000000000.0_16ulp                  MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M24_M10000000.0_1e-6                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M25_M1000000000.0_1e-6                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M26_M10000000.0_1ulp                     MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M27_M123456789.123_1ulp                  MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M28_M1000000000.0_1ulp                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M29_mulmerge_1e7                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M30_mulmerge_1.2e8                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M31_mulmerge_1e9                         MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M32_dmi_moves_x1.0                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M33_dmi_moves_x1e6                       MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    M34_dmi_moves_x1e-8                      MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-fcmp-magnitude-spy-1d-2026-11-18          AMEX:SPY 1D      35     MATCH             all 36 items agree
+    M00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M01_M1e-12_16ulp                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M02_M1e-12_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M03_M1e-12_7e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M04_M1e-10_16ulp                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M05_M1e-10_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M06_M1e-10_7e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M07_M1e-9_16ulp                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M08_M1e-9_3e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M09_M1e-9_7e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M10_M1e-6_16ulp                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M11_M1e-6_3e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M12_M1e-6_7e-10                          MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M13_M0.001_16ulp                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M14_M0.001_3e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M15_M0.001_7e-10                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M16_M1000.0_16ulp                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M17_M1000.0_3e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M18_M1000.0_7e-10                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M19_M1000000.0_16ulp                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M20_M1000000.0_3e-10                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M21_M1000000.0_7e-10                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M22_M10000000.0_16ulp                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M23_M1000000000.0_16ulp                  MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M24_M10000000.0_1e-6                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M25_M1000000000.0_1e-6                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M26_M10000000.0_1ulp                     MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M27_M123456789.123_1ulp                  MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M28_M1000000000.0_1ulp                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M29_mulmerge_1e7                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M30_mulmerge_1.2e8                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M31_mulmerge_1e9                         MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M32_dmi_moves_x1.0                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M33_dmi_moves_x1e6                       MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    M34_dmi_moves_x1e-8                      MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-float-compare-tolerance-rddt-1d-2026-11-1 NYSE:RDDT 1D     13     INCONCLUSIVE      6 of 14 items could not be compared
+    F00_bar_index_CONTROL                    MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F01_sum_eq_point3                        INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F02_sum_gt_point3                        INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F03_y_gt_x_3e-14                         INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F04_y_eq_x_3e-14                         INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F05_up_gt_down                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F06_up_lt_down                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F07_up_eq_down                           MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F08_up_minus_down                        MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F09_up                                   MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F10_down                                 MATCH             cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0
+    F11_tie_literals_gt                      INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F12_tie_literals_eq                      INCONCLUSIVE      cmp 668 ok 668 warm 0/0 steady 0/668 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+vw-float-compare-tolerance-spy-1d-2026-11-18 AMEX:SPY 1D      13     INCONCLUSIVE      6 of 14 items could not be compared
+    F00_bar_index_CONTROL                    MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F01_sum_eq_point3                        INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F02_sum_gt_point3                        INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F03_y_gt_x_3e-14                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F04_y_eq_x_3e-14                         INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F05_up_gt_down                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F06_up_lt_down                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F07_up_eq_down                           MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F08_up_minus_down                        MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F09_up                                   MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F10_down                                 MATCH             cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0
+    F11_tie_literals_gt                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    F12_tie_literals_eq                      INCONCLUSIVE      cmp 8509 ok 8509 warm 0/0 steady 0/8509 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     objects                                  MATCH         neither side draws an object
 vw-fmt-tie-readings-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      DIVERGE           1 of 1 compared items diverge
     objects                                  DIVERGE       1 object families differ (count or text); colours agree on 50 paired slots; coordinates are NOT compared by v1
@@ -2967,7 +3890,7 @@ vw-forin-collections-rddt-1d-2026-10-01      NYSE:RDDT 1D     14     MATCH      
     Z03_slot0_bar                            MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
     C00_bar_index_CONTROL                    MATCH             cmp 635 ok 635 warm 0/0 steady 0/635 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 43 paired slots; coordinates are NOT compared by v1
-vw-getter-history-2-spy-1d-2026-10-02        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:drawing) [runtime declined: runtime:conditional-history]: a drawing object paints on a chart and answers with no number — `line.get_y1`
+vw-getter-history-2-spy-1d-2026-10-02        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:drawing) [runtime declined: pine:drawing]: a drawing object paints on a chart and answers with no number — `line.get_y1`
 vw-getter-history-spy-1d-2026-10-01          AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:drawing) [runtime declined: runtime:history-expression]: a drawing object paints on a chart and answers with no number — `line.get_y1`
 vw-gradient-edges-spy-1d-2026-10-02          AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:colour-value) [runtime declined: pine:colour-value]: a colour cannot be a value in a screened column — `color.from_gradient`
 vw-gradient-spy-1d-2026-09-30                AMEX:SPY 1D      23     INCONCLUSIVE      6 of 24 items could not be compared
@@ -3007,12 +3930,26 @@ vw-h4-loops-spy-1d-2026-10-03                AMEX:SPY 1D      4      MATCH      
     L3 sum of last n closes                  MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     L3 n                                     MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
+vw-h5-format-volume-spy-1d-2026-11-16        AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 37 paired slots; coordinates are NOT compared by v1
+vw-h5-request-timeframe-text-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `240` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `240` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+vw-hs2-v3-highestbars-spy-1d-2026-11-16      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `highestbars`: the sign of a Pine v1-v3 `highestbars` / `lowestbars` offset is not stated by any reference text this engine holds (the v4 reference states v4 only) and is not yet captured (Q-HS2); write it in `//@version=4` or later
 vw-hs4-map-color-key-rddt-1d-2026-11-15      NYSE:RDDT 1D     4      INCONCLUSIVE      4 of 5 items could not be compared
     K01                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
     K02                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:failed)
     K03                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:failed)
     K04                                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:failed)
     objects                                  MATCH         neither side draws an object
+vw-hs5-int-array-float-param-spy-1d-2026-11- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:function]: a user-defined type is outside the node shapes this engine stores — `id.size`
+vw-hs6-wrap-comment-spy-1d-2026-11-16        AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:block-value]: a Pine block spans several statements and this engine stores a single expression — `w1`
+vw-imp-change-before-reassign-rddt-1d-2026-1 NYSE:RDDT 1D     5      DIVERGE           D01_change_before_reassign: bar 1 t=1711114200 value vendor=1 ours=0
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    A01_up_CONTROL                           MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    D01_change_before_reassign               DIVERGE           cmp 667 ok 351 warm 0/0 steady 316/667 maxRel 1.00e+0 — 316 steady-state bars disagree; first at bar 1 (value: vendor 1 vs ours 0) — scattered, last at bar 664
+    E01_explicit_history_control             MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    X01_final_value                          MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-imp-forin-reorder-rddt-1d-2026-11-16      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:loop]: a name that is reassigned later cannot be folded into one expression — `R01` — and the fold stopped before it, at line 27: a Pine block spans several statements and this engine stores a single expression — `for`
 vw-input-tf-text-v5-spy-1d-2026-10-01        AMEX:SPY 1D      19     INCONCLUSIVE      18 of 20 items could not be compared
     I00_bar_index_CONTROL                    MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     I01_len_D                                INCONCLUSIVE      cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -3129,6 +4066,42 @@ vw-loop-in-block-spy-1d-2026-10-02           AMEX:SPY 1D      9      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 124 paired slots; coordinates are NOT compared by v1
 vw-lower-tf-1-30-spy-1d-2026-10-02           AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:unwitnessed]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `30` is not one of them. Below the chart's own timeframe: lower-tf:unwitnessed: `30` below a D chart reads intraday bars, and no committed capture shows TradingView answering that timeframe on that chart period — probe `tools/visual_conformance/probes/vw-lower-tf.pine` (Q-L1 in `docs/pine/capture-queue-2026-09-30-lower-tf.md`) with a row at this timeframe, on this chart period, beside TradingView's own intraday bars of the symbol at that timeframe. ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
 vw-lower-tf-1-30-spy-1m-2026-10-02           AMEX:SPY 1M      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:unwitnessed]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `30` is not one of them. Below the chart's own timeframe: lower-tf:unwitnessed: `30` below a D chart reads intraday bars, and no committed capture shows TradingView answering that timeframe on that chart period — probe `tools/visual_conformance/probes/vw-lower-tf.pine` (Q-L1 in `docs/pine/capture-queue-2026-09-30-lower-tf.md`) with a row at this timeframe, on this chart period, beside TradingView's own intraday bars of the symbol at that timeframe. ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+vw-lower-tf-bars-rddt-15-2026-11-16          NYSE:RDDT 15     7      MATCH             all 8 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 20886 ok 20886 warm 0/0 steady 0/20886 maxRel 0.00e+0
+    B01_open                                 MATCH             cmp 20886 ok 20886 warm 0/0 steady 0/20886 maxRel 0.00e+0
+    B02_high                                 MATCH             cmp 20886 ok 20886 warm 0/0 steady 0/20886 maxRel 0.00e+0
+    B03_low                                  MATCH             cmp 20886 ok 20886 warm 0/0 steady 0/20886 maxRel 0.00e+0
+    B04_close                                MATCH             cmp 20886 ok 20886 warm 0/0 steady 0/20886 maxRel 0.00e+0
+    B05_volume                               MATCH             cmp 20886 ok 20886 warm 0/0 steady 0/20886 maxRel 0.00e+0
+    B06_time_secs                            MATCH             cmp 20886 ok 20886 warm 0/0 steady 0/20886 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-lower-tf-bars-rddt-240-2026-11-16         NYSE:RDDT 240    7      MATCH             all 8 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 2657 ok 2657 warm 0/0 steady 0/2657 maxRel 0.00e+0
+    B01_open                                 MATCH             cmp 2657 ok 2657 warm 0/0 steady 0/2657 maxRel 0.00e+0
+    B02_high                                 MATCH             cmp 2657 ok 2657 warm 0/0 steady 0/2657 maxRel 0.00e+0
+    B03_low                                  MATCH             cmp 2657 ok 2657 warm 0/0 steady 0/2657 maxRel 0.00e+0
+    B04_close                                MATCH             cmp 2657 ok 2657 warm 0/0 steady 0/2657 maxRel 0.00e+0
+    B05_volume                               MATCH             cmp 2657 ok 2657 warm 0/0 steady 0/2657 maxRel 0.00e+0
+    B06_time_secs                            MATCH             cmp 2657 ok 2657 warm 0/0 steady 0/2657 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-lower-tf-bars-rddt-5-2026-11-16           NYSE:RDDT 5      7      MATCH             all 8 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 20340 ok 20340 warm 0/0 steady 0/20340 maxRel 0.00e+0
+    B01_open                                 MATCH             cmp 20340 ok 20340 warm 0/0 steady 0/20340 maxRel 0.00e+0
+    B02_high                                 MATCH             cmp 20340 ok 20340 warm 0/0 steady 0/20340 maxRel 0.00e+0
+    B03_low                                  MATCH             cmp 20340 ok 20340 warm 0/0 steady 0/20340 maxRel 0.00e+0
+    B04_close                                MATCH             cmp 20340 ok 20340 warm 0/0 steady 0/20340 maxRel 0.00e+0
+    B05_volume                               MATCH             cmp 20340 ok 20340 warm 0/0 steady 0/20340 maxRel 0.00e+0
+    B06_time_secs                            MATCH             cmp 20340 ok 20340 warm 0/0 steady 0/20340 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-lower-tf-bars-rddt-60-2026-11-16          NYSE:RDDT 60     7      MATCH             all 8 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 10319 ok 10319 warm 0/0 steady 0/10319 maxRel 0.00e+0
+    B01_open                                 MATCH             cmp 10319 ok 10319 warm 0/0 steady 0/10319 maxRel 0.00e+0
+    B02_high                                 MATCH             cmp 10319 ok 10319 warm 0/0 steady 0/10319 maxRel 0.00e+0
+    B03_low                                  MATCH             cmp 10319 ok 10319 warm 0/0 steady 0/10319 maxRel 0.00e+0
+    B04_close                                MATCH             cmp 10319 ok 10319 warm 0/0 steady 0/10319 maxRel 0.00e+0
+    B05_volume                               MATCH             cmp 10319 ok 10319 warm 0/0 steady 0/10319 maxRel 0.00e+0
+    B06_time_secs                            MATCH             cmp 10319 ok 10319 warm 0/0 steady 0/10319 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 vw-lower-tf-cava-1d-2026-10-02               NYSE:CAVA 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
 vw-lower-tf-rddt-1d-2026-09-30               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
 vw-lower-tf-spy-1d-2026-09-30                AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
@@ -3222,6 +4195,28 @@ vw-other-symbol-rddt-1d-2026-09-30           NYSE:RDDT 1D     8      DIVERGE    
     O06_NYSE_BRKB                            DIVERGE           cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 0.00e+0 — 334 steady-state bars disagree; first at bar 0 (na: vendor 413.78 vs ours na) — scattered, last at bar 333
     O07_brkb_bare_eq_nyse                    DIVERGE           cmp 634 ok 300 warm 0/0 steady 334/634 maxRel 1.00e+0 — 334 steady-state bars disagree; first at bar 0 (value: vendor 1 vs ours 0) — scattered, last at bar 333
     objects                                  MATCH         object counts and texts agree; colours agree on 2 paired slots; coordinates are NOT compared by v1
+vw-pt-na-guard-and-rddt-1d-2026-11-16        NYSE:RDDT 1D     9      INCONCLUSIVE      3 of 10 items could not be compared
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    A01_left_side_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    A02_x                                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    C01_and_crossover                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:block)
+    E01_and_crossover_every_bar              MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    C02_and_change_positive                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:block)
+    E02_and_change_positive_every_bar        MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    C03_and_sma3_above_close                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:block)
+    E03_and_sma3_above_close_every_bar       MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-pt-na-guard-and-spy-1d-2026-11-16         AMEX:SPY 1D      9      INCONCLUSIVE      3 of 10 items could not be compared
+    A00_bar_index_CONTROL                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    A01_left_side_CONTROL                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    A02_x                                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    C01_and_crossover                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (pine:block)
+    E01_and_crossover_every_bar              MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    C02_and_change_positive                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:block)
+    E02_and_change_positive_every_bar        MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    C03_and_sma3_above_close                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:block)
+    E03_and_sma3_above_close_every_bar       MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 vw-ratchet-stops-rddt-1d-2026-10-02          NYSE:RDDT 1D     8      MATCH             all 9 items agree
     R01_up                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
     R02_dn                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 1.94e-16
@@ -3242,9 +4237,11 @@ vw-ratchet-stops-spy-1d-2026-10-02           AMEX:SPY 1D      8      MATCH      
     R07_pivot_low                            MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     R00_bar_index_CONTROL                    MATCH             cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-request-htf-alignment-spy-1d-2026-10-02   AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-vw-request-htf-alignment-spy-5-2026-10-02    AMEX:SPY 5       0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
-vw-request-htf-alignment-spy-60-2026-10-02   AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+vw-request-htf-alignment-qqq-1d-2026-11-18   NASDAQ:QQQ 1D    0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+vw-request-htf-alignment-spy-1d-2026-10-02   AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+vw-request-htf-alignment-spy-1d-2026-11-18   AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+vw-request-htf-alignment-spy-5-2026-10-02    AMEX:SPY 5       0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
+vw-request-htf-alignment-spy-60-2026-10-02   AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbol as `sym` (limited to the benchmark roster) and another timeframe as `tf` (weekly and monthly from daily bars); what stops this one is that its arguments do not fold to those — `request.security`: this engine resamples weekly and monthly from the daily bars it holds, and `60` is not one of them. Below the chart's own timeframe: lower-tf:store-unmeasured: `60` is below this chart's timeframe, so it reads intraday bars — and our intraday bars have not been measured against TradingView's. TradingView's answer is known (the day's last regular-session bar, `vw-lower-tf-spy-1d-2026-09-30`); it is not served until a stored `/api/bars/<ticker>?tf=15` payload has been compared with TradingView's 15-minute bars for the same sessions (`storeIntradayAgreement`). ⚠️ THIS IS NOT THE SAME REQUEST: `timeframe.period` reads the timeframe the chart is on rather than forcing one, so decide whether that is what you meant before you take it.
 vw-rt5-arm-draw-block-history-rddt-1d-2026-1 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:drawing) [runtime declined: pine:drawing]: a drawing object paints on a chart and answers with no number — `label.new`
 vw-rt6-runtime-colour-rddt-1d-2026-10-03     NYSE:RDDT 1D     7      INCONCLUSIVE      5 of 9 items could not be compared
     K00_bar_index_CONTROL                    MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -3283,9 +4280,94 @@ vw-runtime-error-spy-1d-2026-09-30           AMEX:SPY 1D      2      MATCH      
     E00_bar_index_CONTROL                    MATCH             cmp 4800 ok 4800 warm 0/0 steady 0/4800 maxRel 0.00e+0
     E01_close_CONTROL                        MATCH             cmp 4800 ok 4800 warm 0/0 steady 0/4800 maxRel 0.00e+0
     objects                                  MATCH         object counts and texts agree; colours agree on 100 paired slots; coordinates are NOT compared by v1
+vw-s1-q-s1d-close-reverse-rddt-1d-2026-11-16 NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    D01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    D02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-1 NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    D01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    D02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1d-two-entries-rddt-1d-2026-11-16   NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    D01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    D02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11- NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (0, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    D01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    D02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1d-two-stops-rddt-1d-2026-11-16     NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    D01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    D02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1d-two-stops-rpt-rddt-1d-2026-11-16 NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (2, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    D01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    D02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1e-stop-past-rddt-1d-2026-11-16     NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1e-stop-past-rpt-rddt-1d-2026-11-16 NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1g-blocked-stop-entry-rddt-1d-2026- NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    P02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2 NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    P02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1h-fifo-exit-rddt-1d-2026-11-16     NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    P02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16 NYSE:RDDT 1D     3      INCONCLUSIVE      2 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (2, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    P02_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1j-stop-limit-rddt-1d-2026-11-16    NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1j-stop-limit-rpt-rddt-1d-2026-11-1 NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (0, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1k-fractional-profit-rddt-1d-2026-1 NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-20 NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1k-na-modify-rddt-1d-2026-11-16     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:call-undeclared-builtin-state]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:call-undeclared-builtin-state]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`; strategy UNGRADABLE at step 0: the reference has too few trades (0, floor 5)
+vw-s1-q-s1k-profit-and-limit-rddt-1d-2026-11 NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-s1-q-s1k-profit-and-limit-rpt-rddt-1d-202 NYSE:RDDT 1D     2      INCONCLUSIVE      1 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)
+    A00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    P01_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+vw-tc1-colour-na-compare-rddt-1d-2026-11-16  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:colour-value) [runtime declined: runtime:colour]: a colour cannot be a value in a screened column — `color.yellow`
 vw-ternary-arm-legacy-v1-cum-rddt-1d-2026-11 NYSE:RDDT 1D     7      INCONCLUSIVE      1 of 8 items could not be compared
     A_change                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
+    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     C_ema                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.49e-16
     D_rma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     E_barssince                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3294,7 +4376,7 @@ vw-ternary-arm-legacy-v1-cum-rddt-1d-2026-11 NYSE:RDDT 1D     7      INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15  NYSE:RDDT 1D     7      MATCH             all 8 items agree
     A_change                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
+    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     C_ema                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.49e-16
     D_rma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     E_barssince                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3303,7 +4385,7 @@ vw-ternary-arm-legacy-v1-rddt-1d-2026-11-15  NYSE:RDDT 1D     7      MATCH      
     objects                                  MATCH         neither side draws an object
 vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11 NYSE:RDDT 1D     7      INCONCLUSIVE      1 of 8 items could not be compared
     A_change                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
+    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     C_ema                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.49e-16
     D_rma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     E_barssince                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3312,7 +4394,7 @@ vw-ternary-arm-legacy-v2-cum-rddt-1d-2026-11 NYSE:RDDT 1D     7      INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15  NYSE:RDDT 1D     7      MATCH             all 8 items agree
     A_change                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
+    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     C_ema                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.49e-16
     D_rma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     E_barssince                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3321,7 +4403,7 @@ vw-ternary-arm-legacy-v2-rddt-1d-2026-11-15  NYSE:RDDT 1D     7      MATCH      
     objects                                  MATCH         neither side draws an object
 vw-ternary-arm-legacy-v3-cum-rddt-1d-2026-11 NYSE:RDDT 1D     7      INCONCLUSIVE      1 of 8 items could not be compared
     A_change                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
+    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     C_ema                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.49e-16
     D_rma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     E_barssince                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3330,7 +4412,7 @@ vw-ternary-arm-legacy-v3-cum-rddt-1d-2026-11 NYSE:RDDT 1D     7      INCONCLUSIV
     objects                                  MATCH         neither side draws an object
 vw-ternary-arm-legacy-v3-rddt-1d-2026-11-15  NYSE:RDDT 1D     7      MATCH             all 8 items agree
     A_change                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
-    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.78e-16
+    B_sma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     C_ema                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.49e-16
     D_rma                                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
     E_barssince                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3394,9 +4476,69 @@ vw-time-close-tf-spy-1m-2026-10-01           AMEX:SPY 1M      0      INCONCLUSIV
 vw-time-close-tf-spy-1m-2026-10-02           AMEX:SPY 1M      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time_close("3M")`: it is measured (vendor capture `vw-time-close-tf-spy-1d-2026-09-30`: the close of the quarter's or year's last session), and this engine resamples only weeks and months, so it has no quarterly or yearly bar to read that close from. `time_close("W")` and `time_close("M")` translate on a daily chart
 vw-time-close-tf-spy-1w-2026-10-01           AMEX:SPY 1W      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time_close("3M")`: it is measured (vendor capture `vw-time-close-tf-spy-1d-2026-09-30`: the close of the quarter's or year's last session), and this engine resamples only weeks and months, so it has no quarterly or yearly bar to read that close from. `time_close("W")` and `time_close("M")` translate on a daily chart
 vw-time-close-tf-spy-1w-2026-10-02           AMEX:SPY 1W      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time_close("3M")`: it is measured (vendor capture `vw-time-close-tf-spy-1d-2026-09-30`: the close of the quarter's or year's last session), and this engine resamples only weeks and months, so it has no quarterly or yearly bar to read that close from. `time_close("W")` and `time_close("M")` translate on a daily chart
-vw-time-session-spy-1d-2026-09-28            AMEX:SPY D       0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"2000-0000"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
-vw-time-session-spy-60-ext-2026-09-28        AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"2000-0000"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
-vw-time-session-spy-60-rth-2026-09-28        AMEX:SPY 60      0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"2000-0000"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
+vw-time-session-spy-1d-2026-09-28            AMEX:SPY D       19     MATCH             all 20 items agree
+    S00_bar_index_CONTROL                    MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S01_hour_MUST_VARY_ON_INTRADAY           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S02_minute                               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S03_na_0930_1600                         MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S04_secs_0930_1600                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S05_na_0930_1000_OR_window               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S06_secs_0930_1000                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S07_na_1000_1100_EXCLUDES_OPEN           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S08_secs_1000_1100                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S09_na_0930_1000_ALLDAYS                 MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S10_na_0930_1000_MON_FRI_23456           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S11_na_OR_GMTminus4_CORPUS_FORM          MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S12_na_OR_GMTminus5                      MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S13_na_OR_America_New_York               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S14_na_OR_syminfo_timezone               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S15_na_2000_0000_OVERNIGHT               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S16_na_0930_1030_IB_window               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S17_secs_0930_1030                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S18_dayofweek_for_S10                    MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-time-session-spy-60-ext-2026-09-28        AMEX:SPY 60      19     INCONCLUSIVE      1 of 20 items could not be compared
+    S00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    S01_hour_MUST_VARY_ON_INTRADAY           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S02_minute                               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S03_na_0930_1600                         MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S04_secs_0930_1600                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S05_na_0930_1000_OR_window               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S06_secs_0930_1000                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S07_na_1000_1100_EXCLUDES_OPEN           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S08_secs_1000_1100                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S09_na_0930_1000_ALLDAYS                 MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S10_na_0930_1000_MON_FRI_23456           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S11_na_OR_GMTminus4_CORPUS_FORM          MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S12_na_OR_GMTminus5                      MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S13_na_OR_America_New_York               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S14_na_OR_syminfo_timezone               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S15_na_2000_0000_OVERNIGHT               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S16_na_0930_1030_IB_window               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S17_secs_0930_1030                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S18_dayofweek_for_S10                    MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-time-session-spy-60-rth-2026-09-28        AMEX:SPY 60      19     INCONCLUSIVE      1 of 20 items could not be compared
+    S00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    S01_hour_MUST_VARY_ON_INTRADAY           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S02_minute                               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S03_na_0930_1600                         MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S04_secs_0930_1600                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S05_na_0930_1000_OR_window               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S06_secs_0930_1000                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S07_na_1000_1100_EXCLUDES_OPEN           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S08_secs_1000_1100                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S09_na_0930_1000_ALLDAYS                 MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S10_na_0930_1000_MON_FRI_23456           MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S11_na_OR_GMTminus4_CORPUS_FORM          MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S12_na_OR_GMTminus5                      MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S13_na_OR_America_New_York               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S14_na_OR_syminfo_timezone               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S15_na_2000_0000_OVERNIGHT               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S16_na_0930_1030_IB_window               MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S17_secs_0930_1030                       MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    S18_dayofweek_for_S10                    MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 vw-time-tf-bitstamp-btcusd-1d-2026-09-30     BITSTAMP:BTCUSD  18     DIVERGE           T01_timeW_minus_time_DAYS: bar 0 t=1313625600 na vendor=-3 ours=na
     T00_bar_index_CONTROL                    MATCH             cmp 5491 ok 5491 warm 0/0 steady 0/5491 maxRel 0.00e+0
     T01_timeW_minus_time_DAYS                DIVERGE           cmp 5491 ok 5438 warm 0/0 steady 53/5491 maxRel 0.00e+0 — 53 steady-state bars disagree; first at bar 0 (na: vendor -3 vs ours na) — scattered, last at bar 5283
@@ -3758,6 +4900,28 @@ vw-time-tf-spy-60-2026-09-28                 AMEX:SPY 60      18     INCONCLUSIV
     T17_dayofweek                            MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
 vw-type-word-names-spy-1d-2026-10-02         AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:call-undeclared-builtin-state]: a user-defined type is outside the node shapes this engine stores — `color.r`
+vw-udt-fn-global-history-rddt-1d-2026-11-16  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:function-global-state]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `m[1]` reads what `m` held on an earlier bar, and this script reassigns it
+vw-udt-legacy-array-param-rddt-1d-2026-11-16 NYSE:RDDT 1D     3      MATCH             all 4 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    T01_size_through_float_legacy_param      MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    T02_get_through_int_legacy_param         MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-udt-na-index-v5-rddt-1d-2026-11-16        NYSE:RDDT 1D     2      INCONCLUSIVE      2 of 3 items could not be compared
+    A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
+    N01_get_at_round_of_na                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:failed)
+    objects                                  MATCH         neither side draws an object
+vw-udt-na-index-v6-rddt-1d-2026-11-16        NYSE:RDDT 1D     3      MATCH             all 4 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    N01_get_at_round_of_na                   MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    N03_get_at_an_int_na                     MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-uie3-na-index-v4-spy-1d-2026-11-16        AMEX:SPY 1D      4      MATCH             all 5 items agree
+    N00_bar_index_CONTROL                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    N01_max_na_0                             MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    N02_round_max_sign_na                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    N03_get_at_that_index                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-uie3-na-text-spy-1d-2026-11-16            AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:text-value) [runtime declined: pine:text-value]: this script uses a text feature our chart does not render yet. The numeric plots still run; the text output is skipped and named here
 vw-var-seed-spy-1d-2026-09-28                AMEX:SPY 1D      7      MATCH             all 8 items agree
     V00_bar_index_CONTROL                    MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     V01_history_never_fires                  MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
@@ -3767,6 +4931,59 @@ vw-var-seed-spy-1d-2026-09-28                AMEX:SPY 1D      7      MATCH      
     V05_plain_history_never_fires            MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     V06_mixed_two_lag_unguarded              MATCH             cmp 8473 ok 8473 warm 0/0 steady 0/8473 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
+vw-w1-cmo-cog-derived-spy-1d-2026-11-16      AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:arity) [runtime declined: pine:arity]: the engine grammar declares a different signature for that name — `ta.cmo` was given a source that can be `na` on a bar after its first value, and what TradingView draws there is not known: its published body and its own remark ("na values in the source series are ignored") give different numbers on that bar and the bars after it, and no capture says which it computes, so this engine draws neither. It is served over a price the bar itself holds (`close`, `open`, `high`, `low`, `hl2`, `hlc3`, `ohlc4`, `hlcc4`). TO UNBLOCK: give it one of those, e.g. `ta.cmo(close, 14)`
+vw-w19r2-collections-rddt-1d-2026-11-16      NYSE:RDDT 1D     16     INCONCLUSIVE      16 of 17 items could not be compared
+    A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
+    B01_search_3_present_thrice              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:failed)
+    B02_search_0_below_all                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:failed)
+    B03_search_5_between                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:failed)
+    B04_search_9_above_all                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:failed)
+    B05_search_7_the_last                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:failed)
+    L01_leftmost_3                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:failed)
+    L02_leftmost_0                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:failed)
+    L03_leftmost_5                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:failed)
+    L04_leftmost_9                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:failed)
+    L05_leftmost_7                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:failed)
+    R01_rightmost_3                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:failed)
+    R02_rightmost_0                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:failed)
+    R03_rightmost_5                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:failed)
+    R04_rightmost_9                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:failed)
+    R05_rightmost_7                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:failed)
+    objects                                  MATCH         neither side draws an object
+vw-w19r2a-insert-at-size-rddt-1d-2026-11-16  NYSE:RDDT 1D     3      MATCH             all 4 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    I01_size                                 MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    I01_last                                 MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w19r2a-insert-into-empty-rddt-1d-2026-11- NYSE:RDDT 1D     3      MATCH             all 4 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    I02_size                                 MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    I02_first                                MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w19r2a-insert-negative-rddt-1d-2026-11-16 NYSE:RDDT 1D     3      INCONCLUSIVE      3 of 4 items could not be compared
+    A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
+    I03_position_of_9                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:failed)
+    I03_size                                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:failed)
+    objects                                  MATCH         neither side draws an object
+vw-w19r2b-empty-binary-search-rddt-1d-2026-1 NYSE:RDDT 1D     2      MATCH             all 3 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E01_search_empty                         MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w19r2b-empty-leftmost-rddt-1d-2026-11-16  NYSE:RDDT 1D     2      INCONCLUSIVE      2 of 3 items could not be compared
+    A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
+    E02_leftmost_empty                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:failed)
+    objects                                  MATCH         neither side draws an object
+vw-w19r2b-empty-rightmost-rddt-1d-2026-11-16 NYSE:RDDT 1D     2      MATCH             all 3 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E03_rightmost_empty                      MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w3-format-date-spy-1d-2026-11-16          AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 1 paired slots; coordinates are NOT compared by v1
+vw-w3-loop-helper-text-spy-1d-2026-11-16     AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 1 paired slots; coordinates are NOT compared by v1
+vw-w3-str-repeat-length-spy-1d-2026-11-16    AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
+    objects                                  DIVERGE       2 object families differ (count or text); colours agree on 1 paired slots; coordinates are NOT compared by v1
+vw-w34-i4-v2-selfref-seed-spy-1d-2026-11-16  AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: pine:state]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `a` reads its own previous bar, and this engine can hold that only when the script states a first-bar value the way `na(a[1]) ? … : …` does
 vw-w3n-draw-block-history-a-rddt-1d-2026-11- NYSE:RDDT 1D     2      DIVERGE           1 of 3 compared items diverge
     D01_sma3_plot                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:block)
     D00_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3799,6 +5016,148 @@ vw-w3n-draw-block-history-d-spy-1d-2026-11-1 AMEX:SPY 1D      2      DIVERGE    
     D04_block_local_x1_plot                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (pine:block)
     D00_bar_index_CONTROL                    MATCH             cmp 8507 ok 8507 warm 0/0 steady 0/8507 maxRel 0.00e+0
     objects                                  DIVERGE       TradingView holds 501 drawing object(s) at the last bar and our drawing is withheld by name (pine:object-ops-refused) — the program carried none of its 1 drawing steps (dropped: create:label ×1; pine:block)
+vw-w4-arm-runs-rddt-1d-2026-11-16            NYSE:RDDT 1D     14     DIVERGE           W03_fixnan_in_true_arm: bar 7 t=1712064600 value vendor=59.8 ours=45.97
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    A01_up_CONTROL                           MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E01_change2_every_bar                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E02_rma4_every_bar                       MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 1.36e-16
+    E03_valuewhen_every_bar                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E04_barssince_every_bar                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    C01_change2_in_true_arm                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (pine:block)
+    C02_change3_on_even_bars                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:block)
+    R01_rma4_in_true_arm                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (pine:block)
+    R02_rma3_on_even_bars                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (pine:block)
+    N01_sma3_in_nested_arm                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (pine:block)
+    W01_valuewhen_in_true_arm                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (pine:block)
+    W02_barssince_in_true_arm                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (pine:block)
+    W03_fixnan_in_true_arm                   DIVERGE           cmp 667 ok 574 warm 0/0 steady 93/667 maxRel 4.29e-1 — 93 steady-state bars disagree; first at bar 7 (value: vendor 59.8 vs ours 45.97) — scattered, last at bar 663
+    objects                                  MATCH         neither side draws an object
+vw-w4-arm-runs-spy-1d-2026-11-16             AMEX:SPY 1D      14     DIVERGE           E01_change2_every_bar: bar 8507 t=1794839400 value vendor=-13.549999999999955 ours=-13.529999999999973
+    A00_bar_index_CONTROL                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    A01_up_CONTROL                           MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    E01_change2_every_bar                    DIVERGE           cmp 8508 ok 8507 warm 0/0 steady 1/8508 maxRel 1.48e-3 — 1 steady-state bars disagree; first at bar 8507 (value: vendor -13.549999999999955 vs ours -13.529999999999973) — persistent, last at bar 8507
+    E02_rma4_every_bar                       DIVERGE           cmp 8508 ok 8507 warm 0/0 steady 1/8508 maxRel 6.65e-6 — 1 steady-state bars disagree; first at bar 8507 (value: vendor 751.363468380645 vs ours 751.368468380645) — persistent, last at bar 8507
+    E03_valuewhen_every_bar                  MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    E04_barssince_every_bar                  MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    C01_change2_in_true_arm                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (pine:block)
+    C02_change3_on_even_bars                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (pine:block)
+    R01_rma4_in_true_arm                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (pine:block)
+    R02_rma3_on_even_bars                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (pine:block)
+    N01_sma3_in_nested_arm                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (pine:block)
+    W01_valuewhen_in_true_arm                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (pine:block)
+    W02_barssince_in_true_arm                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (pine:block)
+    W03_fixnan_in_true_arm                   DIVERGE           cmp 8508 ok 7432 warm 0/0 steady 1076/8508 maxRel 2.19e-1 — 1076 steady-state bars disagree; first at bar 1 (na: vendor na vs ours 43.938) — persistent, last at bar 8507
+    objects                                  MATCH         neither side draws an object
+vw-w4-series-length-rddt-1d-2026-11-16       NYSE:RDDT 1D     4      MATCH             all 5 items agree
+    L00_len_CONTROL                          MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    L01_sma                                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    L02_highest                              MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    L03_stdev                                MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 7.58e-9
+    objects                                  MATCH         neither side draws an object
+vw-w4-series-length-spy-1d-2026-11-16        AMEX:SPY 1D      4      DIVERGE           L03_stdev: bar 513 t=792340200 value vendor=9.5367431640625e-7 ours=7.105427357601002e-15
+    L00_len_CONTROL                          MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    L01_sma                                  MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    L02_highest                              MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    L03_stdev                                DIVERGE           cmp 8508 ok 8507 warm 0/0 steady 1/8508 maxRel 1.00e+0 — 1 steady-state bars disagree; first at bar 513 (value: vendor 9.5367431640625e-7 vs ours 7.105427357601002e-15) — scattered, last at bar 513
+    objects                                  MATCH         neither side draws an object
+vw-w4-series-length-v4-rddt-1d-2026-11-16    NYSE:RDDT 1D     8      MATCH             all 9 items agree
+    sma                                      MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    highest                                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    stdev                                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 7.58e-9
+    highestbars                              MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    lowestbars                               MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    zz_highestbars                           MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    zz_lowestbars                            MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    len                                      MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w4-series-length-v4-spy-1d-2026-11-16     AMEX:SPY 1D      8      DIVERGE           stdev: bar 513 t=792340200 value vendor=9.5367431640625e-7 ours=7.105427357601002e-15
+    sma                                      MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    highest                                  MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    stdev                                    DIVERGE           cmp 8508 ok 8507 warm 0/0 steady 1/8508 maxRel 1.00e+0 — 1 steady-state bars disagree; first at bar 513 (value: vendor 9.5367431640625e-7 vs ours 7.105427357601002e-15) — scattered, last at bar 513
+    highestbars                              MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    lowestbars                               MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    zz_highestbars                           MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    zz_lowestbars                            MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    len                                      MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w4-session-daymask-btcusd-60-2026-11-16   BITSTAMP:BTCUSD  13     INCONCLUSIVE      13 of 14 items could not be compared
+    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
+    DOW_dayofweek_in_zone                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
+    D1_na_sunday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
+    D2_na_monday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
+    D3_na_tuesday                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+    D4_na_wednesday                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
+    D5_na_thursday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    D6_na_friday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
+    D7_na_saturday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
+    D8_na_monday_to_friday                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
+    D9_na_weekend                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
+    D10_na_every_day_CONTROL                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
+    D11_na_rth_monday_to_friday              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
+    objects                                  MATCH         neither side draws an object
+vw-w4-session-daymask-spy-60-2026-11-16      AMEX:SPY 60      13     INCONCLUSIVE      13 of 14 items could not be compared
+    D00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
+    DOW_dayofweek_in_zone                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
+    D1_na_sunday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
+    D2_na_monday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
+    D3_na_tuesday                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+    D4_na_wednesday                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
+    D5_na_thursday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    D6_na_friday                             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:warmup-never-converges)
+    D7_na_saturday                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:warmup-never-converges)
+    D8_na_monday_to_friday                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:warmup-never-converges)
+    D9_na_weekend                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:warmup-never-converges)
+    D10_na_every_day_CONTROL                 INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:warmup-never-converges)
+    D11_na_rth_monday_to_friday              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:warmup-never-converges)
+    objects                                  MATCH         neither side draws an object
+vw-w4-session-default-days-btcusd-60-2026-11 BITSTAMP:BTCUSD  5      DIVERGE           DOW_dayofweek: bar 0 t=1704067200 value vendor=2 ours=1
+    N0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    DOW_dayofweek                            DIVERGE           cmp 25215 ok 20676 warm 0/0 steady 4539/25215 maxRel 6.00e+0 — 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1) — scattered, last at bar 25201
+    N1_na_no_day_list                        MATCH             cmp 25215 ok 25215 warm 0/0 steady 0/25215 maxRel 0.00e+0
+    N2_na_every_day_CONTROL                  MATCH             cmp 25215 ok 25215 warm 0/0 steady 0/25215 maxRel 0.00e+0
+    N3_na_monday_to_friday_CONTROL           DIVERGE           cmp 25215 ok 23916 warm 0/0 steady 1299/25215 maxRel 1.00e+0 — 1299 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 1) — scattered, last at bar 25201
+    objects                                  MATCH         neither side draws an object
+vw-w4-session-default-days-v4-btcusd-60-2026 BITSTAMP:BTCUSD  5      DIVERGE           DOW_dayofweek: bar 0 t=1704067200 value vendor=2 ours=1
+    N0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    DOW_dayofweek                            DIVERGE           cmp 25216 ok 20677 warm 0/0 steady 4539/25216 maxRel 6.00e+0 — 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1) — scattered, last at bar 25201
+    N1_na_no_day_list                        DIVERGE           cmp 25216 ok 23917 warm 0/0 steady 1299/25216 maxRel 1.00e+0 — 1299 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 1) — scattered, last at bar 25201
+    N2_na_every_day_CONTROL                  MATCH             cmp 25216 ok 25216 warm 0/0 steady 0/25216 maxRel 0.00e+0
+    N3_na_monday_to_friday_CONTROL           DIVERGE           cmp 25216 ok 23917 warm 0/0 steady 1299/25216 maxRel 1.00e+0 — 1299 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 1) — scattered, last at bar 25201
+    objects                                  MATCH         neither side draws an object
+vw-w4-session-overnight-btcusd-60-2026-11-16 BITSTAMP:BTCUSD  7      DIVERGE           HOUR: bar 0 t=1704067200 value vendor=0 ours=19
+    O0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — withheld on this chart on every bar, by name (bar-index:window) — nothing is drawn for it
+    HOUR                                     DIVERGE           cmp 25215 ok 0 warm 0/0 steady 25215/25215 maxRel 2.00e+1 — 25215 steady-state bars disagree; first at bar 0 (value: vendor 0 vs ours 19) — persistent, last at bar 25214
+    DOW_dayofweek                            DIVERGE           cmp 25215 ok 20676 warm 0/0 steady 4539/25215 maxRel 6.00e+0 — 4539 steady-state bars disagree; first at bar 0 (value: vendor 2 vs ours 1) — scattered, last at bar 25201
+    O1_na_wrap_all_days                      DIVERGE           cmp 25215 ok 16137 warm 0/0 steady 9078/25215 maxRel 1.00e+0 — 9078 steady-state bars disagree; first at bar 2 (value: vendor 1 vs ours 0) — scattered, last at bar 25203
+    O2_na_wrap_weekdays                      DIVERGE           cmp 25215 ok 18730 warm 0/0 steady 6485/25215 maxRel 1.00e+0 — 6485 steady-state bars disagree; first at bar 2 (value: vendor 1 vs ours 0) — scattered, last at bar 25203
+    O3_na_to_midnight                        DIVERGE           cmp 25215 ok 16813 warm 0/0 steady 8402/25215 maxRel 1.00e+0 — 8402 steady-state bars disagree; first at bar 1 (value: vendor 1 vs ours 0) — scattered, last at bar 25201
+    O4_na_whole_day                          MATCH             cmp 25215 ok 25215 warm 0/0 steady 0/25215 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w4-session-param-spy-5-2026-11-16         AMEX:SPY 5       7      INCONCLUSIVE      7 of 8 items could not be compared
+    P0_bar_index_CONTROL                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:warmup-never-converges)
+    P1_na_literal_REFERENCE                  INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:warmup-never-converges)
+    P2_na_udf_param_and_own_timeframe        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:warmup-never-converges)
+    P3_na_input_session_through_udf          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:warmup-never-converges)
+    P4_na_joined_text                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:warmup-never-converges)
+    P5_na_constant_var                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:warmup-never-converges)
+    P6_na_empty_timeframe_is_main            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:warmup-never-converges)
+    objects                                  MATCH         neither side draws an object
+vw-w6-array-every-empty-spy-1d-2026-11-16    AMEX:SPY 1D      3      INCONCLUSIVE      3 of 4 items could not be compared
+    A00_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
+    E01_every_of_empty                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:failed)
+    E02_some_of_empty                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:failed)
+    objects                                  MATCH         neither side draws an object
+vw-w6-enum-spy-1d-2026-11-16                 AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:type) [runtime declined: runtime:enum]: a user-defined type is outside the node shapes this engine stores — `E.a`
+vw-w6-forin-fn-two-sites-rddt-1d-2026-11-16  NYSE:RDDT 1D     3      MATCH             all 4 items agree
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    U01_site1_sum                            MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    U02_site2_sum                            MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+vw-w6-forin-fn-value-rddt-1d-2026-11-16      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:loop]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `lastPass`)
+vw-w6-forin-map-rddt-1d-2026-11-16           NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:loop]: a name that is reassigned later cannot be folded into one expression — passes
+vw-w6-forin-matrix-rddt-1d-2026-11-16        NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: runtime:loop]: a name that is reassigned later cannot be folded into one expression — passes
+vw-w6-forin-polyline-all-rddt-1d-2026-11-16  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:reassign) [runtime declined: pine:builtin]: a name that is reassigned later cannot be folded into one expression — n
+vw-w6-forin-write-through-rddt-1d-2026-11-16 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:member) [runtime declined: runtime:loop]: reading a member off the result of an expression needs the type of that result, and Pine decides which family the member belongs to from it — a type this engine does not track. Written with the receiver as the first argument instead, the same call resolves — `.v`
 vw-w6-map-rddt-1d-2026-11-15                 NYSE:RDDT 1D     20     INCONCLUSIVE      20 of 21 items could not be compared
     K01 b after b,a,c                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:failed)
     K02 a after b,a,c                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:failed)
@@ -3820,6 +5179,24 @@ vw-w6-map-rddt-1d-2026-11-15                 NYSE:RDDT 1D     20     INCONCLUSIV
     N05a bool get missing (1 = true, 2 = fal INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:failed)
     N05b bool put new key answer             INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:failed)
     N05c bool remove missing answer          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:failed)
+    objects                                  MATCH         neither side draws an object
+vw-wsa-v6-bool-unmatched-rddt-1d-2026-11-16  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:block) [runtime declined: runtime:block-value]: a Pine block spans several statements and this engine stores a single expression — an `if` with no `else` returns `na` for a number and, in Pine v6, `false` for a bool, and this branch is not a proven number
+vw-wsa-v6-bool-unmatched-tuple-rddt-1d-2026- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:tuple) [runtime declined: runtime:block-value]: this Pine call answers with several values at once and a column carries one — `p` — `f` is a function this script defines and this engine could not read, so none of its values can be handed out — a Pine function definition introduces a name this engine has nowhere to keep — `f` ends in no value this engine can read (reached through `f`)
+vw-wsc-h7-v6-shortcircuit-rddt-1d-2026-11-16 NYSE:RDDT 1D     6      INCONCLUSIVE      2 of 7 items could not be compared
+    A00_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    A01_cond_CONTROL                         MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E01_rising2_every_bar                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    E02_crossover_every_bar                  MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    S01_cond_and_rising2                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:block)
+    S02_cond_or_crossover                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:block)
+    objects                                  MATCH         neither side draws an object
+vw-wsc-h7-v6-shortcircuit-spy-1d-2026-11-16  AMEX:SPY 1D      6      INCONCLUSIVE      2 of 7 items could not be compared
+    A00_bar_index_CONTROL                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    A01_cond_CONTROL                         MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    E01_rising2_every_bar                    MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    E02_crossover_every_bar                  MATCH             cmp 8508 ok 8508 warm 0/0 steady 0/8508 maxRel 0.00e+0
+    S01_cond_and_rising2                     INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (pine:block)
+    S02_cond_or_crossover                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (pine:block)
     objects                                  MATCH         neither side draws an object
 vw-wse-calc-bars-bar-index-rddt-1d-2026-11-1 NYSE:RDDT 1D     2      MATCH             all 3 items agree
     A00_bar_index                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
@@ -3843,38 +5220,1359 @@ w4-cross-round-spy-1d-2026-09-30             AMEX:SPY 1D      16     INCONCLUSIV
     X14_in_seconds_D                         INCONCLUSIVE      cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     X15_tf_multiplier                        INCONCLUSIVE      cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     objects                                  MATCH         neither side draws an object
-w9-g1-v3-properties-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-k1-commission-pct-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-k2-commission-contract-rddt-1d-2026-11-15 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-k3-commission-order-rddt-1d-2026-11-15    NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-k4-slippage-rddt-1d-2026-11-15            NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-p1-on-close-rddt-1d-2026-11-15            NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-p1b-on-close-fills-nv-rddt-1d-2026-11-15  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.opentrades`
-w9-p1b-on-close-fills-rddt-1d-2026-11-15     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: pine:strategy-call]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `_runs`
-w9-p2-order-fills-nv-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.opentrades`
-w9-p2-order-fills-rddt-1d-2026-11-15         NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: pine:strategy-call]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `_runs`
-w9-p3-every-tick-history-rddt-1d-2026-11-15  NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-q-s1a-size-v2-rddt-1d-2026-11-15          NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-q-s1a-size-v4-rddt-1d-2026-11-15          NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-q-s1a-size-v5cash-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.opentrades`
-w9-q-s1a-size-v5pct-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.opentrades`
-w9-q-s1a-size-v6-rddt-1d-2026-11-15          NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.opentrades`
-w9-q-s1b-defaults-v4-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.initial_capital`
-w9-q-s1b-defaults-v5-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.initial_capital`
-w9-q-s1b-defaults-v6-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.initial_capital`
-w9-q-s1e-live-past-rddt-1d-2026-11-15        NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-q-s1j-stop-limit-rddt-1d-2026-11-15       NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-q-s1k-exit-levels-rddt-1d-2026-11-15      NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-q-s1k-exit-levels-v6-rddt-1d-2026-11-15   NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-q-s1p-when-rddt-1d-2026-11-15             NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-r1-risk-allow-rddt-1d-2026-11-15          NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-r1-risk-ddown-rddt-1d-2026-11-15          NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-r1-risk-intraday-range-spy-15-2026-11-15  AMEX:SPY 15      0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-x1-trail-rddt-1d-2026-11-15               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-x2-partial-rddt-1d-2026-11-15             NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.closedtrades`
-w9-x3-oca-rddt-1d-2026-11-15                 NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.position_size`
-w9-x4-order-rddt-1d-2026-11-15               NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.opentrades`
-w9-x5-cancel-rddt-1d-2026-11-15              NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: pine:strategy-call]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.opentrades`
+w9-d1-margin50-rddt-1d-2026-11-16            NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:strategy-value]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.margin_liquidation_price`; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+w9-d1-margin50-rpt-rddt-1d-2026-11-16        NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:strategy-value]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate — `strategy.margin_liquidation_price`; strategy EXPECTED-REFUSAL at step 1: refused by door
+w9-d11-late-first-use-rddt-1d-2026-11-16     NYSE:RDDT 1D     38     INCONCLUSIVE      all 39 items agree; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested
+    X01_first_open_entry_bar                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_second_open_entry_price              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.94e-16
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 64 paired slots; coordinates are NOT compared by v1
+w9-d11-late-first-use-rpt-rddt-1d-2026-11-16 NYSE:RDDT 1D     38     MATCH             all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_first_open_entry_bar                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_second_open_entry_price              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.94e-16
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 64 paired slots; coordinates are NOT compared by v1
+w9-g1-v3-properties-rddt-1d-2026-11-15       NYSE:RDDT 1D     2      MATCH             all 3 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar
+    N01_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    N02_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
+w9-k1-commission-pct-rddt-1d-2026-11-15      NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.99e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.45e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.47e-16
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.47e-16
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.47e-16
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-k2-commission-contract-rddt-1d-2026-11-15 NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.39e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.95e-14
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.95e-14
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.95e-14
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-k3-commission-order-rddt-1d-2026-11-15    NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.25e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.91e-15
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.91e-15
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.91e-15
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-k4-slippage-rddt-1d-2026-11-15            NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.15e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.72e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.51e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.15e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.67e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.15e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.67e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.15e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.67e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-mk1-markers-rddt-1d-2026-11-16            NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-mk1-markers-rpt-rddt-1d-2026-11-16        NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-p1-on-close-rddt-1d-2026-11-15            NYSE:RDDT 1D     36     INCONCLUSIVE      37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unpinned)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unpinned)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unpinned)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unpinned)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unpinned)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unpinned)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unpinned)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unpinned)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unpinned)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unpinned)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unpinned)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unpinned)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unpinned)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unpinned)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unpinned)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unpinned)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unpinned)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unpinned)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unpinned)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unpinned)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unpinned)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unpinned)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unpinned)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unpinned)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unpinned)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unpinned)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unpinned)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unpinned)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unpinned)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unpinned)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unpinned)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unpinned)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unpinned)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unpinned)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unpinned)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unpinned)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unpinned: the broker rule B-POC is not pinned by a matching TradingView capture (capture row W9-P1, docs/pine/W9-STRATEGY-DESIGN.md 5.2))
+w9-p1b-on-close-fills-nv-rddt-1d-2026-11-15  NYSE:RDDT 1D     39     INCONCLUSIVE      40 of 40 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned
+    X01_open0_entry_bar                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unpinned)
+    X02_open1_entry_bar                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unpinned)
+    X03_open1_entry_price                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unpinned)
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unpinned)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unpinned)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unpinned)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unpinned)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unpinned)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unpinned)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unpinned)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unpinned)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unpinned)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unpinned)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unpinned)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unpinned)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unpinned)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unpinned)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unpinned)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unpinned)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unpinned)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unpinned)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unpinned)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unpinned)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unpinned)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unpinned)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unpinned)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unpinned)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unpinned)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unpinned)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unpinned)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unpinned)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unpinned)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unpinned)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unpinned)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unpinned)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unpinned)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out37 (runtime:strategy-unpinned)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out38 (runtime:strategy-unpinned)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out39 (runtime:strategy-unpinned)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unpinned: the broker rule B-POC is not pinned by a matching TradingView capture (capture row W9-P1, docs/pine/W9-STRATEGY-DESIGN.md 5.2))
+w9-p1b-on-close-fills-rddt-1d-2026-11-15     NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:strategy-repaint]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `_runs`; strategy EXPECTED-REFUSAL at step 1: refused by door
+w9-p2-order-fills-nv-rddt-1d-2026-11-15      NYSE:RDDT 1D     39     INCONCLUSIVE      40 of 40 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned
+    X01_open0_entry_bar                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unpinned)
+    X02_open1_entry_bar                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unpinned)
+    X03_open1_entry_price                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unpinned)
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unpinned)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unpinned)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unpinned)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unpinned)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unpinned)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unpinned)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unpinned)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unpinned)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unpinned)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unpinned)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unpinned)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unpinned)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unpinned)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unpinned)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unpinned)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unpinned)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unpinned)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unpinned)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unpinned)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unpinned)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unpinned)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unpinned)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unpinned)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unpinned)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unpinned)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unpinned)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unpinned)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unpinned)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unpinned)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unpinned)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unpinned)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unpinned)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unpinned)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out37 (runtime:strategy-unpinned)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out38 (runtime:strategy-unpinned)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out39 (runtime:strategy-unpinned)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unpinned: the broker rule B-FILLS is not pinned by a matching TradingView capture (capture row W9-P2, docs/pine/W9-STRATEGY-DESIGN.md 5.2))
+w9-p2-order-fills-rddt-1d-2026-11-15         NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state) [runtime declined: runtime:strategy-repaint]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `_runs`; strategy EXPECTED-REFUSAL at step 1: refused by door
+w9-p3-every-tick-history-rddt-1d-2026-11-15  NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-q-s1a-size-stop-v6-rddt-1d-2026-11-17     NYSE:RDDT 1D     39     INCONCLUSIVE      40 of 40 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unsettled
+    X01_open_size_0                          INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unsettled)
+    X02_close                                INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unsettled)
+    X03_stop_level                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unsettled)
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unsettled)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unsettled)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unsettled)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unsettled)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unsettled)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unsettled)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unsettled)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unsettled)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unsettled)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unsettled)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unsettled)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unsettled)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unsettled)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unsettled)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unsettled)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unsettled)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unsettled)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unsettled)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unsettled)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unsettled)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unsettled)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unsettled)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unsettled)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unsettled)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unsettled)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unsettled)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unsettled)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unsettled)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unsettled)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unsettled)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unsettled)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unsettled)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unsettled)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out37 (runtime:strategy-unsettled)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out38 (runtime:strategy-unsettled)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out39 (runtime:strategy-unsettled)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unsettled: the stop entry `L` takes a percent-of-equity default size, and whether its level or the signal bar's close sizes it is not stated (unsettled: Q-S1a, docs/pine/capture-queue-2026-10-05-s1.md))
+w9-q-s1a-size-v2-rddt-1d-2026-11-15          NYSE:RDDT 1D     9      MATCH             all 10 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar
+    X02_close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    objects                                  MATCH         neither side draws an object
+w9-q-s1a-size-v4-rddt-1d-2026-11-15          NYSE:RDDT 1D     10     MATCH             all 11 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar
+    X02_close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    objects                                  MATCH         neither side draws an object
+w9-q-s1a-size-v5cash-rddt-1d-2026-11-15      NYSE:RDDT 1D     38     MATCH             all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.14e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.16e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-q-s1a-size-v5pct-rddt-1d-2026-11-15       NYSE:RDDT 1D     38     MATCH             all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.42e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.05e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.87e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-q-s1a-size-v6-rddt-1d-2026-11-15          NYSE:RDDT 1D     38     MATCH             all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.98e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.91e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.90e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 14 paired slots; coordinates are NOT compared by v1
+w9-q-s1b-defaults-v4-rddt-1d-2026-11-15      NYSE:RDDT 1D     10     MATCH             all 11 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar
+    X01_initial_capital                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.33e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    objects                                  MATCH         neither side draws an object
+w9-q-s1b-defaults-v5-rddt-1d-2026-11-15      NYSE:RDDT 1D     38     MATCH             all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_initial_capital                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.33e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.16e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 78 paired slots; coordinates are NOT compared by v1
+w9-q-s1b-defaults-v6-rddt-1d-2026-11-15      NYSE:RDDT 1D     38     MATCH             all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_initial_capital                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 5.90e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.36e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.40e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.93e-15
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 60 paired slots; coordinates are NOT compared by v1
+w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17       NYSE:RDDT 1D     10     INCONCLUSIVE      8 of 11 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unsettled
+    X01_initial_capital                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-value)
+    S01_time_CONTROL                         MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-value)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-value)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-value)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-value)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-value)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-value)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17       NYSE:RDDT 1D     10     INCONCLUSIVE      8 of 11 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unsettled
+    X01_initial_capital                      INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-value)
+    S01_time_CONTROL                         MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 667 ok 667 warm 0/0 steady 0/667 maxRel 0.00e+0
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-value)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-value)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-value)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-value)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-value)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-value)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-value)
+    objects                                  MATCH         neither side draws an object
+w9-q-s1e-live-past-rddt-1d-2026-11-15        NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.74e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 7.89e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.43e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 7.40e-15
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.43e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 7.40e-15
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.43e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 7.40e-15
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-q-s1i-funds-rddt-1d-2026-11-17            NYSE:RDDT 1D     36     INCONCLUSIVE      37 of 37 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (0, floor 5)
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unsettled)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unsettled)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unsettled)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unsettled)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unsettled)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unsettled)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unsettled)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unsettled)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unsettled)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unsettled)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unsettled)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unsettled)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unsettled)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unsettled)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unsettled)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unsettled)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unsettled)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unsettled)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unsettled)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unsettled)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unsettled)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unsettled)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unsettled)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unsettled)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unsettled)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unsettled)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unsettled)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unsettled)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unsettled)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unsettled)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unsettled)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unsettled)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unsettled)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unsettled)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unsettled)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unsettled)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unsettled: the position would need more funds than the strategy holds (a margin call or a rejected order in TradingView) (unsettled: Q-S1i, docs/pine/capture-queue-2026-10-05-s1.md))
+w9-q-s1i-short-v6-rddt-1d-2026-11-16         NYSE:RDDT 1D     39     MATCH             all 40 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_close                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X03_high                                 MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 7.37e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 4.37e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.73e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.33e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.93e-15
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.60e-16
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.51e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.33e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.93e-15
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 44 paired slots; coordinates are NOT compared by v1
+w9-q-s1j-stop-limit-rddt-1d-2026-11-15       NYSE:RDDT 1D     36     INCONCLUSIVE      37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unpinned)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unpinned)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unpinned)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unpinned)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unpinned)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unpinned)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unpinned)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unpinned)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unpinned)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unpinned)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unpinned)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unpinned)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unpinned)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unpinned)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unpinned)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unpinned)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unpinned)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unpinned)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unpinned)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unpinned)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unpinned)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unpinned)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unpinned)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unpinned)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unpinned)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unpinned)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unpinned)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unpinned)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unpinned)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unpinned)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unpinned)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unpinned)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unpinned)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unpinned)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unpinned)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unpinned)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unpinned: the broker rule B-STOP-LIMIT is not pinned by a matching TradingView capture (capture row Q-S1j, docs/pine/W9-STRATEGY-DESIGN.md 5.2))
+w9-q-s1k-exit-levels-rddt-1d-2026-11-15      NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.16e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 7.89e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.12e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.12e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.12e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-q-s1k-exit-levels-v6-rddt-1d-2026-11-15   NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.45e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 7.89e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.12e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.12e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.12e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-q-s1p-when-rddt-1d-2026-11-15             NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.16e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-r1-risk-allow-rddt-1d-2026-11-15          NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-r1-risk-ddown-rddt-1d-2026-11-15          NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.33e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 78 paired slots; coordinates are NOT compared by v1
+w9-r1-risk-intraday-range-spy-15-2026-11-15  AMEX:SPY 15      36     INCONCLUSIVE      37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unsettled
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unsettled)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unsettled)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unsettled)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unsettled)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unsettled)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unsettled)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unsettled)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unsettled)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unsettled)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unsettled)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unsettled)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unsettled)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unsettled)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unsettled)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unsettled)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unsettled)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unsettled)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unsettled)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unsettled)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unsettled)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unsettled)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unsettled)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unsettled)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unsettled)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unsettled)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unsettled)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unsettled)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unsettled)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unsettled)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unsettled)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unsettled)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unsettled)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unsettled)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unsettled)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unsettled)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unsettled)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unsettled: this strategy's trades depend on the bar its backtest starts from, and this run is not known to start at the symbol's first bar (unsettled: Q-S1n, docs/pine/capture-queue-2026-10-05-s1.md))
+w9-x1-trail-rddt-1d-2026-11-15               NYSE:RDDT 1D     36     INCONCLUSIVE      37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unpinned)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unpinned)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unpinned)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unpinned)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unpinned)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unpinned)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unpinned)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unpinned)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unpinned)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unpinned)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unpinned)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unpinned)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unpinned)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unpinned)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unpinned)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unpinned)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unpinned)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unpinned)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unpinned)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unpinned)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unpinned)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unpinned)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unpinned)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unpinned)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unpinned)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unpinned)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unpinned)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unpinned)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unpinned)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unpinned)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unpinned)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unpinned)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unpinned)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unpinned)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unpinned)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unpinned)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unpinned: the broker rule B-TRAIL is not pinned by a matching TradingView capture (capture row W9-X1, docs/pine/W9-STRATEGY-DESIGN.md 5.2))
+w9-x2-partial-rddt-1d-2026-11-15             NYSE:RDDT 1D     38     INCONCLUSIVE      39 of 39 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned
+    X01_closed0_size                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for value (runtime:strategy-unpinned)
+    X02_closed1_size                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out2 (runtime:strategy-unpinned)
+    S01_time_CONTROL                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out3 (runtime:strategy-unpinned)
+    S02_bar_index_CONTROL                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out4 (runtime:strategy-unpinned)
+    S03_position_size                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out5 (runtime:strategy-unpinned)
+    S04_position_avg_price                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out6 (runtime:strategy-unpinned)
+    S05_opentrades                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out7 (runtime:strategy-unpinned)
+    S06_closedtrades                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out8 (runtime:strategy-unpinned)
+    S07_netprofit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out9 (runtime:strategy-unpinned)
+    S08_equity                               INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out10 (runtime:strategy-unpinned)
+    S09_openprofit                           INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out11 (runtime:strategy-unpinned)
+    S10_c0_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out12 (runtime:strategy-unpinned)
+    S11_c0_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out13 (runtime:strategy-unpinned)
+    S12_c0_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out14 (runtime:strategy-unpinned)
+    S13_c0_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out15 (runtime:strategy-unpinned)
+    S14_c0_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out16 (runtime:strategy-unpinned)
+    S15_c0_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out17 (runtime:strategy-unpinned)
+    S16_c0_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out18 (runtime:strategy-unpinned)
+    S17_c0_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out19 (runtime:strategy-unpinned)
+    S18_c0_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out20 (runtime:strategy-unpinned)
+    S19_c1_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out21 (runtime:strategy-unpinned)
+    S20_c1_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out22 (runtime:strategy-unpinned)
+    S21_c1_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out23 (runtime:strategy-unpinned)
+    S22_c1_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out24 (runtime:strategy-unpinned)
+    S23_c1_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out25 (runtime:strategy-unpinned)
+    S24_c1_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out26 (runtime:strategy-unpinned)
+    S25_c1_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out27 (runtime:strategy-unpinned)
+    S26_c1_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out28 (runtime:strategy-unpinned)
+    S27_c1_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out29 (runtime:strategy-unpinned)
+    S28_c2_entry_time                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out30 (runtime:strategy-unpinned)
+    S29_c2_exit_time                         INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out31 (runtime:strategy-unpinned)
+    S30_c2_entry_bar_index                   INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out32 (runtime:strategy-unpinned)
+    S31_c2_exit_bar_index                    INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out33 (runtime:strategy-unpinned)
+    S32_c2_entry_price                       INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out34 (runtime:strategy-unpinned)
+    S33_c2_exit_price                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out35 (runtime:strategy-unpinned)
+    S34_c2_size                              INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out36 (runtime:strategy-unpinned)
+    S35_c2_profit                            INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out37 (runtime:strategy-unpinned)
+    S36_c2_commission                        INCONCLUSIVE       — our side produced no column for this plot — computeFor returned no column for out38 (runtime:strategy-unpinned)
+    objects                                  INCONCLUSIVE  our object lane did not run: the run drew nothing (runtime:strategy-unpinned: the broker rule B-EXIT-QTY is not pinned by a matching TradingView capture (capture row W9-X2, docs/pine/W9-STRATEGY-DESIGN.md 5.2))
+w9-x3-oca-rddt-1d-2026-11-15                 NYSE:RDDT 1D     36     MATCH             all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.73e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-x4-order-rddt-1d-2026-11-15               NYSE:RDDT 1D     37     MATCH             all 38 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.78e-15
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 8.88e-14
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.96e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.22e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.63e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.24e-13
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 40 paired slots; coordinates are NOT compared by v1
+w9-x5-cancel-rddt-1d-2026-11-15              NYSE:RDDT 1D     39     MATCH             all 40 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal
+    X01_phase                                MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X02_open_size_0                          MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    X03_open0_entry_bar                      MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S01_time_CONTROL                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S02_bar_index_CONTROL                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S03_position_size                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S04_position_avg_price                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.29e-16
+    S05_opentrades                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S06_closedtrades                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S07_netprofit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.23e-14
+    S08_equity                               MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 1.46e-16
+    S09_openprofit                           MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.84e-13
+    S10_c0_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S11_c0_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S12_c0_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S13_c0_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S14_c0_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.01e-16
+    S15_c0_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.00e-16
+    S16_c0_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S17_c0_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.99e-15
+    S18_c0_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S19_c1_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S20_c1_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S21_c1_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S22_c1_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S23_c1_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.01e-16
+    S24_c1_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.00e-16
+    S25_c1_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S26_c1_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.99e-15
+    S27_c1_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S28_c2_entry_time                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S29_c2_exit_time                         MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S30_c2_entry_bar_index                   MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S31_c2_exit_bar_index                    MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S32_c2_entry_price                       MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.01e-16
+    S33_c2_exit_price                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 2.00e-16
+    S34_c2_size                              MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    S35_c2_profit                            MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 3.99e-15
+    S36_c2_commission                        MATCH             cmp 666 ok 666 warm 0/0 steady 0/666 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 44 paired slots; coordinates are NOT compared by v1
 wyckoff-accumulation-distribution-rddt-1d-20 NYSE:RDDT 1D     8      MATCH             all 10 items agree
     The Selling Climax                       MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
     Automatic Rally                          MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
@@ -3941,17 +6639,17 @@ rma-close14-2026-09-06                       AMEX:SPY D       1      MATCH      
 rsi-close14-2026-09-06                       AMEX:SPY D       1      MATCH             all 1 items agree
     rsi14                                    MATCH             cmp 1314 ok 1314 warm 0/166 steady 0/1148 maxRel 0.00e+0
 sma-close20-2026-09-06                       AMEX:SPY D       1      MATCH             all 1 items agree
-    sma20                                    MATCH             cmp 2012 ok 2012 warm 0/0 steady 0/2012 maxRel 2.32e-15
+    sma20                                    MATCH             cmp 2012 ok 2012 warm 0/0 steady 0/2012 maxRel 2.20e-15
 stoch-k-14-2026-09-06                        AMEX:SPY D       1      MATCH             all 1 items agree
     stochK                                   MATCH             cmp 287 ok 287 warm 0/0 steady 0/287 maxRel 0.00e+0
 wma-close20-2026-09-06                       AMEX:SPY D       1      MATCH             all 1 items agree
     wma20                                    MATCH             cmp 2012 ok 2012 warm 0/0 steady 0/2012 maxRel 0.00e+0
 seed-warmup-spy-12m-2026-09-21               SPY 12M          8      MATCH             all 8 items agree
     N08_ema5_SEED_QUESTION_compare_to_N09_at MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.31e-16
-    N09_sma5_THE_DISCRIMINATOR_FOR_N08       MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.31e-16
+    N09_sma5_THE_DISCRIMINATOR_FOR_N08       MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.40e-16
     N10_atr5                                 MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     N11_rma_of_tr5_MUST_EQUAL_N10            MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
-    N12_sma_of_tr5_SEED_DISCRIMINATOR        MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.60e-16
+    N12_sma_of_tr5_SEED_DISCRIMINATOR        MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 1.81e-16
     N13_stdev5_POPULATION_OR_SAMPLE          MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 9.91e-15
     N15_sum5_PRE_WINDOW_na_or_partial        MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.03e-16
     N06_change_close_bar0_is_the_reading     MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
@@ -3965,9 +6663,9 @@ vw-clock-vwap-spy-1d-2026-09-27              AMEX:SPY D       15     MATCH      
     V05_hour_time_minus_hour_MUST_BE_0       MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     V06_minute_time_minus_minute_MUST_BE_0   MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     V07_vwap_hlc3_minus_vwap_MUST_BE_0       MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
-    V08_vwap_close_minus_vwap_CONTROL_NONZER MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 4.26e-9
-    V09_vwap_bare_RAW                        MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 2.16e-16
-    V10_vwap_hlc3_RAW                        MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 2.16e-16
+    V08_vwap_close_minus_vwap_CONTROL_NONZER MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V09_vwap_bare_RAW                        MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    V10_vwap_hlc3_RAW                        MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     V11_year_time_RAW                        MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     V12_dayofweek_time_RAW                   MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     V13_year_MUST_SPAN_TWO_VALUES            MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
@@ -4016,7 +6714,27 @@ vw-nvi-pvi-spy-1d-truncated-2026-09-27       AMEX:SPY D       8      DIVERGE    
     P06_corpus_nvi_minus_ema255              DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 9.99e-1 — 1040 steady-state bars disagree; first at bar 0 (na: vendor 245.30448032866502 vs ours na) — persistent, last at bar 1039
     P07_corpus_pvi_minus_ema255              DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.24e+3 — 1040 steady-state bars disagree; first at bar 0 (na: vendor -0.00190286212815499 vs ours na) — persistent, last at bar 1039
     objects                                  MATCH         neither side draws an object
-vw-time-session-spy-1d-2026-09-27            AMEX:SPY D       0      INCONCLUSIVE      refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares — `time(<timeframe>, <session>)`: `"2000-0000"` wraps past midnight (or spans the whole day). The capture read `"2000-0000"` as `na` on every bar it holds, but none of those bars opens after 20:00, so it cannot say whether such a window is empty or runs to midnight — and the two answer differently on a 24-hour symbol.
+vw-time-session-spy-1d-2026-09-27            AMEX:SPY D       19     MATCH             all 20 items agree
+    S00_bar_index_CONTROL                    MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S01_hour_MUST_VARY_ON_INTRADAY           MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S02_minute                               MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S03_na_0930_1600                         MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S04_secs_0930_1600                       MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S05_na_0930_1000_OR_window               MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S06_secs_0930_1000                       MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S07_na_1000_1100_EXCLUDES_OPEN           MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S08_secs_1000_1100                       MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S09_na_0930_1000_ALLDAYS                 MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S10_na_0930_1000_MON_FRI_23456           MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S11_na_OR_GMTminus4_CORPUS_FORM          MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S12_na_OR_GMTminus5                      MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S13_na_OR_America_New_York               MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S14_na_OR_syminfo_timezone               MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S15_na_2000_0000_OVERNIGHT               MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S16_na_0930_1030_IB_window               MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S17_secs_0930_1030                       MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    S18_dayofweek_for_S10                    MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 vw-time-tf-spy-1d-2026-09-27                 AMEX:SPY D       18     INCONCLUSIVE      7 of 19 items could not be compared
     T00_bar_index_CONTROL                    MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     T01_timeW_minus_time_DAYS                MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
@@ -4042,58 +6760,72 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W02_highest5                             MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W03_lowest5                              MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W04_wma5                                 MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
-    W05_vwma5                                MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 1.69e-16
+    W05_vwma5                                MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 2.52e-16
     W06_mom5                                 MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W07_roc5                                 MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W08_dev5                                 MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 4.00e-16
     W09_linreg5_offset0                      MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 7.86e-16
-    W10_cci5                                 MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 1.02e-14
+    W10_cci5                                 MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 3.97e-15
     W11_stoch5                               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W12_tr_BARE_na_on_bar0                   MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
+supertrend-kivancozbilgic-rddt-1d-2026-10-02 NYSE:RDDT 1D     7      MATCH             all 8 items agree
+    Up Trend                                 MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 4.92e-16
+    UpTrend Begins                           MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Buy                                      MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Down Trend                               MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    DownTrend Begins                         MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Sell                                     MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    plot_6                                   MATCH             cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    objects                                  MATCH         neither side draws an object
 
-TOTAL 743 captures — MATCH 257 · DIVERGE 55 · INCONCLUSIVE 428 · MATCH_SUBSTITUTED 3 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 161 captures) — MATCH 257 · DIVERGE 55 · INCONCLUSIVE 428
-CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 58 captures) — MATCH 258 · DIVERGE 54 · INCONCLUSIVE 428
-CHANGED BY PAINTS (2): vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
+TOTAL 940 captures — MATCH 321 · DIVERGE 69 · INCONCLUSIVE 527 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 215 captures) — MATCH 322 · DIVERGE 69 · INCONCLUSIVE 526
+CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
+WITHOUT PAINTS (the verdict before B1; paints graded on 75 captures) — MATCH 324 · DIVERGE 67 · INCONCLUSIVE 526
+CHANGED BY PAINTS (5): one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
-## Runtime declines by code (294)
+## Runtime declines by code (313)
 
-- `runtime:library` 44
-- `pine:function` 35
-- `pine:strategy-call` 35
-- `pine:builtin` 31
-- `pine:request` 25
-- `runtime:request-with-state` 19
-- `runtime:conditional-history` 16
-- `lower-tf:store-unmeasured` 10
-- `runtime:statement` 10
-- `runtime:request` 7
+- `pine:builtin` 37
+- `runtime:library` 37
+- `pine:function` 31
+- `pine:request` 29
+- `runtime:request-with-state` 23
+- `runtime:statement` 16
+- `lower-tf:store-unmeasured` 15
+- `runtime:conditional-history` 11
+- `pine:library-denied` 9
+- `runtime:block-value` 9
+- `runtime:function-global-state` 9
+- `runtime:loop` 9
+- `runtime:call-undeclared-builtin-state` 8
+- `runtime:history-dynamic-offset` 7
 - `pine:arity` 6
-- `runtime:history-expression` 5
-- `runtime:loop` 5
-- `runtime:call-undeclared-builtin-state` 4
-- `runtime:function` 4
-- `pine:drawing` 3
+- `runtime:function` 6
+- `runtime:request` 6
+- `runtime:colour` 5
+- `pine:drawing` 4
+- `runtime:strategy-repaint` 4
 - `pine:statement` 3
-- `runtime:block-value` 3
-- `runtime:function-global-state` 3
-- `runtime:history-dynamic-offset` 3
 - `runtime:output-map` 3
+- `budget:series` 2
 - `lower-tf:lookahead` 2
 - `lower-tf:unwitnessed` 2
 - `pine:collection` 2
 - `pine:colour-value` 2
 - `runtime:builtin-args` 2
-- `runtime:call-text-state` 2
 - `runtime:call-windowed-state` 2
-- `runtime:colour` 2
 - `runtime:directive` 2
-- `runtime:array` 1
-- `runtime:expression-statement` 1
+- `runtime:history-expression` 2
+- `runtime:object-op` 2
+- `runtime:strategy-value` 2
+- `pine:state` 1
+- `pine:text-value` 1
+- `runtime:call-text-state` 1
+- `runtime:enum` 1
 
 ## Not comparable (97)
 

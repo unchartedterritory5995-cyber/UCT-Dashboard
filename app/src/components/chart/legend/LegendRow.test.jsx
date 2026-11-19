@@ -104,12 +104,12 @@ describe('LegendRow — the three verbs', () => {
     fireEvent.click(row)
     // ⭐ ANCHORED TO THE ROW, NOT THE POINTER — a keyboard activation has no
     // coordinates, so one anchor serves click, right-click and Enter alike.
-    expect(h.onOpen).toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+    expect(h.onOpen).toHaveBeenCalledWith('ma:2', { x: 12, y: 43, besideX: 126, rowTop: 22 })
     expect(onWrapper, 'a click reached the chart underneath').not.toHaveBeenCalled()
 
     h.onOpen.mockClear()
     fireEvent.contextMenu(row)
-    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledWith('ma:2', { x: 12, y: 43 })
+    expect(h.onOpen, 'right-click opens a different surface').toHaveBeenCalledWith('ma:2', { x: 12, y: 43, besideX: 126, rowTop: 22 })
 
     for (const key of ['Enter', ' ']) {
       h.onOpen.mockClear()

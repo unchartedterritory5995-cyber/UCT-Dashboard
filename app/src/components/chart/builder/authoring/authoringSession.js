@@ -30,7 +30,7 @@ import { STUDIO_PREVIEW_DEF_ID } from '../studio/chartPreview'
 import { memberError, memberSaveError, memberRefusal, chartRefusalWords } from './memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
-import { soleCueName, memberCueNames } from './derivedName'
+import { soleCueName, memberCueNames, derivedRowName } from './derivedName'
 import { settingPatch, settingRefusal } from './derivedSettings'
 import { renamePatch, withMemberName } from './memberNamePatch'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
@@ -232,6 +232,27 @@ function withCreateName(envelope, words, accept) {
   return ok ? { ...envelope, ops: [...envelope.ops, { op: 'rename_definition', name }] } : envelope
 }
 
+/** `envelope` with the assistant's label kept, as a CUSTOM label, for each line of its `create` that
+ *  `accept(label, key)` takes; else the SAME envelope. A line the patch already renames, or whose
+ *  label the member gave in their own words, is the engine's to settle (derivedName.js). */
+function withCreateLabels(envelope, words, accept) {
+  if (!envelope || !Array.isArray(envelope.ops)) return envelope
+  const created = envelope.ops.find((o) => o && o.op === 'create')
+  if (!created || !Array.isArray(created.outputs)) return envelope
+  const given = new Set(memberCueNames(words).map((t) => t.toLowerCase()))
+  const renamed = new Set(envelope.ops.filter((o) => o && o.op === 'rename_output').map((o) => o.output))
+  const extra = []
+  created.outputs.forEach((o, j) => {
+    const key = o && (o.key || (j === 0 ? 'value' : null))
+    const label = o && typeof o.label === 'string' ? o.label.replace(/\s+/g, ' ').trim().replace(/[.]+$/, '') : ''
+    if (!key || !label || renamed.has(key) || given.has(label.toLowerCase())) return
+    let ok = false
+    try { ok = accept(label, key) === true } catch { ok = false }
+    if (ok) extra.push({ op: 'rename_output', output: key, label })
+  })
+  return extra.length ? { ...envelope, ops: [...envelope.ops, ...extra] } : envelope
+}
+
 /**
  * The envelope a NEW indicator is applied with, once the question "whose name?" is answered.
  * `keep(name, { derivedName })` is asked with the name the engine WOULD derive (a dry run of the same
@@ -239,15 +260,38 @@ function withCreateName(envelope, words, accept) {
  * New formula window's Describe box (`ConverseBox`), so the two cannot answer differently.
  * ⛔ The caller decides WHETHER this turn creates the indicator; this only decides the name.
  */
-export function nameFromAssistant(state, envelope, words, gateCtx, keep) {
-  if (typeof keep !== 'function') return envelope
+export function nameFromAssistant(state, envelope, words, gateCtx, keep, keepLabel = null) {
+  // ⭐ 2026-11-17 — `keepLabel(label, { derivedLabel })` asks the same of each LINE's label, with
+  // the label the engine would derive for that line in the same dry run. A patch the engine would
+  // refuse derives nothing, and then no label is kept: the refusal is the turn's answer.
+  const wantsName = typeof keep === 'function'
+  const wantsLabels = typeof keepLabel === 'function'
+  if (!wantsName && !wantsLabels) return envelope
   let ctx = { derivedName: null }
+  let derivedLabels = null
   try {
     const dry = applyTurn(state, envelope, { gateCtx, memberWords: words })
     const w = dry && dry.state && dry.state.working
     ctx = { derivedName: (w && w.meta && typeof w.meta.name === 'string') ? w.meta.name : null }
-  } catch { ctx = { derivedName: null } }
-  return withCreateName(envelope, words, (n) => keep(n, ctx))
+    if (w && Array.isArray(w.plots)) {
+      derivedLabels = new Map(w.plots.map((p) => [p.key, typeof p.label === 'string' ? p.label : null]))
+      // ⚠️ THE FIRST LINE IS ASKED DIFFERENTLY. Its stored label is empty, which means "follow the
+      // indicator's name" (derivedName.js), so what the document shows for it is the NAME, not
+      // this line's own maths. Of ONE line that is right, and its label is left alone: the
+      // indicator's name is the line's name. Of SEVERAL, "Stochastic Oscillator" beside "%D" is
+      // the wrong pair, so the first line is asked against its own formula's label.
+      const first = w.plots[0]
+      if (first) {
+        const compute = w.compute || {}
+        const ast = (compute.trees && compute.trees[first.key]) || compute.ast || null   // one line stores `ast` alone
+        if (w.plots.length > 1 && ast) derivedLabels.set(first.key, derivedRowName({ key: first.key, ast }))
+        else derivedLabels.delete(first.key)
+      }
+    }
+  } catch { ctx = { derivedName: null }; derivedLabels = null }
+  const named = wantsName ? withCreateName(envelope, words, (n) => keep(n, ctx)) : envelope
+  if (!wantsLabels || !derivedLabels) return named
+  return withCreateLabels(named, words, (label, key) => derivedLabels.has(key) && keepLabel(label, { derivedLabel: derivedLabels.get(key) }))
 }
 
 /**
@@ -260,8 +304,8 @@ export function nameFromAssistant(state, envelope, words, gateCtx, keep) {
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, signal = null } = {}) {
-  const res = await converse({ message: words, state: before, gateCtx, snippets, signal })
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null, browserRefusal = null } = {}) {
+  const res = await converse({ message: words, state: before, gateCtx, snippets, signal, ...(browserRefusal ? { browserRefusal } : {}) })
   // ⭐ STOP (2026-11-16) — the member stopped waiting. Whatever came back (or did not) is
   // NOT read: no reply, no patch, no refusal. Checked on the signal as well as the gate,
   // so an answer that landed in the same instant as the press is dropped too.
@@ -296,15 +340,30 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // ⭐ 2026-11-16 — the predicate is also told the name the engine WOULD derive (a dry run of
   // the same patch against the same state; `applyTurn` writes nothing), so a caller can keep
   // the assistant's name only where the derived one is unreadable (`readableName.js`, the dock).
-  const wantsName = typeof keepCreateName === 'function' && !before.working
-  const envelope = wantsName ? nameFromAssistant(current(), named, words, gateCtx, keepCreateName) : named
+  // ⭐ 2026-11-17 — `keepCreateLabel` is the same seam for each line's label (`readableName.js`).
+  const wantsName = (typeof keepCreateName === 'function' || typeof keepCreateLabel === 'function') && !before.working
+  const envelope = wantsName ? nameFromAssistant(current(), named, words, gateCtx, keepCreateName, keepCreateLabel) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
   if (result.status === 'refused') {
-    return said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
+    const refusal = said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
       details: (result.errors || []).map((e) => memberError(e).detail),
       lines: [...(result.errors || []).map((e) => errorWords(e, now.working)), ...gaps, NOTHING_CHANGED] }, { errors: result.errors || [] })
+    // ⭐ 2026-11-17 — ONE REPAIR, WITH THIS ENGINE'S OWN WORDS. The door offered a change and this
+    // engine refused it: before the member reads "Nothing was changed" for a request the assistant
+    // built, the same turn goes back once with the refused patch and why (`converseClient.
+    // browserRefusalBlock`). Once: a turn that is already that repair is never repaired again, so a
+    // request costs at most one extra round trip. Whatever the repair turn says is what the member
+    // reads, except the door's own refusal of it (an allowance, the network): that says nothing
+    // about the request, so the member reads this engine's refusal instead.
+    const repairable = turn.outcome === OUTCOMES.CHANGE && !browserRefusal && !(signal && signal.aborted)
+      && turn.envelope && (result.errors || []).length > 0
+    if (!repairable) return refusal
+    const again = await modelTurn(before, current, words, { snippets, gateCtx, converse, keepCreateName, keepCreateLabel, signal,
+      browserRefusal: { envelope: turn.envelope, errors: (result.errors || []).map((e) => memberError(e).detail) } })
+    if (again.stopped) return again
+    return again.outcome === OUTCOMES.REFUSED ? refusal : { ...again, repairedAfterRefusal: true }
   }
   if (result.status === 'question') {
     return { ok: true, state: out.state, changed: false, outcome: turn.outcome,

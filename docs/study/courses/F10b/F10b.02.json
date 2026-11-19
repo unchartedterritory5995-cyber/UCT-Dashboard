@@ -170,6 +170,14 @@
    "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
    "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
    "accessed": "2026-11-12"
+  },
+  {
+   "id": "hd001",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-17"
   }
  ],
  "facts": [
@@ -712,6 +720,12 @@
    "source": "s22",
    "quote": "The stop sits a few cents under the day's low, not exactly on it.",
    "claim": "Our rule: the stop sits a few cents past the low, not exactly on it."
+  },
+  {
+   "id": "d001",
+   "source": "hd001",
+   "quote": "Shorts may be taught, but every short lesson says shorting is recommended only for traders who have already made $1 million trading.",
+   "claim": "Shorting is recommended only for traders who have already made $1 million trading (D-001)."
   }
  ],
  "walkthroughs": [
@@ -719,8 +733,9 @@
    "key": "w1",
    "title": "The mirror",
    "steps": [
-    "Long, the worst case is zero. You can lose what you paid for the shares, and no more.",
-    "Short, there is no ceiling. The stock can keep rising, and your loss keeps growing.",
+    "Before you ever short: we only recommend it to traders who've already made $1 million trading.",
+    "Long, the worst case is zero. You lose what you paid for the shares, and no more.",
+    "Short, there's no ceiling. The stock can keep rising, and your loss grows right along with it.",
     "So the stop flips sides. A buy stop sits above the price and buys you back if it rallies."
    ],
    "facts": [
@@ -728,16 +743,18 @@
     "f70",
     "f81",
     "f50",
-    "f51"
+    "f51",
+    "d001"
    ]
   },
   {
    "key": "w2",
    "title": "Reading the crowd",
    "steps": [
-    "Short interest is the shares sold short and not yet bought back. FINRA takes the count twice a month.",
-    "Days to cover divides short interest by average daily volume. It's how many normal days the shorts need to get out.",
-    "A high number is fuel, not a spark. Plenty of heavily shorted stocks just keep falling."
+    "Short interest tells you how crowded the short side is: shares sold short and not bought back yet.",
+    "FINRA takes that count twice a month. Divide it by average daily volume and you get days to cover.",
+    "That's how many normal days the shorts need to get out. A big number is fuel, not a spark.",
+    "Heavy short interest doesn't mean it'll rise. Plenty of heavily shorted stocks just keep falling."
    ],
    "facts": [
     "f90",
@@ -753,9 +770,9 @@
    "key": "w3",
    "title": "How a squeeze feeds itself",
    "steps": [
-    "A sharp rally, or trouble borrowing shares, pushes shorts to buy back.",
-    "Their buying lifts the price, which pushes the next short to buy. Margin calls speed it up.",
-    "Your buy stop turns into a market order when it triggers. In a squeeze it can fill far above your stop."
+    "A squeeze starts with a sharp rally, or trouble borrowing the shares. Either one pushes shorts to buy back.",
+    "Their buying lifts the price, and that can force out the next short. Margin calls speed it up.",
+    "Your buy stop becomes a market order when it triggers. In a squeeze, the fill can land far above your stop."
    ],
    "facts": [
     "f03",
@@ -774,7 +791,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "short squeeze",
-   "q": "What is a short squeeze?",
+   "q": "A stock you're short is ripping, and the chat says it's a short squeeze. What's actually going on?",
    "choices": [
     "Selling borrowed shares, hoping it falls",
     "Shorts piling in as a stock collapses",
@@ -782,8 +799,8 @@
     "A broker's limit on new short sales"
    ],
    "answer": "Shorts forced to buy back as price jumps",
-   "why": "Shorts forced to buy back as the price jumps. The SEC calls it pressure on short sellers to cover, from a sharp price rise or trouble borrowing the shares. Their rush to buy adds more upward pressure, which can squeeze them harder. It is not the short sale itself, and the price is rising, not falling.",
-   "lesson_line": "A squeeze is shorts buying because they have to. Their buying is the fuel.",
+   "why": "Shorts are being forced to buy back. The price jumps, the shorts start bleeding, and they have to cover. Covering means buying, so the price jumps again and squeezes out the next short. Trouble borrowing the shares can set it off too. That forced buying is the fuel. You don't want to be the last short still in it.",
+   "lesson_line": "A squeeze is shorts buying because they have to. That forced buying is the fuel.",
    "facts": [
     "f03",
     "f11",
@@ -791,11 +808,11 @@
     "f110"
    ],
    "wrong": {
-    "Shorts piling in as a stock collapses": "That's the opposite. In a squeeze the price is rising, and shorts are buying, not selling.",
-    "A broker's limit on new short sales": "That limits opening new shorts. A squeeze is about shorts already in the trade having to buy back.",
-    "Selling borrowed shares, hoping it falls": "That's the short sale itself. The squeeze is what can happen to short sellers when the price jumps."
+    "Shorts piling in as a stock collapses": "Backwards. In a squeeze the price is going up, and the shorts are buying, not selling.",
+    "A broker's limit on new short sales": "That stops new shorts from opening. A squeeze is about the shorts already in, forced to get out.",
+    "Selling borrowed shares, hoping it falls": "That's just the short sale. The squeeze is what happens to you after it, if the price jumps."
    },
-   "simple": "Shorts are forced to buy back when the price jumps, and their buying pushes it even higher.",
+   "simple": "Shorts have to buy back as the price jumps, and their buying pushes it even higher.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -803,25 +820,26 @@
      "stable definition, two Tier 1 sources agree (SEC, SEC staff report)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "short.risk",
    "rung": 1,
    "format": "tf",
-   "q": "A short can lose more than the money its sale brought in.",
+   "q": "You short a stock and the sale brings in $5,000. You can lose more than that $5,000.",
    "answer": "True",
-   "why": "True. A short profits when the price falls, and a stock can only fall to zero, so that profit is capped. The price can keep rising, so the loss has no limit. That is how a short can lose more than its sale brought in. A long's loss stops at what the shares cost.",
-   "lesson_line": "Long, the worst case is zero. Short, the loss has no ceiling. Plan for that.",
+   "why": "True. That $5,000 is the most you can ever make, because a stock can only fall to zero. Up has no cap. If the price doubles, you've lost the whole $5,000. If it keeps going, you're past it. Long, the worst you can do is lose what you paid. That's why a short gets a real stop with the broker the minute you're in.",
+   "lesson_line": "Long, the worst case is zero. Short, there's no ceiling. Plan for that before you hit sell.",
    "facts": [
     "f126",
     "f02",
     "f125",
     "f81",
-    "f10"
+    "f10",
+    "h41"
    ],
-   "simple": "True. A stock can only fall to zero, but it can keep rising, so a short's loss has no ceiling.",
+   "simple": "True. A stock can only fall to zero, but it can keep rising, so a short can lose more than the sale brought in.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -829,14 +847,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "short.risk",
    "rung": 2,
    "format": "mcq",
-   "q": "You're short a stock. Where does your protective stop go?",
+   "q": "You just shorted a breakdown and got your fill. What stop goes in right after?",
    "choices": [
     "Below the price, as a sell stop",
     "Above the price, as a buy stop",
@@ -844,7 +862,7 @@
     "A mental stop above the price"
    ],
    "answer": "Above the price, as a buy stop",
-   "why": "Above the price, as a buy stop. A short loses when the price rises, so the stop sits above the current price. If the stock rallies to it, the stop buys the shares back. A sell stop below the price is the mirror, for a stock you own.",
+   "why": "A buy stop, above the price. You're short, so you get hurt when it goes up. The buy stop sits up there and buys your shares back if it rallies into it. It's the sell stop under a long, flipped. And it goes in as a real order with the broker. A stop in your head is the one you talk yourself out of while it rips.",
    "lesson_line": "Long: sell stop below. Short: buy stop above. Same job, mirror image.",
    "facts": [
     "f50",
@@ -854,11 +872,11 @@
     "h41"
    ],
    "wrong": {
-    "Below the price, as a sell stop": "That's the stop for a stock you own. A short gets hurt when the price rises, so its stop belongs above.",
-    "Above the price, as a sell stop": "Right side, wrong order. To close a short you buy the shares back, so it's a buy stop.",
-    "A mental stop above the price": "Our rule: every position has a real stop order with the broker, not a stop kept in your head."
+    "Below the price, as a sell stop": "That's the stop for a stock you own. A short gets hurt when the price rises, so the stop goes above.",
+    "Above the price, as a sell stop": "Right spot, wrong order. To close a short you buy the shares back, so it's a buy stop.",
+    "A mental stop above the price": "Every position gets a real stop order with the broker. A stop in your head turns into a debate on the way up."
    },
-   "simple": "Above the price, as a buy stop, because a short loses money when the price rises.",
+   "simple": "A buy stop above the price, because a short loses money when the price goes up.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -866,7 +884,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -907,7 +925,7 @@
    "rung": 3,
    "format": "mcq",
    "term": "days to cover",
-   "q": "What does days to cover tell you?",
+   "q": "A stock you're short shows 9 days to cover on your screener. What's that number telling you?",
    "choices": [
     "Days until borrowed shares must go back",
     "Days since short interest was reported",
@@ -915,8 +933,8 @@
     "Days at usual volume to buy back shorts"
    ],
    "answer": "Days at usual volume to buy back shorts",
-   "why": "Days at usual volume to buy back the shorts. FINRA's formula is short interest divided by average daily share volume. It is not a deadline, the data's age, or how long shorts have held. A higher number can mean more squeeze risk, not a sure squeeze.",
-   "lesson_line": "More days to cover means a more crowded exit if the stock starts to rally.",
+   "why": "It's how many normal days it'd take the shorts to buy back. Short interest divided by average daily volume. At 9, it'd take about nine days of the stock's whole usual volume just for the shorts to get out. That's a crowded door if it starts to rally, and you're standing in that line. More days can mean a bigger squeeze. It's fuel, not a spark, so it doesn't tell you one is coming.",
+   "lesson_line": "Days to cover is how crowded the exit is. The higher it is, the uglier a rally gets for shorts.",
    "facts": [
     "f40",
     "f95",
@@ -924,11 +942,11 @@
     "f114"
    ],
    "wrong": {
-    "Days until borrowed shares must go back": "It isn't a deadline. It's short interest divided by average daily volume.",
+    "Days until borrowed shares must go back": "There's no deadline in it. It's short interest divided by average daily volume.",
     "Days since short interest was reported": "That's how old the data is, which matters too. Days to cover is short interest over daily volume.",
-    "Days the average short has been open": "The data doesn't say how long shorts have held. Days to cover is how long getting out would take."
+    "Days the average short has been open": "The data says nothing about how long shorts have held. It's how long getting out would take."
    },
-   "simple": "It is how many days of normal trading it would take the shorts to buy back all their shares.",
+   "simple": "How many days of normal volume it would take every short to buy back their shares.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -936,17 +954,17 @@
      "stable definition, FINRA formula confirmed live 2026-11-12"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "short.risk",
    "rung": 3,
    "format": "tf",
-   "q": "The short interest on a quote page shows the short positions open right now.",
+   "q": "The short interest on your quote page is a live count of the shares short right now.",
    "answer": "False",
-   "why": "False. Short interest is a snapshot taken on two days a month, one of them the 15th. FINRA publishes it on the 7th business day after that settlement date. So the figure you see is already dated. Free sites may also show their own calculation, not FINRA's raw number.",
-   "lesson_line": "Short interest is a dated snapshot, not a live count. Check its date before you lean on it.",
+   "why": "False. It's a snapshot, and it's already old when you see it. FINRA counts it on two days a month, one of them the 15th. Then it publishes on the 7th business day after that. So the number on your screen trails what's happening in the stock now. Free sites may also run their own math on it. Check the date before you lean on it.",
+   "lesson_line": "Short interest is a dated snapshot, not a live count. Check the date before you lean on it.",
    "facts": [
     "f31",
     "f41",
@@ -954,7 +972,7 @@
     "f30",
     "f36"
    ],
-   "simple": "False. The official number is a snapshot from one past date, published on the 7th business day after it.",
+   "simple": "False. It's a snapshot from a past date, published days later, so it trails what's happening now.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -963,22 +981,22 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "short.risk",
    "rung": 3,
    "format": "tf",
-   "q": "The same share can count toward short interest more than once.",
+   "q": "Short interest above 100% of a stock's float can be a real number.",
    "answer": "True",
-   "why": "True. The same shares can be lent more than once, by later buyers, so short interest can top 100%. GameStop's reached 122.97% of its float in January 2021. A figure over 100% can be real, not a data error.",
-   "lesson_line": "Over 100% short can be real, not a data error. The same shares were shorted more than once.",
+   "why": "True. The same shares can be lent out more than once. Someone shorts borrowed shares, a buyer ends up with them, and those shares get lent and shorted again. Each loan counts. GameStop hit 122.97% of its float in January 2021. So over 100% isn't a typo. It means more shares are sold short than the whole float, and that's a jammed exit.",
+   "lesson_line": "Over 100% short can be real. Same shares, shorted more than once. That's a jammed exit.",
    "facts": [
     "f15",
     "f14"
    ],
-   "simple": "True. Shares that are lent and sold short can be bought, lent and shorted again, so short interest can top 100%.",
+   "simple": "True. Shares can be lent, sold short, bought, and lent again, so short interest can top 100% of the float.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -987,16 +1005,16 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "short.risk",
    "rung": 3,
    "format": "tf",
-   "q": "A buy stop limits a short's loss to the stop price, even on an overnight gap up.",
+   "q": "Your buy stop on a short caps your loss at the stop price, even if the stock gaps up overnight.",
    "answer": "False",
-   "why": "False. A stop acts only once trading reaches its price, and then it becomes a market order. If the stock opens above your buy stop, it fills at the next available price. Schwab warns a stop can lock in big losses if the price gaps up. The stop still gets you out, just not at your price.",
+   "why": "False. A stop only wakes up once the price trades there, and then it's a market order. If good news gaps the stock open over your stop, you get filled at the next price. That can be well above your stop. On a short the gap you fear is up, on earnings or news after the close. The stop still gets you out. Just not at your price.",
    "lesson_line": "A stop can't catch a gap. On a short, the gap to fear is up, on good news.",
    "facts": [
     "f53",
@@ -1006,7 +1024,7 @@
     "f80",
     "f52"
    ],
-   "simple": "False. If good news gaps the stock over your stop, the order fills at the next price, which can be far above it.",
+   "simple": "False. If good news gaps it over your stop, the order fills at the next price, which can be far above it.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1014,14 +1032,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "short.risk",
    "rung": 4,
    "format": "mcq",
-   "q": "Short interest is 6,000,000 shares. Average daily volume is 750,000 shares. What is days to cover?",
+   "q": "You're eyeing a short: 6,000,000 shares are short and it trades 750,000 shares a day. How many days to cover?",
    "answer": "8 days",
    "calc": {
     "fn": "arith",
@@ -1032,14 +1050,14 @@
     }
    },
    "suffix": "days",
-   "why": "8 days. Days to cover is short interest divided by average daily share volume. Here that is 6,000,000 by 750,000. The shorts would need about 8 normal days to buy back. It says how slow the exit is, not whether a squeeze will come.",
-   "lesson_line": "Days to cover equals short interest over average daily volume. The bigger it is, the slower the exit.",
+   "why": "8 days. Days to cover is short interest over average daily volume. 6,000,000 divided by 750,000 is 8. So the shorts need about 8 normal days to all get out. If this thing rallies, that's a slow, crowded exit, and you'd be in it. It tells you how jammed the door is. It doesn't tell you a squeeze is coming.",
+   "lesson_line": "Days to cover is short interest over daily volume. The bigger it is, the slower the way out.",
    "facts": [
     "f40",
     "f113",
     "f114"
    ],
-   "simple": "8 days. Divide 6,000,000 shares short by 750,000 shares a day of volume.",
+   "simple": "8 days. Divide 6,000,000 shares short by the 750,000 shares it trades a day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1047,7 +1065,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.1 days",
     "5.25 days",
@@ -1055,9 +1073,9 @@
     "8 days"
    ],
    "wrong": {
-    "0.1 days": "Flipped it: divided the daily volume by the short interest.",
-    "5.25 days": "Subtracted the two figures. Days to cover divides them.",
-    "80 days": "A decimal slip: ten times too big."
+    "0.1 days": "Flipped it. You divided the daily volume by the short interest.",
+    "5.25 days": "You subtracted the two. Days to cover divides them.",
+    "80 days": "Decimal slip, ten times too big."
    },
    "visual": {
     "kind": "size",
@@ -1088,8 +1106,8 @@
    "skill": "short.risk",
    "rung": 4,
    "format": "scenario",
-   "story": "A stock drops from $90 to $66, then bounces. Today it tops out at $84 and starts to roll over. You'll short only below $80.",
-   "q": "Where does your buy stop go, by our rules?",
+   "story": "A stock drops from $90 to $66, then bounces. Today it tops out at $84 and starts to roll over. You'll short it only as it trades below $80.",
+   "q": "It trades through $80 and you're filled. Where's your buy stop?",
    "choices": [
     "At $74, your profit target",
     "Just under the $66 low",
@@ -1097,8 +1115,8 @@
     "No stop until in profit"
    ],
    "answer": "Just over the $84 high",
-   "why": "Just over the $84 high. Schwab's example shorts below $80 with a buy stop at the $84 bounce high, limiting the loss to $4 a share. Our long stop sits a few cents under the day's low, not on it. Shorts are our long setups reversed, so the buy stop sits a few cents over the day's high.",
-   "lesson_line": "Mirror our long stop: a few cents under the day's low becomes a few cents over the day's high.",
+   "why": "A few cents over $84, today's high. That's where the bounce ran out of buyers. If it trades back through there, the chart says you're wrong. It's our long stop, flipped. On a long we sit a few cents under the low of the day, not right on it. On a short it's a few cents over the high. From $80 that's about $4 a share at risk. That's on the wide side, so the size comes down to fit it.",
+   "lesson_line": "On a long the stop sits a few cents under the low. On a short, a few cents over the high.",
    "facts": [
     "f73",
     "f74",
@@ -1107,14 +1125,15 @@
     "f51",
     "h62",
     "h47",
-    "h41"
+    "h41",
+    "h05"
    ],
    "wrong": {
-    "At $74, your profit target": "That's where Schwab's example takes the profit. A short's stop guards the move against you, and that move is up, above $80.",
-    "Just under the $66 low": "That's where a long's stop would sit. A short loses as the price rises, so a stop down there never protects you.",
-    "No stop until in profit": "The risk starts the moment you're short. Our rule: every position has a real stop order with the broker."
+    "At $74, your profit target": "That's where you'd take the money. A short's stop guards against the move up, above $80.",
+    "Just under the $66 low": "That's where a long's stop would go. A short loses as the price rises, so a stop down there never saves you.",
+    "No stop until in profit": "The risk starts the second you're short. Every position gets a real stop with the broker."
    },
-   "simple": "Just over $84, today's high, since our short stop mirrors the long one and sits a few cents above that high.",
+   "simple": "A few cents over $84, today's high. That's where the bounce failed, so that's where you're wrong.",
    "tier": "core",
    "risk": {
     "score": 6,
@@ -1124,14 +1143,14 @@
      "fixed before"
     ]
    },
-   "batch": "polish"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "short.risk",
    "rung": 5,
    "format": "mcq",
-   "q": "Account $40,000, risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares?",
+   "q": "Your account is $40,000 and you're risking 0.5%. You short at $30.00 with a buy stop at $31.50. How many shares?",
    "answer": "133 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -1143,8 +1162,8 @@
     }
    },
    "suffix": "shares",
-   "why": "Risk 0.5% of $40,000 to get the dollars at risk. On a short, risk per share is the buy stop minus the entry: $31.50 minus $30.00. Divide the dollars at risk by that, and round down to 133 whole shares.",
-   "lesson_line": "Stop first, then size. On a short, risk per share runs up to the buy stop.",
+   "why": "133 shares. 0.5% of $40,000 is $200 at risk. Your stop is $1.50 above the entry, $31.50 minus $30.00. $200 over $1.50 is 133.33, and you round down to 133. Always down, so a stop-out costs what you planned and not a dime more. That stop is 5% away, the widest I'll accept. Any wider and I'd wait for a tighter spot.",
+   "lesson_line": "Stop first, then size. On a short, the risk runs up to your buy stop.",
    "facts": [
     "f74",
     "f50",
@@ -1160,7 +1179,7 @@
      "sizing method matches the owner's rulebook (A1, A5)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "133 shares",
     "7 shares",
@@ -1168,9 +1187,9 @@
     "400 shares"
    ],
    "wrong": {
-    "7 shares": "Divided the dollars at risk by the $30.00 entry price. Divide by the risk per share.",
-    "1,333 shares": "A decimal slip: ten times too big.",
-    "400 shares": "Divided the dollars at risk by the 0.5 risk percent. Divide by the stop distance."
+    "7 shares": "You divided the dollars at risk by the $30.00 price. Divide by the risk per share.",
+    "1,333 shares": "Decimal slip, ten times too big.",
+    "400 shares": "You divided the dollars at risk by the 0.5 risk percent. Divide by the stop distance."
    }
   },
   {
@@ -1178,7 +1197,7 @@
    "skill": "short.risk",
    "rung": 5,
    "format": "mcq",
-   "q": "You short at $50.00 with a buy stop at $52.00. You cover at $45.00. How many R did you make?",
+   "q": "You shorted at $50.00 with a buy stop at $52.00 and covered at $45.00. How many R did you make?",
    "answer": "2.5R",
    "calc": {
     "fn": "r_multiple",
@@ -1190,14 +1209,14 @@
     }
    },
    "suffix": "R",
-   "why": "On a short, your risk is the distance from entry up to the buy stop: $50.00 to $52.00. Your gain is the distance from entry down to where you bought back: $50.00 to $45.00. The gain divided by the risk is the R: $5.00 over $2.00, or 2.5R.",
-   "lesson_line": "R works the same on a short, flipped: the risk sits above you, the profit below.",
+   "why": "2.5R. Your risk was $2.00 a share, from $50.00 up to the $52.00 stop. Your gain was $5.00 a share, from $50.00 down to $45.00. $5.00 over $2.00 is 2.5R. Same math as a long, just flipped. The risk sits above you and the profit below. Log every short in R and you can compare it straight across with your longs.",
+   "lesson_line": "R works the same on a short, flipped. Risk above you, profit below.",
    "facts": [
     "f01",
     "f50",
     "f35"
    ],
-   "simple": "2.5R. Your gain down to $45.00 is 2.5 times your risk up to the $52.00 stop.",
+   "simple": "2.5R. You made $5.00 a share on $2.00 of risk.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1205,7 +1224,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "2.5R",
     "3.5R",
@@ -1213,9 +1232,9 @@
     "7.0R"
    ],
    "wrong": {
-    "5.0R": "Used the dollar gain as the R. Divide it by the risk.",
-    "3.5R": "Measured the gain from the buy stop to the cover price, not from the entry.",
-    "7.0R": "Used the gap from the buy stop to the cover price with no division by the risk."
+    "5.0R": "That's the dollar gain, not R. Divide it by the $2.00 risk.",
+    "3.5R": "You measured from the stop to the cover. Measure the gain from your entry.",
+    "7.0R": "You took the gap from the stop down to the cover and never divided by the risk."
    }
   },
   {
@@ -1223,18 +1242,18 @@
    "skill": "short.risk",
    "rung": 5,
    "format": "scenario",
-   "story": "Stock A has 40 million shares sold short and a 2 billion share float. Stock B has 6 million short and a 20 million share float.",
-   "q": "Which is the more crowded short?",
+   "story": "A big-cap name has 40 million shares sold short out of a 2 billion share float. A smaller name has 6 million short out of a 20 million float.",
+   "q": "Which one is the more crowded short?",
    "choices": [
-    "A, with more shares short",
-    "B, with fewer shares short",
+    "The big-cap, more shares short",
+    "The smaller one, fewer short",
     "About the same for both",
-    "Unclear without the prices"
+    "Can't tell without the prices"
    ],
-   "answer": "B, with fewer shares short",
+   "answer": "The smaller one, fewer short",
    "calc": {},
-   "why": "B, with fewer shares short. Judge short interest as a ratio, not a raw count. B's 6 million short is a big slice of a 20 million float. A's 40 million is a sliver of 2 billion. A big company will likely have more shares short just from its size. Percent of float is typically seen as the better gauge of squeeze potential.",
-   "lesson_line": "Compare short interest as a percent of float. Raw counts make big companies look more shorted than they are.",
+   "why": "The smaller one. Read short interest as a slice of the float, not a raw count. 6 million out of 20 million is nearly a third of the float. 40 million out of 2 billion is a sliver. A big company will likely carry more shares short just from its size. So when I check how crowded a short is, I look at short interest as a percent of float.",
+   "lesson_line": "Judge a crowd by percent of float. A raw count makes big companies look more shorted than they are.",
    "facts": [
     "f92",
     "f91",
@@ -1243,11 +1262,11 @@
     "f29"
    ],
    "wrong": {
-    "A, with more shares short": "Big companies tend to have more shares short just from their size. As a slice of its float, A's short is tiny.",
-    "About the same for both": "Not close. Put each over its float and B is far more crowded.",
-    "Unclear without the prices": "Price doesn't change the ratio. Crowding compares the shares sold short with the float, and both are given here."
+    "About the same for both": "Not close. Put each over its float and the smaller one is far more crowded.",
+    "The big-cap, more shares short": "Big companies tend to carry more shares short just from their size. As a slice of its float, the big-cap's short is tiny.",
+    "Can't tell without the prices": "Price doesn't change the ratio. Crowding is shares short against the float, and both are right here."
    },
-   "simple": "B. Its 6 million short is a big slice of its 20 million float, while A's is a sliver of its float.",
+   "simple": "The smaller one. Its 6 million short is a big slice of a 20 million float, and the big-cap's is a sliver.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1255,14 +1274,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "short.risk",
    "rung": 6,
    "format": "mcq",
-   "q": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00, and your stop fills there. What did you lose?",
+   "q": "You short 400 shares at $25.00, buy stop $26.00. Good news gaps it open at $29.00 and your stop fills there. What did you lose?",
    "answer": "$1,600",
    "calc": {
     "fn": "arith",
@@ -1274,16 +1293,17 @@
     }
    },
    "prefix": "$",
-   "why": "Good news gapped the stock open above your buy stop. A triggered stop becomes a market order, so it filled at $29.00, not $26.00. The loss is $29.00 minus $25.00, times 400 shares, which is $1,600. Your stop set the planned loss, not the worst one.",
+   "why": "$1,600. Your stop sat at $26.00, but the stock opened at $29.00, so that's where the market order filled. $29.00 minus $25.00 is $4 a share. Times 400 shares, that's $1,600. You planned on losing $400. The gap took four times that. That's why a tight stop never earns you a bigger position. The stop sets the planned loss, not the worst one.",
    "lesson_line": "Your stop sets the planned loss, not the worst one. On a short, a gap up decides the rest.",
    "facts": [
     "f72",
     "f52",
     "f145",
     "f80",
-    "f71"
+    "f71",
+    "h07"
    ],
-   "simple": "$1,600. The gap filled your stop at $29.00 instead of $26.00, so the loss was far bigger than planned.",
+   "simple": "$1,600. The gap filled your stop at $29.00 instead of $26.00, so you lost far more than you planned.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1291,7 +1311,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$1,600",
     "$2,000",
@@ -1299,9 +1319,9 @@
     "$16,000"
    ],
    "wrong": {
-    "$11,600": "That is the cost to buy back the 400 shares, not the loss.",
-    "$2,000": "Added the planned $400 loss on top of the real loss.",
-    "$16,000": "A decimal slip: ten times too big."
+    "$11,600": "That's what it cost to buy the 400 shares back, not what you lost.",
+    "$2,000": "You stacked the planned $400 loss on top of the real one.",
+    "$16,000": "Decimal slip, ten times too big."
    }
   },
   {
@@ -1309,7 +1329,7 @@
    "skill": "short.risk",
    "rung": 6,
    "format": "mcq",
-   "q": "Short 1,000 shares. FINRA minimum: 30% of value or $5 a share, whichever is more. It goes $20 to $40. How much does the minimum rise?",
+   "q": "You're short 1,000 shares at $20 and it runs to $40. FINRA's floor is 30% of value or $5 a share, whichever's more. How much does it rise?",
    "answer": "$6,000",
    "calc": {
     "fn": "arith",
@@ -1322,7 +1342,7 @@
     }
    },
    "prefix": "$",
-   "why": "FINRA's minimum on a short at $5 or more is 30% of its current value or $5 a share, whichever is greater. At $20, 30% of the value is $6,000. At $40, it is $12,000. So the minimum rises by $6,000. That is only FINRA's floor. A broker can ask for more, and the loss on the move comes out of the same account.",
+   "why": "$6,000. At these prices 30% of the value beats $5 a share, so 30% is the floor. At $20 that's $6,000. At $40 it's $12,000. So it rises $6,000. And that's just FINRA's minimum. Your broker can ask for more any time, and the loss on the move comes out of the same account. On a short running against you, the bill grows right when you're bleeding.",
    "lesson_line": "A short's margin grows as the stock rises. Miss the call and the broker can close it for you.",
    "facts": [
     "f60",
@@ -1332,7 +1352,7 @@
     "f76",
     "f131"
    ],
-   "simple": "$6,000. Here 30% of the value beats $5 a share, so the minimum doubles as the price goes from $20 to $40.",
+   "simple": "$6,000. Here 30% of the value beats $5 a share, so the floor doubles as the price goes from $20 to $40.",
    "deeper": {
     "trap": "The $6,000 is only the rule's floor going up. The loss on the move also comes out of the same account. A broker can raise its own house requirement at any time, without notice. Positions that swing unusually fast must carry substantially more. Miss the call and the broker may close your positions."
    },
@@ -1344,7 +1364,7 @@
      "fixed before"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$6,000",
     "$20,000",
@@ -1352,9 +1372,9 @@
     "$5,000"
    ],
    "wrong": {
-    "$12,000": "That is the minimum at $40. The question asks how much it rises.",
-    "$20,000": "That is the stock's $20 move on 1,000 shares, not the margin rise.",
-    "$5,000": "Used the $5 a share floor. At these prices 30% of the value is more."
+    "$12,000": "That's the floor at $40. The question asks how much it went up.",
+    "$20,000": "That's the stock's $20 move on 1,000 shares, not the margin.",
+    "$5,000": "You used $5 a share. At these prices 30% of the value is bigger."
    },
    "visual": {
     "kind": "size",
@@ -1402,17 +1422,17 @@
    "skill": "short.risk",
    "rung": 6,
    "format": "scenario",
-   "story": "A free stock site says 48% of today's volume in a stock you watch was short sales. A friend says half the float must be short.",
-   "q": "What's the right read?",
+   "story": "A free stock site says 48% of today's volume in a name you watch was short sales. A friend texts you that half the float must be short.",
+   "q": "What do you tell your friend?",
    "choices": [
-    "Half the float must be sold short",
+    "Yep, half the float is short",
     "Short interest just jumped 48%",
     "Short volume isn't short interest",
     "A squeeze is due as shorts cover"
    ],
    "answer": "Short volume isn't short interest",
-   "why": "Short volume isn't short interest. Short volume counts the day's trades marked short, and a short opened and closed the same day never shows in short interest. Short interest is the open positions on one settlement date. FINRA says sites that call short volume short interest are wrong.",
-   "lesson_line": "Don't read daily short volume as short interest. FINRA calls that mix-up incorrect.",
+   "why": "Short volume isn't short interest. Short volume is today's trades that were marked short. Plenty of those get bought back the same day and never show up as open shorts. Short interest is the open shorts, counted on one settlement date. FINRA flat out says sites calling short volume short interest are wrong. So 48% of today's volume tells you nothing about the float.",
+   "lesson_line": "Daily short volume is not short interest. Don't let a free site tell you otherwise.",
    "facts": [
     "f32",
     "f33",
@@ -1421,11 +1441,11 @@
     "f31"
    ],
    "wrong": {
-    "Half the float must be sold short": "That reads short volume as short interest. FINRA says sites that call short volume short interest are wrong.",
-    "Short interest just jumped 48%": "Short interest comes from a snapshot on two days a month. One day's short volume can't tell you how it changed.",
-    "A squeeze is due as shorts cover": "That assumes the day's short sales are still open. A short opened and closed the same day never shows in short interest."
+    "Short interest just jumped 48%": "Short interest is a snapshot taken twice a month. One day's short volume can't tell you how it moved.",
+    "A squeeze is due as shorts cover": "That assumes today's short sales are still open. A short opened and closed today never shows in short interest.",
+    "Yep, half the float is short": "That reads today's short volume as short interest. FINRA says sites that do that are wrong."
    },
-   "simple": "Short volume counts the day's trades marked short, and some close that day, so it does not show open short positions.",
+   "simple": "Short volume counts today's trades marked short, and many close the same day, so it says nothing about open shorts.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1433,15 +1453,15 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "short.risk",
    "rung": 7,
    "format": "scenario",
-   "story": "A post says a stock with 35% of its float sold short has to squeeze this week. It's still making lower lows on rising volume.",
-   "q": "What's your read?",
+   "story": "A post says a stock with 35% of its float sold short has to squeeze this week. On the chart it's still making lower lows on rising volume.",
+   "q": "Someone in chat asks if they should buy it before the squeeze. What's your answer?",
    "choices": [
     "Buy now, before the squeeze starts",
     "Heavy shorting is no buy signal",
@@ -1449,7 +1469,7 @@
     "At 35% short, it can't fall further"
    ],
    "answer": "Heavy shorting is no buy signal",
-   "why": "It isn't a buy signal. Heavy short interest means many people expect a fall, not that the price will rise. Plenty of heavily shorted stocks keep falling, and some have real problems. This chart still makes lower lows on rising volume. The SEC warns that claims of an imminent squeeze may be false.",
+   "why": "No, heavy shorting is no buy signal. All 35% short tells you is that a lot of people think it's going lower. Now look at the chart. Lower lows on rising volume. That's a stock going down, and so far the shorts are right. Plenty of heavily shorted names just keep falling, and some have real problems. A squeeze needs the price to turn up first. I'd let the chart prove it before I believed the post.",
    "lesson_line": "Short interest is fuel, not a spark. Let the price turn up before you trust a squeeze story.",
    "facts": [
     "f111",
@@ -1462,11 +1482,11 @@
     "f12"
    ],
    "wrong": {
-    "Buy now, before the squeeze starts": "That's buying a story. The chart is still falling, and a squeeze needs a sharp rise to get going.",
-    "Shorts must cover by the week's end": "Nothing in the data sets a deadline. Shorts cover when they choose to, or when a rally, a margin call or a lost borrow forces them.",
-    "At 35% short, it can't fall further": "Short interest sets no floor. It only tells you many people expect the stock to fall."
+    "Buy now, before the squeeze starts": "That's buying a story. The chart is still falling, and a squeeze needs a sharp move up to get going.",
+    "Shorts must cover by the week's end": "There's no deadline. Shorts cover when they choose to, or when a rally, a margin call or a lost borrow forces them.",
+    "At 35% short, it can't fall further": "Short interest is no floor. It only tells you a lot of people expect it to fall."
    },
-   "simple": "Lots of short sellers is not a reason to buy. Many heavily shorted stocks just keep falling, and this one still is.",
+   "simple": "No. Lots of shorts is no reason to buy, and this chart is still falling, so let the price turn up first.",
    "deeper": {
     "trap": "A squeeze needs a sharp rise to start, and short interest is only the fuel. Active traders watch heavily shorted stocks for the price to start rising before they act. A post that puts a date on a squeeze is selling a story, and the SEC warns such claims may be false."
    },
@@ -1477,25 +1497,26 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "short.risk",
    "rung": 7,
    "format": "tf",
-   "q": "A broker can raise the margin on your open short at any time, with no advance written notice.",
+   "q": "Your broker can raise the margin on your open short whenever it wants, with no written notice first.",
    "answer": "True",
-   "why": "True. FINRA's margin disclosure says a broker can raise its own house maintenance requirement at any time, without advance written notice. It can also sell your securities without contacting you. Brokers must require substantially more margin on positions that swing unusually fast or violently. So in a squeeze, the margin bill can jump just as the loss grows.",
-   "lesson_line": "In a squeeze, the margin bill can jump without warning. Size the short so you can carry it.",
+   "why": "True. Your broker can raise its own house margin requirement at any time, and it doesn't owe you a written heads-up. It can even sell your positions without calling you. On stocks swinging fast and violently, brokers have to ask for a lot more. Now picture a short that's squeezing. The margin bill jumps right as your loss grows. That's one more reason your stop is in with the broker before it gets there.",
+   "lesson_line": "In a squeeze the margin bill can jump with no warning. Have your stop in before it does.",
    "facts": [
     "f63",
     "f61",
     "f12",
     "f62",
-    "f60"
+    "f60",
+    "h41"
    ],
-   "simple": "True. Your broker can raise its own margin requirement on your short at any time, and need not warn you in writing first.",
+   "simple": "True. Your broker can raise its own margin on your short at any time and doesn't have to warn you in writing.",
    "deeper": {
     "trap": "FINRA's 30% of value is only the floor. A broker can set a higher house requirement and raise it at any time, without notice, and wild movers must carry more. Don't size a short as if the requirement will stay where it is today."
    },
@@ -1506,15 +1527,15 @@
      "margin rule text can change (FINRA 2264 re-read live 2026-11-12)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "short.risk",
    "rung": 7,
    "format": "scenario",
-   "story": "You're short. The stock rips higher and trading is paused for five minutes. Your buy stop sits just above the last trade.",
-   "q": "If your stop triggers when trading resumes, where do you get filled?",
+   "story": "You're short. The stock rips higher and trading gets paused for five minutes. Your buy stop sits just above the last trade.",
+   "q": "Trading resumes and your stop triggers. Where do you get filled?",
    "choices": [
     "The next price after it resumes",
     "Exactly your stop price, no worse",
@@ -1522,8 +1543,8 @@
     "The pause's upper price limit"
    ],
    "answer": "The next price after it resumes",
-   "why": "The next price after it resumes, which can be far above your stop. A triggered buy stop becomes a market order, and the fill can land far from the stop price. Trading halts and pauses can leave a gap that jumps right over it. GameStop was paused 19 times on January 28, 2021 alone.",
-   "lesson_line": "Halts and gaps jump right over stop prices. In a squeeze, plan for a worse fill.",
+   "why": "Wherever it trades next, and that can be way over your stop. Once your buy stop triggers, it's a market order. It takes the next price, period. A pause is a gap waiting to happen. Orders stack up while it's frozen, and it can reopen right over your stop. GameStop got paused 19 times on January 28, 2021 alone. Short something that keeps getting paused and you don't pick your fill.",
+   "lesson_line": "Halts and gaps jump right over stop prices. Short a runner and plan for a worse fill.",
    "facts": [
     "f25",
     "f26",
@@ -1534,9 +1555,9 @@
     "f140"
    ],
    "wrong": {
-    "The last price before the pause": "That price is gone. Trading resumes wherever buyers and sellers meet, and your market order takes it.",
-    "Exactly your stop price, no worse": "The stop price is a trigger, not a promise. Once it triggers, the fill can land far from it.",
-    "The pause's upper price limit": "The pause stops trading for five minutes. It doesn't cap your fill. When trading resumes, your market order takes the next price."
+    "The last price before the pause": "That price is gone. It reopens wherever buyers and sellers meet, and your market order takes it.",
+    "Exactly your stop price, no worse": "The stop price is a trigger, not a promise. Once it fires, the fill can land far from it.",
+    "The pause's upper price limit": "The pause stops trading for five minutes. It doesn't cap your fill. Your market order takes the next price."
    },
    "simple": "At the next price that trades when it reopens, maybe far above your stop, since a triggered stop is a market order.",
    "deeper": {
@@ -1550,24 +1571,24 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "short.risk",
    "rung": 8,
    "format": "tf",
-   "q": "In GameStop's January 2021 run, buying to cover by short sellers drove most of the rise.",
+   "q": "GameStop's January 2021 run was driven mostly by short sellers buying to cover.",
    "answer": "False",
-   "why": "False. SEC staff found that buying by traders with large short positions was a small fraction of overall buy volume. Positive sentiment, not buying to cover, sustained the weeks-long rise. Covering likely helped in some short stretches. So a short squeeze did not appear to be the main driver.",
-   "lesson_line": "Short covering can add fuel. In GameStop, new buyers carried the move, and they're who you're short against.",
+   "why": "False. SEC staff went through the trade data. Buying by traders with big short positions was a small slice of all the buying. What kept the run going for weeks was positive sentiment, people who wanted in. Covering likely helped in some short bursts. It just wasn't the main engine. So on a short, the buyers you're up against may be believers, not just trapped shorts.",
+   "lesson_line": "Covering adds fuel. In GameStop, new buyers carried the move, and they're who you're short against.",
    "facts": [
     "f21",
     "f22",
     "f23",
     "f24"
    ],
-   "simple": "False. Buying by big short holders was a small part of all the buying, and upbeat buyers kept the run going.",
+   "simple": "False. Big short holders did only a small part of the buying, and upbeat buyers kept the run going.",
    "deeper": {
     "counter": "Covering did matter at times: SEC staff say it likely helped push the price up in some short stretches. But that buying was a small fraction of overall buy volume, and positive sentiment carried the weeks-long rise. On a short, the buyers you face may be believers, not just trapped shorts."
    },
@@ -1579,14 +1600,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
    "skill": "short.risk",
    "rung": 8,
    "format": "scenario",
-   "story": "Short interest in this stock topped its float. It just closed up more than 1,600% in about two weeks. You short this close with a buy stop 20% above.",
+   "story": "Short interest in this stock topped its float. It just closed up more than 1,600% in about two weeks. A trader shorts this close with a buy stop 20% above.",
    "q": "What happened next?",
    "choices": [
     "It fell over 86%, no new high first",
@@ -1609,8 +1630,8 @@
     "window": 120,
     "forward": 15
    },
-   "why": "Stopped out. The next day it hit $483.00, about 39% over the $347.51 close, so a stop 20% above was hit. Then it fell over 86% by the end of the first week of February. You were right on direction and still lost. That's GameStop, January 2021.",
-   "lesson_line": "Right on direction, still stopped out. On a crowded short, one more spike can take out a wide stop.",
+   "why": "Stopped out. The next day it ran to $483.00. That's $135.49 over the $347.51 close, about 39%, straight through a stop 20% above. Then it fell more than 86% by the end of the first week of February. Right on direction, still lost. That's GameStop, January 2021. And it isn't a short we'd take. We short as price trades down through a trigger, never on the close. A 20% stop is far wider than anything we'd risk.",
+   "lesson_line": "Right on direction, still stopped out. A crowded short has to roll over before I touch it.",
    "facts": [
     "f14",
     "f17",
@@ -1619,13 +1640,13 @@
     "f20"
    ],
    "wrong": {
-    "It fell over 86%, no new high first": "It did fall over 86%, but not before a new high. The next day it traded about 39% above this close, through a 20% stop.",
+    "It fell over 86%, no new high first": "It did fall over 86%, but not before one more high. The next day it traded about 39% over this close.",
     "It kept squeezing higher for weeks": "No. After the next day's spike it fell over 86% by the end of the first week of February.",
-    "A small new high, stop not hit": "The new high wasn't small. At $483.00 it was about 39% over the $347.51 close, past a stop 20% above."
+    "A small new high, stop not hit": "Nothing small about it. $483.00 was about 39% over the $347.51 close, well past a stop 20% above."
    },
-   "simple": "You were stopped out. The next day it spiked about 39% over that close, past your 20% stop, before it fell hard.",
+   "simple": "Stopped out. It spiked about 39% over that close the next day, through the 20% stop, then fell hard.",
    "deeper": {
-    "trap": "Short interest above the float and a run of more than 1,600% look like a top. The top came, but only after one more spike. A stop 20% above the close was not wide enough, and a wider stop means a much smaller position. On a crowded short, being early can cost as much as being wrong."
+    "trap": "Short interest above the float and a run of more than 1,600% look like a top. The top came, but only after one more spike. No stop we'd accept survives a spike like that, so the fix isn't a wider stop. It's waiting for the stock to roll over and trade down through a trigger."
    },
    "tier": "expert",
    "risk": {
@@ -1636,14 +1657,14 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "short.risk",
    "rung": 8,
    "format": "mcq",
-   "q": "You short at the $19.95 close on January 12, 2021. It closes at $347.51 on January 27. What's your loss on the move, as a % of the sale?",
+   "q": "A fund shorted GME at the $19.95 close on Jan 12, 2021. On Jan 27 it closed at $347.51. What's the loss, as a % of the sale?",
    "answer": "1,642%",
    "calc": {
     "fn": "pct_change",
@@ -1654,17 +1675,18 @@
     "round": 0
    },
    "suffix": "%",
-   "why": "1,642%. The loss is the rise from $19.95 to $347.51, as a share of the $19.95 sale price. A stock can only drop to zero, so a long loses at most 100% of its cost. A short has no such limit. This short, GameStop in January 2021, lost many times what it sold for.",
-   "lesson_line": "There's no ceiling on a short's loss. A long can lose at most what it cost.",
+   "why": "1,642%. The stock rose $327.56, from $19.95 to $347.51. Divide that by the $19.95 sale price and you get 1,642%. A long can lose 100% at most, because a stock can only go to zero. A short has no ceiling at all. This one lost more than sixteen times what the sale brought in. So your buy stop goes in with the broker the second you're filled, not once it starts running.",
+   "lesson_line": "No ceiling on a short's loss. A long can only lose what it cost.",
    "facts": [
     "f16",
     "f17",
     "f70",
     "f81",
     "f02",
-    "f14"
+    "f14",
+    "h41"
    ],
-   "simple": "1,642%. The stock rose from $19.95 to $347.51, so the short lost many times what it sold for.",
+   "simple": "1,642%. It went from $19.95 to $347.51, so the short lost many times what the sale brought in.",
    "deeper": {
     "example": "Flip it around. A long bought at the $347.51 close on January 27 could lose at most 100% of its cost. A short sold at $19.95 about two weeks earlier lost 1,642% of its sale price on the close to close move. The two sides are not mirror risks."
    },
@@ -1677,7 +1699,7 @@
      "fixed before"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "1,642%",
     "94%",
@@ -1685,9 +1707,9 @@
     "328%"
    ],
    "wrong": {
-    "94%": "Divided the rise by the $347.51 close. Divide by the $19.95 sale price.",
-    "164%": "A decimal slip: ten times too small.",
-    "328%": "Gave the dollar rise as a percent. Divide it by the $19.95 sale price first."
+    "94%": "You divided the rise by the $347.51 close. Divide by the $19.95 sale price.",
+    "164%": "Decimal slip, ten times too small.",
+    "328%": "You gave the dollar rise as a percent. Divide it by the $19.95 sale price first."
    }
   },
   {
@@ -1740,15 +1762,15 @@
    "rung": 9,
    "format": "scenario",
    "story": "A stock is up 300% in a month. Short interest is 40% of the float. It's still making higher highs every day.",
-   "q": "You want to short it. What's the better plan?",
+   "q": "You want to short it. What's the plan?",
    "choices": [
-    "Short now; it's gone too far",
+    "Short now, it's gone too far",
     "Short now, add if it goes higher",
     "Short it once it rolls over",
     "Short it with the 40% crowd"
    ],
    "answer": "Short it once it rolls over",
-   "why": "Short it once it rolls over. Rising prices can force shorts to cover, and their buying can push the price higher still. Schwab's short signal is a stock that bounces and starts losing steam. Experienced short sellers may also wait for the market or sector to roll over. A squeeze won't last forever, and when new buyers run out the stock can fall fast.",
+   "why": "Wait for it to roll over. Too far can always go further. Every short who covers is another buyer, and that buying can squeeze out the next one. So you don't step in front of higher highs. If it's above its 200-day, the only short we take there is a parabolic one, and even that waits for the turn. Short it as it trades down through a trigger, with the stop over the high. When new buyers run out, a squeezed stock can fall fast.",
    "lesson_line": "Too high isn't a short signal. Short the break, not the strength.",
    "facts": [
     "f130",
@@ -1757,14 +1779,16 @@
     "f04",
     "f84",
     "f83",
-    "f111"
+    "f111",
+    "h26",
+    "h62"
    ],
    "wrong": {
-    "Short now; it's gone too far": "Too far can get much further. Each short who covers is another buyer pushing it up.",
-    "Short now, add if it goes higher": "That's adding to a loser on the side with no ceiling. Each add raises your risk into a squeeze.",
-    "Short it with the 40% crowd": "Heavy short interest means many expect a fall, not that it will fall. Each short who covers is one more buyer."
+    "Short now, add if it goes higher": "That's adding to a loser on the side with no ceiling. Each add is more risk into a squeeze.",
+    "Short it with the 40% crowd": "40% short means lots of people expect a drop, not that it'll drop. Each one who covers is another buyer.",
+    "Short now, it's gone too far": "Too far can get a lot further. Every short who covers is one more buyer pushing it up."
    },
-   "simple": "Short it once it rolls over, because rising prices can force shorts to buy, pushing a crowded stock much higher.",
+   "simple": "Wait for it to roll over. Rising prices force shorts to buy, which can push a crowded stock much higher.",
    "deeper": {
     "trap": "Shorting strength feels smart because the move looks absurd. But each short who covers is a buyer, which can force other shorts out and push the price higher still. The better short waits until the stock loses steam and turns down, when new buyers start to run out."
    },
@@ -1776,7 +1800,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
@@ -1784,11 +1808,11 @@
    "rung": 9,
    "format": "tf",
    "house": true,
-   "q": "Under our rules, heavy short interest is a reason to cut a short's size.",
+   "q": "We size a short down just because its short interest is high.",
    "answer": "False",
-   "why": "False. We have no short-interest rule. Shorts are our long setups reversed, so the size comes from the stop and the grade. Then the position cap applies, because a gap can jump the stop.",
-   "simple": "False. The stop and the grade set our size, then the position cap limits it, whatever the short interest.",
-   "lesson_line": "Short interest sets no size rule for us. The stop, the grade and the cap do.",
+   "why": "False. We don't have a short-interest rule. A short is one of our long setups flipped, so it gets sized the same way. The stop sets the risk per share, and the grade sets how much I put at risk. Then the position cap. A gap can jump the stop, so a tight stop never earns a monster position. Short interest doesn't move any of that.",
+   "simple": "False. The stop and the grade set our size, and the position cap limits it, whatever the short interest.",
+   "lesson_line": "Short interest sets no size for us. The stop, the grade and the cap do.",
    "deeper": {
     "counter": "A buy stop can lock in big losses if the price gaps up. Our rules meet that risk with the position cap, not a short-interest rule. A tight stop never justifies a bigger position."
    },
@@ -1809,7 +1833,7 @@
      "new in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q26",
@@ -1817,22 +1841,22 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "A stock at $48 has climbed slowly for months, with no parabolic burst. Its 200-day average is $41. Today it breaks a short-term low on heavy volume.",
-   "q": "What's the call, by our rules?",
+   "story": "A stock at $48 has climbed slowly for months, with no parabolic burst. Its 200-day is at $41. Today it breaks a short-term low on heavy volume.",
+   "q": "It looks weak today. Do you short the break?",
    "choices": [
-    "Pass: no short above the 200-day",
-    "Pass: await a second down day",
-    "Short the break, with a stop",
+    "Pass, it's above the 200-day",
+    "Pass, wait for a second down day",
+    "Short the break, stop over the high",
     "Short it, at half size"
    ],
-   "answer": "Pass: no short above the 200-day",
-   "why": "Pass: no short above the 200-day. At $48 the stock sits above its $41 200-day. Our rule allows shorts only below the 200-day line. Above it, only a parabolic short qualifies, and this isn't one.",
-   "simple": "Pass. $48 is above the $41 200-day, and we short only below it unless it's a parabolic short.",
-   "lesson_line": "We short only below the 200-day line. Above it, only a parabolic short qualifies.",
+   "answer": "Pass, it's above the 200-day",
+   "why": "Pass. $48 is above the $41 200-day, and we don't short stocks above the 200-day. The one exception is a parabolic short, a stock that's gone vertical, and this one is just grinding up. A slow climber over its 200-day is an uptrend. Shorting its first crack is fighting the trend. If it ever loses the 200-day and sets up weak, then it's on the short list.",
+   "simple": "Pass. $48 is above the $41 200-day, and we only short below it unless it's a parabolic short.",
+   "lesson_line": "We short below the 200-day. Above it, only a parabolic short, and this isn't one.",
    "wrong": {
-    "Pass: await a second down day": "A second down day changes nothing. The stock is still above its 200-day, so it isn't a short for us.",
-    "Short the break, with a stop": "Good mechanics, wrong stock. Our rule allows shorts only below the 200-day, unless it's a parabolic short.",
-    "Short it, at half size": "A smaller size doesn't fix it. Above the 200-day, our rule allows no short unless it's parabolic."
+    "Short it, at half size": "Smaller size doesn't fix the wrong stock. Above the 200-day we pass unless it's parabolic.",
+    "Pass, wait for a second down day": "Another down day changes nothing. It's still above its 200-day, so it isn't a short for us.",
+    "Short the break, stop over the high": "Good mechanics, wrong stock. We don't short above the 200-day unless it's a parabolic short."
    },
    "facts": [
     "h26"
@@ -1845,7 +1869,7 @@
      "new in wave6"
     ]
    },
-   "batch": "polish"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q27",
@@ -1853,14 +1877,15 @@
    "rung": 6,
    "format": "tf",
    "house": true,
-   "q": "Under our rules, you skip a short when the stock is hard to borrow, even if the setup looks good.",
+   "q": "A clean short setup on a stock that's hard to borrow is a pass for us.",
    "answer": "True",
-   "why": "True. Our rule skips a short when the stock is hard to borrow or the borrow fee is high. The SEC names trouble borrowing as one cause of a squeeze.",
-   "simple": "True. We skip hard-to-borrow shorts, and trouble borrowing can itself push shorts to buy back.",
-   "lesson_line": "Hard to borrow, or a high borrow fee: skip the short.",
+   "why": "True. Hard to borrow, or a fat borrow fee, and we pass. The SEC names trouble borrowing as one of the things that sets off a squeeze. And your broker may close a short at any time, whatever it's doing for you. So you could be right on the chart and still get pulled out. A good setup on a stock you can't hold isn't a good trade. There are always other shorts.",
+   "simple": "True. Trouble borrowing can set off a squeeze, and your broker can close the short, so we skip it.",
+   "lesson_line": "Hard to borrow, or a high borrow fee: skip the short. There's always another one.",
    "facts": [
     "h48",
-    "f03"
+    "f03",
+    "f98"
    ],
    "tier": "extended",
    "risk": {
@@ -1870,7 +1895,7 @@
      "new in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1914,21 +1939,21 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Live-squeeze stem, plain choices, wrong notes name the mistake. f03/f04/f11/f110 hold."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "One plain claim on a real-sized sale; doubling worked out. f02/f81/f125/f126, h41 stop line correct."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from f50/f51/f55: above the price, as a buy stop. Matches. Choices 29-31 chars, key not longest. The mental-stop distractor is wrong under D41 (h41 quote verified in sizing_rule.md section 9) and its wrong note says so as our rule; the key itself rests on Tier 1 (f50, f51). No second defensible answer: a mental stop is not a protective stop order."
+   "notes": "Stem at the fill, mirror of the long stop, mental stop named as the mistake (h41). f50/f51/f54/f55 hold."
   },
   "q04": {
    "status": "cut",
@@ -1938,111 +1963,111 @@
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Why said 'every short in it needs about nine days', which reads as each short needing nine days. Days to cover is all shorts together against the stock's whole average volume (f40). Reworded so the number is right and the crowded-exit point stays."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "simple matches f41 (7th business day after the settlement date) and f30/f31 (snapshot). No number outside a quote."
+   "notes": "Plain claim, False from f30/f31; schedule from f41/f42 (15th, 7th business day) correct; check-the-date how."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "why matches f15 ('successive purchasers' = later buyers) and f14 (122.97%, January 2021). GameStop naming before q21's chart was accepted by the resolver; q07 gives no hint of what happened after January 27."
+   "notes": "True from f15; 122.97% from f14. Lend-sell-lend chain is plain."
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Gap-up fill from f52/f53/f71/f72/f145. Last line lands it."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "short interest and ADV; num unit days; key '8 days'"
+   "notes": "6,000,000 / 750,000 = 8. Distractors recomputed: 0.125 shown as 0.1 (flipped), 5.25M as a subtraction slip in millions, 80 (x10)."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Cold answer: just over the $84 high (only choice above the price; mirror of F62 via D47). The added words 'by our rules' create a mismatch. F62/A3 put our stop a few cents past the DAY'S low (or prior day's low), so the mirror is a few cents over the day's high. The story's $84 is only a multi-day bounce high, and on the break below $80 the day's high is unknown and could be lower. The old why and simple then claim 'our rule puts it a few cents past' the bounce high, which the rulebook does not say. Fix: make $84 today's high in the story, so the house rule and the key agree, and say 'day's hi"
+   "fixed": false,
+   "notes": "Entry through $80 matches the short-entry ruling; stop a few cents over today's $84 high mirrors h62/D47. $4 risk = 5% of $80, inside the 5% edge, 'wide side' honest. Schwab dropped from the why."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 133.33 -> 133. Choices real (7 = 200/30, 400 = 200/0.5, 1,333 slip). Why skipped the dollars-at-risk step; added."
+   "fixed": false,
+   "notes": "0.5% of 40,000 = 200; 31.50-30.00 = 1.50; 200/1.50 = 133.33 -> 133. 1.50/30 = 5%, the widest accepted (D-005). Steps shown."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "Risk 2.00, gain 5.00, 2.5R. Wrong notes recomputed: 3.5R = 7/2 from the stop, 7.0R undivided, 5.0R the dollar gain."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Own answer: B. 6M short against a 20M float, compared with 40M against a 2B float (f92 judge it as a ratio, f97 percent of float is the better gauge, f91 big companies have more shares short just from size). The key matches. Choices are 23-26 chars, and the key is not the longest. 'Unclear without the prices' is a real misunderstanding, and its wrong note is correct, since price does not change the ratio. No volume is given, so a days-to-cover reading is not offered as a choice. why and simple use only the question's numbers. Defect: the file still carries \"calc\": {}. The previous checker said"
+   "notes": "Right answer, but the why called the slices 'a big chunk' and 'a sliver' without saying how big. Added the plain size of each slice in words (6M of 20M is nearly a third; 40M of 2B is a sliver), no new digits. Rule 7 handled: no fake tickers."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "(29-25) x 400 = 1,600; planned 1 x 400 = 400, four times that. 'A tight stop never earns you a bigger position' is his h07 line. Wrong notes recomputed (11,600 = 29 x 400; 2,000 = 1,600 + 400)."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "shares, both prices and both FINRA tests as stated; 'Rise in the minimum'; key '$6,000'"
+   "fixed": true,
+   "notes": "Math right (30% beats $5 at both prices: 6,000 at $20, 12,000 at $40, rise 6,000). Stem read like a telegram ('FINRA's floor: ... It runs $20 to $40'). Rewritten as a short you're in."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: short volume isn't short interest (f32, f33, f34). Key matches. Choices 30-33, key ties longest with a distractor. Wrong notes rest on f32, f31, f34. No longer answers q17 (f111 dropped). q04's why teaches the same distinction first; that is teaching before testing, not a giveaway of a different question's key."
+   "notes": "Friend-text stem is real; f32/f33/f34 hold. 48% vs half the float is the named mistake."
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Chat stem, chart narrated (lower lows on rising volume, f77), 'I'd let the chart prove it' is his register. f111/f112/f96/f05 hold."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "simple matches f63 ('is not required to provide you advance written notice')."
+   "notes": "True from f63; f61/f62 hold. Squeeze picture ties it to the stop."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: the next price once trading resumes (f71 next available price, f52, f140 gaps during pauses and halts). Key matches; hedge removed; choices 29-33, key not longest. The key echoes 'resumes' from the stem, but the distractor 'The last price before the pause' mirrors it, so it is not a lone tell. Wrong notes rest on f25 (five minutes), f52. '19 times on January 28, 2021' from f26."
+   "notes": "Pause mechanics f25; 19 pauses on Jan 28 f26; 40 vs one f27 in deeper. Fill at next price f52/f71."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "simple matches f21 (small fraction of overall buy volume) and f22 (positive sentiment sustained the rise)."
+   "notes": "False keyed on the SEC staff report (f21/f22/f23/f24), conflict with Tier 2 pages recorded. Believers-not-trapped-shorts line is a useful takeaway."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: stopped out. Stop = 347.51 x 1.2 = 417.01; f18 intraday high $483.00 > 417.01; calc pct_change 347.51 to 483.00 = 39%. Key matches. Choices 30-35, key not longest, a distractor now also carries a quoted figure (86% from f20), so the key is no longer the lone number. '1,600%' and 'topped its float' from f17 and f14/f15. Ticker and date not named in story or q."
+   "notes": "Truth catch confirmed fixed: a third-party trader takes the close short, why states our entry through a trigger never on the close (SHORT-ENTRY ruling) and that 20% is far past our 5%. 483.00 - 347.51 = 135.49, /347.51 = 39%; stop at 417.01 hit. Deeper no longer offers a wider stop as the fix."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "fixed": true,
+   "notes": "Numbers right (327.56 / 19.95 = 1,642%; 16.4x the sale). A fund, not 'you', takes the close short, so no ruling is broken. Only change: the closing line repeated q02's word for word, so it now says when and where the stop goes."
   },
   "q23": {
    "status": "cut",
@@ -2054,26 +2079,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: wait for it to roll over (f78 losing steam, f130 wait for the roll over, f13/f04 covering pushes the price up). Key matches. Choices 27-32, key not longest; three distractors short into strength or with the crowd, each a real error with a sourced wrong note. Consistent with B26: a stock up 300% in a month sits above its 200-day, where only a parabolic short is ours, and the owner flag on the Bracco cross-check stays. No conflict with q26 (q26's stock is stated as not parabolic)."
+   "notes": "Agrees: adding to a losing short is adding to a loser. Answer clear. Voice 4."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from E55 ('No short-interest rule.'), D38 (grades set the size), A5 (size from the stop, then capped): False. Key matches. All h-quotes verified verbatim in sizing_rule.md section 9 (h05 and h07 span a line break). deeper.counter rests on f72 and h07. Lesson-level note, not this question's defect: the unit's 'teaches' line still says a short's 'size comes down', which q25 now contradicts; that is in owner_flags and must be settled before release."
+   "notes": "E55 no short-interest rule; size from stop, grade (h38) and the cap (h05/h07). Matches q23 staying cut."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold answer from h26 (B26, a hard rule): pass, no short above the 200-day unless parabolic. Story states $48 vs a $41 200-day and 'no parabolic burst', so the parabolic exception is closed. The added 'by our rules' is correct here (house: true, rule is owner-ruled and hardened). No second defensible answer: 'wait for a second down day' and 'half size' still short above the 200-day. Choices 32-35 chars, answer not the longest, two Pass vs two Short (no lone-kind tell). why grounded in h26, sentences short, no em dash. simple follows the lesson's 'Pass. ...' convention, 19 words, no semicolon/br",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "B26 hard rule applied cleanly: $48 over a $41 200-day, not parabolic, so pass. Each wrong choice is a named mistake."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from D48 (h48, verbatim): True. Key matches. f03 (SEC) supports 'difficulty in borrowing' as a squeeze cause. Keeps True/False balance with q25."
+   "notes": "D48 pass on hard to borrow; f03 and f98 give the reason. 'There are always other shorts' fits his voice."
   }
  }
 }

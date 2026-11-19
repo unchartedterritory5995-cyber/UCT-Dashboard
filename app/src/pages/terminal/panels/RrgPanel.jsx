@@ -13,7 +13,7 @@
 // ⛔ The RS-Ratio / RS-Momentum formula is UCT's stated approximation (relativeMath.RRG_METHOD),
 // printed under the chart. JdK's own formula is proprietary; the panel never claims to be it.
 import { useEffect, useMemo } from 'react'
-import { PanelSkeleton, PanelState, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, WatchMark, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import { formatNumber, formatPercent } from '../../../lib/presentation/presentationPrimitives'
 import useCloses, { closesProvenance, failedText, formingThrough } from './useCloses'
 import WarmingState from './WarmingState'
@@ -150,6 +150,7 @@ export default function RrgPanel({ sym, tf, onRun, onRows, ...props }) {
                     title={`Load ${r.sym} into the linked panels`}>
                     <span className={styles.rowNum}>{i + 1}</span>
                     <span className={styles.symCell}>{r.sym}</span>
+                    <WatchMark sym={r.sym} overlay={!r.name} />
                     {r.name ? <span className={styles.muted}> {r.name}</span> : null}
                   </button>
                 </td>

@@ -49,7 +49,8 @@
     "app/src/pages/terminal/panels/BreakoutPanel.jsx",
     "app/src/pages/terminal/panels/LongRunPanel.jsx",
     "app/src/pages/terminal/panels/MoversPanel.jsx",
-    "app/src/pages/terminal/panels/RsScreensPanel.jsx"
+    "app/src/pages/terminal/panels/RsScreensPanel.jsx",
+    "app/src/pages/terminal/panels/UnusualVolumePanel.jsx"
   ],
   "coverage_line_exempt": {
     "app/src/components/screener/MethodologyPanel.jsx": "not-a-result-set: renders the screener's methodology prose from /api/screener/methodology; nothing is evaluated, so there is nothing to count",
@@ -60,7 +61,9 @@
     "app/src/pages/screener/ScreensManager.jsx": "delegates: its own door lists saved screens and screen alerts; the chosen scan's answer is rendered by app/src/components/screener/ScanResults.jsx, which renders its four counts",
     "app/src/pages/screener/focus/FocusScreener.jsx": "delegates: the Focus layout's scan result carries its four counts into app/src/pages/screener/focus/DataReceipt.jsx (the top bar's data receipt), which renders them through <CoverageLine>",
     "app/src/pages/screener/focus/FocusStates.jsx": "not-a-result-set: the empty state shows, for each remove-one pill, the COUNT that removal would bring back from /api/screener/count/batch; it lists no symbols, and the screen it returns to carries its receipt through DataReceipt.jsx",
+    "app/src/pages/screener/focus/ResultList.jsx": "delegates: draws the rows of FocusScreener's page-1 answer (`listed`), whose four counts app/src/pages/screener/focus/DataReceipt.jsx renders through <CoverageLine> in the top bar of the same screen; its own door, /api/screener/sparks via useSparks, draws 3-month price lines for rows already listed and evaluates no screen",
     "app/src/pages/screener/focus/ScreenMenu.jsx": "not-a-result-set: the screen picker shows each preset's match COUNT from /api/screener/count[/batch] to help choose a screen; it lists no symbols, and the chosen screen's rows carry their receipt through DataReceipt.jsx",
+    "app/src/pages/screener/focus/WhyNotHere.jsx": "not-a-result-set: checks ONE ticker the member types against the open screen's rules (/api/screener/row/{ticker}, each rule passes, misses or is 'not checked') and, on a ranked list, COUNTS the qualifiers ahead of it (/api/screener/count); it lists no screen answer",
     "app/src/pages/screener/shell/PresetChips.jsx": "not-a-result-set: one-click saved-screen presets via useSavedScreens; it applies a spec and lists no results",
     "app/src/pages/screener/shell/ResultCards.jsx": "not-a-result-set: reaches /api/screener/saved-screens only through useScreenSpec's savedScreen= door (build D, 2026-09-30), which loads a saved SPEC to apply, never a result set; the screener's results carry their own CoverageLine",
     "app/src/pages/screener/shell/SaveScanButton.jsx": "not-a-result-set: saves the current screen spec via useSavedScreens; it lists no results"

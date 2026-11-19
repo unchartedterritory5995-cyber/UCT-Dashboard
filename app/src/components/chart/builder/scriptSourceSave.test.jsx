@@ -15,7 +15,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
-import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from './builderStart.testkit.js'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'

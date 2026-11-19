@@ -226,6 +226,26 @@ def scan_transcript(symbol: str, transcript: dict, subs: dict[str, list[str]],
     return fired
 
 
+def default_since(today) -> str:
+    """The first call date a check reads: TWO BUSINESS DAYS before `today`, as an ISO date.
+
+    The check runs at 18:30 ET on weekdays and the index fills at 20:45 ET, so a call held after
+    the close is indexed the same NIGHT and first seen by the NEXT check. With the old window
+    ("yesterday or later") Monday's check started on Sunday and skipped every Friday call, and
+    a transcript published a day late was skipped on any day. Two business days back reaches
+    Thursday from a Monday and catches a transcript that is one business day late.
+
+    The wider window cannot repeat an alert: `try_record_fire` on (user, keyword, symbol,
+    quarter) is what stops a re-scan from re-alerting."""
+    import datetime
+    day, left = today, 2
+    while left:
+        day -= datetime.timedelta(days=1)
+        if day.weekday() < 5:
+            left -= 1
+    return day.isoformat()
+
+
 def run_scan_via_index(since: str = None, deliver=None, index=None,
                        subs: dict = None) -> dict:
     """Scan the WHOLE indexed corpus for every subscribed keyword.
@@ -267,10 +287,10 @@ def run_scan_via_index(since: str = None, deliver=None, index=None,
 
     if since is None:
         import datetime
-        # A day back, not "today": a call at 16:30 ET publishes its transcript
-        # ~2h later, and a same-day-only window would miss every one of them on
-        # the run that matters most.
-        since = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        # Two business days back, not "today" and not "yesterday": a call at 16:30 ET
+        # publishes its transcript ~2h later, so it is first seen by the NEXT check, and
+        # for a Friday call that check is Monday's (see default_since).
+        since = default_since(datetime.date.today())
 
     fired = 0
     scanned = 0

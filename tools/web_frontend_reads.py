@@ -67,6 +67,8 @@ DECLARED_READS = {
     "app/src/components/chart/supportLoop/pineBuiltins.json": "api/services/indicator_support.py",
     "app/src/components/chart/supportLoop/doorNameCoverage.json": "api/services/indicator_support_loop.py",
     "app/src/components/chart/engine/scriptEngineVersion.js": "api/services/user_definitions.py: SCRIPT_ENGINE_VERSION",
+    "app/src/components/chart/engine/hostKnownDivergence.json": "api/services/host_known_divergence.py: the host lane's known-divergence list (save, served rows, server lanes)",
+    "app/src/components/chart/engine/pineCompare.js": "api/services/pine_compare.py: PINE_EQ_EPSILON / PINE_EQ_INCLUSIVE, Pine's float comparison (unreadable = the import fails)",
 }
 
 #: JavaScript `web` runs under node. Each entry is needed together with everything it imports.

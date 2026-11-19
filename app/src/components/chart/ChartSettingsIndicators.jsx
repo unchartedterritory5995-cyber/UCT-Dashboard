@@ -56,6 +56,7 @@ import {
   fieldsForInstance, sectionize, initialCollapsed, evalActiveWhen,
   visiblePresets, isPlotHidden, textInputCommit, textInputDraft,
 } from './indicatorRegistry'
+import { plotTitlesOf } from './engine/pinePresentation.js'
 // ⭐ UCT RS Phase 3, unit 3-02b — what the LIVE server row declares, read the way
 // the settings dialog and the phone sheet read it (3-02), so a `requiresServer`
 // control, option or preset stays hidden here too until the server can answer it.
@@ -401,6 +402,8 @@ export default function ChartSettingsIndicators({
   // Click a tab WHILE searching and it narrows, and stays narrowed until the box
   // is cleared. One flag, three behaviours, no hidden mode.
   const [tabPinned, setTabPinned] = useState(false)
+  // ⭐ how many UCT house indicators match a search across every tab (the UCT set is its own file)
+  const [houseMatchCount, setHouseMatchCount] = useState(0)
   // ⛔ SEEDED FROM `openRowId`, AND `useState`'s INITIALISER IS THE WHOLE POINT.
   // The modal is unmounted when closed (`if (!open) return null`), so this
   // component is fresh on every open and the initial value IS the deep link. An
@@ -2240,11 +2243,24 @@ export default function ChartSettingsIndicators({
     })
   }, [settings, registry])
 
-  const partitionFields = useCallback((row, def) => {
+  const partitionFields = useCallback((row, def, model = null) => {
     const styleKeys = def ? styleInputKeys(def) : null
-    const isLook = (f) => f.appearance === true
-      || f.type === 'color'
-      || !!(styleKeys && styleKeys.has(f.key))
+    // ⭐⭐ ONE FORM MODEL (2026-11-17). Where the per-instance model answers (`fieldsForInstance`: the
+    // legend dialog's, the phone sheet's, and the one `pinePresentation.test.js` holds to TradingView's
+    // Inputs tab), ITS split is this split: a field it puts on Inputs is CORE here, one it puts on
+    // Style is APPEARANCE. ⚰️ This modal sorted every colour to Appearance on its own rule, so RS
+    // Rating's seven script colours (the five "Color" rows, Positive / Negative Area) left their
+    // groups for one flat list, where TradingView shows them inline in Inputs. The house rule below
+    // stays only for a field the model does not hold (a fixture row, a legacy overlay's placeholder).
+    const modelInputs = model ? new Set((model.inputs || []).map((f) => f.key)) : null
+    const modelStyle = model ? new Set((model.style || []).map((f) => f.key)) : null
+    const isLook = (f) => {
+      if (modelStyle && modelStyle.has(f.key)) return true
+      if (modelInputs && modelInputs.has(f.key)) return false
+      return f.appearance === true
+        || f.type === 'color'
+        || !!(styleKeys && styleKeys.has(f.key))
+    }
     // ⭐⭐ A SIGN-COLOURED HISTOGRAM HAS NO SINGLE COLOUR, so its declared `color`
     // control is a box nothing reads: `presentedPlot` stamps `colorMode: 'sign'`
     // and the renderer paints per point from the Up/Down pair. Offering it beside
@@ -2871,11 +2887,19 @@ export default function ChartSettingsIndicators({
         }
       })()
       : row
-    const parts = partitionFields(gatedRow, def)
+    const parts = partitionFields(gatedRow, def, instModel)
+    // ⭐ the model's `inline` and Pine `tooltip` ride too (they were dropped: a Pine document declares
+    // its tooltips in the script, which only the model reads)
     const withMeta = (f) => {
       const m = declaredMeta && declaredMeta.get(f.key)
-      if (!m || (!m.group && !m.activeWhen)) return f
-      return { ...f, group: m.group, activeWhen: m.activeWhen }
+      if (!m || (!m.group && !m.activeWhen && !m.inline && !m.tooltip)) return f
+      return {
+        ...f,
+        group: m.group,
+        activeWhen: m.activeWhen,
+        ...(m.inline && !f.inline ? { inline: m.inline } : {}),
+        ...(m.tooltip && !f.tooltip ? { tooltip: m.tooltip } : {}),
+      }
     }
     const core = parts.core.map(withMeta)
     const look = parts.look.map(withMeta)
@@ -3274,11 +3298,24 @@ export default function ChartSettingsIndicators({
     // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,
     // inside a panel already titled `QQQ`, is furniture.
     const single = restyleable.length === 1
+    // ⭐⭐ A PLOT IS NAMED AS THE FORM NAMES ITS COLOUR AND WIDTH (`plotTitlesOf`): its title, else the
+    // group of the script colour it draws in, else TradingView's `Plot`. ⚰️ It printed the column key,
+    // so RS Rating's untitled MA plots read "out2 style". Two plots sharing a name are told apart by
+    // their position in the accessible name only, where a screen reader needs it.
+    const titles = plotTitlesOf(def)
+    const nameOf = (plot) => titles.get(plot.key) || plot.label || 'Plot'
+    const seenName = new Map()
+    const spoken = new Map(restyleable.map((plot) => {
+      const n = nameOf(plot)
+      const k = (seenName.get(n) || 0) + 1
+      seenName.set(n, k)
+      return [plot.key, k > 1 ? `${n} ${k}` : n]
+    }))
 
     const rows = restyleable.map((plot) => {
       const style = resolvePlotStyle(inst, plot, styleCtx)
       const choices = availableStyles(plot, styleCtx)
-      const label = single ? 'Plot style' : `${plot.label || plot.key} style`
+      const label = single ? 'Plot style' : `${nameOf(plot)} style`
       return (
         <div className={styles.insField} data-field={`__style__:${plot.key}`} data-measure="medium"
           key={`style-${plot.key}`}>
@@ -3287,7 +3324,7 @@ export default function ChartSettingsIndicators({
             <select
               className={styles.indSelect}
               value={style}
-              aria-label={`${row.label} ${single ? 'plot style' : `${plot.key} plot style`}`}
+              aria-label={`${row.label} ${single ? 'plot style' : `${spoken.get(plot.key)} plot style`}`}
               onChange={(e) => {
                 const next = setInstancePlotStyle(
                   settings, row.instanceId, e.target.value, registry,
@@ -3706,7 +3743,9 @@ export default function ChartSettingsIndicators({
            be. `title` on the row rather than on the name, so the whole row is the
            hover target for it. */
         title={row.description || undefined}
-        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
+        /* ⭐ A MEMBER'S OWN ROW PUTS ITS DOORS ON A SECOND LINE (`resRowOwn`): five of them on the
+           name's line left the name no room (seen on production, 2026-11-17). */
+        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''} ${row.userDefined && definitionDoors ? styles.resRowOwn : ''}`}
         onClick={() => { if (canAct) addRow(row) }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
@@ -4048,7 +4087,8 @@ export default function ChartSettingsIndicators({
             onPutOnChart={putInstalledOnChart}
           />
         )}
-        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0
+          && !(activeTab === null && query.trim() && houseMatchCount > 0) && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -4093,6 +4133,19 @@ export default function ChartSettingsIndicators({
             <div className={styles.insSectionLabel}>{SYMBOL_CATEGORY}</div>
             <div className={styles.insSearching}>Searching symbols…</div>
           </section>
+        )}
+        {/* ⭐ A SEARCH ACROSS EVERY TAB REACHES THE UCT SET TOO (2026-11-18): "Fred" found nothing while
+            Fred RS sat in the UCT tab. Its matches lead the results, under their own heading. */}
+        {activeTab === null && query.trim() && (
+          <IndicatorHouseTab
+            styles={styles}
+            query={query}
+            searchOnly
+            onMatches={setHouseMatchCount}
+            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
         )}
         {groups.map((c) => (
           <section key={c} className={styles.insAddGroup}>

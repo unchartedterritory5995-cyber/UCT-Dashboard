@@ -1,0 +1,860 @@
+{
+ "schema": "uct.pine-compare-vectors/v1",
+ "readme": "TradingView's own readings of Pine's six comparison operators on literal pairs (series operands), from the committed probe captures (each row checked against its capture by app/src/components/chart/engine/pineCompareProvenance.test.js): Q-FCMP (docs/pine/capture-queue-2026-11-18-float-compare.md) and Q-FCMP2 (docs/pine/capture-queue-2026-11-18-float-tolerance-form.md). `code` = 1*(a==b) + 2*(a!=b) + 4*(a<b) + 8*(a<=b) + 16*(a>b) + 32*(a>=b); `eq` = 1 when a == b. `null` is na. Read by BOTH app/src/components/chart/engine/pineCompare.test.js and tests/test_pine_compare.py: one table, two implementations. Literals are stored as the doubles TradingView parsed (JSON round-trips a double).",
+ "vectors": [
+  {
+   "id": "Q-FCMP F01/F02 (0.1+0.2) vs 0.3",
+   "a": 0.30000000000000004,
+   "b": 0.3,
+   "eq": 1,
+   "capture": "vw-float-compare-tolerance-spy-1d-2026-11-18"
+  },
+  {
+   "id": "Q-FCMP F03/F04 1+3e-14 vs 1",
+   "a": 1.00000000000003,
+   "b": 1.0,
+   "eq": 1,
+   "capture": "vw-float-compare-tolerance-spy-1d-2026-11-18"
+  },
+  {
+   "id": "Q-FCMP F11/F12 tie literals",
+   "a": 0.09000000000000341,
+   "b": 0.08999999999997499,
+   "eq": 1,
+   "capture": "vw-float-compare-tolerance-spy-1d-2026-11-18"
+  },
+  {
+   "id": "Q-FCMP SPY bar 5333 up vs down (F05-F07)",
+   "a": 0.09000000000000341,
+   "b": 0.08999999999997499,
+   "code": 41,
+   "capture": "vw-float-compare-tolerance-spy-1d-2026-11-18"
+  },
+  {
+   "id": "Q-FCMP SPY bar 5453 up vs down (F05-F07)",
+   "a": 0.4300000000000068,
+   "b": 0.4299999999999784,
+   "code": 41,
+   "capture": "vw-float-compare-tolerance-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T01 ctl_eq",
+   "a": 1.0,
+   "b": 1.0,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T02 ctl_lt",
+   "a": 1.0,
+   "b": 2.0,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T03 ctl_gt",
+   "a": 2.0,
+   "b": 1.0,
+   "code": 50,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T04 center_1e-13",
+   "a": 1.0,
+   "b": 1.0000000000001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T05 center_1e-12",
+   "a": 1.0,
+   "b": 1.000000000001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T06 center_1e-11",
+   "a": 1.0,
+   "b": 1.00000000001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T07 center_1e-10",
+   "a": 1.0,
+   "b": 1.0000000001,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T08 center_3e-10",
+   "a": 1.0,
+   "b": 1.0000000003,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T09 center_4.9e-10",
+   "a": 1.0,
+   "b": 1.00000000049,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T10 center_5.1e-10",
+   "a": 1.0,
+   "b": 1.00000000051,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T11 center_9e-10",
+   "a": 1.0,
+   "b": 1.0000000009,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T12 center_1.4e-9",
+   "a": 1.0,
+   "b": 1.0000000014,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T13 center_1e-8",
+   "a": 1.0,
+   "b": 1.00000001,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T14 edge_0491",
+   "a": 1.00000000049,
+   "b": 1.000000000491,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T15 edge_0495",
+   "a": 1.00000000049,
+   "b": 1.000000000495,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T16 edge_0499",
+   "a": 1.00000000049,
+   "b": 1.000000000499,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T17 edge_0501",
+   "a": 1.00000000049,
+   "b": 1.000000000501,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T18 edge_051",
+   "a": 1.00000000049,
+   "b": 1.00000000051,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T19 edge_059",
+   "a": 1.00000000049,
+   "b": 1.00000000059,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T20 straddle_1",
+   "a": 1.00000000049999,
+   "b": 1.00000000050001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T21 straddle_1_rev",
+   "a": 1.00000000050001,
+   "b": 1.00000000049999,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T22 straddle_0.09",
+   "a": 0.09000000049999,
+   "b": 0.09000000050001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T23 straddle_100",
+   "a": 100.0000000004999,
+   "b": 100.0000000005001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T24 neg_bucket",
+   "a": -1.0,
+   "b": -1.0000000003,
+   "code": 50,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T25 neg_straddle",
+   "a": -1.00000000049999,
+   "b": -1.00000000050001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T26 neg_across",
+   "a": -1.0000000003,
+   "b": -0.9999999997,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T27 zero_p4e-10",
+   "a": 0.0,
+   "b": 4e-10,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T28 zero_m4e-10",
+   "a": 0.0,
+   "b": -4e-10,
+   "code": 50,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T29 m4e-10_p4e-10",
+   "a": -4e-10,
+   "b": 4e-10,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T30 zero_p6e-10",
+   "a": 0.0,
+   "b": 6e-10,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T31 tiny_zero",
+   "a": 1e-300,
+   "b": 0.0,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T32 half_1.0000000025 (lo)",
+   "a": 1.0000000025,
+   "b": 1.000000002,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T32 half_1.0000000025 (hi)",
+   "a": 1.0000000025,
+   "b": 1.000000003,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T33 half_1.0000000075 (lo)",
+   "a": 1.0000000075,
+   "b": 1.000000007,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T33 half_1.0000000075 (hi)",
+   "a": 1.0000000075,
+   "b": 1.000000008,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T34 half_1.0000000015 (lo)",
+   "a": 1.0000000015,
+   "b": 1.000000001,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T34 half_1.0000000015 (hi)",
+   "a": 1.0000000015,
+   "b": 1.000000002,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T35 half_1.0000000005 (lo)",
+   "a": 1.0000000005,
+   "b": 1.0,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T35 half_1.0000000005 (hi)",
+   "a": 1.0000000005,
+   "b": 1.000000001,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T36 half_-1.0000000005 (lo)",
+   "a": -1.0000000005,
+   "b": -1.0,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T36 half_-1.0000000005 (hi)",
+   "a": -1.0000000005,
+   "b": -1.000000001,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T37 half_0.0000000005 (lo)",
+   "a": 5e-10,
+   "b": 0.0,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T37 half_0.0000000005 (hi)",
+   "a": 5e-10,
+   "b": 1e-09,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T38 half_-0.0000000005 (lo)",
+   "a": -5e-10,
+   "b": 0.0,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T38 half_-0.0000000005 (hi)",
+   "a": -5e-10,
+   "b": -1e-09,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T39 half_2.0000000035 (lo)",
+   "a": 2.0000000035,
+   "b": 2.000000003,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T39 half_2.0000000035 (hi)",
+   "a": 2.0000000035,
+   "b": 2.000000004,
+   "eq": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T40 int1_f1.0000000003",
+   "a": 1.0,
+   "b": 1.0000000003,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T41 int1_f0.9999999997",
+   "a": 1.0,
+   "b": 0.9999999997,
+   "code": 50,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T42 int1_f1.0000000006",
+   "a": 1.0,
+   "b": 1.0000000006,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T43 f1.0000000003_int1",
+   "a": 1.0000000003,
+   "b": 1.0,
+   "code": 50,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T44 int7_int7_CONTROL",
+   "a": 7.0,
+   "b": 7.0,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T45 naf_naf",
+   "a": null,
+   "b": null,
+   "code": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T46 naf_1",
+   "a": null,
+   "b": 1.0,
+   "code": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T47 1_naf",
+   "a": 1.0,
+   "b": null,
+   "code": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T48 nai_nai",
+   "a": null,
+   "b": null,
+   "code": 0,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T49 const_center_3e-10",
+   "a": 1.0,
+   "b": 1.0000000003,
+   "code": 14,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "T50 const_straddle_1",
+   "a": 1.00000000049999,
+   "b": 1.00000000050001,
+   "code": 41,
+   "capture": "vw-fcmp-form-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M01 M1e-12_16ulp",
+   "a": 1e-12,
+   "b": 1.0000000000000032e-12,
+   "code": 41,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M02 M1e-12_3e-10",
+   "a": 1e-12,
+   "b": 3.01e-10,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M03 M1e-12_7e-10",
+   "a": 1e-12,
+   "b": 7.01e-10,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M04 M1e-10_16ulp",
+   "a": 1e-10,
+   "b": 1.0000000000000021e-10,
+   "code": 41,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M05 M1e-10_3e-10",
+   "a": 1e-10,
+   "b": 4e-10,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M06 M1e-10_7e-10",
+   "a": 1e-10,
+   "b": 8e-10,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M07 M1e-9_16ulp",
+   "a": 1e-09,
+   "b": 1.0000000000000034e-09,
+   "code": 41,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M08 M1e-9_3e-10",
+   "a": 1e-09,
+   "b": 1.3e-09,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M09 M1e-9_7e-10",
+   "a": 1e-09,
+   "b": 1.7e-09,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M10 M1e-6_16ulp",
+   "a": 1e-06,
+   "b": 1.0000000000000033e-06,
+   "code": 41,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M11 M1e-6_3e-10",
+   "a": 1e-06,
+   "b": 1.0003e-06,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M12 M1e-6_7e-10",
+   "a": 1e-06,
+   "b": 1.0007e-06,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M13 M0.001_16ulp",
+   "a": 0.001,
+   "b": 0.0010000000000000035,
+   "code": 41,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M14 M0.001_3e-10",
+   "a": 0.001,
+   "b": 0.0010000003,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M15 M0.001_7e-10",
+   "a": 0.001,
+   "b": 0.0010000007,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M16 M1000.0_16ulp",
+   "a": 1000.0,
+   "b": 1000.0000000000018,
+   "code": 41,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M17 M1000.0_3e-10",
+   "a": 1000.0,
+   "b": 1000.0000000003,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M18 M1000.0_7e-10",
+   "a": 1000.0,
+   "b": 1000.0000000007,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M19 M1000000.0_16ulp",
+   "a": 1000000.0,
+   "b": 1000000.0000000019,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M20 M1000000.0_3e-10",
+   "a": 1000000.0,
+   "b": 1000000.0000000003,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M21 M1000000.0_7e-10",
+   "a": 1000000.0,
+   "b": 1000000.0000000007,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M22 M10000000.0_16ulp",
+   "a": 10000000.0,
+   "b": 10000000.00000003,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M23 M1000000000.0_16ulp",
+   "a": 1000000000.0,
+   "b": 1000000000.0000019,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M24 M10000000.0_1e-6",
+   "a": 10000000.0,
+   "b": 10000000.000001,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M25 M1000000000.0_1e-6",
+   "a": 1000000000.0,
+   "b": 1000000000.000001,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M26 M10000000.0_1ulp",
+   "a": 10000000.0,
+   "b": 10000000.000000002,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M27 M123456789.123_1ulp",
+   "a": 123456789.123,
+   "b": 123456789.12300001,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M28 M1000000000.0_1ulp",
+   "a": 1000000000.0,
+   "b": 1000000000.0000001,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M29 mulmerge_1e7",
+   "a": 10000000.000000013,
+   "b": 10000000.000000015,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M30 mulmerge_1.2e8",
+   "a": 123456789.12300004,
+   "b": 123456789.12300006,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "M31 mulmerge_1e9",
+   "a": 1000000000.0000008,
+   "b": 1000000000.000001,
+   "code": 14,
+   "capture": "vw-fcmp-magnitude-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E01 0.0 vs 2.5e-11 (spy)",
+   "a": 0.0,
+   "b": 2.5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E02 0.0 vs 4e-11 (spy)",
+   "a": 0.0,
+   "b": 4e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E03 0.0 vs 5e-11 (spy)",
+   "a": 0.0,
+   "b": 5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E04 0.0 vs 6e-11 (spy)",
+   "a": 0.0,
+   "b": 6e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E05 0.0 vs 7e-11 (spy)",
+   "a": 0.0,
+   "b": 7e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E06 0.0 vs 8e-11 (spy)",
+   "a": 0.0,
+   "b": 8e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E07 0.0 vs 9e-11 (spy)",
+   "a": 0.0,
+   "b": 9e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E08 0.0 vs 9.5e-11 (spy)",
+   "a": 0.0,
+   "b": 9.5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E09 0.0 vs 9.9e-11 (spy)",
+   "a": 0.0,
+   "b": 9.9e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E10 0.0 vs 9.999999999999999e-11 (spy)",
+   "a": 0.0,
+   "b": 9.999999999999999e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E11 0.0 vs 1e-10 (spy)",
+   "a": 0.0,
+   "b": 1e-10,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E12 0.0 vs 1.0000000000000002e-10 (spy)",
+   "a": 0.0,
+   "b": 1.0000000000000002e-10,
+   "code": 14,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E13 -5e-11 vs 5e-11 (spy)",
+   "a": -5e-11,
+   "b": 5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E14 1e-10 vs 0.0 (spy)",
+   "a": 1e-10,
+   "b": 0.0,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-spy-1d-2026-11-18"
+  },
+  {
+   "id": "E01 0.0 vs 2.5e-11 (rddt)",
+   "a": 0.0,
+   "b": 2.5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E02 0.0 vs 4e-11 (rddt)",
+   "a": 0.0,
+   "b": 4e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E03 0.0 vs 5e-11 (rddt)",
+   "a": 0.0,
+   "b": 5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E04 0.0 vs 6e-11 (rddt)",
+   "a": 0.0,
+   "b": 6e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E05 0.0 vs 7e-11 (rddt)",
+   "a": 0.0,
+   "b": 7e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E06 0.0 vs 8e-11 (rddt)",
+   "a": 0.0,
+   "b": 8e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E07 0.0 vs 9e-11 (rddt)",
+   "a": 0.0,
+   "b": 9e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E08 0.0 vs 9.5e-11 (rddt)",
+   "a": 0.0,
+   "b": 9.5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E09 0.0 vs 9.9e-11 (rddt)",
+   "a": 0.0,
+   "b": 9.9e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E10 0.0 vs 9.999999999999999e-11 (rddt)",
+   "a": 0.0,
+   "b": 9.999999999999999e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E11 0.0 vs 1e-10 (rddt)",
+   "a": 0.0,
+   "b": 1e-10,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E12 0.0 vs 1.0000000000000002e-10 (rddt)",
+   "a": 0.0,
+   "b": 1.0000000000000002e-10,
+   "code": 14,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E13 -5e-11 vs 5e-11 (rddt)",
+   "a": -5e-11,
+   "b": 5e-11,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  },
+  {
+   "id": "E14 1e-10 vs 0.0 (rddt)",
+   "a": 1e-10,
+   "b": 0.0,
+   "code": 41,
+   "capture": "vw-fcmp-builtins-v2-rddt-1d-2026-11-18"
+  }
+ ]
+}

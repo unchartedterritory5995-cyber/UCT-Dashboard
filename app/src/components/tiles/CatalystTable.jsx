@@ -25,6 +25,7 @@ import { ASC, DESC, nextSort, sortCaretFor, ariaSortFor } from '../../lib/presen
 import { formatCompact } from '../../lib/presentation/presentationPrimitives'
 import BoardFromList from '../terminal/BoardFromList'
 import { usePanelSymbolRows } from '../terminal/terminalPanel'
+import { usePanelDrawsWatchMark } from '../terminal/watchMarks'
 
 const UI_ENABLED = (import.meta.env.VITE_CATALYST_UI_ENABLED ?? '1') !== '0'
 
@@ -420,6 +421,9 @@ export default function CatalystTable({
   const isAdmin = auth?.user?.role === 'admin'
   const { isOpen, isPremarket } = useMarketOpen()
   const myTickers = useUserTickerSet()
+  // Inside a Terminal panel the kit's symbol cell (PanelTicker) draws the watchlist mark for the
+  // same set of names, so this table leaves its own star to it: one mark per name, never two.
+  const kitDrawsMark = usePanelDrawsWatchMark()
   const [refreshing, setRefreshing] = useState(false)
   const [activeTags, setActiveTags] = useState(new Set(ALL_TAGS))
   const [aOnly, setAOnly] = useState(false)
@@ -833,7 +837,7 @@ export default function CatalystTable({
                         <CompanyLogo sym={r.ticker} size={20} tile />
                         <PanelTicker sym={r.ticker}>
                           <span className={styles.ticker}>
-                            {onMyList && <span className={styles.star} title="On your watchlist or flagged"><UIcon name="star-fill" size={12} /></span>}
+                            {onMyList && !kitDrawsMark && <span className={styles.star} title="On your watchlist or flagged"><UIcon name="star-fill" size={12} /></span>}
                             {r.ticker}
                           </span>
                         </PanelTicker>

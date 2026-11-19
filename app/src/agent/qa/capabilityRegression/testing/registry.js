@@ -15,7 +15,17 @@ import { loadAgentConfig, _resetAgentConfig } from '../../../agentClient'
 export const PROD_KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily', 'fundamentals', 'earnings', 'news.company', 'themes',
   'screen.run', 'screen.count', 'screen.saved']
 export const ALL_KINDS = [...PROD_KINDS, 'history.eventStudy', 'research.company', 'knowledge.search', 'setup.playbook', 'setup.record',
-  'index.quote', 'commodity.quote', 'crypto.quote', 'cot.positioning', 'rs.leadership', 'catalysts.board']
+  'index.quote', 'commodity.quote', 'crypto.quote', 'cot.positioning', 'rs.leadership', 'catalysts.board',
+  // terminal data wave 1 (#1584, dark): the Agent half of the UPDG / HILO / SCTR / LEAD / LVL terminal panels
+  'analyst.actions', 'highsLows.session', 'sectors.performance', 'leaders.longRun', 'levels.darkpool',
+  // terminal data wave 2 (dark): the Agent half of the H52 / TROT / CONFL / EXMV / TSRC terminal panels
+  'highsLows.yearly', 'themes.rotation', 'confluence.board', 'earnings.expectedMove', 'earnings.callSearch',
+  // terminal data wave 3 (dark): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel
+  'levels.gamma', 'flow.topPicks', 'flow.record', 'earnings.reactions',
+  // terminal data wave 4 (dark): the Agent half of the ERNS / CEOS / GRP terminal panels
+  'earnings.season', 'earnings.callThemes', 'group.drill',
+  // terminal data wave 5 (dark): the Agent half of the SHINT / SHRTS terminal panels (FINRA short interest)
+  'short.interest', 'short.list']
 
 /** PKG2: the data kinds an entry runs under. `"kinds": "ALL"` marks a DARK entry (its kind is not in production's list yet:
  *  history.eventStudy, the asset quotes), run only by corpus.dark.test.jsx with every gated kind on; every other entry

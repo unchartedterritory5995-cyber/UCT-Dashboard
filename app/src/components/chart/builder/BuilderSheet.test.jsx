@@ -8,7 +8,7 @@ import acornJsx from 'acorn-jsx'
 
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet, { BuilderBoundary, buildDefinition, draftDefId } from './BuilderSheet'
-import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from './builderStart.testkit.js'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import FormulaField, { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula, astHash } from '../engine/ast/parse'

@@ -236,6 +236,20 @@ def test_nothing_is_complete_until_a_provider_answer_seals_it(store):
     assert c["developing"]["rev"] == c["series_rev"] > 0
 
 
+def test_the_heal_freshness_floor_reads_the_pinned_clock_not_the_wall_clock(monkeypatch):
+    """⚰️ THIS FILE WENT RED ON A DATE, NOT A COMMIT. `bars_fetch._is_intraday_stale` read
+    `datetime.utcnow()` behind the `_time` seam these rails pin, so once the wall clock passed
+    WED + 5 days (2026-11-16 15:05 UTC) every heal's rows were "stale", nothing was persisted
+    or sealed, and the property and repair rails below went red (16 on a clean runner) with no
+    commit to blame. The floor now reads `_time.time()`. Pinned far BEFORE and far AFTER any
+    wall clock this can run on, so the case holds on every date."""
+    for day in ((2020, 1, 2), (2040, 1, 2)):
+        clock = _Clock(et(*day, 10, 30))
+        monkeypatch.setattr(bf, "_time", clock)
+        assert bf._is_intraday_stale([bar(et(*day, 10, 25))]) is False, day
+        assert bf._is_intraday_stale([bar(int(clock.now) - 6 * 86400)]) is True, day
+
+
 def test_a_heal_seals_every_bucket_that_ended_a_seal_lag_before_it(store, monkeypatch):
     t = [et(*WED, 10, m) for m in (0, 5, 10)]
     clock = _Clock(et(*WED, 10, 10, 2))                        # 2 s after 10:05 closed

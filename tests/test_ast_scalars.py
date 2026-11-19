@@ -941,7 +941,7 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     # case (`pine_bool_na_withheld_is_its_operand`). The scalar half is untouched at 149.
     # ⭐ bar half 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`, with its own bar-corpus case
     # (`pine_tie_newest_is_its_operand`).
-    assert len(parts["bar"]) == 141 and len(parts["scalar"]) == 149
+    assert len(parts["bar"]) == 148 and len(parts["scalar"]) == 149
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     assert not (parts["bar"] & parts["scalar"])

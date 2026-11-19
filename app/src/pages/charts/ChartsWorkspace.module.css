@@ -3051,3 +3051,15 @@
 .emptyBoardBtn > svg, .emptyBoardBtn > svg * { color: var(--ut-gold, #dcbb5e); stroke: var(--ut-gold, #dcbb5e); }
 /* Owner 11-16: the two ＋ buttons side by side must match — Add widget's ＋ is white again. */
 .tbPrim > svg, .tbPrim > svg * { color: #f8f7f3 !important; stroke: #f8f7f3 !important; }
+
+/* Clickable info-row stats (owner 11-17): each stat opens its quick-edit menu (HeaderStatMenu.jsx), like the
+   timeframes beside it. Rest = exactly today's look; a soft shade on hover / while its menu is open; no gold. */
+.chartMetaItemBtn { cursor: pointer; border-radius: 5px; outline: none; }
+.chartMetaItemBtn:hover, .chartMetaItemOpen { box-shadow: 0 0 0 3px rgba(248, 247, 243, 0.07); background-color: rgba(248, 247, 243, 0.07); }
+.chartMetaItemBtn:focus-visible { box-shadow: 0 0 0 2px rgba(248, 247, 243, 0.4); }
+/* A boxed stat (owner 11-17): the pill must hug the text at S/M/L/XL. The integrated header trims every label/value
+   to its cap height (`text-box: trim-both cap alphabetic`), which is right for bare text but lets descenders
+   (g, p, %, the comma) hang out of a box — so inside a box the text keeps its full, em-relative line box. */
+.chartMetaItem[data-stat-box] { line-height: 1; }
+.chartMetaItem[data-stat-box] > .chartMetaLabel,
+.chartMetaItem[data-stat-box] > .chartMetaVal { text-box: normal; line-height: 1.25; }

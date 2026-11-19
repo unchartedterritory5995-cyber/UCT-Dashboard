@@ -1,10 +1,11 @@
 // FREC: a failed read is a failure with Retry, never "The tracker is warming up"; the
 // payload's generated_at is shown (quality pass 2026-10-05).
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { MemoryRouter } from 'react-router-dom'
-import FlowScoreboard from './FlowScoreboard'
+import { PanelFreshnessContext } from '../components/terminal'
+import FlowScoreboard, { FREC_SOURCE } from './FlowScoreboard'
 
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 const wrap = () => render(
@@ -27,5 +28,25 @@ describe('FlowScoreboard states', () => {
     wrap()
     expect((await screen.findByText(/warming up/)).textContent).toMatch(/re-checks every five minutes/)
     expect(screen.getByTestId('scoreboard-asof').textContent).toBe('Scores as of Oct 5, 4:12 PM ET.')
+  })
+
+  // The picks come from our flow tape; every result is computed from the daily option prices and
+  // open interest recorded from Massive (api/top_flow_tracker.py::snapshot_prices). The header
+  // said only "our options flow tape" until 2026-11-17, then named Schwab as a backup for a day;
+  // Schwab was retired from the product that same day, so the line names no vendor that is not read.
+  it('the panel source line names its sources: the flow tape for picks, Massive for results, and no Schwab', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({ picks_tracked: 0, generated_at: '2026-10-05T20:12:00+00:00' }) })))
+    const reports = []
+    render(
+      <MemoryRouter><SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, shouldRetryOnError: false }}>
+        <PanelFreshnessContext.Provider value={(f) => { if (f) reports.push(f) }}><FlowScoreboard embedded /></PanelFreshnessContext.Provider>
+      </SWRConfig></MemoryRouter>,
+    )
+    await waitFor(() => expect(reports.length).toBeGreaterThan(0))
+    const { source } = reports.at(-1)
+    expect(source).toBe(FREC_SOURCE)
+    expect(source).toMatch(/picks from our options flow tape/)
+    expect(source).toMatch(/results from daily option prices and open interest from Massive\)$/)
+    expect(source).not.toMatch(/Schwab/i)
   })
 })

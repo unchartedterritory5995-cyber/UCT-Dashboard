@@ -720,10 +720,10 @@
    "key": "w1",
    "title": "Who gets the notice",
    "steps": [
-    "To exercise, the holder tells their broker, and the broker sends the notice to the Options Clearing Corporation (OCC).",
+    "Say a holder wants to exercise. They tell their broker, and the broker sends the notice to the clearing house, OCC.",
     "OCC hands it at random to a broker that carries shorts in that option.",
-    "That broker picks one of its short customers, at random or first in, first out.",
-    "That writer is assigned and must buy or sell the shares at the strike, whatever the market price."
+    "That broker picks one of its short customers. Random, or first in, first out, depending on the broker.",
+    "Whoever gets picked is assigned. They have to buy or sell the shares at the strike, whatever the stock trades at."
    ],
    "facts": [
     "f1",
@@ -739,9 +739,9 @@
    "key": "w2",
    "title": "The bell on expiry day",
    "steps": [
-    "On expiry day, a stock option a cent ($0.01) or more in the money at the close is usually exercised.",
-    "Holders can say no, and FINRA's rule gives them until 5:30 p.m. ET to decide. After-hours news can still flip it.",
-    "Writers usually hear the next business day. On a Friday expiry, that means Monday."
+    "Expiry day. A stock option a cent, $0.01, or more in the money at the close gets exercised automatically.",
+    "The holder can still say no. FINRA gives them until 5:30 p.m. ET, so after-hours news can flip it.",
+    "The writer hears the next business day. A Friday expiry means finding out Monday."
    ],
    "facts": [
     "f69",
@@ -758,10 +758,10 @@
    "key": "w3",
    "title": "When early assignment comes",
    "steps": [
-    "Stock options are American-style, so a short can be assigned on any trading day.",
-    "A short call is most at risk the day before an ex-dividend date, when its time value is below the dividend.",
-    "A short put is most at risk once it's deep in the money.",
-    "European-style index options like SPX can only be exercised at expiry, so they carry no early assignment."
+    "Stock options are American-style. A writer can be assigned any day the market's open, not just at expiry.",
+    "A short call is most at risk the day before the ex-dividend date, when its time value is under the dividend.",
+    "A short put gets dangerous once it's deep in the money. That's when the pros exercise early.",
+    "Index options like SPX are European-style. Exercise only at expiry, so no early assignment."
    ],
    "facts": [
     "f47",
@@ -780,17 +780,17 @@
    "skill": "options.assignment",
    "rung": 1,
    "format": "mcq",
-   "q": "In options, what does assignment mean?",
+   "q": "A friend sold ZQRT calls last month. This morning his broker tells him he's been assigned. What just happened?",
    "choices": [
-    "The seller must fulfill the contract",
-    "The buyer uses the right to buy or sell",
-    "The option expired and is worthless",
-    "Closing it and opening a new strike"
+    "He has to deliver on the contract",
+    "He used his right to buy the shares",
+    "His calls expired worthless",
+    "He rolled to a new strike"
    ],
-   "answer": "The seller must fulfill the contract",
+   "answer": "He has to deliver on the contract",
    "term": "Assignment",
-   "why": "The seller must fulfill the contract. FINRA defines assignment as the seller's obligation to sell or buy the shares at the exercise price. It starts when a holder exercises. OCC then hands the notice, at random, to a firm with a short position. Exercise is the buyer's move. Assignment is what lands on the seller. It is not expiry, and it is not rolling.",
-   "lesson_line": "Exercise is the buyer's move. Assignment is what lands on the seller.",
+   "why": "He has to make good on the contract. Somebody who owns those calls exercised them. Now the seller is on the hook to sell the shares at the strike. On a put it runs the other way, and he'd have to buy them. Exercise is the buyer's move. Assignment is the bill that lands on the seller. We trade shares, and when I do buy an option I hold the right. I'm never the one on the hook. You still need the word, because the short leg of any spread can get assigned.",
+   "lesson_line": "Exercise is the buyer's move. Assignment is the bill that lands on the seller.",
    "facts": [
     "f42",
     "f51",
@@ -799,11 +799,11 @@
     "f48"
    ],
    "wrong": {
-    "The buyer uses the right to buy or sell": "That's exercise, the holder's side. Assignment is what an exercise triggers for a writer.",
-    "Closing it and opening a new strike": "That's rolling: closing one option and opening another at a new strike or expiry.",
-    "The option expired and is worthless": "That's an option that expired. Once it expires, it and the right to exercise it are gone."
+    "He used his right to buy the shares": "That's exercise, the buyer's side. His buyer did that, and the assignment is what it set off for him.",
+    "His calls expired worthless": "That's the seller's best case. Once an option expires, it and the right to use it are gone, so nobody can assign him.",
+    "He rolled to a new strike": "A roll is a trade he makes himself: buy back the old option, sell a new one. Assignment just happens to you."
    },
-   "simple": "Assignment means the seller must now do what the contract says, because a buyer chose to use the option.",
+   "simple": "Assignment means the seller now has to deliver, because a buyer chose to use the option.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -811,22 +811,22 @@
      "stable definition; FINRA and the OIC glossary (Tier 1) agree"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "options.assignment",
    "rung": 1,
    "format": "tf",
-   "q": "Most option contracts end by being exercised.",
+   "q": "Most option contracts end with somebody exercising them.",
    "answer": "False",
-   "why": "False. The Options Industry Council says that historically more than 72% of contracts are closed out before expiry. Another 22% expire worthless, and only 6% are exercised. FINRA puts exercises at about 7%. That small share does not make your own short safe. FINRA warns it does not mean only 7% of your shorts will be assigned.",
-   "lesson_line": "Most options are sold or bought back before expiry. Exercise is the exception.",
+   "why": "False. Exercise is the exception. The Options Industry Council's numbers: more than 72% of contracts get closed out with a trade before expiry. Another 22% expire worthless. Just 6% get exercised, and FINRA puts it at about 7%. So when you buy a call, the normal exit is selling it, same as a stock. One catch for anyone short an option, like a friend selling puts. A small share overall says nothing about his own short. FINRA warns about exactly that.",
+   "lesson_line": "Most options get sold or bought back before expiry. Exercise is the exception.",
    "facts": [
     "f14",
     "f41"
    ],
-   "simple": "False, because most options are closed with a trade before expiry, and only a few are ever exercised.",
+   "simple": "False, most options get closed with a trade or expire, and only a few are ever exercised.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -834,23 +834,23 @@
      "historical shares that can drift over time (OIC 6%, FINRA about 7%, logged in conflicts)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "options.assignment",
    "rung": 2,
    "format": "mcq",
-   "q": "Many traders are short the same call. A holder exercises one. How is the writer who must deliver chosen?",
+   "q": "Your buddy is one of thousands short the ZQRT 60 calls. One holder exercises. Who decides which seller gets assigned?",
    "choices": [
-    "OCC at random, then your broker's rule",
+    "OCC at random, then his broker",
     "The holder picks the seller",
-    "The largest short position goes first",
-    "Whoever sold the call most recently"
+    "The biggest short goes first",
+    "Whoever sold most recently"
    ],
-   "answer": "OCC at random, then your broker's rule",
-   "why": "OCC at random, then your broker's rule. OCC assigns each exercise notice at random to a firm that carries shorts in that option. That firm then picks one of its short customers. FINRA's rule allows first in, first out or random selection, and each firm uses its own method. The holder never picks a seller. The size of your short does not decide it. Under first in, first out, the oldest short goes first, not the newest.",
-   "lesson_line": "You can't predict who gets assigned. If you're short the option, assume it can be you.",
+   "answer": "OCC at random, then his broker",
+   "why": "It's a lottery, then his broker's rule. OCC hands the notice at random to a firm that carries shorts in that call. That firm picks one of its short customers, at random or first in, first out. FINRA allows both, and each broker uses its own method. The holder never chooses who delivers. The size of the short doesn't matter either. So there's no hiding in the crowd. Whoever's short should assume the next notice is theirs. That's the seller's side, not ours.",
+   "lesson_line": "Nobody can predict who gets assigned. Whoever's short should assume it's them.",
    "facts": [
     "f2",
     "f3",
@@ -859,11 +859,11 @@
     "f30"
    ],
    "wrong": {
-    "The holder picks the seller": "The holder deals with OCC's system, not with the person who sold to them.",
-    "The largest short position goes first": "Size doesn't set the order. OCC picks at random, then the broker uses random selection or first in, first out.",
-    "Whoever sold the call most recently": "Under first in, first out the oldest short goes first, not the newest. Other brokers pick at random."
+    "The holder picks the seller": "The holder deals with OCC's system, never with the person who sold to them.",
+    "The biggest short goes first": "Size doesn't set the order. It's OCC at random, then the broker's random or first in, first out pick.",
+    "Whoever sold most recently": "First in, first out sends the oldest short first, not the newest. Other brokers just pick at random."
    },
-   "simple": "OCC hands the notice to a broker at random, and that broker picks one of its short customers by its own rule.",
+   "simple": "OCC picks a broker at random, and that broker picks one of its short customers by its own method.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -871,23 +871,23 @@
      "stable process; OIC and FINRA (Tier 1) agree"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "options.assignment",
    "rung": 2,
    "format": "mcq",
-   "q": "You buy back your short May 50 call and sell a June 55 call in one trade. What is that called?",
+   "q": "Your buddy is short the ZQRT May 50 call. He buys it back and sells the June 55 call in one trade. What's that move called?",
    "choices": [
     "Rolling the call",
     "Exercising it",
-    "Being assigned",
-    "Expiring"
+    "Getting assigned",
+    "Letting it expire"
    ],
    "answer": "Rolling the call",
    "term": "Rolling",
-   "why": "Rolling the call. The OIC glossary defines a roll as closing an open option and opening a new one at the same time. The new one has a different strike, expiry, or both. Here you bought back the May 50 call and sold a June 55 call. You did not exercise, you were not assigned, and nothing expired. Rolling a short call is also one way to avoid an early assignment before a dividend.",
+   "why": "He rolled it. A roll is two trades at once: close the open option and open a new one at a different strike, date or both. He went up from the 50 to the 55 and out from May to June. Nobody exercised anything, and nothing expired. Sellers also roll a short call to dodge an early assignment before a dividend. That's the seller's side, not ours, but you'll hear the word all the time.",
    "lesson_line": "A roll is two trades in one: close the old option, open the new one.",
    "facts": [
     "f48",
@@ -897,11 +897,11 @@
     "f84"
    ],
    "wrong": {
-    "Expiring": "You closed the May call before expiry and opened a new one.",
-    "Exercising it": "Exercising uses an option's right to buy or sell the shares. You traded the options instead.",
-    "Being assigned": "Assignment comes to you from OCC. Here you chose to close and reopen."
+    "Exercising it": "Exercise uses the option's right to buy or sell the shares. He traded the options instead.",
+    "Letting it expire": "He closed the May call before expiry and opened a new one. Nothing ran out.",
+    "Getting assigned": "Assignment comes to you from OCC. He chose to close and reopen."
    },
-   "simple": "It's rolling, because you closed one option and opened a new one at a new strike and date in one trade.",
+   "simple": "It's a roll, because he closed one option and opened a new one at a new strike and date in one trade.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -909,15 +909,15 @@
      "stable definition; OIC glossary (Tier 1) and Fidelity agree"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "options.assignment",
    "rung": 2,
    "format": "fill",
-   "q": "Fill in the blank.",
-   "sentence": "At expiry, OCC exercises an equity option in the money by a ___ or more, unless told not to.",
+   "q": "Expiry Friday. You own a ZQRT call, and ZQRT closes just over your strike. How far in the money is enough to get it exercised?",
+   "sentence": "OCC exercises it for you if it's in the money by a ___ or more, unless you say otherwise.",
    "bank": [
     "penny",
     "nickel",
@@ -925,17 +925,19 @@
     "dollar"
    ],
    "answer": "penny",
-   "why": "A penny. OCC uses a $0.01 threshold for its clearing members' positions, as an administrative convenience. Your broker may use a different threshold. The closing price decides whether an expiring option is in the money. You can always tell your broker to exercise or not. Unless someone does, a penny in the money is enough.",
-   "lesson_line": "A penny in the money at the close is enough. Plan for exercise unless you say otherwise.",
+   "why": "A penny. OCC's threshold is $0.01. Close a cent in the money and the option gets exercised, unless somebody tells the broker not to. Your broker may use its own threshold, so check yours. Here's why you care. An exercised call buys 100 shares at the strike. When we buy a call, the premium we paid is the stop. You don't want that turning into a full share position over the weekend. So decide before the bell: sell it, or tell your broker not to exercise.",
+   "lesson_line": "A penny in the money at the close is enough. Decide before the bell, or it gets decided for you.",
    "facts": [
     "f12",
     "f69",
     "f33",
     "f54",
     "f13",
-    "f18"
+    "f18",
+    "f93",
+    "f75"
    ],
-   "simple": "A penny, because OCC exercises an equity option a cent or more in the money at the close, unless told not to.",
+   "simple": "A penny, because OCC exercises an expiring stock option a cent or more in the money unless told not to.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -944,22 +946,22 @@
      "fixed before (f18 added)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "options.assignment",
    "rung": 3,
    "format": "tf",
-   "q": "You can't sell a European-style option before its expiry day.",
+   "q": "You bought a European-style index call. You're stuck holding it until its expiry day.",
    "answer": "False",
-   "why": "False. Exercise style decides when you can exercise, not when you can trade. A European-style option can only be exercised at expiry. Before then, OIC says the way to close it is a closing trade. The style does not stop you trading it on any day up to and including the last trading day.",
-   "lesson_line": "Exercise style decides when you can exercise. You can sell either style on any trading day up to the last.",
+   "why": "False. European style only limits when you can exercise, and that's at expiry. It doesn't stop you trading it. You can sell it any day up to and including its last trading day. OIC says the way out before expiry is a closing trade. For a buyer, selling is the normal exit anyway. So the style matters to whoever's short it, not to your exit.",
+   "lesson_line": "Exercise style decides when you can exercise. You can sell either style any trading day up to the last.",
    "facts": [
     "f15",
     "f16"
    ],
-   "simple": "False, because European style only limits exercise, and you can sell it on any trading day up to the last.",
+   "simple": "False, European style only limits exercise. You can sell it any trading day up to the last one.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -967,23 +969,23 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "options.assignment",
    "rung": 3,
    "format": "mcq",
-   "q": "You're short an in-the-money call on a stock that pays a dividend. When is early assignment most likely?",
+   "q": "A friend is short an in-the-money ZQRT call, and ZQRT pays a dividend. When's he most likely to get assigned early?",
    "choices": [
     "Just before the ex-dividend date",
-    "The morning after an earnings report",
+    "The morning after earnings",
     "On the dividend's payment date",
     "Any day the stock closes higher"
    ],
    "answer": "Just before the ex-dividend date",
-   "why": "Just before the ex-dividend date. A call holder who exercises before the ex-date is entitled to the dividend. OIC says exercising a call early is generally not optimal, with one exception: the day before the stock goes ex-dividend. It is most likely when the call is well in the money and its time value is less than the dividend. A short can be assigned on any trading day, but a coming dividend is the usual trigger.",
-   "lesson_line": "If you're short calls on a dividend payer, mark the ex-dividend date. That's when early assignment usually comes.",
+   "why": "The day before it goes ex-dividend. A call owner only gets the dividend by owning the shares before the ex-date. That's the one day exercising early can pay. Any other day it throws away the time value left in the call, so selling it beats exercising. OIC calls the day before the ex-date the exception. The risk is highest when the call is well in the money and its time value is below the dividend. He can be assigned any trading day, but that's the date to circle. Anyone running a spread with a short call should circle that date too.",
+   "lesson_line": "Short calls on a dividend payer, circle the ex-dividend date. That's when early assignment comes.",
    "facts": [
     "f58",
     "f62",
@@ -997,10 +999,10 @@
    ],
    "wrong": {
     "Any day the stock closes higher": "A higher close alone doesn't pay a holder to exercise. Selling the call keeps its time value.",
-    "On the dividend's payment date": "That's too late. Only a holder who exercises before the ex-dividend date is entitled to the dividend.",
-    "The morning after an earnings report": "Earnings alone don't make early exercise pay. It throws away time value, and a coming dividend is the usual reason to do it."
+    "On the dividend's payment date": "Too late. Only a holder who exercises before the ex-dividend date gets the dividend.",
+    "The morning after earnings": "Earnings alone don't make early exercise pay. It still throws away time value, and a dividend is the reason that changes the math."
    },
-   "simple": "Just before the ex-dividend date, because a holder who exercises then gets the dividend, and that can beat the time value lost.",
+   "simple": "Right before the ex-date, because exercising then gets the holder the dividend, and that can beat the time value he gives up.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1008,14 +1010,14 @@
      "fixed before (a wrong note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "options.assignment",
    "rung": 3,
    "format": "mcq",
-   "q": "You're short four puts on different stocks. Which one is most likely to be assigned early?",
+   "q": "A fund is short puts on four different stocks. Which one is most likely to get assigned early?",
    "choices": [
     "Deep in the money, near expiry",
     "Just in the money, months out",
@@ -1023,7 +1025,7 @@
     "Out of the money, ex-div soon"
    ],
    "answer": "Deep in the money, near expiry",
-   "why": "Deep in the money, near expiry. OIC says early assignment on a short put generally comes only once it goes deep in the money. Most professionals exercise deep puts before expiry. Schwab adds it is more likely when the time value has mostly decayed. Exercising early forfeits time value, so a put with months left, or one at the money, is rarely worth exercising. OIC's ex-dividend warning is for call writers, and an out-of-the-money put gives a holder nothing to collect.",
+   "why": "The deep in-the-money put near expiry. Think about it from the holder's side. Exercising early throws away whatever time value is left. With months to go, or at the money, that's real money, so the holder sells the put instead. Deep in the money near expiry, there's almost nothing left to give up. OIC says early assignment on a short put mostly comes once it's deep in the money. Schwab adds the odds rise once the time value has mostly decayed. The ex-dividend warning is for calls, and an out-of-the-money put gives the holder nothing to collect.",
    "lesson_line": "A deep in-the-money short put can be assigned any day. Close it, or be ready to buy the shares.",
    "facts": [
     "f10",
@@ -1034,9 +1036,9 @@
     "f9"
    ],
    "wrong": {
-    "Just in the money, months out": "With months left it still carries time value, which an early exercise would throw away.",
-    "At the money, expiry in days": "At the money there's nothing in the money to collect. Exercising would sell at about the market price.",
-    "Out of the money, ex-div soon": "Out of the money, exercising means selling below the market. OIC's ex-dividend warning is for call writers."
+    "Just in the money, months out": "With months left it still has time value, and an early exercise would throw that away.",
+    "At the money, expiry in days": "At the money there's nothing to collect. Exercising would sell at about the market price.",
+    "Out of the money, ex-div soon": "Out of the money, exercising means selling below the market. The ex-dividend risk is for call writers."
    },
    "simple": "The deep in-the-money put near expiry, because it has almost no time value left, so exercising early costs the holder little.",
    "tier": "core",
@@ -1046,21 +1048,23 @@
      "stable; OIC (Tier 1) and Schwab agree"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "options.assignment",
    "rung": 4,
    "format": "tf",
-   "q": "An exercised stock option settles two business days after the exercise.",
+   "q": "You exercise a ZQRT call on a Friday. The shares settle two business days later, on Tuesday.",
    "answer": "False",
-   "why": "False. As of May 28, 2024, an exercised stock option settles on the first business day after exercise. The options disclosure document says so. That is one business day, not two. Exercise on a Friday, and it normally settles Monday. Have the cash or the shares ready. This covers stock options that deliver shares, not cash-settled index options.",
+   "why": "False. They settle Monday. Since May 28, 2024, an exercised stock option settles on the first business day after exercise. The options disclosure document says so. Here's why it matters. Exercising a call means paying the strike on 100 shares, and that cash is due Monday. Have it ready before you exercise, or just sell the call. This covers stock options that deliver shares, not cash-settled index options.",
    "lesson_line": "Exercise and assignment settle the next business day. Have the cash or the shares ready.",
    "facts": [
-    "f27"
+    "f27",
+    "f93",
+    "f78"
    ],
-   "simple": "False, because since May 28, 2024 an exercised stock option settles the next business day, not two days later.",
+   "simple": "False, since May 28, 2024 an exercised stock option settles the next business day, so Monday.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1069,14 +1073,14 @@
      "a settlement cycle that has changed before and can change again"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
    "skill": "options.assignment",
    "rung": 4,
    "format": "mcq",
-   "q": "Under FINRA's rule as of November 2026, until when can a holder decide to exercise an expiring stock option?",
+   "q": "Expiry day. Your ZQRT call closes a hair out of the money, then news hits after the bell. When's your last chance to exercise it?",
    "choices": [
     "5:30 p.m. ET on expiry day",
     "4:00 p.m. ET, the closing bell",
@@ -1084,7 +1088,7 @@
     "9:30 a.m. ET the next morning"
    ],
    "answer": "5:30 p.m. ET on expiry day",
-   "why": "5:30 p.m. ET on expiry day. Under FINRA's rule as of November 2026, holders have until then to make the final decision. Firms can't accept exercise instructions after it. Your broker may set an earlier cut-off, and most do. On an early-close day the deadline is 1 hour 30 minutes after the announced close. The rule covers equity options such as stock options, not index options.",
+   "why": "Until 5:30 p.m. ET. That's FINRA's cut-off for the final call on an expiring stock option, and brokers can't take instructions after it. So the 4:00 p.m. bell isn't the end of the day for you. You get an hour and a half to read the after-hours news and decide. If the news pushes ZQRT through your strike, that's your window. Most brokers set an earlier cut-off, so find yours before expiry day, not on it. On an early-close day, the deadline is 1 hour 30 minutes after the close. The rule covers stock and ETF options, not index options.",
    "lesson_line": "Expiry day runs past the bell. Holders can still decide until 5:30 p.m. ET.",
    "facts": [
     "f34",
@@ -1096,11 +1100,11 @@
     "f39"
    ],
    "wrong": {
-    "4:00 p.m. ET, the closing bell": "That's when the stock market closes. Holders still have until 5:30 p.m. ET to decide.",
-    "Midnight ET on expiry day": "Firms can't accept exercise instructions after 5:30 p.m. ET.",
+    "4:00 p.m. ET, the closing bell": "That's when stocks close. You still have until 5:30 p.m. ET to decide.",
+    "Midnight ET on expiry day": "Brokers can't accept exercise instructions after 5:30 p.m. ET.",
     "9:30 a.m. ET the next morning": "By then the option has expired, and an option that expires unexercised is worthless."
    },
-   "simple": "Until 5:30 p.m. ET on expiry day, because FINRA's rule sets that cut-off, though your broker can set an earlier one.",
+   "simple": "Until 5:30 p.m. ET, FINRA's cut-off, though your broker can set an earlier one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1108,14 +1112,14 @@
      "a cut-off time set by FINRA's rule that can change"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "options.assignment",
    "rung": 4,
    "format": "mcq",
-   "q": "On Tuesday, a holder exercises a call you're short. When is the exercise usually assigned?",
+   "q": "A friend is short a ZQRT call. On Tuesday, somebody who owns it exercises. When does the assignment normally land?",
    "choices": [
     "Before trading opens Wednesday",
     "Instantly, during Tuesday's session",
@@ -1123,8 +1127,8 @@
     "Within a week, after settlement"
    ],
    "answer": "Before trading opens Wednesday",
-   "why": "Before trading opens Wednesday. The options disclosure document says assignments are ordinarily made before trading starts on the business day after OCC receives the exercise. So a Tuesday exercise is usually assigned before Wednesday's open. Your broker's notice can come a day or more after that. While the short is open, it can be assigned on any trading day, not just at expiry.",
-   "lesson_line": "Assignment lands overnight. You find out after the fact, sometimes later.",
+   "why": "Before Wednesday's open. OCC assigns an exercise before trading starts on the next business day, so Tuesday's exercise lands overnight. His broker's notice can come a day or more after that. So he might only hear about it Thursday. And it isn't just an expiry thing. While the short is open, it can be assigned any trading day. That's the seller's side, not ours, but it's worth knowing how the notice travels.",
+   "lesson_line": "Assignment lands overnight. You find out after the fact, sometimes days later.",
    "facts": [
     "f23",
     "f24",
@@ -1132,11 +1136,11 @@
     "f47"
    ],
    "wrong": {
-    "Instantly, during Tuesday's session": "OCC ordinarily assigns before trading starts the next business day, not while the market trades.",
-    "Only at the option's expiry": "Stock options are American-style. A short can be assigned on any trading day.",
-    "Within a week, after settlement": "Assignment comes first, ordinarily before the next open. Settlement follows it."
+    "Instantly, during Tuesday's session": "OCC assigns before trading starts the next business day, not while the market trades.",
+    "Only at the option's expiry": "Stock options are American-style. A short can be assigned any trading day.",
+    "Within a week, after settlement": "Assignment comes first, before the next open. Settlement follows it."
    },
-   "simple": "Before the open on Wednesday, because OCC ordinarily assigns an exercise before trading starts on the next business day.",
+   "simple": "Before the open on Wednesday, since OCC hands each one out before the next day's trading.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1144,23 +1148,23 @@
      "stable process in the options disclosure document (Tier 1)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "options.assignment",
    "rung": 5,
    "format": "tf",
-   "q": "Once you're assigned, buying the option back won't undo it, even if you haven't seen the notice yet.",
+   "q": "A friend's short call got assigned overnight, but he hasn't seen the notice yet. Buying the call back now won't undo it.",
    "answer": "True",
-   "why": "True. Once an exercise is assigned to a writer, the writer can no longer close that position with a purchase. The options disclosure document says so. That holds whether or not the notice has arrived. The buy is treated as an opening purchase, so you end up with a new long option as well as the assignment. To avoid assignment on a given day, close the short before that day's close.",
+   "why": "True. Once the exercise is assigned to him, it's done. The options disclosure document says the writer can't close it with a buy anymore, notice or no notice. The buy just counts as a new long call. So he ends up with the assignment and an option he never meant to own. The only way to dodge assignment on a given day is closing the short before that day's close. After the bell, you're too late.",
    "lesson_line": "Assignment can't be undone. Close a short you don't want before the bell, not after.",
    "facts": [
     "f25",
     "f26",
     "f6"
    ],
-   "simple": "True, because once the exercise is assigned to you, a buy just opens a new long option and the assignment stands.",
+   "simple": "True, once he's assigned a buy-back just opens a new long option, and the assignment stands.",
    "tier": "extended",
    "risk": {
     "score": 0,
@@ -1168,14 +1172,14 @@
      "stable rule in the options disclosure document (Tier 1)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "options.assignment",
    "rung": 5,
    "format": "mcq",
-   "q": "Short 3 calls, no shares. Exercised the day before the ex-date, and you're assigned. Dividend: $0.40 a share. What dividend do you owe?",
+   "q": "Your buddy sold 3 ZQRT calls and owns no shares. He's assigned the day before the ex-date. The dividend is $0.40 a share. What does he owe?",
    "answer": "$120",
    "prefix": "$",
    "calc": {
@@ -1187,8 +1191,8 @@
      "dividend": 0.4
     }
    },
-   "why": "$120. That is 3 contracts of 100 shares at $0.40 a share. The holder exercised before the ex-date, so the holder is entitled to the dividend. OIC says an assigned call writer, covered or not, must deliver the stock plus the dividend. With no shares, you are short the stock going into the ex-date, so the dividend comes out of your account.",
-   "lesson_line": "Short calls with no shares, assigned before the ex-date, leave you owing the dividend too.",
+   "why": "$120. Each contract is 100 shares, so 3 contracts is 300 shares. 300 times $0.40 is $120. The holder exercised before the ex-date, so the holder gets the dividend. An assigned call writer owes the stock plus the dividend. He has no shares, so he goes into the ex-date short 300, and the dividend comes out of his account. That's on top of the cost of buying shares to cover. That's the seller's side, not ours.",
+   "lesson_line": "Short calls with no shares, assigned before the ex-date: you owe the dividend too.",
    "facts": [
     "f17",
     "f83",
@@ -1196,7 +1200,7 @@
     "f31",
     "f93"
    ],
-   "simple": "You owe $120, because an assigned call writer must hand over the shares plus the dividend on each one.",
+   "simple": "$120, because an assigned call writer hands over the shares plus the dividend on every one.",
    "deeper": {
     "example": "Fidelity's example works the same way. A writer with no shares is assigned on calls before the ex-date. He has to pay $250 in dividends on top of covering the cost of delivering 500 shares. The dividend is owed on every share you deliver, so more contracts mean a bigger bill."
    },
@@ -1208,7 +1212,7 @@
      "fixed before (question states the per-share basis)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$120",
     "$300",
@@ -1216,9 +1220,9 @@
     "$12,000"
    ],
    "wrong": {
-    "$300": "Gives the share count and ignores the dividend.",
-    "$1,200": "Slips a decimal place.",
-    "$12,000": "Multiplies by 100 twice."
+    "$300": "That's the share count, 3 times 100, with no dividend applied.",
+    "$1,200": "A slipped decimal. 300 times $0.40 is $120.",
+    "$12,000": "That counts the 100 shares twice."
    },
    "visual": {
     "kind": "size",
@@ -1248,8 +1252,8 @@
    "skill": "options.assignment",
    "rung": 5,
    "format": "scenario",
-   "story": "You own a 90/95 call spread: long the 90 call, short the 95 call, same expiry. On expiry Friday the stock closes at 93. You do nothing.",
-   "q": "What are you most likely holding on Monday?",
+   "story": "A friend bought the ZQRT 90/95 call spread: long the 90 call, short the 95, same expiry. Expiry Friday, ZQRT closes at 93. He does nothing.",
+   "q": "What's sitting in his account Monday morning?",
    "choices": [
     "100 shares, bought at 90",
     "Cash for the spread",
@@ -1257,8 +1261,8 @@
     "Nothing, both expire"
    ],
    "answer": "100 shares, bought at 90",
-   "why": "100 shares, bought at 90. At a 93 close the 90 call is in the money, so it is exercised automatically unless you say otherwise. The 95 call is out of the money and will likely expire worthless. Stock options settle in shares, not cash, so you buy 100 at 90. To avoid it, sell the spread before the close or file a do-not-exercise on the 90 call.",
-   "lesson_line": "Between the strikes at expiry, a long call spread turns into stock. Sell the spread first if you don't want shares.",
+   "why": "100 shares bought at 90. At 93 his 90 call is in the money, so it gets exercised automatically. The 95 call is out of the money and most likely expires. Stock options settle in shares, not cash. So his defined-risk spread just turned into 100 shares at 90, held over the weekend. That's a stock position he never sized and never put a stop on. He should have sold the spread before the close, or told his broker not to exercise the 90 call. Same goes for a single call you own that closes in the money.",
+   "lesson_line": "Between the strikes at expiry, a call spread turns into stock. Sell it before the bell if you don't want shares.",
    "facts": [
     "f71",
     "f72",
@@ -1269,11 +1273,11 @@
     "f93"
    ],
    "wrong": {
-    "Cash for the spread": "Stock options settle in shares, not cash. The exercised 90 call buys you the shares.",
+    "Cash for the spread": "Stock options settle in shares, not cash. The exercised 90 call buys him the shares.",
     "Short 100 shares at 95": "At 93 the 95 call is out of the money, so it most likely expires unexercised.",
-    "Nothing, both expire": "The 90 call is in the money at the close, so it's exercised unless you say otherwise."
+    "Nothing, both expire": "The 90 call is in the money at the close, so it's exercised unless he says otherwise."
    },
-   "simple": "You'd most likely own 100 shares bought at 90, because the 90 call is exercised and the 95 call expires.",
+   "simple": "He'd own 100 shares bought at 90, because the 90 call gets exercised and the 95 call expires.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1281,16 +1285,16 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "options.assignment",
    "rung": 6,
    "format": "tf",
-   "q": "A short option that's out of the money at the close on expiry day can still be assigned.",
+   "q": "A friend's short put closed out of the money on expiry day. He can still get assigned on it.",
    "answer": "True",
-   "why": "True. OIC says writers are sometimes assigned on options that expire at the money or even out of the money. It is usually not predictable. Under FINRA's rule, holders have until 5:30 p.m. ET to decide. After-hours news can move the stock and make exercise worth it. The close sets automatic exercise, but a holder can override it either way. Only closing the short before the close removes the risk.",
+   "why": "True. The close sets automatic exercise, but it isn't the final word. Under FINRA's rule, holders have until 5:30 p.m. ET to decide. After-hours news can move the stock and make exercising worth it. OIC says writers sometimes get assigned on options that expire at or even out of the money, and you can't predict it. The only sure fix is closing the short before the bell.",
    "lesson_line": "Out of the money at the bell isn't safe yet. If a short sits near the strike, close it or be ready.",
    "facts": [
     "f5",
@@ -1301,7 +1305,7 @@
     "f38",
     "f6"
    ],
-   "simple": "True, because holders can still decide after the bell, and late news can push the option into the money.",
+   "simple": "True, holders can still decide after the bell, and late news can push the option into the money.",
    "tier": "extended",
    "risk": {
     "score": 0,
@@ -1309,22 +1313,22 @@
      "stable; OIC, FINRA and the disclosure document (Tier 1) agree"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "options.assignment",
    "rung": 6,
    "format": "scenario",
-   "story": "You're short the 55 call with no shares. The stock is 62.40 and goes ex-dividend tomorrow, paying 0.30. Your call trades at 7.45, two weeks from expiry.",
-   "q": "How likely is an early assignment tonight, and why?",
+   "story": "A friend is short the ZQRT 55 call with no shares. ZQRT is 62.40 and goes ex-dividend tomorrow, paying 0.30. His call trades at 7.45, two weeks from expiry.",
+   "q": "Does he get assigned tonight, and why?",
    "choices": [
-    "Likely: just $0.05 of time value left",
-    "Likely: in-the-money calls go early",
-    "Unlikely: holders wait for expiry",
-    "Unlikely: 0.30 is tiny next to 7.45"
+    "Likely, only $0.05 of time value left",
+    "Likely, in-the-money calls go early",
+    "Unlikely, holders wait for expiry",
+    "Unlikely, 0.30 is tiny next to 7.45"
    ],
-   "answer": "Likely: just $0.05 of time value left",
+   "answer": "Likely, only $0.05 of time value left",
    "calc": {
     "fn": "extrinsic",
     "args": {
@@ -1334,8 +1338,8 @@
      "premium": 7.45
     }
    },
-   "why": "Likely. The call trades at 7.45, and with the stock at 62.40 nearly all of that is in-the-money value over the 55 strike. Only $0.05 is time value. That is less than the 0.30 dividend. Schwab says a short call is more likely to be assigned before the ex-date when its time value is below the dividend. Fidelity agrees. Two weeks left does not protect you.",
-   "lesson_line": "When a short call's time value is below the coming dividend, expect assignment. Buy it back or roll it before the ex-date.",
+   "why": "Likely. Work out the time value first. 62.40 minus the 55 strike is 7.40 in the money. The call trades at 7.45, so just $0.05 of it is time value. Now the holder's math. Exercise tonight, give up 0.05 and collect the 0.30 dividend. That's an easy call for them. Two weeks to expiry doesn't protect him. He should buy the call back or roll it before the ex-date.",
+   "lesson_line": "When a short call's time value is below the coming dividend, expect assignment. Buy it back or roll it first.",
    "facts": [
     "f80",
     "f82",
@@ -1347,13 +1351,13 @@
     "f62"
    ],
    "wrong": {
-    "Likely: in-the-money calls go early": "Being in the money isn't the test. Exercising early throws away time value, so it generally doesn't pay. Here the time value is tiny.",
-    "Unlikely: holders wait for expiry": "That's the general rule, and the day before an ex-dividend date is the exception.",
-    "Unlikely: 0.30 is tiny next to 7.45": "A holder weighs the dividend against the time value given up, here $0.05, not against the whole 7.45 premium."
+    "Likely, in-the-money calls go early": "Being in the money isn't the test. Early exercise throws away time value, so it doesn't pay most days. Here the time value is tiny.",
+    "Unlikely, holders wait for expiry": "That's the normal case, and the day before an ex-dividend date is the exception.",
+    "Unlikely, 0.30 is tiny next to 7.45": "A holder weighs the dividend against the time value given up, here $0.05, not the whole 7.45 premium."
    },
-   "simple": "Likely, because the call has only $0.05 of time value left, less than the 0.30 dividend a holder gets by exercising.",
+   "simple": "Likely, his call has just $0.05 of time value left, less than the 0.30 dividend a holder gets by exercising.",
    "deeper": {
-    "trap": "The trap is judging the dividend against the premium. 0.30 looks tiny next to 7.45. But a holder weighs it against the time value given up, here $0.05. To avoid it, Schwab suggests buying the call back before the ex-date. Or roll it to a higher strike or a later expiry."
+    "trap": "The trap is judging the dividend against the premium. 0.30 looks tiny next to 7.45. But a holder weighs it against the time value given up, here $0.05. Schwab says a short call is more likely to be assigned before the ex-date when its time value is below the dividend. To avoid it, Schwab suggests buying the call back before the ex-date, or rolling it to a higher strike or a later expiry."
    },
    "tier": "extended",
    "risk": {
@@ -1362,19 +1366,19 @@
      "computed key (calc extrinsic)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "options.assignment",
    "rung": 7,
    "format": "scenario",
-   "story": "You sold one 45 put for 1.80. On expiry Friday the stock closes at 43.50. You don't close the put.",
-   "q": "What do you most likely hold on Monday, and at what net cost?",
+   "story": "A friend sold one ZQRT 45 put for 1.80. Expiry Friday, ZQRT closes at 43.50. He doesn't close the put.",
+   "q": "What's he most likely holding Monday, and at what cost?",
    "choices": [
     "100 shares, net cost $43.20 a share",
     "100 shares at $43.50, the closing price",
-    "Nothing: the put expires worthless",
+    "Nothing, the put expires worthless",
     "Short 100 shares at the $45 strike"
    ],
    "answer": "100 shares, net cost $43.20 a share",
@@ -1386,7 +1390,7 @@
      "premium": 1.8
     }
    },
-   "why": "100 shares, net cost $43.20 a share. At a 43.50 close the put is in the money, so expect assignment, though it isn't guaranteed. An assigned put writer must buy the shares at the strike, whatever the market price. OIC says the net cost is the strike less the premium received: 45 minus 1.80 is 43.20. Near expiry you may not know for sure until the Monday after.",
+   "why": "100 shares at a net $43.20. At 43.50 the put is in the money, so he should expect assignment. He has to buy 100 shares at the 45 strike, wherever the stock trades. The 1.80 he collected takes the edge off: 45 minus 1.80 is 43.20 a share. And if ZQRT gaps lower Monday, he still paid 45. That's what a put seller signs up for. That's the seller's side, not ours. You'll see friends do it, so know how it ends.",
    "lesson_line": "An assigned put seller pays the strike, however low the stock goes. The premium only softens it.",
    "facts": [
     "f8",
@@ -1398,13 +1402,13 @@
     "f93"
    ],
    "wrong": {
-    "100 shares at $43.50, the closing price": "You buy at the 45 strike, not the market price. The 1.80 premium is what lowers your cost.",
-    "Nothing: the put expires worthless": "It's in the money at the close, so it's exercised unless the holder says otherwise.",
-    "Short 100 shares at the $45 strike": "An assigned short put makes you buy shares. Short shares come from an assigned short call."
+    "100 shares at $43.50, the closing price": "He buys at the 45 strike, not the market price. The 1.80 premium is what lowers his cost.",
+    "Short 100 shares at the $45 strike": "An assigned short put makes you buy shares. Short shares come from an assigned short call.",
+    "Nothing, the put expires worthless": "It's in the money at the close, so it's exercised unless the holder says otherwise."
    },
-   "simple": "You'd most likely own 100 shares at a net $43.20 each, because you pay the 45 strike minus the 1.80 you collected.",
+   "simple": "He'd most likely own 100 shares at a net 43.20, since he pays the 45 strike less the 1.80 he took in.",
    "deeper": {
-    "trap": "The trap is thinking the close sets your price. You pay the 45 strike however low the stock goes, and only the premium softens it. OIC tells put sellers to accept the strike as their price for the shares, however low the market goes. A gap down on Monday does not change the 45 you pay."
+    "trap": "The trap is thinking the close sets the price. He pays the 45 strike however low the stock goes, and only the premium softens it. OIC tells put sellers to accept the strike as their price for the shares, however low the market goes. A gap down Monday doesn't change the 45 he pays."
    },
    "tier": "extended",
    "risk": {
@@ -1413,7 +1417,7 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The short put",
@@ -1448,8 +1452,8 @@
    "skill": "options.assignment",
    "rung": 7,
    "format": "scenario",
-   "story": "You sold the 50/45 put spread: short the 50 put, long the 45 put. Two weeks before expiry the stock drops to 41, and your 50 put is assigned.",
-   "q": "What's in your account now?",
+   "story": "A friend sold the ZQRT 50/45 put spread: short the 50 put, long the 45 put. Two weeks before expiry ZQRT drops to 41, and his 50 put is assigned.",
+   "q": "What's in his account now?",
    "choices": [
     "100 shares at 50, plus the 45 put",
     "Nothing, the spread closed itself",
@@ -1457,7 +1461,7 @@
     "Cash for the max loss, spread closed"
    ],
    "answer": "100 shares at 50, plus the 45 put",
-   "why": "100 shares at 50, plus the 45 put. Assignment removes only the short leg, and the disclosure document warns it can change your risk a lot. An assigned put writer must buy the shares at the strike. Your long 45 put is still open. FINRA says it is up to you to exercise it or take other action. OIC adds that even covering with the long put means carrying the shares for a business day.",
+   "why": "100 shares bought at 50, and he still owns the 45 put. Assignment only takes out the short leg. The spread doesn't unwind itself. So a trade he thought was capped is now 100 shares he paid 50 for, with the stock at 41. His 45 put is still open, and FINRA puts it on him to exercise it or limit the risk some other way. Even using the put to cover means carrying the shares for a business day. A spread is only defined-risk while both legs are there. That's the seller's side, not ours, but it's the trap people miss.",
    "lesson_line": "Assignment breaks a spread. The long leg is still yours to exercise or sell, so act on it.",
    "facts": [
     "f43",
@@ -1469,13 +1473,13 @@
     "f93"
    ],
    "wrong": {
-    "Nothing, the spread closed itself": "The legs aren't tied together. The long put stays open until you act on it or it expires.",
-    "Short 100 shares at 50, plus the 45 put": "An assigned short put makes you buy shares, so you're long, not short.",
+    "Nothing, the spread closed itself": "The legs aren't tied together. The long put stays open until he acts on it or it expires.",
+    "Short 100 shares at 50, plus the 45 put": "An assigned short put makes you buy shares, so he's long, not short.",
     "Cash for the max loss, spread closed": "Stock options settle in shares, leg by leg. The spread doesn't settle as one cash amount."
    },
-   "simple": "You'd have 100 shares bought at 50 and still own the 45 put, because assignment only hits the short leg.",
+   "simple": "He'd have 100 shares bought at 50 and still own the 45 put, because assignment only hits the short leg.",
    "deeper": {
-    "trap": "The trap is thinking the spread unwinds itself. Assignment leaves you long shares bought at 50, and you must finance them. The 45 put is now a separate position. FINRA puts the next step on you: exercise it or take other action to limit risk. If the put expires worthless, the shares are left with nothing under them."
+    "trap": "The trap is thinking the spread unwinds itself. Assignment leaves him long shares bought at 50, and he has to pay for them. The 45 put is now a separate position. FINRA puts the next step on him: exercise it or take other action to limit risk. If the put expires worthless, the shares have nothing under them."
    },
    "tier": "extended",
    "risk": {
@@ -1484,15 +1488,15 @@
      "fixed before (why reworded)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "options.assignment",
    "rung": 8,
    "format": "scenario",
-   "story": "It's expiry Friday. You're short one 50 call and own no shares. At 3:50 p.m. ET the stock sits at 50.02.",
-   "q": "What's the cleanest way to avoid a surprise position on Monday?",
+   "story": "Expiry Friday, 3:50 p.m. ET. A friend is short one ZQRT 50 call and owns no shares. ZQRT is sitting at 50.02.",
+   "q": "He doesn't want a surprise Monday. What should he do?",
    "choices": [
     "Buy the call back before the close",
     "Nothing, two cents won't get exercised",
@@ -1500,8 +1504,8 @@
     "Wait and see the after-hours price"
    ],
    "answer": "Buy the call back before the close",
-   "why": "Buy the call back before the close. OIC says the only way to avoid assignment on a given day is to close the short before that day's close. At 50.02 the call is in the money, and automatic exercise starts at $0.01 at the close. Holders can also choose either way until 5:30 p.m. ET, and after-hours news can flip it. Closing removes both surprises.",
-   "lesson_line": "Right at the strike on expiry day, close any short option. Guessing at assignment is how you get a Monday surprise.",
+   "why": "Buy it back before the close. Right at the strike, nobody knows what happens next. At 50.02 the call is in the money, and a penny is enough for automatic exercise. Holders can still go either way until 5:30 p.m. ET, and after-hours news can flip it. Buying 100 shares in case is a guess too. If the assignment never comes, he's long 100 shares over the weekend. OIC is blunt: to avoid assignment on a given day, close the short before that day's close. Pay up and be done with it.",
+   "lesson_line": "Right at the strike on expiry day, close the short. Guessing is how you get a Monday surprise.",
    "facts": [
     "f49",
     "f50",
@@ -1517,13 +1521,13 @@
     "f93"
    ],
    "wrong": {
-    "Nothing, two cents won't get exercised": "The automatic threshold is $0.01. If it closes at 50.02, it's in the money, and holders can choose either way.",
-    "Buy 100 shares in case of assignment": "If the assignment never comes, you're long 100 shares over the weekend. That's the other surprise.",
-    "Wait and see the after-hours price": "Expiring options stop trading at or soon after the close, but holders have until 5:30 p.m. ET to decide. Waiting leaves you stuck."
+    "Nothing, two cents won't get exercised": "The automatic threshold is $0.01. Close at 50.02 and it's in the money, and holders can choose either way.",
+    "Buy 100 shares in case of assignment": "If the assignment never comes, he's long 100 shares over the weekend. That's the other surprise.",
+    "Wait and see the after-hours price": "Expiring options stop trading at or soon after the close, but holders have until 5:30 p.m. ET to decide. Waiting leaves him stuck."
    },
-   "simple": "Buy the call back before the close, because near the strike you can't know if you'll be assigned until Monday.",
+   "simple": "Buy it back before the close, because right at the strike he can't know until Monday whether he'll be assigned.",
    "deeper": {
-    "trap": "The trap is buying 100 shares to cover an assignment you expect. OIC warns that if the assignment never comes, you find an unwanted long stock position on Monday. Waiting is no better: expiring options stop trading at or soon after the close, while holders can decide until 5:30 p.m. ET. Closing the short is the only path with no Monday surprise."
+    "trap": "The trap is buying 100 shares to cover an assignment he expects. OIC warns that if the assignment never comes, he finds an unwanted long stock position on Monday. Waiting is no better: expiring options stop trading at or soon after the close, while holders can decide until 5:30 p.m. ET. Closing the short is the only path with no Monday surprise."
    },
    "tier": "expert",
    "risk": {
@@ -1533,23 +1537,23 @@
      "fixed before (story time zone, a wrong note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "options.assignment",
    "rung": 8,
    "format": "scenario",
-   "story": "You're short the 50 puts and long the 55 puts, same expiry. Friday's close is 56, so both are out of the money. Minutes after the bell, news drops it to 40.",
-   "q": "What's your move right now?",
+   "story": "A friend owns a ZQRT put spread: long the 55 puts, short the 50 puts, same expiry. Friday's close is 56, so both are out of the money. Minutes after the bell, news drops it to 40.",
+   "q": "What should he do right now?",
    "choices": [
-    "Exercise your 55 puts yourself",
+    "Exercise his 55 puts himself",
     "Nothing, both expired worthless",
     "Sell the 55 puts Monday morning",
     "Let the 55s exercise automatically"
    ],
-   "answer": "Exercise your 55 puts yourself",
-   "why": "Exercise your 55 puts yourself. This is FINRA's own example. After-hours news drops the stock to 40, and your short 50 puts can be assigned. Your 55 puts were out of the money at the 56 close, so automatic exercise skips them. FINRA says you would need to exercise the 55s to realize the spread's gain. If you don't, they expire and you carry the loss on shares bought at 50.",
+   "answer": "Exercise his 55 puts himself",
+   "why": "Exercise the 55 puts himself, and fast. Holders of the 50 puts can still exercise tonight. So he can be assigned shares at 50 with the stock at 40. His 55s closed out of the money at 56, so automatic exercise skips them. Nobody does it for him. Exercise them before his broker's cut-off, and he sells at 55, which keeps the spread's gain. Skip it and they expire, and he's stuck with shares bought at 50 and nothing under them. That's FINRA's own example. You should know your broker's cut-off before you ever need it.",
    "lesson_line": "After-hours news can flip an expiring spread. Know your broker's cut-off, and be ready to exercise the long leg yourself.",
    "facts": [
     "f44",
@@ -1563,13 +1567,13 @@
     "f35"
    ],
    "wrong": {
-    "Nothing, both expired worthless": "Holders can still exercise the 50 puts after the bell. You could be assigned with no 55s working.",
+    "Nothing, both expired worthless": "Holders can still exercise the 50 puts after the bell. He could be assigned with no 55s working.",
     "Sell the 55 puts Monday morning": "By Monday the 55 puts have expired, and an expired option is worthless.",
-    "Let the 55s exercise automatically": "Automatic exercise goes off the closing price, and at 56 your 55 puts were out of the money. You have to ask."
+    "Let the 55s exercise automatically": "Automatic exercise goes off the close, and at 56 his 55 puts were out of the money. He has to ask."
    },
-   "simple": "Exercise your 55 puts yourself, because your 50 puts may be assigned and the 55s won't exercise on their own.",
+   "simple": "Exercise the 55 puts himself, because his 50 puts may be assigned and the 55s won't exercise on their own.",
    "deeper": {
-    "trap": "The trap is reading the close as final. At 56 both legs looked worthless. But holders of the 50 puts can still exercise after the bell. Your 55s finished out of the money, so they need your instruction. Know your broker's cut-off. It can be earlier than FINRA's 5:30 p.m. ET."
+    "trap": "The trap is reading the close as final. At 56 both legs looked worthless. But holders of the 50 puts can still exercise after the bell. His 55s finished out of the money, so they need his instruction. Know your broker's cut-off. It can be earlier than FINRA's 5:30 p.m. ET."
    },
    "tier": "expert",
    "risk": {
@@ -1578,23 +1582,23 @@
      "fixed before (question and lesson line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
    "skill": "options.assignment",
    "rung": 9,
    "format": "scenario",
-   "story": "It's 3:45 p.m. ET on expiry Friday. You own one 50 call, and the stock is at 50.03. You don't want 100 shares over the weekend.",
+   "story": "It's 3:45 p.m. ET on expiry Friday. You own one ZQRT 50 call, and ZQRT is at 50.03. You don't want 100 shares over the weekend.",
    "q": "What's your move?",
    "choices": [
     "Sell it, or file a do-not-exercise",
-    "Nothing: 3 cents won't trigger exercise",
-    "Nothing: your broker will ask first",
+    "Nothing, 3 cents won't trigger it",
+    "Nothing, your broker will ask first",
     "Exercise it now to cash the 3 cents"
    ],
    "answer": "Sell it, or file a do-not-exercise",
-   "why": "Sell it, or file a do-not-exercise. If it closes at 50.03, the call is in the money by more than the $0.01 threshold. It is then exercised unless you give contrary instructions. You would then own 100 shares at 50. Schwab says if you don't want the position, it's generally better to sell before the close. Any holder can file a do-not-exercise. Your broker may use its own threshold.",
+   "why": "Sell it before the bell, or tell your broker not to exercise. If it closes at 50.03, it's in the money, and a penny is all it takes. Stay silent and Monday you own 100 shares at 50. When we buy a call, the premium we paid is the stop. A call that turns into 100 shares over a weekend isn't that trade anymore. Selling also collects whatever value is left in it. Your broker may use its own threshold, so know it.",
    "lesson_line": "On expiry day, decide for yourself. Stay silent on an in-the-money call and you own the shares.",
    "facts": [
     "f69",
@@ -1608,9 +1612,9 @@
     "f93"
    ],
    "wrong": {
-    "Nothing: 3 cents won't trigger exercise": "The automatic threshold is $0.01. If it closes at 50.03, the call is in the money and gets exercised.",
-    "Nothing: your broker will ask first": "Don't count on a heads-up. Automatic exercise runs unless you give contrary instructions.",
-    "Exercise it now to cash the 3 cents": "Exercising doesn't pay out cash. It buys 100 shares at 50, the thing you don't want."
+    "Exercise it now to cash the 3 cents": "Exercising doesn't pay out cash. It buys 100 shares at 50, the thing you don't want.",
+    "Nothing, 3 cents won't trigger it": "The automatic threshold is $0.01. Close at 50.03 and the call is in the money, so it gets exercised.",
+    "Nothing, your broker will ask first": "Don't count on a heads-up. Automatic exercise runs unless you give contrary instructions."
    },
    "simple": "Sell it or file a do-not-exercise, because a call a penny in the money at the close gets exercised unless you object.",
    "deeper": {
@@ -1624,14 +1628,14 @@
      "fixed before (story time, a wrong note, lesson line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "options.assignment",
    "rung": 9,
    "format": "mcq",
-   "q": "You hold a standard monthly SPX call, the AM-settled kind. When is your last chance to sell it?",
+   "q": "Expiry week. You hold a standard monthly SPX call, the AM-settled kind. When's your last shot to sell it?",
    "choices": [
     "The trading day before expiry",
     "Friday's open, before settlement",
@@ -1639,7 +1643,7 @@
     "Monday, once it's cash-settled"
    ],
    "answer": "The trading day before expiry",
-   "why": "The trading day before expiry, usually Thursday. Cboe's spec says standard SPX options ordinarily stop trading on the business day before the settlement value is set. That value comes from the opening prices of the index stocks on expiry day, so Friday's opening prices set your cash. SPXW is a different SPX option and trades until 4:00 p.m. ET on its expiry day.",
+   "why": "The trading day before expiry, normally Thursday. Standard SPX stops trading the business day before its settlement value is set. That value comes from the opening prices of the index stocks on expiry morning. So whatever happens overnight lands right on your cash, and you can't get out Friday. If you don't want that overnight risk, sell it Thursday. Check which one you hold. SPXW, the PM-settled kind, trades until 4:00 p.m. ET on its expiry day.",
    "lesson_line": "With AM-settled index options, the day before expiry is your last exit. Overnight news lands on your settlement.",
    "facts": [
     "f65",
@@ -1654,7 +1658,7 @@
     "Monday, once it's cash-settled": "After expiry there's nothing left to sell. It settles straight to cash.",
     "At Friday's 4 p.m. ET close": "That's SPXW, a different SPX option. It trades until 4:00 p.m. ET on its expiry day."
    },
-   "simple": "The trading day before, usually Thursday, because AM-settled SPX stops then and its cash value comes from Friday's opening prices.",
+   "simple": "The day before, most weeks a Thursday. It stops trading then, and the Friday open sets its cash.",
    "deeper": {
     "trap": "The trap is planning to sell Friday morning if the news is bad. AM-settled SPX does not trade on expiry day. Anything that happens overnight lands straight in the settlement, which Schwab calls print risk. Check which one you hold: SPX stops the day before, while SPXW trades until 4:00 p.m. ET on its expiry day."
    },
@@ -1666,7 +1670,7 @@
      "fixed before (a choice, the why and the lesson line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1699,140 +1703,135 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Friend's short call, assignment defined plainly; f42/f51/f52 hold. Ties back to our side (we hold the right)."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key False from f14 (OIC: 72% closed, 22% worthless, 6% exercised) and f41 (FINRA about 7%). Every number is in a quote. The reworded 7% sentence matches f41. No tell (tf)."
+   "fixed": true,
+   "notes": "Writer's ending said 'if you're ever short an option', which puts the member on the seller's side. Moved to a friend. 72/22/6 (OIC) and 7 (FINRA) match f14/f41."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f2/f40 (OCC random to a firm) and f3/f37 (firm uses random or FIFO). Choices 35-39 chars, no tell. 'Oldest goes first' is what first in, first out means (f37), so the 'most recently' wrong note holds. No second defensible answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Truth fine (OCC random to a firm, then the broker's random or FIFO pick: f2/f3/f37/f40). Why and lesson_line told the member 'if you're short, assume it's you'; we never sell options. Reworded to the seller and labelled it the seller's side."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f48 (OIC glossary: close one, open another at a new strike/expiry at the same time). Choices now 16-19 chars, balanced. The dividend sentence is backed by f84. The wrong notes are backed by f52, f51 and f53. q01's rolling wrong note comes first, which is teaching order, not a leak.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Roll defined on a friend's trade, says plainly it's the seller's side. f48/f89/f84 support it."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Keep. A short option one penny in the money at the close is exercised unless told otherwise; a seller must plan for it. Bank (penny, nickel, quarter, dollar) is not a giveaway."
+   "fixed": true,
+   "notes": "Stem ended on a bare 'Fill in the blank.', a form instruction, not a trader's question. Now asks what a trader asks. Penny threshold f12/f69; broker may differ is said."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False from f15/f16. The new simple ('up to the last') matches f15 and stays true for AM-settled SPX (f28, last trading day is before expiry). It does not answer q22."
+   "notes": "European style limits exercise only; selling any day up to the last trading day (f15/f16). Member is the buyer, fine."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f62/f58/f17/f80. The key (32 chars) is no longer the longest (earnings choice 36). Payment-date note from f17. Earnings note from f19/f62 (the dividend is the one stated exception). Two choices name a dividend, so 'dividend' in the stem is no tell."
+   "fixed": true,
+   "notes": "Truth holds (day before ex-date, time value below the dividend: f62/f80/f86). Last line 'If you ever hold a spread with a short call' puts the member short an option. Reworded."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f55 (OIC, deep ITM), f10 and f81 (time value mostly decayed). Choices 30-31 chars. The f9 call-writer wording now replaces the unsupported claim. 'Selling below the market' for an OTM put is what OTM means. No second defensible answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Deep ITM short put near expiry: f10/f55/f81. Fund's trade; wrong notes name why each fails."
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "T+1 since May 28, 2024 (f27): Friday exercise settles Monday. Practical how (have the cash or sell) is there."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f34. The date is fixed by 'as of November 2026'. Each claim has a fact: 'most do' is f21, 1 hour 30 minutes is f90, 'equity options, not index options' is f33/f35/f39. Choices 25-30 chars."
+   "fixed": true,
+   "notes": "Stem asked 'How long can holders still exercise?' on the member's own call while the choices are clock times; now asks the member's last chance. 5:30 p.m. ET (f34/f36), earlier broker cut-offs (f35), early close (f90), stock and ETF only (f39) all hold."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f23 (assigned before trading starts on the next business day after OCC receives it). The new simple and the 'Instantly' note follow f23's wording. Choices 27-35 chars."
+   "fixed": true,
+   "notes": "OCC assigns before the next open (f23), notice can lag a day or more (f24), any trading day (f47). Last line 'If you ever hold a spread, that's your short leg too' puts the member short. Reworded."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Assigned short can't be closed by a buy-back (f25/f26); only fix is closing before the close (f6). Friend's trade."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, numbers, format and label checked against the question."
+   "notes": "3 x 100 x 0.40 = 120 recomputed; wrong choices are real slips (share count, decimal, double 100). Labelled the seller's side."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f71/f72 (90 call exercised, 95 likely expires, you buy at 90). Shares come from f78/f93. 'Cash for the spread only' is now 24 chars, so choices run 22-25. q14's DNE tactic and q21 test different cases (a spread vs a single long call).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Writer kept the member as the buyer of a 90/95 call spread, which means the member sold the 95 call. We trade shares, and an option is only an occasional bought option with the premium as the stop. Moved the spread to a friend and tied it back to a single call the member owns. Math and f71/f72 unchanged: 93 sits between the strikes, the 90 is exercised, shares at 90."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "option assignment; nothing on short entry; keep agrees"
+   "notes": "Assignment on an OTM short after the bell (f5/f7/f34). Friend's trade; closing the short before the bell is the how."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "My answer before reading the key: calc extrinsic = 7.45 - (62.40 - 55) = 0.05, below the 0.30 dividend, so Likely (f80, f82, f85). 'and why?' makes the ITM-only choice wrong on its reason. The key is no longer the only choice with numbers. Choices 35-37 chars. Wrong notes from f19/f62.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "62.40 - 55 = 7.40 intrinsic, 7.45 - 7.40 = 0.05 time value, below the 0.30 dividend: likely assigned (f80/f85). Steps shown; the trap in deeper is real."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Title 'The assigned put' and 'Net cost a share' presume the assignment the question asks about"
+   "fixed": false,
+   "notes": "45 - 1.80 = 43.20 recomputed; buys at the strike whatever the price (f22/f8). Labelled the seller's side."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "The rewritten trap is supported: you must finance the shares (f56, f22), the next step is on you (f43), an expired option is worthless (f29). The cap claim is gone. Key from f31/f22/f43. Choices 33-39 chars."
+   "fixed": true,
+   "notes": "Truth holds (short leg assigned, long 45 put still open, financing a business day: f43/f56/f31). Ending 'Keep that in mind any time you hold one' put the member in a credit spread. Reworded."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f6 (close before that day's close). Each claim has a fact: $0.01 at the close is f69, 5:30 p.m. ET is f34, the after-hours flip is f7, stops trading at or soon after the close is f76/f91, unexpected long Monday is f59. The lesson line is a second-person instruction to anyone short (21 words). The 'two cents' in a wrong choice is plain from the stem (50.02 vs the 50 strike). Short naked call framing stays on the owner flag."
+   "notes": "Pinned short at 50.02 at 3:50: buy it back. Penny threshold, 5:30 cut-off, buying stock in case (f59) all correct. 'Pay up and be done with it' is his register."
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "FINRA's own example (f44-f46): exercise the long 55 puts himself. Friend's trade; the broker cut-off point applies to any holder."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The new 'heads-up' wrong note is a hedge backed by f33 (exercised unless contrary instructions), and the pun is gone. Key from f69/f12/f33/f75/f77. f93 is cited for 100 shares. '3 cents' is plain from the stem (50.03 vs 50). A long call, so the rulebook is not engaged."
+   "notes": "Member owns a call 3 cents in the money at 3:45: sell or DNE (f69/f75/f77). Premium-is-the-stop tie-in is right (B25)."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (f65 re-fetched on the Cboe spec page 2026-11-12: SPX ordinarily ceases on the business day, usually a Thursday, before the settlement value is calculated; f28). Could not break the key. One wording error: the why and a wrong note call SPXW 'a different series'. In options terms a series is one strike and expiry, and no quote calls SPXW a series; f66 only names SPXW and its 4:00 pm ET stop. Reworded to 'a different SPX option'. Key and choices unchanged."
+   "fixed": false,
+   "notes": "AM-settled SPX stops the trading day before (f65/f28/f73); SPXW until 4:00 p.m. ET (f66). Overnight print risk is the reason."
   }
  }
 }

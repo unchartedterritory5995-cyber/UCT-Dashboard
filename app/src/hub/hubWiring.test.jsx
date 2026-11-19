@@ -164,7 +164,13 @@ describe('Layout — orb/feedback-FAB mount gate (spec exception a)', () => {
     expect(src).not.toMatch(/^\s*import\s+FloatingOrb/m)
     expect(src).not.toMatch(/<FloatingOrb[\s/>]/)
     expect(src).toMatch(/useHubActive/)
-    expect(src).toMatch(/!hubActive\s*&&\s*<FeedbackWidget/)
+    // The hub gate leads the condition. Further NEGATED page flags may follow it (c8f2002c31, owner
+    // 2026-11-15: `!onCharts`, the "?" stays off /charts) — nothing else, so the gate cannot be
+    // turned into an OR or moved behind another test.
+    expect(src).toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
+    expect('{!hubActive && <FeedbackWidget />}').toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
+    expect('{!onCharts && <FeedbackWidget />}').not.toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
+    expect('{!hubActive || onCharts && <FeedbackWidget />}').not.toMatch(/!hubActive\s*&&\s*(?:![A-Za-z]+\s*&&\s*)*<FeedbackWidget/)
   })
 })
 

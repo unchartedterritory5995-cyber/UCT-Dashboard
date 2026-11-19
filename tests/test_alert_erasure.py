@@ -75,11 +75,13 @@ def _build_schemas(paths: dict[str, Path]) -> None:
             k = opener(str(paths["alert_taxonomy"]))
             k.close()
     from api.services.screener import rs_screen_alerts, screen_alerts, spec_alerts
-    from api.services import calendar_alerts, transcript_keyword_alerts as tka
+    from api.services import calendar_alerts, list_alerts, transcript_keyword_alerts as tka
     from api.services.catalyst import store as cstore
     # rs_screen_alerts (RS screens unit U13): its two tables carry a member id too.
+    # list_alerts (the Terminal list alerts) keeps its tables in screener.db as well: three
+    # carry a member id, two hold what was on each list for everyone.
     for name, ddl in (("screener", screen_alerts._SCHEMA + spec_alerts._SCHEMA
-                       + rs_screen_alerts._SCHEMA),
+                       + rs_screen_alerts._SCHEMA + list_alerts._SCHEMA),
                       ("calendar_alerts", calendar_alerts._SCHEMA),
                       ("transcript_alerts", tka._SCHEMA),
                       ("catalysts", cstore._SCHEMA)):
@@ -94,7 +96,7 @@ def stores(tmp_path, monkeypatch):
     """The five stores at tmp paths, pointed at through each module's OWN path attribute."""
     from api.services.alert_taxonomy import db as _db
     from api.services.screener import rs_screen_alerts, screen_alerts, spec_alerts
-    from api.services import calendar_alerts, transcript_keyword_alerts as tka
+    from api.services import calendar_alerts, list_alerts, transcript_keyword_alerts as tka
     from api.services.catalyst import store as cstore
     paths = {s.name: tmp_path / s.db for s in ae.STORES}
     monkeypatch.setattr(_db, "DB_PATH", str(paths["alert_taxonomy"]))
@@ -105,6 +107,7 @@ def stores(tmp_path, monkeypatch):
     screen_alerts._done.clear()
     spec_alerts._done.clear()
     rs_screen_alerts._done.clear()
+    list_alerts._done.clear()
     _build_schemas(paths)
     # Non-vacuity: the purge resolves exactly these files.
     assert {s.name: s.path() for s in ae.STORES} == {k: str(v) for k, v in paths.items()}
@@ -230,6 +233,9 @@ _STORE_NOT_MEMBER = {
     "regime_change_heartbeat", "regime_change_projection_watermark", "scan_membership_heartbeat",
     "catalysts", "catalyst_cost_log", "catalyst_gate_rejections", "catalyst_learned_rules",
     "catalyst_learn_state", "catalyst_deep_context_done", "catalyst_runs",
+    # list_alerts: what was on each Terminal list, and which sessions were checked. For
+    # everyone; no member id.
+    "list_alert_presence", "list_alert_sessions",
 }
 #: A column that ties a row to a member's row without naming the member.
 _HANGS_OFF = {"predicate_id", "fire_id", "sub_id", "webhook_id"}
@@ -487,13 +493,8 @@ KNOWN_UNPURGED = {
     "reactions": "UNPURGED member data: community.db",
     "read_state": "UNPURGED member data: community.db",
     "threads": "UNPURGED member data: community.db (author_id; shared content -- delete or anonymize?)",
-    "agent_conversations": "UNPURGED member data: uct_agent store",
-    "agent_turns": "UNPURGED member data: uct_agent store",
-    "agent_telemetry": "UNPURGED member data: uct_agent store",
-    "agent_inflight": "UNPURGED member data: uct_agent store",
-    "agent_rate_events": "UNPURGED member data: uct_agent store",
-    "agent_requests": "UNPURGED member data: uct_agent store",
-    "agent_spend": "UNPURGED member data: uct_agent store",
+    # (uct_agent.db and study.db left this ledger on the owner's ruling of 2026-11-17: every member
+    # table in both is deleted or anonymised by `member_store_erasure`.)
     "ais_threads": "UNPURGED member data: ai_search_member.db",
     "ais_saved": "UNPURGED member data: ai_search_member.db",
     "ais_briefings": "UNPURGED member data: AI search briefings store",
@@ -509,16 +510,6 @@ KNOWN_UNPURGED = {
     "workspace_key_guard": "UNPURGED member data: workspace_docs.db",
     "workspace_parse_failures": "UNPURGED member data: workspace_docs.db",
     "workspace_writebacks": "UNPURGED member data: workspace_docs.db",
-    "study_attempts": "UNPURGED member data: study store",
-    "study_badges": "UNPURGED member data: study store",
-    "study_checkpoints": "UNPURGED member data: study store",
-    "study_feedback": "UNPURGED member data: study store",
-    "study_item_state": "UNPURGED member data: study store",
-    "study_profile": "UNPURGED member data: study store",
-    "study_reminder_log": "UNPURGED member data: study store",
-    "study_sessions": "UNPURGED member data: study store",
-    "study_skill": "UNPURGED member data: study store",
-    "study_weekly_xp": "UNPURGED member data: study store",
     "edu_video_notes": "UNPURGED member data: education.db",
     "edu_video_progress": "UNPURGED member data: education.db",
     "pattern_feedback": "UNPURGED member data: patterns.db",

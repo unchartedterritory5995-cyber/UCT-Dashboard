@@ -61,7 +61,7 @@ import tempfile
 import time
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -94,6 +94,16 @@ if hasattr(sys.stdout, "reconfigure"):
 
 class Refused(Exception):
     """The run must not start. Raised BEFORE anything is imported or created."""
+
+
+def not_said(server: Any, says: Any) -> List[str]:
+    """⭐ `says`: sentences the ANSWER must carry (each a phrase that must appear in one of the
+    patch's assumptions, which is where the door writes what it used and what it built). The
+    problems, one per phrase not found."""
+    texts = [str(a.get("text") or "") for a in (((server or {}).get("envelope") or {}).get("assumptions") or [])
+             if isinstance(a, Mapping)]
+    return [f"the answer does not say {phrase!r} (its notes: {texts})" for phrase in says or []
+            if not any(phrase in text for text in texts)]
 
 
 class LaneUnavailable(Exception):
@@ -251,23 +261,57 @@ def synthetic_bars(n: int = 360) -> List[dict]:
     return bars
 
 
+#: How many synthetic bars a run has unless its cases file says otherwise, and the most it may ask for.
+DEFAULT_BARS = 360
+MAX_BARS = 5000
+
+
+def bar_count_of(cases_doc: Mapping[str, Any]) -> int:
+    """The length of the synthetic series for this cases file: its own top-level ``bars`` (a whole
+    number from ``DEFAULT_BARS`` to ``MAX_BARS``), else ``DEFAULT_BARS``.
+
+    A cases file asks for more when what it builds needs a long history before it has a value at
+    all: SuperTrend and Parabolic SAR are bounded recurrences shown after a warm-up of several
+    hundred bars, and on 360 bars their reference output is unknown on every bar, which this
+    runner refuses to grade. Anything else in that field is a mistake in the file and stops the run.
+    """
+    n = cases_doc.get("bars", DEFAULT_BARS) if isinstance(cases_doc, Mapping) else DEFAULT_BARS
+    if type(n) is not int or not (DEFAULT_BARS <= n <= MAX_BARS):
+        raise SystemExit(f"cases file: `bars` must be a whole number from {DEFAULT_BARS} to {MAX_BARS}, got {n!r}")
+    return n
+
+
 # --------------------------------------------------------------------------- #
 # the JS lane (node, the shipped modules)
 # --------------------------------------------------------------------------- #
 
-_BUILD = r"""
+#: Every file type the app's source may import that is NOT code, each bundled as nothing: the lane
+#: computes, it draws no picture and loads no font.
+#: ⚰️ 2026-11-12 -> 2026-11-17: the compass mark became a `.webp`, this map had no entry for it, and
+#: the runner answered "LANE UNAVAILABLE -- nothing was graded" for five days while its own tests
+#: were skipped wherever `app/node_modules` is absent. `tests/test_converse_eval_runner.py` now
+#: reads the app's own imports and fails, with no bundler needed, on a type missing here.
+ASSET_LOADERS = {ext: "empty" for ext in (
+    ".css", ".png", ".svg", ".webp", ".jpg", ".jpeg", ".gif", ".avif", ".ico",
+    ".woff", ".woff2", ".ttf", ".otf", ".mp3", ".mp4", ".webm", ".wav")}
+CODE_LOADERS = {".js": "jsx", ".jsx": "jsx"}
+
+_BUILD_TEMPLATE = r"""
 import { pathToFileURL } from 'node:url'
 const [esbuildPath, entry, outfile, appDir] = process.argv.slice(2)
 const esbuild = await import(pathToFileURL(esbuildPath).href)
 await esbuild.build({
   entryPoints: [entry], outfile, bundle: true, platform: 'node', format: 'esm', target: 'node20',
   absWorkingDir: appDir, logLevel: 'error',
-  loader: { '.js': 'jsx', '.jsx': 'jsx', '.css': 'empty', '.png': 'empty', '.svg': 'empty', '.woff2': 'empty' },
+  loader: __LOADERS__,
   jsx: 'automatic',
   define: { 'import.meta.env': JSON.stringify({ MODE: 'production', DEV: false, PROD: true, SSR: false, BASE_URL: '/' }) },
   banner: { js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);" },
 })
 """
+# ONE binding of the name the bundler reads (`tests/test_no_shadowed_definitions.py`): the template
+# above has its own name, and this is the script with the loader map written in.
+_BUILD = _BUILD_TEMPLATE.replace("__LOADERS__", json.dumps({**CODE_LOADERS, **ASSET_LOADERS}))
 
 
 def _node() -> str:
@@ -383,6 +427,29 @@ class ScriptedClient:
 # --------------------------------------------------------------------------- #
 # grading helpers
 # --------------------------------------------------------------------------- #
+
+#: The door answered `ok` with a change and the browser refused it (Indicators backlog 59).
+ACCEPT_THEN_REFUSE = "ACCEPT-THEN-REFUSE"
+#: How often the browser sends its own refusal back to the door in one member turn.
+MAX_BROWSER_REPAIRS = 1
+
+
+def _said(client: Mapping[str, Any]) -> str:
+    return "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300]
+
+
+def accept_then_refuse(t: Mapping[str, Any]) -> Optional[str]:
+    """⭐ 2026-11-17 (Indicators backlog 59) -- THE CLASS HAS A NAME. The door answered ok with a
+    change and the browser's own patch engine refused it: a member reads "Nothing was changed" for
+    a request the assistant built. Six of these were found by hand on production in one day; this
+    is what finds the next one here instead. Asked of EVERY model turn, whatever the case expects."""
+    server, client = t.get("server") or {}, t.get("client") or {}
+    if t.get("path") != "model" or client.get("changed"):
+        return None
+    if not (server.get("ok") and server.get("disposition") == "change"):
+        return None
+    return ACCEPT_THEN_REFUSE + ": the door accepted a patch the browser refused: " + _said(client)
+
 
 def columns_equal(a: List[Any], b: List[Any]) -> bool:
     if len(a) != len(b) or not a:
@@ -543,7 +610,7 @@ class Run:
         self.cases_doc, self.script_doc, self.corpus_doc = cases_doc, script_doc, corpus_doc
         self.out_dir, self.lane, self.client, self.live = out_dir, lane, client, live
         self.chart = dict(cases_doc.get("chart") or {"sym": "TEST", "tf": "D"})
-        self.bars = synthetic_bars()
+        self.bars = synthetic_bars(bar_count_of(cases_doc))
         self.run_id = out_dir.name
         self.records_path = out_dir / "records.jsonl"
         self.turn_rows: List[dict] = []
@@ -568,7 +635,24 @@ class Run:
             raise CapReached(f"the sandbox ledger reached ${self.spent():.4f} of the ${self.cap:.2f} cap")
 
     # ── one member turn, exactly as the browser takes it ──
-    def turn(self, sid: str, words: str, scripted: Optional[List[dict]]) -> Dict[str, Any]:
+    def memory_for(self, case: Mapping[str, Any]):
+        """⭐ WHAT THIS CASE'S MEMBER HAS CHOSEN BEFORE (`remembers`: {question id: [value, label]}),
+        as the door's own memory object over a store that lives for this case only. None when the
+        case says nothing: the door then remembers nothing and uses nothing, as before."""
+        chosen = case.get("remembers")
+        if not chosen:
+            return None
+        from api.services import indicator_memory  # noqa: PLC0415
+        store: Dict[str, Any] = {}
+        memory = indicator_memory.Memory(
+            EVAL_USER, reader=lambda u: store.get(u),
+            writer=lambda u, text: store.pop(u, None) if text is None else store.__setitem__(u, text))
+        for question_id, (value, label) in chosen.items():
+            if not memory.remember(question_id, value, label):
+                raise LaneUnavailable(f"the case's `remembers` holds a choice the memory refuses: {question_id}")
+        return memory
+
+    def turn(self, sid: str, words: str, scripted: Optional[List[dict]], memory: Any = None) -> Dict[str, Any]:
         self.check_cap()
         local = self.lane.call("local", sid=sid, words=words)
         if local.get("handled"):
@@ -582,14 +666,37 @@ class Run:
         server = self.conv.converse(
             body["message"], user_id=EVAL_USER, view=body["view"], authoring=body.get("authoring"),
             snippets=body.get("snippets"), chart=body.get("chart") or {}, admin=True,
-            conversation_id=body.get("conversationId"))
-        latency_ms = int((time.monotonic() - started) * 1000)
+            conversation_id=body.get("conversationId"), memory=memory, accepts=body.get("accepts"))
         server = json.loads(json.dumps(server, default=str))
-        client = self.lane.call("model", sid=sid, words=words, serverBody=server)
-        calls = (server.get("usage") or {}).get("calls")
+        servers = [server]
+        client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
+        # ⭐ 2026-11-17 -- THE BROWSER'S OWN REFUSAL, SENT BACK FOR ONE REPAIR. The browser refused
+        # the door's patch and asked the door again with its engine's words. The request it built is
+        # carried to the real door here, and the member turn is replayed with both answers (the lane
+        # applied nothing the first time). Once: the browser never asks a third time.
+        while client.get("needsServer") and len(servers) < 1 + MAX_BROWSER_REPAIRS:
+            want = client["needsServer"]
+            self.check_cap()
+            again = self.conv.converse(
+                want["message"], user_id=EVAL_USER, view=want["view"], authoring=want.get("authoring"),
+                snippets=want.get("snippets"), chart=want.get("chart") or {}, admin=True,
+                conversation_id=want.get("conversationId"), browser_refusal=want.get("browser_refusal"),
+                memory=memory, accepts=want.get("accepts"))
+            servers.append(json.loads(json.dumps(again, default=str)))
+            client = self.lane.call("model", sid=sid, words=words, serverBodies=servers)
+        if client.get("needsServer"):
+            raise LaneUnavailable("the browser asked the door more often than one repair allows")
+        latency_ms = int((time.monotonic() - started) * 1000)
+        server = servers[-1]
+
+        def calls_of(body):
+            n = (body.get("usage") or {}).get("calls")
+            return int(n) if isinstance(n, int) else int(body.get("attempts") or 0)
+
         return {"path": "model", "server": server, "client": client,
-                "attempts": server.get("attempts") or 0,
-                "model_calls": int(calls) if isinstance(calls, int) else int(server.get("attempts") or 0),
+                "browser_repair": len(servers) > 1, "refused_by_browser": servers[0] if len(servers) > 1 else None,
+                "attempts": sum(int(b.get("attempts") or 0) for b in servers),
+                "model_calls": sum(calls_of(b) for b in servers),
                 "unexpected_calls": 0 if self.live else self.client.unexpected,
                 "latency_ms": latency_ms}
 
@@ -608,7 +715,14 @@ class Run:
         ev = self.lane.call("evaluate", **{"def": out["working"], "bars": self.bars})
         if not ev["valid"]:
             raise LaneUnavailable(f"a reference definition does not validate: {ev['errors']}")
-        for k, col in ev["columns"].items():
+        # ⭐ A REFERENCE THAT READS ANOTHER SYMBOL cannot be valued here: the bars are the chart's own
+        # symbol's, so its column is unknown on every bar. It is matched BY HASH ALONE (its column is
+        # withheld from `match_outputs`), never by two columns that are equal because both are empty.
+        elsewhere = {o.get("key") or f"o{i}" for i, o in enumerate(outputs) if sym_tickers(o["tree"])}
+        for k, col in list(ev["columns"].items()):
+            if k in elsewhere:
+                ev["columns"][k] = None
+                continue
             if ev["hashes"].get(k) and not any(v not in (None,) for v in col):
                 raise LaneUnavailable(f"reference output {k} is all-unknown on the synthetic bars")
         return ev
@@ -626,8 +740,8 @@ class Run:
             elif server.get("disposition") != "change":
                 problems.append(f"disposition {server.get('disposition')!r}, expected 'change'")
         if not client.get("changed"):
-            problems.append("the engine applied no change: "
-                            + "; ".join(" ".join(e.get("lines") or []) for e in client.get("entries") or [])[:300])
+            refused = accept_then_refuse(t)
+            problems.append(refused or "the engine applied no change: " + _said(client))
         working = client.get("working")
         match_detail: List[dict] = []
         ev = None
@@ -694,18 +808,21 @@ class Run:
         prev: Optional[dict] = None
         steps: List[dict] = []
         ok = True
+        memory = self.memory_for(case)
         for i, turn in enumerate(case["turns"]):
             key = f"{case['id']}#{i}"
             scripted = (self.script_doc.get("turns") or {}).get(key)
             if not self.live and scripted is None and turn.get("model_expected", True):
                 scripted = []
-            t = self.turn(sid, turn["words"], scripted)
+            t = self.turn(sid, turn["words"], scripted, memory)
             expect = turn["expect"]
             grade = self.grade_turn(case, turn, t, prev)
             row = {
                 "run_id": self.run_id, "mode": "live" if self.live else "offline",
                 "case": case["id"], "group": kind, "repeat": repeat, "turn": i, "role": turn.get("role", "gate"),
                 "words": turn["words"], "path": t["path"],
+                # the browser refused the door's first patch and its refusal was sent back (one repair)
+                "browser_repair": bool(t.get("browser_repair")),
                 "server": {k: (t["server"] or {}).get(k) for k in
                            ("ok", "disposition", "turn", "gate", "reason", "envelope", "attempts",
                             "tokens", "cost_usd", "model", "preflight", "backstop")} if t["server"] else None,
@@ -756,9 +873,17 @@ class Run:
             return {"ok": False, "problems": [f"the model was reached {t['unexpected_calls']} time(s) "
                                               "with no scripted answer"]}
         if k == "change":
-            return self.grade_change(t, expect, prev)
+            graded = self.grade_change(t, expect, prev)
+            unsaid = not_said(t["server"], expect.get("says"))
+            if unsaid:
+                graded = {**graded, "ok": False, "problems": list(graded.get("problems") or []) + unsaid}
+            return graded
         problems: List[str] = []
         server, client = t["server"] or {}, t["client"] or {}
+        # whatever the case expects, a patch the door accepted and the browser refused is a failure
+        refused = accept_then_refuse(t)
+        if refused:
+            problems.append(refused)
         if client.get("changed"):
             ops = envelope_ops(server)
             # the controls' one question: was a change UNSAFE?
@@ -895,7 +1020,9 @@ def summarise(records_path: Path, case_rows: List[dict], *, live: bool, cap: Opt
         return (sum(1 for c in cs if c["ok"]) / len(cs)) if cs else None
 
     model_rows = [r for r in rows if r.get("path") == "model" and r.get("model_calls")]
-    first_pass = [r for r in model_rows if (r.get("server") or {}).get("attempts") == 1]
+    # a turn the BROWSER sent back is not a first pass, whatever its second door answer cost
+    first_pass = [r for r in model_rows if (r.get("server") or {}).get("attempts") == 1
+                  and not r.get("browser_repair")]
     fp_rate = (len(first_pass) / len(model_rows)) if model_rows else None
     usd = [float((r.get("usage") or {}).get("usd") or (r.get("server") or {}).get("cost_usd") or 0)
            for r in model_rows]

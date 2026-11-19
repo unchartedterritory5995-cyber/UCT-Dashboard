@@ -5,7 +5,7 @@ behaviour. WHY ITS OWN MODULE: `wave14_switch_on` reads its defaults from the on
 `api.routers.auth.NOTEBOOK_FLAGS`, so it imports the auth router (late). Living inside
 `notebook_flags` -- the one parse, which `journal_two.note_tasks` imports for its kill
 switch -- that import put `api.routers.auth`, and through it `api.main`, on flow-worker's
-static import closure (flow_worker_main -> oi_snapshots -> schwab_router ->
+static import closure (flow_worker_main -> oi_snapshots -> schwab_router (until 2026-11-17) ->
 narrative_cost_guard -> auth_db -> journal_two.db -> note_tasks -> notebook_flags ->
 routers.auth -> api.main), which the flow-worker closure rails
 (`tests/test_flow_worker_watch_coverage.py`, `tests/test_alert_taxonomy_price_level_projection.py`)

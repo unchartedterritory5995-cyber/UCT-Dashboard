@@ -81,13 +81,22 @@ INVENTORY: tuple[Column, ...] = (
            "api/services/journal_two/broker/connections.py:41 (save_broker_user)"),
     Column("broker", "auth", "user_totp", "secret_encrypted",
            "api/services/totp_service.py:150 (begin_setup)"),
+    # 2026-11-18 (census triage): line drift only, 231 -> 232. The same `crypto_box.encrypt(secret)`
+    # in the same INSERT into alert_webhooks.secret_enc; the call moved down one line.
     Column("broker", "alert_taxonomy", "alert_webhooks", "secret_enc",
-           "api/services/alert_taxonomy/outbound_webhooks.py:231 (create)"),
+           "api/services/alert_taxonomy/outbound_webhooks.py:232 (create)"),
     # NOTE family -- NOTE_ENCRYPTION_KEY
+    # 2026-11-18 (census triage): c5f1150049 (Evernote PKCE, rotating refresh token) moved the call
+    # out of upsert_connector into ONE helper, `_encrypt_token`, which upsert_connector AND the
+    # refresh-token compare-and-swap both write j2_note_connectors.token_enc through. Same family,
+    # same column, still encrypted; the inventory names the helper's line.
     Column("note", "auth", "j2_note_connectors", "token_enc",
-           "api/services/journal_two/note_connectors/connections.py:60 (upsert_connector)"),
+           "api/services/journal_two/note_connectors/connections.py:143 "
+           "(_encrypt_token: upsert_connector + the refresh-token rotation)"),
+    # 2026-11-18 (census triage): line drift only, 317 -> 318. The same NoteBox.encrypt(secret_part)
+    # into j2_obsidian_devices.token_enc in redeem_connect_code.
     Column("note", "auth", "j2_obsidian_devices", "token_enc",
-           "api/services/journal_two/note_connectors/obsidian_link.py:317 (redeem_connect_code)"),
+           "api/services/journal_two/note_connectors/obsidian_link.py:318 (redeem_connect_code)"),
     # PRIVATE family -- WISDOM_PRIVATE_KEY (unset in prod 2026-10-22: no rows)
     Column("private", "wisdom_private", "wisdom_private_positions", "value_enc",
            "api/services/wisdom/core/private.py:109 (put_private)"),

@@ -704,9 +704,9 @@
    "key": "w1",
    "title": "Volume, open interest, and what's new",
    "steps": [
-    "Volume counts the contracts that traded today. Open interest counts the contracts still open.",
-    "A trade adds to open interest only when both sides open. One side opening and the other closing just changes hands.",
-    "The Options Clearing Corporation (OCC) counts open interest after the close. Today's flow shows up in it the next session."
+    "Two columns on the chain. Volume is what traded today. Open interest is how many contracts are still open.",
+    "Open interest only goes up when both sides open. One opens, one closes, and the contract just changes hands.",
+    "OCC posts open interest after the close. So today's flow shows up in the next session's number."
    ],
    "facts": [
     "f16",
@@ -720,9 +720,10 @@
    "key": "w2",
    "title": "Every print has two sides",
    "steps": [
-    "Every option trade has a buyer and a seller. Public data shows size, strike and expiry, not who traded.",
-    "A big put buy can be a bullish holder buying protection. A big call sale can be a covered call for income.",
-    "Many traders call activity unusual at about five times a contract's normal volume. Unusual means look closer, not buy."
+    "Every option trade has a buyer and a seller. The tape shows size, strike and expiry. Not who did it.",
+    "That big put buy might be a bull protecting shares. That big call sale might be a covered call for income.",
+    "Plenty of traders call it unusual at about five times a contract's normal volume.",
+    "Unusual means take a closer look. It's not a buy signal. The chart still makes the call."
    ],
    "facts": [
     "f55",
@@ -739,9 +740,10 @@
    "key": "w3",
    "title": "The dealer gamma theory",
    "steps": [
-    "Market makers, often called dealers, take the other side of public orders and hedge with stock to stay delta-neutral.",
-    "The theory: when they're long gamma, their hedging leans against moves. Short gamma, it chases them.",
-    "Studies find expiration-day closes cluster at strikes. But outsiders only estimate dealer positions, and the estimates have disagreed wildly."
+    "Market makers, the dealers, take the other side of public orders. Then they hedge with stock to stay neutral.",
+    "The theory: long gamma, their hedging sells rallies and buys dips. Short gamma, they chase the move.",
+    "There's real evidence behind it. On expiry day, closing prices cluster at the strikes.",
+    "But nobody outside sees dealer positions. Estimates for SPX alone have run from record short to long $50 billion of gamma."
    ],
    "facts": [
     "f30",
@@ -765,16 +767,16 @@
    "skill": "options.flow",
    "rung": 1,
    "format": "mcq",
-   "q": "On an options chain, what does open interest count?",
+   "q": "You pull up an NVDA call on your options chain. Next to volume there's a column called open interest. What's it counting?",
    "choices": [
-    "Contracts not yet closed out",
+    "Contracts still open, not closed out",
     "Contracts traded so far today",
-    "Orders waiting to be filled",
-    "Contracts traded since the series listed"
+    "Orders waiting on the bid or ask",
+    "Every contract traded since it listed"
    ],
-   "answer": "Contracts not yet closed out",
+   "answer": "Contracts still open, not closed out",
    "term": "Open interest",
-   "why": "Contracts not yet closed out. Open interest is the total number of option contracts outstanding, for one series or one stock. A contract leaves the count when it is closed, or exercised and assigned. It is not today's volume and not orders waiting on the bid or ask.",
+   "why": "Contracts still open. Open interest is the count of contracts nobody has closed out yet, for that one strike and expiry. Volume, right next to it, is today's trading. A contract drops out of open interest when it's closed, or exercised and assigned. Get these two straight before you read any flow. Volume is today. Open interest is what's still out there.",
    "lesson_line": "Volume is today's trading. Open interest is what's still open.",
    "facts": [
     "f1",
@@ -786,65 +788,65 @@
     "f12"
    ],
    "wrong": {
-    "Contracts traded so far today": "That's volume. It counts one session's trading, while open interest is the running total still open.",
-    "Orders waiting to be filled": "Unfilled orders sit on the bid and ask. Open interest counts contracts that already traded and are still open.",
-    "Contracts traded since the series listed": "That would count closed trades too. When both sides close, open interest goes down, so it counts only what's still open."
+    "Contracts traded so far today": "That's volume. It starts over every session. Open interest is the running total that's still open.",
+    "Orders waiting on the bid or ask": "Those haven't traded yet. Open interest only counts contracts that traded and are still open.",
+    "Every contract traded since it listed": "That would count the closed ones too. When both sides close, open interest drops, so it only holds what's still open."
    },
-   "simple": "Open interest counts the contracts that are still open, because nobody has closed them out yet.",
+   "simple": "Open interest is the contracts still open. Nobody has closed them out yet.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "options.flow",
    "rung": 1,
    "format": "tf",
-   "q": "Rising open interest in a stock's calls is a bullish sign.",
+   "q": "Call open interest on a stock you're watching climbs all week. That's a bullish sign.",
    "answer": "False",
-   "why": "False. OIC says open interest indicates neither a bullish nor a bearish outlook. Each open call has one buyer and one seller behind it. So more open calls means more buyers and more sellers at once. The count alone can't tell you which way the stock goes.",
-   "lesson_line": "Open interest counts contracts, not opinions. Every contract has a buyer and a seller.",
+   "why": "False. Every open call has a buyer and a seller behind it. So when call open interest climbs, you've got more buyers and more sellers at the same time. One of them may be bullish and the other may just want income or a hedge. The count can't tell you which way the stock goes. Read direction off your chart, not off this number.",
+   "lesson_line": "Open interest counts contracts, not opinions. Every one has a buyer and a seller.",
    "facts": [
     "f7",
     "f8",
     "f55"
    ],
-   "simple": "False, because every open call has a buyer and a seller, so the count says nothing about direction.",
+   "simple": "False. Every open call has a buyer and a seller, so the count says nothing about direction.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "options.flow",
    "rung": 2,
    "format": "mcq",
-   "q": "It's midday. When was the open interest on your options chain last updated?",
+   "q": "It's midday and you check a call's open interest on your chain. How fresh is that number?",
    "choices": [
-    "After the prior session's close",
-    "With each trade that prints",
-    "At the start of the week",
+    "As of the prior session's close",
+    "Live, updated with every trade",
+    "Once a week, on Monday morning",
     "At the most recent expiration"
    ],
-   "answer": "After the prior session's close",
-   "why": "After the prior session's close. OCC can report new open interest only after it clears and pairs the day's opening and closing trades. So during the session, the chain shows the prior day's count. Today's trades show up the next session, not trade by trade, not weekly and not only at expiry.",
-   "lesson_line": "During the session, open interest is the prior day's count. Today's trades show up in it next session.",
+   "answer": "As of the prior session's close",
+   "why": "It's the prior session's count. The Options Clearing Corporation (OCC) only posts new open interest once the day's trades clear and get paired up. That happens after the bell. So at midday you're looking at the last session's number, and today's trades show up in the next one. Keep that in mind when a big print hits our Options Flow page. Even tomorrow's count is a net number for the whole strike, so it won't tell you what that one print did.",
+   "lesson_line": "Midday open interest is the last session's count. Today's trades show up next session.",
    "facts": [
     "f10",
     "f17"
    ],
    "wrong": {
-    "With each trade that prints": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't update trade by trade.",
-    "At the start of the week": "OCC reports it after each day's trades clear, not weekly.",
-    "At the most recent expiration": "It changes every day as traders open and close positions, not just at expiry."
+    "At the most recent expiration": "It changes every day as people open and close positions, not just when options expire.",
+    "Live, updated with every trade": "A trade can open or close a position, and OCC only sorts that out after the day ends. So it can't move trade by trade.",
+    "Once a week, on Monday morning": "It's counted every day, after each session's trades clear. Not weekly."
    },
-   "simple": "It was last updated after the prior session closed, because OCC counts open interest once the day's trades clear.",
+   "simple": "It's the prior session's count. OCC only tallies open interest after the day's trades clear.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -852,7 +854,7 @@
      "fixed before (key reworded from 'yesterday')"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -893,107 +895,109 @@
    "skill": "options.flow",
    "rung": 2,
    "format": "tf",
-   "q": "Public options data shows a trade's size, strike and expiry, but not whether retail or an institution placed it.",
+   "q": "A huge call print shows up on your flow screen. The public data gives you its size, strike and expiry, but not who placed it.",
    "answer": "True",
-   "why": "True. Public options data shows the product, size, strike and expiration of a trade. It does not show whether a retail trader or an institution made it. Even market makers often can't tell, and size is only a clue. So a big print tells you how big, not who or why.",
+   "why": "True. Public options data gives you the product, the size, the strike and the expiry. That's it. Whether it came from a fund or a guy trading on his phone isn't in there. Even the market makers filling the order often can't tell, and size is only a clue. So a big print tells you how big. It doesn't tell you who, and it doesn't tell you why. Don't fill in that story yourself.",
    "lesson_line": "A big print tells you size. It doesn't tell you who, or why.",
    "facts": [
     "f29",
     "f26"
    ],
-   "simple": "True, because public data shows a trade's size, strike and expiry, but not who placed it.",
+   "simple": "True. Public data shows size, strike and expiry, but never who placed the trade or why.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "options.flow",
    "rung": 3,
    "format": "tf",
-   "q": "Market makers trade the stock to offset the risk from their options, not to bet on its direction.",
+   "q": "Market makers buy and sell a stock dozens of times a day. Those trades hedge their options. They aren't a bet on direction.",
    "answer": "True",
-   "why": "True. Market makers keep adjusting to stay delta-neutral as prices move. They may buy and sell the stock dozens or even hundreds of times a day. They do it to offset the direction risk from the options they took on, not because they hold a view. OIC says they generally don't trade on news or a directional opinion.",
+   "why": "True. A market maker takes the other side of whatever the public wants to trade. Then it hedges to stay delta-neutral, so its book doesn't care which way the stock goes. As price moves the hedge drifts, so it keeps adjusting, sometimes hundreds of times a day. It isn't trading news or a view. So when you hear dealers are buying, that's a hedge getting adjusted. It's not a forecast you can ride.",
    "lesson_line": "A market maker's stock trades are hedges, not forecasts.",
    "facts": [
     "f24",
     "f25",
     "f28"
    ],
-   "simple": "True, because market makers trade the stock to cancel out the risk from their options, not to bet on direction.",
+   "simple": "True. Market makers trade the stock to cancel out the risk on their options, not to bet on direction.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "options.flow",
    "rung": 3,
    "format": "mcq",
-   "q": "A market maker sells calls to a customer. To stay delta-neutral, what does it usually do in the stock?",
+   "q": "A fund buys a big block of calls, and a market maker sells them. To stay delta-neutral, what does the market maker do in the stock?",
    "choices": [
-    "Buys shares of the stock",
-    "Shorts shares of the stock",
+    "Buys shares to offset the calls",
+    "Shorts shares on top of the calls",
     "Nothing, the premium covers it",
     "Waits and buys shares at expiry"
    ],
-   "answer": "Buys shares of the stock",
-   "why": "Buys shares of the stock. A sold call carries negative delta. Short delta is hedged by buying stock. Market makers keep adjusting that hedge as the market moves to stay delta-neutral. They hedge the position rather than carry its direction risk.",
-   "lesson_line": "Sold calls get hedged with bought stock. That's where the whole idea of dealer flow starts.",
+   "answer": "Buys shares to offset the calls",
+   "why": "It buys shares. Selling those calls leaves the market maker short delta. If the stock rips, the calls cost it money. Stock it owns is long delta, so buying shares cancels that out. Then as price moves it keeps adjusting the hedge. That's where the whole dealer flow idea starts. Heavy call buying from the public can turn into stock buying from the dealers on the other side.",
+   "lesson_line": "Sold calls get hedged with bought stock. That's where dealer flow starts.",
    "facts": [
     "f43",
     "f37",
     "f24",
-    "f27"
+    "f27",
+    "f36",
+    "f34"
    ],
    "wrong": {
-    "Nothing, the premium covers it": "Market makers hedge the position rather than carry its direction. Leaving it open would be a bet on the stock.",
-    "Shorts shares of the stock": "That adds more short delta to what the sold calls already carry. It grows the risk instead of offsetting it.",
-    "Waits and buys shares at expiry": "The sold calls carry negative delta from the moment they're sold. Market makers adjust to stay delta-neutral as the market moves, not at the end."
+    "Nothing, the premium covers it": "Sitting on sold calls unhedged is a bet the stock won't run. Market makers hedge the risk, they don't carry it.",
+    "Waits and buys shares at expiry": "The sold calls carry short delta from the minute they're sold. The hedge goes on as the stock moves, not at the end.",
+    "Shorts shares on top of the calls": "That stacks more short delta on top of the sold calls. It grows the risk instead of hedging it."
    },
-   "simple": "It buys shares, because the sold calls carry short delta, and short delta is hedged by buying stock.",
+   "simple": "It buys shares. The sold calls are short delta, and owning stock cancels that out.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "options.flow",
    "rung": 3,
    "format": "tf",
-   "q": "Options are side bets on a stock, so trading them leaves the stock's price alone.",
+   "q": "Options are just side bets on a stock, so a big options trade can't do anything to the share price.",
    "answer": "False",
-   "why": "False. When market makers hedge big option trades by buying or selling shares, that can add to price moves. Research finds option trading can change the prices of underlying stocks. How big the effect is stays debated: Cboe found no visible impact from SPX 0DTE trading.",
-   "lesson_line": "Options hedging spills into the stock. That's the idea behind every dealer positioning chart.",
+   "why": "False. When a market maker takes the other side of a big options trade, it hedges by buying or selling shares. That's real stock trading, and it can add to a move. Research has found option trading can change the price of the stock underneath. How big the effect is, people still argue about. Cboe looked at its own SPX 0DTE data and found no visible impact. So respect the idea, but don't build a trade on it.",
+   "lesson_line": "Options hedging spills into the stock. That's the idea behind every dealer chart.",
    "facts": [
     "f34",
     "f73",
     "f80",
     "f71"
    ],
-   "simple": "False, because market makers hedge options by trading the stock, and that buying and selling can move its price.",
+   "simple": "False. Dealers hedge options by trading the stock, and that buying and selling can push its price.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "options.flow",
    "rung": 4,
    "format": "mcq",
-   "q": "One trader sells to close 10 calls. Another buys to open those same 10. What happens to open interest?",
+   "q": "Your buddy sells to close 10 calls he's held for a week. The buyer on the other side opens 10 new ones. What does open interest do?",
    "choices": [
     "It stays where it was",
     "It rises by 10",
@@ -1001,7 +1005,7 @@
     "It rises by 20"
    ],
    "answer": "It stays where it was",
-   "why": "It stays where it was. One trader closes 10 and the other opens 10, so the same contracts change hands. Open interest rises only when both sides open. It falls when both sides close, or when contracts are exercised and assigned.",
+   "why": "It stays where it was. Your buddy's 10 are closing and the buyer's 10 are opening, so the same contracts just change hands. Nothing new got created and nothing went away. Open interest only rises when both sides open. It falls when both sides close, or when contracts get exercised and assigned. That's how a busy day can leave open interest flat.",
    "lesson_line": "Open interest moves only when both sides open, or both sides close.",
    "facts": [
     "f21",
@@ -1011,25 +1015,25 @@
     "f84"
    ],
    "wrong": {
-    "It rises by 10": "That needs both sides opening. Here one side is closing.",
-    "It falls by 10": "That needs both sides closing. Here the buyer is opening.",
-    "It rises by 20": "Each contract has two sides but counts once. Even with both sides opening, 10 contracts add 10."
+    "It rises by 10": "That takes both sides opening. Here one side is closing.",
+    "It falls by 10": "That takes both sides closing. Here the buyer is opening.",
+    "It rises by 20": "A contract has two sides but counts once. Even if both sides opened, 10 contracts would add 10."
    },
-   "simple": "Open interest stays the same, because one trader is closing and the other is opening, so the contracts just change hands.",
+   "simple": "It doesn't change. One side closes and the other opens, so the contracts just change hands.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
    "skill": "options.flow",
    "rung": 4,
    "format": "scenario",
-   "story": "A call traded about 3,000 contracts on Monday. On Tuesday morning, its open interest is up only about 1,800.",
-   "q": "What best explains the gap?",
+   "story": "A call traded about 3,000 contracts on Monday. Tuesday morning you check, and its open interest is up only about 1,800.",
+   "q": "Why didn't open interest rise by the full amount that traded?",
    "choices": [
     "Some trades closed old positions",
     "Market maker trades aren't counted",
@@ -1037,8 +1041,8 @@
     "The count hasn't caught up yet"
    ],
    "answer": "Some trades closed old positions",
-   "why": "Some trades closed old positions. Open interest rises only when both sides of a trade open. A trade with one side closing leaves it unchanged, and one with both sides closing lowers it. So about 3,000 traded, but only about 1,800 was net new. Exercised contracts also come out of the count.",
-   "lesson_line": "Volume says how much traded. Tomorrow's open interest says how much was new.",
+   "why": "Some of Monday's trades closed old positions. Open interest only grows when both sides of a trade are opening. A trade where one side closes leaves it flat, and one where both close takes it down. So about 3,000 traded, but only about 1,800 was net new. Exercised contracts come out of the count too. That next-morning number is your read on how much really got put on.",
+   "lesson_line": "Volume says how much traded. The next day's open interest says how much was new.",
    "facts": [
     "f9",
     "f10",
@@ -1049,24 +1053,24 @@
     "f84"
    ],
    "wrong": {
-    "Market maker trades aren't counted": "Open interest counts every outstanding contract, whoever holds it.",
-    "Calls were netted against puts": "Open interest is counted per option series. The call's count has nothing to do with the puts.",
-    "The count hasn't caught up yet": "OCC reports new open interest after the day's trades clear and pair up. By Tuesday morning, Monday's trades are in the count."
+    "Market maker trades aren't counted": "Open interest counts every contract still open, whoever holds it.",
+    "Calls were netted against puts": "Open interest is counted per option series. This call's count has nothing to do with the puts.",
+    "The count hasn't caught up yet": "OCC posts the new count after the day's trades clear. By Tuesday morning, Monday's trades are in it."
    },
-   "simple": "Some of Monday's trades closed old positions, and closing trades add nothing to open interest or take some away.",
+   "simple": "Some of Monday's trades closed old positions. Closing trades add nothing to open interest, or take some away.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "options.flow",
    "rung": 4,
    "format": "mcq",
-   "q": "On a dealer positioning chart, what does the gamma flip mark?",
+   "q": "A dealer positioning chart marks a 'gamma flip' level on SPY. What's that level supposed to be?",
    "choices": [
     "Where dealer gamma changes sign",
     "The strike with the most open interest",
@@ -1075,21 +1079,22 @@
    ],
    "answer": "Where dealer gamma changes sign",
    "term": "Gamma flip",
-   "why": "Where dealer gamma changes sign. OIC defines the gamma flip as the point where dealers' total gamma across strikes changes sign. It can go from long to short or from short to long. On a chart it is an estimated price level. It is not the strike with the most open interest or the most gamma.",
-   "lesson_line": "The gamma flip is an estimated price where dealers' total gamma changes sign, long to short or back.",
+   "why": "Where dealer gamma changes sign. Add up the dealers' gamma across every strike. On one side of the flip, the estimate says they're long gamma overall. On the other side, short. Long gamma hedging leans against moves and short gamma chases them, which is why people watch the line. But it's an estimated price, built on guesses about dealer positions. It isn't the biggest open interest strike or the biggest gamma strike.",
+   "lesson_line": "The gamma flip is an estimated price where dealer gamma changes sign.",
    "facts": [
     "f30",
     "f31",
     "f32",
-    "f66",
-    "f35"
+    "f61",
+    "f63",
+    "f66"
    ],
    "wrong": {
     "The strike with the most open interest": "That's a different level. Heavy open interest can matter near expiry, but the flip is about the sign of dealers' total gamma.",
-    "Where most options expire worthless": "That's a different idea. The flip is where dealers' total gamma across strikes changes sign.",
-    "The strike with the most dealer gamma": "That's about size, not sign. OIC defines the flip as the point where dealers' total gamma across strikes changes sign."
+    "Where most options expire worthless": "That's a different idea. The flip is where dealers' total gamma changes sign.",
+    "The strike with the most dealer gamma": "That's about size. The flip is about sign, where the total goes from long to short or back."
    },
-   "simple": "The gamma flip is the price where dealers' total gamma changes from long to short, or the other way.",
+   "simple": "The flip is the price where dealers' total gamma switches from long to short, or back.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1097,14 +1102,14 @@
      "fixed before (lesson_line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "options.flow",
    "rung": 5,
    "format": "mcq",
-   "q": "Open interest is 6,000. Today's only activity: 1,000 contracts where both sides open, 800 where both close. What's the new open interest?",
+   "q": "A call's open interest is 6,000. Today 1,000 contracts trade with both sides opening and 800 with both sides closing. What's the next count?",
    "answer": "6,200",
    "calc": {
     "fn": "arith",
@@ -1115,15 +1120,15 @@
      "both_close": 800
     }
    },
-   "why": "6,200. Both sides opening adds 1,000. Both sides closing takes away 800. So 6,000 plus 1,000 minus 800 is 6,200. A trade with one side opening and one closing would leave it unchanged. Exercises would take contracts away too, but the question rules them out.",
-   "lesson_line": "Both-open trades add to open interest. Both-close trades and exercises take away. Open-close trades just change hands.",
+   "why": "6,200. The 1,000 where both sides opened are brand new contracts, so add them. The 800 where both sides closed are gone, so take them off. 6,000 plus 1,000 is 7,000. Take off 800 and you're at 6,200. A trade where one side opens and the other closes wouldn't change it at all. And there were no exercises, since that was the day's only activity.",
+   "lesson_line": "Both-open trades add. Both-close trades and exercises take away. Open-close trades just change hands.",
    "facts": [
     "f19",
     "f20",
     "f18",
     "f84"
    ],
-   "simple": "The new open interest is 6,200, because the 1,000 new contracts add to it and the 800 closed ones come off.",
+   "simple": "Add the contracts both sides opened and take off the ones both sides closed. That leaves 6,200.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1132,7 +1137,7 @@
      "fixed before (exercise wording)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "6,200",
     "7,800",
@@ -1140,9 +1145,9 @@
     "6,800"
    ],
    "wrong": {
-    "7,800": "Adds both the opens and the closes.",
-    "7,000": "Adds the opens and forgets to take off the closes.",
-    "6,800": "Adds the closes and forgets the opens."
+    "7,800": "That adds the closes instead of taking them off.",
+    "7,000": "That adds the new 1,000 but never takes off the 800 that closed.",
+    "6,800": "That adds the 800 closes and skips the 1,000 opens. Backwards on both."
    },
    "visual": {
     "kind": "size",
@@ -1179,8 +1184,8 @@
    "skill": "options.flow",
    "rung": 5,
    "format": "scenario",
-   "story": "A stock sits near its highs. Someone buys 5,000 puts on it in one print. Your chart still looks strong.",
-   "q": "Besides a bet on a drop, what could that put buy be?",
+   "story": "You own a stock that's sitting near its highs, and your chart still looks strong. Then 5,000 puts trade in one print, bought at the ask.",
+   "q": "Besides a bet on a drop, what else could that put buy be?",
    "choices": [
     "A holder protecting their shares",
     "Insiders who know bad news is coming",
@@ -1188,7 +1193,7 @@
     "A covered call writer adding income"
    ],
    "answer": "A holder protecting their shares",
-   "why": "A holder protecting their shares. A put bought against stock you own is a hedge against a dip, and that buyer is bullish overall. Public data shows the print's size, strike and expiration, not who bought or why. A buy can also close a short put. So the print alone can't tell a hedge from a bet.",
+   "why": "A holder protecting their shares. Somebody who owns a big chunk of stock and wants to keep it can buy puts as insurance against a dip. That buyer is bullish overall. The print shows size, strike and expiry, not who bought or why. A put buy can also close out a short put. So the print can't tell a hedge from a bet. It's not a reason to bail on a chart that still looks strong. Your stop is what gets you out.",
    "lesson_line": "A big put buy can come from a bull. The print shows size, not which way they lean.",
    "facts": [
     "f44",
@@ -1201,9 +1206,9 @@
    "wrong": {
     "Insiders who know bad news is coming": "That's still a bet on a drop, with a story added. A print shows size, not who traded or why.",
     "A trader closing out a long put": "Closing a long put means selling it. A buy closes a short put, not a long one.",
-    "A covered call writer adding income": "A covered call writer sells calls. This print is a put being bought, not a call being sold."
+    "A covered call writer adding income": "A covered call writer sells calls. This print is a put being bought."
    },
-   "simple": "It could be a shareholder buying protection, because a put bought against shares you own is a hedge, not a bet.",
+   "simple": "It could be a shareholder buying insurance. A put against shares you own is a hedge, not a bet on a drop.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1211,37 +1216,37 @@
      "fixed before (wrong notes)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "options.flow",
    "rung": 5,
    "format": "tf",
-   "q": "A trader who sells a big block of calls is betting the stock will fall.",
+   "q": "A fund sells a big block of calls on a stock you like. That fund is betting the stock goes down.",
    "answer": "False",
-   "why": "False. A covered call writer owns the shares and sells calls mainly for the premium income. They want a steady or slightly rising stock, not a fall. A big call sale can also come from a holder who bought low and wants extra yield. The print alone doesn't show which.",
+   "why": "False. You can't read a bear into it. That sale can easily be covered calls: the seller owns the shares and sells calls for the income. That seller wants the stock steady or drifting up, not falling. It can also be a holder who bought low and wants extra yield. The print doesn't tell you which. That's the seller's side, not ours, but you'll see these prints all the time.",
    "lesson_line": "Selling calls can be income on shares someone owns. Don't read every call sale as a bear.",
    "facts": [
     "f46",
     "f47",
     "f56"
    ],
-   "simple": "False, because someone who owns the shares may sell calls just to earn income while the stock stays steady.",
+   "simple": "False. Whoever sells those calls may own the shares and just want income while the stock sits steady.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "options.flow",
    "rung": 6,
    "format": "scenario",
-   "story": "A 2,000-contract call trade prints at the ask. Your flow scanner tags it bullish.",
-   "q": "What does the trade price alone tell you?",
+   "story": "A 2,000-contract call trade prints at the ask on a stock on your watchlist. Your flow scanner tags it bullish.",
+   "q": "What does that fill price actually tell you?",
    "choices": [
     "A buyer paid up to get filled",
     "A new bullish position was opened",
@@ -1249,7 +1254,7 @@
     "A large institution placed the order"
    ],
    "answer": "A buyer paid up to get filled",
-   "why": "A buyer paid up to get filled. A market buy fills at or near the ask, trading price for a sure fill. But a buy can open a new long call or close an existing short call. The price doesn't show which, who traded, or where the stock goes next.",
+   "why": "A buyer paid up to get filled. A buy at the ask means they took the offer instead of waiting on the bid. They wanted the fill more than the price. That's all the price says. A buy can open a new call, or close out a call somebody sold earlier. The bullish tag assumes it's an opening buy, and the scanner can't know that. Use the print as a reason to look at the chart, never as the reason to buy.",
    "lesson_line": "At the ask means someone paid up to buy. It doesn't mean someone opened a bullish bet.",
    "facts": [
     "f52",
@@ -1260,11 +1265,11 @@
     "f26"
    ],
    "wrong": {
-    "A new bullish position was opened": "A buy can also close an existing short call. The print alone can't show which it was.",
+    "A new bullish position was opened": "A buy can also close out a short call. The print alone can't show which it was.",
     "The stock is set to rise from here": "One print can't tell you direction. It can be a hedge, a close or a bet.",
-    "A large institution placed the order": "Public data doesn't show whether a trade came from retail or an institution. Size is only a clue, and price says nothing about who."
+    "A large institution placed the order": "Public data doesn't show retail or institution. Size is a clue at best, and price says nothing about who."
    },
-   "simple": "It only shows a buyer paid up to get filled, because a buy can open a bet or close an old short.",
+   "simple": "Only that a buyer paid up. That buy could open a new bet or close an old short call.",
    "deeper": {
     "trap": "A scanner that tags a call bought at the ask as bullish assumes the buyer is opening. The same print could be a call seller buying back to close, someone leaving a bet rather than making one. The next day's open interest is a net count for the whole series, so it can't settle what one print was either."
    },
@@ -1275,14 +1280,14 @@
      "fixed before (wrong note)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "options.flow",
    "rung": 6,
    "format": "mcq",
-   "q": "A website charts dealers' gamma at each strike. Where do those dealer positions come from?",
+   "q": "A website shows dealer gamma at every SPX strike, down to the dollar. Where do those dealer positions come from?",
    "choices": [
     "Estimates built on assumptions",
     "Open interest, which shows their side",
@@ -1290,8 +1295,8 @@
     "Today's volume at each strike"
    ],
    "answer": "Estimates built on assumptions",
-   "why": "Estimates built on assumptions. Public trade data shows size, strike and expiration, not who holds what. Cboe sees each trade's side, and it says outside estimates of customer flow are just estimates based on assumptions. Those estimates have disagreed widely. So the chart's levels are a model's guess, not a record.",
-   "lesson_line": "A dealer gamma chart is a model's best guess. Read its levels as maybes.",
+   "why": "They're estimates built on assumptions. Public trade data doesn't say who holds what, so the website has to guess which side dealers took. Cboe, the exchange that lists SPX options, sees every trade's side. It says outside estimates are just that, estimates. And they've disagreed a lot. So treat those levels as one model's guess, not a record of anything.",
+   "lesson_line": "A dealer gamma chart is a model's guess. Read its levels as maybes.",
    "facts": [
     "f66",
     "f67",
@@ -1304,11 +1309,11 @@
     "f65"
    ],
    "wrong": {
-    "Open interest, which shows their side": "Open interest counts contracts, not who holds them. Every contract has a buyer and a seller, so a chart has to assume dealers' side.",
-    "A live feed of dealer accounts": "Outside observers have very little view of who bought or sold. The exchange sees it; a public chart doesn't.",
-    "Today's volume at each strike": "Volume doesn't equal risk. What dealers must hedge depends on the balance of buys and sells, not the total traded."
+    "Open interest, which shows their side": "Open interest counts contracts, not who holds them. Every contract has a buyer and a seller, so the chart has to assume the dealers' side.",
+    "A live feed of dealer accounts": "Outsiders see very little of who bought or sold. The exchange sees it. A public chart doesn't.",
+    "Today's volume at each strike": "Volume isn't risk. What dealers have to hedge is the balance of buys and sells, not the total traded."
    },
-   "simple": "They are estimates built on guesses, because public data does not show which side dealers took on each trade.",
+   "simple": "They're estimates. Public data doesn't show which side dealers took, so the chart has to guess.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1316,15 +1321,15 @@
      "fixed before (why)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "options.flow",
    "rung": 6,
    "format": "scenario",
-   "story": "You want to buy 8 calls. The strike has low open interest and little volume so far today.",
-   "q": "What tells you if you can get a fair fill?",
+   "story": "You want to buy 8 calls on a stock you like. The strike has low open interest and only a few trades so far today.",
+   "q": "What tells you if you'll get a fair fill?",
    "choices": [
     "The bid, ask and size quoted now",
     "The open interest at the strike",
@@ -1332,7 +1337,7 @@
     "The last price it traded at"
    ],
    "answer": "The bid, ask and size quoted now",
-   "why": "The bid, ask and size quoted now. Volume and open interest are not liquidity, and OIC warns they can fool you either way. A two-sided market with size shows how many contracts are bid or offered right now. Your fill depends more on the bid and ask than on open interest.",
+   "why": "The live bid, ask and size. Open interest and volume aren't liquidity, and they can fool you either way. What matters is what's on offer right now. Ask your broker for a two-sided market with size, and you'll see how many contracts are bid and offered. If there's enough offered for your 8 calls, you're fine. If there isn't, that's your warning, whatever the open interest says. On a call the premium you pay is your stop, so every cent you overpay is more money at risk.",
    "lesson_line": "Low open interest isn't a deal breaker. The live quote and its size are what fill you.",
    "facts": [
     "f11",
@@ -1346,7 +1351,7 @@
     "Today's volume at the strike": "Volume is what already traded. The quote is what's on offer right now.",
     "The last price it traded at": "The last trade is history. A market buy fills at or near the current ask, so the live quote is what you'll pay."
    },
-   "simple": "Check the live bid, ask and size, because they show what you can trade now, not what traded before.",
+   "simple": "Check the live bid, ask and size. They show what you can trade right now.",
    "deeper": {
     "example": "Say your strike shows low open interest and only a few trades today. It looks too thin to touch. You ask your broker for a two-sided market with size. It shows enough offered to fill your 8 calls. If it showed little size offered, that would be your warning instead."
    },
@@ -1355,14 +1360,14 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
    "skill": "options.flow",
    "rung": 6,
    "format": "mcq",
-   "q": "A call's volume today is three times its open interest. What does that tell you for sure?",
+   "q": "A call's volume today is three times its open interest, and your flow screen lights it up. What do you know for sure?",
    "choices": [
     "Heavy trading versus what was open",
     "Open interest will rise next day",
@@ -1370,8 +1375,8 @@
     "The stock is about to move a lot"
    ],
    "answer": "Heavy trading versus what was open",
-   "why": "Heavy trading versus what was open. Volume is today's activity, and open interest is the count already open. Three times as much traded as was open, but some trades may have closed positions or just changed hands. The next open interest count shows only the net change, so it can't say how much was new.",
-   "lesson_line": "Volume above open interest shows heavy trading, not proof of new bets. The next count shows only the net change.",
+   "why": "Only that it traded heavy compared with what was open. Volume is today. Open interest is what was already out there. Some of today's trades may have closed positions, and some just changed hands. Even the next count only shows the net change, so it can't tell you how many were new. Treat a flag like that as a reason to pull up the chart and do the homework. It isn't a buy signal on its own.",
+   "lesson_line": "Volume over open interest means heavy trading, not proof of new bets.",
    "facts": [
     "f16",
     "f10",
@@ -1389,7 +1394,7 @@
     "New buyers opened bullish calls": "You can't see who opened or closed, and every contract has a seller on the other side.",
     "The stock is about to move a lot": "Heavy volume says people traded it, not what the stock does next. It can be hedges, closes or bets."
    },
-   "simple": "It only tells you a lot traded compared with what was open, because volume cannot show how much was new.",
+   "simple": "Just that a lot traded compared with what was open. Volume can't show how much was new.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1397,16 +1402,16 @@
      "fixed before (wrong notes)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "options.flow",
    "rung": 7,
    "format": "tf",
-   "q": "A market maker who is long gamma and stays hedged sells into rallies and buys into dips.",
+   "q": "A market maker is long gamma and stays hedged. As the stock rallies it sells shares, and as the stock dips it buys.",
    "answer": "True",
-   "why": "True. With long gamma, delta grows as the stock rises, so staying neutral means selling. Delta shrinks as the stock falls, so the dealer buys. In theory that hedging leans against moves and can dampen them. Short gamma does the reverse: the hedging goes the same way as the move.",
+   "why": "True. Long gamma means the market maker's delta grows as the stock rises. To get back to neutral, it sells. When the stock falls, delta shrinks, so it buys back. That hedging leans against the move, and in theory it can dampen it. Short gamma is the flip side: the hedge chases the move. That's the whole theory the gamma charts you'll see are built on.",
    "lesson_line": "Long-gamma hedging leans against the move. Short-gamma hedging chases it.",
    "facts": [
     "f41",
@@ -1415,7 +1420,7 @@
     "f62",
     "f63"
    ],
-   "simple": "True, because a long gamma dealer gets longer as prices rise, so it sells to stay even, and buys when prices fall.",
+   "simple": "True. Long gamma gets longer as price rises, so the dealer sells to stay even, and buys on the way down.",
    "deeper": {
     "example": "Say a dealer is long gamma and the stock rallies. Its delta grows, so it sells stock to get back to neutral. If the stock then falls, its delta shrinks and it buys back. Each hedge trade leans against the move before it."
    },
@@ -1424,7 +1429,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1440,8 +1445,8 @@
     "A lot, since big buyers know more"
    ],
    "answer": "Very little, its intent is unknown",
-   "why": "Very little. One print can be a hedge, a call seller buying back, or a fresh bet. Public data shows its size, not who traded or why. Unusual activity is neither bullish nor bearish by default. It calls for more homework, not a trade.",
-   "lesson_line": "One print can't tell a hedge from a bet. Do the homework before it changes your read.",
+   "why": "Very little. Your chart just told you something real: a break below the base on heavy volume. The call print is one trade you can't read. It could be a hedge, a call seller buying back, or a fresh bet. Public data shows size, not who or why. Unusual activity isn't bullish or bearish on its own. So the chart wins. If the break took out your stop, you're out, and a call print doesn't change that.",
+   "lesson_line": "One print can't tell a hedge from a bet. The chart comes first.",
    "facts": [
     "f57",
     "f54",
@@ -1450,11 +1455,11 @@
     "f29"
    ],
    "wrong": {
-    "It cancels out the breakdown signal": "A buy can close a short call or hedge a position. You can't see which, so it can't cancel anything on its own.",
-    "It's a reason to buy the dip": "That makes an unreadable print your entry signal. An unusual trade calls for more homework, not a trade.",
+    "It cancels out the breakdown signal": "A buy can close a short call or hedge a position. You can't see which, so it can't cancel anything.",
+    "It's a reason to buy the dip": "That turns a print you can't read into your entry. An unusual trade calls for homework, not a trade.",
     "A lot, since big buyers know more": "Public data shows size, not who traded or why. You can't tell an informed buyer from a close or a hedge."
    },
-   "simple": "Very little, because you cannot tell if that call buy is a hedge, a close or a new bet.",
+   "simple": "Very little. You can't tell if that call buy is a hedge, a close or a new bet, and the chart is real.",
    "deeper": {
     "trap": "The trap is letting one print you can't read change your plan. A large call buy at the ask feels bullish. But a buy can close a short call, and public data won't show who traded or why. Treat it as a reason to dig, not a reason to act."
    },
@@ -1463,14 +1468,14 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "options.flow",
    "rung": 7,
    "format": "mcq",
-   "q": "Research on option expiration days looked at where optionable stocks close. What did it find?",
+   "q": "Researchers looked at where optionable stocks close on options expiration days. What did they find?",
    "choices": [
     "Closes cluster near strike prices",
     "Closes drift away from strike prices",
@@ -1478,7 +1483,7 @@
     "Prices tend to rise into expiration"
    ],
    "answer": "Closes cluster near strike prices",
-   "why": "Closes cluster near strike prices. Ni, Pearson and Poteshman found that on expiration dates, closing prices of stocks with listed options cluster at strikes. Returns were altered by an average of at least 16.5 basis points each expiration. They tied it to market maker hedge rebalancing plus manipulation by proprietary traders. It's a tendency, not a rule for any one stock.",
+   "why": "Closes cluster near strike prices. Ni, Pearson and Poteshman found stocks with listed options tend to finish right at strikes on expiration dates. They measured returns moved by at least 16.5 basis points on average, each expiration. They tied it to market makers rebalancing hedges, plus manipulation by prop traders. That's an average across a lot of stocks, though. It's a tendency, not a call on where yours closes Friday.",
    "lesson_line": "Strikes can act like magnets into expiry. A tendency, not a promise.",
    "facts": [
     "f73",
@@ -1491,11 +1496,11 @@
     "f35"
    ],
    "wrong": {
-    "Closes drift away from strike prices": "The research found the opposite: closing prices of stocks with listed options cluster at strikes on expiration dates.",
-    "Prices tend to rise into expiration": "The research found closes clustering at strike prices, not a rise into expiration.",
+    "Closes drift away from strike prices": "The research found the opposite. Closes bunch up at strikes on expiration dates.",
+    "Prices tend to rise into expiration": "The finding was closes clustering at strikes, not a rise into expiration.",
     "It showed in futures, not stocks": "Ni, Pearson and Poteshman found it in stocks with listed options. A separate study found pinning in S&P 500 futures too."
    },
-   "simple": "Closes tend to bunch up near strike prices on expiration days, partly because market makers adjust their hedges.",
+   "simple": "Closes tend to bunch up near strike prices on expiration days, partly from market makers adjusting hedges.",
    "deeper": {
     "trap": "The trap is turning a tendency across many stocks into a forecast for one. The research measured an average across optionable stocks, and even the pinning model gives only a probability. Heavy open interest at a strike can shape trading near it into expiration, but it can't promise where your stock closes."
    },
@@ -1506,14 +1511,14 @@
      "fixed before (why)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
    "skill": "options.flow",
    "rung": 8,
    "format": "scenario",
-   "story": "One index put traded over 100,000 contracts in a day. By the close, market makers had bought about 52,000 and sold about 55,000.",
+   "story": "One SPX put traded over 100,000 contracts in a day. By the close, market makers had bought about 52,000 and sold about 55,000.",
    "q": "Roughly what net position did that leave market makers with?",
    "choices": [
     "Short about 3,000 contracts",
@@ -1530,7 +1535,7 @@
      "bought": 52000
     }
    },
-   "why": "Short about 3,000 contracts. They sold about 55,000 and bought about 52,000, so 55,000 minus 52,000 leaves 3,000 net short. That's Cboe's own count for the SPX 4440 put on August 15, 2023. Huge volume left a small position to hedge. What matters is the balance of buys and sells, not the total.",
+   "why": "Short about 3,000 contracts. They sold about 55,000 and bought about 52,000. 55,000 minus 52,000 is 3,000 net short. That's Cboe's own count for the SPX 4440 put on August 15, 2023. Headlines saw 100,000 contracts and assumed a monster hedge. The real position was small. So when a giant print hits our Options Flow page, remember what dealers hedge. It's the gap between buys and sells, not the total.",
    "lesson_line": "Volume isn't exposure. Dealers hedge the gap between buys and sells, not the total.",
    "facts": [
     "f69",
@@ -1541,11 +1546,11 @@
     "f68"
    ],
    "wrong": {
-    "Short over 100,000": "That's the gross volume. Most of it was buying and selling that offset.",
+    "Short over 100,000": "That's the gross volume. Most of it was buying and selling that cancelled out.",
     "Long about 52,000": "That counts only their buys. They sold about 55,000 too.",
     "Flat, buys equal sells": "Close, but not zero. They sold about 3,000 more than they bought."
    },
-   "simple": "They were short about 3,000, because they sold about 55,000 and bought about 52,000, and only the gap counts.",
+   "simple": "Short about 3,000. Only the gap between what they sold and what they bought counts.",
    "deeper": {
     "trap": "Headlines saw over 100,000 contracts and assumed dealers held a giant position to hedge. Cboe, which sees each trade's side, found market makers left short only about 3,000. Volume doesn't equal risk. Before you read a big print as a big hedge, ask what the net was, and know that outsiders rarely see it."
    },
@@ -1557,7 +1562,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Market makers' book",
@@ -1587,7 +1592,7 @@
    "skill": "options.flow",
    "rung": 9,
    "format": "mcq",
-   "q": "A study found option volume predicted next-week stock returns. What did its signal rely on?",
+   "q": "A well-known study found option volume predicted next-week stock returns. What was its signal built on?",
    "choices": [
     "Trades tagged as opening buys",
     "Total daily call and put volume",
@@ -1595,8 +1600,8 @@
     "Estimates of dealer gamma"
    ],
    "answer": "Trades tagged as opening buys",
-   "why": "Trades tagged as opening buys. Pan and Poteshman built put-call ratios from volume started by buyers opening new positions, using a unique data set. Low-ratio stocks beat high-ratio stocks by more than 40 basis points the next day and more than 1% over the next week. They traced the edge to nonpublic information, not a market flaw.",
-   "lesson_line": "In that research, the flow that predicted moves came from a unique data set and traders' nonpublic information.",
+   "why": "Trades tagged as opening buys. Pan and Poteshman built put-call ratios only from buyers opening new positions, using a unique data set. Low-ratio stocks beat high-ratio stocks by more than 40 basis points the next day, and more than 1% over the next week. Here's the catch for you. Public feeds don't tag opening buys, and the authors traced the edge to nonpublic information. So that's the best case for flow, and you can't see it on a scanner.",
+   "lesson_line": "The flow that predicted moves came from data public feeds don't show, and traders' nonpublic information.",
    "facts": [
     "f81",
     "f82",
@@ -1605,11 +1610,11 @@
     "f29"
    ],
    "wrong": {
-    "Total daily call and put volume": "They built the ratios only from buyers opening new positions, from a unique data set. Total volume mixes in closes and sells.",
-    "Trades flagged as unusual": "The study built put-call ratios from opening buys, not from unusual-activity flags.",
+    "Total daily call and put volume": "They used only buyers opening new positions, from a unique data set. Total volume mixes in closes and sells.",
+    "Trades flagged as unusual": "The ratios came from opening buys, not from unusual-activity flags.",
     "Estimates of dealer gamma": "That's a different idea. The study looked at who was buying to open, not at dealer hedging."
    },
-   "simple": "It relied on trades tagged as opening buys, which public feeds do not show, and the edge came from private information.",
+   "simple": "Trades tagged as opening buys. Public feeds don't show that, and the edge came from private information.",
    "deeper": {
     "counter": "This is the strongest case for reading flow, and it cuts the other way for you. The signal came from a unique data set that split out opening buys, which public data doesn't show. The authors traced it to traders' nonpublic information, not to something anyone could read off a scanner."
    },
@@ -1621,7 +1626,7 @@
      "fixed before (lesson_line)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1637,7 +1642,7 @@
     "Have no effect on the price"
    ],
    "answer": "Pull the stock toward 100",
-   "why": "Pull the stock toward 100. Dealers long those options are long gamma. Their hedging sells as the stock rises and buys as it falls, which leans the price toward the strike. The theory needs unusually large open interest plus delta hedging. It gives a probability, not a promise, and 'thought to be long' is the weak link.",
+   "why": "Pull the stock toward 100. Dealers long those options are long gamma. As the stock ticks up they sell, and as it dips they buy. That leans the price back toward the strike. But the theory needs two things. Open interest has to be unusually big, and dealers have to actually be long it. You can see the first. The second is a guess. Even the model only gives a probability of pinning, never a promise.",
    "lesson_line": "Pinning needs dealers long gamma at the strike. Outside charts can only estimate that.",
    "facts": [
     "f78",
@@ -1652,11 +1657,11 @@
     "f34"
    ],
    "wrong": {
-    "Push the stock away from 100": "That's the short gamma case, where hedging chases the move. In this story dealers are long the options.",
+    "Push the stock away from 100": "That's the short gamma case, where the hedge chases the move. In this story dealers are long the options.",
     "Force a close at exactly 100": "Even the pinning model gives only a probability of pinning at a strike. Nothing forces an exact close.",
-    "Have no effect on the price": "The theory says the opposite. Delta hedging around unusually large open interest can move a stock and drive it to the strike."
+    "Have no effect on the price": "The theory says the opposite. Delta hedging around unusually big open interest can drive a stock to the strike."
    },
-   "simple": "The theory says it pulls the stock toward 100, because dealers who are long the options sell rises and buy dips.",
+   "simple": "Toward 100. Dealers long those options sell rises and buy dips, which leans price back to the strike.",
    "deeper": {
     "trap": "Two things must be true for the theory to bite, and you can see only one. Open interest at the strike has to be unusually large, which is public. Dealers have to be long those options, which outsiders can only estimate. If dealers are short instead, their hedging chases the move and can push the price away from the strike."
    },
@@ -1665,16 +1670,16 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
    "skill": "options.flow",
    "rung": 9,
    "format": "tf",
-   "q": "A gamma flip level on a dealer positioning chart is a reliable place to buy or sell.",
+   "q": "A dealer positioning chart puts the SPX gamma flip at one exact level. That's a reliable place to buy or sell.",
    "answer": "False",
-   "why": "False. A gamma flip level comes from estimates of dealer positions, and outsiders can barely see who bought or sold. Cboe noted outside estimates for SPX that ranged from 'record short' to long $50bn gamma. A count for one expiry can also miss offsetting positions elsewhere. So the level is a model's guess, not a known fact.",
+   "why": "False. That level comes from estimates of dealer positions, and outsiders can barely see who bought or sold. Cboe pointed out outside estimates for SPX that ran from 'record short' gamma to long $50bn. When the inputs are that far apart, the level can land almost anywhere. A count for one expiry can also miss what dealers hold in other expiries. The levels you trade come off your chart: the pivot, the prior lows, the moving averages.",
    "lesson_line": "A gamma level is a model's maybe, built on guesses about which side dealers hold.",
    "facts": [
     "f30",
@@ -1683,7 +1688,7 @@
     "f72",
     "f67"
    ],
-   "simple": "False, because the level is a guess about where dealers stand, and those guesses have been far apart.",
+   "simple": "False. The level is a guess about where dealers stand, and those guesses have been far apart.",
    "deeper": {
     "trap": "A level drawn to the cent looks precise, and that is the trap. Its inputs are guesses about which side dealers hold. When those guesses differ as widely as they have, so can the level. Read it as one model's estimate."
    },
@@ -1694,22 +1699,22 @@
      "fixed before (why tense)"
     ]
    },
-   "batch": "wave7"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q97",
    "skill": "options.flow",
    "rung": 2,
    "format": "mcq",
-   "q": "You're short a put at the 50 strike. The stock closes at 50 on expiry day. What can't you know yet?",
+   "q": "A friend sold a put at the 50 strike. The stock closes right at 50 on expiry day. What can't he know yet?",
    "choices": [
-    "Whether you'll be assigned the stock",
-    "What strike the put was written at",
-    "How much premium you collected",
+    "Whether he'll be assigned the stock",
+    "What strike he wrote the put at",
+    "How much premium he collected",
     "Whether the put is in the money"
    ],
-   "answer": "Whether you'll be assigned the stock",
-   "why": "Whether you'll be assigned the stock. This is pin risk: the seller's risk that the stock finishes exactly at the strike at expiration. With the stock on the strike, a seller can't know how many short options will be assigned. Assigned on a short put, you start the next session long the stock, and it may move against you by the next open.",
+   "answer": "Whether he'll be assigned the stock",
+   "why": "Whether he gets assigned. That's pin risk. The stock finishes right on the strike, and the seller can't know how many of his puts get assigned. If he's assigned, he starts the next session long the stock, a position he never planned. And it can move against him by the next open. That's the seller's side, not ours. When we buy an option now and then, the premium we pay is the stop.",
    "lesson_line": "Short an option into expiry with the stock sitting on the strike: that's pin risk.",
    "facts": [
     "f4",
@@ -1717,17 +1722,17 @@
     "f6"
    ],
    "wrong": {
-    "What strike the put was written at": "You know your own strike. The unknown is whether the put will be assigned.",
-    "How much premium you collected": "Your premium is already in your account. The open question is assignment.",
-    "Whether the put is in the money": "With the stock on the strike it is not in the money. What you can't know is whether you'll be assigned."
+    "Whether the put is in the money": "With the stock right on 50, it isn't in the money. The unknown is whether it gets assigned anyway.",
+    "What strike he wrote the put at": "He knows his own strike. It's 50. What he doesn't know is assignment.",
+    "How much premium he collected": "The premium hit his account when he sold. The open question is assignment."
    },
-   "simple": "A close right on the strike leaves you unsure whether you will be assigned, and assignment would leave you holding stock.",
+   "simple": "Whether he gets assigned. A close right on the strike leaves the seller guessing, and assignment means stock he never planned on.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1761,20 +1766,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f1, f7, f50; quotes re-found on s1 and s4 2026-11-12). Leak: the wrong note for 'Bullish bets minus bearish bets' says every open contract has a buyer and a seller, so open interest can't split bulls from bears. That is q02's whole answer, one question earlier. Replaced that distractor with a real misread ('cumulative' read as all trading since listing), grounded in f16 and f20. f8 dropped, f20 added. Key stays not-longest (27 chars; new distractor 40)."
+   "notes": "Grammar: 'a NVDA' reads wrong out loud. Otherwise a clean screen stem and a mentor close."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False per f7 (Tier 1) and f8. The why runs on f7/f8 only. No tell."
+   "fixed": true,
+   "notes": "'can't tell you which one is right' is muddled: the point is the count gives no direction. Tightened."
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "TRUTH: 'You won't see whether it opened anything until the next count' implies the next count settles one print. It doesn't: it's a net figure for the whole series (q15, q25 teach exactly that). Fixed."
   },
   "q04": {
    "status": "cut",
@@ -1786,136 +1790,133 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per f29. f26 supports 'size is only a clue'. 'or why' follows from f29's list of what the data shows. Balance is now 3 True of 7."
+   "notes": "Reads like him: plain claim, blunt close ('Don't fill in that story yourself')."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per f25 and f28. It hints q07's 'hedge' idea but not its direction (buy or short), so q07 still tests something."
+   "notes": "Good practical turn ('when you hear dealers are buying, that's a hedge'). Facts hold."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: a sold call is negative delta (f43, re-found on s14), short delta is hedged by buying stock (f37, re-found on s11). Key matches. Key is the shortest choice, no absolute, distractors are real errors (wrong direction, no hedge, late hedge). Its why echoes q06 (hedge, not a view) but q07 comes after q06, so it spoils nothing."
+   "notes": "Delta walked in plain words; wrong notes name the mistakes. Facts f37, f43 hold."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False per f34 (Tier 1) and f73. The f71 caveat is fair. No absolute word is left, and the why no longer leaks q20."
+   "notes": "Kept: dealer hedging can add to a move; not about adding shares. Voice 4."
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Buddy example, numbers right (10 closed, 10 opened, net zero)."
   },
   "q10": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "3,000 vs 1,800 worked; trader question in the stem."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per f30/f31. The new 'most dealer gamma' distractor kills the word-match tell, and its size-versus-sign note is grounded in f30. The key is the shortest choice. The why's 'estimated' hint toward q24 is fine, since q11 comes earlier on the ladder."
+   "notes": "Says what the line means and that it's an estimate. Fine."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Counts need their unit named"
+   "fixed": false,
+   "notes": "Steps shown: 6,000 + 1,000 = 7,000, minus 800 = 6,200. Wrong notes recomputed: 7,800 = adds the closes, 7,000 = skips the closes, 6,800 = 6,000 + 800. All right."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: a holder buying puts as protection (f44, f45, re-found on s15). 'Besides a bet on a drop' rules out the insider choice; a buy cannot close a long put (f3, re-found on s2). Minor, accepted: the covered-call choice text hints q14 (call sales can be income), but w2 already teaches that line before any question. 'Closing a long put means selling it' is not itself a cited quote, but s2's glossary entry says it and f3 carries the needed half."
+   "notes": "Strong mentor close: the print isn't a reason to bail, your stop gets you out."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False per f46/f47/f56. The 'must' absolute is gone. Even a naked call seller isn't strictly betting on a fall, so False holds."
+   "fixed": true,
+   "notes": "TRUTH: 'A lot of call selling is covered calls' is a frequency claim no fact supports (f46, f56 say it CAN be). Softened; seller's side line kept."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key per f52/f51. It no longer repeats 'at the ask' and is the shortest choice. The distractors are wrong per f3 and f29/f26."
+   "notes": "His register: 'a reason to look at the chart, never the reason to buy'. Facts f3, f51, f52 hold."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "The rebuilt wrong notes are grounded: f1/f8/f66, f67/f68 and f64/f65. The near-duplicate with q24 is accepted (recall versus judgment)."
+   "notes": "Clear on who can see sides (Cboe) and what that makes the levels."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (f12, f14, f11, f13; all re-found on s4/s5; the 8 contracts match s4's own example). One overreach: the last-price wrong note says 'A buy fills at or near the current ask', but f52 says that of a market order only; a limit buy can fill lower. Reworded to 'A market buy'. Everything else unchanged.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "'a sloppy fill comes straight out of your risk' reads backward (overpaying ADDS to the money at risk). Kept the point, stated plainly. B25 is stated as a plain consequence, not given a new reason."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right: 3x volume over open interest is heavy trading for sure, and nothing else is (positions can change hands many times with no change in open interest, f21). Overreach: the why says 'How much was new shows only in the next open interest count', but the next count is a net figure (both-open adds minus both-close and exercises, f19, f20, f84), so it cannot show how much was new; q15's deeper says exactly that. The lesson_line's 'not new bets' reads as a claim they were not new. Both reworded; f84 added. Key restating the stem is inherent to a 'for sure' ask; accepted.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Says what you know, what you don't, and what to do with the flag."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per f41/f37/f62. The new deeper.example no longer copies q24 and is grounded. Minor: it largely retells this question's own why as a story without adding much. Accepted."
+   "notes": "Both directions walked; f41, f62, f63 hold."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: very little; one print can be a hedge, a close or a bet (f54, f57, f58 re-found on s19; f3; f29). Key matches and fits the owner's chart-first stance (sizing_rule.md D40, F66). 'A lot, since big buyers know more' is not a second answer: q22's informed-flow result came from aggregated opening buys in a private data set, not one public print. No tell, no leak into q22."
+   "notes": "Best in the lesson: chart wins, the stop decides, a print doesn't change that."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided cold: closes cluster at strikes (f73), at least 16.5 bp (f74), market maker rebalancing plus manipulation (f75); all re-found on the HKBU abstract. The stem restricts to optionable stocks, so Golez and Jackwerth's futures anti-pinning does not make 'drift away' defensible. Mild mirror pair (cluster vs drift away) remains, but the other two distractors are real and non-absolute. w3 states the finding, so q20 is recall by design."
+   "notes": "Research is the subject (rule 13), so the authors stay. 16.5 bp from f74. Ends on what it means for your stock."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Slot would print '3,000 contracts' under 'Net position' with no long or short; name what the calc gives, neutral to the direction"
+   "fixed": false,
+   "notes": "55,000 - 52,000 = 3,000 shown; real Cboe case f69/f70."
   },
   "q22": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "lesson_line said 'a private data set'; the fact says a unique data set of opening buys, which public data doesn't show. Reworded to what we can support."
   },
   "q23": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave7; awaiting cold re-read"
+   "notes": "Names the weak link (dealers' side is a guess); probability not promise (f79)."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False per f66/f60/f72/f67. The first-person rule and the repeated $50bn line are gone. The deeper rests on f60. 'reliable' is accepted, since q08 and q14 lost their absolutes."
+   "notes": "Blunt verdict, the Cboe range as the reason, and the practical how: trade the levels on your chart."
   },
   "q97": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Pass. Screen scenario of the pin-risk idea; correct and supported by f4, f5, f6; four distinct choices, wrong notes keyed to exact texts, no new numbers. Distractors are easy but not a tell."
+   "fixed": true,
+   "notes": "'If he is, he starts...' doesn't attach to anything after 'how many of his puts get assigned'. Fixed. Seller's side said plainly; B25 stated as written."
   }
  }
 }

@@ -12,7 +12,8 @@ export const ZERO_MATCH_NOTE = 'Nothing matches this screen today. It will still
 // focus, Enter submits, Escape cancels, Tab stays inside, and focus goes back to
 // whatever opened it. An empty name cannot be saved. `note` is an optional sentence under the
 // name, tied to the input by aria-describedby so a screen reader hears it with the field.
-export default function NameDialog({ title, label, initial = '', submitLabel = 'Save', note, onSubmit, onCancel }) {
+// `info` is the same for a plain explanation (not a warning); `maxLength` caps the name.
+export default function NameDialog({ title, label, initial = '', submitLabel = 'Save', note, info, maxLength = 80, onSubmit, onCancel }) {
   const [value, setValue] = useState(initial)
   const box = useRef(null)
   const input = useRef(null)
@@ -26,7 +27,7 @@ export default function NameDialog({ title, label, initial = '', submitLabel = '
     return () => { if (opener && opener.isConnected) opener.focus?.() }
   }, [])
   const name = value.trim()
-  const submit = e => { e.preventDefault(); if (name) onSubmit(name.slice(0, 80)) }
+  const submit = e => { e.preventDefault(); if (name) onSubmit(name.slice(0, maxLength)) }
   const onKeyDown = e => {
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); return }
     if (e.key !== 'Tab') return
@@ -41,9 +42,10 @@ export default function NameDialog({ title, label, initial = '', submitLabel = '
         onSubmit={submit} onKeyDown={onKeyDown}>
         <h2 id={titleId} className={styles.dialogTitle}>{title}</h2>
         <label htmlFor={inputId} className={styles.dialogLabel}>{label}</label>
-        <Input id={inputId} ref={input} type="text" className={styles.dialogInput} value={value} maxLength={80}
-          aria-describedby={note ? noteId : undefined} onChange={e => setValue(e.target.value)} />
+        <Input id={inputId} ref={input} type="text" className={styles.dialogInput} value={value} maxLength={maxLength}
+          aria-describedby={note || info ? noteId : undefined} onChange={e => setValue(e.target.value)} />
         {note && <p id={noteId} className={menuStyles.dialogNote} data-testid="name-dialog-note">{note}</p>}
+        {!note && info && <p id={noteId} className={menuStyles.dialogInfo} data-testid="name-dialog-info">{info}</p>}
         <div className={styles.stateActions}>
           <button type="button" className={styles.btn} onClick={onCancel}>Cancel</button>
           <button type="submit" className={styles.btnPrimary} disabled={!name}>{submitLabel}</button>

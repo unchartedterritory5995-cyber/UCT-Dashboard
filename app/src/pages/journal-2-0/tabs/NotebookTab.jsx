@@ -297,9 +297,12 @@ function readRepairNotice(userId) {
 }
 // Either button retires it for this page load at once; the POST retires it for good. A failed POST
 // leaves the server row, so the notice can come back on a later load: never lost, never repeated here.
+// TERM-033: this write's promise carries no answer and its one caller never reads it, so a failure
+// has nothing to be mistaken for. The no-op handler only stops an unread failed POST being reported
+// as unhandled; a failed dismissal is "not saved", and the notice can show again (above).
 function dismissRepairNotice(userId) {
   repairNoticeRead = { userId, promise: Promise.resolve(0) }
-  return fetch(`${REPAIR_NOTICE_URL}/dismiss`, { method: 'POST', credentials: 'include' }).catch(() => null)
+  fetch(`${REPAIR_NOTICE_URL}/dismiss`, { method: 'POST', credentials: 'include' }).catch(() => {})
 }
 export function __resetRepairNoticeForTests() { repairNoticeRead = null }
 const ExportDialog = lazyDialog(() => import('../components/notebook/export/ExportDialog'), 'export')

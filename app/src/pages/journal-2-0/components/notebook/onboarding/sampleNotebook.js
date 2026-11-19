@@ -110,6 +110,11 @@ export function removedMessage(out) {
   return [SAMPLE_COPY.removed, ...kept, ...older].join(' ')
 }
 
+/** TERM-033: what a FAILED or aborted held-note title read resolves to. "Not named", never a title:
+ *  the sentence says "A note" for it, the same words as a read that gave up on the timeout. */
+const TITLE_NOT_READ = null
+const titleNotRead = () => TITLE_NOT_READ
+
 /**
  * Final fix (C1): a held note is named even when it is not in the list on screen (the old fallback, Research home's
  * `titleOfAnyNote`, went with it). `titleOf` answers for the notes on screen; every held id it cannot name is read
@@ -132,7 +137,7 @@ export async function heldTitles(hold, titleOf = () => null) {
         const res = await fetch(`/api/j2/notes/${encodeURIComponent(id)}`, { credentials: 'include', signal: ctl?.signal })
         if (!res.ok) return null
         return (await res.json())?.note?.title
-      })().catch(() => null)   // a failed or aborted read (even one that lands after the race) is "A note"
+      })().catch(titleNotRead)   // a failed or aborted read (even one that lands after the race) is "A note"
       const title = await Promise.race([read, gaveUp])
       if (typeof title === 'string' && title.trim()) found.set(id, title.trim())
     } catch {

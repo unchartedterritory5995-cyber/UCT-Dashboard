@@ -14,8 +14,25 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 
 ## The one rule
 
-**Massive allows ONE stocks connection per key. Never two.** A second connect evicts the first (the June
-`max_connections` incident). So the cutover is break-before-make, in both directions:
+**Massive allows TWO stocks connections per key since 2026-11-18** (the $75/month add-on, Kyle at Massive
+support; same key, same `wss://socket.massive.com/stocks`). One more than the limit kicks the OLDEST with
+`max_connections`. ⚠️ Measured that day: a raise applies only to sessions authenticated AFTER it. ingest's
+session predated the add-on, and a test socket kicked it; once ingest had reconnected, a second socket
+coexisted with it. After any change to the Massive plan, reconnect ingest before relying on the new limit.
+
+What the second connection is for, and what it is not:
+- **Faster restarts and reconnects.** A closed session stays counted on Massive's side for 10-30 s. With
+  one connection that blocked the next connect, hence the 45 s `INGEST_CONNECT_GRACE_S` and the 10 s
+  `INGEST_RECONNECT_MIN_GAP_S`. With two, the leftover session fits under the limit, so both come down
+  (values on `stream-ingest`: grace 10 s, min gap 2 s; set 2026-11-18 after 20:00 ET).
+- **NOT two copies of ingest posting at once.** Each ingest sends bars-api its universe minutes under its
+  own epoch, and bars-api restarts its repair on every epoch change: two live senders would flip it every
+  flush. So a restart stays break-before-make, just with a short grace. A hot standby needs its own design.
+- Nothing else may hold a stocks socket on the key (a local dev server with the key would take the spare
+  slot; census 2026-11-18: only stream-ingest does).
+
+Before 2026-11-18 the rule was ONE connection: a second connect evicted the first (the June
+`max_connections` incident). The cutover below was written for that, break-before-make in both directions:
 
 - `web` in remote mode refuses to open the socket (`bar_stream.start_stream`, "invariant 11").
 - `stream-ingest` connects only with `STREAM_INGEST_CONNECT=1`, after `INGEST_CONNECT_GRACE_S` (45 s) from
@@ -23,12 +40,16 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 - A `web` redeploy keeps the OLD pod serving until the new one is healthy. The old pod holds the socket
   until it exits. Do not turn ingest on until the old `web` deployment is gone.
 
-(A second connection, $75 a month from Massive, would allow make-before-break. Not bought as of this writing.)
+(The second connection was bought on 2026-11-18; see the top of this section for what it changes.)
 
 ## Preconditions
 
 1. #1434 is merged AND live on `web` (`git merge-base --is-ancestor <its merge> origin/production`).
-2. `stream-ingest` runs the same master, `STREAM_INGEST_CONNECT=0`, deployment SUCCESS.
+2. `stream-ingest` runs the same master, `STREAM_INGEST_CONNECT=0`, deployment SUCCESS, **and holds the vendor
+   key**: `MASSIVE_API_KEY=${{web.MASSIVE_API_KEY}}` (a Railway reference, so the secret is never typed). ⚰️ The
+   first cutover (2026-11-17, premarket) missed this: ingest's connect gate refused with "MASSIVE_API_KEY is not
+   set", `web` was already remote, and the live feed was down ~8 minutes until the reference was set and ingest
+   redeployed. Check it BY NAME before step 1: `railway variables --service stream-ingest --kv`, names only.
 3. **The universe feed moves too.** `web`'s own reader subscribes `AM.*` and forwards every ticker's minutes to
    `bars-api` (`bars_live_ingest`, which keeps the 5m series current). In remote mode `web` has no reader, so
    `stream-ingest` must do it: it runs the same `bar_stream._run_websocket`, which wires `bars_live_ingest` when
@@ -51,8 +72,14 @@ on its own loop; `web` mirrors its feed (`api/services/feed_client.py`, `STREAM_
 3. `railway variables --service stream-ingest --set STREAM_INGEST_CONNECT=1` (redeploys `stream-ingest`).
    It connects to Massive 45 s after boot.
 4. Verify, in this order:
-   - `stream-ingest` status: `railway ssh --service stream-ingest -- python -m api.stream_ingest_main --status`
-     (or `GET /status` with `Authorization: Bearer $PUSH_SECRET` on the private network): connected, frames rising.
+   - `stream-ingest` status: the RUNNING service's `GET /status` (Bearer `$PUSH_SECRET`), read from inside the
+     container so the secret never leaves it. ⛔ `python -m api.stream_ingest_main --status` builds a FRESH process
+     (uptime 0, nothing connected) and is not the service's state; and the shell's `python` is not the service's
+     interpreter (`/opt/venv/bin/python`; the system one has no `orjson`). What worked on 2026-11-17 (PowerShell;
+     `railway.exe` directly, the whole remote command in ONE quoted string, double quotes inside the code):
+     `railway.exe ssh --service stream-ingest -- "/opt/venv/bin/python -c '<code that GETs http://localhost:8080/status
+     with Authorization: Bearer os.environ[PUSH_SECRET] and prints runtime.upstream / universe>'"`.
+     Expect: `vendor_socket` "connected", `upstream.connected` true, frames rising, `universe.flush_errors` 0.
    - `web` `/api/admin/bars-stream-status`: `feed_client.connected` true, its counters rising, `resyncs` and
      `protocol_errors` not climbing.
    - The universe feed: `stream-ingest` status `universe` block (events and flushes rising, `flush_errors` flat)

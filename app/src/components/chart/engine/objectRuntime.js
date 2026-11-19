@@ -51,6 +51,7 @@ import { NOT_SHOWN, notShownSentence, partlyNotComputableSentence, stoppedRunSen
 // `LIVE_GUARD_KINDS`) is combined with `interpret`'s OWN operator table and its
 // OWN carried crossing step — never a second copy of either.
 import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, historyReadable } from './ast/interpret'
+import { PINE_CMP } from './pineCompare.js'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
 import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText,
@@ -1155,7 +1156,9 @@ export function beginObjects(program, ctx) {
           const f = BINARY[ref.op === 'and' ? '&&' : '||']
           return xs.reduce((acc, x) => f(acc, x))
         }
-        case 'cmp': return BINARY[ref.op](numOf(value(ref.args[0])), numOf(value(ref.args[1])))
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2) — an object program is always Pine, so a guard's
+        // comparison is TradingView's, within the absolute epsilon (`pineCompare.js::PINE_CMP`)
+        case 'cmp': return PINE_CMP[ref.op](numOf(value(ref.args[0])), numOf(value(ref.args[1])))
         // ⭐ C16 — the `if`'s condition as it was evaluated ONCE, where it stands.
         case 'latch': {
           const x = latches.get(ref.id)

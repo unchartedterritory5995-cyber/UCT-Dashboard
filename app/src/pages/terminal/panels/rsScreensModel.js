@@ -61,6 +61,20 @@ export const RS_SCREEN_WORDS = Object.freeze({
   EXIT: 'starter_rs_exit_warning_5', WARN: 'starter_rs_exit_warning_5', WARNINGS: 'starter_rs_exit_warning_5',
 })
 
+/** The step of the fold ladder each screen's table names on its box (`data-fold`; the ladder is
+ *  explained in marketPanels.module.css): the step just above the width that screen was measured to need with its cells
+ *  wrapped and every column showing, beside the scrollbar (2026-11-18, sample rows: leaders 552px,
+ *  new high before price 513, new highs 511, top rating 496, exit warnings 464). From its step down
+ *  the screen folds its less-used columns, as on a phone. A screen the server adds later was never
+ *  measured, so it names no step and folds only in a narrow panel. */
+export const RS_SCREEN_FOLD = Object.freeze({
+  starter_rs_leaders: 570,
+  starter_rs_nh_before_price: 530,
+  starter_rs_new_high: 530,
+  starter_rs_top_rating: 510,
+  starter_rs_exit_warning_5: 480,
+})
+
 /** Pure: a typed word as a screen id (`nhbp` -> 'starter_rs_nh_before_price'), or null. */
 export function parseRsScreen(token) {
   const t = String(token ?? '').trim().toUpperCase()

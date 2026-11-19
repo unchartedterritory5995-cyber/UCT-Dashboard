@@ -288,11 +288,14 @@ describe('L5 — a request inside a call\'s arguments is the run\'s request, nev
 // itself is still not served (no lane reads a timeframe below a weekly chart, or a daily read on
 // an intraday chart, bar by bar), so it is refused by THAT name, never drawn.
 describe('L8 (4b) — the chart\'s own symbol at a timeframe the host does not read', () => {
-  const SELF = (tf) => `plot(request.security(syminfo.tickerid, "${tf}", close))`
-  for (const [chartTf, asked] of [['W', 'D'], ['60', 'D']]) {
-    it(`a \`"${asked}"\` read on a \`${chartTf}\` chart refuses by the TIMEFRAME, never by the symbol's text`, () => {
+  const SELF = (tf, expr = 'close') => `plot(request.security(syminfo.tickerid, "${tf}", ${expr}))`
+  // ⭐ RS RATING L11 (Q-RS7 R3) — a bare `close` at "D" on a WEEKLY chart is now served (the weekly close is
+  // the week's last daily close: `pine.js::dailyOnWeeklyTargetOf`, railed in `rsWeeklyWitness.test.js`), so the
+  // weekly case of this rail reads another expression, which keeps the refusal by the timeframe.
+  for (const [chartTf, asked, expr] of [['W', 'D', 'open'], ['60', 'D', 'close']]) {
+    it(`a \`"${asked}"\` read (\`${expr}\`) on a \`${chartTf}\` chart refuses by the TIMEFRAME, never by the symbol's text`, () => {
       let err = null
-      try { runDoc(SELF(asked), ctxOf({ tf: chartTf })) } catch (e) { err = e }
+      try { runDoc(SELF(asked, expr), ctxOf({ tf: chartTf })) } catch (e) { err = e }
       expect(err, 'the read is not served on this chart').toBeTruthy()
       expect(String(err.message)).not.toMatch(/syminfo\.tickerid|bind-time-text/)
       expect(err.guard || String(err.message)).toMatch(/runtime:request/)
@@ -300,8 +303,17 @@ describe('L8 (4b) — the chart\'s own symbol at a timeframe the host does not r
     })
   }
 
-  it('the door records the read as the chart\'s own, unread by the host (a static refusal names the timeframe)', () => {
+  it('L11 R3: a bare `close` at "D" on a weekly chart IS the chart\'s own close (served, no request site)', () => {
     const built = buildRuntimeIr(`//@version=5\nindicator("x")\n${SELF('D')}`,
+      { bars: CHART, inputs: {}, tf: 'W', basePeriod: 'W', symbol: { ticker: 'RDDT', exchange: 'NYSE' } })
+    expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
+    expect(lowerIrProgram(built.ir).requests).toEqual([])
+    const out = runDoc(SELF('D'), ctxOf({ tf: 'W' }))
+    expect(Array.from(out.a)).toEqual(CHART.map((b) => b.c))
+  })
+
+  it('the door records the read as the chart\'s own, unread by the host (a static refusal names the timeframe)', () => {
+    const built = buildRuntimeIr(`//@version=5\nindicator("x")\n${SELF('D', 'open')}`,
       { bars: CHART, inputs: {}, tf: 'W', basePeriod: 'W', symbol: { ticker: 'RDDT', exchange: 'NYSE' } })
     expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
     const program = lowerIrProgram(built.ir)
@@ -309,13 +321,15 @@ describe('L8 (4b) — the chart\'s own symbol at a timeframe the host does not r
     expect(requestTargetsUnservable(program.requests.map((r) => r.target), 1)).toMatch(/`D`/)
   })
 
-  it('⛔ CONTROL: another symbol at that timeframe is not the chart\'s own (no own target, refused as unreadable)', () => {
+  it('⛔ CONTROL: another symbol at that timeframe is not the chart\'s own: a daily read below the chart, refused by name for a listing', () => {
     const built = buildRuntimeIr('//@version=5\nindicator("x")\nplot(request.security("AMEX:SPY", "D", close))',
       { bars: CHART, inputs: {}, tf: 'W', basePeriod: 'W', symbol: { ticker: 'RDDT', exchange: 'NYSE' } })
     expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
-    expect(lowerIrProgram(built.ir).requests[0].target).toBe(null)
+    // ⭐ RS RATING L11 — the host reads it as another symbol's daily read below the chart (`below`), never as
+    // the chart's own; the supply serves that only for a witnessed spelling (SP:SPX, the RS seed)
+    expect(lowerIrProgram(built.ir).requests[0].target).toMatchObject({ own: false, ticker: 'SPY', code: 'D', below: true })
     expect(() => runDoc('plot(request.security("AMEX:SPY", "D", close))', ctxOf({ tf: 'W' })))
-      .toThrow(/cannot be read before/)
+      .toThrow(/other-symbol:witness-timeframe — `SPY` is read at `"D"` below this `W` chart/)
   })
 
   it('⛔ an own read the host DECLINES for another reason (`gaps_on` on a merge) is never served as the merge', () => {

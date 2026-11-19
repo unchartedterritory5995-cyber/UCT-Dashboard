@@ -32,14 +32,26 @@ const MEASURE = path.join(APP, 'scripts', 'measure-pine-runtime.mjs')
 import { STRATEGY_RECORD_SCHEMA, strategyRecordShapeErrors } from '../strategyRecord.js'
 
 const EXPORTS = [
-  'DEFAULT_LIMITS', 'NATIVE_TFS', 'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
+  // HEADLESS (Studio R6): the lane router, and the reference series a definition's work is measured over
+  'COMPUTE_LANE',
+  'DEFAULT_LIMITS', 'NATIVE_TFS',
+  'REFERENCE_BARS_SHA256', 'REFERENCE_BAR_COUNT', 'REFERENCE_BENCHMARK_SEED', 'REFERENCE_BENCHMARK_SHA256',
+  'REFERENCE_SEED', 'REFERENCE_START', 'REFERENCE_SYMBOL', 'REFERENCE_TIMEFRAME',
+  'RUNTIME_FAILED_GUARD', 'RUNTIME_FRONTEND_LANGUAGE', 'RUNTIME_FRONTEND_VERSION',
   'RUNTIME_INCREMENTAL_KEY', 'RUNTIME_IR_VERSION', 'RUNTIME_OBJECTS_KEY', 'RUNTIME_PANE_TIME_BUDGET_MS',
   'RUNTIME_TIME_BUDGET_GUARD', 'SCRIPT_ENGINE_VERSION', 'STRATEGY_RECORD_SCHEMA',
   // U15: `clearPineLibraries`, `libraryEntryProblem` and `registerPineLibrary` are how the job registers
   // exactly the pinned library entries for one run and clears them (services/pine_runtime/job.mjs).
-  'bytesToB64', 'clearPineLibraries', 'columnDigest', 'computeRuntimeColumns', 'decodeColumn', 'encodeColumn',
-  'libraryEntryProblem', 'registerPineLibrary', 'resetRuntimeLedgers', 'resetRuntimeSessions',
+  'bytesToB64', 'clearPineLibraries', 'columnDigest',
+  // HEADLESS (Studio R6): a saved definition computed with no chart, its work counted (`headlessCompute.js`)
+  'computeHeadless', 'computeLaneOf',
+  'computeRuntimeColumns', 'decodeColumn', 'encodeColumn',
+  'libraryEntryProblem',
+  'referenceBars', 'referenceBenchmarkBars', 'referenceDigest', 'referenceOptions',
+  'registerPineLibrary', 'resetRuntimeLedgers', 'resetRuntimeSessions',
   'runtimeStrategyOf', 'runtimeVersionRefusal', 'runtimeWarmupOf', 'strategyRecordShapeErrors',
+  // Studio R5 (backlog 44): a script's top-level names with lines, for "Inspect a bar" (runtime/topLevelNames.js).
+  'topLevelNames',
 ]
 
 let dir, built, text

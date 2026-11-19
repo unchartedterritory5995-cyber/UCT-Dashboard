@@ -36,6 +36,8 @@
       "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
       "app/src/components/chart/engine/ast/sentence.js",
       "app/src/components/chart/engine/ast/symbolScope.json",
+      "app/src/components/chart/engine/hostKnownDivergence.json",
+      "app/src/components/chart/engine/pineCompare.js",
       "app/src/components/chart/engine/runtime/ir.js",
       "app/src/components/chart/engine/runtime/runtimeRepaint.json",
       "app/src/components/chart/engine/scriptEngineVersion.js",

@@ -61,27 +61,41 @@ def test_the_exact_request_with_a_correct_answer_passes_first_time_in_its_own_pa
     assert c["op"] == "create" and c["placement"] == "pane" and c["outputs"][0]["tree"] == PCT
 
 
-def test_a_guessed_slot_id_costs_the_repair_and_the_repair_names_the_real_ids(conv, model):
-    """The production shape: a correct formula disclosed against a slot id that is not
-    in it. Before: ok here, refused whole in the browser. Now: refused HERE at
-    envelope:reference, repaired once with the tree's own slot ids, then ok."""
+def test_a_guessed_slot_id_keeps_its_words_and_costs_nothing(conv, model):
+    """The production shape: a correct formula disclosed against a slot id that is not in it.
+    First: ok here, refused whole in the browser. Then (2026-10-28): refused HERE and repaired
+    with a second model call. ⭐ 2026-11-17: measured, that second call was being paid on about
+    one built turn in four for a FOOTNOTE. The assumption keeps its text and loses its pointer
+    (`conv.mend`), in one call."""
     bad = good(assumptions=[{"slot": "diff#0.0.0.2", "text": "Using closing prices."}])
+    client = model([emits(bad)])
+    r = conv.converse(REQUEST, user_id="u1", view=empty_view(0))
+    assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1
+    assert r["usage"]["repair_gate"] is None and r["usage"]["mended"] == "assumption-link"
+    assert r["envelope"]["assumptions"] == [{"text": "Using closing prices."}]
+    assert r["envelope"]["ops"] == bad["ops"]                 # the patch itself is untouched
+
+
+def test_a_guessed_slot_id_with_nothing_to_keep_still_costs_the_repair_and_names_the_real_ids(conv, model):
+    """CONTROL: the mend keeps WORDS. An assumption whose text is blank has none, so the check
+    refuses it as before and the repair turn is told the tree's own slot ids."""
+    bad = good(assumptions=[{"slot": "diff#0.0.0.2", "text": " "}])
     fixed = good(assumptions=[{"slot": "diff#0.0.0.0", "text": "Using closing prices."}])
     client = model([emits(bad), emits(fixed)])
     r = conv.converse(REQUEST, user_id="u1", view=empty_view(0))
     assert r["ok"] is True and r["attempts"] == 2 and r["usage"]["repair_gate"] == "envelope:reference"
+    assert r["usage"]["mended"] is None
     text = repair_text(client)
     assert "diff#0.0.0.2" in text and "diff#0.0.0.1 = 9" in text and "diff#0.0.1.1 = 20" in text
     assert "`text` alone" in text
 
 
-def test_an_assumption_naming_an_output_that_does_not_exist_is_repaired(conv, model):
+def test_an_assumption_naming_an_output_that_does_not_exist_keeps_its_words(conv, model):
     bad = good(assumptions=[{"output": "pct_diff", "text": "Shown as a percentage."}])
-    fixed = good(assumptions=[{"output": "diff", "text": "Shown as a percentage."}])
-    client = model([emits(bad), emits(fixed)])
+    client = model([emits(bad)])
     r = conv.converse(REQUEST, user_id="u1", view=empty_view(0))
-    assert r["ok"] is True and r["attempts"] == 2 and r["usage"]["repair_gate"] == "envelope:reference"
-    assert "'pct_diff'" in repair_text(client) and "diff" in repair_text(client)
+    assert r["ok"] is True and r["attempts"] == 1 and r["usage"]["mended"] == "assumption-link"
+    assert r["envelope"]["assumptions"] == [{"text": "Shown as a percentage."}]
 
 
 def test_a_second_output_with_no_key_is_repaired(conv, model):
@@ -103,7 +117,8 @@ def test_separate_pane_said_as_a_placement_word_is_still_repaired_by_the_schema(
 
 
 def test_a_reference_that_stays_wrong_after_the_repair_is_refused_and_the_member_reads_no_ids(conv, model):
-    bad = good(assumptions=[{"slot": "diff#9", "text": "x"}])
+    # a reference the mend cannot settle: a second output with no key of its own
+    bad = env(0, [create([{"key": "diff", "tree": PCT}, {"tree": E9}])], reply="Built it.")
     client = model([emits(bad), emits(bad)])
     r = conv.converse(REQUEST, user_id="u1", view=empty_view(0))
     assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
@@ -151,9 +166,19 @@ def test_a_slot_shown_in_the_view_passes(conv, model):
     assert conv.converse("make it 1000", user_id="u1", view=_existing())["ok"] is True
 
 
-def test_a_slot_not_in_the_view_is_repaired_with_the_views_ids(conv, model):
+def test_a_slot_not_in_the_view_keeps_its_words_and_costs_nothing(conv, model):
     bad = env(3, [{"op": "set_slot", "slot": "diff#1", "value": 1000}], reply="x",
-              assumptions=[{"slot": "diff#7", "text": "x"}])
+              assumptions=[{"slot": "diff#7", "text": "Scaled by 1000."}])
+    client = model([emits(bad)])
+    r = conv.converse("make it 1000", user_id="u1", view=_existing())
+    assert r["ok"] is True and r["attempts"] == 1 and r["usage"]["mended"] == "assumption-link"
+    assert r["envelope"]["assumptions"] == [{"text": "Scaled by 1000."}]
+    assert r["envelope"]["ops"] == bad["ops"]
+
+
+def test_a_slot_not_in_the_view_with_nothing_to_keep_is_repaired_with_the_views_ids(conv, model):
+    bad = env(3, [{"op": "set_slot", "slot": "diff#1", "value": 1000}], reply="x",
+              assumptions=[{"slot": "diff#7", "text": " "}])
     ok = env(3, [{"op": "set_slot", "slot": "diff#1", "value": 1000}], reply="x")
     client = model([emits(bad), emits(ok)])
     r = conv.converse("make it 1000", user_id="u1", view=_existing())

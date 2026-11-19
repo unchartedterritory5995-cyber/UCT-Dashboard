@@ -69,6 +69,7 @@ import os
 import re
 import threading
 from datetime import datetime
+from decimal import Decimal
 from types import MappingProxyType
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -276,8 +277,10 @@ REFUSALS: Mapping[str, str] = {
         "this request needs something the UCT Agent cannot draft yet"),
     # ⭐ P0 (2026-10-05). Any unexpected failure after the model call. Logged
     # with its traceback; the member gets a controlled answer, never a 500.
+    # ⭐ 2026-11-18 (ruling): it says what is true and what to do. It is OURS, so it never asks the
+    # member to rephrase; the window says this same sentence (`memberWords.INTERNAL`).
     "internal:error": (
-        "the UCT Agent hit an internal problem and drafted nothing"),
+        "That didn't work on our side and nothing was changed. Try again in a moment."),
 }
 
 #: ⭐ P0 (2026-10-05) — node types this door CANNOT FINISH, each with the honest
@@ -1061,6 +1064,11 @@ def _assert_textop_within_schema(node: Mapping[str, Any], defs: Mapping[str, Any
 
 
 _SPELLABLE = re.compile(r"^-?[0-9]+(\.[0-9]+)?$")
+#: The smallest positive number both lanes write without an exponent (the browser's own limit).
+SMALLEST_SPELLABLE = 1e-6
+SMALLEST_SPELLABLE_TEXT = "0.000001"
+#: The largest number both lanes write alike (2^53, the browser's last exact whole number).
+LARGEST_SPELLABLE = 2 ** 53
 
 
 def _spell_number(value: Any) -> str:
@@ -1085,12 +1093,32 @@ def _spell_number(value: Any) -> str:
             "schema:number",
             f"{value!r} -- a negative literal is written as a unary-minus node, "
             "because that is the only shape the parser can produce")
+    if value > LARGEST_SPELLABLE:
+        # ⭐ THE OTHER END, found while fixing the small one. Past 2^53 the two lanes write a whole
+        # number DIFFERENTLY: Python prints its exact digits ("123456789012345683968"), the browser
+        # its shortest digits and zeros ("123456789012345680000"), and from 1e21 an exponent.
+        raise _Refused(
+            "schema:number",
+            f"{value!r} -- a number this large is written differently by the browser; "
+            f"nothing past {LARGEST_SPELLABLE} can be written in a formula")
     if isinstance(value, float) and value.is_integer():
         text = str(int(value))
     else:
         text = str(value)
+        if "e-" in text and value >= SMALLEST_SPELLABLE:
+            # ⭐ THE TWO LANES AGREE HERE, AND ONLY THEIR NOTATION DIFFERS (2026-11-18). Python
+            # switches to an exponent below 0.0001 ("1e-06"); ECMAScript's String(n) does not until
+            # below 0.000001 ("0.000001"). Both print the same shortest digits, so in between the
+            # browser's spelling is those digits written out. Found live: an assistant keeps a
+            # division off zero with 0.000001, and every such answer was refused twice.
+            # `tests/test_number_spelling.py` holds this to the browser's own String(n).
+            text = format(Decimal(text), "f")
     if not _SPELLABLE.match(text):
-        raise _Refused("schema:number", f"{value!r} spells as {text!r}")
+        raise _Refused(
+            "schema:number",
+            f"{value!r} spells as {text!r} -- write it as a plain decimal no smaller than "
+            f"{SMALLEST_SPELLABLE_TEXT} and with no exponent; to keep a division off zero, test the "
+            "divisor instead of adding a tiny number to it")
     return text
 
 
@@ -1654,6 +1682,25 @@ def _render_op(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                  parts, f"operator {name}", path)
 
 
+#: ⭐ NUMBER PENDING (studio, 2026-11-18) -- a bar-field argument is named by its ROLE when the
+#: arguments are not the bar's own fields in the table's order (`sentence.js::barFieldLead`, where
+#: the reason is said once). The roles are the manifest's `argRoles`; a role that is one of the
+#: manifest's SERIES names is a bar field and is said as that name in the plural. No field name
+#: is typed here (this module's own rail).
+def _bar_field_lead(rule: Mapping[str, Any], series: Any) -> Optional[List[str]]:
+    """The leading bar-field roles of a function rule (two or more, each once), else None."""
+    lead: List[str] = []
+    for role in rule.get("arg_roles") or ():
+        if role not in series:
+            break
+        lead.append(role)
+    return lead if len(lead) >= 2 and len(set(lead)) == len(lead) else None
+
+
+def _is_bare_field(arg: Any, field: str) -> bool:
+    return isinstance(arg, dict) and arg.get("type") == "series" and arg.get("name") == field
+
+
 def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                  path: str, trace: List[Dict[str, str]]) -> str:
     name = node.get("name")
@@ -1682,6 +1729,10 @@ def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                                    roles[i] if i < len(roles) else None)
                      if kind == "int"
                      else _render_arg(node["args"][i], rules, inputs, child, trace))
+    lead = _bar_field_lead(rule, rules["series"])
+    if lead and not all(_is_bare_field(node["args"][i], field) for i, field in enumerate(lead)):
+        for i, field in enumerate(lead):
+            parts[i] = f"{field}s from {parts[i]}"
     return _fill(rule["phrase"], parts, f"function {name}", path)
 
 
@@ -2564,7 +2615,78 @@ def _is_name_word(word: str) -> bool:
     return len(word) > 1 and word[0].isupper() and not word.isupper()
 
 
-def _named_phrases(prompt: str, already_found: List[dict]) -> List[dict]:
+#: ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE (opt-in, `plan(strict_names=True)`; the chart door uses it).
+#: A NAME is short: a Title-Case run longer than this is a sentence typed in capitals, and keeps
+#: the older rule.
+NAME_MAX_WORDS = 4
+#: Words capitalised by grammar or habit, never by being part of a name.
+_NAME_GRAMMAR = frozenset("a an the of on in to for with and or but vs at by from as than".split())
+#: The words a request OPENS with. Only these are excused for standing first in a sentence with a
+#: capital ("Add Bollinger Bands"). Any other first word is read as part of the name, so a name
+#: typed alone ("Klinger Volume Oscillator") is still caught. A closed list on purpose: a missing
+#: opener costs one request a rephrase; excusing every first word let every bare name through.
+_SENTENCE_OPENERS = frozenset("""add show plot draw create make build give put use display highlight mark get want
+need try set turn change switch apply overlay graph chart include insert load open see view find calculate compute
+track watch compare replace remove delete hide rename color colour paint shade label call name please can could
+would let i we also and then now just ok okay yes no hey hi with for when if on in the a an my this that what how
+why does do is are explain tell describe""".split())
+_VOCABULARY: Dict[int, Tuple[Any, frozenset]] = {}
+
+
+def _lexicon_vocabulary(lexicon: Mapping[str, Any]) -> frozenset:
+    """Every word (by stem) any phrase of this lexicon is made of: the product's own vocabulary.
+    ⭐ A phrase a lexicon lists under ``names_only`` is a NAME it recognises whole and nothing more
+    (the chart door's well-known names with no checked formula): its words are no vocabulary, so
+    "Fisher" and "Williams" stay foreign words inside any other name."""
+    held = _VOCABULARY.get(id(lexicon))
+    if held is None or held[0] is not lexicon:
+        names_only = lexicon.get("names_only") or ()
+        held = (lexicon, frozenset(stem_ for key in lexicon["index"] if key not in names_only for stem_ in key))
+        _VOCABULARY[id(lexicon)] = held
+    return held[1]
+
+
+def _opens_a_sentence(text: str, w: Any) -> bool:
+    """Is this word a request OPENER standing first in its sentence ("Add ...", "Done. Show ...")?
+    Its capital is grammar. ⭐ MEASURED 2026-11-18: counted as the first word of a name, it made
+    "Add Inside bar", "Show Weekly pivot points", "Highlight Mondays", "Mark Fridays in blue" and
+    "Add The 10:00 bar marked" unknown indicators called "Add Inside", "Show Weekly", "Highlight
+    Mondays", "Mark Fridays" and "Add The": 56 of 140 indicator ideas written "Add <Idea>" were
+    refused before any model call for that reason alone."""
+    before = text[:w.start()].rstrip()
+    return (not before or before[-1] in ".!?;:\n") and w.group(0).lower() in _SENTENCE_OPENERS
+
+
+def _foreign_words(words: List[Any], lexicon: Mapping[str, Any]) -> List[str]:
+    """The words of one Title-Case run that NOTHING accounts for: not a grammar word, and not a
+    word of the product's own vocabulary. (A word that is part of something already understood
+    needs no clause of its own: every word of a lexicon phrase IS vocabulary. A request opener
+    standing first is taken off the run before this is asked: `_opens_a_sentence`.)
+
+    ⭐ MEASURED BEFORE IT WAS WRITTEN (2026-11-18, 604 requests: the plain-English corpus, every
+    evaluation case, 102 live-round requests and 140 indicator ideas in three spellings). Counting
+    ANY unaccounted word as foreign refused 43 of 138 Title-Case descriptions ("Previous Week High
+    And Low", "Linear Regression Slope"); with a hand list of verbs it still needed the list. This
+    form flips NO real request and newly refuses the same 10 of 138 Title-Case names however they
+    are written (alone, after "Add the", mid-sentence), nine of them real named indicators (Chande
+    Momentum Oscillator, Klinger Volume Oscillator, TD Sequential ...). The one description it
+    catches holds a word the product has never used ("Interquartile")."""
+    vocabulary = _lexicon_vocabulary(lexicon)
+    out: List[str] = []
+    for w in words:
+        word = w.group(0)
+        # (an opener is no part of a name wherever it stands: "so Add Bollinger Bands")
+        if word.lower() in _NAME_GRAMMAR or word.lower() in _SENTENCE_OPENERS:
+            continue
+        stems, _cost = _stem_key(_form_tokens(word))
+        if stems and all(st in vocabulary for st in stems):
+            continue
+        out.append(word)
+    return out
+
+
+def _named_phrases(prompt: str, already_found: List[dict],
+                   strict_lexicon: Optional[Mapping[str, Any]] = None) -> List[dict]:
     """Runs of two-or-more proper-noun-shaped words `prompt` contains that no
     existing match already accounts for.
 
@@ -2596,10 +2718,24 @@ def _named_phrases(prompt: str, already_found: List[dict]) -> List[dict]:
         while (j < n and _is_name_word(words[j].group(0))
                and text[words[j - 1].end():words[j].start()].isspace()):
             j += 1
-        if j - i >= 2:
-            start, end = words[i].start(), words[j - 1].end()
+        # ⭐ A REQUEST OPENER IS NOT PART OF A NAME (`strict_lexicon` only): "Add Inside bar" is the
+        # word "Inside" after a verb, not an indicator called "Add Inside".
+        first = i + 1 if strict_lexicon is not None and _opens_a_sentence(text, words[i]) else i
+        if j - first >= 2:
+            start, end = words[first].start(), words[j - 1].end()
             phrase = text[start:end]
-            if not any(start < f["end"] and f["start"] < end for f in already_found):
+            overlaps = any(start < f["end"] and f["start"] < end for f in already_found)
+            # ⭐ THE WHOLE-PHRASE RULE (`strict_lexicon`): one known word inside a short Title-Case
+            # name no longer accounts for the name. "Schaff Trend Cycle" knows "trend"; it is
+            # still a name nobody here has a formula for.
+            # ⭐ A NAME THE LEXICON RECOGNISES WHOLE (`names_only_section`) accounts for its own words
+            # and no others: they are not vocabulary, so they are taken off the run here.
+            whole = strict_lexicon.get("names_only_section") if strict_lexicon is not None else None
+            rest = [w for w in words[first:j]
+                    if not (whole and any(f.get("section") == whole and f["start"] <= w.start() and w.end() <= f["end"]
+                                          for f in already_found))]
+            if not overlaps or (strict_lexicon is not None and j - first <= NAME_MAX_WORDS
+                                and _foreign_words(rest, strict_lexicon)):
                 out.append({"kind": NAMED_ENTRY, "key": phrase, "section": None,
                             "start": start, "end": end, "matched_as": phrase})
             i = j
@@ -2818,8 +2954,14 @@ def _starter_named(text: Any) -> Optional[Mapping[str, Any]]:
 def plan(prompt: str, kind: str = INDICATOR_KIND, *,
          vocab: Optional[Mapping[str, Any]] = None,
          table: Optional[Mapping[str, Any]] = None,
-         lexicon: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+         lexicon: Optional[Dict[str, Any]] = None,
+         strict_names: bool = False,
+         name_refusal: Optional[str] = None) -> Dict[str, Any]:
     """What this door understood, what it did not, and what the model will be told.
+
+    ``strict_names`` turns on the whole-phrase rule for unknown names (`_foreign_words`); off, the
+    planner is exactly what it was. ``name_refusal`` is the caller's own sentence for an unknown
+    name (``{name}`` is the phrase); without it, this door's.
 
     ⭐ PURE. No model call, no clock, no network -- which is why the corpus rail
     can drive hundreds of real member phrasings through it for nothing, and why a
@@ -2854,7 +2996,9 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
     # `_clauses` must not split a named phrase across a clause boundary --
     # both already do exactly that for every OTHER match kind, for free, once
     # a named-phrase span is part of `found`.
-    found = sorted(found + _named_phrases(text, found), key=lambda m: m["start"])
+    # (a known word INSIDE an unknown name needs no removing: the name's clause is refused whole, and
+    # nothing in a refused clause is reported as understood)
+    found = sorted(found + _named_phrases(text, found, lex if strict_names else None), key=lambda m: m["start"])
     written = _numbers_in(text, found)
     clauses = _clauses(text, found + written)
 
@@ -2900,7 +3044,7 @@ def plan(prompt: str, kind: str = INDICATOR_KIND, *,
             refusals_by_clause.setdefault(index, []).append({
                 "phrase": match["matched_as"],
                 "gate": concept_vocabulary.GATE_UNGROUNDED,
-                "reason": (
+                "reason": name_refusal.format(name=match["matched_as"]) if name_refusal else (
                     f'"{match["matched_as"]}" is not one of this door\'s supported '
                     "functions or concepts, so there is no formula to expand it "
                     "into. Name a supported indicator, or ask for it to be added "

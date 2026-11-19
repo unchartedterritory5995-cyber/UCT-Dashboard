@@ -508,6 +508,14 @@ def render(inv: dict) -> str:
 # or `gate` cannot reach a test, a change inside a job that runs the suite obviously can —
 # and the test jobs are DERIVED from the workflow's own steps, never listed here.
 FLAKY_STABLE_RUNS = 5
+#: ⚰️⚰️ 2026-11-18 — R3. `collect_runs` read EVERY record on ci-results (608 of them, ~72 MB each, a
+#: 34 MB vitest junit among them) and `flaky_set` diffed every consecutive pair, twice per step:
+#: measured on run 43726736793, "Diff against the baseline" took 92 min and "Derive the flaky set"
+#: 90 min, about 27% of the nightly's runner minutes, and the cost grew by one record a night.
+#: The derived set is now read over the newest this-many records (by run id). The rolling
+#: baseline is found by `previous_valid_master_run`, which reads summaries only, so it still
+#: searches the WHOLE store. ⛔ Must stay comfortably above FLAKY_STABLE_RUNS, or nothing retires.
+FLAKY_WINDOW_RECORDS = 14
 _SOURCE_GLOBS = ["*.py", "*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.cjs"]
 _INERT_SUFFIX = (".md",)
 _INERT_PREFIX = ("docs/",)
@@ -779,13 +787,33 @@ def attribute_missing(key, sha_a: str, sha_b: str, repo="."):
     return DELETED, body.splitlines()[0][:120]
 
 
-def runs_equivalent(sha_a: str, sha_b: str, repo="."):
+_EQUIVALENT_MEMO = {}
+
+
+def runs_equivalent(sha_a: str, sha_b: str, repo=".", plan_a=None, plan_b=None):
     """(True/False/None, reason) — could ANY code change explain a state change?
 
     ⛔ **UNREADABLE IS NOT EQUIVALENT.** A shallow checkout cannot diff two commits, and a
     tool that shrugged there would start calling real regressions flaky on exactly the
     runs where it can see least. F-CI-32's `fetch-depth: 0` is what feeds this.
+
+    ⛔ 2026-11-18: the shard timings now refresh from actions/cache, not only from a commit,
+    so WHO SHARES A PROCESS can move with no diff at all. A record carries its plan's digest
+    (`shard_plan.json`); two runs whose digests differ are NOT equivalent, even on one SHA:
+    the run #24/#25 lesson (a reshuffle moved 41 outcomes) applies to the cache as to a commit.
+    Records from before the digest existed carry none, and are judged as before.
     """
+    if plan_a and plan_b and plan_a != plan_b:
+        return False, "the shard plan differs (%s vs %s): who shares a process changed" % (
+            str(plan_a)[:9], str(plan_b)[:9])
+    key = (sha_a, sha_b, str(repo))
+    if key not in _EQUIVALENT_MEMO:
+        # flaky_set(runs) and flaky_set(runs[:-1]) walk the same pairs: the git work is done once.
+        _EQUIVALENT_MEMO[key] = _runs_equivalent_by_code(sha_a, sha_b, repo)
+    return _EQUIVALENT_MEMO[key]
+
+
+def _runs_equivalent_by_code(sha_a: str, sha_b: str, repo="."):
     if sha_a and sha_a == sha_b:
         return True, "SAME SHA — the strongest form of the rule"
     if not (sha_a and sha_b):
@@ -835,7 +863,8 @@ def flaky_set(runs, repo="."):
     """
     evidence, pairs = {}, []
     for a, b in zip(runs, runs[1:]):
-        eq, why = runs_equivalent(a.get("sha", ""), b.get("sha", ""), repo)
+        eq, why = runs_equivalent(a.get("sha", ""), b.get("sha", ""), repo,
+                                  a.get("plan"), b.get("plan"))
         pairs.append({"a": a["n"], "b": b["n"], "equivalent": eq, "why": why})
         if eq is not True:
             continue
@@ -913,11 +942,19 @@ def render_flaky(derived, pairs, runs, previous=None) -> str:
     return "\n".join(out) + "\n"
 
 
-def collect_runs(root, repo="."):
-    """Every readable results/<run_id> record, ordered by run number."""
+def window_dirs(root, window=FLAKY_WINDOW_RECORDS) -> list:
+    """The newest `window` record directories under `root`, oldest first, by NUMERIC run id
+    (a name sort puts run 9 after run 10). `window` 0 or None = every record."""
+    dirs = [p for p in pathlib.Path(root).glob("*") if p.is_dir() and p.name.isdigit()]
+    dirs.sort(key=lambda p: int(p.name))
+    return dirs[-int(window):] if window else dirs
+
+
+def collect_runs(root, repo=".", window=FLAKY_WINDOW_RECORDS):
+    """Every readable results/<run_id> record of the newest `window`, ordered by run number."""
     root = pathlib.Path(root)
     runs = []
-    for d in sorted(p for p in root.glob("*") if p.is_dir()):
+    for d in window_dirs(root, window):
         sp = d / "summary.json"
         if not sp.is_file():
             continue
@@ -928,8 +965,13 @@ def collect_runs(root, repo="."):
         failing, ran, _ = load_record(d)
         if not ran:
             continue        # no junit = RAN unknowable = this run can witness nothing
+        plan = None
+        try:
+            plan = json.loads((d / "shard_plan.json").read_text(encoding="utf-8")).get("digest")
+        except (OSError, ValueError, AttributeError):
+            pass            # a record from before the digest: judged by code alone, as before
         runs.append({"id": d.name, "n": s.get("run_number") or 0,
-                     "sha": s.get("sha") or "", "failing": failing, "ran": ran})
+                     "sha": s.get("sha") or "", "failing": failing, "ran": ran, "plan": plan})
     runs.sort(key=lambda r: r["n"])
     return runs
 
@@ -1527,6 +1569,25 @@ def _self_check() -> int:
     d6, _ = flaky_set(RUNS + gap)
     show("a run where it was NOT COLLECTED breaks the streak", d6[B_]["retired"], False)
 
+    # ⛔ 2026-11-18 (R3): a different shard plan is a different process layout, even on one SHA.
+    RUNS7 = [dict(RUNS[0], plan="p1"), dict(RUNS[1], plan="p2")]
+    d7, p7 = flaky_set(RUNS7)
+    show("SAME SHA but a DIFFERENT shard plan -> NOT flaky", sorted(d7), [])
+    show("  ...and the pair says the plan moved", "shard plan differs" in p7[0]["why"], True)
+    RUNS8 = [dict(RUNS[0], plan="p1"), dict(RUNS[1], plan="p1")]
+    show("  ...the same plan on the same SHA is still FLAKY (control)",
+         sorted(flaky_set(RUNS8)[0]), [B_])
+    import tempfile
+    with tempfile.TemporaryDirectory() as _tw:
+        for _n in ("9", "10", "11", "notarun"):
+            (pathlib.Path(_tw) / _n).mkdir()
+        show("the record window keeps the newest N by NUMERIC run id",
+             [q.name for q in window_dirs(_tw, 2)], ["10", "11"])
+        show("  ...and window 0 keeps every numbered record",
+             [q.name for q in window_dirs(_tw, 0)], ["9", "10", "11"])
+    show("the window leaves room to retire a flake",
+         FLAKY_WINDOW_RECORDS > FLAKY_STABLE_RUNS + 2, True)
+
     # the gate: NEW excludes FLAKY, and the arithmetic still closes over everything
     dF = diff({A_}, {A_, B_, C_}, {A_, B_, C_}, GOOD, flaky={B_})
     show("NEW excludes the flaky entry", dF["new"], [C_])
@@ -1607,6 +1668,9 @@ def main(argv=None) -> int:
                     help="classify one Actions run (NOT_RUN / COMPLETED / ...); with "
                          "--jobs, that run's jobs payload")
     ap.add_argument("--jobs", help="the jobs payload for --classify-run")
+    ap.add_argument("--window", type=int, default=FLAKY_WINDOW_RECORDS,
+                    help="derive the flaky set over the newest N records (0 = all; default %d)"
+                         % FLAKY_WINDOW_RECORDS)
     ap.add_argument("--self-check", action="store_true")
     a = ap.parse_args(argv)
     if a.self_check:
@@ -1623,7 +1687,7 @@ def main(argv=None) -> int:
         return OK if r["state"] != "UNREADABLE" else FAIL
 
     if a.flaky:
-        runs = collect_runs(a.results_root, a.repo)
+        runs = collect_runs(a.results_root, a.repo, a.window)
         if len(runs) < 2:
             print("[ci-inventory] FLAKY: %d readable record(s) — a flake needs two runs "
                   "to be visible at all. Nothing derived, and that is not a clean bill "
@@ -1702,7 +1766,7 @@ def main(argv=None) -> int:
         # every NEW entry fires the gate, which is the safe direction.
         flaky, flaky_prev = set(), set()
         if root.is_dir():
-            runs = collect_runs(root, a.repo)
+            runs = collect_runs(root, a.repo, a.window)
             if len(runs) >= 2:
                 derived, _pairs = flaky_set(runs, a.repo)
                 flaky = {k for k, v in derived.items() if not v["retired"]}

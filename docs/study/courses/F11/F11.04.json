@@ -655,9 +655,9 @@
    "title": "Fit comes first",
    "steps": [
     "Every style asks something of you. Day trading wants your eyes on the market all day.",
-    "The SEC says most investors lack the wealth, the time or the temperament for it. Swing trading takes less screen time.",
-    "Coach Brett Steenbarger sees traders fall short when their methods don't use their strengths.",
-    "So pick the style that fits your clock, your money and your nerves."
+    "The SEC says most investors lack the wealth, the time or the temperament for it. Swing trading takes far less screen time.",
+    "Plenty of traders fall short just because their method doesn't play to their strengths.",
+    "So pick the style that fits your clock, your money and your nerves. For us, that's swing trading."
    ],
    "facts": [
     "f2",
@@ -665,16 +665,17 @@
     "f1",
     "f65",
     "f20",
-    "f12"
+    "f12",
+    "f77"
    ]
   },
   {
    "key": "w2",
    "title": "Go deep on a few",
    "steps": [
-    "Coaches differ on the start. Linda Raschke: learn one setup well first. Trading firm SMB: sample several setups with edge.",
-    "SMB's beginners then build a playbook of the setups that suit them. Steenbarger's specialist does one or two things really well.",
-    "Most of your energy goes into trading, measuring and reviewing those. New ideas get tested on the side, small."
+    "Coaches split on how to start. Linda Raschke says learn one setup well first. SMB has you sample a few with edge.",
+    "You end up with a short playbook that suits you. A specialist does one or two things really well.",
+    "Most of your energy goes into trading, logging and reviewing those. Test new ideas on the side, very small."
    ],
    "facts": [
     "f37",
@@ -689,10 +690,10 @@
    "key": "w3",
    "title": "Write your lane down",
    "steps": [
-    "Write down your style, the few setups you'll trade, and why they fit you.",
-    "Tag every trade by setup and keep score. That's how you find out what you trade well.",
-    "Judge a setup on a real sample. Van Tharp wanted at least thirty trades, and 100 to 200 for a clear picture.",
-    "Losing streaks will come. Size up only after months of proven, logged results."
+    "Write it down: your style, the few setups you'll trade, and why they fit you.",
+    "Tag every trade by setup and keep score. That's how you find out what you actually trade well.",
+    "Don't grade a setup off a few trades. Van Tharp wanted thirty at least, and 100 to 200 for a clear picture.",
+    "Starting out, risk 0.25% a trade until you've logged 50 trades that followed the rules. Then size up."
    ],
    "facts": [
     "f54",
@@ -702,7 +703,8 @@
     "f46",
     "f47",
     "f58",
-    "f49"
+    "f49",
+    "f75"
    ]
   }
  ],
@@ -743,16 +745,16 @@
    "skill": "styles.lane",
    "rung": 1,
    "format": "tf",
-   "q": "Steenbarger says trading upsets come from a style that doesn't fit you, not from weak discipline.",
+   "q": "Steenbarger's view: when trading keeps upsetting you, the cause is a style that doesn't fit you, not weak discipline.",
    "answer": "True",
-   "why": "True. Steenbarger writes that emotional upsets in trading come not from a lack of discipline. They come from trading in a way that doesn't fit who you are. Without that fit, frustration replaces focus and learning suffers. Van Tharp adds that a system that clashes with your beliefs about markets ends up sabotaged. So check the fit before you blame your willpower.",
-   "lesson_line": "If trading always feels like a fight, check the fit before you blame your willpower.",
+   "why": "He's right, and it's worth sitting with. Steenbarger says the upsets don't come from a lack of discipline. They come from trading in a way that doesn't fit who you are. Without that fit, frustration replaces focus and learning suffers. Tharp says the same about beliefs. Trade a system that clashes with what you believe about markets and you'll find a way to sabotage it. So if every trade feels like a fight, don't just grind harder. Check the fit first. Willpower won't hold a style you don't believe in for long.",
+   "lesson_line": "If every trade feels like a fight, check the fit before you blame your willpower.",
    "facts": [
     "f15",
     "f21",
     "f45"
    ],
-   "simple": "True, because Steenbarger says the upsets come from a style that does not fit who you are, not weak discipline.",
+   "simple": "True. Steenbarger says the upsets come from a style that doesn't fit you, not from weak discipline.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -760,29 +762,29 @@
      "statement reworded in wave9 so True is not the only hedged statement in the lesson"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "styles.lane",
    "rung": 2,
    "format": "tf",
-   "q": "Day trading fits around a full-time job if you check prices at lunch.",
+   "q": "You work full time and get a lunch break to check prices. That's enough screen time to day trade.",
    "answer": "False",
-   "why": "False. FINRA says trading throughout the day is time-intensive and needs continuous attention to your holdings and the market. The SEC says day traders must watch the market continuously. It calls day trading an extremely stressful, expensive full-time job. A glance at lunch leaves your positions unwatched most of the day.",
-   "lesson_line": "Day trading needs your eyes on the market all day, not just at lunch.",
+   "why": "No, not even close. Day trading wants your eyes on the market all day. FINRA says it's time-intensive and needs continuous attention to your holdings and the market. The SEC calls it an extremely stressful, expensive full-time job. You already have one of those. A look at lunch leaves your positions unwatched for the rest of the session. With a day job, you swing trade. That's our lane. Do the work at night, set your alerts and your stop, and let the trade work while you're at your desk.",
+   "lesson_line": "Day trading takes the whole session. A lunch break isn't screen time.",
    "facts": [
     "f8",
     "f2",
     "f3"
    ],
-   "simple": "False, because day trading needs you watching the market all day, and a quick look at lunch is not that.",
+   "simple": "False. Day trading needs your eyes on the market all day, and a lunch break isn't that.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -790,7 +792,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "niche",
-   "q": "SMB's Mike Bellafiore says to find your trading niche. What does he mean by a niche?",
+   "q": "Mike Bellafiore of SMB Capital tells new traders to find their niche. What is he telling you to find?",
    "choices": [
     "Edge that fits your strengths",
     "The best win-rate setup",
@@ -798,7 +800,7 @@
     "A corner of obscure stocks"
    ],
    "answer": "Edge that fits your strengths",
-   "why": "Edge that fits your strengths. Bellafiore says find a niche that has edge and plays to your personality and the way you think. Coach Brett Steenbarger agrees on the fit half: a niche uses your talents and skills plus your deepest values and interests. Tharp calls finding a system that fits you personally one of the biggest secrets of successful trading. A niche here is not an obscure corner of the market.",
+   "why": "Edge that fits your strengths. Two halves, and you need both. Bellafiore's line is a niche that has edge and plays to your personality and the way you think. Edge means the setup makes money over a real sample of your own trades. Fit means you'll actually take it the way it's meant to be taken. A setup that pays but fights your nature gets skipped, rushed or second-guessed. A setup you love with no edge just loses slowly. So check your log for the edge, and be honest with yourself about the fit. I want both before I put real size on anything.",
    "lesson_line": "Your niche is where real edge meets the way you think.",
    "facts": [
     "f34",
@@ -808,11 +810,11 @@
     "f60"
    ],
    "wrong": {
-    "The best win-rate setup": "Win rate alone isn't edge. Van Tharp's example makes money with 99% losing trades because the one winner is big. And a setup can work without suiting you.",
-    "What top traders use": "Their lane fits them. Investopedia's rules warn that copying your heroes is a perfect way to lose money.",
-    "A corner of obscure stocks": "Niche here isn't an obscure market. Bellafiore means a way of trading with edge that plays to how you think."
+    "The best win-rate setup": "Win rate isn't edge. Tharp's example makes money with 99% of its trades losing, because the one winner is big. And a high win rate does nothing for you if the setup doesn't suit you.",
+    "What top traders use": "Their lane fits them, not you. Investopedia's list of trading rules calls copying your heroes a perfect way to lose money.",
+    "A corner of obscure stocks": "Not what he means. A niche here is a way of trading, with edge, that plays to how you think. It isn't a quiet corner of the market."
    },
-   "simple": "Edge that fits your strengths, because Bellafiore's niche has real edge and plays to your personality and the way you think.",
+   "simple": "Edge that fits your strengths. You need a setup that makes money and a style you'll actually follow.",
    "deeper": {
     "trap": "Win rate is not edge. Van Tharp's example makes money even though 99% of its trades lose, because the one winner is big. So a niche is not 'the setup that wins most often'. And copying what top traders use skips the fit half: Investopedia's rules call emulating your heroes a perfect way to lose money. Look for edge you can prove and a style you will actually follow."
    },
@@ -823,7 +825,7 @@
      "re-asked in wave9 as Bellafiore's definition: Steenbarger's niche (f23) has no edge in it"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -863,29 +865,31 @@
    "skill": "styles.lane",
    "rung": 3,
    "format": "tf",
-   "q": "Specializing means you trade one setup and never add another.",
+   "q": "You've decided to specialize. So from now on you trade one setup and never add another.",
    "answer": "False",
-   "why": "False. Steenbarger's specialist does one or two things really well, not exactly one forever. Bellafiore says put most of your energy into your playbook trades and leave some time to add new ones. Tharp notes many professionals run several systems across time frames and markets. Specializing means going deep on a few, not freezing your list.",
+   "why": "Too far. Specializing means going deep, not freezing your list. Steenbarger's specialist does one or two things really well. That's the model: a few setups you know cold. Most of your energy goes into trading, measuring and reviewing those. But markets change, and a lane that never adds anything gets stuck when they do. Steenbarger says reworking old processes and adding new ones keeps traders profitable when markets turn choppy. So leave some time for new ideas, and test them small, on the side. Plenty of pros run more than one system anyway.",
    "lesson_line": "Go deep on a few setups. Add new ones slowly, on the side.",
    "facts": [
     "f14",
     "f40",
-    "f55"
+    "f55",
+    "f27",
+    "f48"
    ],
-   "simple": "False, because a specialist does one or two things really well and still leaves some time to add new setups.",
+   "simple": "False. Specializing means going deep on a few setups, and you still make some time to add new ones.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "styles.lane",
    "rung": 3,
    "format": "mcq",
-   "q": "Van Tharp says hundreds of trading systems work. Why does the typical buyer still fail with one?",
+   "q": "Tharp says hundreds of trading systems work. Yet the typical trader who buys one still fails with it. Why?",
    "choices": [
     "It doesn't fit, so it isn't followed",
     "The seller hid some of the real rules",
@@ -893,7 +897,7 @@
     "They traded it far too small"
    ],
    "answer": "It doesn't fit, so it isn't followed",
-   "why": "It doesn't fit, so it isn't followed. Tharp says hundreds, if not thousands, of systems work, yet the typical buyer won't trade one as intended. His reason: the system didn't fit them and their style of trading. Steenbarger sees the same: traders fall short when their methods don't use their strengths. Markets do change and systems need revising, but that is not the reason Tharp gives here.",
+   "why": "It doesn't fit him, so he doesn't follow it. Tharp says hundreds, if not thousands, of systems work. But after buying one, the typical trader won't trade it exactly as it was intended. His reason: the system didn't fit them and their style of trading. Steenbarger sees the same thing. Traders fall short when their methods don't draw on their strengths. A good system you won't follow is worth nothing to you. That's why fit gets checked before you spend a dollar or risk one.",
    "lesson_line": "A system you won't follow is worth nothing to you. Fit comes first.",
    "facts": [
     "f43",
@@ -903,11 +907,11 @@
     "f48"
    ],
    "wrong": {
-    "The seller hid some of the real rules": "Tharp doesn't blame the seller: hundreds, if not thousands, of systems work. The gap is the fit with the trader.",
-    "Markets change too fast for systems": "Systems do need revising as markets change. But Tharp's reason here is the misfit: buyers don't follow what they bought.",
-    "They traded it far too small": "Size can't fix a system you won't follow. Tharp says start any new strategy very small."
+    "The seller hid some of the real rules": "Tharp doesn't blame the seller. Hundreds, if not thousands, of systems work. The problem is the fit with the trader.",
+    "Markets change too fast for systems": "Systems do need revising as markets change. That's not the reason Tharp gives here, though. Buyers don't follow what they bought.",
+    "They traded it far too small": "Small is how Tharp says to start a new strategy. Size can't fix a system you won't follow."
    },
-   "simple": "The system does not fit the buyer, so they do not trade it the way it was meant to be traded.",
+   "simple": "It doesn't fit the buyer, so he doesn't trade it the way it was meant to be traded.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -915,14 +919,14 @@
      "fixed before (checker 2026-11-10)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "styles.lane",
    "rung": 3,
    "format": "mcq",
-   "q": "Steenbarger says many traders fail because they put capital at risk too soon. Before they find what?",
+   "q": "Steenbarger says the work is hard, but that's not the only reason new traders fail. They risk real money before finding what?",
    "choices": [
     "Their true niche",
     "The right software",
@@ -930,7 +934,7 @@
     "A strong bull market"
    ],
    "answer": "Their true niche",
-   "why": "Their true niche. Steenbarger says traders fail at a high rate not just because the work is hard. They put capital at risk before they find a true niche. Bellafiore gives the order: try setups with edge on a demo, find your niche, then build your playbook. Steenbarger also says trade in simulation, then at the smallest size, before you go bigger.",
+   "why": "Their true niche. Steenbarger says the failure rate is high not just because the work is hard. Traders put capital at risk before they find a true niche. That's paying full price for lessons you could have had cheap. Do it in order. Bellafiore has new traders try setups with edge on a demo, find their niche, then build a playbook. Steenbarger says trade in simulation, then at the smallest size, before you go bigger. Make your mistakes when your exposure is lowest.",
    "lesson_line": "Find your lane on paper and at small size first. Then put real money behind it.",
    "facts": [
     "f24",
@@ -943,11 +947,11 @@
     "f23"
    ],
    "wrong": {
-    "The right software": "Software can't make up for weak skills, and Steenbarger says success won't come from better indicators.",
+    "The right software": "Software can't cover weak skills. Steenbarger says success won't come from better indicators or another chart pattern.",
     "Enough trading books": "Reading isn't the gap. Steenbarger says traders need training, learning by doing, more than education.",
-    "A strong bull market": "Timing the market isn't his point. He means finding the trading that fits your talents, skills and interests."
+    "A strong bull market": "He isn't talking about timing the market. He means finding the trading that fits your talents, skills and interests."
    },
-   "simple": "Their true niche, because many traders risk money before they find the kind of trading that fits their talents.",
+   "simple": "Their true niche. Too many traders risk real money before they find the kind of trading that fits them.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -955,15 +959,15 @@
      "key text lengthened in wave9 to balance the choices (was 11 characters against 18 to 20)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "styles.lane",
    "rung": 4,
    "format": "scenario",
-   "story": "You love fast trades and quick decisions. But you work 9 to 5, with no screen during market hours. Your evenings are free.",
-   "q": "Which lane fits your life right now?",
+   "story": "You love fast trades and quick calls. You work 9 to 5 with no screen during market hours. Your evenings are free.",
+   "q": "What lane do you pick for now?",
    "choices": [
     "Swing trades planned at night",
     "Day trade the open at work",
@@ -971,7 +975,7 @@
     "Whatever worked last month"
    ],
    "answer": "Swing trades planned at night",
-   "why": "Swing trades planned at night. Your clock decides before your taste does. FINRA says intraday trading needs continuous attention, and you can't give that at work. Swing trades are held for a few days to several weeks, so they take less screen time. The trade-off is overnight and weekend risk. Your love of fast trades doesn't change your hours.",
+   "why": "Swing trades planned at night. Your hours make this call before your taste does. FINRA says intraday trading needs continuous attention, and you can't give that from your desk at work. Swing trades are held for a few days to several weeks, so they need far less screen time. Do your scans in the evening. Mark the trigger and the stop, set your alerts, and let it work. The trade-off is overnight and weekend risk. That's the price of not watching. Fast trades can wait until you have the screen time.",
    "lesson_line": "Your schedule picks the lane before your taste does.",
    "facts": [
     "f65",
@@ -983,10 +987,10 @@
    ],
    "wrong": {
     "Day trade the open at work": "The open needs your full attention, and you're at work then. FINRA says intraday trading needs continuous attention.",
-    "Quit your job to day trade": "Don't bet your living on it. The SEC says new day traders typically lose heavily in their first months. It also says never day trade with money you need to live on.",
-    "Whatever worked last month": "Someone's last month says nothing about your hours. Start from your schedule."
+    "Quit your job to day trade": "Don't bet your living on it. The SEC says new day traders typically suffer severe losses in their first months. Never day trade with money you need to live on.",
+    "Whatever worked last month": "Last month's hot thing says nothing about your hours. Start from your schedule."
    },
-   "simple": "Swing trades planned at night fit, because you can't watch the market at work, and swing trades need less screen time.",
+   "simple": "Swing trades planned at night. You can't watch the market at work, and swing trades need far less screen time.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -994,7 +998,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
@@ -1002,7 +1006,7 @@
    "rung": 4,
    "format": "scenario",
    "story": "Sam can watch the market all day. He reads charts fast, loves quick decisions and stays sharp for hours. Waiting days for a trade bores him.",
-   "q": "Which lane plays to Sam's strengths?",
+   "q": "Which lane would you point Sam toward?",
    "choices": [
     "Short-term day trades",
     "Multi-week position trades",
@@ -1010,8 +1014,8 @@
     "Whatever his mentor trades"
    ],
    "answer": "Short-term day trades",
-   "why": "Short-term day trades. Steenbarger's fast trader excels at pattern recognition and holds focus within and across trading days. SMB's scalper processes information fast, and sticking to scalping plays to that strength. Sam also has the time: day traders must watch the market all day, and he can. Fit isn't everything, though. The SEC says most investors lack the wealth, the time or the temperament for day trading, so check your money too. UCT itself swing trades, days to a few weeks. This question is only about Sam's fit.",
-   "lesson_line": "Match the clock to the person. Then make sure your time and money can carry it.",
+   "why": "Short-term day trades. Everything about Sam says speed. Steenbarger's fast trader excels at pattern recognition and holds his focus within and across trading days. That's Sam. SMB has a scalper who processes information fast, and sticking to scalping plays to that strength. Sam also has the hours, and day trading needs eyes on the market all day. Fit isn't the whole check, though. The SEC says most investors lack the wealth, the time or the temperament for day trading. So Sam checks his money too. We swing trade ourselves, days to a few weeks. This one's about Sam's fit, not ours.",
+   "lesson_line": "Match the clock to the person. Then check that the money can carry it.",
    "facts": [
     "f16",
     "f35",
@@ -1022,11 +1026,11 @@
     "f77"
    ],
    "wrong": {
-    "Multi-week position trades": "Long holds don't use his speed. Steenbarger says find the ways of trading that play to your personality strengths.",
-    "Long-term buy and hold": "That asks Sam to sit still for years. It ignores the speed he's good at.",
-    "Whatever his mentor trades": "His mentor's lane fits his mentor. Learn from others, then build your own identity."
+    "Multi-week position trades": "Long holds sit on his speed instead of using it. Steenbarger says find the ways of trading that play to your strengths.",
+    "Long-term buy and hold": "That asks Sam to sit still for years. It throws away the speed he's good at.",
+    "Whatever his mentor trades": "His mentor's lane fits his mentor. Learn from others, then build your own trading identity."
    },
-   "simple": "Short-term day trades, because Sam reads charts fast, stays sharp for hours and can watch the market all day.",
+   "simple": "Short-term day trades. Sam reads charts fast, stays sharp for hours and can watch the market all day.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1036,7 +1040,7 @@
      "sits next to the owner's rule C35 (we swing trade); the why now says so; flagged for the owner"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
@@ -1135,7 +1139,7 @@
    "rung": 6,
    "format": "scenario",
    "story": "Your new breakout setup tested well on past charts. Live, you've taken six trades by the plan. All six lost.",
-   "q": "What's your next step?",
+   "q": "Now what?",
    "choices": [
     "Review them and keep logging",
     "Drop it and start a new setup",
@@ -1143,7 +1147,7 @@
     "Keep going and skip the review"
    ],
    "answer": "Review them and keep logging",
-   "why": "Review them and keep logging. Six trades is far too few to judge a setup. Tharp says you need a minimum of thirty trades for a good idea of expectancy. Small samples give jumpy, unreliable results. But Schwab warns a losing streak can point to a real problem with the strategy, so check the six for one. Don't size up to win it back: a streak doesn't make a win due.",
+   "why": "Review the six and keep logging. Six trades tells you almost nothing yet. Tharp says you need a minimum of thirty to get a good idea of a system's expectancy. Small samples swing all over the place. But don't skip the review either. Schwab says a streak can sometimes point to a real problem with the strategy. So pull up all six. Check that each one triggered the way the plan says, and that the stops sat where they belonged. If the trades were clean, keep taking it by the plan and keep logging. And never size up to win it back. A win is never due.",
    "lesson_line": "Six trades is a streak, not a verdict. Review them, then log more before you judge.",
    "facts": [
     "f46",
@@ -1154,11 +1158,11 @@
     "f53"
    ],
    "wrong": {
-    "Drop it and start a new setup": "Small samples give jumpy, unreliable results. Hop now and you start from zero with another tiny sample.",
-    "Double size to win it back": "That's the gambler's fallacy. Believing a win is due after a losing streak tempts you to size up when you shouldn't.",
-    "Keep going and skip the review": "Streaks happen to good traders, but sometimes one points to a real problem with the strategy. Look at the six first."
+    "Drop it and start a new setup": "Six trades is too few to judge. Hop now and you start from zero with another tiny sample.",
+    "Double size to win it back": "That's the gambler's fallacy. Thinking a win is due after a streak tempts you to size up right when you shouldn't.",
+    "Keep going and skip the review": "Streaks happen to good traders, but sometimes one points to a real flaw. Look at the six first."
    },
-   "simple": "Review the six and keep logging, because six trades is too few to judge, but a streak can hide a real flaw.",
+   "simple": "Review the six and keep logging. Six trades is too few to judge, but a streak can still hide a real flaw.",
    "deeper": {
     "trap": "Two opposite mistakes start from the same six losses. One reads the streak as proof and drops the setup, but six trades is far below Tharp's minimum of thirty. The other believes a win is now due and sizes up, which is the gambler's fallacy Tharp warns about. Both react to the streak instead of the sample. Look at the six trades for a real flaw, and keep logging."
    },
@@ -1170,14 +1174,14 @@
      "Schwab s19 and Investopedia s15 unreachable 2026-11-12; f56, f57, f67, f68 rest on the 2026-11-09 read"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "styles.lane",
    "rung": 6,
    "format": "mcq",
-   "q": "When has a setup earned a bigger size from you?",
+   "q": "You've been trading a new setup small, and it's working. When does it earn a bigger size from you?",
    "choices": [
     "After your logged trades prove it",
     "After two or three big wins",
@@ -1185,8 +1189,8 @@
     "When a mentor swears by it"
    ],
    "answer": "After your logged trades prove it",
-   "why": "After your logged trades prove it. Tharp says ramp up size only once you've traded a strategy consistently and profitably over months, not days. Bellafiore says increase risk on setups that measure well in real time. Our rules add limits. A new trader stays at 0.25% risk until 50 journaled trades followed the rules. Never raise risk past the rules after a run of winners. Two or three wins is a tiny sample, and small samples give unreliable results.",
-   "lesson_line": "Size follows proof. Your own logged numbers earn bigger size, inside our rules.",
+   "why": "When your logged trades prove it. Two or three wins feels like proof, but it's a tiny sample, and small samples can fool you. We put hard lines on this. A new trader risks 0.25% a trade until 50 journaled trades followed the rules. And we never raise risk past the rules after a run of winners. Tharp's bar is months of consistent, profitable trading on that strategy, not days. Bellafiore says increase risk on the setups that measure well in real time. So keep tagging every trade, and let that setup's numbers earn the bigger size. Not the mood.",
+   "lesson_line": "Size follows proof. Your own logged numbers earn the bigger size, inside our rules.",
    "facts": [
     "f49",
     "f33",
@@ -1197,11 +1201,11 @@
     "f76"
    ],
    "wrong": {
-    "After two or three big wins": "Two or three trades is a tiny sample, and small samples give unreliable results. Our rule: never raise risk past the rules after a run of winners.",
-    "When you feel sure about it": "A feeling isn't a record. An SMB trader won more buying power by showing his stats, not his confidence.",
+    "After two or three big wins": "Two or three trades is a tiny sample, and small samples give unreliable results. We never raise risk past the rules after a run of winners.",
+    "When you feel sure about it": "A feeling isn't a record. An SMB trader got more buying power by putting his stats on the table, not his confidence.",
     "When a mentor swears by it": "His record isn't yours. Learn from others, then build your own trading identity on your skills and risk tolerance."
    },
-   "simple": "After your own logged trades prove the setup, because a few wins or a feeling is too small a sample.",
+   "simple": "When your own logged trades prove it. A few wins or a good feeling is too small a sample to size up on.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1210,7 +1214,7 @@
      "size by setup grade (D38, E49) is not taught here; flagged for the owner"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
@@ -1218,7 +1222,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "A year of trades, each tagged by setup. Setup A: 120 trades, net down every quarter. Setup B: 150 trades, steady gains.",
-   "q": "What does your record tell you to do?",
+   "q": "What's your record telling you to do?",
    "choices": [
     "Drop A and focus on B",
     "Keep both, A will turn",
@@ -1226,7 +1230,7 @@
     "Add a third setup, C"
    ],
    "answer": "Drop A and focus on B",
-   "why": "Drop A and focus on B. At 120 trades, net down every quarter, the sample is big and it says no. Tharp puts a clear picture of expectancy at 100 to 200 trades. A trader on SMB's desk made the same call. After about a year of working on his worst setup, its big sample told him to stop. Bellafiore increases risk on setups that measure well, and B does.",
+   "why": "Drop A and put your energy into B. A has 120 trades and lost money every quarter. That's not a bad stretch, that's an answer. Tharp puts a clear picture of expectancy at 100 to 200 trades. A sits inside that range and loses in every part of it. A trader on SMB's desk made this same call. He'd worked on his worst setup for about a year, and the big sample told him to stop. B has 150 trades of steady gains. Bellafiore says increase risk on setups that measure well, and B does. This is why you tag every trade by setup. Without the tags, A hides inside B's gains.",
    "lesson_line": "A small sample can fool you. A big one deserves a hearing.",
    "facts": [
     "f42",
@@ -1239,11 +1243,11 @@
     "f46"
    ],
    "wrong": {
-    "Keep both, A will turn": "Hope isn't a sample. Tharp puts a clear picture at 100 to 200 trades, and these 120 say no, in every quarter.",
-    "Trade setup A bigger": "Bellafiore increases risk on setups that measure well in real time. A has measured badly for 120 trades.",
-    "Add a third setup, C": "You already have a setup that works. Put most of your energy into B before you add more."
+    "Keep both, A will turn": "Hope isn't a sample. A has 120 trades and lost in every quarter. Tharp puts a clear picture at 100 to 200 trades.",
+    "Trade setup A bigger": "Backwards. Bellafiore says increase risk on setups that measure well in real time. A has measured badly for 120 trades.",
+    "Add a third setup, C": "You already have a setup that works. Put most of your energy into B before you add anything."
    },
-   "simple": "Drop setup A and focus on B, because 120 trades losing every quarter is a big enough sample to trust.",
+   "simple": "Drop A and focus on B. A lost every quarter over 120 trades, a big enough sample to trust.",
    "deeper": {
     "trap": "A big sample is not the same as a long streak. Setup A lost money over 120 trades and in every quarter. The result does not hang on one bad stretch. Tharp's minimum for a good read is thirty trades, and his clear picture needs 100 to 200. Before you drop a setup, ask how many trades it has and how many different stretches of the market they cover."
    },
@@ -1255,7 +1259,7 @@
      "choices rebalanced in wave9 (the key was 12 characters against 15 to 22)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1263,7 +1267,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "Your pullback setup is solidly positive over 150 logged trades. A friend's new setup made him 30% last month. You're tempted to switch.",
-   "q": "What do you do?",
+   "q": "What's the play?",
    "choices": [
     "Paper trade his on the side",
     "Switch to his setup this week",
@@ -1271,7 +1275,7 @@
     "Never look at a new setup"
    ],
    "answer": "Paper trade his on the side",
-   "why": "Paper trade his setup on the side. One month of someone else's results is a tiny sample, and small samples give unreliable results. Your pullback setup has 150 logged trades behind it. Bellafiore says try new setups on a demo first, and keep most of your energy on your playbook. Tharp says start any new strategy very small. If it earns its place, it can join your lane later.",
+   "why": "Paper trade his on the side. His 30% is one month from one trader. Small samples give jumpy, unreliable results, and that's about as small as it gets. Your pullback setup has 150 logged trades behind it. Don't trade that proof for somebody's hot month. Keep most of your energy on the setup that's paying you, and leave a little time for new ones. Tharp says start any new strategy very small. If his earns a place over time, it joins your lane. If it doesn't, it cost you nothing.",
    "lesson_line": "Keep your lane. Test new ideas on the side, small, until they earn a place.",
    "facts": [
     "f59",
@@ -1283,10 +1287,10 @@
    ],
    "wrong": {
     "Switch to his setup this week": "You'd swap 150 trades of your own proof for one month of his. Small samples give unreliable results.",
-    "Run both at full size now": "Tharp says start a new strategy very small, so learning it costs little.",
-    "Never look at a new setup": "Too rigid. Bellafiore leaves some time to add new trades, and Steenbarger says adding new processes keeps traders profitable as markets change."
+    "Run both at full size now": "Tharp says start a new strategy very small, so learning it costs little. Full size on day one pays full tuition.",
+    "Never look at a new setup": "Too rigid. Bellafiore leaves time to add new trades, and Steenbarger says adding new processes keeps traders profitable as markets change."
    },
-   "simple": "Paper trade his on the side, because one month of his results is a tiny sample and your 150 trades back yours.",
+   "simple": "Paper trade his on the side. One month of his results is a tiny sample, and your 150 trades back yours.",
    "deeper": {
     "trap": "The trap is the size of his number. A 30% month looks like proof, but it is one month from one trader. Small samples give jumpy, unreliable results. Your 150 trades say far more about your own edge than his month does. Learn what you can from him, then keep building your own trading identity on your own skills."
    },
@@ -1297,23 +1301,23 @@
      "fixed before (checker 2026-11-11)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "styles.lane",
    "rung": 8,
    "format": "tf",
-   "q": "Steenbarger says fast pattern reading, a real strength, can work against a trader who switches to holding for weeks.",
+   "q": "Steenbarger says a fast trader's quick pattern reading, a real strength, can become a distraction once he holds for weeks.",
    "answer": "True",
-   "why": "True. Steenbarger says when a fast trader tries longer time frames, the near-term pattern reading, a strength, can actually become a distraction. He adds that trading problems can come from misapplying strengths, not only from weaknesses. Bellafiore compares the wrong style or time frame to asking a great point guard to play center. It does not mean a fast trader can never hold longer. It means his strength can turn into a distraction there.",
+   "why": "That's right, and it catches people off guard. Steenbarger says when a fast trader tries longer time frames, the near-term pattern reading can actually pose distractions. The thing that makes him good on fast trades gets in his way. He sees every wiggle on a trade that's meant to run for weeks. Steenbarger's point is bigger than one trader. Trading problems can come from misapplying your strengths, not just from your weaknesses. Bellafiore compares the wrong style to asking a great point guard to play center. A fast trader can still hold longer. He just has to know where his strength works.",
    "lesson_line": "A strength in one style can trip you up in another. Trade where your strength fits.",
    "facts": [
     "f18",
     "f19",
     "f30"
    ],
-   "simple": "True, because fast pattern reading can become a distraction on trades held for weeks.",
+   "simple": "True. Quick pattern reading helps on fast trades but can distract you on trades held for weeks.",
    "deeper": {
     "trap": "The trap is thinking a strength works everywhere. Steenbarger says problems can come from a misapplication of our strengths, not just our weaknesses. A fast trader's eye for near-term patterns is his example: a gift on short trades, a possible distraction on long ones. So match the time frame to the skill, then judge the match on your own logged trades."
    },
@@ -1326,7 +1330,7 @@
      "final check: why and deeper kept to f18's 'can'"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1334,7 +1338,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "Your breakout setup paid for two years. The market turned choppy, and over the last 60 trades it has lost steadily, rules followed.",
-   "q": "What's the move?",
+   "q": "How do you handle it?",
    "choices": [
     "Study what changed and adapt it",
     "Keep trading it and wait it out",
@@ -1342,7 +1346,7 @@
     "Drop it, 60 trades is enough proof"
    ],
    "answer": "Study what changed and adapt it",
-   "why": "Study what changed and adapt it. Sixty trades is a real sample, but they come after the market changed under a setup with two good years. Tharp says systems must be evaluated and revised as markets change. Steenbarger says reworking old processes is what lets traders stay profitable when markets turn choppy. Waiting it out and hopping both skip the study.",
+   "why": "Study what changed and adapt it. Sixty trades is a real sample, but look where they came from. Every one came after the market turned choppy, on a setup with two good years behind it. Tharp says systems must be evaluated and revised as markets change. Steenbarger says reworking old processes is what keeps traders profitable when markets go choppy. Pull up the losers and lay them next to the good years. See if the bases got sloppier or the breakouts started failing more. Then adjust what you take, or wait for the market that suits it. Waiting blind and hopping both skip that work.",
    "lesson_line": "A lane can drift with the market. Study it, adapt it, and don't hop.",
    "facts": [
     "f50",
@@ -1353,10 +1357,10 @@
    ],
    "wrong": {
     "Jump to whatever's working now": "That's setup hopping. You'd give up two years of knowing this setup for one you have no record with.",
-    "Keep trading it and wait it out": "Strategies that don't adapt to changing markets fail over time. Waiting without a study makes the lesson expensive.",
-    "Drop it, 60 trades is enough proof": "Sixty trades clears Tharp's minimum of thirty, but all of them come from one choppy stretch. Systems need revising as markets change, so study the change before you scrap two good years."
+    "Keep trading it and wait it out": "Strategies that don't adapt to changing markets fail over time. Waiting without studying it makes the lesson expensive.",
+    "Drop it, 60 trades is enough proof": "Sixty trades clears Tharp's minimum of thirty, but they all come from one choppy stretch. Study the change before you scrap two good years."
    },
-   "simple": "Study what changed and adapt it, because a setup that paid for two years now faces a new market, not proven broken.",
+   "simple": "Study what changed and adapt it. A setup that paid for two years is facing a new market, not proven broken.",
    "deeper": {
     "trap": "Two cases look alike and are not. A setup that loses over a big sample across many kinds of market has shown no edge, so you drop it. A setup that paid for two years and then loses in one choppy stretch may be out of season. Steenbarger notes few traders make as much in range-bound markets as in trending ones. Study what changed and rework the setup before you decide."
    },
@@ -1369,7 +1373,7 @@
      "fixed before (checker 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1379,13 +1383,13 @@
    "story": "You're new, with a full-time job and $8,000 you can't afford to lose. A course says day trading is the fastest way to get rich.",
    "q": "What's the honest call?",
    "choices": [
-    "Pass: it fits neither time nor money",
+    "Pass, it fits neither time nor money",
     "Sign up and day trade the $8,000",
     "Buy the course to learn first",
     "Day trade on margin to grow it faster"
    ],
-   "answer": "Pass: it fits neither time nor money",
-   "why": "Pass: it fits neither your time nor your money. The SEC says only risk money you can afford to lose, and this $8,000 isn't. It calls day trading an extremely stressful, expensive full-time job, and you already have one. It warns that day-trading courses may not be objective. It also says don't believe ads that promise quick, sure profits. Later, swing trades planned at night may fit your hours, with money you can afford to lose.",
+   "answer": "Pass, it fits neither time nor money",
+   "why": "Pass. It fits neither your hours nor your money. You've got a full-time job, and the SEC calls day trading an extremely stressful, expensive full-time job of its own. The SEC also says only risk money you can afford to lose. This $8,000 isn't that. Now look at who's pitching. The SEC warns day-trading courses may not be objective, and says don't believe ads promising quick, sure profits. Anyone selling speed is selling to your goal, not your limits. Start where you are. Learn to swing trade, plan at night, and only risk money you can afford to lose.",
    "lesson_line": "Pick a lane your money and your hours can survive. Ignore anyone selling speed.",
    "facts": [
     "f5",
@@ -1399,11 +1403,11 @@
     "f65"
    ],
    "wrong": {
-    "Sign up and day trade the $8,000": "That's money you can't afford to lose. The SEC says new day traders typically lose heavily in their first months.",
+    "Sign up and day trade the $8,000": "That's money you can't afford to lose. The SEC says new day traders typically suffer severe losses in their first months.",
     "Day trade on margin to grow it faster": "Borrowing adds risk. FINRA says frequent margin trading generally doesn't suit people with limited money or experience. Never fund it with money you need.",
-    "Buy the course to learn first": "The course sells day trading as the fastest way to get rich. The SEC says day-trading courses may not be objective. It doesn't change your hours or your money either."
+    "Buy the course to learn first": "The course sells day trading as the fastest way to get rich. The SEC says courses like that may not be objective. And it doesn't change your hours or your money."
    },
-   "simple": "Pass, because day trading is a full-time job and the $8,000 is money you can't afford to lose.",
+   "simple": "Pass. Day trading is a full-time job, and the $8,000 is money you can't afford to lose.",
    "deeper": {
     "trap": "The pitch works because it names your goal, not your limits. Check three things before any lane: your hours, your money and your nerves. Here the hours and the money both fail. FINRA adds that frequent trading on margin generally doesn't suit people with limited money or experience. It says never fund that kind of trading with money you need."
    },
@@ -1415,7 +1419,7 @@
      "a choice replaced again in wave9: 'Buy the course, then day trade later' still day traded, so the key was the only non-day-trade choice"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1423,7 +1427,7 @@
    "rung": 2,
    "format": "mcq",
    "house": true,
-   "q": "How long does UCT usually hold a trade?",
+   "q": "You buy a breakout the way we trade it. How long do you expect to hold it?",
    "choices": [
     "Days to a few weeks",
     "Minutes, flat by lunch",
@@ -1431,13 +1435,13 @@
     "Years, buy and hold"
    ],
    "answer": "Days to a few weeks",
-   "why": "Days to a few weeks. Our rule says we swing trade, days to a few weeks. A winner can be held longer while it keeps working. Investopedia notes swing trading takes less time than day trading, since positions are held for days to weeks.",
-   "simple": "Days to a few weeks, because UCT swing trades, and a winner can be held longer while it keeps working.",
+   "why": "Days to a few weeks. We swing trade. A winner can stay on longer while it keeps working, and a loser is gone at the stop. Swing trading takes less screen time than day trading, since positions are held for a few days to several weeks. That's why it fits around a job. You do the planning at night, and you're not glued to every tick. Day trading needs continuous attention all day. That's a different lane.",
+   "simple": "Days to a few weeks. We swing trade, and a winner can stay on longer while it keeps working.",
    "lesson_line": "We swing trade: days to a few weeks, longer while a winner keeps working.",
    "wrong": {
-    "Minutes, flat by lunch": "Not our lane. We swing trade and hold for days to a few weeks.",
+    "Minutes, flat by lunch": "That's scalping, not our lane. We swing trade and hold for days to a few weeks.",
     "Hours, out by the close": "That's day trading. FINRA says it needs continuous attention all day. We hold for days to a few weeks.",
-    "Years, buy and hold": "Not our lane. We hold days to a few weeks, and longer only while a winner keeps working."
+    "Years, buy and hold": "That's investing, not our lane. We hold days to a few weeks, longer only while a winner keeps working."
    },
    "facts": [
     "f77",
@@ -1452,7 +1456,7 @@
      "new in wave9: the lesson leaned on C35 (q09, q10) without teaching it"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1460,8 +1464,8 @@
    "rung": 4,
    "format": "scenario",
    "house": true,
-   "story": "You tag every trade by setup in your journal. A new month has just begun.",
-   "q": "What does our rulebook have you do with your numbers now?",
+   "story": "You tag every trade by setup in your journal. A new month just started.",
+   "q": "What do you do with last month's numbers?",
    "choices": [
     "Review win rate, R and expectancy",
     "Wait for a losing streak",
@@ -1469,12 +1473,12 @@
     "Review only the losing trades"
    ],
    "answer": "Review win rate, R and expectancy",
-   "why": "Review win rate, R and expectancy. Our rule: each month, review the numbers, including win rate, average win and loss in R, and expectancy. Expectancy is the average R per trade. Bellafiore says tag and measure your trades, and keep score. Schwab says look for patterns in both your wins and your losses.",
-   "simple": "Review win rate, R and expectancy, because our rule is to review the numbers each month.",
-   "lesson_line": "Each month, review the numbers: win rate, average win and loss in R, and expectancy.",
+   "why": "Review win rate, R and expectancy. We do this every month, up month or down. R is the amount you risked on a trade, and every win and loss gets measured in it. Expectancy is the average R per trade. That's the number that tells you whether a setup is paying you. Go setup by setup, using your tags, so you see which ones carry you and which ones bleed. Look at the winners as hard as the losers, since patterns show up in both. Skip the review and you find the bad setup the expensive way.",
+   "simple": "Review win rate, R and expectancy. We go over the numbers every month, setup by setup, up or down.",
+   "lesson_line": "Every month, run the numbers by setup: win rate, average win and loss in R, expectancy.",
    "wrong": {
-    "Wait for a losing streak": "Our rule sets the review each month, streak or not. Schwab says look for patterns in your wins and your losses.",
-    "Check only if you're down": "Our rule sets the review each month, up or down. Bellafiore increases risk on setups that measure well, so winners need measuring too.",
+    "Wait for a losing streak": "We review every month, streak or not. Wait for a streak and you've already paid for the lesson.",
+    "Check only if you're down": "We review every month, up or down. Bellafiore says size up on setups that measure well, so the winners need measuring too.",
     "Review only the losing trades": "That's half the picture. Steenbarger says study your best trades to see what you do well."
    },
    "facts": [
@@ -1494,14 +1498,14 @@
      "Schwab s19 unreachable 2026-11-12; f68 rests on the 2026-11-09 read"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q97",
    "skill": "styles.lane",
    "rung": 2,
    "format": "mcq",
-   "q": "To find the setups that fit your strengths, which trades do you study?",
+   "q": "You want to find the setups that fit you. You open your journal. Which trades do you study first?",
    "choices": [
     "Your best trades, and how you won them",
     "Your worst trades, and how you lost them",
@@ -1509,7 +1513,7 @@
     "Trades you skipped, to see the misses"
    ],
    "answer": "Your best trades, and how you won them",
-   "why": "Your best trades, and how you won them. They show what you do well, and that points you to setups that fit you. Bellafiore says build on those strengths. Look at your losses too, since Schwab says patterns show up in both.",
+   "why": "Your best trades, and how you won them. That's where you see what you actually do well. Pull up your top winners and look at what they share: the setup, the hold, how you got in. Bellafiore says look at how you've succeeded and pick setups that build on those strengths. If your winners keep coming from one approach and your losers from another, lean on the one that wins for a while. Schwab makes that same point. Review the losers too, since patterns show up in both. But you build your lane on what you already do well.",
    "lesson_line": "Your winners show you your lane. Study them as hard as your losers.",
    "facts": [
     "f13",
@@ -1518,11 +1522,11 @@
     "f68"
    ],
    "wrong": {
-    "Trades you skipped, to see the misses": "Skipped trades are not your trades. Your own winners show what you do well.",
-    "Your worst trades, and how you lost them": "Your losses are worth reviewing too, but they show what went wrong. Your strengths show in your best trades.",
-    "Your newest trades, win or lose": "Recent trades are one slice. The question is which trades show what you do well."
+    "Trades you skipped, to see the misses": "Skipped trades aren't your trades. Your own winners show what you do well.",
+    "Your worst trades, and how you lost them": "Worth reviewing, but losses mostly show what went wrong. Your strengths show up in your best trades.",
+    "Your newest trades, win or lose": "Recent trades are just one slice. You want the ones that show what you do well."
    },
-   "simple": "Your best trades, because how you won them shows what you do well and which setups fit you.",
+   "simple": "Your best trades. How you won them shows what you do well, and which setups fit you.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1530,7 +1534,7 @@
      "Steenbarger, Bellafiore and Schwab agree"
     ]
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1572,20 +1576,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True from f15, re-read live on TraderFeed 2026-11-12 ('not because we lack discipline ... but because ... doesn't leverage who we actually are'). f21 and f45 back the why. Side note: f15's claim field still says 'not only', which the quote does not; the question and why follow the quote."
+   "notes": "Verdict first, Steenbarger named because the stem is his principle, Tharp backs it from f45. 'it's worth sitting with' is a touch soft but the close ('Willpower won't hold a style you don't believe in') is his register. True matches f15."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from f8 (FINRA, re-read live) and f2, f3 (SEC, re-read live). No second answer. The why no longer hands over q09's key."
+   "notes": "'No, not even close.' then FINRA/SEC in plain words, then the how (work at night, alerts and stop). False is right per f8, f2, f3."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key re-derived from f34 (re-read live on SMB s11: 'niche that has edge and leverages your personality and cognitive strengths'). f70 re-read live on the Tharp page. Choices 29 to 32 characters, no tell. Distractor notes rest on f52, f60 and f34.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Writer's why was a stack of three coach quotes (Bellafiore, Steenbarger, Tharp) ending on a citation, no mentor how or judgment. Rewrote: Bellafiore kept (stem is his principle), the two halves explained with the reason each matters and the how; Steenbarger/Tharp lines already sit in deeper/wrong."
   },
   "q05": {
    "status": "cut",
@@ -1595,34 +1598,33 @@
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Kept: adding new setups to your list, not shares. Voice 4."
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Stem is Tharp's principle, so the names belong. 'A good system you won't follow is worth nothing to you' is a mentor line. Answer from f43/f44; wrong notes clear."
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "'That's paying full price for lessons you could have had cheap. Do it in order.' Good. f24, f39, f25 support every claim."
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "'Your hours make this call before your taste does.' Trigger, stop, alerts, and the overnight/weekend trade-off (f66) named honestly. Right answer stays right."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f16 and f35 (both re-read live) plus f2. C35 says what UCT trades; it does not rule on which lane fits a fast trader, so the key does not teach a view the rulebook replaced. The why names C35. Owner flag kept: the lesson keys a day-trade lane and calls multi-week holds a poor fit for Sam while UCT holds days to a few weeks."
+   "notes": "Rests on Steenbarger + SMB per the lesson's conflicts note, so the names stay. Says plainly we swing trade ourselves, plus the SEC money check. A bit long but it's substance."
   },
   "q11": {
    "status": "cut",
@@ -1645,63 +1647,62 @@
   "q14": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Derived cold: review and keep logging (f46 re-read live on the Tharp page 2026-11-12: 'a minimum of thirty trades'; f56, f57 Investopedia; f67, f68 Schwab). Key matches. Choices 26 to 30 characters, no tell, no second key. 'The gambler's fallacy Tharp warns about' confirmed: the Tharp page uses the term next to f53. Defect: the why's size line 'A losing run cuts size only through drawdown' is a lone absolute that the rulebook does not hold. B16 (8% monthly loss limit: no new trades for the month) also reacts to losses, apart from the drawdown ladder, and A1 lets 'recent results' pick risk insi"
+   "fixed": false,
+   "notes": "Strong practical how (check each triggered by plan, stops where they belonged), 'A win is never due.' Does not teach a losing-streak size cut, which would clash with our no-streak-cut rule (f74). Good."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Keep is right: 0.25% until 50 journaled trades is the new-trader sizing rule (f75), not the shorting bar that D-001 replaced."
+   "fixed": true,
+   "notes": "Led with Tharp and Bellafiore, our own hard lines buried in the middle; 'Bellafiore increases risk' states his advice (f33) as his practice. Rewrote: verdict, why a few wins fool you, our lines first (0.25% until 50 journaled trades, never raise risk after a run of winners), then the coaches, then the how."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f47 (re-read live), f42, f41 and f73 (SMB transcript, re-read live) and f33. The 'only' that f33 lacks is gone. It does not clash with q19: A never paid, and q19's trap names the difference."
+   "fixed": true,
+   "notes": "Voice is good ('That's not a bad stretch, that's an answer.'). Truth wording: 'Bellafiore increases risk on setups that measure well' states f33 (his advice) as his own practice, in the why and a wrong note. Reworded to 'Bellafiore says'."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Only simple changed; 'back yours' fits f56 and the 150-trade story. Not against F66."
+   "fixed": true,
+   "notes": "Good voice. Truth: 'Bellafiore has new setups tried on a demo first' stretches f39, which is about new traders sampling setups on a demo, not a seasoned trader testing one new idea. Replaced that line with the f40 idea in our words; Tharp's start-very-small (f48) carries the small test."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Derived cold: True. f18 and f19 re-read live on TraderFeed 2026-11-12; the page defines the longer time frames as 'intraday or multi-day/week swings', so 'holding for weeks' fits. Defect: the statement gives Steenbarger's own view as an unnamed fact. Source s3's why_reliable says 'Used only for his own views, named as his', and f30 (Bellafiore) backs only the general wrong-time-frame point, not the pattern-reading claim. Fix: name him in the statement (118 characters). Remaining weakness, not fixable without leaving f18's 'can': it is the lesson's only hedged TF statement and is keyed True. It"
+   "fixed": false,
+   "notes": "Stem is Steenbarger's principle; f18, f19, f30 back every line. 'He sees every wiggle on a trade that's meant to run for weeks' is a nice plain picture."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived cold: study what changed and adapt it. f50 (Tharp, re-read live 2026-11-12: 'Systems must be evaluated and revised to adapt to changing market conditions'), f27 (TraderFeed 2015, re-read live), f61 (Investopedia, prior read): three publishers. Tried to break it. 'Keep trading it and wait it out' gets some backing from f58 (stay the course through losing streaks), but 60 steady losers after a market change is not the same as an ordinary streak, and f61 in the same article says strategies that don't adapt fail. Under the rulebook, 60 steady losses would probably reach the drawdown ladder"
+   "notes": "Practical how is the best in the lesson: lay the losers next to the good years, check if bases got sloppier or breakouts fail more. 'Waiting blind and hopping both skip that work.' Sixty vs thirty is right."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f5, f3, f7, f6 (SEC, re-read live) and f9, f11 (FINRA, re-read live). The new choice 'Buy the course to learn first' is a real non-day-trade misconception, wrong for f7 and f6. The key echoes the story's two limits, but every distractor is wrong for a sourced reason. No choice is the longest tell."
+   "fixed": true,
+   "notes": "Four SEC sentences back to back ('The SEC says ... It calls ... It warns ... And it says') read like a citation list. Rewrote so it walks the decision: your hours, your money, then who's pitching, then the how. All claims still from f3, f5, f6, f7. The margin choice keeps its existing wrong note (wrong is merged)."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key is C35 (f77), quoted exactly from sizing_rule.md section 9. Choices 19 to 23 characters. 'usually' matches 'a winner can be held longer'. f8 re-read live; f65 (Investopedia) unreachable 2026-11-12, rests on the 2026-11-09 read."
+   "notes": "'We swing trade.' Days to a few weeks, longer while a winner works, matches f77. The Investopedia tell is gone. 'you're not glued to every tick' is his register."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key is E59 (f79), quoted exactly from sizing_rule.md section 9. Each distractor is wrong under the each-month rule, and its note rests on f68, f33 and f13. f32 and f33 re-read live on SMB s10. Not against B27 (weekly review). f68 (Schwab) unreachable 2026-11-12.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": true,
+   "notes": "Why is good and defines R and expectancy plainly (rule 3); monthly review is ours (f79). One wrong note said 'Bellafiore increases risk', his advice stated as his practice. Reworded."
   },
   "q97": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Replacement agreed (no live question tests studying your best trades to find your lane). Fix: the old stem ('study first') let 'worst trades' be defended, and the 'Only ...' distractors flagged themselves as wrong. The stem now names the goal (strengths), the distractors are parallel, and the wrong notes are updated."
+   "notes": "'Schwab adds a useful twist' is an AI tell and the why had no practical how. Rewrote with what to look for in your winners, Bellafiore kept (his principle is the answer), Schwab's point in plain words."
   }
  }
 }

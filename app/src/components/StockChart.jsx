@@ -209,6 +209,8 @@ import IndicatorChip from './chart/legend/IndicatorChip'
 import LegendRow from './chart/legend/LegendRow'
 import { legendRows } from './chart/legend/legendRows'
 import { createLegendPointerHold } from './chart/legend/legendPointerHold'
+import { menuAnchorWithRoom } from './chart/legend/legendMenuPlace'
+import { stackDrawnOpen, stackExpandIsStale } from './chart/legend/stackExpand'
 // ⭐ UCT RS design round (2026-11-08) — a pane's corner table (`meta.paneTable`).
 import PaneRanksTable from './chart/pane/PaneRanksTable'
 import { paneTableFits, paneTableOwners } from './chart/engine/paneTable'
@@ -234,6 +236,9 @@ import { kindOf as definitionKindOf, copyVerdict } from './chart/builder/definit
 // installed output, read from the binder's own latest value (`infoValueResolve`).
 import { addInfoValue, removeInfoValue, hasInfoValue, infoValueAddRefusal, infoValuesOf } from './chart/engine/infoValues'
 import { resolveInfoValues, infoValueOutputExists } from './chart/engine/infoValueResolve'
+// Custom header stats (owner 11-16): an indicator output's newest value in the host's info row, computed by the
+// registry's own `computeFor` over the same bars the binder draws from (`engine/customStatCompute.js`).
+import { computeCustomStats } from './chart/engine/customStatCompute'
 // ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
 // BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
 // than stored and how it relates to the definition's own `meta.repaint`.
@@ -612,25 +617,6 @@ const STUDY_STACK_MAX_FRAC = 0.42
  * dead instead of clicking a grey line repeatedly. `ContextPopover` renders the
  * label node as-is, so the reason rides along beside it.
  */
-function chipMenuRowToPopoverRow(it) {
-  // A separator or a UCT Signature group label is not a row: no icon, no reason.
-  if (it.separator || it.groupLabel != null) return it
-  const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
-  if (!it.disabled) return { ...it, icon }
-  return {
-    ...it,
-    icon,
-    label: (
-      <>
-        <span>{it.label}</span>
-        {/* a11y 2026-11-08: the refusal reason is 11 px, not 10.5 — no shared text under 11 px. */}
-        <span style={{ display: 'block', fontSize: 11, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
-          {it.disabled}
-        </span>
-      </>
-    ),
-  }
-}
 
 /**
  * ⭐ UCT SIGNATURE (owner 11-16) — a chip-menu row in the chart right-click menu's look
@@ -1724,6 +1710,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { useRuntimeLists } from './chart/engine/useRuntimeLists'
 import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
 import useMarketIndicators, { canonicalFamily, canonicalPresentation, canonicalDomain, canonicalSourceCapability, canonicalProduct, loadMarketIndicators } from '../hooks/useMarketIndicators'
@@ -3587,6 +3574,8 @@ export default function StockChart({
   // markers/price lines, which would "randomly" appear on any ticker the viewer
   // happens to have traded. Set true to suppress the personal journal overlay.
   hideJournalOverlay = false,
+  headerCustomStats = null,   // the host header's custom stats (headerCustomStats.js entries) — values reported below
+  onHeaderCustomStats = null, // ({ [cx:<id>]: result }) => void — called only when a shown value / state changes
   nextEarningsHint = null,    // 'YYYY-MM-DD' — the host header's next-earnings date; the "E" falls back to it (owner 11-16)
   // ── Extended-hours session preview (Charts workspace only) ──
   // null on every other surface (feature off). 'regular' | 'extended' from the
@@ -6049,6 +6038,9 @@ export default function StockChart({
   // Read by the rAF sampler (a `[]`-deps loop): the collapse is never decided on an expanded stack.
   const chipsExpandedRef = useRef(false)
   chipsExpandedRef.current = chipsExpanded
+  // Is there a fold at all (a `+N more` / `Less` button)? Written where the legend renders, read
+  // by the sampler: an expand with no fold left is dropped (`stackExpandIsStale`).
+  const studyCanFoldRef = useRef(null)
   const legendHoveringRef = useRef(false)
   /** ⭐⭐ THE HOVER-ONLY LEGEND HOLDS WHILE THE POINTER IS ON IT (owner, 2026-11-16: it
    *  "flickers when I hold my mouse over it"; measured, 132 mounts and unmounts in 181
@@ -7121,6 +7113,23 @@ export default function StockChart({
     setChipAbout(null)
     setChipMenu({ rowId, anchor })
   }, [])
+
+  /* ⭐ A ROW'S MENU NEVER COVERS ITS OWN ROW WHEN THERE IS ROOM BESIDE IT (2026-11-17).
+   * The popover clamps itself into the viewport, and on a short chart that slid a 418px menu up
+   * over the row it was opened from. Once the menu is in the DOM its real size is known, so the
+   * anchor is moved beside the row here, in a LAYOUT effect: the popover positions itself in a
+   * passive effect, which runs after this re-render, so it is only ever shown in its final place.
+   * The rule is `legendMenuPlace.menuAnchorWithRoom`; it returns the same anchor when nothing
+   * moves (and the moved anchor carries no `besideX`), so this runs at most once per open.
+   * ⛔ Desktop only by construction: on touch the popover is a bottom sheet, not a `role="menu"`. */
+  useLayoutEffect(() => {
+    const anchor = chipMenu?.anchor
+    if (!anchor || !Number.isFinite(anchor.besideX)) return
+    const el = document.querySelector('[role="menu"][data-guide="chart.chipMenu"]')
+    if (!el) return
+    const next = menuAnchorWithRoom(anchor, el.offsetHeight, el.offsetWidth, window.innerWidth, window.innerHeight)
+    if (next !== anchor) setChipMenu((m) => (m && m.anchor === anchor ? { ...m, anchor: next } : m))
+  }, [chipMenu])
 
   /** The chip's four handlers, or NULL on a read-only mount.
    *
@@ -8713,8 +8722,13 @@ export default function StockChart({
   // (a timeframe flip) re-ran it (measured 10-09, sandbox; OPEN-FINDINGS §6).
   // `useLowerTfSources` below takes `userDefsGeneration` for the same reason.
   const _otherSymbolsRevalidate = useMemo(() => ({ csView, userDefsGeneration }), [csView, userDefsGeneration])
+  // ⭐⭐ RS RATING L11 PR 2 — whether THIS chart's newest bar is forming, for the other-symbol live tail
+  // (`useSecondarySources.liveTailTick`): written below where the bars payload is bound (`data`), read at
+  // each tick through a stable getter, so it never re-runs the hook's effect
+  const _chartFormingRef = useRef(null)
+  const _chartFormingOf = useCallback(() => _chartFormingRef.current, [])
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate)
+    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate, _chartFormingOf)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -8746,6 +8760,12 @@ export default function StockChart({
   // the chart to ask again. Same role `secondarySources` plays one line up,
   // and it joins the SAME dependency array below for the same reason.
   const serverColumnsGeneration = useServerColumns()
+  // ⭐⭐ AND THE RUNTIME LANE'S LISTS (kill / allow / capability admission / run-half evidence). The
+  // gates answer from a latch read over the network; this starts the first read on mount and changes
+  // when it (or a capability verdict) lands, so a run half refused while the lists were empty is asked
+  // again. ⚰️ 2026-11-17: without it RS Rating's label and dots never drew after a reload
+  // (`useRuntimeLists.js`). Same dependency array as `serverColumnsGeneration`, same reason.
+  const runtimeListsGeneration = useRuntimeLists()
   // ⚡ THE LANE IS TOLD WHAT THIS CHART IS ON (serverCompute `chartShows`), so the ask of a chart
   // being raced through a list is held and, if the chart has moved on, never sent: the chart the
   // member lands on is not queued behind requests for the ones they passed (measured: 7.0 s).
@@ -8803,6 +8823,8 @@ export default function StockChart({
     _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled, _persistHistorySoon,
     barsSwrOnErrorRetry, fetcher, _storeDevRef, _storeDevPaintRef,
   })
+  // ⭐⭐ RS RATING L11 PR 2 — the chart's own forming flag, for the other-symbol live tail (declared above)
+  _chartFormingRef.current = data?.newest_bar_is_forming === true
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -9316,6 +9338,31 @@ export default function StockChart({
   // current bars without re-publishing the API on every data poll.
   const filteredBarsRef = useRef(null)
   filteredBarsRef.current = filteredBars
+
+  // ── Custom header stats (owner 11-16) ──────────────────────────────────────────────────────────────────────────
+  // The host's info row asks for "EMA 21 / RSI 14 / my formula" on the newest bar. Answered here because this is where
+  // the chart's bars and the installed registry live: `computeCustomStats` runs `computeFor` over `filteredBars` (the
+  // bars the binder draws from, so replay / a framed range read the same bar as the drawn line) behind the shared
+  // info-value gate, memoised per bars array. The host is called only when a shown text / state changes, so a live
+  // tick that leaves every value the same re-renders nothing above.
+  const _hcsSigRef = useRef('')
+  useEffect(() => {
+    if (typeof onHeaderCustomStats !== 'function') return
+    const entries = Array.isArray(headerCustomStats) ? headerCustomStats : []
+    let res = {}
+    if (entries.length) {
+      try {
+        res = computeCustomStats(entries, filteredBars || [], {
+          sym, symbol: symbolMeta, tf: resolvedTf, newestBarIsForming: data?.newest_bar_is_forming ?? null,
+        }, engineRegistry)
+      } catch { res = {} }
+    }
+    const sig = JSON.stringify(Object.values(res).map((r) => [r.key, r.state, r.text, r.label, r.signed, r.reason || '']))
+    if (sig === _hcsSigRef.current) return
+    _hcsSigRef.current = sig
+    onHeaderCustomStats(res)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `data` is read only for its newest-bar tri-state
+  }, [headerCustomStats, onHeaderCustomStats, filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, userDefsGeneration])
   // What THIS timeframe shows, for the next timeframe switch to complete its right edge from.
   if (isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff && !replayMode && Array.isArray(filteredBars) && filteredBars.length
       && typeof filteredBars[filteredBars.length - 1]?.t === 'number') {
@@ -14373,6 +14420,17 @@ export default function StockChart({
         // then open a moment), whereas this runs on every commit whatever armed it.
         // Verified load-bearing: disable this and the TF-flip test reds.
         pendingTfReframeRef.current = null
+      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf && userViewMovedRef.current) {
+        // ⛔⛔ THE MEMBER MOVED THE VIEW SINCE THE SWITCH: THE SETTLING IS OVER FOR THE FRAME.
+        // Release WITHOUT re-asserting. `userViewMovedRef` is cleared by the switch itself (the
+        // zoomKey branch above), so here it can only mean a drag, a wheel, a Go-to-date or a
+        // synced chart's range AFTER the switch. ⚰️ (2026-11-17) The re-assert below ran first
+        // and the release check after it, so the first framing pass after a member's move put
+        // the outgoing frame back: drag a chart the moment it appears and the next late answer
+        // (its name and sector, its listing date) snapped it to newest-at-right. The rest gate
+        // (#1207) moved those answers past the first paint, which is how a negative control saw
+        // it (dailyFirstPaintAcceptance.test.jsx, NC-D and SETTLING).
+        pendingTfReframeRef.current = null
       } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
         // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
         // viewport (same last-candle position + zoom width as the outgoing view) on every
@@ -14414,9 +14472,10 @@ export default function StockChart({
         // bar ("today's candle opens on tomorrow, then snaps back"). Keeping the guard armed means
         // THIS reserve-aware re-assert (above) runs on that commit and cancels the slide — `to` is
         // invariant across the yesterday→today flip (idx(yesterday)+1 == idx(today)+0). A user pan
-        // (userViewMovedRef) still ends the hold so a deliberate scroll is never fought, and off-gate
-        // the reserve is 0 so the release timing is byte-identical to before.
-        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0 && !userViewMovedRef.current
+        // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
+        // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
+        // release timing is byte-identical to before.
+        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0
         if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
@@ -14590,7 +14649,7 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -17988,8 +18047,11 @@ export default function StockChart({
             const nextCompact = nextCompactLegend(compactLegendRef.current, lastFullBottomRef.current,
               plan.collapseThresholdPx, foldSettled, chipsExpandedRef.current)
             if (nextCompact !== null) setCompactLegend(nextCompact)
+            // The pane grew until every row fits: there is no `Less` to press, so the expand ends here.
+            const staleExpand = stackExpandIsStale(chipsExpandedRef.current, studyCanFoldRef.current, foldSettled)
+            if (staleExpand) setChipsExpanded(false)
             // A budget or compact state just changed: the next frames must measure the result.
-            if (!foldSettled || nextCompact !== null) settled = false
+            if (!foldSettled || nextCompact !== null || staleExpand) settled = false
           }
         }
       } catch { return null /* pane API missing → CSS fallback; keep measuring */ }
@@ -19720,13 +19782,11 @@ export default function StockChart({
         const menuName = (surface && surface.name) || c.label
         const move = items.find((i) => i.key === 'move')
         const presetRow = items.find((i) => i.key === 'preset')
-        const page = (chipPage === 'move' && move && !move.disabled)
-          ? [
-              { key: '_back', label: menuName, icon: 'collapse', keepOpen: true,
-                onClick: () => setChipPage(null) },
-              { separator: true },
-              ...move.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
-            ]
+        // ⭐ UCT Signature on EVERY indicator's Display in page (owner 11-17: "all of them"),
+        // the same `displayPageSigRows` page Volume's uses.
+        const onMovePage = chipPage === 'move' && move && !move.disabled
+        const page = onMovePage
+          ? displayPageSigRows(menuName, move.submenu, () => setChipPage(null))
           : items.map((it) => {
               if (it.key === 'move' && !it.disabled) return { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               // ⭐ A6 — `Preset   Classic (O'Neil) ›`: the current preset as a muted
@@ -19864,12 +19924,9 @@ export default function StockChart({
             /* ⛔ NO `title` — see the row branch above. On the Display-in PAGE the
                back row carries the label instead, which is why that page renders
                no header either. */
-            title={chipPage === 'move' ? menuName : undefined}
             width={menuWidth}
             dense
-            /* UCT Signature on the menu page (group labels, gold hover icon, gold ✓ on Value in
-               header). The Display in page keeps its own tick icons, unchanged. */
-            signature={chipPage !== 'move'}
+            signature  /* UCT Signature on the menu AND the Display in page (owner 11-17) */
             /* ⛔ NO HEADER ON THE DISPLAY-IN PAGE. That page already opens with a
                back row carrying the label, and a second copy of the name directly
                above it reads as a bug.
@@ -19902,8 +19959,8 @@ export default function StockChart({
                   button is its own control, and a row's button cannot hold one). */}
               {askCompass}
             </>)}
-            items={page.map(chipPage === 'move' ? chipMenuRowToPopoverRow : chipMenuSigRow)}
-            sheetClassName={sheetCls + (chipPage !== 'move' ? ' ' + popStyles.signature : '')} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
+            items={onMovePage ? page : page.map(chipMenuSigRow)}
+            sheetClassName={sheetCls + ' ' + popStyles.signature} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
           />
         )
       })()}
@@ -20757,6 +20814,7 @@ export default function StockChart({
         while (studyFitFrom > 0 && studyFitFrom < studyTotal
           && sameInstanceAsPrev(studyFitFrom)) studyFitFrom -= 1
         const studyCanFold = studyFitFrom < studyTotal
+        studyCanFoldRef.current = studyCanFold
         const studyFoldFrom = chipsExpanded ? studyTotal : studyFitFrom
         const studyMoreCount = studyTotal - studyFitFrom
         return (
@@ -20766,7 +20824,7 @@ export default function StockChart({
              SUBTREE: they fire as the pointer moves onto and off its rows. */
           onPointerEnter={(e) => legendHoldRef.current.enter(e)}
           onPointerLeave={() => legendHoldRef.current.leave()}
-          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
+          className={`${styles.legend}${legendV2 ? ' ' + styles.legendV2 : ''}${compactLegend && legendV2 ? ' ' + styles.legendCompact : ''}${stackDrawnOpen(legendV2, chipsExpanded, studyCanFold) ? ' ' + styles.legendStackOpen : ''}${legendFlush ? ' ' + styles.legendFlush : toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the legend never covers it; reserve the
              right price-axis width so the BAR INFO strip wraps before it. */
           style={{

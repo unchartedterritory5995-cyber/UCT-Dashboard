@@ -307,6 +307,12 @@
    "source": "s12",
    "quote": "the stop usually sits within about 3% of the buy",
    "claim": "Rule A13: our stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h10",
+   "source": "s12",
+   "quote": "A13's stop band is 1-3% preferred, 3.5% good, up to 5%; past 5%, wait for a tighter trigger.",
+   "claim": "Our stop distance: 1-3% preferred, up to 5% accepted; past 5%, we wait for a tighter trigger."
   }
  ],
  "walkthroughs": [
@@ -314,42 +320,47 @@
    "key": "w1",
    "title": "Stop first",
    "steps": [
-    "Find the price that proves the idea wrong. That's the honest stop, and you set it first.",
-    "Measure from your entry to that stop. That's what each share can cost you.",
-    "Only then pick the size. Picking the size first is the mistake StockCharts calls the biggest."
+    "Find the price that proves the idea wrong, like just under the low of the day. That's your stop. It comes first.",
+    "Measure from your entry down to it. That's what each share can cost you.",
+    "Only then pick the size. Pick the size first and you end up squeezing the stop to make it fit."
    ],
    "facts": [
     "f18",
     "f17",
-    "f01"
+    "f01",
+    "h01"
    ]
   },
   {
    "key": "w2",
    "title": "The math, worked once",
    "steps": [
-    "Schwab's example: buy at $67, stop at $57. That's $10 of risk per share.",
-    "The trader will risk 0.5% of the account, which is $750.",
-    "$750 divided by $10 is 75 shares. That's about 3.4% of the account.",
-    "So risking 0.5% put about 3.4% in the stock. Risk and position size are different numbers."
+    "Here's the math on a wide one. Buy at $67, stop at $57. That's $10 a share at risk.",
+    "You're risking 0.5% of the account, $750. $750 divided by $10 is 75 shares.",
+    "75 shares is about 3.4% of the account. So 0.5% risk put 3.4% in the stock. Two different numbers.",
+    "That stop's way too wide for us. We like 1-3%, and 5% is the most we'll take."
    ],
    "facts": [
     "f13",
     "f14",
-    "f15"
+    "f15",
+    "h10"
    ]
   },
   {
    "key": "w3",
    "title": "The same math in percents",
    "steps": [
-    "Position % is your risk % divided by your stop distance %.",
-    "Here's how I put it: a 1% stop on a 50% size is 0.5% risk.",
-    "That assumes you get out at the stop. A gap past it can cost more than you planned."
+    "Same math in percents: your position size is your risk divided by your stop distance.",
+    "Here's how I put it. A 1% stop on a 50% size is 0.5% risk.",
+    "That assumes you get out at the stop. A gap right past it can cost more than you planned.",
+    "And a tight stop never earns a bigger position than our cap, 40% of the account."
    ],
    "facts": [
     "h02",
-    "f03"
+    "f03",
+    "h04",
+    "h05"
    ]
   }
  ],
@@ -359,15 +370,15 @@
    "skill": "risk.size_from_stop",
    "rung": 1,
    "format": "mcq",
-   "q": "You like a setup. What must you know before you can work out how many shares fit?",
+   "q": "A clean flag is about to trigger and you want in. Before you can work out how many shares to buy, what do you need?",
    "choices": [
     "Where your stop goes",
     "Your profit target",
     "A size that feels right",
-    "Your level of conviction"
+    "How sure you are"
    ],
    "answer": "Where your stop goes",
-   "why": "Where your stop goes. Put the stop where the idea is proven wrong, then measure from your entry to it. That distance is your risk per share, and the share count comes out of it. StockCharts lists the order as setup, stop, distance, and size last. Picking a size first is the mistake it calls the biggest. A profit target helps you judge the trade, but it is not in the share math.",
+   "why": "The stop. Everything else comes after it. Find the price where the idea is wrong, like just under the low of the day. Measure from your entry down to it. That's what each share can cost you, and the share count falls out of that. Pick the size first and you end up squeezing the stop to make it fit. That's how good trades get stopped out on noise. A target is nice to have, but it's not in the share math.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "f17",
@@ -376,38 +387,44 @@
     "f21"
    ],
    "wrong": {
-    "Your profit target": "A target helps you judge the trade, but it plays no part in the size math.",
-    "A size that feels right": "That's the mistake StockCharts calls the biggest one: picking a size before measuring entry to stop.",
-    "Your level of conviction": "StockCharts warns that some of the worst losses occur when you allow conviction to override structure. How sure you feel does not set the stop."
+    "Your profit target": "Nice to know, but it plays no part in how many shares you buy. Only the stop does.",
+    "A size that feels right": "That's picking the size first. Then the stop gets bent to fit it, and that's backwards.",
+    "How sure you are": "Feeling sure doesn't move where the idea is wrong. Some of the worst losses come from letting conviction beat the chart."
    },
-   "simple": "You need to know where your stop goes first, because the distance to it sets how many shares you can buy.",
+   "simple": "The stop comes first, because the distance from your entry to it decides how many shares you can buy.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "StockCharts lays out the order as setup, stop, distance, and size last. It calls deciding the size first, before measuring entry to stop, the biggest mistake."
+   }
   },
   {
    "key": "q02",
    "skill": "risk.size_from_stop",
    "rung": 1,
    "format": "tf",
-   "q": "Once your dollar risk is set, the distance to your stop sets how many shares the risk math allows.",
+   "q": "Your risk on a trade is $500 either way. Move the stop further from your entry and you have to buy fewer shares.",
    "answer": "True",
-   "why": "True. Shares equal your dollars at risk divided by the risk per share. Risk per share is the distance from your entry to your stop. So with the same dollars at risk, a wider stop buys fewer shares and a tighter stop buys more. Investopedia's example is $500 of risk over $20 per share, which is 25 shares. This is the risk-based count, before any position cap.",
+   "why": "True. Same $500 at risk, wider stop, fewer shares. Your share count is the dollars you'll risk divided by what each share can lose. With a $20 stop, $500 buys 25 shares. Widen the stop and each share can lose more, so fewer of them fit. That's the trade-off every time. The chart picks the stop, and your share count pays for it. That's the count from your risk alone, before any cap on size.",
    "lesson_line": "Same dollar risk, wider stop, fewer shares.",
    "facts": [
     "f02",
     "f19"
    ],
-   "simple": "True, because shares equal your dollars at risk divided by the risk per share, and the stop sets that risk per share.",
+   "simple": "True, because a wider stop means each share can lose more, so the same dollar risk buys fewer shares.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia's example divides $500 of account risk by $20 of trade risk and gets 25 shares. StockCharts gives the same rule: your risk per trade over your risk per share."
+   }
   },
   {
    "key": "q03",
@@ -444,20 +461,21 @@
    "skill": "risk.size_from_stop",
    "rung": 2,
    "format": "tf",
-   "q": "Risking 1% of your account means putting 1% of your account in the stock.",
+   "q": "You risk 1% a trade. So when a breakout triggers, you put 1% of your account into it.",
    "answer": "False",
-   "why": "False. Risk is what you lose if the stop is hit. The position is the money you put in. They are two different numbers. Schwab's example risks 0.5% of the account with about 3.4% of it in the stock. Schwab also lists risking up to 1%–2% a trade beside a position of up to 5%–10%. The distance from entry to stop sets how big the position gets. Those percents are Schwab's examples, not our limits.",
-   "lesson_line": "Risk % and position % are two different numbers.",
+   "why": "False. That mixes up two numbers. Your risk is what you lose if the stop hits. Your position is the money you put in the stock. Put only 1% in a name and a stop-out costs you next to nothing, but a winner can't move the account either. The size comes from the stop. Here's how I put it: a 1% stop on a 50% size is 0.5% risk. The stop distance is what links the two.",
+   "lesson_line": "What you risk and what you hold are two different numbers.",
    "facts": [
     "f33",
     "f14",
     "f15",
     "f34",
-    "f13"
+    "f13",
+    "h02"
    ],
-   "simple": "False, because risk is what you lose if the stop is hit, and the money in the stock is a bigger number.",
+   "simple": "False, because risk is what you lose at the stop, and the money you put in is a much bigger number.",
    "deeper": {
-    "example": "Schwab's trader risks 0.5% of the account and buys 75 shares at $67. That is $5,025, about 3.4% of the account. The risk stays at 0.5% because 75 shares times the $10 stop distance is $750. A wider stop would mean fewer shares."
+    "example": "Schwab's trader risks 0.5% of the account and buys 75 shares at $67. That's $5,025, about 3.4% of the account. The risk stays at 0.5% because 75 shares times the $10 stop distance is $750. Schwab also lists risking up to 1% to 2% a trade beside a position of up to 5% to 10%. Those are Schwab's examples, not our limits."
    },
    "tier": "core",
    "risk": {
@@ -466,14 +484,14 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "risk.size_from_stop",
    "rung": 2,
    "format": "mcq",
-   "q": "Which of these gives you the number of shares to buy?",
+   "q": "You know your dollars at risk and you know where the stop goes. How do you get your share count?",
    "choices": [
     "Dollars at risk ÷ the risk per share",
     "Account size ÷ the share price",
@@ -481,31 +499,34 @@
     "Dollars at risk × risk per share"
    ],
    "answer": "Dollars at risk ÷ the risk per share",
-   "why": "Dollars at risk ÷ the risk per share. Investopedia's example divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts gives the same rule: risk per trade over risk per share. Account size over price only shows what you can afford, and it ignores the stop. Dollars at risk over price treats a stop-out like a total loss. Multiplying gets it backwards, since a wider stop would then buy more shares.",
-   "lesson_line": "Dollars at risk divided by risk per share gives the risk-based size.",
+   "why": "Divide your dollars at risk by what each share can lose. Risk per share is your entry minus your stop. Say you risk $500 and the stop is $20 under your buy. 500 over 20 is 25 shares. Multiply instead and a wider stop would buy you more shares, the exact opposite of what you want. Account size over price is just what you can afford, with no stop in it at all.",
+   "lesson_line": "Dollars at risk divided by risk per share. That's your share count.",
    "facts": [
     "f02",
     "f19"
    ],
    "wrong": {
-    "Account size ÷ the share price": "That buys everything you can afford. It ignores the stop, so your risk is whatever happens.",
-    "Dollars at risk ÷ the share price": "That puts only your risk amount into the stock, as if a stop-out meant it went to zero.",
-    "Dollars at risk × risk per share": "That is backwards. A wider stop would buy more shares, when it should buy fewer."
+    "Account size ÷ the share price": "That's everything you can afford. There's no stop in it, so your risk is whatever happens.",
+    "Dollars at risk ÷ the share price": "That treats a stop-out like the stock going to zero. You'd buy way too few shares.",
+    "Dollars at risk × risk per share": "Backwards. A wider stop would buy more shares when it should buy fewer."
    },
-   "simple": "Divide your dollars at risk by your risk per share, because that tells you how many shares fit your plan.",
+   "simple": "Divide your dollars at risk by your risk per share, because that's how many shares fit your plan.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia divides $500 of account risk by $20 of trade risk to get 25 shares. StockCharts says the same: risk per trade over risk per share."
+   }
   },
   {
    "key": "q06",
    "skill": "risk.size_from_stop",
    "rung": 3,
    "format": "mcq",
-   "q": "You'll risk $300 on this trade. Your stop is $1.50 below your entry. How many shares do you buy?",
+   "q": "$300 is what you'll lose if this one stops out. Your stop is $1.50 under your entry. How many shares?",
    "answer": "200 shares",
    "calc": {
     "fn": "arith",
@@ -516,13 +537,13 @@
     }
    },
    "suffix": "shares",
-   "why": "200 shares. Risk per share is $1.50, the gap from entry to stop. Divide $300 by $1.50 to get 200. A gap past the stop could cost more.",
-   "lesson_line": "Dollars at risk over risk per share gives the risk-based share count.",
+   "why": "200 shares. Each share can lose $1.50 if the stop hits. 300 divided by 1.50 is 200. Stopped out, 200 shares times $1.50 is your $300, right on plan. One catch: a gap through your stop can cost more than that.",
+   "lesson_line": "Size it so a stop-out costs exactly what you planned.",
    "facts": [
     "f02",
     "f13"
    ],
-   "simple": "You buy 200 shares, because $300 of risk divided by $1.50 of risk per share is 200.",
+   "simple": "200 shares, because $300 of risk divided by $1.50 a share is 200.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -530,7 +551,7 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "450 shares",
     "2,000 shares",
@@ -538,9 +559,9 @@
     "150 shares"
    ],
    "wrong": {
-    "450 shares": "Multiplied $300 by $1.50 instead of dividing.",
-    "2,000 shares": "Decimal slip: moved the decimal in the stop gap.",
-    "150 shares": "Rounded the $1.50 stop gap up to $2."
+    "450 shares": "You multiplied $300 by $1.50. You divide.",
+    "2,000 shares": "Decimal slip on the $1.50. That's ten times the risk you planned.",
+    "150 shares": "You rounded the $1.50 stop up to $2. Use the real distance."
    }
   },
   {
@@ -548,17 +569,18 @@
    "skill": "risk.size_from_stop",
    "rung": 3,
    "format": "tf",
-   "q": "Your stop belongs at the price where the trade idea is proven wrong.",
+   "q": "You bought a breakout. Your stop goes where the chart says the idea is wrong, even if that's further than you'd like.",
    "answer": "True",
-   "why": "True. Put the stop where the trade idea is proven wrong, not where it feels comfortable. A wide stop means a bigger loss per share. Do not move the stop to fix that. Buy fewer shares so the dollars at risk stay the same, or skip the trade if even one share is too much. StockCharts says to place stops where you think they will work, then adjust your position. Our rule says the size comes from the stop.",
+   "why": "True. The stop goes where the idea is wrong, not where the loss feels comfortable. For us that's the low of the day or the prior day's low. If that's further away than you'd like, you don't drag the stop up. You buy fewer shares so your dollars at risk stay the same. And if even one share risks too much, you pass. Size is the thing you adjust. The stop is the chart's call.",
    "lesson_line": "The chart picks the stop. You pick the size.",
    "facts": [
     "f18",
     "f20",
     "f02",
-    "h03"
+    "h03",
+    "h01"
    ],
-   "simple": "True, because the stop goes where the idea fails, and the size is what you adjust, or you skip the trade.",
+   "simple": "True, because the stop goes where the idea fails, and you fix a wide stop with fewer shares, not a closer stop.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -566,7 +588,10 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "StockCharts puts it the same way: place your stops where you think they'll work, then just adjust your position."
+   }
   },
   {
    "key": "q08",
@@ -574,27 +599,28 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "What is our default stop on a new long trade?",
+   "q": "You just bought a breakout as it went through the trigger. Where does your stop go?",
    "choices": [
     "Low of the day or prior day's low",
     "A flat 10% under your entry",
     "Wherever it fits your size",
-    "Just under the 50-day average"
+    "On the nearest round number"
    ],
    "answer": "Low of the day or prior day's low",
-   "why": "The low of the day, or the prior day's low. That is our default stop on a new long trade. In practice it sits a few cents under that low, not exactly on it. You read it off the chart first, and the size comes after. A flat percent under your entry ignores the chart. A stop fitted to the size you want is back to front.",
-   "lesson_line": "Our default stop: today's low, or yesterday's low.",
+   "why": "Under the low of the day, or the prior day's low. We put it a few cents under that low, not right on it. That's the low the stock just made. If price trades back through it, the move failed and you're out. It's also close, so your risk per share stays small. Most of the time that keeps the stop within about 3% of your buy. Read it off the chart first, then size from it.",
+   "lesson_line": "Stop a few cents under the low of the day. Then size.",
    "facts": [
     "h01",
     "f18",
-    "h07"
+    "h07",
+    "h09"
    ],
    "wrong": {
-    "A flat 10% under your entry": "A flat percent ignores the chart. Our default is tied to a real low the stock just made.",
-    "Wherever it fits your size": "That's back to front. The stop comes first, and the size comes from it.",
-    "Just under the 50-day average": "That is a different tool. Our default is the day's low or the prior day's low, a real low the stock just made."
+    "A flat 10% under your entry": "A flat percent ignores the chart. The stock doesn't know or care where your 10% sits.",
+    "Wherever it fits your size": "Backwards. The stop comes first and the size comes from it.",
+    "On the nearest round number": "A round number says nothing about your trade. The day's low is where the move is proven wrong."
    },
-   "simple": "Our default stop is the low of the day or the prior day's low, read off the chart before you size.",
+   "simple": "Just under the low of the day or the prior day's low, because that's where the move is proven wrong.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -603,14 +629,14 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "risk.size_from_stop",
    "rung": 4,
    "format": "mcq",
-   "q": "Account $48,000, risking 0.5%. Entry $50, stop $48.50. How many shares?",
+   "q": "Your account is $48,000 and you risk 0.5% on this one. You buy at $50 with the stop at $48.50. How many shares?",
    "answer": "160 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -622,14 +648,14 @@
     }
    },
    "suffix": "shares",
-   "why": "160 shares. Dollars at risk are 0.5% of $48,000, which is $240. Risk per share is the gap from $50 to $48.50. Divide $240 by that gap to get 160.",
-   "lesson_line": "Account times risk %, then divide by entry minus stop.",
+   "why": "160 shares. 0.5% of $48,000 is $240 at risk. $50 minus $48.50 is $1.50 a share. 240 over 1.50 is 160. That stop is 3% under your buy, right where I like it. Tight enough that you get real size, wide enough to breathe.",
+   "lesson_line": "Account times risk %, divided by entry minus stop.",
    "facts": [
     "f05",
     "f02",
     "f13"
    ],
-   "simple": "You buy 160 shares, because 0.5% of the $48,000 account is your risk, divided by the gap from $50 to $48.50.",
+   "simple": "160 shares, because $240 at risk divided by $1.50 a share is 160.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -637,7 +663,7 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "240 shares",
     "160 shares",
@@ -645,9 +671,9 @@
     "480 shares"
    ],
    "wrong": {
-    "240 shares": "Stopped after the dollar risk and never divided by the stop gap.",
-    "1,600 shares": "Decimal slip: made the risk ten times too big.",
-    "480 shares": "Divided $240 by the risk percent instead of by the stop gap."
+    "240 shares": "That's your dollar risk, not a share count. You still have to divide by the $1.50.",
+    "1,600 shares": "Decimal slip. You made your risk ten times too big.",
+    "480 shares": "You divided $240 by the 0.5 instead of by the stop distance."
    }
   },
   {
@@ -655,7 +681,7 @@
    "skill": "risk.size_from_stop",
    "rung": 4,
    "format": "mcq",
-   "q": "You risk 1% of the account. Your stop is 5% below entry. What percent of the account goes into the stock?",
+   "q": "You risk 1% of the account on a trade. Your stop sits 5% under your buy. How big is the position?",
    "answer": "20%",
    "calc": {
     "fn": "arith",
@@ -666,14 +692,15 @@
     }
    },
    "suffix": "%",
-   "why": "20%. Position percent is risk percent divided by stop percent. 1% divided by 5% is 0.2, which is 20%. Check it: a 5% drop on 20% of the account costs 1%.",
-   "lesson_line": "Position % equals risk % divided by stop distance %.",
+   "why": "20% of the account. Your position is your risk divided by your stop distance. 1 over 5 is 0.2, so 20%. Check it backwards: a 5% drop on 20% of the account costs you 1%. 5% is the widest stop I'll take. Anything wider and I'd rather wait for a tighter entry.",
+   "lesson_line": "Position % equals risk % divided by stop %.",
    "facts": [
     "h02",
     "f02",
-    "f13"
+    "f13",
+    "h10"
    ],
-   "simple": "20% of the account goes into the stock, because a 1% risk divided by a 5% stop is 20%.",
+   "simple": "20%, because a 1% risk divided by a 5% stop is 20% of the account.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -681,7 +708,7 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "5%",
     "0.2%",
@@ -689,9 +716,9 @@
     "20%"
    ],
    "wrong": {
-    "5%": "Used the stop percent as the position size.",
-    "0.2%": "Divided but forgot to turn it back into a percent.",
-    "4%": "Subtracted 1 from 5 instead of dividing."
+    "5%": "That's the stop distance, not the position.",
+    "0.2%": "You divided right but forgot to turn 0.2 into a percent.",
+    "4%": "You subtracted 1 from 5. Divide instead."
    },
    "visual": {
     "kind": "size",
@@ -721,7 +748,7 @@
    "skill": "risk.size_from_stop",
    "rung": 5,
    "format": "mcq",
-   "q": "Your position is 25% of the account. The stop is 4% below entry. What percent of the account do you lose if the stop fills?",
+   "q": "You're holding 25% of your account in one name, stop 4% under your buy. It stops out. What did the account lose?",
    "answer": "1%",
    "calc": {
     "fn": "arith",
@@ -732,14 +759,14 @@
     }
    },
    "suffix": "%",
-   "why": "1%. Risk is position size times stop distance. 25% of the account times a 4% drop costs 1% of the account.",
-   "lesson_line": "Size times stop distance is your real risk.",
+   "why": "1% of the account. Flip the math around: size times stop distance is what you really risk. 25% times 4% is 1%. Run this check on every open trade. It tells you what a stop-out costs, not what you hoped it would.",
+   "lesson_line": "Size times stop distance is what you really risk.",
    "facts": [
     "h02",
     "f15",
     "f14"
    ],
-   "simple": "1% of the account is at risk, because a 4% drop on a 25% position costs 1% of the account.",
+   "simple": "1%, because a 4% drop on a position that's 25% of the account costs 1% of it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -747,7 +774,7 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "100%",
     "1%",
@@ -755,9 +782,9 @@
     "21%"
    ],
    "wrong": {
-    "100%": "Multiplied 25 by 4 and forgot to divide by 100.",
-    "6.25%": "Divided the position by the stop instead of multiplying.",
-    "21%": "Subtracted the stop percent from the position percent."
+    "100%": "You multiplied 25 by 4 and never divided by 100.",
+    "6.25%": "You divided 25 by 4. Multiply instead.",
+    "21%": "You subtracted 4 from 25."
    },
    "visual": {
     "kind": "size",
@@ -787,8 +814,8 @@
    "skill": "risk.size_from_stop",
    "rung": 5,
    "format": "scenario",
-   "story": "You'll risk $300. You planned 300 shares with a stop $1 under entry. The chart says the real stop is $2 under.",
-   "q": "What's the right size now?",
+   "story": "You planned 300 shares with a $1 stop, $300 at risk. Then you look at the chart again. The low of the day is $2 under your entry.",
+   "q": "What do you do?",
    "choices": [
     "150 shares, stop $2 under",
     "300 shares, stop $1 under",
@@ -804,7 +831,7 @@
      "per_share": 2
     }
    },
-   "why": "150 shares. Your $300 divided by the $2 of risk per share is 150. The chart puts the real stop $2 under your entry, so the stop stays there and the size comes down. 300 shares at that stop would risk $600, double your plan. StockCharts says to place your stops where you think they will work, then adjust your position.",
+   "why": "150 shares, stop $2 under. 300 divided by 2 is 150. The low of the day is where the idea fails, so the stop stays there. The share count is what comes down. Keep 300 shares at that stop and you're risking $600, double your plan. Keep the $1 stop instead and a normal wiggle takes you out of a good trade.",
    "lesson_line": "Move the size, never the stop.",
    "facts": [
     "f20",
@@ -813,13 +840,13 @@
     "h03"
    ],
    "wrong": {
-    "300 shares, stop $1 under": "That squeezes the stop to keep the size. The chart says the idea isn't wrong until $2 under.",
+    "300 shares, stop $1 under": "That squeezes the stop to keep the size. The idea isn't wrong until $2 under.",
     "300 shares, stop $2 under": "Right stop, wrong size. That doubles the risk you planned.",
     "600 shares, stop $2 under": "Backwards. A wider stop means fewer shares for the same risk."
    },
-   "simple": "Buy 150 shares, because the same $300 of risk spread over a $2 stop buys half as many shares.",
+   "simple": "150 shares, because the same $300 over a $2 stop buys half as many shares.",
    "deeper": {
-    "trap": "The tempting fix is the $1 stop, because it keeps your 300 shares. It only keeps the loss small on paper. The chart says the idea is not wrong until $2 under, and a normal swing can hit a stop that tight. You trade a clean plan for a stop-out."
+    "trap": "The tempting fix is the $1 stop, because it keeps your 300 shares. It only keeps the loss small on paper. The idea isn't wrong until $2 under, and a normal swing can hit a stop that tight. You trade a clean plan for a stop-out. StockCharts says it plainly: place your stops where they'll work, then adjust your position."
    },
    "tier": "extended",
    "risk": {
@@ -829,25 +856,25 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "risk.size_from_stop",
    "rung": 5,
    "format": "tf",
-   "q": "After a quick drop triggers your stop, the stock can rebound to where it was.",
+   "q": "A quick flush can hit your stop, and then the stock bounces right back to where it was.",
    "answer": "True",
-   "why": "True. A short, sharp drop can trigger a stop, and the stock can then rebound to its old price. The SEC says a brief intraday move can fill a stop far worse than the day's close. FINRA says the same about rapid moves. StockCharts adds that stops kept too tight get hit a lot. So give the stop room for normal swings, then size for that distance. The stop still goes where the idea fails.",
+   "why": "True. It happens. A fast drop triggers the stop, it turns into a market order, and you're out. Then it bounces. That doesn't always mean your stop was wrong. But a stop parked inside the normal swings gets hit a lot. So put it where the idea fails, like under the low of the day, not a few cents under your buy. Then size for that distance. You'll still get shaken out sometimes. That's the cost of having a stop at all.",
    "lesson_line": "Give the stop room for normal swings, then size for that distance.",
    "facts": [
     "f31",
     "f28",
     "f32"
    ],
-   "simple": "True, because a quick drop can hit a stop that sits inside normal swings, and then the stock can bounce back.",
+   "simple": "True, because a fast drop can hit a stop that sits inside normal swings, and then the stock can bounce back.",
    "deeper": {
-    "counter": "A stop being hit does not prove your idea was wrong. FINRA says a stock can rebound after a quick drop triggers a stop. That is why the stop goes where the idea fails and not where an ordinary swing reaches."
+    "counter": "FINRA says a rapid move can trigger a stop and the stock can rebound to its prior level. The SEC adds that a brief intraday move can fill a stop far worse than the close. And StockCharts: keep your stops too tight and you'll get stopped out a lot."
    },
    "tier": "extended",
    "risk": {
@@ -856,15 +883,15 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "risk.size_from_stop",
    "rung": 6,
    "format": "scenario",
-   "story": "Account $25,000. You risk 0.5% on this one. Entry $80, stop $76.",
-   "q": "How many shares?",
+   "story": "Your account is $25,000 and you're risking 0.5% on this one. You buy at $80 with the stop at $76.",
+   "q": "How many shares do you put on?",
    "choices": [
     "31 shares",
     "32 shares",
@@ -881,19 +908,20 @@
      "stop": 76
     }
    },
-   "why": "31 shares. Your risk is 0.5% of $25,000. Divide that by the distance from $80 to $76. The answer is a little over 31, so you round down to 31. Rounding up would risk more than you planned. Rounding down keeps you inside your risk if the stop fills at its price. A gap could still cost more.",
+   "why": "31 shares. 0.5% of $25,000 is $125 at risk. $80 minus $76 is $4 a share. 125 over 4 is 31.25, so you round down to 31. Round up to 32 and a stop-out costs more than you planned. Always round down. That $4 is a 5% stop, right at my limit.",
    "lesson_line": "Round down. Rounding up spends risk you never planned.",
    "facts": [
     "f05",
     "f02",
-    "f13"
+    "f13",
+    "h10"
    ],
    "wrong": {
-    "312 shares": "That's all the account can buy. It ignores the stop completely.",
-    "1 share": "That divides your risk by the share price, as if a stop-out meant the stock went to zero.",
-    "32 shares": "That rounds up, which risks more than your plan. Always round down."
+    "312 shares": "That's all $25,000 buys at $80. There's no stop in it.",
+    "1 share": "That divides your $125 by the price, like a stop-out sends the stock to zero.",
+    "32 shares": "You rounded up, so a stop-out costs more than your $125."
    },
-   "simple": "You buy 31 shares, because your risk divided by the $80 to $76 gap is just over 31, so you round down.",
+   "simple": "31 shares, because $125 at risk over $4 a share is 31.25, and you always round down.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -901,45 +929,46 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "risk.size_from_stop",
    "rung": 6,
    "format": "mcq",
-   "q": "Two trades each risk 0.5% of the account. A's stop is 2% away, B's is 8% away. How do the position sizes compare?",
+   "q": "Two setups, 0.5% risk on each. One has a 2% stop, the other an 8% stop. How do the position sizes compare?",
    "choices": [
-    "A's position is 4 times as big as B's",
-    "A's position is twice as big as B's",
-    "A holds 2% of the account, B holds 8%",
-    "Both hold the same share of the account"
+    "Tight stop: 4 times the size",
+    "Tight stop: 2 times the size",
+    "2% and 8% of the account",
+    "Same size, same risk"
    ],
-   "answer": "A's position is 4 times as big as B's",
+   "answer": "Tight stop: 4 times the size",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "(risk_pct / stop_a) / (risk_pct / stop_b)",
+     "expr": "(risk_pct / stop_a * 100) / (risk_pct / stop_b * 100)",
      "risk_pct": 0.5,
      "stop_a": 2,
      "stop_b": 8
     }
    },
-   "why": "A's position is 4 times B's. Position percent is risk percent divided by stop percent. A's stop is a quarter as far away as B's, so with the same risk A can hold 4 times as much. Stopped out at their stops, both lose about 0.5%. StockCharts shows the same idea: with two different stops, either way you lose around 1%.",
+   "why": "The tight one is 4 times bigger. Size is risk divided by stop. 0.5 over 2 is 25% of the account. 0.5 over 8 is 6.25%. 25 is 4 times 6.25. Stopped out, both lose the same 0.5%. A bigger position isn't a bigger risk when the stop is tighter. And honestly, at 8% I'd pass on the second one. Past 5% I wait for a tighter entry.",
    "lesson_line": "Equal risk, unequal sizes. The stop distance makes the difference.",
    "facts": [
     "f02",
     "f25",
-    "h02"
+    "h02",
+    "h10"
    ],
    "wrong": {
-    "A's position is twice as big as B's": "The ratio is 8 to 2, which is 4, not 2. A's stop is a quarter as far away, so A holds 4 times as much.",
-    "A holds 2% of the account, B holds 8%": "Those are the stop distances, not the position sizes. The tighter stop gets the bigger position.",
-    "Both hold the same share of the account": "Only if the stops matched. Same risk with different stops means different sizes."
+    "Tight stop: 2 times the size": "8 over 2 is 4, not 2. A quarter of the stop gets you 4 times the size.",
+    "2% and 8% of the account": "Those are the stop distances, not the sizes. The tighter stop gets the bigger position.",
+    "Same size, same risk": "Same risk, yes. Same size only if the stops matched."
    },
-   "simple": "A's position is 4 times B's, because A's stop is a quarter as far away for the same risk.",
+   "simple": "4 times bigger, because the 2% stop is a quarter as wide for the same 0.5% risk.",
    "deeper": {
-    "example": "Both trades risk 0.5%. A's stop is 2% away and B's is 8% away. Because 8 divided by 2 is 4, A holds 4 times as much. A bigger position is not a bigger risk, since both lose about 0.5% at their stops."
+    "example": "StockCharts shows the same idea with MNST. Two different stops, and either way you lose around 1% if the trade fails. The stop distance changes the share count, not the dollars at risk."
    },
    "tier": "extended",
    "risk": {
@@ -949,10 +978,10 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
-    "title": "Two trades",
+    "title": "Two setups",
     "rows": [
      {
       "key": "r1",
@@ -962,19 +991,19 @@
      },
      {
       "key": "r2",
-      "label": "A's stop distance",
+      "label": "Tight stop",
       "value": 2,
       "fmt": "%"
      },
      {
       "key": "r3",
-      "label": "B's stop distance",
+      "label": "Wide stop",
       "value": 8,
       "fmt": "%"
      }
     ],
     "find": {
-     "label": "A's size compared with B's",
+     "label": "Tight size vs wide size",
      "as": "times"
     }
    }
@@ -1017,17 +1046,17 @@
    "skill": "risk.size_from_stop",
    "rung": 7,
    "format": "scenario",
-   "story": "Your stop is only 1% under entry, so you buy a 40% position. On paper that's 0.4% risk. You hold it overnight.",
-   "q": "What's the catch, if any?",
+   "story": "Tight one. The low of the day is just 1% under your buy, so you go 40% of the account. On paper that's 0.4% risk. You hold it overnight.",
+   "q": "Anything wrong with this?",
    "choices": [
     "A gap can open below your stop",
-    "None, the risk is still 0.4%",
+    "Nothing, the risk is 0.4%",
     "The risk is really 1%",
-    "Low risk means you can add"
+    "Low risk, so you can add"
    ],
    "answer": "A gap can open below your stop",
-   "why": "A gap can open below your stop. On paper, 40% of the account times a 1% stop is 0.4% risk. That math assumes you sell at the stop. A triggered stop becomes a market order, and the fill can be far from your stop price. If the stock gaps past it, the order fills at the next available price. With that much of the account in one stock, a gap hurts. This is why a tight stop never justifies a bigger position than our 40% cap.",
-   "lesson_line": "A stop cannot catch a gap, so a tight stop is no safety net.",
+   "why": "The gap. On paper, 40% times a 1% stop is 0.4%. That only holds if you get out at your stop. A stop is a trigger for a market order. If the stock gaps under it overnight, you get the next price, not yours. With 40% of the account in one name, a gap hurts fast. That's why 40% is our cap, no matter how tight the stop. A tight stop never earns you a monster position.",
+   "lesson_line": "A stop can't catch a gap. A tight stop never earns a monster position.",
    "facts": [
     "f30",
     "f03",
@@ -1036,13 +1065,13 @@
     "h05"
    ],
    "wrong": {
-    "None, the risk is still 0.4%": "Only if you get filled at the stop. A gap past it costs more than the risk you planned.",
-    "The risk is really 1%": "On paper it is 0.4%: 40% of the account times a 1% stop. The danger is a gap past the stop on that much size.",
-    "Low risk means you can add": "Paper risk only holds if you are filled at the stop. A gap can break that, so low paper risk is no reason to add."
+    "The risk is really 1%": "On paper it's 0.4%. The real danger is a gap on that much size.",
+    "Nothing, the risk is 0.4%": "Only if you get out at the stop. A gap past it costs more than you planned.",
+    "Low risk, so you can add": "Paper risk only holds if you're filled at the stop. Adding just puts more money into a gap."
    },
-   "simple": "The catch is that a gap can open below your stop, so the loss could be bigger than planned.",
+   "simple": "A gap can open below your stop, so the loss can be much bigger than the 0.4% on paper.",
    "deeper": {
-    "trap": "A tight stop feels like a small risk, so people size up. But the stop only helps if you get filled near it. FINRA says the price you receive could be markedly different from your stop price. A tight stop does not cap the loss on a gap."
+    "trap": "A tight stop feels like a small risk, so people size up. But the stop only helps if you get filled near it. FINRA says the price you receive could be markedly different from your stop price."
    },
    "tier": "extended",
    "risk": {
@@ -1052,14 +1081,14 @@
      "walkthrough w3 still shows his quoted 50% illustration (owner to decide)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "risk.size_from_stop",
    "rung": 7,
    "format": "mcq",
-   "q": "StockCharts' MNST example: $50,000 account, 1% risk, entry $86, stop at support $71. How many shares?",
+   "q": "StockCharts' MNST example: $50,000 account, 1% risk, buy at $86, stop at support at $71. How many shares?",
    "answer": "33 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -1071,19 +1100,20 @@
     }
    },
    "suffix": "shares",
-   "why": "33 shares. Risk is 1% of $50,000, which is $500. Risk per share is the gap from the $86 entry to the $71 stop. Divide $500 by that gap and round down to 33.",
-   "lesson_line": "Pick the stop from support, then let the math set the shares.",
+   "why": "33 shares. 1% of $50,000 is $500 at risk. $86 minus $71 is $15 a share. 500 over 15 is 33.33, so round down to 33. The math works on any stop. But look at that stop: it's about 17% under the buy. That's their example, not how we'd trade it. Past 5% I'd wait for a tighter entry.",
+   "lesson_line": "Pick the stop, then let the math set the shares.",
    "facts": [
     "f22",
     "f23",
     "f24",
     "f25",
     "f02",
-    "h09"
+    "h09",
+    "h10"
    ],
-   "simple": "You buy 33 shares, because $500 of risk divided by the $86 to $71 gap is just over 33.",
+   "simple": "33 shares, because $500 at risk divided by $15 a share is just over 33, so you round down.",
    "deeper": {
-    "example": "StockCharts buys MNST at $86 and tests two stops. The tighter stop allows more shares and the $71 stop allows fewer. Either way it says you lose around 1%, or approximately $500. The stop distance changes the share count, not the dollars at risk."
+    "example": "StockCharts buys MNST at $86 and tests two stops. The tighter stop allows more shares and the $71 stop allows fewer. Either way it says you lose around 1%, or approximately $500."
    },
    "tier": "extended",
    "risk": {
@@ -1092,17 +1122,17 @@
      "the key is computed, so it rests on a calc"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "333 shares",
-    "6 shares",
+    "5 shares",
     "33 shares",
     "7 shares"
    ],
    "wrong": {
-    "333 shares": "Decimal slip: risked ten times too much.",
-    "6 shares": "Divided by the $86 entry price, not the stop gap.",
-    "7 shares": "Divided by the $71 stop price, not the stop gap."
+    "333 shares": "Decimal slip. That risks ten times your $500.",
+    "7 shares": "You divided by the $71 stop price, not the distance.",
+    "5 shares": "You divided $500 by the $86 price, not by the $15 distance."
    }
   },
   {
@@ -1110,8 +1140,8 @@
    "skill": "risk.size_from_stop",
    "rung": 8,
    "format": "scenario",
-   "story": "A friend says he risks 1% a trade. He holds 30% of his account in one stock, with the stop 8% below.",
-   "q": "What does his plan lose if the stop fills?",
+   "story": "A buddy tells you he only risks 1% a trade. Then he shows you the position: 30% of his account, stop 8% under his buy.",
+   "q": "If that stop hits, what does he lose?",
    "choices": [
     "2.4% of the account",
     "3.75% of the account",
@@ -1127,7 +1157,7 @@
      "stop_pct": 8
     }
    },
-   "why": "2.4% of the account. Risk is position size times stop distance: an 8% drop on 30% of the account. That is more than double the 1% he says he risks. The 30% is what he holds, not what he risks. The 8% is how far the stock falls, not what the account loses. Schwab treats risk per trade and position size as two separate limits. Check risk from your size and your stop, not from the plan in your head.",
+   "why": "2.4% of the account. Size times stop distance: 30% times 8% is 2.4%. That's more than double the 1% he thinks he's risking. His number lives in his head. His real risk lives in his size and his stop. With an 8% stop, a 1% risk only buys him 12.5% of the account. And 8% is wider than I'd take anyway.",
    "lesson_line": "Check risk from the size and the stop, not from the plan in your head.",
    "facts": [
     "h02",
@@ -1135,13 +1165,13 @@
     "f33"
    ],
    "wrong": {
-    "3.75% of the account": "That divides 30 by 8. The position size multiplies by the stop distance, it does not divide.",
-    "0.24% of the account": "That slips a decimal place. An 8% drop on 30% of the account is 2.4%.",
-    "12.5% of the account": "That divides 1 by 8. His risk comes from his size and his stop, not from his plan's 1%."
+    "3.75% of the account": "That's 30 divided by 8. You multiply size by stop.",
+    "0.24% of the account": "Decimal slip. 30% times 8% is 2.4%.",
+    "12.5% of the account": "That's 1 divided by 8, the size he should hold. It's not what he loses."
    },
-   "simple": "He risks 2.4% of the account, because a 30% position with a stop 8% below loses 2.4% if it is hit.",
+   "simple": "2.4%, because an 8% drop on 30% of the account costs 2.4%, not the 1% he thinks.",
    "deeper": {
-    "trap": "His plan says 1%, but his size and his stop say 2.4%. A 1% risk with an 8% stop allows a much smaller position than 30%. Start from the stop, then size."
+    "trap": "His plan says 1%, but his size and his stop say 2.4%. A 1% risk with an 8% stop allows a much smaller position than 30%. Start from the stop, then size. Schwab treats risk per trade and position size as two separate limits for the same reason."
    },
    "tier": "expert",
    "risk": {
@@ -1151,7 +1181,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "His position",
@@ -1180,7 +1210,7 @@
    "skill": "risk.size_from_stop",
    "rung": 8,
    "format": "mcq",
-   "q": "Account $60,000, risking 0.75%. You buy at $125.40 with the stop at $121.10, a few cents under the day's low. How many shares?",
+   "q": "$60,000 account, 0.75% risk. You buy at $125.40. Stop goes at $121.10, a few cents under the low of the day. How many shares?",
    "answer": "104 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -1192,15 +1222,16 @@
     }
    },
    "suffix": "shares",
-   "why": "104 shares. Dollars at risk are 0.75% of $60,000, which is $450. Risk per share is the gap from $125.40 to $121.10. Divide $450 by that gap and round down to 104.",
-   "lesson_line": "Real prices are messy. Do the math and round down, so you stay inside your risk.",
+   "why": "104 shares. 0.75% of $60,000 is $450 at risk. 125.40 minus 121.10 is $4.30 a share. 450 over 4.30 is 104.65, so round down to 104. Don't round to the nearest. 105 shares puts you over your $450. That's a 3.4% stop. Not tiny, but well inside the 5% I'll take.",
+   "lesson_line": "Real prices are messy. Do the math and round down.",
    "facts": [
     "h01",
     "f05",
     "f02",
-    "h07"
+    "h07",
+    "h10"
    ],
-   "simple": "You buy 104 shares: divide your dollars at risk by the stop gap, then round down to stay inside your risk.",
+   "simple": "104 shares, because $450 at risk over $4.30 a share is just over 104, and you round down.",
    "deeper": {
     "trap": "Rounding to the nearest whole share can give one more share than your risk allows. Always round down."
    },
@@ -1212,7 +1243,7 @@
      "the stop is a few cents under the low, as the owner's rulebook says (h01, A3, F62)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "10 shares",
     "112 shares",
@@ -1220,9 +1251,9 @@
     "104 shares"
    ],
    "wrong": {
-    "112 shares": "Rounded the prices to whole dollars, which shrank the stop gap.",
-    "450 shares": "Used the dollar risk as the share count.",
-    "10 shares": "Decimal slip on the risk percent, so the dollars shrank."
+    "112 shares": "You rounded the prices to whole dollars. That shrinks the stop to $4 and buys too many.",
+    "450 shares": "That's your dollar risk, not a share count.",
+    "10 shares": "Decimal slip on the 0.75%, so your dollars at risk shrank."
    }
   },
   {
@@ -1230,19 +1261,20 @@
    "skill": "risk.size_from_stop",
    "rung": 8,
    "format": "tf",
-   "q": "When the honest stop is too far for your size, the stop should move closer so the trade fits.",
+   "q": "The low of the day is further away than your normal size allows. Move the stop up closer so the trade fits.",
    "answer": "False",
-   "why": "False. Put the stop where you think it will work, then adjust the size to fit. Pulling the stop closer to make a trade fit moves it off the place where the idea fails. A normal swing can then hit it, and StockCharts warns that stops kept too tight get hit a lot. The SEC also says to pick the stop price with short-term swings in mind. If the honest stop is too far for your risk, take fewer shares. If even one share is too much, skip the trade. Our rule says the same.",
+   "why": "False. Never move the stop to fit the size. The low of the day is where the idea is wrong. Pull the stop up off it and normal noise takes you out of a good trade. So you buy fewer shares instead. If even one share risks too much, or the stop is past 5%, skip it and wait for a tighter entry.",
    "lesson_line": "The chart sets the stop. Your size does the adjusting.",
    "facts": [
     "f20",
     "f32",
     "f29",
-    "h03"
+    "h03",
+    "h10"
    ],
-   "simple": "False, because the stop goes where the idea fails, and you change the size instead of squeezing the stop.",
+   "simple": "False, because the stop goes where the idea fails, so you cut the size instead of squeezing the stop.",
    "deeper": {
-    "trap": "A closer stop feels safer because the loss per share looks small. But a stop set by what you can afford, and not by the chart, is hit by ordinary swings. You trade a smaller loss per share for more stop-outs."
+    "trap": "A closer stop feels safer because the loss per share looks small. But a stop set by what you can afford, and not by the chart, gets hit by ordinary swings. StockCharts warns stops kept too tight get hit a lot, and the SEC says to pick the stop price with short-term swings in mind."
    },
    "tier": "expert",
    "risk": {
@@ -1251,15 +1283,15 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "risk.size_from_stop",
    "rung": 8,
    "format": "scenario",
-   "story": "Your account is $4,000 and your plan caps risk at 0.5%, which is $20. The stock is $310. The honest stop is $25 under entry.",
-   "q": "How many whole shares fit your plan?",
+   "story": "Small account: $4,000, risking 0.5%, so $20 a trade. The stock is $310 and the low of the day is $25 under your buy.",
+   "q": "What can you buy here?",
    "choices": [
     "0 shares, skip the trade",
     "1 share, keep the $25 stop",
@@ -1276,20 +1308,21 @@
      "stop": 285
     }
    },
-   "why": "0 shares, so skip the trade. Your risk is $20, which is 0.5% of $4,000. One share risks $25, the gap between your entry and the honest stop. That is more than your $20, so not even one whole share fits. Do not round up to one share, and do not pull the stop in to $20 to make it fit. The chart sets the stop. Our rule is that if the honest stop does not fit the risk, we skip the trade. Being able to afford 12 shares at $310 is not the test.",
+   "why": "Zero. Pass on this one. One share at that stop risks $25, and your whole budget is $20. You can't buy less than one share, and you don't round up. Don't pull the stop in to $20 to make it fit either. And look at the stop itself: $25 on $310 is about 8%. That's past the 5% I'll take, so I'd skip it even in a bigger account.",
    "lesson_line": "If the honest stop doesn't fit your risk, skip the trade. Never tighten the stop.",
    "facts": [
     "h03",
     "f20",
     "f02",
-    "f19"
+    "f19",
+    "h10"
    ],
    "wrong": {
-    "1 share, keep the $25 stop": "One share risks $25, more than your $20 plan. You round down, never up.",
-    "1 share, tighten to a $20 stop": "That's tightening the stop to make the trade fit. The honest stop is $25 under.",
+    "1 share, keep the $25 stop": "One share risks $25, more than your $20. You round down, never up.",
+    "1 share, tighten to a $20 stop": "That's moving the stop to fit the trade. The low of the day is $25 under.",
     "12 shares, keep the $25 stop": "That's what $4,000 buys at $310. What you can afford isn't the test. The stop is."
    },
-   "simple": "You buy none and pass, because even one share risks $25, which is more than your $20.",
+   "simple": "Zero, because one share already risks $25 and your budget is $20, so you pass.",
    "deeper": {
     "trap": "A broker that sells part shares might let you buy a fraction of a share. That changes how you fit the trade, not the rule. The stop stays honest and the size comes from it."
    },
@@ -1302,7 +1335,7 @@
      "fixed before (verify notes)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The sizing",
@@ -1343,48 +1376,50 @@
    "skill": "risk.size_from_stop",
    "rung": 9,
    "format": "scenario",
-   "story": "You love this setup. Your plan risks 1%, and the honest stop is 6% under entry. You want to put in 40%.",
-   "q": "What's the right size?",
+   "story": "You love this setup. Your plan risks 1%, and the low of the day is 4% under your buy. You want to put 40% in.",
+   "q": "How big do you go?",
    "choices": [
-    "16.67% of the account, stop at 6%",
+    "25% of the account, stop at 4%",
     "40% of the account, stop at 2.5%",
-    "40% of the account, stop at 6%",
-    "6% of the account, stop at 6%"
+    "40% of the account, stop at 4%",
+    "4% of the account, stop at 4%"
    ],
-   "answer": "16.67% of the account, stop at 6%",
+   "answer": "25% of the account, stop at 4%",
    "calc": {
     "fn": "arith",
     "args": {
      "expr": "risk_pct / stop_pct * 100",
      "risk_pct": 1,
-     "stop_pct": 6
+     "stop_pct": 4
     }
    },
-   "why": "16.67% of the account. Divide your 1% risk by the 6% stop. Loving the setup does not move the place where the idea is wrong. StockCharts says some of the worst losses occur when you allow conviction to override structure. A 40% position with the honest 6% stop would risk far more than your 1% plan. Moving the stop to 2.5% so that 40% fits only hides the risk, because the idea is not wrong until 6%.",
+   "why": "25%, and the stop stays at 4%. 1 over 4 is a quarter, so 25% of the account. Loving the setup doesn't move the spot where it's wrong. Put 40% on with that 4% stop and you're risking well past your 1% plan. Pull the stop up to 2.5% so 40% fits and you've just hidden the risk. The idea isn't wrong until 4%, and a normal wiggle takes out the tighter stop. Conviction never sets the size. The chart does.",
    "lesson_line": "Conviction never sets the size. The stop does.",
    "facts": [
     "f21",
     "f20",
     "f17",
-    "h03"
+    "h03",
+    "h10"
    ],
    "wrong": {
-    "40% of the account, stop at 2.5%": "That's back-fitting the stop to the size you wanted. The idea isn't wrong at 2.5%. It's wrong at 6%.",
-    "40% of the account, stop at 6%": "Right stop, but that size risks far more than your 1% plan.",
-    "6% of the account, stop at 6%": "That mixes up the stop distance and the position. The stop is how far the stock falls, not how much you hold."
+    "40% of the account, stop at 2.5%": "That's bending the stop to fit the size you wanted. The idea isn't wrong until 4%.",
+    "40% of the account, stop at 4%": "Right stop, but that size risks well past the 1% you planned.",
+    "4% of the account, stop at 4%": "That mixes up the stop and the size. The stop is how far it falls, not how much you hold."
    },
-   "simple": "Buy 16.67% of the account, because a 1% risk over a 6% stop sets the size and your feelings do not.",
+   "simple": "25%, because a 1% risk over a 4% stop sets the size, and loving the setup doesn't change that.",
    "deeper": {
-    "trap": "A 40% position with a 2.5% stop looks like exactly a 1% risk, so the math seems fine. But the stop is now where a normal swing can hit it, not where the idea fails. You kept the number and lost the logic."
+    "trap": "40% with a 2.5% stop works out to exactly 1% on paper, so the math looks fine. But the stop now sits where a normal swing hits it, not where the idea fails. You kept the number and lost the logic. StockCharts: some of the worst losses occur when you allow conviction to override structure."
    },
    "tier": "expert",
    "risk": {
-    "score": 2,
+    "score": 3,
     "reasons": [
-     "the key is computed, so it rests on a calc"
+     "the key is computed, so it rests on a calc",
+     "voice pass 2026-11-17: the stop moved from 6% to 4% so the trade sits inside our 5% max (D-005) and does not repeat q10's 1% over 5%"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The sizing",
@@ -1398,7 +1433,7 @@
      {
       "key": "r2",
       "label": "Stop below entry",
-      "value": 6,
+      "value": 4,
       "fmt": "%"
      },
      {
@@ -1460,24 +1495,25 @@
    "rung": 5,
    "format": "tf",
    "house": true,
-   "q": "A very tight stop can make the risk math call for more than our 40% cap. Then you should hold the bigger number.",
+   "q": "You risk 0.5% and the stop is just 1% away, so the math says a 50% position. Tight stop, so you take the full 50%.",
    "answer": "False",
    "lesson_line": "The size is the smaller of the risk size and the cap.",
    "facts": [
     "h04",
     "h05",
-    "h08"
+    "h08",
+    "h02"
    ],
    "tier": "extended",
-   "simple": "False, because a tight stop never justifies a bigger position than the cap, since a gap can jump the stop.",
-   "why": "False. Our cap on one position is 40% of the account, and a tight stop never justifies more. The risk math can give a bigger number than the cap, and then the cap wins. The size is the smaller of the risk-based size and the cap. A gap can jump the stop, so a tight stop is no safety net.",
+   "simple": "False, because 40% is our cap, and a tight stop never earns more since a gap can jump the stop.",
+   "why": "False. You take 40%, our cap on any one position. The math says 50%, because 0.5 over 1 is 50. But the cap wins. Your size is the smaller of the two, because a stop can't catch a gap. Half the account in one name that gaps through a 1% stop is a real hit. At 40% you end up risking a bit less than planned. I'm fine with that.",
    "risk": {
     "score": 3,
     "reasons": [
      "rests on the owner's rulebook (A5, A7); the 40% cap is his 2026-11-09 number"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q26",
@@ -1485,7 +1521,7 @@
    "rung": 6,
    "format": "mcq",
    "house": true,
-   "q": "You risk 1% and the stop is 2% below entry, so risk math says 50%. Our cap is 40%. At 40%, what percent of the account do you risk?",
+   "q": "You plan 1% risk with a 2% stop, so the math says 50%. You hold it to our 40% cap. What are you really risking?",
    "answer": "0.8%",
    "calc": {
     "fn": "arith",
@@ -1496,15 +1532,15 @@
     }
    },
    "suffix": "%",
-   "lesson_line": "When the cap binds, you risk less than your plan.",
+   "lesson_line": "When the cap kicks in, you risk less than your plan.",
    "facts": [
     "h04",
     "h08",
     "f02"
    ],
    "tier": "extended",
-   "simple": "You risk 0.8%, because a 2% drop on a 40% position costs 0.8% of the account.",
-   "why": "0.8%. The cap holds you to 40%, not 50%. Risk is position size times stop distance. 40% of the account times a 2% drop is 0.8%.",
+   "simple": "0.8%, because a 2% drop on a 40% position costs 0.8% of the account.",
+   "why": "0.8% of the account. 40% times a 2% stop is 0.8%. When the cap kicks in, you risk less than your plan, and that's fine. I'd rather give up a little on paper than have half my account riding on one stop.",
    "risk": {
     "score": 4,
     "reasons": [
@@ -1512,7 +1548,7 @@
      "rests on the owner's rulebook (A5, A7)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.08%",
     "0.4%",
@@ -1520,9 +1556,9 @@
     "0.8%"
    ],
    "wrong": {
-    "1%": "Ignored the cap and assumed you still risk your plan.",
-    "0.08%": "Decimal slip the other way.",
-    "0.4%": "Applied the 40% cap to the 1% risk instead of the stop distance."
+    "1%": "That ignores the cap. At 40% you can't be risking the full 1%.",
+    "0.08%": "Decimal slip. 40% times 2% is 0.8%.",
+    "0.4%": "You put the 40% cap on the 1% risk. Multiply the size by the stop instead."
    },
    "visual": {
     "kind": "size",
@@ -1553,8 +1589,8 @@
    "rung": 9,
    "format": "scenario",
    "house": true,
-   "story": "Earnings come out in two days. Your open trade is up 2R, which is twice the risk you took. The stop is 3% below the price.",
-   "q": "What does our earnings rule tell you to do?",
+   "story": "You're up 2R on a swing, twice what you risked. Earnings come out in two days. Your stop sits 3% under the price.",
+   "q": "What's the play before the report?",
    "choices": [
     "Sell it before the report",
     "Halve it, hold the rest",
@@ -1563,11 +1599,11 @@
    ],
    "answer": "Sell it before the report",
    "wrong": {
-    "Halve it, hold the rest": "Investopedia says some traders halve their size before a report. Our rule is stricter: below 5R, you do not hold through it.",
-    "Hold it, trust the stop": "A stop does not cap the loss. It becomes a market order, and after a gap the fill can be far below it.",
-    "Add more before earnings": "Adding puts more money into a gap the stop cannot catch. We also open no new buys in the 3 days before a report."
+    "Halve it, hold the rest": "Some traders do that. We don't hold through a report under 5R, not even half.",
+    "Hold it, trust the stop": "A stop can't catch a gap. It fills at the next price, which can be way under your stop.",
+    "Add more before earnings": "We don't buy in the 3 days before a report. Adding just puts more money into a gap."
    },
-   "lesson_line": "Into earnings, hold only if you are up 5R. Otherwise sell.",
+   "lesson_line": "Into earnings, hold only if you're up 5R. Otherwise sell.",
    "facts": [
     "h06",
     "f04",
@@ -1575,10 +1611,10 @@
     "f30"
    ],
    "tier": "expert",
-   "simple": "Sell it before the report, because we hold through earnings only if the trade is up 5R, and this one is up 2R.",
-   "why": "Sell it before the report. Our rule is to hold through earnings only if the trade is up 5R, and this one is up 2R. We also open no new buys in the 3 days before a report. A stop is no shield against a gap. If the stock gaps below it, the order fills at the next available price. Investopedia notes some traders halve their size before earnings, but our rule is stricter.",
+   "simple": "Sell before the report, because we only hold through earnings when the trade is up 5R, and you're up 2R.",
+   "why": "Sell it before the report. We hold through earnings only when a trade is up 5R, and you're up 2R. A report can gap a stock right through your stop. The stop turns into a market order and you get the next price. That 3% stop could become a much bigger loss overnight. At 5R you've got the cushion to sit through that. At 2R you don't. Bank it and look again after the report.",
    "deeper": {
-    "trap": "A 3% stop sounds like a 3% maximum loss. It is only a trigger for a market order. FINRA says the price you get could be markedly different from your stop price."
+    "trap": "Investopedia notes some traders halve their size before earnings to cut gap risk. Ours is stricter. And a 3% stop sounds like a 3% max loss, but FINRA says the price you get could be markedly different from your stop price."
    },
    "risk": {
     "score": 5,
@@ -1587,7 +1623,7 @@
      "the 2R in the story is an invented drill number; selling is what the rule implies when the trade is below 5R"
     ]
    },
-   "batch": "pilot-1"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1623,167 +1659,163 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived stop first; key matches. Distractors each fail for a different reason. No tell."
+   "notes": "Stop first; key right, wrong notes name the mistakes. Sounds like a mentor."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True. Conditioned on dollar risk being set; cap caveat in why."
+   "notes": "True holds: same $500, wider stop, fewer shares; 25 from f02. Cap caveat kept."
   },
   "q03": {
    "status": "cut",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "cut in fills: see the resolver's notes"
+   "notes": "cut before this pass; stays cut"
   },
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False. Schwab 0.5% risk / 3.4% position and 1-2% vs 5-10% support it; stated as Schwab examples, not our limits."
+   "fixed": true,
+   "notes": "False is right (h02: a 1% stop on a 50% size is 0.5% risk). Stem was a textbook claim; now a trader's situation. Why tightened."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Dollars at risk / risk per share. Each distractor has its own failure. The cap is addressed in lesson_line (risk-based size).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Formula right; wrong choices are real slips (no stop, stock to zero, multiply)."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices distinct and real, no tell."
+   "notes": "300 / 1.50 = 200; 450, 2,000, 150 each a named slip."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True follows f18 (stop where the thesis fails) and A3. No number, no tell, stem answers nothing else."
+   "notes": "True per our stop rule; fewer shares or pass. No misstatement."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches h01 and A3/F62 (few cents under is in the why). Distractors are different wrong ideas; no length tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Low of the day or prior day's low, a few cents under (A3, F62); round-number swap is clearly wrong; ~3% from A13."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why skipped the dollar-risk step."
+   "fixed": false,
+   "notes": "240 / 1.50 = 160; stop 3% checks (1.5 / 50)."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles clear; slot 20% matches key."
+   "notes": "1 / 5 = 20%; 5% max stated correctly."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Result is a percent of the ACCOUNT (key '1%'); label 'Loss if the stop fills' alone could read as percent of the position. Position size 25% also needs its base."
+   "fixed": false,
+   "notes": "25% x 4% = 1%; distractors recomputed."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "300 / 2 = 150. Story is consistent ($300 at $1 = 300 shares). Distractors fail for distinct reasons."
+   "notes": "300 / 2 = 150; $600 at 300 shares checks. Reads like him."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True, supported by f31 (FINRA) and f28 (SEC). Hedged 'can' wording is correct."
+   "notes": "True per FINRA f31; stop where the idea fails, sized for it."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "125 / 4 = 31.25, so 31. 32 is the round-up trap, 312 and 1 fail distinctly."
+   "notes": "125 / 4 = 31.25 -> 31; $4 on $80 = 5%, at the limit, correct."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Both stops and the shared risk labelled; slot reads 4x."
+   "notes": "25% vs 6.25% = 4x; the why says he'd pass the 8% stop, so no forbidden trade is endorsed."
   },
   "q16": {
    "status": "cut",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "cut in pilot-1: see the resolver's notes"
+   "notes": "cut before this pass; stays cut"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (gap past the stop; paper risk 40% x 1% = 0.4%). The lesson_line calls a 40% position 'giant', but 40% is the owner's own cap (A7) and the story sits exactly at it. Reword so it teaches the gap, not the size.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "40% x 1% = 0.4% on paper; gap risk; 40% cap per A7."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Recomputed calc, answer matches, wrong choices real and distinct, no tell; why walks the steps with the givens (the grader bars derived intermediates)."
+   "fixed": true,
+   "notes": "33 right (500 / 15 = 33.3). Truth: '6 shares' said 'divided by the $86 price', but 500 / 86 = 5.8, which rounds DOWN to 5, the lesson's own rule. Choice is now '5 shares'."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Slot reads 2.4% (key too long to reuse) so label must say of the account; 30% needs its base. His 1% claim rightly omitted."
+   "fixed": false,
+   "notes": "30% x 8% = 2.4%; 3.75, 0.24, 12.5 recomputed. Good voice."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "450 / 4.30 = 104.65 -> 104; 4.30 / 125.40 = 3.4%; 112, 450, 10 recomputed."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False. Consistent with A3/A4 (never tighten) and q22. Sources f20, f32, f29 support."
+   "notes": "False; stop stays, size shrinks, past 5% wait. Matches A3, D-005."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Account, risk percent, price and $25 stop distance clear; slot reads '0 shares'."
+   "notes": "One share risks $25 > $20 budget; 25 / 310 = 8%; 4,000 / 310 = 12. Pass on it."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Slot reads 16.67% so label must say it is a share of the account; 40% lure is labelled 'Size you want' (fine)."
+   "notes": "Writer rightly moved the 6% stop inside our 5% max, but 1% risk over 5% = 20% duplicated q10 exactly, and was the third 'right at my limit' line. Stop now 4% (acceptable band): 1 / 4 = 25%, under the 40% cap; 40% at 2.5% still equals 1% on paper. Calc, choices, picture card, risk updated."
   },
   "q24": {
    "status": "cut",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "cut in pilot-1: see the resolver's notes"
+   "notes": "cut before this pass; stays cut"
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem states 'Our cap is 40%' and then asks if you may hold more than that, so the answer follows from the word cap and tests nothing. Rewrite so the stem shows the tight-stop pull above the cap and asks what to hold (A5, A7)."
+   "fixed": false,
+   "notes": "Risk size 50% capped at 40% (A5, A7); 40% x 1% = 0.4% < 0.5%, 'a bit less' correct."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cap and stop labelled; slot 0.8% matches key. The 1% and 50% givens left off."
+   "fixed": true,
+   "notes": "0.8% right (40 x 2 / 100). 'You stop at our 40% cap' reads as a stop-loss in a sizing lesson; stem reworded."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer right under B22 (up 2R, below 5R, so out; a partial hold is still a hold through the report). Form tell: three choices carry a comma reason clause and the key is the only bare action. Make all four parallel.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "B22: hold through a report only up 5R, no buys in the 3 days before; up 2R so sell. Strong voice."
   }
  }
 }

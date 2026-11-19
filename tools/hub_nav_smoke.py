@@ -73,7 +73,6 @@ import argparse
 import hashlib
 import http.server
 import json
-import os
 import pathlib
 import re
 import secrets
@@ -385,16 +384,19 @@ def login(page, base: str) -> bool | None:
     code H15 rolls back on. ⛔ Print `brief(exc)`, never the exception: its call log carries the
     response's set-cookie, and that put a live smoke session into two run logs.
     """
-    email = os.environ.get("SMOKE_EMAIL")
-    pw = os.environ.get("SMOKE_PASSWORD")
-    if not email or not pw:
+    # ⛔ Signed in through tools/synthetic_session.py, which signs the session OUT when the run
+    # ends (however it ends). A raw POST here left 301 live admin sessions behind (2026-11-17).
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import (tests)
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    if not S.has_credentials("smoke"):
         return False
     try:
-        resp = page.request.post(
-            f"{base}/api/auth/login",
-            data=json.dumps({"email": email, "password": pw}),
-            headers={"Content-Type": "application/json"},
-        )
+        session = S.sign_in_playwright(page, base, "smoke")
+    except S.SignInError as exc:
+        say(f"  ! sign-in refused: {exc} — running UNAUTHENTICATED", err=True)
+        return False
     except Exception as exc:  # noqa: BLE001 — any transport failure means nothing was measured
         try:
             from tools.secret_scrub import brief  # noqa: PLC0415 — package import (tests)
@@ -402,10 +404,10 @@ def login(page, base: str) -> bool | None:
             from secret_scrub import brief  # noqa: PLC0415 — script import (tools/ on sys.path)
         say(f"INCONCLUSIVE: the sign-in request did not complete ({brief(exc)})", err=True)
         return None
-    if not resp.ok:
-        say(f"  ! login HTTP {resp.status} — running UNAUTHENTICATED", err=True)
+    if not session.ok:
+        say(f"  ! login HTTP {session.status} — running UNAUTHENTICATED", err=True)
         return False
-    say(f"  [ok] signed in as {email}")
+    say(f"  [ok] signed in as {session.email}")
     return True
 
 

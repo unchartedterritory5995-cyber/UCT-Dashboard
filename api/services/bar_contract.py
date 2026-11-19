@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import os
 import time as _time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 CONTRACT_VERSION = 1
@@ -94,6 +94,19 @@ def _date_of(t) -> date | None:
         return None
 
 
+def _session_date_of(t) -> date | None:
+    """A DAILY row's key as its session date: everything `_date_of` reads, and the key a cash
+    index's daily row carries (`index_bars._utc_midnight`: the UTC midnight of the session
+    date, in unix seconds). ⭐ RS RATING L10 — read FIRST and only in that exact shape (an int
+    >= 1e9 that is a whole UTC day): a YYYYMMDD int is < 1e9, an ISO key is a string, so no
+    equity or store key can take this branch."""
+    if isinstance(t, (int, float)) and not isinstance(t, bool) and t >= 1_000_000_000:
+        if int(t) == t and int(t) % 86400 == 0:
+            return datetime.fromtimestamp(int(t), timezone.utc).date()
+        return None
+    return _date_of(t)
+
+
 def _rth_close_ts(d: date) -> int:
     from api.services.bars_fetch import _session_window
     return _session_window(d, "rth")[1]
@@ -119,7 +132,7 @@ def bucket_bounds(tf: str, t, grid: str) -> tuple[int, int] | None:
     M = the month's last session close (key = the 1st). None for an unreadable key."""
     try:
         if tf in DATE_TFS:
-            d = _date_of(t)
+            d = _session_date_of(t) if tf == "D" else _date_of(t)
             if d is None:
                 return None
             if tf == "D":
@@ -219,7 +232,14 @@ def compute(ticker: str, tf: str, session, rows: list, *, delta: bool = False,
         meta = _bs.series_meta(tkr, src)
     rev = int(meta.get("rev") or 0)
     out["series_rev"] = rev
-    out["history_rev"] = int(meta.get("history_rev") or 0)
+    # + the identity epoch of a corrected D/W/M series (bars_identity): a client holding a copy from
+    # before the correction sees a newer history and replaces it whole.
+    from api.services import bars_identity as _bid
+    from api.services import bars_rebuild as _reb
+    # + the rebuilt-history epoch (bars_rebuild): a browser holding a copy of the stored history replaces it
+    # whole when the rebuilt one starts being served for this ticker.
+    out["history_rev"] = (int(meta.get("history_rev") or 0) + _bid.history_epoch(tkr, tf)
+                          + _reb.history_epoch(tkr, tf))
     # The basis the stored rows are on, read with (before) the rows like every claim here:
     # the heal writes rows + stamp in one transaction, so a stamp read first never names a
     # basis newer than the rows that follow (a racing heal also moves history_rev).

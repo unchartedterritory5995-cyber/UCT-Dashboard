@@ -61,6 +61,83 @@ export const HILO_SIDE_WORDS = Object.freeze({
   HIGHS: 'highs', HIGH: 'highs', HI: 'highs', NH: 'highs',
   LOWS: 'lows', LOW: 'lows', LO: 'lows', NL: 'lows',
 })
+export const FLOW_LIST_ARG_WORDS = Object.freeze({
+  CREAM: 'cream', CROP: 'cream', TOP: 'cream',
+  OPEN: 'open', BOARD: 'open', OPENFLOW: 'open',
+})
+// data wave 4: copies of the panel models' words (args.dataWave4.test.js pins each to its owner)
+export const CONFLUENCE_LEAN_WORDS = Object.freeze({
+  ALL: 'all', BOTH: 'all', ANY: 'all',
+  BULL: 'bullish', BULLS: 'bullish', BULLISH: 'bullish', LONG: 'bullish',
+  BEAR: 'bearish', BEARS: 'bearish', BEARISH: 'bearish', SHORT: 'bearish',
+})
+export const REPEAT_ORDER_WORDS = Object.freeze({
+  STRONG: 'strong', STRONGEST: 'strong', SCORE: 'strong', TOP: 'strong', BEST: 'strong',
+  LATEST: 'latest', RECENT: 'latest', NEWEST: 'latest', TIME: 'latest',
+})
+export const PERIOD_RANGE_WORDS = Object.freeze({
+  MTD: 'mtd', MONTH: 'mtd',
+  QTD: 'qtd', QUARTER: 'qtd',
+  YTD: 'ytd', YEAR: 'ytd',
+  '1M': 'm1', '3M': 'm3', '6M': 'm6', '1Y': 'y1', '12M': 'y1',
+})
+export const PERIOD_UNIT_WORDS = Object.freeze({
+  STOCKS: 'stocks', STOCK: 'stocks',
+  SECTORS: 'sector', SECTOR: 'sector',
+  INDUSTRIES: 'industry', INDUSTRY: 'industry',
+  THEMES: 'theme', THEME: 'theme',
+})
+export const PERIOD_SIDE_WORDS = Object.freeze({
+  GAINERS: 'gainers', GAINER: 'gainers', UP: 'gainers', TOP: 'gainers', BEST: 'gainers',
+  LOSERS: 'losers', LOSER: 'losers', DOWN: 'losers', BOTTOM: 'losers', WORST: 'losers',
+})
+/** CEOS's list words: a copy of panels/callThemesModel.js CALL_THEMES_LIST_ARG_WORDS (args.callThemes.test.js). */
+export const CALL_THEMES_LIST_WORDS = Object.freeze({
+  NEW: 'new', FRESH: 'new', FIRST: 'new',
+  RISING: 'rising', RISE: 'rising', RISERS: 'rising', UP: 'rising',
+  BOTH: 'both', ALL: 'both',
+})
+export const ROTATION_SIDE_ARG_WORDS = Object.freeze({
+  IN: 'in', INTO: 'in', UP: 'in', RISING: 'in', LEADERS: 'in', GAINING: 'in',
+  OUT: 'out', DOWN: 'out', FADING: 'out', FALLING: 'out', LAGGARDS: 'out', LOSING: 'out',
+})
+export const TOP_FLOW_STATUS_WORDS = Object.freeze({
+  OPEN: 'open', ACTIVE: 'open', LIVE: 'open',
+  EXPIRED: 'expired', ARCHIVED: 'expired', PAST: 'expired', CLOSED: 'expired',
+})
+export const TOP_FLOW_DIRECTION_WORDS = Object.freeze({
+  BULL: 'bullish', BULLS: 'bullish', BULLISH: 'bullish',
+  BEAR: 'bearish', BEARS: 'bearish', BEARISH: 'bearish',
+})
+export const TOP_FLOW_SORT_WORDS = Object.freeze({
+  GAIN: 'gain', GAINERS: 'gain', WINNERS: 'gain', BEST: 'gain',
+  LOSS: 'loss', LOSERS: 'loss', WORST: 'loss',
+  PEAK: 'peak', HIGH: 'peak',
+  NEW: 'newest', NEWEST: 'newest', LATEST: 'newest', RECENT: 'newest',
+})
+// the earnings season screen: copies of the panel model's words (args.earningsSeason.test.js pins each to its owner)
+export const EARNINGS_DAY_WORDS = Object.freeze({ TODAY: 'today', TONIGHT: 'tonight', TOMORROW: 'tomorrow' })
+export const EARNINGS_SESSION_WORDS = Object.freeze({
+  BMO: 'bmo', MORNING: 'bmo', BEFORE: 'bmo',
+  AMC: 'amc', EVENING: 'amc', AFTER: 'amc',
+})
+// unusual volume: copies of the panel model's words (args.unusualVolume.test.js pins each to its owner)
+export const UNVOL_SIDE_WORDS = Object.freeze({
+  UP: 'up', GAINERS: 'up', GREEN: 'up',
+  DOWN: 'down', DN: 'down', LOSERS: 'down', RED: 'down',
+})
+export const UNVOL_MIN_WORDS = Object.freeze({
+  '2X': 2, 2: 2, '3X': 3, 3: 3, '5X': 5, 5: 5,
+})
+// the short interest list: a copy of the panel model's words (args.shortInterest.test.js pins it to its owner)
+export const SHORT_RANK_WORDS = Object.freeze({
+  DTC: 'dtc', DAYS: 'dtc', COVER: 'dtc',
+  UP: 'up', INCREASE: 'up', INCREASES: 'up', RISING: 'up', BUILDING: 'up',
+  DOWN: 'down', DECREASE: 'down', DECREASES: 'down', FALLING: 'down', COVERING: 'down',
+  FLOAT: 'float', PCT: 'float', PERCENT: 'float',
+})
+/** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
+export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
   LEADERS: 'starter_rs_leaders', LEADER: 'starter_rs_leaders', LDR: 'starter_rs_leaders',
   TOP: 'starter_rs_top_rating', RATING: 'starter_rs_top_rating',
@@ -279,6 +356,203 @@ export const ARG_KINDS = {
     takes: 'LEADERS, TOP, NH, NHBP or EXIT',
     parse: (tok) => RS_SCREEN_ARG_WORDS[String(tok).toUpperCase()] ?? null,
     describe: (v) => `screen ${String(v).replace(/^starter_rs_/, '').replace(/_/g, ' ')}`,
+  },
+  // ── data wave 3 (2026-11-17) ──
+  /** PERF's account: `ALL`, or the account's place in the Journal's own list (`2` is the second).
+   *  Never an id, so a command, a link and the history carry nothing personal. The reader is
+   *  panels/performanceModel.js parsePerformanceAccount (pinned by args.dataWave3.test.js). */
+  journalAccount: {
+    takes: 'ALL, or an account number (1, 2, 3)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (t === 'ALL') return 'all'
+      return /^\d{1,2}$/.test(t) && Number(t) >= 1 ? Number(t) : null
+    },
+    describe: (v) => (v === 'all' ? 'all accounts' : `account ${v}`),
+  },
+  /** FLWL's list: Cream of the Crop or the open flow board (panels/flowListsModel.js LIST_WORDS). */
+  flowList: {
+    takes: 'CREAM or OPEN',
+    parse: (tok) => FLOW_LIST_ARG_WORDS[String(tok).toUpperCase()] ?? null,
+    describe: (v) => (v === 'open' ? 'the open flow board' : 'Cream of the Crop'),
+  },
+  // ── data wave 4 (2026-11-17) ──
+  /** CONFL's direction (panels/confluenceModel.js CONFLUENCE_LEAN_ARG_WORDS; pinned by args.dataWave4.test.js). */
+  confluenceLean: {
+    takes: 'BULL or BEAR',
+    parse: (tok) => CONFLUENCE_LEAN_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'all' ? 'every direction' : `${v} names`),
+  },
+  /** ACCUM's order (panels/repeatContractsModel.js REPEAT_ORDER_ARG_WORDS). */
+  repeatOrder: {
+    takes: 'STRONG or LATEST',
+    parse: (tok) => REPEAT_ORDER_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'latest' ? 'latest first' : 'strongest first'),
+  },
+  /** PCHG's one-click range (panels/periodChangeModel.js PERIOD_RANGE_ARG_WORDS). */
+  periodRange: {
+    takes: 'a range (MTD, QTD, YTD, 1M, 3M, 6M, 1Y)',
+    parse: (tok) => PERIOD_RANGE_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `range ${({ mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', m1: '1M', m3: '3M', m6: '6M', y1: '1Y' })[v] || v}`,
+  },
+  /** PCHG's own dates, a whole date each (`2026-01-02`, `20260102`, `1/2/2026`): the first typed
+   *  is the start, the second the end. Unlike `etDate` a year is always typed, because a range
+   *  can reach back decades. The panel model (periodRequest) decides what the server can take. */
+  periodDate: {
+    takes: 'one or two dates (YYYY-MM-DD)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim()
+      let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t) || /^(\d{4})(\d{2})(\d{2})$/.exec(t)
+      let parts = m ? [m[1], m[2], m[3]] : null
+      if (!parts) { m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t); if (m) parts = [m[3], m[1], m[2]] }
+      if (!parts || Number(parts[0]) < 1900 || Number(parts[0]) > 2200) return null
+      const iso = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`
+      return isRealIsoDate(iso) ? iso : null
+    },
+    describe: (v) => `date ${v}`,
+  },
+  /** PCHG's what-to-rank: stocks, or sectors, industries and themes over the same dates
+   *  (panels/periodChangeModel.js PERIOD_UNIT_ARG_WORDS). `PCHG QTD SECTORS`. */
+  periodUnit: {
+    takes: 'STOCKS, SECTORS, INDUSTRIES or THEMES',
+    parse: (tok) => PERIOD_UNIT_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => ({ stocks: 'stocks', sector: 'sectors', industry: 'industries', theme: 'themes' })[v] || v,
+  },
+  /** PCHG's end of the list (panels/periodChangeModel.js PERIOD_SIDE_ARG_WORDS). */
+  periodSide: {
+    takes: 'GAINERS or LOSERS',
+    parse: (tok) => PERIOD_SIDE_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'losers' ? 'biggest losers' : 'biggest gainers'),
+  },
+  /** TSRC's search words: a REST kind (`rest: true`), every word typed after the code, joined.
+   *  Any non-empty text is taken here; the PANEL (callSearchModel.callQuery) says why a query
+   *  cannot run (too short, too long), next to the box, because a one-letter word inside a phrase
+   *  ("plan b") is fine while a one-letter query is not, and this kind sees one word at a time.
+   *  Lower case, always: the command line carries no letter case (the shell upper-cases what is
+   *  typed), and in capitals a plain "and" / "or" / "not" would reach the search as an operator. */
+  callQuery: {
+    takes: 'a word or a phrase (TSRC pricing power)',
+    parse: (tok) => {
+      const t = String(tok ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
+      return t ? t : null
+    },
+    describe: (v) => `search "${v}"`,
+  },
+  /** CEOS's two picks (panels/callThemesModel.js; pinned by args.callThemes.test.js): which list,
+   *  and a month as YYYY-MM. `CEOS RISING 2026-10` reads the same in either order. */
+  callThemesList: {
+    takes: 'NEW, RISING or BOTH',
+    parse: (tok) => CALL_THEMES_LIST_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => ({ new: 'phrases new this month', rising: 'rising phrases', both: 'both lists' })[v] || v,
+  },
+  callThemesMonth: {
+    takes: 'a month as YYYY-MM',
+    parse: (tok) => {
+      const m = /^(\d{4})[-/](\d{1,2})$/.exec(String(tok ?? '').trim())
+      if (!m || Number(m[1]) < 2000 || Number(m[1]) > 2100 || Number(m[2]) < 1 || Number(m[2]) > 12) return null
+      return `${m[1]}-${m[2].padStart(2, '0')}`
+    },
+    describe: (v) => `month ${v}`,
+  },
+  /** TROT's side: themes rotating in, or rotating out (panels/themeRotationModel.js ROTATION_SIDE_WORDS). */
+  rotationSide: {
+    takes: 'IN or OUT',
+    parse: (tok) => ROTATION_SIDE_ARG_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'out' ? 'themes rotating out' : 'themes rotating in'),
+  },
+  // ── data wave 6 (2026-11-17) ──
+  /** TOPF's three picks (panels/topFlowModel.js; pinned by args.dataWave6.test.js): which picks,
+   *  which direction, and the order. No word sits in two of the maps, so `TOPF EXPIRED BEAR PEAK`
+   *  reads the same in any order. */
+  topFlowStatus: {
+    takes: 'OPEN or EXPIRED',
+    parse: (tok) => TOP_FLOW_STATUS_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `${v} picks`,
+  },
+  topFlowDirection: {
+    takes: 'BULL or BEAR',
+    parse: (tok) => TOP_FLOW_DIRECTION_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `${v} picks`,
+  },
+  topFlowSort: {
+    takes: 'an order (GAIN, LOSERS, PEAK, NEW)',
+    parse: (tok) => TOP_FLOW_SORT_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => ({ gain: 'biggest gain first', loss: 'biggest loss first', peak: 'biggest peak gain first', newest: 'newest pick first' })[v] || v,
+  },
+  // ── the earnings season screen (2026-11-17) ──
+  /** ERNS's day (panels/earningsSeasonModel.js parseEarningsDay; pinned by args.earningsSeason.test.js):
+   *  TODAY, TONIGHT (today, after the close), TOMORROW (the next session), or a date. Unlike
+   *  `etDate` the day may be ahead, and `11/19` is the NEAREST such day, not the most recent. The
+   *  word is kept as a word, so a saved `ERNS TOMORROW` still means tomorrow the day after. */
+  earningsDay: {
+    takes: 'TODAY, TONIGHT, TOMORROW or a date (YYYY-MM-DD or MM/DD)',
+    parse: (tok, ctx = {}) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (Object.prototype.hasOwnProperty.call(EARNINGS_DAY_WORDS, t)) return EARNINGS_DAY_WORDS[t]
+      if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return isRealIsoDate(t) ? t : null
+      const m = t.match(/^(\d{1,2})\/(\d{1,2})$/)
+      if (!m) return null
+      const today = ctx.today || todayIso()
+      const p = (n) => String(n).padStart(2, '0')
+      const year = Number(today.slice(0, 4))
+      const at = (y) => `${y}-${p(m[1])}-${p(m[2])}`
+      const dayNumber = (iso) => { const [y, mo, d] = iso.split('-').map(Number); return Date.UTC(y, mo - 1, d) / 86400000 }
+      let iso = at(year)
+      if (!isRealIsoDate(iso)) return null
+      const away = dayNumber(iso) - dayNumber(today)
+      if (away < -EARNINGS_DAY_REACH) iso = at(year + 1)
+      else if (away > EARNINGS_DAY_REACH) iso = at(year - 1)
+      return isRealIsoDate(iso) ? iso : null
+    },
+    describe: (v) => ({ today: 'today', tonight: 'today, after the close', tomorrow: 'the next session' })[v] || `day ${v}`,
+  },
+  /** ERNS's part of the day (panels/earningsSeasonModel.js EARNINGS_SESSION_ARG_WORDS). */
+  earningsSession: {
+    takes: 'BMO (before the open) or AMC (after the close)',
+    parse: (tok) => EARNINGS_SESSION_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'bmo' ? 'before the open' : 'after the close'),
+  },
+  // ── sector and theme drill-down (2026-11-18) ──
+  /** GRP's group, by NAME or by sector fund: a REST kind (`rest: true`), every word the range does
+   *  not take, joined (`GRP AI / GPU CHIPS`, `GRP AEROSPACE & DEFENSE`, `GRP XLK`). A leading
+   *  SECTOR, INDUSTRY or THEME pins the kind; the PANEL (panels/groupDrillModel.js parseGroupQuery,
+   *  resolveGroup) reads that word and resolves the name against the lists it loads, because the
+   *  groups are data, not a constant. A range word is never a name word, so a second one (`GRP XLK
+   *  3M 1Y`) is said to be not applied instead of becoming part of the name. Upper case, as typed:
+   *  the resolver ignores case and punctuation. */
+  groupName: {
+    takes: 'a sector fund, a sector, an industry or a theme (GRP XLK, GRP THEME AI / GPU CHIPS)',
+    parse: (tok) => {
+      const t = String(tok ?? '').replace(/\s+/g, ' ').trim().toUpperCase()
+      if (!t || Object.prototype.hasOwnProperty.call(PERIOD_RANGE_WORDS, t)) return null
+      return t
+    },
+    describe: (v) => `group "${v}"`,
+  },
+  // ── unusual volume (2026-11-18) ──
+  /** UNVOL's two picks (panels/unusualVolumeModel.js; pinned by args.unusualVolume.test.js): which
+   *  way the stock is going on the day, and how far above its usual volume it must be. No word
+   *  sits in both maps, so `UNVOL 3X UP` reads the same in either order. */
+  unvolSide: {
+    takes: 'UP or DOWN',
+    parse: (tok) => UNVOL_SIDE_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => (v === 'down' ? 'down on the day' : 'up on the day'),
+  },
+  unvolMin: {
+    takes: 'a multiple (2X, 3X, 5X)',
+    parse: (tok) => UNVOL_MIN_WORDS[String(tok ?? '').trim().toUpperCase()] ?? null,
+    describe: (v) => `${v}× its usual volume or more`,
+  },
+  // ── short interest (2026-11-18) ──
+  /** SHRTS's rank (panels/shortListModel.js SHORT_RANK_ARG_WORDS; pinned by args.shortInterest.test.js). */
+  shortRank: {
+    takes: 'a rank (DTC, UP, DOWN, FLOAT)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(SHORT_RANK_WORDS, key) ? SHORT_RANK_WORDS[key] : null
+    },
+    describe: (v) => ({ dtc: 'most days to cover first', up: 'biggest increase in short interest first',
+      down: 'biggest decrease in short interest first', float: 'highest percent of float first' })[v] || v,
   },
 }
 

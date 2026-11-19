@@ -18,8 +18,8 @@ beforeEach(() => {
   mockData = {
     ok: true,
     rows: [
-      { sym: 'NVDA', bull: 500000, bear: 50000, net: 450000, bullPct: 0.91, cp: 'C', strike: 900, exp: '2026-11-20', since: '2026-09-01', perf: 12.5 },
-      { sym: 'TSLA', bull: 20000, bear: 300000, net: -280000, bullPct: 0.06, cp: 'P', strike: 200, exp: '2026-10-16', since: '2026-09-05', perf: -4.2 },
+      { sym: 'NVDA', bull: 500000, bear: 50000, net: 450000, bullPct: 91, cp: 'C', strike: 900, exp: '2026-11-20', since: '2026-09-01', perf: 12.5 },
+      { sym: 'TSLA', bull: 20000, bear: 300000, net: -280000, bullPct: 6, cp: 'P', strike: 200, exp: '2026-10-16', since: '2026-09-05', perf: -4.2 },
     ],
     n_names: 2,
     open_contracts: 2,
@@ -33,6 +33,15 @@ test('renders the board with real rows', () => {
   expect(screen.getByText('NVDA')).toBeTruthy()
   expect(screen.getByText('TSLA')).toBeTruthy()
   expect(screen.getByText(/2 names/)).toBeTruthy()
+})
+
+// The server sends the bullish share as a whole percent already (weekly_flow.board_data rounds
+// bull / total * 100). The page used to multiply it by 100 again and print 9100%.
+test('the bullish share is shown as the server sends it, never multiplied again', () => {
+  render(<OpenFlow />)
+  expect(screen.getByText('91%')).toBeTruthy()
+  expect(screen.getByText('6%')).toBeTruthy()
+  expect(screen.queryByText('9100%')).toBeNull()
 })
 
 test('a loading state with no data yet shows a loading message, not an empty table', () => {

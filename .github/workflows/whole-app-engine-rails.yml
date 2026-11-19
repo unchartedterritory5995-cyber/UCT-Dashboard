@@ -1,0 +1,119 @@
+# promotion-gate: no — ADVISORY, PR-only. It never runs on a master push; the master deploy gate runs the same list.
+# ─── THE ENGINE'S WHOLE-APP RAILS, ON EVERY PR THAT CAN BREAK THEM ─────────────────────────────────────────────
+#
+# ⚰️ WHY (2026-11-17). Some tests under app/src/components/chart/engine/ read files OUTSIDE the engine:
+# memberPaneGate walks the import graph from src/main.jsx; suiteCoverage lists the test folders under
+# components/chart; three source rails import StockChart.jsx as text. They ran only in pine heavy, which triggers
+# on engine paths, so #1662 (pages/formulas/deviceDrawTime.js) and #1670 (builder/inspect) merged green while
+# breaking memberPaneGate and suiteCoverage, and the NEXT engine PRs (#1672, #1677) went red on someone else's
+# change. Widening pine heavy's trigger to app/src/** would buy this at ~100 runner-minutes a PR (half of all
+# runner minutes already); this job runs ONLY those rails, on one runner, in a few minutes.
+#
+# ⭐ MEASURED, NOT GUESSED (2026-11-17): a read capture over all 1,137 engine test files found 311 that read outside
+# the engine. 240 read only Pine fixtures, Pine docs and Pine tool outputs: those paths became pine heavy TRIGGERS
+# (a Pine fixture change is Pine work). The other 71 read the app (and, for the walkers, api/, services/, tools/
+# and tests/fixtures/): they are this job's list (68 after api/services/bars_window.py, read by the strategy lane,
+# became a pine heavy trigger), and every path they read is in `paths:` below. So this job triggers on most PRs;
+# it is the cheap one (~68 files, ~100 s of tests on 2 workers, ~3 min of job).
+#
+# ⛔ THE LIST IS DERIVED, NOT HAND-KEPT ALONE: tools/whole_app_engine_rails.txt. Every pine heavy run records
+# which files each engine test file reads (app/src/test-read-capture.cjs) and `union` fails when a test that reads
+# outside pine heavy's trigger paths is missing from the list, when a listed file no longer does, or when one of
+# those reads is outside this file's `paths:` below (tools/ci_whole_app_rails.py). So a NEW whole-app rail goes
+# red on the engine PR that adds it, never on a stranger's PR later. This job runs the list WITH the capture on,
+# and runs the same check over what it captured: every listed file must still read outside the engine, and every
+# path it reads must trigger this job.
+#
+# Runs in pine heavy's environment (its setup action: Node 20, cached node_modules, EMPTY licence-held stores,
+# the no-network wrapper), so a rail answers here exactly as it does there.
+# No secrets, no pull_request_target, read-only token. tests/test_ci_whole_app_rails.py rails this file.
+name: whole-app engine rails (PR)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      # every path a listed rail reads that pine heavy's trigger does not cover (tools/ci_whole_app_rails.py
+      # --check fails when one is missing here)
+      # (whole trees where a rail WALKS one: memberPaneGate the app's import graph, minContractLock app/src,
+      # api/, services/ and tools/, manifestProse and enumerationSites api/, i6aN4BlockIndent tests/fixtures/)
+      - 'app/**'
+      - 'api/**'
+      - 'services/**'
+      - 'tools/**'
+      - 'docs/decisions/**'
+      - 'docs/superpowers/**'
+      - 'docs/frontend_feature_flags.json'
+      - 'docs/pine/lwc5-capability-map.md'
+      - 'tests/fixtures/**'
+      - 'tests/test_the_member_loop_end_to_end.py'
+      # this job's own definition and tooling
+      - '.github/workflows/whole-app-engine-rails.yml'
+      - '.github/actions/pine-heavy-setup/**'
+      - 'tests/test_ci_whole_app_rails.py'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # ⛔ the out-of-git stores, pinned to directories the setup action creates EMPTY (and refuses if not), as pine heavy
+  UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
+  UCT_HARNESS_SUPPLY_STORE: /tmp/pine-heavy-empty-store/supply
+  CI_TOOLS: .pine-heavy-ci
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  rails:
+    name: whole-app engine rails
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # FULL history: listed rails read StockChart.jsx at an older commit (`git show <sha>:...`, e.g.
+          # enumerationSites, legendFromDefinitions), which a depth-1 checkout cannot answer. Depth 1 is allowed
+          # only while no listed rail reads history: tests/test_ci_whole_app_rails.py derives the readers.
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: The rails of this file and its tool
+        run: |
+          python -m pip install --quiet pytest pyyaml
+          python -m pytest tests/test_ci_whole_app_rails.py -q -p no:cacheprovider
+      - name: The list names real engine test files, once each
+        run: python tools/ci_whole_app_rails.py --verify-list
+      - name: The whole-app rails (offline, read capture on)
+        working-directory: app
+        run: |
+          set -euo pipefail
+          files="$(python ../tools/ci_whole_app_rails.py --print-list)"
+          echo "$files"
+          start=$(date +%s); rc=0
+          # shellcheck disable=SC2086
+          UCT_READ_CAPTURE_DIR="$GITHUB_WORKSPACE/read-capture" bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run $files --maxWorkers=2 \
+            --reporter=default --reporter=json --outputFile=../whole-app-out/report.json || rc=$?
+          echo "whole-app engine rails wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - name: Every listed file ran, still reads outside the engine, and every path it reads triggers this job
+        if: always()
+        run: |
+          python tools/ci_whole_app_rails.py --ran whole-app-out/report.json
+          python tools/ci_whole_app_rails.py --check --expected-list --captures read-capture --report whole-app-out/reads.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: whole-app-engine-rails
+          path: whole-app-out/
+          if-no-files-found: warn

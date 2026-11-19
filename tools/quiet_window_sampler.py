@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import pathlib
 import time
 from datetime import datetime, timezone
@@ -33,8 +32,12 @@ def _utc_today_at(hhmm: str) -> float:
 
 
 def _login(c: httpx.Client) -> None:
-    r = c.post("/api/auth/login", json={"email": os.environ["SMOKE_EMAIL"],
-                                        "password": os.environ["SMOKE_PASSWORD"]})
+    # tools/synthetic_session.py signs every session it opens OUT when the run ends.
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    r = S.sign_in_client(c, BASE, "smoke").response
     r.raise_for_status()
 
 

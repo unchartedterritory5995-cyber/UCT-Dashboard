@@ -38,7 +38,7 @@
 // ⛔ No copy in this file contains an em dash (rail: editorStatus.families.test.js).
 
 import { evaluability, LANES, STATUS, GATE_GUARDS } from '../engine/evaluability'
-import { TABLE } from '../engine/ast/parse'
+import { TABLE, noteHeading } from '../engine/ast/parse'
 import { OUTCOME, importOutcome } from '../engine/ast/importOutcome'
 import { BLOCK_RUNS_GUARD } from '../engine/blockRuns'
 import { OBJECT_REMOVAL_GUARD } from '../engine/ast/objectLoss'
@@ -129,6 +129,15 @@ export const FAMILIES = Object.freeze([
     prefix: ['runtime:worker-'],
     label: 'Engine fault',
     why: 'Our engine could not finish this script. That is on us, not your script.',
+  },
+  {
+    // HOST KNOWN-DIVERGENCE (owner decision 2026-11-17): a committed TradingView capture shows this script
+    // drawing something different (`engine/hostKnownDivergence.js`); the door's own sentence names the capture
+    id: 'divergence',
+    exact: ['pine:known-divergence'],
+    label: 'Differs from TradingView on a captured chart',
+    why: 'On a chart we captured from TradingView, this script draws something that differs from what '
+      + 'TradingView draws, so it is withheld until that is fixed. The message names the capture.',
   },
   {
     id: 'unverified',
@@ -595,7 +604,10 @@ export function statusItems(report, pane = null) {
   const outcome = (report && report.outcome) || {}
   for (const s of (outcome.semantic || [])) {
     if (!s) continue
-    items.push(item({ severity: SEVERITY.NOTE, kind: 'difference', name: s.name, guard: null, reason: s.note, line: s.line }))
+    // A fold's note is keyed by its CHANNEL (`baseTimeframeFolds`), an internal name: the heading a member reads is
+    // the label declared beside the sentence (closedTable `_folds.<channel>.memberLabel`, via parse.js::noteHeading),
+    // the same reader PineBox's note list uses. A function name such as `ta.rsi` passes through unchanged.
+    items.push(item({ severity: SEVERITY.NOTE, kind: 'difference', name: noteHeading(s.name), guard: null, reason: s.note, line: s.line }))
   }
   // What the chart's bind may refuse on some charts (data or period dependent).
   for (const it of [...blockRunItems(pane), ...periodReadItems(pane)]) items.push(it)
@@ -603,7 +615,7 @@ export function statusItems(report, pane = null) {
     for (const n of pane.notes) {
       if (!n || !n.note || said(n.note)) continue
       if (items.some((x) => x.kind === 'paint' && x.reason && n.note.includes(x.reason))) continue
-      items.push(item({ severity: SEVERITY.NOTE, kind: 'pane-note', name: n.name, guard: null, reason: n.note }))
+      items.push(item({ severity: SEVERITY.NOTE, kind: 'pane-note', name: noteHeading(n.name), guard: null, reason: n.note }))
     }
   }
   return items

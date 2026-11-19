@@ -729,10 +729,10 @@
    "key": "w1",
    "title": "Three clocks, three charts",
    "steps": [
-    "A day trader is in and out the same day, holding for seconds to hours. The work happens on intraday charts.",
-    "A swing trader holds for days or weeks. The setup usually lives on the daily chart, often timed on an hourly one.",
-    "A position trader rides a trend for weeks or months. Many work off the weekly chart.",
-    "Pick setups that run on the clock you can actually keep."
+    "Start with how long you'll hold. A day trader holds seconds to hours and works intraday charts.",
+    "A swing trader holds days or weeks. The setup lives on the daily, and the entry often gets timed on the hourly.",
+    "A position trader rides a trend for weeks or months, off the weekly chart.",
+    "Pick setups that run on a clock you can actually keep."
    ],
    "facts": [
     "f39",
@@ -751,20 +751,18 @@
    "key": "w2",
    "title": "One shape, any chart",
    "steps": [
-    "A breakout from a sideways range shows up on a 1-minute chart and on a weekly chart.",
-    "Bulkowski runs one on the 5-minute chart with a tight stop. Weinstein's method buys a weekly base breakout and holds for months.",
-    "Stops scale too. Tight on the 5-minute chart. Bulkowski's Weinstein rules skip a trade if the first stop is over 20% away.",
-    "Size from the stop. The wider the stop, the smaller the position."
+    "A breakout from a sideways range looks the same on a 1-minute chart and a weekly chart.",
+    "Day traders run it on the 5-minute, stop tight. Weinstein's traders buy the weekly break and hold 2 to 4 months.",
+    "The stop scales with the chart. Tight on the 5-minute, far wider on the weekly.",
+    "So size from the stop. Wider stop, fewer shares, same risk."
    ],
    "facts": [
     "f51",
-    "f21",
     "f50",
     "f08",
     "f46",
     "f66",
     "f47",
-    "f49",
     "h7"
    ]
   },
@@ -772,9 +770,10 @@
    "key": "w3",
    "title": "Entry chart, holding clock",
    "steps": [
-    "Use three charts. The longer sets the trend, your main one gives the signal, a shorter one times the entry.",
-    "Our Kicker is a daily setup. One entry is the day-one break of the 30-minute opening range.",
-    "The trail is each higher low or the 9 EMA. The intraday entry doesn't make it a day trade."
+    "Think in three charts. The longer one sets the trend, your main one gives the signal, a short one times the entry.",
+    "Our Kicker is a daily setup. One way in is the day-one break of the 30-minute opening range.",
+    "From there the stop trails each higher low, or the 9 EMA.",
+    "That intraday entry doesn't make it a day trade. We still swing it, days to a few weeks."
    ],
    "facts": [
     "f57",
@@ -783,7 +782,8 @@
     "h2",
     "h6",
     "h3",
-    "h15"
+    "h15",
+    "h14"
    ]
   }
  ],
@@ -793,7 +793,7 @@
    "skill": "styles.setups_fit",
    "rung": 1,
    "format": "mcq",
-   "q": "You'll be in and out the same day, every trade. Which chart do you trade off?",
+   "q": "You're in and out the same day on every trade, never holding overnight. Which chart do you trade off?",
    "choices": [
     "A 5- or 15-minute intraday chart",
     "The daily chart, one bar a day",
@@ -801,8 +801,8 @@
     "Whichever chart looks cleanest"
    ],
    "answer": "A 5- or 15-minute intraday chart",
-   "why": "A 5- or 15-minute intraday chart. A day trade opens and closes in the same session, held for seconds, minutes or hours. Day traders use intraday charts for timely entries and exits. Investopedia's day trader trades off the 15-minute chart and reads the short-term trend on the 5-minute. A daily or weekly bar would hold the whole trade inside one bar. Longer charts still have a job: a 60-minute chart can set the day trader's trend.",
-   "lesson_line": "Your holding time picks the chart. Trades that last minutes need minute bars.",
+   "why": "The 5- or 15-minute chart. If the whole trade lasts minutes to hours, you need bars that short. On a daily chart your entry, your stop and your exit all sit inside one candle. There's nothing to act on. So you work off the 15-minute and time it on the 5-minute. The longer charts still help. A 60-minute chart tells you which way the day's trend leans.",
+   "lesson_line": "How long you hold picks the chart. A trade that lasts minutes needs minute bars.",
    "facts": [
     "f55",
     "f09",
@@ -813,11 +813,11 @@
     "f40"
    ],
    "wrong": {
-    "The daily chart, one bar a day": "One bar per day. Your whole trade would sit inside a single bar, entry and stop and all.",
-    "The weekly chart, a bar a week": "That's for trends that run weeks or months. Your trade is over long before one bar closes.",
-    "Whichever chart looks cleanest": "Your holding time picks the chart, not the picture. A clean daily or weekly setup can't time a trade that lasts minutes."
+    "The daily chart, one bar a day": "One bar a day. Your entry, stop and exit would all sit inside a single candle. You'd be trading blind.",
+    "The weekly chart, a bar a week": "That's the chart for trends that run weeks or months. Your trade's done long before one bar closes.",
+    "Whichever chart looks cleanest": "A pretty chart doesn't change your clock. If you're out by the close, the setup has to live on minute bars."
    },
-   "simple": "A 5- or 15-minute chart, because a trade that lasts minutes to hours needs bars that short.",
+   "simple": "Minute bars, because a trade that lasts minutes to hours needs bars that short to show the entry and the stop.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -826,23 +826,23 @@
      "ChartSchool and Investopedia agree; stable"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "styles.setups_fit",
    "rung": 1,
    "format": "tf",
-   "q": "VWAP, the volume-weighted average price, carries over from one day to the next, like a 20-day moving average does.",
-   "answer": "False",
-   "why": "False. VWAP is built from one session's intraday data, from the open to the close. At the next open a new calculation starts, unrelated to the day before. The 20-day average in the question spans many sessions, and VWAP spans one. That makes VWAP a one-day reference, best suited to intraday work.",
-   "lesson_line": "VWAP lives inside one session. That makes it an intraday line.",
+   "q": "VWAP starts over at every open. Nothing from yesterday's session carries into today's line.",
+   "answer": "True",
+   "why": "True. VWAP is built from one session only, the open to the close. At the next open it starts fresh, with nothing from yesterday in it. A moving average on your daily chart carries many sessions. VWAP carries one. That's why I treat it as a day trader's line. It's today's average price, weighted by volume. It says nothing about last week.",
+   "lesson_line": "VWAP lives and dies inside one session. That makes it a day trader's line.",
    "facts": [
     "f12",
     "f44",
     "f13"
    ],
-   "simple": "False, because VWAP starts over at every open, so it never carries from one day to the next.",
+   "simple": "True, because VWAP is built from one session and starts fresh at every open.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -851,7 +851,7 @@
      "ChartSchool and Schwab agree; stable"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -894,16 +894,16 @@
    "skill": "styles.setups_fit",
    "rung": 2,
    "format": "mcq",
-   "q": "A stock clears a long base on the weekly chart, above a rising 30-week average. Who is this setup built for?",
+   "q": "A stock breaks out of a long base on the weekly chart, over a rising 30-week average. How long is this trade built to last?",
    "choices": [
-    "A trader holding for months",
-    "A day trader, flat by the close",
-    "A swing trader holding 1 to 5 days",
-    "An investor holding for decades"
+    "Months, ride the weekly trend",
+    "One day, flat by the close",
+    "1 to 5 days, a quick swing",
+    "Decades, buy it and forget it"
    ],
-   "answer": "A trader holding for months",
-   "why": "A trader holding for months. Weinstein's stages are read on the weekly chart, with a 30-week moving average for timing. Bulkowski puts a trader's hold with this method at 2 to 4 months, and an investor's at up to a year. Schwab says position traders hold for weeks or months. One weekly bar alone runs Monday's open to Friday's close.",
-   "lesson_line": "A weekly setup runs on a weekly clock. Plan for months, not days.",
+   "answer": "Months, ride the weekly trend",
+   "why": "Months. Every bar on that chart is a full week, Monday's open to Friday's close. A setup built on a 30-week average needs weeks just to show you anything. Run as a trade, this weekly-base method holds for about 2 to 4 months. An investor might hold it up to a year. So you're a position trader here. It's not a day trade, not a quick swing, and not forever.",
+   "lesson_line": "Weekly bars, weekly clock. Plan on months, not days.",
    "facts": [
     "f66",
     "f46",
@@ -914,11 +914,11 @@
     "f29"
    ],
    "wrong": {
-    "A day trader, flat by the close": "A weekly bar takes five sessions to form. A day trader is long gone before one closes.",
-    "A swing trader holding 1 to 5 days": "One to five days fits inside a single weekly bar. A setup built on a 30-week average needs more time than that.",
-    "An investor holding for decades": "Even an investor using this method holds up to about a year, in Bulkowski's reading. The weekly stages time the trade. It is not buy and forget."
+    "One day, flat by the close": "A weekly bar takes five sessions to print. A day trader is long gone before one closes.",
+    "1 to 5 days, a quick swing": "One to five days fits inside a single weekly bar. A 30-week setup needs a lot more time than that.",
+    "Decades, buy it and forget it": "Even an investor running this method holds up to a year. The weekly trend times the trade. It isn't buy and forget."
    },
-   "simple": "A trader holding for months, because a setup built on weekly bars takes months to play out.",
+   "simple": "Months, because every bar is a week, and a setup built on weekly bars takes months to play out.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -927,16 +927,16 @@
      "hold lengths differ by source; the key uses only the order of styles (conflicts)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "styles.setups_fit",
    "rung": 2,
    "format": "tf",
-   "q": "A breakout from a sideways range can be traded on a 1-minute chart or on a weekly chart.",
+   "q": "You can trade a breakout from a sideways range off a 1-minute chart or off a weekly chart.",
    "answer": "True",
-   "why": "True. Bulkowski says his breakout setup can be used on any time scale. He runs it on the 1- or 5-minute chart with a tight stop. Weinstein's method buys a breakout above a base read on the weekly chart. ChartSchool says the same of gaps: its strategies apply to intraday, daily and weekly gaps. The shape is the same on both. What changes is the chart you read it on.",
+   "why": "True. The shape doesn't care what chart it's on. Price chops in a range, then pushes through the top. You can buy that off 1- or 5-minute bars with a tight stop as a day trade. A weekly trader buys the same push out of a base on the weekly chart. Gaps work the same way, intraday, daily or weekly. The pattern's the same. The chart you read it on is what changes.",
    "lesson_line": "The pattern doesn't pick your style. The chart you read it on does.",
    "facts": [
     "f51",
@@ -945,7 +945,7 @@
     "f46",
     "f21"
    ],
-   "simple": "True, because the same breakout shape can be traded on any time scale, from 1-minute bars to weekly ones.",
+   "simple": "True, because the same breakout shape shows up on any chart, from 1-minute bars to weekly ones.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -954,23 +954,23 @@
      "fixed before (why hedged to 'can be used')"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "styles.setups_fit",
    "rung": 3,
    "format": "tf",
-   "q": "The shortest chart is the most reliable, because it has the newest data.",
+   "q": "The 1-minute chart is the one to trust most, because it has the newest data on it.",
    "answer": "False",
-   "why": "False. As a general rule, the longer the time frame, the more reliable the signals. Drill down and the charts fill up with false moves and noise. Short charts do show more detail, but detail is not reliability. It is a general rule, not a law. A short chart still has a job: timing the entry and exit.",
-   "lesson_line": "Judge a trade on the chart it was built on, not on a noisier one.",
+   "why": "False. Newer doesn't mean more reliable. The 1-minute chart is where the false moves and the noise live. Every little dip looks like a breakdown and every pop looks like a breakout. The longer the chart, the more I trust what it's telling me. That's a rule of thumb, not a law. The short chart still has a job, timing the entry and the exit. Judge the setup on its own chart, then drop down to time it.",
+   "lesson_line": "Judge the trade on the chart it was built on, not a noisier one.",
    "facts": [
     "f58",
     "f27",
     "f57"
    ],
-   "simple": "False, because short charts carry more false moves and noise, so longer charts usually give better signals.",
+   "simple": "False, because short charts carry more noise and false moves, so the longer chart gives the signal you can trust.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -979,7 +979,7 @@
      "Investopedia and ChartSchool agree"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -987,7 +987,7 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "Our Launchpad trails under the rising 20 EMA. Which chart do you manage that trade on?",
+   "q": "You're in a Launchpad and trailing it under the rising 20 EMA. Which chart do you watch to manage it?",
    "choices": [
     "The daily chart",
     "The 5-minute chart",
@@ -995,8 +995,8 @@
     "The hourly chart"
    ],
    "answer": "The daily chart",
-   "why": "The daily chart. Our Launchpad trails under the rising 20 EMA, or under each higher low. A 20 EMA on the daily chart is built from daily bars, one bar per day. Our default trail sells on a close below the 9 EMA or 20 EMA. So the trail and the higher lows both live on the daily chart. A shorter chart can still time the entry, but it does not change where the trade is managed.",
-   "lesson_line": "Read the trail to find the clock. A daily average means a daily-chart trade.",
+   "why": "The daily chart. Your trail is the 20 EMA on daily bars, one bar per day. That's where the higher lows form too. We sell what's left on a close below the 20, so the close that counts is the daily close. Watch a 5-minute chart instead and every wiggle looks like the end. You'll shake yourself out of a trade that's still working fine.",
+   "lesson_line": "Read the trail to find the clock. A daily line means a daily-chart trade.",
    "facts": [
     "h4",
     "h15",
@@ -1007,11 +1007,11 @@
     "rd21"
    ],
    "wrong": {
-    "The 5-minute chart": "A daily 20 EMA gets one new bar a day. Five-minute bars add noise the plan doesn't trade on.",
-    "The weekly chart": "Too slow. One weekly bar runs Monday to Friday and hides the daily higher lows the trail steps up under.",
-    "The hourly chart": "An hourly chart can time a swing entry. But a 20-period line there spans 20 hours, not 20 days, so it is a different trail."
+    "The 5-minute chart": "A daily 20 EMA moves once a day. Five-minute bars just add noise the plan never trades on.",
+    "The weekly chart": "Too slow. One weekly bar hides the daily higher lows your trail steps up under.",
+    "The hourly chart": "An hourly chart can time a swing entry. But a 20 there covers 20 hours, not 20 days, so it's a different line."
    },
-   "simple": "The daily chart, because a daily 20 EMA is built from daily bars, so the trail lives there.",
+   "simple": "The daily chart, because the 20 EMA you trail under is built from daily bars, and the daily close decides.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1020,15 +1020,15 @@
      "fixed before (weekly wrong note)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "styles.setups_fit",
    "rung": 4,
    "format": "scenario",
-   "story": "You have the whole session free to watch the screen. Holding through overnight news keeps you up at night.",
-   "q": "Which setups fit you best?",
+   "story": "You're home all session and can watch every tick. But holding anything overnight wrecks your sleep. You worry about news gapping a stock against you.",
+   "q": "What kind of setups should you be trading?",
    "choices": [
     "5-minute setups, flat by the close",
     "Daily flags held for a few weeks",
@@ -1036,7 +1036,7 @@
     "Daily flags, tight overnight stop"
    ],
    "answer": "5-minute setups, flat by the close",
-   "why": "5-minute setups, flat by the close. True day traders own nothing overnight, because prices can change sharply from one day to the next. Day trading needs continuous attention, and you have the whole session free. A tight stop would not fix a swing trade for you, because a gap can jump the stop. Know the costs too: frequent trading can bring higher costs that eat into returns.",
+   "why": "5-minute setups, flat by the close. You've got the two things day trading needs: time to watch all session, and a reason to own nothing overnight. Flat by the close means news can't gap against you while you sleep. Don't kid yourself that a tight stop fixes a swing trade. A gap can open right through it. We swing trade, and we accept that gap risk. If you can't sleep with it, that's a real reason to day trade. Just know more trades means more costs eating into returns.",
    "lesson_line": "Your hours and your nerves pick the clock. The clock picks the setups.",
    "facts": [
     "f02",
@@ -1044,14 +1044,15 @@
     "f42",
     "f07",
     "f09",
-    "h10"
+    "h10",
+    "h14"
    ],
    "wrong": {
-    "Weekly breakouts held for months": "Months of nights and weekends, each with that same gap risk. The opposite of what you want.",
-    "Daily flags held for a few weeks": "Swing trades sit through the night, and news while the market is shut can gap the open. That's the risk that keeps you up.",
-    "Daily flags, tight overnight stop": "A stop can't cap a gap. News while the market is shut can open the stock past your stop, so the overnight risk stays."
+    "Weekly breakouts held for months": "Months of nights and weekends, each one with gap risk. The exact opposite of what you want.",
+    "Daily flags held for a few weeks": "A swing trade sleeps through the night with you. News while the market's shut can gap the open. That's the risk keeping you up.",
+    "Daily flags, tight overnight stop": "A stop can't stop a gap. The stock can open right past it, so the overnight risk is still there."
    },
-   "simple": "5-minute setups, flat by the close, because you can watch all day and then hold nothing overnight.",
+   "simple": "5-minute setups, because you can watch all day, and a day trade leaves nothing open overnight to gap.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1060,14 +1061,14 @@
      "SEC and FINRA (Tier 1); stable"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "styles.setups_fit",
    "rung": 4,
    "format": "mcq",
-   "q": "Yesterday's high was $56, the low $48 and the close $55. What's today's base pivot point for your 5-minute chart?",
+   "q": "You day trade off floor pivots. Yesterday: high $56, low $48, close $55. Where's today's base pivot on your 5-minute chart?",
    "answer": "$53.00",
    "calc": {
     "fn": "arith",
@@ -1079,8 +1080,8 @@
     }
    },
    "prefix": "$",
-   "why": "The base pivot is the simple average of the prior high, low and close. 56 + 48 + 55 = 159. 159 / 3 = 53. For 1- to 15-minute charts, ChartSchool takes those from the prior day. Once set, the pivots stay fixed all day. Tomorrow's pivot comes from today's bar.",
-   "lesson_line": "Intraday pivots come from yesterday's bar and last one session. They're day-trader levels.",
+   "why": "$53. The base pivot is just the average of yesterday's high, low and close. Add them up: 56 plus 48 plus 55 is 159. Divide by 3 and you get 53. Mark it before the open. It stays fixed all day, so it's a level you plan around, not one that moves on you. Tomorrow you do it again off today's bar.",
+   "lesson_line": "Intraday pivots come from yesterday's bar and live for one session. That's a day trader's level.",
    "facts": [
     "f17",
     "f15",
@@ -1095,7 +1096,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$55.00",
     "$159.00",
@@ -1103,9 +1104,9 @@
     "$53.00"
    ],
    "wrong": {
-    "$55.00": "Used only the close. The pivot averages the high, low and close.",
-    "$52.00": "Averaged just the high and low. The close goes in too.",
-    "$159.00": "Added the three prices and forgot to divide by 3."
+    "$55.00": "That's just the close. The pivot averages all three: high, low and close.",
+    "$52.00": "That's the high and low averaged. You left out the close.",
+    "$159.00": "You added them up and forgot to divide by 3."
    },
    "visual": {
     "kind": "ladder",
@@ -1138,16 +1139,16 @@
    "skill": "styles.setups_fit",
    "rung": 4,
    "format": "scenario",
-   "story": "A stock rallies from $150 to $185 in three weeks on heavy volume. Then it drifts sideways for two weeks on lighter volume.",
-   "q": "Which plan fits a breakout from this flag?",
+   "story": "A stock runs from $150 to $185 in three weeks on heavy volume. Then it goes sideways for two weeks while volume dries up.",
+   "q": "It breaks out of that flag. How do you play it?",
    "choices": [
-    "Swing it: hold days to weeks",
-    "Day trade it: out by the close",
+    "Swing it, hold days to weeks",
+    "Day trade it, out by the close",
     "Buy and hold it for years",
-    "Skip it: the volume dried up"
+    "Skip it, the volume dried up"
    ],
-   "answer": "Swing it: hold days to weeks",
-   "why": "Swing it: hold days to weeks. Schwab calls a bull flag breakout a classic swing setup. ChartSchool calls flags short-term continuation patterns that ideally form over one to four weeks. A setup built over weeks of daily bars fits a hold of days to weeks. It is not a promise. The stop goes where the reason for the trade has failed.",
+   "answer": "Swing it, hold days to weeks",
+   "why": "Swing it. That's a bull flag, the classic swing setup. The run from $150 to $185 is the pole. The two quiet weeks are the flag. It took weeks of daily bars to build, so give it days to weeks to work. Volume drying up in the flag is what I like to see. The sellers have gone quiet. It raises the grade, but it's not a must. Buy the break, and put your stop where the idea fails.",
    "lesson_line": "A flag is a short pause in a fast move. Trade it on a swing clock.",
    "facts": [
     "f37",
@@ -1159,11 +1160,11 @@
     "f67"
    ],
    "wrong": {
-    "Day trade it: out by the close": "The pattern formed over two weeks of daily bars. A day trade ends at the close, long before a daily setup has room to work.",
-    "Buy and hold it for years": "Flags are short-term continuation patterns. Holding for years is investing, a different plan with a different exit.",
-    "Skip it: the volume dried up": "Lighter volume in the pause is normal for a flag. In ChartSchool's example, volume expanded on the advance and contracted during the flag."
+    "Buy and hold it for years": "A flag is a short pause in a fast move. Holding for years is investing, a different plan with a different exit.",
+    "Day trade it, out by the close": "This flag took two weeks of daily bars to build. A day trade ends at the close, before a daily setup has room to work.",
+    "Skip it, the volume dried up": "That's what you want. Volume runs hot on the pole and dries up in the flag. Quiet sellers, then the break."
    },
-   "simple": "Swing it, because a flag that forms over weeks of daily bars is built for a hold of days to weeks.",
+   "simple": "Swing it, because a flag built over weeks of daily bars is made for a hold of days to weeks.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1171,14 +1172,14 @@
      "Schwab and ChartSchool agree; Schwab refused WebFetch on 2026-11-12, last confirmed by the checker 2026-11-09"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "styles.setups_fit",
    "rung": 5,
    "format": "mcq",
-   "q": "Weinstein's average is 30 weeks long. A normal week has 5 trading days. About how many days does it cover on a daily chart?",
+   "q": "You want Weinstein's 30-week average on your daily chart. With 5 trading days a week, about how many days long is that?",
    "answer": "150 days",
    "calc": {
     "fn": "arith",
@@ -1189,14 +1190,14 @@
     }
    },
    "suffix": "days",
-   "why": "About 150 days: 30 weeks of 5 sessions each. So Weinstein's 30-week line sits close to a 150-day average on a daily chart. Close, not equal. A weekly bar closes on Friday, so the weekly average uses one close a week, and a short week has fewer sessions.",
+   "why": "About 150. 30 weeks times 5 trading days is 150 days. So a 150-day line on your daily chart sits close to the 30-week. Close, not right on top of it. The weekly line uses one close a week, Friday's. A short holiday week has fewer days too. It's handy when you swing off the daily. You can see where the long-term holders' line sits without flipping charts.",
    "lesson_line": "A weekly line has a rough daily twin. Know where the long-term holders' line sits.",
    "facts": [
     "f45",
     "f48",
     "f29"
    ],
-   "simple": "About 150 days, because 30 weeks times 5 trading days a week comes to 150.",
+   "simple": "About 150 days, because 30 weeks times 5 trading days a week is 150.",
    "deeper": {
     "counter": "A 150-day line on your daily chart is a stand-in, not a copy. The weekly average takes one close per week, the Friday close. The daily one takes every close. A short week has fewer sessions than a normal one. So expect the two lines to sit near each other, not on top of each other."
    },
@@ -1208,7 +1209,7 @@
      "fixed before (lesson line softened)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "150 days",
     "180 days",
@@ -1216,9 +1217,9 @@
     "1,500 days"
    ],
    "wrong": {
-    "210 days": "Counted every calendar day in a week. Only trading days count.",
-    "180 days": "Counted six days a week. Markets are open five.",
-    "1,500 days": "A decimal slip: ten times too big."
+    "210 days": "You counted all seven calendar days. Only trading days count.",
+    "180 days": "That's six days a week. The market's open five.",
+    "1,500 days": "A decimal slip, ten times too big."
    },
    "visual": {
     "kind": "size",
@@ -1249,17 +1250,17 @@
    "skill": "styles.setups_fit",
    "rung": 5,
    "format": "scenario",
-   "story": "You day trade. Stock A moves about 0.5% a day on thin volume. Stock B moves about 4% a day on heavy volume.",
-   "q": "Which one fits your style?",
+   "story": "You day trade. Two names on your list. One moves about 0.5% a day on thin volume. The other moves about 4% a day and trades heavy volume.",
+   "q": "Which one do you trade?",
    "choices": [
-    "Stock B, it has range and volume",
-    "Stock A, it's calmer to hold",
+    "The 4% mover, it has range and volume",
+    "The 0.5% mover, it's calmer to hold",
     "Either one, only the setup matters",
-    "Stock B, and size up for its range"
+    "The 4% mover, and size up for its range"
    ],
-   "answer": "Stock B, it has range and volume",
-   "why": "Stock B. A day trader needs a stock that moves enough in a day to make a profit. Investopedia says a small daily range or light daily volume rules a stock out. FINRA notes that intraday traders go after small moves, usually in volatile stocks. A 4% daily move gives room to work. A 0.5% move on thin volume leaves little to take. The range picks the stock, not the size: we size from the stop.",
-   "lesson_line": "Day trades need movement and liquidity. A quiet stock gives a day trader nothing to work with.",
+   "answer": "The 4% mover, it has range and volume",
+   "why": "The 4% mover. A day trader needs a stock that actually moves inside one session. Otherwise there's nothing to take. A 0.5% day on thin volume leaves you almost no room, and thin volume makes getting in and out harder. The 4% name has room to work and the volume to fill you. Just don't size it up for the range. We size from the stop, and a wider stop means fewer shares.",
+   "lesson_line": "Day trades need movement and volume. A sleepy stock gives you nothing to work with.",
    "facts": [
     "f60",
     "f61",
@@ -1267,11 +1268,11 @@
     "h7"
    ],
    "wrong": {
-    "Stock A, it's calmer to hold": "Calm is fine for a longer hold. A day trader needs movement inside one session, and a small daily range leaves little to take.",
-    "Either one, only the setup matters": "The stock has to fit the style too. A small daily range or light volume rules a stock out for a day trader.",
-    "Stock B, and size up for its range": "Stock B fits, but not the bigger size. We size from the stop, and the wider the stop, the smaller the position."
+    "Either one, only the setup matters": "The stock has to fit your style too. Small range or thin volume, and a day trader has nothing to work with.",
+    "The 0.5% mover, it's calmer to hold": "Calm is fine on a longer hold. A day trader needs movement inside one session, and 0.5% leaves almost nothing to take.",
+    "The 4% mover, and size up for its range": "Right name, wrong size. We size from the stop, never from the range. A wider stop means fewer shares."
    },
-   "simple": "Stock B, because a day trader needs a stock that moves enough in one day, with plenty of volume.",
+   "simple": "The 4% mover, because a day trader needs a stock that moves enough in one session, with volume to get in and out.",
    "tier": "extended",
    "risk": {
     "score": 0,
@@ -1279,16 +1280,16 @@
      "FINRA (Tier 1) plus Investopedia; stable"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "styles.setups_fit",
    "rung": 5,
    "format": "tf",
-   "q": "VWAP works as a trailing stop for a three-week swing trade.",
+   "q": "You're three weeks into a swing trade that's working. You can trail your stop under VWAP to protect the gain.",
    "answer": "False",
-   "why": "False. VWAP starts fresh at every open, unrelated to the day before. So it can't follow a trade across three weeks. A three-week swing needs a line that spans days: ChartSchool says 5- to 20-period averages suit short-term trading. Our default trail is the 9 EMA or the 20 EMA, and we sell on a close below it.",
+   "why": "False. VWAP starts over every morning, so it can't follow a trade across three weeks. Each day it's a brand new line with no memory of the last. A swing needs a line that spans days. We trail under the 9 EMA for fast movers and the 20 EMA for steadier ones. We sell what's left on a close below it.",
    "lesson_line": "Trail with a line that lasts as long as the trade.",
    "facts": [
     "f44",
@@ -1299,7 +1300,7 @@
     "h15",
     "rd21"
    ],
-   "simple": "False, because VWAP starts over at every open, so it can't follow a trade that lasts three weeks.",
+   "simple": "False, because VWAP restarts every open, so it can't follow a trade that lasts three weeks.",
    "tier": "extended",
    "risk": {
     "score": 0,
@@ -1307,14 +1308,14 @@
      "ChartSchool and Schwab agree; the house trails appear only in the why"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "styles.setups_fit",
    "rung": 6,
    "format": "mcq",
-   "q": "You trade off the daily chart. Elder says multiply your timeframe by five for the bigger trend. Which chart is that?",
+   "q": "You swing off the daily chart. Elder's rule: check the trend on a chart five times longer. Which one do you pull up?",
    "choices": [
     "The weekly chart",
     "The monthly chart",
@@ -1322,8 +1323,8 @@
     "The zoomed-out daily"
    ],
    "answer": "The weekly chart",
-   "why": "The weekly chart. Elder calls your trading chart the intermediate one and multiplies it by five for the long-term one. Five daily bars make a week. ChartSchool says traders on daily charts can move to weekly charts for the long-term trend. Investors on weekly charts can step up to monthly ones. The factor of five is Elder's recommendation, one well-known method.",
-   "lesson_line": "Your trend chart sits one step above your trading chart.",
+   "why": "The weekly. Five daily bars make a week, so one step up from the daily is the weekly. That's where you check the bigger trend before you take a daily signal. If you work off the weekly, your step up is the monthly. It's Elder's rule of thumb, not a law. The point is to look one chart up before you buy.",
+   "lesson_line": "Check the trend one chart up before you take the signal.",
    "facts": [
     "f23",
     "f24",
@@ -1332,11 +1333,11 @@
     "f29"
    ],
    "wrong": {
-    "The monthly chart": "That's the step above the weekly. Investors who work off weekly charts can use the monthly for the bigger picture.",
-    "The hourly chart": "That's shorter than your chart, not longer. It can time an entry, but it can't set the bigger trend.",
-    "The zoomed-out daily": "Zooming out shows more daily bars, not a longer timeframe. Elder's step multiplies the timeframe by five, which lands on the weekly."
+    "The monthly chart": "That's two steps up. The monthly is the big picture for someone trading off the weekly.",
+    "The hourly chart": "That's shorter than your chart, not longer. It can time an entry, but it can't show you the bigger trend.",
+    "The zoomed-out daily": "Zooming out shows more daily bars. It's still the daily. Five times your timeframe lands on the weekly."
    },
-   "simple": "The weekly chart, because five daily bars make a week, so it is one step up from the daily.",
+   "simple": "The weekly chart, because five daily bars make a week, so it's one step up from the daily.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1345,7 +1346,7 @@
      "ChartSchool on Elder plus Investopedia"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
@@ -1353,7 +1354,7 @@
    "rung": 6,
    "format": "scenario",
    "story": "You swing trade off the daily chart. Last month's high was $120, low $100, close $116. Yesterday's high was $118, low $112, close $115.",
-   "q": "By ChartSchool's rule, which base pivot fits your daily chart this month?",
+   "q": "You want floor pivots on your daily chart this month, done the ChartSchool way. Which base pivot do you mark?",
    "choices": [
     "$112, from last month's bar",
     "$115, yesterday's bar",
@@ -1370,8 +1371,8 @@
      "close": 116
     }
    },
-   "why": "$112, from last month's bar. On ChartSchool's rule, daily charts take their pivots from the prior month's high, low and close. Here that is (120 + 100 + 116) / 3 = 112. They stay fixed for the whole month. Yesterday's bar sets the pivots for 1- to 15-minute charts, so it would reset every day. The pivot is an average, never just the close.",
-   "lesson_line": "Your levels scale with your chart. A day trader's pivot doesn't fit a swing trader's clock.",
+   "why": "$112. You're on the daily chart, so the pivot comes off last month's bar, not yesterday's. 120 plus 100 plus 116 is 336. Divide by 3 and it's 112. Mark it once and it holds all month. Yesterday's bar is the pivot for 1- to 15-minute charts. It resets every morning, way too fast for a trade you hold for days. And it's the average of all three, never just the close. Your levels have to match your chart.",
+   "lesson_line": "Your levels scale with your chart. A day trader's pivot doesn't fit a swing.",
    "facts": [
     "f18",
     "f17",
@@ -1380,8 +1381,8 @@
    ],
    "wrong": {
     "$115, yesterday's bar": "That's yesterday's average, the pivot for 1- to 15-minute charts. It resets every day, too fast for a daily chart.",
-    "$116, last month's close": "The pivot isn't the close. It's the average of the high, low and close.",
-    "$110, the midpoint": "That's halfway between the high and the low. The base pivot is the average of three numbers: the high, the low and the close."
+    "$116, last month's close": "The pivot isn't the close. It's the average of the high, the low and the close.",
+    "$110, the midpoint": "That's halfway between the high and the low. You left the close out of the average."
    },
    "simple": "$112, because a daily chart's pivot comes from last month's high, low and close, not yesterday's.",
    "tier": "extended",
@@ -1392,7 +1393,7 @@
      "the monthly-pivot rule is one publisher's convention (ChartSchool f18); other platforms let the user pick (conflicts)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
@@ -1400,15 +1401,15 @@
    "rung": 7,
    "format": "scenario",
    "story": "You buy a 5-minute breakout as a day trade. To give it room, you set your stop under last week's low, 8% away.",
-   "q": "What's the problem with that stop?",
+   "q": "What do you make of that stop?",
    "choices": [
     "It's a weekly stop on a day trade",
-    "None, more room means fewer stop-outs",
-    "It should sit under the 200-day average",
-    "It should be a mental stop instead"
+    "It's fine, more room, fewer stop-outs",
+    "Move it under the 200-day instead",
+    "Fine, but make it a mental stop"
    ],
    "answer": "It's a weekly stop on a day trade",
-   "why": "It's a weekly stop on a day trade. Day traders aim for quick trades and small profits, with very tight stops. Bulkowski's 5-minute breakout uses a tight stop as price climbs. A stop goes where the reason for the trade has failed. Here that is a 5-minute level, not last week's low. An 8% stop gives back far more than a day trade's small gains can win.",
+   "why": "It's a weekly stop on a day trade. You bought off a 5-minute chart, so the idea fails on a 5-minute level. Last week's low has nothing to do with it. Day trades go for quick, small gains with tight stops. An 8% stop risks far more than a day trade's small gain can pay back. Put the stop where the 5-minute breakout fails. Then size from that.",
    "lesson_line": "Room isn't free. Put the stop where this trade's idea fails.",
    "facts": [
     "f08",
@@ -1421,11 +1422,11 @@
     "f02"
    ],
    "wrong": {
-    "None, more room means fewer stop-outs": "Fewer stop-outs, but each one costs far more than a day trade's quick, small gains can win back.",
-    "It should sit under the 200-day average": "That's an even longer clock. The 200-day is a long-term average, not a day trader's line.",
-    "It should be a mental stop instead": "The distance is the problem, not the order type. We keep a real stop order with the broker, never one in our head."
+    "It's fine, more room, fewer stop-outs": "Fewer stop-outs, sure. But each one costs way more than a day trade's small gains can win back.",
+    "Move it under the 200-day instead": "That's an even longer clock. The 200-day is a long-term line, not a day trader's level.",
+    "Fine, but make it a mental stop": "The distance is the problem, not the order type. And we keep a real stop order with the broker, never one in our head."
    },
-   "simple": "The stop is far too wide for a day trade, which needs a tight stop where the 5-minute idea fails.",
+   "simple": "Way too wide for a day trade, which needs a tight stop where the 5-minute breakout fails.",
    "deeper": {
     "trap": "Sizing down to fit the 8% stop seems to fix it. We do size from the stop: the wider the stop, the fewer the shares. But a day trader is flat by the close, so a stop under last week's low may never be reached. The close becomes the real exit, and the 5-minute idea has no stop at all. Fix the stop first: put it where the 5-minute breakout fails, then size from it."
    },
@@ -1436,7 +1437,7 @@
      "ChartSchool, Bulkowski and Schwab agree; stable"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1444,16 +1445,16 @@
    "rung": 7,
    "format": "scenario",
    "house": true,
-   "story": "You buy our Kicker on the day-one 30-minute opening-range break. At 3:55 p.m. it's up, short of 3R, and well above your stop.",
-   "q": "What does the plan say to do?",
+   "story": "You bought a Kicker on the day-one break of the first 30-minute range. It's 3:55 p.m. You're up on it, well above your stop.",
+   "q": "The close is five minutes away. What do you do?",
    "choices": [
-    "Hold it; trail on the daily chart",
+    "Hold it, trail on the daily chart",
     "Sell it, it was an intraday entry",
-    "Sell half of it before the close",
-    "Hold it; trail on the 30-minute chart"
+    "Sell half before the close",
+    "Hold it, trail on the 30-minute"
    ],
-   "answer": "Hold it; trail on the daily chart",
-   "why": "Hold it, and trail on the daily chart. The day-one 30-minute break was only the entry. The Kicker trails under each higher low or under the 9 EMA, and we sell on a close below it. We swing trade: days to a few weeks. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Nothing in the plan sells at the close. The stop stays with the broker overnight as a real order.",
+   "answer": "Hold it, trail on the daily chart",
+   "why": "Hold it, and manage it off the daily chart. The 30-minute break only timed your buy. A Kicker trails under each higher low or the 9 EMA, and we sell on a close below it. Those are daily bars. We swing trade, days to a few weeks. We very rarely sell on day 1, and we mostly wait until day 3 at the earliest. Nothing here says sell at the close. Your stop stays in with the broker overnight as a real order.",
    "lesson_line": "The entry chart times the buy. The trail sets the clock.",
    "facts": [
     "h2",
@@ -1471,11 +1472,11 @@
     "rd21"
    ],
    "wrong": {
-    "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Swing traders often take a daily setup and time the entry on a shorter chart.",
-    "Sell half of it before the close": "We very rarely sell on day 1 of the buy. Nothing in the plan sells at the close.",
-    "Hold it; trail on the 30-minute chart": "The 30-minute bar only timed the buy. Our Kicker trails under each higher low or the 9 EMA, a daily-chart trail."
+    "Sell it, it was an intraday entry": "The entry chart doesn't set the clock. Plenty of swing trades are timed on a shorter chart.",
+    "Sell half before the close": "We very rarely sell on day 1. Nothing in the plan sells into the first close.",
+    "Hold it, trail on the 30-minute": "The 30-minute bar only timed the buy. A Kicker trails under higher lows or the 9 EMA on the daily."
    },
-   "simple": "Hold it, because the 30-minute break only timed the buy, and the plan trails the trade on the daily chart.",
+   "simple": "Hold it, because the 30-minute break only timed the buy, and the trail lives on the daily chart.",
    "deeper": {
     "trap": "Holding overnight means news can gap the stock below your stop at the open. Our rule for that: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar becomes the new stop. And if those first 30 minutes take the loss past 2R, get out."
    },
@@ -1487,17 +1488,17 @@
      "fixed before (rewritten to the rulebook 2026-11-09)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "styles.setups_fit",
    "rung": 7,
    "format": "tf",
-   "q": "Day trading is the safe style, since you never hold anything overnight.",
+   "q": "Day trading is the safe style, because you're flat every night and nothing can gap against you.",
    "answer": "False",
-   "why": "False. Being flat overnight removes overnight gap risk, not all risk. The SEC says day traders typically suffer severe financial losses in their first months, and many never turn a profit. FINRA adds that frequent trading brings higher costs that can eat into returns. Day trading swaps one risk for others. It is not the safe style.",
-   "lesson_line": "Flat overnight is not the same as safe.",
+   "why": "False. Being flat at night takes away one risk, the overnight gap. That's it. New day traders tend to lose heavily in their first months, and many never get profitable. More trades also means more costs eating into whatever you make. And you have to watch all session long. You've swapped one risk for a handful of others.",
+   "lesson_line": "Flat overnight isn't the same as safe.",
    "facts": [
     "f04",
     "f02",
@@ -1515,7 +1516,7 @@
      "SEC and FINRA (Tier 1); the SEC page is dated but only its timeless lines are used"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1523,7 +1524,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "You take a day trade off the 5-minute chart. Your target is the stock's high from three months ago, 15% above your entry.",
-   "q": "How does that target fit the trade?",
+   "q": "Does that target fit the trade?",
    "choices": [
     "Too far for a one-day clock",
     "Fine, a big target is a bonus",
@@ -1531,7 +1532,7 @@
     "Irrelevant, only the stop counts"
    ],
    "answer": "Too far for a one-day clock",
-   "why": "Too far for a one-day clock. Day traders aim for quick trades and small profits, and a day trade can run out of time before it pays. A high from three months ago is a daily-chart level, a target for a longer clock. A true day trader is flat by the close, so the 15% would have to come in one session. Pick a target one session can reach.",
+   "why": "Too far. You're out by the close, so that 15% has to happen today. A high from three months ago is a daily-chart level. It's a fine target for a swing and the wrong one for a day trade. Day trades aim for quick, small gains, and they can run out of time before they pay. Pick a target one session can actually reach.",
    "lesson_line": "Match the target to the clock. A day trade aims for what one session can give.",
    "facts": [
     "f08",
@@ -1540,11 +1541,11 @@
     "f02"
    ],
    "wrong": {
-    "Fine, a big target is a bonus": "A day trade aims for quick, small gains. A level from three months ago is a target for a longer clock.",
-    "Fine, hold overnight until it hits": "That turns a day trade into a swing trade halfway through, with a stop built for minutes.",
-    "Irrelevant, only the stop counts": "The stop caps the loss, but the target is the payoff. A day trade aims for quick, small gains and can run out of time before it pays."
+    "Fine, a big target is a bonus": "A day trade goes for quick, small gains. A level from three months back is a target for a longer clock.",
+    "Fine, hold overnight until it hits": "Now your day trade turned into a swing halfway through, with a stop built for minutes.",
+    "Irrelevant, only the stop counts": "The stop caps the loss. The target is the payoff, and a day trade can run out of time before it gets there."
    },
-   "simple": "It is too far, because a day trade aims for small gains it can reach before the close.",
+   "simple": "Too far, because a day trade needs a target it can reach before the close.",
    "deeper": {
     "trap": "The level isn't wrong, it is on the wrong clock. A three-month-old high is a fine target for a swing trade off the daily chart. A day trade off the 5-minute chart needs an exit inside today's session. Keep the far target and the close becomes your real exit, and the plan never said so."
    },
@@ -1556,7 +1557,7 @@
      "SEC (Tier 1) plus ChartSchool"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1564,16 +1565,16 @@
    "rung": 8,
    "format": "scenario",
    "story": "The market has chopped sideways for months. Breakouts fail within days, and no group leads for long.",
-   "q": "Which style has the hardest time here, and why?",
+   "q": "Which style gets hurt most in a market like this?",
    "choices": [
-    "Position trading: no trend to ride",
-    "Day trading: too little range in a day",
-    "Day trading: breakouts fail in days",
-    "Position trading: costs pile up"
+    "Position trading, no trend to ride",
+    "Day trading, too little range in a day",
+    "Day trading, breakouts fail in days",
+    "Position trading, costs pile up"
    ],
-   "answer": "Position trading: no trend to ride",
-   "why": "Position trading: no trend to ride. Position traders are trend followers, and they hold as long as the trend stays intact. Investopedia calls the style ideally suited to a bull market with a strong trend. In a flat, sideways market, it says day trading might have the advantage. Without a strong trend, moving average crossover signals also get whipsawed.",
-   "lesson_line": "Long holds need a trend to ride. No trend, nothing to hold for.",
+   "answer": "Position trading, no trend to ride",
+   "why": "Position trading. If you hold for weeks or months, you need a trend to ride, and here there isn't one. Every breakout fails, so a long hold just chops back and forth. Signals off moving average crossovers get whipsawed too. A day trader is out by the close, so a breakout failing over days never touches them. In a flat market, day trading might even have the edge. It's no picnic for us swing traders either. When breakouts keep failing, I'm mostly sitting on my hands.",
+   "lesson_line": "Long holds need a trend. No trend, nothing to hold for.",
    "facts": [
     "f63",
     "f64",
@@ -1586,9 +1587,9 @@
     "f60"
    ],
    "wrong": {
-    "Day trading: too little range in a day": "Nothing here says the daily range shrank. Chop takes away a lasting trend, and that hurts the longest hold the most.",
-    "Position trading: costs pile up": "Right style, wrong reason. Costs pile up with frequent trading, and a position trader holds for weeks or months.",
-    "Day trading: breakouts fail in days": "A day trade is out by the close, before a breakout has days to fail. In a flat, sideways market, Investopedia says day trading might even have the advantage."
+    "Day trading, too little range in a day": "Nothing here says the daily range dried up. Chop takes away the lasting trend, and that hurts the longest hold most.",
+    "Position trading, costs pile up": "Right style, wrong reason. Costs pile up with frequent trading. A position trader holds for weeks or months.",
+    "Day trading, breakouts fail in days": "A day trade is out by the close, before a breakout has days to fail. In flat markets, day trading might even have the edge."
    },
    "simple": "Position trading, because it needs a lasting trend to ride, and a choppy market doesn't give one.",
    "deeper": {
@@ -1602,15 +1603,15 @@
      "choices rewritten in wave9 (the scalping near-synonym is gone)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
    "skill": "styles.setups_fit",
    "rung": 9,
    "format": "scenario",
-   "story": "You can watch the first 30 minutes of the session. Then you're in meetings until the close.",
-   "q": "Which plan fits your day?",
+   "story": "You're at your desk for the first 30 minutes of the session. Then you're stuck in meetings until the close.",
+   "q": "What's the plan that fits your day?",
    "choices": [
     "Buy early with a stop, then hold",
     "Scalp the 1-minute chart",
@@ -1618,8 +1619,8 @@
     "Buy, then set the stop tonight"
    ],
    "answer": "Buy early with a stop, then hold",
-   "why": "Buy early with a stop, then hold. Make the entry in the first 30 minutes, while you can watch, with a market order. Put the stop in with the broker as a real order. We swing trade: days to a few weeks, so the trade can run without you at the screen. Scalping and VWAP trading both need your eyes on the market all session. A day trade would also need you back before the close to get flat.",
-   "lesson_line": "Pick an entry you can make in the time you have, then walk away.",
+   "why": "Buy early with the stop in, then hold. Use the 30 minutes you've got. Take the entry at market while you can watch the fill. Put the stop in with the broker right away as a real order. Then go to your meetings. We swing trade, days to a few weeks, so the trade doesn't need you at the screen. Scalping and VWAP bounces need your eyes all session. You don't have that today.",
+   "lesson_line": "Make the entry in the time you have. Then let the stop do its job.",
    "facts": [
     "h9",
     "h14",
@@ -1631,11 +1632,11 @@
     "f02"
    ],
    "wrong": {
-    "Scalp the 1-minute chart": "Scalping needs you at the screen all session. You're in meetings.",
-    "Trade VWAP bounces to close": "VWAP bounces happen all session long, and you're in meetings for nearly all of it.",
-    "Buy, then set the stop tonight": "The stop goes in with the entry. A stop marks where the trade has failed, and ours sits with the broker as a real order."
+    "Scalp the 1-minute chart": "Scalping needs you glued to the screen all session. You're in meetings.",
+    "Trade VWAP bounces to close": "VWAP bounces happen all day long, and you'll miss nearly all of them.",
+    "Buy, then set the stop tonight": "The stop goes in with the entry. Ours sits with the broker as a real order, never later and never in your head."
    },
-   "simple": "Buy early with a real stop in, then hold, because scalping and VWAP trades need you at the screen all day.",
+   "simple": "Buy early and put a real stop in, because after that you can't watch, and scalping needs you at the screen.",
    "deeper": {
     "trap": "A resting buy order looks like the answer for a busy trader: park it and walk away. That is not how we enter. Our entries are market orders, made while we can watch the fill, and the stop then sits with the broker. So use the 30 minutes you have: enter, set the real stop, then go to your meetings."
    },
@@ -1647,7 +1648,7 @@
      "fixed before (rewritten 2026-11-11)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1655,7 +1656,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "On the weekly chart, a stock sits under a falling 30-week average. Today it breaks out hard on the 5-minute chart. You want to hold it for months.",
-   "q": "What does the bigger chart tell you?",
+   "q": "Do you take it?",
    "choices": [
     "Pass, the weekly trend says no",
     "Buy, a breakout is a breakout",
@@ -1663,7 +1664,7 @@
     "Pass, the 5-minute chart is noise"
    ],
    "answer": "Pass, the weekly trend says no",
-   "why": "Pass: the weekly trend says no. A months-long hold rides the weekly trend. Weinstein's buy, in Bulkowski's reading, needs a close above a rising 30-week average, and here price sits under a falling one. Elder takes a daily buy only when the weekly chart shows a clear uptrend. A 5-minute breakout can time an entry, but it can't overrule the weekly chart.",
+   "why": "Pass. You want to hold for months, so the weekly chart gets the final say. And the weekly says down. Price is under a falling 30-week average. The classic long-hold buy needs a close above a rising 30-week average. You've got the opposite. A 5-minute pop can time an entry, but it can't overrule the weekly trend. Wait for the weekly picture to turn, then get involved.",
    "lesson_line": "For a long hold, the weekly chart gets the final say.",
    "facts": [
     "f48",
@@ -1675,7 +1676,7 @@
    "wrong": {
     "Buy, a breakout is a breakout": "A 5-minute breakout can time an entry. It can't turn a weekly downtrend into a months-long uptrend.",
     "Buy, with a tight 5-minute stop": "A tight stop limits the loss, but it doesn't fix the plan. You'd be fighting the weekly trend on a 5-minute signal.",
-    "Pass, the 5-minute chart is noise": "Right action, wrong reason. A 5-minute chart can time an entry. The reason to pass is the weekly trend, which points down."
+    "Pass, the 5-minute chart is noise": "Right call, wrong reason. A 5-minute chart can time an entry. You pass because the weekly trend points down."
    },
    "simple": "Pass, because a hold of months needs the weekly trend on your side, and here it points down.",
    "deeper": {
@@ -1689,7 +1690,7 @@
      "Bulkowski on Weinstein plus ChartSchool on Elder and Hill"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1731,14 +1732,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived intraday before looking. f09 (Hill page), f39 (Schwab) and f55 (Investopedia) were all re-fetched 2026-11-12 and the quotes match. The choices run 30 to 32 characters, with no tell and no silly choice. The weekly note is backed by f56 and f40. It does not answer q08: the q08 story never says same-day.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Clear screen-level stem; 15-minute to trade, 5-minute to time, 60-minute for the day's trend all match f55. Numbers check."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Flipped to a true claim without changing the idea; VWAP resets each open (f12, f44). Plain definition included."
   },
   "q03": {
    "status": "cut",
@@ -1749,118 +1749,116 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Re-derived from f46/f45/f47/f40: a months-long trader. Investor note matches f47 (up to a year). The swing choice's '1 to 5 days' is a hypothetical holder set by the question, never stated as fact. f48 is gone, so q22 does not leak."
+   "fixed": true,
+   "notes": "Truth: wrong note said an investor holds 'about a year'; the source says UP TO a year (f47). Fixed."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "True holds. f51, f50 (hcrl), f66 (TradingWeinstein), f46 (Stages) and f21 (gaps) were re-fetched and match. Defect: the closing lines 'The chart you pick sets the clock. We size from the stop, so a wider stop means fewer shares' rest on nothing in q05's facts. No cited fact says a weekly breakout has a wider stop, which is why the earlier 'stop scales' line was cut. The sizing line now hints at that same unsupported claim. The simple line ('sets how long you hold') goes beyond the facts too. Adding f47 to support the hold would leak q04's key (a trader holding for months), so both lines are dr"
+   "notes": "Rule 26: a true/false stem is one plain claim. The writer's stem made two (same shape, and tradable on either). Now one claim."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "False re-derived from f58 and f27. 'Newest data' reason is a real misconception. The why hedges 'general rule' as the quote does."
+   "fixed": true,
+   "notes": "Why said 'rule of thumb' twice and read flat. Rewritten in his register: verdict, what the noise looks like, his trust line, the practical how."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Launchpad trail renamed to the 20 EMA; hourly 20-period note correct; rd21 cited. House fact h4 still quotes the 21-day as the lesson's own source line."
+   "notes": "Daily 20 EMA trail and the close below it (h4, h15). Hourly note correct: 20 hourly bars, not 20 days."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived day setups from f02, f05 and h10. The tight-stop distractor fails on A7's gap line (h10), a different reason from the swing and position notes. Choices run 32 to 34 characters with no tell. f04 is gone, so q18 does not leak."
+   "notes": "'Don't kid yourself' lands; gap through a tight stop (h10) and costs (f07) right. Answer still right."
   },
   "q09": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "yesterday's high/close/low on one price ruler; base pivot; key '$53.00'"
+   "notes": "cut in rulings-2026-11-17: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived swing. f37, f34, f36 and f43 (Schwab) and f19, f20 and f67 (ChartSchool flag) were re-fetched 2026-11-12 and match. Schwab is reachable by curl. Its context confirms that $150 to $185 over three weeks is the flagpole, followed by a couple of weeks of consolidation on declining volume. So the story matches the source, and the earlier worry about f38 is settled. The choices run 25 to 30 characters, with no tell. The volume distractor is wrong for a grounded reason (f67). Minor: 'Holding for years is investing' is a definition with no quote behind it. It decides nothing."
+   "fixed": true,
+   "notes": "Truth: 'Your stop goes ... under the flag' teaches the flag's low as THE stop; our primary stop is the low of the day, the pattern low only acceptable. Dropped. Added that volume drying up raises the grade but is not a must."
   },
   "q11": {
-   "status": "pass",
+   "status": "cut",
    "by": "checker",
    "fixed": false,
-   "notes": "weeks and days per week; num unit days; key '150 days'"
+   "notes": "Rule 23: a 30-weeks-times-5 drill drives no decision. Its why also told members a 150-day line is 'handy' on the daily, but we teach the 9 and 20 EMA with the 50 and 200 SMA (rd21). The 30-week idea stays in q04 and q22."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stock B re-derived from f60, f61 and f06. The new second-B choice fails on sizing (h7, A5), a different reason from the others. The key is not the longest. Matches the rulebook (B23/D42 liquidity)."
+   "notes": "Stock A/B gone without inventing a ticker. Size from the stop, never the range (h7). Answer right."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Default trail 9 EMA or 20 EMA; VWAP answer unchanged and correct."
+   "notes": "VWAP resets (f44); trail is the 9 or 20 EMA with a close below it (h15). Clean."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived weekly from the stem's times-five rule and f29. f23, f24 and f25 (Elder page) and f29 were re-fetched and match. The monthly, hourly and zoomed-out choices each fail for their own reason. It does not leak q11, whose stem already gives 5 days a week, or q22. Minor: 'one well-known method' is an ungrounded adjective. It is harmless and could later read 'not a law'."
+   "notes": "Elder named in the stem because the question is his principle (rule 13). Five daily bars make a week. Fine."
   },
   "q15": {
-   "status": "pass",
+   "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "cut in rulings-2026-11-17: see the resolver's notes"
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived from f08, f50 and f43. The new simple is 20 words and agrees with the why. Matches the rulebook (A13 stops within about 3%; D41 real stop)."
+   "notes": "8% under last week's low is a weekly-clock stop on a 5-minute idea. Real stop with the broker (h11). Good."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Kicker trail renamed to the 9 EMA, pronoun fixed, day-1 sell wrong choice agrees with D-013; the 30-minute break is an entry option, not a mandatory wait (D-031 ok)."
+   "fixed": true,
+   "notes": "Truth: the story said 'short of 3R', which hints a fixed trim at 3R (a known misstatement; the first sell is judgment). Removed from the story; nothing else needed 3R."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False re-derived from f04, f07 and f02. f03 now backs 'watch all session'. Balances q08 without answering it."
+   "notes": "SEC/FINRA moved to deeper; why carries the reason in plain words. Good."
   },
   "q19": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Stem opened like q16 ('What do you make of that'); varied."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "The key is right. f63, f64 and f65 (Investopedia position page, which curl reached with a 200 today), f41 (Schwab) and f33 (ChartSchool MAs) were re-fetched and match. Tell: two of the four choices start 'Position trading', and the key is one of them. A guesser lands on the right style through that overlap alone. Fix: two Day and two Position choices. The new 'Day trading: breakouts fail in days' lifts the story's own words as a lure and fails on f39 plus f65. 'Every style, chop hurts all alike' is dropped, so the deeper trap is rewritten to the new lure. f06 is no longer used. f39 and f60 are"
+   "notes": "Answer right among the choices, but 'breakouts fail within days' hits swing breakout buyers too, and the why ignored us. Added his judgment line."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-derived from h9, h11, h14 and f03/f05. Matches E57 (market orders), D41 and C35. The key no longer echoes 'watch'. Two Buy choices against two others. The stop-tonight distractor fails on D41.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Market entry while you can watch the fill (h9), real stop with the broker (h11), swing hold (h14). Good."
   },
   "q22": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Blunt 'Pass', the weekly gets the final say, 'then get involved'. Close above a rising 30-week (f48). Best in the lesson."
   }
  }
 }

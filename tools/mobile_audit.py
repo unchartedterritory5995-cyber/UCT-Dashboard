@@ -285,12 +285,14 @@ def do_login(page, base: str) -> bool:
     # POST the login via the context's request API — the Set-Cookie persists
     # into the browser context's cookie jar, so subsequent navigations are
     # authenticated. Far more robust than driving the form past the intro overlay.
+    # tools/synthetic_session.py signs this session OUT when the run ends, however it ends
+    # (and refuses a non-synthetic address on any base but loopback).
     try:
-        resp = page.request.post(
-            f"{base}/api/auth/login",
-            data={"email": email, "password": pw},
-            headers={"Content-Type": "application/json"},
-        )
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    try:
+        resp = S.sign_in_playwright(page, base, credentials=(email, pw)).response
         if not resp.ok:
             print(f"  ! login HTTP {resp.status}", file=sys.stderr)
             return False

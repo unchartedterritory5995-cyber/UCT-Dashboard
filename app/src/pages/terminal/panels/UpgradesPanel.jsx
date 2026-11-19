@@ -223,7 +223,7 @@ export default function UpgradesPanel({ kind: kindProp = null }) {
           Pick another kind to see the rest.
         </PanelState>
       ) : (
-        <div className={styles.tableBox}>
+        <div className={styles.tableBox} data-fold="550">
           <table className={styles.table} data-testid="terminal-updg-table" aria-label={`${sentence(UPGRADE_KINDS[kind].plural)}, sortable`}>
             <thead>
               <tr>

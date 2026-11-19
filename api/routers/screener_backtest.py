@@ -466,6 +466,8 @@ def _definition_tree(def_id: str, user_id: Any, plot: Optional[str] = None) -> t
     return tree, {"def_id": def_id, "version": row.get("version"),
                   "rev": compute.get("rev"),
                   "_semantics": ast_interpret.semantics_for(doc),
+                  # engine 78 (#1858) -- a Pine document replays with TradingView's comparison
+                  "_pine_compare": ast_interpret.pine_compare_opts_for(doc),
                   "_block_runs": ({"definition": doc, "key": scan_key, "gates": gates} if gates else None)}
 
 
@@ -974,7 +976,7 @@ def _withheld_for(blocked: Optional[dict], opts: Optional[dict]):
 def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
                 horizons: list[int], read_bars, want: int, to_key: int,
                 tf: str = "D", semantics: int = 1, blocked: Optional[dict] = None,
-                runtime: Optional[dict] = None) -> dict:
+                runtime: Optional[dict] = None, pine_compare: Optional[dict] = None) -> dict:
     """The ONLY call into ``api/services/screener/backtest.py``.
 
     ⛔ Nothing is post-processed. Whatever receipt the engine returns — including
@@ -1001,6 +1003,9 @@ def _run_engine(tree: dict, symbols: list[str], *, start: int, end: int,
     # ⭐ the canonical opts for the definition semantics — None for 1, so a
     # semantics-1 replay evaluates exactly as it always did
     opts = {"semantics": 2} if semantics == 2 else None
+    # engine 78 (#1858) -- a Pine document's replay compares within TradingView's epsilon
+    if pine_compare:
+        opts = dict(opts or {}, **pine_compare)
     # W5-T15 -- ONE engine call for both: a runtime replay differs only in WHERE the column
     # comes from (the service, through `_RuntimeReplay`) and the lead it is charged
     replay = _RuntimeReplay(runtime, symbols, tf, read_bars, want) if runtime is not None else None
@@ -1060,7 +1065,7 @@ def _envelope(receipt: dict, extras: dict) -> dict:
 
 def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
            horizons: list[int], semantics: int = 1,
-           block_runs: Optional[list] = None) -> str:
+           block_runs: Optional[list] = None, pine_compare: Optional[dict] = None) -> str:
     """Deterministic id for one backtest. No clock, no RNG, no counter.
 
     Same inputs → same id → the poll finds the receipt that was already computed,
@@ -1080,6 +1085,11 @@ def job_id(tree: Any, symbols: list[str], tf: str, start: int, end: int,
     # two receipts must never be served for each other. Added ONLY when present.
     if block_runs:
         body["blockRuns"] = block_runs
+    # engine 78 (#1858) -- and the comparison rule: a Pine replay compares within TradingView's
+    # epsilon, so it is never served the receipt an IEEE replay of the same tree filed. Added ONLY when
+    # present, so every non-Pine id is byte-identical to what it was.
+    if pine_compare:
+        body["pineCompare"] = {k: pine_compare[k] for k in sorted(pine_compare)}
     payload = json.dumps(body, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:24]
 
@@ -1202,6 +1212,9 @@ def run_screen_backtest(body: BacktestRequest,
     # STORED definition (`_definition_tree`); a posted tree is semantics 1. Popped
     # here, first, so the private key never reaches an echo of the provenance.
     semantics = 2 if (definition.pop("_semantics", 1) if definition else 1) == 2 else 1
+    # engine 78 (#1858) -- the stored document's comparison rule (`_definition_tree`), private the same
+    # way; `{}` for a posted tree and every non-Pine definition
+    pine_compare = (definition.pop("_pine_compare", None) or {}) if definition else {}
     # ⭐ M3 — the stored definition's scan-plot gates (`_definition_tree`), popped
     # beside it for the same reason; `None` for a posted tree and every unstamped
     # definition.
@@ -1302,7 +1315,7 @@ def run_screen_backtest(body: BacktestRequest,
                     f"is {cap:,}. Narrow the universe or shorten the window."))
 
     job = job_id(tree, symbols, tf, start, end, horizons, semantics=semantics,
-                 block_runs=blocked["gates"] if blocked else None)
+                 block_runs=blocked["gates"] if blocked else None, pine_compare=pine_compare)
 
     # ⛔ `universe_request`, NOT `universe`, AND NO `bars_source` AT ALL.
     # The engine's receipt already writes both: `Receipt.universe` is a REQUIRED
@@ -1409,7 +1422,7 @@ def run_screen_backtest(body: BacktestRequest,
                               horizons=horizons,
                               read_bars=_bars_reader(tf, to_key),
                               want=want, to_key=to_key, tf=tf, semantics=semantics,
-                              blocked=blocked, runtime=runtime)
+                              blocked=blocked, runtime=runtime, pine_compare=pine_compare)
         return _envelope(receipt, extras)
 
     if background:

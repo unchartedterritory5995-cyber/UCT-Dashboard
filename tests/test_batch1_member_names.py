@@ -71,10 +71,11 @@ def test_a_change_AND_a_name_keeps_both(conv, model):
 
 
 def test_an_unknown_concept_beside_a_name_is_still_refused(conv, model):
-    """ASKED: "Add the McGinley Dynamic and call it Swing Line". CLAIMED: the name does not
+    """ASKED: "Add the Gann Fan and call it Swing Line" (an unknown name; it was the McGinley Dynamic
+    until that joined the named-indicator library, 2026-11-18). CLAIMED: the name does not
     launder an unknown concept -- still refused with no model call. DID (REFUSAL)."""
     client = model([])
-    r = conv.converse("Add the McGinley Dynamic and call it Swing Line", user_id="u1",
+    r = conv.converse("Add the Gann Fan and call it Swing Line", user_id="u1",
                       view=view(1, [out("value", RSI_GT_70)]))
     assert r["ok"] is False and r["gate"].startswith("concept:")
     assert client.calls == []

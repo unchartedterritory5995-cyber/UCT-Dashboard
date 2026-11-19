@@ -3936,6 +3936,24 @@ def get_implied_moves(date_str: str | None = Query(None, alias="date")):
     return out
 
 
+@router.get("/api/calendar/earnings-season")
+def get_earnings_season(date_str: str | None = Query(None, alias="date"),
+                        user: dict = Depends(require_paid)):
+    """One day's earnings reporters for the Terminal's earnings season screen (ERNS): who
+    reports before the open and after the close, the move options priced before each report,
+    how each stock moved on its past reports, and the result and move once it lands.
+
+    `date` is `YYYY-MM-DD`, within one calendar week either side of the week the Calendar
+    shows; with none it is the next day that has a reporter. Paid, like the Calendar's other
+    member routes. NEVER builds on the request: `api/services/earnings_season.py` answers what
+    it holds, else waits a few seconds on its one background build, else says
+    `{"status": "computing"}` and the panel asks again. That module's docstring names every
+    source and why the enrichment batch is not one of them.
+    """
+    from api.services import earnings_season
+    return earnings_season.get_day(date_str)
+
+
 @router.get("/api/calendar/enrichment-batch")
 def get_enrichment_batch(dates: str | None = None):
     """Batch enrichment for a whole week in ONE request. `dates` = comma-separated

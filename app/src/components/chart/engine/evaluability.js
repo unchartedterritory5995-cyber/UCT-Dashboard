@@ -209,6 +209,8 @@ export function otherSymbolsDecision(def, ctx) {
     framed: !!(ctx && ctx.framed),
     // ⭐ RS RATING L1b — a witnessed spelling is served on the timeframes its witness covers
     tf: ctx && ctx.tf,
+    // ⭐ RS RATING L11 PR 2 — the chart's newest bar reads its own period (`newestOwnPeriodOf`)
+    chartNewestDay: ctx && ctx.chartNewestDay,
   })
 }
 

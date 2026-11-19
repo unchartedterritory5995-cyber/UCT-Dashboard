@@ -137,12 +137,28 @@ describe('with the witness row injected, SP:SPX is served — aligned by session
     expect(r.refused[0].code).toBe(R.WITNESS_PENDING)
   })
 
-  it('⛔ only the witnessed timeframes: a weekly chart refuses by name', () => {
+  it('⛔ only the witnessed timeframes: a 4-hour chart refuses by name', () => {
+    // (⭐ RS RATING L13 witnessed the monthly chart, Q-RS-M; L12 the 1 / 5 / 15 / 30 / 60 minute charts, Q-L12-1,
+    // `rsIntradayWitness.test.js`; a timeframe with no witnessed block still refuses)
     setRequestWitnessRows(WITNESSED)
     const { def } = docOf(pine(['plot(request.security("SP:SPX", timeframe.period, close))']))
-    const r = resolveOtherSymbols(def, ctxOf({ tf: 'W' }))
+    const r = resolveOtherSymbols(def, ctxOf({ tf: '240' }))
     expect(r.served).toEqual([])
     expect(r.refused[0].code).toBe(R.WITNESS_TIMEFRAME)
+    expect(r.refused[0].reason).toMatch(/witnessed on D, W, M, 1, 5, 15, 30, 60 charts only \(capture-queue rows [^)]*Q-L12-1/)
+  })
+
+  it('⭐ RS RATING L11 — a weekly chart is served from the DAILY rows held under `SPX@D`, never from the plain key', () => {
+    setRequestWitnessRows(WITNESSED)
+    const { def } = docOf(pine(['plot(request.security("SP:SPX", timeframe.period, close))']))
+    const plain = resolveOtherSymbols(def, ctxOf({ tf: 'W' }))
+    expect(plain.served).toEqual([])
+    expect(plain.refused[0].code).toBe(R.NO_BARS)
+    const heldOn = resolveOtherSymbols(def, ctxOf({ tf: 'W', secondary: new Map([['SPX@D', { bars: SPX, status: 'available' }]]) }))
+    expect(heldOn.served).toEqual(['SPX'])
+    // `previous-week`: 2026-01-02's week (Friday 2026-01-02) is read by the next week's bar (Friday 2026-01-09);
+    // 2026-01-05..06's week by the one after
+    expect(heldOn.symbols.SPX.map((b) => [b.t, b.c])).toEqual([['2026-01-09', 5900], ['2026-01-16', 5920]])
   })
 
   it('⛔ still waiting while the bars load, refused once the answer is empty', () => {

@@ -15,6 +15,8 @@ import struct
 import threading
 import time
 
+from api.services import bg_lane as _bg_lane
+
 _logger = logging.getLogger(__name__)
 
 _DB_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "bars.db")
@@ -1580,43 +1582,47 @@ def purge_mis_keyed_weekly_rows() -> int:
     sixty_probe = not _sixty_grid_clean(c)
     sixty_old = sixty_rebuilt = 0
     for tkr in iter_tickers(c):
-        if sixty_probe:
+        # ⚡ One ticker per lane turn on the web pod (api/services/bg_lane.py): after the boot
+        # settles, one item of background sweep work at a time, at a bounded share of the clock.
+        # A pass-through in every other process (the worker's SYNC purge is never paced).
+        with _bg_lane.turn("weekly-key-purge"):
+            if sixty_probe:
+                try:
+                    if ticker_has_old_grid_60m(c, tkr):
+                        sixty_old += 1
+                        if sixty_rebuilt < SIXTY_GRID_REBUILDS_PER_PASS:
+                            from api.services.bars_fetch import rebuild_sixty_min_grid
+                            rebuild_sixty_min_grid(tkr)
+                            sixty_rebuilt += 1
+                except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
+                    _logger.warning(f"[sqlite] 60m grid rebuild {tkr} failed (non-fatal): {e}")
+            # Same pass, same PK-prefixed seek: daily rows on a non-trading day (+ the
+            # weeks/months they were summed into). Runs before the W scan below so a W row
+            # it rewrites is judged by that scan like any other.
             try:
-                if ticker_has_old_grid_60m(c, tkr):
-                    sixty_old += 1
-                    if sixty_rebuilt < SIXTY_GRID_REBUILDS_PER_PASS:
-                        from api.services.bars_fetch import rebuild_sixty_min_grid
-                        rebuild_sixty_min_grid(tkr)
-                        sixty_rebuilt += 1
-            except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
-                _logger.warning(f"[sqlite] 60m grid rebuild {tkr} failed (non-fatal): {e}")
-        # Same pass, same PK-prefixed seek: daily rows on a non-trading day (+ the
-        # weeks/months they were summed into). Runs before the W scan below so a W row
-        # it rewrites is judged by that scan like any other.
-        try:
-            off_calendar += purge_off_calendar_daily(tkr, c, since_ymd=off_since)
-        except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
-            off_errors += 1
-            _logger.warning(f"[sqlite] off-calendar daily purge {tkr} failed (non-fatal): {e}")
-        bad = [
-            ts for (ts,) in c.execute(
-                "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
-            ).fetchall()
-            if _is_bad(ts)
-        ]
-        if not bad:
-            continue
-        with _WRITE_LOCK:
-            for i in range(0, len(bad), 500):
-                chunk = bad[i:i + 500]
-                qs = ",".join("?" for _ in chunk)
-                cur = c.execute(
-                    f"DELETE FROM ohlcv WHERE ticker=? AND tf='W' AND ts IN ({qs})",
-                    [tkr, *chunk],
-                )
-                deleted += cur.rowcount
-            bump_series_revs(c, [(tkr, "W")], deleted=True, deleted_from=min(bad))
-            c.commit()
+                off_calendar += purge_off_calendar_daily(tkr, c, since_ymd=off_since)
+            except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
+                off_errors += 1
+                _logger.warning(f"[sqlite] off-calendar daily purge {tkr} failed (non-fatal): {e}")
+            bad = [
+                ts for (ts,) in c.execute(
+                    "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
+                ).fetchall()
+                if _is_bad(ts)
+            ]
+            if not bad:
+                continue
+            with _WRITE_LOCK:
+                for i in range(0, len(bad), 500):
+                    chunk = bad[i:i + 500]
+                    qs = ",".join("?" for _ in chunk)
+                    cur = c.execute(
+                        f"DELETE FROM ohlcv WHERE ticker=? AND tf='W' AND ts IN ({qs})",
+                        [tkr, *chunk],
+                    )
+                    deleted += cur.rowcount
+                bump_series_revs(c, [(tkr, "W")], deleted=True, deleted_from=min(bad))
+                c.commit()
     if sixty_probe:
         _logger.info(f"[sqlite] 60m grid: {sixty_old} old-layout ticker(s), {sixty_rebuilt} rebuilt this pass")
         if sixty_old == 0:

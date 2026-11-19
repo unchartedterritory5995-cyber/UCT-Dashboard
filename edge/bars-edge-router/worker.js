@@ -33,6 +33,7 @@
  */
 
 import { HIST_PREFIX, handleHistory } from "./history.js";
+import { STREAM_BARS_PATH, handleStream } from "./stream.js";
 
 const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
 const WEB_ORIGIN  = "https://web-production-05cb6.up.railway.app";
@@ -301,7 +302,7 @@ export async function classifyRequest(request, secret, nowSeconds) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     // Deep intraday history from R2 (history.js). A separate surface from /api/bars: entitlement
     // IS enforced there, and nothing below this line changes for any other path.
@@ -309,8 +310,10 @@ export default {
       return handleHistory(request, env, async (req) => {
         const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
         return cls === VALID || cls === SERVICE_VALID;
-      });
+      }, ctx);
     }
+    // The live chart stream (stream.js): to stream-edge for the canary, otherwise untouched to web.
+    if (url.pathname === STREAM_BARS_PATH) return handleStream(request, env);
     const m = url.pathname.match(/^\/api\/bars(?:-history)?\/([^\/?#]+)/);
     if (!m) return fetch(request);
 

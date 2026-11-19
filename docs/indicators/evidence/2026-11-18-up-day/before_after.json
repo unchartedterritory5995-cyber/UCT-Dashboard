@@ -1,0 +1,72 @@
+{
+ "fixture": "tests/fixtures/alerts/replay_bars.json#spy_daily",
+ "days": {
+  "bars": 400,
+  "first": 20241230,
+  "last": 20260805,
+  "up_by_open": 212,
+  "up_by_previous_close": 222,
+  "down_by_open": 186,
+  "down_by_previous_close": 177,
+  "days_the_two_disagree_on": 76
+ },
+ "indicators": {
+  "volume_with_50_average": {
+   "version": 2,
+   "outputs": {
+    "upSurge": {
+     "known_before": 400,
+     "known_after": 400,
+     "bars_that_differ": 4,
+     "last_bar_before": 0.0,
+     "last_bar_after": 0.0,
+     "true_before": 8,
+     "true_after": 8
+    },
+    "downSurge": {
+     "known_before": 400,
+     "known_after": 400,
+     "bars_that_differ": 4,
+     "last_bar_before": 0.0,
+     "last_bar_after": 0.0,
+     "true_before": 21,
+     "true_after": 21
+    },
+    "vol_cs": {
+     "known_before": 400,
+     "known_after": 400,
+     "bars_that_differ": 4,
+     "last_bar_before": 2.0,
+     "last_bar_after": 2.0,
+     "largest_difference": 1.0,
+     "mean_before": 1.9075,
+     "mean_after": 1.9075
+    }
+   }
+  },
+  "up_down_volume_ratio_50": {
+   "version": 2,
+   "outputs": {
+    "udr": {
+     "known_before": 351,
+     "known_after": 351,
+     "bars_that_differ": 351,
+     "last_bar_before": 1.106,
+     "last_bar_after": 1.0557,
+     "largest_difference": 0.7061,
+     "mean_before": 1.0229,
+     "mean_after": 1.1285
+    },
+    "strong": {
+     "known_before": 400,
+     "known_after": 400,
+     "bars_that_differ": 79,
+     "last_bar_before": 0.0,
+     "last_bar_after": 0.0,
+     "true_before": 47,
+     "true_after": 112
+    }
+   }
+  }
+ }
+}

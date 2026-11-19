@@ -743,9 +743,9 @@
    "key": "w1",
    "title": "What an ETF is",
    "steps": [
-    "An ETF is a fund. It pools money into a basket of stocks, bonds or other assets.",
-    "Each share is a slice of that basket, and it trades on an exchange all day like a stock.",
-    "Many ETFs track an index. You can't buy the index itself, so you buy a fund that tracks it."
+    "You can't buy an index itself. So you buy a fund that tracks it, an ETF.",
+    "The ETF pools everyone's money into a basket of stocks, bonds or other assets. Each share is a slice of it.",
+    "And you trade it on an exchange all day, at a live price, just like a stock."
    ],
    "facts": [
     "f1",
@@ -760,9 +760,9 @@
    "key": "w2",
    "title": "Eleven sectors, eleven funds",
    "steps": [
-    "GICS sorts each company into one of 11 sectors by its main business.",
-    "Each sector has a Select Sector SPDR fund. XLK is tech, XLF financials, XLE energy.",
-    "Together, the 11 sector indexes cover every company in the S&P 500."
+    "Every company gets sorted into one of 11 sectors by its main business. That's GICS.",
+    "Each sector has its own fund. XLK is tech, XLF financials, XLE energy.",
+    "Put all 11 together and you've got every company in the S&P 500. Line them up to see which groups lead."
    ],
    "facts": [
     "f47",
@@ -776,10 +776,10 @@
    "key": "w3",
    "title": "What a 2x or 3x fund does",
    "steps": [
-    "A 2x or 3x fund aims for two or three times the index's move for one day. Then it resets.",
-    "Take $100 in a 2x fund. The index drops 10%, so the fund drops 20%, to $80.",
-    "Next day the index rises 10%. The fund gains 20%, but only on $80, so it reaches $96.",
-    "Over the two days the index lost 1%. The 2x fund lost 4%. Chop works against these funds."
+    "A 2x or 3x fund aims for two or three times the index's move, for one day. Then it resets.",
+    "Say you put $100 in a 2x fund. The index drops 10%, the fund drops 20%, to $80.",
+    "Next day the index climbs 10%. The fund gains 20%, but on $80, so it only gets back to $96.",
+    "Two days: the index lost 1%, the fund lost 4%. Chop grinds these funds down."
    ],
    "facts": [
     "f7",
@@ -799,16 +799,16 @@
    "rung": 1,
    "format": "mcq",
    "term": "ETF",
-   "q": "You buy a share of SPY or XLK. What are you actually buying?",
+   "q": "Tech is leading and you don't want to pick one name, so you buy XLK instead. What do you actually own?",
    "choices": [
-    "A basket of assets that trades all day",
-    "Shares in just one listed company",
-    "A fund priced once a day, at the close",
-    "Unsecured debt issued by a bank"
+    "A slice of a basket, trading all day",
+    "Shares of one big tech company",
+    "A fund priced once a day at the close",
+    "A bank's note that tracks tech"
    ],
-   "answer": "A basket of assets that trades all day",
-   "why": "A basket of assets that trades all day. An ETF is a fund. It pools many investors' money and buys stocks, bonds or other assets. Each share you buy is a slice of that whole basket. Take SPY: it tracks the S&P 500, so one share is a slice of large US companies across all eleven sectors. Take XLK: its basket is technology, from software to chips. Both trade on an exchange like a stock, so you see your price as you trade. A mutual fund is different: you buy it at its next calculated value, not a live price. An ETN is different too: unsecured debt from a bank, with no basket behind it.",
-   "lesson_line": "An ETF is a whole basket you can trade like one stock.",
+   "answer": "A slice of a basket, trading all day",
+   "why": "A slice of a basket. XLK is a fund. It pools everyone's money and buys the tech names: software, hardware, the chip makers, IT services. Every share you own is a slice of that whole basket. So you get the group's move without betting it all on one company's news. SPY works the same way. Its basket is the S&P 500, companies from all eleven sectors. The ETF part is how it trades. It's listed on the exchange like a stock, so you see your price as you buy and sell. A mutual fund fills you at its next calculated value, after the fact. To see what's in the basket, go to the fund's own website. It lists every holding.",
+   "lesson_line": "An ETF is a whole basket you trade like one stock.",
    "facts": [
     "f1",
     "f2",
@@ -819,14 +819,15 @@
     "f26",
     "f56",
     "f65",
-    "f66"
+    "f66",
+    "f6"
    ],
    "wrong": {
-    "Shares in just one listed company": "That's a single stock. An ETF is a fund, and each share is a slice of everything the fund owns, like all the technology names in XLK.",
-    "Unsecured debt issued by a bank": "That's an ETN: unsecured debt, typically issued by a bank. It isn't pooled and holds no basket. An ETF is a pooled fund.",
-    "A fund priced once a day, at the close": "That's closer to a mutual fund, bought at its next calculated value. ETF shares trade all day at market prices."
+    "Shares of one big tech company": "That's a single stock. XLK owns the whole tech group, and your share is a slice of all of it.",
+    "A fund priced once a day at the close": "That's a mutual fund. You buy it at its next calculated value. An ETF trades all day at the market price.",
+    "A bank's note that tracks tech": "That's an ETN, unsecured debt from a bank. There's no basket behind it. An ETF actually owns the stocks."
    },
-   "simple": "A slice of a whole basket of stocks or bonds, and you can trade it all day like a stock.",
+   "simple": "A slice of a whole basket of stocks, and you can trade it all day like one stock.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -834,7 +835,7 @@
      "fixed before (2026-11-09 checker: single-stock note)"
     ]
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -920,16 +921,16 @@
    "rung": 2,
    "format": "mcq",
    "term": "inverse ETF",
-   "q": "What does an inverse ETF aim to do?",
+   "q": "Your buddy holds an inverse Nasdaq-100 fund. The index closes up 1.5% today and he's red. What's that fund built to do?",
    "choices": [
-    "Move opposite the index for the day",
-    "Gain over any stretch the index falls",
-    "Hold the index's weakest stocks",
-    "Move twice the index for the day"
+    "The opposite of the index, each day",
+    "Gain whenever the index ends lower",
+    "Own the index's weakest stocks",
+    "Two times the index's move each day"
    ],
-   "answer": "Move opposite the index for the day",
-   "why": "Move opposite the index for the day. An inverse ETF aims for the opposite of its index's daily move. If the Nasdaq-100 closes up 1.5%, the fund aims to lose 1.5%. If the index closes down 2%, it aims to gain 2%. Most reset daily, so held for weeks it can lose even when the index ends lower. It uses swaps, futures and other derivatives, not a list of weak stocks.",
-   "lesson_line": "Inverse means opposite, one day at a time.",
+   "answer": "The opposite of the index, each day",
+   "why": "Go the opposite way, one day at a time. The index is up 1.5% today, so the fund aims to lose 1.5%. Flip it around and an index down 2% means the fund aims to gain 2%. So your buddy's red because the market's green. Now the catch I want you to hold onto. Most of these funds reset every day. Hold one for weeks and it can lose money even when the index ends lower. It gets its moves from swaps, futures and other derivatives, not from owning weak stocks.",
+   "lesson_line": "Inverse is the opposite of today's move, not the opposite of your whole trade.",
    "facts": [
     "f8",
     "f30",
@@ -939,9 +940,9 @@
     "f7"
    ],
    "wrong": {
-    "Gain over any stretch the index falls": "Only day by day. Hold it for weeks and it can lose even when the index ends lower.",
-    "Hold the index's weakest stocks": "It doesn't pick losers. It uses swaps, futures and other derivatives to aim for the opposite of the day's move.",
-    "Move twice the index for the day": "That's a 2x fund, which aims for a multiple of the day's move. An inverse fund aims for the opposite of it."
+    "Gain whenever the index ends lower": "Only day by day. Hold it for weeks and it can lose even when the index ends lower.",
+    "Own the index's weakest stocks": "It doesn't pick losers. It uses swaps, futures and other derivatives to go the other way on the day.",
+    "Two times the index's move each day": "That's a 2x fund. An inverse fund aims for the opposite of the day's move, not a multiple of it."
    },
    "simple": "It aims to move the opposite way to the index, but only for one day at a time.",
    "tier": "core",
@@ -951,7 +952,7 @@
      "fixed before (2026-11-09 track auditor: Nasdaq-100 spelling)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -997,9 +998,9 @@
    "skill": "basics.etfs",
    "rung": 3,
    "format": "tf",
-   "q": "A 3x ETF aims for three times the index's return over any holding period you choose.",
+   "q": "You buy TQQQ, the 3x Nasdaq-100 fund, and plan to hold it for a month. It's built to give you 3x the index's move for that month.",
    "answer": "False",
-   "why": "False. A 3x fund aims for three times the index's daily move, and most reset every day. TQQQ, for one, aims for 3x the Nasdaq-100's daily move, before fees. Reset means each new day starts from the last close, so the days compound on a changing balance. For any holding period other than a day, the return can be higher or lower than 3x. The gap can be large.",
+   "why": "False. TQQQ aims for 3x the Nasdaq-100's move for one day, before fees. Then it resets. Each new day starts from the last close, so the days compound on a balance that keeps changing. Hold it a month and you can land well above 3x or well below it. ProShares runs the fund, and it says that gap may be significant. So read the 3x as today's move. If you trade these, plan on days, not months.",
    "lesson_line": "Read 3x as three times today's move, not three times your whole trade.",
    "facts": [
     "f7",
@@ -1008,13 +1009,13 @@
     "f67",
     "f68"
    ],
-   "simple": "False, a 3x fund aims for three times one day's move, so over longer holds it can land far from 3x.",
+   "simple": "False, the 3x is for one day. Hold it a month and you can land far from 3x.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -1047,7 +1048,7 @@
    "skill": "basics.etfs",
    "rung": 4,
    "format": "mcq",
-   "q": "Bank stocks are leading the market. Which sector SPDR holds them?",
+   "q": "The big banks are leading the market this week. Which sector fund do you pull up to see the whole group?",
    "choices": [
     "XLF",
     "XLB",
@@ -1055,21 +1056,22 @@
     "XLK"
    ],
    "answer": "XLF",
-   "why": "XLF. The financial sector fund holds banks, insurance, capital markets, financial services, consumer finance and mortgage REITs. XLB is materials, XLE is energy and XLK is technology. XLB's B is not for banks, so check the fund's own list, not a guess from the ticker.",
-   "lesson_line": "Banks, insurers and capital markets names all sit in XLF.",
+   "why": "XLF, the financials fund. It holds the banks, plus insurers, capital markets firms, consumer finance and mortgage REITs. Pull it up next to SPY. If XLF is beating SPY, the group is leading the market, not just the bank on your screen. Watch the trap in the tickers. XLB sounds like banks, but the B is materials: chemicals, metals and mining. Don't guess from the letters. Check the fund's own holdings list.",
+   "lesson_line": "Banks live in XLF. Check the fund's list, not the letters in the ticker.",
    "facts": [
     "f59",
     "f53",
     "f62",
     "f60",
-    "f56"
+    "f56",
+    "f6"
    ],
    "wrong": {
     "XLB": "The B isn't for banks. XLB is materials: chemicals, metals and mining.",
-    "XLE": "XLE is energy: oil, gas and energy services.",
-    "XLK": "XLK is technology: software, hardware and chips."
+    "XLE": "That's energy: oil, gas and energy services. No banks in it.",
+    "XLK": "That's tech: software, hardware and chips. The banks sit in financials."
    },
-   "simple": "XLF, because the financial sector fund holds the banks, along with insurers and capital markets firms.",
+   "simple": "XLF. The financials fund holds the banks, along with insurers and capital markets firms.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1078,14 +1080,14 @@
      "sector lists can change (GICS 2026 consultation)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
    "skill": "basics.etfs",
    "rung": 4,
    "format": "mcq",
-   "q": "The index falls 3% today. About how much should a 3x fund on that index lose today?",
+   "q": "You're holding a 3x fund and the index drops 3% today. About how much does your fund lose on the day?",
    "answer": "9%",
    "suffix": "%",
    "calc": {
@@ -1096,7 +1098,7 @@
      "move": 3
     }
    },
-   "why": "About 9%. A 3x fund aims for three times the index's daily move. Three times a 3% drop is a 9% loss that day, before fees. FINRA runs the same math on an inverse 3x fund: a 3% index day, a 9% move.",
+   "why": "About 9%. A 3x fund aims for three times the index's daily move. Three times a 3% drop is a 9% hit, before fees. It cuts both ways, so a 3% up day is about a 9% gain. That's the appeal and the danger. One bad day in a 3x fund feels like three bad days in the index. Size it with that in mind.",
    "lesson_line": "Three times the move means three times the loss on a down day.",
    "facts": [
     "f7",
@@ -1105,7 +1107,7 @@
     "f31",
     "f32"
    ],
-   "simple": "About 9%, because a 3x fund aims to move three times the index's move for that one day.",
+   "simple": "About 9%, because the fund aims to move three times the index for that one day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1113,7 +1115,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "6%",
     "3%",
@@ -1121,9 +1123,9 @@
     "9%"
    ],
    "wrong": {
-    "3%": "You gave the index's move and never applied the 3x.",
-    "1%": "You divided the 3% by 3 instead of multiplying.",
-    "6%": "You added 3 and 3 instead of multiplying them."
+    "3%": "That's the index's move. You never applied the 3x.",
+    "1%": "You divided by 3. A 3x fund multiplies the move.",
+    "6%": "You added 3 and 3. It's three times 3, not 3 plus 3."
    },
    "visual": {
     "kind": "size",
@@ -1153,17 +1155,17 @@
    "skill": "basics.etfs",
    "rung": 4,
    "format": "scenario",
-   "story": "XLK and SPY both have strong charts. You'll put the same dollars into one of them.",
-   "q": "Which one ties more of your money to one group's news?",
+   "story": "XLK and SPY both look strong on the daily chart. You're putting the same dollars into one of them.",
+   "q": "Which one puts more of your money on one group's news?",
    "choices": [
     "XLK",
     "SPY",
     "About the same",
-    "Neither, ETFs spread your money wide"
+    "Neither, ETFs spread you out"
    ],
    "answer": "XLK",
-   "why": "XLK. GICS sorts every company into one of 11 sectors by its main business. State Street runs one Select Sector SPDR for each: XLK for tech, XLF for financials, XLE for energy. XLK holds one sector: hardware, software, chips and IT services. SPY tracks the S&P 500, which holds companies in all 11 sectors. A sector fund is less diversified than a broad market fund, so one group's news moves more of your money. State Street says sector funds may be more volatile and generally swing more than the overall market.",
-   "lesson_line": "A sector fund is one group's bet. A broad fund like SPY spreads it across all 11 sectors.",
+   "why": "XLK. It's one sector, tech: hardware, software, chips and IT services. SPY is the S&P 500, with companies in all eleven sectors. So when chips get hit on a bad headline, XLK takes a real hit and SPY only feels a slice. State Street runs XLK, and it says sector funds tend to swing more than the overall market. That's not a knock on XLK. Concentration is what makes a leading group pay. Just size it knowing it moves harder than SPY.",
+   "lesson_line": "A sector fund is one group's bet. SPY spreads it across the whole market.",
    "facts": [
     "f56",
     "f66",
@@ -1176,11 +1178,11 @@
     "f20"
    ],
    "wrong": {
-    "SPY": "SPY spreads your money across all 11 sectors, so one group's news moves it less.",
-    "About the same": "Not the same. XLK is one sector. SPY covers the whole S&P 500.",
-    "Neither, ETFs spread your money wide": "Not every ETF is spread wide. The SEC says some ETFs are less diverse than others, and XLK holds one sector."
+    "SPY": "SPY spreads you across all eleven sectors, so one group's news moves it less.",
+    "About the same": "Not close. XLK is one sector. SPY is the whole S&P 500.",
+    "Neither, ETFs spread you out": "Not every ETF is spread wide. Some hold one sector, and XLK is one of them."
    },
-   "simple": "XLK, because it holds just one sector, tech, while SPY spreads your money across all 11 sectors.",
+   "simple": "XLK, because it holds one sector, tech, while SPY spreads your money across all eleven sectors.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1188,15 +1190,15 @@
      "key rests on one publisher (State Street fund pages)"
     ]
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "basics.etfs",
    "rung": 5,
    "format": "scenario",
-   "story": "Chip stocks have led the market for two weeks. You want the sector fund they sit in.",
-   "q": "Which sector SPDR holds the semiconductor companies?",
+   "story": "Chip stocks have led the market for two weeks. You want to see how the whole sector is holding up.",
+   "q": "Which sector fund do the chip makers sit in?",
    "choices": [
     "XLK",
     "XLC",
@@ -1204,8 +1206,8 @@
     "XLB"
    ],
    "answer": "XLK",
-   "why": "XLK. The technology sector fund holds semiconductors and semiconductor equipment, along with software, hardware and IT services. XLC is telecom, media and entertainment. XLI is industrials such as aerospace, machinery and transport. XLB is materials such as chemicals, metals and mining.",
-   "lesson_line": "Chips sit in tech. The sector fund to check is XLK.",
+   "why": "XLK. The chip makers and the chip equipment names sit in tech, with software, hardware and IT services. So when semis lead, XLK is the sector fund where you'll see it. Keep in mind they share that fund with software. If chips rip and software lags, XLK only shows you part of the move. The others aren't close. XLC is media and telecom, XLI is industrials, XLB is materials.",
+   "lesson_line": "Chips sit in tech. XLK is the sector fund to check.",
    "facts": [
     "f56",
     "f63",
@@ -1213,11 +1215,11 @@
     "f62"
    ],
    "wrong": {
-    "XLC": "XLC is communication services: telecom, media, entertainment and interactive media. Chip makers aren't in it.",
-    "XLI": "XLI is industrials: aerospace, machinery and transport. Chips sit in tech.",
-    "XLB": "Chips use raw materials, but XLB holds chemicals, metals and mining, paper and packaging companies. Chip makers sit in tech."
+    "XLC": "That's communication services: telecom, media and entertainment. No chip makers.",
+    "XLI": "That's industrials: aerospace, machinery and transport. Chips sit in tech.",
+    "XLB": "Chips use raw materials, but XLB is the materials companies themselves: chemicals, metals and mining."
    },
-   "simple": "XLK, because the tech fund holds the chip makers and chip equipment firms, along with software and hardware.",
+   "simple": "XLK, because the tech fund holds the chip makers and chip equipment firms, along with software.",
    "tier": "extended",
    "risk": {
     "score": 6,
@@ -1227,15 +1229,15 @@
      "fixed before (2026-11-09 checker: story wording)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "basics.etfs",
    "rung": 5,
    "format": "scenario",
-   "story": "Airline stocks jump on a day oil prices fall. You want to know which sector fund holds them.",
-   "q": "Which sector SPDR holds the passenger airlines?",
+   "story": "Oil drops hard and the airline stocks jump. You want to see if the sector fund that holds them is moving too.",
+   "q": "Which sector fund are the airlines in?",
    "choices": [
     "XLI",
     "XLY",
@@ -1243,8 +1245,8 @@
     "XLC"
    ],
    "answer": "XLI",
-   "why": "XLI. The industrial sector fund lists passenger airlines among its industries, with aerospace and defense, machinery and ground transportation. Travel feels like consumer spending, but XLY holds retail, autos, hotels and restaurants. Oil drives the headline, but XLE holds oil, gas and energy services. Check the fund's list; don't guess from the news.",
-   "lesson_line": "Airlines are industrials. Check the fund's list; don't guess from the headline.",
+   "why": "XLI, industrials. The fund's own list names passenger airlines, right next to aerospace and defense, machinery and ground transport. This one trips people up. Travel feels like consumer spending, so you'd think XLY. The headline is oil, so you'd think XLE. Neither one holds them. When the news and the sector don't line up, I check the fund's holdings and stop guessing.",
+   "lesson_line": "Airlines are industrials. Check the fund's list, not the headline.",
    "facts": [
     "f61",
     "f64",
@@ -1252,11 +1254,11 @@
     "f63"
    ],
    "wrong": {
-    "XLY": "Travel feels like consumer spending, but XLY holds retail, autos, hotels and restaurants. Not airlines.",
-    "XLE": "The headline is about oil, but XLE holds oil, gas and energy services companies. Airlines aren't in it.",
-    "XLC": "Airlines sell a service, but XLC is communication services: telecom, media and entertainment. Airlines aren't in it."
+    "XLY": "Travel feels like consumer spending, but XLY is retail, autos, hotels and restaurants. No airlines.",
+    "XLE": "The headline is oil, but XLE holds the oil, gas and energy services companies. Airlines aren't in it.",
+    "XLC": "XLC is telecom, media and entertainment. Airlines aren't in it."
    },
-   "simple": "XLI. The industrial fund's list names passenger airlines, so that is where they sit.",
+   "simple": "XLI. The industrial fund's list names passenger airlines, so that's where they sit.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -1265,14 +1267,14 @@
      "sector lists can change (GICS 2026 consultation)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "basics.etfs",
    "rung": 5,
    "format": "mcq",
-   "q": "A 3x fund starts at $100. The index rises 10% one day and falls 10% the next. What is the fund worth, before fees?",
+   "q": "You put $100 in a 3x fund. The index rips 10% on Monday, then gives back 10% on Tuesday. What's your fund worth, before fees?",
    "answer": "$91",
    "prefix": "$",
    "calc": {
@@ -1286,12 +1288,14 @@
      "move": 30,
      "day1": 130,
      "loss": 39,
+     "index_mid": 110,
      "index_end": 99,
-     "index_loss": 1
+     "index_loss": 1,
+     "fund_loss": 9
     }
    },
-   "why": "$91. A 3x fund triples each day's move. Day 1: the index gains 10%, so the fund gains 30%, from $100 to $130. Day 2: the index drops 10%, so the fund drops 30%. But 30% of $130 is $39, not $30, so the fund ends at $91. The index itself lost only 1%: up 10% and down 10% leaves it at 99. This assumes the fund hits its daily target exactly, before fees.",
-   "lesson_line": "Up 10%, down 10% is a small loss. A 3x fund turns it into a big one.",
+   "why": "$91. Do it day by day. Monday the index gains 10%, so your fund gains 30%, from $100 to $130. Tuesday the index drops 10%, so your fund drops 30%. But now it's 30% of $130, which is $39, not $30. You end at $91. The index barely moved: 100 up 10% is 110, and down 10% from there is 99. You lost 9% on two days that went almost nowhere. That's why you don't want to sit in a 3x fund through chop.",
+   "lesson_line": "Up 10%, down 10% is a small loss for the index. A 3x fund turns it into a big one.",
    "facts": [
     "f34",
     "f35",
@@ -1312,7 +1316,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$99",
     "$100",
@@ -1320,9 +1324,9 @@
     "$70"
    ],
    "wrong": {
-    "$100": "You assumed an up 10% and a down 10% cancel out.",
-    "$99": "You gave the index's result, up 10% then down 10% to 99, not the 3x fund's.",
-    "$70": "You took the tripled drop off the original $100 instead of off the bigger balance."
+    "$100": "You figured up 10% and down 10% cancel out. They don't, not even for the index.",
+    "$99": "That's the index, ending at 99. The 3x fund does a lot worse.",
+    "$70": "You took the 30% drop off $100. By Tuesday the fund was at $130, so the drop comes off that."
    },
    "visual": {
     "kind": "size",
@@ -1364,7 +1368,7 @@
    "skill": "basics.etfs",
    "rung": 6,
    "format": "mcq",
-   "q": "You hold $9,000 of a plain index fund. How much of a 3x fund on the same index swings about as much in a day?",
+   "q": "You'd normally hold $9,000 of QQQ. How much TQQQ, the 3x fund on the same index, gives you about the same swing in a day?",
    "answer": "$3,000",
    "prefix": "$",
    "calc": {
@@ -1375,13 +1379,14 @@
      "lev": 3
     }
    },
-   "why": "$3,000. A 3x fund aims for three times the index's daily move. So you need only a third of the dollars: $9,000 divided by 3 is $3,000. That $3,000 swings about as much in a day as $9,000 of the plain index fund, before fees. That match holds for one day only. Held longer, the 3x fund's return can drift away from three times the index.",
-   "lesson_line": "A 3x fund swings about three times as hard as its index each day.",
+   "why": "$3,000. TQQQ aims for three times the Nasdaq-100's daily move, so each dollar swings about three times as hard. $9,000 divided by 3 is $3,000. That $3,000 of TQQQ moves about like your $9,000 of QQQ, for one day, before fees. Past a day it drifts, so don't count on the match over weeks. This is how I want you to think about these funds. Fewer dollars, same risk. Not the same dollars and three times the risk.",
+   "lesson_line": "Fewer dollars, same swing. Size a 3x fund down, not up.",
    "facts": [
     "f18",
     "f7",
     "f67",
-    "f68"
+    "f68",
+    "f75"
    ],
    "simple": "$3,000, because a 3x fund moves about three times the index each day, so a third of the dollars swings the same.",
    "tier": "extended",
@@ -1392,7 +1397,7 @@
      "stem reframed as one-day dollar math, not a sizing step: the owner's rulebook sizes from the stop (A3, A5) and declined item 71"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$27,000",
     "$3,000",
@@ -1400,9 +1405,9 @@
     "$6,000"
    ],
    "wrong": {
-    "$27,000": "You multiplied by 3 instead of dividing by 3.",
-    "$9,000": "You put in the same dollars, forgetting the 3x makes each dollar swing three times as much.",
-    "$6,000": "You took off a third instead of dividing by 3."
+    "$27,000": "You multiplied by 3. That's nine times the daily swing you meant to take.",
+    "$9,000": "Same dollars in a 3x fund is three times the swing, three times the risk you planned.",
+    "$6,000": "You took a third off. You need a third of the dollars, not two thirds."
    },
    "visual": {
     "kind": "size",
@@ -1432,28 +1437,25 @@
    "skill": "basics.etfs",
    "rung": 6,
    "format": "tf",
-   "q": "One index falls 10% then rises 10%. Another falls 1% then rises 1%. A 3x fund on the first ends further below its start.",
+   "q": "Index down 10%, up 10%: a 3x fund goes $100, $70, $91. Down 1%, up 1%: $100, $97, $99.91. Ten times the swing cost 100 times as much.",
    "answer": "True",
-   "why": "True. A 3x fund triples each day's move and resets daily, so day two's move lands on a new balance. FINRA's 2x case shows the math. The index falls 10% to 90, so the 2x fund falls 20% to $80. The index rises 10% to 99, so the fund gains 20%, but 20% of $80 is just $16. It ends at $96. The index lost 1%. The fund lost 4%. A 3x fund triples the moves, so it loses more. Shrink the swing to 1% and the drag nearly vanishes. Chop and big swings hurt a 3x fund most.",
-   "lesson_line": "The wilder the chop, the harder a 3x fund bleeds.",
+   "why": "True, and it's worth running this once yourself. Big swings first. The index drops 10%, so the fund drops three times that, $100 to $70. The index bounces 10%, and the fund gains three times that, but on $70. That lands at $91, so nine dollars gone. Now the small swings. The index drops 1%, so the fund drops 3%, $100 to $97. The index bounces 1%, and the fund gains 3% on $97. That's $99.91, nine cents gone. Nine dollars against nine cents is 100 times. The swing was only ten times bigger. That's why chop is poison for a 3x fund. A quiet, steady trend is where it pays.",
+   "lesson_line": "The wilder the chop, the harder a 3x fund bleeds. And it's not a straight line.",
    "facts": [
     "f7",
-    "f34",
-    "f35",
-    "f36",
+    "f9",
     "f33",
     "f69",
     "f79",
-    "f17",
-    "f9"
+    "f17"
    ],
-   "simple": "True, because each day resets the fund, so wilder swings leave a 3x fund further behind.",
+   "simple": "True. Each day resets the fund, so a swing ten times bigger costs far more than ten times as much.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1485,8 +1487,8 @@
    "skill": "basics.etfs",
    "rung": 7,
    "format": "scenario",
-   "story": "From December 2008 to April 2009, a US oil and gas index gained 2%. You held a fund built for twice its daily move the whole time.",
-   "q": "What did the 2x fund do over those months?",
+   "story": "December 2008 to April 2009. The Dow Jones U.S. Oil & Gas Index gains 2% over that stretch. You held the fund built for twice its daily move the whole way.",
+   "q": "The index went your way. What did your 2x fund do?",
    "choices": [
     "Fell about 6%",
     "Rose about 4%",
@@ -1494,7 +1496,7 @@
     "Ended about flat"
    ],
    "answer": "Fell about 6%",
-   "why": "It fell about 6%. FINRA's notice covers December 1, 2008 to April 30, 2009. The Dow Jones U.S. Oil & Gas Index gained 2% while a fund built for twice its daily return fell 6%. The fund doubles each day's move, not the whole period's. Because it resets daily, its result drifted far from twice the index.",
+   "why": "It fell about 6%. You were right on the index and still lost money. That's a real case, from FINRA's notice on these funds. The fund doubles each day's move, not the whole stretch. It resets every day, and through a market as wild as late 2008, those resets ate the gain and then some. So twice 2% never showed up. What showed up was a 6% loss. Judge a 2x fund by what the fund did, not by what the index did.",
    "lesson_line": "Right on the index, wrong on the fund. That's the risk of holding a 2x for months.",
    "facts": [
     "f39",
@@ -1503,9 +1505,9 @@
     "f17"
    ],
    "wrong": {
-    "Rose about 4%": "That's twice the index's gain. The fund doubles each day's move, not the whole period's.",
+    "Rose about 4%": "That's twice the index's gain. The fund doubles each day's move, not the whole stretch.",
     "Rose about 2%": "That's the index itself. The 2x fund went the other way.",
-    "Ended about flat": "The drift did more than wipe out the gain. FINRA's notice says the index rose 2% while the 2x fund fell 6%."
+    "Ended about flat": "Worse than flat. The index rose 2% and the 2x fund fell 6%."
    },
    "simple": "It fell about 6%, because daily resets let the 2x fund drift down while the index rose 2%.",
    "deeper": {
@@ -1518,17 +1520,17 @@
      "dated figures; the SEC and FINRA state the period differently (see conflicts)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "basics.etfs",
    "rung": 8,
    "format": "tf",
-   "q": "The index rises 10% to 110, then falls 10% to 99. A fund moving opposite it each day drops to 90 first, then ends above 100.",
+   "q": "You hold an inverse fund at $100. The index rises 10% to 110, then falls 10% to 99. It ended lower, so your fund ends above $100.",
    "answer": "False",
-   "why": "False. Work it day by day, because the fund resets every day. Day 1: the index rises 10%, so the fund falls 10%, from 100 to 90. Day 2: the index falls 10%, so the fund gains 10%. That gain lands on 90, not 100, so the fund reaches 99. The index and the fund both end at 99, below the start. Real case, FINRA, December 2008 to April 2009: a financials index gained about 8%. A fund built for three times the inverse of its daily move fell 90%. That is far more than three times the index's gain.",
-   "lesson_line": "Right on direction is not enough. The path decides what a daily-reset fund pays.",
+   "why": "False. The index ended lower and you still lost. Go day by day, because the fund resets every day. Day 1 the index rises 10%, so your fund drops 10%, from $100 to $90. Day 2 the index falls 10%, so your fund gains 10%. But that gain lands on $90, and 10% of $90 only gets you back to $99. The index lost 1%, and so did the fund that was supposed to win. Now see how big that leak gets in a real market. FINRA's notice has one. From December 2008 to April 2009, a financials index gained about 8%. The fund built for three times the opposite of its daily move should lose about three times that, on simple math. It fell 90%. The wild path did the rest. Being right on direction isn't enough with these. The path decides what you get paid.",
+   "lesson_line": "Being right on direction isn't enough. The path decides what a daily-reset fund pays you.",
    "facts": [
     "f38",
     "f8",
@@ -1550,24 +1552,24 @@
      "leveraged and inverse ETFs are a topic the owner's rulebook speaks to (E54, F61); f44 removed from the facts"
     ]
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "basics.etfs",
    "rung": 8,
    "format": "scenario",
-   "story": "You think the market is near a bottom. A friend says to buy a 3x fund and hold it six months for 'three times the upside.'",
-   "q": "What's the flaw in that plan?",
+   "story": "You think the market's near a bottom. A friend says buy TQQQ and sit in it for six months for 'three times the upside.'",
+   "q": "What's wrong with his plan?",
    "choices": [
     "3x is per day, not per six months",
     "Nothing, as long as the index rises",
-    "The fees will eat up the 3x gain",
-    "A 2x fund would hold up for months"
+    "Fees will eat up the 3x gain",
+    "A 2x fund would hold up better"
    ],
    "answer": "3x is per day, not per six months",
-   "why": "3x is per day, not per six months. TQQQ, for one, aims for 3x the Nasdaq-100's daily move. For any other holding period, the return can be higher or lower than 3x, and the gap can be large. From December 2008 to April 2009, a financials index rose about 8% while a 3x fund on it fell 53%. Fees add cost, but the daily reset is what bends the result.",
-   "lesson_line": "A 3x fund rewards a clean trend and punishes chop. Treat it as a trade, not a buy-and-hold investment.",
+   "why": "The 3x is per day, not per six months. TQQQ aims for three times the Nasdaq-100's daily move. Over any longer hold, ProShares says your return can be higher or lower than 3x, and the gap may be significant. Here's what that looks like. From December 2008 to April 2009, a financials index rose about 8%. The 3x fund on it fell 53%. Fees are real, but they didn't do that. The daily reset did. If I think a bottom's in, I'd rather buy the leaders coming out of it.",
+   "lesson_line": "A 3x fund rewards a clean trend and punishes chop. It's a trade, not a hold.",
    "facts": [
     "f40",
     "f39",
@@ -1580,8 +1582,8 @@
    ],
    "wrong": {
     "Nothing, as long as the index rises": "The index can rise and the fund still fall. A financials index rose about 8% while its 3x fund fell 53%.",
-    "A 2x fund would hold up for months": "A smaller multiple means less drift, but a 2x fund resets daily too. From December 2008 to April 2009, an oil and gas index rose 2% while a 2x fund on it fell 6%.",
-    "The fees will eat up the 3x gain": "These funds can cost more, but fees aren't the main risk. The daily reset is what bends the result over months."
+    "A 2x fund would hold up better": "Less drift, but it resets daily too. In those same months an oil and gas index rose 2% and its 2x fund fell 6%.",
+    "Fees will eat up the 3x gain": "These funds cost more, but fees aren't the big risk. The daily reset is what bends the result over months."
    },
    "simple": "The 3x target is for one day only, so over six months the fund can land far from 3x.",
    "deeper": {
@@ -1594,7 +1596,7 @@
      "leveraged ETF holding, where the owner's rulebook speaks (E54: preferred, no extra rules)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1602,11 +1604,11 @@
    "rung": 8,
    "format": "scenario",
    "story": "The index rises 1% every day for five days straight, about 5.1% in total. You hold a 3x fund that hits its daily target each day.",
-   "q": "About how much does the 3x fund gain over the five days, before fees?",
+   "q": "About how much does your 3x fund make over the five days, before fees?",
    "choices": [
     "15.9%, more than 3x",
-    "15.3%, same as 3x",
-    "14.7%, under 3x",
+    "15.3%, right at 3x",
+    "14.7%, a bit under 3x",
     "15%, 3% x 5 days"
    ],
    "answer": "15.9%, more than 3x",
@@ -1620,17 +1622,17 @@
     },
     "round": 1
    },
-   "why": "About 15.9%. Each day the fund aims for three times the index's 1%. In a steady trend each gain lands on a bigger balance, so five days compound to about 15.9%. That beats three times the index's 5.1%. Larger index gains and lower volatility help a 3x fund; small net moves and chop do the opposite.",
-   "lesson_line": "A clean trend compounds in a 3x fund's favor. Chop is what bleeds it.",
+   "why": "About 15.9%. A clean trend works for you here. Each day the fund makes three times the index's 1%, so 3%. But each 3% lands on a bigger balance than the day before. Five of those stack up to about 15.9%. Three times the index's 5.1% would be 15.3%, so you beat 3x. That's the other side of the chop math. Quiet, steady up days are where these funds pay you. Choppy days are where they bleed you.",
+   "lesson_line": "A clean trend compounds in your favor. Chop is what bleeds a 3x fund.",
    "facts": [
     "f69",
     "f77",
     "f7"
    ],
    "wrong": {
-    "15.3%, same as 3x": "3x holds one day at a time. Over a streak of up days, the daily gains compound past it.",
-    "14.7%, under 3x": "Chop drags a 3x fund. A steady trend does the opposite.",
-    "15%, 3% x 5 days": "Adding the daily gains skips compounding. Each day's gain lands on a bigger balance, so the total is about 15.9%."
+    "15%, 3% x 5 days": "Adding the days skips compounding. Each day's 3% lands on a bigger balance.",
+    "15.3%, right at 3x": "3x holds one day at a time. Over a streak of up days, the gains compound past it.",
+    "14.7%, a bit under 3x": "That's what chop does to a 3x fund. A steady trend does the opposite."
    },
    "simple": "About 15.9%, because in a steady climb each day's gain lands on a bigger balance, so the fund beats 3x.",
    "deeper": {
@@ -1643,7 +1645,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "Five days of 1%",
@@ -1678,7 +1680,7 @@
    "skill": "basics.etfs",
    "rung": 9,
    "format": "mcq",
-   "q": "An inverse fund moves opposite the index each day. The index goes 100, 110, 100. What percent does the fund lose?",
+   "q": "You hold an inverse fund from $100. The index goes from 100 to 110, then right back to 100. How much are you down?",
    "answer": "1.82%",
    "suffix": "%",
    "calc": {
@@ -1694,15 +1696,15 @@
      "end": 98.18
     }
    },
-   "why": "1.82%. An inverse fund aims for the opposite of the index's move each day, then starts fresh the next day. Day 1: the index rises 10, from 100 to 110, so the fund falls 10%, from 100 to 90. Day 2: the index falls back to 100. That drop is 10 / 110 = 9.09% of 110, so the fund gains 9.09%. But the gain works on 90, not 100. Gaining 9.09% on 90 brings the fund to 98.18. That is a loss of 1.82% from 100. On a calm 100, 101, 100 path, FINRA finds a loss of only 0.02%. Bigger swings mean bigger drift.",
-   "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund loses.",
+   "why": "1.82%, on an index that went nowhere. Go day by day, because the fund resets every day. Day 1: the index goes 100 to 110, up 10%. You do the opposite, down 10%, so $100 becomes $90. Day 2: the index falls 10 points back to 100. Off 110, that's only a 9.09% drop. So you gain 9.09%, but on $90, not on $100. That gets you to $98.18. You're down 1.82% and the index is flat. FINRA ran a calm version too, 100 to 101 and back. That one cost only 0.02%. Same start, same finish. The bigger the swing in between, the more you leak.",
+   "lesson_line": "Same start, same finish. The bigger the swings in between, the more a daily-reset fund leaks.",
    "facts": [
     "f43",
     "f41",
     "f42",
     "f8"
    ],
-   "simple": "1.82%, because the fund loses on the way up, and its gain on the way back works on a smaller balance.",
+   "simple": "1.82%, because you lose on the way up, and your gain on the way back works on a smaller balance.",
    "deeper": {
     "trap": "The trap is thinking flat in means flat out. The index ended where it began, so it feels like nothing happened. The fund met its daily goal both days and still lost, because each day's percent works on a new balance."
    },
@@ -1714,7 +1716,7 @@
      "fixed before (2026-11-09 checker: why named only one cause)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "1.82%",
     "9.09%",
@@ -1722,9 +1724,9 @@
     "19.09%"
    ],
    "wrong": {
-    "10%": "You gave only day 1's loss and ignored the gain back.",
-    "9.09%": "You used day 2's 9.09% index drop as the whole loss.",
-    "19.09%": "You added day 1's 10% loss and day 2's 9.09% move."
+    "10%": "That's just day 1. You forgot the gain back on day 2.",
+    "9.09%": "That's day 2's index drop, not your result over both days.",
+    "19.09%": "You added day 1's 10% and day 2's 9.09%. Day 2 was a gain for you, not another loss."
    },
    "visual": {
     "kind": "size",
@@ -1760,16 +1762,16 @@
    "skill": "basics.etfs",
    "rung": 9,
    "format": "scenario",
-   "story": "Near a market low, the index whipsaws up and down for two weeks and ends flat. Your 3x fund matched 3x the index every single day. It's down.",
-   "q": "Why is the fund down?",
+   "story": "You bought a 3x fund near what you thought was the low. The index chops up and down for two weeks and ends flat. The fund hit 3x the index every single day.",
+   "q": "So why are you down?",
    "choices": [
     "Daily resets compound against it",
     "Fees and costs ate most of it",
-    "Its price trades below its true value",
+    "Its price slipped below what it holds",
     "The fund has tracking error"
    ],
    "answer": "Daily resets compound against it",
-   "why": "Daily resets compound against it. Small net moves and high volatility give a 3x fund returns worse than its daily target. So in a flat, choppy market it can lose while matching 3x every day. FINRA says that gap is not tracking error, since the fund met its daily objective. It is the math of the reset.",
+   "why": "The daily resets compound against you. Small net moves plus big swings are the worst mix for a 3x fund. It can match 3x every single day and still lose, because each day's move works on a new balance. FINRA is clear this isn't tracking error. The fund did its job. The path did the damage. You can be right about the low and still bleed while you wait for the move.",
    "lesson_line": "At a choppy low a 3x fund bleeds while you wait. A steady trend is where it pays.",
    "facts": [
     "f37",
@@ -1781,9 +1783,9 @@
     "f77"
    ],
    "wrong": {
-    "Fees and costs ate most of it": "These funds can cost more than ordinary ETFs, but fees don't explain this. A fund can hit 3x every day and still lose in chop, before any fee.",
-    "Its price trades below its true value": "Arbitrage generally keeps an ETF's price close to what it holds, and this fund matched its daily target. The loss is real, not a pricing gap.",
-    "The fund has tracking error": "FINRA says this gap is not tracking error when the fund meets its daily objective. This fund matched 3x every single day."
+    "Fees and costs ate most of it": "These funds cost more than plain ETFs, but fees don't explain this. A fund can hit 3x every day and still lose in chop.",
+    "The fund has tracking error": "Not when it hit its daily target. FINRA says this gap isn't tracking error. It's the reset math.",
+    "Its price slipped below what it holds": "Arbitrage pulls an ETF's price back toward what it holds. The loss is real, not a pricing gap."
    },
    "simple": "Daily resets compound against it, so in a flat, choppy market a 3x fund can lose even while hitting its daily target.",
    "deeper": {
@@ -1796,15 +1798,15 @@
      "fixed before (2026-11-09 checker: pricing note hedge)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
    "skill": "basics.etfs",
    "rung": 8,
    "format": "scenario",
-   "story": "From December 2008 to April 2009, a US oil and gas index gained 2%. Picture a fund built for twice the opposite of each day's move.",
-   "q": "What did that 2x inverse fund do over those months?",
+   "story": "December 2008 to April 2009. A US oil and gas index gains 2%. You held the fund built for twice the opposite of each day's move.",
+   "q": "What did your 2x inverse fund do?",
    "choices": [
     "Fell about 26%",
     "Fell about 4%",
@@ -1812,8 +1814,8 @@
     "Ended about flat"
    ],
    "answer": "Fell about 26%",
-   "why": "Fell about 26%. FINRA's notice covers December 1, 2008 to April 30, 2009. The Dow Jones U.S. Oil & Gas Index gained 2%, and the 2x inverse fund fell 26%. The fund built for twice the index's daily return fell too, by 6%. So both funds lost money in the same months. Each one resets daily, so compounding wears it down whichever way it points. FINRA adds that this effect can be magnified in volatile markets.",
-   "lesson_line": "Over months, a 2x fund and its inverse can both lose money.",
+   "why": "It fell about 26%. Now look at the other side. Over those same months, the fund built for twice the index's daily move fell 6%. So the fund that goes with the index and the fund that goes against it both lost money. That's the reset at work. Each one compounds day by day on its own balance, and a wild market wears down both. FINRA says the drift grows in volatile markets. The simple math said you'd lose about 4%. You lost 26%.",
+   "lesson_line": "Over months, a 2x fund and its inverse can both lose you money.",
    "facts": [
     "f39",
     "f81",
@@ -1822,9 +1824,9 @@
     "f9"
    ],
    "wrong": {
-    "Fell about 4%": "That is the naive math: twice the opposite of a 2% gain. A daily-reset fund doesn't deliver that over months, and here it did far worse.",
-    "Rose about 6%": "The fund built for twice the index's daily return fell 6% in these months. The inverse fund is not its mirror. Both fell.",
-    "Ended about flat": "Not close. FINRA reports a fall of 26%, far more than the 2% the index moved."
+    "Fell about 4%": "That's the simple math: twice the opposite of a 2% gain. Over months a daily-reset fund doesn't deliver that.",
+    "Rose about 6%": "The 2x fund on the index fell 6% in these months. The inverse fund isn't its mirror. Both fell.",
+    "Ended about flat": "Not close. FINRA reports a 26% fall, far more than the 2% the index moved."
    },
    "simple": "It fell about 26%, because daily resets and compounding wore it down even though the index rose 2%.",
    "tier": "expert",
@@ -1834,7 +1836,7 @@
      "dated figures; FINRA says 26%, the SEC's updated bulletin says 25% for the same fund (see conflicts)"
     ]
    },
-   "batch": "review2"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1870,8 +1872,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answers his note (more detail): stem now concrete (SPY or XLK), why defines ETF, shows what SPY and XLK hold (f66, f56), contrasts mutual fund (f23) and ETN (f26). Answer not the odd one out (lengths 38/33/38/31). Wrong notes accurate."
+   "fixed": true,
+   "notes": "His 'explained better in more detail' met: real XLK buy, basket, SPY, ETF vs mutual fund, ETN in the wrong note, where to see holdings. Fix: 'What makes it an ETF is how it trades' read loose; added the trader's reason for buying the basket (the group's move without one company's news)."
   },
   "q02": {
    "status": "cut",
@@ -1893,9 +1895,9 @@
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Real situation, opposite-of-the-day answer right (f30, f8), reset catch and derivatives correct (f9, f14, f38)."
   },
   "q06": {
    "status": "cut",
@@ -1907,7 +1909,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why now defines reset (each day starts from the last close). TQQQ 3x daily is f67, daily reset f9, 'higher or lower' f68. Correct."
+   "notes": "TQQQ held a month is a trader's plan; False is right (f67, f68). 'Plan on days, not months' is his kind of line."
   },
   "q08": {
    "status": "cut",
@@ -1918,50 +1920,50 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "XLF from f59 and f53. The other notes come from f62, f60 and f56. 'B is not for banks' is a direct reading of f62. No tell. q09's XLK note ('chips') teaches q12's key in feedback only, which is fine."
+   "fixed": true,
+   "notes": "Truth: 'Put it next to SPY and you'll see if the whole group is leading, or just a couple of names' overclaims. XLF vs SPY shows the group against the market; it does not show breadth inside the group. Reworded."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3x and 3% fall; loss 9% reads right"
+   "notes": "9% right (3 x 3, f31/f32). Wrong notes name the real mistakes. Sizing line fits."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Why teaches GICS sorts by main business (f47), 11 sectors (f51), one SPDR per sector with XLK/XLF/XLE (f52, f53), diversification and volatility hedged as State Street hedges them (f54, f58). Facts list updated to match."
+   "fixed": true,
+   "notes": "'XLK feels all of it' overstates: XLK also holds software and hardware, so a chip headline is not all of XLK. Softened. Rest good, concentration framed as a sizing call."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "XLK from f56. Distractor notes come from f63, f61 and f62. The why no longer copies q13. Small note: 'Chips use raw materials' in the XLB note is a framing of the misconception, not a keyed claim; left as is."
+   "notes": "XLK right (f56). The chips-and-software-share-a-fund point is practical."
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "XLI right (f61 lists passenger airlines). 'I check the fund's holdings and stop guessing' sounds like him."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "two-day path inputs right; slot '$91'"
+   "notes": "$91 recomputed: 100 x 1.3 = 130, 130 x 0.7 = 91; index 110 then 99. Steps shown, calc args cover 110 and 9."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "held in plain fund and leverage; slot '$3,000'"
+   "notes": "$9,000 / 3 = $3,000. 'Fewer dollars, same risk' is the mentor line; one-day caveat kept (f68)."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Writer's version had letter labels 'Index X / Index Y' (rule 7), a stem that rose-then-fell while the why walked FINRA's fall-then-rise path, and 'Triple the daily move and the gap grows' / 'gap nearly disappears' with nothing shown for 3x or for the 1% swing. Fix: unlabelled stem in FINRA's order (fall then rise), FINRA's 2x walk-through kept with every number cited (f34-f36), then plainly says a 3x fund triples the moves so loses more, and that a 1% swing leaves almost no drag. 3x dollar math is left to q14 (the validator rejects numbers outside quotes, question or calc)."
+   "notes": "His 'mathematically taught or with examples' met by the worked paths. Math checks: 100 to 70 to 91 (lose $9); 100 to 97 to 99.91 (lose $0.09); 9 / 0.09 = 100, so True. But the why said 'Down 3% takes you to $97' in a stem that says the index fell 1%, mixing the index move and the fund move. Rewrote so each step names the index move, then the fund move, and works the 100x out."
   },
   "q17": {
    "status": "cut",
@@ -1973,43 +1975,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "-6% from f39 (FINRA dates), and f12 agrees on the figures. The distractor notes are grounded (f39). The lone fall is a weak tell at most: the choices span rise, rise, flat and fall. The inverse figure is avoided, per conflicts."
+   "notes": "Fell about 6% (f39). 'You were right on the index and still lost money' is the point, said plainly."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem math is right (100 -> 110 -> 99; fund 100 -> 90 -> 99; answer False). Real case was misleading: 'a financials index gained about 8%, yet a fund... fell 90%' reads as a surprise when an inverse fund falling as the index rises is expected. Fix keeps the real FINRA case (f40, f82, quote verified at finra.org 09-31) but shows why it matters: a straight 3x inverse would suggest about 24% (3 x 8%), the fund fell 90%."
+   "notes": "Math right: $100 to $90 to $99, index 110 to 99, both down 1%; False. His 'real life example' is there (f82: index +8%, 3x inverse -90%), but the writer's why tacked it on after the stem's lesson ('can lose even when the index ends lower') without saying what it shows: the index went against that fund, so the case shows how much bigger than the simple math the leak gets. Reframed so the member sees why it matters."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f67 and f68. Each note is backed: f40, f39 and f33 for the 2x note, f15 and f10 for fees. No f44, and the lesson line ('a trade, not buy-and-hold', f16) fits C35 and E54. Overlap with q07 is accepted (q07 is the rung-3 statement, q20 the rung-8 scenario). The key echoing 'six months' is accepted: the other choices echo the story too."
+   "notes": "Answer right (f67, f68); 53% / 8% case is f40; 'I'd rather buy the leaders coming out of it' is his judgment register."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "key has two numbers so slot uses pct format = 15.9%, reads right"
+   "notes": "He rated good. Recomputed: 1.03^5 = 1.1593, so 15.9%; 1.01^5 = 1.0510, 3 x 5.1 = 15.3. Right answer no longer the longest."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "index path 100,110,100 labelled by day; key '1.82%'"
+   "notes": "His 'better explained' met: points vs percent shown (10 points off 110 is 9.09%), 90 x 1.0909 = 98.18, loss 1.82%; FINRA calm path 0.02% (f41, f43) as contrast."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f69, f33 and f37. Distractor notes are backed by f15, f5 and f37. The new simple says 'can lose', which matches the why. 'Daily' faintly echoes 'every single day', a minor tell; accepted. Owner flag on the lesson line is unchanged."
+   "notes": "Daily resets compound against it (f69); not tracking error (f37); arbitrage note (f5) fair."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Quotes f81 and f82 verified word for word on finra.org/rules-guidance/notices/09-31 (2% index, 2x fell 6%, 2x inverse fell 26%; 3x inverse declined by 90 percent over the same period). Math: naive 2 x 2% = 4% (a real mistake), Rose 6% = mirror of the 2x fund, flat. Skill covered. Cautions: (1) the SEC's bulletin says 25% for the same fund, answer says 'about' and the why names FINRA, but the lesson's conflicts entry still says 'no question uses the inverse figure' and should be updated; (2) f82's claim adds the 8% index gain, which comes from f40, not from f82's own quote; (3) same event as q1"
+   "notes": "Fell about 26% (f81); the 2x fell 6% (f39). 'Simple math said about 4%. You lost 26%' lands it."
   }
  }
 }

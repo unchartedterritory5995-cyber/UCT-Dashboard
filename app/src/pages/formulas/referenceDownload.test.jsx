@@ -14,6 +14,7 @@ import { withoutGuardIds } from '../../components/chart/engine/ast/guardIdText'
 import { referenceSentence } from './referenceSentence'
 import { pineForDownload } from './referencePineData'
 import { buildReferenceText, saveTextFile, reachFor, HOW_TO_USE, REFERENCE_FILE_NAME } from './referenceDownload'
+import { memberExcluded } from './memberReason'
 import FormulaReference from './FormulaReference'
 
 afterEach(() => { cleanup(); vi.restoreAllMocks() })
@@ -38,7 +39,10 @@ describe('the text', () => {
       }
     }
     const names = vocab.groups.reduce((n, g) => n + g.items.length, 0)
-    expect(text).toContain(`${names} names can be written. ${vocab.excluded.length} are deliberately not available.`)
+    // the roster as a member reads it: unreleased and internal entries are not in the file
+    const shown = memberExcluded(vocab.excluded)
+    expect(shown.length).toBeLessThan(vocab.excluded.length)
+    expect(text).toContain(`${names} names can be written. ${shown.length} are deliberately not available.`)
   })
 
   it('a function\'s reach is under it, in the engine\'s words; a bar field has none', () => {
@@ -58,9 +62,15 @@ describe('the text', () => {
 
   it('lists what is deliberately absent with its reason, and every "Write ..." is a formula the engine parses', () => {
     const text = full()
-    expect(vocab.excluded.length).toBeGreaterThan(0)
-    for (const e of vocab.excluded) expect(text).toContain(`- \`${e.name}\`: `)
-    const instead = vocab.excluded.filter((e) => e.instead)
+    const shown = memberExcluded(vocab.excluded)
+    expect(shown.length).toBeGreaterThan(0)
+    for (const e of shown) expect(text).toContain(`- \`${e.name}\`: ${e.says}`)
+    // and an entry that is left out of the member's roster is not in the file at all
+    const leftOut = vocab.excluded.filter((e) => !shown.some((s) => s.name === e.name))
+    expect(leftOut.length).toBeGreaterThan(0)
+    const absent = text.slice(text.indexOf('## Deliberately not available')).split('\n## ')[0]
+    for (const e of leftOut) expect(absent).not.toContain(`- \`${e.name}\`: `)
+    const instead = shown.filter((e) => e.instead)
     expect(instead.length).toBeGreaterThan(0)                 // control: there is something to check
     for (const e of instead) {
       expect(text).toContain(`  - Write \`${e.instead}\``)

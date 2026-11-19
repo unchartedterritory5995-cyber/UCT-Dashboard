@@ -66,11 +66,29 @@ describe('shares', () => {
   it('zero displays as 0', () => expect(shares(0, true)).toBe('0'))
 })
 
+// ⛔ dateShort / dateLong render the ET CALENDAR DAY (3e1cdf3b68, 2026-05-27), so every input
+// below is an INSTANT with its offset written out, never a local-time Date. These two cases
+// used to build `new Date(2026, 3, 9)`: local midnight, which is 01:00 ET on a Central box (green)
+// and 20:00 ET the day BEFORE on a UTC runner (red, '04/08/26'). The test was a function of the
+// machine's time zone, not of the formatter, and every CI run since May read it red.
+// A J2 trade date reaches these helpers anchored at ET noon (16:00Z in daylight time).
+const ET_NOON = '2026-04-09T16:00:00Z'
+// The pair that pins the zone to ET from both sides, whatever TZ runs the suite:
+//   late ET evening = 02:30Z the NEXT day: a UTC (or any zone east of ET) formatter says 04/10.
+//   just after ET midnight = the PREVIOUS evening in Central: a local (or any zone west) says 04/08.
+const ET_LATE_EVENING = '2026-04-09T22:30:00-04:00'
+const ET_JUST_AFTER_MIDNIGHT = '2026-04-09T00:30:00-04:00'
+
 describe('dateShort (MM/DD/YY)', () => {
   it('ISO date → short format', () => {
-    // Use a local-time date to avoid TZ issues — construct locally
-    const d = new Date(2026, 3, 9) // month is 0-indexed, so 3 = April
-    expect(dateShort(d)).toBe('04/09/26')
+    expect(dateShort(ET_NOON)).toBe('04/09/26')
+  })
+  it('Date object → short format', () => {
+    expect(dateShort(new Date(ET_NOON))).toBe('04/09/26')
+  })
+  it('the ET calendar day, at both ends of it (never UTC, never the machine zone)', () => {
+    expect(dateShort(ET_LATE_EVENING)).toBe('04/09/26')
+    expect(dateShort(ET_JUST_AFTER_MIDNIGHT)).toBe('04/09/26')
   })
   it('null → dash', () => expect(dateShort(null)).toBe('—'))
   it('invalid string → dash', () => expect(dateShort('not a date')).toBe('—'))
@@ -78,8 +96,11 @@ describe('dateShort (MM/DD/YY)', () => {
 
 describe('dateLong (MM/DD/YYYY)', () => {
   it('Date object → long format', () => {
-    const d = new Date(2026, 3, 9)
-    expect(dateLong(d)).toBe('04/09/2026')
+    expect(dateLong(new Date(ET_NOON))).toBe('04/09/2026')
+  })
+  it('the ET calendar day, at both ends of it (never UTC, never the machine zone)', () => {
+    expect(dateLong(ET_LATE_EVENING)).toBe('04/09/2026')
+    expect(dateLong(ET_JUST_AFTER_MIDNIGHT)).toBe('04/09/2026')
   })
   it('null → dash', () => expect(dateLong(null)).toBe('—'))
 })

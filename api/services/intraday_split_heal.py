@@ -201,7 +201,14 @@ def note_served(ticker: str, tf: str, bars: Sequence[dict]) -> bool:
 
         def _job():
             try:
-                res = heal_ticker(tk)
+                # ⚡ One ticker per turn of the web pod's background lane (api/services/bg_lane.py):
+                # the scan streams every stored close of five timeframes through Python, and the
+                # in-memory memo is empty after every boot, so each restart re-scans every served
+                # ticker. A queue that fills while it waits drops the note (`_checked` un-memoed
+                # above), and a later serve asks again.
+                from api.services import bg_lane
+                with bg_lane.turn("intraday-split-heal"):
+                    res = heal_ticker(tk)
                 if any(r.get("status") == "raced" for r in res):
                     with _lock:            # re-plan on a later serve, not in 6 h
                         for k in [k for k in _checked if k[0] == tk]:

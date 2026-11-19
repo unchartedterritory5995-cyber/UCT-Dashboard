@@ -746,7 +746,12 @@ export async function prepareDailyForDisplay(sym, tf, { signal } = {}) {
 // holds the pack (a prefix, not a ticker); otherwise one shallow request
 // (~14 KB, a mem/sqlite hit server-side) per settled text, deduped per URL, skipped
 // while a network-fresh set is in memory. D/W/M only: intraday has `prepareForDisplay`.
-const TYPED_FRESH_MS = 60_000
+/** The typed warm's RE-ASK window: a set the network answered less than this long ago is not
+ *  asked for again while the member types. A request-dedup window, NOT TERM-006's age-display
+ *  floor (provenance/freshnessAge.js `AGE_FLOOR_MS`, when a panel must show its age): both are
+ *  60 s today by coincidence, and moving one must not move the other. ONE declaration for both
+ *  warmers: the BarStore facade (data/barStore/prefetch.js) imports it from here. */
+export const TYPED_REASK_MS = 60_000
 
 /** Would the chart paint this cached set as its FIRST frame without the network? Asks the
  *  chart's own authority (`dailyCachePaintVerdict`); the seed it can count on before Enter is
@@ -784,7 +789,7 @@ export function warmTypedSymbol(sym, tf = 'D') {
     _typedLatest = null
   }
   const saved = memPeekSavedAt(S, tf)
-  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_FRESH_MS) {
+  if (memHas(S, tf) && Number.isFinite(saved) && Date.now() - saved < TYPED_REASK_MS) {
     tellSymbolWarmers([S], tf, { priority: true })   // a known name, bars current: its companions may not be
     return null
   }

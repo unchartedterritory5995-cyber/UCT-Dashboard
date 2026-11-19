@@ -104,6 +104,13 @@ const CARRIED_SHAPE = {
   vwap: 'computeVWAP — running Σpv / Σv',
   vwapOf: 'computeVWAP — the same running Σpv / Σv, weighting a bar price (H3)',
   avwap: 'barAvwap — the same accumulator, re-anchored',
+  // ⭐ 2026-11-17 — the regular session's own values: ONE cell each, started on the session's first
+  // regular bar and stepped on the regular bars after it (`computeSessionRegular`).
+  sessionOpen: 'computeSessionRegular — the first regular bar\'s open, held',
+  sessionHigh: 'computeSessionRegular — a running max since the regular open',
+  sessionLow: 'computeSessionRegular — a running min since the regular open',
+  openingRangeHigh: 'computeSessionRegular — the same running max, frozen after N minutes',
+  openingRangeLow: 'computeSessionRegular — the same running min, frozen after N minutes',
   obvN: 'barObvN — a running level, then a fixed offset difference',
   pvtN: 'barPvtN — a running level, then a fixed offset difference',
   // ⭐⭐ `valuewhenOccurrence` (2026-09-20) IS THE SAME CARRIED SHAPE AS

@@ -37,10 +37,10 @@ describe('the catalog', () => {
 })
 
 describe('sanitiser: chosen keys', () => {
-  it('a blob with no `fields` reads as today\'s row (Market Cap · Next Earnings · UCT Rating)', () => {
-    expect(headerStatKeys({})).toEqual(['mcap', 'earn', 'rating'])
-    expect(headerStatKeys(undefined)).toEqual(['mcap', 'earn', 'rating'])
-    expect(headerStatKeys(mergeChartSettings(null).header)).toEqual(['mcap', 'earn', 'rating'])
+  it('a blob with no `fields` reads as today\'s row (Market Cap · Next Earnings; UCT Rating retired 11-17)', () => {
+    expect(headerStatKeys({})).toEqual(['mcap', 'earn'])
+    expect(headerStatKeys(undefined)).toEqual(['mcap', 'earn'])
+    expect(headerStatKeys(mergeChartSettings(null).header)).toEqual(['mcap', 'earn'])
     // the legacy show* flags still migrate exactly as before
     const legacy = { showMarketCap: false, showNextEarnings: true, showUctRating: false }
     expect(headerStatKeys(legacy)).toEqual(headerFieldKeys(legacy))
@@ -84,17 +84,17 @@ describe('sanitiser: renames', () => {
 
 describe('writers', () => {
   it('toggle appends a pick and removes an unpick together with its rename', () => {
-    expect(headerStatTogglePatch({}, 'pe')).toEqual({ fields: ['mcap', 'earn', 'rating', 'pe'] })
+    expect(headerStatTogglePatch({}, 'pe')).toEqual({ fields: ['mcap', 'earn', 'pe'] })
     expect(headerStatTogglePatch({ fields: ['mcap', 'pe'], statLabels: { pe: 'PE', mcap: 'Cap' } }, 'pe'))
       .toEqual({ fields: ['mcap'], statLabels: { mcap: 'Cap' } })
     expect(headerStatTogglePatch({}, 'nope')).toEqual({})
   })
 
   it('move reorders and clamps', () => {
-    const h = { fields: ['a1', 'mcap', 'earn', 'rating'].filter((k) => HEADER_STAT_BY_KEY[k]) }
-    expect(movedHeaderStats(h, 0, 2)).toEqual(['earn', 'rating', 'mcap'])
-    expect(movedHeaderStats(h, 2, -5)).toEqual(['rating', 'mcap', 'earn'])
-    expect(movedHeaderStats(h, 9, 0)).toEqual(['mcap', 'earn', 'rating'])
+    const h = { fields: ['a1', 'mcap', 'earn', 'pe'].filter((k) => HEADER_STAT_BY_KEY[k]) }
+    expect(movedHeaderStats(h, 0, 2)).toEqual(['earn', 'pe', 'mcap'])
+    expect(movedHeaderStats(h, 2, -5)).toEqual(['pe', 'mcap', 'earn'])
+    expect(movedHeaderStats(h, 9, 0)).toEqual(['mcap', 'earn', 'pe'])
   })
 })
 
@@ -173,7 +173,7 @@ describe('the info row', () => {
   it('default settings → today\'s exact row (keys, labels)', () => {
     const h = mergeChartSettings(null).header
     const items = headerStatItems(headerStatKeys(h), statLabelsOf(h), h.colors, {})
-    expect(items.map((i) => [i.key, i.label])).toEqual([['mcap', 'Market Cap'], ['earn', 'Next Earnings'], ['rating', 'UCT Rating']])
+    expect(items.map((i) => [i.key, i.label])).toEqual([['mcap', 'Market Cap'], ['earn', 'Next Earnings']])
   })
 })
 

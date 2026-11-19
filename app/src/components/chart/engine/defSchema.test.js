@@ -1327,12 +1327,13 @@ describe('schema v2 — many trees, one hash', () => {
         + 'band stopped being drawn and every "fills are supported" claim went stale with it. '
         + '`memberDocumentMigration.js` reads it only to tell a STATIC band from a conditional '
         + 'one before resolving a door-stamped opacity (`upgradeFromDoorStamps`); it draws nothing. '
-        + '`otherSymbols.js` (`staticOtherSymbolRefusals`) and `nativeRegistry.js` (`refuseColourReaders`) '
+        + '`otherSymbols.js` (`staticOtherSymbolRefusals`) and `astColumns.js` (`refuseColourReaders`, moved there '
+        + 'unchanged from `nativeRegistry.js` by HEADLESS R6) '
         + 'read only `fill.colorMode`, to refuse BY NAME a plot whose band colour reads a refused '
         + 'symbol (engine 55 review F1, 53589fa5a2); they draw nothing either.',
-      ).toEqual(['binder.js', 'memberDocumentMigration.js', 'nativeRegistry.js', 'otherSymbols.js'])
+      ).toEqual(['astColumns.js', 'binder.js', 'memberDocumentMigration.js', 'otherSymbols.js'])
       // ⛔ and the two refusal readers read the band's COLOUR MODE only, never `fill.with` or a band
-      for (const name of ['nativeRegistry.js', 'otherSymbols.js']) {
+      for (const name of ['astColumns.js', 'otherSymbols.js']) {
         const src = engineSources().find(([n]) => n === name)[1]
         const reads = src.match(/\.fill\b(?!\s*\()[.\w]*/g) || []
         expect(reads.length, name).toBeGreaterThan(0)

@@ -22,7 +22,25 @@ import { useMemo } from 'react'
 import useSWR from 'swr'
 import { useFlagged } from './useFlagged'
 
-const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : []))
+/** The member's OWN watchlists with their items. ONE key for the app shell (LogoPrewarm), the
+ *  catalyst table's star and the Terminal's watchlist marks (components/terminal/
+ *  WatchMarksProvider), so they share one SWR cache entry and one request. */
+export const USER_LISTS_URL = '/api/watchlists?include_prebuilt=0'
+
+/** The shell's fetcher for that key: a refused read answers `[]`, so a signed-out or failed read
+ *  costs the marks and nothing else. */
+export const userListsFetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : []))
+
+/** Pure: the watchlist rows in whatever sits under that key. The route answers a bare array.
+ *  ⚠️ The Terminal's MON panel (pages/terminal/panels/WatchlistPanel.jsx) reads the SAME key
+ *  with a fetcher that stores `{ body, receivedAt }`, and SWR keeps one entry per key, so while
+ *  MON is open this hook can be handed that envelope. Unwrapped here rather than read as "no
+ *  watchlists". Anything else is an empty list, never a throw (see the note in the hook). */
+export function userListRows(data) {
+  if (Array.isArray(data)) return data
+  if (data && typeof data === 'object' && Array.isArray(data.body)) return data.body
+  return []
+}
 
 // `enabled` defaults to true, so every existing caller (CatalystTable,
 // catalystsSection, ArticleReader) is unaffected — it exists for LogoPrewarm,
@@ -32,7 +50,7 @@ const fetcher = (url) => fetch(url).then((r) => (r.ok ? r.json() : []))
 // `if (!user) return`), so it needs no change here.
 export default function useUserTickerSet(enabled = true) {
   const { flagged } = useFlagged()
-  const { data: watchlists } = useSWR(enabled ? '/api/watchlists?include_prebuilt=0' : null, fetcher, {
+  const { data: watchlists } = useSWR(enabled ? USER_LISTS_URL : null, userListsFetcher, {
     refreshInterval: 60000,
     revalidateOnFocus: false,
   })
@@ -49,7 +67,7 @@ export default function useUserTickerSet(enabled = true) {
     // that a proxy error page served with 200, or a future shape change, should
     // cost a warmed logo cache and nothing else.
     const flags = Array.isArray(flagged) ? flagged : []
-    const lists = Array.isArray(watchlists) ? watchlists : []
+    const lists = userListRows(watchlists)
     const s = new Set()
     for (const sym of flags) {
       if (sym) s.add(String(sym).toUpperCase())

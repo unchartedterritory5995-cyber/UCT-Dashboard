@@ -25,7 +25,7 @@
 // its drawings not drawn), as the host withholds that bar.
 
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
-import { resolveOtherSymbols, otherSymbolPending } from '../otherSymbols.js'
+import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay } from '../otherSymbols.js'
 
 export const REQUEST_GUARD = 'runtime:request'
 
@@ -59,7 +59,10 @@ function unreadOwnSentence(target, chartTf, where = '') {
 }
 
 /** The host bind's decision for ONE other-symbol read: a document holding just that
- *  read, spelled as the script spelled it, decided against this chart's supply. */
+ *  read, spelled as the script spelled it, decided against this chart's supply.
+ *  ⭐ RS RATING L11 — the request's own timeframe rides along (`requestCode`; `below` for a daily
+ *  read on a weekly chart), so a witness row is read the way its block witnessed THAT read
+ *  (`otherSymbols.js::witnessReadOf`); a daily chart's rows have no block and ignore it. */
 function decideOther(target, ctx) {
   const ticker = String(target.ticker).trim().toUpperCase()
   const def = {
@@ -72,7 +75,36 @@ function decideOther(target, ctx) {
     symbol: ctx && ctx.symbol,
     framed: !!(ctx && ctx.framed),
     tf: ctx && ctx.tf,
+    // ⭐ RS RATING L11 PR 2 — the chart's newest bar reads its own period (`newestOwnPeriodOf`)
+    chartNewestDay: ctx && ctx.chartNewestDay,
+    requestCode: target.code == null ? null : String(target.code),
+    ...(target.below === true ? { below: true } : {}),
   }) }
+}
+
+/** ⭐⭐ RS RATING L11 (Q-RS7 R2 / R4) — A DAILY READ OF ANOTHER SYMBOL BELOW A WEEKLY CHART (⭐ L13: or a
+ *  MONTHLY one, Q-RS-M): the host bind's decision for that read (a witness row whose block names a daily
+ *  read, else refused by name), the request's expression run on the HELD daily series (`runBars`: for a
+ *  `*-last-row` sample, with the newest row on its next session, `belowChartSeriesOf`), and each chart
+ *  period reading the row its block's sample picks (`otherSymbols.js::periodSampleOf`).
+ *  @returns {{refusal?: string, pending?: true, runBars?: object[], index?: number[],
+ *             withheld?: Float64Array, other?: string}} */
+function belowChartRead(target, rows, ctx) {
+  const { ticker, decision } = decideOther(target, ctx)
+  const hit = (decision.refused || [])[0]
+  if (hit) {
+    if (otherSymbolPending(hit)) return { pending: true }
+    return { refusal: `This indicator reads \`${hit.ticker}\`: ${hit.code} — ${hit.reason}` }
+  }
+  const series = decision.symbols[ticker]
+  const sample = decision.samples ? decision.samples[ticker] : null
+  if (!Array.isArray(series) || !sample) {
+    return { refusal: `This indicator reads \`${ticker}\` at \`"D"\` below this chart, and no daily read of it `
+      + 'is witnessed here, so nothing is drawn bar by bar rather than a guess' }
+  }
+  const runBars = belowChartSeriesOf(series, sample)
+  const { index, withheld } = periodSampleOf(runBars, rows, sample)
+  return { runBars, index, withheld, other: ticker }
 }
 
 /** ⭐⭐ RS RATING L5 (d) — WHY A RUN'S REQUESTS CAN NOT BE SERVED ON ANY CHART, decided from
@@ -95,6 +127,8 @@ export function requestTargetsUnservable(targets, count) {
         + 'so which bars it needs is unknown'
     }
     if (target.unread === true) return unreadOwnSentence(target, null)
+    // ⭐ RS RATING L11 — a daily read of another symbol below a weekly chart is the supply's, per chart
+    if (target.below === true && ladderCode(target.code) === 'D' && target.ticker) continue
     const code = target.code == null ? null : ladderCode(target.code)
     // ⭐ REQ (coverage unit, 2026-11-16) — a look-ahead read of a WEEKLY / MONTHLY period is served
     // (`requestAlignment`, `live`). Look-ahead at any other code (the quarter, which the object pass
@@ -120,6 +154,7 @@ export function requestTargetsUnservable(targets, count) {
  *            newestWithheld: boolean, codes: string[], sentences: string[]}}
  */
 export function runtimeRequestSupply(requests, rows, ctx = {}) {
+  ctx = withChartNewestDay(ctx, rows)   // ⭐ RS RATING L11 PR 2: the bind reads no bars
   const out = { supply: null, refusal: null, pending: false, newestWithheld: false, codes: [], sentences: [] }
   const sites = Array.isArray(requests) ? requests : []
   if (!sites.length) return out
@@ -138,7 +173,28 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     }
     // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read
     if (target.unread === true) return refuse(unreadOwnSentence(target, ctx && ctx.tf, at(site)))
-    const code = target.code == null ? null : ladderCode(target.code)
+    // ⭐⭐ RS RATING L11 (Q-RS7) — a daily read of ANOTHER symbol below a weekly chart (`pine.js::
+    // dailyOnWeeklyTargetOf`): held and sampled per week (`belowChartRead`), withheld by the rules below
+    let aligned = null
+    let other = null
+    let srcBars = rows
+    const sink = new Map()
+    if (target.below === true) {
+      if (ctx && ctx.otherSymbolSupply === false) {
+        return refuse(`This indicator reads \`${target.ticker}\`${at(site)}, and this run is not handed another `
+          + 'symbol\'s bars (a server run holds only the chart symbol\'s own), so nothing is drawn rather than a blank line')
+      }
+      if (!['W', 'M'].includes(ladderCode(ctx && ctx.tf)) || ladderCode(target.code) !== 'D' || !target.ticker) {
+        return refuse(`a \`request.security\`${at(site)} reads the \`${target.code}\` timeframe on a \`${ctx && ctx.tf}\` `
+          + 'chart, and a read below the chart is served only as a daily read on a weekly or monthly chart, so nothing is drawn bar by bar')
+      }
+      const read = belowChartRead(target, rows, ctx)
+      if (read.pending) { out.pending = true; return out }
+      if (read.refusal) return refuse(read.refusal)
+      aligned = { runBars: read.runBars, index: read.index, withheld: read.withheld }
+      other = read.other
+    }
+    const code = aligned ? null : (target.code == null ? null : ladderCode(target.code))
     // ⭐⭐ REQ (coverage unit, 2026-11-16) — LOOK-AHEAD ON IS SERVED FOR A WEEKLY / MONTHLY PERIOD, by the
     // pick the host's `tf_live` column makes (`interpret.js::tfLiveReads`: the period the bar is INSIDE),
     // witnessed bar for bar on `vw-request-htf-alignment-spy-1d-2026-10-02` (A01 / A04 / A06). ⚰️ It was
@@ -158,9 +214,9 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
           + 'the one the host lane draws, so nothing is drawn bar by bar')
       }
     }
-    let srcBars = rows
-    let other = null
-    if (target.ticker) {
+    if (aligned) {
+      // ⭐ RS RATING L11 — read above (`belowChartRead`)
+    } else if (target.ticker) {
       // ⭐ RS RATING L5 — A LANE THAT IS NEVER HANDED ANOTHER SYMBOL'S BARS (the server
       // service, `job.mjs::DECLARED_DIFFERENCES.ctxServerOnly`) refuses by name BEFORE the bind
       // is asked: the bind decides from the chart's other-symbol cache, which a server run never
@@ -186,17 +242,18 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       supply.push({ runBars: rows, index: Int32Array.from({ length: n }, (_, i) => i) })
       continue
     }
-    const sink = new Map()
-    const aligned = requestAlignment({
-      chartBars: rows, srcBars, code, other, live: target.live === true,
-      opts: {
-        tf: ctx && ctx.tf,
-        newestBarIsForming: ctx ? ctx.newestBarIsForming : undefined,
-        historyFromListing: !!(ctx && ctx.historyFromListing === true),
-        curtained: !!(ctx && ctx.curtained === true),
-        chartClockSink: sink,
-      },
-    })
+    if (!aligned) {
+      aligned = requestAlignment({
+        chartBars: rows, srcBars, code, other, live: target.live === true,
+        opts: {
+          tf: ctx && ctx.tf,
+          newestBarIsForming: ctx ? ctx.newestBarIsForming : undefined,
+          historyFromListing: !!(ctx && ctx.historyFromListing === true),
+          curtained: !!(ctx && ctx.curtained === true),
+          chartClockSink: sink,
+        },
+      })
+    }
     let early = -1
     for (let i = 0; i < n - 1; i += 1) if (aligned.withheld[i]) { early = i; break }
     if (early >= 0) {

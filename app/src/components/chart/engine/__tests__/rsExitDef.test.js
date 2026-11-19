@@ -76,10 +76,11 @@ beforeEach(() => { clearServerDefinitions(); clearServerColumns() })
 afterEach(() => { clearServerDefinitions(); clearServerColumns() })
 
 describe('1 · the identity', () => {
-  it('is version 1 on the server lane, registered last, validates, and exists on daily and weekly charts only', () => {
+  it('is version 1 on the server lane, registered fifth, validates, and exists on daily and weekly charts only', () => {
     expect(DEF).toMatchObject({ id: 'rsExit', version: 1, compute: { kind: 'server', fn: 'rsExit', rev: 1 } })
     expect(validateDefinition(DEF).ok).toBe(true)
-    expect(SERVER_DEFS.at(-1).id).toBe('rsExit')
+    // 2026-11-18 (UCT Mansfield RS): `rsMansfield` registers after it, so this one is fifth, right after rsVsEma.
+    expect(SERVER_DEFS.map((d) => d.id).indexOf('rsExit')).toBe(4)
     expect(DEF.meta).toMatchObject({ name: 'UCT RS Exit Warnings', shortName: 'UCT RS Exit', category: RS.meta.category,
       tier: 'premium', repaint: 'non-repainting', requiresServer: true, quickMenu: false, legendParams: ['benchmark'],
       timeframes: ['D', 'W'] })

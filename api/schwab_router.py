@@ -1,21 +1,27 @@
 """
-FastAPI router for Schwab API integration.
-Add to main.py: from schwab_router import router as schwab_router
-                 app.include_router(schwab_router)
+FastAPI router for the options-flow page's quote, history, chart and summary routes.
+
+⛔ THE NAME IS HISTORICAL. NOTHING UNDER THIS PREFIX READS SCHWAB. The routes live at
+`/api/schwab/*` (and this file is `schwab_router.py`) because they were first built on Schwab's
+market-data API. Schwab was retired from the product on 2026-11-17 by the owner's instruction
+("Move it, fix the status and remove schwab from everything"). The paths are kept so the
+Options Flow page and any saved client keep working; what answers them is Massive, Unusual
+Whales, Yahoo, Polygon and this app's own stores (see each route, and
+api/services/flow_market_data.py). The routes that only operated the Schwab login
+(/login, /callback, /refresh, /status) are gone. tests/test_no_schwab_in_production_code.py
+fails if a Schwab call or client comes back.
+
+Mounted in main.py: from api.schwab_router import router as schwab_router
 """
 import os
 from api.services import llm_models
 from fastapi import APIRouter, Request, Query, Depends
-from fastapi.responses import RedirectResponse, JSONResponse
-from urllib.parse import urlparse, parse_qs, quote
+from fastapi.responses import JSONResponse
 import logging
-import api.schwab_service as schwab
+# Spot prices, the index strip, market caps and the single-contract quote (Massive / Yahoo).
+from api.services import flow_market_data
 # Session-or-service-token gates, shared with the rest of the flow surface.
 from api.flow_admin_auth import require_flow_admin, require_flow_user
-# The OAuth `state` lives in its own module: this file is co-owned, and a
-# security fix that rewrites forty lines of a partner's file is a merge conflict
-# waiting to undo itself.
-from api.services import schwab_oauth_state as oauth_state
 # TERM-070: /market-narrative serves its last good answer while one refresh runs
 # behind the member. All of that lives in its own module, for the same reason.
 from api.services import market_narrative_swr
@@ -23,89 +29,6 @@ logger = logging.getLogger(__name__)
 # Yahoo Finance uses different symbols for indices
 YF_INDEX_MAP = {"SPX":"^GSPC", "NDX":"^NDX", "DJX":"^DJI", "RUT":"^RUT", "VIX":"^VIX", "XSP":"^GSPC"}
 router = APIRouter(prefix="/api/schwab", tags=["schwab"])
-@router.get("/status")
-async def schwab_status():
-    """Check if Schwab API is connected."""
-    authenticated = schwab.is_authenticated()
-    persistent = str(schwab.TOKEN_FILE).startswith("/data")
-    return {
-        "connected": authenticated,
-        "hasAppKey": bool(schwab.APP_KEY),
-        "tokenStorage": str(schwab.TOKEN_FILE),
-        "persistent": persistent,
-        "message": "Connected to Schwab API" + (" (persistent)" if persistent else " (will reset on deploy)") if authenticated else "Not connected. Visit /api/schwab/login to authenticate.",
-    }
-@router.get("/login")
-async def schwab_login(_admin: dict = Depends(require_flow_admin)):
-    """Redirect an ADMIN to the Schwab OAuth login page, carrying a signed state."""
-    if not schwab.APP_KEY:
-        return JSONResponse(
-            status_code=500,
-            content={"error": "SCHWAB_APP_KEY environment variable not set."},
-        )
-    # ⭐ THE STATE IS MINTED HERE AND CHECKED AT THE CALLBACK. See
-    # `api/services/schwab_oauth_state.py` for what it is defending: there is ONE
-    # token file for the whole firm, and the callback used to accept any `code`
-    # from anyone.
-    state = oauth_state.issue()
-    sep = "&" if "?" in schwab.get_auth_url() else "?"
-    auth_url = f"{schwab.get_auth_url()}{sep}state={quote(state, safe='')}"
-    return RedirectResponse(url=auth_url)
-@router.get("/callback")
-async def schwab_callback(request: Request):
-    """Handle Schwab OAuth callback with authorization code.
-
-    ⛔ NOT SESSION-GATED, AND THAT IS DELIBERATE. This URL is reached by a
-    cross-site top-level redirect from Schwab, so depending on a cookie here would
-    make the flow hostage to `SameSite` and to whichever browser the admin used.
-    The `state` check is the correct gate for a callback: it proves this response
-    belongs to a login THIS SERVER started, which a session cookie does not.
-    """
-    ok, why = oauth_state.verify_and_burn(request.query_params.get("state"))
-    if not ok:
-        # ⛔ THE REASON GOES TO THE LOG, NOT TO THE CALLER. Telling a forger whether
-        # they failed on the signature or on the clock is an oracle for the next try.
-        logger.warning("[schwab] callback rejected: state %s", why)
-        return JSONResponse(
-            status_code=400,
-            content={"error": "This callback did not come from a login started here. "
-                              "Start again at /api/schwab/login."},
-        )
-    code = request.query_params.get("code")
-    if not code:
-        return JSONResponse(
-            status_code=400,
-            content={
-                "error": "No authorization code received.",
-                "hint": "Check the URL for a 'code' parameter.",
-            },
-        )
-    try:
-        tokens = await schwab.exchange_code(code)
-        return JSONResponse(content={
-            "status": "success",
-            "message": "Schwab API connected! You can close this page.",
-            "access_token_expires_in": tokens.get("expires_in", "unknown"),
-        })
-    except Exception:
-        # ⛔ THE EXCEPTION IS LOGGED, NOT RETURNED. It came from an HTTP call
-        # carrying the app secret and the auth code; `str(e)` on an httpx error can
-        # carry the request URL straight back to whoever asked.
-        logger.exception("[schwab] token exchange failed")
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Token exchange failed. See server logs."},
-        )
-@router.post("/refresh")
-async def schwab_refresh(_admin: dict = Depends(require_flow_admin)):
-    """Manually trigger token refresh."""
-    tokens = await schwab.refresh_access_token()
-    if tokens:
-        return {"status": "success", "message": "Token refreshed."}
-    return JSONResponse(
-        status_code=401,
-        content={"error": "Refresh failed. Re-authenticate at /api/schwab/login."},
-    )
 @router.get("/options-quote")
 async def options_quote(
     symbol: str = Query(..., description="Ticker symbol, e.g. AAPL"),
@@ -113,8 +36,8 @@ async def options_quote(
     expDate: str = Query(..., description="Expiration date YYYY-MM-DD, e.g. 2026-03-20"),
     cp: str = Query(..., description="C for Call, P for Put"),
 ):
-    """Fetch current price for a single option contract."""
-    result = await schwab.get_option_quote(symbol, strike, expDate, cp)
+    """Fetch current price for a single option contract (Massive options snapshot)."""
+    result = await flow_market_data.massive_option_quote(symbol, strike, expDate, cp)
     return result
 def _snapshot_key(c: dict):
     """Build the contract_oi_snapshots key (TICKER|C/P|float_strike|M/D/YYYY)
@@ -135,14 +58,25 @@ def _snapshot_key(c: dict):
 
 
 @router.post("/options-quotes")
-async def options_quotes_batch(contracts: list[dict]):
+async def options_quotes_batch(contracts: list[dict], _auth: dict = Depends(require_flow_user)):
     """
     Fetch current prices for multiple option contracts.
     Body: [{"symbol":"AAPL","strike":250,"expDate":"2026-03-20","cp":"C"}, ...]
-    Falls back to Unusual Whales for contracts Schwab can't price.
+    Sources, in order: Unusual Whales, then the stored OI snapshot for a missing
+    open interest, then Massive for a contract still without a price. (Until
+    2026-11-17 Schwab was asked first; it was retired and that leg is gone. The
+    rest of the chain and the response shape are unchanged.)
+
+    Signed-in session or service token (`require_flow_user`, since 2026-11-17; the
+    route had no check of its own). Its HTTP callers are same-origin fetches from
+    the Options Flow page, which is behind the sign-in guard. `_auth` is unused
+    in the body, so the handler can still be called as a plain function
+    (api/oi_snapshots.py did, until it moved to Massive alone on 2026-11-17).
     """
-    results = await schwab.get_batch_option_quotes(contracts)
-    # ── UW fallback for failed contracts ──
+    # Every live contract starts unpriced (an error result), so the block below hands all of
+    # them to Unusual Whales; an expired contract is marked and no source is asked for it.
+    results = flow_market_data.unpriced_option_results(contracts)
+    # ── UW for the unpriced contracts ──
     failed_indices = [i for i, r in enumerate(results) if r.get("error") and not r.get("expired")]
     if failed_indices:
         try:
@@ -205,7 +139,7 @@ async def options_quotes_batch(contracts: list[dict]):
         logger.warning("[options-quotes] snapshot OI backfill skipped: %s", e)
 
     # ── Live Massive-snapshot price fallback (2026-07-20) ──────────────────
-    # When Schwab AND UW leave a contract without a usable price (far-dated /
+    # When UW leaves a contract without a usable price (far-dated /
     # illiquid LEAPS with no live NBBO), fill Now / OI / underlying from
     # Massive's real-time single-contract snapshot. P&L is contract-based, so
     # filling `mark` is all the UI needs to show Now + P&L. Never fails the req.
@@ -257,8 +191,9 @@ async def options_quotes_batch(contracts: list[dict]):
     return {"quotes": results}
 @router.get("/market-summary")
 async def market_summary():
-    """Fetch current prices for SPY, QQQ, DIA, IWM, VIX."""
-    results = await schwab.get_market_summary()
+    """Fetch current prices for SPY, QQQ, DIA, IWM (Massive equities snapshot). VIX was a
+    Schwab-only read and is not returned: see flow_market_data.market_summary."""
+    results = await flow_market_data.market_summary()
     return {"indices": results}
 # What a failed narrative call is charged per SDK attempt. `web_search` is capped at max_uses=3 (2026-11-10),
 # so the searches are a true bound: 3 searches of about 10K result tokens plus the prompt's 4K.
@@ -378,11 +313,12 @@ def market_narrative(_auth: dict = Depends(require_flow_user)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 # ─── Daily Tracker Endpoints ──────────────────────────────────────────────────
 @router.post("/track-contracts")
-async def track_contracts(contracts: list[dict]):
+async def track_contracts(contracts: list[dict], _auth: dict = Depends(require_flow_admin)):
     """
     Register top-flow CONV contracts for daily OI/price tracking.
-    Called automatically by the dashboard whenever new flow data loads.
     Body: [{sym, cp, K, exp, grade, dir, hits, prem}, ...]
+    The body REPLACES the registered list, so this takes an admin session or the
+    service token, like the tracker's other operating routes below.
     """
     from api.daily_tracker import register_contracts
     count = register_contracts(contracts)
@@ -428,11 +364,13 @@ async def backfill_contract_history(
     result = await backfill_contract(sym, cp, strike, exp, days_back)
     return result
 @router.post("/backfill-all")
-async def backfill_all_contracts(days_back: int = 60):
+async def backfill_all_contracts(days_back: int = 60, _auth: dict = Depends(require_flow_admin)):
     """
     Backfill Polygon history for all registered CONV contracts.
     Polygon free tier allows 5 req/min — adds 13s delay between contracts.
     For 6 CONV contracts, completes in ~75 seconds.
+    An operating job (a vendor call per contract, written to the tracker), so it
+    takes an admin session or the service token.
     """
     from api.daily_tracker import backfill_all_registered
     result = await backfill_all_registered(days_back)
@@ -773,8 +711,9 @@ def _fetch_earnings_yf(symbol: str):
         print(f"[earnings] {symbol} exception: {e}", flush=True)
         return None
 @router.post("/earnings")
-async def get_earnings_dates(req: dict):
-    """Batch fetch next earnings dates from Yahoo Finance."""
+async def get_earnings_dates(req: dict, _auth: dict = Depends(require_flow_user)):
+    """Batch fetch next earnings dates from Yahoo Finance (a signed-in session or
+    the service token, like the page's other POST read above)."""
     symbols = req.get("symbols", [])[:50]
     results = {}
     now = _datetime.now()
@@ -930,14 +869,10 @@ async def oi_change_batch(symbols: str = Query(..., description="Comma-separated
 @router.get("/mktcap-batch")
 async def mktcap_batch(symbols: str = Query(..., description="Comma-separated tickers")):
     """
-    Return market cap for a list of tickers via Schwab API (Yahoo fallback).
+    Return market cap for a list of tickers: the flow DB first, then Yahoo.
     GET /api/schwab/mktcap-batch?symbols=AAPL,MSFT,NVDA
     Returns: {"mktcap": {"AAPL": 2940000000000, "MSFT": 3100000000000}}
     """
-    try:
-        from api.schwab_service import get_mktcap_batch
-    except ImportError:
-        from schwab_service import get_mktcap_batch
     tickers = [s.strip().upper() for s in symbols.split(",") if s.strip()]
-    results = await get_mktcap_batch(tickers[:50])
+    results = await flow_market_data.mktcap_batch(tickers[:50])
     return {"mktcap": results}

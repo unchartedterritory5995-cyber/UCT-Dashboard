@@ -8,16 +8,24 @@
 //                        description strip, "Reset to UCT default" and "Done".
 // UCT Signature: soft squares stay grey/white (no gold — a long list never turns gold, §2b); sentence case; the
 // catalog and every writer live in headerStatCatalog.js, this file only draws and calls back.
-import { useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useMemo, useRef, useState } from 'react'
 import UIcon from '../ui/UIcon'
 import { HEADER_STAT_BY_KEY, HEADER_STAT_GROUPS, STAT_LABEL_MAX } from './headerStatCatalog'
+import { isCustomStatKey } from './headerCustomStats'
+
+// "+ Custom stat" (owner 11-16): the builder page loads only when a member opens it (CustomStatBuilder.jsx).
+const CustomStatBuilder = lazy(() => import('./CustomStatBuilder'))
 
 const shownWord = (n) => `${n} shown`
 
 /** The chosen stats, in order, each renameable and movable. */
-export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemove, renderColors }) {
+export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemove, renderColors, metaOf, renderStyle, styledKeys }) {
+  // `metaOf(key)` describes a custom stat too (headerStatCatalog.headerStatMetaOf); the catalog alone otherwise
+  const statOf = (key) => (typeof metaOf === 'function' ? metaOf(key) : HEADER_STAT_BY_KEY[key]) || null
   const [dragFrom, setDragFrom] = useState(null)
   const [over, setOver] = useState(null)
+  // the stat's look (owner 11-17): label color, shaded box, size — the same keys its header menu edits
+  const [styling, setStyling] = useState(null)
   if (!keys.length) {
     return <div className={styles.statEmpty}>No stats: the header shows just the title.</div>
   }
@@ -25,14 +33,14 @@ export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemov
     const v = el.value
     onRename(key, v)
     // a cleared or default name shows the stat's own name again
-    const s = HEADER_STAT_BY_KEY[key]
+    const s = statOf(key)
     const clean = v.replace(/\s+/g, ' ').trim()
     if (!clean) el.value = s.label
   }
   return (
     <div className={styles.card} role="list" aria-label="Stats beside the ticker, in order">
       {keys.map((key, i) => {
-        const s = HEADER_STAT_BY_KEY[key]
+        const s = statOf(key)
         if (!s) return null
         const own = labels[key]
         const name = own || s.label
@@ -71,6 +79,13 @@ export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemov
             <div className={styles.hdrRowCtl}>
               {renderColors(s)}
               <span className={styles.statActs}>
+                {typeof renderStyle === 'function' && (
+                  <button type="button" className={`${styles.statIconBtn} ${styledKeys && styledKeys.has(key) ? styles.statIconBtnSet : ''}`}
+                    aria-expanded={styling === key} onClick={() => setStyling((k) => (k === key ? null : key))}
+                    aria-label={`Style ${name}`} title="Label color, box and size">
+                    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2.5 12.5L6 3.5l3.5 9M3.8 9.5h4.4M11 12.5V7.5M9.5 9h3" /></svg>
+                  </button>
+                )}
                 <button type="button" className={styles.statIconBtn} disabled={i === 0} onClick={() => onMove(i, i - 1)} aria-label={`Move ${name} up`} title="Move up (left on the header)">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 10l4-4 4 4" /></svg>
                 </button>
@@ -82,6 +97,9 @@ export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemov
                 </button>
               </span>
             </div>
+            {styling === key && typeof renderStyle === 'function' && (
+              <div className={styles.statStyleLine} role="group" aria-label={`${name} style`}>{renderStyle(s)}</div>
+            )}
           </div>
         )
       })}
@@ -90,11 +108,13 @@ export function HeaderStatList({ styles, keys, labels, onRename, onMove, onRemov
 }
 
 /** The inline "choose from many" page: the whole catalog, grouped, searchable, a soft square per stat. */
-export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone }) {
+export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone, metaOf, onAddCustom, customAddRefusal, startBuilding = false }) {
   const [q, setQ] = useState('')
   const [hover, setHover] = useState(null)
+  const [building, setBuilding] = useState(!!startBuilding)
   const searchRef = useRef(null)
   const on = useMemo(() => new Set(keys), [keys])
+  const statOf = (key) => (typeof metaOf === 'function' ? metaOf(key) : HEADER_STAT_BY_KEY[key]) || null
   const query = q.trim().toLowerCase()
   const matches = useMemo(() => {
     if (!query) return null
@@ -106,6 +126,8 @@ export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone }) {
     }
     return out
   }, [query])
+  const customKeys = keys.filter((k) => isCustomStatKey(k) && statOf(k))
+  const customMatches = query ? customKeys.filter((k) => `${statOf(k).label} custom`.toLowerCase().includes(query)) : customKeys
   const row = (s) => (
     <button
       key={s.key}
@@ -122,7 +144,34 @@ export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone }) {
       <span className={styles.statPickLabel}>{s.label}</span>
     </button>
   )
-  const h = hover && HEADER_STAT_BY_KEY[hover]
+  const h = hover && statOf(hover)
+  const canCustom = typeof onAddCustom === 'function'
+  if (building && canCustom) {
+    return (
+      <Suspense fallback={<section className={styles.statPicker} aria-label="Loading custom stat"><div className={styles.statEmpty}>Loading indicators…</div></section>}>
+        <CustomStatBuilder
+          styles={styles}
+          addRefusal={customAddRefusal}
+          onAdd={(entry) => { onAddCustom(entry); setBuilding(false) }}
+          onCancel={() => setBuilding(false)}
+        />
+      </Suspense>
+    )
+  }
+  // the CUSTOM group: the custom stats already chosen (untick = remove) and the door to add one
+  const customGroup = canCustom && (!query || customMatches.length > 0 || 'custom indicator'.includes(query)) && (
+    <div role="group" aria-label="Custom">
+      <div className={styles.statGroupLabel}>Custom<span className={styles.statGroupCount}>{customKeys.length ? `${customKeys.length} shown` : 'indicator values'}</span></div>
+      <div className={`${styles.card} ${styles.statPickCard}`}>
+        {customMatches.map((k) => row(statOf(k)))}
+        <button type="button" className={`${styles.softItem} ${styles.statPickItem} ${styles.csAddItem}`} onClick={() => setBuilding(true)}
+          onMouseEnter={() => setHover(null)}>
+          <UIcon name="plus" size={12} gold={false} aria-hidden="true" />
+          <span className={styles.statPickLabel}>Custom stat</span>
+        </button>
+      </div>
+    </div>
+  )
   return (
     <section className={styles.statPicker} aria-label="Info row stats">
       <div className={styles.statPickHead}>
@@ -147,12 +196,13 @@ export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone }) {
         />
       </label>
       <div className={styles.statPickList}>
+        {customGroup}
         {matches ? (
           matches.length ? (<>
             <div className={styles.statGroupLabel}>{matches.length} {matches.length === 1 ? 'match' : 'matches'}</div>
             <div className={`${styles.card} ${styles.statPickCard}`}>{matches.map(row)}</div>
           </>) : (
-            <div className={styles.statEmpty}>No stat matches “{q.trim()}”. Try earnings, short, RS or volume.</div>
+            <div className={styles.statEmpty}>No stat matches “{q.trim()}”. Try earnings, short, RS or volume{canCustom ? ', or add a custom stat' : ''}.</div>
           )
         ) : HEADER_STAT_GROUPS.map((g) => {
           const used = g.stats.filter((s) => on.has(s.key)).length
@@ -165,7 +215,7 @@ export function HeaderStatPicker({ styles, keys, onToggle, onReset, onDone }) {
         })}
       </div>
       <div className={styles.statDesc} aria-live="polite">
-        {h ? (<><b>{h.label}</b>{h.desc ? ` · ${h.desc}` : ''}</>) : 'Hover a stat to see what it shows.'}
+        {h ? (<><b>{h.label}</b>{h.desc ? ` · ${h.desc}` : ''}</>) : (canCustom ? 'Hover a stat to see what it shows. Custom stat adds an indicator value, like EMA 21 or RSI 14.' : 'Hover a stat to see what it shows.')}
       </div>
       <div className={styles.statPickFoot}>
         <button type="button" className={styles.statFootBtn} onClick={onReset}>Reset to UCT default</button>

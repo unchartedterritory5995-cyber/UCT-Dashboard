@@ -401,3 +401,75 @@ def test_an_installed_replica_is_DARK_while_the_member_flag_is_off(world, monkey
     assert reg.get("NYSE:MCO").status == reg.ST_DORMANT
     monkeypatch.setenv("BREADTH_LIBRARY_UNIVERSES", "us,nyse,nasdaq")       # even a premature flag publishes nothing
     assert bu.published_universe_ids() == ["uct", "us"]
+
+
+# ── an unchanged set is proven once per process (2026-11-17, web boot starvation) ─────────────────
+def _count_verifies(monkeypatch):
+    calls = []
+    real = ea.verify_set
+
+    def counting(*a, **k):
+        calls.append(1)
+        return real(*a, **k)
+    monkeypatch.setattr(ea, "verify_set", counting)
+    return calls
+
+
+def test_an_unchanged_set_is_proven_once_per_process(world, monkeypatch):
+    for d in LIVE[:2]:
+        world["append"](d)
+    world["publish"]()
+    first = world["sync"]()
+    assert first["ok"] and first["result"] == "installed"
+    calls = _count_verifies(monkeypatch)
+    again = world["sync"]()
+    assert again["ok"] and again["result"] == "same" and calls == []
+    assert again["latest_session"] == first["latest_session"]
+    assert max(_closes()) == "2026-09-28"
+
+
+def test_a_touched_object_or_a_new_publication_is_proven_again(world, monkeypatch):
+    for d in LIVE[:2]:
+        world["append"](d)
+    world["publish"]()
+    world["sync"]()
+    calls = _count_verifies(monkeypatch)
+    with open(os.path.join(world["replica"], "CURRENT.json"), "rb") as f:
+        p = ea.parse_pointer(f.read())
+    obj = ea.local_path(p["live"]["sha256"], world["replica"])
+    st = os.stat(obj)
+    os.utime(obj, ns=(st.st_atime_ns, st.st_mtime_ns + 5_000_000_000))      # rewritten in place
+    r = world["sync"]()
+    assert r["ok"] and r["result"] == "same" and calls == [1]
+    world["append"](LIVE[2])
+    world["publish"]()                         # the publisher proves the set itself: not counted
+    calls.clear()
+    r = world["sync"]()
+    assert r["ok"] and r["result"] == "installed" and calls == [1]
+    assert max(_closes()) == "2026-09-29"
+
+
+def test_a_current_changed_underneath_is_proven_and_restored(world, monkeypatch):
+    """The published pointer has not moved, but the replica's CURRENT now names another set (an
+    operator's hand, a second writer): the proof covered CURRENT too, so this sync must prove and
+    re-install the published pointer exactly as it did before the memo existed."""
+    for d in LIVE[:2]:
+        world["append"](d)
+    world["publish"]()
+    world["sync"]()
+    world["append"](LIVE[2])
+    world["publish"]()
+    world["sync"]()
+    cur = os.path.join(world["replica"], "CURRENT.json")
+    with open(os.path.join(world["replica"], "PREVIOUS.json"), "rb") as f:
+        older = f.read()
+    with open(cur, "rb") as f:
+        published = f.read()
+    assert older != published
+    with open(cur, "wb") as f:
+        f.write(older)
+    calls = _count_verifies(monkeypatch)
+    r = world["sync"]()
+    assert r["ok"] and r["result"] == "installed" and calls == [1]
+    with open(cur, "rb") as f:
+        assert f.read() == published

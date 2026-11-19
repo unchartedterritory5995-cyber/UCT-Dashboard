@@ -374,6 +374,14 @@ export const GROUPS = [
     words: [] },
   // W2-B1 (RS-1): `research.ask` rides in this group by domain ("why is X down", "what's driving …", catalysts);
   // W2-B2: `history.afterEvent` too ("how has X behaved after …", "what happens after …")
+  // Terminal data wave 1: the four local-only stock.* answers (analyst actions, session highs / lows, long-run leaders, dark
+  // pool levels) ride here by domain. Their own words are NOT listed below: capabilities/terminalDataLocal.js adds each one's
+  // (TERMINAL_ROUTE_WORDS) to this group only while that capability is registered (the server serves its kind), so on a dark
+  // server this group's words are exactly this list (pinned in agentTerminalData.test.js). The sector answer needs none.
+  // Terminal data wave 2: five more local-only stock.* answers (52-week highs / lows, theme rotation, the confluence board,
+  // the expected move, the earnings call search) ride here the same way: capabilities/terminalDataWave2.js adds each one's
+  // words (WAVE2_ROUTE_WORDS) only while that capability is registered (pinned in agentTerminalDataWave2.test.js).
+  // Terminal data wave 3's four stock.* answers are NOT in this group: see `marketBoards` at the end of the catalog.
   { id: 'data', title: 'Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)', domains: ['stock', 'news', 'research', 'history'],
     // CG-21 (corpus #774): "news" — not the News WIDGET ("add a news widget")
     words: [/\bnews\b(?! (?:widget|panel|tab|window)s?\b)/, /\b(headlines?|catalysts?|earnings|profile|fundamentals?|compare|versus|vs\.?|sectors?|industry|market cap|float|why is|what does .+ do|what'?s driving|what is driving|off (its|the) (52[\s-]?week )?highs?)\b/,
@@ -533,6 +541,39 @@ export const GROUPS = [
   // capability is registered (the server serves `catalysts.board`), so on a dark server routing is byte-identical to the base.
   { id: 'catalysts', title: 'UCT catalyst board: what moved / is moving the market, why a stock is up or down (stored catalysts + headlines), catalysts for your tickers or watchlist',
     domains: [], actions: ['news.movers'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 3 (stock.gammaLevels / stock.topFlowPicks / stock.flowRecord / stock.earningsReactions): one stock's gamma
+  // walls, UCT's Top Flow picks, the Flow Record and a day's earnings reactions in their OWN group, WORDS-ONLY and fillLast (as cot /
+  // rs / catalysts): never a filler, so no existing group and no unrecognised request changes. They are listed by `actions` because
+  // their `stock` domain would put them in the `data` group, and that group has no room: with every dark kind served it already holds
+  // 20 actions, and four more put it past the routing budget whenever drawings or lists ride along (measured: two wave 1 / wave 2
+  // corpus phrasings stopped routing). `words` stays EMPTY here: capabilities/terminalDataWave3.js arms each capability's own words
+  // only while it is registered (the server serves its kind), so on a dark server this group never matches and routing is
+  // byte-identical to the base (pinned in agentTerminalDataWave3.test.js).
+  { id: 'marketBoards', title: 'Gamma walls of a stock (call wall, put wall, zero gamma), UCT\'s Top Flow picks and Flow Record win rates, how a day\'s earnings reporters moved',
+    domains: [], actions: ['stock.gammaLevels', 'stock.topFlowPicks', 'stock.flowRecord', 'stock.earningsReactions'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 4 (stock.earningsSeason / stock.callThemes / stock.groupDrill): one day's earnings season, the phrases rising
+  // across earnings calls and the stocks inside one sector, industry or theme, in their OWN group for wave 3's reasons: WORDS-ONLY
+  // and fillLast, so it is never a filler and no existing group or unrecognised request changes; listed by `actions` because their
+  // `stock` domain would put them in the `data` group, which has no room under the routing budget. They are not added to
+  // `marketBoards` either: that group is held at its four actions (three more ride with every wave 3 ask and its title has no room
+  // to name seven things). `words` stays EMPTY here: capabilities/terminalDataWave4.js arms each capability's own words only while
+  // it is registered (the server serves its kind), so on a dark server this group never matches and routing is byte-identical to the
+  // base (pinned in agentTerminalDataWave4.test.js).
+  { id: 'marketViews', title: 'One day\'s earnings season (who reports, priced and past moves), phrases rising across earnings calls, the stocks inside one sector, industry or theme',
+    domains: [], actions: ['stock.earningsSeason', 'stock.callThemes', 'stock.groupDrill'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 5 (stock.shortInterest / stock.shortList): one stock's FINRA short interest and the market-wide short
+  // interest list, in their OWN group for wave 3's and wave 4's reasons: WORDS-ONLY and fillLast, so it is never a filler and no
+  // existing group or unrecognised request changes; listed by `actions` because their `stock` domain would put them in the `data`
+  // group, which has no room under the routing budget. They are not added to `marketBoards` or `marketViews` either: each is held
+  // at its size (two more would ride with every wave 3 or wave 4 ask, and neither title has room to name them). `words` stays EMPTY
+  // here: capabilities/terminalDataWave5.js arms each capability's own words only while it is registered (the server serves its
+  // kind), so on a dark server this group never matches and routing is byte-identical to the base (pinned in
+  // agentTerminalDataWave5.test.js). ⚠️ This is the 47th of the 48 groups the server keeps (turn.MAX_GROUPS): one is left.
+  { id: 'shortInterest', title: 'FINRA short interest: one stock\'s reports, days to cover, percent of float and daily short volume; the market list ranked by days to cover, change or float',
+    domains: [], actions: ['stock.shortInterest', 'stock.shortList'], fillLast: true, wordsOnly: true,
     words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)

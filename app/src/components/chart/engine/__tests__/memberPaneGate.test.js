@@ -266,7 +266,20 @@ describe('the member-pane gate', () => {
       // sentences would strip them off drawings that survive the flip. So the
       // census stays at one, and a second name appearing here is a question, not
       // a formality.
-      .toEqual(['src/components/chart/builder/memberPane/MemberPane.jsx'])
+      // ⭐ 2026-11-17 — THE QUESTION WAS ASKED, TWICE, AND THE CENSUS IS THREE. Both new names are
+      // doors that COMPUTE through the engine's headless export (`headlessCompute.js`, which
+      // brings the script lane with it), not surfaces that disclose something already drawn, so
+      // T5b's reasoning does not excuse them: with the switch off, neither may load or run the
+      // lane. `pages/formulas/deviceDrawTime.js` (Studio R6: the share page times a formula on
+      // the viewer's device) answers by name that nothing was measured; `builder/inspect/
+      // InspectBarPanel.jsx` (Studio R5: Inspect a bar) renders nothing. The path rail above went
+      // red on master for the first of them; these consults are its fix.
+      .toEqual(expect.arrayContaining([
+        'src/components/chart/builder/memberPane/MemberPane.jsx',
+        'src/components/chart/builder/inspect/InspectBarPanel.jsx',
+        'src/pages/formulas/deviceDrawTime.js',
+      ]))
+    expect(known, 'a fourth importer of the gate is a question, not a formality').toHaveLength(3)
 
     // ⛔ IMPORTING IT IS NOT CONSULTING IT, AND THAT IS ASSERTED OF EVERY
     // IMPORTER RATHER THAN OF THE ONE THIS CASE WAS WRITTEN FOR. A component that

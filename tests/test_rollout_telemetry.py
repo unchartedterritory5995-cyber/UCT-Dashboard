@@ -284,3 +284,128 @@ def test_a_window_spanning_two_instruction_versions_shows_both(store, conv, mode
     conv.converse("make it 80", user_id="m2", view=view(1, [out("value", RSI_GT_70)]))
     assert tel.rollout_report(7)["produced_by"]["prompt_sha"] == {first: 1, "0123456789abcdef": 1}
 
+
+
+# --- the learning data: every operation is countable; which check caused each repair -----------
+#
+# 2026-11-17. Two things the record could not say. (1) The list of operations a turn may record
+# was typed by hand and seven operations had been added to the patch contract since, so a turn
+# that built a table, colour states, a setting or a calculation timeframe lost its whole
+# `op_kinds`. (2) A repaired turn said THAT it was repaired, and the report did not say by which
+# check; and when the browser sends its own refusal back (`definition_conversation.
+# browser_refusal`) nothing said which of the browser's rules it was.
+
+EMA_LINE = {"op": "create", "name": "Average", "placement": "price",
+            "outputs": [{"key": "ema", "tree": {"type": "call", "name": "ema", "args": [
+                {"type": "series", "name": "close"}, {"type": "num", "value": 10}]}}]}
+NEWER = [{"op": "set_table", "cells": [{"row": 0, "col": 0, "text": "EMA"}, {"row": 0, "col": 1, "output": "ema"}]},
+         {"op": "set_color_states", "output": "ema", "states": [{"relation": "rising", "color": "#089981"}], "otherwise": "#F23645"},
+         {"op": "set_calculation_timeframe", "timeframe": "W"}]
+
+
+def _contract_ops():
+    import io
+    from pathlib import Path
+    path = Path(tel.__file__).resolve().parents[2] / "app" / "src" / "components" / "chart" / "builder" / "authoring" / "patchSchema.json"
+    defs = json.loads(io.open(path, encoding="utf-8").read())["$defs"]
+    return {v["properties"]["op"]["const"] for k, v in defs.items() if k.startswith("op_")}
+
+
+def test_the_operations_a_turn_may_record_are_the_contracts():
+    contract = _contract_ops()
+    assert len(contract) > len(tel._CONVERSE_OPS_AS_TYPED)          # the premise: the contract has grown
+    assert tel._CONVERSE_OPS == contract == tel.contract_ops()
+    assert {"set_table", "set_color_states", "set_calculation_timeframe", "set_input"} <= tel._CONVERSE_OPS
+
+
+def test_a_turn_that_uses_a_newer_operation_keeps_its_record(store, conv, model):
+    model([emits(env(0, [EMA_LINE] + NEWER))])
+    r = conv.converse("a weekly 10 EMA with a table", user_id="u1", view=empty_view(0))
+    assert r["ok"] is True
+    (_uid, p), = rows("converse_turn")
+    assert p["op_kinds"] == "create,set_table,set_color_states,set_calculation_timeframe"
+    assert tel.rollout_report(7)["everyone_incl_admins"]["op_kinds"]["set_table"] == 1
+
+
+def test_an_unreadable_contract_answers_the_typed_list_never_raises_and_SAYS_SO(monkeypatch, caplog):
+    """The fallback is LOUD: falling back silently is how the typed list went seven operations
+    stale without anybody being told."""
+    import logging
+
+    def broken(*_a, **_kw):
+        raise ValueError("not JSON")
+    monkeypatch.setattr(tel.json, "loads", broken)
+    with caplog.at_level(logging.ERROR, logger=tel.log.name):
+        assert tel.contract_ops() == tel._CONVERSE_OPS_AS_TYPED
+    said = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert said and "the patch contract could not be read" in said[-1].getMessage()
+    caplog.clear()
+    monkeypatch.setattr(tel.json, "loads", lambda *_a, **_kw: {"$defs": {}})
+    with caplog.at_level(logging.ERROR, logger=tel.log.name):
+        assert tel.contract_ops() == tel._CONVERSE_OPS_AS_TYPED     # a contract with no operations is not one
+    said = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert said and "defines no operations" in said[-1].getMessage()
+    # and a contract that reads says nothing
+    caplog.clear()
+    monkeypatch.undo()
+    with caplog.at_level(logging.ERROR, logger=tel.log.name):
+        assert len(tel.contract_ops()) > len(tel._CONVERSE_OPS_AS_TYPED)
+    assert not caplog.records
+
+
+PAINT_A_NUMBER = [EMA_LINE, {"op": "set_paint", "output": "ema", "channel": "barcolor", "color": "#089981"}]
+SENT_BACK = {"envelope": env(0, PAINT_A_NUMBER), "errors": [
+    f"paint:refused: ema: A signal colour reads a yes/no. {SECRET}",
+    "fill:not-series: the other line is a yes/no",
+    f"Not A Code: {SECRET}",                                         # no code: contributes nothing
+    "paint:refused: said twice",                                     # one rule, counted once
+]}
+
+
+def test_a_turn_the_browser_sent_back_records_which_rules_and_none_of_the_words(store, conv, model):
+    model([emits(env(0, [EMA_LINE]))])
+    r = conv.converse("a 10 EMA, candles green above it", user_id="u1", view=empty_view(0), browser_refusal=SENT_BACK)
+    assert r["ok"] is True and r["usage"]["browser_codes"] == "paint:refused,fill:not-series"
+    (_uid, p), = rows("converse_turn")
+    assert p["repair_gate"] == "browser:refused" and p["browser_codes"] == "paint:refused,fill:not-series"
+    assert SECRET not in raw_dump() and "yes/no" not in raw_dump()
+    # an ordinary turn records neither
+    model([emits(env(0, [EMA_LINE]))])
+    conv.converse("a 10 EMA", user_id="u2", view=empty_view(0))
+    plain = [p for u, p in rows("converse_turn") if u == "u2"][0]
+    assert "browser_codes" not in plain and "repair_gate" not in plain
+
+
+@pytest.mark.parametrize("value", [
+    "make the candles green", "paint:refused words", "Paint:Refused", "paint:refused1", "p4int:refused",
+    "paint", "paint:", ":refused", "a:b", ",", "",
+    "one:two,three:four,five:six,seven:eight,nine:ten",              # five: more than a refusal carries
+    "paint:refused;drop table", "x" * 16 + "y:refused", 7, None, ["paint:refused"],
+])
+def test_a_browser_code_can_never_carry_free_text(value):
+    if value is None:
+        return                                                       # an absent prop is simply absent
+    assert tel._prop_violation("converse_turn", "browser_codes", value) is not None
+
+
+@pytest.mark.parametrize("value", ["paint:refused", "calc-tf:lower", "color:condition-output,fill:not-series",
+                                   "signal:numeric-output,table:invalid,output:unknown,input:none"])
+def test_a_well_formed_browser_code_is_accepted(value):
+    assert tel._prop_violation("converse_turn", "browser_codes", value) is None
+
+
+def test_the_REPORT_says_which_check_caused_each_repair(store, conv, model):
+    # one repaired at the door (colour states on an output drawn as markers), one sent back by the
+    # browser, one built first time
+    marked = env(0, [EMA_LINE, {"op": "set_marker", "output": "ema", "shape": "circle"}, NEWER[1]])
+    model([emits(marked), emits(env(0, [EMA_LINE]))])
+    a = conv.converse("a 10 EMA", user_id="m1", view=empty_view(0))
+    model([emits(env(0, [EMA_LINE]))])
+    conv.converse("a 10 EMA, candles green above it", user_id="m2", view=empty_view(0), browser_refusal=SENT_BACK)
+    model([emits(env(0, [EMA_LINE]))])
+    conv.converse("a 10 EMA", user_id="m3", view=empty_view(0))
+    block = tel.rollout_report(7)["everyone_incl_admins"]
+    assert a["ok"] is True and a["attempts"] == 2
+    assert block["model_turns"] == 3 and block["repairs"] == 2
+    assert block["repair_gates"] == {a["usage"]["repair_gate"]: 1, "browser:refused": 1}
+    assert block["browser_refusals"] == {"paint:refused": 1, "fill:not-series": 1}

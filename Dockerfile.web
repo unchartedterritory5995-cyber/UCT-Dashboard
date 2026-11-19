@@ -115,7 +115,12 @@ ARG VITE_PINE_MEMBER_PANE_ENABLED
 ARG VITE_PINE_OBJECTS_ONLY_PANE_ENABLED
 ARG VITE_PINE_RUNTIME_PANE_ENABLED
 ARG VITE_SAVED_SCRIPT_UPGRADE
-ARG VITE_PINE_STRATEGY_BROKER_ENABLED
+# ⭐⭐ DEFAULT ON (owner ruling 2026-11-17, delegated: serve the Strategy Tester report only where the pin ledger
+# witnesses every broker rule; every other strategy refused by name). An UNSET Railway variable bakes "1"; Railway's
+# VITE_PINE_STRATEGY_BROKER_ENABLED stays the override (any other value, "0" or "" included, bakes the gate OFF).
+# Both web and web-front build this file, each from its OWN variables; members load web-front's bundle.
+# Reach is the runtime pane's (PINE_RUNTIME_STAGE) and its admission's: docs/pine/evidence/2026-11-17-serve-witnessed-strategies.
+ARG VITE_PINE_STRATEGY_BROKER_ENABLED=1
 ARG VITE_REALTIME_BARS
 ARG VITE_RS_SPLIT_ENABLED
 ARG VITE_RS_TELEMETRY_ENABLED

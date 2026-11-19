@@ -241,6 +241,15 @@ def _fmt(v, unit=""):
     return "n/a" if v is None else ("%.0f%s" % (v, unit) if isinstance(v, (int, float)) else str(v))
 
 
+def _synthetic():
+    """tools/synthetic_session.py -- the ONE sign-in, which always signs out (2026-11-17)."""
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 -- package import (the breadth rigs)
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
+    return S
+
+
 def run_once(pw, email, password, idx, certifying, min_pod_age=None):
     """One cold load in a FRESH context. Returns a dict of measurements."""
     from playwright.sync_api import TimeoutError as PWTimeout
@@ -256,8 +265,8 @@ def run_once(pw, email, password, idx, certifying, min_pod_age=None):
         # Scripted login — page.request keeps the cookie in the context jar, which
         # is robust against the intro overlay (the documented approach).
         _pace_login()
-        r = ctx.request.post(BASE + "/api/auth/login",
-                             data={"email": email, "password": password})
+        # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+        r = _synthetic().sign_in_playwright(ctx, BASE, credentials=(email, password)).response
         if r.status != 200:
             up_after = _uptime()
             swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,
@@ -400,8 +409,8 @@ def run_once_path_b(pw, email, password, idx, certifying,
         up_before = _uptime()
         t_run = time.monotonic()
         _pace_login()
-        r = ctx.request.post(BASE + "/api/auth/login",
-                             data={"email": email, "password": password})
+        # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+        r = _synthetic().sign_in_playwright(ctx, BASE, credentials=(email, password)).response
         if r.status != 200:
             up_after = _uptime()
             swapped, why = _swap_verdict(up_before, up_after, time.monotonic() - t_run,

@@ -45,7 +45,6 @@ from __future__ import annotations
 import argparse
 import http.cookiejar
 import json
-import os
 import sys
 import urllib.error
 import urllib.request
@@ -83,16 +82,19 @@ def _req(url: str, data: dict | None = None) -> urllib.request.Request:
 
 
 def login(op, base: str) -> None:
-    email = os.environ.get("SMOKE_EMAIL")
-    password = os.environ.get("SMOKE_PASSWORD")
-    if not email or not password:
+    # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    if not S.has_credentials("smoke"):
         sys.exit(
             "⛔ SMOKE_EMAIL / SMOKE_PASSWORD are not in the environment. On the operator "
             "box they are at User scope — set them on the process first."
         )
-    with op.open(_req(f"{base}/api/auth/login", {"email": email, "password": password}), timeout=30) as r:
-        if r.status != 200:
-            sys.exit(f"⛔ login returned HTTP {r.status}")
+    s = S.sign_in_urllib(op, base, "smoke", timeout=30)
+    if s.status != 200:
+        sys.exit(f"⛔ login returned HTTP {s.status}")
 
 
 def get_prefs(op, base: str) -> dict:

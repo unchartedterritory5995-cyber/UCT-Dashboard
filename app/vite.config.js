@@ -279,7 +279,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './src/test-setup.js',
+    // + the read capture, ONLY when asked (pine heavy's legs set UCT_READ_CAPTURE_DIR): which files each
+    // test file reads, for tools/ci_whole_app_rails.py. Header: src/test-read-capture.cjs.
+    setupFiles: process.env.UCT_READ_CAPTURE_DIR
+      ? ['./src/test-setup.js', './src/test-read-capture.js']
+      : './src/test-setup.js',
     pool: 'forks',
     // The full suite (~3,100 tests under jsdom + echarts/recharts) peaks near
     // the default ~4GB worker heap and OOMs a fork mid-run ("Ineffective

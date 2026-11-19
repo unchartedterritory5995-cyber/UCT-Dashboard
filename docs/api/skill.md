@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (623)
+## Member session reads (775)
 
 ### Limits
 
@@ -109,16 +109,19 @@ Response 200:
 | family | limit |
 |---|---|
 | ai | 120/minute |
+| archive-images | 2400/minute |
 | community-content | 600/minute |
 | docs | 600/minute |
 | inbound-alerts | 1200/minute |
 | market-analytics | 600/minute |
 | market-data | 1200/minute |
 | member-workspace | 600/minute |
+| options-analytics | 600/minute |
 | options-flow | 1200/minute |
 | research | 600/minute |
 | screener | 600/minute |
 | stream | 120/minute |
+| trade-exchange-news-internal | 1200/minute |
 | voice | 600/minute |
 
 Responses are JSON unless the path says export. Params: `{name}` is a path parameter,
@@ -131,8 +134,14 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/address/search` | member | member-workspace | q (required) |
 | GET | `/api/adjustment-basis/{ticker}` | member | market-data | {ticker}, tf=D |
 | GET | `/api/adjustment-basis/{ticker}/raw` | member | market-data | {ticker}, around |
+| GET | `/api/agent/breadth/dates` | paid | ai |  |
+| GET | `/api/agent/budget` | paid | ai |  |
+| GET | `/api/agent/coach/concepts` | paid | ai |  |
+| GET | `/api/agent/config` | paid | ai |  |
 | GET | `/api/agent/conversations` | paid | ai |  |
 | GET | `/api/agent/conversations/{conversation_id}` | paid | ai | {conversation_id} |
+| GET | `/api/agent/conversations/{conversation_id}/state/{key}` | paid | ai | {conversation_id}, {key} |
+| GET | `/api/agent/search` | paid | ai | q |
 | GET | `/api/ai-search/briefings` | paid | ai |  |
 | GET | `/api/ai-search/deep` | paid | ai | limit=20 |
 | GET | `/api/ai-search/deep/{job_id}` | paid | ai | {job_id} |
@@ -141,6 +150,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/ai-search/threads` | paid | ai | limit=30 |
 | GET | `/api/ai-search/threads/{thread_id}` | paid | ai | {thread_id} |
 | GET | `/api/alerts` | member | member-workspace | limit=50 |
+| GET | `/api/alerts/lists` | paid | member-workspace |  |
 | GET | `/api/alerts/routing` | paid | member-workspace |  |
 | GET | `/api/alerts/taxonomy/cooldowns` | member | member-workspace |  |
 | GET | `/api/alerts/taxonomy/document-arrival` | member | member-workspace | active_only=True |
@@ -152,10 +162,14 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/analogs` | paid | market-analytics | setup_type (required), regime=ALL, sector, limit=5, symbol |
 | GET | `/api/analyst-actions` | paid | research |  |
 | GET | `/api/analyst/{sym}` | paid | research | {sym}, debug=0 |
+| GET | `/api/artifact-versions/status` | member | member-workspace |  |
+| GET | `/api/artifact-versions/{kind}/deleted` | member | member-workspace | {kind} |
+| GET | `/api/artifact-versions/{kind}/{artifact_id}` | member | member-workspace | {kind}, {artifact_id} |
+| GET | `/api/artifact-versions/{kind}/{artifact_id}/{version}` | member | member-workspace | {kind}, {artifact_id}, {version} |
 | GET | `/api/backtest/strategies` | paid | screener |  |
 | GET | `/api/bars-history/{ticker}` | member | market-data | {ticker}, tf=D, bars=60000, v, d |
 | GET | `/api/bars-today-pack` | member | market-data |  |
-| GET | `/api/bars/{ticker}` | member | market-data | {ticker}, tf=D, bars=200, since, to, warm=0 |
+| GET | `/api/bars/{ticker}` | member | market-data | {ticker}, tf=D, bars=200, since, to, warm=0, session |
 | GET | `/api/bars/{ticker}/adjustment-basis` | member | market-data | {ticker}, tf=D |
 | GET | `/api/barspack/manifest` | member | market-data |  |
 | GET | `/api/barspack/{date}/delta` | member | market-data | {date} |
@@ -174,12 +188,16 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/breadth-monitor/series` | paid | market-analytics | keys, from, to |
 | GET | `/api/breadth-monitor/session-path/{session_date}` | paid | market-analytics | {session_date} |
 | GET | `/api/breadth-monitor/{date_str}/drill/{metric_key}` | paid | market-analytics | {date_str}, {metric_key} |
+| GET | `/api/breadth-monitor/{date_str}/drill/{metric_key}/context` | paid | market-analytics | {date_str}, {metric_key} |
 | GET | `/api/breadth-symbols` | member | market-analytics |  |
 | GET | `/api/breadth/industries/status` | paid | market-analytics |  |
+| GET | `/api/breadthpack/manifest` | member | market-data |  |
+| GET | `/api/breadthpack/{version}/{idx}` | member | market-data | {version}, {idx} |
 | GET | `/api/calendar/date-status` | paid | research | syms (required) |
 | GET | `/api/calendar/day-metrics` | paid | research | date |
 | GET | `/api/calendar/day-metrics-batch` | paid | research | dates |
 | GET | `/api/calendar/dividends` | paid | research | syms |
+| GET | `/api/calendar/earnings-season` | paid | research | date |
 | GET | `/api/calendar/enrichment` | paid | research | date |
 | GET | `/api/calendar/enrichment-batch` | paid | research | dates |
 | GET | `/api/calendar/implied-moves` | paid | research | date |
@@ -202,12 +220,14 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/catalysts/history/{sym}` | paid | research | {sym} |
 | GET | `/api/catalysts/my-feedback` | member | research | market_date |
 | GET | `/api/catalysts/today` | member | research |  |
+| GET | `/api/chart-iq/feedback/export` | paid | screener | since=0.0, limit=5000 |
+| GET | `/api/chart-iq/pack/status` | paid | screener |  |
+| GET | `/api/chart-iq/{sym}` | paid | screener | {sym}, date |
 | GET | `/api/chart/{ticker}` | paid | market-data | {ticker}, tf=D |
 | GET | `/api/charts/layouts` | member | member-workspace |  |
 | GET | `/api/charts/layouts/{layout_id}/share` | member | member-workspace | {layout_id} |
 | GET | `/api/charts/list-sources/screen/{screen_id}` | member | member-workspace | {screen_id} |
 | GET | `/api/charts/list-sources/theme/{theme_id}` | member | member-workspace | {theme_id} |
-| GET | `/api/coaching-notes` | paid | member-workspace | limit=10, note_type |
 | GET | `/api/community/chat/channels` | member | community-content |  |
 | GET | `/api/community/chat/channels/{slug}/messages` | member | community-content | {slug}, before_id, after_id, limit=50 |
 | GET | `/api/community/chat/channels/{slug}/read-state` | member | community-content | {slug} |
@@ -269,6 +289,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/earnings/audio/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/call-audio/{ticker}` | paid | research | {ticker}, year, quarter |
 | GET | `/api/earnings/call-recap/{ticker}` | paid | research | {ticker}, quarter |
+| GET | `/api/earnings/call-themes` | paid | research | month |
 | GET | `/api/earnings/intel/{ticker}` | paid | research | {ticker} |
 | GET | `/api/earnings/keyword-alerts` | paid | research |  |
 | GET | `/api/earnings/sentiment/{ticker}` | paid | research | {ticker} |
@@ -342,6 +363,9 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/indicator-alerts/fired` | member | screener | limit=50 |
 | GET | `/api/indicator-alerts/latency` | member | screener |  |
 | GET | `/api/indicator-alerts/{alert_id}/fires` | member | screener | {alert_id}, limit=50 |
+| GET | `/api/indicator-support/config` | member | screener |  |
+| GET | `/api/indicator-support/reports/mine` | member | screener |  |
+| GET | `/api/indicator-support/reports/mine/{report_id}` | member | screener | {report_id} |
 | GET | `/api/insider/feed` | paid | research | scope |
 | GET | `/api/insider/{ticker}` | paid | research | {ticker} |
 | GET | `/api/insider/{ticker}/has-buy` | paid | research | {ticker}, days=30 |
@@ -401,11 +425,17 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/export/notes/{note_id}` | member | member-workspace | {note_id}, format |
 | GET | `/api/j2/inbound-email/address` | paid | member-workspace |  |
 | GET | `/api/j2/inbox` | member | member-workspace |  |
+| GET | `/api/j2/insights/checklist-suggestions` | paid | member-workspace | account_id |
+| GET | `/api/j2/journal-styles` | paid | member-workspace | view, view |
+| GET | `/api/j2/journal-styles/{style_id}` | paid | member-workspace | {style_id} |
+| GET | `/api/j2/journal-styles/{style_id}/used-in` | paid | member-workspace | {style_id} |
 | GET | `/api/j2/link-preview` | member | member-workspace | url (required) |
 | GET | `/api/j2/metrics` | member | member-workspace | keys, kpi, account_id, date_from, date_to, symbol, sides, setups, tags, limit, offset |
 | GET | `/api/j2/metrics/registry` | member | member-workspace |  |
 | GET | `/api/j2/my-playbook` | paid | member-workspace | accountId |
 | GET | `/api/j2/note-folders` | member | member-workspace |  |
+| GET | `/api/j2/note-kinds` | paid | member-workspace |  |
+| GET | `/api/j2/note-kinds/mapping-offer` | paid | member-workspace |  |
 | GET | `/api/j2/note-templates` | member | member-workspace |  |
 | GET | `/api/j2/note-templates/{template_id}` | member | member-workspace | {template_id} |
 | GET | `/api/j2/notebook-fingerprint/blocks` | paid | member-workspace | symbol, setupTag, noteId, limit=200 |
@@ -414,6 +444,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/notebook-fingerprint/meta` | paid | member-workspace |  |
 | GET | `/api/j2/notebook-visual-playbook/cards` | paid | member-workspace | setup, outcome, timeframe, range, regime |
 | GET | `/api/j2/notebook-visual-playbook/trades/{trade_id}/before-after` | paid | member-workspace | {trade_id} |
+| GET | `/api/j2/notebook-widgets/{kind}` | paid | member-workspace | {kind} |
 | GET | `/api/j2/notebook/home` | member | member-workspace |  |
 | GET | `/api/j2/notes` | member | member-workspace | folder_id, tag, ticker, q, embed_symbol, embed_widget, sort=updated, limit=100, offset=0, deleted=False, dateFrom, dateTo, sector, theme, savedViewId, propertyFilter, propertySort, meaning=False, excludeSample=False |
 | GET | `/api/j2/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}` | member | member-workspace | {user_id_param}, {note_id}, {sub}, {filename} |
@@ -427,6 +458,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/notes/favorites` | member | member-workspace | limit=50 |
 | GET | `/api/j2/notes/folder-counts` | member | member-workspace |  |
 | GET | `/api/j2/notes/graph` | member | member-workspace | limit=1500 |
+| GET | `/api/j2/notes/import/repair-notice` | member | member-workspace |  |
 | GET | `/api/j2/notes/link-targets` | member | member-workspace | ids |
 | GET | `/api/j2/notes/recents` | member | member-workspace | limit=8 |
 | GET | `/api/j2/notes/research/{symbol}/summary` | member | member-workspace | {symbol} |
@@ -435,6 +467,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/notes/tag-members` | member | member-workspace | tag |
 | GET | `/api/j2/notes/tags` | member | member-workspace |  |
 | GET | `/api/j2/notes/tasks` | member | member-workspace | status=open, due |
+| GET | `/api/j2/notes/today` | member | member-workspace | make=1 |
 | GET | `/api/j2/notes/{note_id}` | member | member-workspace | {note_id} |
 | GET | `/api/j2/notes/{note_id}/backlinks` | member | member-workspace | {note_id}, limit=50 |
 | GET | `/api/j2/notes/{note_id}/documents` | member | member-workspace | {note_id} |
@@ -447,6 +480,8 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/notes/{note_id}/related-from` | member | member-workspace | {note_id} |
 | GET | `/api/j2/notes/{note_id}/reviews` | member | member-workspace | {note_id} |
 | GET | `/api/j2/notes/{note_id}/share` | member | member-workspace | {note_id} |
+| GET | `/api/j2/notes/{note_id}/share/preview` | paid | member-workspace | {note_id}, hidePnl=True |
+| GET | `/api/j2/notes/{note_id}/style-update-plan` | paid | member-workspace | {note_id}, styleId |
 | GET | `/api/j2/notes/{note_id}/thesis-summary` | member | member-workspace | {note_id} |
 | GET | `/api/j2/notes/{note_id}/trade-ref/resolve` | member | member-workspace | {note_id} |
 | GET | `/api/j2/notes/{note_id}/unlinked-mentions` | member | member-workspace | {note_id}, limit=50 |
@@ -467,10 +502,17 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/research-capture/passed-setups` | paid | member-workspace |  |
 | GET | `/api/j2/research-capture/transcripts/{symbol}/quarters` | paid | member-workspace | {symbol} |
 | GET | `/api/j2/research-capture/transcripts/{symbol}/{quarter}` | paid | member-workspace | {symbol}, {quarter} |
+| GET | `/api/j2/research-capture/tweets/recent` | paid | member-workspace | symbol, scope=all |
 | GET | `/api/j2/review-drafts/daily` | paid | member-workspace | day (required), accountId |
 | GET | `/api/j2/review-drafts/monthly` | paid | member-workspace | month (required), accountId |
 | GET | `/api/j2/review-drafts/weekly` | paid | member-workspace | weekStart (required), accountId |
 | GET | `/api/j2/reviews/search` | member | member-workspace | q, limit=20 |
+| GET | `/api/j2/routines` | paid | member-workspace | filter=active |
+| GET | `/api/j2/routines/import-day-rules` | paid | member-workspace |  |
+| GET | `/api/j2/routines/starters` | paid | member-workspace |  |
+| GET | `/api/j2/routines/{rid}` | paid | member-workspace | {rid} |
+| GET | `/api/j2/routines/{rid}/used-in` | paid | member-workspace | {rid} |
+| GET | `/api/j2/routines/{rid}/vs-pnl` | paid | member-workspace | {rid} |
 | GET | `/api/j2/saved-views` | member | member-workspace |  |
 | GET | `/api/j2/settings` | member | member-workspace |  |
 | GET | `/api/j2/setups-board` | paid | member-workspace |  |
@@ -479,10 +521,28 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/similar-names/{note_id}/{embed_key}` | paid | member-workspace | {note_id}, {embed_key} |
 | GET | `/api/j2/strategies/{strategy_id}/excursion` | member | member-workspace | {strategy_id} |
 | GET | `/api/j2/tax-report` | member | member-workspace | year (required), account_id |
-| GET | `/api/j2/template-gallery` | paid | member-workspace | q, category, sort=newest, section=all |
+| GET | `/api/j2/template-gallery` | paid | member-workspace | q, category, sort=newest, section=all, type, trading_style |
+| GET | `/api/j2/template-gallery/authors/{handle}` | paid | member-workspace | {handle} |
+| GET | `/api/j2/template-gallery/feed` | paid | member-workspace |  |
+| GET | `/api/j2/template-gallery/layouts/status` | paid | member-workspace |  |
+| GET | `/api/j2/template-gallery/library` | paid | member-workspace | group |
+| GET | `/api/j2/template-gallery/notes/{note_id}/helpful-prompt` | paid | member-workspace | {note_id} |
+| GET | `/api/j2/template-gallery/updates` | paid | member-workspace |  |
+| GET | `/api/j2/template-gallery/updates/{style_id}` | paid | member-workspace | {style_id} |
 | GET | `/api/j2/template-gallery/{gallery_id}` | paid | member-workspace | {gallery_id} |
+| GET | `/api/j2/template-gallery/{gallery_id}/images/{n}` | paid | member-workspace | {gallery_id}, {n}, rev |
 | GET | `/api/j2/track-record-link` | member | member-workspace |  |
+| GET | `/api/j2/trackers` | paid | member-workspace | filter=active |
+| GET | `/api/j2/trackers/{tid}` | paid | member-workspace | {tid} |
+| GET | `/api/j2/trackers/{tid}/used-in` | paid | member-workspace | {tid} |
+| GET | `/api/j2/trackers/{tid}/vs-pnl` | paid | member-workspace | {tid} |
 | GET | `/api/j2/trade-evidence` | member | member-workspace | tradeRef (required) |
+| GET | `/api/j2/trader-blocks/market-context` | paid | member-workspace |  |
+| GET | `/api/j2/trader-blocks/prep/{part}` | paid | member-workspace | {part} |
+| GET | `/api/j2/trader-blocks/review/trades` | paid | member-workspace |  |
+| GET | `/api/j2/trader-blocks/review/{trade_key}` | paid | member-workspace | {trade_key} |
+| GET | `/api/j2/trader-blocks/rules/{rule_id}/before-after` | paid | member-workspace | {rule_id} |
+| GET | `/api/j2/trader-blocks/rules/{rule_id}/versions` | paid | member-workspace | {rule_id} |
 | GET | `/api/j2/trades` | member | member-workspace | account_id, date_from, date_to, symbol, sides, setups, tags, limit, offset |
 | GET | `/api/j2/trades/attachments/{user_id_param}/{ref_dir}/{filename}` | member | member-workspace | {user_id_param}, {ref_dir}, {filename} |
 | GET | `/api/j2/trades/export` | member | member-workspace | format=csv, account_id, date_from, date_to, symbol, sides, setups, tags, limit, offset |
@@ -494,6 +554,14 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/j2/unified-coach` | member | member-workspace |  |
 | GET | `/api/j2/voice-notes/desk-sessions` | paid | member-workspace |  |
 | GET | `/api/j2/voice-notes/status` | paid | member-workspace |  |
+| GET | `/api/j2/widget-definitions` | paid | member-workspace | view=live |
+| GET | `/api/j2/widget-definitions/shelf` | paid | member-workspace |  |
+| GET | `/api/j2/widget-definitions/vocabulary` | paid | member-workspace | field |
+| GET | `/api/j2/widget-definitions/{def_id}` | paid | member-workspace | {def_id} |
+| GET | `/api/j2/widget-definitions/{def_id}/revs` | paid | member-workspace | {def_id} |
+| GET | `/api/j2/widget-definitions/{def_id}/used-in` | paid | member-workspace | {def_id} |
+| GET | `/api/j2/wrapped/years` | paid | member-workspace | account_id |
+| GET | `/api/j2/wrapped/{year}` | paid | member-workspace | {year}, account_id |
 | GET | `/api/leader-persistence/{symbol}` | paid | market-analytics | {symbol} |
 | GET | `/api/leadership` | paid | market-analytics |  |
 | GET | `/api/live-prices` | member | market-data | tickers (required) |
@@ -521,6 +589,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/model-examples` | paid | screener | setup_type, grade, example_type, limit=20 |
 | GET | `/api/modelbook/all-stocks` | paid | community-content |  |
 | GET | `/api/modelbook/appearances/{symbol}` | paid | community-content | {symbol} |
+| GET | `/api/modelbook/catalog` | paid | community-content |  |
 | GET | `/api/modelbook/index-drawings` | paid | community-content | symbol=^IXIC |
 | GET | `/api/modelbook/intraday-day` | paid | community-content | symbol (required), date (required), stock_id |
 | GET | `/api/modelbook/setup-example/{example_id}/bars` | paid | community-content | {example_id} |
@@ -534,22 +603,57 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/modelbook/years` | paid | community-content |  |
 | GET | `/api/movers` | member | market-data |  |
 | GET | `/api/news` | paid | research |  |
-| GET | `/api/news-catalysts/{sym}` | paid | research | {sym} |
+| GET | `/api/news-catalysts/{sym}` | paid | research | {sym}, generate=True |
 | GET | `/api/nhnl/dims` | paid | market-analytics |  |
 | GET | `/api/nhnl/live` | paid | market-analytics | limit=100, min_price=0.0, min_count=1, group, value, etf, watchlist |
 | GET | `/api/nhnl/series` | paid | market-analytics |  |
 | GET | `/api/nhnl/status` | paid | market-analytics |  |
 | GET | `/api/oi-snapshot/history` | paid | options-flow | sym (required), cp (required), strike (required), exp (required), days=30 |
 | GET | `/api/oi-snapshot/lookup` | paid | options-flow | sym (required), cp (required), strike (required), exp (required), snap_date |
+| GET | `/api/options-screener/iv-percentile` | paid | options-analytics |  |
+| GET | `/api/options-screener/more-strategies` | paid | options-analytics |  |
+| GET | `/api/options-screener/more/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
+| GET | `/api/options-screener/multi-leg` | paid | options-analytics | underlyings, limit=50 |
+| GET | `/api/options-screener/screen` | paid | options-analytics |  |
+| GET | `/api/options-screener/sizzle` | paid | options-analytics |  |
+| GET | `/api/options-screener/strategies` | paid | options-analytics |  |
+| GET | `/api/options-screener/strategy/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
+| GET | `/api/options-screener/unusual-volume` | paid | options-analytics |  |
+| GET | `/api/options/market-tide` | paid | market-analytics | scope=all |
+| GET | `/api/options/market-tide/minute` | paid | market-analytics | scope=all, t |
+| GET | `/api/options/market-tide/sectors` | paid | market-analytics | scope=all |
+| GET | `/api/options/positioning/refresh-policy` | paid | options-analytics |  |
+| GET | `/api/options/positioning/vocabulary` | paid | options-analytics |  |
+| GET | `/api/options/positioning/{sym}/base-rate` | paid | options-analytics | {sym} |
+| GET | `/api/options/positioning/{sym}/charm-heatmap` | paid | options-analytics | {sym}, dte=month |
+| GET | `/api/options/positioning/{sym}/dealer-short` | paid | options-analytics | {sym} |
+| GET | `/api/options/positioning/{sym}/delta-heatmap` | paid | options-analytics | {sym}, dte=month |
+| GET | `/api/options/positioning/{sym}/heatmap` | paid | options-analytics | {sym}, dte=month |
+| GET | `/api/options/positioning/{sym}/impact` | paid | options-analytics | {sym}, dte=month |
+| GET | `/api/options/positioning/{sym}/level-files` | paid | options-analytics | {sym}, format, dte=month |
+| GET | `/api/options/positioning/{sym}/levels` | paid | options-analytics | {sym}, dte=month |
+| GET | `/api/options/positioning/{sym}/max-pain` | paid | options-analytics | {sym}, dte=month |
+| GET | `/api/options/positioning/{sym}/nope` | paid | options-analytics | {sym}, dte=all |
+| GET | `/api/options/positioning/{sym}/projection` | paid | options-analytics | {sym}, dte=month |
+| GET | `/api/options/spread-book` | paid | member-workspace |  |
+| GET | `/api/options/vol/{sym}/interpolated-iv` | paid | research | {sym}, days=30 |
+| GET | `/api/options/vol/{sym}/iv-rank` | paid | research | {sym} |
+| GET | `/api/options/vol/{sym}/realized` | paid | research | {sym} |
+| GET | `/api/options/vol/{sym}/rr-bf` | paid | research | {sym} |
+| GET | `/api/options/vol/{sym}/surface-3d` | paid | research | {sym} |
+| GET | `/api/options/vol/{sym}/term-structure` | paid | research | {sym} |
+| GET | `/api/options/vol/{sym}/vrp` | paid | research | {sym} |
 | GET | `/api/ownership/{sym}` | paid | research | {sym}, debug=0 |
 | GET | `/api/patterns/catalog` | paid | screener |  |
 | GET | `/api/patterns/confirmed/{sym}` | paid | screener | {sym}, tf=D |
-| GET | `/api/patterns/{sym}` | paid | screener | {sym}, tf=D, types, min_conf=50.0, confirmed_only=True |
+| GET | `/api/patterns/{sym}` | paid | screener | {sym}, tf=D, types, min_conf=50.0, confirmed_only=True, include_structures=False |
+| GET | `/api/pine/history-window` | member | screener |  |
+| GET | `/api/pine/libraries` | member | screener |  |
+| GET | `/api/pine/libraries/{author}/{name}/{version}` | member | screener | {author}, {name}, {version} |
 | GET | `/api/portfolio/heat` | paid | member-workspace | account_id, account_size |
 | GET | `/api/pre-trade-checklist` | paid | member-workspace | symbol (required), setup_type (required), entry_price (required), stop_price (required) |
 | GET | `/api/provenance/bar` | paid | market-data | ticker (required), tf (required), bar_time (required) |
 | GET | `/api/provenance/quote` | member | market-data | symbol (required), entity_id, entity_type, vendor |
-| GET | `/api/psychology-events` | paid | member-workspace | days=30 |
 | GET | `/api/regime` | paid | market-analytics | fresh=False |
 | GET | `/api/regime/vocabulary` | paid | market-analytics |  |
 | GET | `/api/research/analyst-ratings/{sym}` | paid | research | {sym} |
@@ -559,6 +663,9 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/call-replay/{sym}` | paid | research | {sym}, year, quarter |
 | GET | `/api/research/company-news/{sym}` | paid | research | {sym} |
 | GET | `/api/research/compare/{sym}/{comparator}` | paid | research | {sym}, {comparator} |
+| GET | `/api/research/congress-latest` | paid | research |  |
+| GET | `/api/research/congress-trades/{sym}` | paid | research | {sym} |
+| GET | `/api/research/dilution-watch/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/earnings-reaction/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimate-history/{sym}` | paid | research | {sym} |
 | GET | `/api/research/estimates/{sym}` | paid | research | {sym}, consensus=0 |
@@ -574,6 +681,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/iv-history/{sym}` | paid | research | {sym} |
 | GET | `/api/research/iv-history/{sym}/implied-vs-realized` | paid | research | {sym} |
 | GET | `/api/research/mention-series/{sym}` | paid | research | {sym}, days=90 |
+| GET | `/api/research/mention-series/{sym}/polarity` | paid | research | {sym}, window=1m, sort=newest, source=all, label=all, limit=50 |
 | GET | `/api/research/metric-disagreement/{sym}` | paid | research | {sym} |
 | GET | `/api/research/news-desk/story/{news_id}/versions` | paid | research | {news_id} |
 | GET | `/api/research/news-desk/{sym}` | paid | research | {sym}, limit=25, cursor |
@@ -601,6 +709,9 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/ratings/{sym}` | paid | research | {sym} |
 | GET | `/api/research/rename-notice/{sym}` | paid | research | {sym} |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
+| GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
+| GET | `/api/research/short-interest-list` | paid | research | rank, limit |
+| GET | `/api/research/treasury-yields` | paid | research |  |
 | GET | `/api/risk-summary` | paid | member-workspace |  |
 | GET | `/api/rs-rankings` | paid | market-analytics |  |
 | GET | `/api/rs-rankings/{ticker}` | paid | market-analytics | {ticker} |
@@ -642,34 +753,55 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/screener` | paid | screener |  |
 | GET | `/api/screener/alerts` | paid | screener |  |
 | GET | `/api/screener/compile` | paid | screener |  |
-| GET | `/api/screener/fields` | paid | screener |  |
+| GET | `/api/screener/fields` | paid | screener | options=0 |
 | GET | `/api/screener/grammar` | paid | screener |  |
+| GET | `/api/screener/layout-gallery` | paid | screener |  |
 | GET | `/api/screener/meta` | paid | screener |  |
 | GET | `/api/screener/methodology` | paid | screener | column |
+| GET | `/api/screener/row/{ticker}` | paid | screener | {ticker}, columns |
+| GET | `/api/screener/rows` | paid | screener | tickers, columns |
+| GET | `/api/screener/rs-alerts` | paid | screener |  |
 | GET | `/api/screener/save-fork` | paid | screener |  |
 | GET | `/api/screener/saved-screens` | paid | screener |  |
 | GET | `/api/screener/snapshot-status` | paid | screener |  |
+| GET | `/api/screener/sparks` | paid | screener | tickers |
 | GET | `/api/screener/spec-alerts` | paid | screener |  |
 | GET | `/api/screener/structures` | paid | screener | key |
 | GET | `/api/screener/to-watchlist` | paid | screener |  |
+| GET | `/api/screener/volume-curve` | paid | screener | ticker, tickers |
 | GET | `/api/sector-strength` | paid | market-analytics | period=Today |
 | GET | `/api/setup-performance/{setup_type}` | paid | screener | {setup_type}, regime=ALL |
 | GET | `/api/setup-templates` | paid | screener | family, regime |
 | GET | `/api/setup-templates/{name}` | paid | screener | {name} |
 | GET | `/api/signature/columns` | paid | market-analytics | defId (required), sym (required), tf=D, inputs |
+| GET | `/api/signature/columns-batch` | paid | market-analytics | sym (required), tf=D, asks |
 | GET | `/api/signature/confluence` | paid | market-analytics | sym (required) |
 | GET | `/api/signature/confluence-scan` | paid | market-analytics | syms (required) |
 | GET | `/api/signature/darkpool-levels` | paid | market-analytics | sym (required) |
 | GET | `/api/signature/definitions` | paid | market-analytics |  |
 | GET | `/api/signature/flow-breakout` | paid | market-analytics | sym (required) |
 | GET | `/api/signature/gex-walls` | paid | market-analytics | sym (required) |
+| GET | `/api/signature/rs-themes` | paid | market-analytics |  |
 | GET | `/api/single-stock-etfs/{symbol}` | paid | market-data | {symbol} |
-| GET | `/api/skill-assessments` | paid | member-workspace |  |
 | GET | `/api/skill.md` | member | docs |  |
 | GET | `/api/skill/whitelist` | member | docs |  |
 | GET | `/api/snapshot` | member | market-data |  |
 | GET | `/api/snapshot/{ticker}` | member | market-data | {ticker} |
 | GET | `/api/stock-brief/{sym}` | paid | ai | {sym} |
+| GET | `/api/study/attempts/{attempt_id}/intraday` | paid | community-content | {attempt_id} |
+| GET | `/api/study/house-chart` | paid | community-content |  |
+| GET | `/api/study/items/{item_id}` | paid | community-content | {item_id} |
+| GET | `/api/study/items/{item_id}/bars` | paid | community-content | {item_id} |
+| GET | `/api/study/items/{item_id}/lookalikes` | paid | community-content | {item_id}, view=90 |
+| GET | `/api/study/leaderboard` | paid | community-content | week |
+| GET | `/api/study/map` | paid | community-content |  |
+| GET | `/api/study/profile` | paid | community-content |  |
+| GET | `/api/study/today` | paid | community-content |  |
+| GET | `/api/terminal/aliases` | member | member-workspace |  |
+| GET | `/api/terminal/commands/stats` | member | member-workspace |  |
+| GET | `/api/terminal/compare-target` | member | research | sym (required), mode=sector |
+| GET | `/api/terminal/grade/{sym}` | member | research | {sym} |
+| GET | `/api/terminal/move/{sym}` | member | research | {sym}, change_pct |
 | GET | `/api/theme-index/quotes` | paid | market-analytics |  |
 | GET | `/api/theme-index/{slug}` | paid | market-analytics | {slug}, tf=D |
 | GET | `/api/theme-index/{slug}/holdings` | paid | market-analytics | {slug} |
@@ -684,6 +816,13 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/ticker-types/etf-index-symbols` | paid | market-data |  |
 | GET | `/api/top-flow/history` | member | options-flow |  |
 | GET | `/api/tracings` | member | member-workspace |  |
+| GET | `/api/trade-exchange-news/clock` | member | trade-exchange-news-internal |  |
+| GET | `/api/trade-exchange-news/days` | member | trade-exchange-news-internal |  |
+| GET | `/api/trade-exchange-news/library/bookmarks/{event_id}` | member | trade-exchange-news-internal | {event_id} |
+| GET | `/api/trade-exchange-news/library/items` | member | trade-exchange-news-internal | q, ticker, collection, from, to, sort=saved, offset=0, limit=60 |
+| GET | `/api/trade-exchange-news/library/state` | member | trade-exchange-news-internal |  |
+| GET | `/api/trade-exchange-news/recent` | member | trade-exchange-news-internal | limit=200, before |
+| GET | `/api/trade-exchange-news/stream` | member | trade-exchange-news-internal | after, epoch, last_event_id |
 | GET | `/api/traders` | paid | market-analytics |  |
 | GET | `/api/transcripts/{symbol}` | paid | ai | {symbol} |
 | GET | `/api/tweets/feed` | member | research | hours=12, limit=50, official=False |
@@ -696,10 +835,12 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/upb/entries/{entry_id}` | member | member-workspace | {entry_id} |
 | GET | `/api/upb/overview` | member | member-workspace |  |
 | GET | `/api/upb/sections/{section_id}/entries` | member | member-workspace | {section_id} |
-| GET | `/api/user-definitions` | paid | screener | graph=False |
+| GET | `/api/user-definitions` | paid | screener | graph=False, engine |
+| GET | `/api/user-definitions/assistant-memory` | paid | screener |  |
+| GET | `/api/user-definitions/capability-worker` | paid | screener |  |
 | GET | `/api/user-definitions/library` | paid | screener | limit=24, after |
 | GET | `/api/user-definitions/runtime-kill` | paid | screener |  |
-| GET | `/api/user-definitions/{def_id}` | paid | screener | {def_id}, version, graph=False |
+| GET | `/api/user-definitions/{def_id}` | paid | screener | {def_id}, version, graph=False, source=False |
 | GET | `/api/user-definitions/{def_id}/history` | paid | screener | {def_id}, graph=False |
 | GET | `/api/user-definitions/{def_id}/list` | paid | screener | {def_id} |
 | GET | `/api/user-definitions/{def_id}/share` | paid | screener | {def_id} |
@@ -745,6 +886,20 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/wire-feedback/mine` | member | member-workspace | date (required) |
 | GET | `/api/wire/archive` | paid | market-analytics |  |
 | GET | `/api/wire/archive/{ymd}` | paid | market-analytics | {ymd} |
+| GET | `/api/wisdom/archive/check` | paid | research | ticker (required), setup |
+| GET | `/api/wisdom/archive/image/{image_id}` | paid | archive-images | {image_id} |
+| GET | `/api/wisdom/archive/pattern/{pattern_id}` | paid | research | {pattern_id}, ticker |
+| GET | `/api/wisdom/archive/playbook/{setup}` | paid | research | {setup} |
+| GET | `/api/wisdom/archive/playbooks` | paid | research |  |
+| GET | `/api/wisdom/archive/rhymes` | paid | research | limit=60 |
+| GET | `/api/wisdom/archive/search` | paid | research | q, limit=50 |
+| GET | `/api/wisdom/archive/setup/{setup}` | paid | research | {setup}, limit=25 |
+| GET | `/api/wisdom/archive/stats` | paid | research |  |
+| GET | `/api/wisdom/archive/ticker/{sym}` | paid | research | {sym}, limit=500 |
+| GET | `/api/wisdom/archive/ticker/{sym}/daily` | paid | research | {sym}, days=365 |
+| GET | `/api/wisdom/archive/ticker/{sym}/team-history` | paid | research | {sym} |
+| GET | `/api/wisdom/archive/trader/{author}` | paid | research | {author}, limit=100 |
+| GET | `/api/wisdom/team-calls` | paid | research | tickers |
 | GET | `/api/workspace/doc` | member | member-workspace | board=charts |
 | GET | `/api/workspace/doc/health` | member | member-workspace |  |
 | GET | `/api/workspace/doc/versions` | member | member-workspace | board=charts, limit=50 |

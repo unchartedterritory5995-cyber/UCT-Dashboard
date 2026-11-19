@@ -25,6 +25,8 @@
  *
  * CACHING. `c` (the piece's column CRC), `o` and `n` name one exact content: answered `immutable` for
  * a year. Everything is `private`: entitled data never sits in a shared cache. Indexes are short-lived.
+ * The Worker keeps its own copy of each validated piece in the data center's Cache API, read only after
+ * the entitlement check (readObject, below: "THE EDGE'S OWN COPY OF A PIECE").
  *
  * ENTITLEMENT IS ENFORCED HERE (unlike the shadow block on /api/bars): this is a new surface with no
  * anonymous traffic to break. A valid member cookie or a valid service header, or 401.
@@ -135,7 +137,60 @@ const FOREVER = "private, max-age=31536000, immutable";
  * Answer one `/api/hist/` request.
  * `entitled` is `async (request) => boolean`: the caller's cryptographic check (worker.js).
  */
-export async function handleHistory(request, env, entitled) {
+// ── THE EDGE'S OWN COPY OF A PIECE (2026-11-17) ────────────────────────────────────────────────────
+// Pieces are answered `private` (entitled data never sits in a SHARED HTTP cache), so the CDN never kept
+// one and every first read of a piece went to R2: measured through the live edge, 60-400 ms a piece,
+// most of the time a chart's first deep window takes. The Workers Cache API keeps the RAW piece bytes
+// in this data center, and the response is built from them exactly as from R2.
+//
+// What makes it safe, each one load-bearing:
+//  - PIECES ONLY. An index changes on every republish and a client that gets 409 re-reads it; an edge
+//    copy of an index would hand it the same stale index again. Indexes always come from R2.
+//  - THE KEY CARRIES THE PIECE'S CRC (`c`), not only its place (o, n): a republished pack can put a new
+//    piece at an old place, and a key without `c` would serve the old bytes against the new index for a
+//    year (409 forever). With `c`, a new piece is a new key.
+//  - ONLY BYTES THAT VALIDATED ARE KEPT (whole piece, this series, period and CRC), and cached bytes are
+//    validated again on every read, exactly as R2's are.
+//  - THE KEY LIVES UNDER /api/hist/, the path this Worker owns: a Worker runs IN FRONT of the CDN cache,
+//    so no client request can reach the copy except through handleHistory, i.e. after the entitlement
+//    check. (A key on an unrouted path could be answered by the CDN cache to anyone who asked for it.)
+export const PIECE_EDGE_TTL = 31536000;
+export const EDGE_KEY_PATH = "/api/hist/__edge/";
+
+/** The cache key for one piece: the object, its place and its CRC, on a path only this Worker serves. */
+export function edgeCacheKey(origin, key, range) {
+  return `${origin}${EDGE_KEY_PATH}${encodeURI(key)}?o=${range.offset}&n=${range.length}&c=${range.crc}`;
+}
+
+function defaultCache() {
+  try { return typeof caches !== "undefined" && caches.default ? caches.default : null; } catch (_e) { return null; }
+}
+
+/** The bytes for (key, range): a piece through this data center's copy, an index (range null) from R2
+ *  always. `keep()` stores a piece's bytes once the caller has validated them. Null: R2 has no object.
+ *  A cache that fails (or is absent) is simply not used. */
+export async function readObject(bucket, key, range, { origin, ctx, cache = defaultCache() } = {}) {
+  const ck = cache && range ? edgeCacheKey(origin, key, range) : null;
+  if (ck) {
+    try {
+      const hit = await cache.match(ck);
+      if (hit) return { bytes: new Uint8Array(await hit.arrayBuffer()), cached: true, keep() {} };
+    } catch (_e) { /* a broken cache is a miss */ }
+  }
+  const obj = await bucket.get(key, range ? { range: { offset: range.offset, length: range.length } } : undefined);
+  if (!obj) return null;
+  const bytes = new Uint8Array(await obj.arrayBuffer());
+  const keep = () => {
+    if (!ck) return;
+    const put = Promise.resolve().then(() => cache.put(ck, new Response(bytes, {
+      headers: { "cache-control": `public, max-age=${PIECE_EDGE_TTL}`, "content-type": "application/octet-stream" },
+    }))).catch(() => {});
+    if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(put);
+  };
+  return { bytes, cached: false, keep };
+}
+
+export async function handleHistory(request, env, entitled, ctx) {
   const url = new URL(request.url);
   if (request.method !== "GET" && request.method !== "HEAD") return plain(405, "method_not_allowed", { allow: "GET, HEAD" });
   const what = parseHistoryPath(url.pathname);
@@ -154,14 +209,14 @@ export async function handleHistory(request, env, entitled) {
   if (!bucket) return plain(503, "history_not_configured", { "retry-after": "30" });
   const key = (typeof env.HISTORY_PREFIX === "string" ? env.HISTORY_PREFIX : "") + what.key;
 
-  let obj;
+  let got;
   try {
-    obj = await bucket.get(key, range ? { range: { offset: range.offset, length: range.length } } : undefined);
+    got = await readObject(bucket, key, range, { origin: url.origin, ctx });
   } catch (_e) {
     return plain(503, "history_unavailable", { "retry-after": "2" });
   }
-  if (!obj) return plain(404, "no_such_piece", { "cache-control": SHORT });
-  const bytes = new Uint8Array(await obj.arrayBuffer());
+  if (!got) return plain(404, "no_such_piece", { "cache-control": SHORT });
+  const bytes = got.bytes;
   const head = request.method === "HEAD";
 
   if (what.kind === "index") {
@@ -179,7 +234,8 @@ export async function handleHistory(request, env, entitled) {
       || h.crc !== range.crc) {
     return plain(409, "piece_changed");
   }
-  const base = { "cache-control": FOREVER, "x-bars-edge": "history", vary: "Accept-Encoding" };
+  got.keep();
+  const base = { "cache-control": FOREVER, "x-bars-edge": got.cached ? "history-edge" : "history", vary: "Accept-Encoding" };
   if (url.searchParams.get("raw") === "1" || !acceptsBrotli(request)) {
     return new Response(head ? null : bytes, { status: 200, headers: { ...base, "content-type": PIECE_TYPE } });
   }

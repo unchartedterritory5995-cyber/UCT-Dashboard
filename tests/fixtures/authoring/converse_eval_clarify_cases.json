@@ -1,0 +1,944 @@
+{
+ "contract": "uct.converse-eval.cases/1",
+ "_": "CLARIFY FIRST, as cases (Studio, 2026-11-18; owner direction: \"always clarify\"). The door asks its own questions (api/data/clarify_questions.json) with no model call when a choice that changes the maths is not settled, one at a time, and reads the member's answer as their first words plus the answer. Each registry question has a case: the request that leaves it open is ASKED (no model call, nothing built), and one of its own choices, sent as the next message, BUILDS in one call. `clarify-kind-then-length` leaves two open: both are asked, in order, and the build is one call. `clarify-nothing-open` says everything and is never asked. The three `clarify-acronym-*` cases are letters that could mean two indicators (DMI, ADL, AD): asked which, never guessed. The two `remembered-*` cases set what the member chose before (`remembers`) and hold the answer to what it must SAY (`says`): the door's 'as you chose before' sentence beside the assistant's own note, and beside a library build. If a later change to the instructions or the planner stops a question, or stops a choice from settling it, a case here fails. `clarify-benchmark` and `clarify-breakout-window` (slice F): relative strength with no symbol is asked which symbol, and a breakout with no number how many bars back; one of the question's own choices then builds in one call. `clarify-stochastic-kind`: the bare word is asked which Stochastic, and the fast one, tapped, builds the library's formula with K smoothing 1.",
+ "chart": {
+  "sym": "TEST",
+  "tf": "D"
+ },
+ "cases": [
+  {
+   "id": "clarify-kind-then-length",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add a moving average",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "Exponential (EMA)",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "50",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-average-kind",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add a 200 day moving average",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "Simple (SMA)",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 200
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-average-length",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add an EMA",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "20",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-cross-meaning",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Mark where price crosses above the 50 day EMA",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "When the bar closes across it",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "call",
+         "name": "crossOver",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-acronym-dmi",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add DMI",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "Directional Movement Index (+DI, -DI, ADX)",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "adx",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-acronym-adl",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add ADL in a lower pane",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "Accumulation Distribution Line",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "cum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "==",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-acronym-ad",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add AD",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "Accumulation Distribution Line",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "cum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "==",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    },
+                    {
+                     "type": "series",
+                     "name": "low"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "op",
+                   "name": "-",
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "high"
+                    },
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-benchmark",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Show relative strength",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "S&P 500 (SPY)",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "SPY",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-breakout-window",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Mark breakouts",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "50",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "call",
+             "name": "highest",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-stochastic-kind",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add the Stochastic",
+     "model_expected": false,
+     "expect": {
+      "kind": "clarify",
+      "max_model_calls": 0
+     }
+    },
+    {
+     "words": "Fast Stochastic (14, 1, 3)",
+     "expect": {
+      "kind": "change",
+      "max_model_calls": 1,
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "stoch",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "call",
+             "name": "stoch",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 3
+          }
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "remembered-kind-with-a-note",
+   "group": "example",
+   "remembers": {
+    "average_kind": [
+     "ema",
+     "Exponential (EMA)"
+    ]
+   },
+   "turns": [
+    {
+     "words": "Add a 20 day moving average",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1,
+      "says": [
+       "Using an exponential average, as you chose before",
+       "Drawn on the price pane."
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "remembered-acronym-library-build",
+   "group": "example",
+   "remembers": {
+    "acronym_dmi": [
+     "directional",
+     "Directional Movement Index (+DI, -DI, ADX)"
+    ]
+   },
+   "turns": [
+    {
+     "words": "Add DMI",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "adx",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1,
+      "says": [
+       "Reading DMI as the Directional Movement Index, as you chose before",
+       "Built to UCT's checked formula for Directional Movement Index"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "clarify-nothing-open",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Add a 50 day EMA",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-unknown-name",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the Gann Fan",
+     "model_expected": false,
+     "expect": {
+      "kind": "refused",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-other-symbol",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight when the close is above the SPY close",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-screener-text",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight it when the sector is Technology",
+     "expect": {
+      "kind": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-ambiguous",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "add volume confirmation",
+     "expect": {
+      "kind": "clarify",
+      "name_fixed": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-rename-nothing",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "rename it",
+     "expect": {
+      "kind": "none",
+      "name_fixed": true
+     }
+    }
+   ]
+  }
+ ]
+}

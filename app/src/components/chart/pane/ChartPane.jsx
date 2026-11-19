@@ -1,5 +1,5 @@
 import {
-  forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
+  forwardRef, lazy, Suspense, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
@@ -38,11 +38,16 @@ import { useChartColumnFacts } from '../restedReaders'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
-  THEME_HEADER_KEYS, CURVE_HEADER_KEYS,
+  THEME_HEADER_KEYS, CURVE_HEADER_KEYS, SIGN_POS, SIGN_NEG,
 } from '../headerFields'
 import {
   headerStatKeys, statLabelsOf, statNeedsQuote, statFactFields, headerStatItems,
+  HEADER_STAT_BY_KEY, withStatLabel, headerStatTogglePatch, statStylesFor, withHeaderStatStyle,
 } from '../headerStatCatalog'
+import { customStatsOf, customStatKey, customStatFor, isCustomStatKey } from '../headerCustomStats'
+import { withDevStatFill } from './devStatFill'
+// The header stat quick-edit menu (owner 11-17) loads on the first click of a stat.
+const HeaderStatMenu = lazy(() => import('./HeaderStatMenu'))
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
@@ -609,11 +614,30 @@ function ChartPane({
   // while this header makes it (the delisted check: for every real ticker, on a pane whose
   // info row can show, as with the snapshot: a compact or mini pane asks for no row).
   useHeaderExtrasWarm({ perf: wantsPerf, theme: wantsTheme, meta: wantsMeta, curve: wantsCurve, delisted: infoGate && !(synthDailyOnly || exhibit) })
+  // Custom stats (owner 11-16, headerCustomStats.js): the chosen ones are handed to StockChart, which computes each
+  // over the chart's own bars (engine/customStatCompute.js) and reports the values back only when one changes.
+  const shownCustomStats = useMemo(() => {
+    if (!infoGate) return null
+    const on = new Set(infoFieldKeys)
+    const list = customStatsOf(hdr).filter((c) => on.has(customStatKey(c.id)))
+    return list.length ? list : null
+  }, [hdr, infoFieldKeys, infoGate])
+  const [customValues, setCustomValues] = useState(null)
+  const onHeaderCustomStats = useCallback((v) => setCustomValues(v && Object.keys(v).length ? v : null), [])
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, facts: factsRow, volCurve, sym }
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike, facts: factsRow, custom: customValues, header: hdr, volCurve, sym }
     // one pure builder (headerStatCatalog.js): value, colour override / sign tint, and the member's rename
-    return headerStatItems(infoFieldKeys, statLabels, hdrColors, ctx)
-  }, [infoFieldKeys, statLabels, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, factsRow, sym, companyName, isFundLike, volCurve])
+    const items = headerStatItems(infoFieldKeys, statLabels, hdrColors, ctx)
+    // ⛔ DEV ONLY (owner 11-17): placeholder values for empty stats on localhost, so a stat's look can be judged.
+    // `import.meta.env.DEV` is false in a build, so Vite drops this branch AND devStatFill.js; `?realstats` turns it off.
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+      return withDevStatFill(items, sym, {
+        colors: hdrColors,
+        isSigned: (it) => (isCustomStatKey(it.key) ? !!customValues?.[it.key]?.signed : !!HEADER_STAT_BY_KEY[it.key]?.signed),
+      })
+    }
+    return items
+  }, [infoFieldKeys, statLabels, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, factsRow, sym, companyName, isFundLike, volCurve, customValues, hdr])
   // The SAME next-earnings date the header's "Next Earnings" field shows, handed to the chart's "E" marker so the two
   // always agree (owner test 11-16: the header read 12/9 while /api/chart/markers had no upcoming row → no E).
   const nextEarningsHint = (fund?.next_earnings || hdrMeta?.[sym]?.next_earnings || null)
@@ -627,7 +651,8 @@ function ChartPane({
   // NOT depend on infoAbbrev/tfCap: those are OUR outputs, and keying the reset on
   // them would oscillate (abbreviate → narrower → reset → un-abbreviate → …).
   const infoSig = useMemo(
-    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}`).join(','),
+    // a stat's size / box changes its width too (headerStatStyle.js), so it is part of the fit signature
+    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}${i.style ? `:${i.style.size || ''}${i.style.box ? 'b' : ''}` : ''}`).join(','),
     [metaItems],
   )
   useLayoutEffect(() => { setTfCap(99); setInfoForceAbbrev(false) }, [paneWidth, infoSig])
@@ -698,6 +723,54 @@ function ChartPane({
     setSettingsTarget(typeof target === 'string' ? target : null)
     setSettingsOpen(true)
   }, [])
+
+  // ── Clickable header stats (owner 11-17) ─────────────────────────────────────────────────────────────────────────
+  // A click on a stat opens HeaderStatMenu: rename, value / label color, shaded box, size, remove, "+ Add a stat…",
+  // "Header settings…". Every write goes through `patchHeader` into the SAME keys Chart Settings → Header & legend
+  // edits (statLabels, colors, statStyle, fields). Only where this pane's settings are editable (the gear's rule).
+  const statsEditable = !mini && !compact && !isOwnChartSurface && !isEcon
+  const [statMenu, setStatMenu] = useState(null)   // { key, el }
+  const closeStatMenu = useCallback(() => setStatMenu(null), [])
+  const onStatClick = useCallback((key, el) => setStatMenu((m) => (m && m.key === key ? null : { key, el })), [])
+  const statMenuStat = useMemo(() => {
+    if (!statMenu) return null
+    const it = metaItems.find((i) => i.key === statMenu.key)
+    if (!it) return null
+    const cat = HEADER_STAT_BY_KEY[statMenu.key]
+    const custom = isCustomStatKey(statMenu.key)
+    const own = custom ? ((customValues && customValues[statMenu.key]?.label) || customStatFor(hdr, statMenu.key)?.name || 'Custom stat') : cat?.label
+    const signed = custom ? !!customValues?.[statMenu.key]?.signed : !!cat?.signed
+    const colorKey = custom ? statMenu.key : (cat?.colorKey || statMenu.key)
+    const colors = hdr.colors || {}
+    return {
+      key: statMenu.key, label: own || it.label, rename: statLabels[statMenu.key] || null, value: it.value,
+      signed, colorKey,
+      valueColor: colors[colorKey] || null, defaultColor: (cat && cat.dflt) || it.color || null,
+      valueColors: { pos: colors[`${colorKey}:pos`] || null, neg: colors[`${colorKey}:neg`] || null },
+      defaultColors: { pos: SIGN_POS, neg: SIGN_NEG },
+    }
+  }, [statMenu, metaItems, customValues, hdr, statLabels])
+  const statMenuLook = useMemo(() => (statMenu ? (statStylesFor(hdr)[statMenu.key] || {}) : {}), [statMenu, hdr])
+  const statMenuKey = statMenu?.key
+  const renameStat = useCallback((label) => {
+    if (!statMenuKey) return
+    patchHeader({ statLabels: withStatLabel(hdr, statMenuKey, label) })
+  }, [statMenuKey, hdr, patchHeader])
+  const colorStat = useCallback((colorKey, hex) => {
+    const next = { ...(hdr.colors || {}) }
+    if (hex) next[colorKey] = hex
+    else delete next[colorKey]
+    patchHeader({ colors: next })
+  }, [hdr, patchHeader])
+  const styleStat = useCallback((patch) => {
+    if (!statMenuKey) return
+    patchHeader({ statStyle: withHeaderStatStyle(hdr, statMenuKey, patch) })
+  }, [statMenuKey, hdr, patchHeader])
+  const removeStat = useCallback(() => {
+    if (!statMenuKey) return
+    const patch = headerStatTogglePatch(hdr, statMenuKey)
+    if (Object.keys(patch).length) patchHeader(patch)
+  }, [statMenuKey, hdr, patchHeader])
   // ⭐ UCT Agent (C1-127): read through refs by the imperative handle, so the Agent's door never goes stale:
   // is the dialog open NOW (the read-back), and does this pane show the gear at all (not mini, not the own-chart surface)
   const settingsOpenRef = useRef(false)
@@ -853,6 +926,29 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  // ⭐ 2026-11-18 — WHEN THE STAT MENU CLOSES, FOCUS RETURNS TO THE CHART, the rule this pane keeps for
+  // every chart menu ("so type-to-search works immediately — else the first keypress hits a global
+  // drawing-tool hotkey, not the search"). A stat is a focusable button since 11-17, and the menu
+  // hands focus back to its stat on Escape. Measured on production: with focus left there, `t` armed
+  // the trendline tool and `a` the arrow tool (a crosshair on the chart), where the same key on the
+  // chart opens ticker search. So a member who restyled a stat and then typed a ticker got drawing
+  // tools. Runs AFTER the menu's own focus return (this effect commits later than its handler).
+  // ⛔ Only when focus was left on the stat, inside the menu that just went away, or nowhere: a
+  // control the member pressed elsewhere keeps it, and so does Chart Settings when "Add a stat…" or
+  // "Header settings…" opened it in the same step (it holds the focus by then; the rail checks the
+  // chart is never even asked).
+  const statMenuAnchorRef = useRef(null)
+  useEffect(() => {
+    if (statMenu) { statMenuAnchorRef.current = statMenu.el; return }
+    const stat = statMenuAnchorRef.current
+    statMenuAnchorRef.current = null
+    if (!stat) return
+    const doc = stat.ownerDocument || document
+    const at = doc.activeElement
+    if (!at || at === doc.body || !at.isConnected || at === stat || stat.contains(at)) {
+      focusableRef.current?.focus({ preventScroll: true })
+    }
+  }, [statMenu])
   // ResizeObserver wiring for the responsive header fit (paneRef/paneWidth are
   // declared higher up — before the header computation that reads paneWidth).
   useEffect(() => {
@@ -1086,7 +1182,8 @@ function ChartPane({
       {!compact && !mini && !rowHideMeta && (
         /* tight: when the Time Navigator sits before the fields, drop the wide
            left margin so MARKET CAP hugs the box's divider (matches its left gap). */
-        <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles} />
+        <ChartMetaRow items={metaItems} abbrev={infoAbbrev} tight={!!slots?.tfBarAfterTf} styles={styles}
+          onItemClick={statsEditable ? onStatClick : null} openKey={statMenu?.key || null} />
       )}
       <div className={styles.tfBarRight}>
         {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
@@ -1216,6 +1313,8 @@ function ChartPane({
         <StockChart
           sym={sym}
           nextEarningsHint={nextEarningsHintDate}
+          headerCustomStats={shownCustomStats}
+          onHeaderCustomStats={shownCustomStats ? onHeaderCustomStats : null}
           studioDockHost={studioDockHost}
           onStudioDockChange={setStudioOpen}
           tf={effectiveTf}
@@ -1371,6 +1470,25 @@ function ChartPane({
       {/* ⭐ W9-T13b — a drawn strategy's report. null unless the broker gate is on AND a run
           published a record; the gate is read INSIDE (one reader, strategyBrokerGate.js). */}
       <AttachedStrategyReports settings={chartCs} noticeScope={noticeScope} />
+      {statsEditable && statMenu && statMenuStat && (
+        <Suspense fallback={null}>
+          <HeaderStatMenu
+            anchor={statMenu.el}
+            stat={statMenuStat}
+            look={statMenuLook}
+            onRename={renameStat}
+            onValueColor={colorStat}
+            onStyle={styleStat}
+            onRemove={removeStat}
+            onAddStat={(what) => openSettings(what === 'custom' ? 'header:custom' : 'header:add')}
+            onOpenSettings={() => openSettings('header')}
+            onClose={closeStatMenu}
+            savedColors={savedColors}
+            onSaveColor={saveColor}
+            onDeleteColor={deleteColor}
+          />
+        </Suspense>
+      )}
       <ChartSettingsModal
         open={settingsOpen}
         chartTf={effectiveTf}

@@ -41,7 +41,7 @@
 // Padding is invisible and scale-setting, and whether the sub-pane is a quarter
 // high are SCREENSHOT questions and are owed against the real chart.
 import { withoutGuardIds } from '../../engine/ast/guardIdText'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ChartPane from '../../pane/ChartPane'
 import * as engineRegistry from '../../engine/nativeRegistry'
 import { addInstance } from '../../engine/instanceControls'
@@ -51,6 +51,7 @@ import { runtimePaneEnabled } from '../../engine/runtimePaneGate'
 import {
   latchRuntimeLists, runtimeCapabilityAdmissionOn,
   runtimeAdmissionOf, watchRuntimeAdmission, RUNTIME_KILL_PATH,
+  subscribeRuntimeLists, runtimeConsultPendingOf, awaitRuntimeAdmission,
 } from '../../engine/runtimeKill'
 import { requirementNote } from '../../engine/ast/parse'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
@@ -83,6 +84,9 @@ const REFUSAL_LOG_SETTLE_MS = 1500
  * @param {((definition: object) => Promise<{ok: boolean, error?: string}>)|null}
  *        [props.onAttach] omit for a preview-only pane; supply it and the pane
  *        offers to SAVE the document and put it on the member's real chart.
+ * @param {((definition: object|null) => void)|null} [props.onDocument] told the document
+ *        this pane installed (the one "Add this script to my chart" adds), or null when
+ *        there is none, so a host can describe IT rather than its own state.
  */
 export default function MemberPane({
   sym = null, tf = null, source = null, defId = MEMBER_PANE_DEF_PREFIX, settings = null,
@@ -94,6 +98,7 @@ export default function MemberPane({
   doneLabel = 'Saved, and added to this chart.',
   onAttachCopy = null,
   copyLabel = null,
+  onDocument = null,
 }) {
   // ⛔ FIRST, AND BEFORE ANY BUILD. Reading the flag after `memberPaneDefinition`
   // would translate a member's script on a build that may not show it — work
@@ -170,6 +175,29 @@ export default function MemberPane({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- libRevision: rebuild when a library lands; killVersion: rebuild when the kill list lands
     [live, source, defId, libRevision, killVersion],
   )
+  // ⭐⭐ (2026-11-18, THE FIRST-PASTE RACE) — A BUILD MINTED BEFORE ITS ADMISSION ANSWERED. The build above reads the
+  // runtime admission SYNCHRONOUSLY (`runtimeNotGradedOf`): a script the server has not answered for yet fails closed
+  // to the host lane ("still being checked"). ⚰️ the 2026-11-18 production check's fresh session: the first paste of
+  // supertrend-strategy minted the host copy (5 settings, its backtest declined) while every later paste got the
+  // run-lane copy (12 settings), because nothing re-minted this build when the answer landed by another path, and
+  // the watcher above waited a full recheck after the server's busy answers.
+  // Read right after the build (same render, same state): whether a consult it made answered "still being checked".
+  const mintedPending = useMemo(
+    () => !!(runtimeOn && runtimeConsultPendingOf({ source })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- read beside `built`, on the build's own inputs
+    [runtimeOn, source, defId, libRevision, killVersion],
+  )
+  // the answer, by WHATEVER path it lands (this pane's watcher, the build's own ask, another consult, the lists'
+  // re-read): the build is re-minted on it
+  useEffect(() => {
+    if (!mintedPending) return undefined
+    const settle = () => { if (!runtimeConsultPendingOf({ source })) setKillVersion((n) => n + 1) }
+    const unsub = subscribeRuntimeLists(settle)
+    settle()   // an answer that landed between the build and this effect
+    return unsub
+  }, [mintedPending, source])
+  const aliveRef = useRef(true)
+  useEffect(() => { aliveRef.current = true; return () => { aliveRef.current = false } }, [])
   const [installed, setInstalled] = useState(null)
 
   // ⭐ U4 — A REFUSAL THE MEMBER HITS IS A RANKED WORK ITEM (the support loop's gap
@@ -209,6 +237,13 @@ export default function MemberPane({
     setInstalled(null)
     return undefined
   }, [built, defId])
+
+  // ⭐ THE HOST IS TOLD WHAT THIS PANE WOULD ADD (the installed document, or null), so
+  // the sheet's own counts can describe the script and not its empty formula.
+  useEffect(() => {
+    if (typeof onDocument === 'function') onDocument(installed)
+  }, [installed, onDocument])
+  useEffect(() => () => { if (typeof onDocument === 'function') onDocument(null) }, [onDocument])
 
   // ⛔ A SEPARATE, EMPTY-DEP EFFECT for the teardown. Putting it in the cleanup
   // above would fire on every source change — uninstall-then-reinstall bumps the
@@ -268,9 +303,14 @@ export default function MemberPane({
   const [acked, setAcked] = useState(false)
   useEffect(() => { setAcked(false) }, [built])
 
-  const doAttachWith = useCallback(async (fn) => {
-    if (!fn || !built || !built.ok || built.saveable === false) return
-    if (needsAck && !acked) return
+  // ⭐⭐ (2026-11-18, THE FIRST-PASTE RACE) — AN ADD PRESSED WHILE THIS BUILD WAITS FOR ITS ADMISSION ANSWER waits for
+  // the answer (`awaitRuntimeAdmission`, bounded), re-mints the PREVIEW on it, and attaches the build then on screen,
+  // so the claim above stands: what is attached is what is drawn. ⚰️ The Add attached the host copy minted before
+  // the answer. When the wait runs out with no answer, the re-minted build is what the door mints then (the host
+  // copy, as before): an Add is never refused for a server that has not answered.
+  const [queuedAttach, setQueuedAttach] = useState(null)
+  const attachBuilt = useCallback(async (fn, b, ackGiven) => {
+    const ack = !!(b.definition && b.definition.meta && b.definition.meta.repaint === 'preview-repaints')
     setAttach({ state: 'busy', error: null })
     let res = null
     try {
@@ -278,8 +318,8 @@ export default function MemberPane({
       // with it, so the store keeps it beside the document and a later engine can
       // translate it again (`savedScriptUpgrade.js`). The same `source` the
       // memoised build above read: the document and its script are one pair.
-      res = await fn(built.definition, { ...(needsAck && acked ? { previewAcked: true } : {}), source })
-    } catch (e) {
+      res = await fn(b.definition, { ...(ack && ackGiven ? { previewAcked: true } : {}), source })
+    } catch {
       // ⚠️ A THROW IS A TRANSPORT FAILURE, NOT A REFUSAL. The store never
       // answered, so there is no sentence of its to render and inventing one that
       // sounds like a policy would be worse than saying what happened.
@@ -292,7 +332,31 @@ export default function MemberPane({
       error: (res && typeof res.error === 'string' && res.error.trim())
         ? res.error : 'The store refused this definition.',
     })
-  }, [built, needsAck, acked, source])
+  }, [source])
+  const doAttachWith = useCallback(async (fn) => {
+    if (!fn || !built || !built.ok || built.saveable === false) return
+    if (needsAck && !acked) return
+    if (mintedPending) {
+      setAttach({ state: 'busy', error: null, checking: true })
+      await awaitRuntimeAdmission(source)
+      if (!aliveRef.current) return
+      setQueuedAttach({ fn, source, acked: needsAck && acked })
+      setKillVersion((n) => n + 1)          // re-mint the preview on the answer
+      return
+    }
+    await attachBuilt(fn, built, needsAck && acked)
+  }, [built, needsAck, acked, source, mintedPending, attachBuilt])
+  useEffect(() => {
+    if (!queuedAttach) return
+    const q = queuedAttach
+    setQueuedAttach(null)
+    // the member edited the script while it waited, or the re-minted build is not one this door saves: nothing attaches
+    if (q.source !== source || !built || !built.ok || built.saveable === false) { setAttach({ state: 'idle', error: null }); return }
+    // a re-minted build that asks for a repaint acknowledgement the member has not given waits for it, on screen
+    const reNeedsAck = !!(built.definition && built.definition.meta && built.definition.meta.repaint === 'preview-repaints')
+    if (reNeedsAck && !q.acked) { setAttach({ state: 'idle', error: null }); return }
+    attachBuilt(q.fn, built, q.acked)
+  }, [queuedAttach, built, source, attachBuilt])
   const doAttach = useCallback(() => doAttachWith(onAttach), [doAttachWith, onAttach])
   const doAttachCopy = useCallback(() => doAttachWith(onAttachCopy), [doAttachWith, onAttachCopy])
 
@@ -375,6 +439,11 @@ export default function MemberPane({
             >
               {copyLabel}
             </button>
+          )}
+          {attach.state === 'busy' && attach.checking && (
+            <span className={styles.attachOk} role="status" data-testid="pine-member-pane-attach-checking">
+              Checking this script before it is added…
+            </span>
           )}
           {attach.state === 'done' && (
             <span className={styles.attachOk} role="status">

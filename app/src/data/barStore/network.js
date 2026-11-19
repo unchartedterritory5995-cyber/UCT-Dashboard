@@ -38,7 +38,7 @@
 // owner). No other barStore file spells the endpoint.
 
 import { barsLaneRequest, barsBeforeUrl, promoteLaneRequest } from '../../utils/prefetchBars'
-import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS } from '../../utils/historyPrepend'
+import { historyWindowUrl, prependOlder, etDateOf, HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS, lakeTargetBars } from '../../utils/historyPrepend'
 import {
   nextTailPollMs, createTailPollState, intradayDedupMs, INTRADAY_POLL_MS, REPAIR_DEDUP_MS,
   tailRetriesExhausted,
@@ -177,6 +177,12 @@ export function createNetwork({
 } = {}) {
   /** key → per-key slot + loop state */
   const keys = new Map()
+  const lakeSeeds = new Map()      // key -> the lake load in flight (lakeSeed), shared by its callers
+  // key -> bars its entry held when its lake load finished on this page (whatever it added). A copy
+  // now shallower than that was evicted and rebuilt, so its depth is due again; a load that found no
+  // entry to join into never settles (review of #1795).
+  const lakeSettled = new Map()
+  const LAKE_SETTLED_MAX = 2000
   let requests = 0
   /** key → Set<cb>: listeners of the key's catch-up budget (DELAYED badge, `tailExhausted`). */
   const budgetSubs = new Map()
@@ -195,9 +201,19 @@ export function createNetwork({
     // ⭐ DEPTH WITHOUT A SCROLL: a chart that subscribes gets one window of older bars from the
     // lake as soon as its first answer lands, so zooming out finds them already there. Charts
     // only (a warm or a one-shot ask has no refs), and only where the lake can answer.
+    // ⭐ ...and where the entry is SHALLOWER than a lake load already left it (a saved copy on another
+    // basis replaced the lake's rows before this answer, reducer applyLocal), the depth comes back in
+    // ONE join (lakeSeed), not in scroll-back windows; the window is the fallback when that join adds
+    // nothing, and the path of a key the lake was never asked for.
     if (history && r.refs > 0 && _lakeCarries(r)) {
       const s = registry.getSnapshot(r.key)
-      if (s.bars.length) api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+      if (s.bars.length) {
+        const window = () => api.scrollBack(r.key, { priority: 'background' }).catch(() => {})
+        if (lakeSettled.has(r.key) && api.lakePending(r.key)) {   // a load left it deeper than it is now
+          Promise.resolve().then(() => api.lakeSeed(r.key)).catch(() => false)
+            .then((joined) => { if (!joined) return window() })
+        } else window()
+      }
     }
     for (const cb of [...(answerSubs.get(r.key) || [])]) { try { cb() } catch { /* ignore */ } }
   }
@@ -291,6 +307,13 @@ export function createNetwork({
     })
   }
 
+  /** Does the lake carry `key` (intraday, not a replay window, the lake on, not exhausted for it)? */
+  function lakeCarriesKey(key) {
+    if (!history) return false
+    const p = parseKey(key)
+    return !!p && !p.window && isIntradayTf(p.tf) && !keys.get(key)?.lakeDone
+  }
+
   const _lakeCarries = (r) => {
     const p = parseKey(r.key)
     return !!p && !p.window && isIntradayTf(p.tf) && !r.lakeDone
@@ -313,11 +336,22 @@ export function createNetwork({
     const oldest = s.bars.length ? s.bars[0].t : s.developing?.t
     if (!finite(oldest)) return Promise.resolve({ empty: true })
     const gen = s.gen
-    const want = opts.bars ?? HISTORY_WINDOW_BARS
+    // A lake window is as big as a piece (historyPrepend LAKE_WINDOW_BARS), never smaller than asked.
+    const want = Math.max(opts.bars ?? HISTORY_WINDOW_BARS, LAKE_WINDOW_BARS)
     return _send(r, 'scroll', `lake:${r.key}<${oldest}`, opts.priority || 'urgent', async (got) => {
       if (!got || !Array.isArray(got.bars) || !got.bars.length) return { fallback: true, exhausted: got?.exhausted === true }
       // (an answer from before a reset is dropped by the reducer: it carries the gen it was asked at)
       const before = registry.getSnapshot(r.key)
+      // ⛔⛔ THE LAKE MUST REACH THE CHART (2026-11-17, production). The lake is published up to a date
+      // (it ended Fri 11-13 19:59 ET), while the chart's server bars start where its window starts: on
+      // 1m for AAPL/NVDA that was Mon 11-16 ~12:30 ET, so Monday's premarket and morning were in
+      // NEITHER. `prependOlder` checks the price basis only when the lake HAS the bar at the join, so a
+      // lake that ends before the chart's oldest bar was joined straight across the hole: a chart with
+      // missing hours, growing every day the lake is not extended. The lake window is used only when it
+      // contains the chart's oldest bar (proof the two meet); otherwise the server's window answers this
+      // scroll (no hole), and a later scroll, once the chart reaches back into the lake, uses the lake.
+      const joinT = before.bars.length ? before.bars[0].t : null
+      if (joinT == null || !got.bars.some((b) => b.t === joinT)) return { fallback: true, gap: true }
       // the same seam rule as the server's window: another price basis at the join is refused whole
       if (prependOlder(before.bars, got.bars) === before.bars) return { fallback: true }
       const after = registry.dispatch(r.key, { type: ACTION.SCROLL_BACK, key: r.key, gen, payload: { bars: got.bars } })
@@ -491,7 +525,11 @@ export function createNetwork({
       r.sessions.set(session, (r.sessions.get(session) || 0) + 1)
       r.priority = _best(r.priority, priority)
       r.depth = Math.max(r.depth, depth || 0)
-      if (r.refs === 1) _schedule(r, 0)
+      if (r.refs === 1) {
+        _schedule(r, 0)
+        // the lake's first window, fetched IN PARALLEL with this first request (historyFeed `prime`)
+        if (history?.prime && _lakeCarries(r)) { try { history.prime(key) } catch { /* a warm only */ } }
+      }
       let done = false
       return () => {
         if (done) return
@@ -514,6 +552,98 @@ export function createNetwork({
       _noteBudget(key, spent, false)
     },
     setPriority(key, priority) { const r = keys.get(key); if (r) r.priority = priority },
+    /** Prime the lake for `key` now (historyFeed `prime`: index + newest pieces into the HTTP cache),
+     *  ahead of its open: a typed ticker or a row the pointer rests on. No-op where it does not carry. */
+    primeLake(key) {
+      if (!history?.prime || !lakeCarriesKey(key)) return
+      try { history.prime(key) } catch { /* a warm only */ }
+    },
+    /** Warm the EDGE's copy of `key`'s whole lake depth (historyFeed `edgeWarm`: index into the page,
+     *  pieces HEADed, no body). Resolves the pieces asked; 0 where the lake does not carry. */
+    lakeEdgeWarm(key, opts) {
+      if (!history?.edgeWarm || !lakeCarriesKey(key)) return Promise.resolve(0)
+      try { return Promise.resolve(history.edgeWarm(key, opts)).catch(() => 0) } catch { return Promise.resolve(0) }
+    },
+    /**
+     * ⭐ LAKE FIRST PAINT (2026-11-17). A chart with nothing saved in this browser waits on the bar
+     * server's first answer, and a cold read there can take seconds (FROG 5m: `bars(sqlite)=1523`,
+     * first paint 1,326 ms) while the lake pieces holding the same history were ALREADY in the
+     * browser (primed while the ticker was typed). So when the key holds nothing and no server answer
+     * has landed, its newest lake bars are painted at once as an UNSTAMPED local copy (LAKE_HIT):
+     * provisional / context, never persisted, and the server's full answer keeps those rows only where
+     * their overlap with its own rows proves the same basis (reducer applyRest), discarding them
+     * otherwise, so a lake that ends early can never be joined across a hole. A lake hit that arrives
+     * after the answer only adds deeper rows on a proven overlap (applyLocal). Resolves true when painted.
+     */
+    /** Is `sym` in the lake (its index exists)? False without a lake; never rejects. */
+    lakeHas(sym) {
+      if (!history?.hasSymbol) return Promise.resolve(false)
+      return history.hasSymbol(sym)
+    },
+    // ⭐ A LOCAL COPY ALREADY HELD DOES NOT SHUT THE LAKE OUT (2026-11-17). Measured on never-opened
+    // tickers with the answer held 1.5 s: 3 of 4 held the universe pack's 240 newest 5m rows
+    // (provisional, no server answer) before Enter, and this refused because the key held ANY bars,
+    // so the chart waited out the answer. Now only a held SERVER answer refuses (the chart's own
+    // scroll-back reaches the lake then); a held local copy is joined by the reducer only where the
+    // lake's rows prove its price basis over the bars they share (applyLocal), and the seed counts as
+    // painted only when rows were actually added.
+    //
+    // ⭐ ONE LOAD, THE WHOLE DEPTH (2026-11-17, owner: "it shows a good chunk, then the rest a quick
+    // blink later"). The lake's newest lakeTargetBars(tf) come in ONE load (the background
+    // depth the chart would otherwise reach in steps after the first paint), and a load that lands
+    // AFTER the server's answer still joins: the reducer adds only the rows older than what is held,
+    // and only where the shared bars prove the held basis. Resolves 'seed' (rows added before any
+    // server answer), 'join' (deeper rows added to an answer) or false; one load per key at a time
+    // (the handoff and the chart's subscribe share it), none once the key is that deep.
+    lakeSeed(key) {
+      if (!history?.olderBars || !lakeCarriesKey(key)) return Promise.resolve(false)
+      const target = lakeTargetBars(parseKey(key)?.tf)
+      if ((registry.peek(key)?.bars.length ?? 0) >= target) return Promise.resolve(false)
+      const running = lakeSeeds.get(key)
+      if (running) return running
+      const p = Promise.resolve()
+        .then(() => history.olderBars(key, Math.floor(now() / 1000) + 1, { bars: target }))
+        .then((got) => {
+          const cur = registry.peek(key)
+          if (!got || !Array.isArray(got.bars) || !got.bars.length || !cur) return false
+          const before = cur.bars.length
+          registry.dispatch(key, { type: ACTION.LAKE_HIT, key, payload: { sym: parseKey(key)?.sym, bars: got.bars } })
+          const after = registry.peek(key)
+          if (!after || after.bars.length <= before) return false
+          return after.restSeen ? 'join' : 'seed'
+        })
+        .catch(() => false)
+        .finally(() => {
+          if (lakeSeeds.get(key) === p) lakeSeeds.delete(key)
+          const cur = registry.peek(key)
+          const held = cur?.bars.length
+          if (held == null) return          // nothing to join into: still due when the key is built
+          // Before a server answer a settle never LOWERS the depth an earlier load reached (review of
+          // #1884): a load refused by a saved copy that replaced the lake's rows would otherwise mark
+          // the depth done while the chart is shallow, and it would come back in scroll-back steps.
+          // An answered entry settles at what it holds (the answer proved it): no load loops.
+          const prev = lakeSettled.get(key)
+          const depth = !cur.restSeen && prev != null ? Math.max(prev, held) : held
+          lakeSettled.delete(key)
+          lakeSettled.set(key, depth)
+          if (lakeSettled.size > LAKE_SETTLED_MAX) lakeSettled.delete(lakeSettled.keys().next().value)
+        })
+      lakeSeeds.set(key, p)
+      return p
+    },
+    /** Is the lake's whole depth still DUE for `key`: the lake carries it, it holds less than that
+     *  depth, and its lake load has not finished on this page (in flight, or never asked)? The
+     *  handoff's fast path then waits for the join instead of painting a shallow copy (prefetch). */
+    lakePending(key) {
+      if (!history?.olderBars || !lakeCarriesKey(key)) return false
+      const held = registry.peek(key)?.bars.length ?? 0
+      if (held >= lakeTargetBars(parseKey(key)?.tf)) return false
+      const settled = lakeSettled.get(key)
+      return settled == null || held < settled
+    },
+    /** Would a scroll-back of `key` ask the history lake (intraday, not a replay window, the lake on
+     *  and not found exhausted for this key)? Sets the background depth target (historyPrepend). */
+    lakeCarries(key) { return lakeCarriesKey(key) },
     /** Poll `key` now. `abort`: drop the request in flight first (invalidate). */
     kick(key, { abort = false } = {}) {
       const r = keys.get(key)

@@ -31,6 +31,21 @@ def test_changing_the_table_changes_every_consumer_with_zero_code_change():
     assert plc.licensing_class_for("massive", "quotes") == "R"
 
 
+def test_schwab_rows_state_the_registers_recorded_classes():
+    """Schwab had no row until 2026-11-17, so every Schwab lookup read 'U' while the
+    licensing register recorded the owner's answer (T-77/T-78: LA). The public
+    recordings row (T-79) stays R, and equity quotes (no register row) stay
+    unregistered: 'U', never inferred from the option rows."""
+    assert plc.licensing_class_for("schwab", "option_chains") == "LA"
+    assert plc.licensing_class_for("schwab", "option_quotes") == "LA"
+    assert plc.licensing_class_for("schwab", "open_interest") == "LA"
+    assert plc.licensing_class_for("schwab", "gex_public_recordings") == "R"
+    assert plc.licensing_class_for("schwab", "quotes") == "U"
+    rows = {dc: e.register_row for (v, dc), e in plc.all_entries().items() if v == "schwab"}
+    assert rows == {"option_chains": "T-77", "option_quotes": "T-77", "open_interest": "T-78",
+                    "gex_public_recordings": "T-79"}
+
+
 def test_entry_for_carries_traceability_not_just_the_letter():
     entry = plc.entry_for("massive", "quotes")
     assert entry.licensing_class == "R"

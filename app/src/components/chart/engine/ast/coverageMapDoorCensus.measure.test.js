@@ -47,7 +47,8 @@ import { assessObjectLoss } from './objectLoss'
 import { TABLE, parseFormula } from './parse'
 import { translatePine } from './pine'
 import { functionReachability } from './doorCoverage'
-import { probeRuntimeProgram } from '../runtime/runtimeColumns'
+import { probeRuntimeProgram, runtimeColumnsFor } from '../runtime/runtimeColumns'
+import { runHalfOf } from '../runtime/runtimeObjects'
 import { valueBuildDefersToDrawing } from '../../builder/memberPane/runtimeObjectsDoor'
 import { runtimePaneEnabled, __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
@@ -182,6 +183,7 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
   if (bound && d.ok) {
     try { boundWhy = boundBlockers(d) } catch (err) { boundWhy = [`bound-threw:${short((err && err.message) || err, 80)}`] }
   }
+  const runHalfBound = bound && d.ok && d.runHalf ? runHalfBoundOf(d) : null
   const t = d.translation || {}
   const refusals = (t.refusals || []).map((r) => ({
     guard: r.guard || null,
@@ -233,6 +235,13 @@ function oneDoor(source, { runtimeDetail = RT_ON, bound = false } = {}) {
     notes: (d.notes || []).map((n) => (n && n.name) || null).filter(Boolean),
     refusals,
     ...(boundWhy ? { boundWhy } : {}),
+    // ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — an ATTACHED host step that lost drawings carries a run
+    // half (engine 53), minted or declined by code; and (step 0, the bound check) the run half BOUND on the
+    // reference bars as the binder binds it: `served` (the run draws the host's plots' drawings, the calls
+    // the host lost included: `runHalfObjectRail.js`, the lost-drawings rule) or `refused:<code>`. The
+    // census used to record neither, so an attached-dirty row had no runtime reading at all.
+    ...(d.runHalf ? { runHalf: 'minted' } : (d.runHalfDeclined ? { runHalf: `declined:${d.runHalfDeclined.code}` } : {})),
+    ...(runHalfBound ? { runHalfBound } : {}),
     ...(runtimeDetail ? {
       runtimeDeclined: d.runtimeDeclined ? { code: d.runtimeDeclined.code, why: short(d.runtimeDeclined.why, 300) } : null,
       rtProbe: d.runtimeDeclined ? runtimeProbeOf(source, d.runtimeDeclined) : null,
@@ -387,6 +396,38 @@ export function boundBlockers(d, bars = referenceBars(), ctx = BOUND_CTX) {
   return [...new Set(out)]
 }
 
+/** ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — the door's RUN HALF bound on the reference bars as the binder
+ *  binds it (`nativeRegistry.js::withRunHalf`, every gate and both rails): `{state, code}`. The run is the
+ *  in-process lane (`runtimeColumnsFor`, the run-half rails' own call), registered for THIS bind only and
+ *  taken off again, so no other bound reading of the census changes (the census registers no lane). */
+export function runHalfBoundOf(d, bars = referenceBars(), ctx = BOUND_CTX) {
+  registry.registerRuntimeLane(runtimeColumnsFor)
+  try {
+    const cols = registry.computeFor(d.definition, bars, undefined, ctx)
+    if (cols && typeof cols.then === 'function') return { state: 'async', code: null }
+    const half = runHalfOf(cols)
+    return half ? { state: half.state || null, code: half.code || null } : { state: null, code: null }
+  } catch (err) {
+    return { state: 'threw', code: short((err && err.message) || err, 80) }
+  } finally {
+    registry.registerRuntimeLane(null)
+  }
+}
+
+/** ⭐⭐ PARITY UNIT 1 — "TRANSFERS FULLY, ITS LOST DRAWINGS DRAWN BY ITS RUN HALF": the step is the host
+ *  document, clean in every respect but its object program's loss (`isClean` with the loss verdict
+ *  `partial` admitted, the program carried), and its run half is SERVED on the reference bars: the plots
+ *  are the host's, and every drawing is the run's, each the host draws held to the host's. An attached
+ *  step's `pine:objects-only` is the CONSEQUENCE of its dropped ops (the host lane refuses a DIRTY
+ *  objects-only program by that name, a clean one is `ok`: `coverage_map.py`, DRAW-1), so it is the loss
+ *  the run half draws, not a refusal of its own. */
+function isCleanByRunHalf(r) {
+  if (!r || r.lane !== 'host' || r.lossVerdict !== 'partial' || !r.drawsObjects) return false
+  const refusals = (r.refusals || []).filter((x) => !(x && x.guard === 'pine:objects-only'))
+  return isClean({ ...r, refusals, lossVerdict: 'clean' })
+    && !!r.runHalfBound && r.runHalfBound.state === 'served'
+}
+
 /** ⭐ "TRANSFERS FULLY" — the coverage map's headline predicate, in one place.
  *  Attached by the member door AND installed AND zero refusals AND the object
  *  program carried with nothing dropped or withheld AND no paint withheld.
@@ -441,6 +482,9 @@ function census(source, cap, { rtOn = RT_ON } = {}) {
     cleanTranslatedPaints: isClean({ ...first, withheldPaints: first.withheldPaintsTranslated }),
     // ⭐ ENGINE 55 — the BOUND predicate (`boundBlockers`), beside the static one.
     cleanBound: isClean(first) && Array.isArray(first.boundWhy) && first.boundWhy.length === 0,
+    // ⭐⭐ PARITY UNIT 1 — clean but for the drawings its host program lost, which its run half draws
+    // (`coverage_map.py::runtime_on_transfers` reads it on the runtime-on lane)
+    cleanByRunHalf: isCleanByRunHalf(first),
     reachedAfterPeel: !!last.attached,
     peelSteps: steps.length - 1,
     stuck,

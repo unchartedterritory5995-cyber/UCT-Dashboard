@@ -442,6 +442,46 @@ def test_no_move_rail_phase1_columns_reproduce_rs_events_default_byte_for_byte()
         assert json.dumps(again[col]) == want, f"rs_events_default.{col} moved after Phase 3 ran"
 
 
+#: ⭐ RE-PINNED 2026-11-18 (RS owner, the defects sweep): since 0e53e71978 (Pine SMA-EXACT: `ta.sma` = `math.fsum`,
+#: `compute_sma` adapting it) the FLOAT column `mansfield` sits at most 4.44e-14 (relative 6.2e-14) off the fixture's
+#: bytes on 20 of 70 bars, na for na: the exact sum, not a move (the nearest of them is 0.356 from the zero line). It
+#: is pinned to the fixture within the fixture's own golden tolerance (`relTol`, `_close`) AND under
+#: `MANSFIELD_FLOAT_BOUND`, a summation-order bound a real change cannot hide under. The DISCRETE columns an alert fires
+#: on (`mansfieldState`, the crosses, `mansfieldCrossBarsAgo`) stay byte for byte, so saved RS alerts owe no
+#: compute.rev and no migration; a second run still equals the first byte for byte. The fixture is never regenerated
+#: (_schema.md).
+MANSFIELD_FLOAT_COLUMNS = ("mansfield",)
+MANSFIELD_FLOAT_BOUND = 1e-12
+
+
+def _mansfield_float_pinned(got, exp, rel):
+    """`got` equals the fixture column `exp` na for na, within `rel` (`_close`) and under MANSFIELD_FLOAT_BOUND."""
+    if len(got) != len(exp):
+        return False
+    for a, b in zip(got, exp):
+        if not _close(a, b, rel):
+            return False
+        if a is not None and abs(a - b) > MANSFIELD_FLOAT_BOUND:
+            return False
+    return True
+
+
+def test_the_mansfield_float_pin_can_fail():
+    """CONTROL for the re-pin: a shift inside the golden tolerance but over the bound, an na flip and a short column
+    are each refused (a pin that cannot fail proves nothing)."""
+    case = load_case("rs_mansfield")
+    exp, rel = case["expected"]["mansfield"], case["relTol"]
+    assert _mansfield_float_pinned(list(exp), exp, rel)
+    i = next(k for k, v in enumerate(exp) if v is not None and abs(v) > 0.1)
+    shifted = list(exp)
+    shifted[i] = exp[i] + 1e-10                     # inside relTol (1e-9 x |value|), over MANSFIELD_FLOAT_BOUND
+    assert _close(shifted[i], exp[i], rel) and not _mansfield_float_pinned(shifted, exp, rel)
+    flipped = list(exp)
+    flipped[i] = None
+    assert not _mansfield_float_pinned(flipped, exp, rel)
+    assert not _mansfield_float_pinned(list(exp)[:-1], exp, rel)
+
+
 def test_no_move_rail_mansfield_columns_reproduce_rs_mansfield_byte_for_byte():
     case = load_case("rs_mansfield")
     bars, bench = case["bars"], case["benchmarkBars"]
@@ -451,9 +491,12 @@ def test_no_move_rail_mansfield_columns_reproduce_rs_mansfield_byte_for_byte():
     again = rs.compute_mansfield_columns(bars, bench, length)
     assert set(got) == set(rs.PHASE2A_COLUMNS)
     for col in rs.PHASE2A_COLUMNS:
-        want = json.dumps(case["expected"][col])
-        assert json.dumps(got[col]) == want, f"rs_mansfield.{col} moved"
-        assert json.dumps(again[col]) == want, f"rs_mansfield.{col} moved after Phase 3 ran"
+        exp = case["expected"][col]
+        if col in MANSFIELD_FLOAT_COLUMNS:
+            assert _mansfield_float_pinned(got[col], exp, case["relTol"]), f"rs_mansfield.{col} moved"
+        else:
+            assert json.dumps(got[col]) == json.dumps(exp), f"rs_mansfield.{col} moved"
+        assert json.dumps(again[col]) == json.dumps(got[col]), f"rs_mansfield.{col} moved after Phase 3 ran"
 
 
 def test_the_new_functions_carry_no_rolling_accumulator():

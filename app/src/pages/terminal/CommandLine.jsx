@@ -333,7 +333,9 @@ export default function CommandLine({
 
   const parsed = useMemo(() => (text.trim() ? parseCommand(text, { aliases }) : null), [text, aliases])
   // Only a security the command will USE is checked (`NVDA DASH` ignores NVDA anyway).
-  const parsedSym = parsed?.ok && parsed.type === 'function' && BY_CODE[parsed.code]?.ticker ? parsed.sym : null
+  // A stock board (`NVDA STOCK`) opens four panels on its ticker, so that ticker is checked too.
+  const parsedSym = parsed?.ok && ((parsed.type === 'function' && BY_CODE[parsed.code]?.ticker) || parsed.type === 'stock-board')
+    ? parsed.sym : null
 
   // The echo's "did you mean": does the ticker search know the security this line names?
   useEffect(() => {

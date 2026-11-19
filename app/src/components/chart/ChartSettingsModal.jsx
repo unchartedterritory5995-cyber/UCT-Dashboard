@@ -32,7 +32,10 @@ import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
 import { HEADER_FIELDS, SIGN_POS, SIGN_NEG } from './headerFields'
-import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats } from './headerStatCatalog'
+import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats, headerStatMetaOf, statStylesFor, withHeaderStatStyle } from './headerStatCatalog'
+import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR } from './headerStatStyle'
+import { customStatsOf, customStatKey, addCustomStatPatch, customStatAddRefusal } from './headerCustomStats'
+import { customStatLabel, customStatSigned, customStatOutputRefusal } from './engine/customStatCompute'
 import { HeaderStatList, HeaderStatPicker } from './HeaderStatPicker'
 import styles from './ChartSettingsModal.module.css'
 import useFocusTrap from '../mobile/useFocusTrap'
@@ -244,6 +247,11 @@ const SETTINGS_TARGET_TAB = {
   // The chart header's "Add to Chart" control: Indicators, already in the add
   // surface (ChartSettingsIndicators `openAdd`).
   add: 'indicators',
+  // A chart-header stat's menu (owner 11-17): "Header settings…" opens Header & legend; "Add a stat…" opens its stat
+  // picker; "Add an indicator value…" opens the picker's custom-stat page.
+  header: 'header',
+  'header:add': 'header',
+  'header:custom': 'header',
 }
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
@@ -416,6 +424,9 @@ export default function ChartSettingsModal({
   // never a portal. Any other section, or closing the window, puts the section back on its main page.
   const [statPickerOpen, setStatPickerOpen] = useState(false)
   useEffect(() => { setStatPickerOpen(false) }, [activeTab, open])
+  // opened from a header stat's "Add a stat…" / "Add an indicator value…" (after the reset above, same commit)
+  const statPickerStart = open && (scrollTo === 'header:custom' ? 'custom' : scrollTo === 'header:add' ? 'list' : null)
+  useEffect(() => { if (statPickerStart && activeTab === 'header') setStatPickerOpen(true) }, [statPickerStart, activeTab])
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_CHART_TEMPLATES)))
   const commitSaveTemplate = () => {
@@ -743,6 +754,16 @@ export default function ChartSettingsModal({
       return
     }
     // Per-field Info Row colors: `hdrf:<colorKey>` → header.colors[colorKey].
+    // Per-stat looks (owner 11-17): `hdrs:<statKey>:label|box` → header.statStyle[statKey].labelColor|boxColor —
+    // the same keys the header stat's own menu writes (headerStatStyle.js).
+    if (target.startsWith('hdrs:')) {
+      const at = target.lastIndexOf(':')
+      const key = target.slice(5, at)
+      const field = target.slice(at + 1) === 'box' ? 'boxColor' : 'labelColor'
+      const h = settings?.header || {}
+      onChange?.({ ...settings, header: { ...h, statStyle: withHeaderStatStyle(h, key, { [field]: hex }) }, preset: 'custom' })
+      return
+    }
     if (target.startsWith('hdrf:')) {
       const key = target.slice(5)
       const h = settings?.header || {}
@@ -816,6 +837,11 @@ export default function ChartSettingsModal({
     if (isIndTarget(t)) {
       const { rowId, field } = splitIndTarget(t)
       return indRowById(rowId)?.values?.[field] || '#c9a84c'
+    }
+    if (t.startsWith('hdrs:')) {
+      const at = t.lastIndexOf(':')
+      const look = statStylesFor(settings?.header || {})[t.slice(5, at)] || {}
+      return t.slice(at + 1) === 'box' ? (look.boxColor || DEFAULT_BOX_COLOR) : (look.labelColor || '#cfcac0')
     }
     if (t.startsWith('hdrf:')) {
       const key = t.slice(5)
@@ -919,6 +945,27 @@ export default function ChartSettingsModal({
   const infoFields = headerStatKeys(header)
   const statLabels = statLabelsOf(header)
   const toggleInfoField = (key) => setHeader(headerStatTogglePatch(header, key))
+  // Custom stats (owner 11-16, headerCustomStats.js): each one's live name / sign from its definition (the stored
+  // name when the definition is not installed), so the list, the picker and the swatches name it like the chart does.
+  const customMeta = {}
+  for (const c of customStatsOf(header)) {
+    const def = engineRegistry.getDefinition(c.defId)
+    if (!def) continue
+    let names = null
+    try { names = customStatLabel(def, c) } catch { names = null }
+    const why = customStatOutputRefusal(def, c.plotKey, engineRegistry)
+    customMeta[customStatKey(c.id)] = {
+      label: (names && names.label) || c.name, signed: customStatSigned(def),
+      desc: why ? `Custom stat · ${why}` : `Custom stat · ${(names && names.title) || c.name || 'an indicator'}, its value on the newest bar`,
+    }
+  }
+  const infoStatMeta = (key) => headerStatMetaOf(header, key, customMeta)
+  const statLooks = statStylesFor(header)
+  const addCustomInfoField = (entry) => {
+    const patch = addCustomStatPatch(header, entry, infoFields)
+    if (patch.customStats) setHeader(patch)
+  }
+  const customInfoRefusal = (entry) => customStatAddRefusal(header, entry)
   const moveInfoField = (from, to) => setHeader({ fields: movedHeaderStats(header, from, to) })
   const renameInfoField = (key, label) => {
     const next = withStatLabel(header, key, label)
@@ -927,8 +974,12 @@ export default function ChartSettingsModal({
   }
   // "Reset to UCT default" in the picker: the stats go back to today's row (no `fields`, no renames).
   const resetInfoFields = () => {
-    const { fields: _f, statLabels: _l, ...rest } = header
-    if (!('fields' in header) && !('statLabels' in header)) return
+    const { fields: _f, statLabels: _l, customStats: _c, statStyle: _s, ...rest } = header
+    if (!('fields' in header) && !('statLabels' in header) && !('customStats' in header) && !('statStyle' in header)) return
+    // a custom stat's color goes with it (its id can be reused by the next custom stat)
+    if (rest.colors && Object.keys(rest.colors).some((k) => k.startsWith('cx:'))) {
+      rest.colors = Object.fromEntries(Object.entries(rest.colors).filter(([k]) => !k.startsWith('cx:')))
+    }
     setSetting({ header: rest })
   }
   const hdrColors = header.colors || {}
@@ -1535,7 +1586,9 @@ export default function ChartSettingsModal({
           )}
 
           {activeTab === 'header' && statPickerOpen && (
-            <HeaderStatPicker styles={styles} keys={infoFields} onToggle={toggleInfoField} onReset={resetInfoFields} onDone={() => setStatPickerOpen(false)} />
+            <HeaderStatPicker styles={styles} keys={infoFields} onToggle={toggleInfoField} onReset={resetInfoFields} onDone={() => setStatPickerOpen(false)}
+              metaOf={infoStatMeta} onAddCustom={addCustomInfoField} customAddRefusal={customInfoRefusal}
+              startBuilding={statPickerStart === 'custom'} />
           )}
           {activeTab === 'header' && !statPickerOpen && (<>
           {/* TITLE — the ticker/company label + its color + the day-change readout that
@@ -1634,6 +1687,40 @@ export default function ChartSettingsModal({
               onRename={renameInfoField}
               onMove={moveInfoField}
               onRemove={toggleInfoField}
+              metaOf={infoStatMeta}
+              styledKeys={new Set(Object.keys(statLooks))}
+              renderStyle={(f) => {
+                const look = statLooks[f.key] || {}
+                const size = look.size || 'm'
+                const setLook = (patch) => setHeader({ statStyle: withHeaderStatStyle(header, f.key, patch) })
+                return (<>
+                  <span className={styles.statStyleItem}>Label color {colorSwatch(`hdrs:${f.key}:label`, `${f.label} label color`)}
+                    {look.labelColor && <button type="button" className={styles.statStyleReset} onClick={() => setLook({ labelColor: null })} aria-label={`${f.label} label color: back to default`}>Default</button>}
+                  </span>
+                  <span className={styles.statStyleItem}>Box {liveSwitch(`${f.label} shaded box`, !!look.box, () => setLook({ box: !look.box }))}
+                    {look.box && colorSwatch(`hdrs:${f.key}:box`, `${f.label} box color`)}
+                  </span>
+                  <span className={styles.statStyleItem}>Size
+                    <span className={styles.statSizes} role="group" aria-label={`${f.label} text size`}>
+                      {STAT_SIZES.map((z) => (
+                        <button key={z} type="button" aria-pressed={size === z} aria-label={`${f.label} size ${STAT_SIZE_LABELS[z]}`}
+                          className={`${styles.statSize} ${size === z ? styles.statSizeOn : ''}`}
+                          onClick={() => { if (z !== size) setLook({ size: z }) }}>{STAT_SIZE_LABELS[z]}</button>
+                      ))}
+                    </span>
+                  </span>
+                  <span className={styles.statStyleItem}>Thickness
+                    <span className={styles.statSizes} role="group" aria-label={`${f.label} text thickness`}>
+                      {STAT_WEIGHTS.map((w) => (
+                        <button key={w} type="button" aria-pressed={(look.weight || 'regular') === w} aria-label={`${f.label} thickness ${STAT_WEIGHT_LABELS[w]}`}
+                          title={STAT_WEIGHT_LABELS[w]} style={{ fontWeight: STAT_WEIGHT_VALUE[w] }}
+                          className={`${styles.statSize} ${(look.weight || 'regular') === w ? styles.statSizeOn : ''}`}
+                          onClick={() => { if (w !== (look.weight || 'regular')) setLook({ weight: w }) }}>A</button>
+                      ))}
+                    </span>
+                  </span>
+                </>)
+              }}
               renderColors={(f) => (f.signed ? (<>
                 {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
                 {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}

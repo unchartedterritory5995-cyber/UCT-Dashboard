@@ -1081,6 +1081,18 @@
    "source": "h2",
    "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
    "claim": "We use the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "r10",
+   "source": "hw",
+   "quote": "Below the 200-day is a hard no for stocks; indexes and leveraged ETFs are the one exception, on a reversal extension or a parabolic long.",
+   "claim": "Below the 200-day is a hard no for stocks; only indexes and levered ETFs may be bought under it, on a reversal extension or a parabolic long."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -1088,10 +1100,10 @@
    "key": "w1",
    "title": "LRCX, September 2026: the dip, then the drive",
    "steps": [
-    "LRCX, 2026-09-18, on 5-minute bars. A leader: RS 82, above its 200-day. It gaps up 1.5%.",
-    "First 5-minute bar: 272.80 to 277.23 on 5.7x volume. It dips first, then closes up. The day's low is in it.",
-    "9:35: it trades through 277.23. Buy at market, 277.24. Stop a few cents under the day's low, 272.75: 1.6% away.",
-    "Failure mode: back to the open, VWAP lost. Instead it runs. 3R comes at the next open, 5R by 11:40 that day."
+    "LRCX, September 18, 2026, on 5-minute bars. A leader with RS 82, over its 200-day, gapping up 1.5%.",
+    "First 5-minute bar: 272.80 to 277.23 on 5.7 times volume. It dips, then closes up. The day's low is in it.",
+    "9:35, it trades through 277.23. That's the trigger. We buy at market, 277.24, stop just under the low, 272.75. That's 1.6%.",
+    "Wrong if it slips to the open and loses VWAP. It closed near the high instead. 3R next morning, 5R by 11:40."
    ],
    "facts": [
     "d01",
@@ -1107,12 +1119,12 @@
   },
   {
    "key": "w2",
-   "title": "SANM, September 2026: a tight bar, then a gap",
+   "title": "SANM, September 2026: a tight bar, then a gap down",
    "steps": [
-    "SANM, 2026-09-11, 5-minute bars. A leader: RS 81, 10% over its 200-day. It gaps up 1.2%.",
-    "The first 5-minute bar runs 205.71 to 207.99 on 2.3x volume: a dip, then recovery. At 9:35 it trades through.",
-    "Buy at market, 208.00. Stop a few cents under the day's low, 205.66: 1.1% away. 3R, 215.02, comes at 10:35.",
-    "We rarely sell this early; stop to breakeven. On 09-14 it gaps down through it. First 30-minute low decides; out past 2R."
+    "Different morning, same play. SANM, September 11, 2026: RS 81, 10% over its 200-day, gapping up 1.2%.",
+    "The first 5-minute bar runs 205.71 to 207.99, a dip then a recovery. At 9:35 it trades through. Buy at market, 208.00.",
+    "Stop just under the low, 205.66, only 1.1% away. By 10:35 it hits 3R, 215.02. Too early to sell. Stop to breakeven.",
+    "September 14 it gaps down through the stop. Now the first 30-minute low is the stop. Past 2R of loss, you're out."
    ],
    "facts": [
     "d04",
@@ -1128,12 +1140,12 @@
   },
   {
    "key": "w3",
-   "title": "CNC, November 2026: the heaviest bar, and the first sell",
+   "title": "CNC, November 2026: the heaviest bar, then a round trip",
    "steps": [
-    "CNC, 2026-11-04, 5-minute bars. A leader: RS 90, 22% over its 200-day. It gaps up 4.7% over the prior high.",
-    "The first 5-minute bar runs 70.21 to 71.99 on 5.3x volume, the heaviest in our set. Trigger: a trade through 71.99.",
-    "Buy at market, 72.00. Stop a few cents under the day's low, 70.16: 2.6% away. The drive runs all day.",
-    "Next day at 9:35 it prints 3R, 77.52. Early to sell; the stop goes to breakeven. Two days later it fades."
+    "CNC on November 4, 2026. RS 90, 22% over its 200-day, and it gaps up 4.7% over the prior high.",
+    "First 5-minute bar: 70.21 to 71.99 on 5.3 times volume, the heaviest in our set. A trade through 71.99 is the trigger.",
+    "We buy at market, 72.00, stop just under the low, 70.16. That's 2.6%. The drive runs all day.",
+    "Next morning at 9:35 it tags 3R, 77.52, and tops. Stop to breakeven. Two days later it fades back and takes it."
    ],
    "facts": [
     "d07",
@@ -1155,16 +1167,16 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "od.trigger",
-   "q": "On our drive card, what is the buy point?",
+   "q": "Where's your buy on this one?",
    "choices": [
     "The first 30-minute bar's high",
-    "The prior session's high",
-    "The opening print itself",
+    "Yesterday's high",
+    "The opening print",
     "The first 5-minute bar's high"
    ],
    "answer": "The first 5-minute bar's high",
-   "why": "The first 5-minute bar's high, called the 5-minute ORH (opening range high). The buy is the first trade through it. The full 9:30 to 10:00 range is the ORB, the slow version of the same day. The prior day's high and the opening print are not the drive's level.",
-   "lesson_line": "Mark the first 5-minute bar's high. The buy is the trade through it.",
+   "why": "The first 5-minute bar's high. That's the trigger on a drive. I mark that high the second the bar closes. The buy is a market order the moment price trades through it. The full 9:30 to 10:00 range is the ORB, the opening range breakout. That's the slow version of the same morning, for days that don't drive. Yesterday's high is a Kicker's line. The open is just one print, not a level anyone's defending. Here the bar closed green with the low of the day inside it, so the 5-minute high is your line.",
+   "lesson_line": "Mark the first 5-minute high. The trade through it is your buy.",
    "facts": [
     "c01",
     "c02",
@@ -1174,12 +1186,12 @@
     "k01"
    ],
    "wrong": {
-    "The first 30-minute bar's high": "That is the ORB's range, the slow version of the same day.",
-    "The prior session's high": "That is a Kicker's entry, over a red day's high. The drive reads its own first bar.",
-    "The opening print itself": "The open is one price. The drive needs a bar's high."
+    "The first 30-minute bar's high": "That's the ORB's level, the slow version of the morning. A drive doesn't wait for it.",
+    "Yesterday's high": "That's a Kicker's line, over a red day's high. A drive reads today's first bar.",
+    "The opening print": "The open is one price, not a level. You need a bar's high to trade through."
    },
    "house": true,
-   "simple": "The first 5-minute bar's high, because our drive buys the moment price trades through that bar's high.",
+   "simple": "The first 5-minute bar's high. You buy the moment price trades through it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1187,8 +1199,8 @@
      "the 5-minute trigger bar rests on a proposed card line tied to held decision D-031"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
-   "story": "A leader gaps up and its first 5-minute bar closes green.",
+   "batch": "voice-8-2026-11-17",
+   "story": "A leader above its 200-day gaps up at the open. The first 5-minute bar closes green, and the low of the day sits inside it.",
    "chart": {
     "sym": "SITM",
     "tf": "5",
@@ -1203,10 +1215,10 @@
    "rung": 1,
    "format": "tf",
    "criterion": "od.low_in_first_bar",
-   "q": "In a true opening drive, the day's low comes late, well after the first 30 minutes.",
+   "q": "A stock gaps up, runs for a bit, then makes its low of the day at 11:15. That still counts as an opening drive.",
    "answer": "False",
-   "why": "False. A true drive is over in minutes: the day's low is the open, or it sits inside the first 5-minute bar. It does not come late. SMB Capital calls its Opening Drive Play a momentum trade right on the open, right after 9:30. If the stock later breaks that low, the drive has failed and the stop takes you out.",
-   "lesson_line": "A real drive makes its low in the first bar. If that low breaks later, the stop does the selling.",
+   "why": "False. On a real drive the low of the day, LOD for short, is set in the first few minutes. It's the open, or it sits inside the first 5-minute bar. That's the whole idea. Buyers show up at the bell and never let it trade back down. A low at 11:15 means sellers had the stock for well over an hour. That's not a drive. And if you'd bought early, a new low under your fill is just your stop getting hit, the plan doing its job.",
+   "lesson_line": "A drive makes its low at the bell. A late low means it wasn't one.",
    "facts": [
     "c05",
     "m03",
@@ -1214,7 +1226,7 @@
     "h24"
    ],
    "house": true,
-   "simple": "False. In a real drive the day's low is the open or sits inside the first 5-minute bar, so it comes in minutes.",
+   "simple": "False. A real drive sets its low at the open or in the first 5-minute bar, not late in the morning.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1222,7 +1234,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -1230,28 +1242,28 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "od.stop",
-   "q": "Where does the stop go?",
+   "q": "Where's your stop?",
    "choices": [
-    "Under the 50-day moving average",
-    "A few cents under the day's low",
-    "Exactly on the first 5-minute bar's low",
+    "Under the rising 50-day moving average",
+    "A few cents under the low of the day",
+    "Right on the first bar's low",
     "Just under yesterday's close"
    ],
-   "answer": "A few cents under the day's low",
-   "why": "A few cents under the day's low at the moment of entry, not exactly on it. In a true drive that low is the low of the first 5-minute bar or the open. Kullamagi also puts the stop at the lows of the day. It is not a moving average or the prior close.",
-   "lesson_line": "Stop under the day's low, not on it. In a true drive that low is the first bar or the open.",
+   "answer": "A few cents under the low of the day",
+   "why": "A few cents under the low of the day. On a drive that low is the open or the bottom of the first 5-minute bar, so it's close and it's tight. That's the spot that proves you wrong. If price takes out the low the buyers set at the bell, there's no drive anymore. I put it a few cents under, not right on it. That way a quick tag of the exact low doesn't shake me out. The 50-day and yesterday's close have nothing to do with this morning.",
+   "lesson_line": "Stop a few cents under the low of the day. Not on it, under it.",
    "facts": [
     "c04",
     "h24",
     "k02"
    ],
    "wrong": {
-    "Under the 50-day moving average": "The drive's stop is the day's low at entry, not a moving average.",
-    "Exactly on the first 5-minute bar's low": "The stop sits a few cents under the low, not exactly on it.",
-    "Just under yesterday's close": "The stop is today's low at entry, not yesterday's close."
+    "Just under yesterday's close": "Yesterday's close isn't the line. Today's low is where the drive is wrong.",
+    "Under the rising 50-day moving average": "Way too far, and it has nothing to do with this morning. The drive's stop is today's low.",
+    "Right on the first bar's low": "Close, but not on it. A few cents under, so a tag of the exact low doesn't take you out."
    },
    "house": true,
-   "simple": "A few cents under the day's low, which in a true drive is the first bar's low or the open.",
+   "simple": "A few cents under the low of the day. That's where the drive is proven wrong.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1259,8 +1271,8 @@
      "rests on the owner's rulebook (F62)"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
-   "story": "You are filled on the drive at 9:35.",
+   "batch": "voice-8-2026-11-17",
+   "story": "You just got filled on a drive at 9:35. It was a market order as price traded through the first 5-minute high.",
    "chart": {
     "sym": "CROX",
     "tf": "5",
@@ -1275,8 +1287,8 @@
    "rung": 1,
    "format": "fill",
    "criterion": "od.no_chase",
-   "q": "Tap the number that fits the blank.",
-   "sentence": "Never fill a drive more than ___% above the first 5-minute bar's high.",
+   "q": "The drive already ran before you could act. How far past the trigger is too far to still buy it?",
+   "sentence": "Once price is more than ___% past the first 5-minute bar's high, I let it go.",
    "bank": [
     "4",
     "2",
@@ -1285,15 +1297,15 @@
     "10"
    ],
    "answer": "4",
-   "why": "4%. The buy point is the first 5-minute bar's high. Never fill more than 4% above it. Chasing means paying up after the trigger has fired. Past 4% the buy point has passed, so wait for the second entry. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink. The 4% is measured from the first bar's high, not from the open.",
-   "lesson_line": "Four percent past the first bar's high and the buy point is gone. Use the second entry.",
+   "why": "4%. Past that, the buy point's gone. Here's why it matters. Your stop doesn't move up with price. It stays a few cents under the low of the day. So every cent you chase stretches the distance to the stop. To keep the same dollar risk, your size has to shrink. Chasing costs you size. Measure it from the first bar's high, not from the open. Past 4%, I wait for the second entry, the first light pullback that holds VWAP.",
+   "lesson_line": "More than 4% past the trigger, you missed it. Wait for the second entry.",
    "facts": [
     "c03",
     "h11",
     "h12"
    ],
    "house": true,
-   "simple": "4, because past 4 percent above the first bar's high the buy point has passed and you wait for the second entry.",
+   "simple": "4. Past that you're chasing, the stop is too far away, and you wait for the second entry.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1301,7 +1313,7 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -1309,9 +1321,9 @@
    "rung": 1,
    "format": "tf",
    "criterion": "od.order",
-   "q": "We wait for a 5-minute bar to close above the first bar's high, then buy.",
+   "q": "The drive trades through the first 5-minute high at 9:36. You wait for that 5-minute bar to close up there before you buy.",
    "answer": "False",
-   "why": "False. The order is a market order the moment price trades through the first 5-minute bar's high. There is no waiting for any bar to close. Entries are market orders by our rule. Breitstein does not wait for bar closes either, not for entries and not for exits.",
+   "why": "False. You buy at market the moment it trades through. I don't wait for a bar to close. A real drive moves fast. By the time the bar closes, price can be well past the trigger. Your stop is still down under the low of the day, so now it's further away. That means fewer shares for the same risk, on a trade that was already working. The trade through is the signal. The close is just a report on what happened.",
    "lesson_line": "The trade through is the trigger. A close is a report, not a signal.",
    "facts": [
     "c02",
@@ -1319,7 +1331,7 @@
     "b06"
    ],
    "house": true,
-   "simple": "False, because we buy at market the moment price trades through the first bar's high, without waiting for a close.",
+   "simple": "False, you buy at market the moment it trades through. Waiting for the close just costs you size.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1327,7 +1339,10 @@
      "rests on the owner's rulebook (E57)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Lance Breitstein says the same about his own trading: he doesn't wait for bar closes, not for entries and not for exits."
+   }
   },
   {
    "key": "q06",
@@ -1335,28 +1350,29 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "od.above_200",
-   "q": "The prior close and the whole first bar sit under the 200-day. The bar is green on big volume. Our rule?",
+   "q": "A stock sits under its 200-day. It gaps up and the first 5-minute bar is green on huge volume, still under the line. Do you take it?",
    "choices": [
-    "No long; below the 200-day",
-    "No long; the volume is too heavy",
-    "Buy, but only at half size",
-    "Buy if the 200-day is rising"
+    "No, it's under the 200-day",
+    "No, the volume's too heavy",
+    "Yes, but only half size",
+    "Yes, if the 200-day is rising"
    ],
-   "answer": "No long; below the 200-day",
-   "why": "No long. We take no longs below the 200-day simple moving average, unless it is a parabolic long. Big volume is no exception, and half size is still a long. The card also wants the 200-day line rising, but only with price above it.",
-   "lesson_line": "Under the 200-day there is no drive to buy. Volume does not buy an exception.",
+   "answer": "No, it's under the 200-day",
+   "why": "No. Under the 200-day we don't buy stocks. That's a hard line, and a green bar on huge volume doesn't change it. A stock under its 200-day is in a downtrend. Plenty of people bought it higher and are happy to sell into any pop. So a gap there is often just a bounce into sellers. Half size is still a long in a stock we don't buy. The only exception we make is indexes and levered ETFs, never a single stock. I want price over the 200-day, and I like the line rising too.",
+   "lesson_line": "Under the 200-day, there's no drive to buy. Big volume doesn't buy an exception.",
    "facts": [
     "h10",
     "c23",
-    "m11"
+    "m11",
+    "r10"
    ],
    "wrong": {
-    "Buy, but only at half size": "Half size is still a long. Under the 200-day there is no long.",
-    "Buy if the 200-day is rising": "A rising line does not help a price below it. The card wants price above the 200-day and the line rising.",
-    "No long; the volume is too heavy": "Heavy volume is what a drive wants. The problem is the 200-day line."
+    "No, the volume's too heavy": "Heavy volume is a plus on a drive. The problem is the 200-day.",
+    "Yes, but only half size": "Half size is still a buy, in a stock we don't own under the 200-day.",
+    "Yes, if the 200-day is rising": "A rising line doesn't help when price is under it. Price has to be over the line."
    },
    "house": true,
-   "simple": "No long, because we never buy a stock below its 200-day unless it is a parabolic long.",
+   "simple": "No. We don't buy stocks under the 200-day, however good the first bar looks.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1364,7 +1380,7 @@
      "rests on the owner's rulebook (B26)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -1372,16 +1388,16 @@
    "rung": 1,
    "format": "tf",
    "criterion": "od.leader",
-   "q": "An RS rating of 84, in one of the strongest groups, meets our leader test for a drive.",
+   "q": "A stock with an RS rating of 84 sits in one of the market's strongest groups. It passes as a leader for a drive.",
    "answer": "True",
-   "why": "True. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. An 84 in a top group passes. The test has two parts, so the rating alone is not enough without a strong group. The rulebook's only exceptions are parabolic and mean-reversion trades.",
+   "why": "True. We buy leaders, and our line is an RS rating of 80 or more, in one of the strongest groups. 84 in a top group clears both. Here's why it matters on a drive. A gap on a leader has buyers already lined up behind it. A gap on a laggard is mostly holders getting out at a better price. Both parts count, though. A high rating in a dead group isn't the same stock. Check the rating the night before, not after the trigger fires.",
    "lesson_line": "Drives belong to leaders. RS 80 or more, in a strong group.",
    "facts": [
     "h14",
     "c24"
    ],
    "house": true,
-   "simple": "True, because our leader test is an RS rating of 80 or more in a strong group, and 84 clears it.",
+   "simple": "True. We want an RS rating of 80 or more in a strong group, and 84 in a top group clears it.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1389,7 +1405,7 @@
      "rests on the owner's rulebook (C31)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -1425,17 +1441,18 @@
    "rung": 2,
    "format": "tf",
    "criterion": "od.trigger",
-   "q": "A good opening drive usually shows itself right away. A delay of 5 to 6 minutes before it starts is unusual.",
+   "q": "A good opening drive gets going right at the bell. A stock that sits flat for 5 or 6 minutes first is the unusual case.",
    "answer": "True",
-   "why": "True. SMB Capital says a good opening drive happens right away, and a delay of 5-6 minutes is unusual. Our card agrees a drive is quick: it is over in minutes. The day's low is the open or sits inside the first 5-minute bar. That is a tell for spotting the drive, not a promise that every early move works.",
-   "lesson_line": "A good drive starts right away. A long wait before it starts is unusual.",
+   "why": "True. A real drive shows its hand at the bell. The buyers are there right away, and they don't wait around. That's why the low of the day sits at the open or inside the first 5-minute bar. A stock that sits flat for 5 or 6 minutes is thinking, not driving. It might still work later as an opening range breakout. That's a different trade with a different trigger. Don't force a drive onto a slow open.",
+   "lesson_line": "A good drive starts at the bell. A slow start is a different trade.",
    "facts": [
     "m04",
     "m05",
-    "c05"
+    "c05",
+    "m03"
    ],
    "house": true,
-   "simple": "True. A good drive gets going right away, and a wait of 5 to 6 minutes before it starts is unusual.",
+   "simple": "True, good drives start at the bell. A stock that stalls for minutes first isn't driving.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1444,7 +1461,10 @@
      "the 5-minute window is the unit's definition while D-031 is held"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "SMB, the desk that named the play, puts it the same way: when there's going to be a good opening drive it happens right away, and a delay of 5 to 6 minutes is unusual."
+   }
   },
   {
    "key": "q10",
@@ -1452,15 +1472,15 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "od.inv_volume_under_average",
-   "q": "The first 5-minute bar closes green on under-average volume. How do we treat the drive?",
+   "q": "The first 5-minute bar closes green, but on less volume than that bar normally trades. How do you treat it?",
    "choices": [
-    "Still a drive, but a lower grade",
-    "Not a drive; skip it completely",
-    "The top grade; a calm open is good",
-    "Volume never matters for a drive"
+    "Still a drive, just a lower grade",
+    "Not a drive, skip it completely",
+    "Top grade, a calm open's a good sign",
+    "Volume doesn't matter at all"
    ],
-   "answer": "Still a drive, but a lower grade",
-   "why": "It stays a drive, with a lower grade. For us, volume raises the grade. It is not a requirement for the setup to count. SMB says a drive shows a price surge and elevated volume right after the bell. So heavy volume is a plus, and thin volume costs grade. Zarattini et al. found the opening range break averaged -0.02R below 100% relative volume.",
+   "answer": "Still a drive, just a lower grade",
+   "why": "Still a drive, just a lower grade. Volume raises the grade. It isn't a must. A first bar on heavy volume tells you real money showed up at the bell, and that's what I want to see. A thin bar says fewer people care today, so it's not one I'd press. The price action still decides whether it's a drive. Green bar, no trade back to the open, buy through the high. Thin volume costs you grade, not the whole trade.",
    "lesson_line": "Volume raises the grade. A thin first bar is a lower grade, not a veto.",
    "facts": [
     "c09",
@@ -1468,12 +1488,12 @@
     "r01"
    ],
    "wrong": {
-    "Not a drive; skip it completely": "Volume raises the grade. It is not a must-have, so thin volume does not erase the drive.",
-    "The top grade; a calm open is good": "Thin volume does not raise the grade. Heavy volume does.",
-    "Volume never matters for a drive": "Volume does matter. It raises the grade, even though it is not a must-have."
+    "Not a drive, skip it completely": "Too strict. Volume raises the grade. It doesn't make or break the setup.",
+    "Top grade, a calm open's a good sign": "Backwards. Heavy volume at the bell raises the grade. Thin volume lowers it.",
+    "Volume doesn't matter at all": "It matters. It's just not a must. It moves the grade up or down."
    },
    "house": true,
-   "simple": "It is still a drive with a lower grade, because volume only raises the grade and is not a must-have.",
+   "simple": "Still a drive, but a lower grade. Volume raises the grade, it isn't a must.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1481,7 +1501,10 @@
      "the volume floor is a proposed card line tied to held decision D-006"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "Zarattini and his co-authors tested opening range breaks on 5-minute bars. Below 100% relative volume the trades averaged -0.02R. That's one study, and it's why thin volume costs grade even though it still counts as a drive."
+   }
   },
   {
    "key": "q11",
@@ -1522,29 +1545,29 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "od.earnings_window",
-   "q": "A drive fires on the earnings gap day, after the report. Is the earnings rule a problem?",
+   "q": "A stock reported last night and gaps up. At 9:35 it drives through the first 5-minute high. Does the earnings rule stop you?",
    "choices": [
-    "No; the report is behind it",
-    "Yes; no buys on a report day",
-    "Yes; wait 3 sessions first",
-    "No; it only covers holding"
+    "No, the report's behind it",
+    "Yes, no buys on report day",
+    "Yes, wait 3 sessions after",
+    "No, it only covers holding"
    ],
-   "answer": "No; the report is behind it",
-   "why": "No. The rule is no new buys in the 3 sessions before a report. A drive on the earnings gap day comes after the report, so it is allowed. The rule also covers holding: hold through a report only if the trade is up 5R. Nothing makes you wait after the report.",
-   "lesson_line": "The earnings rule looks forward. Once the report is out, the drive is allowed.",
+   "answer": "No, the report's behind it",
+   "why": "No, the report's behind it. Our earnings rule looks forward: no new buys in the 3 sessions before a report. The reason is the gamble. You don't want a fresh position with a tight stop sitting through a number nobody knows. A stop can't catch an overnight gap. Here the report's already out and the market has voted. The gap day is fair game for a drive. Holding through the next report is the other half: only if you're up 5R by then.",
+   "lesson_line": "The earnings rule looks ahead. Once the report's out, the drive is fair game.",
    "facts": [
     "c19",
     "h08"
    ],
    "wrong": {
-    "Yes; no buys on a report day": "The blackout is before the report. The day after it, the drive is allowed.",
-    "Yes; wait 3 sessions first": "The 3 sessions are before a report, not after. Nothing makes you wait afterwards.",
-    "No; it only covers holding": "It covers buying too: no new buys in the 3 sessions before a report. Here the report is already out."
+    "Yes, no buys on report day": "The blackout is the 3 sessions before a report. Once it's out, the drive is allowed.",
+    "Yes, wait 3 sessions after": "The 3 sessions come before a report, not after. Nothing makes you wait now.",
+    "No, it only covers holding": "It covers buying too, in the 3 sessions before. Here the report is already out."
    },
    "house": true,
-   "simple": "No, because our earnings rule only blocks new buys in the 3 days before a report, and this report is already out.",
+   "simple": "No. The rule only blocks new buys in the 3 days before a report, and this one is already out.",
    "deeper": {
-    "trap": "The trap is reading the earnings rule both ways. It looks forward only: no new buys in the 3 sessions before a report. The gap day after the report is open for a drive. Holding through the next report is the other half: only if the trade is up 5R by then."
+    "trap": "The trap is reading the earnings rule both ways. It only looks forward: no new buys in the 3 sessions before a report. The gap day after the report is open for a drive. Holding through the next report is the other half, and only if the trade is up 5R by then."
    },
    "tier": "core",
    "risk": {
@@ -1553,7 +1576,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
@@ -1561,9 +1584,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "od.stop_only_up",
-   "q": "Filled on a drive, you watch it dip toward your stop later that day. You can widen the stop to give it room.",
+   "q": "You're in a drive, and by 1:00 it's slipping toward your stop. Moving the stop a bit lower to give it room is fine.",
    "answer": "False",
-   "why": "False. After entry the stop only rises. It is a real stop order with the broker, never moved down or wider. The one exception is the gap rule. A dip that holds above the stop needs nothing from you.",
+   "why": "False. The stop only moves up. Once you're in, it never goes lower and never gets wider. You set that stop with a clear head before the buy. It's where you decided the drive was wrong. Moving it now is deciding again with your money on the line. That's how a small loss turns into a big one. It's a real stop order with your broker, so it does its job even when you don't want it to. If the dip holds above it, you do nothing.",
    "lesson_line": "The stop only moves up. A stop you widen is a stop you stopped believing.",
    "facts": [
     "c12",
@@ -1571,7 +1594,7 @@
     "h18"
    ],
    "house": true,
-   "simple": "False, because after you are filled the stop only moves up and never gets wider.",
+   "simple": "False, the stop only goes up. Widening it turns a small planned loss into a bigger one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1579,7 +1602,7 @@
      "rests on the owner's rulebook (A4, D41)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -1587,7 +1610,7 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "od.market_reading",
-   "q": "Which market reading gives full risk on a drive?",
+   "q": "Before the open you check the market reading in our app: Green, Yellow, Orange or Red. Which one lets you take drives at full risk?",
    "choices": [
     "Orange",
     "Red",
@@ -1595,19 +1618,19 @@
     "Yellow"
    ],
    "answer": "Green",
-   "why": "Green. Green is full risk per grade. Yellow is smaller and fewer, Orange is A+ setups only, and Red is mostly cash, plus shorts below the 200-day. The readings are guides for how much risk you use, not a promise that a drive works.",
-   "lesson_line": "Read the market before the stock. Green is full risk; Red is mostly cash.",
+   "why": "Green. The market reading is our market filter, and the color tells you how much to trade. Green is full risk for the grade. Yellow is smaller and fewer. Orange is A+ setups only. Red is mostly cash. It's a guide, not a switch. Why it matters: a drive is a bet that buyers keep coming after the bell. In a strong market they do. In a weak one even clean drives get sold, so you size down before the stock ever tells you.",
+   "lesson_line": "Check the market before the stock. Green is full risk, Red is mostly cash.",
    "facts": [
     "c20",
     "h26"
    ],
    "wrong": {
-    "Yellow": "Yellow means smaller and fewer, not full risk.",
-    "Orange": "Orange means A+ setups only.",
-    "Red": "Red is mostly cash, plus shorts below the 200-day."
+    "Yellow": "Yellow means smaller and fewer. You're trading, just not at full risk.",
+    "Orange": "Orange is the A+ setups only. Not a day to press.",
+    "Red": "Red is mostly cash. That's not the day to take drives at full risk."
    },
    "house": true,
-   "simple": "Green, because a Green market is the only reading that gives full risk on a drive.",
+   "simple": "Green. That's the only reading where we trade at full risk.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1615,7 +1638,7 @@
      "rests on the owner's rulebook (F65, a guide)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
@@ -1623,7 +1646,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "od.stop_width",
-   "q": "How far below the fill is the stop?",
+   "q": "How far is your stop from the fill, in percent?",
    "answer": "1.06%",
    "calc": {
     "fn": "arith",
@@ -1634,8 +1657,8 @@
     },
     "round": 2
    },
-   "why": "The stop distance is the fill minus the stop. Divide by the fill: (61.41 - 60.76) / 61.41 = 1.06%. Those are RPRX's real fill and stop. It sits inside the 1 to 3% we prefer. We accept up to 5%, so the range is a guide, not a hard cap.",
-   "lesson_line": "Stop first, distance second, size last. A tight first bar makes a close stop.",
+   "why": "1.06%. 61.41 minus 60.76 is 0.65 a share. 0.65 over 61.41 is 1.06%. That's a tight stop, right in the 1 to 3% I like. I'll go up to 5% if that's where the chart puts it. A first bar this tight is one of the best things about a drive. The stop is close, so the same dollar risk buys you more shares. RPRX gave you exactly that here. Always work the percent out before you size.",
+   "lesson_line": "Know your stop in percent before you size. A tight first bar gives you a close stop.",
    "facts": [
     "h04",
     "h24",
@@ -1645,7 +1668,7 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "1.06 percent, found by taking the fill minus the stop and dividing by the fill.",
+   "simple": "1.06 percent. Take the fill minus the stop, then divide by the fill.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1654,7 +1677,7 @@
      "stop width is tied to held decision D-005 and the rulebook's A13"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.65%",
     "98.94%",
@@ -1662,11 +1685,11 @@
     "1.06%"
    ],
    "wrong": {
-    "0.65%": "Stopped at the dollar distance and never divided by the fill.",
-    "10.58%": "Decimal slip: moved the point one place too far.",
-    "98.94%": "The stop is 98.94% of the fill. That is what is left, not the gap."
+    "0.65%": "That's the dollar gap, 0.65 a share. You still have to divide by the fill.",
+    "10.58%": "Decimal slip. It's about one percent, not ten.",
+    "98.94%": "That's how much of the fill is left at the stop, not the gap to it."
    },
-   "story": "The first 5-minute bar's high is 61.40. You fill at 61.41 with the stop at 60.76.",
+   "story": "The first 5-minute bar's high is 61.40. You get filled at 61.41, and the low of the day puts your stop at 60.76.",
    "chart": {
     "sym": "RPRX",
     "tf": "5",
@@ -1685,16 +1708,16 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "od.trigger",
-   "q": "Yesterday was green. Nothing broke the first 5-minute high before 10:00. At 10:05 a buy fires over the 9:30 to 10:00 high. Which setup?",
+   "q": "Yesterday closed green. Nothing takes out the first 5-minute high this morning. At 10:05 price breaks the 9:30 to 10:00 high. What is it?",
    "choices": [
     "The opening drive",
-    "The Kicker setup",
-    "The ORB setup",
-    "The second entry"
+    "A Kicker",
+    "The ORB",
+    "The drive's second entry"
    ],
-   "answer": "The ORB setup",
-   "why": "An ORB. It waits for the full 9:30 to 10:00 range and buys the first trade through its high after 10:00. A drive sets the day's low in the first 5-minute bar and is bought over that bar's high by about 9:40. The ORB is the slow version of the same day. The clock and the bar tell them apart.",
-   "lesson_line": "Check the clock. A buy near 9:40 over the first bar is the drive; after 10:00 it is the ORB.",
+   "answer": "The ORB",
+   "why": "The ORB, the opening range breakout. It waits for the whole first half hour, 9:30 to 10:00, and buys the break of that range after 10:00. A drive doesn't wait. It sets the low of the day in the first 5-minute bar and gets bought over that bar's high, by about 9:40. Same kind of morning, different speed. The clock tells you which one you're in. Here nothing broke before 10:00, so there was never a drive to buy.",
+   "lesson_line": "Check the clock. Over the first bar by 9:40 is a drive. After 10:00, it's the ORB.",
    "facts": [
     "c34",
     "c35",
@@ -1702,12 +1725,12 @@
     "c37"
    ],
    "wrong": {
-    "The opening drive": "A drive is bought over the first 5-minute bar's high by about 9:40. This one waited for 10:00.",
-    "The Kicker setup": "A Kicker needs a real red day before the gap. Yesterday closed green.",
-    "The second entry": "The second entry comes after a drive, over a pullback's high. No drive fired here."
+    "The opening drive": "A drive is bought over the first 5-minute high, by about 9:40. This one waited till 10:05.",
+    "A Kicker": "A Kicker needs a real red day before the gap. Yesterday closed green.",
+    "The drive's second entry": "The second entry comes after a drive fires. No drive fired here."
    },
    "house": true,
-   "simple": "An ORB, because it waits for the full first half hour and buys after 10:00, while a drive buys by about 9:40.",
+   "simple": "The ORB. It buys the break of the first half hour after 10:00, while a drive is bought by about 9:40.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1715,7 +1738,7 @@
      "the drive-or-ORB tell is a proposed card line tied to held decision D-031"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1723,18 +1746,18 @@
    "rung": 3,
    "format": "tf",
    "criterion": "od.inv_vwap",
-   "q": "If the stock loses VWAP and holds under it before your entry, you still buy at half size.",
+   "q": "Before it triggers, the stock slips under VWAP, the day's average price, and stays there. Taking the drive at half size is still okay.",
    "answer": "False",
-   "why": "False. Losing VWAP and holding under it means the drive has failed. Before the entry, that is no trade, at full size or half. After the entry, it is a warning, and the stop is the exit. Breitstein's VWAP rule points the same way: never be long a stock steadily holding below VWAP unless it capitulates.",
+   "why": "False. That's not a drive anymore, so the right size is zero. VWAP is the average price everyone has paid today, weighted by volume. A stock holding under it means the average buyer today is losing money. Those people sell into any bounce. A drive is the opposite: buyers in charge from the bell. Half size feels careful, but size is for good setups. It doesn't fix a broken one. After you're in, a lost VWAP is only a warning, and the stop does the selling.",
    "lesson_line": "VWAP lost before you buy is a pass. VWAP lost after you buy is a warning.",
    "facts": [
     "c10",
     "b07"
    ],
    "house": true,
-   "simple": "False. A drive that loses VWAP and stays under it before you buy has failed, so there is no trade at any size.",
+   "simple": "False, a drive that loses VWAP before you buy has failed. The right size is zero.",
    "deeper": {
-    "trap": "The trap is treating size as the fix. Half size feels careful, but a drive that lost VWAP before the entry is not a drive. The card makes it a no-trade, so the right size is zero. Size answers how much to risk on a good setup; it never turns a failed one into a good one."
+    "trap": "The trap is treating size as the fix. Half size feels careful, but a drive that lost VWAP before the entry isn't a drive. Lance Breitstein's VWAP rule points the same way: never be long a stock steadily holding below VWAP unless it capitulates."
    },
    "tier": "core",
    "risk": {
@@ -1743,7 +1766,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1751,28 +1774,30 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "od.trim_1",
-   "q": "Your drive is up 2R by noon on the buy day. When does the first sell usually come?",
+   "q": "Your drive is up 2R by noon on the day you bought it. When do you start selling?",
    "choices": [
-    "Right now, at noon on day one",
-    "At the close of the buy day",
-    "Day 3 at the earliest, by judgment",
-    "Whenever the first red candle prints"
+    "Right now, take the 2R",
+    "Into today's close",
+    "Day 3 or later, by judgment",
+    "On the first red 5-minute candle"
    ],
-   "answer": "Day 3 at the earliest, by judgment",
-   "why": "Day 3 at the earliest. The first sell is a judgment, not a fixed level. We very rarely sell on day 1 of the buy and usually wait until day 3. Being up 2R by noon changes nothing: the sale is not a clock or a price.",
-   "lesson_line": "The first sell is a judgment, usually day 3 or later. Rarely day 1.",
+   "answer": "Day 3 or later, by judgment",
+   "why": "Day 3 or later, by judgment. I very rarely sell on the day I buy. The money in a drive comes from the days after. I'm after a 3, 5 or 7 day push, often 5 to 10R. Sell at 2R on day one and you cap your best trades at 2R, while your losers still cost a full 1R. That math doesn't work. So you let it run. Think about moving the stop to breakeven somewhere between 2R and 5R, and pick your first sell into the push.",
+   "lesson_line": "The first sell is a judgment, most often day 3 or later. Rarely day one.",
    "facts": [
     "r05",
     "r06",
-    "r07"
+    "r07",
+    "r08",
+    "h05"
    ],
    "wrong": {
-    "Right now, at noon on day one": "We very rarely sell on day 1 of the buy. Being up 2R is no reason to sell.",
-    "At the close of the buy day": "That is still day 1. There is no time-of-day sale, and we rarely sell on day 1.",
-    "Whenever the first red candle prints": "A red candle is not a sell signal. The first sell is a judgment, usually day 3 or later."
+    "Right now, take the 2R": "That's selling the trade before it can pay. We very rarely sell on day one.",
+    "Into today's close": "Still day one. Up 2R by noon isn't a reason to sell.",
+    "On the first red 5-minute candle": "One red candle is noise, not a sell signal."
    },
    "house": true,
-   "simple": "Day 3 at the earliest, because we very rarely sell on day one and pick the first sell by judgment.",
+   "simple": "Day 3 or later, by judgment. The big money in a drive comes in the days after, not on day one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1780,7 +1805,7 @@
      "rests on the owner's rulebook (B19, E51)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1788,15 +1813,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "od.breakeven",
-   "q": "On a drive, the stop goes to breakeven once the trade is up 1R.",
+   "q": "Your drive is up 1R by 10:15. Time to move the stop up to breakeven.",
    "answer": "False",
-   "why": "False. Our rule moves the stop to breakeven between 2R and 5R, ideally. Up 1R is under that range, so it is too early by our rule.",
-   "lesson_line": "Breakeven comes somewhere from 2R to 5R, not at 1R.",
+   "why": "False. Too early. We move the stop to breakeven somewhere from 2R to 5R, or at the first sell, and even that's a judgment. At 1R your stop is still close to the normal wiggle of the morning. After a strong drive I want to see a pull in on light volume that holds VWAP. A breakeven stop at 1R gets you shaken out on exactly that kind of healthy pullback. Give it room to work first, then protect it.",
+   "lesson_line": "Breakeven comes between 2R and 5R, not at 1R.",
    "facts": [
-    "h05"
+    "h05",
+    "m12"
    ],
    "house": true,
-   "simple": "False, because our rule moves the stop to breakeven somewhere from 2R to 5R, and 1R is below that.",
+   "simple": "False, breakeven comes somewhere from 2R to 5R, or at the first sell. At 1R it's too early.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1804,7 +1830,7 @@
      "rests on the owner's rulebook (B19); the card's 'at the first trim by default' is left to the owner"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1812,16 +1838,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "od.liquidity",
-   "q": "A drive in a $7 stock that trades $12 million a day is fine if the first bar is clean.",
+   "q": "It's a $7 stock trading $12 million a day, and the first 5-minute bar is perfect. You can take this drive.",
    "answer": "False",
-   "why": "False. We trade only stocks at $10 or more that trade at least $20 million a day. A $7 stock trading $12 million a day fails both tests. A clean first bar is a shape; liquidity is a gate that comes first.",
-   "lesson_line": "Liquidity is a gate, not a grade. Under $10 or $20 million a day is out.",
+   "why": "False. We only trade stocks at $10 or more that do at least $20 million a day. This one fails both. A perfect bar doesn't fix that. On a thin name the spread is wide, so your market order fills worse than the chart shows. And when you need out, your stop can slip right through. Liquidity is a gate you check before you ever look at the bar.",
+   "lesson_line": "Liquidity first, chart second. Under $10 or $20 million a day is out.",
    "facts": [
     "h09",
     "c42"
    ],
    "house": true,
-   "simple": "False, because we only trade stocks at $10 or more that trade at least $20 million a day.",
+   "simple": "False, we only trade stocks at $10 or more that do $20 million a day. This one fails both.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1829,7 +1855,7 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1837,7 +1863,7 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "od.trim_1",
-   "q": "Fill 581.57, stop 572.82. Where is 3R?",
+   "q": "Where's 3R on this trade?",
    "answer": "$607.82",
    "calc": {
     "fn": "arith",
@@ -1848,8 +1874,8 @@
     },
     "round": 2
    },
-   "why": "One R is the fill minus the stop. Add three of them to the fill: 581.57 + 3 x (581.57 - 572.82) = 607.82. That is a mark to measure with, not an order to sell. SITM got there at 9:50 the same day.",
-   "lesson_line": "Know your 3R price before the open. It is a mark, and the first sell is a judgment.",
+   "why": "607.82. 581.57 minus 572.82 is 8.75, and that's 1R. Three of those is 26.25. Add it to your fill and 3R is 607.82. Know that number before you need it, but it's a mark, not a sell order. SITM got there at 9:50 the same morning. That's day one, when we very rarely sell. The 3R mark tells you how the trade's going in R, which is how we judge every trade.",
+   "lesson_line": "Know your 3R price before you need it. It's a mark, not a sell order.",
    "facts": [
     "d11",
     "r05",
@@ -1857,9 +1883,9 @@
    ],
    "house": true,
    "prefix": "$",
-   "simple": "607.82, because one R is the fill minus the stop, and 3R adds three of those to the fill.",
+   "simple": "607.82. One R is the fill minus the stop, and 3R adds three of those to the fill.",
    "deeper": {
-    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day, which is day 1, when we very rarely sell. The first sell stays a judgment."
+    "example": "SITM filled at 581.57 with the stop at 572.82. 3R, 607.82, came at 9:50 the same day. That's day one, when we very rarely sell, so the first sell stayed a judgment."
    },
    "tier": "core",
    "risk": {
@@ -1869,7 +1895,7 @@
      "rests on the owner's rulebook (B19)"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$599.07",
     "$607.82",
@@ -1877,11 +1903,11 @@
     "$616.57"
    ],
    "wrong": {
-    "$599.07": "Counted 3R up from the stop, not from the fill.",
-    "$590.32": "Added only one R, one stop distance, to the fill.",
-    "$616.57": "Added four R, counting the fill itself as the first step."
+    "$599.07": "You started from the stop. 3R is measured up from your fill.",
+    "$590.32": "That's only 1R, one stop distance over the fill.",
+    "$616.57": "You added one R too many. Three steps up from the fill, not four."
    },
-   "story": "You bought a drive at 9:35.",
+   "story": "You bought this drive at 9:35. Your fill is 581.57, and the stop sits a few cents under the low of the day at 572.82.",
    "chart": {
     "sym": "SITM",
     "tf": "5",
@@ -1896,17 +1922,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "od.role",
-   "q": "Kullamagi picks the stock on the daily chart first and uses the open only to time the buy.",
+   "q": "Kullamagi finds the stock on the daily chart first. The opening range high only tells him when to buy it.",
    "answer": "True",
-   "why": "True. Kullamagi says to enter on the opening range highs. He also says you can just look at the daily chart and enter when the stock is starting to break out. The setup lives on the daily chart; the open only times the entry. These are his words about his own trades.",
-   "lesson_line": "Pick the stock on the daily chart. The open only times the buy.",
+   "why": "True. He does his work on the daily chart. In his words, just look at the daily chart and enter when the stock is starting to break out. Then he buys the opening range high, with the stop at the low of the day. So the daily is why he's in, and the open is only when. We use the drive the same way, as the entry for a stock already on our list. A great first bar on a stock with nothing on the daily is just noise.",
+   "lesson_line": "Find it on the daily. The open just times the buy.",
    "facts": [
     "k01",
     "k04",
     "u02"
    ],
    "house": true,
-   "simple": "True, because Kullamagi's setup is read on the daily chart, and the opening range high only times his entry.",
+   "simple": "True. His setup lives on the daily chart, and the opening range high just times the buy.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1914,7 +1940,7 @@
      "the drive's role (day-1 timer or day trade) is held decision D-002"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1922,7 +1948,7 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "od.no_chase",
-   "q": "The first 5-minute high is 71.99. You look up and the stock trades 75.00. How far above the high is that?",
+   "q": "The first 5-minute high was 71.99. You get back to your desk and it's trading 75.00. How far past the trigger is it?",
    "answer": "4.18%",
    "calc": {
     "fn": "pct_change",
@@ -1932,8 +1958,8 @@
     },
     "round": 2
    },
-   "why": "Take the move above the high: 75.00 - 71.99 = 3.01. Divide by the high: 3.01 / 71.99 = 4.18%. That is past the 4% line, so the buy point has passed. Use the second entry. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
-   "lesson_line": "Measure the chase before you buy it. Past 4%, the first pullback is the way in.",
+   "why": "4.18%. 75.00 minus 71.99 is 3.01. 3.01 over 71.99 is 4.18%. That's past our 4% line, so I let it go. Your stop is still down under the low of the day. Buying here means a wider stop, and that means fewer shares for the same risk. You'd be paying more for less. Put it on your radar and wait for the second entry, a light pullback that holds VWAP.",
+   "lesson_line": "Measure the chase before you buy it. Past 4%, wait for the pullback.",
    "facts": [
     "c03",
     "h11",
@@ -1941,7 +1967,7 @@
    ],
    "house": true,
    "suffix": "%",
-   "simple": "4.18 percent, which is past our 4 percent line, so the buy point has passed.",
+   "simple": "4.18 percent. That's past the 4 percent line, so you've missed this entry.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1950,7 +1976,7 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "4.18%",
     "4.01%",
@@ -1958,9 +1984,9 @@
     "0.42%"
    ],
    "wrong": {
-    "3.01%": "Stopped at the dollar move and never divided by the high.",
-    "4.01%": "Divided the 3.01 move by the 75.00 price, not by the high.",
-    "0.42%": "Decimal slip: moved the point one place down."
+    "3.01%": "That's the dollar move, 3.01. Divide it by the 71.99 high.",
+    "4.01%": "You divided by 75.00. Measure from the trigger, 71.99.",
+    "0.42%": "Decimal slip. It's over four percent."
    }
   },
   {
@@ -1969,17 +1995,17 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "od.no_chase",
-   "q": "What now?",
-   "story": "You were watching a leader's drive, above its 200-day. You looked away. At 9:41 it is 5% above the first bar's high and still climbing.",
+   "q": "What's the play now?",
+   "story": "You were watching a leader's drive, above its 200-day. You looked away for a few minutes. Now it's 9:41, and the stock is 5% over the first bar's high and still going.",
    "choices": [
-    "Pass; the buy point has passed",
-    "Buy now; the momentum is the proof",
-    "Buy half size to stay involved",
-    "Short it; 5% up is overextended"
+    "Pass, the buy point's gone",
+    "Buy now, momentum's the proof",
+    "Buy half size to stay in it",
+    "Short it, it's overextended"
    ],
-   "answer": "Pass; the buy point has passed",
-   "why": "Pass; the buy point has passed. Never buy more than 4% above the buy point, and this is 5%. Chasing costs size, not risk: the stop stays under the day's low, so the distance grows and the shares shrink. Past 4%, our card says to use the second entry. Shorting is out too: we short only below the 200-day.",
-   "lesson_line": "Missed it means missed it. Past 4%, the next way in is the second entry.",
+   "answer": "Pass, the buy point's gone",
+   "why": "Pass. Our line is 4% past the trigger, and this is 5%. I know it hurts to watch it go. But your stop is still back under the low of the day. At 5% up that's a much wider stop, so fewer shares for the same risk. Shorting it is worse. It's a leader over its 200-day, and one strong morning isn't a parabolic burst. Keep it on your radar and wait for the second entry.",
+   "lesson_line": "Missed it means missed it. Past 4%, the next way in is the pullback.",
    "facts": [
     "c03",
     "c04",
@@ -1990,14 +2016,14 @@
     "h10b"
    ],
    "wrong": {
-    "Buy half size to stay involved": "Half of a chase is still a chase. Chasing costs size, not risk, and the buy point has passed.",
-    "Short it; 5% up is overextended": "Our drive is a long above the 200-day, and we short only below it. One morning's run is not a parabolic burst.",
-    "Buy now; the momentum is the proof": "Past 4% above the first bar's high is a chase. Our rule says never buy more than 4% above the buy point."
+    "Buy now, momentum's the proof": "That's a chase. 5% past the trigger is over our 4% line.",
+    "Buy half size to stay in it": "Half a chase is still a chase. The buy point's gone.",
+    "Short it, it's overextended": "It's a leader over its 200-day. Above the line we only short a parabolic climax, and one morning's run isn't one."
    },
    "house": true,
-   "simple": "Pass, because 5% is past our 4% chase line. Past it, the card's next way in is the second entry.",
+   "simple": "Pass. It's past the 4 percent line, so you wait for the second entry instead of chasing.",
    "deeper": {
-    "trap": "Chasing looks like it only costs a little price. The real cost is size. The stop stays under the day's low, so every cent you chase widens the gap to the stop. That shrinks the shares you can own. Past 4%, the plan is not a smaller chase. It is the second entry."
+    "trap": "Chasing looks like it only costs a little price. The real cost is size. The stop stays under the low of the day, so every cent you chase widens the gap to the stop and shrinks the shares you can own. Past 4%, the plan isn't a smaller chase. It's the second entry."
    },
    "tier": "core",
    "risk": {
@@ -2006,7 +2032,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
@@ -2014,28 +2040,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "od.inv_back_to_open",
-   "q": "Is the drive still on?",
-   "story": "You have not bought yet. The first bar closed green on heavy volume. In the 9:35 bar price trades back under the open, 169.59.",
+   "q": "Do you still want it?",
+   "story": "You're watching, not in yet. The first 5-minute bar closed green on heavy volume. Then, in the 9:35 bar, price trades back under the open at 169.59.",
    "choices": [
-    "Yes; a small dip is just noise",
-    "No; short it under the open",
-    "Yes; take it with a wider stop",
-    "No; it failed the open-test"
+    "Yes, a small dip is just noise",
+    "No, but short it under the open",
+    "Yes, take it with a wider stop",
+    "No, it failed the open test"
    ],
-   "answer": "No; it failed the open-test",
-   "why": "No. Before the entry, a trade back below the open, or below the first 5-minute low, ends it. The card calls that an open-test or a rejection, not a drive: no trade. SMB says it plainly: with an Opening Drive Play we do not let the stock trade back down against us. Any trade under the open is under it. It is not a short either; the card says no trade.",
-   "lesson_line": "A drive does not look back. Under the open before you buy, you pass.",
+   "answer": "No, it failed the open test",
+   "why": "No. A real drive doesn't look back. The whole point is buyers taking it from the bell and never letting it trade back to the open. Once it trades under the open before you've bought, that's an open test, not a drive, and I pass. NVT took out the first bar's high later, at 9:40. Doesn't matter. The test had already failed. It's not a short either. It's just not a trade.",
+   "lesson_line": "A drive doesn't look back. Under the open before you buy, you pass.",
    "facts": [
     "c07",
-    "m06"
+    "m06",
+    "d27"
    ],
    "wrong": {
-    "Yes; take it with a wider stop": "A wider stop only buys more risk on a drive that failed its test.",
-    "No; short it under the open": "The card says no trade. It does not turn a failed open-test into a short.",
-    "Yes; a small dip is just noise": "SMB: we do not let the stock trade back down against us. Under the open is the line crossed."
+    "Yes, a small dip is just noise": "Under the open isn't noise on a drive. That's the line.",
+    "No, but short it under the open": "A failed drive isn't a short setup. It's just no trade.",
+    "Yes, take it with a wider stop": "A wider stop is more risk on a setup that already failed its test."
    },
    "house": true,
-   "simple": "No, because price went back under the open before you bought, and a real drive never does that.",
+   "simple": "No. It traded back under the open before you bought, and a real drive never does that.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2043,13 +2070,16 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "NVT",
     "tf": "5",
     "asof": "2026-10-02 09:35",
     "window": 80,
     "forward": 30
+   },
+   "deeper": {
+    "example": "SMB, the desk that named the play, puts it simply: with an Opening Drive Play we do not let the stock trade back down against us."
    }
   },
   {
@@ -2058,32 +2088,32 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "od.stop_gap",
-   "q": "What do you do?",
-   "story": "You hold a drive, the first stop still in place. Two sessions later the stock gaps open below it, a 1.2R loss so far.",
+   "q": "How do you handle it?",
+   "story": "You hold a drive with your first stop still in place. Two sessions later it gaps open under that stop. At the open you're down 1.2R.",
    "choices": [
-    "Hold; the stop was already passed",
-    "Buy more at the lower gap price",
-    "Make the first 30-minute low the stop",
-    "Sell at the open and book the loss"
+    "Hold, the stop's already passed",
+    "Buy more at the lower price",
+    "First 30-minute low is the new stop",
+    "Sell it all at the open, take the loss"
    ],
-   "answer": "Make the first 30-minute low the stop",
-   "why": "Make the first 30-minute low the new stop. The stop only moves up, with one exception: the gap rule. When the stock gaps against the stop, the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop. The ceiling: if those 30 minutes take the loss past 2R, get out. This open is a 1.2R loss, inside that ceiling. Adding at the lower price is never allowed.",
-   "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide, under a 2R ceiling.",
+   "answer": "First 30-minute low is the new stop",
+   "why": "The low of the first 30 minutes becomes your new stop. It's the one time the stop can end up lower than where it was. A gap doesn't care where your stop sat. You get the open price, not your stop price. So the rule gives the stock 30 minutes to show you whether that open was panic or real selling. The low of that first 30-minute bar is the stop. And there's a ceiling: if those 30 minutes take the loss past 2R, you're out. You're at 1.2R, inside it.",
+   "lesson_line": "A gap through the stop is the one exception. The first 30 minutes decide, with a 2R ceiling.",
    "facts": [
     "h06",
     "h07",
     "h02",
-    "h03b"
+    "aw1"
    ],
    "wrong": {
-    "Hold; the stop was already passed": "There is always a stop. The new one is the first 30-minute low, under a 2R ceiling.",
-    "Buy more at the lower gap price": "Full size at one price with one stop, no adding.",
-    "Sell at the open and book the loss": "The open is a 1.2R loss, inside the 2R ceiling. The gap rule gives it the first 30 minutes."
+    "Hold, the stop's already passed": "There's always a stop. Here it's the first 30-minute low, with a 2R ceiling.",
+    "Buy more at the lower price": "That's adding to a loser. Full size at one price with one stop.",
+    "Sell it all at the open, take the loss": "You're down 1.2R, inside the 2R ceiling. The rule gives it the first 30 minutes."
    },
    "house": true,
-   "simple": "The low of the first 30 minutes becomes the new stop, because a gap through the stop is the gap rule's case.",
+   "simple": "The low of the first 30 minutes is your new stop, and you're out if the loss goes past 2R.",
    "deeper": {
-    "trap": "The trap is reading the gap as proof that the stop failed, so anything goes. The gap rule is narrow. It swaps the stop for the low of the first 30-minute bar and caps the damage at 2R. It never lets you hold with no stop, and it never lets you add at the lower price."
+    "trap": "The trap is reading the gap as proof the stop failed, so anything goes. The gap rule is narrow. It swaps the stop for the low of the first 30-minute bar and caps the damage at 2R. It never lets you hold with no stop, and it never lets you add at the lower price."
    },
    "tier": "core",
    "risk": {
@@ -2092,7 +2122,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q27",
@@ -2100,17 +2130,17 @@
    "rung": 4,
    "format": "tf",
    "criterion": "od.stop_pullback_entry",
-   "q": "On our drive card's second entry, the stop stays under the first bar's low, not the pullback's low.",
+   "q": "You missed the drive and bought the second entry off the first pullback. Your stop still belongs under the first 5-minute bar's low.",
    "answer": "False",
-   "why": "False. Our card makes the pullback entry a new buy with its own stop, a few cents under the pullback's low. SMB also uses the retracement low as the price for the stop. On the card, the stop under the first bar's low is the first entry's stop.",
-   "lesson_line": "On our card, a pullback entry gets its own stop, a few cents under the pullback's low.",
+   "why": "False. The second entry is its own trade, so it gets its own stop, a few cents under the pullback's low. That low is what the pullback is telling you. If it breaks, the pullback failed and you're wrong. The first bar's low could be a long way under you by now. A far stop means a small position for the same risk, on an entry that gave you a much closer line. Tight stop, right size.",
+   "lesson_line": "A pullback entry is a new trade. Its stop goes under the pullback's low.",
    "facts": [
     "c15",
     "m14",
     "c04"
    ],
    "house": true,
-   "simple": "False. The card gives a pullback buy its own stop, a few cents under the pullback's low, not the first bar's low.",
+   "simple": "False. The pullback buy gets its own stop, a few cents under the pullback's low.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2118,7 +2148,10 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "SMB places the stop the same way on the pullback entry: use the retracement high or low as the price for your stop."
+   }
   },
   {
    "key": "q28",
@@ -2126,27 +2159,27 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "od.trail",
-   "q": "Your last shares ride the trail on a fast mover. What takes you out of them?",
+   "q": "You've sold some, and the rest rides the trail on a fast mover. What takes you out of those last shares?",
    "choices": [
-    "A daily close below the 9 EMA",
+    "A daily close under the 9 EMA",
     "A dip under the 9 EMA intraday",
-    "One red candle on the chart",
-    "A close below the 50-day line"
+    "One red candle",
+    "A close under the 50-day"
    ],
-   "answer": "A daily close below the 9 EMA",
-   "why": "A close below the 9 EMA. After the first sells, what is left rides the trail. The default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. It sells on a close below the line, not on a touch and not on one red candle.",
-   "lesson_line": "Trail what is left on a close under the 9 EMA, or the 20 EMA for a steadier stock.",
+   "answer": "A daily close under the 9 EMA",
+   "why": "A daily close under the 9 EMA. That's our trail for a fast mover. The 20 EMA is for the steadier ones. It has to be a close, not a touch. Fast stocks often dip under the 9 during the day and close right back over it. Sell on every touch and you hand away your best winners in a shakeout. A close under the line says the trend actually broke.",
+   "lesson_line": "Trail what's left on a close under the 9 EMA, or the 20 for a steadier one.",
    "facts": [
     "h21",
     "r09"
    ],
    "wrong": {
-    "A close below the 50-day line": "The default is the 9 EMA for fast movers, the 20 EMA for steadier ones.",
-    "One red candle on the chart": "A red candle is not the trail. The trail is a close below the 9 EMA for a fast mover.",
-    "A dip under the 9 EMA intraday": "The trail sells on a close below the line, not a touch."
+    "A dip under the 9 EMA intraday": "A touch isn't a close. Fast movers often dip under the 9 and recover.",
+    "One red candle": "One red candle is noise, not a broken trend.",
+    "A close under the 50-day": "Way too loose for a fast mover. You'd give back a big chunk. The 9 EMA is the line."
    },
    "house": true,
-   "simple": "A close under the 9 EMA ends it. That is our trail for a fast mover, and a touch is not a close.",
+   "simple": "A daily close under the 9 EMA. That's the trail for a fast mover, and a touch doesn't count.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2154,7 +2187,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q29",
@@ -2162,16 +2195,16 @@
    "rung": 4,
    "format": "tf",
    "criterion": "od.time_stop",
-   "q": "A drive still under 1R after ten trading days is sold, to free the money.",
+   "q": "Ten trading days after you bought a drive, it's up only half an R and going nowhere. Time to sell it.",
    "answer": "True",
-   "why": "True. A trade still under 1R after 10 trading days is sold, freeing the money. That is a time stop, and it runs beside the price stop. A drive that is up 1R or more is not sold by it; the trims and the trail manage that one.",
-   "lesson_line": "A drive that has not paid in ten sessions has told you something. Sell and move on.",
+   "why": "True. That's our time stop. Still under 1R after 10 trading days, it goes. A drive is supposed to move. When the buyers at the bell are real, it shows up fast. One that's done nothing for two weeks is tying up money and attention you could put in a stock that's actually working. It runs alongside your price stop. A trade that's up 1R or more stays, and your sells and the trail handle it.",
+   "lesson_line": "A drive that hasn't paid in ten sessions told you something. Sell it and move on.",
    "facts": [
     "h15",
     "c44"
    ],
    "house": true,
-   "simple": "True, because a trade still under 1R after ten trading days is sold so the money can go to work elsewhere.",
+   "simple": "True. Under 1R after 10 trading days, we sell and put the money in something that's working.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2179,7 +2212,7 @@
      "rests on the owner's rulebook (C33)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q30",
@@ -2187,17 +2220,17 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "od.leader",
-   "q": "Take it as one of our drives?",
-   "story": "A clean one-bar drive. The open is 2.2% over the prior day's high, the first bar closes at 90% of its range, and RS is 77.",
+   "q": "Can you take it?",
+   "story": "Clean drive. It opens 2.2% over yesterday's high, the first 5-minute bar closes at 90% of its range, and the RS rating is 77.",
    "choices": [
-    "Pass; RS 77 is not a leader",
-    "Take it; the drive is perfect",
-    "Take it, but at half size",
-    "Pass; a 90% close is stretched"
+    "Pass, RS 77 isn't a leader",
+    "Take it, the drive's perfect",
+    "Take it, but half size",
+    "Pass, a 90% close is stretched"
    ],
-   "answer": "Pass; RS 77 is not a leader",
-   "why": "Pass. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. A rating of 77 is under the line, so a perfect shape does not make it ours. It still reached 3R by 10:40 that day. A trade that works does not change the rule.",
-   "lesson_line": "A drive that works is not always our drive. Under RS 80, I pass.",
+   "answer": "Pass, RS 77 isn't a leader",
+   "why": "Pass. We buy leaders, an RS rating of 80 or more. 77 is close, and close doesn't count. The rating matters because a leader has buyers waiting behind it. And yes, CROX hit 3R by 10:40 that day. That's the hard part. One winner doesn't make it a good trade. Bend the line for the one that worked, and you'll bend it for the next ten that don't.",
+   "lesson_line": "A drive that works isn't always our drive. Under RS 80, I pass.",
    "facts": [
     "d12",
     "d13",
@@ -2206,14 +2239,14 @@
     "c06"
    ],
    "wrong": {
-    "Take it; the drive is perfect": "The shape was perfect and the rank was not. Leaders first, then the shape.",
-    "Take it, but at half size": "Half size is still a buy, and RS 77 is under the line.",
-    "Pass; a 90% close is stretched": "A strong close is fine. The first bar must close above its open; it need not close in its top 30%."
+    "Take it, the drive's perfect": "The shape's perfect, but the stock isn't a leader. Leaders first, then the shape.",
+    "Take it, but half size": "Half size is still a buy, and 77 is under our line.",
+    "Pass, a 90% close is stretched": "A strong close is great. The only problem here is the RS."
    },
    "house": true,
-   "simple": "Pass, because our rule buys only leaders with an RS of 80 or more, and 77 falls short even on a clean drive.",
+   "simple": "Pass. We want an RS rating of 80 or more, and 77 falls short even on a clean drive.",
    "deeper": {
-    "trap": "The trap is outcome bias. This one hit 3R at 10:40 the same day, so the pass looks wrong in hindsight. The rule judges the bet, not one result: an RS of 80 or more is the leader line, and 77 is under it. Judge the decision by the rule you had at 9:35."
+    "trap": "The trap is outcome bias. This one hit 3R at 10:40 the same day, so the pass looks wrong in hindsight. Judge the decision by what you knew at 9:35: an RS rating of 80 or more is the leader line, and 77 is under it."
    },
    "tier": "extended",
    "risk": {
@@ -2223,7 +2256,7 @@
      "fixed before"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "CROX",
     "tf": "5",
@@ -2264,8 +2297,8 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "od.not_stretched",
-   "q": "Which is too stretched to buy?",
-   "story": "Two drives. One fills 9.8% over its 9 EMA. The other fills 12% over its 9 EMA.",
+   "q": "Which one is too stretched to buy?",
+   "story": "Two drives trigger this morning. One fills 9.8% over its 9 EMA. The other fills 12% over its 9 EMA.",
    "choices": [
     "The one 12% over",
     "The one 9.8% over",
@@ -2273,8 +2306,8 @@
     "Neither is too stretched"
    ],
    "answer": "The one 12% over",
-   "why": "The one 12% over. We skip a long that is more than 10% above its 9 EMA. 12% is past that line; 9.8% sits just inside it. A gap on top of a run can be stretched before it opens, so measure at the buy.",
-   "lesson_line": "More than 10% over the 9 EMA is stretched. A gap on top of a run can be stretched before it opens.",
+   "why": "The one 12% over. We skip a long that's more than 10% above its 9 EMA. 12% is past that, and 9.8% is just inside. A stock that far over its short average has already had its move, stretched like a rubber band. Buy it there and you're buying after the move, not at the start of it. Check the gap too. A gap on top of a run can be stretched before the bell, so measure at your buy price.",
+   "lesson_line": "More than 10% over the 9 EMA is too stretched. Measure it at your buy price.",
    "facts": [
     "h13",
     "c26",
@@ -2282,14 +2315,14 @@
     "r09"
    ],
    "wrong": {
-    "The one 9.8% over": "That is inside the 10% line, at the edge. It passes the stretch rule.",
-    "Both are too stretched": "Only the one past 10% fails. 9.8% sits just inside the line.",
-    "Neither is too stretched": "12% is past the 10% line. It is too stretched to buy."
+    "The one 9.8% over": "9.8% is inside the 10% line. Right at the edge, but it passes.",
+    "Both are too stretched": "Only the 12% one is past 10%.",
+    "Neither is too stretched": "12% is past our 10% line. That one is too stretched to buy."
    },
    "house": true,
-   "simple": "The 12% one, because we skip a long that is more than 10% above its 9 EMA.",
+   "simple": "The 12 percent one. We skip a long more than 10 percent over its 9 EMA.",
    "deeper": {
-    "example": "MXL: bought 96.97 at 9:35 with the stop at 93.88. It reached 3R at 3:55 the same day and 5.2R at its best. A run like that does not change the rule. The line is a rule, not a forecast: more than 10% over the 9 EMA is skipped, whatever happens next."
+    "trap": "The trap is the gap. A gap on top of a run can open already stretched, before the drive even triggers. So measure at your fill, not at yesterday's close. More than 10% over the 9 EMA at the buy is a skip, however clean the first bar."
    },
    "tier": "extended",
    "risk": {
@@ -2298,7 +2331,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q33",
@@ -2306,10 +2339,10 @@
    "rung": 5,
    "format": "tf",
    "criterion": "od.not_parabolic",
-   "q": "A euphoric drive on day 3 to 5 of a parabolic burst is a strong long, because momentum peaks then.",
+   "q": "Three straight up days and two gap ups in a row. Today it gaps again and drives on a euphoric open. That's a strong long for us.",
    "answer": "False",
-   "why": "False. On day 3 to 5 of a parabolic burst, a euphoric drive is the short setup, not a long. The burst is a 3-5 day final leg of straight up days and overnight gap ups. Breitstein's exhaustion-gap short ends with just such a euphoric opening drive. This does not make every drive a short: only the climax day of a burst, under the Parabolic Short's own rules.",
-   "lesson_line": "Count the up days. Day 3 to 5 with a euphoric open is a climax, not a buy.",
+   "why": "False. That's a climax, not a buy. Three straight up days with gap ups stacked on top is a parabolic burst, the last leg of a run. A euphoric drive on day 3 to 5 of one is where late buyers pile in. The early ones sell to them. You don't open a new long there. If you're already long from earlier, it's a spot to think about selling into, not buying. And the drive failing from there is a short setup, the Parabolic Short.",
+   "lesson_line": "Count the up days. A euphoric open on day 3 to 5 is a climax, not a buy.",
    "facts": [
     "c16",
     "b05",
@@ -2317,7 +2350,7 @@
     "c17"
    ],
    "house": true,
-   "simple": "False. On day 3 to 5 of a burst, a euphoric drive is the climax and the short setup, not our long.",
+   "simple": "False, a euphoric drive late in a parabolic burst is the climax. We don't buy it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2325,7 +2358,10 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Lance Breitstein's exhaustion-gap short ends on exactly this kind of open: a grand finale, capitulatory exhaustion gap-up day with a euphoric opening drive."
+   }
   },
   {
    "key": "q34",
@@ -2333,16 +2369,16 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "od.second_entry",
-   "q": "You missed the 9:35 trigger. What is the next entry?",
+   "q": "You were on a call at 9:35 and missed the drive's trigger. It's up 6% now. Where's your next way in?",
    "choices": [
-    "Market-on-close if it holds the high",
-    "Tomorrow's open, if it gaps up",
+    "Market-on-close if it holds",
+    "Tomorrow's open, if it gaps up again",
     "A light pullback that holds VWAP",
-    "The next green candle over the open"
+    "Next green candle over the open"
    ],
    "answer": "A light pullback that holds VWAP",
-   "why": "The first pullback on lighter volume that holds above VWAP and above the opening-range high or the open. Buy the break back over the pullback's high, with the stop a few cents under the pullback's low. SMB wants a pull in on light volume and a hold above VWAP. A close, a later open or any green candle is not the entry.",
-   "lesson_line": "Missed the drive, wait for the pullback. Light volume, holds VWAP, buy the break back up.",
+   "why": "A light pullback that holds VWAP. After a strong drive I want to see it rest. That's a pullback on lighter volume that holds above VWAP and the opening range high or the open. Then you buy the break back over the pullback's high, with the stop a few cents under the pullback's low. Lighter volume on the dip means nobody's rushing for the exits. The buyers from the bell are still there.",
+   "lesson_line": "Missed the drive, wait for the light pullback that holds VWAP, then buy the break.",
    "facts": [
     "c14",
     "c15",
@@ -2350,12 +2386,12 @@
     "u01"
    ],
    "wrong": {
-    "Market-on-close if it holds the high": "The card has no close entry. The second entry is the pullback break.",
-    "Tomorrow's open, if it gaps up": "The drive is a morning entry. The second entry is the pullback that holds, not a later open.",
-    "The next green candle over the open": "A green candle is not a level. The second entry needs a pullback that holds."
+    "Market-on-close if it holds": "A close isn't a trigger. The second entry is the pullback break.",
+    "Tomorrow's open, if it gaps up again": "That's a new day and a new setup. Today's way in is the pullback.",
+    "Next green candle over the open": "A green candle isn't a level. You need a pullback that holds, then its break."
    },
    "house": true,
-   "simple": "The first pullback on light volume that holds VWAP, bought when price breaks back over that pullback's high.",
+   "simple": "A light pullback that holds VWAP. You buy when price breaks back over that pullback's high.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2364,7 +2400,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q35",
@@ -2372,10 +2408,10 @@
    "rung": 5,
    "format": "tf",
    "criterion": "od.group_move",
-   "q": "A strong group gapping together is a cue that grades a drive higher.",
+   "q": "Software leaders gap up together this morning. A drive in one of them grades higher than the same drive in a stock gapping on its own.",
    "answer": "True",
-   "why": "True. Our card lists a strong group gapping together, and big news days when many stocks are in play, as cues. Its A+ marks include a Green market with a broad gap, strong breadth and the group moving together. Software did it on 2026-09-14: CRWD, OKTA and FTNT. A cue lifts the grade. It never replaces a rule. Grading stays a judgment call, with no fixed checklist taught as ours.",
-   "lesson_line": "One name is a story; a whole group is a tide. Grade the drive up.",
+   "why": "True. When a whole group gaps together, it's not one company's news. Money is moving into the theme, and that tide lifts the names in it. A drive with its group behind it has more buyers than one doing it alone. We saw it with CRWD, OKTA and FTNT, all software, on 2026-09-14. It's a plus that raises the grade. It never replaces the rules: still a leader, still the stop under the low of the day. And grading is a judgment call, not a checklist.",
+   "lesson_line": "One name is a story. A whole group is a tide. That raises the grade.",
    "facts": [
     "c22",
     "c40",
@@ -2383,7 +2419,7 @@
     "h31"
    ],
    "house": true,
-   "simple": "True. When a strong group gaps up together, the drive has a better backdrop, so it grades higher.",
+   "simple": "True. A group gapping together means money is moving into the theme, and that raises the grade.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2391,7 +2427,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q36",
@@ -2399,16 +2435,16 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "od.volume_a_plus",
-   "q": "Two drives on the same daily setup. Which grades higher?",
+   "q": "Two drives on the same daily setup. One trades its full average day's volume by 9:45. The other's first bar is normal. Which grades higher?",
    "choices": [
-    "One at a full day's volume by 9:45",
-    "One on average first-bar volume",
-    "Same; the setup is identical",
-    "One whose first bar closes high"
+    "The one with a full day by 9:45",
+    "The normal-volume one",
+    "Same grade, same setup",
+    "Whichever first bar closes higher"
    ],
-   "answer": "One at a full day's volume by 9:45",
-   "why": "The one that trades its average daily volume by 9:45, the first 15 minutes. That is an A+ mark: the average daily volume within the first 15 to 30 minutes, or a first 5-minute bar at 4 times its average or more. Kullamagi says the best ones often trade their average daily volume in the first 15 to 30 minutes. The same daily setup does not make two drives equal. Volume raises the grade for us; it is not a requirement.",
-   "lesson_line": "A stock that trades a full day's average volume before 9:45 is in play.",
+   "answer": "The one with a full day by 9:45",
+   "why": "The one that's traded a full day's volume by 9:45. That stock is in play. Something real is going on, and big money is moving in at the open, all at once. Volume raises the grade. It doesn't make or break the setup. But when I have two drives and room for one, I take the one the market is paying attention to.",
+   "lesson_line": "When a stock trades a full day's volume in the first minutes, it's in play.",
    "facts": [
     "c13",
     "k03",
@@ -2417,12 +2453,12 @@
     "r01"
    ],
    "wrong": {
-    "One on average first-bar volume": "Average volume in the first bar earns no bonus. Heavier volume raises the grade.",
-    "Same; the setup is identical": "Volume grades the drive. Our card marks the heavy one A+.",
-    "One whose first bar closes high": "Where the first bar closes is not the A+ mark. A drive may even dip in the first minute; volume grades it."
+    "The normal-volume one": "Normal volume isn't a problem, but it's not the one I'd pick. Heavy early volume raises the grade.",
+    "Same grade, same setup": "Same daily setup, different morning. Volume grades the drive.",
+    "Whichever first bar closes higher": "Where the bar closes isn't the tell here. A drive can even dip first. Volume grades it."
    },
    "house": true,
-   "simple": "The one that trades a full day's average volume by 9:45, because that early crowd is our A+ volume mark.",
+   "simple": "The one with a full day's volume by 9:45. That stock is in play, and volume raises the grade.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2431,7 +2467,10 @@
      "fixed before"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Kullamagi has seen the same thing on his gap plays: many times the best ones have traded their average daily volume in the first 15 to 30 minutes after the open."
+   }
   },
   {
    "key": "q37",
@@ -2439,7 +2478,7 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "od.stop",
-   "q": "Account 100,000. Risk 0.4%. Fill 208.00, stop 205.66. How many shares?",
+   "q": "How many shares?",
    "answer": "170 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2451,7 +2490,7 @@
     },
     "round": 0
    },
-   "why": "Dollars at risk are the account times the risk: 100,000 x 0.4% = 400. Divide by the stop distance: 400 / (208.00 - 205.66) is just over 170, so round down to 170. Then cap it: the size is the smaller of the risk-based size and the position cap. The stop sets the size, never the other way round. These are SANM's real fill and stop.",
+   "why": "170 shares. 0.4% of 100,000 is $400 at risk. 208.00 minus 205.66 is 2.34 a share. 400 over 2.34 is 170.94, so round down to 170. Then check it against the position cap. The size is the smaller of the two, and here the risk math is the smaller one. Stop first, distance second, size last. You never pick a size and then squeeze the stop to fit it. These are SANM's real fill and stop.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2459,9 +2498,9 @@
    ],
    "house": true,
    "suffix": " shares",
-   "simple": "170 shares, because the dollars you risk divided by the fill minus the stop gives 170, rounded down.",
+   "simple": "170 shares. Dollars at risk divided by the fill minus the stop, rounded down.",
    "deeper": {
-    "trap": "The trap is the tight stop. A drive's stop under the first bar is often close, so at a higher risk percent the risk-based size grows past the position cap. Then the cap wins: the size is the smaller of the two. A tight stop never earns a bigger position than the cap."
+    "trap": "The trap is the tight stop. A drive's stop under the first bar is often close, so at a higher risk the risk-based size can grow past the position cap. Then the cap wins: the size is the smaller of the two. A tight stop never earns a bigger position than the cap."
    },
    "tier": "extended",
    "risk": {
@@ -2472,7 +2511,7 @@
      "fixed before"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "400 shares",
     "1,709 shares",
@@ -2480,11 +2519,11 @@
     "170 shares"
    ],
    "wrong": {
-    "1,709 shares": "Risked four percent instead of 0.4%, ten times the dollars.",
-    "400 shares": "Never divided the 400 dollars by the stop distance.",
-    "133 shares": "Rounded the stop down to a whole dollar first, which widened the stop distance."
+    "1,709 shares": "You slipped the decimal on the risk. That's ten times the money.",
+    "400 shares": "400 is the dollars at risk, not shares. Divide by the 2.34 stop.",
+    "133 shares": "You rounded the stop to a whole dollar first, which made the stop look wider than it is."
    },
-   "story": "You bought a drive at 9:35.",
+   "story": "You bought this drive at 9:35. Fill 208.00, stop a few cents under the low of the day at 205.66. The account is 100,000, and you're risking 0.4%.",
    "chart": {
     "sym": "SANM",
     "tf": "5",
@@ -2503,16 +2542,16 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "od.stop_width",
-   "q": "What do you do?",
-   "story": "A real drive, but the first bar is 3.6% tall. The honest stop is 3.53% under the 445.63 fill.",
+   "q": "How do you play it?",
+   "story": "A real drive on a leader. The first 5-minute bar was 3.6% tall. So the honest stop under the low of the day sits 3.53% below your 445.63 fill.",
    "choices": [
-    "Buy full size; it is a real drive",
-    "Set a mental stop, not an order",
-    "Let the stop set the size, or skip it",
-    "Tighten the stop to keep shares"
+    "Full size, it's a real drive",
+    "Use a mental stop, not an order",
+    "Let the stop set the size",
+    "Tighten the stop, keep the shares"
    ],
-   "answer": "Let the stop set the size, or skip it",
-   "why": "Let the stop set the size, or skip. The stop comes first, a few cents under the day's low, and the size comes from it. WDC's stop sat 3.53% under the 445.63 fill because its first bar was 3.6% tall. We accept up to 5%, so this is a good stop. A wider stop means fewer shares at the same risk. Past 5%, we mostly wait for a tighter trigger. Never tighten the stop to keep shares.",
+   "answer": "Let the stop set the size",
+   "why": "Let the stop set the size. The stop goes where the chart says, a few cents under the low of the day, and here that's 3.53% away. That's wider than the 1 to 3% I like, but it's fine. I'll go up to 5%. A wider stop just means fewer shares for the same dollar risk. Never pull the stop up inside the first bar to keep your share count. That puts your stop in the noise, where it gets hit for no reason. WDC's first bar was just tall.",
    "lesson_line": "The honest stop sets the size. Past 5%, wait for a tighter trigger.",
    "facts": [
     "d29",
@@ -2524,14 +2563,14 @@
     "r02"
    ],
    "wrong": {
-    "Buy full size; it is a real drive": "Full size on a wide stop risks more than planned. The stop sets the size.",
-    "Set a mental stop, not an order": "Every position has a real stop order with the broker, not a stop kept in your head.",
-    "Tighten the stop to keep shares": "A tight stop is not a free stop. The stop belongs under the day's low."
+    "Full size, it's a real drive": "Full size on a wider stop risks more than you planned. The stop sets the size.",
+    "Use a mental stop, not an order": "Every position gets a real stop order with the broker. A stop in your head isn't a stop.",
+    "Tighten the stop, keep the shares": "That puts the stop inside the bar's noise. The stop belongs under the low of the day."
    },
    "house": true,
-   "simple": "Let the honest stop set the size, and skip only if the stop is too wide for your risk.",
+   "simple": "Let the honest stop set the size. A wider stop just means fewer shares.",
    "deeper": {
-    "trap": "The trap is the tight stop. A stop moved up inside the first bar looks safer and keeps the share count. But a tight stop is not a free stop. The stop belongs a few cents under the day's low. The size bends to the stop, never the other way."
+    "trap": "The trap is the tight stop. A stop moved up inside the first bar looks safer and keeps the share count. But the stop belongs a few cents under the low of the day. The size bends to the stop, never the other way."
    },
    "tier": "extended",
    "risk": {
@@ -2541,7 +2580,7 @@
      "stop width is a held decision (D-005)"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "WDC",
     "tf": "5",
@@ -2556,30 +2595,32 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "od.trim_1",
-   "q": "What is the honest lesson from CNC?",
-   "story": "You bought CNC's drive at 72.00, stop 70.16. On day 2 at 9:35 it prints 3R, 77.52, and tops there. Two days later it falls back to the old stop.",
+   "q": "Looking back, what's the honest takeaway?",
+   "story": "You bought CNC's drive at 72.00 with the stop at 70.16. The next morning at 9:35 it tags 3R, 77.52, and that's the top. Two days later it's back at your stop.",
    "choices": [
-    "The first sell is a judgment, not a rule",
-    "A third at 3R is the rule; we missed it",
-    "The stop was too tight for a drive",
-    "Sell everything at the first 3R touch"
+    "The first sell is a judgment call",
+    "We missed the rule, a third at 3R",
+    "The stop was too tight",
+    "Always sell it all at 3R"
    ],
-   "answer": "The first sell is a judgment, not a rule",
-   "why": "The first sell is a judgment, not a rule. We very rarely sell on day 1 and usually wait until day 3 at the earliest. CNC's 3R came on day 2, and a hold gave the move back. That is the cost of judging, not a broken rule. This is our plan laid on the scan's prices, not a simulated trade.",
-   "lesson_line": "A 3R print on day 2 is not a sell order. The first sell is a judgment.",
+   "answer": "The first sell is a judgment call",
+   "why": "The first sell is a judgment call. There's no fixed third at 3R. I very rarely sell on day one, and I'd rather wait for day 3 or later. I'm after a 3, 5 or 7 day push, because that's where the big winners pay. CNC topped on day 2, before any of that. Sometimes that's the cost of holding for the bigger move. What protects you is the stop. It can move to breakeven between 2R and 5R. Make that call here and CNC is a scratch, not a full loss.",
+   "lesson_line": "A 3R print on day 2 isn't a sell order. The first sell is a judgment.",
    "facts": [
     "d08",
     "r05",
     "r06",
-    "r07"
+    "r07",
+    "r08",
+    "h05"
    ],
    "wrong": {
-    "A third at 3R is the rule; we missed it": "There is no fixed third at 3R. The first sell is a judgment, usually day 3 or later.",
-    "The stop was too tight for a drive": "The stop sat under the day's low, where the rule puts it. Nothing about it was too tight.",
-    "Sell everything at the first 3R touch": "Selling it all at one price is not our plan. We sell in parts, by judgment."
+    "We missed the rule, a third at 3R": "There's no fixed third at 3R. The first sell is a judgment.",
+    "The stop was too tight": "The stop sat under the low of the day, right where it belongs.",
+    "Always sell it all at 3R": "Selling everything at 3R caps every winner at 3R. We sell in parts, by judgment."
    },
    "house": true,
-   "simple": "The first sell is a judgment, not a fixed rule, and CNC gave back the move because the hold was a judgment call.",
+   "simple": "The first sell is a judgment. Holding for the bigger push means sometimes you give one back.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2588,7 +2629,7 @@
      "fixed before (flagged-question fix 2026-11-11)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q40",
@@ -2596,29 +2637,29 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "od.day1_close_check",
-   "q": "What do our rules say?",
-   "story": "You bought a drive at 9:35. It closes at 24% of its range, still above your stop.",
+   "q": "What's that close telling you?",
+   "story": "You bought a drive at 9:35. By the close it has faded hard and finishes at 24% of the day's range, still above your stop.",
    "choices": [
-    "A warning; the stop is the exit",
-    "Sell at the close to be safe",
+    "A warning, the stop is the exit",
+    "Sell into the close to play it safe",
     "Sell it at the open tomorrow",
     "Hold and add on the next dip"
    ],
-   "answer": "A warning; the stop is the exit",
-   "why": "A warning; the stop is the exit. A drive day that closes below its open or in the bottom third of its range has failed. 24% is in the bottom third. But the stop is the exit, and it only moves up, never down or wider. No rule adds a sale at the close or the next open. Adding is out too.",
+   "answer": "A warning, the stop is the exit",
+   "why": "It's a warning. The stop is still the exit. A drive day that closes in the bottom third of its range, or under its open, is a drive that failed. 24% is in the bottom third, so I don't like it. But we don't add an exit we never planned. The stop is already in with the broker. If the stock really is done, it'll get hit and you lose what you planned. Selling on feel turns a plan into a guess. Just don't add to it, and don't widen anything.",
    "lesson_line": "A weak close is a warning, not an order. The stop is the exit.",
    "facts": [
     "c11",
     "h02",
-    "h03b"
+    "aw1"
    ],
    "wrong": {
-    "Sell at the close to be safe": "That adds an exit we do not have. The stop is the only exit.",
-    "Hold and add on the next dip": "Full size at one price with one stop, no adding.",
-    "Sell it at the open tomorrow": "Same mistake, a day later. The stop is the only exit."
+    "Hold and add on the next dip": "Not into a warning. Full size at one price with one stop.",
+    "Sell it at the open tomorrow": "Same mistake, a day later. The stop does the selling.",
+    "Sell into the close to play it safe": "That's an exit we don't have. The stop is the exit."
    },
    "house": true,
-   "simple": "It is only a warning, because a weak close does not trigger a sale, and the stop stays the one exit.",
+   "simple": "It's a warning, not a sale. The stop you set is still the exit.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -2630,7 +2671,7 @@
    "depends_on": [
     "D-136"
    ],
-   "batch": "wave5"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q41",
@@ -2638,16 +2679,16 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "od.first_bar_green",
-   "q": "Does that bar fit a drive?",
+   "q": "Does that bar still count as a drive?",
    "choices": [
-    "No; any first-bar dip kills a drive",
-    "Yes; an early dip is allowed",
-    "No; it must close in the top 30%",
-    "Yes; the 5.7x volume overrides it"
+    "No, any first-bar dip kills it",
+    "Yes, an early dip is allowed",
+    "No, it has to close near the high",
+    "Yes, the 5.7x volume covers it"
    ],
-   "answer": "Yes; an early dip is allowed",
-   "why": "Yes. The first 5-minute bar must close above its open, and price must not trade back to the open before the entry. It need not close in its top 30%: a drive may dip in the first minute. This bar dipped, closed green at 63% of its range and held the day's low. Nothing here needed a volume override.",
-   "lesson_line": "Green bar, no trade back to the open. A first-minute dip does not break a drive.",
+   "answer": "Yes, an early dip is allowed",
+   "why": "Yes. What makes a drive is a green first bar and no trade back to the open before you buy. A dip in the first minute is fine. This bar dipped, came back, closed green at 63% of its range, and held the low of the day. That low is the one you'll stop under. It didn't need the 5.7x volume to pass. The volume just raises the grade. LRCX went on to 16.8R at its best.",
+   "lesson_line": "Green bar, no trade back to the open. A first-minute dip doesn't break a drive.",
    "facts": [
     "c06",
     "d03",
@@ -2655,12 +2696,12 @@
     "d01"
    ],
    "wrong": {
-    "No; it must close in the top 30%": "The card says the first bar need not close in its top 30%.",
-    "No; any first-bar dip kills a drive": "A drive may dip in the first minute. What kills it is trading back to the open before the entry.",
-    "Yes; the 5.7x volume overrides it": "No override is needed. The card itself allows a first-minute dip and a close under the top 30%."
+    "No, any first-bar dip kills it": "A dip in the first minute is fine. Trading back to the open before you buy is what kills it.",
+    "No, it has to close near the high": "It just has to close green. A drive can dip first.",
+    "Yes, the 5.7x volume covers it": "Nothing needed covering. The bar passed on its own, and the volume only raises the grade."
    },
    "house": true,
-   "simple": "Yes, because a drive's first bar must close green, and a dip in the first minute is allowed.",
+   "simple": "Yes. The first bar has to close green, and a quick dip at the open is allowed.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2668,8 +2709,8 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
-   "story": "A leader gaps up. The first 5-minute bar dipped, then closed green at 63% of its range on 5.7x volume.",
+   "batch": "voice-8-2026-11-17",
+   "story": "A leader gaps up. The first 5-minute bar dips first, then closes green at 63% of its range on 5.7x volume.",
    "chart": {
     "sym": "LRCX",
     "tf": "5",
@@ -2684,19 +2725,20 @@
    "rung": 6,
    "format": "tf",
    "criterion": "od.trim_2",
-   "q": "Our plan sells exactly a third at 3R every time, whatever the stock does.",
+   "q": "Your drive hits 3R at 10:20 on the day you bought it. The plan says sell a third right there.",
    "answer": "False",
-   "why": "False. The first sell is a judgment, not a fixed third at 3R. We very rarely sell on day 1 and usually wait until day 3. A 3, 5 or 7 day push, or about 5 to 10R, is often best. What is left trails.",
-   "lesson_line": "No fixed third at 3R. The first sell is a judgment, then the rest trails.",
+   "why": "False. There's no fixed third at 3R. The first sell is a judgment. I very rarely sell on day one, because the push I'm after takes days. Think a 3, 5 or 7 day run, or about 5 to 10R. Selling a third at 3R on the first morning trims your winner right when it's proving itself. Let it work. Think about breakeven between 2R and 5R, and sell into the push. What's left rides the trail.",
+   "lesson_line": "No fixed third at 3R. Sell into the push, then trail the rest.",
    "facts": [
     "r05",
     "r06",
     "r07",
     "r08",
-    "h21"
+    "h21",
+    "h05"
    ],
    "house": true,
-   "simple": "False, because the first sell is a judgment and not a set third at 3R.",
+   "simple": "False. The first sell is a judgment, and we very rarely sell on day one.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2704,7 +2746,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q43",
@@ -2712,17 +2754,17 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "od.nasdaq_trend",
-   "q": "What does that do for a drive?",
-   "story": "The Nasdaq is trending above a rising 10 and 20-day average, and breadth is strong at the open on a broad gap-up.",
+   "q": "What does that mean for today's drives?",
+   "story": "The Nasdaq is in a clean uptrend over its rising short-term averages. This morning the whole market gaps up, and breadth is strong at the open.",
    "choices": [
-    "It makes the drive rules optional",
-    "It means skip drives for the day",
-    "It lifts the grade of today's drives",
-    "It means today's drives will work"
+    "The rules are optional today",
+    "Skip drives, it's too hot",
+    "It raises their grade",
+    "Today's drives will work"
    ],
-   "answer": "It lifts the grade of today's drives",
-   "why": "It lifts the grade. The card lists a cue: the Nasdaq trending above its rising 10 and 20-day averages. Strong breadth at the open on a broad gap-up goes with it. It is the simple test Kullamagi made well known. The card's A+ marks include a Green market with a broad gap and strong breadth. A cue raises the grade. It never loosens a rule, and it promises nothing: four in ten strict drives were stopped on the drive day.",
-   "lesson_line": "A good market lifts the grade. It never loosens a rule.",
+   "answer": "It raises their grade",
+   "why": "It raises the grade. A drive is a bet that buyers keep coming after the bell. When the whole market is trending and gapping up with strong breadth, they're more likely to. You've got a tailwind. But it's a tailwind, not a promise. Every rule still applies, and the stop goes in the same place. Plenty of drives still fail on good days. In our scan, four in ten strict drives were stopped on the drive day.",
+   "lesson_line": "A good market raises the grade. It never loosens a rule.",
    "facts": [
     "c21",
     "u04",
@@ -2730,12 +2772,12 @@
     "c28"
    ],
    "wrong": {
-    "It makes the drive rules optional": "A cue grades; it does not loosen a rule. Every rule still applies.",
-    "It means skip drives for the day": "That is the best backdrop for a drive, not a reason to skip.",
-    "It means today's drives will work": "A cue is not a promise. Four in ten strict drives were stopped on the drive day; the stop still decides."
+    "The rules are optional today": "A good market never loosens a rule. Every rule still applies.",
+    "Skip drives, it's too hot": "That's the best backdrop a drive can get. No reason to sit out.",
+    "Today's drives will work": "Nothing promises that. In our scan four in ten strict drives were stopped the same day."
    },
    "house": true,
-   "simple": "It lifts the grade, because a strong market is a good backdrop, but every rule still applies.",
+   "simple": "It raises the grade. A strong market is a tailwind, but every rule still applies.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2743,7 +2785,10 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "The simple version of this market test was made well known by Kullamagi: the Nasdaq trending higher above a rising 10 and 20 period moving average."
+   }
   },
   {
    "key": "q44",
@@ -2781,17 +2826,17 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "od.gap_floor",
-   "q": "Whose rules apply?",
-   "story": "A leader in a base gaps up 4.7% after an up day. Its first bar closes green on heavy volume, and price trades through its high. There is no named catalyst, and the name is not neglected.",
+   "q": "Which setup are you trading?",
+   "story": "A leader sitting in a base gaps up 4.7% after a green day. There's no news you can find, and everybody already watches it. The first 5-minute bar closes green on heavy volume, and price trades through its high.",
    "choices": [
-    "The opening drive's",
-    "Episodic Pivot's",
-    "The Kicker setup's",
-    "Parabolic Short's"
+    "The opening drive",
+    "An Episodic Pivot",
+    "A Kicker",
+    "A Parabolic Short"
    ],
-   "answer": "The opening drive's",
-   "why": "The opening drive's. Measure the gap and name the news. An EP needs a gap of 10% or more on a named catalyst in a neglected name. This is 4.7%, with no catalyst, in a name that is not neglected. A Kicker needs a real red day before the gap; the day before was up. A Parabolic Short needs day 3 to 5 of a burst, not a base. With none of those, the drive's rules apply.",
-   "lesson_line": "Measure the gap and name the news. An EP needs 10% or more on a named catalyst in a neglected name.",
+   "answer": "The opening drive",
+   "why": "The opening drive. Name the setup before you size it, because each one has its own rules. An EP, an Episodic Pivot, is a big gap on real news in a stock nobody was paying attention to. This has no news, and everyone knows the name. A Kicker needs a real red day before the gap, and yesterday was green. A Parabolic Short needs a burst of straight up days, not a quiet base. None of those fit. So it's a drive, and you trade it like one.",
+   "lesson_line": "Name the setup before you trade it. No news, no red day, no burst: it's a drive.",
    "facts": [
     "c36",
     "c34",
@@ -2799,14 +2844,14 @@
     "c16"
    ],
    "wrong": {
-    "Episodic Pivot's": "An EP needs a gap of 10% or more on a named catalyst in a neglected name. 4.7% with no news is not that.",
-    "The Kicker setup's": "A Kicker needs a real red day before the gap. The day before this gap was up.",
-    "Parabolic Short's": "That needs day 3 to 5 of a parabolic burst. This stock gapped out of a base, not a burst."
+    "An Episodic Pivot": "An EP needs real news on a neglected name. This one has neither.",
+    "A Kicker": "A Kicker needs a red day before the gap. Yesterday was green.",
+    "A Parabolic Short": "That needs a parabolic burst. This stock gapped out of a quiet base."
    },
    "house": true,
-   "simple": "The drive's: under 10% with no news is not an EP, and an up day before is not a Kicker.",
+   "simple": "The opening drive. No news means no EP, and a green day before means no Kicker.",
    "deeper": {
-    "trap": "The trap is the size of the gap. A big gap on heavy volume looks like an EP. But the EP's tests are a gap of 10% or more, a named catalyst and a neglected name. Miss any one and it is not an EP. Here no EP, Kicker or burst fits, so the drive's rules read it."
+    "trap": "The trap is the size of the gap. A big gap on heavy volume can look like an EP. But an EP is real news in a neglected name. Miss either and it's not one. Here no EP, Kicker or burst fits, so the drive's rules read it."
    },
    "tier": "extended",
    "risk": {
@@ -2819,7 +2864,7 @@
    "depends_on": [
     "D-134"
    ],
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q46",
@@ -2827,30 +2872,30 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "od.role",
-   "q": "Whose rules win?",
-   "story": "A Kicker is on the focus list: a real red day, then a gap up. The stock drives straight up from the 9:30 bell.",
+   "q": "Whose rules do you trade it by?",
+   "story": "A Kicker is on your focus list: a real red day yesterday, and this morning it gaps up. It drives straight up from the 9:30 bell.",
    "choices": [
-    "The drive's, with the day's-low stop",
-    "Neither; two setups means skip",
-    "The Kicker's, with its own stop rule",
-    "Whichever gives the tighter stop"
+    "The drive's, stop at the low of day",
+    "Neither, two setups means skip",
+    "The Kicker's, stop rule included",
+    "Whichever stop is tighter"
    ],
-   "answer": "The Kicker's, with its own stop rule",
-   "why": "The Kicker's, with its own stop rule. A Kicker needs a real red day before the gap and buys over that day's high or the 30-minute range. A drive has no red-day rule and buys the 5-minute high. A Kicker that drives from the bell is both, and the card says the Kicker's rules win, its stop rule included. It is still a valid trade, not a skip.",
-   "lesson_line": "When two setups fit, the Kicker's rules win. Its stop rule comes first.",
+   "answer": "The Kicker's, stop rule included",
+   "why": "The Kicker's, stop rule and all. A Kicker that drives from the bell is both setups at once, and when that happens the Kicker's rules win. It's on your list as a Kicker. That's the plan you wrote before the open, and the plan you wrote is the one you trade. Don't shop between the two for the stop you like better. And it's no reason to skip. Two setups lining up on one stock is a good thing.",
+   "lesson_line": "When a Kicker drives, the Kicker's rules win, stop rule included.",
    "facts": [
     "c37",
     "c38"
    ],
    "wrong": {
-    "The drive's, with the day's-low stop": "The Kicker's rules win when it drives from the bell, stop rule included.",
-    "Neither; two setups means skip": "A Kicker that drives is a valid trade. It just follows the Kicker's rules.",
-    "Whichever gives the tighter stop": "The card does not pick by stop width. A Kicker that drives from the bell follows the Kicker's rules."
+    "The drive's, stop at the low of day": "When a Kicker drives, the Kicker's rules win, its stop rule included.",
+    "Neither, two setups means skip": "Two setups agreeing isn't a reason to skip. Trade it as the Kicker.",
+    "Whichever stop is tighter": "Picking the stop you like best is how plans fall apart. The Kicker's rules decide."
    },
    "house": true,
-   "simple": "The Kicker's rules win, because the card says a Kicker that drives from the bell follows the Kicker's rules.",
+   "simple": "The Kicker's rules. When a Kicker drives from the bell, the Kicker's plan is the one you trade.",
    "deeper": {
-    "trap": "The trap is using the drive's stop because the drive came first. When a Kicker drives from the bell, the Kicker's rules win. So the plan carries the Kicker's own stop rule, not only the drive's stop under the day's low."
+    "trap": "The trap is using the drive's stop because the drive came first. When a Kicker drives from the bell, the Kicker's rules win. So the plan carries the Kicker's own stop rule, not just the drive's stop under the low of the day."
    },
    "tier": "extended",
    "risk": {
@@ -2860,7 +2905,7 @@
      "the setup's role is a held decision (D-002)"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q47",
@@ -2897,16 +2942,16 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "od.not_ours",
-   "q": "Your view?",
-   "story": "A leader above its 200-day gaps up and climbs at a steady slope. The candles shrink and price hugs its short-term average. A friend wants to short the strength.",
+   "q": "What do you tell him?",
+   "story": "A leader above its 200-day gaps up and climbs at a steady slope. The candles get smaller and price hugs its short-term average. A friend wants to short the strength.",
    "choices": [
-    "Do not fade it; let it run",
+    "Don't fade it, let it run",
     "Short the first red candle",
-    "Short at the first bar's high",
-    "Wait; short it if it loses VWAP"
+    "Short it at the first bar's high",
+    "Short it if it loses VWAP"
    ],
-   "answer": "Do not fade it; let it run",
-   "why": "Do not fade it. Breitstein's marks of a steady drive: the slope is consistent, about a 1:1 angle upward, and candle size contracts over time. Of such a drive he wrote that there was no logical short setup, and losses from fighting this trend were entirely avoidable. Our card lists fading a steady drive as a mistake. And we short only below the 200-day, so this drive is no short for us.",
+   "answer": "Don't fade it, let it run",
+   "why": "Don't fade it. Look at what the chart is saying. Steady slope, candles getting smaller, price hugging its short average. That's a calm, strong trend, not a stock running out of gas. Sellers aren't showing up anywhere. Shorting that is stepping in front of it, and those losses are completely avoidable. We don't short a stock above its 200-day unless it's parabolic, and this isn't. If anything, that's the kind of open you want to be long.",
    "lesson_line": "A steady drive is a trend to respect. Fading it is the avoidable loss.",
    "facts": [
     "c29",
@@ -2917,14 +2962,14 @@
     "c16"
    ],
    "wrong": {
-    "Short the first red candle": "Fading a steady drive is the mistake the card names. Breitstein saw no logical short in one.",
-    "Short at the first bar's high": "That is where the drive buys. Selling there fights the trend.",
-    "Wait; short it if it loses VWAP": "We short only below the 200-day, unless it is a parabolic short. This steady drive is neither."
+    "Short the first red candle": "One red candle in a steady trend is a breather, not a top.",
+    "Short it at the first bar's high": "That's where we'd buy it. Selling there is fighting the trend.",
+    "Short it if it loses VWAP": "We don't short above the 200-day unless it's parabolic. This one's a steady leader."
    },
    "house": true,
-   "simple": "Do not short it. A steady climb with shrinking candles is a trend, and fighting it is an avoidable loss.",
+   "simple": "Don't short it. A steady climb with shrinking candles is a strong trend, and fighting that trend costs you for nothing.",
    "deeper": {
-    "trap": "The trap is reading a steady climb as too far, too fast. Breitstein's point is the reverse: in such a drive there was no logical short setup. The card treats the euphoric drive as the short, and only on day 3 to 5 of a parabolic burst. Even then it runs under the Parabolic Short's rules."
+    "trap": "Lance Breitstein's marks of a steady drive: the slope is consistent, about a 1:1 angle upward, and candle size contracts over time. Of one such drive he wrote there was no logical short setup, and losses from fighting this trend were entirely avoidable."
    },
    "tier": "extended",
    "risk": {
@@ -2933,7 +2978,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q49",
@@ -2941,35 +2986,35 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "od.no_adding",
-   "q": "Add?",
-   "story": "Your drive is up 1R at 9:50. The stock looks like it is trending, and you want to add size.",
+   "q": "Do you add to it?",
+   "story": "It's 9:50 and your drive is up 1R. It looks like it's trending, and you're tempted to add more shares.",
    "choices": [
-    "Yes; add half on the first dip",
-    "Yes; add a third more at 2R",
-    "No; full size at one price",
-    "No; trim a third right away"
+    "Yes, add half on the first dip",
+    "Yes, add a third at 2R",
+    "No, full size at one price",
+    "No, sell a third right now"
    ],
-   "answer": "No; full size at one price",
-   "why": "No. The full size goes on at one price with one stop; there is no adding. SMB adds a reason to wait. It does not trust trends in the first 30 minutes, since stocks do not trend on the open. Our card names mistaking a drive for a trend and adding size in the first 30 minutes as a mistake. Up 1R is not a sell point either; we very rarely sell on day 1.",
-   "lesson_line": "A drive is not yet a trend. Full size at one price, no adding.",
+   "answer": "No, full size at one price",
+   "why": "No. We buy the full size once, at one price, with one stop. At 9:50, up 1R is a drive doing its job. It isn't a trend yet. In the first 30 minutes a stock pushes, it doesn't trend. Adding to a winner on strength is rare and a feel call, never the plan, and never in the first 30 minutes. Add here and your average price climbs while your stop stays put. Then a normal pullback that was harmless costs you real money. And up 1R on day one isn't a reason to sell either.",
+   "lesson_line": "A drive isn't a trend yet. Full size at one price, no adding this early.",
    "facts": [
-    "h03b",
     "m08",
     "m10",
     "m13",
     "c30",
     "r05",
-    "r06"
+    "r06",
+    "aw1"
    ],
    "wrong": {
-    "Yes; add half on the first dip": "Adding to a drive in the first 30 minutes mistakes a drive for a trend.",
-    "No; trim a third right away": "Selling on day 1 is rare. The first sell is a judgment, usually day 3 or later.",
-    "Yes; add a third more at 2R": "No adding at all. One price, one stop."
+    "Yes, add half on the first dip": "Adding in the first 30 minutes mistakes a drive for a trend.",
+    "Yes, add a third at 2R": "A planned add at 2R is scaling in. Adding is never the plan.",
+    "No, sell a third right now": "Selling on day one is rare. The first sell is a judgment, usually day 3 or later."
    },
    "house": true,
-   "simple": "No, because we buy full size once at one price, and a drive this early is not yet a trend.",
+   "simple": "No. You buy the full size once at one price, and a drive this early isn't a trend yet.",
    "deeper": {
-    "trap": "The trap is the feeling of a trend at 9:50. SMB does not trust trends in the first 30 minutes. An early 1R is a drive doing its job, not proof of a trend. And our rule has no adding at any time: one price, one stop."
+    "example": "SMB, the desk that named the play, warns about this exact mistake: on the open we trade the momentum, and we do not trust trends in the first 30 minutes. Be careful about confusing an opening drive for a stock trending."
    },
    "tier": "extended",
    "risk": {
@@ -2978,7 +3023,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "rulings2"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q50",
@@ -3013,17 +3058,17 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "od.stop",
-   "q": "What was this loss?",
-   "story": "You buy a drive at 216.48 with the stop at 214.23, under the day's low. It reaches 2.1R by 9:50, then falls through its open and takes the stop.",
+   "q": "How do you grade that loss?",
+   "story": "You buy a drive at 216.48 with the stop at 214.23, under the low of the day. It gets to 2.1R by 9:50, then falls through its open and takes your stop.",
    "choices": [
     "A reason to widen the next stop",
-    "The plan working; a 1R loss",
-    "A broken rule; the stop was tight",
-    "A sign the setup does not work"
+    "The plan working, a 1R loss",
+    "A broken rule, the stop was tight",
+    "Proof the setup doesn't work"
    ],
-   "answer": "The plan working; a 1R loss",
-   "why": "The plan working: a 1R loss. The stop sat under the day's low, where the rule puts it. So the loss from 216.48 to 214.23 was the risk set at the buy, 1R. The 2.1R by 9:50 came on day 1, when we very rarely sell. A tight stop is not a free stop.",
-   "lesson_line": "The stop under the day's low sets the loss at the buy. A stop-out is the plan, not a mistake.",
+   "answer": "The plan working, a 1R loss",
+   "why": "The plan working. You lost 1R, exactly what you signed up for at the buy. The stop under the low of the day took it. It stings because it was up 2.1R at 9:50. But that was day one, when we very rarely sell, so that 2.1R was never yours. Losses like this are part of the deal, and the drives that work pay for them. Don't widen the next stop because of this one. A wider stop doesn't fix anything. It just makes the next loser bigger.",
+   "lesson_line": "A stop-out is the plan, not a mistake. The loss was set the moment you bought.",
    "facts": [
     "d18",
     "d19",
@@ -3033,14 +3078,14 @@
     "r05"
    ],
    "wrong": {
-    "A reason to widen the next stop": "The stop only moves up, never down or wider. The stop under the day's low did its job.",
-    "A broken rule; the stop was tight": "The stop sat under the day's low, as the rule says. The rule was followed.",
-    "A sign the setup does not work": "One stop-out says little about a setup. The loss was the 1R planned at the buy."
+    "A reason to widen the next stop": "The stop only moves up, and a wider stop just makes the next loser bigger.",
+    "A broken rule, the stop was tight": "The stop sat under the low of the day, right where it goes. No rule was broken.",
+    "Proof the setup doesn't work": "One stop-out says nothing about a setup. It was the 1R you planned."
    },
    "house": true,
-   "simple": "It was the plan working, because the stop sat where the rule puts it and the loss was the 1R you planned.",
+   "simple": "The plan working. The stop sat where it belongs, and you lost the 1R you planned.",
    "deeper": {
-    "trap": "The trap is the 2.1R that came first. It feels like a winner thrown away, so traders widen the next stop or give up on the setup. Neither fixes anything. Day 1 is rarely a sell day, and the first sell is a judgment. The stop did its job: the loss was the 1R set at the buy."
+    "trap": "The trap is the 2.1R that came first. It feels like a winner thrown away, so traders widen the next stop or give up on the setup. Neither fixes anything. Day one is rarely a sell day, and the stop did its job: the loss was the 1R set at the buy."
    },
    "tier": "expert",
    "risk": {
@@ -3049,7 +3094,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "TSEM",
     "tf": "5",
@@ -3068,31 +3113,31 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "od.inv_vwap",
-   "q": "What do you do?",
-   "story": "EAT, 2026-09-22: you bought at 9:40. The high prints at 9:45, a lower high follows, and at 9:55 the first close under VWAP comes.",
+   "q": "Do you sell it here?",
+   "story": "EAT, 2026-09-22. You bought at 9:40. The high prints at 9:45, a lower high follows, and at 9:55 it closes under VWAP for the first time.",
    "choices": [
-    "Hold; the stop is the exit",
-    "Sell at once at the market",
+    "No, hold, the stop's the exit",
+    "Yes, sell now at market",
     "Add more shares on this dip",
     "Widen the stop to give it room"
    ],
-   "answer": "Hold; the stop is the exit",
-   "why": "Hold; the stop is the exit. Losing VWAP and holding under it after the entry is a warning, not a sale. The stop is the exit, and it only moves up, never down or wider. EAT took its stop at 14:20 and closed at 24% of its range: the loss was the one planned at the buy. Adding into it breaks one price, one stop.",
-   "lesson_line": "A lost VWAP after you buy is a warning. The stop does the selling.",
+   "answer": "No, hold, the stop's the exit",
+   "why": "Hold. The stop is the exit. Losing VWAP after you're in is a warning, and I'll be watching it closely, but I don't sell on it. The stop is already sitting with the broker, under the low of the day. If the drive is really done, it'll get hit and you lose what you planned. EAT took its stop at 14:20 and closed at 24% of its range. The loss was the one sized at the buy, no worse. What you don't do is add into it or widen the stop.",
+   "lesson_line": "Lose VWAP after you buy and it's a warning. The stop does the selling.",
    "facts": [
     "c10",
     "d20",
     "d21",
     "h02",
-    "h03b"
+    "aw1"
    ],
    "wrong": {
-    "Sell at once at the market": "After the entry it is a warning only. The stop is the only exit.",
-    "Add more shares on this dip": "Full size at one price, no adding. Adding into a failing drive is the worst version.",
-    "Widen the stop to give it room": "The stop only moves up, never down or wider."
+    "Add more shares on this dip": "Never into a failing drive. That's the worst add there is.",
+    "Widen the stop to give it room": "The stop only moves up, never wider.",
+    "Yes, sell now at market": "After the entry a lost VWAP is a warning only. The stop does the selling."
    },
    "house": true,
-   "simple": "Hold and let the stop do the selling, because a lost VWAP after you buy is a warning, not an exit.",
+   "simple": "Hold and let the stop do the selling. A lost VWAP after you buy is a warning, not an exit.",
    "deeper": {
     "trap": "On EAT the warning came at 9:55 and the stop at 14:20. Read in hindsight, selling at the warning looks clever. Our rule keeps the stop as the one exit, so the loss is the one sized at the buy. The plan never depends on reading each warning right in the moment."
    },
@@ -3107,7 +3152,7 @@
    "depends_on": [
     "D-136"
    ],
-   "batch": "wave5"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q53",
@@ -3115,17 +3160,17 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "od.reentry",
-   "q": "Buy again?",
-   "story": "You buy at 9:35 and the fill is the high of the day. It slides for an hour and takes the stop at 10:35. You still like the chart.",
+   "q": "Can you get back in?",
+   "story": "You bought a drive at 9:35, and the fill turned out to be the high of the day. It slid for an hour and took your stop at 10:35. You still like the daily chart.",
    "choices": [
     "Only on a new trigger and stop",
-    "Only once a full day has passed",
+    "Only after a full day passes",
     "Yes, with a wider stop this time",
-    "No; never trade it this month"
+    "No, not this month"
    ],
    "answer": "Only on a new trigger and stop",
-   "why": "Only on a new trigger. After a stop-out we buy again only on a new trigger, as a new trade with its own stop and every rule. Liking the chart is not a trigger, and the stop is never set wider. Each new try counts: at most 3 tries in a week and 6 in a month on one stock.",
-   "lesson_line": "A stop-out is not a re-entry. A new trigger is a new trade with its own stop.",
+   "why": "Only on a new trigger. A stop-out ends the trade, and liking the chart isn't a trigger. Say the setup triggers again, a fresh pullback that holds VWAP and breaks back up. That's a new trade with its own stop and every rule. Not before. Jumping straight back in is how one loss turns into three in a morning. And every try counts. On one stock we take at most 3 tries in a week and 6 in a month.",
+   "lesson_line": "A stop-out ends the trade. A new trigger is a new trade with its own stop.",
    "facts": [
     "h28",
     "h29",
@@ -3134,14 +3179,14 @@
     "d23"
    ],
    "wrong": {
-    "Yes, with a wider stop this time": "The stop only moves up, never wider, and a new trade needs a new trigger first.",
-    "No; never trade it this month": "A new trigger is allowed. It counts against 3 tries a week and 6 a month.",
-    "Only once a full day has passed": "Waiting is not a trigger. Only the setup triggering again allows a new buy."
+    "Yes, with a wider stop this time": "The stop never gets wider, and you still need a new trigger first.",
+    "Only after a full day passes": "Time isn't a trigger. Only the setup triggering again lets you back in.",
+    "No, not this month": "You can go again on a new trigger. It just counts toward 3 tries a week and 6 a month."
    },
    "house": true,
-   "simple": "Only on a new trigger, because a stop-out ends the trade and any new buy is a new trade with its own stop.",
+   "simple": "Only on a new trigger. A stop-out ends the trade, and any new buy is a new trade with its own stop.",
    "deeper": {
-    "trap": "The trap is the urge to get straight back in. PAYC filled at the high of the day at 9:35, slid for an hour and took the stop at 10:35. Liking the chart is not a trigger. Without a new trigger and a new stop, buying it back is a guess, not a trade."
+    "trap": "The trap is the urge to get straight back in. PAYC filled at the high of the day at 9:35, slid for an hour and took the stop at 10:35. Without a new trigger and a new stop, buying it back is a guess, not a trade."
    },
    "tier": "expert",
    "risk": {
@@ -3151,7 +3196,7 @@
      "fixed before"
     ]
    },
-   "batch": "intraday-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "PAYC",
     "tf": "5",
@@ -3166,17 +3211,17 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "od.market_reading",
-   "q": "What does the Red reading tell you to do?",
-   "story": "The market reads Red. At 9:35 four drives fire at once, each with a clean first bar and heavy volume.",
+   "q": "What's your play this morning?",
+   "story": "Our market filter reads Red, the weakest of its four colors. At 9:35 four drives fire at once, all clean first bars on heavy volume.",
    "choices": [
-    "Stay mostly cash this morning",
-    "Mostly longs; the bars are clean",
-    "Short all four drives instead",
-    "The best one, at full risk"
+    "Stay mostly cash",
+    "Mostly longs, the bars are clean",
+    "Short all four drives",
+    "The best one at full risk"
    ],
-   "answer": "Stay mostly cash this morning",
-   "why": "Mostly cash. Our rulebook says that in a Red market it is mostly cash, plus shorts below the 200-day. Full risk belongs to a Green reading. Our card goes further and lists a Red market as a reason not to enter a drive. These drives are long setups, so shorting them is no answer either. On 2026-10-06 four strict drives fired and all four were stopped.",
-   "lesson_line": "Read the market first. In Red, clean drives do not change the answer: mostly cash.",
+   "answer": "Stay mostly cash",
+   "why": "Mostly cash. Red means the market is in bad shape, and in Red we're mostly cash, plus shorts in stocks under their 200-day. It's a guide, not a switch, but clean bars don't change it. A drive needs buyers to keep showing up after the bell. In a weak market they don't stick around, and good-looking setups fail together. It happens: on 2026-10-06 four strict drives fired the same morning and all four got stopped. Shorting these isn't the answer either. They're long setups.",
+   "lesson_line": "Read the market first. In Red, clean drives don't change the answer.",
    "facts": [
     "h32",
     "h26",
@@ -3188,14 +3233,14 @@
     "d26"
    ],
    "wrong": {
-    "Mostly longs; the bars are clean": "Red is mostly cash, however clean the bars. On 2026-10-06 four strict drives fired and all four were stopped.",
-    "Short all four drives instead": "Red's shorts are stocks below the 200-day. A drive is a long setup, not a short.",
-    "The best one, at full risk": "Full risk is the Green reading. Red is mostly cash, and our card lists Red as a reason not to enter."
+    "Mostly longs, the bars are clean": "Clean bars don't change the reading. Red is mostly cash.",
+    "Short all four drives": "Red's shorts are stocks under their 200-day. These are long setups.",
+    "The best one at full risk": "Full risk is for Green. In Red you're mostly cash."
    },
    "house": true,
-   "simple": "Mostly cash, because a Red reading means sitting out most longs, however clean the bars look.",
+   "simple": "Mostly cash. In a Red market even clean drives fail together, so you sit most of it out.",
    "deeper": {
-    "example": "RVTY, 2026-10-06: bought 165.00 at 9:35 with the stop at 161.45, stopped at 9:50. NVT, ARKG and CIBR fired the same morning, and all four were stopped. The drives were real for five minutes and the market was not. This example does not say the day read Red; it shows how much the market weighs on a clean bar."
+    "example": "RVTY, 2026-10-06: bought 165.00 at 9:35 with the stop at 161.45, stopped at 9:50. NVT, ARKG and CIBR fired the same morning, and all four were stopped. The drives were real for five minutes and the market was not. This example doesn't say the day read Red. It shows how much the market weighs on a clean bar."
    },
    "tier": "expert",
    "risk": {
@@ -3204,7 +3249,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q55",
@@ -3212,7 +3257,7 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "failure_mode",
-   "q": "Our scan's strict drive test fired 41 times in 59 sessions. About how many were stopped on the drive day?",
+   "q": "Last autumn our scan found 41 strict drives in 59 sessions. How many do you think got stopped out the same day?",
    "choices": [
     "About nine in ten",
     "About four in ten",
@@ -3220,8 +3265,8 @@
     "About six in ten"
    ],
    "answer": "About four in ten",
-   "why": "About four in ten. The strict test fired 41 times in 59 sessions, and 41.5% were stopped on the drive day itself. It needed first-bar volume 2 times its average, RS 80 or more, a trigger by 10:00 and a stop within 3%. 87.8% were stopped within 20 sessions; 17.1% reached 3R and 9.8% reached 5R first. These are fixed-stop figures, with no trims or breakeven move. It is one sample, not a forecast.",
-   "lesson_line": "Plan on losing often. A drive that keeps going pays in minutes; one that does not is over by 10:00.",
+   "why": "About four in ten. 41.5% were stopped on the drive day itself, and 87.8% were stopped within 20 sessions. Only 17.1% got to 3R and 9.8% to 5R before the stop. Those are fixed-stop numbers, with no sells and no breakeven move. The point still stands: you will lose on drives a lot. That's fine when the losses are small and the winners run. Plan for it before the bell, so a stop-out doesn't rattle you. It's one autumn, 41 trades on 21 days, so read it as a feel, not a forecast.",
+   "lesson_line": "Plan on losing often. Keep the losses small and let the few winners pay.",
    "facts": [
     "c28",
     "d31",
@@ -3233,14 +3278,14 @@
     "r08"
    ],
    "wrong": {
-    "About one in ten": "Far more fail on the day. 41.5% were stopped on the drive day.",
-    "About nine in ten": "87.8% were stopped within 20 sessions, not on the drive day.",
-    "About six in ten": "Fewer than half went on the day: 41.5% were stopped on the drive day."
+    "About one in ten": "Far more than that. 41.5% were stopped the same day.",
+    "About nine in ten": "That's the 20-session number, 87.8%. On the drive day it was 41.5%.",
+    "About six in ten": "Fewer. 41.5% went on the drive day, under half."
    },
    "house": true,
-   "simple": "About four in ten, because 41.5 percent of the 41 strict drives in our scan were stopped on the drive day.",
+   "simple": "About four in ten. Plenty of drives fail the same day, so plan for small losses.",
    "deeper": {
-    "counter": "Most drives that pass the strict test are stopped. The plan expects that: a small loss at the stop. On the few that run, the first sell is a judgment, often into a 3 to 7 day push. The 41 came on only 21 different days, so many fired on the same mornings. Read them as one sample, not a law."
+    "counter": "The 41 came on only 21 different days, so many fired on the same mornings. It's one window and one market. The scan's strict test also used numbers that aren't our rules, so read it as a sample, not a law."
    },
    "tier": "expert",
    "risk": {
@@ -3254,7 +3299,7 @@
    "depends_on": [
     "D-134"
    ],
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q56",
@@ -3303,18 +3348,18 @@
    "rung": 8,
    "format": "tf",
    "criterion": "od.parabolic_long_exception",
-   "q": "A gap up that drives the day after a burst down can be taken below the 200-day. That is the Parabolic Long's entry, not the drive's.",
+   "q": "A stock under its 200-day drives on a gap up the day after a hard burst down. Even as a parabolic long, it's a pass.",
    "answer": "True",
-   "why": "True. The 200-day rule has one long exception: no longs below the 200-day simple moving average, unless it is a parabolic long. A gap up that drives the day after a burst down can be taken below the 200-day. That is the Parabolic Long's entry, with its own rules. An ordinary drive below the 200-day is still no trade.",
-   "lesson_line": "The 200-day has one exception, and it belongs to the Parabolic Long.",
+   "why": "True. Under the 200-day is a hard no for stocks. The one exception is indexes and levered ETFs. We can buy those under the line on a reversal or a parabolic long, a gap that drives after a burst down. A single stock doesn't get that pass, however good the drive looks. An index comes back when the market comes back. A broken stock can stay broken for reasons that have nothing to do with the market.",
+   "lesson_line": "Under the 200-day is a hard no for stocks. Only indexes and levered ETFs get a pass.",
    "facts": [
-    "c18",
+    "r10",
     "h10"
    ],
    "house": true,
-   "simple": "True. Only a parabolic long may be bought below the 200-day, and that entry belongs to the Parabolic Long, not the drive.",
+   "simple": "True, only indexes and levered ETFs can be bought under the 200-day. A stock never gets that pass.",
    "deeper": {
-    "trap": "The trap is reading the exception as a door for any drive. Below the 200-day, a drive is no trade, however clean. The only long allowed there is the parabolic long: a gap up that drives the day after a burst down. It runs on the Parabolic Long's rules."
+    "trap": "The trap is reading the parabolic long as a door for any stock. Below the 200-day a stock is no trade, however clean the drive. The gap-and-drive after a burst down is a long we take only in an index or a levered ETF."
    },
    "tier": "expert",
    "risk": {
@@ -3323,7 +3368,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q58",
@@ -3331,17 +3376,17 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "od.plan_rule",
-   "q": "Write the plan: entry, stop, first sell.",
-   "story": "LRCX, 2026-09-18: a leader, RS 82, above its 200-day. The first 5-minute bar runs 272.80 to 277.23 on 5.7x volume.",
+   "q": "Which plan do you write down before it triggers?",
+   "story": "LRCX, 2026-09-18. A leader, RS 82, over its 200-day. The first 5-minute bar runs 272.80 to 277.23 on 5.7x volume. It dips first, then closes green.",
    "choices": [
-    "Limit 275.00; stop 268.00; out at 2R",
-    "Market at 9:40 close; stop 272.80; hold",
-    "Market 277.24; stop 272.75; sell day 3+",
-    "Market 277.24; stop 272.75; sell day 1"
+    "Limit 275.00, stop 268.00, sell at 2R",
+    "Buy the 9:40 close, stop 272.80, hold",
+    "Market 277.24, stop 272.75, sell day 3+",
+    "Market 277.24, stop 272.75, sell day one"
    ],
-   "answer": "Market 277.24; stop 272.75; sell day 3+",
-   "why": "Market 277.24, stop 272.75, first sell on day 3 or later. The buy is a market order the moment price trades through the first bar's high, 277.23, so 277.24. The stop sits a few cents under the day's low, here the first bar's low of 272.80, so 272.75. The first sell is a judgment, rarely on day 1. LRCX reached 3R at the next session's open and 16.8R at its best.",
-   "lesson_line": "Entry, stop, first sell, trail. Write the plan down, then execute it without a debate.",
+   "answer": "Market 277.24, stop 272.75, sell day 3+",
+   "why": "Market 277.24, stop 272.75, first sell day 3 or later. The trigger is the first trade through 277.23, so your market order fills around 277.24. The low of the day is the first bar's low, 272.80, and the stop goes a few cents under it at 272.75. That's 1.6% away, nice and tight. Then the first sell is a judgment, and I very rarely make it on day one. LRCX hit 3R at the next morning's open and ran to 16.8R at its best. Sell on day one and you've thrown away the part that pays.",
+   "lesson_line": "Entry, stop, first sell. Write it before the bell, then just execute.",
    "facts": [
     "h22",
     "h24",
@@ -3353,14 +3398,14 @@
     "r07"
    ],
    "wrong": {
-    "Limit 275.00; stop 268.00; out at 2R": "A limit under the first bar's high never fills on the break. A stop down at 268.00 is nowhere near the day's low.",
-    "Market at 9:40 close; stop 272.80; hold": "The trigger is the trade through, not the close, and the stop sits under the low, not on it.",
-    "Market 277.24; stop 272.75; sell day 1": "We very rarely sell on day 1 of the buy. The first sell is a judgment, usually day 3 or later."
+    "Limit 275.00, stop 268.00, sell at 2R": "A limit under the trigger won't fill on the break, and 268.00 is nowhere near the low of the day.",
+    "Buy the 9:40 close, stop 272.80, hold": "The trigger is the trade through, not a bar close. And the stop goes under the low, not on it.",
+    "Market 277.24, stop 272.75, sell day one": "Right entry, right stop. But we very rarely sell on day one, and this one ran to 16.8R."
    },
    "house": true,
-   "simple": "Buy at market as it trades through 277.23, put the stop just under 272.80, and make the first sell from day three.",
+   "simple": "Buy at market through 277.23, stop just under 272.80, and make the first sell on day 3 or later.",
    "deeper": {
-    "trap": "Two plans here share the entry and the stop. The difference is the first sell. Selling on day 1 throws away the part that pays: LRCX went on to 16.8R at its best. The first sell waits for the push, usually day 3 or later, and the rest trails."
+    "trap": "Two plans here share the entry and the stop. The difference is the first sell. Selling on day one throws away the part that pays: LRCX went on to 16.8R at its best. The first sell waits for the push, and the rest trails."
    },
    "tier": "expert",
    "risk": {
@@ -3370,7 +3415,7 @@
      "computed key (entry and stop derived from the bar)"
     ]
    },
-   "batch": "intraday-charts-2026-11-15"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q59",
@@ -3407,7 +3452,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "od.stop_gap",
-   "q": "Fill 208.00, stop 205.66. A gap-down day opens below the stop. At what price is the loss 2R?",
+   "q": "You're long from 208.00 with the stop at 205.66. The next morning it gaps open under your stop. At what price is your loss 2R?",
    "answer": "$203.32",
    "calc": {
     "fn": "arith",
@@ -3418,8 +3463,8 @@
     },
     "round": 2
    },
-   "why": "One R is the fill minus the stop. Subtract two of them from the fill: 208.00 - 2 x (208.00 - 205.66) = 203.32. On a gap through the stop, the low of the first 30-minute bar becomes the new stop. If the first 30 minutes take the loss past 2R, below 203.32, get out. This is the one case where the stop can sit lower than it was.",
-   "lesson_line": "Know the 2R price before the gap. The first 30-minute low must stay above it.",
+   "why": "203.32. 208.00 minus 205.66 is 2.34, and that's 1R. Two of them is 4.68. Take that off your fill and you're at 203.32. Here's why you want that number before the open. On a gap through the stop, the low of the first 30-minute bar becomes your new stop. If those first 30 minutes take you past 2R, under 203.32, you're out. Know the line ahead of time and there's nothing to decide in the panic.",
+   "lesson_line": "Know your 2R price before the gap. The first 30 minutes decide.",
    "facts": [
     "h07",
     "h06",
@@ -3428,9 +3473,9 @@
    ],
    "house": true,
    "prefix": "$",
-   "simple": "203.32, because one R is the fill minus the stop, and the 2R loss line sits two of those below the fill.",
+   "simple": "203.32. One R is the fill minus the stop, and the 2R line sits two of those under the fill.",
    "deeper": {
-    "trap": "The trap is treating the gap rule as a free pass. A gap below 205.66 does not mean you sell at the open, and it does not mean you wait all day. The low of the first 30-minute bar becomes the stop, with a ceiling: if those 30 minutes take the loss past 2R, below 203.32, you are out."
+    "trap": "The trap is treating the gap rule as a free pass. A gap below 205.66 doesn't mean you sell at the open, and it doesn't mean you wait all day. The low of the first 30-minute bar becomes the stop, with a ceiling: if those 30 minutes take the loss past 2R, below 203.32, you're out."
    },
    "tier": "expert",
    "risk": {
@@ -3440,7 +3485,7 @@
      "rests on the owner's rulebook (B20)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$200.98",
     "$203.32",
@@ -3448,9 +3493,9 @@
     "$205.66"
    ],
    "wrong": {
-    "$200.98": "Counted 2R down from the stop, not from the fill.",
-    "$212.68": "Added two R to the fill instead of subtracting it.",
-    "$205.66": "That is the stop itself, a loss of only one R."
+    "$200.98": "You counted 2R down from the stop. Count it from your fill.",
+    "$212.68": "That's 2R up. A loss goes down from the fill.",
+    "$205.66": "That's your old stop, a 1R loss."
    },
    "visual": {
     "kind": "ladder",
@@ -3480,10 +3525,10 @@
    "rung": 9,
    "format": "tf",
    "criterion": "od.swing_exit",
-   "q": "SMB's scalp drive has its own exits. We swing trade the drive, so those scalp exits are not ours.",
+   "q": "SMB runs the drive as a scalp with its own quick exits. We swing trade our drives, so those scalp exits aren't ours.",
    "answer": "True",
-   "why": "True. SMB says you are either in a scalp, with all its specific exits, or a Trade2Hold. Its scalp exits are not ours. We swing trade, days to a few weeks. Our first sell is a judgment: rarely day 1, usually day 3 or later, often into a 3 to 7 day push. The rest trails.",
-   "lesson_line": "SMB's scalp exits are not ours. We swing trade, sell in parts and trail the rest.",
+   "why": "True. SMB is a day-trading desk. They say you're either in a scalp, with all its specific exits, or a hold plan. Their scalp exits fit their game. Ours is swing trading, holding for days to a few weeks. So our first sell is a judgment. Very rarely day one, more often day 3 or later, into a 3, 5 or 7 day push. Then the rest trails. Borrow their entry if you like. Take their exits and you'll scalp your best swing trades away.",
+   "lesson_line": "SMB's scalp exits aren't ours. We sell into the push and trail the rest.",
    "facts": [
     "m09",
     "c32",
@@ -3493,9 +3538,9 @@
     "r06"
    ],
    "house": true,
-   "simple": "True, because we swing trade and take profits our own way, not with SMB's scalp exits.",
+   "simple": "True. We swing trade, so we sell into a push over several days and trail the rest.",
    "deeper": {
-    "trap": "The trap is taking a scalp's exits on a swing drive. SMB's scalp exits belong to its scalp plan, not ours. Our exits are swing exits: a first sell by judgment, often into a 3 to 7 day push, then a trail on the rest."
+    "trap": "The trap is taking a scalp's exits on a swing drive. SMB's scalp exits belong to its scalp plan, not ours. Ours are swing exits: a first sell by judgment, into a 3 to 7 day push, then a trail on the rest."
    },
    "tier": "expert",
    "risk": {
@@ -3505,7 +3550,7 @@
      "fixed before"
     ]
    },
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q62",
@@ -3513,15 +3558,15 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "od.plan_switch",
-   "q": "The SMB Capital desk says you are in a scalp or a hold plan. What is the mistake?",
+   "q": "SMB says on a drive you're either in a scalp or a hold plan, picked up front. Which of these is the mistake?",
    "choices": [
-    "Using a hard stop on a scalp",
+    "A hard stop on a scalp",
     "Picking a scalp on the open",
     "Switching plans mid-trade",
-    "Choosing the plan before entry"
+    "Picking the plan before entry"
    ],
    "answer": "Switching plans mid-trade",
-   "why": "Switching plans mid-trade. SMB says you are either in a scalp, with its own exits, or a hold plan. Pick one and keep it: changing from a hold to a scalp, or back, is the mistake our card names. We plan before the buy too: entry, stop and size are written down before the market opens. SMB's scalp exits are not ours; we swing trade.",
+   "why": "Switching plans mid-trade. You pick the plan before you buy, and you keep it. The switch is where it goes wrong. You planned a hold, it dips, and you scalp it for a small loss. Or you planned a scalp, it runs, and you hold it all the way back down. Either way you're deciding with money on the line instead of with a clear head. We work the same way: entry, stop and size get written down before the market opens.",
    "lesson_line": "Pick the plan before you buy. Changing it mid-trade is the mistake.",
    "facts": [
     "m09",
@@ -3533,14 +3578,14 @@
     "h16"
    ],
    "wrong": {
-    "Choosing the plan before entry": "That is the point. Entry, stop and size are written down before the market opens.",
-    "Picking a scalp on the open": "SMB's warning runs the other way: you almost never start a hold on the open, because stocks do not trend there.",
-    "Using a hard stop on a scalp": "Every plan has a stop. It is a real stop order with the broker."
+    "Picking a scalp on the open": "SMB's warning runs the other way. A hold almost never starts on the open, because stocks don't trend there.",
+    "Picking the plan before entry": "That's exactly right. Entry, stop and size are written down before the open.",
+    "A hard stop on a scalp": "Every plan has a stop, a real order with the broker."
    },
    "house": true,
-   "simple": "Switching from one plan to the other mid-trade is the mistake, because the plan is set before you buy and kept.",
+   "simple": "Switching plans mid-trade. You set the plan before you buy, then you stick with it.",
    "deeper": {
-    "trap": "Borrowing SMB's play brings a quiet risk: taking their scalp exit on a trade you planned as a swing. That is the switch the card warns about. We swing trade, so the plan is set before the buy and the exits are our trims and the trail."
+    "trap": "Borrowing SMB's play brings a quiet risk: taking their scalp exit on a trade you planned as a swing. That's the switch to watch for. We swing trade, so the plan is set before the buy, and the exits are our sells and the trail."
    },
    "tier": "expert",
    "risk": {
@@ -3549,7 +3594,7 @@
      "rests on the owner's rulebook or a card proposal under owner review (house)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q63",
@@ -3626,7 +3671,7 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "od.position_adv",
-   "q": "A stock trades 850,000 shares a day on average. By our volume rule, what is the most we would own, in shares?",
+   "q": "Your drive is in a stock that trades 850,000 shares a day on average. What's the most shares we'd own in it?",
    "answer": "8,500 shares",
    "calc": {
     "fn": "arith",
@@ -3636,15 +3681,15 @@
     },
     "round": 0
    },
-   "why": "We never own more than 1% of a stock's average daily volume. One percent is 0.01, so 850,000 x 0.01 = 8,500 shares. That is a ceiling, not a target. Illiquid stocks are not even watched.",
-   "lesson_line": "Size to the volume. One percent of the average day is the ceiling.",
+   "why": "8,500 shares. We never own more than 1% of a stock's average daily volume. 850,000 times 0.01 is 8,500. That's a ceiling, not a target, and your risk math will most often land under it. Here's why it exists. If you own a big chunk of what trades in a day, you can't get out fast when you need to. Your own selling pushes the price against you. It's the same reason we don't even watch illiquid names.",
+   "lesson_line": "Size to the volume. One percent of an average day is the ceiling.",
    "facts": [
     "h19",
     "c43"
    ],
    "house": true,
    "suffix": " shares",
-   "simple": "8,500 shares, because we never own more than 1 percent of a stock's average daily volume.",
+   "simple": "8,500 shares. We never own more than 1 percent of a stock's average daily volume.",
    "tier": "expert",
    "risk": {
     "score": 4,
@@ -3653,7 +3698,7 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "841,500 shares",
     "85,000 shares",
@@ -3661,9 +3706,9 @@
     "8,500 shares"
    ],
    "wrong": {
-    "85,000 shares": "Moved the decimal one place, which is ten percent, not one.",
-    "841,500 shares": "Took one percent off the volume instead of one percent of it.",
-    "17,000 shares": "Used two percent, not one."
+    "85,000 shares": "The decimal moved one place too far. That's ten times the ceiling.",
+    "841,500 shares": "You took 1% off the volume instead of 1% of it.",
+    "17,000 shares": "You doubled it. The ceiling is 1%."
    }
   },
   {
@@ -3672,30 +3717,30 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "od.market_reading",
-   "q": "What do you take?",
-   "story": "Your list shows six drive candidates, and the market reads Orange.",
+   "q": "Which ones do you take?",
+   "story": "Six drives on your list this morning. Our market filter reads Orange, one step above Red: the market's under pressure.",
    "choices": [
-    "Only the A+ drives on the list",
-    "All six; each setup is clean",
-    "None; Orange means no buying",
+    "Only the A+ drives",
+    "All six, each looks clean",
+    "None, Orange means no buying",
     "Fewer of them, smaller size"
    ],
-   "answer": "Only the A+ drives on the list",
-   "why": "Only the A+ drives. In an Orange market we take A+ setups only. Smaller and fewer is Yellow, and mostly cash is Red. A clean first bar is not the same as an A+ grade. The reading is a guide, but Orange still narrows the list to the best.",
+   "answer": "Only the A+ drives",
+   "why": "Only the A+ ones. In an Orange market breakouts fail more often, because the market isn't backing them. So I only want my very best ideas, the cleanest setups with the tightest risk, the kind we size up on. A clean first bar isn't the same as A+. Grading is a judgment call, and if none of the six is A+, nothing on the list gets bought today. Smaller and fewer is Yellow. Mostly cash is Red.",
    "lesson_line": "Orange means A+ only. Cut the list to the best before the open.",
    "facts": [
     "c20",
     "h26"
    ],
    "wrong": {
-    "All six; each setup is clean": "Orange allows A+ setups only. Clean is not the same as A+.",
-    "None; Orange means no buying": "Mostly cash is Red. Orange still allows A+ setups.",
-    "Fewer of them, smaller size": "Smaller and fewer is Yellow. Orange allows A+ setups only."
+    "Fewer of them, smaller size": "Smaller and fewer is Yellow. Orange is stricter, A+ only.",
+    "All six, each looks clean": "Orange is A+ only. Clean isn't the same as A+.",
+    "None, Orange means no buying": "Mostly cash is Red. Orange still lets you take the A+ setups."
    },
    "house": true,
-   "simple": "Only the A+ drives, because an Orange market allows A+ setups only, and a clean first bar is not the same as A+.",
+   "simple": "Only the A+ ones. In Orange the market isn't backing breakouts, so you take only your best.",
    "deeper": {
-    "trap": "The trap is reading Orange as a bit smaller. That is Yellow. Orange is stricter: only A+ setups. If none of the six drives is A+, nothing on the list qualifies today."
+    "trap": "The trap is reading Orange as a bit smaller. That's Yellow. Orange is stricter: only A+ setups. If none of the six drives is A+, nothing on the list qualifies today."
    },
    "tier": "expert",
    "risk": {
@@ -3704,7 +3749,7 @@
      "rests on the owner's rulebook (F65, a guide)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q67",
@@ -3712,15 +3757,15 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "od.u_turn_not_this",
-   "q": "Which setup owns the failed drive?",
+   "q": "Which setup does this failed drive belong to?",
    "choices": [
-    "The Parabolic Short; it is a climax",
-    "The Opening Drive; keep the long",
-    "The Episodic Pivot; it gapped on news",
-    "The Kicker; it gapped up once more"
+    "The Parabolic Short, a climax",
+    "The Opening Drive, stay long",
+    "An Episodic Pivot, a news gap",
+    "A Kicker, it gapped up again"
    ],
-   "answer": "The Parabolic Short; it is a climax",
-   "why": "The Parabolic Short. A drive on day 3 to 5 of a burst, with a euphoric open, is the U-Turn. It is the gap-up drive that fails and reverses. The card gives it to the Parabolic Short, a climax-day short allowed above the 200-day only because it is parabolic. It is not a drive to hold. It is not a Kicker, which needs a red day before the gap. It is not an EP, which needs a neglected name gapping 10% or more on news. Shorting is recommended only for traders who have already made $1 million trading.",
+   "answer": "The Parabolic Short, a climax",
+   "why": "The Parabolic Short. Day 4 of a run with stacked gap ups is a parabolic burst. A euphoric gap that drives and then fails is the climax. Bracco calls that failed drive the U-Turn. It belongs to the Parabolic Short, the one short we allow above the 200-day, and only because it's parabolic. It's not a drive to hold, and it's not a Kicker, since there's no red day before the gap. Shorting is only for traders who've already made $1 million trading.",
    "lesson_line": "On day 3 to 5 of a burst, a failed up-drive is the U-Turn, a climax short.",
    "facts": [
     "c17",
@@ -3731,15 +3776,15 @@
     "r04"
    ],
    "wrong": {
-    "The Opening Drive; keep the long": "On day 3 to 5 of a burst the card does not buy the drive. Its failure is the U-Turn.",
-    "The Episodic Pivot; it gapped on news": "The gap here comes after a burst, not a neglected name on news.",
-    "The Kicker; it gapped up once more": "A Kicker needs a real red day before the gap. Day 4 of a run of gap ups has none."
+    "The Opening Drive, stay long": "On day 3 to 5 of a burst we don't buy the drive. Its failure is the U-Turn short.",
+    "An Episodic Pivot, a news gap": "An EP is news on a neglected name. This one's a gap on top of a run.",
+    "A Kicker, it gapped up again": "A Kicker needs a red day before the gap. Day 4 of a run of gap ups has none."
    },
    "house": true,
    "story": "Day 4 of a run with two overnight gap ups. The stock gaps up again on a euphoric open and drives over its first 5-minute high. By 10:30 it has lost VWAP and broken the low of the day.",
-   "simple": "The Parabolic Short owns it, because a drive that fails on day 4 of a burst is the U-Turn, a climax short.",
+   "simple": "The Parabolic Short. A drive that fails on day 4 of a burst is the U-Turn, a climax short.",
    "deeper": {
-    "trap": "The trap is holding the long because it started as a drive. On day 3 to 5 of a burst, a euphoric open is the climax. The card does not buy it at all. Naming the failure as the Parabolic Short's setup turns a trap into a read, under that setup's own rules."
+    "trap": "The trap is holding the long because it started as a drive. On day 3 to 5 of a burst, a euphoric open is the climax, and we don't buy it at all. Naming the failure as the Parabolic Short's setup turns a trap into a read, under that setup's own rules."
    },
    "tier": "extended",
    "risk": {
@@ -3749,7 +3794,7 @@
      "fixed before (coverage fix 2026-11-10)"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q68",
@@ -3833,7 +3878,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SITM s12 row 2: gap up (+5.7%), first bar closes green (real bar 580.16 to 580.51), last bar is the first bar. No ticker, no trade. OK."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q08": {
    "status": "cut",
@@ -3845,43 +3890,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "Voice 3: the why leaned on SMB for the core claim though the stem tests our read of the drive, not SMB's principle (rule 13). Rewrote the why in our voice; SMB's quote moved to deeper. Writer's voice 3; after fix 4."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "Volume raises the grade, never a must (D-006). Zarattini stat sits in deeper as a study. Fine."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "RPRX s12 row 10: fill 61.41, stop 60.76, 1.06% correct, choices and wrong notes consistent (0.65 / 98.94 / 10.58). But the story says the first bar 'runs 60.81 to 61.40'; the real 09:30 bar is 60.78 to 61.40, so the low on the chart is 3 cents different from the words. The low is not needed for the question, so the story now gives only the high. Trade lines are still valid: stop 60.76 is under the real low 60.78."
+   "fixed": false,
+   "notes": "Recomputed: 61.41-60.76=0.65; 0.65/61.41=1.06%. Distractors 0.65, 10.58, 98.94 all real slips. Stop 1-3% preferred, up to 5% matches the ruling."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "SITM s12 row 2: fill 581.57, stop 572.82, 3R 607.82, 3R at 9:50 the same day (replay: best 3.0R, stop not hit). But the real first bar (09:30) trades to 569.75, so the drawn stop line (572.82, from the dossier's 572.87 low) would sit ABOVE the day's low wick, which contradicts the course rule that the stop sits under the day's low. The words never say it, so the numbers stay, but the trade lines are removed from the chart (replay still plays 12 bars)."
+   "fixed": false,
+   "notes": "Recomputed: 8.75 x3 = 26.25, 607.82; 599.07 (from stop), 590.32 (1R), 616.57 (4R) check. 3R kept a mark, not a sell, matches the first-sell ruling."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Sorted rank matches target; each wrong choice recomputed as a real mistake on this math; no new tell."
+   "notes": "Recomputed: 3.01/71.99=4.18%, 3.01/75=4.01%. 4% chase line is a settled house rule."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NVT near-miss 2: open 169.59, price trades under it in the 9:35 bar (real low 169.42), first bar's high 171.425 only taken at 9:40 (09:35 high 171.19, 09:40 high 171.84). Story and choices agree; the 'ten cents'/9:42 invention is gone. OK."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "CROX s12 row 8: bar closes at 90% of range (real 89.6%), RS 77, 3R by 10:40 (dossier). But the rewritten story opens 'A leader makes a clean one-bar drive' while the answer is 'Pass; RS 77 is not a leader', which contradicts itself. Also the dossier's 2.2% is the gap over the prior HIGH (real open 118.69 vs prior close 115.39 is +2.9%). Reworded."
+   "fixed": false,
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q31": {
    "status": "cut",
@@ -3893,49 +3938,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Text agrees with D-021 (9.8% and 12% are story numbers, MXL's measured 10-day figure dropped from why and deeper). Fix: drop d15 from facts. Its claim ('MXL: 73% above its 200-day and 9.8% over its 10-day') is a measurement against the 10-day and would sit under a 9 EMA story in the depth summary; nothing in the question needs it."
+   "notes": "Deeper fix: the MXL example mixed in a stock whose 9.8% figure is over its 10-day, not the 9 EMA the question uses, and 'one run doesn't move the line' read oddly. Replaced with the gap-stretch trap from the lesson's own fact (c26). Writer's voice 4; after fix 4."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False right (c16, h10b); b05 verified verbatim on theonelanceb.com. Overlap with q67 (climax day belongs to the Parabolic Short) is inherent to the card's adjacent lines c16/c17; q67 tests ownership of the failed drive against EP and Kicker, a different ask."
+   "notes": "Day 3 to 5 burst comes from the glossary's parabolic_burst definition (h10b), not a card proposal. Fine."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: Market-on-close is keyed wrong; the second entry is the pullback break. Agrees with D-003."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "Fix: the lesson line read '...full day's volume before 9:45 is in play', which turns the proposed A+ volume window (average daily volume in the first 15-30 minutes, a proposal) into a pass line. Reworded to the idea, no cutoff. Writer's voice 4; after fix 4."
   },
   "q37": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SANM s12 row 4: buy 208.00 at 9:35 (inside that bar), stop 205.66 (under the real first-bar low 205.705), 170 shares correct (400/2.34). No outcome named. OK."
+   "notes": "Recomputed: 400/2.34=170.94, 170. Position cap claim checked: 170 x 208 = about 35% of 100,000, under the 40% cap (A7), so 'the risk math is the smaller one' holds."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "WDC near-miss 4: fill 445.63 = first-bar high 445.62 plus a cent, stop 3.53% under it (dossier). Real first-bar low is 429.44 so the real bar is about 3.8% tall vs the dossier's 3.6%; a feed difference, kept as the dossier record. No trade drawn, no ticker in story."
+   "notes": "Stop 3.53% inside the 5% acceptance, size bends to the stop. Fine."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: the answer is that the first sell is a judgment; 'a third at 3R is the rule' is keyed wrong. CNC math 72.00 + 3 x 1.84 = 77.52 checks."
+   "notes": "Recomputed: 1.84 x3 + 72.00 = 77.52. Breakeven 2R-5R window stated correctly."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LRCX s12 row 1: first bar dips then closes green (real 274.41 to 275.59, about 64% of range vs dossier 63%), 5.7x volume, low of day in bar 1. Ticker out of the q. OK."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q44": {
    "status": "cut",
@@ -3947,14 +3992,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right: 4.7% with no catalyst, not neglected, fails c36; up day fails c37; base not burst fails c16. Lesson line 20 words.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "a fixed 3.5% 'cap' conflicts with D-005 (3.5% good, up to 5% acceptable); drop the number and cap wording"
+   "fixed": false,
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q47": {
    "status": "cut",
@@ -3966,7 +4010,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from b01-b03, c29 and h10 (no shorts above the 200-day unless parabolic). Minor: three of four choices are ways to short against one 'do not fade', a mild odd-one-out pattern, but every non-short wrong tried was either half-right or ungrounded, so kept."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q50": {
    "status": "cut",
@@ -3978,37 +4022,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TSEM failure 1: buy 216.48 at 9:35, stop 214.23 (under real first-bar low 214.28), 2.13R by 9:50, stopped 10:05 (replay: best 2.1R, stopped at 10:05). Matches the words. OK."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from c10 (after the entry a VWAP loss is a warning, the stop is the exit) and A4 (h02). EAT times match d20-d21. Breitstein's b07 would sell; the rulebook's stop-is-the-exit wins and the key follows it. Same principle as q40 (weak close) on a different trigger: practice, not a giveaway."
+   "notes": "Agrees: never into a failing drive. Voice 4."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PAYC failure 3: fill 229.02 at 9:35 = high of day, stop 224.09 taken at 10:35 (the 10:35 bar prints 223.765, through the stop). Last bar is the stop-out bar; no trade drawn. OK."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from D46 (h32) and F65 (h26): Red is mostly cash plus shorts below the 200-day. Key matches the rulebook word. The 2026-10-06 example is labelled in the deeper as not a Red reading. Owner flag on Red as a hard no stands."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: the volume and 3% stop are the scan's own strict filter quoted as data, not taught as a rule; one-sample caveat present."
+   "notes": "Scan figures recomputed from 41 trades: 17/41=41.5%, 36/41=87.8%, 7/41=17.1%, 4/41=9.8%. Framed as a sample, not a rule. Good."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "LRCX s12 row 1: the why says the stop sits under 'the first bar's low of 272.80, so 272.75', but the real first 5-minute bar's low is 272.64, so on the chart the drawn stop (272.75) would sit ABOVE the day's low wick and the words would be visibly false. Dropped the chart and restored the original fields (no chart, original story with the dossier's own numbers and outcomes)."
+   "fixed": false,
+   "notes": "Recomputed: stop 272.75 under 272.80; (277.24-272.75)/277.24 = 1.62%. First sell day 3+ matches D-013."
   },
   "q59": {
    "status": "cut",
@@ -4019,20 +4063,20 @@
   "q60": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Removed r: the 2R price is BELOW the fill (a loss). The app draws r steps upward from the entry for a long, which would land on the 212.68 distractor if the label ever read '2R'. Today the label does not match, so nothing was drawn; removing r makes it safe."
+   "fixed": false,
+   "notes": "Recomputed: 208-2x2.34=203.32; 200.98, 212.68, 205.66 are real slips."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True kept; first sell stated as judgment, not third at 3R."
+   "notes": "About SMB's principle, so the source belongs in the why (rule 13)."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from m09 and c31: switching plans mid-trade is the named mistake. Every wrong note is grounded (h30, m10, h18). Easy for rung 9 but not wrong."
+   "notes": "About SMB's principle, so the source belongs in the why (rule 13)."
   },
   "q64": {
    "status": "cut",
@@ -4043,44 +4087,44 @@
   "q65": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Same slip ladder as SET.53 q68; replaced the 850 slip with a two-percent mix-up."
+   "fixed": false,
+   "notes": "Recomputed: 1% of 850,000 = 8,500; 841,500, 85,000, 17,000 are real slips."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer False from c05 (low is the open or inside the first 5-minute bar). Why and lesson line rest on c05, m03, m01, h24 (a later break of that low hits the stop). No tell; no overlap."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CROX s12 row 8: buy 119.34 at 9:35, stop 117.90 (5c under the 117.95 first-bar low). Last bar is the 9:35 fill bar; no trade drawn so the answer is not given away. OK."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: the 4% no-chase limit is used on every drive. Sharpened why defines the buy point and chasing, and is faithful to h11, h12."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key right (h10/B26, c23). No choice offers the parabolic-long exception, and the why names it, so no second defensible key among the choices. Noted: the why's exception line previews q57, acceptable as teaching."
+   "notes": "Exception stated correctly: only indexes and levered ETFs, never a stock."
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q11": {
    "status": "cut",
@@ -4090,118 +4134,117 @@
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Earnings rule looks forward; hold through only if up 5R (h08). Fine."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False from c12 and h02 (the stop only rises); the dip is intraday, so the gap exception cannot apply. No tell, 107 chars."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Market reading taught as a guide, Red mostly cash. Fine."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q17": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right under D-013 (day 3 at the earliest, judgment); only the 'and picks' grammar fixed. Quotes r05/r06/r08 are from the owner's chat text word for word; their claims say 'the owner' (lesson-level, pre-existing)."
+   "notes": "First sell by judgment, day 3+, into a 3/5/7 day push. Fine."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False on h05 (B19: breakeven at 2R to 5R, ideally); the card's first-trim default also rules out 1R, so no source makes it True. Consistent with w2/w3 and q39."
+   "notes": "Breakeven 2R-5R or at the first sell, as judgment. Fine."
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "keep agrees (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "notes": "Voice 3: read as a book summary. Kept Kullamagi (the question is his principle, rule 13) but tied it to how we use the drive and cut the stiff phrasing. Writer's voice 3; after fix 4."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (c03, h11, h12). But the why, simple, lesson line and deeper all spell out q34's key ('the first pullback on lighter volume that holds VWAP'), and q24 comes before q34. Rewritten to name only 'the second entry' (c03's own words); m12 and c14 dropped, c04 added for 'the stop stays under the day's low'."
+   "notes": "Truth fix: the why said flatly 'we don't short above the line', which contradicts the Parabolic Short (allowed above the 200-day only when parabolic, c17/h10). Reworded in why and the short wrong note to the real reason: one strong morning isn't a parabolic burst. Writer's voice 4; after fix 4."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: this is the gap-DOWN-through-the-stop rule (B20), a different topic from GAP-TRIM."
+   "notes": "Agrees: adding to a loser. 1.2R inside 2R, right. Voice 4."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key False right (c15); m14 verified on smbtraining.com ('use the retracement high/low as a price to place your stop'). Noted: the stem links the second entry to a pullback, which helps q34; that is q34's design (one pullback choice), outside this set."
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail renamed to 9 EMA / 20 EMA with 'what is left'; answer right; wrongs wrong; D-021 cited."
+   "notes": "Trail is the 9 EMA close for fast movers, 20 EMA for steadier. Fine."
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer True from c22 (card cue) and c41 (A+ marks); E50 (h31) now taught. Card proposal, owner flag stands. q43 tests a different cue (Nasdaq, c21); same principle, not a giveaway of a fact."
+   "notes": "Group cue is a proposal; no number taught as ours, grading called a judgment. Fine."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: stop is the exit, weak close is a warning; selling at the open is a made-up extra exit, not the GAP-TRIM topic."
+   "notes": "Agrees: not into a warning. Voice 4."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep right: False, no fixed third at 3R; first sell is a judgment, day 3, a 3 to 7 day push or 5 to 10R."
+   "notes": "No fixed third at 3R. Fine."
   },
   "q43": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from c21 and c41: a cue lifts the grade, never loosens a rule; 'four in ten' is c28 verbatim; Kullamagi credit is u04. Distinct cue from q35. 'Skip drives for the day' is weak but a real contrarian reading, not silly.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Nasdaq trend cue is a proposal; text keeps it as a tailwind with no numbers as ours, the 10/20 line sits in deeper as Kullamagi's. Fine."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "No-adding key kept; day-1 sell now rare per D-013."
+   "notes": "Agrees: adding to a winner rare and never the plan; the drive-not-a-trend point rests on fact c30 (SMB). Voice 4."
   },
   "q56": {
    "status": "cut",
@@ -4212,8 +4255,8 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer True from c18 and B26 (h10). 132 chars. Both clauses true."
+   "fixed": true,
+   "notes": "Stem fix: 'Unlike an index or a levered ETF, it's still a pass' handed the member the exception and the answer (rule 28, leading). Restated as one plain claim; answer stays True. Writer's voice 3; after fix 4."
   },
   "q63": {
    "status": "cut",
@@ -4225,8 +4268,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Orange = A+ only (c20, h26); four choices balanced (30-31 chars), each wrong note grounded.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice reads as a mentor: verdict first, own numbers worked, the reason given. Truth checked against the lesson facts and rulings; numbers recomputed where present."
   },
   "w1": {
    "status": "pass",
@@ -4249,8 +4291,8 @@
   "q67": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "edit ok (depends_on restored to the resolved ruling ids, empty list fails the validator)"
+   "fixed": false,
+   "notes": "Shorting limited to traders who've made $1 million (r04); U-Turn placed under the Parabolic Short. Fine."
   },
   "q68": {
    "status": "cut",

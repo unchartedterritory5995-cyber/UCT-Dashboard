@@ -853,9 +853,13 @@ def _read_flow_rows(sym: str, source: str) -> list[dict] | None:
         return None
 
 
-def _ctx_flow_ticker(sym: str) -> str:
-    """One desk-context line of a ticker's flow, read from BOTH sources it may
-    be filed under.
+def flow_ticker_line(sym: str) -> tuple[str, bool]:
+    """`(line, conclusive)`: one line of a ticker's flow, read from BOTH sources it
+    may be filed under, and whether the read reached a conclusion.
+
+    `conclusive` is False when the flow read FAILED: the line is then "" and means
+    "could not be read", never "a quiet tape". A caller that tells its member
+    something (the Compass flow tool) has to say which of the two it is.
 
     `/api/flow/ticker` defaults to `source=stocks`, but the flow DB files
     index/ETF symbols — SPY, QQQ, IWM, every XL*, ~200 names — under
@@ -884,7 +888,7 @@ def _ctx_flow_ticker(sym: str) -> str:
     import time as _time
     hit = _flow_ctx_memo.get(sym)
     if hit and _time.time() - hit[0] < 60:
-        return hit[1]
+        return hit[1], True          # only a conclusive read is ever memoized
     text = ""
     conclusive = False
     try:
@@ -903,7 +907,12 @@ def _ctx_flow_ticker(sym: str) -> str:
         conclusive = False
     if conclusive:
         _flow_ctx_memo[sym] = (_time.time(), text)
-    return text
+    return text, conclusive
+
+
+def _ctx_flow_ticker(sym: str) -> str:
+    """One desk-context line of a ticker's flow ("" when quiet or unreadable)."""
+    return flow_ticker_line(sym)[0]
 
 
 # Flow context is an HTTP hop — fire it only when the phrasing asks about OPTIONS
@@ -1211,7 +1220,7 @@ def _ctx_verdict(sym: str) -> str:
 
 def _ctx_levels(sym: str) -> str:
     """Dark-pool levels (SQLite-backed, safe to build) + gamma walls read
-    CACHE-ONLY — the GXW cold build is a live ~20s Schwab chain call and must
+    CACHE-ONLY — the GXW cold build is a live option-chain walk (up to ~25s) and must
     never run inside an answer."""
     bits: list[str] = []
     try:

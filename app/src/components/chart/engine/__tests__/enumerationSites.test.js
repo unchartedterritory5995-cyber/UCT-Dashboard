@@ -722,6 +722,18 @@ const LEDGER = [
   { file: 'app/src/pages/RsGlossary.jsx',
     region: 'RS_INDICATORS — the four RS indicators the public glossary teaches, in reading order',
     anchor: 'export const RS_INDICATORS = Object.freeze([', fate: 'keep' },
+  // ⭐ HEADER CUSTOM STATS (a830e030d7, merged 2026-11-17) — `CustomStatBuilder.jsx::QUICK_PICKS`,
+  // the "+ Custom stat" picker's eight one-tap starting points (EMA 21, SMA 50, RSI 14, ATR 14,
+  // ATR % 14, % from 50-day MA, ADR % 20, Relative volume 50). Same species as `POPULAR_DEF_IDS`
+  // and `QUICK_STUDY_IDS`: "which few stats a member most likely wants in a header, already
+  // parameterised" is a product judgment `listDefinitions()` cannot express. It names ids and
+  // inputs only; whether each is offered at all is still `customStatCompute.customStatChoices`'
+  // answer, so a renamed definition drops out of the picks rather than offering something the
+  // header cannot compute. Found by the whole-app engine rails job (#1690) on its first run after
+  // the merge: the PR that added it never ran this file. `keep`: the picks are the feature.
+  { file: 'app/src/components/chart/CustomStatBuilder.jsx',
+    region: 'QUICK_PICKS — the custom header stat picker`s one-tap starting points',
+    anchor: 'const QUICK_PICKS = [', fate: 'keep' },
   // ⭐ PHASE 4 (Unified Editing) — `builder/builtinForks.js::SPECS`, "Create custom
   // copy" of a UCT built-in: per built-in, the FORMULA that reproduces its native maths.
   // ⛔ NOTHING CAN DERIVE IT: a native compute is JavaScript, not a tree, and "RSI is
@@ -1289,7 +1301,9 @@ const RETIRED_BY_B4_ALERTS = [
 // definition map the Agent uses to identify an instance; ledgered `keep`, see its row.
 // ⭐ 23 -> 24 AT COND-TA (2026-11-16): `ast/legacyTaNames.js::LEGACY_TA_NAMES`, Pine v1-v4's bare
 // spellings of its ta.* calls; ledgered `keep`, see its row.
-const SITE_COUNT = 24
+// ⭐ 24 -> 25 AT HEADER CUSTOM STATS (2026-11-17): `CustomStatBuilder.jsx::QUICK_PICKS`, the custom
+// header stat picker's one-tap starting points; ledgered `keep`, see its row.
+const SITE_COUNT = 25
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1474,7 +1488,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // server-side rows above, every one `keep`.
     // ⭐ `{keep: 20}` -> `{keep: 21}` AT FIX LANE F1 (2026-11-10): the public RS
     // glossary's `RS_INDICATORS` table joins as a `keep`. See its LEDGER row.
-    expect(counts).toEqual({ keep: 24 })  // 23 -> 24: COND-TA's Pine v1-v4 bare-name roster (legacyTaNames.js)
+    expect(counts).toEqual({ keep: 25 })  // 23 -> 24: COND-TA's Pine v1-v4 bare-name roster (legacyTaNames.js); 24 -> 25: header custom stats' QUICK_PICKS (CustomStatBuilder.jsx)
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1573,6 +1587,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["api/services/signature/rs_provider.py::rs_*_envelope — one provider per RS split row, each naming its own id (an over-match: no list)","keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
       ["app/src/agent/stateRail.js::IND_TYPE — the words a member says for an indicator, each mapped to the definition it means","keep"],
+      ["app/src/components/chart/CustomStatBuilder.jsx::QUICK_PICKS — the custom header stat picker`s one-tap starting points","keep"],
       ["app/src/components/chart/builder/builtinForks.js::SPECS — each customizable built-in's parity-proven formula equivalent","keep"],
       ["app/src/components/chart/discoveryCatalog.js::POPULAR_DEF_IDS — the curated `Popular` tab of the Add Indicator library","keep"],
       ["app/src/components/chart/engine/ast/closedTable.json::the closed table — every name a user formula may call","keep"],
@@ -1825,6 +1840,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'rsPhases::divergence', 'rsRating::ratingLine', 'rsVsEma::dist',
       // ⭐ 2026-11-12 (RS Exit Warnings): the fifth carries ONE chip, the RS line.
       'rsExit::rsLine',
+      // ⭐ 2026-11-18 (UCT Mansfield RS): the sixth carries ONE chip, the Mansfield line.
+      'rsMansfield::mansfield',
       'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
       'vwap::vwap',
       'williamsR::williams_r',
@@ -1916,6 +1933,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'rsRating', 'rsPhases', 'rsVsEma',
       // ⭐ 2026-11-12 (RS Exit Warnings): the fifth RS definition, engine-lane by construction.
       'rsExit',
+      // ⭐ 2026-11-18 (UCT Mansfield RS): the sixth, engine-lane by construction.
+      'rsMansfield',
       'bb', 'vwap', 'mfi', 'cci', 'williamsR', 'adx', 'obv', 'donchian', 'avwap', 'atrBands',
       // ⭐ `dollarVolume` IS ENGINE-LANE BY CONSTRUCTION TOO, and it is the one id
       // here whose value USED to be drawn by hand — in the volume label strip,
@@ -2096,7 +2115,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const serverLane = defs.filter(d => d.compute.kind === 'server').map(d => d.id)
     // ⭐ U6 (2026-11-09): the RS split's three join rsLine on the server lane.
     // ⭐ 2026-11-12 (RS Exit Warnings): `rsExit` is the fifth RS definition on the server lane.
-    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit'])
+    // ⭐ 2026-11-18 (UCT Mansfield RS): `rsMansfield` is the sixth.
+    expect(serverLane, 'the exclusion selects nothing — it is inert').toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield'])
     for (const def of defs.filter(d => d.compute.kind !== 'server')) {
       expect(def.compute && def.compute.kind, def.id).toBe('native')
       expect(typeof def.compute.fn, `${def.id}: compute.fn is not a name`).toBe('string')
@@ -2299,6 +2319,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       // ⭐ PHASE 4 — `builtinForks.js::SPECS`, the custom-copy formula table. Ledgered.
       // ⭐ AGENT H14 — `stateRail.js::IND_TYPE`, spoken word -> definition. Ledgered.
       'app/src/agent/stateRail.js',
+      // ⭐ HEADER CUSTOM STATS — `CustomStatBuilder.jsx::QUICK_PICKS`, one-tap starting points. Ledgered.
+      'app/src/components/chart/CustomStatBuilder.jsx',
       'app/src/components/chart/builder/builtinForks.js',
       'app/src/components/chart/discoveryCatalog.js',
       'app/src/components/chart/engine/ast/interpret.js',
@@ -2405,6 +2427,8 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
       // ⭐ AGENT H14 — IND_TYPE; a `.js` under app/src, walkable.
       .toEqual(['app/src/agent/stateRail.js',
+        // ⭐ HEADER CUSTOM STATS — QUICK_PICKS; a `.jsx` under app/src, walkable.
+        'app/src/components/chart/CustomStatBuilder.jsx',
         'app/src/components/chart/builder/builtinForks.js',
         'app/src/components/chart/discoveryCatalog.js',
         'app/src/components/chart/engine/ast/interpret.js',
@@ -2939,6 +2963,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     rsVsEma: [],
     // ⭐ 2026-11-12 (RS Exit Warnings): the fifth, a server definition like the others — never a block.
     rsExit: [],
+    // ⭐ 2026-11-18 (UCT Mansfield RS): the sixth, a server definition like the others — never a block.
+    rsMansfield: [],
     // ⭐⭐ `dataSeries` — P2.1, AND THE STRONGEST CASE OF THIS ROW'S MEANING.
     // `avwap`, `atrBands` and `rsLine` were definitions that never had a
     // hand-written BLOCK; this one never had a hardcoded ANYTHING — no block, no
@@ -2971,7 +2997,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
    * fail by NAME for any definition that genuinely did have a block and has
    * quietly lost its refs or its compute.
    */
-  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'dataSeries', 'movingAverage', 'dollarVolume',
+  const NEVER_MIGRATED = ['avwap', 'atrBands', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield', 'dataSeries', 'movingAverage', 'dollarVolume',
     ...TIER1_LIBRARY]
   /** …and the compute its `indicatorData` branch called. */
   const COMPUTES = {
@@ -2981,7 +3007,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     williamsR: 'computeWilliamsR', adx: 'computeADX', obv: 'computeOBV',
     donchian: 'computeDonchian',
     // …and `null` where there never was one. See NEVER_MIGRATED above.
-    avwap: null, atrBands: null, rsLine: null, rsRating: null, rsPhases: null, rsVsEma: null, rsExit: null,
+    avwap: null, atrBands: null, rsLine: null, rsRating: null, rsPhases: null, rsVsEma: null, rsExit: null, rsMansfield: null,
     dataSeries: null, movingAverage: null, dollarVolume: null,
     ...Object.fromEntries(TIER1_LIBRARY.map((id) => [id, null])),
   }
@@ -3283,7 +3309,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       // ⭐ 2026-10-01 — 20 + the Technical library's 33 Tier 1 studies.
       // ⭐ 53 -> 56 AT THE UCT RS SPLIT (U6, 2026-11-09): three server definitions joined the registry.
       // ⭐ 56 -> 57 AT RS EXIT WARNINGS (2026-11-12): the fifth RS definition joined it.
-      flipSetSize: 57,
+      // ⭐ 57 -> 58 AT UCT MANSFIELD RS (2026-11-18): the sixth RS definition joined it.
+      flipSetSize: 58,
       mutableSets: [],
     })
   })
@@ -3434,7 +3461,8 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       // default; a FINDING for the owner would move `badgeValues`, not this.
       // ⭐ 6 -> 7 AT RS EXIT WARNINGS (2026-11-12): the fifth RS definition retypes the same sentence.
       // Same badge, same default; a FINDING for the owner would move `badgeValues`, not this.
-      declarationsInSource: 7,
+      // ⭐ 7 -> 8 AT UCT MANSFIELD RS (2026-11-18): the sixth RS definition retypes the same sentence.
+      declarationsInSource: 8,
       badgeValues: ['non-repainting'],
       definitionsBadgedRepaints: [],
       plotsWithOwnBadge: [],

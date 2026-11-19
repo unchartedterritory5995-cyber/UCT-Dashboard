@@ -49,9 +49,11 @@ EXIT CODES — 1 and 2 are deliberately different facts:
     0  PASS          every route navigated and every surface settled.
     1  FAILED        a freeze, a dead route, or a render loop was MEASURED. H4.
     2  INCONCLUSIVE  nothing was measurable (rig would not start, not signed in,
-                     or an opt-in key was set). NOT a pass and NOT a product
-                     failure — "we could not compute it" and "something broke"
-                     are different facts to whoever reads this.
+                     or an opt-in key was set), OR a nav link was in the DOM but
+                     still not visible after the retry (`absent_verdict`). NOT a
+                     pass and NOT a product failure — "we could not compute it"
+                     and "something broke" are different facts to whoever reads
+                     this.
 
 Usage
 -----
@@ -76,6 +78,16 @@ import hub_nav_smoke as hns        # noqa: E402  — the nav roster, derived onc
 # ── Bounds ──────────────────────────────────────────────────────────────────
 NAV_BOUND_MS = 6000        # an in-app transition slower than this has frozen
 IDLE_SECONDS = 5           # R-27
+# ⛔⛔ A LINK NOT VISIBLE AT FIRST LOOK IS LOOKED AT AGAIN BEFORE ANYTHING IS SAID ABOUT IT.
+# ⚰️ 2026-11-17 (and 2026-09-25 before it): one run printed SEVEN nav entries "not rendered for
+# this account" — Desk, Journal, Community, Support among them — and the next run on the same
+# account, viewport and tool clicked all seven. Read-only probes found every one in the DOM
+# (43x28, inside a 900px nav that does not overflow) and visible 0.13-0.56 s after any load. A
+# silently-absent TAIL is exactly where a real nav freeze would hide, and the old line read
+# like a paid-gate result. So: "not rendered for this account" is printed ONLY when the link is
+# absent from the DOM after this retry; a link that is in the DOM and still not visible is
+# INCONCLUSIVE (exit 2), with its evidence recorded (`link_state`).
+ABSENT_RETRY_MS = 2000
 # ⛔ The desktop tier. The canonical boundary is 1025px (breakpoints.js); below it
 # the app renders MobileNav and the left NavBar does not exist at all.
 VIEWPORT_W, VIEWPORT_H = 1440, 900
@@ -242,22 +254,83 @@ def stability_verdict(idle: dict) -> tuple[bool, str]:
     return True, f"stable ({idle['commits']} commits, {idle['mutations']} mutations)"
 
 
-def click_nav(page, entry: dict) -> tuple[str, str]:
-    """Click one nav entry from wherever we are. Returns (status, detail)."""
+#: What a nav link's absence is made of: how many matching links the DOM holds, the first one's
+#: box, the first ancestor that hides it (display:none, visibility:hidden or inert), and how long
+#: after the last full page load this look happened. ⛔ Kept as evidence on every ABSENT and
+#: INCONCLUSIVE row, so a reader can tell "not in the page" from "in the page, not showing".
+LINK_STATE_JS = """(href) => {
+  const els = [...document.querySelectorAll('a[href="' + href + '"]')];
+  const out = {count: els.length, box: null, hiddenBy: null, msSinceLoad: Math.round(performance.now())};
+  if (!els.length) return out;
+  const el = els[0];
+  const r = el.getBoundingClientRect();
+  out.box = [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)];
+  for (let n = el; n && n.nodeType === 1; n = n.parentElement) {
+    const cs = getComputedStyle(n);
+    const cls = (n.getAttribute('class') || '').trim().split(' ')[0];
+    const name = n.tagName.toLowerCase() + (n.id ? '#' + n.id : '') + (cls ? '.' + cls : '');
+    if (cs.display === 'none') { out.hiddenBy = 'display:none on ' + name; break; }
+    if (cs.visibility === 'hidden') { out.hiddenBy = 'visibility:hidden on ' + name; break; }
+    if (n.inert || n.hasAttribute('inert')) { out.hiddenBy = 'inert on ' + name; break; }
+  }
+  return out;
+}"""
+
+
+def link_state(page, href: str) -> dict:
+    """The link's evidence (`LINK_STATE_JS`) plus Playwright's own visibility verdict."""
+    link = page.locator('a[href="' + href + '"]').first
+    state = page.evaluate(LINK_STATE_JS, href)
+    state["visible"] = bool(state["count"]) and link.is_visible()
+    return state
+
+
+def absent_verdict(first: dict, retry: dict, waited_ms: int) -> tuple[str, str]:
+    """(status, detail) for a nav link that was still not visible after the retry.
+
+    ⛔ "not rendered for this account" ONLY when the link is absent from the DOM after the
+    retry. In the DOM and not visible is INCONCLUSIVE: it is not a paid-gate result, and the
+    evidence says why it could not be clicked."""
+    last = retry or first
+    if not last["count"]:
+        return "ABSENT", f"not rendered for this account (absent from the DOM after a {waited_ms}ms retry)"
+    return "INCONCLUSIVE", (
+        f"in the DOM but not visible after a {waited_ms}ms retry: {last['count']} link(s), "
+        f"box {last['box']}, {last['hiddenBy'] or 'no hiding ancestor (zero-size box?)'}, "
+        f"{last['msSinceLoad']}ms since load (first look: {first['msSinceLoad']}ms, "
+        f"{first['hiddenBy'] or 'no hiding ancestor'})")
+
+
+def click_nav(page, entry: dict, retry_ms: int = ABSENT_RETRY_MS) -> tuple[str, str, dict]:
+    """Click one nav entry from wherever we are. Returns (status, detail, evidence)."""
     before_url = page.url
     before = page.evaluate(FINGERPRINT)
     link = page.locator('a[href="' + entry["to"] + '"]').first
+    evidence: dict = {}
+    retried = ""
     try:
-        if link.count() == 0 or not link.is_visible():
-            return "ABSENT", "not rendered for this account"
+        first = link_state(page, entry["to"])
+        if not first["visible"]:
+            # ⭐ Look again, by polling, for up to `retry_ms` — at least once, so "after the
+            # retry" is always true of whatever is said next.
+            t_retry = time.time()
+            retry = link_state(page, entry["to"])
+            while not retry["visible"] and (time.time() - t_retry) * 1000 < retry_ms:
+                page.wait_for_timeout(150)
+                retry = link_state(page, entry["to"])
+            waited = int((time.time() - t_retry) * 1000)
+            evidence = {"first": first, "retry": retry, "waited_ms": waited}
+            if not retry["visible"]:
+                return (*absent_verdict(first, retry, waited), evidence)
+            retried = f" (visible only after a {waited}ms retry)"
     except Exception as e:            # noqa: BLE001
-        return "ABSENT", f"not interrogable ({type(e).__name__})"
+        return "INCONCLUSIVE", f"not interrogable ({type(e).__name__})", evidence
 
     t0 = time.time()
     try:
         link.click(timeout=NAV_BOUND_MS)
     except Exception as e:            # noqa: BLE001
-        return "FAIL", f"click did not complete: {type(e).__name__}"
+        return "FAIL", f"click did not complete: {type(e).__name__}{retried}", evidence
 
     moved_url = moved_screen = False
     while (time.time() - t0) * 1000 < NAV_BOUND_MS:
@@ -268,14 +341,14 @@ def click_nav(page, entry: dict) -> tuple[str, str]:
         if now["head"] != before["head"] or abs(now["chars"] - before["chars"]) > 40:
             moved_screen = True
         if moved_url and moved_screen:
-            return "PASS", f"{int((time.time() - t0) * 1000)}ms"
+            return "PASS", f"{int((time.time() - t0) * 1000)}ms{retried}", evidence
     if moved_url and not moved_screen:
         # ⛔ THIS IS THE 2026-09-10 DEFECT, EXACTLY.
         return "FAIL", ("URL moved and the SCREEN DID NOT within "
-                        f"{NAV_BOUND_MS}ms — the nav-freeze signature")
+                        f"{NAV_BOUND_MS}ms — the nav-freeze signature{retried}"), evidence
     if not moved_url:
-        return "FAIL", f"URL never changed within {NAV_BOUND_MS}ms"
-    return "FAIL", "neither URL nor screen settled"
+        return "FAIL", f"URL never changed within {NAV_BOUND_MS}ms{retried}", evidence
+    return "FAIL", f"neither URL nor screen settled{retried}", evidence
 
 
 def spawn_rig_or_reason(spawn=None):
@@ -310,8 +383,46 @@ def redirects_elsewhere(route: str, app_source: str) -> bool:
     return bool(re.search(r'path="%s"\s+element=\{<Navigate\b' % re.escape(route), app_source or ""))
 
 
+#: The nav fixture for `--self-check`: a page whose link is in the DOM but hidden for ~600 ms
+#: after load (the 2026-11-17 shape), one whose link never shows, one with no link, and the page
+#: the link leads to. Served from an intercepted origin, so no network and no rig.
+FIXTURE_ORIGIN = "http://r27-fixture.test"
+_FIXTURE_LINK = '<nav><div class="navGroup"{hide}><a href="/x" id="l">Journal</a></div></nav>'
+FIXTURE_PAGES = {
+    "/late": ("<!doctype html><html><body>" + _FIXTURE_LINK.format(hide=' style="display:none"')
+              + "<main>" + "Start page, the nav is still settling. " * 6 + "</main>"
+              + "<script>setTimeout(() => { document.querySelector('.navGroup').style.display = '' }, 600)"
+              + "</script></body></html>"),
+    "/never": ("<!doctype html><html><body>" + _FIXTURE_LINK.format(hide=' style="display:none"')
+               + "<main>" + "Start page, the link never shows. " * 6 + "</main></body></html>"),
+    "/none": ("<!doctype html><html><body><nav></nav><main>" + "Start page, no such link. " * 6
+              + "</main></body></html>"),
+    "/x": ("<!doctype html><html><body><nav></nav><main>" + "Arrived: a different screen. " * 6
+           + "</main></body></html>"),
+}
+
+
+def fixture_click_cases(retry_ms: int = ABSENT_RETRY_MS) -> dict:
+    """`click_nav` against `FIXTURE_PAGES` in headless Chromium: {page: (status, detail, evidence)}."""
+    from playwright.sync_api import sync_playwright
+    out = {}
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        try:
+            page = browser.new_page()
+            page.route(FIXTURE_ORIGIN + "/**", lambda route: route.fulfill(
+                status=200, content_type="text/html",
+                body=FIXTURE_PAGES.get("/" + route.request.url.split("/", 3)[-1].split("?")[0], "")))
+            for start in ("/late", "/never", "/none"):
+                page.goto(FIXTURE_ORIGIN + start, wait_until="domcontentloaded")
+                out[start] = click_nav(page, {"to": "/x"}, retry_ms=retry_ms)
+        finally:
+            browser.close()
+    return out
+
+
 def self_check() -> int:
-    """Rule 14: prove the verdicts can FAIL, without a browser."""
+    """Rule 14: prove the verdicts can FAIL — the nav cases in a real DOM, the rest without one."""
     bad = 0
 
     def case(name, ok):
@@ -366,6 +477,40 @@ def self_check() -> int:
          refused[0] is None and "no rig profile" in refused[1])
     case("⭐ CONTROL — a rig that starts is passed through untouched",
          spawn_rig_or_reason(spawn=lambda: ("proc", "ws://x", "v"))[0] == ("proc", "ws://x", "v"))
+
+    # ── a nav link that is not visible: absent for the account, or present and not showing ──
+    gone = {"count": 0, "box": None, "hiddenBy": None, "msSinceLoad": 2900, "visible": False}
+    hidden = {"count": 1, "box": [0, 557, 0, 0], "hiddenBy": "display:none on div.navGroup",
+              "msSinceLoad": 2900, "visible": False}
+    case("⛔ a link ABSENT from the DOM after the retry is 'not rendered for this account'",
+         absent_verdict(gone, gone, 2000)[0] == "ABSENT"
+         and "for this account" in absent_verdict(gone, gone, 2000)[1])
+    case("⛔⛔ a link IN the DOM and not visible is INCONCLUSIVE, never a paid-gate result",
+         absent_verdict(hidden, hidden, 2000)[0] == "INCONCLUSIVE"
+         and "for this account" not in absent_verdict(hidden, hidden, 2000)[1])
+    case("⭐ ...and its evidence names the count, the box, the hiding ancestor and the time",
+         all(s in absent_verdict(hidden, hidden, 2000)[1]
+             for s in ("1 link(s)", "[0, 557, 0, 0]", "display:none on div.navGroup", "2900ms since load")))
+    try:
+        real = fixture_click_cases()
+        mutant = fixture_click_cases(retry_ms=0)      # ⛔ the retry REMOVED
+    except Exception as e:                            # noqa: BLE001 — a fixture that cannot run is RED, never skipped
+        real = mutant = {}
+        print(f"  (the nav fixture could not run: {type(e).__name__}: {e})")
+    late, late0 = real.get("/late"), mutant.get("/late")
+    case("⭐⭐ FIXTURE — a link hidden for ~600 ms after load PASSES after the retry, and says so",
+         bool(late) and late[0] == "PASS" and "retry" in late[1])
+    case("⭐ ...the fixture really was hidden at first look (else this case proves nothing)",
+         bool(late) and late[2].get("first", {}).get("visible") is False
+         and late[2]["first"]["count"] == 1 and late[2]["first"]["msSinceLoad"] < 600)
+    case("⛔⛔ MUTATION — the retry REMOVED, the same link reads INCONCLUSIVE, not 'absent for this account'",
+         bool(late0) and late0[0] == "INCONCLUSIVE" and "for this account" not in late0[1])
+    case("⛔ FIXTURE — a link that never shows is INCONCLUSIVE, its hiding ancestor named",
+         bool(real.get("/never")) and real["/never"][0] == "INCONCLUSIVE"
+         and "display:none on div.navGroup" in real["/never"][1])
+    case("⭐ CONTROL — a link the page does not have is 'not rendered for this account'",
+         bool(real.get("/none")) and real["/none"][0] == "ABSENT"
+         and "for this account" in real["/none"][1])
     print("self-check:", "PASS" if not bad else f"FAIL ({bad})")
     return 1 if bad else 0
 
@@ -415,7 +560,7 @@ def main(argv=None) -> int:
         say("INCONCLUSIVE — the rig did not answer")
         return 2
 
-    result = {"routes": [], "stability": [], "failures": [], "keys": None}
+    result = {"routes": [], "stability": [], "failures": [], "inconclusive": [], "keys": None}
     try:
         with sync_playwright() as pw:
             b = pw.chromium.connect_over_cdp(endpoint)
@@ -494,14 +639,17 @@ def main(argv=None) -> int:
                     start = NAV_START_ALT if start != NAV_START_ALT else NAV_START
                     page.goto(wc.PROD + start, wait_until="domcontentloaded")
                     page.wait_for_timeout(2500)
-                status, detail = click_nav(page, e)
+                status, detail, evidence = click_nav(page, e)
                 result["routes"].append({"to": e["to"], "label": e["label"],
-                                         "status": status, "detail": detail})
+                                         "status": status, "detail": detail,
+                                         **({"evidence": evidence} if evidence else {})})
                 say(f"  {status:7} {e['to']:20} {detail}")
                 if status == "PASS":
                     clicked += 1
                 elif status == "FAIL":
                     result["failures"].append(f"{e['to']}: {detail}")
+                elif status == "INCONCLUSIVE":
+                    result["inconclusive"].append(f"{e['to']}: {detail}")
 
             if clicked == 0:
                 say("\nINCONCLUSIVE — no nav entry was clickable in this session.")
@@ -545,6 +693,14 @@ def main(argv=None) -> int:
         for f in result["failures"]:
             say(f"   · {f}")
         return 1
+    if result["inconclusive"]:
+        # ⛔ Not a pass: a nav entry was in the page and could not be clicked, so whether it
+        # navigates was never measured. Not a failure either: nothing broke that was seen.
+        say(f"\nINCONCLUSIVE — {len(result['inconclusive'])} nav entr(y/ies) in the DOM but "
+            "not visible after the retry, so never clicked:")
+        for f in result["inconclusive"]:
+            say(f"   · {f}")
+        return 2
     say(f"\n✅ PASS — {len(result['routes'])} routes navigated, "
         f"{len(result['stability'])} surfaces stable across {a.idle}s idle.")
     return 0

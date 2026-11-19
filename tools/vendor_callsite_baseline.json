@@ -78,7 +78,6 @@
     "yfinance": {
       "api/index_bars.py": 2,
       "api/routers/charts.py": 1,
-      "api/schwab_service.py": 2,
       "api/services/annual_financials.py": 2,
       "api/services/catalyst/ticker_metadata.py": 1,
       "api/services/earnings_enrichment.py": 3,
@@ -86,6 +85,7 @@
       "api/services/earnings_table.py": 1,
       "api/services/engine.py": 1,
       "api/services/financial_statements.py": 1,
+      "api/services/flow_market_data.py": 2,
       "api/services/fundamentals.py": 1,
       "api/services/industry_map.py": 1,
       "api/services/institutional_holdings.py": 1,

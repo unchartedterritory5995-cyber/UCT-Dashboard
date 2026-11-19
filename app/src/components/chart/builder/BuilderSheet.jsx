@@ -74,7 +74,7 @@
 // must not brick a working indicator.
 
 import { withoutGuardIds } from '../engine/ast/guardIdText'
-import { Component, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Suspense, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { AuthContext } from '../../../context/AuthContext'
 import { useCreateIndicatorAccess } from './studio/createIndicatorFlag'
 import Sheet from '../../mobile/Sheet'
@@ -111,18 +111,28 @@ import * as engineRegistry from '../engine/nativeRegistry'
 import { validateUserDefinitions, installUserDefinitions } from '../engine/nativeRegistry'
 import { addInstance } from '../engine/instanceControls'
 import {
-  useUserDefinitions, saveUserDefinition, deleteUserDefinition,
+  useUserDefinitions, saveUserDefinition, deleteUserDefinition, recordStatusHeadline,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula, SHEET } from './FormulaField'
 import { manifestFromPlacements } from './pineParamManifest'
 import { carryPriorParamIds, savedParamManifest, carryNotice, inputPlaces } from './paramCarry'
 import ParamControls from './ParamControls'
+import SettingsFields from './studio/SettingsFields'
+import { settingsOfTrees } from './authoring/derivedSettings'
+import { libraryParts, namedByTitle } from './authoring/checkedLibrary'
+import { nameOfTree } from './authoring/derivedName'
+import { noLongerChecked } from './authoring/readback'
+import { collapseExpansions } from '../engine/ast/callExpansions'
+import { formulasWithSetting } from './authoring/settingsOnFormulas'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
 // a VIEW: it installs the document this form would save under one fixed id and
 // forgets it the moment the draft stops evaluating or the sheet closes.
 import PreviewPane from './editor/PreviewPane'
 import MemberPane from './memberPane/MemberPane'
+// ⭐ STUDIO R5 — Inspect a bar. Loaded on demand: it brings the engine's headless export, which
+// this window's own first open does not need.
+const InspectBarPanel = lazy(() => import('./inspect/InspectBarPanel'))
 import { PREVIEW_DEF_ID } from './editor/previewDefinition'
 import ConciergeBox from './ConciergeBox'
 import ConverseBox from './ConverseBox'
@@ -154,6 +164,10 @@ import { STATUS as GATE_STATUS } from '../engine/evaluability'
 import {
   NEW_LINE_FLAG, rowIsNewLine, withLocalLineIdentities, servedLineIdentities, withoutNewLineMarkers,
 } from '../engine/lineIdentity'
+import { fieldsForInstance } from '../indicatorRegistry'
+import { windowTitle, startOverLabel } from './windowTitle'
+import { headlineToRecord, headlineKey } from './statusHeadlineRecord'
+import { editorStatusEnabled } from './editorStatusGate'
 import styles from './BuilderSheet.module.css'
 
 /** The badge vocabulary, cased for display. ⛔ The definition's vocabulary is
@@ -670,10 +684,10 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
                 // band (`binder.bandColoursFor`). Only an input this document declares.
                 ...(typeof r.fill.colorUpInput === 'string'
                   && declared.some((s) => s.key === r.fill.colorUpInput && s.type === 'color')
-                  ? { colorUpInput: r.fill.colorUpInput } : {}),
+                  ? { colorUpInput: r.fill.colorUpInput, ...(r.fill.colorUpInputOwnAlpha === true ? { colorUpInputOwnAlpha: true } : {}) } : {}),
                 ...(typeof r.fill.colorDownInput === 'string'
                   && declared.some((s) => s.key === r.fill.colorDownInput && s.type === 'color')
-                  ? { colorDownInput: r.fill.colorDownInput } : {}),
+                  ? { colorDownInput: r.fill.colorDownInput, ...(r.fill.colorDownInputOwnAlpha === true ? { colorDownInputOwnAlpha: true } : {}) } : {}),
               }
               : {}),
             ...(r.fill.colorMode && !r.fill.colorUp && Array.isArray(r.fill.colorPalette)
@@ -1053,6 +1067,11 @@ export default function BuilderSheet({
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
+  /* ⭐ WHAT THIS WINDOW IS CALLED, BY WHERE IT OPENS (owner decision 2026-11-17, backlog 49). From a
+     chart the member pressed "Create indicator", so the window says so; from the Screener the same
+     window builds a scan's formula and keeps "New formula". Only the title and the footer's
+     start-over button read it. */
+  noun = 'formula',
 }) {
   /** ⛔⛔ CONVERSATIONAL AUTHORING IS DARK (release gate 2026-10-06). It shipped
    *  UNGATED here once and reached every paid member's New Formula sheet; it is
@@ -1142,6 +1161,28 @@ export default function BuilderSheet({
    *  consistency."* Import was the one tab whose state was purely local, so it
    *  was the one tab that broke the rule the others follow. */
   const [pineText, setPineText] = useState('')
+  // ⭐ STUDIO R4 — the status panel's sentence for the text in the script box (`PineBox` reports
+  // it), and the versions it has already been put on record for in this window.
+  const [statusHeadline, setStatusHeadline] = useState(null)
+  // ⭐ STUDIO R5 — the script box's own "go to line", for Inspect a bar's `line N` (`PineBox`
+  // fills it while mounted)
+  const scriptLineJump = useRef(null)
+  const headlinesSent = useRef(new Set())
+  /** Put the panel's sentence on record for a saved version of THIS text. Never awaited. */
+  const postStatusHeadline = useCallback((defId, version, savedText, said) => {
+    const send = headlineToRecord({ enabled: editorStatusEnabled(), defId, version, savedText, said, engine: SCRIPT_ENGINE_VERSION })
+    if (!send) return false
+    const key = headlineKey(send)
+    if (headlinesSent.current.has(key)) return false
+    headlinesSent.current.add(key)
+    recordStatusHeadline(send.defId, send).then((r) => {
+      // a transport failure may be tried again on the next save or open; a refusal is an answer
+      if (!r.ok && r.status === null) headlinesSent.current.delete(key)
+    })
+    return true
+  }, [])
+  // ⭐ the document the member door installed for `pineText` (what "Add this script to my chart" adds)
+  const [scriptDoc, setScriptDoc] = useState(null)
 
   /** Every plot row in document order — plot 1 first. */
   const allRows = useMemo(() => [plot0, ...plotRows], [plot0, plotRows])
@@ -1557,10 +1598,10 @@ export default function BuilderSheet({
     // the source is exactly what this document never stored. Nothing is written
     // until the member pastes and saves; closing leaves it as it was.
     if (row && row.upgradeScript === true && compute.kind === 'ast') {
-      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
-      setName(String(def?.meta?.name || ''))
       // the script, when it is stored (a remembered failed write-back); else an empty box
       const stored = typeof row.pine_source === 'string' && row.pine_source.trim() ? row.pine_source : ''
+      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true, script: stored || null })
+      setName(String(def?.meta?.name || ''))
       setPineText(stored)
       setBuildMode('pine')
       setView('editor'); setOrigin('pine'); setScriptDialect(null)
@@ -1582,7 +1623,7 @@ export default function BuilderSheet({
         setStoreError('This script was stored without its source, so it cannot be edited here. It is unchanged.')
         return
       }
-      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true })
+      setEditing({ defId: row.def_id, version: Number(row.version) || 1, prior: def || null, runtime: true, script: compute.source })
       setName(String(def?.meta?.name || ''))
       setPineText(compute.source)
       setBuildMode('pine')
@@ -2290,6 +2331,10 @@ export default function BuilderSheet({
     // manual tweak with no new paste) must not carry a stale `import_id`
     // forward and misattribute itself to an import that already landed.
     importTelemetryRef.current = null
+    // ⭐ STUDIO R4 — a script saved through the form ("Use this formula", then Save) is the same
+    // saved document as one saved through the script door, so its author's sentence goes on record
+    // the same way: only when the script rode this save, and only for exactly that text.
+    if (keepScript && res.row) postStatusHeadline(res.row.def_id, res.row.version, applyScriptRef.current, statusHeadline)
     applyProvenanceRef.current = null; pineDoorStampRef.current = null
     applyScriptRef.current = null; applyMathsRef.current = null
     const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
@@ -2379,7 +2424,7 @@ export default function BuilderSheet({
     }
     onSaved?.(res.row)
   }, [canSave, result, allRows, name, onSaved, settings, onChange, editing,
-    documentFor, lookToApply, intent, intentRead])
+    documentFor, lookToApply, intent, intentRead, statusHeadline, postStatusHeadline])
 
   // ⭐⭐ DELETE ASKS FIRST.
   //
@@ -2456,6 +2501,9 @@ export default function BuilderSheet({
     if (!res.ok) return res
     importTelemetryRef.current = null
     const row = res.row || {}
+    // ⭐ STUDIO R4 — the sentence the author was just shown goes on record for THIS version, so a
+    // share of it can say so. Not awaited: it never delays the save or its receipt.
+    postStatusHeadline(row.def_id, row.version, pineText, statusHeadline)
     // ⭐ LINE IDENTITY — as `save` (a create has no prior: every line pending).
     const storedDoc = withLocalLineIdentities({
       ...doc,
@@ -2498,9 +2546,17 @@ export default function BuilderSheet({
     // still renders for a host that stays open (a preview mount passes none).
     onSaved?.(row)
     return { ok: true }
-  }, [settings, onChange, onSaved, editing])
+  }, [settings, onChange, onSaved, editing, pineText, statusHeadline, postStatusHeadline])
   const attachPine = useCallback((definition, options = null) => attachPineAs(definition, options, true), [attachPineAs])
   const attachPineCopy = useCallback((definition, options = null) => attachPineAs(definition, options, false), [attachPineAs])
+  // ⭐ STUDIO R4 — a script saved before the sentence was recorded gets it when its author opens it
+  // again, as long as the box still holds exactly what was saved (an edited box is about a
+  // version that does not exist yet).
+  useEffect(() => {
+    if (!open || !editing || !editing.runtime || typeof editing.script !== 'string') return
+    if (editing.script !== pineText) return
+    postStatusHeadline(editing.defId, editing.version, pineText, statusHeadline)
+  }, [open, editing, pineText, statusHeadline, postStatusHeadline])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
@@ -2636,14 +2692,88 @@ export default function BuilderSheet({
     converseDirtyRef.current = converseDirty
   }, [converseDirty, view])
 
+  // ⛔ ABOVE THE EARLY RETURN: these are hooks, and a hook after `if (!open) return null` is a hook that
+  // runs on some renders and not others ("Rendered fewer hooks than expected", caught by the sheet's own suite).
+  // ⭐ 2026-11-17 — THE FORMULAS' OWN NUMBERS, AS SETTINGS (`authoring/derivedSettings.js`). An indicator
+  // built from a description opened here read "Inputs 0": its lengths, levels and multiples are
+  // literals in the formulas. They are derived from the formulas as parsed, stored nowhere, and a
+  // change rewrites the formula text through the same door a typed edit uses. A Pine import keeps
+  // its own parameters above (`paramManifest`); these are offered only when it has none.
+  const formTrees = useMemo(() => (paramManifest && Object.keys(paramManifest).length ? [] : allRows
+    .map((r, i) => ({ key: r.key || (i === 0 ? 'value' : `plot${i}`), tree: (i === 0 ? result : r.result)?.ast || null }))
+    .filter((o) => o.tree)), [allRows, result, paramManifest])
+  const formSettings = useMemo(() => settingsOfTrees(formTrees), [formTrees])
+  // ⭐ 2026-11-18 (ruling) — A TITLE THAT NAMES A CHECKED LIBRARY INDICATOR IS A CLAIM ABOUT THE
+  // FORMULA, HERE TOO. The patch engine already drops such a title when a change leaves a formula
+  // that is no longer the library's (`derivedName.libraryTitleOf`). A hand edit in this tab went
+  // round it: the name field kept "Kaufman Adaptive Moving Average" over a formula that no longer
+  // was one. So while the title and the formulas AGREE the claim is armed; when the formulas stop
+  // holding that indicator the title gives way to the name of what the formula now is, and the
+  // sheet says so. Putting the formula back puts the title back. A title the member then types
+  // themselves is theirs and is left alone.
+  const libraryClaim = useMemo(() => namedByTitle(name), [name])
+  const formHolds = useCallback((entry) => formTrees.some((o) => {
+    try { return libraryParts(collapseExpansions(o.tree)).some((p) => p.entry.id === entry.id) } catch { return false }
+  }), [formTrees])
+  const claimArmedRef = useRef(null)          // the library indicator the title and the formulas last agreed on
+  const [lostClaim, setLostClaim] = useState(null)   // {name, derived}: the title that gave way, and to what
+  useEffect(() => {
+    if (!formTrees.length) return             // nothing parsed yet (mid-edit): decide nothing
+    if (lostClaim) {
+      // the formula is that indicator again: the line goes, and the title returns unless the
+      // member has typed their own in the meantime
+      const entry = namedByTitle(lostClaim.name)
+      if (entry && formHolds(entry)) {
+        if (name === lostClaim.derived) setName(lostClaim.name)
+        setLostClaim(null)
+        return
+      }
+    }
+    if (libraryClaim && formHolds(libraryClaim)) {
+      claimArmedRef.current = libraryClaim
+      return
+    }
+    if (libraryClaim && claimArmedRef.current && claimArmedRef.current.id === libraryClaim.id) {
+      // the formulas were that indicator and no longer are, under a title that still says so
+      let derived = ''
+      try { derived = String(nameOfTree(formTrees[0].tree) || '').slice(0, 48) } catch { derived = '' }
+      claimArmedRef.current = null
+      setLostClaim({ id: libraryClaim.id, name: libraryClaim.name, derived })
+      if (derived) setName(derived)
+    }
+  }, [formTrees, libraryClaim, formHolds, lostClaim, name])
+  const setFormSetting = useCallback((setting, value) => {
+    const out = formulasWithSetting(formTrees, setting, value)
+    if (!out.ok) return out
+    for (const [key, text] of Object.entries(out.sources)) {
+      const i = formTrees.length ? allRows.findIndex((r, j) => (r.key || (j === 0 ? 'value' : `plot${j}`)) === key) : -1
+      if (i === 0) setSource(text)
+      else if (i > 0) patchPlot(i, { source: text })
+    }
+    return { ok: true }
+  }, [formTrees, allRows, patchPlot])
   if (!open) return null
 
   const isEditor = view === 'editor'
-  const sheetTitle = editing ? 'Edit formula' : 'New formula'
+  const sheetTitle = windowTitle(noun, !!editing)
   const chip = origin === 'pine'
     ? scriptChip(scriptDialect, pineText, editing && editing.prior && editing.prior.meta ? editing.prior.meta.pineVersion : null)
     : (origin ? SOURCE_CHIP[origin] : null)
-  const inputCount = memberInputs.length + (paramManifest ? Object.keys(paramManifest).length : 0)
+  // ⭐ WHILE A CONVERSATION HOLDS THE INDICATOR (an unsaved description), ITS numbers are the inputs:
+  // the form is the older version it was opened at, or empty for a new one (the owner's "Inputs 0").
+  const converseNumbers = (converseCommit && converseCommit.dirty && Array.isArray(converseCommit.numbers)) ? converseCommit.numbers : null
+  // ⭐⭐ A PASTED SCRIPT IS COUNTED AS ITSELF until the sheet takes its formula (2026-11-17). Until
+  // "Use this formula", the sheet's own formula is EMPTY and what "Add this script to my chart" adds is the
+  // door's document, whose settings are changed on the chart after it is added. ⚰️ The tabs counted the
+  // empty formula, so RS Rating (39 settings, TradingView's Inputs tab) read "Inputs 0 · Plots 1" on
+  // production. Once the sheet holds a formula, its own counts and editors stand: those are edited here.
+  const doorDoc = origin === 'pine' && pineText && scriptDoc && !(source && source.trim()) ? scriptDoc : null
+  const doorInputs = doorDoc ? fieldsForInstance(doorDoc, null).inputs.length : 0
+  const doorPlots = doorDoc ? (doorDoc.plots || []).filter((pl) => pl && pl.hidden !== true).length : 0
+  const inputCount = doorDoc ? doorInputs : converseNumbers
+    ? converseNumbers.length
+    : memberInputs.length + (paramManifest ? Object.keys(paramManifest).length : 0) + formSettings.length
+  const plotCount = doorDoc ? doorPlots : allRows.length
   const addsToChart = !!(settings && onChange)
   const footHint = isEditor
     ? (editing ? null : (addsToChart ? (target === 'price' ? 'Adds to this chart over the price' : 'Adds to this chart as its own pane') : null))
@@ -2747,6 +2877,12 @@ export default function BuilderSheet({
             </div>
           )}
 
+          {isEditor && lostClaim && (
+            <p role="status" data-testid="library-title-dropped" style={{ margin: '4px 16px 0', fontSize: 12, color: '#a9a59b' }}>
+              {noLongerChecked(lostClaim.name)}
+            </p>
+          )}
+
           {/* ── THE TABS — gold underline on the current one only (UCT Signature §2b) ── */}
           {isEditor ? (
             <div className={styles.tabs} role="tablist" aria-label="How to build this" data-guide="builder.modes">
@@ -2765,7 +2901,7 @@ export default function BuilderSheet({
               </button>
               <button type="button" role="tab" className={tabClass(buildMode === 'plots')}
                 aria-selected={buildMode === 'plots'} onClick={() => setBuildMode('plots')}>
-                Plots <span className={styles.tabCount}>{allRows.length}</span>
+                Plots <span className={styles.tabCount}>{plotCount}</span>
               </button>
               {/* ── EVIDENCE AND SHARE SHOW ONLY FOR A SAVED DEFINITION (W5a) ──────
                   Evidence is a fact about a definition the STORE holds — a receipt
@@ -3074,6 +3210,10 @@ export default function BuilderSheet({
               key={editing && editing.runtime ? `edit:${editing.defId}` : 'new'}
               dialect="auto"
               disabled={saving}
+              // ⭐ STUDIO R4 — the status panel's sentence and the text it is about
+              onStatusHeadline={setStatusHeadline}
+              // ⭐ STUDIO R5 — Inspect a bar's `line N` uses this box's own line jump
+              lineJumpRef={scriptLineJump}
               // ⚠️ AN INITIAL VALUE, NOT A CONTROLLED ONE. `initialSource` seeds
               // `PasteBox`'s own state on mount — and seeds `report`,
               // `authorKnobs` and `lastTextRef` with it, which is why restoring
@@ -3589,6 +3729,7 @@ export default function BuilderSheet({
               defId={editing.defId}
               defName={(editing.row && editing.row.definition
                 && editing.row.definition.meta && editing.row.definition.meta.name) || null}
+              noun={noun === 'indicator' ? 'indicator' : 'formula'}
             />
           )}
 
@@ -3620,6 +3761,7 @@ export default function BuilderSheet({
             source={pineText}
             settings={settings}
             onAttach={attachPine}
+            onDocument={setScriptDoc}
             // ⭐ UIE PHASE 5 (M1) — editing a stored script: the save is its revision,
             // and saving it as a new indicator is offered beside it
             {...(editing && editing.runtime ? {
@@ -3627,10 +3769,28 @@ export default function BuilderSheet({
               onAttachCopy: attachPineCopy, copyLabel: 'Save as a new indicator',
             } : {})}
           />
+          {/* ⭐ STUDIO R5 — INSPECT A BAR: each named variable's value on one bar of the chart this
+              window was opened over, and why an empty one is empty. Closed until opened; nothing
+              is read before that. Only where there is a script and bars to read it on (the
+              Screener's mount has no chart, so no bars). */}
+          {pineText.trim() && Array.isArray(bars) && bars.length > 0 ? (
+            <Suspense fallback={null}>
+              <InspectBarPanel source={pineText} bars={bars} tf={tf} sym={sym}
+                onGoToLine={(n) => { if (scriptLineJump.current) scriptLineJump.current(n) }} />
+            </Suspense>
+          ) : null}
                 </div>
 
                 <div className={styles.panel} data-panel="Inputs" hidden={buildMode !== 'inputs'}
                   data-testid="panel-inputs">
+          {doorDoc && (
+            <p className={styles.pickerNote} role="note" data-testid="script-settings-note">
+              {`This script has ${doorInputs === 1 ? '1 setting' : `${doorInputs} settings`}. You change them on the chart, after you add it: open its settings from its name at the top of the chart.`}
+            </p>
+          )}
+          {/* ⛔ the sheet's own inputs editor describes ITS formula (empty until "Use this formula"),
+              not this script's settings: hidden, never unmounted, while the door's script stands */}
+          <div className={styles.panelBody} hidden={!!doorDoc} data-testid="builder-inputs">
           {/* ⭐⭐ TRACK F (DEC-006) — a Pine import's own adjustable parameters.
               `applyParamEdit` operates on `compute.ast`/`compute.paramManifest`
               directly (never on Pine, never on a second parser — see
@@ -3661,12 +3821,27 @@ export default function BuilderSheet({
               }}
             />
           )}
+          {/* ⭐ THE FORMULAS' OWN NUMBERS (2026-11-17): every length, level and multiple, editable. */}
+          {converseNumbers ? (
+            <div data-testid="converse-settings">
+              <SettingsFields settings={converseNumbers} label="Numbers in this indicator"
+                onSet={(setting, value) => (converseCommitRef.current && typeof converseCommitRef.current.setNumber === 'function'
+                  ? converseCommitRef.current.setNumber(setting, value) : { ok: false })} />
+            </div>
+          ) : (
+            <div data-testid="form-settings" hidden={formSettings.length === 0}>
+              <SettingsFields settings={formSettings} onSet={setFormSetting} label="Numbers in this indicator" />
+            </div>
+          )}
           {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
               ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.
               Without these the period lives in the formula as a literal, so a
               saved indicator is ONE INSTANCE of itself — nobody can change it,
               and sharing it hands over somebody else's constant. */}
-          <section className={styles.readbackWrap} aria-labelledby="uct-inputs-head">
+          {/* ⭐ Not while a conversation holds the indicator: an input declared here belongs to the FORM's
+              formula, and the described indicator's own numbers are the fields above. */}
+          <section className={styles.readbackWrap} aria-labelledby="uct-inputs-head" hidden={!!converseNumbers}
+            data-testid="declared-inputs">
             <h3 className={styles.sectionHead} id="uct-inputs-head">Inputs you can change later</h3>
             {memberInputs.length === 0 && (
               <p className={styles.measured} data-testid="no-inputs">
@@ -3721,10 +3896,17 @@ export default function BuilderSheet({
               + Add an input
             </button>
           </section>
+          </div>
                 </div>
 
                 <div className={styles.panel} data-panel="Plots" hidden={buildMode !== 'plots'}
                   data-testid="panel-plots">
+          {doorDoc && (
+            <p className={styles.pickerNote} role="note" data-testid="script-plots-note">
+              {`This script draws ${doorPlots === 1 ? '1 plot' : `${doorPlots} plots`}. You change how they look on the chart, after you add it: open its settings from its name at the top of the chart.`}
+            </p>
+          )}
+          <div className={styles.panelBody} hidden={!!doorDoc} data-testid="builder-plots">
           {/* ── THE PLOTS (W1b.5) ────────────────────────────────────────────
               ⭐ WHERE A MULTI-PLOT INDICATOR IS ACTUALLY AUTHORED, and until now
               a member could only ever write ONE line: `buildDefinition` hard-coded
@@ -4066,6 +4248,7 @@ export default function BuilderSheet({
               <p className={styles.measured} role="status" data-testid="value-note">{valueNote}</p>
             )}
           </section>
+          </div>
                 </div>
               </>
             )}
@@ -4185,7 +4368,7 @@ export default function BuilderSheet({
                 type="button"
                 className={styles.ghostBtn}
                 onClick={cancelEdit}
-              >New formula</button>
+              >{startOverLabel(noun)}</button>
             )}
             {/* Cancel goes through the SAME door as Escape and the × — one place
                 decides whether unsaved work needs a prompt. */}

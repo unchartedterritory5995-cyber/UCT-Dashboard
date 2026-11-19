@@ -61,6 +61,7 @@ def test_the_sweep_sees_a_real_set_of_sse_routes():
     assert len(routes) >= 8, routes
     assert "/api/community/chat/stream" in routes   # the 2026-07-11 regression
     assert "/api/stream/prices" in routes
+    assert "/api/agent/turn/resume" in routes       # the 2026-11-17 one (planner v2, 55f4bf65fa)
 
 
 def test_every_sse_route_the_app_declares_is_gzip_exempt():

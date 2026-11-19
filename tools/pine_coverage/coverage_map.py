@@ -88,10 +88,13 @@ GUARD_BUCKET = {
     # (`guard`) with no refusal row: a plot past a host-lane compute budget, or a document its own check refuses
     "budget:lookback": "compute-budget", "budget:series": "compute-budget", "budget:nodes": "compute-budget",
     "pine:install": "translator-robustness",
+    # 2026-11-17 (owner decision): the host lane's known-divergence list, refused by name at every host door
+    "pine:known-divergence": "known-divergence",
 }
 # the guards the member door itself refuses by, over a clean translation (no refusal row carries them)
-DOOR_GUARDS = frozenset({"budget:lookback", "budget:series", "budget:nodes", "pine:install"})
+DOOR_GUARDS = frozenset({"budget:lookback", "budget:series", "budget:nodes", "pine:install", "pine:known-divergence"})
 BUCKET_LABEL = {
+    "known-divergence": "A committed TradingView capture of the script grades DIVERGE on the host lane: refused by name until the engine fix re-grades it",
     "imperative": "Imperative execution: if/for/while blocks, := reassignment, var state carried across bars",
     "user-functions": "User-defined functions with multi-line bodies",
     "udt-methods": "User-defined types (type), fields and methods",
@@ -187,6 +190,8 @@ from api.services.pine_capabilities import (  # noqa: E402
     FEATURES, KEYWORD_FEATURE, METHOD_CALL_RX, PINE_JS, conditional_ta_in, engine_order_calls, features_of,
     join_continuations, order_calls_in, strip_code, usage_of, version_of,
 )
+# ⭐ the kill list's ONE rule (a held kill kills nothing), the server's own (`runtime_killed_hashes` below reads it)
+from api.services.runtime_definitions import kill_entry_is_served  # noqa: E402
 
 
 class Inventory:
@@ -306,15 +311,41 @@ def declaration_of(u):
     return "strategy" if "strategy-decl" in u["features"] else "library" if "library-decl" in u["features"] else "indicator"
 
 
-def transfers_fully(census_row, u):
+def transfers_fully(census_row, u, src=None):
     """⭐ THE HEADLINE PREDICATE, in one place: the census's door verdict (`isClean`)
     AND not a strategy that places orders. Read by main() below and by
-    tools/support_loop/remeasure.py, so the daily number and the map cannot disagree."""
+    tools/support_loop/remeasure.py, so the daily number and the map cannot disagree.
+    ⭐ 2026-11-17 (owner decision): AND not on the HOST known-divergence list (`src`, the script's text:
+    `is_host_listed`). Every host door refuses a listed script by name, so a clean host row is not a
+    transfer a member gets. The census measures the engine with the list off (`src/test-setup.js`), so
+    the predicate applies it; a caller that passes no `src` (a unit rail's synthetic row) is not asked."""
+    if src is not None and is_host_listed(src):
+        return False
     return bool((census_row or {}).get("clean")) and not (
         places_orders(u))
 
 
 RUNTIME_KILLLIST = os.path.join(ROOT, "api", "data", "pine_runtime_killlist.json")
+#: ⭐ 2026-11-17 — the HOST lane's known-divergence list (one authority: the browser imports it, the server
+#: reads it: `engine/hostKnownDivergence.js`, `api/services/host_known_divergence.py`).
+HOST_KNOWN_DIVERGENCE = os.path.join(ROOT, "app", "src", "components", "chart", "engine", "hostKnownDivergence.json")
+_HOST_LISTED = {}
+
+
+def host_listed_hashes(path=HOST_KNOWN_DIVERGENCE):
+    """The full sha256 of every script on the host known-divergence list. ⛔ Fails LOUD when unreadable (a
+    census that read "nothing is listed" would count every listed script as served). Read once per path."""
+    if path not in _HOST_LISTED:
+        with open(path, encoding="utf-8") as f:
+            _HOST_LISTED[path] = frozenset(e["sha256"] for e in json.load(f)["scripts"])
+    return _HOST_LISTED[path]
+
+
+def is_host_listed(src, listed=None):
+    """Is this source on the host known-divergence list? sha256 of the text as the door receives it; a
+    checkout can hold it with CRLF, so the LF form is tried too (`is_runtime_killed`'s rule)."""
+    listed = host_listed_hashes() if listed is None else listed
+    return is_runtime_killed(src, listed)
 
 
 def runtime_killed_hashes(path=RUNTIME_KILLLIST):
@@ -323,7 +354,9 @@ def runtime_killed_hashes(path=RUNTIME_KILLLIST):
     ⛔ Fails LOUD when unreadable: a census that silently read "nothing is killed" would count every
     killed script as served, which is the defect this exists to stop."""
     with open(path, encoding="utf-8") as f:
-        return {e["sha256"] for e in json.load(f)["scripts"]}
+        # ⭐ (2026-11-18) a HELD kill (`status: pending`) kills nothing, by the server's ONE rule
+        # (`runtime_definitions.kill_entry_is_served`): the door still draws the script, so it still transfers
+        return {e["sha256"] for e in json.load(f)["scripts"] if kill_entry_is_served(e)}
 
 
 def is_runtime_killed(src, killed):
@@ -335,9 +368,10 @@ def is_runtime_killed(src, killed):
             or hashlib.sha256(src.replace("\r\n", "\n").encode("utf-8")).hexdigest() in killed)
 
 
-def runtime_on_transfers(census_row, orders, killed=False):
+def runtime_on_transfers(census_row, orders, killed=False, host_listed=False):
     """⭐ THE RUNTIME-ON LANE'S PREDICATE, in one place: a runtime-on census row transfers when it
-    transfers fully on the host lane OR attaches on the runtime lane, and it is not a strategy that
+    transfers fully on the host lane OR attaches on the runtime lane OR (⭐⭐ PARITY UNIT 1) is a host
+    document whose lost drawings its run half draws (`cleanByRunHalf`), and it is not a strategy that
     places orders (`orders`: `places_orders` of its usage). Read by `runtime_on_section` below and by
     tools/pine_coverage/coverage_ratchet.py, so the map and the ratchet cannot disagree.
     ⭐ 2026-11-17: `killed` (`is_runtime_killed`). A script on the runtime kill list falls back OFF the
@@ -346,8 +380,17 @@ def runtime_on_transfers(census_row, orders, killed=False):
     clean on the HOST lane still transfers: the kill list never touches the host lane."""
     r = census_row or {}
     st0 = (r.get("steps") or [{}])[0]
-    return not orders and (bool(r.get("clean")) or (
-        bool(r.get("attached")) and st0.get("lane") == "runtime" and not killed))
+    # ⭐ 2026-11-17: `host_listed` (`is_host_listed`) - the HOST lane refuses a listed script by name, so a
+    # clean HOST row is not a transfer; its runtime attach is still judged by the runtime lane's own list.
+    # ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18): `cleanByRunHalf` - the HOST document, clean but for the
+    # drawings its object program lost, whose RUN HALF the census bound served on the reference bars (the
+    # plots the host's, every drawing the run's: `runHalfObjectRail.js`, the lost-drawings rule). A run half
+    # answers to the runtime lane's own gates, so the kill list stops it as it stops a runtime attach, and
+    # the host known-divergence list (which refuses the host document by name) stops it as it stops a clean
+    # host row.
+    return not orders and ((bool(r.get("clean")) and not host_listed) or (
+        bool(r.get("attached")) and st0.get("lane") == "runtime" and not killed) or (
+        bool(r.get("cleanByRunHalf")) and not killed and not host_listed))
 
 
 def order_usage_of(src):
@@ -877,7 +920,7 @@ def runtime_on_section(rt_cache, rt_verdicts, prod_verdicts, scripts, decl_of, o
 
     def transfers(key):
         src = open(inputs[key]["path"], encoding="utf-8", newline="").read() if key in inputs else ""
-        return runtime_on_transfers(rows[key], orders_of(key), is_runtime_killed(src, killed))
+        return runtime_on_transfers(rows[key], orders_of(key), is_runtime_killed(src, killed), is_host_listed(src))
 
     by_key = {s["key"]: s for s in scripts}
     on = {s["key"] for s in scripts if transfers(s["key"])}
@@ -1029,6 +1072,8 @@ def main():
         walls, detail = walls_of(c, inv, u["version"], frozenset(u["items"]), decl)
         if places_orders(u):
             walls.add(("bucket", "strategy"))   # orders are never simulated (see "clean" below)
+        if is_host_listed(src):
+            walls.add(("bucket", "known-divergence"))   # refused by name at every host door (2026-11-17)
         scripts.append({
             "key": key, "population": key.split(":")[0], "title": m.get("title"), "author": m.get("author"),
             "agreeCount": m.get("agreeCount"), "version": u["version"], "declaration": decl,
@@ -1038,12 +1083,12 @@ def main():
             # draws its plots: its trades, markers and tester report are its output, and
             # nothing here simulates the broker. The door's own ruling (C50) draws the
             # plots; the coverage map does not count that as the whole script.
-            "clean": transfers_fully(c, u),
+            "clean": transfers_fully(c, u, src),
             "doorClean": bool(c.get("clean")),
             # ⭐ ENGINE 55 — THE BOUND PREDICATE beside the static one: the census bound the
             # attached definition once on the RDDT 1D reference bars (`boundBlockers` in
             # coverageMapDoorCensus.measure.test.js). `None` on a row from an older census.
-            "cleanBound": (transfers_fully(c, u) and c.get("cleanBound") is True) if "cleanBound" in c else None,
+            "cleanBound": (transfers_fully(c, u, src) and c.get("cleanBound") is True) if "cleanBound" in c else None,
             "runtimeAttached": bool((c.get("runtime") or {}).get("attached")),
             # ⚠️ COUNTERFACTUAL, AN UPPER BOUND: with the dark runtime pane on, the door
             # handed the script to the per-bar RUNTIME lane and attached it. The host

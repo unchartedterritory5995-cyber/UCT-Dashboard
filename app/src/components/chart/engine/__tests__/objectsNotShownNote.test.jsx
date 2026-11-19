@@ -238,7 +238,7 @@ describe('⭐⭐ OZ — the RUNTIME lane says why a family it withheld is shown 
     const m = mount(RT_OK, { fromListing: true })
     expect(m.def.compute.objects).toBe(true)
     expect(m.last.labels.length).toBe(1)
-    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 0, held: 1, servedByRun: true })   // a run's serve is recorded (servedByRun, 2026-11-17); nothing is counted
     expect(m.text).not.toContain('is shown on this chart')
     m.binder.teardown()
   })
@@ -302,7 +302,7 @@ describe('⭐⭐ OZ r1 — a STOPPED run draws nothing and says why, on both lan
   it('⛔ CONTROL — runtime: the cell is inside the table, it draws, nothing is said', () => {
     const m = mount(RT_STOP(1), { fromListing: true })
     expect(m.last.tables).toHaveLength(1)
-    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 0, held: 1, servedByRun: true })   // a run's serve is recorded (servedByRun, 2026-11-17); nothing is counted
     m.binder.teardown()
   })
 

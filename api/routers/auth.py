@@ -685,6 +685,8 @@ SCREENER_FLAGS = {
     "SCREENER_PREMARKET_ENABLED": False,      # enablement: pre-market sweep + columns + starters
     "SCREENER_FOCUS_PHONE_ENABLED": False,    # enablement: Focus layout on phones (spec 2026-10-16 s3)
     "SCREENER_SCAN_BOARD_ENABLED": False,     # enablement: the Screener as a customizable widget board (desktop)
+    "SCREENER_LAYOUT_GALLERY_ENABLED": False,  # enablement: sharing scan-board layouts with the community
+    "SCREENER_SCAN_BOARD_TABLET_ENABLED": False,  # enablement: the scan board on tablets (needs the board flag too)
 }
 
 
@@ -1216,14 +1218,19 @@ def logout(response: Response, token: str = Depends(get_session_token)):
     if token:
         delete_session(token)
     response.delete_cookie("uct_session", path="/")
+    # The chart edge entitlement dies with the session: a logged-out browser (a shared
+    # computer) must not keep reading /api/bars, /api/hist or the live stream until expiry.
+    for path in chart_edge_token.COOKIE_PATHS:
+        response.delete_cookie(chart_edge_token.COOKIE_NAME, path=path)
     return {"ok": True}
 
 
 @router.get("/me")
 def me(response: Response, user: dict = Depends(get_current_user)):
     plan = get_user_plan(user["id"])
-    # ⭐ THE REFRESH POINT. The app polls this, so the chart edge token is
-    # re-minted (or revoked) here on the cadence the client already runs.
+    # ⭐ THE REFRESH POINT. The app calls this at boot, on tab focus, on a cross-tab ping,
+    # and (lib/barsStreamManager) every EDGE_REFRESH_MS while a live chart stream is open,
+    # so the chart edge token is re-minted (or revoked) before it expires.
     _set_chart_edge_cookie(response, user, plan)
     sub = get_subscription(user["id"])
     return {
@@ -3067,6 +3074,7 @@ _PREFERENCE_KEYS = {
     # `useScanBoard`). Widget ids and grid boxes only; the client cleans it on every read. Added in
     # the same change as its writer, so a saved layout never answers 400.
     "screener_scan_board": _PREF_OPAQUE,
+    "screener_scan_board_tablet": _PREF_OPAQUE,
     # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
     # through this endpoint — listed so a client that ever writes it directly
     # is not refused for a key the product already owns.
@@ -3642,17 +3650,20 @@ def _set_chart_edge_cookie(response: Response, user: dict, plan: str):
         # sign-in.
         token = None
 
+    # One cookie per Worker route that enforces the entitlement (/api/bars, /api/hist): the same
+    # token under each path, and the revocation clears every one of them (chart_edge_token.COOKIE_PATHS).
     if not token:
-        response.delete_cookie(chart_edge_token.COOKIE_NAME,
-                               path=chart_edge_token.COOKIE_PATH)
+        for path in chart_edge_token.COOKIE_PATHS:
+            response.delete_cookie(chart_edge_token.COOKIE_NAME, path=path)
         return
 
-    response.set_cookie(
-        key=chart_edge_token.COOKIE_NAME,
-        value=token,
-        httponly=True,          # the edge reads it; page scripts never do
-        secure=COOKIE_SECURE,
-        samesite="lax",         # same-site XHR from the app; matches the session cookie
-        path=chart_edge_token.COOKIE_PATH,   # /api/bars only — see the module docstring
-        max_age=chart_edge_token.ttl_seconds(),
-    )
+    for path in chart_edge_token.COOKIE_PATHS:
+        response.set_cookie(
+            key=chart_edge_token.COOKIE_NAME,
+            value=token,
+            httponly=True,          # the edge reads it; page scripts never do
+            secure=COOKIE_SECURE,
+            samesite="lax",         # same-site XHR from the app; matches the session cookie
+            path=path,              # one Worker route each, nothing wider — see the module docstring
+            max_age=chart_edge_token.ttl_seconds(),
+        )

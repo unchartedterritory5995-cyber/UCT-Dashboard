@@ -14,9 +14,12 @@ import { validateCapture } from '../../../../../../../tools/vendor_harness/schem
 import { compareCapture, renderSummary, compareObjectsV2, MATCH_SUBSTITUTED } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { detectFormat, fromObservation, fromProbeRows } from '../../../../../../../tools/vendor_harness/adapters.mjs'
 import { runOurSide } from './ourSide'
+import { supplyAttributionOf, otherSymbolUnsettledOf, supplyBehindOf } from './supplyAttribution'
 import { pairObjects } from './objectColours'
 import { pairRecords, attachXSidecar } from './objectRecords'
 import { gradePaints } from './paintColours'
+// ⭐⭐ (2026-11-17) — a strategy's trades are its output: graded on the run the member door made (`strategyLane.js`)
+import { strategyRanView, strategyLaneGradeOf, foldStrategyGrade } from './strategyLane.js'
 
 export const REPO = path.resolve(process.cwd(), '..')
 export const VENDOR_DIR = path.join(REPO, 'tests/fixtures/vendor')
@@ -24,6 +27,11 @@ export const HARNESS_DIR = path.join(VENDOR_DIR, 'harness')
 
 function walk(dir, out = []) {
   if (!fs.existsSync(dir)) return out
+  // a single capture file is its own list (a CLI run over named captures: `VENDOR_HARNESS_DIR=a.json;b.json`)
+  if (fs.statSync(dir).isFile()) {
+    if (dir.endsWith('.json')) out.push(dir)
+    return out.sort()
+  }
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name)
     if (e.isDirectory()) walk(p, out)
@@ -95,8 +103,12 @@ export function paintsGraded(opts = {}) {
 
 /** Grade one capture object.
  *  @param {{objectColour?: boolean, paints?: boolean}} [opts] */
-export function gradeCapture(capture, opts = {}) {
-  const integrity = validateCapture(capture)
+export function gradeCapture(original, opts = {}) {
+  const integrity = validateCapture(original)
+  // ⭐⭐ (2026-11-17) — a Strategy Tester capture is graded on the bars TradingView's strategy RAN
+  // (`strategyLane.js::strategyRanView`): a newest bar it had not run is neither side's evidence. Validated
+  // whole first (its receipt is over every bar); every other capture is graded exactly as it is.
+  const { view: capture, unrun } = integrity.ok ? strategyRanView(original) : { view: original, unrun: null }
   // ⛔ AN INVALID CAPTURE IS NEVER RUN. Running our side on bars whose receipt
   // failed would grade our engine against numbers nobody can vouch for.
   const ours = integrity.ok ? runOurSide(capture) : null
@@ -107,7 +119,16 @@ export function gradeCapture(capture, opts = {}) {
     ? pairObjects(capture, ours.objects)
     : null
   const paints = paintsGraded(opts) && ours && ours.ok ? gradePaints(capture, ours) : null
-  const verdict = compareCapture(capture, ours, { integrity, objectColours, paints })
+  // SUPPLY-ATTRIBUTED (coordinator ruling on #1541): only where the supply symbol has a committed witness
+  const supplyAttribution = integrity.ok && ours && ours.ok ? supplyAttributionOf(capture) : null
+  const otherSymbolUnsettled = integrity.ok && ours && ours.ok ? otherSymbolUnsettledOf(capture) : null
+  // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): a forming newest bar the recorded supply cannot answer
+  const supplyBehind = integrity.ok && ours && ours.ok ? supplyBehindOf(capture) : null
+  const indicator = compareCapture(capture, ours, { integrity, objectColours, paints, supplyAttribution, otherSymbolUnsettled, supplyBehind })
+  // ⭐⭐ THE STRATEGY GRADE, FOLDED IN where the capture holds a Strategy Tester report or our door ran a
+  // broker document (`strategyLane.js`, THE FOLD); null, and the verdict unchanged, everywhere else
+  const strategy = integrity.ok ? strategyLaneGradeOf(capture, ours, { unrun }) : null
+  const verdict = foldStrategyGrade(indicator, strategy)
   const objectsV2 = objectsV2Of(capture, ours, verdict)
   // ⭐ L7 — a run with substituted inputs never reads MATCH, the v2 objects report included
   // (capability admission reads `objectsV2: MATCH` for an `obj:*` family).

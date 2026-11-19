@@ -255,37 +255,6 @@
 .swatch { flex: none; width: 9px; height: 9px; border-radius: 2px; border: 1px solid rgba(255, 255, 255, 0.18); }
 .refused { color: #e57373; }
 .ack { font-size: 11px; color: var(--menu-text-dim, #b3b3b9); display: flex; gap: 6px; align-items: flex-start; }
-
-/* ── SETTINGS: the indicator's own numbers, as fields (SettingsFields.jsx) ── */
-.settingRow {
-  display: grid; grid-template-columns: minmax(0, 1fr) 76px; column-gap: 10px; align-items: center;
-  padding: 5px 0; border-top: 1px solid var(--menu-border, #2b2b2d);
-}
-.settingRow:first-of-type { border-top: 0; }
-.settingCaption { display: flex; flex-direction: column; gap: 1px; min-width: 0; cursor: text; }
-.settingCaption > span:first-child {
-  font-size: 11.5px; line-height: 1.35; color: var(--menu-text, #ededed);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.settingRole { font-size: 10.5px; color: var(--menu-text-faint, #93939a); }
-.settingInput {
-  box-sizing: border-box; width: 100%; height: 28px; padding: 0 8px;
-  background: var(--menu-input-bg, #08080a);
-  border: 1px solid var(--menu-border, #2b2b2d); border-radius: 6px;
-  color: var(--menu-text, #ededed);
-  font: inherit; font-size: 12px; font-variant-numeric: tabular-nums; text-align: right;
-}
-.settingInput:focus { outline: none; border-color: var(--menu-accent, #dcbb5e); }
-.settingInput:focus-visible { box-shadow: 0 0 0 2px rgba(220, 187, 94, 0.25); }
-.settingInput:disabled { opacity: 0.6; }
-.settingInput[aria-invalid="true"] { border-color: #e57373; }
-.settingProblem { grid-column: 1 / -1; font-size: 11px; line-height: 1.4; color: #e57373; padding-top: 3px; }
-.settingNote { font-size: 10.5px; line-height: 1.4; color: var(--menu-text-faint, #93939a); padding-top: 4px; }
-@media (max-width: 1024px) {
-  .settingInput { height: var(--tap-min, 44px); font-size: 16px; }   /* 16px: iOS does not zoom the page on focus */
-  .settingRow { grid-template-columns: minmax(0, 1fr) 96px; }
-}
-
 /* ── COMPOSER + ACTIONS ───────────────────────────────────────────── */
 .composer {
   flex: none;
@@ -307,7 +276,11 @@
   outline: none;
   transition: border-color 120ms;
 }
-.input::placeholder { color: var(--menu-text-faint, #93939a); }
+/* The hint stays on ONE line. The box is one row tall, so a wrapped hint was cut off mid-word. */
+.input::placeholder {
+  color: var(--menu-text-faint, #93939a);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .input:focus { border-color: var(--menu-accent, #dcbb5e); }
 .input:disabled { opacity: 0.6; }
 
@@ -386,6 +359,17 @@
   font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* The saved versions, under the draft's own steps (backlog 30). A reason or a note about lines
+   is a sentence, so it wraps; a step's read-back line stays on one line as before. */
+.historyVersions { display: flex; flex-direction: column; min-height: 0; flex: 0 1 auto; }
+.historySub {
+  flex: none; padding: 8px 10px 6px;
+  font-size: 11px; font-weight: 600; color: var(--menu-text, #ededed);
+  border-top: 1px solid var(--menu-border, #2c2c30);
+  border-bottom: 1px solid var(--menu-border, #2c2c30);
+}
+.historyNote { margin: 0; padding: 8px 10px; font-size: 11.5px; color: var(--menu-text-dim, #b3b3b9); }
+.historyWrap { white-space: normal; overflow: visible; text-overflow: clip; }
 @media (max-width: 1024px) {
   .historyRow .ghost { height: 44px; }
   .historyClose { min-height: 44px; padding: 0 8px; }

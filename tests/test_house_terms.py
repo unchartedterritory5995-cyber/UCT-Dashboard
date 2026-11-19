@@ -5,9 +5,11 @@ is 21. With the twin registry the assistant is handed the Screener's own formula
 """
 from __future__ import annotations
 
+from api.services import ast_table
 from api.services import chart_twins
 from api.services import definition_concierge as dc
 from api.services import definition_conversation as conv
+from api.services import named_indicators
 
 
 def test_the_door_reads_the_one_registry():
@@ -88,6 +90,72 @@ def test_a_phrase_never_replaces_what_the_shared_lexicon_already_reads():
     """ADDED, NEVER REPLACED: every bucket the shared lexicon holds is the same bucket here unless a
     chart function word replaced it (that rule is older and has its own test)."""
     function_stems = {dc._stem_key(dc._form_tokens(p))[0] for p, _ in conv.EXPANSION_PHRASES}
+    converted = 0
+    taken_by_the_library = []
     for stems, rows in dc.LEXICON["index"].items():
-        if stems not in function_stems:
-            assert conv.CHART_LEXICON["index"][stems] is rows, stems
+        if stems in function_stems:
+            continue
+        here = conv.CHART_LEXICON["index"][stems]
+        if here is rows:
+            continue
+        # ⭐ 2026-11-18: THE THIRD DIFFERENCE, AND IT WAS RED ON MASTER FOR A MORNING. The named-indicator
+        # library takes a bucket that ONLY says "not available" (every row excluded) for a name it
+        # builds or holds: "pocket pivot" was one value of a Screener text column, which on a chart
+        # answered "not available"; it is now a held library name, refused by name with the way
+        # forward. A bucket holding anything else is still never replaced. (No lane, check or gate
+        # ran this file, which is how the library landed with it failing; it is in the door's lane
+        # list now.)
+        if all(r["kind"] == dc.EXCLUDED_ENTRY for r in rows) and all(r.get("section") == named_indicators.SECTION for r in here):
+            assert len(here) == 1 and here[0]["kind"] == dc.TABLE_ENTRY, stems
+            assert named_indicators.entry(here[0]["key"]) or here[0]["key"] in {h["id"] for h in named_indicators.held_names()}, stems
+            taken_by_the_library.append(stems)
+            continue
+        # the one other difference: a chart-only twin's own label, read as a term (backlog 47)
+        assert all(r["kind"] == dc.EXCLUDED_ENTRY and r["key"] in chart_twins.CHART_ONLY for r in rows), stems
+        assert [(r["key"], r["words"]) for r in here] == [(r["key"], r["words"]) for r in rows]
+        assert all(r["kind"] == dc.TABLE_ENTRY for r in here)
+        converted += 1
+    assert converted >= len(chart_twins.CHART_ONLY)
+    # which buckets the library took is pinned, so the next one is a decision someone reads
+    assert taken_by_the_library == [("pocket", "pivot")], taken_by_the_library
+
+
+def test_a_column_the_chart_computes_exactly_is_a_term_not_unavailable():
+    """ASKED on a chart: "show the EMA9 Distance". CLAIMED before: "not available". DID: a term with
+    the Screener's own formula. The Screener's planner still answers what is true for a screen."""
+    assert chart_twins.CHART_ONLY <= set(chart_twins.TWINS)
+    for message, column in (("show the EMA9 Distance", "pct_vs_ema9"),
+                            ("Plot Avg Volume (50d) in a pane", "avg_volume_50d"),
+                            ("Volume Trend (5d vs 20d) as a line", "vol_trend_pct")):
+        understanding = dc.plan(message, dc.INDICATOR_KIND, lexicon=conv.CHART_LEXICON)
+        assert not understanding["unavailable"], (message, understanding["unavailable"])
+        (term,) = [t for t in conv._language_notes(understanding)["matched_terms"] if t["entry"] == column]
+        assert term["chart_formula"] == dc.formula_for(chart_twins.TWINS[column])
+        screen = dc.plan(message, dc.INDICATOR_KIND)
+        assert [u["name"] for u in screen["unavailable"]] == [column]        # unchanged for a screen
+
+
+def test_CONTROL_a_column_with_no_exact_chart_form_is_still_unavailable_on_a_chart():
+    excluded = sorted(set(dc._excluded(ast_table.TABLE)) - set(chart_twins.TWINS))
+    assert excluded
+    left = [r for rows in conv.CHART_LEXICON["index"].values() for r in rows
+            if r["kind"] == dc.EXCLUDED_ENTRY]
+    assert {r["key"] for r in left} & set(excluded)
+    assert not ({r["key"] for r in left} & chart_twins.CHART_ONLY)
+
+
+def test_the_library_takes_only_a_bucket_that_says_not_available():
+    """The rule itself, on a planted lexicon (today's data holds no collision, so the data alone
+    cannot show it): a library name whose words ALREADY mean something real here leaves that
+    meaning alone; one whose words only ever said "not available" becomes the library's."""
+    words = dc._form_tokens("on balance volume")
+    stems, cost = dc._stem_key(words)
+    assert stems not in dc.LEXICON["index"]                                  # CONTROL: nothing is there today
+    real = [{"kind": dc.TABLE_ENTRY, "key": "planted_real_meaning", "section": "scalars", "words": words, "cost": cost}]
+    kept = conv._chart_lexicon({**dc.LEXICON, "index": {**dc.LEXICON["index"], stems: real}})
+    assert kept["index"][stems] is real
+    excluded = [{"kind": dc.EXCLUDED_ENTRY, "key": "planted_not_available", "section": "scalars", "words": words, "cost": cost}]
+    taken = conv._chart_lexicon({**dc.LEXICON, "index": {**dc.LEXICON["index"], stems: excluded}})
+    (row,) = taken["index"][stems]
+    assert (row["kind"], row["key"], row["section"]) == (dc.TABLE_ENTRY, "on_balance_volume", named_indicators.SECTION)
+

@@ -1131,6 +1131,42 @@
    "source": "d1",
    "quote": "2009-07-10 (2 sessions later; undercut 16.60, close 16.94)",
    "claim": "ICE: reclaim day 2009-07-10, 2 sessions after the flush; undercut 16.60, close 16.94."
+  },
+  {
+   "id": "v49s",
+   "source": "hw",
+   "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
+   "claim": "Our stop band: 1-3% preferred, 3.5% good, up to 5% acceptable; past 5%, wait for a tighter trigger."
+  },
+  {
+   "id": "v49v",
+   "source": "hw",
+   "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
+   "claim": "Volume raises the grade; it is not a requirement."
+  },
+  {
+   "id": "v49h",
+   "source": "d1",
+   "quote": "A leader breaks its 21-day EMA with a 21% two-session flush to the top of the September base and the rising 50-day, then undercuts and closes back above the low. 3R on day 1; +88% inside 60 sessions.",
+   "claim": "HIMS, October 2024: a 21% two-session flush to the top of its base and the rising 50-day, then an undercut and reclaim; 3R on day 1, up 88% inside 60 sessions."
+  },
+  {
+   "id": "v49a",
+   "source": "d1",
+   "quote": "The model of the burst: seven straight lower closes that accelerate into a climax bar on the highest volume of the decline, 12% above the 200-day.",
+   "claim": "ALGM, April 2023: seven straight lower closes into a climax bar on the highest volume of the decline, still above the 200-day."
+  },
+  {
+   "id": "v49i",
+   "source": "d1",
+   "quote": "A leader two weeks off its high loses 29% in three sessions on 5x volume, the biggest bar on the chart",
+   "claim": "ICE, July 2009: a leader loses 29% in three sessions on 5x volume, the biggest bar on the chart."
+  },
+  {
+   "id": "v49b",
+   "source": "h1",
+   "quote": "a 3-5 day final leg: three straight up days, two straight overnight gap ups, two of three days of range expansion, two days of rising volume, and a gap up on the climax day",
+   "claim": "Our parabolic burst signs: three straight up days, two straight gap ups, range expansion, rising volume, a gap on the climax day; a burst down is the mirror."
   }
  ],
  "walkthroughs": [
@@ -1138,10 +1174,10 @@
    "key": "w1",
    "title": "ALB, May 2010: the tiny stop",
    "steps": [
-    "ALB on 2010-05-06, the flash-crash session. The low is 17.2% under the 10-day high close and 3.94 ATR under the prior close.",
-    "Three lower closes, then a spike low. We do not buy the flush close. We wait for the turn.",
-    "On 2010-05-07 it undercuts 38.31 and closes at 39.23. The buy is the reclaim, 38.49, as a market order.",
-    "The stop is 38.26, 0.6% away. A stop that tight puts 5R only about 3% above the buy."
+    "May 6, 2010, the flash crash. ALB drops 17.2% off its 10-day high close, after three lower closes.",
+    "That's the flush. We don't buy that close. We wait for the turn.",
+    "May 7 it undercuts 38.31 and closes 39.23. We buy the reclaim at market, 38.49.",
+    "Stop 38.26, just 0.6% away. With a stop that tight, 5R is only about 3% above your buy."
    ],
    "facts": [
     "d01",
@@ -1154,10 +1190,10 @@
    "key": "w2",
    "title": "OKTA, April 2025: the Monday turn",
    "steps": [
-    "On Friday 2025-04-04 OKTA's low is 23.4% under its 10-day high close, 2.67 ATR under the prior close, on 2.28x volume.",
-    "On Monday, 2025-04-07, it opens at 88.34 under the flush low, undercuts to 87.93 and closes at 91.24.",
-    "We buy the reclaim at 89.37. The stop sits a few cents under the undercut low, 87.88.",
-    "That stop is 1.7% away. Several down days into a Friday, then a Monday turn: Bracco's Monday Effect."
+    "OKTA, April 2025. Thursday and Friday it flushes 23.4% off its 10-day high close, on 2.28x volume.",
+    "Monday, April 7, it opens 88.34, under the flush low. It undercuts to 87.93, then closes 91.24.",
+    "Buy the reclaim at market, 89.37. Stop a few cents under the undercut low, 87.88, 1.7% away.",
+    "Down days into a Friday, then a Monday gap that gets bought. Bracco calls that the Monday Effect. Learn to spot it."
    ],
    "facts": [
     "d07",
@@ -1171,10 +1207,10 @@
    "key": "w3",
    "title": "BN, March 2020: the crash had one more leg",
    "steps": [
-    "BN on 2020-03-09 flushes 16.5% off its 10-day high, 3.29 ATR, on 3.03x volume.",
-    "The reclaim comes the next day. We buy 19.57 with a stop at 19.40, 0.89% away.",
-    "On 2020-03-11 the low is 18.98, through the stop. The index made a new low the same week.",
-    "The stock traded 41% under the buy. The crash had one more leg. The stop kept the loss small."
+    "Not every flush is the bottom. BN, March 9, 2020: down 16.5% off its 10-day high on 3.03x volume.",
+    "Next day it reclaims. Buy at market, 19.57, stop 19.40. That's only 0.89% of risk.",
+    "March 11 the low hits 18.98, right through the stop. The index made a new low that same week.",
+    "The crash had one more leg. BN traded 41% under the buy. The stop kept that a tiny loss."
    ],
    "facts": [
     "d10",
@@ -1190,30 +1226,29 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "cap.flush_day",
-   "q": "What marks the flush day in a capitulation?",
+   "q": "A stock's been sliding for days. Then comes the day it finally breaks. What does a real flush day look like on the chart?",
    "choices": [
-    "A low 2+ ATR under the prior close",
-    "A close under the lower Bollinger band",
-    "A close right at the day's low",
-    "Record volume, whatever the range"
+    "A huge, wide red bar on heavy volume",
+    "A small red bar that closes on its low",
+    "A close just under the lower band",
+    "A quiet drift lower on light volume"
    ],
-   "answer": "A low 2+ ATR under the prior close",
-   "why": "A low 2 ATR or more under the prior close. The card also accepts a range of at least 2 ATR on the day. A climax brings wider spreads and a steeper decline, so the flush day is wide and fast. Volume is a separate test, and a band close is only supporting evidence.",
-   "lesson_line": "The flush day is a 2 ATR drop, not a drift.",
+   "answer": "A huge, wide red bar on heavy volume",
+   "why": "A huge, wide red bar on heavy volume. That's the day the holders who've been hanging on finally give up all at once. The selling speeds up, the bar gets way wider than a normal day, and volume spikes. You'll see it jump off the chart next to the bars before it. A lot of the time it closes well off its low, because bigger buyers step in and take those shares. The flush isn't the buy, though. It just tells you the panic might be close to done.",
+   "lesson_line": "A flush jumps off the chart: a wide red bar on huge volume.",
    "facts": [
-    "c01",
     "m04",
-    "c09",
+    "m01",
     "w02",
-    "c02"
+    "k01"
    ],
    "house": true,
    "wrong": {
-    "A close under the lower Bollinger band": "A band close is supporting evidence only. The flush day is measured by its low against the prior close.",
-    "A close right at the day's low": "Where it closes is not the test. A climax often closes well off its low.",
-    "Record volume, whatever the range": "Volume is a separate test. The day needs a low 2 ATR under the prior close, or a 2 ATR range."
+    "A small red bar that closes on its low": "Small is the problem. A flush is the day the selling goes wild, a bar way bigger than the ones before it.",
+    "A close just under the lower band": "A close under the lower Bollinger band only shows a stretch. Plenty of slow slides close under it.",
+    "A quiet drift lower on light volume": "That's a grind, not a panic. Nobody's giving up on light volume."
    },
-   "simple": "The flush day drops hard. Its low sits 2 ATR or more under the prior close.",
+   "simple": "A flush day is a huge red bar on heavy volume, the day holders finally give up and sell.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1223,7 +1258,10 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "A CMT teacher describes a climax the same way. The trend speeds up, the daily spreads get much wider and the decline gets steeper. Volume gets extremely heavy. Wyckoff adds that the climax often closes well off its low, as larger buyers take the shares."
+   }
   },
   {
    "key": "q02",
@@ -1231,16 +1269,16 @@
    "rung": 1,
    "format": "tf",
    "criterion": "cap.no_knife",
-   "q": "In a capitulation we buy the flush-day close.",
+   "q": "After three days of panic selling, a stock closes right on its low. In a capitulation, that close is our buy.",
    "answer": "False",
-   "why": "False. The card says do not buy the falling price or the flush close. Nearly half of flush closes are undercut the next day, so buying the close is buying the knife. We wait for the turn instead.",
-   "lesson_line": "Do not buy the falling price or the flush close.",
+   "why": "False. I never buy the flush close. Nearly half of flush closes get undercut the next day, so buying it is catching the knife. A close on the low tells you the panic's still running. It doesn't tell you it's over. We wait for the turn: price trades under the flush low, then back over it. That's when the sellers are done and buyers show their hand. You'll pay a bit more than the low, and that's fine.",
+   "lesson_line": "Never buy the flush close. Buy the turn.",
    "facts": [
     "c12",
     "c33"
    ],
    "house": true,
-   "simple": "False. We never buy the flush close, because nearly half of them are undercut the next day.",
+   "simple": "False. Nearly half of flush closes get undercut the next day, so we wait for the turn instead.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1248,7 +1286,7 @@
      "house: proposed card criterion (cap.no_knife)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -1289,16 +1327,16 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "cap.flush_day",
-   "q": "What does heavy volume at the lows say, by Kell?",
+   "q": "Days of selling, then today prints the biggest volume bar on the whole chart, right at the lows. What's that volume telling you?",
    "choices": [
-    "Fear is in; holders are giving up",
-    "The sellers are only getting started",
+    "Fear's in, holders are giving up",
+    "Sellers are only getting started",
     "The selling is calm and orderly",
-    "A new uptrend is starting here"
+    "A new uptrend starts right here"
    ],
-   "answer": "Fear is in; holders are giving up",
-   "why": "Fear has set in, and traders are capitulating. Kell reads heavy volume at the lows that way. The Wyckoff tutorial says the same of a selling climax. Heavy or panicky selling by the public is absorbed by larger interests near a bottom. It is panic, not calm, and not yet a new trend.",
-   "lesson_line": "Heavy volume at the lows is panic, not control.",
+   "answer": "Fear's in, holders are giving up",
+   "why": "Fear's in, and holders are giving up. That's what huge volume at the lows means. People who swore they'd hold are dumping shares at any price. Somebody bigger is on the other side taking them, and that's how a bottom gets built. It's not the buy yet, though. A climax still has to be tested and hold before it's more than a short-term flush. So mark the low and watch what price does with it next.",
+   "lesson_line": "Huge volume at the lows is panic, not control.",
    "facts": [
     "k01",
     "w01",
@@ -1306,11 +1344,11 @@
     "m02"
    ],
    "wrong": {
-    "The selling is calm and orderly": "Heavy volume at the lows is panic, not calm. A climax brings extremely heavy volume and wide spreads.",
-    "A new uptrend is starting here": "Not yet. A climax must be successfully tested before it is more than a short term capitulation.",
-    "The sellers are only getting started": "Kell reads it the other way: fear has set in, and traders are capitulating their positions."
+    "The selling is calm and orderly": "Calm selling comes on light volume. The biggest bar on the chart is panic.",
+    "Sellers are only getting started": "It's the end of the selling, not the start. The biggest bar at the lows is the crowd capitulating.",
+    "A new uptrend starts right here": "Too early. The flush has to be tested and hold first, and plenty of them make one more low."
    },
-   "simple": "Heavy volume at the lows means fear has set in and many holders are giving up and selling.",
+   "simple": "Fear has set in. Holders are giving up and dumping shares, and bigger buyers are taking them.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1319,7 +1357,10 @@
      "the TraderLion archive capture and the IBKR Campus page were unreachable to WebFetch on 2026-11-12; the Wyckoff quote was re-found"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "Oliver Kell reads heavy volume at the lows the same way: fear has set in and traders are capitulating. The Wyckoff school calls it a selling climax, panicky selling by the public taken by larger interests near a bottom."
+   }
   },
   {
    "key": "q05",
@@ -1327,17 +1368,17 @@
    "rung": 2,
    "format": "tf",
    "criterion": "cap.volume_falling_veto",
-   "q": "A decline on falling volume qualifies as a capitulation.",
+   "q": "A stock grinds lower for three weeks, and its volume gets lighter every week. That's a capitulation.",
    "answer": "False",
-   "why": "False. The card says a decline on falling volume does not qualify. The flush day needs volume of at least 2 times the 50-day average. Such a stock can still bottom: Wyckoff notes a downtrend can end without climactic price and volume action. It just is not this setup.",
-   "lesson_line": "A decline on falling volume is not a capitulation.",
+   "why": "False. Nobody's panicking there. A capitulation is the moment holders give up all at once. That shows up as heavy volume on a fast, wide drop. Lighter volume every week means sellers are just leaking out. The stock can still bottom that way, because some downtrends end quietly with no climax at all. It's just not this trade. There's no flush low for you to undercut, reclaim and stop out under.",
+   "lesson_line": "No panic on the volume, no capitulation.",
    "facts": [
     "c04",
     "w05",
-    "c02"
+    "m01"
    ],
    "house": true,
-   "simple": "False. A decline on falling volume does not qualify, because the flush day needs at least twice the usual volume.",
+   "simple": "False. Lighter volume means no panic, and a capitulation is the day holders give up all at once.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1345,7 +1386,7 @@
      "house: proposed card criterion (cap.volume_falling_veto)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -1463,15 +1504,16 @@
    "rung": 2,
    "format": "tf",
    "criterion": "cap.below_short_averages",
-   "q": "A capitulation flush closes below the 5-day, the 9 EMA and the 20 EMA.",
+   "q": "After a real capitulation flush, price sits under its 9 and 20 EMA.",
    "answer": "True",
-   "why": "True. Our card wants price below the 5-day SMA, the 9 EMA and the 20 EMA at the flush. If price still holds above them, that box of the card is not met. Being under them is part of the shape, not a buy signal.",
-   "lesson_line": "The flush leaves price under the 5-day, 9 EMA and 20 EMA.",
+   "why": "True. A flush is fast and violent, so it slices right through the short averages. If price is still holding its 20 EMA, you're looking at a pullback in a healthy trend, not a panic. Being under them isn't the buy, though. It just tells you how stretched the stock is. The buy still comes on the turn, when price reclaims the flush low.",
+   "lesson_line": "A real flush cuts through the short averages.",
    "facts": [
-    "c08"
+    "r21",
+    "m04"
    ],
    "house": true,
-   "simple": "True, because a real flush leaves price below the 5-day, the 9 EMA and the 20 EMA.",
+   "simple": "True. A flush is fast, so price falls right through the 9 and 20 EMA on the way down.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -1480,7 +1522,7 @@
      "a proposed card criterion, waiting on the owner's review"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
@@ -1515,9 +1557,9 @@
    "rung": 2,
    "format": "tf",
    "criterion": "cap.lower_band",
-   "q": "A close below the lower Bollinger band is a buy signal.",
+   "q": "A stock closes under its lower Bollinger band after a hard drop. That close is a buy signal.",
    "answer": "False",
-   "why": "False. On our card, a close below the lower Bollinger band is supporting evidence only, never the trigger. Bollinger himself says a tag of the lower band is not in itself a buy signal. He adds that closes outside the bands are at first continuation signals, not reversal signals.",
+   "why": "False. That close only tells you the stock is stretched. It's not a turn. Closes outside the bands are at first continuation signals, so a stock can walk down the lower band for days. I use it as a bit of extra evidence that the selling's gone too far. The buy is still the reclaim of the flush low, where you can put a tight stop right under the turn.",
    "lesson_line": "A band close is evidence. The reclaim is the trigger.",
    "facts": [
     "c09",
@@ -1525,7 +1567,7 @@
     "bl2"
    ],
    "house": true,
-   "simple": "False. A close under the lower band only shows a stretch, not a signal to buy.",
+   "simple": "False. A close under the lower band shows a stretch, not a turn, and the stock can keep falling.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1533,7 +1575,10 @@
      "house: proposed card criterion (cap.lower_band)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "John Bollinger says it himself: a tag of the lower band is not in and of itself a buy signal. Closes outside the bands are at first continuation signals, not reversal signals."
+   }
   },
   {
    "key": "q12",
@@ -1541,28 +1586,29 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "cap.trigger_daily",
-   "q": "What is the taught daily trigger for a capitulation?",
+   "q": "You want in on the bounce. What has to happen before you buy?",
    "choices": [
-    "Buy the reclaim of the flush low",
-    "Buy at the flush day's close",
-    "Buy a break of the flush high",
-    "Buy the first green day"
+    "Trade under this low, then back over",
+    "Nothing, buy this flush day's close",
+    "A break over the flush day's high",
+    "Any green day after the flush"
    ],
-   "answer": "Buy the reclaim of the flush low",
-   "why": "Undercut the flush low, then reclaim it. Within 3 sessions after the flush day, a session trades below the flush low and then back above it. We buy that reclaim. We never buy the flush close: nearly half of flush closes are undercut the next day. A green day alone is not the trigger.",
-   "lesson_line": "Buy the reclaim of the flush low, within 3 sessions.",
+   "answer": "Trade under this low, then back over",
+   "why": "It has to trade under this low and then back over it. That's the undercut and reclaim, and you buy the reclaim at market as price comes back through the flush low. The wait is worth it. The undercut shakes out the last weak holders, and the reclaim shows buyers stepped in. You also get a tight stop, a few cents under that day's low. This one did it the next day. It hit 3R on day 1 and was up 88% inside 60 sessions.",
+   "lesson_line": "Undercut the flush low, reclaim it, buy it.",
    "facts": [
-    "c13",
-    "c35",
-    "c33"
+    "c33",
+    "c12",
+    "v49h",
+    "h24"
    ],
    "house": true,
    "wrong": {
-    "Buy at the flush day's close": "That is the knife. Nearly half of flush closes are undercut the next day.",
-    "Buy a break of the flush high": "That is not our trigger. We buy the reclaim of the flush low, within 3 sessions.",
-    "Buy the first green day": "A green day alone is not the trigger. A session must trade under the flush low and back above it."
+    "Nothing, buy this flush day's close": "That's catching the knife. Nearly half of flush closes get undercut the next day.",
+    "A break over the flush day's high": "That's paying way up for the same turn, with your stop miles away under the low.",
+    "Any green day after the flush": "A green day can still be a dead bounce. It needs to take out the low and reclaim it."
    },
-   "simple": "We buy when price dips under the flush low and then climbs back above it, not at the flush close.",
+   "simple": "Wait for price to dip under the flush low and climb back over it. That reclaim is the buy.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1570,8 +1616,8 @@
      "the daily trigger and its 3-session window are pending D-003"
     ]
    },
-   "batch": "visuals-5",
-   "story": "The flush day, the last bar on the chart.",
+   "batch": "voice-8-2026-11-17",
+   "story": "The last bar is the flush day. A leader just fell 21% in two sessions, down to the top of its old base and its rising 50-day.",
    "chart": {
     "sym": "HIMS",
     "asof": "2024-10-30",
@@ -1585,16 +1631,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "cap.liquidity",
-   "q": "A capitulation read needs a stock at $10 or more that trades $20 million a day.",
+   "q": "Before a capitulation is a trade for us, the stock has to be $10 or more and trade $20 million a day.",
    "answer": "True",
-   "why": "True. Our rule is to trade only stocks at $10 or more that trade at least $20 million a day. The capitulation card repeats it. A cheaper or thinner stock is not a trade for us, however hard it flushed.",
-   "lesson_line": "Price $10 or more, $20 million a day or more.",
+   "why": "True. Same liquidity line as every trade we take. Panic is exactly when thin stocks get ugly. Spreads blow out, your stop can fill way under where you set it, and getting out costs you. A $10 stock trading $20 million a day lets you get in and out clean, even on the worst day. A cheap or thin name isn't for us, however good the flush looks.",
+   "lesson_line": "$10 or more, $20 million a day. Even in a panic.",
    "facts": [
     "c11",
     "h09"
    ],
    "house": true,
-   "simple": "True, because we only trade stocks at $10 or more that trade at least $20 million a day.",
+   "simple": "True. We only trade stocks at $10 or more that trade $20 million a day, so we can get out clean.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1602,7 +1648,7 @@
      "rests on the owner's rulebook (B23)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
@@ -1610,29 +1656,29 @@
    "rung": 3,
    "format": "scenario",
    "criterion": "cap.location",
-   "q": "Which is a level that matters under a flush?",
+   "q": "Lots of lines on this chart. Which level makes this flush worth watching?",
    "choices": [
-    "A round number, like 100",
+    "The 100 area and the 200-day",
     "A minor low from last week",
-    "The 9 EMA on the daily chart",
+    "The 9 EMA, just above price",
     "The lower Bollinger band"
    ],
-   "answer": "A round number, like 100",
-   "why": "A round number. The card lists the levels that matter. They are a prior all-time high or breakout level, a round number, or the 200-day or 50-week average. An anchored VWAP from a major low or an old gap also count. On this chart the fall ran into the round number 100 and the 200-day. A minor low, a short average and the lower band are not on that list.",
-   "lesson_line": "A flush should drop into a level that matters.",
+   "answer": "The 100 area and the 200-day",
+   "why": "The 100 area and the 200-day. Those are levels the whole market watches. Big buyers have orders sitting there, and that's where a panic can finally run into real demand. A flush into a random spot has nothing to catch it. So when a straight-down fall lands on a big round number and the 200-day, I'm paying attention. The next day it undercut the low and closed 6% higher. That reclaim was the buy.",
+   "lesson_line": "Location matters. Look for a flush into a level everyone watches.",
    "facts": [
     "c07",
     "d06",
-    "c08",
-    "c09"
+    "c09",
+    "r21"
    ],
    "house": true,
    "wrong": {
-    "A minor low from last week": "A minor low is not on the card's list of levels that matter.",
-    "The 9 EMA on the daily chart": "A flush falls below the 9 EMA, so it sits above the flush. It is not a level under it.",
-    "The lower Bollinger band": "A band close is supporting evidence only. The band is not on the card's list of levels."
+    "A minor low from last week": "Nobody's waiting at last week's minor low. It doesn't carry the weight to stop a panic.",
+    "The lower Bollinger band": "The lower band moves with price. It shows a stretch, not a level where buyers are waiting.",
+    "The 9 EMA, just above price": "The flush fell through the 9 EMA. It's above price now, so it isn't catching anything."
    },
-   "simple": "A round number. The card wants a flush into a level traders watch, like 100.",
+   "simple": "The 100 area and the 200-day. Big buyers wait at levels like that, so a panic can stop there.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1640,8 +1686,8 @@
      "house: proposed card criterion (cap.location)"
     ]
    },
-   "batch": "visuals-5",
-   "story": "The flush day. The fall ran straight into a level that traders watch.",
+   "batch": "voice-8-2026-11-17",
+   "story": "The last bar is the flush day. Three lower closes in a row, and the fall ran straight down into the round number 100 and the 200-day.",
    "chart": {
     "sym": "LYV",
     "asof": "2022-03-07",
@@ -1772,7 +1818,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "cap.stretch_index",
-   "q": "QQQ's 50-day is 500 and its ATR is 8. It closes at 472. How many ATR under the 50-day is it?",
+   "q": "QQQ's 50-day is 500 and its ATR is 8. After a week of selling it closes at 472. How many ATR under the 50-day is it?",
    "answer": "3.5 ATR",
    "calc": {
     "fn": "arith",
@@ -1784,15 +1830,14 @@
     },
     "round": 1
    },
-   "why": "3.5 ATR. Take the gap, 500 minus 472, and divide it by the ATR of 8. That gives 3.5. Our card wants an index to close at least 3 ATR under the 50-day SMA, so it meets the index stretch. Bracco notes that intermediate corrections typically find a tradable bottom around 3 ATR under the 50-day.",
-   "lesson_line": "Distance under the 50-day, divided by the ATR.",
+   "why": "3.5 ATR. 500 minus 472 is 28 points, and 28 divided by the 8 point ATR is 3.5. Measuring in ATR tells you how stretched the index is against its own normal daily move. Bracco has found that intermediate corrections find a tradable bottom around 3 ATR under the 50-day, on average. So QQQ is in the zone where I start watching for a turn. That's a heads-up, not a buy. The buy still needs a reclaim.",
+   "lesson_line": "Measure an index stretch in ATR under its 50-day.",
    "facts": [
-    "c06",
     "u04"
    ],
    "house": true,
    "suffix": " ATR",
-   "simple": "QQQ sits 3.5 ATR under its 50-day, which is past the 3 ATR an index flush needs.",
+   "simple": "QQQ sits 3.5 ATR under its 50-day, the kind of stretch where index corrections have found a bottom.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -1801,7 +1846,7 @@
      "the 3 ATR index stretch is a proposed card criterion"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "28.0 ATR",
     "0.3 ATR",
@@ -1809,9 +1854,9 @@
     "5.6 ATR"
    ],
    "wrong": {
-    "28.0 ATR": "Gave the gap in points and skipped the ATR division.",
-    "0.3 ATR": "Flipped the division, ATR over the gap.",
-    "5.6 ATR": "Used the percent gap as ATR."
+    "28.0 ATR": "That's the gap in points. Divide it by the 8 point ATR to get 3.5.",
+    "0.3 ATR": "Flipped it. That's the ATR over the gap, 8 over 28.",
+    "5.6 ATR": "That's the gap as a percent, 28 over 500. We want it in ATR, so divide by 8."
    },
    "visual": {
     "kind": "ladder",
@@ -1842,15 +1887,16 @@
    "rung": 3,
    "format": "tf",
    "criterion": "cap.no_knife",
-   "q": "A Wyckoff trader buys right at the selling climax.",
+   "q": "A Wyckoff trader buys right into the selling climax, at the day's low.",
    "answer": "False",
-   "why": "False. In Wyckoff's method a successful test of supply, such as a spring, is the high-probability trade, not the climax itself. A CMT teacher puts it plainly: a climax must be successfully tested before it is more than a short term capitulation.",
+   "why": "False. Even the Wyckoff school waits. The climax is where panicky selling gets soaked up by bigger players, but the buy is the test after it. A spring or a shakeout that holds is the high-probability trade. It's the same thing we do. The flush tells you the panic may be done. The undercut and reclaim proves it, and it gives you a low to stop out under.",
    "lesson_line": "Even the Wyckoff school waits for the test.",
    "facts": [
     "w03",
-    "m02"
+    "m02",
+    "w01"
    ],
-   "simple": "False, because the Wyckoff trader waits for a test such as a spring and does not buy the climax itself.",
+   "simple": "False. The Wyckoff trader waits for a test of the low, like a spring, before buying.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1859,7 +1905,7 @@
      "the IBKR Campus page answered 403 to WebFetch on 2026-11-12; the Wyckoff quote was re-found"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1883,16 +1929,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "cap.monday",
-   "q": "Bracco notes that notable capitulations and turns have occurred on a Monday.",
+   "q": "In Bracco's studies, notable capitulations and turns have come on a Monday.",
    "answer": "True",
-   "why": "True. Bracco writes that through his studies notable capitulations and turns have occurred on a Monday. It is his observation, not a rule. Our card notes the shape: several straight down days into a Friday, then a gap down on Monday.",
-   "lesson_line": "Bracco has seen notable turns on Mondays, after several down days.",
+   "why": "True. That's from his own studies of past washouts. Several down days into a Friday, then Monday gaps down and the selling finally runs out. OKTA's a good one. It flushed into a Friday, then Monday opened under the flush low and closed above it. Treat it as a heads-up, not a rule. A Monday doesn't make the trade. The reclaim does.",
+   "lesson_line": "Down into Friday, flush Monday. Watch for the turn.",
    "facts": [
     "u13",
-    "c31"
+    "c31",
+    "d09"
    ],
    "house": true,
-   "simple": "True, because Bracco writes that in his studies notable capitulations and turns have come on a Monday.",
+   "simple": "True. Bracco found notable turns come on a Monday, after a run of down days into a Friday.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1904,7 +1951,7 @@
    "depends_on": [
     "D-015"
    ],
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1912,17 +1959,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "cap.rs_exempt",
-   "q": "A capitulation needs an RS rating of 80 or more.",
+   "q": "A capitulation long needs an RS rating of 80 or more before we'll take it.",
    "answer": "False",
-   "why": "False. Our leader rule asks for an RS rating of 80 or more, but mean-reversion and parabolic trades are exempt. The capitulation card says there is no RS requirement. Bracco still uses this kind of long to get exposure to powerful, trending leaders.",
-   "lesson_line": "No RS requirement here, though leaders are preferred.",
+   "why": "False. For breakouts we want leaders, RS 80 or more in a strong group. Mean-reversion trades like this one are exempt. Right after a flush, a stock's RS has just been beaten up, so the rating can't tell you much. You're trading the panic and the turn, not the trend. I'd still rather take it in a real leader that got hit, though. Bracco uses this long to get exposure to powerful, trending leaders.",
+   "lesson_line": "No RS bar here, but a leader that flushed is still the best one.",
    "facts": [
     "c32",
     "h14",
     "u01"
    ],
    "house": true,
-   "simple": "False, because mean-reversion trades like this one are exempt from our RS 80 leader rule.",
+   "simple": "False. Mean-reversion trades skip the RS 80 rule, though a beaten-up leader is still the one I want.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1930,7 +1977,7 @@
      "rests on the owner's rulebook (C31)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1938,32 +1985,32 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "cap.no_knife",
-   "q": "Buy the close, or wait?",
+   "q": "Do you buy this close, or wait?",
    "choices": [
     "Wait for the undercut and reclaim",
-    "Buy the close; the low is in",
+    "Buy the close, the low is in",
     "Wait a week for it to settle",
-    "Buy tomorrow's open regardless"
+    "Buy tomorrow's open no matter what"
    ],
-   "story": "The flush day. Three lower closes in a row, and today it closes right on its low. It looks like the bottom.",
+   "story": "The last bar is the flush day. Three lower closes in a row, and today closes right on its low. Everyone on your feed is calling the bottom.",
    "answer": "Wait for the undercut and reclaim",
-   "why": "Wait for the undercut and reclaim. We do not buy the falling price or the flush close, even one right on the low. Nearly half of flush closes are undercut the next day. SBUX closed on its low after three lower closes, and the next session undercut that low and closed back above it. The trigger comes after: within 3 sessions, a session trades below the flush low and back above it. We buy that reclaim.",
+   "why": "Wait. A close right on the low means sellers were still hitting it into the bell. That's the panic, not the end of it. Nearly half of flush closes get undercut the next day. So I let the next session show me. If it trades under this low and climbs back over it, that's my buy. The stop goes a few cents under the new low. This one did exactly that: the next session undercut it and closed 6% higher.",
    "lesson_line": "Buy the turn, not the knife.",
    "facts": [
     "c12",
     "c33",
-    "c13",
-    "v01"
+    "v01",
+    "h24"
    ],
    "house": true,
    "wrong": {
-    "Wait a week for it to settle": "The trigger has a window: within 3 sessions of the flush. A week can miss it.",
-    "Buy tomorrow's open regardless": "A blind open is not a trigger. The reclaim of the flush low is.",
-    "Buy the close; the low is in": "A close on the low shows the panic. It does not show the low is in."
+    "Wait a week for it to settle": "By then the turn has often come and gone. This one turned the very next session.",
+    "Buy the close, the low is in": "A close on the low shows the panic. It doesn't show the low is in.",
+    "Buy tomorrow's open no matter what": "A blind open can sit under the low and keep falling. Wait for the reclaim."
    },
-   "simple": "Wait. The flush close is often not the low, so we buy only when price breaks the low and climbs back.",
+   "simple": "Wait. The flush close is often not the low, so buy only when price breaks it and climbs back.",
    "deeper": {
-    "trap": "A close right on the low tempts you to buy the bottom. It shows the panic, not the low. The card warns that nearly half of flush closes are undercut the next day. Buying the knife, not the turn, is how it loses. Wait for a session to trade under the flush low and back above it."
+    "trap": "A close right on the low tempts you to buy the bottom. It means the opposite: sellers were still pressing at the bell. Let the next day undercut it and reclaim it, and buy that, with the stop under the new low."
    },
    "tier": "core",
    "risk": {
@@ -1972,7 +2019,7 @@
      "keys the daily trigger, pending D-003"
     ]
    },
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SBUX",
     "asof": "2011-08-08",
@@ -1986,31 +2033,31 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "cap.trigger_daily",
-   "q": "Where do you buy?",
+   "q": "Where exactly do you get in?",
    "choices": [
-    "On the reclaim back over the flush low",
-    "At the new low of the day, under it",
+    "As it climbs back over the flush low",
+    "At 59.63, the new low of the day",
     "At the close of the flush day",
-    "On a break of the flush high"
+    "On a break of the flush day's high"
    ],
-   "story": "The flush day is the last bar. The next day price trades down under the flush low, then climbs back above it.",
-   "answer": "On the reclaim back over the flush low",
-   "why": "On the reclaim back above the flush low. The dip under it is the undercut. The buy comes when price trades back above the flush low. The stop then goes a few cents under the undercut low, the low of the session you bought in. ROKU did this: the next day it undercut the flush low and closed back above it. Buying the flush close is the knife: nearly half of flush closes are undercut the next day.",
+   "story": "The last bar is the flush day. The next morning price trades down to 59.63, under the flush low, then climbs back over it and closes at 61.82.",
+   "answer": "As it climbs back over the flush low",
+   "why": "As it climbs back over the flush low, at market. The dip to 59.63 is the undercut, the last sellers getting shaken out. The reclaim is buyers taking it back. Your stop goes a few cents under 59.63, the low of the day you bought. That keeps the risk small, because the low is right there. If it breaks that low again, the turn failed and you're out small.",
    "lesson_line": "Undercut the flush low, then buy the reclaim.",
    "facts": [
-    "c13",
     "c18",
     "c33",
-    "c12",
-    "v02"
+    "v02",
+    "h24",
+    "h22"
    ],
    "house": true,
    "wrong": {
-    "At the close of the flush day": "That is the knife. Nearly half of flush closes are undercut the next day.",
-    "On a break of the flush high": "That is not our trigger. We buy the reclaim of the flush low.",
-    "At the new low of the day, under it": "That is buying the falling price. We wait for the reclaim of the flush low."
+    "At the close of the flush day": "That's the knife. Nearly half of flush closes get undercut the next day, like this one was.",
+    "At 59.63, the new low of the day": "That's buying while it's still falling. You don't know it's the low until it reclaims.",
+    "On a break of the flush day's high": "That's paying up for the same turn, with the stop much farther away."
    },
-   "simple": "Buy when price climbs back over the flush low, because that reclaim is the trigger.",
+   "simple": "Buy at market as price climbs back over the flush low, with the stop under that day's low.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2018,7 +2065,7 @@
      "the daily trigger is pending D-003 and the setup's stop D-008; keyed on the settled house stop"
     ]
    },
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "ROKU",
     "asof": "2019-03-13",
@@ -2032,7 +2079,7 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "cap.stop_width",
-   "q": "Reclaim at 38.49, undercut low 38.31, stop at 38.26. How far is the stop, in percent?",
+   "q": "How far is that stop from your buy, in percent?",
    "answer": "0.6%",
    "calc": {
     "fn": "arith",
@@ -2043,20 +2090,20 @@
     },
     "round": 1
    },
-   "why": "0.6%. Take the stop distance, 38.49 minus 38.26, and divide it by the entry of 38.49. That gives 0.6%. The stop sits a few cents under the undercut low of 38.31. That is very tight, well inside the usual stop of about 3% of the buy.",
-   "lesson_line": "The stop sits a few cents under the undercut low.",
+   "why": "0.6%. 38.49 minus 38.26 is 0.23 a share, and 0.23 over 38.49 is 0.6%. That's tiny, tighter than even the 1-3% we like. The stop sits a few cents under 38.31, the low of the day you bought, because that's where the turn fails. A stop that tight keeps your dollar risk small. Just don't let it talk you into a monster position, because a stop can't catch an overnight gap.",
+   "lesson_line": "Stop a few cents under the low you bought. Then do the math.",
    "facts": [
     "d02",
     "d03",
-    "h01",
     "h24",
-    "h04"
+    "v49s",
+    "h01"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "The stop is only 0.6% away, because it sits a few cents under the undercut low.",
+   "simple": "The stop is 0.6% away, because it sits just under the low of the day you bought.",
    "deeper": {
-    "example": "A tiny stop changes what the targets mean. ALB's stop was 0.6% under the buy, so 5R was only about 3% above it. The bounce did not need to be big to pay. It also means a small dip can reach the stop, so the plan has to accept that."
+    "example": "ALB, May 2010: with a stop 0.6% under the buy, 5R was only about 3% above it. The bounce didn't need to be big to pay. The same tightness means a normal wiggle can take you out, so accept that before you buy."
    },
    "tier": "core",
    "risk": {
@@ -2070,7 +2117,7 @@
     "D-007",
     "D-041"
    ],
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.6%",
     "3.0%",
@@ -2078,11 +2125,11 @@
     "23.0%"
    ],
    "wrong": {
-    "6.0%": "Slipped the decimal point a place.",
-    "23.0%": "Used the 23 cent gap as a percent.",
-    "3.0%": "Used the usual 3.0% width, not this stop."
+    "6.0%": "Slipped the decimal. 0.23 over 38.49 is 0.6%, not 6%.",
+    "23.0%": "That reads the 23 cents as a percent. Divide it by the 38.49 buy.",
+    "3.0%": "That's a normal stop width, not this one. Run the real numbers."
    },
-   "story": "Bought the reclaim on the last bar of the chart.",
+   "story": "This is the reclaim day. You bought at 38.49 as price came back over the flush low. The undercut low was 38.31, so your stop's at 38.26.",
    "chart": {
     "sym": "ALB",
     "asof": "2010-05-07",
@@ -2100,7 +2147,7 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "cap.trim_2",
-   "q": "Entry 38.49, stop 38.26. Where is 5R?",
+   "q": "Where's 5R on this trade?",
    "answer": "39.64",
    "calc": {
     "fn": "arith",
@@ -2111,14 +2158,15 @@
     },
     "round": 2
    },
-   "why": "39.64. One R is the risk per share: 38.49 minus 38.26. Multiply that by five and add it to the 38.49 entry to reach 39.64. 5R is a mark to measure by. Selling at about 5 to 10R is often best.",
-   "lesson_line": "5R is five risk units above the entry.",
+   "why": "39.64. One R is your risk per share: 38.49 minus 38.26 is 0.23. Five of those is 1.15. Add that to the 38.49 buy and 5R sits at 39.64. That's only about 3% over your buy. With a stop this tight, the R marks come fast. 5R is a mark to measure the trade by, not an order to sell. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "lesson_line": "R is your risk per share. 5R is five of them over your buy.",
    "facts": [
     "r11",
-    "d02"
+    "d02",
+    "d03"
    ],
    "house": true,
-   "simple": "5R is 39.64, because five times the risk per share, added to the 38.49 entry, lands there.",
+   "simple": "5R is 39.64: five times the 0.23 risk per share, added to the 38.49 buy.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2130,7 +2178,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "38.72",
     "39.64",
@@ -2138,11 +2186,11 @@
     "39.87"
    ],
    "wrong": {
-    "38.72": "Added one R, not five.",
-    "39.41": "Added five R to the stop, not the entry.",
-    "39.87": "Added six R, one too many."
+    "38.72": "That's 1R. You added one risk unit, not five.",
+    "39.41": "You added five R to the stop, not to the buy.",
+    "39.87": "That's six R. One too many."
    },
-   "story": "Bought the reclaim on the last bar of the chart.",
+   "story": "You bought the reclaim at 38.49 with the stop at 38.26, a few cents under the low of the day.",
    "chart": {
     "sym": "ALB",
     "asof": "2010-05-07",
@@ -2160,29 +2208,28 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "cap.not_earnings_reaction",
-   "q": "Is this a panic flush?",
+   "q": "Is this a capitulation you can trade?",
    "choices": [
-    "No; it is an earnings reaction",
-    "Yes; earnings fear is panic",
-    "Yes; 20% is deep enough",
-    "No; it fell too slowly"
+    "No, it's an earnings reaction",
+    "Yes, earnings fear is still panic",
+    "Yes, 20% is deep enough",
+    "No, it fell too slowly"
    ],
-   "story": "A leader drops 20% in two days right after it reports earnings.",
-   "answer": "No; it is an earnings reaction",
-   "why": "No. It is an earnings reaction. The card says an earnings reaction is not a panic flush, so we keep the two apart. The size and speed of the drop do not decide it. The report does. In our scan, 150 of 346 above-200-day hits with report dates had a report inside the flush window.",
-   "lesson_line": "Keep earnings reactions apart from panic flushes.",
+   "story": "A leader drops 20% in two days, starting the morning after it reports earnings. Volume is huge and the low looks like panic.",
+   "answer": "No, it's an earnings reaction",
+   "why": "No. That's an earnings reaction. If it's earnings, it's just earnings. The market is repricing the business on new numbers. That's a different thing from holders panicking out with no news. In a panic flush, sellers dump shares at any price. After a report, buyers and sellers are arguing over what the company's worth now. The size and speed of the drop don't decide it. The report does. Earnings gaps get their own lessons.",
+   "lesson_line": "If it's earnings, it's just earnings. Keep it apart from a panic.",
    "facts": [
     "c17",
-    "d31",
-    "c05"
+    "d31"
    ],
    "house": true,
    "wrong": {
-    "No; it fell too slowly": "Speed is not the test here. The report inside the flush window sets it apart.",
-    "Yes; earnings fear is panic": "The card keeps them apart. An earnings reaction is not a panic flush.",
-    "Yes; 20% is deep enough": "20% clears the 15% stretch, but that is one test. The report inside the window rules it out."
+    "Yes, earnings fear is still panic": "A bad report isn't panic selling. It's the market repricing the business.",
+    "Yes, 20% is deep enough": "Depth isn't the test here. The report behind the drop is what rules it out.",
+    "No, it fell too slowly": "Speed isn't the issue. Two days is fast. The report is what makes it a different trade."
    },
-   "simple": "No. A drop right after earnings is a reaction to news, and we keep that apart from a panic flush.",
+   "simple": "No. A drop right after earnings is the market repricing the business, not holders panicking out.",
    "tier": "core",
    "risk": {
     "score": 5,
@@ -2192,7 +2239,10 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "When our research scan checked report dates, 150 of 346 above-200-day hits had a report inside the flush window. Those weren't panics at all. They were earnings reactions, and they get traded as earnings."
+   }
   },
   {
    "key": "q27",
@@ -2200,16 +2250,16 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "cap.earnings_window",
-   "q": "Buy the reclaim?",
+   "q": "The reclaim triggers in the morning. Do you take it?",
    "choices": [
-    "No; the report is 2 sessions away",
-    "Yes; the reclaim is the trigger",
+    "No, the report is 2 sessions away",
+    "Yes, the reclaim is the trigger",
     "Yes, but at half size to be safe",
-    "No; earnings mean skip it for a month"
+    "No, earnings means skip a month"
    ],
-   "story": "The day before the reclaim triggers. The reclaim comes two sessions before the company reports earnings.",
-   "answer": "No; the report is 2 sessions away",
-   "why": "No. We take no new buys in the 3 days before an earnings report, and our card says the same for this setup. Two sessions away is inside that window. A clean trigger does not override it, and a smaller size does not either. WDC is the case: its report came two sessions after the reclaim.",
+   "story": "The last bar is the day before the reclaim. If it triggers tomorrow, the company reports earnings two sessions later.",
+   "answer": "No, the report is 2 sessions away",
+   "why": "No. We take no new buys in the 3 days before an earnings report, and 2 sessions away is inside that. A clean trigger doesn't override it, and half size doesn't either. Here's the reason. A bounce trade lives on a tight stop under the low. A report can gap the stock right through that stop overnight, and a small planned loss turns into a big one. Now it's a bet on the news, not a read of the chart. Pass, and take a fresh look after the report.",
    "lesson_line": "A clean trigger still waits out the report.",
    "facts": [
     "c16",
@@ -2218,11 +2268,11 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; the reclaim is the trigger": "The trigger does not override the report window.",
-    "Yes, but at half size to be safe": "The rule is no new buy in the 3 sessions before a report. Size does not change that.",
-    "No; earnings mean skip it for a month": "The window is the 3 sessions before a report, not a month."
+    "Yes, but at half size to be safe": "Half size still carries a gap through your stop. No new buy inside the 3 days.",
+    "Yes, the reclaim is the trigger": "The trigger's real, but the report window comes first. A gap on the news ignores your stop.",
+    "No, earnings means skip a month": "Too long. The window is the 3 days before a report. After it, take a fresh look."
    },
-   "simple": "No, because we never start a new buy in the 3 sessions before an earnings report.",
+   "simple": "No. A report can gap the stock right through your stop, so we never buy in the 3 days before one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2230,7 +2280,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "WDC",
     "asof": "2024-07-26",
@@ -2244,15 +2294,15 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "cap.no_chase",
-   "q": "Buy now?",
+   "q": "Do you still buy it here?",
    "choices": [
-    "No; 4.8% above, past the 4% limit",
-    "Yes; the setup is still intact",
+    "No, it's 4.8% past the trigger",
+    "Yes, the setup is still intact",
     "Yes, with a wider stop to fit it",
-    "No; never buy above the trigger price"
+    "No, never buy over the trigger"
    ],
-   "story": "The trigger price is 50.00. You look late and the stock trades at 52.40.",
-   "answer": "No; 4.8% above, past the 4% limit",
+   "story": "The trigger price is 50.00. You got stuck on a call, and by the time you look, the stock trades at 52.40.",
+   "answer": "No, it's 4.8% past the trigger",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2262,8 +2312,8 @@
     },
     "round": 1
    },
-   "why": "No. 52.40 is 4.8% above the 50.00 trigger. Our rule: never buy more than 4% above the buy point. Chasing costs size, not risk: the stop stays under the trigger, so the distance grows and the shares shrink. Past 4%, the trade is a pass.",
-   "lesson_line": "Past 4% over the trigger, it is a pass.",
+   "why": "No. 52.40 minus 50.00 is 2.40, and 2.40 over 50.00 is 4.8% past the trigger. Our line is 4% over the buy point, and this is past it. Chasing costs you size, not risk. Your stop still belongs under the low of the day, so the distance grows and the shares shrink. You'd own a smaller position at a worse price, on a bounce that already moved without you. I'd rather miss it than chase it.",
+   "lesson_line": "Past 4% over the trigger, let it go.",
    "facts": [
     "c15",
     "h11",
@@ -2271,13 +2321,13 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; the setup is still intact": "An intact setup still has a chase limit. No buy more than 4% above the trigger.",
-    "Yes, with a wider stop to fit it": "Chasing already stretches the distance to the stop and shrinks the size. The rule is no buy past 4%.",
-    "No; never buy above the trigger price": "The limit is 4% above the trigger, not zero. A buy up to 4% above it is allowed."
+    "Yes, with a wider stop to fit it": "A wider stop is just a bigger loss if it fails. The stop stays where the chart puts it.",
+    "Yes, the setup is still intact": "An intact setup still has a chase limit. Past 4%, you're paying for someone else's entry.",
+    "No, never buy over the trigger": "Too strict. Up to 4% over the trigger is fine. This one is 4.8%."
    },
-   "simple": "No, because 52.40 is 4.8% above the 50.00 trigger, past our 4% chase limit.",
+   "simple": "No. 52.40 is 4.8% past the 50.00 trigger, over our 4% chase line, so let it go.",
    "deeper": {
-    "counter": "Half size or a wider stop feels like a fix for a late look. It is not. The stop stays under the trigger, so a higher buy only adds distance and cuts the shares. The rule is a line: past 4% above the trigger, the trade is a pass, and you wait for a new trigger."
+    "counter": "Half size or a wider stop feels like a fix for a late look. It isn't. The stop stays under the low, so a higher buy only adds distance and cuts the shares. Past 4% over the trigger, it's a pass. Wait for a new trigger."
    },
    "tier": "extended",
    "risk": {
@@ -2288,7 +2338,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q29",
@@ -2296,16 +2346,16 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "cap.lower_band",
-   "q": "Is that a trigger?",
+   "q": "Is that close your trigger?",
    "choices": [
-    "No; it is evidence, not a trigger",
-    "Yes; a close outside is the trigger",
-    "Yes, after three closes outside",
-    "No; bands never matter at all"
+    "No, it's a stretch, not a trigger",
+    "Yes, a close outside is the trigger",
+    "Yes, after a third close outside",
+    "No, the bands never matter"
    ],
-   "story": "The stock closes under the lower Bollinger band for the second day in a row. A friend calls it a buy signal.",
-   "answer": "No; it is evidence, not a trigger",
-   "why": "No. A close under the lower band is evidence of a stretch, never the trigger. Bollinger says a tag of the lower band is not in itself a buy signal. Closes outside the bands are at first continuation signals, not reversal signals. More closes outside can mean the trend is still running.",
+   "story": "A stock in a hard drop closes under its lower Bollinger band for the second day in a row. A friend texts you that it's a screaming buy.",
+   "answer": "No, it's a stretch, not a trigger",
+   "why": "No. Two closes under the lower band tell you the stock is stretched, and that's all. Closes outside the bands are at first continuation signals, so a falling stock can ride the lower band for a week. A second close outside isn't more proof of a bottom. It's proof the selling's still on. I'll note the stretch, then wait for the flush low to get undercut and reclaimed. That's a real turn, with a low to put your stop under.",
    "lesson_line": "A stretched close is not a turn.",
    "facts": [
     "c09",
@@ -2314,13 +2364,13 @@
    ],
    "house": true,
    "wrong": {
-    "Yes; a close outside is the trigger": "A band tag is not in itself a buy signal.",
-    "Yes, after three closes outside": "More closes outside the band can mean the trend is walking down it.",
-    "No; bands never matter at all": "They help as evidence of a stretch. They are just not the trigger."
+    "Yes, a close outside is the trigger": "A band tag isn't a buy signal by itself. Price can keep walking down the lower band.",
+    "Yes, after a third close outside": "More closes outside mean the trend is still running, not ending.",
+    "No, the bands never matter": "They help as a read on the stretch. They just don't tell you when to buy."
    },
-   "simple": "No. Closing under the lower band shows a stretch, but it is not the signal to buy.",
+   "simple": "No. Closing under the lower band shows a stretch, and it can keep falling, so wait for the turn.",
    "deeper": {
-    "trap": "A second close under the band feels like more proof of a bottom. Bollinger reads it the other way: closes outside the bands are at first continuation signals. On our card the band is supporting evidence only. Wait for the turn."
+    "trap": "A second close under the band feels like more proof of a bottom. John Bollinger reads it the other way: closes outside the bands are at first continuation signals. Use the band as evidence of a stretch, and wait for the turn."
    },
    "tier": "extended",
    "risk": {
@@ -2329,7 +2379,7 @@
      "house: proposed card criterion (cap.lower_band)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q30",
@@ -2337,19 +2387,18 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "cap.inv_stall",
-   "q": "What does that tell you?",
+   "q": "What's that day telling you?",
    "choices": [
-    "An early warning; the stop rules",
-    "A buy signal; add on the dip",
-    "Nothing; one candle is minor",
-    "Move the stop down a bit"
+    "A warning, but the stop decides",
+    "A gift, add more on the dip",
+    "Nothing, it's only one candle",
+    "Lower the stop to give it room"
    ],
-   "story": "You bought the reclaim at 92.82. The next day opens at 93.75, then closes in the lower tenth of its range.",
-   "answer": "An early warning; the stop rules",
-   "why": "An early warning. Our card names it: the bounce stalls on the first day and closes in its lower third. COP opened 93.75 and closed 87.89, in the lower tenth and through the stop. It does not move the stop or change the size. The stop is the exit, it only moves up, and we never average down.",
-   "lesson_line": "A weak first bounce is a warning. Keep the stop.",
+   "story": "You bought the reclaim at 92.82. The next day opens higher at 93.75, then sells off all day and closes in the lower tenth of its range.",
+   "answer": "A warning, but the stop decides",
+   "why": "It's a warning, but your stop decides. A real turn should have buyers pushing on day 1. Opening up and closing near the low says sellers took it right back. That's the early sign the bounce is weak. It doesn't move your stop, and it doesn't change your size. This one went from a 93.75 open to an 87.89 close, right through the stop. The stop did its job and kept the loss small. Never lower it, and never average down.",
+   "lesson_line": "A weak first bounce is a warning. The stop stays put.",
    "facts": [
-    "c25",
     "h02",
     "c19",
     "d13",
@@ -2357,11 +2406,11 @@
    ],
    "house": true,
    "wrong": {
-    "A buy signal; add on the dip": "We never average down. It is full size at one price.",
-    "Nothing; one candle is minor": "Our card names this stall the early warning. It is not nothing.",
-    "Move the stop down a bit": "The stop only moves up, never down."
+    "A gift, add more on the dip": "We never average down. Full size once, at one price, with one stop.",
+    "Nothing, it's only one candle": "A first-day stall is the early warning on these. Respect it.",
+    "Lower the stop to give it room": "The stop only moves up, never down. Lowering it just makes the loss bigger."
    },
-   "simple": "It is an early warning that the bounce is weak, but the stop still decides the exit.",
+   "simple": "It's a warning that the bounce is weak, but the stop still decides when you're out.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2369,7 +2418,7 @@
      "rests on the owner's rulebook (A4) and a proposed card criterion"
     ]
    },
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "COP",
     "asof": "2022-06-23",
@@ -2383,32 +2432,31 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "cap.inv_no_burst",
-   "q": "Is this a capitulation?",
+   "q": "Big drop, big volume. Is this a capitulation?",
    "choices": [
-    "No; there was no burst before it",
-    "Yes; it passes all of the numbers",
-    "Yes; three weeks down is the burst",
-    "No; it needs 20% off the high"
+    "No, there was no burst before it",
+    "Yes, the flush day is big enough",
+    "Yes, three weeks down is the burst",
+    "No, the drop isn't deep enough"
    ],
-   "story": "The flush day. A controlled three-week mark down comes first. Then it drops 2.61 ATR on 2.02x volume, 15.3% off its 10-day high.",
-   "answer": "No; there was no burst before it",
-   "why": "No. The last day passes the numbers: 2.61 ATR, 2.02x volume and 15.3% off the 10-day high. But a slow grind or a controlled mark down is not a capitulation. Look left: three weeks of choppy selling is not a burst. Bracco saw no fear or panic in a choppy, controlled mark down.",
+   "story": "The last bar is the flush day. Before it, three weeks of choppy, controlled selling. Today it drops 2.61 ATR on 2.02 times its usual volume, 15.3% off its 10-day high.",
+   "answer": "No, there was no burst before it",
+   "why": "No. Look left before you look at the last bar. Three weeks of choppy, controlled selling isn't a panic. Nobody was rushing for the exits. A capitulation comes at the end of a burst, days of faster and faster selling where holders finally break. One big day after a slow grind is a controlled mark down with a bad day in it. Bracco calls that out too: no fear, no panic, just a choppy, controlled mark down. That's not a setup.",
    "lesson_line": "Look left. A slow grind is not a burst.",
    "facts": [
     "c27",
     "d20",
-    "u08",
-    "c05"
+    "u08"
    ],
    "house": true,
    "wrong": {
-    "Yes; it passes all of the numbers": "The day's numbers pass. A slow grind before it is not a capitulation.",
-    "Yes; three weeks down is the burst": "A slow grind or a controlled mark down is not a burst.",
-    "No; it needs 20% off the high": "The card asks for 15% off the 10-day high. 15.3% clears it."
+    "Yes, the flush day is big enough": "The last day is big, but one day isn't the setup. What came before matters.",
+    "Yes, three weeks down is the burst": "Three weeks of chop is a grind. A burst is days of fast, speeding-up selling.",
+    "No, the drop isn't deep enough": "Depth isn't the problem. 15.3% off the high is a real drop. The missing burst is."
    },
-   "simple": "No. The stock slid slowly for weeks, and a slow grind is not the fast burst a capitulation needs.",
+   "simple": "No. The stock slid slowly for weeks, and a slow grind isn't the fast burst of panic we want.",
    "deeper": {
-    "example": "MS is the dossier's case. Its drop was 2.61 ATR on 2.02x volume, 15.3% off the 10-day high, into the 200-day. Every number passed. But it came at the end of a controlled three-week mark down, not a burst. The card's line: no burst, no capitulation."
+    "example": "MS is the case: the last day was 2.61 ATR on 2.02 times volume, 15.3% off the 10-day high, into the 200-day. It looked the part. But it came at the end of a controlled three-week mark down, not a burst. No burst, no capitulation."
    },
    "tier": "extended",
    "risk": {
@@ -2417,7 +2465,7 @@
      "the burst idea is held under D-002"
     ]
    },
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "MS",
     "asof": "2025-03-04",
@@ -2433,27 +2481,26 @@
    "criterion": "cap.not_one_day_shock",
    "q": "Capitulation, or not?",
    "choices": [
-    "No; no lower closes came first",
-    "Yes; a 20% one-day drop is a flush",
-    "Yes; heavy volume is enough alone",
-    "No; a 20% fall is too shallow"
+    "No, nothing was falling before it",
+    "Yes, a 20% day is a flush",
+    "Yes, the heavy volume says panic",
+    "No, a 20% fall is too shallow"
    ],
-   "story": "A stock closes flat or higher every day for a week. Then it falls 20% in a single session on heavy volume.",
-   "answer": "No; no lower closes came first",
-   "why": "No. The card wants at least 2 lower closes before the flush day. This stock closed flat or higher all week. Then it fell 20% in one session: a one-day shock out of nowhere. The size of the drop and the volume do not fix that.",
-   "lesson_line": "A one-day shock with no lower closes first is not this setup.",
+   "story": "A stock closes flat or higher every day for a week. Then, out of nowhere, it falls 20% in a single session on heavy volume.",
+   "answer": "No, nothing was falling before it",
+   "why": "No. There was no fall before it. A capitulation is the end of a run of selling, the day the last holders finally give up. This stock was calm all week, then dropped 20% in one shot. That's a shock, and something caused it, so find out what. A one-day collapse out of a quiet tape is news getting priced in, not tired sellers running out. Bracco has passed on a bounce try that was only the second day down.",
+   "lesson_line": "No fall before it, no capitulation. A one-day shock is news.",
    "facts": [
-    "c10",
-    "c27",
-    "c05"
+    "u10",
+    "m04"
    ],
    "house": true,
    "wrong": {
-    "Yes; a 20% one-day drop is a flush": "The size is not enough. It needs a run of lower closes first.",
-    "Yes; heavy volume is enough alone": "Volume is one gate, not the only one.",
-    "No; a 20% fall is too shallow": "Depth is not the problem. The card asks for a fall of at least 15%, and 20% clears it."
+    "Yes, a 20% day is a flush": "Size alone doesn't make it a flush. There was no run of selling to exhaust.",
+    "Yes, the heavy volume says panic": "Heavy volume on a shock day is news being priced in. It's not the end of a panic.",
+    "No, a 20% fall is too shallow": "Depth isn't the problem. 20% in a day is huge. What's missing is the fall before it."
    },
-   "simple": "No. A one-day drop out of a calm week is a shock, and the card wants at least 2 lower closes first.",
+   "simple": "No. A capitulation ends a run of selling, and this stock was calm until one shock day.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2461,7 +2508,7 @@
      "house: proposed card criterion (cap.not_one_day_shock)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q33",
@@ -2549,34 +2596,30 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "cap.above_200",
-   "q": "Which rule stops the buy?",
+   "q": "It flushed hard and could reclaim tomorrow. What stops the buy?",
    "choices": [
-    "The 200-day rule: where price sits",
-    "The stretch rule: the fall off the high",
-    "The flush rule: the drop in ATR",
-    "The volume rule: versus the average"
+    "Price is way under the 200-day",
+    "The fall off the high is too small",
+    "The flush day wasn't wide enough",
+    "Volume wasn't heavy enough"
    ],
-   "story": "The day before the reclaim. The reclaim closes 15.9% under the 200-day. The stock slid for two months, then dropped 2.19 ATR on 3.48x volume, 17.6% off its high.",
-   "answer": "The 200-day rule: where price sits",
-   "why": "The 200-day rule. Below the 200-day is a hard no for stocks. Only an index or a levered ETF may go under it, on a reversal extension or a parabolic long. The flush, the volume and the stretch all clear their bars: 2.19 ATR, 3.48 times and 17.6%.",
-   "lesson_line": "Under the 200-day, no stock long.",
+   "story": "The last bar is the day before the reclaim. The stock slid for two months, then flushed 17.6% off its high on 3.48 times its usual volume. Even a reclaim would close 15.9% under its 200-day.",
+   "answer": "Price is way under the 200-day",
+   "why": "Price is way under the 200-day, and that's a hard no for stocks. The flush itself looks real: 17.6% off the high on 3.48 times volume. Doesn't matter. Under the 200-day the bigger money is selling rallies, not buying them, so a bounce runs straight into that supply. Indexes and levered ETFs are the one exception, on a reversal extension or a parabolic long. A single stock never is. Pass, and keep it on your radar for when it's back over the line.",
+   "lesson_line": "Under the 200-day, no stock longs. Not even a clean flush.",
    "facts": [
-    "h10",
-    "d26",
-    "d27",
-    "c01",
-    "c02",
-    "c05",
     "r01",
-    "r02"
+    "r02",
+    "d26",
+    "d27"
    ],
    "house": true,
    "wrong": {
-    "The stretch rule: the fall off the high": "17.6% off the high clears the 15% stretch.",
-    "The flush rule: the drop in ATR": "2.19 ATR clears the 2 ATR bar.",
-    "The volume rule: versus the average": "3.48 times clears the 2 times bar."
+    "The fall off the high is too small": "17.6% off the high is plenty. The fall isn't what stops it.",
+    "The flush day wasn't wide enough": "The flush was a big, wide day. That isn't the problem.",
+    "Volume wasn't heavy enough": "3.48 times normal is heavy volume. That isn't what stops it."
    },
-   "simple": "The 200-day rule stops it, because below the 200-day is a hard no for stocks.",
+   "simple": "Price is way under the 200-day, and we don't buy stocks under the 200-day. Pass.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2588,7 +2631,7 @@
     "D-119",
     "D-007"
    ],
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "UBER",
     "asof": "2024-12-13",
@@ -2729,15 +2772,15 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "cap.stop_gap",
-   "q": "What now?",
+   "q": "What do you do?",
    "choices": [
-    "Out; 19.30 is 3.5R down, past 2R",
-    "Set the stop at 19.30, the 30-min low",
-    "Hold; it should bounce back soon",
+    "Get out, 19.30 is 3.5R down",
+    "Set the stop at 19.30 and hold",
+    "Hold, it should bounce back soon",
     "Add at 19.30 to average down"
    ],
-   "story": "You bought at 20.00 with a stop at 19.80. It gaps down and opens at 19.70, under the stop. The first 30-minute low is 19.30.",
-   "answer": "Out; 19.30 is 3.5R down, past 2R",
+   "story": "You bought at 20.00 with a stop at 19.80. Overnight news hits. It opens at 19.70, already under your stop, and the first 30-minute low is 19.30.",
+   "answer": "Get out, 19.30 is 3.5R down",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2748,8 +2791,8 @@
     },
     "round": 1
    },
-   "why": "Out. On a gap through the stop, the low of the first 30-minute bar becomes the new stop. There is a ceiling: if the first 30 minutes take the loss past 2R, get out. One R here is 20.00 minus 19.80. The 30-minute low of 19.30 sits 3.5R under the entry, past the ceiling.",
-   "lesson_line": "A gap through the stop caps at 2R. Past that, leave.",
+   "why": "Get out. On a gap through your stop, the first 30 minutes decide. The low of that first 30-minute bar becomes your new stop, with one ceiling: past 2R, you're out. Your R here is 20.00 minus 19.80, so 0.20. At the 30-minute low you're 20.00 minus 19.30, so 0.70 down. 0.70 over 0.20 is 3.5R. That's well past 2R, so you sell. You can't stop a gap. You can keep it from getting worse.",
+   "lesson_line": "A gap through the stop gets 30 minutes. Past 2R, you're out.",
    "facts": [
     "h06",
     "h07",
@@ -2758,13 +2801,13 @@
    ],
    "house": true,
    "wrong": {
-    "Hold; it should bounce back soon": "Past 2R in the first 30 minutes, the rule is to get out, not to wait.",
-    "Add at 19.30 to average down": "We never average down. It is the full size at one price with one stop.",
-    "Set the stop at 19.30, the 30-min low": "That is the gap rule without its ceiling. Past 2R in the first 30 minutes, you get out."
+    "Add at 19.30 to average down": "Never average down. One price, one stop.",
+    "Set the stop at 19.30 and hold": "That's the gap rule without its ceiling. Past 2R in the first 30 minutes, you're out.",
+    "Hold, it should bounce back soon": "Hope isn't a plan. The ceiling is there so one gap can't wreck your month."
    },
-   "simple": "Get out, because the first 30 minutes took the loss to 3.5R, past the 2R ceiling.",
+   "simple": "Get out. The first 30 minutes took the loss to 3.5R, past the 2R line, so you sell.",
    "deeper": {
-    "trap": "The gap rule lets the stop move to the first 30-minute low. It does not let the loss grow without limit. Here that low is 3.5R under the entry, past the 2R ceiling, so you are out. Hoping for a bounce is the move the ceiling exists to stop."
+    "trap": "The gap rule lets the stop move to the first 30-minute low. It doesn't let the loss grow without a limit. Here that low is 3.5R under the buy, past the 2R ceiling, so you're out. Hoping for a bounce is the exact move the ceiling exists to stop."
    },
    "tier": "extended",
    "risk": {
@@ -2774,7 +2817,7 @@
      "rests on the owner's rulebook (B20 and its 2R ceiling)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "ladder",
     "side": "long",
@@ -2820,30 +2863,29 @@
    "q": "What do you do at the open?",
    "choices": [
     "Weigh selling some into the gap",
-    "Sell a third; the gap makes it a rule",
-    "Hold everything; never sell this early",
+    "Sell a third, the gap forces it",
+    "Hold it all, never sell this early",
     "Add more at 26.00 on the gap"
    ],
-   "story": "You bought the reclaim at 22.13 with a stop at 21.72. 5R is 24.18. The next day opens at 26.00.",
+   "story": "You bought the reclaim at 22.13 with the stop at 21.72. 5R is 24.18. The next morning it gaps up and opens at 26.00.",
    "answer": "Weigh selling some into the gap",
-   "why": "Weigh selling some into the gap. The first sell is a judgment. We very rarely sell on day 1 and usually wait until day 3, but selling part at the open on a big gap is one choice we may make. The open of 26.00 is far past the 5R line of 24.18. MP opened there, then closed at 21.94, through its stop.",
-   "lesson_line": "A big gap is a time to weigh a part sale. It is a judgment, never a rule.",
+   "why": "Weigh selling some into the gap. It's a judgment, not a rule. I very rarely sell on day 1, and day 3 is the earliest I'd normally look. But 26.00 is far past the 5R line at 24.18, overnight, on a bounce trade. Panic bounces can fade fast. Taking some off into that kind of gift is fair. This one shows why: it opened at 26.00, sold off right through your 21.72 stop and closed at 21.94. Hold it all with no plan and the whole gain can vanish by the close.",
+   "lesson_line": "A big gap is a time to weigh a sale. Your call, never a rule.",
    "facts": [
     "rg1",
     "r10",
     "r12",
-    "r13",
     "d19"
    ],
    "house": true,
    "wrong": {
-    "Add more at 26.00 on the gap": "We never add. The full size goes in at one price with one stop.",
-    "Sell a third; the gap makes it a rule": "A gap is no rule. Selling part at the open is a judgment, never a requirement.",
-    "Hold everything; never sell this early": "Never is too strong. An early sell is rare, not banned. Holding it all gave back the gain, and MP closed through its stop."
+    "Add more at 26.00 on the gap": "Never add into a gap like this. It's where you weigh selling.",
+    "Sell a third, the gap forces it": "No gap forces a sale. Selling part into a big gap is a judgment, never a rule.",
+    "Hold it all, never sell this early": "Never is too strong. An early sell is rare, not banned, and this one gave it all back."
    },
-   "simple": "Weigh selling some into the gap, because the first sell is a judgment and a gap never forces it.",
+   "simple": "Weigh selling some into the gap. The first sell is your call, and a gap never forces it.",
    "deeper": {
-    "trap": "The open looked like a big win: 26.00 against a 5R line of 24.18. MP then closed at 21.94, through its stop. A big gap is a fair time to weigh a part sale. It is a judgment, not a rule, and holding it all with no plan gave the gain back."
+    "trap": "The open looked like a huge win: 26.00 against a 5R line of 24.18. Then MP sold off through its 21.72 stop and closed at 21.94. A big gap on day 1 is a fair time to weigh a part sale. It's your call, not a rule."
    },
    "tier": "extended",
    "risk": {
@@ -2855,7 +2897,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-5",
+   "batch": "rulings-2026-11-17",
    "chart": {
     "sym": "MP",
     "asof": "2025-04-07",
@@ -2873,30 +2915,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "cap.trim_1",
-   "q": "What sets the first sell of a winner?",
+   "q": "What decides when you make your first sell?",
    "choices": [
-    "A judgment, often a 3 to 7 day push",
+    "Judgment, often into a 3 to 7 day push",
     "A fixed third of the shares at 3R",
-    "A judgment, best made on the buy day",
+    "Judgment, best made on the buy day",
     "A fixed half of the shares at 5R"
    ],
-   "answer": "A judgment, often a 3 to 7 day push",
-   "why": "A judgment. The first sell depends on a variety of factors, not a fixed third at 3R. We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. ALGM took until day 3 just to reach 3R.",
+   "answer": "Judgment, often into a 3 to 7 day push",
+   "why": "Judgment. There's no fixed third at 3R. I very rarely sell on day 1, and day 3 is the earliest I'd normally look. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. It depends on how the stock acts, how the market's doing and how stretched it gets. This one took until day 3 just to reach 3R. Selling a fixed third right there would be a rule talking, not the chart.",
    "lesson_line": "The first sell is a judgment, often into a 3 to 7 day push.",
    "facts": [
     "r10",
     "r11",
     "r12",
-    "r13",
     "v05"
    ],
    "house": true,
    "wrong": {
-    "A fixed third of the shares at 3R": "That was an older rule. It is not fixed. The first sell is a judgment.",
-    "A judgment, best made on the buy day": "Day 1 is the day we very rarely sell. We usually wait until day 3 at the earliest.",
-    "A fixed half of the shares at 5R": "Nothing is fixed. The first sell is part of the position, chosen by judgment."
+    "A fixed third of the shares at 3R": "That was an old rule. The first sell is a judgment now, not a fixed spot.",
+    "A fixed half of the shares at 5R": "Nothing's fixed. How much and when is a judgment on how it's acting.",
+    "Judgment, best made on the buy day": "Day 1 is the day I very rarely sell. Give the push time to happen."
    },
-   "simple": "A judgment call, often a sale into a push on day 3 or later, not a fixed third at 3R.",
+   "simple": "It's a judgment call, often a sale into a push on day 3 or later, not a fixed third at 3R.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2905,8 +2946,8 @@
      "trim at the averages held under D-013"
     ]
    },
-   "batch": "visuals-5",
-   "story": "Bought the reclaim at 35.06 with the stop at 34.14. It reached 3R on day 3.",
+   "batch": "voice-8-2026-11-17",
+   "story": "You bought the reclaim at 35.06 with the stop at 34.14. It works, but slowly. It reaches 3R on day 3.",
    "chart": {
     "sym": "ALGM",
     "asof": "2023-04-28",
@@ -2924,16 +2965,16 @@
    "rung": 5,
    "format": "tf",
    "criterion": "cap.breakeven",
-   "q": "We move the stop to breakeven at 2R because these bounces fade.",
+   "q": "Once a capitulation bounce works, you can move the stop to breakeven from 2R to 5R, or at your first sell.",
    "answer": "True",
-   "why": "True. For a capitulation the card moves the stop to breakeven at 2R. Our house rule allows anywhere from 2R to 5R. The card picks the low end because these bounces fade.",
-   "lesson_line": "These bounces fade, so breakeven comes early.",
+   "why": "True. That's our window, from 2R to 5R, or when you make your first sell. Where you land in it is your call. Just know these bounces can fade hard. A fade that comes all the way back to a stop that never moved turns a winner into a loss. Once the stop's at breakeven, a fade costs you the gain, not your money. Don't drag it up so tight that one normal dip takes you out, though.",
+   "lesson_line": "Breakeven between 2R and 5R, or at the first sell. Bounces fade, so don't sleep on it.",
    "facts": [
-    "c22",
-    "h05"
+    "h05",
+    "d29"
    ],
    "house": true,
-   "simple": "True. These bounces tend to fade, so the stop moves up to breakeven early, at 2R.",
+   "simple": "True. Anywhere from 2R to 5R, or at your first sell, because these bounces can fade fast.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2941,7 +2982,7 @@
      "house: proposed card rule inside the B19 window"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q44",
@@ -2949,9 +2990,9 @@
    "rung": 4,
    "format": "tf",
    "criterion": "cap.no_add",
-   "q": "If a capitulation buy dips toward the stop, add to average down.",
+   "q": "Your capitulation buy dips toward your stop on day 1. Adding here lowers your average and gives the trade a better shot.",
    "answer": "False",
-   "why": "False. Never average down. Our rule is the full size at one price with one stop. The stop is the exit, and it only moves up, never down or wider. Bracco writes that he never adds when he is down.",
+   "why": "False. Never average down. You bought full size at one price with one stop, and the stop is where you're wrong. Adding near it doubles down on a trade that's proving you wrong. If the stop hits, you lose twice what you planned. Bracco says it plainly: he never adds when he's down. If it bounces, great, you already own it. If it doesn't, you're out small.",
    "lesson_line": "Never average down. One price, one stop.",
    "facts": [
     "c19",
@@ -2959,7 +3000,7 @@
     "h02"
    ],
    "house": true,
-   "simple": "False. We never average down, because we buy the full size once, at one price, with one stop.",
+   "simple": "False. We never add to a loser, because if the stop hits you lose twice what you planned.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -2967,7 +3008,7 @@
      "house rulebook (A4, A5)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q45",
@@ -2975,26 +3016,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "cap.trail",
-   "q": "How do we trail what is left after the sells?",
+   "q": "How do you trail what's left?",
    "choices": [
-    "Higher lows, then the 9 EMA",
+    "A close under the 9 EMA",
     "A trailing stop on the 200-day",
     "A fixed 10% stop under the buy",
     "Sell it all at 5R instead"
    ],
-   "answer": "Higher lows, then the 9 EMA",
-   "why": "Under each higher daily low, until price closes back above the 9 EMA. After that, sell on a close below the 9 EMA. Our default trail is the 9 EMA for fast movers and the 20 EMA for steadier ones. The card adapts it for this bounce.",
-   "lesson_line": "Trail the lows, then the 9 EMA.",
+   "answer": "A close under the 9 EMA",
+   "why": "A close under the 9 EMA. That's our trail for a fast mover, and a bounce off a panic low moves fast. The 9 EMA hugs the move, so you stay in while it runs and get out once it rolls over. For a steadier stock you'd give it the 20 EMA. A 200-day trail gives back way too much, and a fixed 10% stop doesn't follow the move at all. This one hit 3R on day 1 and was up 88% inside 60 sessions. That's what the trail is for.",
+   "lesson_line": "Fast mover, 9 EMA trail. Sell what's left on a close under it.",
    "facts": [
-    "r21"
+    "h21",
+    "h20",
+    "r21",
+    "v49h"
    ],
    "house": true,
    "wrong": {
-    "A trailing stop on the 200-day": "The card trails the higher daily lows, then the 9 EMA, not the 200-day.",
-    "A fixed 10% stop under the buy": "A fixed stop does not follow the bounce. The card trails the higher daily lows.",
-    "Sell it all at 5R instead": "Selling all at 5R is no plan. Later sells are a judgment, and what is left is trailed."
+    "A trailing stop on the 200-day": "Way too far. You'd hand back most of the bounce before it ever hit.",
+    "A fixed 10% stop under the buy": "A fixed stop doesn't follow the move. The 9 EMA does.",
+    "Sell it all at 5R instead": "Later sells are a judgment, and the rest gets trailed. Selling it all at 5R caps a big winner."
    },
-   "simple": "Under each higher daily low at first, then we sell on a close under the 9 EMA.",
+   "simple": "A close under the 9 EMA. A bounce off a panic low moves fast, and the 9 EMA keeps up with it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3002,8 +3046,8 @@
      "house: proposed card rule (cap.trail) on the E52 default"
     ]
    },
-   "batch": "visuals-5",
-   "story": "Bought the reclaim at 18.64 with the stop at 18.27. It runs, and you sell some along the way.",
+   "batch": "voice-8-2026-11-17",
+   "story": "You bought the reclaim at 18.64 with the stop at 18.27. It runs hard, and you sell some into a push along the way.",
    "chart": {
     "sym": "HIMS",
     "asof": "2024-10-31",
@@ -3050,29 +3094,27 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "cap.vix",
-   "q": "Which backdrop does our card want for a market-wide flush?",
+   "q": "The S&P's been flushing for a week. What backdrop tells you a market-wide washout might be close?",
    "choices": [
-    "VIX up fast to 30, breadth washed out",
-    "VIX up fast to 30, breadth near highs",
+    "VIX ripping to 30, breadth washed out",
+    "VIX ripping to 30, breadth near highs",
     "VIX falling from 30, breadth washed out",
     "VIX calm on a slow drift lower"
    ],
-   "answer": "VIX up fast to 30, breadth washed out",
-   "why": "The VIX up fast toward 30 with washed-out breadth. The card wants fear high and rising fast, a VIX spike toward 30 or more. It wants T2108 near or under 15% to 20%. Bracco says a fast move up into 30 is a time to watch for a mean reversion trade. A falling VIX or strong breadth is not that backdrop.",
-   "lesson_line": "A real flush has fear and washed-out breadth behind it.",
+   "answer": "VIX ripping to 30, breadth washed out",
+   "why": "VIX ripping toward 30, with breadth washed out. You want real fear, and you want it rising fast. Bracco says a fast VIX move up into 30 is a good time to start watching for a mean reversion trade. Then check breadth. When almost nothing is holding up, the selling has hit everything, and there's not much left to sell. That's when washouts turn. A calm VIX on a slow drift is a controlled mark down, not a panic.",
+   "lesson_line": "A real washout has fear ripping and breadth crushed.",
    "facts": [
-    "c29",
-    "c30",
     "u07",
     "c27"
    ],
    "house": true,
    "wrong": {
-    "VIX up fast to 30, breadth near highs": "The fear is there, but breadth is not washed out. The card wants T2108 near or under 15% to 20%.",
-    "VIX falling from 30, breadth washed out": "The card wants fear high and rising fast, a VIX spike toward 30 or more.",
-    "VIX calm on a slow drift lower": "A slow, controlled mark down with calm fear is not a capitulation."
+    "VIX falling from 30, breadth washed out": "Fear is already fading. You want it rising fast, at the peak of the panic.",
+    "VIX calm on a slow drift lower": "No fear, no panic. A slow drift lower is a controlled mark down.",
+    "VIX ripping to 30, breadth near highs": "Fear's up, but most stocks are fine. That's a scare, not a washout."
    },
-   "simple": "Fear rising fast toward a VIX of 30, with breadth washed out, is the backdrop the card wants.",
+   "simple": "Fear spiking fast, with the VIX toward 30, and breadth washed out. That's when a panic can turn.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -3081,7 +3123,7 @@
      "market levels that may change"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q48",
@@ -3089,27 +3131,27 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "cap.trigger_daily",
-   "q": "What does Bracco say markets typically do to big support areas?",
+   "q": "SPY slices under a big support level it's held for months. What does Bracco say markets like to do at big support?",
    "choices": [
-    "Undercut them first",
-    "Hold them to the tick",
-    "Bounce just above them",
-    "Stall at them for weeks"
+    "Undercut it first, then reclaim",
+    "Hold it right to the penny",
+    "Bounce cleanly just above it",
+    "Stall right at it for weeks"
    ],
-   "answer": "Undercut them first",
-   "why": "Undercut them first. Bracco writes that markets typically like to undercut big support areas before reclaiming them, if they do. Our card's daily trigger looks for the same thing: a session trades below the flush low and then back above it. The reclaim is not certain.",
-   "lesson_line": "Big support is usually undercut before it is reclaimed.",
+   "answer": "Undercut it first, then reclaim",
+   "why": "Undercut it first. Bracco's line is that markets like to undercut big support areas before reclaiming them, if they do. So a break under support isn't automatically the end. It's often the flush that runs the stops sitting under it, and those stops become the fuel. Our trigger works the same way: price goes under the flush low and comes back over it. The reclaim isn't a given, though. Wait for it.",
+   "lesson_line": "Big support gets undercut before it's reclaimed.",
    "facts": [
     "u05",
     "c13"
    ],
    "house": true,
    "wrong": {
-    "Hold them to the tick": "He says big support is typically undercut, not held exactly.",
-    "Bounce just above them": "He says markets typically go under big support first.",
-    "Stall at them for weeks": "He describes an undercut, then a reclaim if it comes, not a long stall."
+    "Hold it right to the penny": "Big support rarely holds that cleanly. The stops under it get run first.",
+    "Bounce cleanly just above it": "He says markets go under big support first, not bounce right off it.",
+    "Stall right at it for weeks": "He describes an undercut and then a reclaim, if it comes. Not weeks of sitting there."
    },
-   "simple": "Undercut them first. Big support usually breaks first, and price may then climb back over it.",
+   "simple": "Undercut it first. Big support breaks for a moment, the stops get run, and then price may climb back.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3117,7 +3159,7 @@
      "keys the daily trigger, pending D-003"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q49",
@@ -3125,34 +3167,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "cap.trigger_daily",
-   "q": "Which setup's trigger is this?",
+   "q": "Which setup did you just trade?",
    "choices": [
-    "Capitulation; within 3 sessions",
-    "Parabolic Long; the VWAP reclaim",
-    "Mean Reversion; a dip to the 50-day",
-    "Oops Reversal; the gap under the low"
+    "Capitulation, the reclaim days later",
+    "Parabolic long, same-day VWAP turn",
+    "Mean reversion, a dip to the 50-day",
+    "Oops reversal, a gap under the low"
    ],
-   "story": "A stock flushes 2.66 ATR on 4.96x volume, 29.3% off its 10-day high. Two sessions later it undercuts the flush low and closes back above it. You buy the reclaim.",
-   "answer": "Capitulation; within 3 sessions",
-   "why": "Capitulation. A capitulation needs a 2 ATR flush on 2x volume and 15% or more off the 10-session high. This one has all three. It is bought on the undercut and reclaim of the flush low within 3 sessions. Here the reclaim came two sessions later. A parabolic long is bought that day, on the VWAP reclaim.",
-   "lesson_line": "Count the sessions. The reclaim after the flush is Capitulation.",
+   "story": "A leader drops 29% in three sessions on huge volume, the biggest bar on the chart. Two sessions after the flush it undercuts the flush low and closes back above it. You buy the reclaim.",
+   "answer": "Capitulation, the reclaim days later",
+   "why": "Capitulation. A panic flush on the biggest volume on the chart. Then the buy came later, when a session undercut the flush low and reclaimed it. That's this setup. A parabolic long is bought the same day, on the intraday turn back over VWAP. You don't wait for another session. Here the reclaim came two sessions later, so it's a capitulation. Both are reclaims, so the word alone won't tell you. Count the sessions.",
+   "lesson_line": "Same day is a parabolic long. A later reclaim is a capitulation.",
    "facts": [
-    "c35",
     "c36",
     "c41",
-    "c37",
-    "v06",
+    "v49i",
     "v07"
    ],
    "house": true,
    "wrong": {
-    "Parabolic Long; the VWAP reclaim": "A parabolic long is bought the same day, on the VWAP reclaim. This reclaim came two sessions later.",
-    "Mean Reversion; a dip to the 50-day": "The flush is 29.3% off the 10-day high on 4.96x volume, a capitulation's shape. Nothing here touches the 50-day.",
-    "Oops Reversal; the gap under the low": "An Oops gaps under the prior day's low in an orderly pullback. This story has no gap."
+    "Parabolic long, same-day VWAP turn": "A parabolic long is bought that same day on the VWAP reclaim. This came two sessions later.",
+    "Mean reversion, a dip to the 50-day": "Nothing here touches the 50-day. A 29% drop on huge volume is a panic, not a dip.",
+    "Oops reversal, a gap under the low": "An Oops gaps under the prior day's low in an orderly pullback. This was a crash."
    },
-   "simple": "It is Capitulation, because it was bought on an undercut and reclaim days after the flush, not the same day.",
+   "simple": "Capitulation. It was bought on an undercut and reclaim sessions after the flush, not the same day.",
    "deeper": {
-    "trap": "Both triggers are a reclaim, so the word alone does not tell them apart. Count the sessions. A parabolic long is bought the same day on the VWAP reclaim. A capitulation waits for a session that trades under the flush low and back above it, within 3 sessions. Here that came two sessions later."
+    "trap": "Both triggers are a reclaim, so the word alone doesn't tell them apart. Count the sessions. A parabolic long is bought the same day, on the VWAP reclaim. A capitulation waits for a later session to trade under the flush low and back over it. Here that came two sessions later."
    },
    "tier": "extended",
    "risk": {
@@ -3162,7 +3202,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "ICE",
     "asof": "2009-07-09",
@@ -3178,30 +3218,28 @@
    "criterion": "cap.stretch_stock",
    "q": "Capitulation, or something milder?",
    "choices": [
-    "Milder; the stretch is too small",
-    "Capitulation; heavy volume is enough",
-    "Capitulation; it hit its 50-day",
-    "Parabolic Long; it fell 6% in a day"
+    "Milder, a leader pulling back",
+    "Capitulation, the volume is heavy",
+    "Capitulation, it hit the 50-day",
+    "Parabolic long, it fell 6% fast"
    ],
-   "story": "A leader drops 6% in one day into its 50-day on heavy volume. It is 7% off its 10-day high.",
-   "answer": "Milder; the stretch is too small",
-   "why": "Milder. A capitulation needs a 2 ATR flush on 2x volume and 15% or more off the 10-session high. This stock is only 7% off its 10-day high. A one-day drop into a level in a leader is often a mean-reversion leader flush, a different setup.",
-   "lesson_line": "Measure the stretch. 7% is a pullback.",
+   "story": "A leader drops 6% in one day into its rising 50-day on heavy volume. It's 7% off its 10-day high.",
+   "answer": "Milder, a leader pulling back",
+   "why": "Milder. A leader 7% off its high, sitting on its rising 50-day, is a stock pulling back in an uptrend. Nobody's panicking out of it. A capitulation is the end of a straight-down fall, holders giving up after days of selling. One heavy day into a rising line is a different trade, a mean reversion off a level in a leader. Same stock, different plan, different stop. Measure the fall before you name it.",
+   "lesson_line": "Measure the fall before you name it. 7% is a pullback.",
    "facts": [
-    "c37",
     "c38",
-    "c05",
     "hla1"
    ],
    "house": true,
    "wrong": {
-    "Capitulation; heavy volume is enough": "Volume is one gate. The stretch is another, and 7% is short of 15%.",
-    "Capitulation; it hit its 50-day": "Hitting the 50-day does not make it one. The stretch is far short of 15%.",
-    "Parabolic Long; it fell 6% in a day": "Our parabolic long is a burst down. A one-day drop into a level in a leader is often a mean-reversion flush."
+    "Capitulation, the volume is heavy": "Heavy volume on one day isn't a panic. 7% off the high is a normal pullback.",
+    "Capitulation, it hit the 50-day": "Tagging the 50-day is what pullbacks do. It doesn't make it a flush.",
+    "Parabolic long, it fell 6% fast": "Our parabolic long needs a burst down, days of speeding-up selling. One 6% day isn't that."
    },
-   "simple": "It is milder, because 7% off the high is far short of the 15% a capitulation needs.",
+   "simple": "Milder. A leader 7% off its high on its rising 50-day is pulling back, not panicking.",
    "deeper": {
-    "counter": "Heavy volume into the 50-day feels like panic, but measure first. 7% off the 10-day high is far short of 15%. A one-day drop into a level in a leader is often a mean-reversion leader flush, a different setup with its own rules."
+    "counter": "Heavy volume into the 50-day can feel like panic. Measure it first. 7% off the 10-day high in a leader is a pullback. A one-day drop into a level is a mean-reversion trade with its own rules."
    },
    "tier": "extended",
    "risk": {
@@ -3211,7 +3249,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q51",
@@ -3219,31 +3257,30 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "cap.trigger_daily",
-   "q": "Capitulation, or something else?",
+   "q": "What are you looking at here?",
    "choices": [
     "An undercut and rally, not a flush",
-    "A capitulation; it broke a level",
+    "A capitulation, it broke a level",
     "A parabolic long off a fast fall",
-    "An Oops Reversal; closed back up"
+    "An Oops reversal, it closed back up"
    ],
-   "story": "A stock in an ordinary pullback opens flat, then dips 1% under a visible level. Its 50-day is not falling and volume is light. It closes back above the level.",
+   "story": "A stock in an ordinary pullback opens flat, then dips 1% under a level everyone can see. Its 50-day is still rising and volume is light. It closes back above the level.",
    "answer": "An undercut and rally, not a flush",
-   "why": "An undercut and rally, not a capitulation. A U&R undercuts a visible level after an ordinary dip, in a stock whose 50-day is not falling. It needs no volume. A capitulation reclaims its own flush low after a 2 ATR flush on 2x volume. A 1% dip on light volume is not a flush.",
-   "lesson_line": "A small dip and a reclaim is a U&R. A flush is bigger.",
+   "why": "An undercut and rally. A small dip under a visible level in a healthy stock, on light volume, and back over it the same day. That's a U&R. A capitulation is a different animal. It needs a straight-down fall that ends in a panic flush on huge volume, and then a reclaim of that flush low. A 1% dip on light volume isn't anybody panicking. Both reclaim a level, so look at what came before the reclaim.",
+   "lesson_line": "A small dip and a reclaim is a U&R. A flush is a panic.",
    "facts": [
     "c39",
-    "c40",
     "c41"
    ],
    "house": true,
    "wrong": {
-    "A capitulation; it broke a level": "A capitulation needs a 2 ATR flush on 2x volume, not a 1% dip.",
     "A parabolic long off a fast fall": "There was no fast fall. It was an ordinary pullback on light volume.",
-    "An Oops Reversal; closed back up": "An Oops gaps under the prior day's low. This stock opened flat, with no gap."
+    "A capitulation, it broke a level": "Breaking a level isn't a flush. There was no fall and no panic volume.",
+    "An Oops reversal, it closed back up": "An Oops gaps under the prior day's low. This one opened flat, no gap."
    },
-   "simple": "An undercut and rally. It was a small dip on light volume, not a big flush on heavy volume.",
+   "simple": "An undercut and rally. A small dip on light volume in a healthy stock isn't a panic flush.",
    "deeper": {
-    "trap": "Both setups undercut a level and close back above it, so the reclaim alone cannot tell them apart. Check what came before. A capitulation needs a 2 ATR flush on 2x volume. A U&R comes after an ordinary dip in a stock whose 50-day is not falling, and needs no volume."
+    "trap": "Both setups undercut a level and close back over it, so the reclaim alone can't tell them apart. Check what came before. A capitulation ends a straight-down panic on huge volume. A U&R comes after an ordinary dip in a stock whose 50-day isn't falling, and it needs no volume."
    },
    "tier": "extended",
    "risk": {
@@ -3252,7 +3289,7 @@
      "house: the card's lookalike tells"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q52",
@@ -3262,29 +3299,29 @@
    "criterion": "cap.flush_day",
    "q": "Which setup is this?",
    "choices": [
-    "An Oops Reversal",
+    "An Oops reversal",
     "A capitulation flush",
     "A Wyckoff spring",
     "A parabolic long"
    ],
-   "story": "A stock gaps under yesterday's low in an orderly pullback and reclaims it the same day on a narrow range.",
-   "answer": "An Oops Reversal",
-   "why": "An Oops Reversal. An Oops gaps under the prior day's low in an orderly pullback. A capitulation flush is 2 ATR or more on 2x volume at the end of a 15% fall. A narrow range in an orderly pullback has none of that. A spring takes price below the low of a trading range, and there is no range here.",
-   "lesson_line": "Orderly pullback and a narrow range is an Oops, not a flush.",
+   "story": "A stock in an orderly pullback gaps under yesterday's low at the open. It takes that low back the same day, on a narrow range.",
+   "answer": "An Oops reversal",
+   "why": "An Oops reversal. A gap under the prior day's low in a calm, orderly pullback, taken back the same day. A capitulation flush looks nothing like that. It's the end of a straight-down fall, a huge, wide bar on panic volume. A narrow range in an orderly pullback is the opposite. And a spring needs a trading range behind it, which isn't here. Size up the day, and what came before it.",
+   "lesson_line": "A calm pullback and a narrow range is an Oops, not a flush.",
    "facts": [
     "c41",
-    "c42",
-    "w06"
+    "w06",
+    "m04"
    ],
    "house": true,
    "wrong": {
-    "A Wyckoff spring": "A spring takes price below the low of a trading range. This stock was in an orderly pullback.",
-    "A parabolic long": "There is no burst down before it.",
-    "A capitulation flush": "A capitulation flush is 2 ATR or more on 2x volume at the end of a 15% fall. This was a narrow range."
+    "A Wyckoff spring": "A spring dips under the low of a trading range. This stock was pulling back, not ranging.",
+    "A parabolic long": "There's no burst down before it. It was an orderly pullback.",
+    "A capitulation flush": "A flush is a huge, wide bar at the end of a straight fall. This was a narrow day in a calm pullback."
    },
-   "simple": "An Oops Reversal. It is a small gap and reclaim in a calm pullback, not a big flush at the end of a fall.",
+   "simple": "An Oops reversal. A small gap and reclaim in a calm pullback, not a huge flush at the end of a fall.",
    "deeper": {
-    "trap": "The trap is the gap. A capitulation and an Oops can both open under a low and close back above it. Measure the day: a capitulation flush is 2 ATR or more on 2x volume at the end of a 15% fall. A gap and reclaim on a narrow range in an orderly pullback is an Oops."
+    "trap": "Both an Oops and a capitulation can open under a low and close back over it. Size up the day and what came before. A flush is a wide bar on panic volume at the end of a straight fall. A gap and reclaim on a narrow range in an orderly pullback is an Oops."
    },
    "tier": "extended",
    "risk": {
@@ -3294,7 +3331,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q53",
@@ -3302,32 +3339,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "cap.not_one_day_shock",
-   "q": "Which setup is this?",
+   "q": "What are you looking at?",
    "choices": [
-    "A Wyckoff spring; there is a range",
-    "A capitulation; it dipped under a level",
-    "A parabolic long; it broke the floor",
-    "An Oops Reversal; it closed back inside"
+    "A Wyckoff spring, there's a range",
+    "A capitulation, it broke a level",
+    "A parabolic long, it broke the floor",
+    "An Oops reversal, it closed back in"
    ],
-   "story": "A stock sits in a flat 30-session range. One day it dips 0.5 ATR under the floor, with no gap, and closes back inside.",
-   "answer": "A Wyckoff spring; there is a range",
-   "why": "A Wyckoff spring. A flat range sits behind the dip, and the stock closed back inside it. A capitulation has no range behind it: it is a straight fall, and the 2 ATR flush is the setup. Nothing here gaps, so it is not an Oops.",
+   "story": "A stock sits in a flat 30-session range. One day it dips 0.5 ATR under the floor, with no gap, and closes back inside the range.",
+   "answer": "A Wyckoff spring, there's a range",
+   "why": "A Wyckoff spring. There's a flat range behind the dip, and the stock went under its floor and closed back inside. That's the spring. A capitulation has no range behind it. It's a straight fall that ends in a panic flush. And nothing here gapped, so it isn't an Oops either. When two shapes both dip under a level and come back, look left. What came before tells you which one you've got.",
    "lesson_line": "A range behind the dip is a spring. A straight fall is a capitulation.",
    "facts": [
-    "c43",
     "c41",
     "hla1",
+    "w06",
     "cla1"
    ],
    "house": true,
    "wrong": {
-    "A capitulation; it dipped under a level": "A capitulation is a straight fall with no range behind it.",
-    "A parabolic long; it broke the floor": "Our parabolic long is a burst down. This stock sat flat in a range and dipped once.",
-    "An Oops Reversal; it closed back inside": "An Oops gaps under the prior day's low in an orderly pullback. This did not gap, and a flat range is no pullback."
+    "A capitulation, it broke a level": "A capitulation is a straight fall with no range behind it. This stock was going sideways.",
+    "A parabolic long, it broke the floor": "Our parabolic long is a burst down. This stock sat flat and dipped once.",
+    "An Oops reversal, it closed back in": "An Oops gaps under the prior day's low in a pullback. This didn't gap, and a flat range isn't a pullback."
    },
-   "simple": "It is a Wyckoff spring, because a flat range sits behind the dip, while a capitulation is a straight fall.",
+   "simple": "A Wyckoff spring. A flat range sits behind the dip, while a capitulation is a straight fall.",
    "deeper": {
-    "trap": "Both shapes dip under a level and close back above it, so the dip alone does not tell them apart. Look at what came before. A spring has a flat range behind it. A capitulation has no range: it is a straight fall that ends in a 2 ATR flush."
+    "trap": "Both shapes dip under a level and close back over it, so the dip alone doesn't tell them apart. Look at what came before. A spring has a flat range behind it. A capitulation has none: it's a straight fall that ends in a panic flush."
    },
    "tier": "extended",
    "risk": {
@@ -3337,7 +3374,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q54",
@@ -3347,30 +3384,29 @@
    "criterion": "cap.below_short_averages",
    "q": "Capitulation, or something else?",
    "choices": [
-    "A moving-average pullback",
-    "A capitulation low",
-    "A parabolic long",
-    "An Oops off the EMA"
+    "A pullback to a rising average",
+    "A capitulation low off the EMA",
+    "A parabolic long after a drop",
+    "An Oops reversal off the EMA"
    ],
-   "story": "A leader drifts six sessions on light volume, with no gaps, to its rising 20 EMA and bounces.",
-   "answer": "A moving-average pullback",
-   "why": "A moving-average pullback. On our card that lookalike is a 2 to 8 session pullback to a rising 20 or 50-day on light volume. A capitulation falls through the 5, 9 and 20-day on 2x volume with a 2 ATR flush bar. This leader drifted six sessions on light volume and held its rising 20 EMA.",
+   "story": "A leader drifts lower for six sessions on light volume, with no gaps, down to its rising 20 EMA, and bounces.",
+   "answer": "A pullback to a rising average",
+   "why": "A pullback to a rising average. A leader drifting six sessions on light volume and holding its rising 20 EMA is a stock resting in an uptrend. That's the dip you buy in a healthy trend. A capitulation is the opposite: a fast fall that slices through the 9 and 20 EMA on panic volume. Quiet volume and a held average tell you nobody's scared. Same bounce, completely different trade.",
    "lesson_line": "A quiet drift to a rising average is a pullback.",
    "facts": [
-    "c44",
-    "c50",
     "c41",
-    "c51"
+    "r21",
+    "m01"
    ],
    "house": true,
    "wrong": {
-    "A capitulation low": "A capitulation falls through the short averages on heavy volume. This one held the 20 EMA.",
-    "A parabolic long": "A parabolic long needs a burst down. This was a quiet drift.",
-    "An Oops off the EMA": "An Oops gaps under the prior day's low. This stock drifted with no gaps."
+    "A capitulation low off the EMA": "A capitulation falls through the short averages on huge volume. This one held its 20 EMA.",
+    "A parabolic long after a drop": "A parabolic long needs a burst down. This was a quiet drift.",
+    "An Oops reversal off the EMA": "An Oops gaps under the prior day's low. This stock drifted with no gaps."
    },
-   "simple": "A pullback. A quiet drift on light volume to a rising average is not a panic flush.",
+   "simple": "A pullback. A quiet drift on light volume to a rising average is a stock resting, not panicking.",
    "deeper": {
-    "counter": "Keep the same rising 20 EMA but change the fall. Say the stock had dropped through the 5, 9 and 20-day on 2x volume with a 2 ATR flush bar. Then it would read as a capitulation. Quiet volume and a held average make it a pullback."
+    "counter": "Keep the same rising 20 EMA but change the fall. Say the stock had sliced through the 9 and 20 EMA in a few days. Add panic volume and a huge flush bar. Then you'd be looking at a capitulation. Quiet volume and a held average make it a pullback."
    },
    "tier": "extended",
    "risk": {
@@ -3379,7 +3415,7 @@
      "house: the card's lookalike tells"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q55",
@@ -3389,29 +3425,28 @@
    "criterion": "cap.inv_business_break",
    "q": "Is this a capitulation long?",
    "choices": [
-    "No; the selling is informed",
-    "Yes; the volume is huge",
-    "Yes; 40% is a deep flush",
-    "No; it fell too far too fast"
+    "No, the selling is informed",
+    "Yes, the volume is huge",
+    "Yes, 40% is a deep flush",
+    "No, it fell too far too fast"
    ],
    "story": "A stock falls 40% in three days after the company admits accounting fraud. Volume is huge.",
-   "answer": "No; the selling is informed",
-   "why": "No. A real business break, such as fraud or a guidance collapse, is not this setup. The selling is informed: sellers are reacting to news about the business. A selling climax is heavy or panicky selling by the public. Huge volume and a 40% fall do not change that.",
-   "lesson_line": "Informed selling is not a capitulation.",
+   "answer": "No, the selling is informed",
+   "why": "No. The business broke. When a company admits fraud, the sellers aren't panicking. They know something, and they're getting out for a reason. A capitulation is the public dumping shares in fear, with bigger buyers taking the other side. Here the informed money is doing the selling. Huge volume and a 40% fall look the same on a chart, so you have to ask why it fell. I'm not trying to catch that one.",
+   "lesson_line": "Informed selling is not a capitulation. Ask why it fell.",
    "facts": [
     "c28",
-    "w01",
-    "c05"
+    "w01"
    ],
    "house": true,
    "wrong": {
-    "Yes; the volume is huge": "Huge volume shows selling, not whether it is forced or informed.",
-    "Yes; 40% is a deep flush": "Depth is not the test. The reason for the selling is.",
-    "No; it fell too far too fast": "Depth is not a veto. The card asks for a fall of at least 15%. The reason for the selling rules this out."
+    "Yes, the volume is huge": "Huge volume shows selling. It doesn't tell you if it's fear or real news.",
+    "Yes, 40% is a deep flush": "Depth isn't the test. The reason for the selling is.",
+    "No, it fell too far too fast": "A deep, fast fall doesn't rule it out. The broken business does."
    },
-   "simple": "No. The stock fell because of real bad news, so the sellers know something, and that is not a panic.",
+   "simple": "No. The stock fell on real bad news, so the sellers know something, and that isn't panic.",
    "deeper": {
-    "trap": "Fraud news brings the same numbers a flush shows: huge volume and a deep, fast fall. That is why the numbers alone cannot clear it. Ask why it fell. When the business itself broke, the card calls the selling informed, not panic, and it is not this setup."
+    "trap": "Fraud news brings the same numbers a flush shows: huge volume and a deep, fast fall. That's why the numbers alone can't clear it. Ask why it fell. When the business itself broke, the selling is informed, not panic, and it's not this setup."
    },
    "tier": "expert",
    "risk": {
@@ -3420,7 +3455,7 @@
      "house: proposed card invalidation (cap.inv_business_break)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q56",
@@ -3428,17 +3463,17 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "cap.inv_index_new_low",
-   "q": "What does the index tell you?",
+   "q": "What's the index telling you?",
    "choices": [
-    "Another leg down may come",
+    "Another leg down may be coming",
     "The bounce is likely confirmed",
-    "The stop can safely come off",
-    "It may be time to add shares"
+    "The stop can come off now",
+    "It's time to add more shares"
    ],
-   "story": "You bought a leader's reclaim at 19.57 with the stop at 19.40, after a 16.5% flush. The same week the index makes a new low.",
-   "answer": "Another leg down may come",
-   "why": "Another leg down may come. The card lists a new index low on rising volume, while you hold, as an invalidation. BN is the dossier's case: bought on the reclaim, it was stopped on day 1. The index made a new low the same week, and the stock traded 41% under the buy. Keep the stop. Never add.",
-   "lesson_line": "A new index low while you hold is a warning.",
+   "story": "You bought a leader's reclaim at 19.57 with the stop at 19.40, after a 16.5% flush. The same week, the index breaks to a new low on heavy volume.",
+   "answer": "Another leg down may be coming",
+   "why": "Another leg down may be coming. A single stock's bounce needs the market to stop falling. When the index breaks to a new low while you hold, the panic isn't done, and it'll drag your stock with it. Keep the stop where it is and let it do its job. This one was the March 2020 crash. Day 1 traded down to 18.98 and took the stop. The stock then traded 41% under the buy. The stop kept that a small loss.",
+   "lesson_line": "A new index low while you hold is a warning. Keep the stop.",
    "facts": [
     "c26",
     "d10",
@@ -3450,12 +3485,12 @@
    "house": true,
    "wrong": {
     "The bounce is likely confirmed": "A new index low says the opposite. The selling may not be done.",
-    "The stop can safely come off": "The stop is the exit. It only moves up, never down or wider.",
-    "It may be time to add shares": "Never average down. It is the full size at one price with one stop."
+    "The stop can come off now": "The stop is the exit. It only moves up, never down or off.",
+    "It's time to add more shares": "Never average down. One price, one stop."
    },
-   "simple": "Another leg down may come. A new low in the index while you hold warns that the selling is not done.",
+   "simple": "Another leg down may come. A new low in the index while you hold says the selling isn't done.",
    "deeper": {
-    "example": "BN, March 2020: a 16.5% flush of 3.29 ATR on 3.03x volume. The reclaim was bought at 19.57 with a stop at 19.40. Day 1 traded to 18.98 and stopped it. The index made a new low the same week, and the stock traded 11.55 inside 30 sessions, 41% under the buy. The stop kept the loss small."
+    "example": "BN, March 2020: a 16.5% flush of 3.29 ATR on 3.03 times volume. The reclaim was bought at 19.57 with a stop at 19.40. Day 1 traded to 18.98 and stopped it. The index made a new low that week, and the stock traded 11.55 inside 30 sessions, 41% under the buy. The stop kept the loss small."
    },
    "tier": "expert",
    "risk": {
@@ -3467,7 +3502,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "BN",
     "asof": "2020-03-10",
@@ -3485,17 +3520,17 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "cap.stop",
-   "q": "What do you do?",
+   "q": "That stings. What do you do now?",
    "choices": [
-    "Log it; wait for a new trigger",
+    "Log it, wait for a new trigger",
     "Buy back now, in bigger size",
-    "Drop the stop next time",
+    "Use a wider stop next time",
     "Call the setup broken"
    ],
-   "story": "You bought the reclaim at 64.66 with a stop at 63.75. The next day trades 23 cents under the stop, stops you out, then closes near its high.",
-   "answer": "Log it; wait for a new trigger",
-   "why": "Log it and wait for a new trigger. The stop was right by the rule and the trade still lost. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop. Journal every trade the same day.",
-   "lesson_line": "A right stop can still lose. Take it and wait for a new trigger.",
+   "story": "You bought the reclaim at 64.66 with the stop at 63.75. The next day trades 23 cents under the stop, takes you out, then closes near its high.",
+   "answer": "Log it, wait for a new trigger",
+   "why": "Log it and wait for a new trigger. The stop was right and the trade still lost. That happens. Whipsaws like this are the cost of trading with a tight stop, and it's a cheap cost. Don't buy back out of anger, and don't go bigger to win it back. A new buy needs a new trigger, as a new trade with its own stop. Journal it the same day, so you see the pattern and not just the sting.",
+   "lesson_line": "A right stop can still lose. Take it, log it, wait for the next trigger.",
    "facts": [
     "d16",
     "d17",
@@ -3505,13 +3540,13 @@
    ],
    "house": true,
    "wrong": {
-    "Buy back now, in bigger size": "A new buy needs a new trigger, not a bigger size.",
-    "Drop the stop next time": "The stop is the exit. A new try is a new trade with its own stop.",
-    "Call the setup broken": "A planned loss is the cost of the trade, not proof the setup is broken."
+    "Buy back now, in bigger size": "Revenge size turns one small loss into a big one. A new buy needs a new trigger.",
+    "Call the setup broken": "One planned loss is the cost of the trade, not proof the setup's broken.",
+    "Use a wider stop next time": "Widen it to dodge this, and you take bigger losses on every trade that really fails."
    },
-   "simple": "Log the loss and wait. A stop that worked as planned can still lose, and a new buy needs a new trigger.",
+   "simple": "Log the loss and wait. A good stop can still lose, and a new buy needs a new trigger.",
    "deeper": {
-    "example": "VOYA, March 2023: the reclaim was bought at 64.66 with a stop at 63.75. Day 1 traded 23 cents under the stop and closed 66.15 near its high. Ten sessions later it was 70.12, 8.4% above the buy. A whipsaw: the stop was right by the rule and the trade still lost. The answer is the next trigger, not a wider stop."
+    "example": "VOYA, March 2023: the reclaim was bought at 64.66 with a stop at 63.75. Day 1 traded 23 cents under the stop and closed 66.15 near its high. Ten sessions later it was 70.12, 8.4% over the buy. A whipsaw: the stop was right and the trade still lost. The answer is the next trigger, not a wider stop."
    },
    "tier": "expert",
    "risk": {
@@ -3524,7 +3559,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "VOYA",
     "asof": "2023-03-15",
@@ -3572,7 +3607,7 @@
    "rung": 8,
    "format": "mcq",
    "criterion": "cap.trim_1",
-   "q": "With a typical stop of 1.7%, about how big a bounce is 3R?",
+   "q": "Our research on these bounces found a typical stop of 1.7%. About how big a bounce do you need to reach 3R?",
    "choices": [
     "About 5%",
     "About 1.7%",
@@ -3580,21 +3615,21 @@
     "About 17%"
    ],
    "answer": "About 5%",
-   "why": "About 5%. One R is the stop distance, so 3R is three times it. Three times 1.7% is about 5%. Our scan's median stop is 1.7%, so 3R is about a 5% bounce and 5R about 9%. A tight stop puts the R targets close.",
-   "lesson_line": "Tight stops mean short targets. 3R is about a 5% bounce.",
+   "why": "About 5%. One R is your stop distance, so 3R is three of them, and 3 times 1.7% is about 5%. 5R is about 9%. That's why a tight stop is such an edge on these. You don't need a monster bounce to get paid. A normal snapback off a panic low can get you to 3R. The flip side: those marks come fast, so have your selling plan ready before you buy.",
+   "lesson_line": "Tight stops mean close targets. 3R is about a 5% bounce.",
    "facts": [
     "d30",
     "d03"
    ],
    "house": true,
    "wrong": {
-    "About 1.7%": "That is one R, not three.",
-    "About 17%": "That is far past 3R. Three times 1.7% is about 5%.",
-    "About 9%": "That is about 5R, not 3R."
+    "About 1.7%": "That's one R, your stop. 3R is three of them.",
+    "About 17%": "Way past 3R. 3 times 1.7% is about 5%.",
+    "About 9%": "That's about 5R, not 3R."
    },
-   "simple": "About 5%. Three times a 1.7% stop is about 5%, so the first target is close.",
+   "simple": "About 5%. Three times a 1.7% stop is about 5%, so 3R comes on a normal bounce.",
    "deeper": {
-    "trap": "A tight stop makes a big R count feel like a big move. It is not. With the scan's median stop of 1.7%, 3R is about a 5% bounce and 5R about 9%. ALB shows the extreme: with its tiny stop, 5R was only 3% above the buy."
+    "trap": "A big R count can feel like a big move. With a stop this tight, it isn't. 3R is about a 5% bounce and 5R about 9%. ALB shows the extreme: with its tiny stop, 5R was only 3% over the buy."
    },
    "tier": "expert",
    "risk": {
@@ -3612,7 +3647,7 @@
     },
     "round": 0
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The bounce",
@@ -3667,32 +3702,32 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "cap.breakeven",
-   "q": "81% were stopped at some point, yet 52.3% reached 3R. Why?",
+   "q": "In our scan, 52.3% of reclaims hit 3R before the stop, yet 81% got stopped at some point. How can both be true?",
    "choices": [
-    "Fixed stop, so fades come back",
-    "The scan's stop was far too wide",
+    "Fixed stop, so fades came back",
+    "The stop was far too wide",
     "3R is just a bad target here",
-    "3R was counted after the stop hit"
+    "3R was counted after the stop"
    ],
-   "answer": "Fixed stop, so fades come back",
-   "why": "Because the scan's stop never moves. Of 2,220 reclaims, 52.3% reached 3R before the stop, yet 81% were stopped at some point in 60 sessions. The fade after the bounce usually comes back to a fixed stop. That is why our plan sells into strength and moves the stop up, to breakeven from 2R. The scan did not test that plan.",
-   "lesson_line": "Bounces fade. Sell into strength, then protect the rest.",
+   "answer": "Fixed stop, so fades came back",
+   "why": "The stop never moved. Lots of bounces ran to 3R, then faded all the way back to the original stop. That one trade counts in both numbers. Bounces off a panic low fade, and that's the whole lesson. So you don't sit there with a fixed stop. You sell some into strength and move the stop up to breakeven, somewhere from 2R to 5R. The scan didn't test that plan. It shows you what happens when you do nothing.",
+   "lesson_line": "Bounces fade. Sell some into strength, then protect the rest.",
    "facts": [
     "d28",
     "d29",
-    "c22",
     "d30",
+    "h05",
     "r10"
    ],
    "house": true,
    "wrong": {
-    "The scan's stop was far too wide": "The median stop was tight, about 1.7%.",
-    "3R is just a bad target here": "52.3% reached it. The point is what happens after.",
-    "3R was counted after the stop hit": "The scan counts 3R only when it came before the stop."
+    "3R is just a bad target here": "52.3% got there. The problem is what happened after.",
+    "The stop was far too wide": "The stops were tight, a median of about 1.7%.",
+    "3R was counted after the stop": "The scan only counts 3R when it came before the stop."
    },
-   "simple": "Many bounces hit 3R and then faded back to a stop that never moved, so both numbers are true.",
+   "simple": "Lots of bounces hit 3R and then faded back to a stop that never moved, so both are true.",
    "deeper": {
-    "example": "Picture a bounce that reaches 3R, then fades. In the scan the stop never moved, so the fade came back and hit it. That one trade counts in both numbers: it reached 3R and it was stopped. With our plan, part is sold into strength and the stop moves up to breakeven. The same path then keeps a gain. The scan itself did not test this plan."
+    "example": "Picture a bounce that reaches 3R, then fades. In the scan the stop never moved, so the fade came back and hit it. That trade counts in both numbers. With our plan, some is sold into strength and the stop moves up to breakeven. The same path then keeps a gain."
    },
    "tier": "expert",
    "risk": {
@@ -3706,7 +3741,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q62",
@@ -3714,33 +3749,34 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "cap.stop",
-   "q": "Write the plan: entry and stop.",
+   "q": "Write the order. What's your entry and stop?",
    "choices": [
-    "Market 89.37; stop 87.88",
-    "Limit 91.24; stop 87.93",
-    "Market 87.93; stop 80.00",
-    "Market 89.37; stop 87.93"
+    "Market 89.37, stop 87.88",
+    "Limit 91.24, stop 87.93",
+    "Market 87.93, stop 80.00",
+    "Market 89.37, stop 87.93"
    ],
-   "story": "After a Friday flush, Monday opens at 88.34, under the flush low, and undercuts it to 87.93. Then it closes higher. You buy the reclaim at 89.37.",
-   "answer": "Market 89.37; stop 87.88",
-   "why": "Market 89.37; stop 87.88. Entries are market orders, so you buy as price reclaims, at 89.37. The stop goes a few cents under the undercut low of 87.93, the low of the session you bought in. The first sell is a judgment and is not part of this order.",
-   "lesson_line": "Write the entry and stop before the buy.",
+   "story": "After a Friday flush, Monday opens at 88.34, under the flush low, and undercuts to 87.93. Then it turns and comes back over the flush low. You buy the reclaim at 89.37.",
+   "answer": "Market 89.37, stop 87.88",
+   "why": "Market at 89.37, stop at 87.88. You buy at market as price comes back through the flush low. A limit order on a turn like this can leave you watching it run without you. The stop goes a few cents under 87.93, the low of the day you bought. A few cents under, not right on it, because a stop sitting on the low gets picked off. That puts it 1.7% from the buy, right inside the 1-3% we like.",
+   "lesson_line": "Market order on the reclaim. Stop a few cents under the low of the day.",
    "facts": [
     "d08",
     "h22",
     "h24",
     "c18",
-    "r14"
+    "r14",
+    "v49s"
    ],
    "house": true,
    "wrong": {
-    "Limit 91.24; stop 87.93": "We buy as price trades through the trigger, never at the close, and a stop on the low is too tight.",
-    "Market 87.93; stop 80.00": "87.93 is the undercut price, not the reclaim, and a stop at 80.00 is far too wide.",
-    "Market 89.37; stop 87.93": "A stop exactly on the low is not a few cents under it."
+    "Limit 91.24, stop 87.93": "91.24 was the close. We buy as price trades through the trigger, never at the close.",
+    "Market 87.93, stop 80.00": "87.93 is the undercut, not the reclaim, and 80.00 is a stop miles away.",
+    "Market 89.37, stop 87.93": "A stop right on the low gets picked off. Put it a few cents under."
    },
-   "simple": "Buy at market on the reclaim and put the stop a few cents under the undercut low.",
+   "simple": "Buy at market on the reclaim, 89.37, with the stop a few cents under the 87.93 low.",
    "deeper": {
-    "trap": "Two details catch people. The stop goes a few cents under the undercut low of 87.93, not exactly on it. And the buy is as price trades through the trigger, never at the close."
+    "trap": "Two details catch people. The stop goes a few cents under the 87.93 low, not right on it. And the buy is at market as price trades through the trigger, never at the close."
    },
    "tier": "expert",
    "risk": {
@@ -3753,7 +3789,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "OKTA",
     "asof": "2025-04-07",
@@ -3771,34 +3807,33 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "cap.monday",
-   "q": "What is the trade?",
+   "q": "What's the trade?",
    "choices": [
     "Buy the Monday reclaim of the low",
     "Buy the Friday close of the flush",
     "Buy Monday's open, under the low",
-    "Wait two weeks and recheck"
+    "Wait two weeks and look again"
    ],
-   "story": "A stock flushes on a Friday. Its low sits 2.67 ATR under the prior close and 23.4% under its 10-day high close. Volume is 2.28x the 50-day average. Monday it opens under the flush low, undercuts it and closes above it.",
+   "story": "The last bar is a Friday flush. Its low is 23.4% under the 10-day high close, on 2.28 times the usual volume. Monday opens under that low, undercuts it, then climbs back over.",
    "answer": "Buy the Monday reclaim of the low",
-   "why": "Buy the Monday reclaim of the flush low. Within 3 sessions of the flush, a session traded below the flush low and back above it: that is the trigger. OKTA opened 88.34 under the flush low, undercut 87.93 and closed 91.24. Buying Friday's close would have been buying the knife. Notable capitulations and turns have occurred on a Monday.",
+   "why": "Buy the Monday reclaim. Friday's close was the knife, and Monday proved it by opening under the low. Then sellers ran out and buyers took the low back. That reclaim is the trigger, at market, with the stop a few cents under Monday's low. This was OKTA in April 2025: open 88.34, low 87.93, close 91.24. Down days into a Friday, then the turn on a Monday. That's the Monday turn Bracco talks about.",
    "lesson_line": "Buy the reclaim of the flush low, not the flush close.",
    "facts": [
     "d07",
     "d08",
     "d09",
     "u13",
-    "c13",
     "c33"
    ],
    "house": true,
    "wrong": {
-    "Buy the Friday close of the flush": "That is the knife. Nearly half of flush closes are undercut.",
-    "Wait two weeks and recheck": "The reclaim is the trigger, and it came on Monday.",
-    "Buy Monday's open, under the low": "The open is still under the flush low. We buy the reclaim back above it."
+    "Buy the Friday close of the flush": "That's the knife. Monday opened under it.",
+    "Buy Monday's open, under the low": "The open is still under the flush low. Wait till it's back over.",
+    "Wait two weeks and look again": "The reclaim is the trigger, and it came Monday. Two weeks later, the trade's gone."
    },
-   "simple": "Buy the Monday reclaim. The stock broke under the flush low, then closed back above it, and that is the turn.",
+   "simple": "Buy the Monday reclaim. It broke under the flush low, then got back over it, and that's the turn.",
    "deeper": {
-    "example": "OKTA, April 2025: Thursday and Friday flushed it 23%. Monday opened 88.34, under the flush low, undercut to 87.93 and closed 91.24. The reclaim buy was 89.37 with a stop at 87.88, 1.7% away. The Monday is a backdrop, not the trigger. The reclaim is."
+    "example": "OKTA, April 2025: Thursday and Friday flushed it 23%. Monday opened 88.34 under the flush low, undercut to 87.93 and closed 91.24. The reclaim buy was 89.37 with a stop at 87.88, 1.7% away. The Monday is a backdrop. The reclaim is the trigger."
    },
    "tier": "expert",
    "risk": {
@@ -3811,7 +3846,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "OKTA",
     "asof": "2025-04-04",
@@ -3825,30 +3860,28 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "cap.location",
-   "q": "The chart ends on a flush day on heavy volume. Watch it, or pass?",
+   "q": "The chart ends on a flush day: three lower closes into a round number and the 200-day, on heavy volume. Watch it, or pass?",
    "choices": [
-    "Watch it; a fast flush into a level",
-    "Pass; a slow grind with no burst",
-    "Watch it; buy the next green close",
-    "Buy the close; the volume marks the low"
+    "Watch it, a fast flush into a level",
+    "Pass, a slow grind with no burst",
+    "Watch it, buy the next green close",
+    "Buy the close, the volume marks the low"
    ],
-   "answer": "Watch it; a fast flush into a level",
-   "why": "Watch it. The flush ran 2.41 ATR on 2.25x volume, 20.8% under the 10-day high close, into the round number 100 and the 200-day. The buy is not the flush close: it is the reclaim, if one comes. The next day it undercut the low and closed 6% higher.",
-   "lesson_line": "A fast flush into a real level is worth watching.",
+   "answer": "Watch it, a fast flush into a level",
+   "why": "Watch it. That's a fast flush into a level that matters. Three lower closes went straight down into the round number 100 and the 200-day, on 2.25 times normal volume. Levels like that are where big buyers wait. But today's close isn't the buy. You want the next session to undercut this low and take it back. This one did: it undercut the low the next day and closed 6% higher. That reclaim was the buy.",
+   "lesson_line": "A fast flush into a real level goes on the watch list.",
    "facts": [
     "d04",
     "d05",
     "d06",
-    "c05",
     "c12",
-    "c33",
-    "c13"
+    "c33"
    ],
    "house": true,
    "wrong": {
-    "Pass; a slow grind with no burst": "Look again: three lower closes ending in a 2.41 ATR bar.",
-    "Watch it; buy the next green close": "The buy is the reclaim of the flush low within 3 sessions, not a green close.",
-    "Buy the close; the volume marks the low": "We never buy the flush close. Nearly half of flush closes are undercut the next day."
+    "Pass, a slow grind with no burst": "Look again. Three straight lower closes into a huge bar is a burst, not a grind.",
+    "Watch it, buy the next green close": "A green close isn't the trigger. The reclaim of the flush low is.",
+    "Buy the close, the volume marks the low": "We never buy the flush close. Nearly half get undercut the next day."
    },
    "chart": {
     "sym": "LYV",
@@ -3856,9 +3889,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Watch it, because it is a fast flush into a real level, and the buy only comes on a later reclaim.",
+   "simple": "Watch it. It's a fast flush into a real level, and the buy only comes if a later day reclaims the low.",
    "deeper": {
-    "example": "This flush had three lower closes into the round number 100 and the 200-day. It ran 2.41 ATR on 2.25x volume. The next day it undercut the flush low and closed 6% higher, and that reclaim was the buy, not the flush close."
+    "example": "This flush came after three lower closes into the round number 100 and the 200-day. It ran 2.41 ATR on 2.25 times volume. The next day it undercut the flush low and closed 6% higher. That reclaim was the buy, not the flush close."
    },
    "tier": "expert",
    "risk": {
@@ -3871,7 +3904,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q65",
@@ -3879,29 +3912,25 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "cap.stretch_stock",
-   "q": "A flush day: 2.95 ATR, 2.23x volume, the low 12.9% under the 10-day high close. Watch it, or pass?",
+   "q": "A leader dips to its rising 50-day: 2.95 ATR down on 2.23 times volume, 12.9% off its 10-day high close. Watch it, or pass?",
    "choices": [
-    "Pass; only a pullback in a leader",
-    "Pass; 2.23x volume is too light",
-    "Watch it; 2.95 ATR is a deep flush",
-    "Watch it; 12.9% is close enough"
+    "Pass, only a pullback in a leader",
+    "Pass, the volume is too light",
+    "Watch it, 2.95 ATR is a deep flush",
+    "Watch it, a flush into the 50-day"
    ],
-   "answer": "Pass; only a pullback in a leader",
-   "why": "Pass. The volume and the ATR clear their bars. But the low was only 12.9% under the 10-day high close, and a stock needs 15%. It was a dip to the rising 50-day in a leader: a pullback, not a capitulation.",
-   "lesson_line": "Heavy volume and a deep ATR still need the 15% stretch.",
+   "answer": "Pass, only a pullback in a leader",
+   "why": "Pass, as a capitulation. AMZN is a leader, and it just ran into its rising 50-day. The day was wide, 2.95 ATR, and 2.23 times volume is heavy. But 12.9% off the high, onto a rising 50-day, is a leader pulling back hard. The trend is still up, so holders have no reason to give up. A capitulation is a straight-down fall that breaks people. If you want AMZN here, trade it as a pullback off the 50-day. That's a different plan, with the stop under the low of the day.",
+   "lesson_line": "A leader resting on its 50-day is a pullback, not a panic.",
    "facts": [
-    "c05",
-    "d21",
     "d22",
-    "d23",
-    "c01",
-    "c02"
+    "d23"
    ],
    "house": true,
    "wrong": {
-    "Pass; 2.23x volume is too light": "2.23x clears the 2x volume bar. The stretch is what fails.",
-    "Watch it; 2.95 ATR is a deep flush": "The ATR clears 2, but the stretch is short of 15%.",
-    "Watch it; 12.9% is close enough": "A rule is a line. The stretch needs 15%, and 12.9% is short of it."
+    "Pass, the volume is too light": "2.23 times normal isn't light. The volume isn't the problem.",
+    "Watch it, 2.95 ATR is a deep flush": "A wide day alone doesn't make a capitulation. This was a leader resting on its 50-day.",
+    "Watch it, a flush into the 50-day": "A dip to a rising 50-day is a pullback, not a panic."
    },
    "chart": {
     "sym": "AMZN",
@@ -3909,9 +3938,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass, because the low was only 12.9% under the high and the stretch needs 15%.",
+   "simple": "Pass as a capitulation. A leader dipping to its rising 50-day is pulling back, not panicking.",
    "deeper": {
-    "counter": "Big volume and a deep ATR bar look like panic. Here the low was only 12.9% under the 10-day high close, a dip to the rising 50-day in a leader. That is a pullback. A capitulation needs the 15% stretch as well, and no other gate stands in for it."
+    "counter": "Big volume and a wide bar look like panic. Here the low was only 12.9% under the 10-day high close, a dip to the rising 50-day in a leader. That's a pullback, and it gets a pullback's plan."
    },
    "tier": "expert",
    "risk": {
@@ -3924,7 +3953,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q66",
@@ -3932,30 +3961,31 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "cap.volume_record",
-   "q": "Which flush day reads better on our card?",
-   "story": "Two stocks flush on 2.3 times their 50-day average volume. For one, that is the biggest volume bar of the whole decline. For the other, an earlier day in the same decline traded more.",
+   "q": "Which flush day do you like better?",
+   "story": "Two stocks flush on 2.3 times their usual volume. For one, that's the biggest volume bar of the whole decline. For the other, an earlier day in the same decline traded more.",
    "choices": [
     "The one with no heavier day before",
     "The one with the earlier heavy day",
-    "Both read the same; both pass",
-    "Neither; it needs 3x to count"
+    "Both read the same, same volume",
+    "Neither, it takes 3x to count"
    ],
    "answer": "The one with no heavier day before",
-   "why": "The one with no heavier day before it. Both pass the floor of at least 2 times the 50-day average. The card's ideal goes further: the highest volume of the decline or of the year. When an earlier day of the decline traded more, the flush day was not the peak of the selling.",
-   "lesson_line": "Pass the 2x bar, then look for the biggest bar of the decline.",
+   "why": "The one with no heavier day before it. You want the flush to be the climax, the single heaviest day of the whole drop. That's the day the most holders gave up at once. If an earlier day traded more, the biggest wave of selling already came and went, and this is just another down day. Same 2.3 times on both, but only one is the peak, and that raises the grade. ALGM is the model: seven straight lower closes into a climax bar on the highest volume of the decline.",
+   "lesson_line": "The best flush bar is the biggest bar of the decline.",
    "facts": [
-    "c02",
-    "c03"
+    "c03",
+    "v49a",
+    "v49v"
    ],
    "wrong": {
-    "The one with the earlier heavy day": "An earlier day of the decline traded more, so the flush day was not the peak.",
-    "Neither; it needs 3x to count": "The card's floor is at least 2 times the 50-day average. 2.3 times clears it.",
-    "Both read the same; both pass": "Both pass the floor of 2 times the 50-day average. The card's ideal is the highest volume of the decline."
+    "The one with the earlier heavy day": "The heaviest selling came earlier, so this flush isn't the climax.",
+    "Both read the same, same volume": "Same multiple, but only one is the peak of the selling. That's the one I want.",
+    "Neither, it takes 3x to count": "There's no magic multiple. What matters is whether it's the heaviest day of the drop."
    },
    "house": true,
-   "simple": "The one with no heavier day before it, because the card's best flush day is the heaviest of the decline.",
+   "simple": "The one with no heavier day before. You want the flush to be the heaviest day of the whole drop.",
    "deeper": {
-    "trap": "Passing the 2x floor does not make a day the climax. The card's ideal is the highest volume of the decline or of the year. A flush day beaten by an earlier day meets the floor but misses the ideal."
+    "trap": "Heavy volume alone doesn't make a day the climax. You want the heaviest bar of the decline. A flush day beaten by an earlier day is just another down day in the slide."
    },
    "tier": "extended",
    "risk": {
@@ -3965,7 +3995,7 @@
      "the 2x volume is a proposal that may change"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q67",
@@ -3973,16 +4003,17 @@
    "rung": 3,
    "format": "tf",
    "criterion": "cap.volume_record",
-   "q": "Our card's best flush day has the highest volume of the decline, or of the year.",
+   "q": "The best capitulation flushes come on the heaviest volume of the whole decline.",
    "answer": "True",
-   "why": "True. Our card says the flush day ideally has the highest volume of the decline or of the year. That is a mark of the best ones, not the gate. The gate is volume of at least 2 times the 50-day average.",
-   "lesson_line": "The best flush bar is the biggest bar of the decline.",
+   "why": "True. You want the flush to be the climax, the day the most holders give up at once. If it's also the biggest volume bar of the whole drop, the selling peaked right there. That raises the grade. It's not a must, though. A clean flush on big but not record volume can still work. When you see a flush, look left on the volume bars and ask if anything in the decline beat it.",
+   "lesson_line": "Biggest volume of the drop on the flush day raises the grade.",
    "facts": [
     "c03",
-    "c02"
+    "v49a",
+    "v49v"
    ],
    "house": true,
-   "simple": "True, because our card says the best flush day has the most volume of the decline or the year.",
+   "simple": "True. When the flush is the heaviest day of the drop, the selling peaked right there.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -3992,7 +4023,7 @@
      "the 2x gate is the dossier's proposal"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q68",
@@ -4000,7 +4031,7 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "cap.position_adv",
-   "q": "A bounce trade in a stock that averages 400,000 shares a day. Under our 1% rule, what is the most we can own?",
+   "q": "You want a bounce trade in a $120 stock that averages 400,000 shares a day. What's the most you can own?",
    "answer": "4,000 shares",
    "calc": {
     "fn": "arith",
@@ -4010,14 +4041,14 @@
     },
     "round": 0
    },
-   "why": "4,000 shares. One percent of 400,000 is 4,000. Our rule: never own more than 1% of a stock's average daily volume. It is a ceiling on the position, whatever the stop would allow.",
-   "lesson_line": "Size to the stock's volume. One percent of the daily average is the ceiling.",
+   "why": "4,000 shares. We never own more than 1% of a stock's average daily volume, and 1% of 400,000 is 4,000. That's a ceiling, whatever your stop would allow. The reason is getting out. On a panic trade the stock can turn on you fast. If you own a big slice of the day's volume, your own selling pushes the price down as you exit. Stay small against the volume and you can always get out clean.",
+   "lesson_line": "Never own more than 1% of the day's volume.",
    "facts": [
     "h19"
    ],
    "suffix": " shares",
    "house": true,
-   "simple": "You can own at most 4,000 shares, because that is 1% of the 400,000 shares it trades a day.",
+   "simple": "4,000 shares. That's 1% of the 400,000 it trades a day, so you can always get out clean.",
    "tier": "extended",
    "risk": {
     "score": 7,
@@ -4027,7 +4058,7 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "4,000 shares",
     "2,000 shares",
@@ -4035,9 +4066,9 @@
     "400 shares"
    ],
    "wrong": {
-    "400 shares": "Slipped the decimal point down a place.",
-    "2,000 shares": "Used half a percent, not one.",
-    "1,000 shares": "Used a quarter of a percent, not one."
+    "400 shares": "Slipped a decimal. 1% of 400,000 is 4,000.",
+    "2,000 shares": "That's half a percent. The cap is 1%.",
+    "1,000 shares": "That's a quarter percent. The cap is 1%."
    }
   },
   {
@@ -4073,16 +4104,16 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "cap.retries",
-   "q": "Do you take the fourth try?",
-   "story": "You tried the same stock three times this week and were stopped each time. On Friday it reclaims its flush low again.",
+   "q": "Do you take a fourth shot?",
+   "story": "You tried the same stock three times this week, and got stopped each time. On Friday it reclaims its flush low again.",
    "choices": [
-    "No; three tries a week is the limit",
-    "Yes; a new reclaim is a trigger",
+    "No, three tries a week is the max",
+    "Yes, a new reclaim is a trigger",
     "Yes, at half size for less risk",
-    "No; a stop-out bars a retry"
+    "No, a stop-out bars any retry"
    ],
-   "answer": "No; three tries a week is the limit",
-   "why": "No. On one stock we take at most 3 tries in a week and 6 in a month. Each try needs a new trigger, as a new trade with its own stop. A fresh reclaim is a new trigger, but the weekly limit still holds. A smaller size does not reset the count.",
+   "answer": "No, three tries a week is the max",
+   "why": "No. On one stock it's 3 tries a week and 6 a month, max. Each try needs a new trigger, and Friday's reclaim is one. But you've already been wrong three times this week. The stock is telling you something, and the fourth try is where revenge trading starts. Half size doesn't reset the count. Step back and let it set up again next week.",
    "lesson_line": "Three tries a week on one name. The fourth waits.",
    "facts": [
     "h29",
@@ -4090,12 +4121,12 @@
     "h28"
    ],
    "wrong": {
-    "Yes; a new reclaim is a trigger": "A new trigger is needed, but the week's limit still holds: at most 3 tries.",
-    "Yes, at half size for less risk": "Half size does not change the count. It is at most 3 tries in a week on one stock.",
-    "No; a stop-out bars a retry": "A stop-out does not bar the stock. We buy again on a new trigger, up to 3 tries a week."
+    "Yes, at half size for less risk": "Half size doesn't reset the count. It's still the fourth try this week.",
+    "Yes, a new reclaim is a trigger": "It's a real trigger, but the week's limit still holds. Three tries is the max.",
+    "No, a stop-out bars any retry": "Too strict. After a stop-out you can buy again on a new trigger, up to 3 a week."
    },
    "house": true,
-   "simple": "No. We take at most three tries a week on one stock, and this would be the fourth.",
+   "simple": "No. Three tries a week on one stock is the max, and this would be the fourth.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -4103,7 +4134,7 @@
      "house rulebook (E56, B21)"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q71",
@@ -4156,32 +4187,32 @@
    "format": "scenario",
    "criterion": "cap.inv_stop",
    "q": "What happens now?",
-   "story": "You bought the reclaim at 92.82 with the stop at 91.41, a few cents under the low of your entry session. Next morning the stock opens at 93.75, above that low, then trades through your stop.",
+   "story": "You bought the reclaim at 92.82 with the stop at 91.41, a few cents under the low of the day you bought. Next morning it opens at 93.75, above that low, then trades through your stop.",
    "choices": [
-    "The stop is the exit; you are out",
+    "You're out, the stop is the exit",
     "Wait for a close under the low",
     "Move the stop lower to give room",
-    "Hold; the gap rule sets the stop"
+    "Hold, the gap rule sets the stop"
    ],
-   "answer": "The stop is the exit; you are out",
-   "why": "You are out. After the entry, a trade below the low of the entry session is the stop and the exit. It does not wait for a close. The stop only moves up, never down or wider. The one exception is a gap against the stop, and this stock opened above the low.",
-   "lesson_line": "The stop is the exit. It does not wait for a close.",
+   "answer": "You're out, the stop is the exit",
+   "why": "You're out. The stop is the exit the moment price trades through it. It doesn't wait for a close. Waiting for a close is how a small loss turns into a big one on a day like this. The gap rule doesn't help you either. That's only for a stock that opens under your stop, and this one opened above it. The stop only ever moves up. This one closed at 87.89, way under the stop. Getting out at 91.41 saved you.",
+   "lesson_line": "The stop is the exit. It doesn't wait for a close.",
    "facts": [
     "c48",
     "h02",
-    "k02",
     "h06",
-    "h07"
+    "h07",
+    "d14"
    ],
    "wrong": {
-    "Wait for a close under the low": "A close is not the test. The stop is the exit once price trades through it.",
+    "Wait for a close under the low": "A close isn't the test. Once price trades through the stop, you're out.",
     "Move the stop lower to give room": "The stop only moves up, never down or wider.",
-    "Hold; the gap rule sets the stop": "It opened above the low, so there was no gap. The gap rule is the one exception, and it does not apply."
+    "Hold, the gap rule sets the stop": "It opened above the low, so there's no gap. The gap rule doesn't apply."
    },
    "house": true,
-   "simple": "You are out. The stop is the exit, and it does not wait for a close.",
+   "simple": "You're out. The stop is the exit as soon as price trades through it, no waiting for a close.",
    "deeper": {
-    "trap": "Two habits break this rule: waiting for a close under the low, and moving the stop to give it room. Both widen the loss you planned. The only exception is a gap. If the stock opens under the stop, the low of the first 30-minute bar becomes the new stop. If the first 30 minutes take the loss past 2R, get out."
+    "trap": "Two habits break this rule: waiting for a close under the low, and moving the stop to give it room. Both widen the loss you planned. The one exception is a gap. If the stock opens under the stop, the low of the first 30-minute bar becomes the new stop. Past 2R, you're out."
    },
    "tier": "extended",
    "risk": {
@@ -4192,7 +4223,7 @@
      "story reworded"
     ]
    },
-   "batch": "visuals-5",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "COP",
     "asof": "2022-06-22",
@@ -4243,28 +4274,27 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "cap.breadth",
-   "q": "What does breadth say about this market?",
-   "story": "The Nasdaq is down five days in a row. T2108, a breadth gauge, closes at 17%.",
+   "q": "What does that breadth reading tell you?",
+   "story": "The Nasdaq is down five days in a row. T2108, the share of stocks above their own 40-day average, closes at 17%.",
    "choices": [
-    "Washed out; it backs a flush",
-    "Mild; only 17% of stocks look weak",
-    "Too high; it must go under 15%",
-    "Beside the point; price decides"
+    "Washed out, it backs a flush",
+    "Mild, only 17% look weak",
+    "Not yet, it has to break 15%",
+    "Nothing, price is all that matters"
    ],
-   "answer": "Washed out; it backs a flush",
-   "why": "Washed out. The card wants T2108 near or under 15% to 20% for a market-wide flush. At 17%, it sits inside that zone. It does not need to break 15%: the card says near or under. Bracco noted T2108 had broken under its 15% floor only once in 3 years, during the April 2025 crash.",
-   "lesson_line": "Near 15% to 20% on T2108 is washed out.",
+   "answer": "Washed out, it backs a flush",
+   "why": "Washed out. Only 17% of stocks are holding above their 40-day average, so the selling has hit almost everything. That's the backdrop where a market-wide flush can finally run out of sellers. Bracco noted T2108 broke under its 15% floor only once in 3 years, in the April 2025 crash. So 17% is right down near the floor. It doesn't have to break it. It just tells you to get your list ready for a turn.",
+   "lesson_line": "T2108 down near its floor means breadth is washed out.",
    "facts": [
-    "c30",
     "u06"
    ],
    "wrong": {
-    "Too high; it must go under 15%": "The card says near or under 15% to 20%. 17% is in that zone.",
-    "Beside the point; price decides": "The card lists washed-out breadth as part of the backdrop for a market-wide flush.",
-    "Mild; only 17% of stocks look weak": "T2108 counts stocks above their 40-day average. At 17%, most stocks sit below it."
+    "Mild, only 17% look weak": "Flip it. Only 17% are above their 40-day. The rest are below it.",
+    "Not yet, it has to break 15%": "It doesn't have to break 15%. That floor has broken only once in 3 years.",
+    "Nothing, price is all that matters": "Breadth tells you how wide the selling is. That's the backdrop for a flush."
    },
    "house": true,
-   "simple": "Washed out. A T2108 reading of 17% sits in the zone the card wants for a market-wide flush.",
+   "simple": "Washed out. With only 17% of stocks above their 40-day, the selling has hit almost everything.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -4273,7 +4303,7 @@
      "a market level that may change"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q76",
@@ -4281,30 +4311,30 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "cap.index_for_leader_flush",
-   "q": "Which flush does our card favor?",
+   "q": "Which flush would you rather buy?",
    "story": "Two leading stocks flush on heavy volume in different weeks. In one week the index holds above its recent lows. In the other, the index breaks to a new low.",
    "choices": [
     "The one with the index holding up",
     "The one with the index breaking down",
-    "Both; the index is not part of it",
-    "Neither; the index must be stretched too"
+    "Both, the index doesn't matter",
+    "Neither, the index must be stretched"
    ],
    "answer": "The one with the index holding up",
-   "why": "The one with the index holding up. For a single leading stock's flush, the card wants the index holding up or itself stretched, not breaking down. An index making a new low on rising volume while you hold is listed as an invalidation.",
-   "lesson_line": "Our card wants the index holding up when a leader flushes.",
+   "why": "The one with the index holding up. When one leader flushes and the market holds, that's a stock-specific shake. The panic is in that name, and it can snap back fast once sellers run out. When the index is breaking to new lows, the selling is everywhere. Your leader gets dragged down with everything else, however good its flush looked. An index that's itself stretched and washed out can work too. One that's still breaking down is a no for me.",
+   "lesson_line": "A leader's flush works best when the index is holding up.",
    "facts": [
     "c49",
     "c26"
    ],
    "wrong": {
-    "The one with the index breaking down": "The card wants the index holding up or stretched, not breaking down.",
-    "Both; the index is not part of it": "The index is part of the read for a single leading stock.",
-    "Neither; the index must be stretched too": "The card says holding up or itself stretched. Either will do, so holding up is enough."
+    "The one with the index breaking down": "When the index keeps breaking, the selling isn't done. It drags your stock with it.",
+    "Both, the index doesn't matter": "It matters a lot. A leader can't bounce for long while the whole market falls.",
+    "Neither, the index must be stretched": "Holding up is fine. Stretched works too. Breaking down is what you avoid."
    },
    "house": true,
-   "simple": "The one with the index holding up. For a leader's flush, the card wants the index holding up or stretched, not breaking down.",
+   "simple": "The one with the index holding up, because a leader can't bounce for long while the whole market breaks.",
    "deeper": {
-    "counter": "Holding up is not the only pass. The card also accepts an index that is itself stretched. What it rules out is an index breaking down. A new index low on rising volume while you hold is an invalidation."
+    "counter": "Holding up isn't the only good read. An index that is itself stretched and washed out works too. What you avoid is an index breaking down. A new index low on rising volume while you hold is a warning to respect."
    },
    "tier": "expert",
    "risk": {
@@ -4317,7 +4347,7 @@
    "depends_on": [
     "D-004"
    ],
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q77",
@@ -4325,31 +4355,27 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "cap.burst",
-   "q": "Which of these is a box in our burst gate?",
+   "q": "A stock's falling fast, and you're checking for a real burst down, not a slow slide. Which of these is a burst sign?",
    "choices": [
     "A gap down on the climax day",
     "A close under the lower band",
-    "15% off the 10-day high",
-    "Under the 9 and 20 EMA"
+    "A deep drop off the 10-day high",
+    "Price under the 9 and 20 EMA"
    ],
    "answer": "A gap down on the climax day",
-   "why": "A gap down on the climax day. It is one of the 5 burst boxes on our card, the same gate as our parabolic long. The others are 3 or more lower closes, two gaps down in a row, growing losses and rising volume. A close under the lower Bollinger band, the 15% stretch and the short averages are separate checks.",
-   "lesson_line": "The burst gate counts boxes: lower closes, gaps down, growing losses, rising volume.",
+   "why": "A gap down on the climax day. That says the panic carried right through the night. A burst down is our parabolic run in reverse. Straight lower closes, gaps down in a row, bigger down days, volume rising, then a gap on the climax day. Each one says the selling is speeding up, not drifting. The more you see, the stronger the burst. A close under the lower band, the drop off the high and the short averages tell you how stretched it is. They don't tell you it's speeding up.",
+   "lesson_line": "A burst is selling that speeds up: lower closes, gaps, bigger days, rising volume.",
    "facts": [
-    "c51",
-    "c52",
-    "c53",
-    "c09",
-    "c05",
-    "c08"
+    "v49b",
+    "hla1"
    ],
    "house": true,
    "wrong": {
-    "A close under the lower band": "A band close is supporting evidence only. It is not one of the burst boxes.",
-    "15% off the 10-day high": "That is the stretch, its own check. It is not one of the burst boxes.",
-    "Under the 9 and 20 EMA": "Falling under the short averages is its own check, not a burst box."
+    "A close under the lower band": "A close under the lower band shows a stretch. It isn't a burst sign.",
+    "A deep drop off the 10-day high": "How far it fell is a separate check. A burst is about how fast the selling speeds up.",
+    "Price under the 9 and 20 EMA": "Being under the short averages is its own check, not a burst sign."
    },
-   "simple": "A gap down on the climax day. It is one of the 5 burst boxes, and the other choices are separate checks.",
+   "simple": "A gap down on the climax day. It shows the selling speeding up, and that's what a burst is.",
    "tier": "core",
    "risk": {
     "score": 4,
@@ -4359,7 +4385,7 @@
      "new in wave5"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q78",
@@ -4367,29 +4393,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "cap.burst",
-   "story": "A stock closes lower four days in a row. Each of the last two losses is bigger than the day before, and volume rose on both days. Only the flush day opens with a gap down.",
-   "q": "Which burst box does it miss?",
+   "story": "A stock closes lower four days in a row. Each of the last two losses is bigger than the day before, and volume rose on both. Only the flush day opens with a gap down.",
+   "q": "Run down the burst signs. Which one is missing?",
    "choices": [
-    "Two gaps down in a row",
-    "3 or more lower closes",
+    "Gaps down two days in a row",
+    "Three or more lower closes",
     "Losses growing day to day",
-    "Volume up 2 days running"
+    "Volume up two days running"
    ],
-   "answer": "Two gaps down in a row",
-   "why": "Two gaps down in a row. The box needs 2 consecutive opening gaps down, and only the flush day gapped. The story ticks the rest: lower closes in a row, growing losses, rising volume and a climax-day gap.",
-   "lesson_line": "Count the burst boxes one by one. One gap is not two gaps in a row.",
+   "answer": "Gaps down two days in a row",
+   "why": "Gaps down two days in a row. Only the flush day gapped, so that sign isn't there. Everything else checks out: four lower closes in a row, losses getting bigger, volume rising, and a gap on the climax day. That's still a strong burst. The more signs you see, the stronger it is, and you don't need every one. Running down the list just keeps you honest about what you're looking at.",
+   "lesson_line": "Run the burst signs one by one. One gap isn't two in a row.",
    "facts": [
-    "c52",
-    "c53",
-    "c51"
+    "v49b",
+    "hla1"
    ],
    "house": true,
    "wrong": {
-    "3 or more lower closes": "It closed lower four days in a row, so this box is ticked.",
-    "Losses growing day to day": "Each of the last two losses was bigger than the day before, so this box is ticked.",
-    "Volume up 2 days running": "Volume rose on each of the last two days, so this box is ticked."
+    "Losses growing day to day": "Each of the last two losses was bigger than the day before. That one's there.",
+    "Three or more lower closes": "It closed lower four days in a row. That one's there.",
+    "Volume up two days running": "Volume rose on each of the last two days. That one's there."
    },
-   "simple": "Two gaps down in a row. Only the flush day gapped, and the box needs 2 opening gaps down in a row.",
+   "simple": "Two gaps down in a row. Only the flush day gapped, and the rest of the burst is there.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -4399,7 +4424,7 @@
      "new in wave5"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q79",
@@ -4407,28 +4432,27 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "cap.market_reading",
-   "story": "The market reading is Orange, and fear is high. A stock prints a clean capitulation flush, but the setup grades below A+.",
+   "story": "Our market reading is Orange: the market's under pressure, one step from Red. Fear is high. A stock prints a clean flush and reclaim, but it grades a B, not an A+.",
    "q": "Do you take it?",
    "choices": [
-    "No; Orange takes only A+ setups",
-    "Yes; capitulations come in Orange",
-    "Yes, at a smaller size and fewer",
-    "No; Orange means only shorts"
+    "Pass, Orange is A+ only",
+    "Yes, capitulations come in Orange",
+    "Yes, smaller and fewer",
+    "No, Orange means only shorts"
    ],
-   "answer": "No; Orange takes only A+ setups",
-   "why": "No. Our rulebook says Orange, only A+ setups. Capitulations happen in Orange and Red markets by nature, but that does not lower the bar. Smaller and fewer is the Yellow rule. Mostly cash and shorts is the Red rule.",
-   "lesson_line": "In an Orange market, only an A+ capitulation is a trade.",
+   "answer": "Pass, Orange is A+ only",
+   "why": "Pass. In Orange I only want my very best idea: the A+, the cleanest setup with the tightest risk. Bounces and breakouts fail more often when the market isn't backing them. Capitulations do show up in Orange markets, since that's where fear lives. That doesn't lower the bar. Taking B setups in Orange is how you bleed. Smaller and fewer is the Yellow read, and Red is mostly cash. The reading is a guide, and in Orange it says wait for the A+.",
+   "lesson_line": "In Orange, only the A+. Let the market earn your exposure.",
    "facts": [
-    "h31",
-    "c54"
+    "h31"
    ],
    "house": true,
    "wrong": {
-    "Yes; capitulations come in Orange": "They do come in Orange markets, but the rulebook still says only A+ setups there.",
-    "Yes, at a smaller size and fewer": "Smaller and fewer is the Yellow rule. Orange takes only A+ setups.",
-    "No; Orange means only shorts": "Mostly cash and shorts is the Red rule. Orange still allows A+ setups."
+    "Yes, capitulations come in Orange": "They do, but that doesn't lower the bar. Orange is A+ only.",
+    "Yes, smaller and fewer": "That's the Yellow read. Orange is A+ only.",
+    "No, Orange means only shorts": "Red is mostly cash. Orange still lets your A+ setups through."
    },
-   "simple": "No. In an Orange market our rulebook takes only A+ setups, and this one grades below that.",
+   "simple": "Pass. In an Orange market we only take A+ setups, and this one's a B.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -4438,7 +4462,7 @@
      "new in wave5"
     ]
    },
-   "batch": "wave5"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -4478,9 +4502,9 @@
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q03": {
    "status": "cut",
@@ -4492,19 +4516,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key matches Kell (k01) and Wyckoff w01 (re-found on ChartSchool 2026-11-12). Distractors clearly wrong; no tell."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Capitulation is volume-defined (climax volume is the setup), so the D-006 exception applies."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q06": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Same: the flush-day volume floor is part of the setup shape; the 1.5 times distractor is a near-miss not a rival answer."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q07": {
    "status": "cut",
@@ -4513,136 +4537,136 @@
    "notes": "cut in fills: see the resolver's notes"
   },
   "q08": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Key from c06; u04 re-fetched 2026-11-12 and found. 2 ATR and 15% distractors are real confusions with c01 and c05."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q09": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "HIMS flush 2024-10-30 (dossier row 8), reclaim 10-31; asof = flush day = day before trigger. Plain wording, no numbers, ticker hidden. Right answer true."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q13": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LYV flush 2022-03-07 into round 100 and 200-day (d06); asof flush day. Use 2 of 2 with q64. Text numbers match d04/d06; 200 SMA is drawn."
+   "notes": "Pass. Same LYV chart as q64; a distinct skill (which level), acceptable."
   },
   "q15": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Roles, find label, slot format and ladder checked; ok."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q16": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "20/120 = 16.7%. 20.0 = 20/100, 83.3 = 100/120, 1.7 decimal slip. Verified."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, find label, slot format and ladder checked; ok."
+   "notes": "Pass. 28/8 = 3.5 checked; 3 ATR is Bracco's quoted observation (u04), framed as a heads-up, not our pass line."
   },
   "q18": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q21": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SBUX flush 2011-08-08: three straight lower closes, closed on its low, next session undercut and closed 6% higher (dossier row 3, v01). asof = flush day. Right answer true."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ROKU flush 2019-03-13, reclaim 03-14 undercut 59.63 (v02). asof = flush day; story has no numbers. Wrong key re-keyed to new choice text."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ALB buy day 2010-05-07, entry 38.49, stop 38.26 (0.6%) match dossier row 2/d02 and the question text. Use 1 of 2."
+   "fixed": true,
+   "notes": "Fix. 0.6% is not 'way inside' the 1-3% band, it is tighter than it. Math 0.23/38.49 = 0.6% checked."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Same ALB trade chart, second use; entry/stop in question text match dossier."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "WDC reclaim 2024-07-29 (second session after 07-25 flush); asof 07-26 = day before. Dossier (section 14 note) says report 2024-07-31, two sessions after reclaim (v04). No numbers in story."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q29": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "COP day 1 = 2022-06-23 (06-20 closed): opened 93.75, closed 87.89 lower tenth (d13/d14). No trade drawn on a day-1 chart, consistent with pilot SET.07 q41/q29. Use 1 of 2."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MS flush 2025-03-04: 2.61 ATR, 2.02x, 15.3%, controlled three-week mark down (d20). asof flush day. Answer holds (fails cap.burst)."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c10. Depth and volume distractors fail for different reasons."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q34": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "LLY flush 2024-07-25: 2.13 ATR, 15.2%, above 200-day, 1.96x (d24/d25). asof flush day. Answer holds."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "UBER flush 12-11, reclaim 12-16; asof 12-13 = day before. 15.9% under 200-day, 2.19 ATR, 3.48x, 17.6%, two-month slide (d26/d27). Window 200 ok."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q36": {
    "status": "cut",
@@ -4660,37 +4684,37 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "r_loss ticks run down from 20.00: -1R..-4R. Result 3.5R is fractional so the app draws to the next whole R (-4R at 19.20, just under the 19.30 low). Direction right; the low sits between -3R and -4R. Acceptable."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MP buy day 2025-04-07, entry 22.13 stop 21.72 (1.85%), 5R 24.18 (22.13+5x0.41 ok), day 1 opened 26.00 (d18/d19). forward 20 covers it."
+   "notes": "Agrees: never add into an overnight gap far past 5R on a bounce trade; first sell a judgment. 22.13 + 5 x 0.41 = 24.18 checks. Voice 4."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ALGM buy day 2023-04-28, 35.06/34.14 (2.6%), 3R on day 3 (v05); forward 20 reaches day 3."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q43": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Fix. 'On these bounce trades I lean early' turned the card's proposed breakeven at 2R into his habit. Now: the 2R-5R window or the first sell, where in it is your call, and the reason (bounces fade back to an unmoved stop)."
   },
   "q44": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Agrees: never average down. Voice 4."
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "HIMS buy day 2024-10-31, 18.64/18.27 (2.0%); no outcome R named; forward 60 for the trail. Use 2 of 2 with q12."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q46": {
    "status": "cut",
@@ -4702,81 +4726,79 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c29, c30, u07. Each distractor breaks a different half of the backdrop."
+   "notes": "Pass. VIX 30 is Bracco's quoted read (u07), not stated as our rule."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "U&R needs no volume; capitulation shape numbers are the setup definition."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Six sessions, light volume, rising 20 EMA, no gaps fits the card's moving-average pullback (c50); 'no gaps' rules out the Oops (c41).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from c28; w01 re-fetched 2026-11-12 and found."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BN buy day 2020-03-10, 19.57/19.40 (0.89%), 16.5% flush, index new low same week, 41% under buy within 30 sessions; forward 40 covers it."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "VOYA buy day 2023-03-15, 64.66/63.75 (1.41%), day 1 low 63.52 = 23 cents under stop, close 66.15 near high (d16/d17)."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Roles, find label, slot format and ladder checked; ok."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "OKTA Friday flush 2025-04-04 (2.67 ATR, 23.4%, 2.28x; d07), asof = Friday, day before Monday reclaim. Use 2 of 2 with q62."
+   "fixed": true,
+   "notes": "Fix, small. 'Bracco has seen plenty of those' overstated u13; now names the Monday turn he describes. OKTA numbers checked against d08."
   },
   "q01": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from c01 before reading it. Distractors are real misreads (band close c09, close at low w02, volume c02). m04 (s2, unreachable today) is colour only. Minor, fact level: c01's quote starts 'The day's low' where the card has 'the day's low' after a colon."
+   "notes": "Pass. Flush taught by eye, no 2 ATR line. Follow-up: a shape question with no chart (rule 24); a flush chart would serve it, left as is because a chart could make a wrong choice (band close) visibly true."
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Fix. 'My take on why... holders stew all weekend' put an unsourced reason in his mouth. Replaced with the observed pattern (c31) and the OKTA case."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (c17). Distractor 'Yes; 20% clears the 15% bar' states the stock stretch bar, which hands over q07's key (15%). Reworded without the bar; wrong note keeps it for after the answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q28": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q38": {
    "status": "cut",
@@ -4788,49 +4810,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ICE flush 2009-07-08 (2.66 ATR, 4.96x, -29.3%), reclaim 07-10 two sessions later; asof 07-09 = day before. Numbers match row 1 (v06/v07)."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer is the 15% stretch against 7%; no near neighbour keyed; volume is not the answer."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q52": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches the card's own discriminate seed (flat 30-session range, 0.5 ATR dip, closes back inside). cla1 ('Look for the range.') verified in the card's spring tell; c43 and c41 verified. Every choice echoes the story, so the key's 'range' is not a lone echo. U&R (c39) could also fit but is not offered."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q61": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why/lesson_line/deeper now say sells into strength; scan point intact."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "OKTA buy day 2025-04-07: opened 88.34, undercut 87.93, close 91.24, buy 89.37, stop 87.88 (d08). Choices/wrong keys consistent; 91.24 = the close, so the Limit distractor teaches never at the close."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Watch it for a reclaim; close buys are wrong distractors; real example numbers from the cited facts."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key right (d21-d23, c05). Distractor 'close to 15%' gives away the 15% bar (q07's key). Reworded to 'close enough'; the wrong note keeps the 15% for after the answer."
+   "notes": "Fix. The why claimed 'nothing here is a straight-down panic after a burst', which the stem never shows, and the verdict leaned on 12.9% sitting under the card's proposed 15% stretch. Now names AMZN (d22, d23), works the screen's own numbers and teaches it by eye: a leader pulling back hard onto a rising 50-day, trend intact."
   },
   "q10": {
    "status": "cut",
@@ -4872,19 +4894,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "c03 'ideally the highest volume of the decline' decides it; both pass the 2x floor. Minor: q67 (TF) states the same fact, but a TF statement does not give its own truth away."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q67": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Fix. The why repeated q66's ALGM sentence word for word; now gives the practical how (look left on the volume bars) and keeps volume a grade-raiser, not a must."
   },
   "q68": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Replaced weak distractor(s) and/or filled missing upgrade so the right answer sits at the target rank."
+   "fixed": false,
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q69": {
    "status": "cut",
@@ -4894,10 +4916,9 @@
   },
   "q70": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave5; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q71": {
    "status": "cut",
@@ -4914,43 +4935,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "COP buy day 2022-06-22, 92.82/91.41 (1.52%); day 1 opened 93.75 above entry-session low, low 87.26 (d13/d14). Use 2 of 2 with q30."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q74": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Keep is right: T2108 is a breadth gauge traders watch; q75 tests the reading but not what it measures. New why defines it; c30 supports it."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "17% sits inside the card's 'near or under 15% to 20%' (c30). u06 quote re-found. The wrong note on 'Mild' is right: T2108 counts stocks above their 40-day."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q76": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep ok"
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q77": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "notes": "Fix. The why read like a checklist recital. Now verdict, what the gap means, the signs in plain words, and why the other three are stretch checks, not speed checks. No 3-of-5 count (pending ruling)."
   },
   "q78": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "keep ok; depends_on restored (writer emptied it)"
+   "fixed": false,
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   },
   "q79": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from h31 (F65); holds under all three D-023 options. F65 is framed as a guide (A10), but the guide's answer is still No."
+   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
   }
  }
 }

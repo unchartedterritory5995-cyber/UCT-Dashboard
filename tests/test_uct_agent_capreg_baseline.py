@@ -174,19 +174,31 @@ def base_lock(git=None):
     return json.loads(text), "ok"
 
 
+#: the events that start a P2 evidence run FROM master (GITHUB_REF refs/heads/master) at a built merge commit
+DISPATCH_EVENTS = ("workflow_dispatch", "repository_dispatch")
+
+
 def merge_base_mode(env=None, git=None) -> str:
-    """skip-master: running ON master (the master deploy gate: GITHUB_REF refs/heads/master, or HEAD == origin/master) —
-    comparing master with itself is meaningless, and this check must never turn the release gate red;
-    strict: a push to an agent/** branch (Agent CI) — an unresolvable base FAILS;
-    lenient: anything else (a PR merge ref, a local run) — an unresolvable base is a printed notice."""
+    """FAIL-CLOSED (P2c, AUDIT 2026-11-18): "on master" is proved, never inferred from GITHUB_REF alone.
+    skip-master: ONLY (a) a PUSH to master (the master deploy gate: GITHUB_EVENT_NAME push + GITHUB_REF refs/heads/master),
+                 or (b) HEAD == origin/master (whatever the event) — comparing master with itself is meaningless, and
+                 this check must never turn the release gate red;
+    strict: a push to an agent/** branch (Agent CI); a workflow_dispatch / repository_dispatch evidence run (P2 / P2c:
+            GITHUB_REF is refs/heads/master there but HEAD is a built merge commit, AUDIT F4); ANY other or unknown event
+            (or none) on refs/heads/master — an unresolvable base FAILS;
+    lenient: anything else (a PR merge ref, a local run off master) — an unresolvable base is a printed notice."""
     env = os.environ if env is None else env
     git = git or _git
-    ref = env.get("GITHUB_REF", "")
-    if ref == "refs/heads/master":
-        return "skip-master"
+    ref, event = env.get("GITHUB_REF", ""), env.get("GITHUB_EVENT_NAME", "")
     head, om = (git("rev-parse", "HEAD") or "").strip(), (git("rev-parse", "origin/master") or "").strip()
     if head and om and head == om:
         return "skip-master"
+    if event == "push" and ref == "refs/heads/master":
+        return "skip-master"
+    if event in DISPATCH_EVENTS or ref == "refs/heads/master":
+        # an evidence run (dispatched FROM master, checked out at a built merge commit: GITHUB_REF says nothing about
+        # what is under test), or an event this rail does not know on master: it IS the evidence, so it must run
+        return "strict"
     return "strict" if ref.startswith("refs/heads/agent/") else "lenient"
 
 
@@ -287,7 +299,8 @@ def test_merge_base_check_never_blocks_the_master_gate():
     """The master deploy gate checks out master shallow (depth 2) with CI set: on master the rail SKIPS, whatever git
     can or cannot resolve; on an agent/** push an unresolvable base fails; a moved lock fails wherever a base exists."""
     nothing = lambda *a: None                                   # a shallow checkout: no origin/master, no merge base
-    assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/master"}, nothing)[0] is True
+    assert merge_base_check({"CI": "true", "GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/master"}, nothing)[0] is True
+    assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/master"}, nothing)[0] is False   # no event: fail closed
     same = lambda *a: "abc123\n" if a[0] == "rev-parse" else None   # HEAD == origin/master (a local run on master)
     assert merge_base_check({"CI": "true"}, same)[0] is True
     assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, nothing)[0] is False
@@ -302,6 +315,89 @@ def test_merge_base_check_never_blocks_the_master_gate():
     assert ok is False and "moved or renamed lock" in msg          # the folder renamed away: the rail file betrays the suite
     neither = lambda *a: ("mb1\n" if a[0] == "merge-base" else ("x" if a == ("rev-parse", "HEAD") else ("y" if a[0] == "rev-parse" else None)))
     assert merge_base_check({"CI": "true", "GITHUB_REF": "refs/heads/agent/qa/x"}, neither)[0] is True
+
+
+
+def test_merge_base_check_runs_on_a_dispatch_evidence_run():
+    """P2 evidence runs are workflow_dispatch FROM master (GITHUB_REF refs/heads/master) at a built merge commit M whose
+    first parent is master's tip. The weakening check must RUN there (strict), not skip as if on master: otherwise a PR
+    that weakens the baseline passes its own CI evidence (AUDIT F4, 2026-11-17)."""
+    dispatch = {"CI": "true", "GITHUB_EVENT_NAME": "workflow_dispatch", "GITHUB_REF": "refs/heads/master"}
+    at_m = lambda *a: ("M" * 40 + "\n" if a == ("rev-parse", "HEAD") else ("T" * 40 + "\n" if a[0] == "rev-parse" else None))
+    assert merge_base_mode(dispatch, at_m) == "strict"
+    nothing = lambda *a: None                                   # no origin/master fetched: strict means it FAILS
+    assert merge_base_mode(dispatch, nothing) == "strict"
+    assert merge_base_check(dispatch, nothing)[0] is False
+    # it still skips when the dispatched run really sits on master's tip
+    same = lambda *a: "abc123\n" if a[0] == "rev-parse" else None
+    assert merge_base_mode(dispatch, same) == "skip-master"
+    # the master deploy gate (a push / workflow_run on master) is unchanged
+    assert merge_base_mode({"CI": "true", "GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/master"}, at_m) == "skip-master"
+    # a weakening at the merge base is reported on a dispatch run, exactly as on an agent/** push
+    mb = lambda *a: ("mb1\n" if a[0] == "merge-base" else at_m(*a) if a[0] == "rev-parse" else '{"format": "x"}')
+    ok, msg = merge_base_check(dispatch, mb, state=({"format": "y"}, {}, {}))
+    assert ok is False and "lock format changed" in msg
+
+
+def test_merge_base_check_runs_on_a_repository_dispatch_evidence_run():
+    """P2c: the re-arm is a repository_dispatch (event_type agent-ci-evidence). It too runs FROM master (GITHUB_REF
+    refs/heads/master, GITHUB_SHA master's tip) at the built merge commit M, so it must be strict exactly like the
+    workflow_dispatch run above (AUDIT F4): a PR that weakens the baseline must not pass its own re-arm evidence."""
+    dispatch = {"CI": "true", "GITHUB_EVENT_NAME": "repository_dispatch", "GITHUB_REF": "refs/heads/master"}
+    at_m = lambda *a: ("M" * 40 + "\n" if a == ("rev-parse", "HEAD") else ("T" * 40 + "\n" if a[0] == "rev-parse" else None))
+    assert merge_base_mode(dispatch, at_m) == "strict"
+    nothing = lambda *a: None
+    assert merge_base_mode(dispatch, nothing) == "strict"
+    assert merge_base_check(dispatch, nothing)[0] is False
+    same = lambda *a: "abc123\n" if a[0] == "rev-parse" else None
+    assert merge_base_mode(dispatch, same) == "skip-master"
+    mb = lambda *a: ("mb1\n" if a[0] == "merge-base" else at_m(*a) if a[0] == "rev-parse" else '{"format": "x"}')
+    ok, msg = merge_base_check(dispatch, mb, state=({"format": "y"}, {}, {}))
+    assert ok is False and "lock format changed" in msg
+
+
+_EVENTS = ("push", "pull_request", "workflow_dispatch", "repository_dispatch", "schedule", "workflow_run", "merge_group",
+           "some_future_event", "")
+_REFS = ("refs/heads/master", "refs/heads/agent/pl/x", "refs/pull/1700/merge", "refs/heads/charts/x", "")
+
+
+def _want_mode(event, ref):
+    if event == "push" and ref == "refs/heads/master":
+        return "skip-master"
+    if event in ("workflow_dispatch", "repository_dispatch") or ref == "refs/heads/master":
+        return "strict"
+    return "strict" if ref.startswith("refs/heads/agent/") else "lenient"
+
+
+def test_merge_base_mode_every_event_by_ref_is_fail_closed():
+    """P2c (AUDIT #4): skip-master ONLY for a push to master or HEAD == origin/master; every dispatch, and ANY unknown
+    event on refs/heads/master, is strict; a PR merge ref keeps its lenient mode. (9 events x 5 refs x 3 git states.)"""
+    off_tip = lambda *a: ("M" * 40 + "\n" if a == ("rev-parse", "HEAD") else ("T" * 40 + "\n" if a[0] == "rev-parse" else None))
+    on_tip = lambda *a: "abc123\n" if a[0] == "rev-parse" else None
+    unresolved = lambda *a: None                                             # no HEAD / origin/master: never "on master"
+    seen = set()
+    for event in _EVENTS:
+        for ref in _REFS:
+            env = {"CI": "true", "GITHUB_REF": ref, **({"GITHUB_EVENT_NAME": event} if event else {})}
+            assert merge_base_mode(env, off_tip) == _want_mode(event, ref), (event, ref)
+            assert merge_base_mode(env, on_tip) == "skip-master", (event, ref)   # HEAD == origin/master: always on master
+            assert merge_base_mode(env, unresolved) == _want_mode(event, ref), (event, ref)
+            seen.add(_want_mode(event, ref))
+    assert seen == {"skip-master", "strict", "lenient"}
+    # the table itself, pinned (so a mutant of _want_mode and merge_base_mode together cannot hide)
+    assert [_want_mode(e, "refs/heads/master") for e in ("push", "pull_request", "repository_dispatch", "some_future_event", "")] == \
+        ["skip-master", "strict", "strict", "strict", "strict"]
+    assert [_want_mode(e, "refs/pull/1700/merge") for e in ("pull_request", "push", "repository_dispatch")] == ["lenient", "lenient", "strict"]
+
+
+def test_merge_base_mode_an_unknown_event_on_master_is_strict():
+    off_tip = lambda *a: ("M" * 40 + "\n" if a == ("rev-parse", "HEAD") else ("T" * 40 + "\n" if a[0] == "rev-parse" else None))
+    for event in ("some_future_event", "schedule", "workflow_run", "repository_dispatch", "workflow_dispatch", None):
+        env = {"CI": "true", "GITHUB_REF": "refs/heads/master", **({"GITHUB_EVENT_NAME": event} if event else {})}
+        assert merge_base_mode(env, off_tip) == "strict", event
+        assert merge_base_check(env, lambda *a: None)[0] is False, event     # strict + no origin/master: FAILS
+    assert merge_base_mode({"GITHUB_EVENT_NAME": "push", "GITHUB_REF": "refs/heads/master"}, off_tip) == "skip-master"
+    assert merge_base_mode({"GITHUB_EVENT_NAME": "pull_request", "GITHUB_REF": "refs/pull/1/merge"}, off_tip) == "lenient"
 
 
 def test_lock_format_is_current():
@@ -413,7 +509,7 @@ def test_agent_ci_runs_the_capability_regression_suite():
     y = AGENT_CI.read_text(encoding="utf-8")
     assert "capability-regression" in y and "src/agent/qa/capabilityRegression" in y
     # the suite runs at BOTH pinned market-clock instants (testing/clock.js; the 2026-11-04 09:30 ET red gate)
-    assert "clock: [post, rth]" in y and "CAPREG_CLOCK: ${{ matrix.clock }}" in y
+    assert "clock: [post, rth-1, rth-2]" in y and "CAPREG_CLOCK: ${{ startsWith(matrix.clock, 'rth') && 'rth' || matrix.clock }}" in y
     assert "needs: capability-regression-clock" in y          # one aggregate result for both legs
     assert "test_uct_agent_capreg" in y or "tests/test_uct_agent*.py" in y
     for paid in ("agent_eval_run", "ANTHROPIC_API_KEY", "agent_live_batch"):

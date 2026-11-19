@@ -157,7 +157,12 @@ class RecordingTVPage:
     """
 
     def __init__(self, behaviours=None, stays_bound=(), symbol="NASDAQ:AAPL", resolution="5",
-                 studies=None, signed_in=True, visible=True):
+                 studies=None, signed_in=True, visible=True, autosave=None, persisted=None):
+        # ⭐ THE LAYOUT'S PERSISTED COPY, what a fresh load reads (`reload`). None: a fresh load reads the page as
+        # it is. autosave="tradingview": the MEASURED rig (2026-11-18): an editor add saves the layout as it is
+        # then; a widget-API removal or resolution change is never saved.
+        self.autosave = autosave
+        self.persisted = json.loads(json.dumps(persisted)) if persisted is not None else None
         self.behaviours = behaviours or {}
         self.stays_bound = set(stays_bound)
         self.symbol, self.resolution = symbol, resolution
@@ -225,6 +230,15 @@ class RecordingTVPage:
     def goto(self, url, **kw):
         self._check_alive()
         self._log("goto", url, None)
+
+    def reload(self, **kw):
+        """A fresh load: the page reads the layout's persisted copy (when one is modelled); injected globals are gone."""
+        self._check_alive()
+        self._log("reload", "reload", None)
+        self.injected, self.globals, self.editor_open = False, set(), False
+        if self.persisted is not None:
+            self.studies = json.loads(json.dumps(self.persisted["studies"]))
+            self.symbol, self.resolution = self.persisted["symbol"], self.persisted["resolution"]
 
     def _pointer(self, kind, x, y):
         self._check_alive()
@@ -341,6 +355,8 @@ class RecordingTVPage:
         self.studies.append({"id": f"st{self.next_id}", "name": declared_title(src) or "Untitled",
                              "sha": sha, "source": src, "reads": 0})
         self.bound = "update"        # every add binds the editor (capture-procedure.md, S5)
+        if self.autosave == "tradingview":
+            self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
         return {"clicked": True, "vis": "visible", "gate": gate}
 
     def _find(self, sid):

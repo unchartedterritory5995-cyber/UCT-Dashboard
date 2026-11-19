@@ -106,6 +106,23 @@ from api.services.ast_interpret import (
 #: 5 would refuse any formula reading O, H, L, C and V. It becomes live the day
 #: the table declares more than ``maxSeriesRefs`` series, and the rail derives
 #: that condition rather than restating it.
+#:
+#: 📏 THE COMPUTE-CAP RULING (2026-11-17): ALL THREE MEASURED, NONE RAISED -- the
+#: same three numbers as ``budget.js``, whose note carries the browser half. This
+#: lane's half, per symbol on the alert window (``indicator_alert_evaluator.
+#: bars_wanted``, the sweep's ``want`` too), at the candidates 384 / 2,560 / 12:
+#: the scripts a raise frees cost from 0.04 s (the two that only wrap ``vwap()``)
+#: to over 60 s (stopped) a symbol;
+#: 95 cap-deep recurrences (384 nodes) cost 59 s against 21 s for 31 (128); and
+#: above 2,400 bars a cap-deep recurrence is refused ``interpret:steps`` over the
+#: 5,000-bar window (``MAX_RECURRENCE_STEPS / bars_window.HISTORY_WINDOW_BARS``,
+#: railed by ``test_the_lookback_cap_keeps_a_cap_deep_recurrence_inside_the_ceiling_
+#: over_the_server_window``). ⚰️ AND "far short of anything that blocks a frame"
+#: ABOVE IS NOT TRUE OF TODAY'S CAPS: the browser's host lane serves Pine scripts
+#: at up to 25.8 s a compute, and one cap-deep recurrence already costs 0.51 s a
+#: symbol here, about 31 minutes over the 3,742-symbol universe against the
+#: sweep's ``LIVE_DEFINITION_WORST_CASE_S`` of 60. The record:
+#: ``docs/pine/evidence/2026-11-17-compute-caps/EVIDENCE.md``.
 #: The nested-recurrence family's warmup — the driver the lookback cap had
 #: BEFORE a session had to fit inside it, kept and named rather than deleted.
 #: ``accum`` inside ``accum`` needs TWO warmups: 250 + 250 + ATR's 22 + 1 = 524,

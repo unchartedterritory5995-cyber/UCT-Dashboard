@@ -1,0 +1,1988 @@
+{
+ "contract": "uct.converse-eval.scripted/1",
+ "_": "Scripted answers for converse_eval_house_cases.json: each is the patch that built the house indicator.",
+ "usage": {
+  "input_tokens": 3000,
+  "output_tokens": 900
+ },
+ "turns": {
+  "house-distribution-day-count#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Distribution Day Count",
+      "placement": "pane",
+      "primary": "ddCount",
+      "outputs": [
+       {
+        "key": "ddCount",
+        "label": "Distribution Days (25)",
+        "tree": {
+         "type": "call",
+         "name": "sum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "&&",
+             "args": [
+              {
+               "type": "op",
+               "name": "<=",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "op",
+                 "name": "*",
+                 "args": [
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  },
+                  {
+                   "type": "num",
+                   "value": 0.998
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "volume"
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 25
+          }
+         ]
+        }
+       },
+       {
+        "key": "isDD",
+        "label": "Distribution Day",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<=",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 0.998
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_marker",
+      "output": "isDD",
+      "shape": "circle",
+      "position": "aboveBar",
+      "size": 0.5,
+      "color": "#F23645"
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-atr-extension#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "ATR Extension",
+      "placement": "pane",
+      "primary": "ext",
+      "outputs": [
+       {
+        "key": "ext",
+        "label": "ATR Extension",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "atr",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_color_states",
+      "output": "ext",
+      "states": [
+       {
+        "color": "#F23645",
+        "when": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "atr",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 7
+          }
+         ]
+        }
+       },
+       {
+        "color": "#FF9800",
+        "when": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "atr",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 4
+          }
+         ]
+        }
+       }
+      ],
+      "otherwise": "#2962FF"
+     },
+     {
+      "op": "set_levels",
+      "values": [
+       0,
+       4,
+       7
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-volume-with-50-average#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Volume with 50 Average",
+      "placement": "pane",
+      "primary": "vol",
+      "outputs": [
+       {
+        "key": "vol",
+        "label": "Volume",
+        "tree": {
+         "type": "series",
+         "name": "volume"
+        }
+       },
+       {
+        "key": "avg",
+        "label": "50-bar Average Volume",
+        "tree": {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "series",
+           "name": "volume"
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       },
+       {
+        "key": "upSurge",
+        "label": "Up Day on High Volume",
+        "hidden": true,
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.4
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "downSurge",
+        "label": "Down Day on High Volume",
+        "hidden": true,
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.4
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_style",
+      "output": "vol",
+      "style": "histogram",
+      "color": "#787B86"
+     },
+     {
+      "op": "set_style",
+      "output": "avg",
+      "style": "line",
+      "width": 2,
+      "color": "#FF9800"
+     },
+     {
+      "op": "set_color_states",
+      "output": "vol",
+      "states": [
+       {
+        "color": "#2962FF",
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.4
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "color": "#E91E63",
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.4
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "otherwise": "#787B86"
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-gap-up-on-volume#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Gap Up on Volume",
+      "placement": "price",
+      "primary": "gapUpVol",
+      "outputs": [
+       {
+        "key": "gapUpVol",
+        "label": "Gap Up 4% + Volume",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "open"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 100
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 4
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_intent",
+      "output": "gapUpVol",
+      "intent": "signal"
+     },
+     {
+      "op": "set_marker",
+      "output": "gapUpVol",
+      "shape": "arrowUp",
+      "position": "belowBar",
+      "color": "#089981"
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-inside-outside-bars#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Inside / Outside Bars",
+      "placement": "price",
+      "primary": "insideBar",
+      "outputs": [
+       {
+        "key": "insideBar",
+        "label": "Inside bar",
+        "hidden": true,
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<=",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "outsideBar",
+        "label": "Outside bar",
+        "hidden": true,
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_color_states",
+      "channel": "barcolor",
+      "states": [
+       {
+        "color": "#787B86",
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<=",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "color": "#9C27B0",
+        "when": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "<",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-average-daily-range#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Average Daily Range %",
+      "placement": "pane",
+      "primary": "adr",
+      "outputs": [
+       {
+        "key": "adr",
+        "label": "ADR % (20)",
+        "hidden": true,
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       },
+       {
+        "key": "todayPct",
+        "label": "Today vs ADR %",
+        "hidden": true,
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 20
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_table",
+      "position": "top_right",
+      "cells": [
+       {
+        "row": 0,
+        "col": 0,
+        "text": "ADR % (20)",
+        "size": "small"
+       },
+       {
+        "row": 0,
+        "col": 1,
+        "output": "adr",
+        "format": "decimal2",
+        "suffix": "%",
+        "size": "small"
+       },
+       {
+        "row": 1,
+        "col": 0,
+        "text": "Today vs ADR",
+        "size": "small"
+       },
+       {
+        "row": 1,
+        "col": 1,
+        "output": "todayPct",
+        "format": "decimal1",
+        "suffix": "%",
+        "size": "small"
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-flat-base#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Flat Base",
+      "placement": "price",
+      "primary": "flatBase",
+      "outputs": [
+       {
+        "key": "flatBase",
+        "label": "Flat Base",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": "<=",
+             "args": [
+              {
+               "type": "call",
+               "name": "highest",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "num",
+                 "value": 25
+                }
+               ]
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "lowest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "low"
+                  },
+                  {
+                   "type": "num",
+                   "value": 25
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1.15
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": ">=",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "highest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "num",
+                   "value": 252
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 0.85
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "offset",
+             "value": 25,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "offset",
+               "value": 125,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.2
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_paint",
+      "output": "flatBase",
+      "channel": "bgcolor",
+      "color": "#2962FF"
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-up-down-volume-ratio-50#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Up/Down Volume Ratio (50)",
+      "placement": "pane",
+      "primary": "udr",
+      "outputs": [
+       {
+        "key": "udr",
+        "label": "Up/Down Volume Ratio",
+        "tree": {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "strong",
+        "label": "Above 1.2",
+        "hidden": true,
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "call",
+             "name": "sum",
+             "args": [
+              {
+               "type": "op",
+               "name": "?:",
+               "args": [
+                {
+                 "type": "op",
+                 "name": ">",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 0
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "sum",
+             "args": [
+              {
+               "type": "op",
+               "name": "?:",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "<",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 0
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1.2
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_levels",
+      "values": [
+       1
+      ]
+     },
+     {
+      "op": "set_paint",
+      "output": "strong",
+      "channel": "bgcolor",
+      "color": "#089981"
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "house-follow-through-day#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Follow-Through Day",
+      "placement": "price",
+      "primary": "ftd",
+      "outputs": [
+       {
+        "key": "ftd",
+        "label": "Follow-Through Day",
+        "tree": {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": ">=",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "-",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "offset",
+                   "value": 1,
+                   "args": [
+                    {
+                     "type": "series",
+                     "name": "close"
+                    }
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 0.017
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": ">=",
+             "args": [
+              {
+               "type": "call",
+               "name": "lowestbars",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "low"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 4
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "<=",
+             "args": [
+              {
+               "type": "call",
+               "name": "lowestbars",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "low"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 12
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     },
+     {
+      "op": "set_marker",
+      "output": "ftd",
+      "shape": "arrowUp",
+      "position": "belowBar",
+      "color": "#089981",
+      "text": "FTD"
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-other-symbol#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Above the index",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "QQQ",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-screener-text#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Technology",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "textop",
+         "name": "==",
+         "args": [
+          {
+           "type": "symtext",
+           "name": "sector"
+          },
+          {
+           "type": "str",
+           "value": "Technology"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What should confirm it?",
+      "choices": [
+       "volume above its 50-bar average",
+       "volume above 1.5x its 50-bar average"
+      ]
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ],
+  "ctl-rename-nothing#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-rename-nothing#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What would you like to call it?"
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ]
+ }
+}

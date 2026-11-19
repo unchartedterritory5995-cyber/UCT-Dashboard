@@ -6,7 +6,7 @@ Why this exists. `web` has always started as
         --forwarded-allow-ips='*' --timeout-graceful-shutdown 5
 
 `0.0.0.0` is IPv4. Railway's private network in this project is IPv6, so no other service
-can open a connection to `web` (`api/flow_worker_main.py` and `api/schwab_token_replica.py`
+can open a connection to `web` (`api/flow_worker_main.py` and the retired `api/schwab_token_replica.py`
 both record a private pull from `web` that was deployed and disproved).
 
 Changing `--host` to `::` is not the fix. On this platform that produced an IPv6-ONLY

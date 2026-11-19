@@ -1195,8 +1195,15 @@ describe('the interpreter is PURE', () => {
     // ⭐ C45 — `./barIndexShift.js` (how a value moves with where the series
     // starts) is a FIFTH edge, admitted the way the others were: scanned below,
     // with the same allowlist, and its own imports pinned to the table's parser.
+    // ⭐ engine 78 (#1858) — `../pineCompare.js` (Pine's float comparison, Q-FCMP / Q-FCMP2) is a SIXTH
+    // edge, admitted the same way: scanned with the same allowlist, and it imports NOTHING.
     expect(got.imports.sort())
-      .toEqual(['../../indicators.js', './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])
+      .toEqual(['../../indicators.js', '../pineCompare.js', './barIndexShift.js', './budget.js', './parse.js', './sentence.js'])
+    const cmpSrc = fs.readFileSync(path.join(path.dirname(SELF), '..', 'pineCompare.js'), 'utf8')
+    expect(cmpSrc.length).toBeGreaterThan(2000)
+    const cmpScan = scan(acorn.parse(cmpSrc, { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(cmpScan.findings, 'pineCompare.js reached something outside pure arithmetic').toEqual([])
+    expect(cmpScan.imports).toEqual([])
     const shiftSrc = fs.readFileSync(path.join(path.dirname(SELF), 'barIndexShift.js'), 'utf8')
     expect(shiftSrc.length).toBeGreaterThan(2000)
     const shiftScan = scan(acorn.parse(shiftSrc, { ecmaVersion: 2023, sourceType: 'module' }))

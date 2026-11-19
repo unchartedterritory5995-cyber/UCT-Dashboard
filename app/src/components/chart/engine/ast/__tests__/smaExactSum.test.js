@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/ast/__tests__/smaExactSum.test.js
 //
-// ─── ⭐⭐ SMA-EXACT (NUMBER PENDING) — `ta.sma` and `math.sum` ARE THE EXACTLY ROUNDED WINDOW SUM ───
+// ─── ⭐⭐ SMA-EXACT (Engine 65 (#1484)) — `ta.sma` and `math.sum` ARE THE EXACTLY ROUNDED WINDOW SUM ───
 //
 // TradingView's `ta.sma` / `math.sum` equal the exactly rounded sum of the window's doubles (Python's
 // `math.fsum`) on every bar of every capture taken from 2026-11-14 on; the left-to-right sum this

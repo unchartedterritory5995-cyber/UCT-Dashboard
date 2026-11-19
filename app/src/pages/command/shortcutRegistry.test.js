@@ -28,6 +28,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, it, expect, afterEach, vi } from 'vitest'
+import { labShipping } from '../../lab/__tests__/shippedLab'
 import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 import {
@@ -499,7 +500,11 @@ describe('surface reasons name the pages that actually mount the binding', () =>
       }
     }
     walkDir(SRC)
-    expect(importers).toEqual(['pages/desk/CoursesSection.jsx'])          // non-vacuity: the importer is found
+    // `src/lab/` is the Study WORKBENCH, a dev-server-only Vite entry (lab.html, vite.config.lab.mjs);
+    // its drill piece (417d9b17f3) mounting DrillPlayer says nothing about where a MEMBER meets the
+    // binding. A lab module the product imports does ship, so the split is derived, not `lab/` alone.
+    const { ships } = labShipping(SRC)
+    expect(importers.filter(ships)).toEqual(['pages/desk/CoursesSection.jsx'])   // non-vacuity: the importer is found
     const drillReasons = ACKNOWLEDGED_OVERLAPS.filter((o) => o.ids.some((id) => id.startsWith('drill.')))
     expect(drillReasons.length).toBeGreaterThan(0)
     for (const o of drillReasons) expect(o.why, o.ids.join(' <> ')).not.toMatch(/Study/)

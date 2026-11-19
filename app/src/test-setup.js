@@ -33,6 +33,7 @@ import { beforeEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
+import { __ignoreHostKnownDivergenceForTests } from './components/chart/engine/hostKnownDivergence'
 // ⭐ W5-T2 — as in the app, where the registry imports it: the lower-timeframe gate is
 // registered at the door (`lowerTfServing.js`), so a suite that stubs its flag still flips it.
 import './components/chart/engine/lowerTfGate.js'
@@ -49,9 +50,16 @@ import { __setBenchmarkTailFetcherForTests } from './components/chart/engine/liv
 // here as a PERMITTED member with EVERY script graded, and keep measuring the lane
 // rather than these two doors. ⛔ The doors themselves are railed with both reset,
 // in `components/chart/engine/__tests__/runtimeSwitchOn.test.js`.
+// ── HOST KNOWN-DIVERGENCE (owner decision 2026-11-17): the measuring suites (the vendor harness, the
+// coverage census) grade what the host lane WOULD draw, so the list stays derivable from their verdicts;
+// the census applies the list in its predicate. ⛔ The doors themselves are railed with it reset, in
+// `components/chart/engine/hostKnownDivergence.test.js`. Also at load: a suite that measures while it is
+// COLLECTED (module scope, before any `beforeEach`) measures the engine too.
+__ignoreHostKnownDivergenceForTests()
 beforeEach(() => {
   __permitRuntimePaneForTests()
   __allowEveryRuntimeScriptForTests()
+  __ignoreHostKnownDivergenceForTests()
 })
 
 // ── 2026-10-06: the shared research fetchers re-ask a transient first failure once, after a

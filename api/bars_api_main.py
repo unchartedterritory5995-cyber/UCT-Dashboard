@@ -12,6 +12,9 @@ and `serve_bars_history` — so the two can never diverge. Selected by the
 railway.json dispatcher when `BARS_API_ENABLED=1`.
 
 ⛔ Does NOT run the prewarmer, R2 uploader, Massive WS, or reconciliation/audit.
+⭐ It DOES run the cash-index warm loop (`index_bars.start_index_warm`, 7 symbols, date
+   series + the 5m one today's daily bar is built from): the index store is per volume,
+   and members read this pod's (2026-11-17).
 ⛔ NEVER opens a Massive WS (~1 conn/key — a second kicks web's live feed offline).
 ⛔ Only READS + newer-wins MERGES the local db. NEVER force_resync / replace-pull.
 
@@ -207,8 +210,24 @@ def _start_hotset_push() -> None:
     _log.info("[bars-api] hot-set push loop started")
 
 
+def _tune_interpreter() -> None:
+    """⚡ The GIL switch interval, as on web (`api/services/gil_tuning.py`, 0.5 ms). Every bar read
+    here is a row-by-row sqlite read, one GIL hand-off per row, and each hand-off waited up to 5 ms
+    behind any busy thread: this process runs seven (install, off-grid sweep, pull, checkpointer,
+    pack ingest, live store, index warm). Web was tuned on 2026-11-12; this tier never was, and it
+    answers the cold first opens (the 2026-11-17 audit's slow-first-open gap: FROG 1.5 s cold)."""
+    try:
+        from api.services import gil_tuning
+        g = gil_tuning.apply()
+        _log.info("[bars-api] thread switch interval %.2f ms (was %.2f ms; %s=%r; %s)", g["ms"], g["was_ms"],
+                  gil_tuning.ENV, g["raw"], "applied" if g["applied"] else "REFUSED, left as it was")
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] thread switch interval tuning failed (non-fatal): %s", e)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    _tune_interpreter()          # first: before any of the threads below exists
     # ⭐ Install the DB in a BACKGROUND THREAD (uvicorn has already bound the port,
     # so Railway's readiness check is satisfied — running the install BEFORE uvicorn
     # made the port bind too late and Railway restart-looped the container at ~40s).
@@ -253,8 +272,27 @@ async def _lifespan(app: FastAPI):
         bars_live_store.start()
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] live store start failed (non-fatal): %s", e)
+    try:
+        # ⭐ THE CASH-INDEX STORE MEMBERS READ IS THIS POD'S. `index_bars` keeps SPX/NDX/VIX/
+        # RUT/DJX/XSP/XND in `<DATA_DIR>/index_bars_cache`, per volume, and the edge sends
+        # `/api/bars/<sym>` here. Web's warm loop warms web's volume only, so until
+        # 2026-11-17 this tier's daily copies moved only when a read kicked them (RUT, DJX,
+        # XSP answered a 10-22 tail on 11-17). Same loop, same vendors, same pacing.
+        from api import index_bars
+        index_bars.start_index_warm(tfs=index_bars.SERVING_TIER_WARM_TFS)
+        _log.info("[bars-api] index warm loop started: %s",
+                  ",".join(index_bars.SERVING_TIER_WARM_TFS))
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] index warm loop start failed (non-fatal): %s", e)
+    try:
+        # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild):
+        # the local copy loads at once, then syncs from the bars bucket. BARS_REBUILD_SERVE=0 = off.
+        from api.services import bars_rebuild
+        bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] rebuilt-history sync start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
-              "(no warmers, no uploader, no WS)")
+              "(no universe warmers, no uploader, no WS; index warm on)")
     yield
 
 

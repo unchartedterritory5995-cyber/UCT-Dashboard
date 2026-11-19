@@ -175,7 +175,22 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
     })
   })
 
-  describe('a symbol switch restates its frame from the newest bar', () => {
+  // ⛔ THE CLOCK IS PINNED, AND IT HAS TO BE. The fixture's newest bar is 2026-10-16, and the
+  // daily chart appends whitespace RESERVE slots to the candle series for every session the
+  // wall clock says is missing (`_dailyReserveDates` -> `dailyMissingSessionsForPaint`, at most
+  // DAILY_RESERVE_MAX = 2). Those slots are points on SHORT's time axis. Unpinned, this case
+  // was a function of the date: green when it was written (Saturday 2026-10-18), red from the
+  // Monday open on (one slot, then two), and red on every CI run since. Each clock below states
+  // the reserve it produces, so the axis the offset is measured against is derived, not assumed.
+  const candleSeries = () => H.series.filter(s => s._data.some(p => p && p.open !== undefined)).at(-1)
+  const whitespaceTail = (d) => { let n = 0; for (let i = d.length - 1; i >= 0 && d[i].open === undefined && d[i].value === undefined; i--) n++; return n }
+  describe.each([
+    // Friday 2026-10-16 17:00 ET, after the close: the fixture IS the latest session, no reserve.
+    ['after the fixture session closed', '2026-10-16T21:00:00Z', 0],
+    // Tuesday 2026-10-20 11:00 ET, in RTH: 10-19 and 10-20 are missing, two reserve slots.
+    ['two sessions later, in RTH', '2026-10-20T15:00:00Z', 2],
+  ])('a symbol switch restates its frame from the newest bar (%s)', (_label, nowIso, reserve) => {
+    beforeEach(() => { vi.useFakeTimers({ now: new Date(nowIso), toFake: ['Date'], shouldAdvanceTime: true }) })
     it('scrollToPosition carries the frame as an offset from the NEW symbol\'s newest bar', async () => {
       barsBy.LONG = days(600)
       barsBy.SHORT = days(300)
@@ -184,13 +199,17 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
       H.scrolls.length = 0
       rerender(<StockChart sym="SHORT" tf="D" />)
       await act(async () => { await new Promise(r => setTimeout(r, 300)) })
+      // The clock produced the reserve it names: SHORT's axis is its 300 bars plus that many slots.
+      const axis = candleSeries()._data
+      expect(whitespaceTail(axis)).toBe(reserve)
+      expect(axis.length).toBe(300 + reserve)
       expect(H.scrolls.length).toBeGreaterThan(0)
       const pos = H.scrolls[H.scrolls.length - 1]
-      // The offset is measured from SHORT's newest bar (index 299), so it is a small right
-      // pad, never ~300 bars of the previous symbol's longer axis.
+      // The offset is measured from the newest point of SHORT's axis (index 299 + reserve), so it
+      // is a small right pad, never ~300 bars of the previous symbol's longer axis.
       expect(pos).toBeGreaterThan(-1)
       expect(pos).toBeLessThan(40)
-      expect(H.range.to - 299).toBeCloseTo(pos, 5)
+      expect(H.range.to - (299 + reserve)).toBeCloseTo(pos, 5)
     })
   })
 })

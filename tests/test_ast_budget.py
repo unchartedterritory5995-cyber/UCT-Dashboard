@@ -186,6 +186,37 @@ def test_the_two_lanes_hold_THE_SAME_THREE_NUMBERS_read_not_retyped():
         f"the lanes disagree about the caps: js={found} py={dict(ast_budget.DEFAULT_BUDGET)}")
 
 
+def test_the_lookback_cap_keeps_a_cap_deep_recurrence_inside_the_ceiling_over_the_server_window():
+    """📏 THE COMPUTE-CAP RULING OF 2026-11-17 (measured, no cap raised), ITS ONE ARITHMETIC FACT.
+
+    ``accum(close, max(self, close), w)`` over the 5,000 bars the server reads
+    (``bars_window.HISTORY_WINDOW_BARS``) computes at w = 960 and 2,400 and refuses
+    ``interpret:steps`` at 2,500 and 2,560 -- measured in both lanes
+    (``docs/pine/evidence/2026-11-17-compute-caps/EVIDENCE.md``). So a lookback cap above
+    ``MAX_RECURRENCE_STEPS / HISTORY_WINDOW_BARS`` admits at the save door a formula the
+    server's own window refuses at compute. The cap and the window are READ, never typed;
+    the twin rail is ``computeCapRuling.test.js``.
+    """
+    from api.services.bars_window import HISTORY_WINDOW_BARS
+    cap = ast_budget.DEFAULT_BUDGET["maxLookback"]
+    assert cap * HISTORY_WINDOW_BARS <= ast_interpret.MAX_RECURRENCE_STEPS, (
+        f"maxLookback {cap} x {HISTORY_WINDOW_BARS} server bars passes MAX_RECURRENCE_STEPS "
+        f"{ast_interpret.MAX_RECURRENCE_STEPS}: a cap-deep recurrence would be admitted and then "
+        "refused at compute over the window the alert arm and the sweep read")
+    # ⛔ THE CONTROL: the ceiling is live just past it. The step check runs before any work, so
+    # this costs nothing; a walker that never refused would pass the arithmetic above vacuously.
+    tree = {"type": "call", "name": "accum", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "call", "name": "max", "args": [{"type": "series", "name": "self"},
+                                                 {"type": "series", "name": "close"}]},
+        {"type": "num", "value": cap}]}
+    over = ast_interpret.MAX_RECURRENCE_STEPS // cap + 1
+    bars = [{"t": 1262304000 + 86400 * i, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.0 + (i % 7), "v": 100}
+            for i in range(over)]
+    assert guard_of(lambda: ast_interpret.interpret(tree, bars, None, None, None, {"tf": "D"})) \
+        == "interpret:steps"
+
+
 def test_the_refusal_sentences_are_disjoint_from_every_other_guards():
     """⛔ Two gates sharing a phrase let a ``raises(match=…)`` pass with the safety
     deleted, and that has happened in this repo (Phase C Task 9's M1). The

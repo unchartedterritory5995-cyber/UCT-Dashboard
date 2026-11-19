@@ -61,7 +61,7 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
 import BuilderSheet from './BuilderSheet'
-import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from './builderStart.testkit.js'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
 import { AuthContext } from '../../../context/AuthContext'

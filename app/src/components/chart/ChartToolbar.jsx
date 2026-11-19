@@ -611,7 +611,7 @@ function ChartSettingsPanel({
           className={styles.sLauncher}
           onClick={() => onOpenFormulaBuilder?.()}
         >
-          <span>New formula</span>
+          <span>Create indicator</span>
           <span aria-hidden="true">→</span>
         </button>
       </div>
@@ -2084,6 +2084,9 @@ function ChartToolbar({
                cannot write an instance. */
             settings={cs}
             onChange={onUpdateSettings}
+            /* ⭐ BACKLOG 49 (owner decision 2026-11-17) — opened from a chart, this window is where an
+               indicator is created or edited, and is titled so; the Screener's mount keeps "formula". */
+            noun="indicator"
             /* ⭐⭐ j.5 (2026-09-18) — THE HALF OF THE CONTRACT THIS DOOR NEVER
                IMPLEMENTED. `save()` has ended in `onSaved?.(res.row)` since Phase
                D and the screener door has always closed on it; this mount passed

@@ -178,12 +178,13 @@ RS_V3_ENABLED: bool = _os.environ.get("RS_V3_ENABLED", "0") == "1"
 
 # ⭐ THE RS SPLIT (engineering map projects/rs-split-handoff-2026-11-09/
 # engineering-map.md, unit U4; flags §(e) step 1). One import-time flag adds
-# FOUR server rows and their providers beside `rsLine`: `rsRating`, `rsPhases`,
-# `rsVsEma` and (2026-11-12) `rsExit`. It never touches the rsLine row (rev 5 stays
-# byte-identical with the flag off AND on; `tests/test_rs_split_rows.py` is the
-# control), so arming it only makes `/api/signature/definitions` list eight ids
-# where it listed four, and the client's definition-level gate (unit U1,
-# `meta.requiresServer`) shows the four new indicators once it does. Import
+# FIVE server rows and their providers beside `rsLine`: `rsRating`, `rsPhases`,
+# `rsVsEma`, (2026-11-12) `rsExit` and (2026-11-18) `rsMansfield`. It never touches
+# the rsLine row (rev 5 stays byte-identical with the flag off AND on;
+# `tests/test_rs_split_rows.py` is the control), so arming it only makes
+# `/api/signature/definitions` list nine ids where it listed four, and the client's
+# definition-level gate (unit U1, `meta.requiresServer`) shows the five new
+# indicators once it does. Import
 # time, so arming and rollback are the variable plus
 # `railway redeploy --service web --yes`.
 RS_SPLIT_ENABLED: bool = _os.environ.get("RS_SPLIT_ENABLED", "0") == "1"
@@ -582,6 +583,14 @@ RS_VS_EMA_WIRE_COLUMNS: tuple[str, ...] = ("dist", "fast", "slow")
 #: columns stay off the wire: the legend, the alerts and the tests read them from
 #: `relative_strength` directly (the `rsPhases` flip precedent).
 RS_EXIT_WIRE_COLUMNS: tuple[str, ...] = ("rsLine", "fast", "slow", "dotQuick", "dotQuicksand", "dotDead")
+#: UCT Mansfield RS's wire columns (2026-11-18): EXACTLY what the rsLine row's
+#: Mansfield Reading keeps on the wire (`rs_provider._RS_VIEW_FAMILIES["mansfield"]`
+#: reads this tuple, the `RS_RATING_WIRE_COLUMNS` precedent, so the Reading and the
+#: row cannot name different columns): the Mansfield line and its cross-up dot at
+#: zero. The two 0/1 cross events stay off this row's wire: the readout and the
+#: tests read them from `relative_strength` directly (the `rsPhases` precedent),
+#: and the RS alerts keep addressing them as `rs_line.mansfield` (`cross_zero`).
+RS_MANSFIELD_WIRE_COLUMNS: tuple[str, ...] = ("mansfield", "dotMansfieldCross")
 
 
 def _rs_split_benchmark_inputs() -> list[dict]:
@@ -669,9 +678,32 @@ def _rs_exit_row() -> dict:
         RS_EXIT_WIRE_COLUMNS)
 
 
-#: The four rows, always built (tests install them by hand), served only
+def _rs_line_v4_input(key: str) -> dict:
+    """One input exactly as the rsLine v4 row declares it: one declaration, two
+    rows (a fresh dict, so neither row can move the other's)."""
+    return dict(next(i for i in _rs_line_row(True, True)["inputs"] if i["key"] == key))
+
+
+def _rs_mansfield_row() -> dict:
+    """`rsMansfield` (2026-11-18): Weinstein's Mansfield RS on a pane of its own.
+    NO NEW MATHS: it is the column the rsLine row computes under its Mansfield
+    Reading (`view: "mansfield"`, `relative_strength.compute_mansfield_columns`),
+    and the two wire columns that Reading keeps (`RS_MANSFIELD_WIRE_COLUMNS`).
+    `mansfieldLength` is the rsLine row's own declaration (default 200, the
+    clamp range), the benchmark pair every ratio row shares. Every timeframe:
+    intraday the line draws and the cross dot is blank, the rsLine rule."""
+    return _rs_split_row(
+        "rsMansfield", "rsMansfield", "UCT Mansfield RS", "Mansfield RS",
+        "The RS line as a percent above or below its own long average, around a zero line, with a "
+        "dot where it crosses up through zero: Weinstein's Mansfield Relative Strength.",
+        _rs_split_benchmark_inputs() + [_rs_line_v4_input("mansfieldLength")],
+        RS_MANSFIELD_WIRE_COLUMNS)
+
+
+#: The five rows, always built (tests install them by hand), served only
 #: when `RS_SPLIT_ENABLED`.
-RS_SPLIT_DEFS: tuple[dict, ...] = (_rs_rating_row(), _rs_phases_row(), _rs_vs_ema_row(), _rs_exit_row())
+RS_SPLIT_DEFS: tuple[dict, ...] = (_rs_rating_row(), _rs_phases_row(), _rs_vs_ema_row(), _rs_exit_row(),
+                                   _rs_mansfield_row())
 RS_SPLIT_DEF_IDS: tuple[str, ...] = tuple(d["id"] for d in RS_SPLIT_DEFS)
 
 SERVER_DEFS: tuple[dict, ...] = (_DPL, _GXW, _FCB, _RS_LINE) + (RS_SPLIT_DEFS if RS_SPLIT_ENABLED else ())

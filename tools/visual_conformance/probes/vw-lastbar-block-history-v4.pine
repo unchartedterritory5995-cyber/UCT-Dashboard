@@ -1,0 +1,48 @@
+//@version=4
+study("UCTPROBE_VW_LASTBAR_BLOCK_HISTORY_V4", overlay = true, max_lines_count = 50, max_labels_count = 50)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (lang-units, U-COND), capture queue
+// rows Q-ISLAST-3 / Q-ISLAST-4 (docs/pine/capture-queue-2026-11-18-lang-units.md, CR-C1). NEVER COMPILED ON
+// TRADINGVIEW. The v4 sibling of `vw-lastbar-block-history.pine`, in the version committed:trendlinesample
+// is written in (v4 `study`, `sma`, `change`, `crossover`, `tostring`).
+//
+// --- A BLOCK THAT RUNS ON ONE HISTORICAL BAR: `if barstate.islast` ---
+// Each row is ONE label on the newest bar whose text is "<row>|<value>" (`na` prints as "NaN"):
+//   L1  `x = close * 2` written in the block, `x[1]` read in the block    a block local's history
+//   L2  `close[1]` read in the block                                       control: the chart's series (C06)
+//   L3  `sma(close, 3)` called in the block                                first run: `na`, or the every-bar sma?
+//   L4  `change(close)` called in the block                                first run: `na`, or close - close[1]?
+//   L5  `crossover(close, sma(close, 5))` in the block, as 1 / 0           first run: false, or the every-bar cross?
+//   L5N `na()` of that same v4 bool, as 1 / 0                              (a v4 bool can be `na`)
+//   L6  `bar_index[1]` read in the block                                   control: the chart's bar_index (C06)
+//   E3 / E4 / E5  the same three calls made on EVERY bar, read in the block (the every-bar answers)
+//   D1  `l = line.new(...)` then `line.delete(l[1])` in the block: read the capture's LINE COUNT and the
+//       line's coordinates (trendlinesample's `sup` / `res` shape)
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE, so the newest bar
+// is historical and the block runs once. Record `newestBarIsForming`. If a row does not compile, record
+// the error text and the line, remove only that row, and capture the rest.
+
+e3 = sma(close, 3)
+e4 = change(close)
+e5 = crossover(close, sma(close, 5))
+
+plot(close, "C00_close_CONTROL")
+
+if barstate.islast
+    x = close * 2
+    l1 = x[1]
+    l3 = sma(close, 3)
+    l4 = change(close)
+    l5 = crossover(close, sma(close, 5))
+    label.new(bar_index, close, "L1|" + tostring(l1))
+    label.new(bar_index, close, "L2|" + tostring(close[1]))
+    label.new(bar_index, close, "L3|" + tostring(l3))
+    label.new(bar_index, close, "L4|" + tostring(l4))
+    label.new(bar_index, close, "L5|" + (l5 ? "1" : "0"))
+    label.new(bar_index, close, "L5N|" + (na(l5) ? "1" : "0"))
+    label.new(bar_index, close, "L6|" + tostring(bar_index[1]))
+    label.new(bar_index, close, "E3|" + tostring(e3))
+    label.new(bar_index, close, "E4|" + tostring(e4))
+    label.new(bar_index, close, "E5|" + (e5 ? "1" : "0"))
+    l = line.new(bar_index - 10, low, bar_index, high)
+    line.delete(l[1])

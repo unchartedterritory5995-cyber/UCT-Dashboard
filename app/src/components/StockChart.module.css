@@ -534,6 +534,19 @@
 .legendFlush {
   transform: translateY(-30px);
 }
+/* ⭐ AN OPEN STACK SITS ABOVE THE PANE DIVIDER (2026-11-17). A stack opened with `+N more` runs
+   down past the price pane by the member's own choice, so its last rows and its `Less` button can
+   land ON the divider between two panes. The chart library draws that divider's drag handle at
+   z-index 50 in this same stacking context (9px tall, full width), far above the legend's 3: the
+   handle took the pointer on the lower half of `Less` (measured: a click there did nothing) and a
+   row lying across it lost its hover. One above the handle, and only while the stack is open, so
+   the legend at rest stacks exactly as before. The divider stays draggable everywhere else along
+   its length: the legend box takes no pointer, only its rows do.
+   ⛔ 51 IS DERIVED FROM THE LIBRARY, NOT CHOSEN: `StockChart.studyDisclosure.test.js` reads the
+   handle's z-index out of lightweight-charts and fails if this stops being above it. */
+.legendStackOpen {
+  z-index: 51;
+}
 /* ⭐⭐ OWNER 11-16 — "make sure they're all the same contrast and brightness": the date, the O/H/L/C
    labels and their values share ONE ink (`--legend-ink-pair`, legendInk.js LEGEND_PAIR_ROLE); the
    value takes the label's weight too (500, owner 11-16 experiment). The signed change keeps its up/down hue. */
@@ -858,15 +871,11 @@
    responsive collapse fires — which is the failure the reservation exists to
    prevent, arriving one step later. 15 + the 1px `row-gap` = the 16px pitch
    `STUDY_ROW_PX` counts in. */
-/* ⭐ §6 — A HAIR MORE AIR BEFORE VOLUME, AND NOTHING ELSE. The price studies and
-   the thing drawn beneath them are different ideas, and 3px says so without a
-   divider, a heading or a box — which is the whole brief for this legend.
-   ⛔ IT KEYS OFF THE ROW'S OWN `data-legend-row`, NOT OFF ITS POSITION. A data
-   attribute is not hashed by CSS modules, and the alternative — `:last-child` —
-   would become a lie the moment pane semantics put Volume anywhere but last.
-   ⛔ AND IT IS SCOPED TO THE STACK, so the volume STRIP on the volume pane (a
-   different surface, deliberately left alone) is untouched. */
-.studyStack [data-legend-row="volume"] { margin-top: 3px; --row-hit-top: 7px; }
+/* ⚰ §6's "3px more air before Volume" (`.studyStack [data-legend-row="volume"]
+   { margin-top: 3px }`) IS RETIRED. Owner 11-17: *"anytime indicators are stacked
+   on each other in a pane … they should always have the same exact distance from
+   each other and be the same exact size."* Every row in every stack takes ONLY the
+   stack's `row-gap`; `legendOneRow.test.jsx` fails if any row gets its own margin. */
 
 .studyMore {
   grid-column: 1 / -1;

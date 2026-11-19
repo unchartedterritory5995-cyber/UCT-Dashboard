@@ -33,6 +33,9 @@ export const FUNCTION_GROUPS = ['Calendar', 'Security', 'Research depth', 'Optio
 const DEPTH = 'researchDepth'   // AuthContext's object of Research › Depth flags (researchDepthFlags.js)
 /** IMOV's theme-name REST argument (args.js `themeName`; the marker is args.js THEME_MARKER). */
 const IMOV_THEME_ARG = Object.freeze({ kind: 'themeName', prop: 'theme', rest: true, marker: 'THEME' })
+/** GRP's group-name REST argument (args.js `groupName`). `phrase`: every word after the code is the
+ *  name, even one that is itself a function code (`GRP TECH`); see parseCommand.js `takesPhrase`. */
+const GROUP_NAME_ARG = Object.freeze({ kind: 'groupName', prop: 'group', rest: true, phrase: true })
 
 export const FUNCTIONS = [
   // ── the Calendar section (owner ruling 2026-10-02: a first-class section of the shell) ──
@@ -269,6 +272,12 @@ export const FUNCTIONS = [
   // economic series /api/econ publishes (dark until ECON_ENABLED; the panel says so).
   { code: 'SENT', label: 'Sentiment and macro (AAII, NAAIM, put/call, Fear & Greed, economy)', group: 'Market',
     market: { panel: 'Sentiment' } },
+  // RATES (2026-11-18): Treasury yields at every maturity with their changes in basis points, the
+  // 10-year minus 2-year and 10-year minus 3-month spreads, and two small pictures
+  // (GET /api/research/treasury-yields, read from the US Treasury's own published daily par yield curve; end of day).
+  // RATE and YLD are real funds (an interest rate hedge ETF and a high yield ETF), so the code is neither.
+  { code: 'RATES', label: 'Treasury yields and the yield curve (2-year, 10-year, 30-year, the spreads)', group: 'Market',
+    market: { panel: 'Rates' } },
   // SCAT: a universe on two metrics (RS rank vs % off the 52-week high by default), over the /charts
   // Market Map's own /api/scatter reads. A dot opens DES beside the panel.
   // SCAT NDX CHG_1M RS_RANK: universe, then Y and X (scatterArgs.js); the panel writes picks back.
@@ -380,6 +389,128 @@ export const FUNCTIONS = [
   // LRN is a real ticker (Stride), so the code is the word.
   { code: 'LEARN', label: 'Lessons on this stock (Desk articles, videos, Model Book)', group: 'Security',
     ticker: { panel: 'Learn' } },
+
+  // ── data wave 3 (2026-11-17) ──
+  // PERF: the member's OWN trading stats, read from the Journal's own routes (the session's user
+  // only): headline numbers, results by setup with the sample size, the closed-trade equity curve.
+  // `PERF 2` picks the second Journal account, `PERF ALL` every account.
+  { code: 'PERF', label: 'My trading stats (from your Journal)', group: 'Market',
+    market: { panel: 'Performance', args: [{ kind: 'journalAccount', prop: 'account' }] } },
+  // FLWL: two curated options-flow lists that had no place in the app's menus: Cream of the Crop
+  // (until now only a Discord card) and the open flow board (the /open-flow page).
+  { code: 'FLWL', label: 'Options flow lists (Cream of the Crop, open flow board)', group: 'Options',
+    market: { panel: 'FlowLists', args: [{ kind: 'flowList', prop: 'list' }] } },
+
+  // ── data wave 4 (2026-11-17) ──
+  // CONFL: stocks where large dark pool size and long-dated options flow line up (GET
+  // /api/confluence), until now a tab inside the Options Flow page. `CONFL BEAR` = bearish names.
+  { code: 'CONFL', label: 'Confluence board (dark pool size with long-dated options flow)', group: 'Options',
+    market: { panel: 'Confluence', args: [{ kind: 'confluenceLean', prop: 'lean' }] } },
+  // ACCUM: the option contracts hit again and again in one session, under the day's bullish
+  // against bearish premium (GET /api/live/massive/by-contract and /day-stats). `ACCUM 11/14`
+  // = a past day, `ACCUM LATEST` = newest first.
+  { code: 'ACCUM', label: 'Repeat-hit option contracts, with the day\'s flow read', group: 'Options',
+    market: { panel: 'RepeatContracts', args: [{ kind: 'etDate', prop: 'date' }, { kind: 'repeatOrder', prop: 'order' }] } },
+  // PCHG: every stock ranked by percent change between two dates (GET /api/scans/period-change).
+  // `PCHG QTD`, `PCHG 2026-01-02 2026-06-30 LOSERS`; a start alone means "since that day".
+  // `PCHG QTD SECTORS` ranks sectors, industries or themes over the same dates instead
+  // (GET /api/scans/period-change-groups); a group opens to its own stocks.
+  { code: 'PCHG', label: 'Performance between any two dates (stocks, sectors, industries, themes)', group: 'Market',
+    market: { panel: 'PeriodChange', args: [{ kind: 'periodRange', prop: 'range' }, { kind: 'periodDate', prop: 'start' },
+      { kind: 'periodDate', prop: 'end' }, { kind: 'periodUnit', prop: 'unit' }, { kind: 'periodSide', prop: 'side' }] } },
+  // TSRC: a word or phrase searched across every indexed earnings call, with its monthly share
+  // of calls (GET /api/earnings/transcript-search and /transcript-trend). `TSRC pricing power`.
+  { code: 'TSRC', label: 'Search every earnings call', group: 'Market',
+    market: { panel: 'CallSearch', args: [{ kind: 'callQuery', prop: 'q', rest: true }] } },
+  // CEOS: what CEOs are saying. The phrases new and rising across a month of earnings calls
+  // (GET /api/earnings/call-themes, worked out once a day); a phrase opens TSRC on it.
+  // `CEOS RISING`, `CEOS NEW 2026-10`.
+  { code: 'CEOS', label: 'What CEOs are saying (phrases rising across earnings calls)', group: 'Market',
+    market: { panel: 'CallThemes', args: [{ kind: 'callThemesList', prop: 'list' }, { kind: 'callThemesMonth', prop: 'month' }] } },
+  // EXMV: what the options market priced before each earnings report beside what the stock then
+  // did, and the coming report's priced move (GET /api/research/expected-move/{sym} and
+  // /api/earnings-intel/{sym}).
+  { code: 'EXMV', label: 'Expected move into earnings, against past reports', group: 'Security',
+    ticker: { panel: 'ExpectedMove' } },
+  // TROT: the themes whose rank changed most between last week and this one (GET
+  // /api/theme-rotation), which no screen drew. `TROT OUT` = only the themes rotating out.
+  { code: 'TROT', label: 'Theme rotation (themes rotating in and out)', group: 'Market',
+    market: { panel: 'ThemeRotation', args: [{ kind: 'rotationSide', prop: 'side' }] } },
+
+  // ── data wave 6 (2026-11-17) ──
+  // IDAY: the AI-written intraday update (GET /api/intraday-update): the market phase and the
+  // session note ONLY, labelled as AI-written with the time it was written (owner ruling
+  // 2026-11-17: the update's stock candidates are not shown to members).
+  { code: 'IDAY', label: 'Intraday market update (AI-written)', group: 'Market',
+    market: { panel: 'IntradayUpdate' } },
+  // TOPF: every Top Flow pick, open and expired, with how its contract has done since it was
+  // picked (GET /api/top-flow/history); FREC keeps the aggregate record over the same picks.
+  // `TOPF EXPIRED BEAR PEAK`.
+  { code: 'TOPF', label: 'Top Flow picks (each pick and how its contract has done)', group: 'Options',
+    market: { panel: 'TopFlow', args: [{ kind: 'topFlowStatus', prop: 'status' }, { kind: 'topFlowDirection', prop: 'direction' },
+      { kind: 'topFlowSort', prop: 'sort' }] } },
+
+  // ── the earnings season screen (owner pick, 2026-11-17) ──
+  // ERNS: one day's reporters, before the open and after the close: the move options priced
+  // before each report, how the stock moved on its past reports, and the result and move once it
+  // lands (GET /api/calendar/earnings-season, which only reads what the server already holds).
+  // EMOV is the scoreboard of who HAS reported; this is the day ahead too. `ERNS TONIGHT`,
+  // `ERNS TOMORROW BMO`, `ERNS 11/19`.
+  { code: 'ERNS', label: 'Earnings season (who reports, the priced move, past moves, the result)', group: 'Calendar',
+    market: { panel: 'EarningsSeason', args: [{ kind: 'earningsDay', prop: 'day' }, { kind: 'earningsSession', prop: 'session' }] } },
+
+  // ── my history on a stock (2026-11-18) ──
+  // MYH: the member's OWN Journal record on one stock, read from the Journal's own routes (the
+  // session's user only): what they hold in it now, their closed trades on it with the Journal's
+  // own numbers, and the newest notes that name it. `NVDA MYH 2` picks the second Journal
+  // account, `NVDA MYH ALL` every account (PERF's words). Never the trader archive: WHO, HIS and
+  // CHK are other panels.
+  { code: 'MYH', label: 'My history on this stock (your trades, position and notes)', group: 'Security',
+    ticker: { panel: 'MyHistory', args: [{ kind: 'journalAccount', prop: 'account' }] } },
+
+  // ── sector and theme drill-down (2026-11-18) ──
+  // GRP: ONE sector, industry or UCT theme and its stocks, ranked by their change over one of
+  // PCHG's one-click ranges, each with its RS rank and whether it is on the confluence board. No
+  // new route: the two period-change answers, the RS ranking and the confluence board, joined in
+  // the panel. `GRP XLK` (a sector fund is its sector), `GRP SEMICONDUCTORS 3M`,
+  // `GRP THEME AI / GPU CHIPS`. SCTR, THMS, TROT and PCHG's opened group each have a door to it.
+  { code: 'GRP', label: 'Group drill-down (one sector, industry or theme: its stocks ranked, with RS and flow)', group: 'Market',
+    market: { panel: 'GroupDrill', args: [{ kind: 'periodRange', prop: 'range' }, GROUP_NAME_ARG] } },
+  // ── unusual volume (2026-11-18) ──
+  // UNVOL: every liquid stock trading far above its usual volume FOR THIS TIME OF DAY, highest
+  // first: the Screener's own live reading (today's volume so far against the 30-session average
+  // times the usual share of a day done by this minute), read through POST /api/screener/scan.
+  // Outside the hours that reading exists it says so and shows the last full session. MOST RVOL is
+  // a burst in the last minutes; LEAD VOL1Y is record volume. `UNVOL UP 3X`, `UNVOL DOWN`.
+  // UVOL is the NYSE up-volume symbol and RVOL is one of MOST's own words, so the code is neither.
+  { code: 'UNVOL', label: 'Unusual volume (stocks far above their usual volume for the time of day)', group: 'Market',
+    market: { panel: 'UnusualVolume', args: [{ kind: 'unvolSide', prop: 'side' }, { kind: 'unvolMin', prop: 'min' }] } },
+  // ── short interest (2026-11-18) ──
+  // SHINT: one stock's FINRA short interest, report by report (shares short, the change from each
+  // report to the next, days to cover, percent of float), and its daily off-exchange short volume
+  // (GET /api/research/short-data/{sym}, read through the site's stock-data vendor). OWN shows one
+  // undated figure from the screener export; this is the dated record. `NVDA SHINT`.
+  // SHRT is a real fund (Gotham Short Strategies ETF) and SHORT is CONFL's own word for bearish
+  // (`CONFL SHORT`; a code in second place would make CONFL a ticker), so the code is neither.
+  { code: 'SHINT', label: 'Short interest history (every report, days to cover, daily short volume)', group: 'Security',
+    ticker: { panel: 'ShortInterest' } },
+  // SHRTS: the newest FINRA report across the stocks UCT follows, each beside its previous
+  // report, ranked (GET /api/research/short-interest-list). `SHRTS` = most days to cover,
+  // `SHRTS UP` / `SHRTS DOWN` = biggest change since the last report, `SHRTS FLOAT` = percent of float.
+  // SHORTS is six letters and a code is two to five, so the code drops the O.
+  { code: 'SHRTS', label: 'Short interest list (most days to cover, biggest changes, percent of float)', group: 'Market',
+    market: { panel: 'ShortList', args: [{ kind: 'shortRank', prop: 'rank' }] } },
+  // ── dilution watch (2026-11-18) ──
+  // DILU: what one company has filed with the SEC that bears on selling new shares, for the last
+  // three years: shelf registrations and when they took effect, prospectus supplements, new
+  // registrations and unregistered sales, each with its link to sec.gov
+  // (GET /api/research/dilution-watch/{sym}, read from the company's public EDGAR filing index;
+  // no filing document is read, so there are no share counts and no dollar amounts). CF lists a
+  // company's filings; this answers "can it sell stock, and has it been?". `NVDA DILU`.
+  // DILU is not in the site's stock universe, and a web search on 2026-11-18 found no stock or fund
+  // trading under it. SHELF and OFFR would each name one kind of filing; the panel reads several.
+  { code: 'DILU', label: 'Dilution watch (shelf registrations, offering documents, unregistered sales)', group: 'Security',
+    ticker: { panel: 'Dilution' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -561,7 +692,7 @@ const FUNCTION_WORDS = {
   EEH: { keywords: ['revisions', 'estimate revisions'] },
   ANR: { keywords: ['analysts', 'upgrades', 'downgrades', 'price target'] },
   RTG: { keywords: ['rating', 'score'] },
-  OWN: { keywords: ['ownership', 'institutions', 'holders', '13f'] },
+  OWN: { keywords: ['ownership', 'institutions', 'holders', '13f', 'short interest', 'short float', 'days to cover'] },
   PPL: { keywords: ['executives', 'management', 'ceo'] },
   TRAN: { keywords: ['transcript', 'conference call', 'earnings call'] },
   MB: { keywords: ['model book'] },
@@ -613,12 +744,15 @@ const FUNCTION_WORDS = {
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],
     note: 'The economy rows say so if that feed is switched off.' },
+  RATES: { keywords: ['treasury yields', 'yield curve', 'interest rates', 'bond yields', '10 year yield', '2 year yield',
+    'inverted curve', '2s10s'], note: 'End-of-day figures, one a day.' },
   SCAT: { keywords: ['scatter', 'scatter plot', 'market map'] },
   HELP: { example: 'HELP CHK', keywords: ['help', 'functions', 'commands'] },
   RRG: { keywords: ['rotation', 'sector rotation', 'sectors'] },
   REL: { example: 'NVDA REL SMH', keywords: ['relative performance', 'ratio'] },
   CORR: { example: 'NVDA CORR AMD AVGO', keywords: ['correlation'] },
-  MOST: { example: 'MOST UP', keywords: ['movers', 'gainers', 'losers', 'unusual volume', 'top gainers'] },
+  MOST: { example: 'MOST UP', keywords: ['movers', 'gainers', 'losers', 'unusual volume', 'top gainers', 'gappers',
+    'premarket gappers', 'pre-market gappers', 'why is it gapping'] },
   IMOV: { example: 'IMOV semiconductors', keywords: ['theme movers', 'theme drivers'] },
   ALRT: { example: 'NVDA ALRT 950', keywords: ['alert', 'alerts', 'price alert'] },
   BRKO: { keywords: ['breakout', 'breakouts', 'pivot', 'tight', 'setups', 'near pivot'] },
@@ -636,6 +770,32 @@ const FUNCTION_WORDS = {
   RSS: { example: 'RSS NHBP', keywords: ['rs screens', 'rs new highs', 'rs exit warnings', 'top rs rating'],
     note: 'Says so if the RS screens are switched off.' },
   LEARN: { example: 'NVDA LEARN', keywords: ['lessons', 'desk articles', 'desk videos', 'learn about this stock'] },
+  PERF: { example: 'PERF ALL', keywords: ['my stats', 'trading stats', 'win rate', 'expectancy', 'equity curve', 'my performance'] },
+  FLWL: { example: 'FLWL OPEN', keywords: ['cream of the crop', 'open flow board', 'flow lists', 'open flow'] },
+  CONFL: { example: 'CONFL BULL', keywords: ['confluence', 'dark pool and flow', 'long-dated flow', 'leaps'] },
+  ACCUM: { example: 'ACCUM LATEST', keywords: ['repeat hits', 'accumulation', 'repeat contracts', 'flow read', 'bullish premium'] },
+  PCHG: { example: 'PCHG QTD SECTORS', keywords: ['period change', 'performance between dates', 'since a date', 'best this quarter', 'custom range',
+    'sector performance', 'industry performance', 'theme performance'] },
+  TSRC: { example: 'TSRC pricing power', keywords: ['search earnings calls', 'transcript search', 'who said', 'call mentions'] },
+  CEOS: { example: 'CEOS RISING', keywords: ['what ceos are saying', 'rising phrases', 'earnings call themes', 'new themes', 'buzzwords'] },
+  EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
+  TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
+  IDAY: { keywords: ['intraday update', 'market update', 'midday update', 'session note'] },
+  TOPF: { example: 'TOPF OPEN', keywords: ['top flow picks', 'flow picks', 'pick by pick', 'how the picks did'] },
+  ERNS: { example: 'ERNS TONIGHT', keywords: ['earnings season', 'who reports tonight', 'who reports tomorrow', 'earnings tonight',
+    'reporting after the close', 'reporting before the open', 'priced move for earnings'] },
+  MYH: { example: 'NVDA MYH', keywords: ['my history', 'my trades', 'my record', 'trade history', 'my notes on a stock', 'have i traded it'] },
+  GRP: { example: 'GRP XLK', keywords: ['group drill-down', 'drill down', 'stocks in a sector', 'stocks in a theme', 'stocks in an industry',
+    'sector stocks', 'theme stocks', 'industry stocks'] },
+  UNVOL: { example: 'UNVOL UP', keywords: ['relative volume', 'rvol', 'volume leaders', 'heavy volume', 'volume vs usual',
+    'above average volume', 'volume surge'] },
+  SHINT: { example: 'NVDA SHINT', keywords: ['short interest history', 'short volume', 'shares short', 'finra short interest',
+    'short interest change'] },
+  SHRTS: { example: 'SHRTS UP', keywords: ['short interest list', 'most shorted', 'short squeeze', 'days to cover list',
+    'shorts rising', 'short covering'] },
+  DILU: { example: 'NVDA DILU', keywords: ['dilution', 'dilution watch', 'shelf registration', 'share offering', 'stock offering',
+    'secondary offering', 'atm offering', 'prospectus supplement', 'share issuance'],
+    note: 'From the SEC filing index only: what was filed and when, never amounts.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

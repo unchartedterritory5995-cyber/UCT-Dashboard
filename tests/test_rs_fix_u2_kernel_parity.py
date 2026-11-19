@@ -264,10 +264,26 @@ def _assert_same_outcome(old, new, label):
     if old[0] == "raise":
         assert old[1] == new[1], label
         return
-    assert set(old[1]) == set(new[1]) == set(rs_columns.COLUMNS), label
+    # ⚰️ 2026-11-17 — THIS PINNED THE KEY SET TO THE TEN `COLUMNS`, AND 5540c75663 (RS Exit
+    # Warnings, 2026-11-13) DELIBERATELY MADE IT FIFTEEN: `collect_one` now returns the ten plus
+    # the five `EXIT_COLUMNS` (its docstring says so), and `_blank()` -- which the verbatim oracle
+    # above also calls -- gained them too. So 72 cases went red on the key set alone while every
+    # one of the ten values still agreed (nightly 43726736793). The oracle predates the exit
+    # columns and has nothing to say about their VALUES; those are pinned by
+    # tests/test_screener_rs_exit_columns.py. What this still pins: the ten are unchanged, and
+    # the key set is exactly the documented ten + five, no more and no fewer.
+    assert set(old[1]) == set(new[1]) == set(rs_columns.COLUMNS) | set(rs_columns.EXIT_COLUMNS), label
     for k in rs_columns.COLUMNS:
         a, b = old[1][k], new[1][k]
         assert type(a) is type(b) and a == b, (label, k, a, b)
+
+
+def test_the_ten_and_the_five_exit_columns_are_disjoint_and_named_once():
+    """The key-set pin above is the UNION; a name in both tuples would let a column move between
+    them unseen, and an empty exit tuple would make the union the ten again."""
+    ten, five = rs_columns.COLUMNS, rs_columns.EXIT_COLUMNS
+    assert len(ten) == len(set(ten)) == 10 and len(five) == len(set(five)) == 5
+    assert not set(ten) & set(five)
 
 
 @pytest.mark.parametrize("seed", range(80))

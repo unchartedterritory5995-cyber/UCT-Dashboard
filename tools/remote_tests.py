@@ -41,10 +41,14 @@ REF_PREFIX = "refs/remote-tests/"
 #: shared with the master deploy gate (14 jobs), and session runs must not starve deploys.
 MAX_SHARDS = 6
 #: a path or a pytest node id: no spaces, no shell metacharacters. (What keeps a path from being an OPTION is the
-#: required `tests/` / `src/` prefix in validate(), the one rule for that; a second leading-character rule here
+#: required `PYTEST_ROOTS` / `src/` prefix in validate(), the one rule for that; a second leading-character rule here
 #: could never fire on its own, so it is not kept.)
 _SAFE = re.compile(r"^[A-Za-z0-9_./:\[\]=-]+$")
 _REF = re.compile(r"^(refs/remote-tests/[A-Za-z0-9._-]{1,80}|refs/heads/[A-Za-z0-9._/-]{1,120})$")
+#: the folders a pytest path may start with: pytest.ini's `testpaths`, one prefix each. ⚰️ 2026-11-18 this was `tests/`
+#: alone, so the 203 suites under `api/**` -- run by no other job either -- could not be sent here at all. The plan job
+#: has only this file checked out, so the list lives here; tests/test_remote_tests_lane.py pins it to pytest.ini.
+PYTEST_ROOTS = ("tests/", "api/")
 OK, FAIL, LANE = 0, 1, 2
 
 
@@ -59,8 +63,8 @@ def validate(ref: str, pytest_paths: list[str], vitest_paths: list[str], shards:
     for p in pytest_paths:
         if not _SAFE.match(p) or ".." in p:
             errs.append(f"pytest path {p!r} has characters outside [A-Za-z0-9_./:[]=-] or a '..'")
-        elif not p.startswith("tests/"):
-            errs.append(f"pytest path {p!r} must start with tests/ (repo-relative)")
+        elif not p.startswith(PYTEST_ROOTS):
+            errs.append(f"pytest path {p!r} must start with one of {', '.join(PYTEST_ROOTS)} (repo-relative)")
     for p in vitest_paths:
         if not _SAFE.match(p) or ".." in p:
             errs.append(f"vitest path {p!r} has characters outside [A-Za-z0-9_./:[]=-] or a '..'")
@@ -166,7 +170,7 @@ def _find_run(ref: str, timeout_s: int = 120) -> str | None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--pytest", nargs="*", default=[], help="repo-relative pytest paths / node ids (tests/...)")
+    ap.add_argument("--pytest", nargs="*", default=[], help="repo-relative pytest paths / node ids (tests/... or api/...)")
     ap.add_argument("--vitest", nargs="*", default=[], help="app-relative vitest paths (src/...)")
     ap.add_argument("--shards", type=int, default=1, help=f"split the vitest files over N runners (1..{MAX_SHARDS})")
     ap.add_argument("--label", default="", help="free text in the run name")

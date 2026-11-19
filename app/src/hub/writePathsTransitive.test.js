@@ -70,6 +70,25 @@ const ENTRIES = [
     alsoInModule: ['PUT /api/watchlists/flagged/share', 'PUT /api/watchlists/flagged/rename'],
     why: 'toggle -> syncToServer -> setTimeout callback -> the sync POST. Share and rename hang off '
        + 'toggleShare/rename, which nothing in the hub calls.',
+    // f1a9c9af55 (2026-11-05) moved the Flagged set's storage into `hooks/flaggedStore.js`, so
+    // `toggle` now reads and writes it through two IMPORTED functions (aliased `read`/`write`) and
+    // the same-file walk refused them by name. Both are this browser's localStorage, proved below
+    // in their own module: neither makes a request.
+    inertHops: [{
+      name: 'read',
+      from: './flaggedStore',
+      inModule: 'hooks/flaggedStore.js',
+      revalidatesVia: 'readFlagged',
+      why: '`readFlagged` parses the Flagged list out of localStorage. It makes no request.',
+    }, {
+      name: 'write',
+      from: './flaggedStore',
+      inModule: 'hooks/flaggedStore.js',
+      revalidatesVia: 'writeFlagged',
+      why: '`writeFlagged` stores the list in localStorage and dispatches a window event that every '
+         + 'mounted useFlagged answers by re-reading it. It makes no request; the server sync is '
+         + "toggle's own POST, declared above.",
+    }],
   },
   {
     module: 'hooks/useWatchlistAlerts.js',
@@ -143,6 +162,16 @@ const ENTRIES = [
         revalidatesVia: 'fetcher',
         why: "the SWR hook itself. What it calls is this module's `fetcher`, which is "
            + '`url => fetch(url, {credentials})` with no method option — a GET.',
+      },
+      {
+        // f20cab6d9a (2026-11-13): the note read's SWR key is built in one place so the outbox
+        // drain can drop exactly that key. An imported identifier, so the walk refused it by name.
+        name: 'noteReadKey',
+        from: '../lib/noteReadKey',
+        inModule: 'pages/journal-2-0/lib/noteReadKey.js',
+        revalidatesVia: 'noteReadKey',
+        why: 'builds the string `/api/j2/notes/<id>` that useSWR reads with the GET fetcher above. '
+           + 'It returns a key and makes no request.',
       },
       {
         name: 'invalidateNoteLinkTarget',

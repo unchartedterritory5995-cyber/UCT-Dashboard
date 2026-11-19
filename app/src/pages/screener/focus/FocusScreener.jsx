@@ -71,7 +71,8 @@ import QuickControls from './QuickControls'
 import { RS_CONTROLS_PREF, RS_NOTE_PREF, RS_LEADERS_ID, RS_SCREENS_COLUMNS, controlsOf, applyOption, specWithChoices, choicesFor, withChoice, withoutChoices, controlStarterFor, placeOverride, offeredChoices, sortLabelOf, steadyOf } from './rsScreens'
 import { rowConfigOf, rowColumns, ratingsAsOf, sectorShare, rowFacts, setupWords } from './rsRows'
 import useScanBoard from './board/useScanBoard'
-import { hasWidget, rowsOf } from './board/boardModel'
+import { hasWidget, rowsOf, shareable, MAX_NAME } from './board/boardModel'
+import { publishLayout, listCommunity, toReview } from './board/communityApi'
 import { BoardMenu, BoardEditBar } from './board/BoardMenu'
 import { ScreenTabs, ScreenSidebar } from './board/ScreenNav'
 import DetailsCard from './board/DetailsCard'
@@ -79,10 +80,17 @@ import boardStyles from './board/Board.module.css'
 
 // The scan board's grid (react-grid-layout) loads only for a member who has the board.
 const ScanBoard = lazy(() => import('./board/ScanBoard'))
+const CommunityLayouts = lazy(() => import('./board/CommunityLayouts'))
 // The scan board keeps List and Charts on the view switch (owner, 2026-11-17: no table and no
 // heat map as options); Table and Map still open from the More menu.
 const BOARD_MODES = ['list', 'grid']
 const isDesktopNow = () => typeof window !== 'undefined' && window.matchMedia?.(MQ.desktop)?.matches === true
+const isTabletNow = () => typeof window !== 'undefined' && window.matchMedia?.(MQ.tablet)?.matches === true
+// Who gets the scan board, and which one: 'desktop', 'tablet' (its own switch on top of the
+// board's, its own presets and stored layout) or null (a phone, and anyone without the flag).
+const boardTierNow = auth => (auth?.screenerScanBoardEnabled !== true ? null
+  : isDesktopNow() ? 'desktop'
+    : auth?.screenerScanBoardTabletEnabled === true && isTabletNow() ? 'tablet' : null)
 import { RsHeaderLine, RsFirstVisit, RsEmptyState, RsMarketLine } from './RsScreenParts'
 import { marketLineOf, readMarketHidden, writeMarketHidden } from './rsMarket'
 import RsAlertToggle from './RsAlertToggle'
@@ -164,11 +172,18 @@ function rememberNamed(item) {
 // Options. It is the first thing on the top bar, so the page has ONE bar; Table mode has no top
 // bar of its own, so there it gets a slim bar to itself.
 export default function FocusScreener({ modeTabs = null }) {
-  const [mode, setMode] = useState(() => {
+  const [storedMode, setMode] = useState(() => {
     const m = readLS(MODE_KEY, 'list')
     return m === 'table' || m === 'grid' || m === 'map' ? m : 'list'
   })
-  const onMode = useCallback(m => { setMode(m); writeLS(MODE_KEY, m) }, [])
+  // The scan board (owner ruling 2026-11-17: no Table and no Map as options): a Table or Map view
+  // remembered from an earlier visit does not decide where the page opens, the board does. Either
+  // still opens from the More menu, for that visit (`picked`).
+  const boardTier = boardTierNow(useContext(AuthContext))
+  const boardOn = !!boardTier
+  const [picked, setPicked] = useState(false)
+  const onMode = useCallback(m => { setPicked(true); setMode(m); writeLS(MODE_KEY, m) }, [])
+  const mode = boardOn && !picked && (storedMode === 'table' || storedMode === 'map') ? 'list' : storedMode
   if (mode === 'table') {
     return (
       <div className={styles.page} data-testid="focus-screener" data-mode="table">
@@ -178,22 +193,40 @@ export default function FocusScreener({ modeTabs = null }) {
           <HowToChecklist surface="screener.stocks" />
           {/* ONE bar in Table mode: the List|Table switch leads the table's own toolbar (P14). */}
           <Suspense fallback={<SkeletonTable rows={12} cols={6} />}>
-            <ScannerShell toolbarLead={<ModeSwitch mode={mode} onMode={onMode} />} />
+            <ScannerShell toolbarLead={<ModeSwitch mode={mode} onMode={onMode} only={boardOn ? [...BOARD_MODES, mode] : null} />} />
           </Suspense>
         </div>
       </div>
     )
   }
-  return <FocusList mode={mode} onMode={onMode} modeTabs={modeTabs} />
+  // Keyed on tablet-or-not: the two boards keep different layouts, so crossing that line (a
+  // window dragged narrower, a tablet flag arriving) starts the list page afresh on the right one.
+  return <FocusList key={boardTier === 'tablet' ? 'tablet' : 'main'} mode={mode} onMode={onMode} modeTabs={modeTabs} boardTier={boardTier} />
 }
 
 // `mode` is 'list' (the list and its chart pane), 'grid' (the same results on the chart grid) or
 // 'map' (the same results as a treemap): one screen, one set of rows, three ways to look at them.
-function FocusList({ mode, onMode, modeTabs = null }) {
+function FocusList({ mode, onMode, modeTabs = null, boardTier = null }) {
   // The scan board (SCREENER_SCAN_BOARD_ENABLED, desktop only): `board` is null without it, and
   // then nothing below changes.
-  const boardOn = useContext(AuthContext)?.screenerScanBoardEnabled === true && isDesktopNow()
-  const [board, boardApi] = useScanBoard(boardOn)
+  const boardOn = !!boardTier
+  const tabletBoard = boardTier === 'tablet'
+  const [board, boardApi] = useScanBoard(boardOn, tabletBoard ? 'tablet' : null)
+  // Community layouts (SCREENER_LAYOUT_GALLERY_ENABLED): share a layout, use one another member shared.
+  // Desktop only: a shared layout is a desktop arrangement, too tight for a tablet.
+  const galleryOn = useContext(AuthContext)?.screenerLayoutGalleryEnabled === true && boardTier === 'desktop'
+  const isAdmin = useContext(AuthContext)?.user?.role === 'admin'
+  const [community, setCommunity] = useState({ open: false, reload: 0 })
+  // An admin reviews shared layouts before they are listed: the Layout menu says how many wait.
+  // Read when the page opens and again each time the community window closes. Admins only.
+  const [reviewCount, setReviewCount] = useState(0)
+  const watchReview = galleryOn && isAdmin && !community.open
+  useEffect(() => {
+    if (!watchReview) return undefined
+    let alive = true
+    listCommunity().then(out => { if (alive && out.ok) setReviewCount(toReview(out.data.queue)) })
+    return () => { alive = false }
+  }, [watchReview, community.reload]) // `reload`: the admin just shared one themselves
   const [newsEl, setNewsEl] = useState(null)
   const navigate = useNavigate()
   const { meta, error: metaError, retry: retryMeta } = useScreenerMeta()
@@ -867,6 +900,16 @@ function FocusList({ mode, onMode, modeTabs = null }) {
     if (!name) return
     say(boardApi.saveMine(name) ? `Saved the layout "${name.trim()}"` : 'That layout could not be saved')
   }
+  const shareBoardLayout = async () => {
+    const mine = board.mine.find(m => m.id === board.layoutId)
+    const name = await askName({ title: 'Share this layout', label: 'Layout name', initial: mine?.name || '', submitLabel: 'Share', maxLength: MAX_NAME,
+      info: 'Shares how your widgets are arranged and the row style, under your display name. Your screens and filters are not shared. It is listed for other members once it has been reviewed.' })
+    if (!name) return
+    const out = await publishLayout(name, shareable(board))
+    if (!out.ok) { say(out.error); return }
+    say(`Shared “${name.trim()}”. It is listed once it has been reviewed.`)
+    setCommunity(c => ({ ...c, reload: c.reload + 1 }))
+  }
   const frozenList = async () => {
     const name = await askName({ title: "Save today's list", label: 'Watchlist name', initial: current?.name || 'Screen results' })
     if (!name) return
@@ -1174,10 +1217,10 @@ function FocusList({ mode, onMode, modeTabs = null }) {
       </SkipLinkPortal>
       <FocusTopBar
         modesOnly={board ? [...new Set([...BOARD_MODES, mode])] : null}
-        layoutMenu={board && mode === 'list' ? <BoardMenu board={board} api={boardApi} onSaveAs={saveBoardLayout} /> : null}
+        layoutMenu={board && mode === 'list' ? <BoardMenu board={board} api={boardApi} onSaveAs={saveBoardLayout} onCommunity={galleryOn ? () => setCommunity(c => ({ ...c, open: true })) : null} onShare={galleryOn ? shareBoardLayout : null} reviewCount={reviewCount} /> : null}
         optionsTab={modeTabs}
         screenMenu={<>
-          {board && board.screens === 'tabs' && landed && (
+          {board && board.screens === 'tabs' && !tabletBoard && landed && (
             <ScreenTabs starters={starters} saved={saved} pinned={effectivePinned} currentId={current?.id} currentName={current?.name || 'Custom screen'}
               isEdited={isEdited} count={pending ? null : shownTotal} onApply={chooseScreen} />
           )}
@@ -1188,7 +1231,7 @@ function FocusList({ mode, onMode, modeTabs = null }) {
             onRename={current?.kind === 'saved' ? rename : null}
             onNewScreen={() => { ed.clearFilters(); ed.setLogic(null); setCurrent(null); openFilters() }}
             myScans={myScans} onUseScan={applyScanFilter} meta={meta}
-            triggerLabel={board && board.screens === 'tabs' && landed ? 'All screens' : null} />
+            triggerLabel={board && board.screens === 'tabs' && !tabletBoard && landed ? 'All screens' : null} />
         </>}
         filterCount={filterCount} onOpenFilters={() => openFilters()}
         dataReceipt={<DataReceipt snapshotDate={listed?.snapshot_date} live={listed?.snapshot?.live} premarket={listed?.snapshot?.premarket} coverage={listed?.coverage} />}
@@ -1204,7 +1247,9 @@ function FocusList({ mode, onMode, modeTabs = null }) {
           liveSortEligible={liveSortEligible} liveSortOn={liveSortOn} onToggleLiveSort={() => setLiveSortOn(v => !v)}
           density={density} onDensity={d => { setDensity(d); writeLS(DENSITY_KEY, d) }}
           showCompany={showCompany} onToggleCompany={() => setShowCompany(v => { writeLS(COMPANY_KEY, v ? '0' : '1'); return !v })}
-          views={board ? [['Table view', () => { s.flush(); onMode('table') }], ['Map view', () => { s.flush(); onMode('map') }]].filter(v => !(mode === 'map' && v[0] === 'Map view')) : null} />}
+          /* Owner ruling 2026-11-17: no Table and no heat map as views on the board. The older page
+             stays reachable for what only it has (the full scan builder), under that name. */
+          views={board ? [['Scan builder', () => { s.flush(); onMode('table') }]] : null} />}
         helpMenu={<HelpMenu onHowTo={howTo ? () => setSheet('howto') : null} onMethodology={() => setSheet('methodology')}
           onLibrary={() => setSheet('library')} onGlossary={() => openFilters()} shortcuts={shortcuts}
           onRsHelp={starters.some(x => x && x.row) ? openRsHelp : null} />}
@@ -1254,6 +1299,12 @@ function FocusList({ mode, onMode, modeTabs = null }) {
         {sheet === 'library' && <StructureProvenance />}
       </Sheet>
       {hubMount}
+      {galleryOn && board && community.open && (
+        <Suspense fallback={null}>
+          <CommunityLayouts board={board} api={boardApi} isAdmin={isAdmin} reloadKey={community.reload} say={say}
+            onShare={shareBoardLayout} onClose={() => setCommunity(c => ({ ...c, open: false }))} />
+        </Suspense>
+      )}
       {nameDialog}
       {shortcuts.sheet}
       {toast && (

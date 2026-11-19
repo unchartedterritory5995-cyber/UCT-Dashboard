@@ -33,6 +33,7 @@ import {
   setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash, runtimeNotGradedOf,
 } from '../../runtimeKill'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
+import { strategyBrokerFlag } from './strategyLane'
 
 const IN = process.env.CAPADMIT_IN
 const OUT = process.env.CAPADMIT_OUT
@@ -45,6 +46,10 @@ const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8
 if (IN) {
   vi.stubEnv(flagOf('src/components/chart/engine/objectsOnlyPaneGate.js'), '1')
   vi.stubEnv(flagOf('src/components/chart/engine/runtimePaneGate.js'), '1')
+  // ⭐⭐ (strategy-decl admission) — the strategy broker's flag, ON as the production build arms it (`Dockerfile.web`
+  // `ARG VITE_PINE_STRATEGY_BROKER_ENABLED=1`): a strategy's member door then mints the broker document, and REACH
+  // measures what an admitted `strategy-decl` reaches. Its NAME is read off its gate module (`strategyLane.js`).
+  vi.stubEnv(strategyBrokerFlag(), '1')
 }
 
 function sourceOf(file) {

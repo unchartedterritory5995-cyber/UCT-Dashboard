@@ -1,0 +1,113 @@
+{
+ "schema": "uct.strategy-verdict/v1",
+ "captureId": "w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17",
+ "captureSha256": "f40c3c0db3d31e3c69a7b700ed48c0ff8d2665dd610625646375103093016ba9",
+ "receipt": 161648986,
+ "sourceSha256": "7f4c1b61a30b80fa172716d59eb3da3b9bfc1da12fd6e7d6c39db8da99fc2488",
+ "queueTargetId": "Q-S1b",
+ "symbol": "NYSE:RDDT",
+ "timeframe": "1D",
+ "gradeMethod": "a",
+ "verdict": "EXPECTED-REFUSAL",
+ "step": 1,
+ "reason": "refused by runtime:strategy-unsettled",
+ "first": null,
+ "graded": {
+  "trades": false,
+  "fills": false,
+  "slots": 0,
+  "values": 0,
+  "texts": 0
+ },
+ "referenceTrades": 40,
+ "rulesExercised": [],
+ "ungradedSlots": [],
+ "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
+ "newestBarNotRun": 1794925800,
+ "provenance": {
+  "strategySettings": {
+   "properties": [
+    {
+     "name": "pyramiding",
+     "value": 1
+    },
+    {
+     "name": "Calculate Strategy on Order's Fill(s)",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every Tick(s)",
+     "value": false
+    },
+    {
+     "name": "Backtesting Limit Order(s) fill assumption",
+     "value": 0
+    },
+    {
+     "name": "Default entry/order Qty Type",
+     "value": "fixed"
+    },
+    {
+     "name": "Default entry/order Qty Value",
+     "value": 1
+    },
+    {
+     "name": "Initial Capital",
+     "value": 100000
+    },
+    {
+     "name": "Base Currency",
+     "value": "NONE"
+    },
+    {
+     "name": "Backtesting slippage for market orders",
+     "value": 0
+    },
+    {
+     "name": "Commission Type",
+     "value": "percent"
+    },
+    {
+     "name": "Commission Value",
+     "value": 0
+    },
+    {
+     "name": "Process orders on bar Close",
+     "value": false
+    },
+    {
+     "name": "Close entries rule",
+     "value": "FIFO"
+    },
+    {
+     "name": "Run mode: 'backtest', 'alert' or something else",
+     "value": "BACKTEST"
+    },
+    {
+     "name": "Alert message template for run mode 'alert'",
+     "value": ""
+    },
+    {
+     "name": "Alert type for run mode 'alert'",
+     "value": "order_fills"
+    },
+    {
+     "name": "Margin Long",
+     "value": 0
+    },
+    {
+     "name": "Margin Short",
+     "value": 0
+    },
+    {
+     "name": "calc_range",
+     "value": ""
+    }
+   ]
+  }
+ }
+}

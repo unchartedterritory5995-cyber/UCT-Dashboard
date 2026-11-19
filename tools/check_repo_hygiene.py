@@ -77,6 +77,11 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/elliot-wave-detector-pro-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/renderingnature-smc-reversal-engine-v71-spy-60-2026-11-14.json",
     "tests/fixtures/vendor/harness/zigzag-ma-pattern-recognition-spy-60-2026-11-14.json",
+    # 2026-11-18: one e73 capture fixture (10.2 MB, filed by 9ab9a7b457 "evidence: tonight's captures filed at e73",
+    # read by vendorHarness.b1Paints.test.js and the evidence ledger) turned the master deploy gate red at 04:15 UTC
+    # and held every deploy for 90 minutes. Same corpus and same reason as the S9 lines above; listed to unblock the
+    # gate, and the capture program may shrink or split it and delete this line.
+    "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
     # 2026-11-15: five S12 capture-ahead fixtures (Units DATA-BACKED and DATA-LTF, AMEX:SPY 1D from 1993, 8,507
     # bars, 38-60 plots each) are 5.2-7.1 MB; same corpus and same reason as the S9 lines above.
     "tests/fixtures/vendor/harness/advanced-custom-multi-ma-signals-emasmavwmavwap-spy-1d-2026-11-15.json",
@@ -94,10 +99,26 @@ BIG_ALLOWLIST = {
     # production snapshot is 4.5 MB); the same human-readable JSON dumper. Listed to unblock the gate;
     # it may shrink if a later capture programme splits the fixtures corpus.
     "docs/pine/vendor-harness/runtime-on/verdicts.json",
+    # 2026-11-17, feat/pine-host-known-divergence: the production snapshot crossed 5 MB (5.2 MB) when it was regenerated
+    # on the engine-68 tree and graded the 101 captures committed since the last regeneration (863 -> 867 rows with
+    # the licence-held one). Same writer, same reason as the runtime-on line above.
+    "docs/pine/vendor-harness/production/verdicts.json",
     # 2026-11-16, PR #1472 (queue run 1): a BITSTAMP:BTCUSD 60-minute capture (24/7 hours: 25,216 bars, ~7x
     # a stock's 60-minute window) is 5.1 MB. Same corpus and same reason as the S9 / S12 lines above; a
     # capture cannot be trimmed after the fact (its receipt, an fnv1a over its characters, binds every bar).
     "tests/fixtures/vendor/harness/vw-w4-session-daymask-btcusd-60-2026-11-16.json",
+    # 2026-11-17 (capture night, commit 9ab9a7b457 "tonight's captures filed at e73"): one AMEX:SPY 1D capture is
+    # 10.2 MB and turned the master deploy gate red for every deploy from 03:59Z to 05:30Z on 2026-11-18 (five
+    # master commits, none promoted). Same corpus and same reason as the S9 / S12 / BTCUSD lines above: a capture
+    # cannot be trimmed after the fact. Allow-listed by another session to unblock deploys, not by the capture
+    # programme: if that programme splits or shrinks this capture, delete this line.
+    "tests/fixtures/vendor/harness/heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor-spy-1d-2026-11-17.json",
+    # 2026-11-18, #1858 (Pine's tolerant compare, engine 78 (#1858)): the Q-FCMP2 row 9 probe capture,
+    # vw-fcmp-builtins-v2 on AMEX:SPY 1D from the 1993 listing (8,509 bars x 63 plots), is 6.9 MB. Promoted from
+    # packet 6f854939fa72 and read by the built-in rails (pineCompareBuiltins.test.js, test_pine_compare_builtins.py)
+    # and the vector provenance rail; it stays byte-identical to its promoted packet (a capture cannot be trimmed
+    # after the fact: its receipt binds every bar). Same corpus and same reason as the S9 / S12 / BTCUSD lines above.
+    "tests/fixtures/vendor/harness/vw-fcmp-builtins-v2-spy-1d-2026-11-18.json",
 }
 # A `.env*` may be tracked only when it carries no value — a template.
 ENV_ALLOWLIST = {".env.example"}

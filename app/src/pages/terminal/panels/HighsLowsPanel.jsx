@@ -29,6 +29,7 @@ import {
 import { formatCurrency, formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import { usePanelWriteBack } from './commandWriteBack'
+import HighsLowsPulse from './HighsLowsPulse'
 import styles from './marketPanels.module.css'
 import bars from './barCells.module.css'
 
@@ -341,7 +342,9 @@ export default function HighsLowsPanel({ side: sideProp = null, group: groupProp
               <span className={bars.splitDown} style={{ width: `${Math.round((100 - highShare) * 10) / 10}%` }} />
             </div>
           ) : null}
-          <div className={styles.split}>
+          {/* Its own read and its own states: a failed chart never fails the lists (HighsLowsPulse.jsx). */}
+          <HighsLowsPulse scoped={group !== 'stocks'} />
+          <div className={`${styles.split} ${styles.splitRoomy}`}>
             {showHighs && board.highs.length > 0 && (board.grouped
               ? <GroupTable side="highs" rows={board.highs} total={board.highsTotal} words={words} onDrill={setValue} />
               : <StockTable side="highs" rows={board.highs} total={board.highsTotal} offset={0} />)}

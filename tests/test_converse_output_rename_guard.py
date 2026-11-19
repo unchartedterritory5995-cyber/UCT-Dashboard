@@ -174,3 +174,70 @@ def test_the_gate_is_wired_into_the_repairable_check(conv):
     b = src.index("check_output_renames(envelope, message, view, turns)")
     c = src.index("except _Refused as refused:", a)
     assert a < b < c
+
+
+# ─── 2026-11-17: a label that only follows its own numbers ────────────────────
+#
+# Measured on production over twenty multi-turn conversations: "make it 21" on a line labelled
+# "RSI 14" came back as the right set_slot plus rename_output to "RSI 21", was refused at this
+# gate and cost a second model call on the commonest edit there is. That relabel names nothing:
+# it is the same label with its numbers updated, on a line whose maths the same patch changes.
+
+def _rsi14():
+    return view(1, [out("value", RSI_GT_70, label="RSI 14")])
+
+
+def test_make_it_21_with_the_label_following_its_number_is_one_call(conv, model):
+    good = env(1, [{"op": "set_slot", "slot": "value#1", "value": 21},
+                   {"op": "rename_output", "output": "value", "label": "RSI 21"}])
+    client = model([emits(good)])
+    r = conv.converse("make it 21", user_id="u1", view=_rsi14())
+    assert r["ok"] is True and r["attempts"] == 1 and len(client.calls) == 1
+    assert r["envelope"] == good
+
+
+def test_the_pure_rule_numbers_change_and_nothing_else_does(conv):
+    yes = [("rsi 14", "rsi 21"), ("bb 20, 2", "bb 20, 2.5"), ("ema 10/21 trend", "ema 12/26 trend"),
+           ("obv 20 average", "obv 30 average"), ("supertrend 3,10", "supertrend 2,14")]
+    for old, new in yes:
+        assert conv._numbers_only_relabel(old, new), (old, new)
+    no = [("rsi 14", "rsi 14"),                  # nothing changed: not a relabel at all
+          ("rsi", "rsi 21"),                     # the old label carries no number
+          ("rsi 14", "momentum 21"),             # the words changed
+          ("rsi 14", "rsi 21 fast"),             # a word was added
+          ("rsi 14", "rsi"),                     # a number was removed
+          ("rsi 14", "rsi 14 21"),               # a number was added
+          ("", "rsi 21"), (None, "rsi 21"), ("rsi 14", None)]
+    for old, new in no:
+        assert not conv._numbers_only_relabel(old, new), (old, new)
+
+
+def test_a_number_only_relabel_of_a_line_the_patch_does_not_touch_is_still_refused(conv):
+    """The label may follow its line's maths; it may not be edited on its own."""
+    v = view(1, [out("value", RSI_GT_70, label="RSI 14"), out("sig", RSI_GT_70, label="Signal 9")])
+    alone = env(1, [{"op": "rename_output", "output": "value", "label": "RSI 21"}])
+    assert _refused(conv, alone, "make it 21", v)
+    other = env(1, [{"op": "set_slot", "slot": "sig#1", "value": 5},
+                    {"op": "rename_output", "output": "value", "label": "RSI 21"}])
+    assert _refused(conv, other, "make the signal 5", v)
+    own = env(1, [{"op": "set_slot", "slot": "sig#1", "value": 5},
+                  {"op": "rename_output", "output": "sig", "label": "Signal 5"}])
+    assert not _refused(conv, own, "make the signal 5", v)
+
+
+def test_new_WORDS_on_a_line_whose_number_changed_are_still_refused(conv, model):
+    """The measured 10-08 defect, with the number edit beside it: still two calls."""
+    bad = env(1, [{"op": "set_slot", "slot": "value#1", "value": 21},
+                  {"op": "rename_output", "output": "value", "label": "Momentum 21"}])
+    good = env(1, [{"op": "set_slot", "slot": "value#1", "value": 21}])
+    client = model([emits(bad), emits(good)])
+    r = conv.converse("make it 21", user_id="u1", view=_rsi14())
+    assert r["ok"] is True and r["attempts"] == 2 and len(client.calls) == 2
+    assert r["usage"]["repair_gate"] == GATE
+
+
+def test_a_replaced_tree_counts_as_an_edit_of_that_line(conv):
+    v = _rsi14()
+    e = env(1, [{"op": "set_output_tree", "output": "value", "tree": RSI_GT_70},
+                {"op": "rename_output", "output": "value", "label": "RSI 21"}])
+    assert not _refused(conv, e, "make it 21", v)

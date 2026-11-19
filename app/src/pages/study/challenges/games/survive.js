@@ -47,6 +47,7 @@
 // and "10% only" answers the 50% line in 59% of deals, measured over 10,000.) Every stretch is a real draw from the bag,
 // and the end screen says its win count.
 import house from '../../../../constants/houseSizing.json'
+import { formatCompact } from '../../../../lib/presentation/presentationPrimitives'
 
 export const SURVIVE_KIND = 'survive'
 export const SURVIVE_BEST_KEY = 'study.survive.best'
@@ -282,11 +283,11 @@ export const signedPct = (f) => {
   const t = Math.round(f * 1000) / 10
   return `${t > 0 ? '+' : t < 0 ? MINUS : ''}${Math.abs(t).toFixed(1)}%`
 }
-/** An axis label: $50k · $102.5k · $1.6M. */
+/** An axis label: $50k · $102.5k · $1.6M. Up to three decimals, trailing zeros dropped, through the
+ *  one K/M/B/T decider (TERM-066); a tick that rounds up to the next tier prints in it. */
+const K_TIERS = [{ at: 1e6, suffix: 'M', decimals: 3 }, { at: 1000, suffix: 'k', decimals: 3 }]
 export function kText(v) {
-  if (v >= 1e6) return `$${+(v / 1e6).toFixed(3)}M`
-  if (v >= 1000) return `$${+(v / 1000).toFixed(3)}k`
-  return `$${Math.round(v)}`
+  return formatCompact(v, { tiers: K_TIERS, prefix: '$', trim: true })
 }
 const lossesText = (n) => `${n} ${n === 1 ? 'loss' : 'losses'}`
 const winsText = (n) => `${n} ${n === 1 ? 'win' : 'wins'}`

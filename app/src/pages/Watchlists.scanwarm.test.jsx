@@ -133,6 +133,27 @@ test('the next two rows are warmed URGENTLY (not held behind the daily pack inge
   expect(u.syms).toEqual(['DDD', 'EEE'])
 })
 
+test('the store hold holds the rows around the selection and deepens the next two (scan direction)', async () => {
+  const sets = []
+  globalThis.__uctStoreWarmers = {
+    prefetchBarsToIDB: () => {}, prefetchAllTimeframes: () => {}, prefetchListAllTimeframes: () => {},
+    warmMemFromIDB: () => {}, prefetchBars: () => {}, prefetchBarOnIntent: () => {}, prewarmVisibleList: () => {},
+    createNeighborHold: () => ({ set: (syms, tf, opts) => sets.push({ syms: [...syms], tf, deep: opts?.deep ? [...opts.deep] : null }), clear: () => {} }),
+  }
+  try {
+    hub.sym = 'CCC'
+    render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+    await screen.findByText('CCC')
+    await waitFor(() => expect(sets.length).toBeGreaterThan(0))
+    const s = sets[sets.length - 1]
+    expect(s.tf).toBe('5')
+    expect(s.syms).toEqual(expect.arrayContaining(['DDD', 'EEE', 'BBB']))
+    expect(s.deep).toEqual(['DDD', 'EEE'])
+  } finally {
+    delete globalThis.__uctStoreWarmers
+  }
+})
+
 test("the selected row's other timeframes wait for the selection to REST (not every press)", async () => {
   hub.sym = 'CCC'
   render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)

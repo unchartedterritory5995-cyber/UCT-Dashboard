@@ -378,6 +378,7 @@ export default function CheckPanel({ sym }) {
         <span className={shared.muted}>Also for {s}:</span>
         <PanelCommand cmd={`${s} GRADE`} label={`Compass grade (GRADE) for ${s}`}>Compass grade (GRADE)</PanelCommand>
         <PanelCommand cmd={`${s} SIZE`} label={`Position size (SIZE) for ${s}`}>Position size (SIZE)</PanelCommand>
+        <PanelCommand cmd={`${s} MYH`} label={`My history (MYH) on ${s}`}>My history (MYH)</PanelCommand>
       </div>
 
       <Section id="setup" title="Your plan" read={templates} what="The setup list">

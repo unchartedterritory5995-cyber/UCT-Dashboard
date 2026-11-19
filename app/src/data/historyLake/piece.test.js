@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import zlib from 'node:zlib'
 import fixture from './__fixtures__/pieces.json'
 import {
@@ -174,9 +174,51 @@ describe('history-lake piece reader', () => {
     expect(Array.from(viaBuffer.c)).toEqual(CASES[5].columns.c)
   })
 
-  it('decodes with the platform Brotli decoder where there is one', async () => {
-    // Node 24 (this suite) has it; the assertion is on the platform so a runtime without it fails
-    // here by name instead of skipping quietly.
+  // ⚰️ 2026-11-17 — THIS ASSERTED THE RUNTIME'S VERSION, NOT THE CODE. It said "Node 24 (this suite) has
+  // it" and required `hasNativeBrotli()` to be true, but every CI workflow pins Node 20 (and the Pine runtime
+  // parity lanes stay on Node 20.20.2 by rule), where `DecompressionStream('brotli')` does not exist, so it
+  // was red on every CI vitest run (remote run 44066213548) while saying nothing about piece.js. The code
+  // under test is browser code (source.js, the browser history source): its contract is the CAPABILITY.
+  // Where the platform has a Brotli decoder it must decode every piece; where it has none, the probe must
+  // say so and the default decode must refuse BY NAME. Both halves are asserted on every runtime: the
+  // absent half by hiding the decoder from a fresh module, the present half on the real platform decoder
+  // where one exists (Node >= 24, current browsers; skipped with the reason in its title on Node 20).
+  const PLATFORM_BROTLI = (() => {
+    try { new DecompressionStream('brotli'); return true } catch { return false }
+  })()
+
+  it('the probe reports the platform capability, whatever the runtime', () => {
+    expect(hasNativeBrotli()).toBe(PLATFORM_BROTLI)
+  })
+
+  it('a platform with no Brotli decoder is refused BY NAME, never decoded wrong', async () => {
+    const Real = globalThis.DecompressionStream
+    vi.resetModules()
+    vi.stubGlobal('DecompressionStream', class extends Real {
+      constructor(format) {
+        if (format === 'brotli') throw new TypeError(`Unsupported compression format: '${format}'`)
+        super(format)
+      }
+    })
+    try {
+      const fresh = await import('./piece')
+      expect(fresh.hasNativeBrotli()).toBe(false)
+      const good = bytesOf(CASES[0])
+      await expect(fresh.nativeBrotliInflate(good)).rejects.toThrow(/this platform has no Brotli decoder/)
+      const err = await fresh.decodePiece(good).catch((e) => e)
+      expect(err).toBeInstanceOf(fresh.PieceError)
+      expect(err.message).toMatch(/this platform has no Brotli decoder/)
+      // the same bytes still decode with a decompressor handed in: the refusal is the platform's, not the piece's
+      const viaZlib = await fresh.decodePiece(good, inflate)
+      expect(Array.from(viaZlib.c)).toEqual(CASES[0].columns.c)
+    } finally {
+      vi.unstubAllGlobals()
+      vi.resetModules()
+    }
+  })
+
+  it.skipIf(!PLATFORM_BROTLI)(`decodes with the platform Brotli decoder where there is one${PLATFORM_BROTLI ? ''
+    : " (SKIPPED: this runtime has no DecompressionStream('brotli'), e.g. Node 20; runs on Node >= 24)"}`, async () => {
     expect(hasNativeBrotli()).toBe(true)
     for (const c of CASES) {
       const got = await decodePiece(bytesOf(c))

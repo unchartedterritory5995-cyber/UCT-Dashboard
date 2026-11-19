@@ -42,8 +42,11 @@ import { withRuntimeObjects, RUNTIME_WARMUP_KEY, RUNTIME_OBJECTS_KEY, runtimeWar
 import { sameDrawings } from './warmupDrawings.js'
 import { runtimeInputValues, runtimeBuildInputs } from './runtimeInputs.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record (design 3.2) and the window a broker run takes.
-import { BROKER_START_GUARD } from './broker.js'
-import { STRATEGY_WINDOW_HISTORY, strategyRecordOf, withStrategyRecord } from './strategyRecord.js'
+import { BROKER_START_GUARD, BrokerRefusal, BrokerUnpinned, BrokerStart } from './broker.js'
+import { barOpenInstants } from '../../indicators.js'
+import { STRATEGY_WINDOW_HISTORY, strategyRecordOf, withStrategyRecord, refusedStrategyRecordOf, DISARMED_WITHHELD_GUARD,
+  disarmedWithheldSentence } from './strategyRecord.js'
+import { withColumnErrors } from '../astColumns.js'
 import { makeWarmupProbe, sameProgram } from './warmupProbe.js'
 export { RUNTIME_WARMUP_KEY, runtimeWarmupOf }
 // W5-T1: the identity constants the server bundle's entry re-exports (it must not import the front end itself: pineRuntimeFrontendGate).
@@ -156,6 +159,11 @@ export function probeRuntimeProgram(source, { objectsInRun = false } = {}) {
     // `buildRuntimeIr` retries into broker mode only then), so the member door stamps the
     // document `STRATEGY_WINDOW_HISTORY`.
     broker: !!program.broker,
+    // ⭐ SERVE OR REFUSE BY NAME (2026-11-17) — with the broker gate on, a strategy whose broker build refused and whose
+    // plain build stands (`buildRuntimeIr` `brokerDeclined`): the member door names it on the pane. Absent otherwise,
+    // so every other probe answers exactly as before.
+    ...(built.brokerDeclined ? { brokerDeclined: { guard: built.brokerDeclined.guard || null,
+      message: String(built.brokerDeclined.message || '').slice(0, 400) } } : {}),
     // ⭐⭐ U15 — the library versions the build linked, each by the sha256 of the code it
     // compiled (`pineLibraries.js`): the member door pins them on the document. Absent unless
     // the script imports one, so every other probe answers exactly as before.
@@ -304,6 +312,11 @@ export function runtimeContentKey(def) {
     compute.objects === true,
     (def.meta && def.meta.runtimeHistory) || null,
     Number.isInteger(def.version) ? def.version : null,
+    // ⭐ ROUTE BY COST (Engine 73 (#1711)) — the library code the run LINKS (U15's pins, `meta.libraries`):
+    // the same script over the same bars linked against another library is another answer. ⚰️ Without
+    // it an incremental session (`_sessions`) compiled against one library was resumed for a document
+    // pinned to another (`vendorHarness.capRound4`'s control, once the cost route put it on this lane).
+    (def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length) ? def.meta.libraries : null,
   ])
   // Two independent 32-bit passes plus the length: a collision needs all three to agree.
   const key = `${text.length.toString(36)}.${fnv1a(text, 0x811c9dc5).toString(36)}.${fnv1a(text, 0x9e3779b9).toString(36)}`
@@ -343,7 +356,10 @@ function requestSupplyKey(compute, ctx) {
   for (const [k, e] of sec.entries()) {
     const bars = e && Array.isArray(e.bars) ? e.bars : []
     const last = bars.length ? bars[bars.length - 1] : null
-    parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`)
+    // ⭐ RS RATING L11 PR 2 — whether its session is in progress decides what the chart's newest bar reads
+    // (`otherSymbols.newestOwnPeriodOf`): the close flips it with the bars unchanged, and that is a new run
+    parts.push(`${k}:${(e && e.status) || ''}:${bars.length}:${last ? `${last.t}/${last.c}` : ''}`
+      + `${e && e.newestBarIsForming === true ? ':forming' : ''}`)
   }
   return `|req${parts.sort().join(',')}`
 }
@@ -1377,6 +1393,17 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     series[0][i] = b.o; series[1][i] = b.h; series[2][i] = b.l; series[3][i] = b.c; series[4][i] = b.v
     barTimes[i] = b.t
   }
+  // ⭐⭐ (2026-11-17, strategy-epoch-bar-times) — A BROKER RUN READS A BAR'S TIME AS `time` DOES. The product keys a
+  // D / W / M bar by its ISO DATE (`/api/bars` `t: 'YYYY-MM-DD'`) and an intraday bar by its unix seconds; `time` reads
+  // either as the instant the bar opened (`indicators.js::barOpenInstants`, the clock columns' own gate). A broker run
+  // is handed THOSE instants, so its clock reads, its fills, its trades' and orders' times and its record's window
+  // (below) are the times an epoch-second run records for the same bars, and `strategy.closedtrades.entry_time` is
+  // `time` of the fill bar. A series the gate cannot read is `na` on every bar, as `time` is there: never a key in
+  // disguise. ⚰️ The broker was handed the keys: on a daily chart every trade time was a date string, the report
+  // refused whole (`runtime:strategy-report-record`) and every trade-time read refused by name.
+  // ⛔ A run WITHOUT a broker keeps the keys it always had: changing what every other script's run reads is a wider
+  // engine change, not this one.
+  const runTimes = runProgram.broker ? brokerBarTimes(rows, tf) : barTimes
   // ⭐⭐ P3 WS-F — `varip` and `barstate.isnew`: the realtime ledger of this chart's run
   const realtime = sessionKey ? realtimeRun(def, ctx, opts.sessionRole || 'run', built.ir, compute.source,
     rows, forming, lastConfirmed) : null
@@ -1393,15 +1420,17 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   // (`nativeRegistry.runtimeColumnsOrReasons`).
   let finished = -1
   let res
-  try {
-    res = execute(runProgram, {
+  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — the broker's own refusal, when the run stood in for it
+  // without the broker (`disarmedAfter`): the plots are drawn and the backtest alone is refused by name
+  let backtestRefused = null
+  const runCtx = {
       bars: rows.length,
       series,
       columns: program.columns,
       // Only a bar KNOWN to have finished is confirmed; unknown fails closed the
       // way `interpret` does for the four realtime clock columns.
       confirmed: forming === false,
-      barTimes,
+      barTimes: runTimes,
       // ⭐⭐ RS RATING L5 — the requested bars and, per chart bar, which one is read
       ...(reqSupply ? { requestSupply: reqSupply.supply } : {}),
       // ⭐⭐ W9-T11 — the window the VM checks a broker run against (`vm.js`, [3.4]): the
@@ -1416,28 +1445,68 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // ⭐ UIE PHASE 2 — `opts.limits` is a MEASUREMENT door (the limits census,
       // `runtimeLimitsBudget.measure.test.js`); no product caller passes it, so every
       // chart runs under `DEFAULT_LIMITS`.
-    }, opts.limits, {
+    }
+  const onBar = (bar) => {
+    finished = bar
+    if (budgetMs !== null) {
+      const spent = now() - startedAt
+      if (spent > budgetMs) {
+        // ⛔ TAGGED AS THE PANE'S: the VM's own `limits.WALL_TIME` throws the same
+        // class and name, and must not be reported as this budget.
+        const over = new RuntimeLimitError('WALL_TIME', budgetMs, Math.round(spent))
+        over.paneBudget = true
+        throw over
+      }
+    }
+  }
+  /** ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — THE BROKER REFUSED BY NAME: THE PLOTS STAY.
+   *  Owner rule (coordinator ruling 2026-11-18): an admission must never take away what a member sees today. When
+   *  a strategy's broker run refuses by name ([B-START] on a chart whose history does not reach the listing, an
+   *  unpinned rule, an unsettled question), the same program is run again WITHOUT its broker (`vm.js`
+   *  `brokerDisarmed`: an order places nothing, every bar is run as the host lane runs it) and its plots and paints
+   *  are drawn; the backtest alone is refused, by the broker's own name (`refusedStrategyRecordOf`). Any other stop
+   *  is not the broker's and is not retried.
+   *  ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — WHAT IS DRAWN IS DECIDED STATICALLY, by the host lane's own
+   *  taint (W9-OQ-N2, `strategyTaint.js::strategyDisarmOf`, the program's `broker.disarm`, coordinator ruling
+   *  2026-11-18 (a)): every output a broker value reaches is withheld by name (`withheldByTaint`, below) and the rest
+   *  are drawn; a broker number read inside the run is `na` only so the order logic can finish. ⛔ FAIL CLOSED, the
+   *  broker's refusal kept (ruling (b)): a broker value reaching a sink with no row of its own (a `fill` band,
+   *  `alert()`, `hline`) or a drawing, a trace that failed, a program with no verdict, and any throw of the run.
+   *  ⚰️ supertrend-strategy on SPY daily (5,000 of 8,509 bars): the broker run refused [B-START] and the member lost
+   *  the seven plots the host lane drew; macd-shortlong-strategy-for-tradingview-input-optimizer, whose ORDER logic
+   *  reads `strategy.position_size`, lost its six MACD plots until the verdict was static. */
+  const disarm = runProgram.broker && runProgram.broker.disarm
+  const disarmedAfter = (err) => {
+    if (!runProgram.broker || !(err instanceof BrokerRefusal || err instanceof BrokerUnpinned || err instanceof BrokerStart)) return null
+    if (!disarm || disarm.refused || !Array.isArray(disarm.withheld)) return null
+    // a stand-in that would draw NOTHING (every output it maps is one a broker value reaches) gains the member nothing:
+    // the broker's refusal stands, exactly as it read before
+    const held = new Set(disarm.withheld.map((w) => w.index))
+    const built = (runProgram.outputs || []).length
+    if (!Object.values(outputs).some((index) => Number.isInteger(index) && index < built && !held.has(index))) return null
+    try {
+      finished = -1
+      return execute(runProgram, runCtx, opts.limits, { ...injectedNow(opts), brokerDisarmed: true, onBar })
+    } catch {
+      return null
+    }
+  }
+  try {
+    res = execute(runProgram, runCtx, opts.limits, {
       ...injectedNow(opts),
       ...(runProbe ? { probe: runProbe } : {}),
       ...(resumeFrom ? { resume: resumeFrom } : {}),
       ...(realtime ? { realtime: realtime.hooks } : {}),
       ...(sessionKey && lastConfirmed >= 0 && !(resumeFrom && resumeFrom.bar >= lastConfirmed)
         ? { checkpointAt: lastConfirmed } : {}),
-      onBar: (bar) => {
-        finished = bar
-        if (budgetMs !== null) {
-          const spent = now() - startedAt
-          if (spent > budgetMs) {
-            // ⛔ TAGGED AS THE PANE'S: the VM's own `limits.WALL_TIME` throws the same
-            // class and name, and must not be reported as this budget.
-            const over = new RuntimeLimitError('WALL_TIME', budgetMs, Math.round(spent))
-            over.paneBudget = true
-            throw over
-          }
-        }
-      },
+      onBar,
     })
   } catch (err) {
+    const stood = disarmedAfter(err)
+    if (stood) {
+      res = stood
+      backtestRefused = err
+    } else {
     if (err && err.name === 'runtime.error') err.bar = finished + 1
     // ⭐ THE BAR A STOP NAMES, 1-BASED, THE SAME WAY FOR EVERY STOP. `finished` is the
     // 0-based index of the last bar whose END was reached (-1 before the first). The
@@ -1477,10 +1546,12 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       throw failed
     }
     throw err
+    }
   }
   if (typeof opts.onBudget === 'function') opts.onBudget(res.budget)   // the census reads its counts
-  if (realtime) realtime.commit()
-  if (sessionKey) {
+  // a run that stood in for a refused broker held no realtime session, checkpoint or resume of its own
+  if (realtime && !backtestRefused) realtime.commit()
+  if (sessionKey && !backtestRefused) {
     const checkpoint = res.checkpoint || (resumeFrom && resumeFrom.bar <= lastConfirmed ? resumeFrom : null)
     _sessions.delete(sessionKey)
     const next = { rows: rowsSnapshot(rows), program: runProgram, checkpoint, ...(build ? { build } : {}) }
@@ -1504,10 +1575,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       + 'rather than a blank line')
   }
   const out = {}
+  // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — a run that stood in for a refused broker: the outputs a broker
+  // value reaches are WITHHELD by name (`strategyDisarmOf`), never drawn from the `na` the run read in its place
+  const withheldByTaint = backtestRefused ? new Map(disarm.withheld.map((w) => [w.index, w])) : null
+  const taintErrors = {}
   for (const [plotKey, index] of Object.entries(outputs)) {
+    const w = withheldByTaint && withheldByTaint.get(index)
+    if (w) {
+      taintErrors[plotKey] = { guard: DISARMED_WITHHELD_GUARD, message: disarmedWithheldSentence(w) }
+      continue
+    }
     const col = res.outputs[index]
     if (col) out[plotKey] = plainCopy(col)
   }
+  withColumnErrors(out, taintErrors)
   // ⭐ RS RATING L5 — the newest bar a request cannot know yet (`request:htf-newest-unconfirmed`)
   // is withheld on every column, as the host withholds that bar, and named beside them.
   if (reqSupply && reqSupply.newestWithheld && rows.length) {
@@ -1522,8 +1603,13 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
   if (realtime) Object.defineProperty(out, RUNTIME_REALTIME_KEY, { enumerable: false, configurable: true, value: realtime.info })
   // ⭐⭐ W9-T11 — THE RUN'S `strategy` RECORD (design 3.2), plain data beside the columns
   if (res.broker) {
-    withStrategyRecord(out, strategyRecordOf({ summary: res.broker, decl: runProgram.broker, barTimes,
+    withStrategyRecord(out, strategyRecordOf({ summary: res.broker, decl: runProgram.broker, barTimes: runTimes,
       historyWindowBars: ctx && ctx.historyWindowBars, confirmed: forming === false }))
+  } else if (backtestRefused) {
+    // the plots stood in without the broker: the backtest is refused by the broker's own name (`disarmedAfter`)
+    withStrategyRecord(out, refusedStrategyRecordOf({ decl: runProgram.broker, barTimes: runTimes,
+      historyWindowBars: ctx && ctx.historyWindowBars, confirmed: forming === false, refused: backtestRefused,
+      withheld: Object.keys(taintErrors).length }))
   }
   // ⭐⭐ RT5 — THE DRAWINGS THIS SAME RUN MADE, as plain data (structured-clone
   // safe for the worker), beside the columns.
@@ -1537,6 +1623,16 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     withRuntimeObjects(out, held || { ...fin, pineVersion: Number.isFinite(program.version) ? program.version : null })
   }
   return out
+}
+
+/** ⭐⭐ (2026-11-17) — THE BAR TIMES A BROKER RUN IS HANDED: each bar's opening instant in unix seconds, from the ONE
+ *  gate `time` reads (`indicators.js::barOpenInstants`), or `NaN` on every bar when that gate reads the series as
+ *  having none (one unreadable bar blanks `time` on every bar, and so here). A plain array: the VM's clock, the
+ *  broker (`broker.js` `timeOf` / `barTimeMs`) and the record (`strategyRecord.js` `timeAt`) index it. */
+export function brokerBarTimes(rows, tf) {
+  const opens = barOpenInstants(rows, tf)
+  const n = Array.isArray(rows) ? rows.length : 0
+  return opens ? Array.from(opens) : new Array(n).fill(NaN)
 }
 
 /** ⭐ RS RATING L5 — where a run's newest-bar request withholding rides (non-enumerable). */

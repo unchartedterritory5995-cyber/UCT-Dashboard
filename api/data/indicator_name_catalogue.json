@@ -1,0 +1,1033 @@
+{
+ "_": "NAMES ONLY. Indicators a member may ask Create Indicator for BY NAME that it does not build by name. Used for one thing: when a request names one, the turn's record carries this row's `id` (never the member's words), so the weekly report can say which names are asked for most. `aliases` are spellings in one normal form (lower case, letters, digits and %, single spaces). A name the library gains STAYS here (earlier records name its id, and the report says 'in the library since') and is no longer counted as unknown. Common public names, written from general knowledge. `distinctive` marks a proper name for one specific calculation: the door builds what such a name is generally understood to mean and WITHHOLDS the name, saying so.",
+ "names": [
+  {
+   "id": "zero_lag_exponential_moving_average",
+   "name": "Zero Lag Exponential Moving Average",
+   "aliases": [
+    "zero lag exponential moving average",
+    "zero lag ema",
+    "zlema"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "fractal_adaptive_moving_average",
+   "name": "Fractal Adaptive Moving Average",
+   "aliases": [
+    "fractal adaptive moving average",
+    "frama"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "variable_index_dynamic_average",
+   "name": "Variable Index Dynamic Average",
+   "aliases": [
+    "variable index dynamic average",
+    "vidya"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "tillson_t3",
+   "name": "Tillson T3",
+   "aliases": [
+    "tillson t3",
+    "t3 moving average"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "jurik_moving_average",
+   "name": "Jurik Moving Average",
+   "aliases": [
+    "jurik moving average",
+    "jma"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "least_squares_moving_average",
+   "name": "Least Squares Moving Average",
+   "aliases": [
+    "least squares moving average",
+    "lsma"
+   ]
+  },
+  {
+   "id": "triangular_moving_average",
+   "name": "Triangular Moving Average",
+   "aliases": [
+    "triangular moving average"
+   ]
+  },
+  {
+   "id": "guppy_multiple_moving_average",
+   "name": "Guppy Multiple Moving Average",
+   "aliases": [
+    "guppy multiple moving average",
+    "gmma",
+    "guppy ribbon"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "mesa_adaptive_moving_average",
+   "name": "MESA Adaptive Moving Average",
+   "aliases": [
+    "mesa adaptive moving average",
+    "mesa adaptive"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "rainbow_moving_average",
+   "name": "Rainbow Moving Average",
+   "aliases": [
+    "rainbow moving average",
+    "rainbow chart"
+   ]
+  },
+  {
+   "id": "moving_average_envelope",
+   "name": "Moving Average Envelope",
+   "aliases": [
+    "moving average envelope",
+    "ma envelope"
+   ]
+  },
+  {
+   "id": "super_smoother",
+   "name": "Super Smoother",
+   "aliases": [
+    "super smoother",
+    "ehlers super smoother"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "instantaneous_trendline",
+   "name": "Instantaneous Trendline",
+   "aliases": [
+    "instantaneous trendline",
+    "ehlers instantaneous trendline"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "laguerre_filter",
+   "name": "Laguerre Filter",
+   "aliases": [
+    "laguerre filter"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "williams_alligator",
+   "name": "Williams Alligator",
+   "aliases": [
+    "williams alligator",
+    "alligator indicator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "gator_oscillator",
+   "name": "Gator Oscillator",
+   "aliases": [
+    "gator oscillator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "aroon",
+   "name": "Aroon",
+   "aliases": [
+    "aroon",
+    "aroon oscillator",
+    "aroon indicator",
+    "aroon up",
+    "aroon down"
+   ]
+  },
+  {
+   "id": "directional_movement_index",
+   "name": "Directional Movement Index",
+   "aliases": [
+    "directional movement index"
+   ]
+  },
+  {
+   "id": "half_trend",
+   "name": "Half Trend",
+   "aliases": [
+    "half trend",
+    "halftrend"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "range_filter",
+   "name": "Range Filter",
+   "aliases": [
+    "range filter"
+   ]
+  },
+  {
+   "id": "volatility_stop",
+   "name": "Volatility Stop",
+   "aliases": [
+    "volatility stop"
+   ]
+  },
+  {
+   "id": "chande_kroll_stop",
+   "name": "Chande Kroll Stop",
+   "aliases": [
+    "chande kroll stop"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "safezone_stop",
+   "name": "SafeZone Stop",
+   "aliases": [
+    "safezone stop",
+    "safe zone stop"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "gann_hilo_activator",
+   "name": "Gann HiLo Activator",
+   "aliases": [
+    "gann hilo activator",
+    "gann hilo"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "schaff_trend_cycle",
+   "name": "Schaff Trend Cycle",
+   "aliases": [
+    "schaff trend cycle"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "trend_intensity_index",
+   "name": "Trend Intensity Index",
+   "aliases": [
+    "trend intensity index"
+   ]
+  },
+  {
+   "id": "vertical_horizontal_filter",
+   "name": "Vertical Horizontal Filter",
+   "aliases": [
+    "vertical horizontal filter"
+   ]
+  },
+  {
+   "id": "random_walk_index",
+   "name": "Random Walk Index",
+   "aliases": [
+    "random walk index"
+   ]
+  },
+  {
+   "id": "polarized_fractal_efficiency",
+   "name": "Polarized Fractal Efficiency",
+   "aliases": [
+    "polarized fractal efficiency"
+   ]
+  },
+  {
+   "id": "elder_impulse_system",
+   "name": "Elder Impulse System",
+   "aliases": [
+    "elder impulse system",
+    "impulse system"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "zig_zag",
+   "name": "Zig Zag",
+   "aliases": [
+    "zig zag",
+    "zigzag"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "williams_fractals",
+   "name": "Williams Fractals",
+   "aliases": [
+    "williams fractals",
+    "fractals indicator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "darvas_box",
+   "name": "Darvas Box",
+   "aliases": [
+    "darvas box",
+    "darvas boxes"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "raff_regression_channel",
+   "name": "Raff Regression Channel",
+   "aliases": [
+    "raff regression channel"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "standard_error_bands",
+   "name": "Standard Error Bands",
+   "aliases": [
+    "standard error bands"
+   ]
+  },
+  {
+   "id": "starc_bands",
+   "name": "STARC Bands",
+   "aliases": [
+    "starc bands",
+    "stoller average range channels"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "acceleration_bands",
+   "name": "Acceleration Bands",
+   "aliases": [
+    "acceleration bands"
+   ]
+  },
+  {
+   "id": "fractal_chaos_bands",
+   "name": "Fractal Chaos Bands",
+   "aliases": [
+    "fractal chaos bands"
+   ]
+  },
+  {
+   "id": "projection_bands",
+   "name": "Projection Bands",
+   "aliases": [
+    "projection bands"
+   ]
+  },
+  {
+   "id": "nadaraya_watson_envelope",
+   "name": "Nadaraya Watson Envelope",
+   "aliases": [
+    "nadaraya watson envelope"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "klinger_volume_oscillator",
+   "name": "Klinger Volume Oscillator",
+   "aliases": [
+    "klinger volume oscillator",
+    "klinger oscillator",
+    "kvo"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "know_sure_thing",
+   "name": "Know Sure Thing",
+   "aliases": [
+    "know sure thing",
+    "kst oscillator"
+   ]
+  },
+  {
+   "id": "relative_vigor_index",
+   "name": "Relative Vigor Index",
+   "aliases": [
+    "relative vigor index",
+    "rvgi"
+   ]
+  },
+  {
+   "id": "detrended_price_oscillator",
+   "name": "Detrended Price Oscillator",
+   "aliases": [
+    "detrended price oscillator",
+    "dpo"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "percentage_price_oscillator",
+   "name": "Percentage Price Oscillator",
+   "aliases": [
+    "percentage price oscillator",
+    "ppo"
+   ]
+  },
+  {
+   "id": "percentage_volume_oscillator",
+   "name": "Percentage Volume Oscillator",
+   "aliases": [
+    "percentage volume oscillator",
+    "pvo"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "trix",
+   "name": "TRIX",
+   "aliases": [
+    "trix"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "mass_index",
+   "name": "Mass Index",
+   "aliases": [
+    "mass index"
+   ]
+  },
+  {
+   "id": "stochastic_momentum_index",
+   "name": "Stochastic Momentum Index",
+   "aliases": [
+    "stochastic momentum index"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "smi_ergodic",
+   "name": "SMI Ergodic",
+   "aliases": [
+    "smi ergodic",
+    "ergodic oscillator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "fisher_transform",
+   "name": "Fisher Transform",
+   "aliases": [
+    "fisher transform",
+    "ehlers fisher transform"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "center_of_gravity",
+   "name": "Center of Gravity",
+   "aliases": [
+    "center of gravity",
+    "cog oscillator"
+   ]
+  },
+  {
+   "id": "relative_momentum_index",
+   "name": "Relative Momentum Index",
+   "aliases": [
+    "relative momentum index"
+   ]
+  },
+  {
+   "id": "intraday_momentum_index",
+   "name": "Intraday Momentum Index",
+   "aliases": [
+    "intraday momentum index"
+   ]
+  },
+  {
+   "id": "dynamic_momentum_index",
+   "name": "Dynamic Momentum Index",
+   "aliases": [
+    "dynamic momentum index"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "qqe",
+   "name": "QQE",
+   "aliases": [
+    "qqe",
+    "quantitative qualitative estimation"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "wave_trend_oscillator",
+   "name": "Wave Trend Oscillator",
+   "aliases": [
+    "wave trend oscillator",
+    "wavetrend"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "laguerre_rsi",
+   "name": "Laguerre RSI",
+   "aliases": [
+    "laguerre rsi"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "disparity_index",
+   "name": "Disparity Index",
+   "aliases": [
+    "disparity index"
+   ]
+  },
+  {
+   "id": "psychological_line",
+   "name": "Psychological Line",
+   "aliases": [
+    "psychological line"
+   ]
+  },
+  {
+   "id": "qstick",
+   "name": "Qstick",
+   "aliases": [
+    "qstick"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "demarker",
+   "name": "DeMarker",
+   "aliases": [
+    "demarker",
+    "demarker indicator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "td_sequential",
+   "name": "TD Sequential",
+   "aliases": [
+    "td sequential",
+    "demark sequential"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "td_combo",
+   "name": "TD Combo",
+   "aliases": [
+    "td combo"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "pring_special_k",
+   "name": "Pring Special K",
+   "aliases": [
+    "pring special k",
+    "special k"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "accelerator_oscillator",
+   "name": "Accelerator Oscillator",
+   "aliases": [
+    "accelerator oscillator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "chande_forecast_oscillator",
+   "name": "Chande Forecast Oscillator",
+   "aliases": [
+    "chande forecast oscillator",
+    "forecast oscillator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "projection_oscillator",
+   "name": "Projection Oscillator",
+   "aliases": [
+    "projection oscillator"
+   ]
+  },
+  {
+   "id": "cyber_cycle",
+   "name": "Cyber Cycle",
+   "aliases": [
+    "cyber cycle",
+    "ehlers cyber cycle"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "ehlers_sine_wave",
+   "name": "Ehlers Sine Wave",
+   "aliases": [
+    "ehlers sine wave",
+    "sine wave indicator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "hilbert_transform",
+   "name": "Hilbert Transform",
+   "aliases": [
+    "hilbert transform"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "elder_force_index",
+   "name": "Elder Force Index",
+   "aliases": [
+    "elder force index",
+    "force index"
+   ]
+  },
+  {
+   "id": "ease_of_movement",
+   "name": "Ease of Movement",
+   "aliases": [
+    "ease of movement"
+   ]
+  },
+  {
+   "id": "negative_volume_index",
+   "name": "Negative Volume Index",
+   "aliases": [
+    "negative volume index"
+   ]
+  },
+  {
+   "id": "positive_volume_index",
+   "name": "Positive Volume Index",
+   "aliases": [
+    "positive volume index"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "price_volume_trend",
+   "name": "Price Volume Trend",
+   "aliases": [
+    "price volume trend",
+    "volume price trend"
+   ]
+  },
+  {
+   "id": "chaikin_oscillator",
+   "name": "Chaikin Oscillator",
+   "aliases": [
+    "chaikin oscillator"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "twiggs_money_flow",
+   "name": "Twiggs Money Flow",
+   "aliases": [
+    "twiggs money flow"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "time_segmented_volume",
+   "name": "Time Segmented Volume",
+   "aliases": [
+    "time segmented volume"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "market_facilitation_index",
+   "name": "Market Facilitation Index",
+   "aliases": [
+    "market facilitation index"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "volume_weighted_macd",
+   "name": "Volume Weighted MACD",
+   "aliases": [
+    "volume weighted macd"
+   ]
+  },
+  {
+   "id": "cumulative_volume_delta",
+   "name": "Cumulative Volume Delta",
+   "aliases": [
+    "cumulative volume delta",
+    "cvd"
+   ]
+  },
+  {
+   "id": "volume_profile",
+   "name": "Volume Profile",
+   "aliases": [
+    "volume profile",
+    "fixed range volume profile",
+    "session volume profile"
+   ]
+  },
+  {
+   "id": "market_profile",
+   "name": "Market Profile",
+   "aliases": [
+    "market profile"
+   ]
+  },
+  {
+   "id": "accumulation_distribution_line",
+   "name": "Accumulation Distribution Line",
+   "aliases": [
+    "accumulation distribution line",
+    "accumulation distribution",
+    "a d line"
+   ]
+  },
+  {
+   "id": "on_balance_volume",
+   "name": "On Balance Volume",
+   "aliases": [
+    "on balance volume",
+    "obv"
+   ]
+  },
+  {
+   "id": "chaikin_volatility",
+   "name": "Chaikin Volatility",
+   "aliases": [
+    "chaikin volatility"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "ulcer_index",
+   "name": "Ulcer Index",
+   "aliases": [
+    "ulcer index"
+   ]
+  },
+  {
+   "id": "historical_volatility",
+   "name": "Historical Volatility",
+   "aliases": [
+    "historical volatility"
+   ]
+  },
+  {
+   "id": "relative_volatility_index",
+   "name": "Relative Volatility Index",
+   "aliases": [
+    "relative volatility index"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "williams_vix_fix",
+   "name": "Williams VIX Fix",
+   "aliases": [
+    "williams vix fix",
+    "vix fix"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "hurst_exponent",
+   "name": "Hurst Exponent",
+   "aliases": [
+    "hurst exponent"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "fractal_dimension_index",
+   "name": "Fractal Dimension Index",
+   "aliases": [
+    "fractal dimension index"
+   ]
+  },
+  {
+   "id": "swing_index",
+   "name": "Swing Index",
+   "aliases": [
+    "swing index",
+    "accumulative swing index"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "pivot_points",
+   "name": "Pivot Points",
+   "aliases": [
+    "pivot points",
+    "standard pivot points",
+    "floor pivots"
+   ]
+  },
+  {
+   "id": "camarilla_pivots",
+   "name": "Camarilla Pivots",
+   "aliases": [
+    "camarilla pivots",
+    "camarilla pivot points"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "woodie_pivots",
+   "name": "Woodie Pivots",
+   "aliases": [
+    "woodie pivots",
+    "woodie pivot points"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "central_pivot_range",
+   "name": "Central Pivot Range",
+   "aliases": [
+    "central pivot range"
+   ],
+   "distinctive": true
+  },
+  {
+   "id": "fibonacci_retracement",
+   "name": "Fibonacci Retracement",
+   "aliases": [
+    "fibonacci retracement",
+    "fib retracement"
+   ]
+  },
+  {
+   "id": "fibonacci_extension",
+   "name": "Fibonacci Extension",
+   "aliases": [
+    "fibonacci extension",
+    "fib extension"
+   ]
+  },
+  {
+   "id": "gann_fan",
+   "name": "Gann Fan",
+   "aliases": [
+    "gann fan"
+   ]
+  },
+  {
+   "id": "gann_square",
+   "name": "Gann Square",
+   "aliases": [
+    "gann square",
+    "square of nine"
+   ]
+  },
+  {
+   "id": "andrews_pitchfork",
+   "name": "Andrews Pitchfork",
+   "aliases": [
+    "andrews pitchfork"
+   ]
+  },
+  {
+   "id": "elliott_wave",
+   "name": "Elliott Wave",
+   "aliases": [
+    "elliott wave",
+    "elliott waves"
+   ]
+  },
+  {
+   "id": "wolfe_wave",
+   "name": "Wolfe Wave",
+   "aliases": [
+    "wolfe wave"
+   ]
+  },
+  {
+   "id": "harmonic_patterns",
+   "name": "Harmonic Patterns",
+   "aliases": [
+    "harmonic patterns",
+    "gartley pattern"
+   ]
+  },
+  {
+   "id": "order_blocks",
+   "name": "Order Blocks",
+   "aliases": [
+    "order blocks",
+    "order block"
+   ]
+  },
+  {
+   "id": "fair_value_gap",
+   "name": "Fair Value Gap",
+   "aliases": [
+    "fair value gap",
+    "fvg"
+   ]
+  },
+  {
+   "id": "break_of_structure",
+   "name": "Break of Structure",
+   "aliases": [
+    "break of structure"
+   ]
+  },
+  {
+   "id": "market_structure_shift",
+   "name": "Market Structure Shift",
+   "aliases": [
+    "market structure shift",
+    "change of character"
+   ]
+  },
+  {
+   "id": "liquidity_sweep",
+   "name": "Liquidity Sweep",
+   "aliases": [
+    "liquidity sweep"
+   ]
+  },
+  {
+   "id": "supply_and_demand_zones",
+   "name": "Supply and Demand Zones",
+   "aliases": [
+    "supply and demand zones",
+    "supply demand zones"
+   ]
+  },
+  {
+   "id": "smart_money_concepts",
+   "name": "Smart Money Concepts",
+   "aliases": [
+    "smart money concepts"
+   ]
+  },
+  {
+   "id": "volume_spread_analysis",
+   "name": "Volume Spread Analysis",
+   "aliases": [
+    "volume spread analysis"
+   ]
+  },
+  {
+   "id": "wyckoff_method",
+   "name": "Wyckoff Method",
+   "aliases": [
+    "wyckoff method",
+    "wyckoff accumulation",
+    "wyckoff distribution"
+   ]
+  },
+  {
+   "id": "stage_analysis",
+   "name": "Stage Analysis",
+   "aliases": [
+    "stage analysis",
+    "weinstein stage analysis"
+   ]
+  },
+  {
+   "id": "heikin_ashi",
+   "name": "Heikin Ashi",
+   "aliases": [
+    "heikin ashi",
+    "heiken ashi"
+   ]
+  },
+  {
+   "id": "renko",
+   "name": "Renko",
+   "aliases": [
+    "renko",
+    "renko bricks"
+   ]
+  },
+  {
+   "id": "kagi",
+   "name": "Kagi",
+   "aliases": [
+    "kagi"
+   ]
+  },
+  {
+   "id": "point_and_figure",
+   "name": "Point and Figure",
+   "aliases": [
+    "point and figure"
+   ]
+  },
+  {
+   "id": "three_line_break",
+   "name": "Three Line Break",
+   "aliases": [
+    "three line break"
+   ]
+  },
+  {
+   "id": "mcclellan_oscillator",
+   "name": "McClellan Oscillator",
+   "aliases": [
+    "mcclellan oscillator"
+   ]
+  },
+  {
+   "id": "mcclellan_summation_index",
+   "name": "McClellan Summation Index",
+   "aliases": [
+    "mcclellan summation index"
+   ]
+  },
+  {
+   "id": "arms_index",
+   "name": "Arms Index",
+   "aliases": [
+    "arms index",
+    "trin"
+   ]
+  },
+  {
+   "id": "advance_decline_line",
+   "name": "Advance Decline Line",
+   "aliases": [
+    "advance decline line"
+   ]
+  },
+  {
+   "id": "bullish_percent_index",
+   "name": "Bullish Percent Index",
+   "aliases": [
+    "bullish percent index"
+   ]
+  },
+  {
+   "id": "high_low_index",
+   "name": "High Low Index",
+   "aliases": [
+    "high low index"
+   ]
+  },
+  {
+   "id": "put_call_ratio",
+   "name": "Put Call Ratio",
+   "aliases": [
+    "put call ratio"
+   ]
+  }
+ ]
+}

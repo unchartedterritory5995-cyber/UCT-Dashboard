@@ -330,11 +330,12 @@ def login():
     jar = http.cookiejar.CookieJar()
     op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
     op.addheaders = [("User-Agent", UA)]
-    op.open(urllib.request.Request(
-        f"{BASE}/api/auth/login",
-        data=json.dumps({"email": os.environ["SMOKE_EMAIL"],
-                         "password": os.environ["SMOKE_PASSWORD"]}).encode(),
-        headers={"Content-Type": "application/json"}), timeout=60).read()
+    # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    S.sign_in_urllib(op, BASE, "smoke", timeout=60)
     return op
 
 

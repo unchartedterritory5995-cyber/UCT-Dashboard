@@ -52,9 +52,48 @@ export const RUNTIME_LISTS_RECHECK_MS = 60000
 let _listsReadAt = 0
 let _listsInFlight = false
 
+// ─── ⭐⭐ THE FIRST READ, AND THE SIGNAL THAT IT LANDED (2026-11-17, RS Rating live) ─────────
+//
+// ⚰️ MEASURED ON PRODUCTION (engine 68): the ONLY reader that latched these lists was
+// `MemberPane`'s mount read, and the recheck below returned at once while `_listsReadAt` was 0.
+// So a tab that never opened the member door — every member who reloads a chart carrying RS
+// Rating, or adds it from "Your indicators" — never read them at all: 0 GETs in 94 s, the
+// allowlist empty, and every run half refused `pane:not-graded` ("hasn't been checked against
+// TradingView") for a script the server had graded. Every rail ran under
+// `__allowEveryRuntimeScriptForTests`, which skips exactly this.
+// ⭐ So the first consult in a page DOES the first read (`ensureRuntimeListsRead`, also called
+// by the chart on mount through `useRuntimeLists`), and every latch — the lists or a capability
+// verdict — bumps `runtimeListsGeneration` and tells subscribers, so a chart asks again once
+// they land: the `useServerColumns` shape (a generation, never the data).
+const _listsListeners = new Set()
+let _listsGeneration = 0
+
+/** Subscribe to "the runtime lists (or a verdict) just latched". Returns the unsubscribe. */
+export function subscribeRuntimeLists(fn) {
+  if (typeof fn !== 'function') return () => {}
+  _listsListeners.add(fn)
+  return () => { _listsListeners.delete(fn) }
+}
+
+/** A number that changes whenever the lists or a verdict latch (the value is meaningless). */
+export function runtimeListsGeneration() { return _listsGeneration }
+
+function notifyRuntimeLists() {
+  _listsGeneration += 1
+  for (const fn of [..._listsListeners]) {
+    try { fn() } catch { /* a subscriber's failure is its own */ }
+  }
+}
+
+/** Read the lists once if this tab never has (a page only; never under the test grant). */
+export function ensureRuntimeListsRead() {
+  if (!_listsReadAt) maybeRefreshRuntimeLists()
+}
+
 function maybeRefreshRuntimeLists() {
-  if (!_listsReadAt || _listsInFlight || _allow === ALLOW_ANY) return
-  if (Date.now() - _listsReadAt < RUNTIME_LISTS_RECHECK_MS) return
+  if (_listsInFlight || _allow === ALLOW_ANY) return
+  // ⭐ never read (0): read NOW — the first read; read once: again when older than the recheck
+  if (_listsReadAt && Date.now() - _listsReadAt < RUNTIME_LISTS_RECHECK_MS) return
   if (typeof window === 'undefined' || typeof fetch !== 'function') return
   _listsInFlight = true
   _listsReadAt = Date.now()            // a failure waits a full interval too
@@ -85,12 +124,13 @@ export function latchRuntimeLists(d) {
   setRuntimeAllowList(d.allow)
   setRuntimeCapabilityAdmission(d.capability_admission)
   setRunHalfObjectEvidence(d.run_half_evidence)
+  notifyRuntimeLists()
 }
 
 /** Diagnostics and rails. */
 export const runtimeListsDebug = () => ({ readAt: _listsReadAt, inFlight: _listsInFlight })
 /** Rails only. */
-export function __resetRuntimeListsRecheck() { _listsReadAt = 0; _listsInFlight = false }
+export function __resetRuntimeListsRecheck() { _listsReadAt = 0; _listsInFlight = false; _listsListeners.clear() }
 
 /** Normalise the server's list: lowercase, trimmed, only well-formed entries. */
 export function normaliseKillList(list) {
@@ -188,6 +228,9 @@ let _capabilityAdmission = false
 const _verdicts = new Map()        // hash -> { admitted, at }
 const _askedAt = new Map()         // hash -> when a source with NO verdict was last re-asked (bounded)
 const _admissionInFlight = new Map() // hash -> Promise
+// ⭐ (2026-11-18, the first-paste race) the hashes a consult ANSWERED "still being checked" for (bounded): a build
+// minted on that answer is waiting for one, and `runtimeConsultPendingOf` says so until the answer changes
+const _consultedPending = new Set()
 
 /** Latch the server's switch (`capability_admission` on the kill read). Anything but
  *  `true` is OFF, and switching it off forgets every verdict. */
@@ -209,6 +252,7 @@ export function latchRuntimeAdmission(hash, verdict) {
   _verdicts.delete(h)
   _verdicts.set(h, { admitted: verdict.admitted, historyOnly: verdict.historyOnly === true, at: Date.now() })
   while (_verdicts.size > RUNTIME_ADMISSION_MAX) _verdicts.delete(_verdicts.keys().next().value)
+  notifyRuntimeLists()          // ⭐ a verdict that lands later changes the answer too
 }
 
 /** The latched verdict for this script (`{admitted, at}`) or null. Touches the LRU. */
@@ -229,6 +273,12 @@ export function runtimeAdmissionOf({ source, hash } = {}) {
  *  busy: `missing: ['pending']`) is asked again. A pending answer is never latched. */
 export const RUNTIME_ADMISSION_PENDING_RETRY_MS = 1500
 export const RUNTIME_ADMISSION_PENDING_RETRIES = 5
+
+/** TERM-033: what a FAILED admission request resolves to. It is "no verdict", never a verdict:
+ *  nothing is latched, the script stays "being checked" (fail closed), and `watchRuntimeAdmission`
+ *  asks again on its recheck. Never read as admitted or as refused. */
+const NO_ADMISSION_VERDICT = null
+const noAdmissionVerdict = () => NO_ADMISSION_VERDICT
 
 export function requestRuntimeAdmission(source, _attempt = 0) {
   if (!_capabilityAdmission || typeof source !== 'string' || !source) return Promise.resolve(null)
@@ -263,7 +313,7 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
         latchRuntimeAdmission(h, { admitted: d.admitted === true, historyOnly })
         return _verdicts.get(h) || null
       })
-      .catch(() => null)
+      .catch(noAdmissionVerdict)
       .finally(() => { _admissionInFlight.delete(h) })
       .then((v) => (v && v.retry
         ? new Promise((resolve) => { setTimeout(resolve, RUNTIME_ADMISSION_PENDING_RETRY_MS) })
@@ -283,16 +333,63 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
 export function watchRuntimeAdmission(source, onVerdict, { delayMs = 0, recheckMs = RUNTIME_LISTS_RECHECK_MS } = {}) {
   let alive = true
   let timer = null
+  // ⭐ (2026-11-18, the first-paste race) no verdict yet: ask again SOON, then less often, up to the recheck. ⚰️ After
+  // the server's busy detector answered "still being checked" five times (about 6 s), the next ask waited the full
+  // recheck (60 s), and the first paste of a script the server had not met yet stayed the host copy for a minute.
+  let wait = RUNTIME_ADMISSION_PENDING_RETRY_MS * 2
+  const again = () => {
+    const w = Math.min(recheckMs, wait)
+    wait = Math.min(recheckMs, wait * 2)
+    timer = setTimeout(ask, w)
+  }
   const ask = () => {
     if (!alive) return
     Promise.resolve(requestRuntimeAdmission(source)).then((v) => {
       if (!alive) return
       if (v) { onVerdict(v); return }
-      timer = setTimeout(ask, recheckMs)      // no verdict yet: ask again on the recheck
-    }).catch(() => { if (alive) timer = setTimeout(ask, recheckMs) })
+      again()
+    }).catch(() => { if (alive) again() })
   }
   timer = setTimeout(ask, delayMs)
   return () => { alive = false; if (timer) clearTimeout(timer) }
+}
+
+/** ⭐ (2026-11-18, the first-paste race) — whether a CONSULT for this script answered "still being checked" and
+ *  would still answer so: a build minted on that answer is waiting for the admission verdict. False for a script no
+ *  consult asked about (a door that never asked does not wait), and false once the answer changed (a verdict landed,
+ *  the allowlist names it, admission switched off). The condition is `runtimeNotGradedOf`'s own "still being
+ *  checked" branch, and a rail holds the two to each other over every state. */
+export function runtimeConsultPendingOf({ source, hash } = {}) {
+  const h = typeof hash === 'string' && hash ? hash.toLowerCase()
+    : (typeof source === 'string' ? runtimeSourceHash(source) : '')
+  if (!h || !_consultedPending.has(h)) return false
+  if (_allow === ALLOW_ANY || !_capabilityAdmission) return false
+  if (_allow.some((e) => h.startsWith(e))) return false
+  return !_verdicts.has(h)
+}
+
+/** How long an Add pressed before a script's admission answered waits for the answer (MemberPane). */
+export const RUNTIME_ADMISSION_ATTACH_WAIT_MS = 20000
+
+/** ⭐ (2026-11-18, the first-paste race) — wait for this script's admission verdict: at once when no consult is
+ *  waiting on one, else asking (`watchRuntimeAdmission`) until a verdict lands or `timeoutMs` runs out. Resolves to
+ *  the latched verdict or null. Never rejects. */
+export function awaitRuntimeAdmission(source, { timeoutMs = RUNTIME_ADMISSION_ATTACH_WAIT_MS } = {}) {
+  if (!runtimeConsultPendingOf({ source })) return Promise.resolve(runtimeAdmissionOf({ source }))
+  return new Promise((resolve) => {
+    let done = false
+    let cancel = null
+    let timer = null
+    const finish = (v) => {
+      if (done) return
+      done = true
+      if (timer) clearTimeout(timer)
+      if (cancel) cancel()
+      resolve(v || null)
+    }
+    timer = setTimeout(() => finish(runtimeAdmissionOf({ source })), timeoutMs)
+    cancel = watchRuntimeAdmission(source, finish, { delayMs: 0 })
+  })
 }
 
 /** Rails only. */
@@ -301,6 +398,7 @@ export function __resetRuntimeAdmission() {
   _verdicts.clear()
   _admissionInFlight.clear()
   _askedAt.clear()
+  _consultedPending.clear()
 }
 
 /** Why this script is NOT drawn by the runtime lane (not yet graded), or null.
@@ -321,6 +419,9 @@ export function runtimeNotGradedOf({ source, hash } = {}) {
     }
     if (v && v.admitted) return null
     if (!v) {
+      _consultedPending.delete(h)
+      _consultedPending.add(h)
+      while (_consultedPending.size > RUNTIME_ADMISSION_MAX) _consultedPending.delete(_consultedPending.values().next().value)
       // ⭐ re-review F2 — a source with NO verdict is re-asked on the lists' recheck interval (at most
       // once per interval per hash), so the chart's own consults recover too
       if (typeof source === 'string' && Date.now() - (_askedAt.get(h) || 0) >= RUNTIME_LISTS_RECHECK_MS) {

@@ -51,9 +51,11 @@ def _doc_purged() -> set[str]:
     return names
 
 
-#: Rows of the generated block that are NOT deletes by `purge_user_data`: anonymised tables, and
-#: the tables `_cascade_delete_user` deletes beside the account row. Each has its own rail below.
-_NOT_A_DELETE = ("| **Anonymised** |", "| **With the account row** |")
+#: Rows of the generated block that are NOT deletes by `purge_user_data`: anonymised tables (auth.db's,
+#: and a second database's `| **Anonymised** (<db>) |` columns), and the tables `_cascade_delete_user`
+#: deletes beside the account row. Each has its own rail below.
+_NOT_A_DELETE = ("| **Anonymised** |", "| **With the account row** |", "| **Anonymised** (")
+_SECOND_DB_ANON_ROW = re.compile(r"^\|\s*`([a-z][a-z0-9_]*)`\s*\|\s*`([a-z][a-z0-9_]*)`\s*\|\s*\*\*Anonymised\*\* \(")
 
 
 def _doc_rows_marked(marker: str) -> set[str]:
@@ -73,6 +75,26 @@ def test_the_doc_lists_as_ANONYMISED_exactly_what_the_purge_anonymises():
     assert {"page_views", "feedback"} <= runtime, runtime          # non-vacuity, by name
     assert doc == runtime, _diff("the purge (rows_anonymised)", runtime, "the doc", doc)
     assert not (doc & _runtime_purged()), "a table is listed as anonymised AND deleted"
+
+
+def test_the_doc_lists_each_second_database_ANONYMISED_column_exactly_as_the_member_stores_clear_it():
+    """Owner ruling 2026-11-17: in uct_agent.db and study.db some rows stay with the member's id cleared.
+    The doc's `(table, column)` rows, the generator's AST read and the purge's own report agree."""
+    from api.services.journal_two import account_purge
+    doc = {(m.group(1), m.group(2)) for line in gen.doc_block(_doc_text()).splitlines()
+           if (m := _SECOND_DB_ANON_ROW.match(line))}
+    derived = gen.second_database_anonymised()
+    conn = sqlite3.connect(":memory:")
+    try:
+        report = account_purge.purge_user_data("j4-manifest-probe-no-such-user", conn)
+    finally:
+        conn.close()
+    runtime = set((report.get("member_stores") or {}).get("rows_anonymised") or {})
+    for pair in (("agent_spend", "user_id"), ("study_items", "reviewed_by")):    # non-vacuity, by name
+        assert pair in doc, f"the doc does not list {pair} as anonymised"
+    assert doc == derived, _diff("the doc", {f"{t}.{c}" for t, c in doc},
+                                 "the derivation", {f"{t}.{c}" for t, c in derived})
+    assert {t for t, _c in doc} == runtime, _diff("the doc", {t for t, _c in doc}, "the purge's report", runtime)
 
 
 def test_the_doc_lists_WITH_THE_ACCOUNT_ROW_exactly_what_the_cascade_deletes_beside_it():
@@ -112,7 +134,10 @@ def _runtime_purged() -> set[str]:
     # ...and the alert stores (alert_taxonomy.db, screener.db, calendar_alerts.db,
     # transcript_alerts.db, catalysts.db), flat under theirs.
     alerts = set((report.get("alert_stores") or {}).get("rows_deleted") or {})
-    return set(report["rows_deleted"]) | second | alerts
+    # ...and the member stores the 2026-11-17 census found (chart_iq_feedback.db, uct_agent.db,
+    # study.db), flat under theirs.
+    members = set((report.get("member_stores") or {}).get("rows_deleted") or {})
+    return set(report["rows_deleted"]) | second | alerts | members
 
 
 def _diff(label_a: str, a: set[str], label_b: str, b: set[str]) -> str:
@@ -129,7 +154,9 @@ def test_the_manifest_names_exactly_the_tables_the_purge_deletes():
     # Non-vacuity, by name, on BOTH sides.
     for name in ("j2_notes", "j2_option_legs", "user_definitions", "definition_shares",
                  "inbound_alert_tokens", "alert_predicates", "alert_fire_channel_reads",
-                 "spec_alerts_fired", "keyword_subs"):
+                 "spec_alerts_fired", "keyword_subs", "chart_iq_feedback", "agent_conversation_state",
+                 "study_game_runs", "j2_note_tweet_captures", "agent_turns", "agent_conversations",
+                 "study_profile", "study_feedback"):
         assert name in runtime, f"the purge's own report does not name {name}: {sorted(runtime)}"
         assert name in doc, f"the doc's table does not name {name}"
     problem = _diff("the purge (runtime)", runtime, "docs/account-deletion-manifest.md", doc)

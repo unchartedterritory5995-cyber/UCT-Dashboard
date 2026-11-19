@@ -18,14 +18,15 @@ function Host({ initial, spy }) {
 const openHeader = () => fireEvent.click(screen.getByRole('tab', { name: 'Header & legend' }))
 const openPicker = () => fireEvent.click(screen.getByRole('button', { name: /Choose stats/ }))
 const picker = () => screen.getByRole('region', { name: 'Info row stats' })
+const THREE = mergeChartSettings(JSON.stringify({ header: { fields: ['mcap', 'earn', 'pe'] } }))
 const names = () => screen.getAllByRole('textbox', { name: /^Name for / }).map((i) => i.getAttribute('aria-label').replace('Name for ', ''))
 
 describe('Header & legend → stats beside the ticker', () => {
-  it('an untouched chart lists today\'s row and "3 shown"', () => {
+  it('an untouched chart lists today\'s row and "2 shown" (UCT Rating retired 11-17)', () => {
     render(<Host initial={mergeChartSettings(null)} />)
     openHeader()
-    expect(names()).toEqual(['Market Cap', 'Next Earnings', 'UCT Rating'])
-    expect(screen.getByText('3 shown')).toBeTruthy()
+    expect(names()).toEqual(['Market Cap', 'Next Earnings'])
+    expect(screen.getByText('2 shown')).toBeTruthy()
   })
 
   it('the picker opens inside the window: grouped, every stat, soft squares, count; search filters', () => {
@@ -36,9 +37,9 @@ describe('Header & legend → stats beside the ticker', () => {
     expect(document.querySelector('[data-chart-settings-popout]'), 'no portalled popout').toBeNull()
     const boxes = within(p).getAllByRole('checkbox')
     expect(boxes).toHaveLength(HEADER_STATS.length)
-    expect(boxes.filter((b) => b.getAttribute('aria-checked') === 'true').map((b) => b.textContent).sort()).toEqual(['Market Cap', 'Next Earnings', 'UCT Rating'])
+    expect(boxes.filter((b) => b.getAttribute('aria-checked') === 'true').map((b) => b.textContent).sort()).toEqual(['Market Cap', 'Next Earnings'])
     expect(within(p).getByRole('group', { name: 'Fundamentals' })).toBeTruthy()
-    expect(within(p).getByText('3 shown')).toBeTruthy()
+    expect(within(p).getByText('2 shown')).toBeTruthy()
     fireEvent.change(within(p).getByRole('textbox', { name: 'Find a stat' }), { target: { value: 'short' } })
     const hits = within(p).getAllByRole('checkbox').map((b) => b.textContent)
     expect(hits).toContain('Short % of Float')
@@ -53,38 +54,38 @@ describe('Header & legend → stats beside the ticker', () => {
     openHeader()
     openPicker()
     fireEvent.click(within(picker()).getByRole('checkbox', { name: 'P/E' }))
-    expect(spy.mock.lastCall[0].header.fields).toEqual(['mcap', 'earn', 'rating', 'pe'])
-    expect(within(picker()).getByText('4 shown')).toBeTruthy()
+    expect(spy.mock.lastCall[0].header.fields).toEqual(['mcap', 'earn', 'pe'])
+    expect(within(picker()).getByText('3 shown')).toBeTruthy()
     fireEvent.click(within(picker()).getByRole('checkbox', { name: 'Next Earnings' }))
-    expect(spy.mock.lastCall[0].header.fields).toEqual(['mcap', 'rating', 'pe'])
+    expect(spy.mock.lastCall[0].header.fields).toEqual(['mcap', 'pe'])
     fireEvent.click(within(picker()).getByRole('button', { name: 'Done' }))
-    expect(names()).toEqual(['Market Cap', 'UCT Rating', 'P/E'])
+    expect(names()).toEqual(['Market Cap', 'P/E'])
   })
 
   it('reorder with ↑ / ↓; remove with ✕', () => {
     const spy = vi.fn()
-    render(<Host initial={mergeChartSettings(null)} spy={spy} />)
+    render(<Host initial={THREE} spy={spy} />)
     openHeader()
-    fireEvent.click(screen.getByRole('button', { name: 'Move UCT Rating up' }))
-    expect(spy.mock.lastCall[0].header.fields).toEqual(['mcap', 'rating', 'earn'])
+    fireEvent.click(screen.getByRole('button', { name: 'Move P/E up' }))
+    expect(spy.mock.lastCall[0].header.fields).toEqual(['mcap', 'pe', 'earn'])
     fireEvent.click(screen.getByRole('button', { name: 'Move Market Cap down' }))
-    expect(spy.mock.lastCall[0].header.fields).toEqual(['rating', 'mcap', 'earn'])
-    expect(screen.getByRole('button', { name: 'Move UCT Rating up' }).disabled).toBe(true)
+    expect(spy.mock.lastCall[0].header.fields).toEqual(['pe', 'mcap', 'earn'])
+    expect(screen.getByRole('button', { name: 'Move P/E up' }).disabled).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: 'Remove Market Cap' }))
-    expect(spy.mock.lastCall[0].header.fields).toEqual(['rating', 'earn'])
-    expect(names()).toEqual(['UCT Rating', 'Next Earnings'])
+    expect(spy.mock.lastCall[0].header.fields).toEqual(['pe', 'earn'])
+    expect(names()).toEqual(['P/E', 'Next Earnings'])
   })
 
   it('drag the grip onto another row moves it there', () => {
     const spy = vi.fn()
-    render(<Host initial={mergeChartSettings(null)} spy={spy} />)
+    render(<Host initial={THREE} spy={spy} />)
     const container = document.body   // the window is portalled to <body>
     openHeader()
-    const grip = container.querySelector('[data-stat-row="rating"] [draggable="true"]')
+    const grip = container.querySelector('[data-stat-row="pe"] [draggable="true"]')
     fireEvent.dragStart(grip)
     fireEvent.dragOver(container.querySelector('[data-stat-row="mcap"]'))
     fireEvent.drop(container.querySelector('[data-stat-row="mcap"]'))
-    expect(spy.mock.lastCall[0].header.fields).toEqual(['rating', 'mcap', 'earn'])
+    expect(spy.mock.lastCall[0].header.fields).toEqual(['pe', 'mcap', 'earn'])
   })
 
   it('rename: a short custom label (capped at 16); empty or the own name clears it', () => {
@@ -136,7 +137,7 @@ describe('Header & legend → stats beside the ticker', () => {
     expect(h.fields).toBeUndefined()
     expect(h.statLabels).toBeUndefined()
     expect(h.timeframes).toEqual(['D'])
-    expect(names()).toEqual(['Market Cap', 'Next Earnings', 'UCT Rating'])
+    expect(names()).toEqual(['Market Cap', 'Next Earnings'])
   })
 
   it('leaving the section closes the picker', () => {

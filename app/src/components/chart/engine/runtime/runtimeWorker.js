@@ -12,6 +12,7 @@
 // is the columns, or the refusal / the script's own `runtime.error` as plain
 // fields the main thread rebuilds (`runtimeAsync.js`).
 import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeColumns.js'
+import { errorImageOf } from './errorImage.js'
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
 import { runtimeStrategyOf } from './strategyRecord.js'
@@ -54,14 +55,9 @@ self.onmessage = (event) => {
     self.postMessage({
       id,
       ok: false,
-      error: {
-        name: (err && err.name) || 'Error',
-        message: String((err && err.message) || err),
-        guard: (err && err.guard) || null,
-        limit: (err && typeof err.limit === 'string') ? err.limit : null,
-        bar: err && Number.isInteger(err.bar) ? err.bar : null,
-        ms: Math.max(0, Math.round(clock() - startedAt)),
-      },
+      // ⛔⛔ EVERY FIELD THE MAIN THREAD READS CROSSES (`errorImage.js`): a hand-picked list here dropped
+      // `pending`, and a run waiting for another symbol's bars came back as a refusal (RS Rating L10b)
+      error: { ...errorImageOf(err), ms: Math.max(0, Math.round(clock() - startedAt)) },
     })
   }
 }

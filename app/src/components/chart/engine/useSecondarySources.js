@@ -21,10 +21,52 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf } from './otherSymbols'
 import { instanceDocumentForFetch } from './symbolInputs'
-import { ensureAll, ensureSecondaryBars, subscribe } from './secondaryBars'
+import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail } from './secondaryBars'
+
+/** ⭐⭐ RS RATING L11 — every key this chart needs, asked once each: an ordinary key at the chart's
+ *  own timeframe and depth (`ensureAll`, as before), a HELD key (`SPX@D` on a weekly chart,
+ *  `otherSymbols.js::heldKeyParts`) at its held timeframe, deep enough for the chart's weekly bars
+ *  (`heldDepthOf`). One map, keyed as `symbolsNeeded` named them. */
+export function ensureChartSources(keys, tf, barCount, fetcher) {
+  const list = Array.isArray(keys) ? keys : []
+  const out = ensureAll(list.filter((k) => !heldKeyParts(k)), tf, barCount, fetcher)
+  for (const k of list) {
+    const held = heldKeyParts(k)
+    if (!held) continue
+    const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf), fetcher)
+    if (entry) out.set(k, entry)
+  }
+  return out
+}
 import { lowerTfWindowsNeeded } from './lowerTf'
+import { isAppVisible } from '../../../lib/deskVisibility'
+
+/** ⭐⭐ RS RATING L11 PR 2 — how often a forming series is re-read (`secondaryBars.refreshSecondaryTail`). */
+export const LIVE_TAIL_MS = 60000
+
+/** ⭐⭐ RS RATING L11 PR 2 — one tick of the live tail: every held entry of this chart whose session is in
+ *  progress (`newestBarIsForming === true`), and every one while the CHART's own newest bar is forming (a
+ *  page opened before the open holds an index series with no row for today, flagged settled, and only a
+ *  re-read finds today's), re-reads its newest rows. Nothing while the member cannot see the app
+ *  (`deskVisibility.isAppVisible`: a hidden tab, or the desktop desk hidden, where a minimized window still
+ *  reports `visible`; speed rule 6). Exported for its rail. */
+export function liveTailTick(keys, tf, barCount, fetcher, chartForming) {
+  if (!isAppVisible()) return 0
+  let started = 0
+  for (const k of Array.isArray(keys) ? keys : []) {
+    const held = heldKeyParts(k)
+    const symbol = held ? held.symbol : k
+    const at = held ? held.tf : tf
+    const depth = held ? heldDepthOf(barCount, tf) : barCount
+    const e = cachedBars(symbol, at, depth)
+    if (!e || e.status !== 'available') continue
+    if (e.newestBarIsForming !== true && chartForming !== true) continue
+    if (refreshSecondaryTail(symbol, at, depth, fetcher)) started += 1
+  }
+  return started
+}
 
 /** Do two maps hold the same entry OBJECT for the same symbols? */
 function sameEntries(a, b) {
@@ -47,13 +89,16 @@ function sameEntries(a, b) {
  * @param {number}   barCount   the chart's own history depth
  * @param {function} fetcher    the chart's fetcher, so aborts on symbol flip apply
  * @param {*}        revalidate any value that should re-check the needed set
+ * @param {function} [chartFormingOf]  ⭐ L11 PR 2: whether the chart's own newest bar is forming, read
+ *   at each live-tail tick (`liveTailTick`)
  * @returns {Map<string,{bars,status}>|null} null when this chart needs none
  */
-export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate) {
+export function useSecondarySources(instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf) {
   const [state, setState] = useState(EMPTY)
 
   useEffect(() => {
-    const symbols = symbolsNeeded(instances ? instances() : null, defOf)
+    // ⭐ RS RATING L11 — named for THIS chart's timeframe (a weekly chart holds SP:SPX and the seed at D)
+    const symbols = symbolsNeeded(instances ? instances() : null, defOf, tf)
     const key = `${symbols.join(',')}|${tf}|${barCount}`
     let alive = true
 
@@ -64,7 +109,7 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
       // null-key-means-no-traffic idiom `compareSwrUrl` and
       // `useSignatureIndicators` already use. It returns the SHARED empty state,
       // so "needs nothing" is one stable identity rather than a new object.
-      const map = symbols.length ? ensureAll(symbols, tf, barCount, fetcher) : null
+      const map = symbols.length ? ensureChartSources(symbols, tf, barCount, fetcher) : null
       setState((prev) => {
         if (!map) return prev.map === null ? prev : EMPTY
         return prev.key === key && sameEntries(prev.map, map) ? prev : { key, map }
@@ -77,8 +122,13 @@ export function useSecondarySources(instances, defOf, tf, barCount, fetcher, rev
     // is what tells this chart a response landed, and re-reading the cache is
     // cheap because the fetch is already deduped per URL.
     const unsub = subscribe(apply)
-    return () => { alive = false; unsub() }
-  }, [instances, defOf, tf, barCount, fetcher, revalidate])
+    // ⭐⭐ RS RATING L11 PR 2 — a forming series is re-read while this chart is up (`liveTailTick`); a
+    // changed entry notifies, and `apply` above hands the chart the new one
+    const timer = setInterval(() => {
+      liveTailTick(symbols, tf, barCount, fetcher, typeof chartFormingOf === 'function' ? chartFormingOf() : null)
+    }, LIVE_TAIL_MS)
+    return () => { alive = false; unsub(); clearInterval(timer) }
+  }, [instances, defOf, tf, barCount, fetcher, revalidate, chartFormingOf])
 
   return state.map
 }

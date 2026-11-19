@@ -29,13 +29,37 @@ describe('the Layout menu', () => {
     render(<BoardMenu board={boardOf()} api={a} onSaveAs={vi.fn()} />)
     const menu = openLayout()
     expect(itemNames(menu)).toEqual([
-      'Board ✓ (current)', 'Three columns',
+      'Board ✓ (current)', 'Three columns', 'List first',
       'Customize layout', 'Save layout as…',
       'One line ✓ (current)', 'Compact', 'Two lines', 'Cards', 'Chips',
       'Pinned screens as tabson', 'Company logosoff', 'Mini charts in rowsoff', 'Group by setupoff', 'Dim stocks I have looked atoff', 'Keyboard hintsoff', 'Roomier rowsoff',
     ])
     // owner ruling 2026-11-17: neither is offered anywhere on the menu
     expect(menu.textContent).not.toMatch(/table|heat ?map/i)
+  })
+  test('the sharing entries are there only when the page hands them in (community layouts are behind their own flag)', () => {
+    const onCommunity = vi.fn(), onShare = vi.fn()
+    const first = render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} />)
+    expect(itemNames(openLayout()).some(n => /Community|Share/.test(n))).toBe(false)
+    first.unmount()
+    render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={onCommunity} onShare={onShare} />)
+    const names = itemNames(openLayout())
+    expect(names.slice(names.indexOf('Save layout as…') + 1, names.indexOf('One line ✓ (current)'))).toEqual(['Community layouts…', 'Share this layout…'])
+    fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Community layouts…' }))
+    fireEvent.click(within(openLayout()).getByRole('menuitem', { name: 'Share this layout…' }))
+    expect([onCommunity.mock.calls.length, onShare.mock.calls.length]).toEqual([1, 1])
+  })
+  test('an admin with layouts to review sees the count on the Community entry; with none, nothing is added', () => {
+    const first = render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={vi.fn()} onShare={vi.fn()} reviewCount={3} />)
+    expect(itemNames(openLayout())).toContain('Community layouts…3 to review')
+    // and on the Layout button itself, so a waiting layout is not missed with the menu shut
+    expect(screen.getByTestId('board-review-count')).toHaveTextContent('3')
+    expect(screen.getByTestId('board-review-count')).toHaveAttribute('title', '3 shared layouts to review')
+    expect(screen.getByRole('button', { name: 'Layout' })).toContainElement(screen.getByTestId('board-review-count'))
+    first.unmount()
+    render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={vi.fn()} onShare={vi.fn()} />)
+    expect(itemNames(openLayout())).toContain('Community layouts…')
+    expect(screen.queryByTestId('board-review-count')).toBeNull()
   })
   test('each item calls the board with what it names', () => {
     const a = api()
@@ -54,7 +78,7 @@ describe('the Layout menu', () => {
     const mine = { ...saveMine(setRows(sanitize(null), 'compact'), 'My swing board', 'm-a') }
     const { rerender } = render(<BoardMenu board={{ ...mine, edit: false }} api={a} onSaveAs={vi.fn()} />)
     let names = itemNames(openLayout())
-    expect(names.slice(0, 3)).toEqual(['Board', 'Three columns', 'My swing board ✓ (current)'])
+    expect(names.slice(0, 4)).toEqual(['Board', 'Three columns', 'List first', 'My swing board ✓ (current)'])
     expect(names).toContain('Delete “My swing board”')
     expect(names.some(n => n.startsWith('Save changes'))).toBe(false) // nothing changed yet
     fireEvent.click(within(screen.getByRole('menu', { name: 'Layout' })).getByRole('menuitem', { name: 'Delete “My swing board”' }))
@@ -114,19 +138,19 @@ describe('the grid', () => {
     draw(boardOf())
     expect(PRESETS[0].widgets.map(w => !!screen.getByTestId(`body-${w.type}`))).toEqual([true, true, true])
     expect(screen.getByTestId('scan-board')).not.toHaveAttribute('data-edit')
-    expect(screen.queryByText(/drag to move/)).toBeNull()
+    expect(screen.queryByText(/arrow keys to move/)).toBeNull()
     expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
   })
   test('Customize: each widget gets its bar and a Remove; the last widget has no Remove', () => {
     const a = api()
     const { unmount } = draw(boardOf({ edit: true }), a)
     expect(screen.getByTestId('scan-board')).toHaveAttribute('data-edit', '')
-    expect(screen.getAllByText(/drag to move/)).toHaveLength(3)
+    expect(screen.getAllByText(/arrow keys to move/)).toHaveLength(3)
     fireEvent.click(screen.getByRole('button', { name: "Remove Why it's here" }))
     expect(a.removeWidget).toHaveBeenCalledWith('details')
     unmount()
     draw(boardOf({ edit: true, widgets: [{ id: 'chart', type: 'chart', x: 0, y: 0, w: 24, h: 20 }] }))
-    expect(screen.getAllByText(/drag to move/)).toHaveLength(1)
+    expect(screen.getAllByText(/arrow keys to move/)).toHaveLength(1)
     expect(screen.queryByRole('button', { name: /^Remove / })).toBeNull()
   })
   test('the rows fill the height exactly: no gap under the last row', () => {

@@ -272,6 +272,24 @@ CREATE TABLE IF NOT EXISTS definition_engine_status (
 CREATE INDEX IF NOT EXISTS idx_definition_engine_status_owner
   ON definition_engine_status(user_id, def_id, version, id DESC);
 
+-- ⭐ STUDIO R4 (Indicators backlog 43): the AUTHOR's status-panel headline for one stored
+-- version (`editorStatus(...).headline`, as their own browser's panel showed it), and the
+-- script engine that computed it. APPEND-ONLY; the newest row for a version is its headline.
+-- Written only by the owner (`record_status_headline`), only about their LIVE version; read
+-- by the share preview, the install answer and the library entry (`share_headlines`), never
+-- recomputed for a viewer. A version with no row has no headline (null).
+CREATE TABLE IF NOT EXISTS definition_status_headlines (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  version    INTEGER NOT NULL,
+  engine     INTEGER NOT NULL,
+  headline   TEXT    NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_status_headlines_owner
+  ON definition_status_headlines(user_id, def_id, version, id DESC);
+
 CREATE TABLE IF NOT EXISTS definition_listings (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id    TEXT    NOT NULL,
@@ -298,6 +316,30 @@ CREATE TABLE IF NOT EXISTS definition_listing_takedowns (
 );
 CREATE INDEX IF NOT EXISTS idx_definition_listing_takedowns_owner
   ON definition_listing_takedowns(user_id, def_id, id DESC);
+
+-- ⭐ STUDIO R6: how heavy one stored VERSION is to draw, as the server measured it when its
+-- owner listed it (`load_budget.measure`: a deterministic work count over the engine's reference
+-- series, never a clock). APPEND-ONLY; the newest row for a version is its measurement. Keyed
+-- by version, not by listing: a re-share moves the pinned version without a new listing row,
+-- and a measurement describes the version it was made on and no other. `state` names what was
+-- measured or why nothing was (`load_budget.STATES`); `work` and `ceiling` are counts in
+-- `lane`'s own unit, NULL unless a count was made. Read by the library feed and the share
+-- preview (`share_loads`). A version with no row has no `load` at all.
+CREATE TABLE IF NOT EXISTS definition_load_measurements (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    TEXT    NOT NULL,
+  def_id     TEXT    NOT NULL,
+  version    INTEGER NOT NULL,
+  state      TEXT    NOT NULL,
+  lane       TEXT,
+  work       INTEGER,
+  ceiling    INTEGER,
+  code       TEXT,
+  reference  TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_definition_load_measurements_owner
+  ON definition_load_measurements(user_id, def_id, version, id DESC);
 """
 
 
@@ -2218,7 +2260,22 @@ def _row_to_dict(row: sqlite3.Row) -> dict:
         # here and none of them needs the text. `list_for_user(source_below=…)`
         # and `get(…, with_source=True)` are the only doors that serve it.
         "has_pine_source": _pine_source_of(row) is not None,
+        # ⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — a Pine `ast` version whose stored
+        # script has a committed TradingView capture grading DIVERGE on the host lane carries the
+        # refusal sentence (`host_known_divergence.refused`), and ONLY then: every server lane reads it
+        # through `engine_withheld_reason`, `stamp_served` stamps it for the install door. Derived at
+        # read, never stored: unlisting the script brings the row back on the next read.
+        **_host_known_divergence_of(definition, row),
     }
+
+
+def _host_known_divergence_of(definition: Any, row: Any) -> dict:
+    """``{"host_known_divergence": sentence}`` for a host-lane document whose stored script is listed."""
+    from api.services import host_known_divergence as hkd
+    if not hkd.applies_to(definition):
+        return {}
+    why = hkd.refused(_pine_source_of(row))
+    return {"host_known_divergence": why} if why else {}
 
 
 #: The browser's engine-number file — the ONE authority for the number.
@@ -2670,6 +2727,113 @@ def record_engine_status(user_id: Any, def_id: str, *, version: int, engine: int
             "status": status, "reason": text}
 
 
+# ─── ⭐ STUDIO R4: the author's status headline on a shared indicator ──────────
+#
+# Indicators backlog 43. The share preview, the install answer and each library entry carry
+# the sentence the AUTHOR's status panel showed for the version the link pins
+# (`editorStatus(...).headline`, `app/src/components/chart/builder/editorStatus.js`) and the
+# script engine that computed it, so an installer reads the verdict its author saw.
+#
+# ⛔ NOTHING ON THE SERVER COMPUTES THE SENTENCE. It is the browser's (the translator and the
+# chart door run there), so the owner's browser RECORDS it about its own live version
+# (`record_status_headline`, `POST /{def_id}/status-headline`), the way it records an engine
+# verdict (`record_engine_status`). A version with no record answers null: a formula or an
+# assistant-built indicator, and every version saved before something records one.
+#
+# ⚠️ THE AUTHOR'S BROWSER IS TRUSTED FOR THE TEXT, exactly as for the indicator's name and
+# description: the page renders it as text, never markup, and it is bounded here.
+
+#: The longest headline a browser may record (the longest the panel writes is a family label or
+#: the chart door's own sentence after "Runs …; the chart cannot draw it yet: ").
+MAX_STATUS_HEADLINE_CHARS = 500
+
+#: Trailing blanks and full stops: the served headline carries none (the page adds its own).
+_HEADLINE_TAIL_RE = re.compile(r"[\s.]+$")
+
+#: The fields a share answer carries (`share_headlines`); the last is present only beside a headline.
+SHARE_HEADLINE_KEYS = ("headline", "engine_version", "headline_current")
+
+
+def served_headline(text: Any) -> Optional[str]:
+    """A recorded headline as the share answers serve it: trimmed, WITHOUT a trailing full stop
+    (the page adds punctuation), or None when nothing is left. A full stop inside the sentence
+    stays ("Our engine could not finish this script. That is on us, not your script")."""
+    if not isinstance(text, str):
+        return None
+    return _HEADLINE_TAIL_RE.sub("", text.strip()) or None
+
+
+def record_status_headline(user_id: Any, def_id: str, *, version: int, engine: int,
+                           headline: str) -> dict:
+    """Record the owner's status-panel headline for their LIVE version. APPEND-ONLY.
+
+    ⛔ The caller's own definition only (404 otherwise, `ForkRefused`), only the version live now
+    (a stale tab's sentence about an older version is a 409, `SaveConflict`), a headline that is
+    not blank once served (`served_headline`) and at most `MAX_STATUS_HEADLINE_CHARS`."""
+    _check_def_id(def_id)
+    for name, v in (("version", version), ("engine", engine)):
+        if isinstance(v, bool) or not isinstance(v, int) or v < 1:
+            raise ValueError(f"{name}: expected an integer >= 1, got {v!r}")
+    text = headline.strip() if isinstance(headline, str) else ""
+    if served_headline(text) is None:
+        raise ValueError("headline: the status panel's sentence, not blank")
+    if len(text) > MAX_STATUS_HEADLINE_CHARS:
+        raise ValueError(f"headline: at most {MAX_STATUS_HEADLINE_CHARS} characters")
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        _ensure(c)
+        prev = _newest(c, user_id, def_id)
+        if prev is None or prev["deleted_at"] is not None:
+            raise ForkRefused("Not found")
+        if prev["version"] != version:
+            raise SaveConflict(def_id, version, prev["version"])
+        c.execute(
+            "INSERT INTO definition_status_headlines "
+            "(user_id, def_id, version, engine, headline, created_at) VALUES (?,?,?,?,?,?)",
+            (str(user_id), def_id, version, engine, text, int(time.time())))
+        c.commit()
+    return {"def_id": def_id, "version": version, "engine": engine, "headline": text}
+
+
+def share_headlines(keys: Any, *, current: Any = "default") -> dict:
+    """``{(owner, def_id, version): fields}`` for each stored version in ``keys``, read on ONE
+    connection. ``fields`` is what a share answer carries:
+
+      * ``headline``: the newest recorded headline of THAT version (`served_headline`), or None;
+      * ``engine_version``: the engine that recorded it, as a string; None with a None headline;
+      * ``headline_current``: present only beside a headline, and only when the server knows the
+        engine it serves today (`SCRIPT_ENGINE_VERSION`, read from `scriptEngineVersion.js`, the
+        one authority every server lane reads): False exactly when the two numbers differ.
+    """
+    cur = SCRIPT_ENGINE_VERSION if current == "default" else current
+    known = isinstance(cur, int) and not isinstance(cur, bool)
+    wanted = [(str(u), d, int(v)) for u, d, v in keys]
+    out: dict = {}
+    if not wanted:
+        return out
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        for key in wanted:
+            row = c.execute(
+                "SELECT engine, headline FROM definition_status_headlines "
+                "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC LIMIT 1",
+                key).fetchone()
+            headline = served_headline(row["headline"]) if row is not None else None
+            if headline is None:
+                out[key] = {"headline": None, "engine_version": None}
+                continue
+            fields = {"headline": headline, "engine_version": str(row["engine"])}
+            if known:
+                fields["headline_current"] = row["engine"] == cur
+            out[key] = fields
+    return out
+
+
+def share_headline(owner: Any, def_id: str, version: int, *, current: Any = "default") -> dict:
+    """`share_headlines` for one stored version."""
+    key = (str(owner), def_id, int(version))
+    return share_headlines([key], current=current)[key]
+
+
 def _maths_identity(ast_hash: Any, definition: Any) -> str:
     """The store's own identity of a version's MATHS: the scan tree's hash (the
     `ast_hash` column) plus `trees_identity` of the materialised document — the same
@@ -2804,6 +2968,12 @@ def engine_withheld_reason(row: Any, current: Optional[int] = None) -> Optional[
     `SCRIPT_ENGINE_VERSION` both None) FAILS CLOSED: every refusal binds (F2).
     The browser (`savedScriptUpgrade.upgradeKindOf`) answers the same way, so a chart
     never draws what the alerts withhold, or the reverse."""
+    # ⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — FIRST: a stored script with a committed
+    # capture grading DIVERGE on the host lane runs on no server lane (alerts, the sweep, on-demand screens,
+    # backtests, the scannable stamp), refused by name (`pine:known-divergence`), whatever its engine verdict.
+    hk = row.get("host_known_divergence") if isinstance(row, Mapping) else None
+    if isinstance(hk, str) and hk:
+        return hk
     st = row.get("engine_status") if isinstance(row, Mapping) else None
     if not isinstance(st, Mapping) or st.get("status") != "refused":
         # ⭐ COND-TA — a Pine import applied before the conditional-call fix, with no script
@@ -3098,6 +3268,13 @@ def save(user_id: Any, def_id: str, definition: dict,
     _run_half_why = runtime_definitions.run_half_source_refusal(definition, pine_source)
     if _run_half_why:
         raise SaveRefused("presentation", _run_half_why, guard="run-half:source")
+    # ⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — the save door refuses a host-lane document
+    # built from a script on the list, by name, before anything is written (the member door already
+    # refuses to build one; this is the door a direct API save reaches).
+    from api.services import host_known_divergence as _hkd
+    _hk_why = _hkd.refused(pine_source)
+    if _hk_why:
+        raise SaveRefused("tree", _hk_why, guard=_hkd.GUARD)
     # ⭐ R2 — the browser's one provable load-time repair, applied here too, so an old
     # param-edited document with a stale handle saves under its tree's own name.
     definition = refresh_stale_handle(definition)
@@ -3963,9 +4140,37 @@ def _newest_share(c: sqlite3.Connection, user_id: Any, def_id: str):
     ).fetchone()
 
 
-def share(user_id: Any, def_id: str) -> Optional[dict]:
+def _load_gate(row: Any) -> Optional[dict]:
+    """⭐ STUDIO R6 — measure the version a LISTING is about to pin, and refuse by name.
+
+    `load_budget.measure_row`: the document AS SERVED, one short-lived subprocess, a count and
+    never a clock. Raises ``ShareRefused("load-budget")`` for a count over the library's budget
+    (admins included: the bar is the same for a house indicator) and ``ShareRefused("load-busy")``
+    when the measurement could not be MADE in time (no free slot, or the run was stopped at its
+    time limit): a listing is not accepted unmeasured because the measurer was busy or because
+    the indicator ran past the limit. Every other outcome (the switch is off: None; no node; an
+    engine refusal; a pasted script) comes back as it is and refuses nobody.
+    """
+    from api.services import load_budget                           # noqa: PLC0415
+    measured = load_budget.measure_row(row)
+    if load_budget.over_budget(measured):
+        raise ShareRefused("load-budget", load_budget.refusal_message(measured))
+    if load_budget.must_retry(measured):
+        raise ShareRefused("load-busy", load_budget.retry_message(measured))
+    return measured
+
+
+def share(user_id: Any, def_id: str, *, _for_listing: bool = False) -> Optional[dict]:
     """Mint (or re-pin) the share link for a definition. ``None`` if there is
     nothing live to share.
+
+    ⭐⭐ STUDIO R6 — THIS IS THE ONE DOOR THAT MOVES THE VERSION A LINK PINS, so the library's
+    load budget is enforced HERE, whenever the definition is listed (its owner's last word is
+    `listed`) or is being listed now (`_for_listing`, from `publish`). The library shows
+    whatever version the link pins; a budget checked only at `publish` would let a member list
+    a light version, save a heavy one and re-share. A refusal writes nothing: the link keeps
+    the version it had. The measurement is recorded for the version this call pins, in the
+    same transaction as the pin. A link that is not listed is never measured.
 
     ⭐ IDEMPOTENT ON THE TOKEN. Pressing Share twice must not mint a second one:
     the first may already be in somebody's chat window, and replacing it would
@@ -3995,10 +4200,20 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
     why = consumer_refusal("share", row.get("requirements"))
     if why:
         raise ShareRefused("requirements", why)
+    # ⭐ STUDIO R6 — a listed definition's link is about to pin `row`: measured first, and a
+    # refusal leaves the link where it was (see the docstring).
+    listed = _for_listing
+    if not listed:
+        with contextlib.closing(_connect()) as c:
+            _ensure(c)
+            word = _newest_listing(c, user_id, def_id)
+        listed = bool(word is not None and word["listed"])
+    measured = _load_gate(row) if listed else None
     table_version = _current_table_version()
     with contextlib.closing(_connect()) as c:
         _ensure(c)
         with c:
+            now = int(time.time())
             live = _newest_share(c, user_id, def_id)
             token = (live["token"] if live is not None and not live["revoked"]
                      else share_token())
@@ -4007,11 +4222,22 @@ def share(user_id: Any, def_id: str) -> Optional[dict]:
                 " (token, user_id, def_id, version, ast_hash, table_version,"
                 "  revoked, created_at) VALUES (?,?,?,?,?,?,0,?)",
                 (token, str(user_id), def_id, row["version"], row["ast_hash"],
-                 table_version, int(time.time())),
+                 table_version, now),
             )
-    return {"token": token, "def_id": def_id, "version": row["version"],
-            "ast_hash": row["ast_hash"], "table_version": table_version,
-            "includesSource": shares_source(row.get("definition"))}
+            if measured is not None:
+                c.execute(
+                    "INSERT INTO definition_load_measurements (user_id, def_id, version, state,"
+                    " lane, work, ceiling, code, reference, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (str(user_id), def_id, int(row["version"]), measured["state"], measured["lane"],
+                     measured["work"], measured["ceiling"], measured["code"], measured["reference"], now),
+                )
+    out = {"token": token, "def_id": def_id, "version": row["version"],
+           "ast_hash": row["ast_hash"], "table_version": table_version,
+           "includesSource": shares_source(row.get("definition"))}
+    if measured is not None:
+        from api.services import load_budget                       # noqa: PLC0415
+        out["load"] = load_budget.served(measured)
+    return out
 
 
 def unshare(user_id: Any, def_id: str) -> bool:
@@ -4183,7 +4409,16 @@ def resolve_share(token: str, *, _with_author: bool = False) -> dict:
         "origin_ast_hash": row["ast_hash"],
         "table_version": int(row["table_version"]),
         "includesSource": shares_source(definition),
+        # ⭐ STUDIO R4 — the author's status headline for the PINNED version (`share_headline`):
+        # `headline`, `engine_version`, and `headline_current` beside a headline. Nothing private:
+        # a sentence about the indicator and an engine number, never the author or the script.
+        **share_headline(row["user_id"], row["def_id"], row["version"]),
     }
+    # ⭐ STUDIO R6 — how heavy the PINNED version is to draw, when the server measured it at
+    # listing (`share_load`). Absent for a version nobody listed: no key, never a guess.
+    load = share_load(row["user_id"], row["def_id"], row["version"])
+    if load is not None:
+        out["load"] = load
     if _with_author:
         out["author_id"] = row["user_id"]
     return out
@@ -4239,6 +4474,12 @@ def install_share(user_id: Any, token: str, limits: Any = None, *, role: Any = N
                             resolved["origin_version"]),
                _origin_author=resolved["author_id"])
     out["origin"] = served_definition(doc)["origin"]
+    # ⭐ STUDIO R4 — the install answer carries the verdict the AUTHOR saw for the version the
+    # link pinned (read by `resolve_share` above), for the confirmation toast. It describes the
+    # shared version, so it is not recorded against the installer's copy.
+    for key in SHARE_HEADLINE_KEYS:
+        if key in resolved:
+            out[key] = resolved[key]
     return out
 
 
@@ -4360,7 +4601,10 @@ def publish(user_id: Any, def_id: str, *, role: Any = None) -> Optional[dict]:
             mine = _listed_def_ids(c, user_id)
             if def_id not in mine and len(mine) >= LISTINGS_PER_MEMBER_MAX:
                 raise ShareRefused("listing-limit", LISTING_LIMIT_MESSAGE)
-    shared = share(user_id, def_id)
+    # ⭐ STUDIO R6 — THE LOAD BUDGET. `share(..., _for_listing=True)` measures the version it is
+    # about to pin BEFORE it writes anything and refuses by name (`load-budget`, `load-busy`);
+    # the same gate runs on every later re-share of a listed definition (`share`'s docstring).
+    shared = share(user_id, def_id, _for_listing=True)
     if shared is None:
         return None
     with contextlib.closing(_connect()) as c:
@@ -4371,9 +4615,39 @@ def publish(user_id: Any, def_id: str, *, role: Any = None) -> Optional[dict]:
                 " VALUES (?,?,1,?)",
                 (str(user_id), def_id, int(time.time())),
             )
-    return {"def_id": def_id, "listed": True, "token": shared["token"],
-            "version": shared["version"], "table_version": shared["table_version"],
-            "includesSource": shared["includesSource"]}
+    out = {"def_id": def_id, "listed": True, "token": shared["token"],
+           "version": shared["version"], "table_version": shared["table_version"],
+           "includesSource": shared["includesSource"]}
+    if "load" in shared:
+        out["load"] = shared["load"]
+    return out
+
+
+def share_loads(keys: Any) -> dict:
+    """The `load` each of these stored versions carries on a share answer (Studio R6):
+    ``{(owner, def_id, version): load_budget.served(...) or None}``, the NEWEST measurement of
+    exactly that version. None means no measurement was ever made of it (the answer then carries
+    no `load` key at all). The owner id is only the read's key."""
+    from api.services import load_budget                           # noqa: PLC0415
+    wanted = [(str(u), d, int(v)) for u, d, v in keys]
+    out: dict = {}
+    if not wanted:
+        return out
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        for key in wanted:
+            row = c.execute(
+                "SELECT state, lane, work, ceiling FROM definition_load_measurements "
+                "WHERE user_id=? AND def_id=? AND version=? ORDER BY id DESC LIMIT 1", key,
+            ).fetchone()
+            out[key] = load_budget.served(dict(row)) if row is not None else None
+    return out
+
+
+def share_load(owner: Any, def_id: str, version: int) -> Optional[dict]:
+    """`share_loads` for one stored version."""
+    key = (str(owner), def_id, int(version))
+    return share_loads([key])[key]
 
 
 # ═══ moderation ═══════════════════════════════════════════════════════════
@@ -4601,6 +4875,7 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
 
     now_version = _current_table_version()
     entries: list[dict] = []
+    headline_keys: list[tuple] = []
     last_id = None
     for row in rows:
         if len(entries) >= n:
@@ -4634,6 +4909,18 @@ def public_library(limit: int = 24, after: Optional[int] = None) -> dict:
             # the licence its author declared, when it was pasted as a script (None otherwise)
             "licence": licence_of(pinned.get("pine_source")),
         })
+        headline_keys.append((str(row["user_id"]), row["def_id"], int(live["version"])))
+    # ⭐ STUDIO R4 — each entry carries its author's status headline for the version its link
+    # pins, the same fields the share preview carries (`share_headlines`, one connection for the
+    # page). The owner id is only the read's key: it never enters an entry.
+    found = share_headlines(headline_keys)
+    # ⭐ STUDIO R6 — and its load, for the same pinned version (`share_loads`); no key when
+    # that version was never measured.
+    loads = share_loads(headline_keys)
+    for entry, key in zip(entries, headline_keys):
+        entry.update(found[key])
+        if loads[key] is not None:
+            entry["load"] = loads[key]
     # ⛔ THE CURSOR IS THE LAST ROW *EXAMINED*, not the last one returned. Rows
     # drop out for four reasons above, and paging from the last SURVIVOR would
     # re-walk every one of the skipped rows on the next page — forever, if a
