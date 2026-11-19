@@ -26,7 +26,15 @@
 #
 # Runs in pine heavy's environment (its setup action: Node 20, cached node_modules, EMPTY licence-held stores,
 # the no-network wrapper), so a rail answers here exactly as it does there.
-# No secrets, no pull_request_target, read-only token. tests/test_ci_whole_app_rails.py rails this file.
+#
+# ⚰️ THE SAME HOLE, IN PYTEST (2026-11-19). #1998 changed only app/src, all 52 of its PR checks were green, and master
+# went red on tests/test_support_loop_refusal_codes.py: a pytest rail that READS app/src, which no PR job ran. The
+# `app-src-pytest` job (four shards) runs every pytest file under tests/ that reads app/src and that no other PR job
+# already runs under a trigger covering what it reads. The list is DERIVED (tools/ci_app_src_rails.py), never
+# hand-kept, and tests/test_ci_app_src_rails.py (in `rails`) fails when an app/src reader runs on no PR and is not on
+# that tool's reasoned EXEMPT list.
+# No secrets, no pull_request_target, read-only token. tests/test_ci_whole_app_rails.py and
+# tests/test_ci_app_src_rails.py rail this file.
 name: whole-app engine rails (PR)
 
 on:
@@ -47,10 +55,11 @@ on:
       - 'docs/pine/lwc5-capability-map.md'
       - 'tests/fixtures/**'
       - 'tests/test_the_member_loop_end_to_end.py'
-      # this job's own definition and tooling
+      # this job's own definition and tooling (tools/ci_app_src_rails.py is under tools/** above)
       - '.github/workflows/whole-app-engine-rails.yml'
       - '.github/actions/pine-heavy-setup/**'
       - 'tests/test_ci_whole_app_rails.py'
+      - 'tests/test_ci_app_src_rails.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
@@ -88,10 +97,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: The rails of this file and its tool
+      - name: The rails of this file and its tools
         run: |
           python -m pip install --quiet pytest pyyaml
-          python -m pytest tests/test_ci_whole_app_rails.py -q -p no:cacheprovider
+          python -m pytest tests/test_ci_whole_app_rails.py tests/test_ci_app_src_rails.py -q -p no:cacheprovider
       - name: The list names real engine test files, once each
         run: python tools/ci_whole_app_rails.py --verify-list
       - name: The whole-app rails (offline, read capture on)
@@ -111,9 +120,71 @@ jobs:
         run: |
           python tools/ci_whole_app_rails.py --ran whole-app-out/report.json
           python tools/ci_whole_app_rails.py --check --expected-list --captures read-capture --report whole-app-out/reads.json
+      # #1998's miss as the command that names it in seconds (tools/ci_app_src_rails.py TOOL_CHECKS): a refusal-guard
+      # literal written in app/src that supportLoop/refusalCodes.json lacks, so the server would store it as
+      # `_unlisted`. Stdlib only, under the no-network wrapper; `!cancelled()` so a red vitest rail above cannot hide it.
+      - name: The refusal codes the client writes are on the list the server stores
+        if: ${{ !cancelled() }}
+        run: bash "$CI_TOOLS/tools/ci_offline.sh" python tools/support_loop/refusal_codes.py --check
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: whole-app-engine-rails
           path: whole-app-out/
           if-no-files-found: warn
+
+  # ── THE APP/SRC PYTEST RAILS (2026-11-19) ──────────────────────────────────────────────────────────────────
+  # #1998 (a browser-only change) added a refusal-guard literal to builder/runsHere.js without registering it in
+  # supportLoop/refusalCodes.json; its 52 PR checks were green and master went red on
+  # tests/test_support_loop_refusal_codes.py, a PYTEST rail that READS app/src and that no PR job ran. This job runs
+  # every such rail on the PR: tools/ci_app_src_rails.py derives them (static, over the AST) and lists the ones no
+  # other PR job already runs under a trigger covering what they read, minus its reasoned EXEMPT and the KNOWN_RED
+  # tests it deselects by id. A new app/src rail joins the list the day it lands, with nothing to edit.
+  # ITS OWN JOB, SHARDED, because the list is ~20 min of tests on one runner (measured on the remote tests lane,
+  # 2026-11-19): four shards of equal recorded time (tools/pytest_shard_timings.json), one partition computed the
+  # same way by every shard. Installed as `remote tests` installs (the production set + the CI-only packages), in pine
+  # heavy's environment, every test under the no-network wrapper. The `rails` job above runs
+  # tests/test_ci_app_src_rails.py, which recomputes the census and fails when a reader runs on no PR.
+  app-src-pytest:
+    name: app/src pytest rails (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # FULL history, as the remote tests lane checks out: listed rails read git objects and older commits, and
+          # under the no-network wrapper a partial clone could not fetch a missing object on demand.
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set and the CI-only packages (as remote tests installs them)
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+          if [ -f tests/ci-only-packages.txt ]; then python -m pip install --quiet -r tests/ci-only-packages.txt; fi
+      - name: The app/src pytest rails, this shard (tools/ci_app_src_rails.py --write-args)
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          python tools/ci_app_src_rails.py --write-args app-src-args.txt --shard "$SHARD/4"
+          mapfile -t args < app-src-args.txt
+          test "${#args[@]}" -gt 0
+          start=$(date +%s); rc=0
+          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest "${args[@]}" -q -p no:cacheprovider -rfE || rc=$?
+          echo "app/src pytest rails, shard $SHARD/4: ${#args[@]} args, wall $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
