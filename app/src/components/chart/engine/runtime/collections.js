@@ -1260,8 +1260,15 @@ export const ARRAY_FNS = Object.freeze(Object.fromEntries(Object.entries(ARRAY_F
   if (READS_ALL.has(name)) {
     return [name, { ...spec, fn: (a, budget, typeArg) => {
       // ⭐ W6-T5 — EVERY array argument (`array.covariance` reads two)
+      // ⭐ PERF (Fred RS filled chart, C5) — the scan is `x.find(isUnfilled)` written as a loop: the same predicate,
+      // the same first element, the same order, without a callback per element. A run that calls `array.includes`
+      // 35 times a bar paid ~50 ms a run for the callbacks alone (Fred RS's run half, 11,520 5m bars).
       for (const x of a) {
-        if (Array.isArray(x)) { const hit = x.find(isUnfilled); if (hit) readUnfilled(name, hit) }
+        if (!Array.isArray(x)) continue
+        for (let i = 0; i < x.length; i += 1) {
+          const v = x[i]
+          if (v !== null && typeof v === 'object' && v[UNFILLED_TAG] === true) { readUnfilled(name, v); break }
+        }
       }
       return spec.fn(a, budget, typeArg)
     } }]
