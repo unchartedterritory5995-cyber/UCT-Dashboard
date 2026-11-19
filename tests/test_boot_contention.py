@@ -299,6 +299,22 @@ def test_a_slow_ee_open_logs_its_legs(monkeypatch, caplog):
     assert len(lines) == 1 and "yf " in lines[0] and "fmp " in lines[0], lines
 
 
+def test_a_slow_ee_open_says_when_the_yfinance_leg_was_not_read(monkeypatch, caplog):
+    from api.routers import research as r
+    monkeypatch.setattr(r, "_SLOW_EE_SECONDS", 0.0)
+
+    def never(s):
+        raise AssertionError("read although the consensus answered")
+    monkeypatch.setattr(r, "get_estimates", never)
+    import api.services.research.estimates_consensus as ec
+    monkeypatch.setattr(ec, "get_consensus", lambda s: {"sym": s, "state": "ok",
+                                                         "annual": [{"label": "FY2027"}], "quarterly": []})
+    with caplog.at_level(logging.WARNING, logger=r._logger.name):
+        r.research_estimates("ZZZT", consensus=1)
+    lines = [m for m in caplog.messages if m.startswith("[ee-slow]")]
+    assert len(lines) == 1 and "yf not read" in lines[0] and "fmp " in lines[0], lines
+
+
 def test_control_a_fast_ee_open_logs_nothing(monkeypatch, caplog):
     from api.routers import research as r
     monkeypatch.setattr(r, "get_estimates", lambda s: {"sym": s})

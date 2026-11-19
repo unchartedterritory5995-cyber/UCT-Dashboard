@@ -89,7 +89,7 @@
       "aliases": [
         "Mansfield relative strength"
       ],
-      "definition": "Weinstein's version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the screener's Mansfield RS column, read on 200 daily bars.",
+      "definition": "Weinstein's version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the UCT Mansfield RS indicator on a chart (200 bars by default, a setting) and the screener's Mansfield RS column, read on 200 daily bars.",
       "key": "mansfieldRs",
       "term": "Mansfield RS"
     },

@@ -85,7 +85,7 @@ _TABLE: dict[tuple[str, str], LicensingClassEntry] = {
         "R", "Economic calendar releases — no DDLA assumed, same A3 posture as this vendor's other data classes.", "T-37",
     ),
     ("fmp", "indices"): LicensingClassEntry(
-        "R", "Daily cash-index history (/stable/historical-price-eod/full, ^GSPC/^NDX/^DJI/^RUT/^VIX) — no DDLA assumed, same A3 posture as this vendor's other data classes. The PRIMARY source for daily index bars by owner ruling 2026-11-14 (top FMP plan; docs/pine/RS-RATING-TRANSFER.md).", "A3",
+        "R", "Cash-index history (^GSPC/^NDX/^DJI/^RUT/^VIX): daily (/stable/historical-price-eod/full) and, since 2026-11-18, intraday (/stable/historical-chart/{interval}, settled sessions only: api/index_bars.py fills the sessions Yahoo's answer lacks). No DDLA assumed, same A3 posture as this vendor's other data classes. The PRIMARY source for daily index bars by owner ruling 2026-11-14 (top FMP plan; docs/pine/RS-RATING-TRANSFER.md). The daily-only wording before 2026-11-18 named the one endpoint then in use, not a plan or terms limit: FMP intraday bars on a member chart are register row T-40 (licensing-register.md: noDDLA R, DDLA LA; the DDLA was confirmed to exist 2026-09-19).", "A3/T-40",
     ),
     ("fmp", "news"): LicensingClassEntry(
         "R", "Company news / press releases — no DDLA assumed (R without a data redistribution license agreement; LA with one).", "T-38",

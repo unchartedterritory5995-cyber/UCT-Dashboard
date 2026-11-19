@@ -1,0 +1,31 @@
+//@version=6
+indicator("UCTPROBE_VW_INPUT_TIME_MONTH_FIRST", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for RULING-0927 r1, capture queue row Q-D6
+// (docs/pine/capture-queue-2026-11-18-lang-units.md, CR-S1). NEVER COMPILED ON TRADINGVIEW.
+// The family: `vw-input-time-default.pine` (Q-D1, no zone), `vw-input-time-zones.pine` (Q-D2),
+// `vw-input-time-forms.pine` (Q-D4), `vw-input-time-confirm.pine` (Q-D5).
+// The v6 reference's `timestamp(dateString)` names two formats, IETF RFC 2822 ("DD MMM YYYY hh:mm:ss
+// +-hhmm") and ISO 8601. Two sample scripts write a THIRD, month first, as an `input.time` default;
+// no probe holds it:
+//   M01  "Jan 01 2023 00:00:00"           month first, no zone
+//   M02  "Jan 01 2018 00:00:00 GMT+0"     month first, GMT+0
+//   M03  "01 Jan 2023 00:00:00"           control: M01's instant written day first (Q-D1's no-zone rule)
+//   V01  timestamp("Jan 01 2023 00:00:00") read as a value, not as an input's default
+// Each input row is read as the instant (UNIX ms, T0N) and the first bar at or after it (D0N).
+// If TradingView reads month first as it reads day first, T01 = T03.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. Every row is constant on every bar, so one symbol rules it.
+// If a row does not compile, record the error text and the line, remove only that row, and capture the rest.
+
+m1 = input.time(timestamp("Jan 01 2023 00:00:00"), "M01")
+m2 = input.time(timestamp("Jan 01 2018 00:00:00 GMT+0"), "M02")
+m3 = input.time(timestamp("01 Jan 2023 00:00:00"), "M03")
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(m1, "T01_month_first_no_zone_ms")
+plot(m2, "T02_month_first_gmt0_ms")
+plot(m3, "T03_day_first_no_zone_ms_CONTROL")
+plot(timestamp("Jan 01 2023 00:00:00"), "V01_month_first_value_ms")
+plot(time >= m1 ? 1 : 0, "D01_time_ge_m1")
+plot(time >= m2 ? 1 : 0, "D02_time_ge_m2")
+plot(time >= m3 ? 1 : 0, "D03_time_ge_m3")

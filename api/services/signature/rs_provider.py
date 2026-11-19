@@ -1916,7 +1916,8 @@ _RS_RATING_PAYLOAD_SHAPE = 1
 _RS_PHASES_PAYLOAD_SHAPE = 2
 _RS_VS_EMA_PAYLOAD_SHAPE = 2
 _RS_EXIT_PAYLOAD_SHAPE = 2
-_RS_MANSFIELD_PAYLOAD_SHAPE = 1
+#: rsMansfield 2 (2026-11-18): `payload.evidence` (the rsLine row's block), keyed on the evidence asof.
+_RS_MANSFIELD_PAYLOAD_SHAPE = 2
 
 #: The phase column's words (the legend row; the bgcolor paint reads the number).
 _RS_PHASE_LABELS = {1: "RS rising while the market falls", 0: "RS falling while the market rises"}
@@ -2499,8 +2500,11 @@ def rs_mansfield_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_
     params = {"benchmark": requested, **custom, "mansfieldLength": length}
     rev = _rs_split_rev("rsMansfield")
     day = _et_session_day()
+    # the evidence asof rides the key (rsLine's `_rs_data_generation` half): a new 04:30 pull is never hidden
+    # behind a cached card for the rest of the session
+    ev_asof = _rs_evidence_asof()
     ck = cache_key(f"rsMansfield{rev}p{_RS_MANSFIELD_PAYLOAD_SHAPE}",
-                   f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:{day}")
+                   f"{sym.upper()}:{store}:{json.dumps(params, sort_keys=True)}:e{ev_asof if ev_asof is not None else '-'}:{day}")
     hit, tier = _rs_kept(ck, intraday)
     if hit:
         _record_timing(tier, t0, {})
@@ -2529,6 +2533,10 @@ def rs_mansfield_envelope(sym: str, tf: str, inputs: dict, *, fetch_bars, cache_
         "inputs": params,
         "intraday": intraday,
         "state": _rs_split_state(core, intraday),
+        # ⭐ (2026-11-18) THE CARD'S MEASURED EVIDENCE: the rsLine row's own block (`_rs_evidence`), so the
+        # card reads `scalar:evidence.sentence.mansfield` exactly as rsLine's Mansfield card does (the same
+        # column, so the same measured `mansfield_cross_up` evidence); the honesty line where none is measured
+        "evidence": _timed(stages, "evidence", _rs_evidence),
     }
     envelope = {"columns": wire, "times": times, "asOf": time.time(), "payload": payload}
     t_built = time.perf_counter()

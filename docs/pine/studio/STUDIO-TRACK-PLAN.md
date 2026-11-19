@@ -873,9 +873,14 @@ synthetic account afterwards.
 | The server spells small numbers as the browser does (an answer holding 0.000001 was refused twice) | live (#1886) |
 | Several number lines of one indicator are drawn in several colours; a library indicator's lines carry the library's labels; colours are read back by name | live (#1877, #1890) |
 
+| A name that is one of UCT's own built-in indicators (RS Rating, RS Phases) is answered with no assistant call and one button that adds it to the chart, for a browser that can; Mansfield Relative Strength says where it is today (a Screener column) | merged with this record |
+| The same request sent three times through production, six requests of different kinds: every send built in one call; five gave the same maths on all three; one differed on whether an inside day's edges may touch the bar before | measured 2026-11-18 (answers kept outside this repository) |
+
 **What is left, in order.**
 1. The Stochastic's capture: TradingView's built-in at (14, 1, 3) and (14, 3, 3). Graded equal, the entry carries all three tiers and may say so.
-2. The two HELD names. Mansfield Relative Strength needs a chart formula PROVED EQUAL to the Screener's own column, the way Pocket Pivot was proved equal to the Screener's detector; it reads a second symbol, so it is taken with the relative-strength track. TTM Squeeze needs its author's formula on a page that can be read.
+2. The two HELD names. Mansfield Relative Strength waits on a built-in that draws the Screener's own column (a chart formula was ruled out: a second join, and different after a missing benchmark bar); the name then points at it with the one-tap offer. TTM Squeeze needs its author's formula on a page that can be read.
+2a. The offer, extended: the rest of UCT's own built-in indicators and the house set by name ("bind the house set into the library").
+2b. "Inside day" means one thing: the measurement above found two readings of it.
 3. Super Smoother, Instantaneous Trendline and Cyber Cycle as named entries: a published statement of each recurrence that can be READ (section 13). They are built from a member's words today, name withheld.
 4. An instruction slice, measured live before and after like every one: the assistant under-claims on a formula that needs a choice among several terms (it declined one the language can express).
 5. The second turns of the multi-turn evaluation cases, and the same request sent three times (how often an answer changes).

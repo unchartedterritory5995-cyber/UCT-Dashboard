@@ -35,6 +35,7 @@ from tests.test_rs_columns_provider import (  # noqa: F401 - fixtures are used b
     _fetcher, _hermetic_reads, _long_daily, _no_cache,
 )
 from tests.test_signature_router import client, _paid_user  # noqa: F401
+from tests.support.ledger_line_endings import assert_ledger_line_endings
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 FIXTURE = REPO / "tests" / "fixtures" / "rs_line_rows_pre_phase3.json"
@@ -101,7 +102,9 @@ RS_SPLIT_CONTRACT = {
                   "mansfield.crossDirection", "mansfield.lastCross", "mansfield.summary",
                   "legend.summary", "legend.blankReason",
                   "history.bars", "history.short", "inputs.benchmark", "inputs.customBenchmark", "inputs.sectorBenchmark",
-                  "inputs.themeBenchmark", "inputs.mansfieldLength", "intraday", "state"],
+                  "inputs.themeBenchmark", "inputs.mansfieldLength", "intraday", "state",
+                  # (2026-11-18) the card's measured sentence: rsLine's own `payload.evidence` block
+                  "evidence.sentence.mansfield"],
     },
 }
 
@@ -506,11 +509,20 @@ def test_a_cache_hit_is_served_without_a_read(split_rows, monkeypatch):
 
 def test_none_of_the_three_reads_regime_sensitivity_or_evidence(split_rows, monkeypatch):
     """...and none but `rsMansfield` computes the Mansfield columns (2026-11-18): that row
-    IS the rsLine row's Mansfield Reading, so it must read them, and only it may."""
+    IS the rsLine row's Mansfield Reading, so it must read them, and only it may. ⭐ (2026-11-18) and
+    only it reads the evidence: its card IS rsLine's Mansfield card, so it reads the same measured
+    `mansfield_cross_up` sentence (`payload.evidence`); no other split row may."""
     _store(monkeypatch, n=300)
-    for name in ("_rs_regime", "_rs_regime_bench_bars", "_rs_sensitivity", "_rs_evidence", "_rs_checks",
-                 "_rs_phase3"):
+    for name in ("_rs_regime", "_rs_regime_bench_bars", "_rs_sensitivity", "_rs_checks", "_rs_phase3"):
         monkeypatch.setattr(rsp, name, lambda *a, _n=name, **k: pytest.fail(f"{_n} was read"))
+    real_evidence, evidence_by = rsp._rs_evidence, []
+
+    def evidence(*a, **k):
+        evidence_by.append(asking[0])
+        if asking[0] != "rsMansfield":
+            pytest.fail(f"_rs_evidence was read by {asking[0]}")
+        return real_evidence(*a, **k)
+    monkeypatch.setattr(rsp, "_rs_evidence", evidence)
     real_mansfield, asking, read_by = rsm.compute_mansfield_columns, [None], []
 
     def mansfield(*a, **k):
@@ -522,10 +534,12 @@ def test_none_of_the_three_reads_regime_sensitivity_or_evidence(split_rows, monk
     for def_id in SPLIT_IDS:
         asking[0] = def_id
         env = sig.RS_SPLIT_PROVIDERS[def_id]("NVDA", "D", rd.resolve_inputs(def_id, {}))
-        assert not {"regime", "sensitivity", "evidence", "checks"} & set(env["payload"])
+        assert not {"regime", "sensitivity", "checks"} & set(env["payload"])
+        assert ("evidence" in env["payload"]) == (def_id == "rsMansfield"), def_id
         rec = rsp.last_timing()
-        assert rec["tier"] == "cold" and "evidence" not in rec["stages"]
+        assert rec["tier"] == "cold" and (("evidence" in rec["stages"]) == (def_id == "rsMansfield")), def_id
     assert read_by == ["rsMansfield"], read_by
+    assert evidence_by == ["rsMansfield"], evidence_by
 
 
 def test_a_custom_benchmark_resolves_and_warms_when_missing(split_rows, monkeypatch):
@@ -555,8 +569,7 @@ def test_the_other_four_rows_and_the_signature_ids_are_untouched():
 def test_the_ledger_carries_rs_split_armed_on_web_with_its_arming_note():
     """Armed in production: read live from Railway (web) as 1 on 2026-11-18. The arming
     note stays, because it is also the rollback recipe."""
-    raw = LEDGER.read_bytes()
-    assert raw.count(b"\n") == raw.count(b"\r\n"), "docs/feature_flags.json is a CRLF file"
+    raw = assert_ledger_line_endings(LEDGER)      # one ending on disk, an LF blob (tests/support/ledger_line_endings.py)
     flags = json.loads(raw.decode("utf-8"))["flags"]
     e = flags["RS_SPLIT_ENABLED"]
     assert e["status"] == "armed" and e["where"] == ["web"] and e["railway_value"] == "1"

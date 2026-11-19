@@ -1,0 +1,12 @@
+study("UCTPROBE_VW_DYN_FRACTIONAL_LENGTH_V1", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (parity2, U-DYN), capture queue rows
+// Q-DYN-4a/b (docs/pine/capture-queue-2026-11-18-parity2.md). NEVER COMPILED ON TRADINGVIEW. No version pragma
+// (Pine v1), the sibling of `vw-dyn-fractional-length.pine`; reference:hurst-cycle-channel-clone-lazybear has
+// no pragma and reads history at a fractional offset.
+plot(sma(close, 11 / 2), title = "S01_sma_11div2")
+plot(sma(close, 5), title = "S02_sma_5")
+plot(sma(close, 6), title = "S03_sma_6")
+plot(close[21 / 2 + 1], title = "H01_close_21div2p1")
+plot(close[11], title = "H02_close_11")
+plot(close[12], title = "H03_close_12")
