@@ -98,6 +98,12 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // contraction-box-doji-lines' RDDT and SPY captures. Its runtime kill entry was lifted on its own condition (both SPY
 // captures re-grade MATCH runtime-on, run 44319610649), so the registry now admits it. The door answers `host` for
 // all four, each MATCH on both lanes (docs/pine/evidence/2026-11-18-tolerant-compare/EVIDENCE.md).
+// ⭐ A2 (NUMBER PENDING, feat/pine-named-args-minmax, #1986) re-pinned 2 rows, lane `host` -> `runtime`:
+// optimized-keltner-channels-sltp-strategy-for-btc's RDDT and SPY captures. A named argument on a served built-in
+// (`color.new`, `array.new`) now builds it on the runtime lane, so this rail found the door answering `runtime`. On
+// that PR's run (44482185005) every compared item agrees, but the runtime lane runs the strategy's broker and the
+// captures hold no Strategy Tester report, so both grade INCONCLUSIVE (as seven committed strategy captures already
+// do), not DIVERGE: no stop (docs/pine/evidence/2026-11-19-a2-named-builtin-args/EVIDENCE.md).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   beforeAll(() => {

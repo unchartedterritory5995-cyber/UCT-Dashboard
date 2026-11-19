@@ -75,3 +75,32 @@ this engine's `PINE_CALL_SHAPES` declares Pine's own v1-v4 signature with 2 argu
 reference's own signature for `min` / `max`. The extraction recipe failed for `--version 4` on 2026-11-19
 (`t.t is not a function` at step 6). The change itself is size S: add `min` / `max` to the v1-v4 fold, behind the
 signature.
+
+## Corpus diff (this PR's pine-heavy run 44482185005, head 0ce61fe017, against train e81's run 44452719465)
+
+e81 is the newest train already in this PR's base (5c2aa89822).
+
+- **Production lane:** 938 captures, none moved.
+- **Runtime-on lane:** 2 captures moved, both optimized-keltner-channels-sltp-strategy-for-btc (RDDT and SPY daily,
+  2026-10-02). Both went MATCH -> INCONCLUSIVE.
+  - Every compared item agrees (6 of 6).
+  - The strategy is INCONCLUSIVE at step 0: the runtime lane runs the strategy's broker, and the captures hold no
+    Strategy Tester report to grade its trades (`strategyLane.js`).
+  - The host lane drew the script before and graded MATCH. Under admission the door now answers `runtime`.
+  - Seven committed strategy captures already stand INCONCLUSIVE on this same ground: macd-shortlong-strategy,
+    r1-strategy-draws, supertrend-strategy and tradingview-alerts-to-mt4. Nothing DIVERGEs, so the REACH stop rule
+    does not apply and nothing is killed.
+  - ⚠️ This is a MATCH lost on the runtime-on lane, a grade lost and not a picture lost. The coordinator rules on it.
+- **fxn-week-and-day-separator:** host-clean, unchanged.
+
+Data step:
+
+- `docs/pine/vendor-harness/runtime-on/verdicts.json`: the two records, spliced verbatim from run 44482185005.
+- The reach report records lane `runtime`, runtime-on INCONCLUSIVE for both captures. Its populations follow:
+  - captures: runtimeLane 163 -> 165, hostLane 252 -> 250;
+  - committed scripts: runtimeLane 41 -> 42, hostLane 44 -> 43.
+
+  The reference population is counted from the local reference cache and is not re-measured here; no rail reads it.
+- `capabilityEvidenceLane.test.js` records the change.
+
+Members on the production lane see what they see today: none of its 938 captures moved.

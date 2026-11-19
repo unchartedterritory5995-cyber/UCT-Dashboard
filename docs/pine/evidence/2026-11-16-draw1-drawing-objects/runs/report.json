@@ -3,16 +3,16 @@
   "capture": {
    "scripts": 940,
    "admitted": 561,
-   "runtimeLane": 163,
-   "hostLane": 252,
+   "runtimeLane": 165,
+   "hostLane": 250,
    "refused": 146,
    "coreOnly": 44
   },
   "committed": {
    "scripts": 266,
    "admitted": 118,
-   "runtimeLane": 41,
-   "hostLane": 44,
+   "runtimeLane": 42,
+   "hostLane": 43,
    "refused": 33,
    "coreOnly": 4
   },
@@ -2041,8 +2041,8 @@
   },
   {
    "capture": "optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "MATCH",
    "caps": [
     "conditional-ta",
@@ -2057,8 +2057,8 @@
   },
   {
    "capture": "optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "MATCH",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "MATCH",
    "caps": [
     "conditional-ta",
