@@ -95,7 +95,7 @@ import re
 import threading
 import time
 from collections import OrderedDict
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from api.services import pine_runtime_codec, runtime_repaint
 
@@ -1236,17 +1236,17 @@ def runtime_admission(source: Any, member: Any = None) -> dict:
     source, the client's per-hash verdict (`engine/runtimeKill.js`), plus ``historyOnly`` (the ids it
     uses that are admitted for closed-bar history only, G6) when it is admitted and uses one. ``admitted`` is True only
     when capability admission is ON, the script is not on the kill list, and
-    `capability_admitted` admits it. The allowlist is NOT folded in (the client asks its own
-    latched allowlist first). Nothing is stored and the source is never logged."""
-    h = source_hash(source) if isinstance(source, str) else None
+    `capability_admitted` admits it. The verdict itself is `admission_verdict`'s, the ONE rule this
+    door shares with the script turn (`script_answer_admission`). The allowlist is NOT folded in
+    (the client asks its own latched allowlist first). Nothing is stored and the source is never logged."""
     # ⛔ B1 (review 2026-11-13): with the flag OFF the detector is NEVER run. The answer is a
     # constant, so no request can spend server time on a door that admits nothing.
     if not capability_admission_on():
-        return {"sha256": h, "admitted": False, "missing": []}
+        return admission_verdict(source, [], lambda: None)
     # the verdict door stores nothing, yields to persisted work, and spends from the member's own
     # rolling detector budget (re-review F2); a member is never None here (the route passes its id)
-    ok, missing = capability_admitted(source, persist=False,
-                                      verdict_member=str(member) if member is not None else "<anonymous>")
+    who = str(member) if member is not None else "<anonymous>"
+    ok, missing = capability_admitted(source, persist=False, verdict_member=who)
     if not ok and member is not None:
         # ⭐ U4: the refusal becomes a ranked work item (support loop, kind `capability`):
         # the capability ids only, under the member's keyed hash. Never the source. ⛔ `pending`
@@ -1256,16 +1256,33 @@ def runtime_admission(source: Any, member: Any = None) -> dict:
             indicator_support.record_capability_gaps(member, missing)
         except Exception:  # noqa: BLE001 - telemetry never reaches the verdict
             pass
-    admitted = bool(ok and not killed(None, source))
-    out = {"sha256": h, "admitted": admitted, "missing": missing}
+    # G6's set is read again only for an admitted script (an LRU hit: `capability_admitted` just put it there)
+    return admission_verdict(source, missing,
+                             lambda: capabilities_for(source, persist=False, verdict_member=who))
+
+
+def admission_verdict(source: Any, missing: list, caps_of: Callable[[], Optional[frozenset]]) -> dict:
+    """⭐ THE ONE VERDICT (2026-11-19): ``{sha256, admitted, missing[, historyOnly]}``, read by BOTH
+    doors that answer it: the verdict door (`runtime_admission`) and the script turn
+    (`script_answer_admission`, which already ran the detector on the script it wrote). Never a second
+    copy of the rule: the admission flag, the kill list and G6's ``historyOnly`` are decided HERE, over
+    ``missing`` (the closed world's answer, `missing_capabilities`, which both doors read) and
+    ``caps_of`` (the source's capability set, asked only for an admitted script).
+
+    It never runs the detector itself and stores nothing. ⛔ FAIL CLOSED: an admitted script whose set
+    cannot be read (None, or a raise) is ``pending``, never admitted."""
+    h = source_hash(source) if isinstance(source, str) else None
+    if not capability_admission_on():
+        return {"sha256": h, "admitted": False, "missing": []}
+    admitted = bool(not missing and not killed(None, source))
+    out = {"sha256": h, "admitted": admitted, "missing": list(missing)}
     if admitted:
         # ⭐ G6 (coordinator ruling 2026-11-15): an admitted script using a capability admitted for
         # CLOSED-BAR HISTORY only carries those ids; the client refuses it BY NAME on a chart whose
         # newest bar is forming or not known to be closed (`runtimeKill.js::runtimeFormingRefusalOf`).
-        # ⛔ FAIL CLOSED: a set that cannot be re-read is not admitted at all.
+        # ⛔ FAIL CLOSED: a set that cannot be read is not admitted at all.
         try:
-            caps = capabilities_for(source, persist=False, verdict_member=str(member) if member is not None
-                                    else "<anonymous>")
+            caps = caps_of()
             hist = sorted(set(caps) & set(admitted_capabilities()["historyOnly"])) if caps is not None else None
         except Exception:  # noqa: BLE001 - fail closed
             hist = None
@@ -1274,6 +1291,34 @@ def runtime_admission(source: Any, member: Any = None) -> dict:
         if hist:
             out["historyOnly"] = hist
     return out
+
+
+def script_answer_admission(source: Any, caps: Optional[frozenset]) -> Optional[dict]:
+    """⭐ THE VERDICT IN THE ANSWER THAT WROTE THE SCRIPT (2026-11-19). The script turn
+    (`script_conversation.script_turn`) already ran the detector on the script it returns
+    (`pine_authoring.script_capabilities`); this keeps that set instead of throwing it away. It goes
+    into this process's LRU only (⛔ NEVER the store: the converse door stores nothing), so the
+    window's verdict door, if it asks at all, answers from the LRU without any detector gate; and the
+    verdict comes back with the answer, decided by the verdict door's own rule (`admission_verdict`
+    over `missing_capabilities`).
+
+    ``None`` while capability admission is off (the answer is then byte for byte what it was).
+    ``caps`` None (the detector could not run) is ``pending``: the window asks the door as before."""
+    if not capability_admission_on():
+        return None
+    from api.services import pine_capabilities
+    if not isinstance(source, str) or not source.strip():
+        return admission_verdict(source, [pine_capabilities.UNREADABLE], lambda: None)
+    if caps is None:
+        return admission_verdict(source, [PENDING], lambda: None)
+    caps = frozenset(caps)
+    _lru_put(source_hash(source), caps)
+    try:
+        missing = missing_capabilities(caps, set(admitted_capabilities()["admitted"]))
+    except Exception:  # noqa: BLE001 - fail closed: what cannot be read is not admitted
+        log.warning("[runtime_definitions] capability admission unreadable; not admitted")
+        missing = [pine_capabilities.UNREADABLE]
+    return admission_verdict(source, missing, lambda: caps)
 
 
 def save_permission(role: Any, user_id: Any = None) -> Optional[str]:
