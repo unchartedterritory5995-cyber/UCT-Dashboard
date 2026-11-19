@@ -2036,7 +2036,7 @@
    "target": "recentlyDeleted",
    "risk": "confirm",
    "reversible": true,
-   "undo": "exact",
+   "undo": "none",
    "query": false,
    "surfaces": [
     "charts"

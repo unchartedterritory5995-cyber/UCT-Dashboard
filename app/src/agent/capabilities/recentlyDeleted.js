@@ -19,10 +19,11 @@
 //                                 The item is named deterministically (its id, or a name that fits exactly ONE deleted
 //                                 item); two that fit → asked with the real names, nothing changed.
 //                                 Read back: it is gone from Recently deleted AND present in its own list again.
-//                                 Undo: it goes back to Recently deleted — through the kind's own delete, only while it is
-//                                 exactly as the Agent brought it back (its version head unchanged), never the open layout,
-//                                 never a list a Watchlist widget on this board is showing. The delete keeps a tombstone,
-//                                 so an Undo is itself recoverable.
+//                                 NO Undo (PL decision 2026-11-19: a member's Undo never deletes a list, layout or
+//                                 screen): the receipt says how to reverse it — delete it as usual, and it goes back to
+//                                 Recently deleted. Only a request that fails PART-WAY takes back what it had brought back
+//                                 (all or nothing, as every creator's compensation), through the kind's own delete, only
+//                                 while unchanged, never the open layout, never a list a Watchlist widget is showing.
 //
 // ⛔ Not here: "Earlier versions" of a deleted item (only the newest, as the panel's Bring back), version history of a
 // LIVE artefact (the board's Version history is layoutHistory.*), anything not the member's own.
@@ -149,7 +150,8 @@ async function settleKind(host, kind, id, present) {
   await loadSaved({ force: true })
 }
 
-// Undo / compensation of a restore: back to Recently deleted, through the kind's own delete, only while unchanged since.
+// Compensation of a request that failed part-way (never a member's Undo): what it had brought back goes back to Recently
+// deleted, through the kind's own delete, only while unchanged since.
 async function sendBack(host, items) {
   for (const it of items) {
     const h = await requestJson(`${ARTIFACT_VERSIONS_URL}/${it.kind}/${enc(it.id)}`, { cache: 'no-store' })
@@ -175,7 +177,7 @@ async function sendBack(host, items) {
   return true
 }
 
-// What a restore made, carried to its Undo: "kind|id|version|name" per item (one string each: `created` is alias → ref).
+// What a restore made, carried to its compensation: "kind|id|version|name" per item (one string each: `created` is alias → ref).
 const packed = (it) => [it.kind, it.id, it.version ?? '', it.name].join('|')
 const unpack = (s) => { const [kind, id, version, ...name] = String(s).split('|'); return { kind, id, version: version === '' ? null : Number(version), name: name.join('|') } }
 
@@ -208,7 +210,7 @@ export const recentlyDeletedKind = {
       created[`deleted:${r.kind}:${r.id}`] = packed({ kind: r.kind, id: r.id, version: res.body.version ?? null, name })
       await settleKind(host, r.kind, r.id, true)
       // ⭐ the receipt says what the server did — including a layout renamed because the name was taken since
-      lines.push(`Brought back your ${NOUN[r.kind]} ${quote(name)}${name !== r.label ? ` (you already have one named ${quote(r.label)})` : ''}, as it was when it was deleted. It comes back private.`)
+      lines.push(`Brought back your ${NOUN[r.kind]} ${quote(name)}${name !== r.label ? ` (you already have one named ${quote(r.label)})` : ''}, as it was when it was deleted. It comes back private. To remove it again, delete it as usual; it goes back to Recently deleted.`)
     }
     await loadDeleted({ force: true })
     return { created, lines }
@@ -219,11 +221,9 @@ export const recentlyDeletedKind = {
     if (back) return back.every(it => !(snap.live?.[it.kind] || []).includes(String(it.id)))
     return patch.restore.every(r => (snap.live?.[r.kind] || []).includes(r.id) && !snap.rows.some(x => x.kind === r.kind && x.id === r.id))
   },
-  // Undo a restore = send exactly what it brought back to Recently deleted again (sendBack re-checks each one first).
-  undoPatch(item) {
-    const made = Object.values(item.created || {}).map(unpack)
-    return made.length ? { sendBack: made } : null
-  },
+  // ⛔ No Undo: a member's Undo never deletes a list, layout or screen (the receipt says how to reverse it)
+  undoPatch: () => null,
+  // a request that failed part-way takes back exactly what it had brought back (sendBack re-checks each one first)
   compensatePatch(item) {
     const made = Object.values(item.created || item.partial || {}).map(unpack)
     return made.length ? { sendBack: made } : null
@@ -233,11 +233,6 @@ export const recentlyDeletedKind = {
   // ⛔ APPROVAL BINDING: the card binds its PATCH — each item's kind, id and version head — and Apply re-reads the lists and
   // sends that head as the compare-and-set base, so an item deleted again, brought back elsewhere or changed since is refused
   // there. (The lists themselves are not the material state: a snapshot taken before they were read would void every card.)
-  // A stale Undo: the restored item is no longer where the Agent left it (the precise check is the version head, at commit)
-  fingerprintFor(host, snap, item) {
-    const made = Object.values(item.created || {}).map(unpack)
-    return JSON.stringify(made.map(it => (snap.live?.[it.kind] || []).includes(String(it.id))))
-  },
   async refreshForApproval() {
     try { await loadDeleted({ force: true }); return { ok: true } } catch { return { ok: false, what: 'your recently deleted items' } }
   },
@@ -343,6 +338,9 @@ export function registerRecentlyDeletedCapabilities() {
     surfaces: ['charts'],
     target: 'recentlyDeleted',
     risk: 'confirm',
+    // ⛔ no Undo (PL decision 2026-11-19): a member's Undo never deletes a list, layout or screen — deleting it as usual
+    // reverses a restore (it goes back to Recently deleted), and the receipt says so
+    undo: 'none',
     createsResource: true,
     summary: 'Bring back ONE watchlist, saved layout or saved screen the member deleted, from Recently deleted — as it was when it was deleted '
       + '(the same as its Bring back button). It comes back private; nothing existing is replaced. Not for undoing an edit of something that still exists.',

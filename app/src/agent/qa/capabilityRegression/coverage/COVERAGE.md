@@ -14,7 +14,7 @@ Catalog: **238** capabilities (every server-gated kind on; 207 with production's
 | receipt | 154 / 238 |
 | refusal | 35 / 238 |
 | permission | 231 / 238 |
-| undo | 84 / 144 |
+| undo | 84 / 143 |
 | multiStep | 40 / 238 |
 | phrasings | 179 / 238 |
 
@@ -191,7 +191,7 @@ Catalog: **238** capabilities (every server-gated kind on; 207 with production's
 | playbook.record | playbook | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | playbook.setup | playbook | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | recentlyDeleted.list | recentlyDeleted | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
-| recentlyDeleted.restore | recentlyDeleted | confirm | exact | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | ✗ | ✗ | ✓ |
+| recentlyDeleted.restore | recentlyDeleted | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✓ | · | ✗ | ✓ |
 | research.ask | data | local | none | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✓ | · | ✗ | ✗ |
 | rs.compare | rs | local | none | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | · | ✗ | ✓ |
 | screener.deleteSaved | screener | confirm | none | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | · | ✗ | ✓ |

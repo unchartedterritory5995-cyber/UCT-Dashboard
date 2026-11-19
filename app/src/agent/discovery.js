@@ -78,7 +78,7 @@ export const TOPICS = [
     id: 'recentlyDeleted', title: 'Bringing back something I deleted',
     words: [/\b(recently deleted|undelet\w*)\b/, /\b(bring back|restore|recover)\b.*\b(deleted|removed)\b/, /\bdeleted (watch ?lists?|lists|layouts?|screens?)\b/],
     caps: ['recentlyDeleted.list', 'recentlyDeleted.restore'], productHas: true,
-    canDo: 'show what is in your Recently deleted (watchlists, saved layouts and saved screens you deleted) and bring one back as it was when it was deleted — shown first, it comes back private, nothing existing is replaced — with Undo',
+    canDo: 'show what is in your Recently deleted (watchlists, saved layouts and saved screens you deleted) and bring one back as it was when it was deleted — shown first, it comes back private, nothing existing is replaced (no Undo: to remove it again, delete it as usual and it goes back to Recently deleted)',
     known: () => ['bringing back an earlier version of a deleted item (its Earlier versions list)'],
     planned: null,
   },

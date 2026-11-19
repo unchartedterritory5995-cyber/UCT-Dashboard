@@ -8228,7 +8228,7 @@
    },
    "risk": "confirm",
    "reversible": true,
-   "undo": "exact",
+   "undo": "none",
    "query": false,
    "argAliases": {
     "item": [

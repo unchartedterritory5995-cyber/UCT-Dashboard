@@ -210,7 +210,8 @@ const READERS = {
     return []
   },
   // recentlyDeleted.* (2026-11-19): a restore only ADDS (it recreates a deleted item under its old id; nothing existing is
-  // replaced). Its Undo / compensation (`sendBack`, never planned from words) deletes what it brought back — read as a delete.
+  // replaced; it has no Undo). Its compensation after a part-way failure (`sendBack`, never planned from words) deletes what it
+  // brought back — read as a delete.
   recentlyDeleted(p) {
     return (p.patch?.sendBack || []).filter(it => it.kind === 'watchlist' || it.kind === 'layout')
       .map(it => ({ state: it.kind, type: 'delete', name: `your ${it.kind} “${nm(it.name)}”` }))

@@ -1,13 +1,14 @@
 // Recently deleted (recentlyDeleted.list / recentlyDeleted.restore): bring back a deleted watchlist, saved layout or saved
 // screen through the SAME routes the Recently deleted panel's "Bring back" uses (/api/artifact-versions), against a stand-in
 // server with the router's semantics (owner-scoped lists, undelete compare-and-set on the head, 409 once it exists, a layout
-// name already used since comes back "(restored)", a delete leaves a tombstone). Read back from each kind's own list, an
-// exact Undo that sends it back only while unchanged, asks when two items fit, and never touches anything not named.
+// name already used since comes back "(restored)", a delete leaves a tombstone). Read back from each kind's own list, NO
+// Undo (a member's Undo never deletes a list; the receipt says how to reverse it), a part-way failure taken back, asks when
+// two items fit, and never touches anything not named.
 import { describe, it, expect, beforeEach } from 'vitest'
 import { registerBuiltins } from './builtins'
 import { planOps, collectTargets, prepareOps } from './executor'
 import { decideMode } from './policy'
-import { commitPlan, undoEntry } from './runtime'
+import { commitPlan } from './runtime'
 import { fastParse } from './fastPath'
 import { buildWatchlistSource } from './host'
 import { wordsSelect } from './routing'
@@ -107,8 +108,8 @@ beforeEach(async () => {
   _resetScreenerCache?.()
 })
 
-describe('recentlyDeleted.restore: bring one item back, read back, exact Undo', () => {
-  it('"bring back my Momentum watchlist": shown first; the list is back in My Lists, gone from Recently deleted; Undo sends it back', async () => {
+describe('recentlyDeleted.restore: bring one item back, read back, no Undo', () => {
+  it('"bring back my Momentum watchlist": shown first; the list is back in My Lists, gone from Recently deleted; no Undo', async () => {
     const host = makeHost()
     await loadDeleted({ force: true })
     const f = fastParse('bring back my Earnings Plays watchlist', { host })
@@ -125,10 +126,8 @@ describe('recentlyDeleted.restore: bring one item back, read back, exact Undo', 
     expect(res.lines.join(' ')).toMatch(/Brought back your watchlist “Momentum”, as it was when it was deleted\. It comes back private\./)
     // nothing else was written: one undelete, no other list touched
     expect(writes()).toEqual([['POST', '/api/artifact-versions/watchlist/5/undelete']])
-    const u = await undoEntry(host, res.undo)
-    expect(u.ok).toBe(true)
-    expect(srv.lists.map(l => l.name)).toEqual(['Core'])
-    expect(srv.gone['watchlist:5']).toBeTruthy()                 // back in Recently deleted (recoverable again)
+    expect(res.undo).toBeNull()                                  // no Undo: a member's Undo never deletes a list
+    expect(res.lines.join(' ')).toMatch(/To remove it again, delete it as usual; it goes back to Recently deleted\./)
   })
 
   it('a layout whose name was used since comes back "(restored)", and the receipt says so (never claims the old name)', async () => {
@@ -147,25 +146,15 @@ describe('recentlyDeleted.restore: bring one item back, read back, exact Undo', 
     expect(res.lines.join(' ')).toMatch(/saved screen “Momentum”/)
   })
 
-  it('Undo is refused once the restored item was edited since (its version head moved), and nothing is deleted', async () => {
+  it('no kind offers an Undo (the contract says none), and each receipt says how to reverse it', async () => {
+    expect(getCapability('recentlyDeleted.restore')).toMatchObject({ undo: 'none', risk: 'confirm' })
     const host = makeHost()
-    const res = await run(host, [OP('5', 'watchlist')])
-    srv.heads['watchlist:5'] += 1                                // the member edited the list after it came back
-    const u = await undoEntry(host, res.undo)
-    expect(u.ok).toBe(false)
-    expect(srv.lists.map(l => l.name)).toContain('Momentum')
-  })
-
-  it('Undo never deletes the layout that is open now, nor a list a Watchlist widget is showing', async () => {
-    const host = makeHost({ active: 14 })
-    const res = await run(host, [OP('14', 'layout')])
-    expect(res.ok).toBe(true)
-    expect((await undoEntry(host, res.undo)).ok).toBe(false)
-    expect(srv.layouts.some(l => l.id === 14)).toBe(true)
-    const shown = makeHost({ shownIn: [{ id: 'w1', type: 'watchlist', opts: { watchKey: 'user:5' } }] })
-    const r2 = await run(shown, [OP('5', 'watchlist')])
-    expect((await undoEntry(shown, r2.undo)).ok).toBe(false)
-    expect(srv.lists.some(l => l.id === '5')).toBe(true)
+    for (const op of [OP('6', 'watchlist'), OP('14', 'layout'), OP('9', 'screen')]) {
+      const res = await run(host, [op])
+      expect(res.ok, op.args.kind).toBe(true)
+      expect(res.undo, op.args.kind).toBeNull()
+      expect(res.lines.join(' '), op.args.kind).toMatch(/delete it as usual; it goes back to Recently deleted/)
+    }
   })
 })
 
@@ -188,7 +177,7 @@ describe('⛔ targeting and safety', () => {
     expect(writes()).toEqual([])
   })
 
-  it('exclusions hold: "all my deleted watchlists except Momentum" plans exactly the others, one card, one Undo', async () => {
+  it('exclusions hold: "all my deleted watchlists except Momentum" plans exactly the others, one card', async () => {
     const host = makeHost()
     const p = await plan(host, [OP('6', 'watchlist')])          // the model's ops: every listed watchlist but Momentum
     const res = await commitPlan(host, p)
@@ -232,7 +221,7 @@ describe('⛔ targeting and safety', () => {
     expect(p.refusals[0].reason).toMatch(/open Charts to bring back a watchlist/)
   })
 
-  it('the restore plan destroys nothing (state rail); its Undo shape reads as a delete', async () => {
+  it('the restore plan destroys nothing (state rail); its compensation shape reads as a delete', async () => {
     const host = makeHost()
     expect(stateEffects(await plan(host, [OP('5', 'watchlist')]))).toEqual([])
     const back = { ok: true, plans: [{ ref: 'deleted', kind: 'recentlyDeleted', patch: { sendBack: [{ kind: 'watchlist', id: '5', name: 'Momentum' }] }, items: [] }] }
