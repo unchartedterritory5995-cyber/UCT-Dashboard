@@ -134,7 +134,8 @@ def admission_row(src, admitted):
     whether it is admitted. RT1: a script on the kill list is refused at every door, whatever its
     capabilities say (`runtime_definitions.runtime_admission` answers admitted False for it)."""
     caps = pc.capabilities_of(src)
-    missing = sorted(c for c in caps if c not in admitted)
+    # the server's own rule (the generic `import` met by its libraries, U15), never restated here
+    missing = rt.missing_capabilities(caps, set(admitted))
     killed = bool(rt.killed(None, src))
     return dict(hash=rt.source_hash(src), caps=sorted(caps), admitted=not missing and not killed,
                 missing=missing, killed=killed)
