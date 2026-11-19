@@ -467,7 +467,16 @@ describe('what each recipe plots equals an independent calculation', () => {
   const REDRAWS = RECIPE_INDEX.recipes.map((r) => r.id).filter((id) => sourceOf(id).includes('barstate.islast'))
   const REDRAW_BARS = 300
   it('the recipes that redraw on the last bar are the ones expected', () => {
-    expect(REDRAWS.sort()).toEqual(['fibonacci-swings', 'volume-profile', 'weekday-returns-table'])
+    // (2026-11-19: `fibonacci-swings` left this list. It MOVES its lines and labels on every bar with their
+    // setters now, so it is drawn while the newest bar is forming; the two that stay loop over past bars on each
+    // update, too slow to repeat on every bar, and say so: `finishedBarsOnly` in the index)
+    expect(REDRAWS.sort()).toEqual(['volume-profile', 'weekday-returns-table'])
+    expect(RECIPE_INDEX.recipes.filter((r) => r.finishedBarsOnly === true).map((r) => r.id).sort()).toEqual(REDRAWS.sort())
+    // ⛔ and no recipe reads where the chart ends any other way (each is the same wait for the bar)
+    for (const r of RECIPE_INDEX.recipes) {
+      const reads = ['barstate.', 'last_bar_index', 'last_bar_time', 'timenow'].filter((w) => sourceOf(r.id).includes(w))
+      expect(reads.length > 0, `${r.id}: ${reads}`).toBe(r.finishedBarsOnly === true)
+    }
   })
   for (const id of REDRAWS) {
     it(`${id}: its redraw runs on every bar and ends with the same numbers`, () => {

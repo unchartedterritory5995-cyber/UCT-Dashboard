@@ -33,6 +33,7 @@ import { hostLaneStopOf, isHostLanePending } from '../engine/hostLaneAsync.js'
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from '../engine/runtime/runtimeObjects'
 import { onRuntimeColumnsLanded } from '../engine/runtime/runtimeColumns'
 import { memberPaneEnabled } from '../engine/memberPaneGate'
+import { RUNTIME_FORMING_GUARD } from '../engine/runtimeKill'
 
 export const RUN = Object.freeze({
   /** the engine computed it and named no stop */
@@ -56,9 +57,19 @@ export const MIN_BARS = 50
  */
 export const NEEDS_THE_CHART = Object.freeze(['other-symbol:bare'])
 
+/**
+ * ⛔ GUARDS THAT MEAN "THIS CHART'S NEWEST BAR HAS NOT FINISHED", NEVER "THE SCRIPT IS WRONG" (found live
+ * 2026-11-19). A script that reads where the chart ends (`barstate.islast` and its like) is admitted for
+ * FINISHED bars only (`engine/runtimeKill.js`, G6), so on a live chart it is not drawn all session long and is
+ * drawn again once the bar has finished. Counted as a stop, it was sent back for a repair that could not help
+ * (the script is what the assistant was told to write) and shown as "does not run ... open it to fix it".
+ * Such a run is reported as `waiting`: said as that, never repaired, never a stop.
+ */
+export const WAITS_FOR_THE_BAR = Object.freeze([RUNTIME_FORMING_GUARD])
+
 const clean = (s) => String(s == null ? '' : s).replace(/\s+/g, ' ').trim()
 
-const notRun = (why) => ({ state: RUN.NOT_RUN, stops: [], unchecked: [], notes: [], why })
+const notRun = (why) => ({ state: RUN.NOT_RUN, stops: [], unchecked: [], waiting: [], notes: [], why })
 
 function isPending(def, cols) {
   if (isHostLanePending(cols)) return true
@@ -95,10 +106,10 @@ export function runHere(pane, { bars, ctx, compute = computeFor } = {}) {
   try {
     cols = compute(def, bars, undefined, ctx || {})
   } catch (e) {
-    return { state: RUN.STOPPED, stops: [{ guard: (e && e.guard) || 'run:threw', sentence: clean((e && e.message) || e) }], unchecked: [], notes: [] }
+    return { state: RUN.STOPPED, stops: [{ guard: (e && e.guard) || 'run:threw', sentence: clean((e && e.message) || e) }], unchecked: [], waiting: [], notes: [] }
   }
   if (!cols) return notRun('the run answered nothing')
-  if (isPending(def, cols)) return { state: RUN.PENDING, stops: [], unchecked: [], notes: [] }
+  if (isPending(def, cols)) return { state: RUN.PENDING, stops: [], unchecked: [], waiting: [], notes: [] }
 
   const found = []
   const add = (guard, sentence) => {
@@ -136,8 +147,9 @@ export function runHere(pane, { bars, ctx, compute = computeFor } = {}) {
   }
 
   const unchecked = found.filter((f) => NEEDS_THE_CHART.includes(f.guard))
-  const stops = found.filter((f) => !NEEDS_THE_CHART.includes(f.guard))
-  return { state: stops.length ? RUN.STOPPED : RUN.RAN, stops, unchecked, notes }
+  const waiting = found.filter((f) => WAITS_FOR_THE_BAR.includes(f.guard))
+  const stops = found.filter((f) => !NEEDS_THE_CHART.includes(f.guard) && !WAITS_FOR_THE_BAR.includes(f.guard))
+  return { state: stops.length ? RUN.STOPPED : RUN.RAN, stops, unchecked, waiting, notes }
 }
 
 /**
@@ -181,6 +193,10 @@ export function runHereWhenLanded(pane, chart, { timeoutMs = 8000, onLanded = on
  */
 export const STOPPED_HEADLINE = 'It does not run on this chart'
 export const CHECKING_HEADLINE = 'Still being checked on this chart'
+export const WAITING_HEADLINE = 'Draws once this bar has finished'
+/** What a member reads under that headline (the engine's own sentence follows it). */
+export const WAITING_LINE = "This script draws on the chart's last bar, and that is only drawn on a finished bar. "
+  + 'On a live chart it appears when the bar closes; nothing is wrong with the script.'
 
 export function verdictOnChart(verdict, run, { maxErrors = 6, maxChars = 300 } = {}) {
   if (!verdict || !run) return verdict
@@ -197,6 +213,15 @@ export function verdictOnChart(verdict, run, { maxErrors = 6, maxChars = 300 } =
   if (run.state === RUN.PENDING) return { ...base, runs: false, headline: CHECKING_HEADLINE, errors: [] }
   if (run.state === RUN.RAN) {
     const unchecked = run.unchecked.map((u) => `Not checked here (${u.guard}): it is checked when the script is on the chart.`)
+    const waiting = run.waiting || []
+    if (waiting.length) {
+      // ⛔ still "runs" (no repair is asked for: there is nothing to repair), under a headline that says what
+      // the member will see, with the engine's own sentence kept
+      return {
+        ...base, headline: WAITING_HEADLINE, waits: true,
+        notes: [WAITING_LINE, ...[...new Set(waiting.map((w) => w.sentence))], ...verdict.notes, ...run.notes, ...unchecked],
+      }
+    }
     return { ...base, notes: [...verdict.notes, ...run.notes, ...unchecked] }
   }
   return base

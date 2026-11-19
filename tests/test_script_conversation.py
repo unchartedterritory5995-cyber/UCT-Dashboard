@@ -125,7 +125,7 @@ def test_a_request_only_a_script_can_hold_is_written_as_a_script_with_no_formula
     assert TABLE_REQUEST in sent["messages"][0]["content"] and "NVDA" in sent["messages"][0]["content"]
     assert r["ok"] is True and r["turn"] == "script" and r["disposition"] == "answer"
     # (no recipe is behind a table of the ATR: `reference` is None and the answer says so, section 6)
-    assert r["script"] == {"name": "ATR table", "pine": GOOD, "round": 0, "reference": None}
+    assert r["script"] == {"name": "ATR table", "pine": GOOD, "round": 0, "reference": None, "waits_for_the_bar": False}
     assert r["reply"] == "A table of the ATR. " + pine_authoring.UNCHECKED_LINE
     # the answer itself changes nothing: the script is not a patch, and the door does not say it runs
     assert r["envelope"]["ops"] == [] and r["envelope"]["disposition"] == "answer"
@@ -200,7 +200,8 @@ def test_the_engines_refusal_is_put_to_the_assistant_in_the_engines_words(conv, 
     told = sent["messages"][2]["content"][0]
     assert told["is_error"] is True and told["content"].startswith("[engine:refused]")
     assert "(1) line 3: `ta.atr` needs a length (2) the table has no cells" in told["content"]
-    assert r["ok"] is True and r["script"] == {"name": "ATR table", "pine": fixed, "round": 1, "reference": None}
+    assert r["ok"] is True and r["script"] == {"name": "ATR table", "pine": fixed, "round": 1, "reference": None,
+                                               "waits_for_the_bar": False}
 
 
 def test_a_request_is_repaired_a_bounded_number_of_times(conv, clean_env, model, lane):
@@ -430,3 +431,58 @@ def test_a_member_gets_a_script_when_the_switch_says_all(conv, clean_env, model,
     client = model([emits(DECLINE), emits(DECLINE)])
     r = ask(conv, admin=False)
     assert r.get("turn") != "script" and "script" not in r
+
+
+# ═══ a script that waits for the bar says so, in UCT's words ═════════════════════════
+#
+# ⚰️ Found live 2026-11-19: a script that reads where the chart ends (`barstate.islast` and its like) is
+# admitted for FINISHED bars only, so on a live chart it is not drawn all session. The member found out
+# from an empty chart. The server's own detector decides, on the script, and UCT says it.
+
+LAST_BAR = ('//@version=5\nindicator("Last close", overlay=true)\nvar label l = na\nif barstate.islast\n'
+            '    label.delete(l)\n    l := label.new(bar_index, high, str.tostring(close))\nplot(close, "Close")\n')
+EVERY_BAR = ('//@version=5\nindicator("Last close", overlay=true)\nvar label l = label.new(bar_index, high, "")\n'
+             'label.set_xy(l, bar_index, high)\nlabel.set_text(l, str.tostring(close))\nplot(close, "Close")\n')
+
+
+def test_a_script_that_reads_where_the_chart_ends_is_said_to_wait_for_the_bar(conv, clean_env, model, lane):
+    model([writes(LAST_BAR, name="Last close", reply="A label with the last close.")])
+    r = ask(conv)
+    assert r["ok"] is True and r["script"]["waits_for_the_bar"] is True
+    assert r["reply"].endswith(pine_authoring.FINISHED_BARS_LINE) and r["reply"].count(pine_authoring.FINISHED_BARS_LINE) == 1
+    assert pine_authoring.UNCHECKED_LINE in r["reply"]                    # both of UCT's lines, neither cut
+    assert r["envelope"]["reply"] == r["reply"] and len(r["reply"]) <= pine_authoring.REPLY_MAX_CHARS
+    # CONTROL: the same picture updated on every bar reads nothing past its own bar, and is not said to wait
+    model([writes(EVERY_BAR, name="Last close", reply="A label with the last close.")])
+    r = ask(conv)
+    assert r["script"]["waits_for_the_bar"] is False and pine_authoring.FINISHED_BARS_LINE not in r["reply"]
+
+
+def test_the_two_lines_fit_whatever_the_assistant_wrote(conv, clean_env, model, lane):
+    model([writes(LAST_BAR, name="Last close", reply="x" * 900)])
+    r = ask(conv)
+    assert len(r["reply"]) <= pine_authoring.REPLY_MAX_CHARS
+    assert pine_authoring.UNCHECKED_LINE in r["reply"] and r["reply"].endswith(pine_authoring.FINISHED_BARS_LINE)
+    # an assistant that already said it is not told twice
+    model([writes(LAST_BAR, name="Last close", reply="A label. " + pine_authoring.FINISHED_BARS_LINE)])
+    assert ask(conv)["reply"].count(pine_authoring.FINISHED_BARS_LINE) == 1
+
+
+def test_a_last_bar_recipe_is_handed_over_with_the_reason_it_waits(conv, clean_env, model, lane):
+    turn = lambda words: sc.script_turn(words, user_id="u1", chart=CHART, cap_usd=5.0, calls=[], revision=0,   # noqa: E731
+                                        contract=conv.PATCH_CONTRACT)
+    profile = _recipe("volume-profile")
+    assert profile.get("finishedBarsOnly") is True
+    client = model([writes(_with_settings(profile["source"]), reply="A volume profile.")])
+    r = turn("Add a volume profile")
+    sent = json.dumps(client.calls[0]["messages"])
+    assert json.dumps(pine_authoring.LAST_BAR_RECIPE_LINE)[1:-1] in sent
+    assert r["script"]["reference"] == "volume-profile" and r["script"]["waits_for_the_bar"] is True
+    assert r["reply"].endswith(pine_authoring.FINISHED_BARS_LINE) and pine_authoring.UNCHECKED_LINE not in r["reply"]
+    # a recipe that updates on every bar is handed over without that line
+    fib = _recipe("fibonacci-swings")
+    client = model([writes(_with_settings(fib["source"]), reply="Fib levels.")])
+    r = turn("Add " + fib["asks"][0])
+    assert fib["id"] in json.dumps(client.calls[0]["messages"]) or fib["title"] in json.dumps(client.calls[0]["messages"])
+    assert json.dumps(pine_authoring.LAST_BAR_RECIPE_LINE)[1:-1] not in json.dumps(client.calls[0]["messages"])
+    assert r["script"]["reference"] == "fibonacci-swings" and r["script"]["waits_for_the_bar"] is False
