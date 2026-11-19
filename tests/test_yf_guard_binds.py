@@ -121,9 +121,12 @@ def test_catalyst_ticker_metadata_reaches_yfinance_through_the_guard(spy):
 def test_engine_sym_cap_reaches_yfinance_through_the_guard(spy):
     """`fast_info` is lazy, so the whole read block must be inside the guarded
     callable — and the fallback must stay FAIL-OPEN (True), or a rate limit
-    would silently drop every news item."""
+    would silently drop every news item. The gate reads the company profile
+    first; with no answer there, this read is the one that decides."""
     from api.services import engine
-    assert engine._check_sym_cap("AAPL") == ("AAPL", True)
+    from api.services.catalyst import ticker_metadata
+    with patch.object(ticker_metadata, "profile_facts", return_value=None):
+        assert engine._check_sym_cap("AAPL") == ("AAPL", True)
     assert spy.fired
 
 
