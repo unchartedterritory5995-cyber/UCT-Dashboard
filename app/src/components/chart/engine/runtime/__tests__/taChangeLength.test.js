@@ -112,10 +112,17 @@ describe('R2 — one definition: ta.change(x, n) is x - x[n] wherever it stands'
     }, T)
   }
   it('inside a user function called on every bar: the call site\'s ring, x - x[2]', () => {
-    const [ours] = run(`${head}${slotX}f(v) =>\n    ta.change(v, 2)\nplot(f(x))\n`)
+    const [ours] = run(`${head}${slotX}f(float v) =>\n    ta.change(v, 2)\nplot(f(x))\n`)
     const [hand] = run(`${head}${slotX}plot(x - x[2])\n`)
     expect(differ(RDDT, ours, hand)).toEqual([])
   }, T)
+  it('⛔ …and over an UNTYPED parameter the shared body cannot prove a number: refused by name (fail closed)', () => {
+    // the parameter takes its argument's type per call (User Manual), which the shared frame does not know;
+    // a bool there would be "did it change", not a difference
+    const r = refusalOf(`${head}${slotX}f(v) =>\n    ta.change(v, 2)\nplot(f(x))\n`)
+    expect(r && r.guard).toBe('runtime:statement')
+    expect(r.message).toMatch(/cannot prove is a number/)
+  })
 })
 
 describe('R3 — a `?:` arm keeps the call site\'s history (W4-A1, vw-arm-history K03)', () => {
@@ -151,6 +158,13 @@ describe('R4 — a block that does not run on every bar', () => {
     expect(r && r.guard).toBe('runtime:conditional-history')
     expect(r.message).toMatch(/ta\.change/)
   }, T)
+  it('in the DRAWING build: refused by name (no capture shows a drawing\'s call-site history for it)', () => {
+    const b = buildRuntimeIr(`${blockHead}if close > open\n    y := ta.change(x)\nplot(y)\n`,
+      { bars: barsOf(RDDT), inputs: {}, objectsInRun: true, ...runtimeClockOpts(false) })
+    expect(b.ok).toBe(false)
+    expect(b.refusal.guard).toBe('runtime:conditional-history')
+    expect(b.refusal.message).toMatch(/ta\.change/)
+  })
   it('in a loop: refused by name (several steps a bar)', () => {
     expect(runGuardOf(`${blockHead}for i = 0 to 2\n    y := ta.change(x, 2)\nplot(y)\n`, { bars: barsOf(RDDT) }))
       .toBe('runtime:conditional-history')

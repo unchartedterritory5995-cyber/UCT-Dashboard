@@ -10441,7 +10441,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
                 `\`${node.name}\` inside a block that does not run on every bar — `
                 + 'Pine keeps that history per call site, and this lane serves only the shapes witnessed so far', at)
             }
-            r4Guard(`\`${node.name}\``, at)
+            r4Guard(`\`${node.name}\``, at)   // the region rule (HIST-S3), asked for a slot source too
           }
           if (!srcNode || srcNode.type !== 'name') {
             // ⭐⭐⭐ `x - x[n]` NEEDS THE SAME COMMITTED SERIES, so it gets one
