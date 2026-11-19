@@ -1028,7 +1028,23 @@ function packedOf(plot) {
   if (!p || typeof p !== 'object') return null
   const transparency = Number.isInteger(p.transparency) && p.transparency > 0 && p.transparency <= 100
     ? p.transparency : null
-  return { transparency, sig: `packed|${transparency}` }
+  // ⭐ CO-2 — the chart's own colours ride the plan (`withPackedTheme`), and its signature, so a theme change
+  // repaints a column that holds the chart's theme colour
+  const theme = p.theme && typeof p.theme === 'object' ? p.theme : null
+  // (a plan with no theme keeps its old shape exactly: `{transparency, sig}`)
+  if (!theme) return { transparency, sig: `packed|${transparency}` }
+  return { transparency, theme, sig: `packed|${transparency}|${theme.fg || ''}/${theme.bg || ''}` }
+}
+
+/** ⭐⭐ ENGINE NUMBER PENDING (CO-2) — a colour plan (a plot, a paint, a band's fill spec) whose per-bar colours
+ *  come from the run (`colorPacked`), with the chart's own two colours (`objectTheme.chartThemeOf`) on it, so a
+ *  bar whose colour is the chart's theme colour (the runtime lane's reference number) is drawn in this chart's
+ *  colour by `packedPointColour`. Anything else is returned as it is. */
+export function withPackedTheme(spec, theme) {
+  if (!spec || typeof spec !== 'object' || !theme || typeof theme !== 'object') return spec
+  // (a band's spec is handed in by the binder, the one reader of a plot's band field)
+  if (!spec.colorPacked || typeof spec.colorPacked !== 'object') return spec
+  return { ...spec, colorPacked: { ...spec.colorPacked, theme } }
 }
 
 /** ⭐⭐ RT6 — ONE BAR'S COLOUR FROM A PACKED COLUMN, or null where the run holds
@@ -1037,8 +1053,16 @@ function packedOf(plot) {
  *  plot point whose colour is `na`), a fill and a paint leave the bar unpainted. */
 export function packedPointColour(packed, c) {
   if (!packed || typeof c !== 'number' || !Number.isFinite(c)) return null
-  const hex = packedToObjectHex(c)
+  let hex = packedToObjectHex(c)
   if (!hex) return null
+  // ⭐⭐ CO-2 — THE CHART'S THEME COLOUR, drawn in this chart's colour (`objectTheme.resolveThemeColour`, the one
+  // resolver). ⛔ A plan that carries no theme, or a theme that cannot answer (a gradient background), draws this
+  // bar in no colour, never a guess (`withThemeColour`'s rule).
+  if (isThemeColour(hex)) {
+    const drawn = resolveThemeColour(hex, packed.theme || null)
+    if (typeof drawn !== 'string') return null
+    hex = drawn
+  }
   if (packed.transparency === null || hex.length !== 7) return hex
   // ⛔ EXACT INTEGER ARITHMETIC, the vendor fold's own (`compare.mjs::
   // withStyleTransparency`: round((100 − t) / 100 × 255)). `withObjectTransparency`

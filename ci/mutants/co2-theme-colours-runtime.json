@@ -1,0 +1,96 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "CO-2 (feat/pine-theme-colours-runtime, NUMBER PENDING): `chart.fg_color` / `chart.bg_color` on the runtime lane are the host reader's theme reference (`objectTheme.js`), carried as a number above every packed colour and resolved where drawn: object slots, per-bar colour columns (through the binder), `color.new` at whole t; a comparison, a gradient endpoint or a fractional t stops by name. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "N1",
+   "mutant": "the runtime lane no longer lowers the theme names",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (THEME_NAMES.includes(node.name) && scope.lookup(node.name) === null && !env.has(node.name)) {",
+   "to": "        if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "textcolor = chart.fg_color"
+  },
+  {
+   "id": "N2",
+   "mutant": "a theme name no longer holds a colour",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (THEME_NAMES.includes(node.name) && lookupReadable(node.name, scope) === null && !env.has(node.name)) return true",
+   "to": "      if (false) return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "bgcolor"
+  },
+  {
+   "id": "N3",
+   "mutant": "the run's colour leaves the run without its reference",
+   "file": "app/src/components/chart/engine/runtime/colours.js",
+   "from": "  if (ref !== null) return ref",
+   "to": "  if (false) return ref",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "carrier"
+  },
+  {
+   "id": "N4",
+   "mutant": "color.new no longer sets the theme colour's transparency",
+   "file": "app/src/components/chart/engine/runtime/colours.js",
+   "from": "        return packedThemeColour(themeColourWithTransparency(ref, Math.min(Math.max(t, 0), TRANSPARENCY_MAX)))",
+   "to": "        return Number(a[0])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "color.new(chart.fg_color, 40)"
+  },
+  {
+   "id": "N5",
+   "mutant": "a gradient blends the theme colour as if it were a packed one",
+   "file": "app/src/components/chart/engine/runtime/colours.js",
+   "from": "      if (themeColourOfPacked(Number(a[3])) !== null || themeColourOfPacked(Number(a[4])) !== null) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "endpoint"
+  },
+  {
+   "id": "N6",
+   "mutant": "a comparison meets the theme colour without the stopping step",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (THEME_IN_SCRIPT()) {",
+   "to": "          if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "comparison"
+  },
+  {
+   "id": "N7",
+   "mutant": "a column's theme colour is not resolved where it is drawn",
+   "file": "app/src/components/chart/engine/pool.js",
+   "from": "  if (isThemeColour(hex)) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "per-bar colour column"
+  },
+  {
+   "id": "N8",
+   "mutant": "the binder draws a run's plot colours without the chart's theme",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "      const cc = sc ? null : columnColorsForPlot(withPackedTheme(b.plot, chartThemeOf(ctx.cs)))",
+   "to": "      const cc = sc ? null : columnColorsForPlot(b.plot)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/themeColoursRuntimeBinder.test.js",
+   "expectRed": "plot's points"
+  },
+  {
+   "id": "N9",
+   "mutant": "the binder paints a run's bgcolor without the chart's theme",
+   "file": "app/src/components/chart/engine/binder.js",
+   "from": "        const computed = paintColoursFor(withPackedTheme(p, chartThemeOf(ctx.cs)), inst.instanceId, columns, n,",
+   "to": "        const computed = paintColoursFor(p, inst.instanceId, columns, n,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/themeColoursRuntimeBinder.test.js",
+   "expectRed": "bgcolor"
+  },
+  {
+   "id": "N10",
+   "mutant": "the colour plan's signature forgets the theme (a theme change would not repaint)",
+   "file": "app/src/components/chart/engine/pool.js",
+   "from": "  return { transparency, theme, sig: `packed|${transparency}|${theme.fg || ''}/${theme.bg || ''}` }",
+   "to": "  return { transparency, theme, sig: `packed|${transparency}` }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/themeColoursRuntime.test.js",
+   "expectRed": "signature"
+  }
+ ]
+}

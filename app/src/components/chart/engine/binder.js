@@ -55,6 +55,7 @@ import {
   columnColorsForPlot,
   gradientPointColour,
   packedPointColour,
+  withPackedTheme,
   effectiveColor,
   DEFAULT_MARKER_COLOR,
   bindingKey,
@@ -268,7 +269,7 @@ function computedOhlcDeclared(plot) {
 }
 
 /** The PAYLOAD (not the bars) is what is memoised: its identity is what the point memo keys on. */
-export function computedOhlcPayload(plot, cols, bars) {
+export function computedOhlcPayload(plot, cols, bars, theme = null) {
   if (!computedOhlcDeclared(plot)) return null
   const close = cols[plot.key]
   const read = {
@@ -280,11 +281,12 @@ export function computedOhlcPayload(plot, cols, bars) {
     if (cols[key]) colourCols[part] = cols[key]
   }
   const sources = [read.o, read.h, read.l, ...Object.keys(colourCols).sort().map((k) => colourCols[k])]
-  const sig = Object.keys(colourCols).sort().join('|')
+  // ⭐ CO-2 — the chart's own colours join the signature: a theme change repaints a theme-coloured candle
+  const sig = Object.keys(colourCols).sort().join('|') + (theme ? `|${theme.fg || ''}/${theme.bg || ''}` : '')
   const memo = _computedOhlcMemo.get(close)
   if (memo && memo.bars === bars && memo.sig === sig && memo.sources.length === sources.length
       && memo.sources.every((s, i) => s === sources[i])) return memo.payload
-  const packed = { transparency: null }
+  const packed = { transparency: null, theme }
   const colourAt = (part, i) => {
     const col = colourCols[part]
     if (!col) return undefined
@@ -558,8 +560,9 @@ function fillColours(fillSpec, instanceId, columns, n, unknownNone = false) {
  * ⛔ The spec's own `opacity` is STRIPPED before the colour rule reads it, so
  * there is exactly one alpha, applied exactly once.
  */
-export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false, inputs = null) {
-  const spec = plot && plot.fill
+export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false, inputs = null, theme = null) {
+  // ⭐ CO-2 — the chart's own colours on the band's plan (`pool.withPackedTheme`)
+  const spec = withPackedTheme(plot && plot.fill, theme)
   if (!spec || typeof spec.colorMode !== 'string') return null
   const { opacity: _ignored, ...rule } = spec
   // ⭐⭐ A BAND COLOUR THAT IS THE SCRIPT'S `input.color` (`colorUpInput` /
@@ -1107,7 +1110,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
-        const computed = paintColoursFor(p, inst.instanceId, columns, n, { unknownNone: unknownColourRule(def) })
+        const computed = paintColoursFor(withPackedTheme(p, chartThemeOf(ctx.cs)), inst.instanceId, columns, n,
+          { unknownNone: unknownColourRule(def) })
         if (!computed) return
         const colours = paintRenderColours(p, computed, n)
         if (p.kind === 'bgcolor') {
@@ -2320,7 +2324,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const computedPlot = ohlcBars ? null : (def.plots || []).find((pl) => pl && pl.key === plotKey)
         const computedBars = computedPlot && computedOhlcDeclared(computedPlot)
           && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
-          ? computedOhlcPayload(computedPlot, cols, bars) : null
+          ? computedOhlcPayload(computedPlot, cols, bars, chartThemeOf(ctx.cs)) : null
         // ⛔ A DECLARED OHLC ROW WHOSE COLUMNS ARE MISSING DRAWS NOTHING: the scalar close must never
         // be handed to a candlestick series. (`validateOhlc` makes it unreachable for a valid document.)
         const declaredNoColumns = computedPlot && computedOhlcDeclared(computedPlot) && !computedBars
@@ -2478,7 +2482,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // ⭐ C1 — the deciding column for `colorMode: 'column:<key>'`, looked up
       // through the SAME `bindingKey` every column in this pass is stored under,
       // so a colour rule can only ever name a column of its own instance.
-      const cc = sc ? null : columnColorsForPlot(b.plot)
+      const cc = sc ? null : columnColorsForPlot(withPackedTheme(b.plot, chartThemeOf(ctx.cs)))
       const cond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), shift) : undefined
       const up = sc ? sc.up : (cc ? cc.up : null)
       const down = sc ? sc.down : (cc ? cc.down : null)
@@ -2815,7 +2819,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             color: colour.color, opacity: colour.opacity,
             // ⛔ a per-point band colour travels with its edges; the door refuses a
             // band whose two edges are displaced differently (memberPaneDefinition).
-            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), ownShift),
+            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), ownShift),
           })
         }
       }
@@ -2875,7 +2879,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), drawShiftOf(hp)),
+            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }
@@ -2939,7 +2943,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             markerLayer.host = markerHost
             markerLayer.onPrice = markerHost !== series
           }
-          const cc = columnColorsForPlot(b.plot)
+          const cc = columnColorsForPlot(withPackedTheme(b.plot, chartThemeOf(ctx.cs)))
           const markCond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null
           const unknownNone = unknownColourRule(b.def)
           attempt(() => markerLayer.set(markersFor({
@@ -3170,7 +3174,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         h.setOptions({
           upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
           color: hc.color, opacity: hc.opacity,
-          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null), drawShiftOf(hp)),
+          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
         })
         kept.set(hp.key, h)
       }
