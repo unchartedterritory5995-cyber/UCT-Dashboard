@@ -1,0 +1,195 @@
+//@version=6
+indicator("UCTPROBE_VW_TF_TOSTRING_BUILT", overlay = true)
+
+// PROVENANCE: written 2026-11-19 (Q-TF-W1-a, docs/pine/capture-queue-2026-11-20-text-format.md). Our probe, licence `probe`.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+//
+// ─── W1: `str.tostring(x, format)` WHERE THE FORMAT IS A STRING THE SCRIPT BUILDS ───
+//
+// The engine prints `str.tostring(x, "<literal>")` by rules each read off a capture (CBC-FMT F1-F9 in
+// `pineTextFormat.js`) and withholds the text whenever the format is anything but a string literal written in the
+// call (`pine.js` `fmtUnread`): a name holding a literal, a `?:` of literals, a string built while the bar runs.
+// The question: does a format string the script BUILDS print exactly as the same string written as a literal?
+//
+// One row per pattern P. Columns:
+//   0  the row id and P
+//   1  P written as a literal in every call               (the control: the grammar the captures pin)
+//   2  P held in a series string, `bar_index >= 0 ? P : "?"` (a format computed while the bar runs)
+//   3  P built from text by `bld` (three str.replace_all)  (a string the script builds)
+//   4  P held in a name declared once, `string n = P`     (a name holding a literal)
+// Every cell formats the same seven values, joined by " | ":
+//   0.000123456, 1.005, 12.3456789, 1234.5678, -0.004, -12.3456789, na
+// B15-B19 are grammar corners no capture shows yet: an empty format, a literal "+" before the digits (and a
+// negative value under it), grouped patterns with two required decimals, and B19 the `?:` that picks B17 or
+// B18 by the value's sign (its column 1 writes the picked literal per value).
+//
+// CAPTURE: AMEX:SPY 1D, inputs at defaults. Read every table cell character by character.
+
+float v1 = 0.000123456
+float v2 = 1.005
+float v3 = 12.3456789
+float v4 = 1234.5678
+float v5 = -0.004
+float v6 = -12.3456789
+float v7 = na
+
+// h -> #, z -> 0, c -> ,
+bld(string s) => str.replace_all(str.replace_all(str.replace_all(s, "h", "#"), "z", "0"), "c", ",")
+
+string s01 = bar_index >= 0 ? "#.##" : "?"
+string b01 = bld("h.hh")
+string n01 = "#.##"
+string s02 = bar_index >= 0 ? "0.00" : "?"
+string b02 = bld("z.zz")
+string n02 = "0.00"
+string s03 = bar_index >= 0 ? "#.####" : "?"
+string b03 = bld("h.hhhh")
+string n03 = "#.####"
+string s04 = bar_index >= 0 ? "#.#####" : "?"
+string b04 = bld("h.hhhhh")
+string n04 = "#.#####"
+string s05 = bar_index >= 0 ? "##.##" : "?"
+string b05 = bld("hh.hh")
+string n05 = "##.##"
+string s06 = bar_index >= 0 ? "##.########" : "?"
+string b06 = bld("hh.hhhhhhhh")
+string n06 = "##.########"
+string s07 = bar_index >= 0 ? "0.0000" : "?"
+string b07 = bld("z.zzzz")
+string n07 = "0.0000"
+string s08 = bar_index >= 0 ? "#" : "?"
+string b08 = bld("h")
+string n08 = "#"
+string s09 = bar_index >= 0 ? "0" : "?"
+string b09 = bld("z")
+string n09 = "0"
+string s10 = bar_index >= 0 ? "#,###.##" : "?"
+string b10 = bld("hchhh.hh")
+string n10 = "#,###.##"
+string s11 = bar_index >= 0 ? "#,##0.00" : "?"
+string b11 = bld("hchhz.zz")
+string n11 = "#,##0.00"
+string s12 = bar_index >= 0 ? "0.00000" : "?"
+string b12 = bld("z.zzzzz")
+string n12 = "0.00000"
+string s13 = bar_index >= 0 ? "#.########" : "?"
+string b13 = bld("h.hhhhhhhh")
+string n13 = "#.########"
+string s14 = bar_index >= 0 ? "#.##########" : "?"
+string b14 = bld("h.hhhhhhhhhh")
+string n14 = "#.##########"
+string s15 = bar_index >= 0 ? "" : "?"
+string b15 = bld("")
+string n15 = ""
+string s16 = bar_index >= 0 ? "+#.##" : "?"
+string b16 = bld("+h.hh")
+string n16 = "+#.##"
+string s17 = bar_index >= 0 ? "+###,###,###.00" : "?"
+string b17 = bld("+hhhchhhchhh.zz")
+string n17 = "+###,###,###.00"
+string s18 = bar_index >= 0 ? "###,###,###.00" : "?"
+string b18 = bld("hhhchhhchhh.zz")
+string n18 = "###,###,###.00"
+
+if barstate.islast
+    var table t = table.new(position.top_right, 5, 20)
+    table.cell(t, 0, 0, "id P")
+    table.cell(t, 1, 0, "literal")
+    table.cell(t, 2, 0, "series ?:")
+    table.cell(t, 3, 0, "built")
+    table.cell(t, 4, 0, "name")
+    table.cell(t, 0, 1, "B01 #.##")
+    table.cell(t, 1, 1, str.tostring(v1, "#.##") + " | " + str.tostring(v2, "#.##") + " | " + str.tostring(v3, "#.##") + " | " + str.tostring(v4, "#.##") + " | " + str.tostring(v5, "#.##") + " | " + str.tostring(v6, "#.##") + " | " + str.tostring(v7, "#.##"))
+    table.cell(t, 2, 1, str.tostring(v1, s01) + " | " + str.tostring(v2, s01) + " | " + str.tostring(v3, s01) + " | " + str.tostring(v4, s01) + " | " + str.tostring(v5, s01) + " | " + str.tostring(v6, s01) + " | " + str.tostring(v7, s01))
+    table.cell(t, 3, 1, str.tostring(v1, b01) + " | " + str.tostring(v2, b01) + " | " + str.tostring(v3, b01) + " | " + str.tostring(v4, b01) + " | " + str.tostring(v5, b01) + " | " + str.tostring(v6, b01) + " | " + str.tostring(v7, b01))
+    table.cell(t, 4, 1, str.tostring(v1, n01) + " | " + str.tostring(v2, n01) + " | " + str.tostring(v3, n01) + " | " + str.tostring(v4, n01) + " | " + str.tostring(v5, n01) + " | " + str.tostring(v6, n01) + " | " + str.tostring(v7, n01))
+    table.cell(t, 0, 2, "B02 0.00")
+    table.cell(t, 1, 2, str.tostring(v1, "0.00") + " | " + str.tostring(v2, "0.00") + " | " + str.tostring(v3, "0.00") + " | " + str.tostring(v4, "0.00") + " | " + str.tostring(v5, "0.00") + " | " + str.tostring(v6, "0.00") + " | " + str.tostring(v7, "0.00"))
+    table.cell(t, 2, 2, str.tostring(v1, s02) + " | " + str.tostring(v2, s02) + " | " + str.tostring(v3, s02) + " | " + str.tostring(v4, s02) + " | " + str.tostring(v5, s02) + " | " + str.tostring(v6, s02) + " | " + str.tostring(v7, s02))
+    table.cell(t, 3, 2, str.tostring(v1, b02) + " | " + str.tostring(v2, b02) + " | " + str.tostring(v3, b02) + " | " + str.tostring(v4, b02) + " | " + str.tostring(v5, b02) + " | " + str.tostring(v6, b02) + " | " + str.tostring(v7, b02))
+    table.cell(t, 4, 2, str.tostring(v1, n02) + " | " + str.tostring(v2, n02) + " | " + str.tostring(v3, n02) + " | " + str.tostring(v4, n02) + " | " + str.tostring(v5, n02) + " | " + str.tostring(v6, n02) + " | " + str.tostring(v7, n02))
+    table.cell(t, 0, 3, "B03 #.####")
+    table.cell(t, 1, 3, str.tostring(v1, "#.####") + " | " + str.tostring(v2, "#.####") + " | " + str.tostring(v3, "#.####") + " | " + str.tostring(v4, "#.####") + " | " + str.tostring(v5, "#.####") + " | " + str.tostring(v6, "#.####") + " | " + str.tostring(v7, "#.####"))
+    table.cell(t, 2, 3, str.tostring(v1, s03) + " | " + str.tostring(v2, s03) + " | " + str.tostring(v3, s03) + " | " + str.tostring(v4, s03) + " | " + str.tostring(v5, s03) + " | " + str.tostring(v6, s03) + " | " + str.tostring(v7, s03))
+    table.cell(t, 3, 3, str.tostring(v1, b03) + " | " + str.tostring(v2, b03) + " | " + str.tostring(v3, b03) + " | " + str.tostring(v4, b03) + " | " + str.tostring(v5, b03) + " | " + str.tostring(v6, b03) + " | " + str.tostring(v7, b03))
+    table.cell(t, 4, 3, str.tostring(v1, n03) + " | " + str.tostring(v2, n03) + " | " + str.tostring(v3, n03) + " | " + str.tostring(v4, n03) + " | " + str.tostring(v5, n03) + " | " + str.tostring(v6, n03) + " | " + str.tostring(v7, n03))
+    table.cell(t, 0, 4, "B04 #.#####")
+    table.cell(t, 1, 4, str.tostring(v1, "#.#####") + " | " + str.tostring(v2, "#.#####") + " | " + str.tostring(v3, "#.#####") + " | " + str.tostring(v4, "#.#####") + " | " + str.tostring(v5, "#.#####") + " | " + str.tostring(v6, "#.#####") + " | " + str.tostring(v7, "#.#####"))
+    table.cell(t, 2, 4, str.tostring(v1, s04) + " | " + str.tostring(v2, s04) + " | " + str.tostring(v3, s04) + " | " + str.tostring(v4, s04) + " | " + str.tostring(v5, s04) + " | " + str.tostring(v6, s04) + " | " + str.tostring(v7, s04))
+    table.cell(t, 3, 4, str.tostring(v1, b04) + " | " + str.tostring(v2, b04) + " | " + str.tostring(v3, b04) + " | " + str.tostring(v4, b04) + " | " + str.tostring(v5, b04) + " | " + str.tostring(v6, b04) + " | " + str.tostring(v7, b04))
+    table.cell(t, 4, 4, str.tostring(v1, n04) + " | " + str.tostring(v2, n04) + " | " + str.tostring(v3, n04) + " | " + str.tostring(v4, n04) + " | " + str.tostring(v5, n04) + " | " + str.tostring(v6, n04) + " | " + str.tostring(v7, n04))
+    table.cell(t, 0, 5, "B05 ##.##")
+    table.cell(t, 1, 5, str.tostring(v1, "##.##") + " | " + str.tostring(v2, "##.##") + " | " + str.tostring(v3, "##.##") + " | " + str.tostring(v4, "##.##") + " | " + str.tostring(v5, "##.##") + " | " + str.tostring(v6, "##.##") + " | " + str.tostring(v7, "##.##"))
+    table.cell(t, 2, 5, str.tostring(v1, s05) + " | " + str.tostring(v2, s05) + " | " + str.tostring(v3, s05) + " | " + str.tostring(v4, s05) + " | " + str.tostring(v5, s05) + " | " + str.tostring(v6, s05) + " | " + str.tostring(v7, s05))
+    table.cell(t, 3, 5, str.tostring(v1, b05) + " | " + str.tostring(v2, b05) + " | " + str.tostring(v3, b05) + " | " + str.tostring(v4, b05) + " | " + str.tostring(v5, b05) + " | " + str.tostring(v6, b05) + " | " + str.tostring(v7, b05))
+    table.cell(t, 4, 5, str.tostring(v1, n05) + " | " + str.tostring(v2, n05) + " | " + str.tostring(v3, n05) + " | " + str.tostring(v4, n05) + " | " + str.tostring(v5, n05) + " | " + str.tostring(v6, n05) + " | " + str.tostring(v7, n05))
+    table.cell(t, 0, 6, "B06 ##.########")
+    table.cell(t, 1, 6, str.tostring(v1, "##.########") + " | " + str.tostring(v2, "##.########") + " | " + str.tostring(v3, "##.########") + " | " + str.tostring(v4, "##.########") + " | " + str.tostring(v5, "##.########") + " | " + str.tostring(v6, "##.########") + " | " + str.tostring(v7, "##.########"))
+    table.cell(t, 2, 6, str.tostring(v1, s06) + " | " + str.tostring(v2, s06) + " | " + str.tostring(v3, s06) + " | " + str.tostring(v4, s06) + " | " + str.tostring(v5, s06) + " | " + str.tostring(v6, s06) + " | " + str.tostring(v7, s06))
+    table.cell(t, 3, 6, str.tostring(v1, b06) + " | " + str.tostring(v2, b06) + " | " + str.tostring(v3, b06) + " | " + str.tostring(v4, b06) + " | " + str.tostring(v5, b06) + " | " + str.tostring(v6, b06) + " | " + str.tostring(v7, b06))
+    table.cell(t, 4, 6, str.tostring(v1, n06) + " | " + str.tostring(v2, n06) + " | " + str.tostring(v3, n06) + " | " + str.tostring(v4, n06) + " | " + str.tostring(v5, n06) + " | " + str.tostring(v6, n06) + " | " + str.tostring(v7, n06))
+    table.cell(t, 0, 7, "B07 0.0000")
+    table.cell(t, 1, 7, str.tostring(v1, "0.0000") + " | " + str.tostring(v2, "0.0000") + " | " + str.tostring(v3, "0.0000") + " | " + str.tostring(v4, "0.0000") + " | " + str.tostring(v5, "0.0000") + " | " + str.tostring(v6, "0.0000") + " | " + str.tostring(v7, "0.0000"))
+    table.cell(t, 2, 7, str.tostring(v1, s07) + " | " + str.tostring(v2, s07) + " | " + str.tostring(v3, s07) + " | " + str.tostring(v4, s07) + " | " + str.tostring(v5, s07) + " | " + str.tostring(v6, s07) + " | " + str.tostring(v7, s07))
+    table.cell(t, 3, 7, str.tostring(v1, b07) + " | " + str.tostring(v2, b07) + " | " + str.tostring(v3, b07) + " | " + str.tostring(v4, b07) + " | " + str.tostring(v5, b07) + " | " + str.tostring(v6, b07) + " | " + str.tostring(v7, b07))
+    table.cell(t, 4, 7, str.tostring(v1, n07) + " | " + str.tostring(v2, n07) + " | " + str.tostring(v3, n07) + " | " + str.tostring(v4, n07) + " | " + str.tostring(v5, n07) + " | " + str.tostring(v6, n07) + " | " + str.tostring(v7, n07))
+    table.cell(t, 0, 8, "B08 #")
+    table.cell(t, 1, 8, str.tostring(v1, "#") + " | " + str.tostring(v2, "#") + " | " + str.tostring(v3, "#") + " | " + str.tostring(v4, "#") + " | " + str.tostring(v5, "#") + " | " + str.tostring(v6, "#") + " | " + str.tostring(v7, "#"))
+    table.cell(t, 2, 8, str.tostring(v1, s08) + " | " + str.tostring(v2, s08) + " | " + str.tostring(v3, s08) + " | " + str.tostring(v4, s08) + " | " + str.tostring(v5, s08) + " | " + str.tostring(v6, s08) + " | " + str.tostring(v7, s08))
+    table.cell(t, 3, 8, str.tostring(v1, b08) + " | " + str.tostring(v2, b08) + " | " + str.tostring(v3, b08) + " | " + str.tostring(v4, b08) + " | " + str.tostring(v5, b08) + " | " + str.tostring(v6, b08) + " | " + str.tostring(v7, b08))
+    table.cell(t, 4, 8, str.tostring(v1, n08) + " | " + str.tostring(v2, n08) + " | " + str.tostring(v3, n08) + " | " + str.tostring(v4, n08) + " | " + str.tostring(v5, n08) + " | " + str.tostring(v6, n08) + " | " + str.tostring(v7, n08))
+    table.cell(t, 0, 9, "B09 0")
+    table.cell(t, 1, 9, str.tostring(v1, "0") + " | " + str.tostring(v2, "0") + " | " + str.tostring(v3, "0") + " | " + str.tostring(v4, "0") + " | " + str.tostring(v5, "0") + " | " + str.tostring(v6, "0") + " | " + str.tostring(v7, "0"))
+    table.cell(t, 2, 9, str.tostring(v1, s09) + " | " + str.tostring(v2, s09) + " | " + str.tostring(v3, s09) + " | " + str.tostring(v4, s09) + " | " + str.tostring(v5, s09) + " | " + str.tostring(v6, s09) + " | " + str.tostring(v7, s09))
+    table.cell(t, 3, 9, str.tostring(v1, b09) + " | " + str.tostring(v2, b09) + " | " + str.tostring(v3, b09) + " | " + str.tostring(v4, b09) + " | " + str.tostring(v5, b09) + " | " + str.tostring(v6, b09) + " | " + str.tostring(v7, b09))
+    table.cell(t, 4, 9, str.tostring(v1, n09) + " | " + str.tostring(v2, n09) + " | " + str.tostring(v3, n09) + " | " + str.tostring(v4, n09) + " | " + str.tostring(v5, n09) + " | " + str.tostring(v6, n09) + " | " + str.tostring(v7, n09))
+    table.cell(t, 0, 10, "B10 #,###.##")
+    table.cell(t, 1, 10, str.tostring(v1, "#,###.##") + " | " + str.tostring(v2, "#,###.##") + " | " + str.tostring(v3, "#,###.##") + " | " + str.tostring(v4, "#,###.##") + " | " + str.tostring(v5, "#,###.##") + " | " + str.tostring(v6, "#,###.##") + " | " + str.tostring(v7, "#,###.##"))
+    table.cell(t, 2, 10, str.tostring(v1, s10) + " | " + str.tostring(v2, s10) + " | " + str.tostring(v3, s10) + " | " + str.tostring(v4, s10) + " | " + str.tostring(v5, s10) + " | " + str.tostring(v6, s10) + " | " + str.tostring(v7, s10))
+    table.cell(t, 3, 10, str.tostring(v1, b10) + " | " + str.tostring(v2, b10) + " | " + str.tostring(v3, b10) + " | " + str.tostring(v4, b10) + " | " + str.tostring(v5, b10) + " | " + str.tostring(v6, b10) + " | " + str.tostring(v7, b10))
+    table.cell(t, 4, 10, str.tostring(v1, n10) + " | " + str.tostring(v2, n10) + " | " + str.tostring(v3, n10) + " | " + str.tostring(v4, n10) + " | " + str.tostring(v5, n10) + " | " + str.tostring(v6, n10) + " | " + str.tostring(v7, n10))
+    table.cell(t, 0, 11, "B11 #,##0.00")
+    table.cell(t, 1, 11, str.tostring(v1, "#,##0.00") + " | " + str.tostring(v2, "#,##0.00") + " | " + str.tostring(v3, "#,##0.00") + " | " + str.tostring(v4, "#,##0.00") + " | " + str.tostring(v5, "#,##0.00") + " | " + str.tostring(v6, "#,##0.00") + " | " + str.tostring(v7, "#,##0.00"))
+    table.cell(t, 2, 11, str.tostring(v1, s11) + " | " + str.tostring(v2, s11) + " | " + str.tostring(v3, s11) + " | " + str.tostring(v4, s11) + " | " + str.tostring(v5, s11) + " | " + str.tostring(v6, s11) + " | " + str.tostring(v7, s11))
+    table.cell(t, 3, 11, str.tostring(v1, b11) + " | " + str.tostring(v2, b11) + " | " + str.tostring(v3, b11) + " | " + str.tostring(v4, b11) + " | " + str.tostring(v5, b11) + " | " + str.tostring(v6, b11) + " | " + str.tostring(v7, b11))
+    table.cell(t, 4, 11, str.tostring(v1, n11) + " | " + str.tostring(v2, n11) + " | " + str.tostring(v3, n11) + " | " + str.tostring(v4, n11) + " | " + str.tostring(v5, n11) + " | " + str.tostring(v6, n11) + " | " + str.tostring(v7, n11))
+    table.cell(t, 0, 12, "B12 0.00000")
+    table.cell(t, 1, 12, str.tostring(v1, "0.00000") + " | " + str.tostring(v2, "0.00000") + " | " + str.tostring(v3, "0.00000") + " | " + str.tostring(v4, "0.00000") + " | " + str.tostring(v5, "0.00000") + " | " + str.tostring(v6, "0.00000") + " | " + str.tostring(v7, "0.00000"))
+    table.cell(t, 2, 12, str.tostring(v1, s12) + " | " + str.tostring(v2, s12) + " | " + str.tostring(v3, s12) + " | " + str.tostring(v4, s12) + " | " + str.tostring(v5, s12) + " | " + str.tostring(v6, s12) + " | " + str.tostring(v7, s12))
+    table.cell(t, 3, 12, str.tostring(v1, b12) + " | " + str.tostring(v2, b12) + " | " + str.tostring(v3, b12) + " | " + str.tostring(v4, b12) + " | " + str.tostring(v5, b12) + " | " + str.tostring(v6, b12) + " | " + str.tostring(v7, b12))
+    table.cell(t, 4, 12, str.tostring(v1, n12) + " | " + str.tostring(v2, n12) + " | " + str.tostring(v3, n12) + " | " + str.tostring(v4, n12) + " | " + str.tostring(v5, n12) + " | " + str.tostring(v6, n12) + " | " + str.tostring(v7, n12))
+    table.cell(t, 0, 13, "B13 #.########")
+    table.cell(t, 1, 13, str.tostring(v1, "#.########") + " | " + str.tostring(v2, "#.########") + " | " + str.tostring(v3, "#.########") + " | " + str.tostring(v4, "#.########") + " | " + str.tostring(v5, "#.########") + " | " + str.tostring(v6, "#.########") + " | " + str.tostring(v7, "#.########"))
+    table.cell(t, 2, 13, str.tostring(v1, s13) + " | " + str.tostring(v2, s13) + " | " + str.tostring(v3, s13) + " | " + str.tostring(v4, s13) + " | " + str.tostring(v5, s13) + " | " + str.tostring(v6, s13) + " | " + str.tostring(v7, s13))
+    table.cell(t, 3, 13, str.tostring(v1, b13) + " | " + str.tostring(v2, b13) + " | " + str.tostring(v3, b13) + " | " + str.tostring(v4, b13) + " | " + str.tostring(v5, b13) + " | " + str.tostring(v6, b13) + " | " + str.tostring(v7, b13))
+    table.cell(t, 4, 13, str.tostring(v1, n13) + " | " + str.tostring(v2, n13) + " | " + str.tostring(v3, n13) + " | " + str.tostring(v4, n13) + " | " + str.tostring(v5, n13) + " | " + str.tostring(v6, n13) + " | " + str.tostring(v7, n13))
+    table.cell(t, 0, 14, "B14 #.##########")
+    table.cell(t, 1, 14, str.tostring(v1, "#.##########") + " | " + str.tostring(v2, "#.##########") + " | " + str.tostring(v3, "#.##########") + " | " + str.tostring(v4, "#.##########") + " | " + str.tostring(v5, "#.##########") + " | " + str.tostring(v6, "#.##########") + " | " + str.tostring(v7, "#.##########"))
+    table.cell(t, 2, 14, str.tostring(v1, s14) + " | " + str.tostring(v2, s14) + " | " + str.tostring(v3, s14) + " | " + str.tostring(v4, s14) + " | " + str.tostring(v5, s14) + " | " + str.tostring(v6, s14) + " | " + str.tostring(v7, s14))
+    table.cell(t, 3, 14, str.tostring(v1, b14) + " | " + str.tostring(v2, b14) + " | " + str.tostring(v3, b14) + " | " + str.tostring(v4, b14) + " | " + str.tostring(v5, b14) + " | " + str.tostring(v6, b14) + " | " + str.tostring(v7, b14))
+    table.cell(t, 4, 14, str.tostring(v1, n14) + " | " + str.tostring(v2, n14) + " | " + str.tostring(v3, n14) + " | " + str.tostring(v4, n14) + " | " + str.tostring(v5, n14) + " | " + str.tostring(v6, n14) + " | " + str.tostring(v7, n14))
+    table.cell(t, 0, 15, "B15 (empty)")
+    table.cell(t, 1, 15, str.tostring(v1, "") + " | " + str.tostring(v2, "") + " | " + str.tostring(v3, "") + " | " + str.tostring(v4, "") + " | " + str.tostring(v5, "") + " | " + str.tostring(v6, "") + " | " + str.tostring(v7, ""))
+    table.cell(t, 2, 15, str.tostring(v1, s15) + " | " + str.tostring(v2, s15) + " | " + str.tostring(v3, s15) + " | " + str.tostring(v4, s15) + " | " + str.tostring(v5, s15) + " | " + str.tostring(v6, s15) + " | " + str.tostring(v7, s15))
+    table.cell(t, 3, 15, str.tostring(v1, b15) + " | " + str.tostring(v2, b15) + " | " + str.tostring(v3, b15) + " | " + str.tostring(v4, b15) + " | " + str.tostring(v5, b15) + " | " + str.tostring(v6, b15) + " | " + str.tostring(v7, b15))
+    table.cell(t, 4, 15, str.tostring(v1, n15) + " | " + str.tostring(v2, n15) + " | " + str.tostring(v3, n15) + " | " + str.tostring(v4, n15) + " | " + str.tostring(v5, n15) + " | " + str.tostring(v6, n15) + " | " + str.tostring(v7, n15))
+    table.cell(t, 0, 16, "B16 +#.##")
+    table.cell(t, 1, 16, str.tostring(v1, "+#.##") + " | " + str.tostring(v2, "+#.##") + " | " + str.tostring(v3, "+#.##") + " | " + str.tostring(v4, "+#.##") + " | " + str.tostring(v5, "+#.##") + " | " + str.tostring(v6, "+#.##") + " | " + str.tostring(v7, "+#.##"))
+    table.cell(t, 2, 16, str.tostring(v1, s16) + " | " + str.tostring(v2, s16) + " | " + str.tostring(v3, s16) + " | " + str.tostring(v4, s16) + " | " + str.tostring(v5, s16) + " | " + str.tostring(v6, s16) + " | " + str.tostring(v7, s16))
+    table.cell(t, 3, 16, str.tostring(v1, b16) + " | " + str.tostring(v2, b16) + " | " + str.tostring(v3, b16) + " | " + str.tostring(v4, b16) + " | " + str.tostring(v5, b16) + " | " + str.tostring(v6, b16) + " | " + str.tostring(v7, b16))
+    table.cell(t, 4, 16, str.tostring(v1, n16) + " | " + str.tostring(v2, n16) + " | " + str.tostring(v3, n16) + " | " + str.tostring(v4, n16) + " | " + str.tostring(v5, n16) + " | " + str.tostring(v6, n16) + " | " + str.tostring(v7, n16))
+    table.cell(t, 0, 17, "B17 +###,###,###.00")
+    table.cell(t, 1, 17, str.tostring(v1, "+###,###,###.00") + " | " + str.tostring(v2, "+###,###,###.00") + " | " + str.tostring(v3, "+###,###,###.00") + " | " + str.tostring(v4, "+###,###,###.00") + " | " + str.tostring(v5, "+###,###,###.00") + " | " + str.tostring(v6, "+###,###,###.00") + " | " + str.tostring(v7, "+###,###,###.00"))
+    table.cell(t, 2, 17, str.tostring(v1, s17) + " | " + str.tostring(v2, s17) + " | " + str.tostring(v3, s17) + " | " + str.tostring(v4, s17) + " | " + str.tostring(v5, s17) + " | " + str.tostring(v6, s17) + " | " + str.tostring(v7, s17))
+    table.cell(t, 3, 17, str.tostring(v1, b17) + " | " + str.tostring(v2, b17) + " | " + str.tostring(v3, b17) + " | " + str.tostring(v4, b17) + " | " + str.tostring(v5, b17) + " | " + str.tostring(v6, b17) + " | " + str.tostring(v7, b17))
+    table.cell(t, 4, 17, str.tostring(v1, n17) + " | " + str.tostring(v2, n17) + " | " + str.tostring(v3, n17) + " | " + str.tostring(v4, n17) + " | " + str.tostring(v5, n17) + " | " + str.tostring(v6, n17) + " | " + str.tostring(v7, n17))
+    table.cell(t, 0, 18, "B18 ###,###,###.00")
+    table.cell(t, 1, 18, str.tostring(v1, "###,###,###.00") + " | " + str.tostring(v2, "###,###,###.00") + " | " + str.tostring(v3, "###,###,###.00") + " | " + str.tostring(v4, "###,###,###.00") + " | " + str.tostring(v5, "###,###,###.00") + " | " + str.tostring(v6, "###,###,###.00") + " | " + str.tostring(v7, "###,###,###.00"))
+    table.cell(t, 2, 18, str.tostring(v1, s18) + " | " + str.tostring(v2, s18) + " | " + str.tostring(v3, s18) + " | " + str.tostring(v4, s18) + " | " + str.tostring(v5, s18) + " | " + str.tostring(v6, s18) + " | " + str.tostring(v7, s18))
+    table.cell(t, 3, 18, str.tostring(v1, b18) + " | " + str.tostring(v2, b18) + " | " + str.tostring(v3, b18) + " | " + str.tostring(v4, b18) + " | " + str.tostring(v5, b18) + " | " + str.tostring(v6, b18) + " | " + str.tostring(v7, b18))
+    table.cell(t, 4, 18, str.tostring(v1, n18) + " | " + str.tostring(v2, n18) + " | " + str.tostring(v3, n18) + " | " + str.tostring(v4, n18) + " | " + str.tostring(v5, n18) + " | " + str.tostring(v6, n18) + " | " + str.tostring(v7, n18))
+    table.cell(t, 0, 19, "B19 v >= 0 ? B17 : B18")
+    table.cell(t, 1, 19, str.tostring(v1, "+###,###,###.00") + " | " + str.tostring(v2, "+###,###,###.00") + " | " + str.tostring(v3, "+###,###,###.00") + " | " + str.tostring(v4, "+###,###,###.00") + " | " + str.tostring(v5, "###,###,###.00") + " | " + str.tostring(v6, "###,###,###.00") + " | " + str.tostring(v7, "###,###,###.00"))
+    table.cell(t, 2, 19, str.tostring(v1, v1 >= 0 ? "+###,###,###.00" : "###,###,###.00") + " | " + str.tostring(v2, v2 >= 0 ? "+###,###,###.00" : "###,###,###.00") + " | " + str.tostring(v3, v3 >= 0 ? "+###,###,###.00" : "###,###,###.00") + " | " + str.tostring(v4, v4 >= 0 ? "+###,###,###.00" : "###,###,###.00") + " | " + str.tostring(v5, v5 >= 0 ? "+###,###,###.00" : "###,###,###.00") + " | " + str.tostring(v6, v6 >= 0 ? "+###,###,###.00" : "###,###,###.00") + " | " + str.tostring(v7, v7 >= 0 ? "+###,###,###.00" : "###,###,###.00"))
+    table.cell(t, 3, 19, str.tostring(v1, v1 >= 0 ? b17 : b18) + " | " + str.tostring(v2, v2 >= 0 ? b17 : b18) + " | " + str.tostring(v3, v3 >= 0 ? b17 : b18) + " | " + str.tostring(v4, v4 >= 0 ? b17 : b18) + " | " + str.tostring(v5, v5 >= 0 ? b17 : b18) + " | " + str.tostring(v6, v6 >= 0 ? b17 : b18) + " | " + str.tostring(v7, v7 >= 0 ? b17 : b18))
+    table.cell(t, 4, 19, str.tostring(v1, v1 >= 0 ? n17 : n18) + " | " + str.tostring(v2, v2 >= 0 ? n17 : n18) + " | " + str.tostring(v3, v3 >= 0 ? n17 : n18) + " | " + str.tostring(v4, v4 >= 0 ? n17 : n18) + " | " + str.tostring(v5, v5 >= 0 ? n17 : n18) + " | " + str.tostring(v6, v6 >= 0 ? n17 : n18) + " | " + str.tostring(v7, v7 >= 0 ? n17 : n18))
