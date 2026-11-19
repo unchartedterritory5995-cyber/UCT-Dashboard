@@ -346,12 +346,17 @@ def test_the_stops_of_the_run_are_said_only_while_the_engine_still_refuses_them(
     now = pa.document()
     for stop in pa.standing_run_stops():
         assert pa.RUN_STOP_WORDS[stop] in now, stop
-    # today these stand ...
-    assert "Never keep a value since the chart's first bar" in now
-    assert "Take a drawing out of a list and delete it in TWO steps" in now
-    assert "has NO value on the chart's newest bar" in now
-    # ... and `timestamp` does NOT: on a chart-shaped context the engine answers it, so nothing is said against it
+    # ⭐ WHICH ONES STAND IS THE ENGINE'S ANSWER (the generated file), never this test's. 2026-11-19: this
+    # said "today the one-call delete stands"; an engine train had fixed it, and master went red on a fix.
+    # Held instead: a stop that does NOT stand is not said, each by its own sentence.
+    for stop, words in pa.RUN_STOP_WORDS.items():
+        assert (words in now) == (stop in pa.standing_run_stops()), stop
+    assert len({words[:40] for words in pa.RUN_STOP_WORDS.values()}) == len(pa.RUN_STOP_WORDS)   # no sentence answers for another
+    # `timestamp` does NOT stand: on a chart-shaped context the engine answers it, so nothing is said against it
     assert "timestamp-clock" not in pa.standing_run_stops() and "Do not use `timestamp(...)`" not in now
+    # CONTROL: each sentence is said when its stop is handed in as standing
+    for stop, words in pa.RUN_STOP_WORDS.items():
+        assert words in pa.document(run_stops=[stop]), stop
     # CONTROL: the day the engine computes a probe, its sentence leaves the document
     none = pa.document(run_stops=[])
     assert all(words not in none for words in pa.RUN_STOP_WORDS.values())
