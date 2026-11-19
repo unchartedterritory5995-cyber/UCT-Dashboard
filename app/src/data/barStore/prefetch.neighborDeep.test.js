@@ -181,6 +181,33 @@ describe('the neighbor hold deepens the next rows once the member rests', () => 
     expect(t.scrolls.length).toBe(PREFETCH_WINDOWS)
   })
 
+  it('a row that still holds only a local copy after the warm gets the lake depth (no window on a local copy)', async () => {
+    const t = await boot()
+    t.store.lakeCarries = () => true
+    t.store.lakeSeed = vi.fn(async () => 'seed')
+    const local = { key: t.k('AAA'), restSeen: false, status: STATUS.CONTEXT, bars: [{ t: 1 }], depth: 1034, gen: 0 }
+    t.snaps.set(t.k('AAA'), local)
+    t.store.ensure = vi.fn(async () => local)                         // the warm got no server answer
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.store.lakeSeed).toHaveBeenCalledWith(t.k('AAA'))
+    expect(t.scrolls).toEqual([])                                    // a server window never prepends to a local copy
+  })
+
+  it('off the lake, a row that still holds only a local copy is left for the chart (nothing asked)', async () => {
+    const t = await boot()
+    t.store.lakeSeed = vi.fn(async () => 'seed')
+    const local = { key: t.k('AAA'), restSeen: false, status: STATUS.CONTEXT, bars: [{ t: 1 }], depth: 1034, gen: 0 }
+    t.snaps.set(t.k('AAA'), local)
+    t.store.ensure = vi.fn(async () => local)
+    const hold = t.pf.createNeighborHold()
+    hold.set(['AAA'], '5', { deep: ['AAA'] })
+    await t.fire()
+    expect(t.store.lakeSeed).not.toHaveBeenCalled()
+    expect(t.scrolls).toEqual([])
+  })
+
   it('a window with nothing older, refused, still filling or failed ends that row, not the next', async () => {
     for (const answer of [{ ok: true, added: 0 }, { ok: true, added: 0, refused: true }, { ok: true, added: 10, filling: true }, { error: true }, null]) {
       const t = await boot({ windowAnswer: (key) => (key.startsWith('AAA') ? answer : { ok: true, added: HISTORY_WINDOW_BARS }) })

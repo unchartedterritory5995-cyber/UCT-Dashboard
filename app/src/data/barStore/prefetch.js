@@ -787,6 +787,16 @@ export function createPrefetch(o = {}) {
           }
           // the chart's own target: deeper where the lake carries the key (historyPrepend)
           const lakeCarries = !!S().lakeCarries?.(k)
+          // ⭐ A LOCAL COPY GETS THE LAKE'S DEPTH TOO (2026-11-19). A row that still holds only a saved
+          // copy after the warm (it paints as it is, so the warm asked nothing; or the ask was cooling or
+          // shed) stopped here, and on 5m the flip onto it waited the whole LAKE_JOIN_WAIT_MS for its lake
+          // pieces and then painted ~1,000 bars with the rest ~200 ms later (production flip proof: AEP,
+          // IDXX, HONA, every piece from the network). The lake joins a local copy only where its rows
+          // prove the held basis (reducer applyLocal), exactly as on the typed and hovered paths.
+          if (!s?.restSeen && lakeCarries && s?.bars?.length) {
+            await Promise.resolve().then(() => S().lakeSeed?.(k)).catch(() => false)
+            break
+          }
           if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(lakeCarries, parseKey(k)?.tf)) break
           // ⭐ Where the lake carries it, the WHOLE depth in one load (store.lakeSeed), so the flip paints
           // the row as deep as the chart will ever hold it (2026-11-17: two windows left it at ~13,000 of
