@@ -53,6 +53,21 @@ function paired(u, d, side) {
   return r <= 0.30 ? { tone: 'bear', level: 2 } : r <= 0.40 ? { tone: 'bear', level: 1 } : null
 }
 
+// ⭐ SHARE OF THE UNIVERSE (owner 2026-11-19). A COUNT column (`per: 'universe_count'` in
+// shadeSpec.json) is ranked by value / universe_count for its row, so a universe that grew or
+// shrank over the years — or is simply bigger — is ranked fairly. The sheet still DISPLAYS the
+// raw count; only the ranking uses the share. A signed count keeps its sign. The cutoffs for a
+// share-ranked column are stored under '<key>/<per>' so a raw-count cutoff can never be read
+// as a share (or the reverse).
+export const cutKey = (c, field) => (c.per ? `${field}/${c.per}` : field)
+
+export function shadeValue(c, field, row) {
+  const v = num(row[field])
+  if (v == null || !c.per) return v
+  const d = num(row[c.per])
+  return d && d > 0 ? v / d : null
+}
+
 /**
  * The cell's shade, or null when it is in the unshaded middle.
  * @returns {{ tone: 'bull'|'bear', level: 1|2|3 } | null}
@@ -67,12 +82,16 @@ export function shadeFor(key, row, { specIn = spec, cut, universe = 'uct' } = {}
     return c.side === 'up' ? paired(mine, other, 'up') : paired(other, mine, 'down')
   }
   const field = c.basis || key
-  const v = num(row[field])
-  const t = cut?.cols?.[field]
+  const v = shadeValue(c, field, row)
+  const t = cut?.cols?.[cutKey(c, field)]
   if (v == null || !t) return null
   const idx = Object.fromEntries(LEVELS.map(lv => [lv, cut.grid.indexOf(specIn.pcts[lv])]))
   const sides = c.sides || 'both'
-  const floors = c.floors || {}
+  // UCT keeps its floors in the displayed units; a share-ranked column on any other
+  // universe uses the same floor as a share of the universe (`shareFloors`).
+  const floors = (c.per && universe !== 'uct' ? c.shareFloors : c.floors) || {}
+  // the value a floor is compared with: the raw count on UCT, the share elsewhere
+  const fv = c.per && universe === 'uct' ? num(row[field]) : v
   let level = 0
   let end = null
   if (c.zero) {
@@ -83,24 +102,24 @@ export function shadeFor(key, row, { specIn = spec, cut, universe = 'uct' } = {}
     // even when history leans one way (+1 was red because most days were higher).
     if (v > 0) {
       LEVELS.forEach((lv, i) => { if (v >= Math.max(t.hi[idx[lv]], 0)) { level = i + 1; end = 'high' } })
-      if (floors.high != null && v >= floors.high) { level = Math.max(level, 2); end = 'high' }
+      if (floors.high != null && fv >= floors.high) { level = Math.max(level, 2); end = 'high' }
     } else if (v < 0) {
       LEVELS.forEach((lv, i) => {
         if (v <= Math.min(t.lo[idx[lv]], -Math.max(t.hi[idx[lv]], 0))) { level = i + 1; end = 'low' }
       })
-      if (floors.low != null && v <= floors.low) { level = Math.max(level, 2); end = 'low' }
+      if (floors.low != null && fv <= floors.low) { level = Math.max(level, 2); end = 'low' }
     }
     if (!level) return null
     return { tone: end === c.bull ? 'bull' : 'bear', level }
   }
   if ((sides === 'both' || sides === 'high') && v > t.mid) {
     LEVELS.forEach((lv, i) => { if (v >= t.hi[idx[lv]]) { level = i + 1; end = 'high' } })
-    if (floors.high != null && v >= floors.high) { level = Math.max(level, 2); end = 'high' }
+    if (floors.high != null && fv >= floors.high) { level = Math.max(level, 2); end = 'high' }
   }
   if (!level && (sides === 'both' || sides === 'low') && v < t.mid) {
     LEVELS.forEach((lv, i) => { if (v <= t.lo[idx[lv]]) { level = i + 1; end = 'low' } })
   }
-  if ((sides === 'both' || sides === 'low') && floors.low != null && v <= floors.low) {
+  if ((sides === 'both' || sides === 'low') && floors.low != null && fv <= floors.low) {
     level = Math.max(level, 2); end = 'low'
   }
   if (!level) return null

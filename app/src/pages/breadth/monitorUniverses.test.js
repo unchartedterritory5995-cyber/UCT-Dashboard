@@ -98,6 +98,16 @@ describe('shading per universe', () => {
     }
   })
 
+  it('the window rule: every universe calibrated over ALL of its point-in-time history, nothing before 2008', () => {
+    const start = { uct: '2008-01-02', us: '2008-01-02', nasdaq: '2008-01-02', nyse: '2009-06-11' }
+    for (const [u, from] of Object.entries(start)) {
+      const c = SHADE_CUTOFFS_BY_UNIVERSE[u]
+      expect(c.from).toBe(from)
+      expect(c.sessions).toBeGreaterThan(4000)
+      expect(c.per).toEqual(['universe_count'])
+    }
+  })
+
   it('a per-universe column uses its universe; a market-wide column always uses UCT', () => {
     expect(cutoffsFor('uct', 'pct_above_50sma')).toBe(SHADE_CUTOFFS_BY_UNIVERSE.uct)
     expect(cutoffsFor('nasdaq', 'pct_above_50sma')).toBe(SHADE_CUTOFFS_BY_UNIVERSE.nasdaq)

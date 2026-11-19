@@ -134,3 +134,53 @@ describe('shadeFor — signed columns color by sign (owner 2026-11-19)', () => {
     for (const k of ['net_new_high_low', 'adv_decline', 'mcclellan_osc']) expect(SHADE_SPEC.cols[k].zero).toBe(true)
   })
 })
+
+describe('shadeFor — counts ranked as a SHARE of the universe (owner 2026-11-19)', () => {
+  // Cutoffs in share units (0..1); a share of 0.30 is the 3% tail, 0.20 the 10% tail.
+  const shareCut = { grid: GRID, cols: { 'dn/universe_count': { n: 1000, mid: 0.05, lo: GRID.map(() => 0), hi: [0.40, 0.38, 0.35, 0.30, 0.27, 0.24, 0.20, 0.15, 0.12] } } }
+  const ps = {
+    pcts: { notable: 10, strong: 3, extreme: 0.5 },
+    cols: { dn: { bull: 'low', sides: 'high', per: 'universe_count', floors: { high: 500 }, shareFloors: { high: 0.19 } } },
+  }
+  const sh = (row, universe) => shadeFor('dn', row, { specIn: ps, cut: shareCut, universe })
+  it('the same raw count shades by its share: rare in a small universe, ordinary in a big one', () => {
+    expect(sh({ dn: 900, universe_count: 3000 }, 'nasdaq')).toEqual({ tone: 'bear', level: 2 })   // 30%
+    expect(sh({ dn: 900, universe_count: 9000 }, 'nasdaq')).toBeNull()                            // 10%
+  })
+  it('the same share shades the same on every universe size', () => {
+    expect(sh({ dn: 600, universe_count: 2000 }, 'us')).toEqual(sh({ dn: 1200, universe_count: 4000 }, 'us'))
+  })
+  it('no universe count (or zero) means no shade, never a divide-by-zero', () => {
+    expect(sh({ dn: 900 }, 'nasdaq')).toBeNull()
+    expect(sh({ dn: 900, universe_count: 0 }, 'nasdaq')).toBeNull()
+  })
+  it('floors: UCT keeps the raw-count floor, other universes the share floor', () => {
+    // 520 of 4,000 = 13%: unshaded by rarity; the raw floor (500) lifts it on UCT only
+    expect(sh({ dn: 520, universe_count: 4000 }, 'uct')).toEqual({ tone: 'bear', level: 2 })
+    expect(sh({ dn: 520, universe_count: 4000 }, 'nasdaq')).toBeNull()
+    // 19% of the universe meets the share floor elsewhere
+    expect(sh({ dn: 380, universe_count: 2000 }, 'nasdaq')).toEqual({ tone: 'bear', level: 2 })
+  })
+  it('a signed count keeps its sign as a share', () => {
+    const sc = { grid: GRID, cols: { 'nh/universe_count': { n: 1000, mid: 0, lo: GRID.map(() => -0.10), hi: GRID.map(() => 0.10) } } }
+    const ss = { pcts: { notable: 10, strong: 3, extreme: 0.5 }, cols: { nh: { bull: 'high', sides: 'both', zero: true, per: 'universe_count' } } }
+    expect(shadeFor('nh', { nh: -500, universe_count: 2000 }, { specIn: ss, cut: sc, universe: 'us' })?.tone).toBe('bear')
+    expect(shadeFor('nh', { nh: 500, universe_count: 2000 }, { specIn: ss, cut: sc, universe: 'us' })?.tone).toBe('bull')
+  })
+  it('a share-ranked column never reads raw-count cutoffs (different key)', () => {
+    const rawCut = { grid: GRID, cols: { dn: ramp() } }
+    expect(shadeFor('dn', { dn: 99, universe_count: 100 }, { specIn: ps, cut: rawCut, universe: 'us' })).toBeNull()
+  })
+  it('the shipped spec ranks every count column by share, and the shipped cutoffs match', () => {
+    const counts = ['up_4pct_today', 'down_4pct_today', 'up_20pct_5d', 'down_20pct_5d', 'up_25pct_quarter',
+      'down_25pct_quarter', 'up_25pct_month', 'down_25pct_month', 'up_50pct_month', 'down_50pct_month',
+      'magna_up', 'magna_down', 'new_52w_highs', 'new_52w_lows', 'new_20d_highs', 'new_20d_lows',
+      'net_new_high_low', 'adv_decline', 'advancing', 'declining', 'near_52w_high', 'new_ath', 'hvc_52w', 'atr_ext_7']
+    for (const k of counts) expect(SHADE_SPEC.cols[k].per).toBe('universe_count')
+    for (const k of ['pct_above_50sma', 'ratio_5day', 'hi_ratio', 'vix', 'mcclellan_osc']) expect(SHADE_SPEC.cols[k].per).toBeUndefined()
+    expect(SHADE_SPEC.cols.up_4pct_today.shareFloors.high).toBeGreaterThan(0)
+    expect(SHADE_SPEC.cols.up_4pct_today.shareFloors.high).toBeLessThan(1)
+    expect(SHADE_CUTOFFS.cols['up_4pct_today/universe_count']).toBeDefined()
+    expect(SHADE_CUTOFFS.cols.up_4pct_today).toBeUndefined()
+  })
+})

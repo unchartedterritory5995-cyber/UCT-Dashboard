@@ -78,8 +78,64 @@ def numeric(v):
     return f if math.isfinite(f) else None
 
 
-def load_rows(universe: str = "uct") -> list:
+#: The UCT columns read from the V2 artifact's point-in-time `uct_backtest` series (2008+) in the
+#: long-window calibration, in place of the survivorship-biased reconstructed UCT history. The new
+#: highs / lows family is NOT among them: the sheet displays those on the intraday basis
+#: (breadth_nhnl_intraday), which the Monitor's own rows already carry, so ranking them on the V2
+#: close basis would rank a different number than the one on screen.
+UCT_BACKTEST_KEYS = (
+    "adv_decline", "advancing", "declining", "down_20pct_5d", "down_25pct_month",
+    "down_25pct_quarter", "down_4pct_today", "down_50pct_month", "magna_down", "magna_up",
+    "near_52w_high", "pct_above_100sma", "pct_above_10sma", "pct_above_200sma", "pct_above_40sma",
+    "pct_above_50sma", "pct_above_5sma", "ratio_10day", "ratio_5day", "stage2_count", "stage4_count",
+    "universe_count", "up_20pct_5d", "up_25pct_month", "up_25pct_quarter", "up_4pct_today",
+    "up_50pct_month",
+)
+
+
+def _read_export(path: str):
+    """A `===BEGIN===` gzip+base64 JSON export (tools' read-only production copies)."""
+    import base64
+    import gzip
+    txt = open(path, encoding="utf-8").read()
+    b64 = txt.split("===BEGIN===", 1)[1].split("===END===", 1)[0].strip()
+    return json.loads(gzip.decompress(base64.b64decode(b64)))
+
+
+def load_uct_rows(deep_path: str, backtest_path: str, exposure_db: str = "") -> tuple:
+    """UCT's long-window rows: the Monitor's deep rows (production, read-only export) with every
+    `UCT_BACKTEST_KEYS` value replaced by the point-in-time `uct_backtest` value for the date.
+    Returns (rows, {"backtest": [...], "monitor": [...]}) — which source each spec field used.
+    `exposure_db`: a local breadth_monitor copy whose (corrected) `uct_exposure` wins where it has
+    the date."""
+    deep = {r["date"]: r for r in _read_export(deep_path) if r.get("date") and not r.get("_live")}
+    bt = _read_export(backtest_path)
+    exp = {}
+    if exposure_db:
+        import sqlite3
+        c = sqlite3.connect(f"file:{exposure_db}?mode=ro", uri=True)
+        for d, mj in c.execute("SELECT date, metrics FROM breadth_snapshot_numeric"):
+            v = json.loads(mj).get("uct_exposure")
+            if v is not None:
+                exp[d] = v
+        c.close()
+    rows = []
+    for d in sorted(deep):
+        r = dict(deep[d])
+        b = bt.get(d)
+        if b is not None:
+            for k in UCT_BACKTEST_KEYS:
+                r[k] = b.get(k)
+        if d in exp:
+            r["uct_exposure"] = exp[d]
+        rows.append(r)
+    return rows
+
+
+def load_rows(universe: str = "uct", uct_deep: str = "", uct_backtest: str = "", exposure_db: str = "") -> list:
     sys.path.insert(0, ROOT)
+    if universe == "uct" and uct_deep and uct_backtest:
+        return load_uct_rows(uct_deep, uct_backtest, exposure_db)
     if universe != "uct":
         from api.services import breadth_universe_monitor as bum  # noqa: E402
         ds = bum.dates(universe)
@@ -99,6 +155,10 @@ MARKET_WIDE_COLS = frozenset({
 })
 #: Hidden / not yet available off UCT (monitorUniverses.js).
 NOT_PER_UNIVERSE = frozenset({"breadth_score", "up_vol_ratio", "hvc_52w", "atr_ext_7", "new_ath"})
+
+
+#: The earliest session any calibration uses (see main()).
+WINDOW_FLOOR = "2008-01-02"
 
 
 def spec_for(spec: dict, universe: str) -> dict:
@@ -132,18 +192,34 @@ def write_all(by_universe: dict) -> None:
         f.write("\n")
 
 
+def cut_key(c: dict, field: str) -> str:
+    """Mirrors shading.js `cutKey`: a share-ranked column's cutoffs live under '<key>/<per>'."""
+    return f"{field}/{c['per']}" if c.get("per") else field
+
+
+def shade_value(c: dict, field: str, row: dict):
+    """Mirrors shading.js `shadeValue`: the raw value, or its share of row[per] for a count column."""
+    v = numeric(row.get(field))
+    if v is None or not c.get("per"):
+        return v
+    d = numeric(row.get(c["per"]))
+    return v / d if d and d > 0 else None
+
+
 def build_cutoffs(rows: list, spec: dict) -> dict:
     cols = {}
-    fields = set()
+    fields = {}
     for key, c in spec["cols"].items():
         if c.get("kind"):
             continue
-        fields.add(c.get("basis") or key)
-    for field in sorted(fields):
-        vals = sorted(v for v in (numeric(r.get(field)) for r in rows) if v is not None)
+        field = c.get("basis") or key
+        fields[cut_key(c, field)] = (c, field)
+    for ck in sorted(fields):
+        c, field = fields[ck]
+        vals = sorted(v for v in (shade_value(c, field, r) for r in rows) if v is not None)
         if len(vals) < 20:
             continue  # too thin to rank — the UI leaves the column unshaded
-        cols[field] = {
+        cols[ck] = {
             "n": len(vals),
             "mid": sig(quantile(vals, 0.5)),
             "lo": [sig(quantile(vals, p / 100)) for p in GRID],
@@ -156,6 +232,8 @@ def build_cutoffs(rows: list, spec: dict) -> dict:
         "from": dates[0] if dates else None,
         "to": dates[-1] if dates else None,
         "grid": GRID,
+        # every count column is ranked as a share of the row's universe (shadeSpec `per`)
+        "per": sorted({c["per"] for c in spec["cols"].values() if c.get("per")}),
         "cols": cols,
     }
 
@@ -170,10 +248,10 @@ def _paired(u, d, side):
     return ("bear", 2) if r <= 0.30 else ("bear", 1) if r <= 0.40 else None
 
 
-def shade(row: dict, key: str, spec: dict, cut: dict):
-    """(tone 'bull'|'bear', level 1..3) or None."""
+def shade(row: dict, key: str, spec: dict, cut: dict, universe: str = "uct"):
+    """(tone 'bull'|'bear', level 1..3) or None — shading.js `shadeFor`, line for line."""
     c = spec["cols"].get(key)
-    if not c:
+    if not c or cut is None:
         return None
     kind = c.get("kind")
     if kind == "flag":
@@ -183,32 +261,49 @@ def shade(row: dict, key: str, spec: dict, cut: dict):
         u, d = (mine, other) if c["side"] == "up" else (other, mine)
         return _paired(u, d, c["side"])
     field = c.get("basis") or key
-    v = numeric(row.get(field))
-    t = cut["cols"].get(field)
+    v = shade_value(c, field, row)
+    t = cut["cols"].get(cut_key(c, field))
     if v is None or t is None:
         return None
     idx = {lv: cut["grid"].index(spec["pcts"][lv]) for lv in LEVELS}
     sides = c.get("sides", "both")
-    floors = c.get("floors") or {}
+    floors = (c.get("shareFloors") if (c.get("per") and universe != "uct") else c.get("floors")) or {}
+    fv = numeric(row.get(field)) if (c.get("per") and universe == "uct") else v
     level, end = 0, None
+    if c.get("zero"):
+        if v > 0:
+            for i, lv in enumerate(LEVELS, 1):
+                if v >= max(t["hi"][idx[lv]], 0):
+                    level, end = i, "high"
+            if "high" in floors and fv >= floors["high"]:
+                level, end = max(level, 2), "high"
+        elif v < 0:
+            for i, lv in enumerate(LEVELS, 1):
+                if v <= min(t["lo"][idx[lv]], -max(t["hi"][idx[lv]], 0)):
+                    level, end = i, "low"
+            if "low" in floors and fv <= floors["low"]:
+                level, end = max(level, 2), "low"
+        if not level:
+            return None
+        return ("bull" if end == c["bull"] else "bear", level)
     if sides in ("both", "high") and v > t["mid"]:
         for i, lv in enumerate(LEVELS, 1):
             if v >= t["hi"][idx[lv]]:
                 level, end = i, "high"
-        if "high" in floors and v >= floors["high"]:
+        if "high" in floors and fv >= floors["high"]:
             level, end = max(level, 2), "high"
     if not level and sides in ("both", "low") and v < t["mid"]:
         for i, lv in enumerate(LEVELS, 1):
             if v <= t["lo"][idx[lv]]:
                 level, end = i, "low"
-    if sides in ("both", "low") and "low" in floors and v <= floors["low"]:
+    if sides in ("both", "low") and "low" in floors and fv <= floors["low"]:
         level, end = max(level, 2), "low"
     if not level:
         return None
     return ("bull" if end == c["bull"] else "bear", level)
 
 
-def report(rows: list, spec: dict, cut: dict) -> None:
+def report(rows: list, spec: dict, cut: dict, universe: str = "uct") -> None:
     """Value-free: counts per level per year, Extreme dates + column names."""
     years = sorted({r["date"][:4] for r in rows})
     print(f"history: {cut['sessions']} sessions, {cut['from']} -> {cut['to']}, {len(years)} calendar years")
@@ -218,7 +313,7 @@ def report(rows: list, spec: dict, cut: dict) -> None:
     for key in spec["cols"]:
         per_year = defaultdict(lambda: [0, 0, 0])
         for r in rows:
-            s = shade(r, key, spec, cut)
+            s = shade(r, key, spec, cut, universe)
             if s:
                 per_year[r["date"][:4]][s[1] - 1] += 1
                 if s[1] == 3:
@@ -237,6 +332,9 @@ def main(argv=None) -> int:
     ap.add_argument("--report-only", action="store_true", help="use the committed cutoffs; write nothing")
     ap.add_argument("--universe", default="uct", choices=("uct", "us", "nasdaq", "nyse"),
                     help="which universe to calibrate (default uct); rewrites only its entry")
+    ap.add_argument("--uct-deep", default="", help="UCT: the Monitor's deep rows (read-only production export)")
+    ap.add_argument("--uct-backtest", default="", help="UCT: the V2 uct_backtest series (read-only production export)")
+    ap.add_argument("--exposure-db", default="", help="UCT: a local monitor copy whose uct_exposure wins")
     args = ap.parse_args(argv)
     with open(SPEC, encoding="utf-8") as f:
         spec = json.load(f)
@@ -245,7 +343,11 @@ def main(argv=None) -> int:
             print(f"shadeSpec pcts.{lv} must be one of {GRID}")
             return 2
     uspec = spec_for(spec, args.universe)
-    rows = load_rows(args.universe)
+    rows = load_rows(args.universe, args.uct_deep, args.uct_backtest, args.exposure_db)
+    # ⭐ THE WINDOW (owner 2026-11-19): every universe over ALL of its point-in-time history —
+    # UCT (uct_backtest), US and Nasdaq from 2008-01-02, NYSE from 2009-06-11. Nothing before
+    # 2008-01-02 is used, whatever a source holds (extending earlier is an owner decision).
+    rows = [r for r in rows if r.get("date") and r["date"] >= WINDOW_FLOOR]
     every = read_all()
     print(f"universe: {args.universe}")
     if args.report_only:
@@ -258,7 +360,7 @@ def main(argv=None) -> int:
         every[args.universe] = cut
         write_all(every)
         print(f"wrote {os.path.relpath(OUT, ROOT)} [{args.universe}] ({len(cut['cols'])} columns)")
-    report(rows, uspec, cut)
+    report(rows, uspec, cut, args.universe)
     return 0
 
 
