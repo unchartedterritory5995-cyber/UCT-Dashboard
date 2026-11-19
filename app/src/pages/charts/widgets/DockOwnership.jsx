@@ -364,9 +364,9 @@ export default function DockOwnership({ sym }) {
                   </span>
                   <span className={styles.finProvK}>Holders</span>
                   <span className={styles.finProvV}>
-                    {holders?.source === '13f'
-                      ? '13F holder detail, including the change against the same filer’s prior filing.'
-                      : 'Yahoo Finance institutional holders — latest reported holdings, no prior-period comparison.'}
+                    {holders
+                      ? '13F holder detail via FMP, including the change against the same filer’s prior filing.'
+                      : 'No Form 13F holders are on file for this stock, so no holders are listed.'}
                   </span>
                   <span className={styles.finProvK}>Insider</span>
                   <span className={styles.finProvV}>
@@ -376,12 +376,14 @@ export default function DockOwnership({ sym }) {
                     rather than decisions to buy or sell at the market price.
                   </span>
                   <span className={styles.finProvK}>Short interest</span>
-                  <span className={styles.finProvV}>
-                    FINRA via Yahoo Finance, reported twice a month on a settlement-date basis.
+                  <span className={styles.finProvV} data-testid="dock-own-short-source">
+                    {own?.short?.state === 'ok'
+                      ? `FINRA, through Massive: the report for settlement date ${fmtDate(own.short.settlement_date) || own.short.settlement_date}. Reported twice a month and published about two weeks after the settlement date. Percent of float uses today’s float from the nightly screener export.`
+                      : 'FINRA, through Massive. No report is on hand for this stock right now, so no short figures are shown; that is not the same as no short interest. Open its short interest history (SHINT in the UCT Terminal) to read the reports.'}
                   </span>
                   <span className={styles.finProvK}>Float</span>
                   <span className={styles.finProvV}>
-                    FMP shares-float, reconciled against Yahoo Finance.
+                    FMP shares-float.
                   </span>
                 </div>
                 <p className={styles.finMethodP}>

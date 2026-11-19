@@ -176,6 +176,13 @@ export function changeWay(row) {
   return v > 0 ? 'up' : v < 0 ? 'down' : 'flat'
 }
 
+/** Pure: why percent of float is missing, in words (null when it is there). `flt`: { pct, withheld }. */
+export function floatWords(flt) {
+  if (flt?.pct != null) return null
+  if (flt?.withheld) return 'Not shown: the short interest is more than 150% of the float on file, so the two do not describe the same share count'
+  return 'No float on file for this stock'
+}
+
 /** Pure: why a dataset is unavailable, in a sentence. `what` is the thing, capitalised ("Short interest"). */
 export function unavailableWords(what, reason, httpStatus) {
   if (reason === 'not_configured') return `${what} is not available on this server: it has no key for the data vendor.`

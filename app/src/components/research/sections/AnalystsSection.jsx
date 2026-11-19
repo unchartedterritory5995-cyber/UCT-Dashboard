@@ -15,7 +15,14 @@
 // the Estimates column as a second card rather than becoming a third grid
 // column, so the existing 2-column .grid needs no CSS change and nothing
 // orphans on a narrow viewport. See .stack in AnalystsSection.module.css.
-import EstimatesTab from '../../../pages/research/tabs/EstimatesTab'
+//
+// The Estimates column is `ConsensusEstimates`: the FMP consensus first, the
+// labelled Yahoo Finance forward table only when FMP holds none, and the
+// revisions card as its own read. It is the view the Terminal's EE panel shows
+// and the /research Estimates tab shows when RESEARCH_FMP_DEPTH_ENABLED is on;
+// this modal does not read that flag. `showTradeCard={false}`: the modal heads
+// its own canvas with the earnings trade card already.
+import ConsensusEstimates from '../fmpDepth/ConsensusEstimates'
 import AnalystRatingsTab from '../../../pages/research/tabs/AnalystRatingsTab'
 import RatingsTab from '../../../pages/research/tabs/RatingsTab'
 import OwnershipTab from '../../../pages/research/tabs/OwnershipTab'
@@ -39,7 +46,7 @@ export default function AnalystsSection({ sym }) {
       <RatingsTab sym={sym} />
       <div className={styles.grid}>
         <div className={styles.stack}>
-          <EstimatesTab sym={sym} />
+          <ConsensusEstimates sym={sym} showTradeCard={false} />
           <AnalystRatingsTab sym={sym} />
         </div>
         <OwnershipTab sym={sym} />
