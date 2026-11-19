@@ -204,6 +204,15 @@ REGISTER: dict[tuple, tuple] = {
         "the RS evidence job's split guard: unadjusted_splits() finds the "
         "boundaries in a ticker's held bars so a forward window that crosses one "
         "is left out of the statistics. It never rescales a price or writes bars."),
+    # The earnings run-up and past-moves reads ask the same one detector
+    # READ-ONLY, to decide whether our own daily bars can answer: a frame with
+    # a declared split still unapplied is not used, and the read goes to Yahoo
+    # instead. Same OUTSIDE pattern as the three rows above.
+    ("api/services/earnings_enrichment.py", ADJUSTMENT_APPLIED): (
+        OUTSIDE,
+        "the own-daily-bars test for the earnings run-up and past moves: "
+        "unadjusted_splits() over the frame decides whether it is used or the "
+        "read falls back to Yahoo. It never rescales a price or writes bars."),
 
     # ── VENDOR_ADJUSTED ──────────────────────────────────────────────────────
     # ⛔ These are NOT debt in the same sense: asking a vendor for an adjusted
