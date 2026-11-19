@@ -105,9 +105,7 @@ describe('⛔ the whole-bar rule stays where the taint cannot place what the req
 
 describe('the taint itself (`strategyTaintSinks` with `cutHistory`): which reads a newest-bar-only source reaches', () => {
   const sinksOf = (body, cutHistory) => {
-    const { tokens, indents } = lexPine(`//@version=5
-indicator("t")
-${body}`)
+    const { tokens, indents } = lexPine(`//@version=5\nindicator("t")\n${body}`)
     const stmts = blockStatements(tokens, indents, 0)
     const isSource = (t) => t.kind === 'ident' && t.value === 'request.security' && t.line === 3
     return [...strategyTaintSinks(stmts, { isSource, cutHistory }).values()].map((v) => v.tok.line).sort()
@@ -119,8 +117,7 @@ ${body}`)
     'array.push(a, r)',                                                 // 7
     'b = a[1]',                                                         // 8: a REFERENCE's past: the same array
     'plot(array.size(b) > 0 ? array.get(b, 0) : na)',                   // 9: never cut
-    'plot(close)'].join('
-')                                          // 10: reads no request
+    'plot(close)'].join('\n')                                         // 10: reads no request
   it('cut: r reaches lines 4 and 9, not 5 (r[1]) or 10', () => {
     expect(sinksOf(BODY, true)).toEqual([4, 9])
   })
