@@ -1,0 +1,19 @@
+== AFTER off listload
+table      landed   0.00s  window: admitted                               verdict@0.15s  pendings=0 []
+pivots     landed   3.02s  window: admitted                               verdict@0.06s  pendings=0 []
+zones      landed   6.02s  window: admitted                               verdict@0.01s  pendings=0 []
+levels     landed   9.03s  window: admitted                               verdict@0.01s  pendings=0 []
+worker stats: {'starts': 0, 'calls': 0, 'ok': 0, 'busy': 0, 'unavailable': 0, 'quarantined': 0, 'timeout': 0, 'crashed': 0, 'error': 0, 'raised': 0, 'killed': 0}
+== AFTER off bigverdict
+table      landed   0.00s  window: admitted                               verdict@0.13s  pendings=0 []
+pivots     landed   3.01s  window: admitted                               verdict@0.01s  pendings=0 []
+zones      landed   6.02s  window: admitted                               verdict@0.01s  pendings=0 []
+levels     landed   9.02s  window: admitted                               verdict@0.01s  pendings=0 []
+worker stats: {'starts': 0, 'calls': 0, 'ok': 0, 'busy': 0, 'unavailable': 0, 'quarantined': 0, 'timeout': 0, 'crashed': 0, 'error': 0, 'raised': 0, 'killed': 0}
+== AFTER on listload
+table      landed   0.00s  window: admitted                               verdict@1.52s  pendings=1 ['G? (state changed between snapshot and call)']
+pivots     landed   3.00s  window: admitted                               verdict@0.01s  pendings=0 []
+zones      landed   6.01s  window: admitted                               verdict@0.01s  pendings=0 []
+levels     landed   9.01s  window: admitted                               verdict@0.01s  pendings=0 []
+worker stats: {'starts': 1, 'calls': 25, 'ok': 25, 'busy': 0, 'unavailable': 0, 'quarantined': 0, 'timeout': 0, 'crashed': 0, 'error': 0, 'raised': 0, 'killed': 0}
+done

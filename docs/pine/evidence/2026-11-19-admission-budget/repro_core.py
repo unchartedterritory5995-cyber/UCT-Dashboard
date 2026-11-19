@@ -128,7 +128,10 @@ def diagnose_before(src: str) -> dict:
     return {
         "lru": rt._lru_get(key) is not None,
         "member_spent": round(rt._verdict_member_spent(USER, m), 4),
-        "verdict_cool_s": round(max(0.0, rt._VERDICT_IDLE_UNTIL[0] - m), 4),
+        # the gates as measured (base 28ae04e2d8) had an idle-after-every-run cool-down; since the re-shape
+        # (feat/admission-gate-reshape) G2 is a token bucket: a drained bucket reads as time until it refills
+        "verdict_cool_s": round(max(0.0, rt._VERDICT_IDLE_UNTIL[0] - m), 4) if hasattr(rt, "_VERDICT_IDLE_UNTIL")
+        else round(max(0.0, -rt._verdict_bucket_level(m)) / rt.VERDICT_DUTY_CYCLE, 4),
         "detector_cool_s": round(max(0.0, rt._DETECTOR_IDLE_UNTIL[0] - m), 4),
         "gate_free": rt._DETECTOR_GATE._value > 0,
         "worker_stats": dict(W.stats),
