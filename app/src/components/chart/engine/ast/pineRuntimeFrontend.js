@@ -2722,6 +2722,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       basePeriod: basePeriodOf(opts),
       newestBarIsForming: opts.newestBarIsForming === true
         || !!(opts.interpretOpts && opts.interpretOpts.newestBarIsForming === true),
+      // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the RUN's resolvers read a daily read above an intraday chart (`above`),
+      // the request reader below and this one alike: an expression built on such a read (`na(s) ? 1 : 0`, Fred RS's
+      // seed loop) is folded by this resolver, and one that declined the read refused the whole build
+      // (`pine:request`) though the request itself was served. ⛔ The HOST translator never sets it (C49, C23,
+      // ruling 3.5 keep their refusals there).
+      aboveDailyReads: true,
       ...objectDoorOpts,
     }
     : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts }
@@ -2729,6 +2735,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
     return r
+  }
+  /** ⭐ RS RATING L12 PR 2 — is this call a request the run reads ABOVE an intraday chart (`pine.js`'s `above`
+   *  target, minted only by this lane's resolvers)? Memoised per node; a reading that throws is "no" (the request
+   *  path names its refusal). */
+  const aboveRequestMemo = new WeakMap()
+  const isAboveRequest = (node) => {
+    if (!node || node.type !== 'call' || (node.name !== 'request.security' && node.name !== 'security')) return false
+    if (aboveRequestMemo.has(node)) return aboveRequestMemo.get(node)
+    let yes = false
+    try {
+      const t = makeResolver().requestTargetOf(node)
+      yes = !!(t && t.above === true)
+    } catch {
+      yes = false
+    }
+    aboveRequestMemo.set(node, yes)
+    return yes
   }
 
   /** A resolver that does NOT see the member's values.
@@ -4083,6 +4106,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  ready rather than acted on. */
   const needsRuntime = (node, scope) => {
     if (!node || typeof node !== 'object') return false
+    // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART IS THE RUN'S REQUEST, NEVER A
+    // COLUMN. The run's supply hands it per site (`requestSupply.js::aboveChartRead`); the columnar lane holds no
+    // daily series, and its translation of the chart's OWN read is a plain gated `close`
+    // (`pine.js::requestBaseNode`), which looked pure: `closeDa = request.security(syminfo.tickerid, 'D', close)`
+    // became a substituted macro and Fred RS's `closeDa[n63]` a column the gate withheld whole
+    // (`runtime:request`). Another symbol's read only escaped by its `sym` tree reading as state.
+    if (isAboveRequest(node)) return true
     // ⭐⭐ W4-T8 — A WINDOW WHOSE v6 `series int` LENGTH THE FOLD CANNOT SETTLE IS A RUNTIME CALL.
     // Left to the columnar lane it refuses `pine:window` ("a Pine length has to reach the engine as a
     // plain whole number"), so `ta.highest(high, bar_index % 7 + 1)` never reached the window path.
@@ -6911,7 +6941,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const identity = (() => {
       let t = null
       try {
-        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod })
+        // ⭐ RS RATING L12 PR 2 — this reader alone reads a daily read above an intraday chart (`above`)
+        targetReader = new Resolver(env, TABLE, new Map(), { ...resolverOpts, basePeriod: lanePeriod, aboveDailyReads: true })
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
@@ -7142,6 +7173,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐ RS RATING L11 — a daily read of another symbol on a weekly chart (`pine.js::
         // dailyOnWeeklyTargetOf`): supplied held and sampled per week (`requestSupply.js`)
         ...(hostTarget.below === true ? { below: true } : {}),
+        // ⭐ RS RATING L12 PR 2 (U-DAILY) — a daily read above an intraday chart (`pine.js`): supplied from the
+        // symbol's held daily rows, each chart bar reading the session it had completed (`requestSupply.js`)
+        ...(hostTarget.above === true ? { above: true } : {}),
       }) : ownUnread ? Object.freeze({
         // ⭐ RS RATING L8 (4b) — the chart's own symbol at a timeframe the host does not read:
         // `code` is the literal as written, never a served code; `unread` refuses it in the supply
@@ -7852,16 +7886,19 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⛔ the BOTTOM must always be proved: a negative offset has no answer this lane owes
     if (!r || !Number.isFinite(r.lo) || r.lo < 0) throw refusal
     let depth = Number.isFinite(r.hi) ? Math.ceil(r.hi) : Infinity
-    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARED buffer sizes the
-    // ring (`declaredBufferOf`), and a read past it stops the run in the VM (`mbbDyn`'s
-    // limit, or the 5,000 ceiling), never `na`. No declaration: the refusal stands.
+    // ⭐⭐ L4b — NO PROVED TOP (or one past Pine's ceiling): a DECLARATION admits the read
+    // (`declaredBufferOf`); no declaration, the refusal stands. ⭐ (2026-11-18, M2 / Q-MBB,
+    // captured) TradingView answers past a declared buffer, so the ring is Pine's 5,000, never
+    // the declared number: the VM's ceiling stops a read past it before the ring could be
+    // overrun. ⛔ NOT the chart's length: a build is reused over a chart that grows (a live
+    // tail, and a 600-bar first paint backfilled to thousands), and a ring sized at build would
+    // be overrun there (the engine agent's trap A). 5,000 cells are 40 KB; the HISTORY_VALUES
+    // budget still refuses, by name, a script with more such rings than it holds (~52).
     if (depth > MAX_DYNAMIC_HISTORY_DEPTH) {
       const declared = declaredBufferOf(varSlot)
       if (declared === null) throw refusal
-      depth = declared
+      depth = MAX_BARS_BACK_CEILING
     }
-    // a read past a declared `max_bars_back` stops before it reaches the ring's end
-    if (MBB_DECLARED) depth = Math.min(depth, MBB_DECLARED)
     if (depth === 0) return read(varSlot)
     const h = owner !== null
       ? fnHistorySlotFor(owner, varSlot, depth, at)
@@ -9402,7 +9439,16 @@ function buildRuntimeIrLinked(source, opts, holder) {
           return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, offAt), hb)
         }
         const offExpr = node.n && typeof node.n === 'object' ? node.n.expr : null
-        if (offExpr && (needsRuntime(offExpr, scope) || mbbDynamicColumn(node, scope))) {
+        // ⭐⭐ (2026-11-18, WS-C Q1 M2 / M3 + Q-MBB, captured) — AN OFFSET THAT DOES NOT FOLD IS READ BAR BY BAR,
+        // DECLARATION OR NOT. It took this path only under a declared `max_bars_back` (`mbbDynamicColumn`), so the
+        // declared STOP could run; TradingView answers the real history there (and with no declaration, M3), so the
+        // routing no longer hangs on a declaration (the engine agent's trap B: with none, a chart of 5,000 bars or
+        // fewer refused "counts backwards" while the declared spelling built). An offset that FOLDS keeps the
+        // constant path below, and its refusal when it folds to no whole number.
+        let offConst = null
+        if (offExpr) { try { offConst = constValueOf(offExpr, scope) } catch { offConst = null } }
+        const offFolds = !!(offConst && offConst.value !== undefined)
+        if (offExpr && (needsRuntime(offExpr, scope) || !offFolds || mbbDynamicColumn(node, scope))) {
           // RT5: a run-time offset into a COLUMN reads that column's own history;
           // only `bar_index` changes meaning inside a function body (S02, B01).
           if (owner !== null && node.arg && node.arg.type === 'name' && node.arg.name === 'bar_index') {
@@ -11035,7 +11081,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // and the VM's stop never ran; lowered piecewise, the offset reaches the
   // `offset` case (`histDyn` + `mbbDyn`), whose read stops the run there.
   const mbbDynamicColumn = (node, scope) => {
-    if (!MBB_DECLARED && !(Array.isArray(bars) && bars.length > MBB_LIMIT)) return false
+    // (2026-11-18, M2 / Q-MBB) a declared buffer no longer stops a dynamic read, so only a chart longer than
+    // Pine's ceiling sends such a subtree piecewise (where the VM's 5,000 stop runs)
+    if (!(Array.isArray(bars) && bars.length > MAX_BARS_BACK_CEILING)) return false
     const walk = (n, d = 0) => {
       if (!n || typeof n !== 'object' || d > 64) return false
       if (Array.isArray(n)) return n.some((x) => walk(x, d + 1))
@@ -11057,8 +11105,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     return walk(node)
   }
-  // Only a DECLARED buffer rides the node; the ceiling is the VM's own constant.
-  const mbbDyn = (h) => (MBB_DECLARED ? { ...h, limit: MBB_DECLARED } : h)
+  // ⭐⭐ (2026-11-18, WS-C Q1 M2 + Q-MBB-1 / Q-MBB-2, captured) — A DECLARED `max_bars_back` DOES NOT STOP A DYNAMIC
+  // READ. TradingView answered the REAL history past a declared buffer on every bar: `max_bars_back = 20` with an
+  // offset of 25 (M2, SPY 1D, 8,508 bars), `= 50` with offsets to 119 from bar 0 and from bar 300 (close, ta.ema, a
+  // request.seed series; RDDT and SPY 1D), and Fred RS's seed loop past its declared 253 on a 5m chart (delta 423,
+  // labels drawn). So no declared limit rides the node any more: the VM's own 5,000 ceiling is the only stop
+  // (a dynamic read past 5,000 is not witnessed and keeps stopping).
+  const mbbDyn = (h) => h
 
   // ─── ⭐⭐ RT6 — A ROW'S PER-BAR COLOUR, COMPUTED BY THE SAME RUN ─────────────
   //
