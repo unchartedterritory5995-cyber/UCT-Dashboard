@@ -841,6 +841,8 @@ export function collectObjectOps(stmts, h) {
     const getterAliases = new Map()
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     const walkItems = splitCommaStatements(list, h)
+    // ⭐⭐ TWO-STEP REMOVAL — the delete statement a declaration above it was fused into (`twoStepRemovalFusion`).
+    let fusedNext = null
     for (let wi = 0; wi < walkItems.length; wi += 1) {
       const st = walkItems[wi]
       if (isRoot) {
@@ -875,6 +877,19 @@ export function collectObjectOps(stmts, h) {
       // change the object (see `getterAliasStep`). Only this `if`'s own condition
       // tokens are rewritten; `st` keeps its header.
       t = getterAliasStep(st, t, getterAliases)
+      // ⭐⭐ TWO-STEP REMOVAL (2026-11-19, coordinator ruling) — `old = array.shift(xs)` then `label.delete(old)` /
+      // `old.delete()` is ONE Pine program with `label.delete(array.shift(xs))`: the slot leaves the list and the object
+      // it held is deleted (array.shift: "Removes an array's first element and returns its value"). Fused, the pair walks
+      // the one-call lowering below (`emitMethodOn`, C16's `poppedFrom` branch), only where the two are ADJACENT in one
+      // statement list (same guards, nothing between them can read the list) and the name is read nowhere else. Every
+      // other declaration of a removal into a name loses its list by name (the assignment branch below), never silent.
+      // ⚰️ Before: the function form was refused (`delete:target`); the METHOD form emitted nothing and the declaration
+      // carried no removal, so the host lane drew every label the script deleted (a 3-label script showed 26).
+      if (fusedNext && fusedNext.at === wi) { t = fusedNext.toks; fusedNext = null }
+      else if (!inLoop) {
+        const fused = twoStepRemovalFusion(walkItems, wi, t)
+        if (fused) { fusedNext = { at: wi + 1, toks: fused }; continue }
+      }
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
       // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
@@ -1310,6 +1325,14 @@ export function collectObjectOps(stmts, h) {
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
+        // ⭐⭐ TWO-STEP REMOVAL — a drawing list's `shift` / `pop` / `remove` whose element goes into a name and is NOT
+        // the fused pair above: the removal is a change of the list this program does not carry, so the list is LOST
+        // by name (what reads it after is withheld), never left at its old length.
+        const removedInto = removalIntoName(rhs)
+        if (removedInto) {
+          diagnostics.unsupported.push(`array.${removedInto.method}`)
+          loseColl(removedInto.coll, `coll:${removedInto.method}-into-name`, t[0])
+        }
         // ⭐⭐ C14 — `x := label.get_y(l)` / `x = l.get_x()` on a getter-fed
         // scalar: WRITTEN HERE, in op order, under this block's guards. Nothing
         // else about the statement changes (it still joins the block scope).
@@ -2114,6 +2137,43 @@ export function collectObjectOps(stmts, h) {
     return { coll, family: d.family, method, index }
   }
 
+  /** ⭐⭐ TWO-STEP REMOVAL — a right-hand side that IS a drawing list's `shift` / `pop` / `remove` (`poppedFrom`). */
+  function removalIntoName(rhsToks) {
+    if (!rhsToks || !rhsToks.length) return null
+    let v = null
+    try { v = h.parseWholeExpression(rhsToks) } catch { v = null }
+    return v ? poppedFrom(v) : null
+  }
+  /** Does this statement, or any block under it, name `name` (as itself, a field, a method receiver or `name[n]`)? */
+  const statementNames = (it, name) => !!it && (((it.header || []).some((x) => x && x.kind === 'ident'
+    && (String(x.value) === name || String(x.value).startsWith(`${name}.`))))
+    || (it.sub || []).some((s) => statementNames(s, name)))
+  /** ⭐⭐ TWO-STEP REMOVAL — `name = <list removal>` at `items[wi]` and, IMMEDIATELY after it, `<family>.delete(name)`
+   *  or `name.delete()` with no block of its own: the delete statement's tokens as the one-call form
+   *  `<family>.delete(<list removal>)`, or null. ⛔ Never `var` / `varip`, never `:=`, never a name this walker holds
+   *  (`decls`, `scalars`), never another family's delete, never a name any later statement of this list (or a block
+   *  under it) reads: each of those keeps the declaration unfused, and it then loses its list by name. */
+  function twoStepRemovalFusion(items, wi, t) {
+    if (!t || !t.length || (t[0].kind === 'ident' && (t[0].value === 'var' || t[0].value === 'varip'))) return null
+    const at = t[0] && t[0].kind === 'ident' && t[1] && t[1].kind === 'ident' && h.isPunct(t[2], '=') ? 1 : 0
+    if (!(t[at] && t[at].kind === 'ident' && h.isPunct(t[at + 1], '='))) return null
+    const name = String(t[at].value)
+    if (name.includes('.') || decls.has(name) || scalars.has(name)) return null
+    const rhs = t.slice(at + 2)
+    const popped = removalIntoName(rhs)
+    if (!popped) return null
+    const next = items[wi + 1]
+    if (!next || !next.header || (next.sub && next.sub.length)) return null
+    const n = next.header
+    const fnForm = n.length === 4 && n[0].kind === 'ident' && n[0].value === `${popped.family}.delete`
+      && h.isPunct(n[1], '(') && n[2].kind === 'ident' && n[2].value === name && h.isPunct(n[3], ')')
+    const methodForm = n.length === 3 && n[0].kind === 'ident' && n[0].value === `${name}.delete`
+      && h.isPunct(n[1], '(') && h.isPunct(n[2], ')') && !isDefinedMethod('delete')
+    if (!fnForm && !methodForm) return null
+    if (items.slice(wi + 2).some((it) => statementNames(it, name))) return null
+    return [{ ...n[0], value: `${popped.family}.delete` }, n[1], ...rhs, n[n.length - 1]]
+  }
+
   /** The `<family>.new` this token span NAMES anywhere, or null.
    *
    *  ⛔ IT IS A DIAGNOSTIC READER, NOT A PARSER. Its only job is to tell a
@@ -2721,6 +2781,18 @@ export function collectObjectOps(stmts, h) {
       return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method, sd.family)
     }
     const d = decls.get(recv)
+    // ⭐⭐ CLASS GUARD (2026-11-19, coordinator ruling) — A DRAWING DELETE OR SETTER ON A HANDLE THIS WALKER CANNOT
+    // TRACE to a declaration it carries is COUNTED, never nothing: the delete as `delete:target` (the drawing is
+    // withheld by name, as the function form `label.delete(old)` always was), the setter as `update:target` with the
+    // families its name reaches (`pine.js::lostSetterName`). ⚰️ It returned false and the statement vanished: an
+    // `old.delete()` deleted nothing on the host lane and the member saw every object the script removed.
+    if (!d && recv !== 'array' && !scalars.has(recv) && (method === 'delete' || /^set_/.test(method))) {
+      const target = { name: null, value: { type: 'name', name: recv, tok: toks[0] }, tok: toks[0] }
+      const where = { guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line }
+      if (method === 'delete') ops.push({ k: 'delete', family: null, target, ...where })
+      else ops.push({ k: 'update', family: null, target, props: [], args: [], untraced: method, ...where })
+      return true
+    }
     // ⭐ gap (b): `m.put(k, label.new(…))` / `map.put(m, k, …)` — a map of drawings
     // is a list this program does not hold either.
     if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method) || method === 'put')

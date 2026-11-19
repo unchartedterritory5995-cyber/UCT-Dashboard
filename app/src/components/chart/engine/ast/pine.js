@@ -26611,7 +26611,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐⭐ C45 — the setter is lost AND its object cannot be named: what it would
       // have moved or captioned is withheld by list or family (`lostUnaddressed`),
       // never left drawn where it was made. Counted where it always was.
-      if (!target) { stateLostFamilies.add(op.family || null); lostUnaddressed(op, 'update:target'); dropped('update:target'); continue }
+      if (!target) {
+        stateLostFamilies.add(op.family || null)
+        lostUnaddressed(op, 'update:target')
+        // ⭐⭐ CLASS GUARD (2026-11-19) — a method-form setter on a handle the reader could not trace
+        // (`pineObjects.js::emitMethodForm`): every family its NAME reaches loses what it moves or writes
+        if (op.untraced) lostSetterName(null, op.untraced, 'update:target', op.line)
+        dropped('update:target')
+        continue
+      }
       const props = {}
       let bad = false
       stateOk = !loopIds.length
