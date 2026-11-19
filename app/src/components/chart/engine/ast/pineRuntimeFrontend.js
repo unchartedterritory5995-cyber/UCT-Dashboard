@@ -1731,7 +1731,7 @@ const MAX_BARS_BACK_CEILING = 5000
 
 /** ⭐⭐ (2026-11-19, the B5 reuse fix) — EVERY FACT ABOUT THE BAR COUNT A BUILD READS, as one key. Outside the column seam the build
  *  reads `bars.length` only to ask "are there bars at all" (a compile-only build: the C23 symbol fold, the C36 clock
- *  zone, the column checks) and "are there more bars than Pine's history buffer" (`mbbDynamicColumn`). Two builds
+ *  zone, the C1 exchange zone of an `input.time` default, the column checks) and "are there more bars than Pine's history buffer" (`mbbDynamicColumn`). Two builds
  *  of one script, with equal options, over bar counts in one class, take the same path wherever the columns they
  *  evaluate do not refuse (`columnSinkRefusal`, `columnBlankRefusal`) and do not throw. ⛔ A new read of the count
  *  joins this key, or a session (`runtime/runtimeColumns.js::columnsOver`) reuses a build over a count it never
