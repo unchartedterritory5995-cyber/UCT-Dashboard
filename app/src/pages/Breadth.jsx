@@ -1546,12 +1546,12 @@ export default function Breadth() {
                     anchor={universeMenu}
                     onClose={() => setUniverseMenu(null)}
                     returnFocusTo={universeBtn}
-                    width={220}
+                    width={250}
                     signature
                     items={[
                       { groupLabel: 'Universe' },
                       ...MONITOR_UNIVERSES.map(u => ({
-                        key: u.id, label: u.label, hint: u.hint,
+                        key: u.id, label: `${u.label} · ${u.sub}`, hint: u.hint,
                         checked: u.id === universe, onClick: () => setUniverse(u.id),
                       })),
                     ]}

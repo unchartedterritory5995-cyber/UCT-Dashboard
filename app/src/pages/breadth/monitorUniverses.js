@@ -9,10 +9,16 @@
 export const DEFAULT_UNIVERSE = 'uct'
 
 export const MONITOR_UNIVERSES = [
-  { id: 'uct', label: 'UCT', name: 'UCT universe', hint: 'The liquid US stocks UCT tracks' },
-  { id: 'us', label: 'U.S. stocks', name: 'U.S. stocks', hint: 'All US-listed common stocks and ADRs, point-in-time' },
-  { id: 'nasdaq', label: 'Nasdaq', name: 'Nasdaq', hint: 'Nasdaq-listed common stocks and ADRs, point-in-time' },
-  { id: 'nyse', label: 'NYSE', name: 'NYSE', hint: 'NYSE-listed common stocks and ADRs, point-in-time' },
+  // `sub` is the plain-words kind of universe shown beside the name in the dropdown;
+  // `hint` is the one-line explanation (owner 2026-11-19: UCT = "tradable stocks").
+  { id: 'uct', label: 'UCT', sub: 'tradable stocks', name: 'UCT universe',
+    hint: 'Tradable U.S. stocks: about 2,600 stocks and ADRs with a $2+ price, 200K+ shares a day and a $300M+ market cap. Excludes penny stocks, very thin names and stocks being bought out. Updated daily.' },
+  { id: 'us', label: 'U.S. stocks', sub: 'all listed', name: 'U.S. stocks',
+    hint: 'Every U.S.-listed common stock and ADR, including small caps, counted the way classic exchange breadth is.' },
+  { id: 'nasdaq', label: 'Nasdaq', sub: 'all listed', name: 'Nasdaq',
+    hint: 'Every Nasdaq-listed common stock and ADR, including small caps, counted the way classic exchange breadth is.' },
+  { id: 'nyse', label: 'NYSE', sub: 'all listed', name: 'NYSE',
+    hint: 'Every NYSE-listed common stock and ADR, including small caps, counted the way classic exchange breadth is.' },
 ]
 
 const BY_ID = Object.fromEntries(MONITOR_UNIVERSES.map(u => [u.id, u]))

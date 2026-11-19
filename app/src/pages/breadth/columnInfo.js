@@ -34,7 +34,7 @@ export const COLUMN_INFO = Object.freeze({
   down_50pct_month: { name: 'Down 50% in a month', desc: 'Stocks down 50% or more over the last month (21 sessions). High counts mark crash-like conditions.' },
   magna_up: { name: 'Up 13% in 34 days', desc: 'Stocks up 13% or more over the last 34 sessions. A medium-term read of how many stocks are trending up.' },
   magna_down: { name: 'Down 13% in 34 days', desc: 'Stocks down 13% or more over the last 34 sessions. A medium-term read of how many stocks are trending down.' },
-  universe_count: { name: 'Stocks in universe', desc: 'How many stocks were measured that session. The counts in the other columns are out of this many.' },
+  universe_count: { name: 'Stocks in universe', desc: 'How many stocks were measured that session; the counts in the other columns are out of this many. UCT counts tradable U.S. stocks ($2+ price, 200K+ shares a day, $300M+ market cap, no pending buyouts). Nasdaq, NYSE and U.S. count every listed stock, including small caps.' },
   is_ftd: { name: 'Follow-Through Day', desc: 'Marks a Follow-Through Day session: a strong up day that confirms a new rally attempt. Also marked beside the date.' },
 
   // ── MA breadth ──
