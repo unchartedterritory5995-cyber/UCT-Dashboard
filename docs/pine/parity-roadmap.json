@@ -4,7 +4,7 @@
  "map": {
   "measuredOn": "2026-11-19",
   "masterSha": "3685713d65",
-  "sha256": "95155686637b5cac84a8ae3d0c946d2a6887a1f9584e66c42fb11fb69dfd4c44",
+  "sha256": "656b6e29d22afee8948d6bb0e529be777abd3590f96757fc3321a4129f1b8b5f",
   "libraryStore": [
    {
     "path": "TradingView/RelativeValue/2",
@@ -8323,10 +8323,13 @@
    ],
    "evidence": {
     "counts": {
-     "committedMatch": 1,
-     "committedOther": 2
+     "committedOther": 3
     },
     "queue": [
+     {
+      "script": "committed:machine-learning-moving-average-backquant__4d7ff59e68",
+      "status": "committedOther"
+     },
      {
       "script": "committed:momentum-based-zigzag__38d39d2d6c",
       "status": "committedOther"
@@ -8400,19 +8403,21 @@
    ],
    "evidence": {
     "counts": {
-     "committedMatch": 1,
+     "committedOther": 1,
      "ledgerOnly": 1
     },
     "queue": [
+     {
+      "script": "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c",
+      "status": "committedOther"
+     },
      {
       "script": "reference:supertrend-cluster-zeiierman__9c3900bb94",
       "status": "ledgerOnly"
      }
     ]
    },
-   "runtimeDrawnWithMatch": [
-    "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c"
-   ]
+   "runtimeDrawnWithMatch": []
   },
   {
    "unit": "admit:enum",
