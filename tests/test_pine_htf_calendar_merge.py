@@ -4,7 +4,7 @@
 ``tf_merge`` arm show a completed week or month on its LAST session with look-ahead off -- except a SHORT period
 (its last session is not the period's last weekday) that ends before TradingView's exchange calendar begins
 (2000-01-01), or the week of 2001-09-10: those show on the NEXT bar. Measured on Q-HTF-CAL-1a / 1b (the numbers
-are in ``interpret.js`` above ``HTF_CALENDAR_START``).
+are in ``interpret.js`` above ``htfClosesOnNextBar``).
 
 These rails: the constants are the JS file's own (read from it, never restated); the hand-written cases; and
 TradingView's own weekly / monthly close with look-ahead off (A02 / A05) on every bar of both committed captures.

@@ -5,7 +5,7 @@
 // `tfMergeReads` (the run's supply pick and the host's `tf_merge` arm) showed every completed week and month on its
 // LAST session. TradingView does that only from 2000: before it, a SHORT period (its last session is not the
 // period's last weekday) is shown one bar later, and so is the week of 10 Sep 2001 (closed without notice).
-// Measured on Q-HTF-CAL-1a / 1b; the rule and its numbers are in `interpret.js` above `HTF_CALENDAR_START`.
+// Measured on Q-HTF-CAL-1a / 1b; the rule and its numbers are in `interpret.js` above `htfClosesOnNextBar`.
 // Pinned here: the hand-written cases, each passed by that rule only, and TradingView's own weekly and monthly
 // close with look-ahead off (A02 / A05) on every bar of both committed captures.
 import { describe, it, expect } from 'vitest'
