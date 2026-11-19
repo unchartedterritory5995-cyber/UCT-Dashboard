@@ -559,6 +559,25 @@ def test_WSI_R1_each_rule_withholds_BY_NAME(script, needle):
     assert reasons and any(needle in r for r in reasons), reasons
 
 
+def test_WSI_R1_three_MATCH_and_one_DIVERGE_is_not_admitted_the_DIVERGE_dominates():
+    """(coordinator ruling 2026-11-19) A DIVERGE on the members' lane is never outweighed by MATCHes: a record that
+    lists one capture graded DIVERGE with the runtime pane on is withheld BY NAME, on either admission path.
+    CONTROLS: the same record without it is admitted; a DIVERGE graded with the pane OFF (the host lane) is not a
+    members'-lane grade and vetoes nothing."""
+    matches = [dict(MATCH_ON, id=f"cap-m{i}") for i in range(3)]
+    diverge = dict(MATCH_ON, id="cap-d", verdict="DIVERGE")
+    reasons = rg.pine_runtime_admission({"capabilities": ["a", "b"], "captures": matches + [diverge]}, REG)
+    assert reasons and "cap-d" in reasons[0] and "graded DIVERGE with the runtime pane on" in reasons[0], reasons
+    assert rg.pine_runtime_admission({"capabilities": ["a", "b"], "captures": matches}, REG) == []
+    assert rg.pine_runtime_admission({"capabilities": ["a", "b"],
+                                      "captures": matches + [dict(diverge, runtimePane="off")]}, REG) == []
+    sub = {"capabilities": ["a"], "admission": "substituted", "substituted": ["syminfo.industry"],
+           "captures": [{"id": "cap-s", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+                         "substituted": ["syminfo.industry"]}]}
+    assert rg.pine_runtime_admission(sub, REG) == []
+    assert any("cap-d" in r for r in rg.pine_runtime_admission(dict(sub, captures=sub["captures"] + [diverge]), REG))
+
+
 def test_WSI_R1_capabilities_are_asked_BEFORE_captures_and_both_must_hold():
     reasons = rg.pine_runtime_admission({"capabilities": ["d"]}, REG)
     assert len(reasons) == 2 and "divergent" in reasons[0] and "MATCH" in reasons[1]

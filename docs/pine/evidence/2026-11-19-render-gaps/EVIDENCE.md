@@ -51,8 +51,38 @@ whole by name on its captures is not fully served (counting it fully would be fa
 
 The seven reference scripts' captures are licence-held (the local store), so the committed kill list cannot see
 them. Before any kill they are re-graded with the fixed object-pairing grader (objects agent); only genuine
-DIVERGEs are killed, by source hash. The map's `vendorVerdict` reads sonarlab MATCH because any MATCH wins: the
-aggregation fix is the next unit.
+DIVERGEs are killed, by source hash. The map's `vendorVerdict` read sonarlab MATCH because any MATCH won: fixed by
+the next unit (below).
+
+## Aggregation: any DIVERGE dominates (coordinator ruling 2026-11-19)
+
+`coverage_map.script_verdict` folds a script's captures to one verdict. It returned MATCH when any capture
+MATCHed, so a script drawing the wrong picture on one chart read MATCH. Now any DIVERGE wins (then MATCH, then
+MATCH_SUBSTITUTED, then INCONCLUSIVE). The same rule is applied wherever captures are folded:
+
+| site | before | after |
+|---|---|---|
+| `coverage_map.script_verdict` (the map's `vendorVerdict`, one lane's run plus its FRESH ledger rows) | any MATCH wins | any DIVERGE wins |
+| `parity_roadmap.evidence_status` `committedMatch` | any committed runtime-on MATCH | `members_lane_verdict` (the rule over runtime-on) is MATCH |
+| `parity_roadmap` `admit:*` `runtimeDrawnWithMatch` | the same | the same |
+| `rollout_gate.pine_runtime_admission` (R1, the graded allowlist) | any listed pane-on MATCH admits | a listed pane-on DIVERGE withholds, by name |
+| `w0/targets.py::runtime_on_verdicts` | reads the order from `script_verdict` | unchanged code; MATCH -> DIVERGE now moves up |
+
+What it moves (the engine-85 census, regenerated with only the rule changed; nothing else in the map or the
+roadmap moves, and the served set is unchanged at 294):
+
+| what | before | after |
+|---|---|---|
+| `vendorVerdict` committed:sonarlab-order-blocks (transfers on the host lane) | MATCH | DIVERGE (aapl-1d-2026-10-02) |
+| `vendorVerdict` committed:average-day-range-adr-pivots (does not transfer) | MATCH | DIVERGE |
+| `parity.verifiedTransfer` | 54 (8.0%) | 53 (7.8%) |
+| unit `known-lists` evidence: machine-learning-moving-average-backquant | committedMatch | committedOther (SPY 11-17 DIVERGE) |
+| unit `admit:collections:matrix`: one-sided-gaussian-support-resistance-rate-loxx | runtimeDrawnWithMatch, committedMatch | neither (a runtime-on DIVERGE) |
+| evidence queue (`evidence_engine.build_queue`) | 482 targets | 483: sonarlab is no longer "matched", so it is a census target again, already CAPTURED (no new capture asked) |
+
+The graded allowlist moves nothing: no record lists a pane-on DIVERGE (adx-and-di-for-v4 lists two MATCH,
+rs-rating-fred6724 thirteen MATCH_SUBSTITUTED). rs-rating's four runtime-on DIVERGE captures are not listed in its
+record; they stay its named differences (`SERVED_BY_OWN_SHA`, coordinator ruling 2026-11-19).
 
 ## servedUnmeasured: the 12
 
