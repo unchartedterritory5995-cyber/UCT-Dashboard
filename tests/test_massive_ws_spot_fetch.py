@@ -907,3 +907,74 @@ def test_the_backfill_writes_the_minute_bar_of_the_print_not_a_current_price(tap
     assert spots == {1: "210.25", 2: "210.25", 3: "212.10"}, "the 11:47 bar, never the current 250.00"
     assert tape.massive.calls == []
     assert mww._SPOT_CACHE == {}, "historical closes never enter the live cache"
+
+
+# --- the backfill's clock is Eastern time, summer and winter --------------------
+
+def _stranded_db(tmp_path, monkeypatch, rows):
+    import api.flow_db as flow_db
+
+    db = tmp_path / "flow.db"
+    with sqlite3.connect(db) as conn:
+        conn.execute("CREATE TABLE flow (id INTEGER PRIMARY KEY, Symbol TEXT, CreatedTime TEXT, "
+                     "CreatedDate TEXT, source TEXT, Spot TEXT)")
+        conn.executemany("INSERT INTO flow VALUES (?, ?, ?, ?, ?, ?)", rows)
+        conn.commit()
+    monkeypatch.setattr(flow_db, "FlowDB", lambda *a, **k: SimpleNamespace(db_path=str(db)))
+    return db
+
+
+def _minute_bars(y, mo, d, bars):
+    """A Yahoo 1-minute answer: `bars` is [(hour, minute, close)] on the Eastern clock."""
+    return _Resp(200, {"chart": {"result": [{
+        "timestamp": [int(_et(y, mo, d, h, m)) for h, m, _ in bars],
+        "meta": {"regularMarketPrice": 999.0},
+        "indicators": {"quote": [{"close": [c for _, _, c in bars]}]}}]}})
+
+
+@pytest.mark.parametrize("label,y,mo,d", [
+    ("summer (UTC-4)", 2026, 7, 8),
+    ("winter (UTC-5)", 2026, 12, 9),
+    ("the Monday after the clocks go back", 2026, 11, 2),
+    ("the Monday after the clocks go forward", 2027, 3, 15),
+])
+def test_the_backfill_reads_eastern_time_in_both_halves_of_the_year(tape, tmp_path, monkeypatch,
+                                                                    label, y, mo, d):
+    """A print at 11:47 gets the 11:47 bar, never the bar an hour before or after it."""
+    day = "%d/%d/%d" % (mo, d, y)
+    db = _stranded_db(tmp_path, monkeypatch, [(1, "AAPL", "11:47:22 AM", day, "stocks", "")])
+    tape.yahoo.answers["AAPL"] = _minute_bars(y, mo, d, [
+        (10, 47, 100.0), (11, 47, 210.25), (12, 47, 300.0)])
+
+    result = mww.backfill_stranded_spots(day)
+
+    assert result["rows_updated"] == 1, label
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT Spot FROM flow").fetchone()[0] == "210.25", label
+
+
+@pytest.mark.parametrize("y,mo,d", [(2026, 7, 8), (2026, 12, 9)])
+def test_the_backfill_asks_for_eight_to_five_eastern_of_that_day(tape, tmp_path, monkeypatch, y, mo, d):
+    day = "%d/%d/%d" % (mo, d, y)
+    _stranded_db(tmp_path, monkeypatch, [(1, "AAPL", "11:47:22 AM", day, "stocks", "")])
+
+    mww.backfill_stranded_spots(day)
+
+    params = tape.yahoo.calls[0]["params"]
+    assert params["period1"] == str(int(_et(y, mo, d, 8, 0)))
+    assert params["period2"] == str(int(_et(y, mo, d, 17, 0)))
+
+
+@pytest.mark.parametrize("label,now,expected", [
+    ("a winter evening, already tomorrow four hours west of UTC",
+     _et(2026, 12, 9, 23, 30), "12/9/2026"),
+    ("a summer evening", _et(2026, 7, 8, 23, 30), "7/8/2026"),
+    ("just after midnight Eastern, winter", _et(2026, 12, 10, 0, 5), "12/10/2026"),
+    ("just after midnight Eastern, summer", _et(2026, 7, 9, 0, 5), "7/9/2026"),
+])
+def test_with_no_date_given_the_backfill_takes_today_on_the_eastern_clock(tape, tmp_path, monkeypatch,
+                                                                          label, now, expected):
+    _stranded_db(tmp_path, monkeypatch, [])
+    tape.clock.now = now
+
+    assert mww.backfill_stranded_spots()["target_date"] == expected, label
