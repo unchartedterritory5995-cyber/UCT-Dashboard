@@ -487,6 +487,10 @@ describe('NotebookTab — selecting notes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
     fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true })
     expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' }))
+    // ⛔ THE TAG WRITE ENDS IN THIS TEST (2026-11-20): it settles its revision (`recordLandedRevision`) when the
+    // batch answers. Left in flight, that settle landed inside the NEXT async test, after its beforeEach had
+    // cleared the mocks, and "move: ... every advanced revision LANDED" read a third, leaked row on a slow runner.
+    expect(await screen.findByText('Tagged 1 note #swing.')).toBeInTheDocument()
   })
 
   it('the shortcut does nothing without a selection (nothing to jump to)', () => {
