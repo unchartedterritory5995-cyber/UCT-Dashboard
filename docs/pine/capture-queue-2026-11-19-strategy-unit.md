@@ -64,3 +64,36 @@ stays refused by name (Q-S1a) and nine sampled strategies with it.
 |---|---|---|---|---|---|---|
 | Q-SU-STOP-a | `tools/visual_conformance/probes/w9-q-s1a-size-stop-v6.pine` | NYSE:RDDT 1D | no | the report (trade 4's profit and the cumulative profit beside it), every fill | whether TradingView still lists trade 4 at 178,994.77 (a re-take: the same cent is a property of the run, a different one of the session) | the stop-entry sizing |
 | Q-SU-STOP-b | `tools/visual_conformance/probes/w9-q-s1a-size-stop-v6.pine` | NASDAQ:ALAB 1D | no | the same | the same sizing on a second listing, every profit to the cent | the same |
+
+## D. TradingView built-in strategies (licence-held captures)
+
+The built-in strategies are not committed (the repo is public): each capture is licence-held, graded through the
+evidence ledger (`evidence_ledger.py`), never a file here, as Q-BLT-3 is (`capture-queue-2026-11-18-parity2.md`). Add
+each from TradingView's own library (Indicators, Built-ins, Strategies), inputs and Properties at their defaults, on
+NYSE:RDDT 1D from the listing, with the report and every trade. Each row names the first wall our broker stops at on
+that chart today with every rule allowed (2026-11-19), so the capture answers exactly that question.
+
+| id | source | chart | live | what to record | settles | unblocks |
+|---|---|---|---|---|---|---|
+| Q-SU-B1 | builtin Inside Bar Strategy (`builtin:inside-bar-strategy__InSide1Bar1S`) | NYSE:RDDT 1D | no | the report, every trade and fill (the margin-call rows) | Q-S1i: a margin call due at 248.015, exactly half a tick off the grid: which tick TradingView fills it at | inside-bar-strategy |
+| Q-SU-B2 | builtin Outside Bar Strategy (`builtin:outside-bar-strategy__OutSide1Bar1`) | NYSE:RDDT 1D | no | the same | the same tie at 165.505 | outside-bar-strategy |
+| Q-SU-B3 | builtin Pivot Extension Strategy (`builtin:pivot-extension-strategy__Pivot1Extens`) | NYSE:RDDT 1D | no | the same | the same tie at 59.565 | pivot-extension-strategy |
+| Q-SU-B4 | builtin MACD Strategy (`builtin:macd-strategy__MACD1Strateg`) | NYSE:RDDT 1D | no | the same | Q-S1i: a margin call at 106.7068 sizes 72 units at the bar's price and 76 at its fill's tick 106.71: which TradingView liquidates | macd-strategy |
+| Q-SU-B5 | builtin Moving Average Crossover (`builtin:moving-average-crossover__MovingAvg1Cr`) | NYSE:RDDT 1D | no | the same | Q-S1i: a margin call due at 64.50 whose loss covers less than one unit (the manual's size 0): what TradingView does | moving-average-crossover |
+| Q-SU-B6 | builtin Channel Breakout Strategy (`builtin:channel-breakout-strategy__Channel1Brea`) | NYSE:RDDT 1D | no | the same | Q-S1a: percent-of-equity STOP entries on both sides, a short stop entry and a stop that reverses an open trade (seven built-ins stop here: bollinger-bands, channel-breakout, keltner-channels, momentum, pivot-reversal, price-channel, volatility-expansion-close) | with Q-SU-STOP, the stop-entry family |
+| Q-SU-B7 | builtin SuperTrend Strategy (`builtin:supertrend-strategy__SupertrendSt`) | NYSE:RDDT 1D | no | the same | Q-S1a: a percent-of-equity entry placed while trades are open that is not a reversal | supertrend-strategy (built-in), vix-fix-stochrsi |
+
+## Not capture questions (queue dispositions)
+
+Each D row is a capture, taken from the listing by the capture session; the disposition only says that no probe file
+stands in for a built-in, so the queue lists them as built-ins rather than as probe targets.
+
+| not a capture | disposition | reason |
+|---|---|---|
+| Q-SU-B1 | builtin | the TradingView built-in Inside Bar Strategy: no probe file can stand in for a built-in; captured from the listing |
+| Q-SU-B2 | builtin | the TradingView built-in Outside Bar Strategy: no probe file can stand in for a built-in; captured from the listing |
+| Q-SU-B3 | builtin | the TradingView built-in Pivot Extension Strategy: no probe file can stand in for a built-in; captured from the listing |
+| Q-SU-B4 | builtin | the TradingView built-in MACD Strategy: no probe file can stand in for a built-in; captured from the listing |
+| Q-SU-B5 | builtin | the TradingView built-in Moving Average Crossover strategy: no probe file can stand in for a built-in; captured from the listing |
+| Q-SU-B6 | builtin | the TradingView built-in Channel Breakout Strategy: no probe file can stand in for a built-in; captured from the listing |
+| Q-SU-B7 | builtin | the TradingView built-in SuperTrend Strategy: no probe file can stand in for a built-in; captured from the listing |
