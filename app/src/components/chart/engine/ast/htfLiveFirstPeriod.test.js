@@ -128,9 +128,12 @@ const SHAPES = [
     expect: [n, n, n, 5, 5, 5, 5, 9.5, 9.5, 9.5, 9.5, 9.5, 14.5] },
   { name: "KEPT live(close, 'M') (September's close is bar 19's)", tree: () => live(CLOSE, 'M'), window: [17, 23],
     expect: [20, 20, 20, 42, 42, 42] },
-  // another request holding a look-ahead read: the field-unaware rule (its first period's bars), as `tf_merge` keeps it
-  { name: "sym('SPY', live(high)) (under another request: the first period's bars, field-unaware)", symbols: true,
-    tree: () => sym('SPY', live()), window: W13,
+  // another request holding a look-ahead read: the field-unaware rule (its first period's bars), as `tf_merge` keeps it.
+  // ⛔ Under `nz`: the read inside `sym` runs through `interpret` on SPY's bars and withholds there too, but a value
+  // withheld INSIDE a request reaches the root as Pine's `na`, which `nz` turns into a confident 0; the outer site is
+  // what withholds the ROOT bar (without it bars 0-2 draw 0)
+  { name: "nz(sym('SPY', live(high))) (under another request: the first period's bars, field-unaware)", symbols: true,
+    tree: () => call('nz', sym('SPY', live()), num(0)), window: W13,
     expect: [n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5, 17.5] },
   { name: "KEPT sym('SPY', live(close))", symbols: true, tree: () => sym('SPY', live(CLOSE)), window: W13,
     expect: [3, 3, 3, 7, 7, 7, 7, 12, 12, 12, 12, 12, 17] },

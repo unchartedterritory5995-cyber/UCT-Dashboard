@@ -7559,7 +7559,9 @@ function partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts) {
  *      (`partialPeriodUnknown`, on the bars the evaluator builds, `resampleTo`, read by the evaluator's pick,
  *      `tfLiveReads`); a child holding another request keeps the field-unaware rule (`tfLiveFirstPeriodBars`);
  *    - an outer request's are `tfLiveFirstPeriodBars`'s over the `tf_live` reads it holds (field-unaware, as
- *      `firstPeriodPartialReadMask` keeps it for a merge under `sym`).
+ *      `firstPeriodPartialReadMask` keeps it for a merge under `sym`). The read inside runs through `interpret` on the
+ *      request's own bars and is withheld there too, but a value withheld inside a request reaches the root as Pine's
+ *      `na` (`nz` would draw 0): the outer site is what withholds the root bar.
  *  ⛔ A `tf_live` whose child reads only `close` (with literals, inputs, scalars, the clock, any history or window of
  *  them) is NOT a site: the partial period's close is the period's own (0 wrong bars in the proxy), so its picture is
  *  kept. Which root bars read a site's bars is engine 56's walk taken exactly (`firstPeriodPartialReadMask`'s:

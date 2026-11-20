@@ -81,7 +81,7 @@
    "from": "      const m = node.type === 'tf_live' ? liveOwn(node) : fieldUnaware(livesUnder(node))",
    "to": "      const m = node.type === 'tf_live' ? liveOwn(node) : null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfLiveFirstPeriod.test.js",
-   "expectRed": "sym('SPY', live(high))"
+   "expectRed": "nz(sym('SPY', live(high)))"
   },
   {
    "id": "L10",
@@ -180,7 +180,7 @@
    "from": "            m = live_own(node) if node.get(\"type\") == \"tf_live\" else field_unaware(lives_under(node))",
    "to": "            m = live_own(node) if node.get(\"type\") == \"tf_live\" else None",
    "rail": "python -m pytest tests/test_pine_htf_live_first_period.py -q -p no:cacheprovider",
-   "expectRed": "sym('SPY', live(high))"
+   "expectRed": "nz(sym('SPY', live(high)))"
   },
   {
    "id": "PL10",
