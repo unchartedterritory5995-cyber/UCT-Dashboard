@@ -1,0 +1,392 @@
+// ONE RENDER WINDOW FOR EVERY SERIES, BEHIND A FACADE (2026-11-20, owner: "I NEED THEM ALL BELOW 20MS").
+//
+// Measured (lightweight-charts as the app ships it, real Chromium, candles + volume + 4 lines): a symbol switch
+// handing the library 45,000 bars costs 132 ms of setData and 218 ms to the next frame; 12,000 bars 29-41 / 58-70;
+// 1,500 bars 2-3 ms and the next frame. A chart only ever shows a few hundred bars at a time, so the library is
+// handed a WINDOW: the bars from a start `ws` onward, a few screens deeper than the view, extended leftwards (in
+// the same frame, before paint) whenever the view comes near its start.
+//
+// The library numbers its logical indices from the earliest time it holds, so with a window its logical index L
+// is the full-history index i minus ws. ~100 places in the chart and its overlays speak full-history indices
+// (framing, view locks, date navigation, drawings, lookups). Instead of converting each, this facade sits between
+// the app and the library and translates at that boundary: the app keeps speaking full indices, stored values stay
+// valid across an extension, and anything that asks for a view left of the window extends it first.
+//
+//   createWindowedChart(rawChart, opts) -> a Proxy over the library chart:
+//     timeScale(): logical ranges / coordinates / subscriptions translated (+-ws); setVisibleLogicalRange and
+//       setVisibleRange extend the window first when they reach left of it; timeToCoordinate falls back to the
+//       index of a time older than the window.
+//     addSeries(): a wrapped series. setData(full) keeps `full` and hands the library the cut (the PRIMARY series,
+//       the candles, by index; every other series by time from the window start, so no series ever holds a time
+//       older than the candles' window: the library's logical 0 is the earliest time of ANY series). update()
+//       passes through and remembers the live tail (re-applied after an extension). dataByIndex(i) translates;
+//       data() returns the full rows. attachPrimitive hands primitives the facade chart and the wrapped series.
+//     subscribeCrosshairMove / Click / DblClick: param.logical +ws, seriesData keys and hoveredSeries are the
+//       wrapped series.
+//   The window is OFF (a pure pass-through, ws 0) until `setWindow(rows)` turns it on for a load, and whenever
+//   `setWindow(null)` says the view needs every bar (compare, replay, pinned ranges).
+//
+// Switch: localStorage `uct.renderwindow.off` = '1' keeps every bar (the library sees the whole history, as before).
+
+export const RENDER_WINDOW_OFF_KEY = 'uct.renderwindow.off'
+/** The window holds at least this many bars ... */
+export const RENDER_WINDOW_MIN_BARS = 600
+/** ... or this many screens of the view the load opened at. */
+export const RENDER_WINDOW_SCREENS = 3
+/** The window start is a multiple of this (appended live bars never move it). */
+export const RENDER_WINDOW_STEP = 250
+/** With fewer bars than this to leave out, the library gets every bar. */
+export const RENDER_WINDOW_MIN_SAVED = 1000
+/** The view's left edge must stay at least this many bars (and one screen) right of the window start. */
+export const RENDER_WINDOW_MARGIN_BARS = 150
+
+export function renderWindowDisabled() {
+  try { return typeof localStorage !== 'undefined' && localStorage.getItem(RENDER_WINDOW_OFF_KEY) === '1' } catch { return false }
+}
+
+/** How many bars a load's window holds, from the view it opens at: `span` bars across, its left edge `left` bars
+ *  back from the newest (unknown reads as 0). */
+export function renderWindowRows(span, left) {
+  const s = Number.isFinite(span) && span > 0 ? span : 0
+  const l = Number.isFinite(left) && left > 0 ? left : 0
+  return Math.max(RENDER_WINDOW_MIN_BARS, Math.ceil(s * RENDER_WINDOW_SCREENS), Math.ceil(l + Math.max(s, RENDER_WINDOW_MARGIN_BARS)) + 1)
+}
+
+/** The first full index of a window of `rows` over `n` bars: step-aligned, 0 when the saving is small. */
+export function renderWindowStart(n, rows) {
+  if (!(n > 0) || !(rows > 0)) return 0
+  const raw = Math.floor(n) - Math.floor(rows)
+  if (raw < RENDER_WINDOW_MIN_SAVED) return 0
+  return Math.floor(raw / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
+}
+
+/** The start a view whose left edge is at full index `from`, `span` bars wide, needs (never right of `ws`). */
+export function extendedStart(ws, from, span) {
+  if (!(ws > 0) || !Number.isFinite(from)) return ws
+  const s = Number.isFinite(span) && span > 0 ? span : 0
+  if (from - Math.max(s, RENDER_WINDOW_MARGIN_BARS) >= ws) return ws
+  const want = Math.max(0, Math.floor(from) - Math.max(2 * s, RENDER_WINDOW_MIN_BARS))
+  const next = Math.floor(want / RENDER_WINDOW_STEP) * RENDER_WINDOW_STEP
+  return next < ws ? next : ws
+}
+
+// -1 / 0 / 1, or null when the two cannot be ordered (different kinds of time).
+function cmpTime(a, b) {
+  if (typeof a === 'number' && typeof b === 'number') return a < b ? -1 : a > b ? 1 : 0
+  if (typeof a === 'string' && typeof b === 'string') return a < b ? -1 : a > b ? 1 : 0
+  if (a && b && typeof a === 'object' && typeof b === 'object' && Number.isFinite(a.year) && Number.isFinite(b.year)) {
+    return (a.year - b.year) || (a.month - b.month) || (a.day - b.day) || 0
+  }
+  return null
+}
+/** First index of `rows` whose time is >= `t` (rows in time order); null when times cannot be compared. */
+function firstAtOrAfter(rows, t) {
+  let lo = 0
+  let hi = rows.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    const c = cmpTime(rows[mid]?.time, t)
+    if (c === null) return null
+    if (c < 0) lo = mid + 1
+    else hi = mid
+  }
+  return lo
+}
+
+const RAW = Symbol('raw')
+/** The library object behind a facade object (or the object itself). */
+export function rawOf(x) { return (x && x[RAW]) || x }
+
+/**
+ * @param {object} chart  the library chart (createChart)
+ * @param {object} [o]
+ * @param {() => boolean} [o.disabled]   the per-browser switch (default: localStorage)
+ */
+export function createWindowedChart(chart, { disabled = renderWindowDisabled } = {}) {
+  const st = {
+    ws: 0,               // the window's first full index (of the primary series)
+    wsTime: null,        // its time: every other series is cut from here
+    wanted: null,        // rows the load asked for (null: no window)
+    span: 0,             // bars across the view, for extensions
+    extending: false,
+    placePending: false, // a new load: the next primary setData places the window
+    checkQueued: false,
+  }
+  /** wrapped series -> { raw, full, tail: Map(time -> item), primary } */
+  const series = new Map()
+  const byRaw = new Map()
+  let primary = null
+
+  const on = () => st.wanted != null && !disabled()
+
+  function cutFor(w, rows) {
+    if (!Array.isArray(rows) || !rows.length) return rows
+    if (w === primary) return st.ws > 0 ? rows.slice(st.ws) : rows
+    if (st.wsTime == null) return rows
+    const k = firstAtOrAfter(rows, st.wsTime)
+    return k == null || k === 0 ? rows : rows.slice(k)
+  }
+  function applyOne(w) {
+    const rec = series.get(w)
+    if (!rec || !rec.full) return
+    const cut = cutFor(w, rec.full)
+    rec.cutFirst = cut && cut.length ? cut[0].time : null
+    rec.raw.setData(cut)
+    // the live forming bar(s) after a re-set: what update() planted since the last setData
+    for (const item of rec.tail.values()) { try { rec.raw.update(item) } catch { /* an older item */ } }
+  }
+  /** Place ws / wsTime on the primary's full rows: a forced start (an extension), a new load's rows, or (the
+   *  same load: appended or prepended bars) the index of the start TIME, so live bars never move it. */
+  function placeWindow(forcedWs = null) {
+    const full = primary ? series.get(primary)?.full : null
+    if (!on() || !full || !full.length) { st.ws = 0; st.wsTime = null; st.placePending = false; return }
+    let ws
+    if (forcedWs != null) ws = forcedWs
+    else if (st.placePending || st.wsTime == null) ws = renderWindowStart(full.length, st.wanted)
+    else ws = firstAtOrAfter(full, st.wsTime) ?? 0
+    st.placePending = false
+    st.ws = Math.max(0, Math.min(ws, full.length - 1))
+    st.wsTime = st.ws > 0 ? full[st.ws].time : null
+  }
+  /** After a pass that moved the window: any other series still holding a time older than its start (one the
+   *  pass did not re-set) is re-cut, so no series can widen the library's time scale past the candles. */
+  function queueConsistency() {
+    if (st.checkQueued) return
+    st.checkQueued = true
+    queueMicrotask(() => {
+      st.checkQueued = false
+      if (st.wsTime == null) return
+      for (const [w, rec] of series) {
+        if (w === primary || !rec.full || !rec.full.length) continue
+        if (cmpTime(rec.cutFirst, st.wsTime) === -1) applyOne(w)
+      }
+    })
+  }
+  /** Move the window start left to `newWs` (full index): every series re-set, primary first. */
+  function extendTo(newWs) {
+    if (st.extending || !(newWs < st.ws)) return false
+    st.extending = true
+    try {
+      placeWindow(newWs)
+      if (primary) applyOne(primary)
+      for (const w of series.keys()) if (w !== primary) applyOne(w)
+    } finally { st.extending = false }
+    return true
+  }
+  /** Make sure full index `from` (and a screen before it) is inside the window. */
+  function ensureFrom(from, span = st.span) {
+    if (!(st.ws > 0)) return
+    const next = extendedStart(st.ws, from, span)
+    if (next < st.ws) extendTo(next)
+  }
+
+  const ts = () => chart.timeScale()
+  const handlers = new Map()   // app handler -> library handler
+  const plus = (r) => (r ? { ...r, from: r.from + st.ws, to: r.to + st.ws } : r)
+  function primaryIndexOfTime(t) {
+    const full = primary ? series.get(primary)?.full : null
+    if (!full || !full.length) return null
+    const k = firstAtOrAfter(full, t)
+    if (k == null || k >= full.length) return null
+    return cmpTime(full[k].time, t) === 0 ? k : null
+  }
+
+  const timeScaleFacade = new Proxy({}, {
+    get(_t, prop) {
+      const raw = ts()
+      switch (prop) {
+        case RAW: return raw
+        case 'getVisibleLogicalRange': return () => plus(raw.getVisibleLogicalRange())
+        case 'setVisibleLogicalRange': return (r) => {
+          if (r && Number.isFinite(r.from)) ensureFrom(r.from, Number.isFinite(r.to) ? r.to - r.from : st.span)
+          return raw.setVisibleLogicalRange(r ? { ...r, from: r.from - st.ws, to: r.to - st.ws } : r)
+        }
+        case 'subscribeVisibleLogicalRangeChange': return (h) => {
+          const lib = (r) => h(plus(r))
+          handlers.set(h, lib)
+          return raw.subscribeVisibleLogicalRangeChange(lib)
+        }
+        case 'unsubscribeVisibleLogicalRangeChange': return (h) => {
+          const lib = handlers.get(h) || h
+          handlers.delete(h)
+          return raw.unsubscribeVisibleLogicalRangeChange(lib)
+        }
+        case 'logicalToCoordinate': return (i) => raw.logicalToCoordinate(i - st.ws)
+        case 'coordinateToLogical': return (x) => { const l = raw.coordinateToLogical(x); return l == null ? l : l + st.ws }
+        case 'setVisibleRange': return (r) => {
+          if (r && st.wsTime != null && cmpTime(r.from, st.wsTime) === -1) {
+            const k = primaryIndexOfTime(r.from) ?? firstAtOrAfter(series.get(primary)?.full || [], r.from)
+            if (k != null) ensureFrom(k, st.span)
+          }
+          return raw.setVisibleRange(r)
+        }
+        case 'timeToCoordinate': return (t) => {
+          const x = raw.timeToCoordinate(t)
+          if (x != null || st.wsTime == null || cmpTime(t, st.wsTime) !== -1) return x
+          const i = primaryIndexOfTime(t)
+          return i == null ? x : raw.logicalToCoordinate(i - st.ws)
+        }
+        default: {
+          const v = raw[prop]
+          return typeof v === 'function' ? v.bind(raw) : v
+        }
+      }
+    },
+  })
+
+  function wrapPrimitive(p) {
+    if (!p || typeof p.attached !== 'function' || p.__wcWrapped) return p
+    const orig = p.attached.bind(p)
+    p.attached = (param) => orig({ ...param, chart: facade, series: param?.series ? (byRaw.get(param.series) || param.series) : param?.series })
+    p.__wcWrapped = true
+    return p
+  }
+
+  function wrapSeries(raw, isPrimary) {
+    const rec = { raw, full: null, tail: new Map(), primary: isPrimary }
+    const w = new Proxy(raw, {
+      get(target, prop) {
+        switch (prop) {
+          case RAW: return target
+          case 'setData': return (rows) => {
+            rec.full = rows
+            rec.tail.clear()
+            const before = st.wsTime
+            if (w === primary) placeWindow()
+            const cut = cutFor(w, rows)
+            rec.cutFirst = cut && cut.length ? cut[0].time : null
+            target.setData(cut)
+            // the window moved (a new load): the other series are normally re-set in this same pass; any that is
+            // not is re-cut before the frame paints
+            if (w === primary && before !== st.wsTime) queueConsistency()
+          }
+          case 'update': return (item, ...rest) => {
+            const r = target.update(item, ...rest)
+            if (item && item.time != null) {
+              const full = rec.full
+              const last = full && full.length ? full[full.length - 1].time : null
+              if (last == null || cmpTime(item.time, last) !== -1) rec.tail.set(JSON.stringify(item.time), item)
+            }
+            return r
+          }
+          case 'dataByIndex': return (i, mismatch) => target.dataByIndex(i - st.ws, mismatch)
+          case 'data': return () => {
+            if (!rec.full) return target.data()
+            if (!rec.tail.size) return rec.full
+            const out = rec.full.slice()
+            for (const item of rec.tail.values()) {
+              const lastT = out.length ? out[out.length - 1].time : null
+              if (lastT != null && cmpTime(item.time, lastT) === 0) out[out.length - 1] = item
+              else out.push(item)
+            }
+            return out
+          }
+          case 'barsInLogicalRange': return (r) => {
+            const b = target.barsInLogicalRange(r ? { ...r, from: r.from - st.ws, to: r.to - st.ws } : r)
+            return b ? { ...b, barsBefore: b.barsBefore + st.ws } : b
+          }
+          case 'attachPrimitive': return (p, ...rest) => target.attachPrimitive(wrapPrimitive(p), ...rest)
+          default: {
+            const v = target[prop]
+            return typeof v === 'function' ? v.bind(target) : v
+          }
+        }
+      },
+    })
+    series.set(w, rec)
+    byRaw.set(raw, w)
+    return w
+  }
+
+  function crossParam(param) {
+    if (!param) return param
+    const out = { ...param }
+    if (Number.isFinite(param.logical)) out.logical = param.logical + st.ws
+    if (param.seriesData instanceof Map) {
+      const m = new Map()
+      for (const [k, v] of param.seriesData) m.set(byRaw.get(k) || k, v)
+      out.seriesData = m
+    }
+    if (param.hoveredSeries) out.hoveredSeries = byRaw.get(param.hoveredSeries) || param.hoveredSeries
+    return out
+  }
+  const evHandlers = { crosshair: new Map(), click: new Map(), dbl: new Map() }
+  const sub = (kind, name) => (h) => { const lib = (p) => h(crossParam(p)); evHandlers[kind].set(h, lib); return chart[name](lib) }
+  const unsub = (kind, name) => (h) => { const lib = evHandlers[kind].get(h) || h; evHandlers[kind].delete(h); return chart[name](lib) }
+
+  // the extension: when the view comes near the window start, the window grows left before the frame paints
+  // (checked in a microtask: after the library's own update and the app's setData pass, before the rAF paint)
+  let rangeQueued = false
+  const onRange = (r) => {
+    if (!r || st.extending || !(st.ws > 0)) return
+    st.span = Math.max(0, r.to - r.from)
+    if (rangeQueued) return
+    rangeQueued = true
+    queueMicrotask(() => {
+      rangeQueued = false
+      const cur = chart.timeScale().getVisibleLogicalRange()
+      if (cur && st.ws > 0) ensureFrom(cur.from + st.ws, Math.max(0, cur.to - cur.from))
+    })
+  }
+  try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* a stub chart */ }
+
+  const control = {
+    /** Turn the window on for a load: `rows` bars (renderWindowRows), or null for every bar. Re-cuts every series. */
+    setWindow(rows, { span } = {}) {
+      if (Number.isFinite(span) && span > 0) st.span = span
+      if (!(Number.isFinite(rows) && rows > 0)) {
+        // every bar: re-set what is windowed now (a compare / replay / pinned view turning on)
+        st.wanted = null
+        if (st.ws > 0) extendTo(0)
+        st.wsTime = null
+        return
+      }
+      // a new load: the next primary setData places the window (the series are about to be re-set anyway)
+      st.wanted = rows
+      st.placePending = true
+    },
+    /** The window start (full index) and its time; 0 / null when off. */
+    windowStart: () => st.ws,
+    windowStartTime: () => st.wsTime,
+    /** Extend the window so full index `from` (and a screen before it) is inside it. */
+    ensureFrom,
+    /** The library chart. */
+    raw: chart,
+  }
+
+  const facade = new Proxy(chart, {
+    get(target, prop) {
+      switch (prop) {
+        case RAW: return target
+        case 'window': return control
+        case 'timeScale': return () => timeScaleFacade
+        case 'addSeries': return (def, options, paneIndex) => {
+          const raw = target.addSeries(def, options, paneIndex)
+          const w = wrapSeries(raw, false)
+          return w
+        }
+        case 'removeSeries': return (w) => {
+          const raw = rawOf(w)
+          series.delete(w)
+          byRaw.delete(raw)
+          if (primary === w) primary = null
+          return target.removeSeries(raw)
+        }
+        case 'setCrosshairPosition': return (price, time, s) => target.setCrosshairPosition(price, time, rawOf(s))
+        case 'subscribeCrosshairMove': return sub('crosshair', 'subscribeCrosshairMove')
+        case 'unsubscribeCrosshairMove': return unsub('crosshair', 'unsubscribeCrosshairMove')
+        case 'subscribeClick': return sub('click', 'subscribeClick')
+        case 'unsubscribeClick': return unsub('click', 'unsubscribeClick')
+        case 'subscribeDblClick': return sub('dbl', 'subscribeDblClick')
+        case 'unsubscribeDblClick': return unsub('dbl', 'unsubscribeDblClick')
+        default: {
+          const v = target[prop]
+          return typeof v === 'function' ? v.bind(target) : v
+        }
+      }
+    },
+  })
+  /** Name the series whose rows define the window (the candles). */
+  control.setPrimary = (w) => { primary = series.has(w) ? w : null }
+  return facade
+}
