@@ -1158,7 +1158,19 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const live = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
-          if (!Number.isInteger(n) || n < 0) { stack[sp++] = NaN; break }
+          if (!Number.isInteger(n) || n < 0) {
+            // ⭐⭐ A1 — A STRICT RING (an offset read per bar from a call site's argument, whose bottom
+            // and wholeness nothing proved before bar 0) STOPS BY NAME here: what Pine answers for a
+            // negative or fractional history offset is not captured (DY1 covers the fractional half),
+            // and `na` would be this lane's guess drawn as an answer.
+            if (histPlan[historyBase + a].strict === true) {
+              throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — \`${histPlan[historyBase + a].name}\`[${n}]: `
+                + 'a history offset read on this bar is negative or not a whole number, and what Pine '
+                + 'answers for one is not captured')
+            }
+            stack[sp++] = NaN
+            break
+          }
           if (n === 0) { stack[sp++] = live; break }
           // WS-C — past Pine's history buffer stops the run (see READ_HIST_DYN).
           if (n > (b > 0 ? b : 5000)) {
