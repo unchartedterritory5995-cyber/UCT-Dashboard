@@ -390,7 +390,9 @@ export function lowerIrProgram(ir, opts = {}) {
         // bar (no `na` can reach either), and the one thing that changes is that
         // the undecided side is not run — Pine v6's rule. A v5 script, and any
         // operand that may be `na`, keeps the eager form untouched.
-        if ((e.op === '&&' || e.op === '||') && lazyLogic && isBoolIr(e.left) && isBoolIr(e.right)) {
+        // ⭐⭐ the version island: `eager` marks a v5 library's `and` / `or` inside a v6 program (the front end
+        // decides it with `versionAt`); it keeps the v5 form below
+        if ((e.op === '&&' || e.op === '||') && lazyLogic && e.eager !== true && isBoolIr(e.left) && isBoolIr(e.right)) {
           expr(e.left)
           const toFalse = here()
           emit(OP.JUMP_IF_FALSE, 0)
@@ -420,7 +422,7 @@ export function lowerIrProgram(ir, opts = {}) {
         // Pine's answer, since Pine never holds that operand as `na`.
         // ⛔ v4/v5 (`lazyLogic` false) are untouched: Pine evaluates both operands
         // there, and the eager `logical` below stands.
-        if ((e.op === '&&' || e.op === '||') && lazyLogic) {
+        if ((e.op === '&&' || e.op === '||') && lazyLogic && e.eager !== true) {
           const asBool = asCondition
           expr(e.left)
           const toFalsy = here()

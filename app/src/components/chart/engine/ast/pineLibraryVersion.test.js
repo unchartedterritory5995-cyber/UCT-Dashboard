@@ -157,6 +157,18 @@ export calls(float x) =>
 `,
     uses: 'plot(il.passes(close))\nplot(il.calls(close))\n',
   },
+  // `and` / `or`: both sides on every bar at v5, the right side only when the left does not decide at v6, so a
+  // `ta.*` on the right keeps every bar's history at v5 and only the bars it ran on at v6
+  [F.LAZY_AND_OR]: {
+    lib: `export up(float x) => x > 100 and ta.rising(x, 2) ? 1.0 : 0.0
+export hits(float x) =>
+    var float n = 0.0
+    if x > 100 and ta.sma(x, 3) > 100
+        n := n + 1
+    n
+`,
+    uses: 'plot(il.up(close))\nplot(il.hits(close))\n',
+  },
 }
 const islandPath = (family) =>`tester/island${family.replace(/[^a-z]/gi, '')}/1`
 const islandSource = (family) => `${MPL}\n//@version=5\nlibrary("island")\n${ISLAND[family].lib}`

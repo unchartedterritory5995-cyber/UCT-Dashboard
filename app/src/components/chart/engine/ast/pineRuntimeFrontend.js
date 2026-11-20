@@ -3862,6 +3862,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
   const SHORT_CIRCUIT = new Set(['and', 'or', '&&', '||'])
+  /** ⭐⭐ the version island: is this `and` / `or` a v5 library's inside a v6 program (eager, `lowerIr.js` `eager`)? */
+  const eagerLogicAt = (node) => Number(pineVersion) >= 6 && !(versionAt(node && node.tok, pineVersion) >= 6)
   /** ⭐ HIST-S3 — the CALL a checked arm's stop names (the member reads which call it was): the first
    *  call `lexArmHistory` counts as history, in source order, as `` `name` ``; an offset over an
    *  expression is named as such. Falls back to the family sentence when none is found. */
@@ -3923,7 +3925,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const lazyArmBindings = new WeakSet()
   /** the r4 region of the arm being lowered lazily (`servedCondCall`'s arm-only set). */
   let lazyArmRegion = null
-  const lazyArmContext = () => pineVersion !== null && pineVersion >= 6 && !objectsInRun && !atObjectDoor
+  // ⭐⭐ the version island: the jump form is witnessed for a v6 `?:`; one inside a v5 library is judged as a v5
+  // script's is (`versionAt` at the `?:`), never as the program's
+  const lazyArmAt = (at) => { const v = versionAt(at && at.tok, pineVersion); return v !== null && v >= 6 }
+  const lazyArmContext = (at) => lazyArmAt(at) && !objectsInRun && !atObjectDoor
     && owner === null && loopDepth === 0 && r4Level() === 0 && !inRequestValue
   /** ⭐ HIST-S3 — `?:` nodes lowered as a jump whose arms are CHECKED to run on every bar. */
   const everyBarArmNodes = new WeakSet()
@@ -3986,7 +3991,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // for a line Pine runs on every bar)
           const readable = everyBarArmBindings.has(b)
             ? everyBarArmContext() && r4Level() === 0 && (b.owner === undefined ? null : b.owner) === owner
-            : lazyArmContext()
+            : lazyArmContext(b.node)
           if (opaque || !readable) refuseLazyArm(node, `(bound to \`${node.name}\`, read where it cannot run as written)`)
           return true
         }
@@ -4013,7 +4018,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // beside a lazy `?:` that does not), and the reference calls `iff` a function, whose
       // arguments are evaluated before the call. `runtimeRespelling` writes it as a `?:` that
       // `SELECT` evaluates on every bar, so it is served, not walked here.
-      else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
+      // ⭐⭐ the version island: a v5 library's `and` / `or` evaluates both sides on every bar (`versionAt`)
+      else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && versionAt(node.tok, pineVersion) >= 6) { arms = [node.right]; test = node.left }
       if (!arms || !arms.some((a) => lexArmHistory(a))) return false
       let inv = false
       // the parameter this test is blocked on, if any (`invariantTest`), read
@@ -4025,7 +4031,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       r4CulpritSeen = prevSeen
       if (inv) return false
       // ⭐⭐⭐ W4 T4 — the witnessed half is SERVED: lowered as a jump (`case 'ternary'`)
-      if (node.type === 'ternary' && !opaque && lazyArmContext() && !holdsColour(node, scope)
+      if (node.type === 'ternary' && !opaque && lazyArmContext(node) && !holdsColour(node, scope)
           && armServable(node.yes) && armServable(node.no)) {
         lazyArmNodes.add(node)
         return true
@@ -9669,6 +9675,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right)
         const lowered = binary(op, loweredL, loweredR)
+        // ⭐⭐ the version island: a v5 library's `and` / `or` inside a v6 program evaluates both sides on every bar
+        // (`lowerIr.js` reads `eager`; every other node keeps its exact shape)
+        if ((op === '&&' || op === '||') && eagerLogicAt(node)) lowered.eager = true
         if (naLate) boolNaDeferred.push({ ...naLate, node: lowered })
         return lowered
       }
@@ -9696,8 +9705,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       case 'op': {
         const args = (node.args || []).map((a) => lowerExpr(a, scope))
         if (node.name === '!' && args.length === 1) return unary('!', args[0])
-        if (node.name === '&&' && args.length === 2) return binary('&&', args[0], args[1])
-        if (node.name === '||' && args.length === 2) return binary('||', args[0], args[1])
+        if ((node.name === '&&' || node.name === '||') && args.length === 2) {
+          const lowered = binary(node.name, args[0], args[1])
+          // ⭐⭐ the version island: as the parser's `and` / `or` above
+          if (eagerLogicAt(node)) lowered.eager = true
+          return lowered
+        }
         throw new RuntimeRefusal('runtime:operator',
           `\`${node.name}\` with ${args.length} operand${args.length === 1 ? '' : 's'}`,
           locate(node.tok))
@@ -9785,7 +9798,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // check from the start when the arm holds history, and it is never the arm-only
           // served region (`ta.change` per call site is witnessed for the v6 root arm alone)
           const checked = everyBarArmNodes.has(node)
-          if (!(checked ? everyBarArmContext() : lazyArmContext())) refuseLazyArm(node, '(read where it cannot run as written)')
+          if (!(checked ? everyBarArmContext() : lazyArmContext(node))) refuseLazyArm(node, '(read where it cannot run as written)')
           const lowerLazyArm = (arm) => inR4Region(false, () => {
             const prev = lazyArmRegion
             lazyArmRegion = checked ? null : r4Region
