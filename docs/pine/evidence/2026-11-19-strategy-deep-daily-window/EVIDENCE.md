@@ -46,4 +46,24 @@ trade or the start, the rule stays unpinned, and the window is moved to TradingV
 
 ## 4. Rails and mutants
 
-CENSUS_AND_MUTANTS
+Rails: `runtime/__tests__/strategyDeepStart.test.js` (9: the rule, the run, the payload in both server shapes, the
+tab's two values from one answer, the census model, the daily-only full request, the chart source, and supertrend on
+SPY 1D through the member's product path), `__tests__/w9T11F1ChartWindow.test.jsx` (+1: the served depth rides beside
+the window to strategy documents only; the hook answers `depth`), `tests/test_history_window_one_authority.py` (two
+assignments; the strategy window's one consumer; equal to the chart's daily depth), `tests/test_pine_history_window.py`
+(both fields; each follows its own constant). The committed serve census (`strategyServeCensus.test.js`, now handed
+the window the chart hands) is unchanged: 6 served, every row as before.
+
+Each mutant applied to the working tree, its rails run, the file restored from a saved copy (never `git checkout`),
+restored byte-equal every time (2026-11-19):
+
+| mutant | what it breaks | result |
+|---|---|---|
+| D1 `vm.js`: `deepFrom: null` | no run is ever a deep start | RED `strategyDeepStart` (2) |
+| D2 `vm.js`: the served depth is always the window | the depth handed is ignored | RED `strategyDeepStart` (2) |
+| D3 `broker.js`: the rule is not asked | a deep run is served unwitnessed | RED `strategyDeepStart` (2) |
+| D4 `strategyWindow.js`: the window is the shared field only | the strategy window never reaches a run | RED `strategyDeepStart` (2) |
+| D5 `StockChart.jsx`: the request drops `_strategyDailyFull` | a grid cell's strategy loads shallow | RED `strategyDeepStart` (1, the source rail) |
+| D6 `binder.js`: the depth is not forwarded | the chart's run never asks the rule | RED `w9T11F1ChartWindow` (1) |
+| D7 `bars_window.py`: the strategy window 12,000 | the window cuts a full daily load off its listing | RED `test_history_window_one_authority` (1) |
+| D8 `pine_history_window.py`: answers the shared window as the strategy window | the endpoint states no second window | RED `test_pine_history_window` (1) |
