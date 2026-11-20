@@ -129,6 +129,7 @@ export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
   ISLAND_FAMILY.TIMEFRAME_PERIOD,
   ISLAND_FAMILY.COLOURS,
   ISLAND_FAMILY.TOSTRING_LITERAL,
+  ISLAND_FAMILY.FOR_BOUND,
 ])
 
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v

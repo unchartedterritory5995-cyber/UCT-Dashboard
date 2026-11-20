@@ -14491,7 +14491,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         } finally { loopDepth -= 1; loopRanges.delete(slot) }
         // ⭐⭐ P3 WS-A — v6 re-reads the `to` bound before every pass; this lane
         // reads it once. Served where the two cannot differ (`forBoundMovedBy`).
-        if (pineVersion !== null && pineVersion >= 6) {
+        // ⭐⭐ the version island: a loop inside a v5 library reads its bound once, as this lane does
+        const loopVersion = versionAt(first, pineVersion)
+        if (loopVersion !== null && loopVersion >= 6) {
           // ⭐ (review H2a) the `by` step rides along: whether v6 re-reads it is
           // as uncaptured as the bound (Q-A1), so a body that moves it refuses too.
           const moved = forBoundMovedBy([toIr, stepIr], body)

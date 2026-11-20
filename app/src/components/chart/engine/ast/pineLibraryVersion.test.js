@@ -140,6 +140,23 @@ export kept(float x) =>
 `,
     uses: 'plot(il.digits(close))\nplot(il.kept(close))\n',
   },
+  // a `for` loop's `to` bound: read once at v5, before every pass at v6 (Dynamic for loop boundaries)
+  [F.FOR_BOUND]: {
+    lib: `export passes(float x) =>
+    int n = 3
+    float t = 0.0
+    for i = 0 to n
+        n := n - 1
+        t := t + 1
+    t + x * 0
+export calls(float x) =>
+    float t = 0.0
+    for i = 0 to math.round(x) % 3
+        t := t + i
+    t + x * 0
+`,
+    uses: 'plot(il.passes(close))\nplot(il.calls(close))\n',
+  },
 }
 const islandPath = (family) =>`tester/island${family.replace(/[^a-z]/gi, '')}/1`
 const islandSource = (family) => `${MPL}\n//@version=5\nlibrary("island")\n${ISLAND[family].lib}`
