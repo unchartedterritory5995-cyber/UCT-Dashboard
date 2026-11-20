@@ -72,6 +72,20 @@ def store_vendor_start(bars, yf):
     return None
 
 
+def listing_cut(bars) -> int:
+    """The index of the first STORED bar a member is served: the bar after the newest listing break
+    (api.services.listing_break.is_break, the rule bars_sanitize._apply_listing_cutoff and the store readers share;
+    its metadata branch needs the provider's listing date and is not reproduced here). Older rows belong to another
+    security under a reused ticker and are never corrected."""
+    from api.services import listing_break as _lb
+    cut = 0
+    for i in range(1, len(bars)):
+        g = (dt.date.fromisoformat(bars[i][0]) - dt.date.fromisoformat(bars[i - 1][0])).days
+        if g >= 21 and _lb.is_break(g, bars[i - 1][4], bars[i][4]):
+            cut = i
+    return cut
+
+
 def is_filler(bars, i) -> bool:
     if i == 0:
         return False
@@ -208,6 +222,10 @@ def build_ticker(sym: str, *, served: bool, rec, end: str, store: dict, yf: dict
         is_pre = [i < npre for i in range(len(bars))]
     else:
         bars = [list(r) + ["store"] for r in store.get("D") or ()]
+        cut = listing_cut(bars)
+        if cut:
+            S["store_rows_before_listing_break"] += cut
+            bars = bars[cut:]
         svs = store_vendor_start(bars, yf)
         vs = svs if svs is not None else "9999-12-31"
         is_pre = [b[0] < vs for b in bars]

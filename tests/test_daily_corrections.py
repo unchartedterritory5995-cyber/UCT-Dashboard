@@ -231,3 +231,12 @@ def test_verify_names_every_change_the_ledger_does_not_explain():
     after[2] = dict(after[2], c=1.5)
     dif = DC.diff_served(before, after)
     assert set(dif) == {DAYS[1], DAYS[2]}
+
+
+def test_rows_before_the_newest_listing_break_are_never_corrected():
+    """A reused ticker: another company's bars, a 200-day gap, then today's company. The serve path cuts the head."""
+    old = [[t, 5.0, 5.0, 5.0, 5.0, 0.0] for t in _days(30, "2004-01-02")]          # fillers of another security
+    st = old + _stored()
+    rows, entries, S, _ = _build({f"SPY|{BAD}": _minutes()}, store={"D": st})
+    assert not [x for x in entries if x["d"] < DAYS[0]]
+    assert S["store_rows_before_listing_break"] == 30

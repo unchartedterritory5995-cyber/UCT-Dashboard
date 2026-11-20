@@ -297,6 +297,71 @@ def fetch(sym, tf, nbars):
     raise RuntimeError(f"{sym} {tf}: refused five times")
 
 
+def _yahoo_frames(syms, backoff=60.0, sleep=3.0, chunk=40, max_refusals=5):
+    """{sym: DataFrame} from yfinance (period=max, auto_adjust=False: split-adjusted, the app's basis). Polite: 40 per
+    call, 3 s between calls, 60 s doubling to 900 s on a 429 (the production breaker's numbers), stops after 5 refusals."""
+    import yfinance as yf
+    try:
+        from yfinance.exceptions import YFRateLimitError
+    except Exception:  # noqa: BLE001
+        YFRateLimitError = Exception
+    out, refusals, wait = {}, 0, backoff
+    syms = sorted(set(syms))
+    k = 0
+    while k < len(syms):
+        part = syms[k:k + chunk]
+        try:
+            data = yf.download(part, period="max", auto_adjust=False, actions=False, group_by="ticker", progress=False,
+                               threads=True)
+        except YFRateLimitError:
+            refusals += 1
+            if refusals >= max_refusals:
+                raise SystemExit(f"Yahoo refused {refusals} times in a row; stopping at {part[0]}")
+            time.sleep(wait)
+            wait = min(wait * 2, 900.0)
+            continue
+        refusals, wait = 0, backoff
+        for s in part:
+            try:
+                df = (data[s] if len(part) > 1 else data).dropna(subset=["Close"])
+            except Exception:  # noqa: BLE001
+                continue
+            if len(df):
+                out[s] = df
+        k += chunk
+        time.sleep(sleep)
+    return out
+
+
+def cmd_yahoo(a):
+    """Re-fetch Yahoo for the symbols in --symbols-file under their own symbol AND every earlier vendor symbol of their
+    lineage (the rebuild's segments), merged per date (the current symbol wins). Writes one parquet under --dir."""
+    import pandas as pd
+    syms = [x.strip() for x in open(a.symbols_file) if x.strip()]
+    alt = {}
+    for s in syms:
+        rec = load_rebuild(a.joined, s)
+        alt[s] = [seg["sym"].replace(".", "-") for seg in (rec or {}).get("segments") or ()]
+    frames = _yahoo_frames(set(syms) | {x for v in alt.values() for x in v})
+    rows = []
+    for s in syms:
+        got = {}
+        for src in [s] + alt[s]:
+            df = frames.get(src)
+            if df is None:
+                continue
+            for i, r in df.iterrows():
+                d = str(i)[:10]
+                if d not in got:
+                    got[d] = (src, float(r["Open"]), float(r["High"]), float(r["Low"]), float(r["Close"]), float(r["Volume"] or 0))
+        rows += [(s, d, *v) for d, v in got.items()]
+    df = pd.DataFrame(rows, columns=["sym", "d", "yahoo_sym", "o", "h", "l", "c", "v"])
+    Path(a.dir).mkdir(parents=True, exist_ok=True)
+    df.to_parquet(Path(a.dir) / "refetch.parquet.tmp", index=False)
+    os.replace(Path(a.dir) / "refetch.parquet.tmp", Path(a.dir) / "refetch.parquet")
+    print("refetched", df.sym.nunique(), "symbols", len(df), "rows; via an earlier symbol:", int((df.sym != df.yahoo_sym).sum()))
+
+
 def cmd_capture(a):
     d = Path(a.dir)
     d.mkdir(parents=True, exist_ok=True)
@@ -346,7 +411,7 @@ def cmd_verify(a):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=("candidates", "minutes", "build", "publish", "capture", "verify"))
+    ap.add_argument("cmd", choices=("candidates", "minutes", "build", "publish", "capture", "verify", "yahoo"))
     ap.add_argument("--out", default="D:/uct-price-data/u3")
     ap.add_argument("--store", default="D:/uct-price-data/snapshot/x/bars.db")
     ap.add_argument("--joined", default="D:/uct-history/daily-v1/joined")
@@ -365,9 +430,10 @@ def main(argv=None):
     ap.add_argument("--symbols", default="")
     ap.add_argument("--before", default="")
     ap.add_argument("--after", default="")
+    ap.add_argument("--symbols-file", default="")
     a = ap.parse_args(argv)
     {"candidates": cmd_candidates, "minutes": cmd_minutes, "build": cmd_build, "publish": cmd_publish,
-     "capture": cmd_capture, "verify": cmd_verify}[a.cmd](a)
+     "capture": cmd_capture, "verify": cmd_verify, "yahoo": cmd_yahoo}[a.cmd](a)
 
 
 if __name__ == "__main__":
