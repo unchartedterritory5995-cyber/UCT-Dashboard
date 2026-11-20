@@ -58,6 +58,8 @@ const CHART = [...rthTimes(D1, 5), ...PRE, ...LIVE_RTH].map(bar)
 // a chart that trades in every OTHER slot of D1 (92 rows): it reaches the page's edge holding FEWER rows than the page
 const SPARSE = [...rthTimes(D1, 5).filter((_, k) => k % 2 === 0), ...LIVE_RTH].map(bar)
 const OPEN_D1 = ET(D1, 9, 30)
+/** `rows` without `day`'s first four regular bars (09:30-09:45): that session's opening bars missing, a hole */
+const withoutOpen = (rows, day) => rows.filter((b) => b.t < ET(day, 9, 30) || b.t > ET(day, 9, 45))
 
 const secondaryOf = (intraday, askedBars) => new Map([
   ['SPX', { bars: intraday, status: 'available', newestBarIsForming: true,
@@ -125,20 +127,26 @@ describe('the supply: older bars still coming are a WAIT; every other gap keeps 
     expect(s.runBars[s.index[0]].t).toBe(OPEN_D1)
     expect(s.runBars[s.index[0]].c).toBe(SPX_ALL[0].c)
   })
+  // ⚠️ THE HOLE THIS GRID HOLDS is a session missing its OPENING bars (tailLag.test.js's): a bar missing mid-session is
+  // read at-or-before (the slot carries the bar before it, TradingView's witnessed reading), never withheld. ⚰️ This
+  // rail's first draft dropped one mid-session bar, and both controls read no hole: the fixture's, not the product's.
+  it('a bar missing mid-session is read at-or-before, never a hole (the grid\'s own reading)', () => {
+    const sup = supplyOf(CHART, SPX_ALL.filter((b) => b.t !== ET(D1, 13, 0)), 5000)
+    expect(sup.refusal).toBeNull()
+    expect(sup.pending).toBe(false)
+  })
   it('⛔ CONTROL: a true hole on a FULL supply (the store\'s whole depth) is still refused, with its sentence and no knownFrom', () => {
-    const missing = ET(D1, 13, 0)
-    const sup = supplyOf(CHART, SPX_ALL.filter((b) => b.t !== missing), 5000)
+    const sup = supplyOf(CHART, withoutOpen(SPX_ALL, D2), 5000)
     expect(sup.pending).toBe(false)
     expect(sup.refusal.guard).toBe(REQUEST_GUARD)
-    expect(holeAt(sup)).toBe(missing)
+    expect(holeAt(sup)).toBe(ET(D2, 9, 30))
     expect(sup.refusal.knownFrom).toBeUndefined()
   })
   it('⛔ CONTROL: a hole INSIDE a partial page is refused: a deeper page never fills it, and a wait never hides it', () => {
-    const missing = ET(D2, 10, 0)
-    const page = PAGE.filter((b) => b.t !== missing)
+    const page = withoutOpen(PAGE, D2)
     const sup = supplyOf(CHART, page, page.length)
     expect(sup.pending).toBe(false)
-    expect(holeAt(sup)).toBe(missing)
+    expect(holeAt(sup)).toBe(ET(D2, 9, 30))
   })
   it('⛔ CONTROL: a page that holds FEWER rows than it asked is the store\'s whole depth: today\'s rule (refused)', () => {
     // asked between the page's rows and the chart's, so only the fill test (not the chart's depth) can say "no deeper"
