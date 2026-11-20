@@ -7,7 +7,9 @@ everything below. Each key reproduces the collector's (uct-intelligence
 `scripts/breadth_collector.py`, origin/master 2026-10-10) definition, from a source the web
 pod already has:
 
-  sp500_close                       yfinance ^GSPC (the collector's own source)
+  sp500_close                       the licensed daily index feed (FMP ^GSPC, the daily
+                                    primary of `api/index_bars.py`); yfinance ^GSPC (the
+                                    collector's own source) when it has no row
   rsp_close, iwm_close,             bars.db daily closes (RSP, IWM, SPY, QQQ)
   rsp_spy_ratio, iwm_qqq_ratio
   vix, vxn, avg_10d_vix,            Cboe's own daily CSVs (`market_indicators.cboe_store`;
@@ -34,7 +36,7 @@ from __future__ import annotations
 import logging
 import math
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 import numpy as np
@@ -325,7 +327,40 @@ def dist_days(conn, ts: int) -> dict:
 
 # ── external sources ─────────────────────────────────────────────────────────
 
+#: How far back the licensed read asks, so a holiday-shortened week still returns rows. Only
+#: the row dated exactly the session asked for is ever used.
+SP500_LOOKBACK_DAYS = 7
+
+
+def _sp500_close_licensed(date_iso: str) -> Optional[float]:
+    """The S&P 500 close for exactly `date_iso` from the licensed daily index feed (the same
+    read `api/index_bars.py` uses as its daily primary), or None. One request. Never a
+    neighbouring session's close and never a zero: a missing or unparseable row is None, and
+    the caller falls back."""
+    try:
+        from api.services import fmp_client
+        day = date.fromisoformat(date_iso)
+        raw = fmp_client.get_index_history_eod_full(
+            "^GSPC", (day - timedelta(days=SP500_LOOKBACK_DAYS)).isoformat(), date_iso).value
+    except Exception as e:                         # noqa: BLE001 -- the caller falls back
+        _log.info("[eod-extras] licensed S&P close not read for %s: %s", date_iso, type(e).__name__)
+        return None
+    if not isinstance(raw, list):
+        return None
+    for r in raw:
+        if isinstance(r, dict) and str(r.get("date"))[:10] == date_iso:
+            c = _f(r.get("close"))
+            if c is not None and c > 0:
+                return round(c, 2)
+    return None
+
+
 def sp500_close(date_iso: str) -> Optional[float]:
+    """The session's S&P 500 close: the licensed daily index feed first, yfinance ^GSPC (the
+    collector's own source) only when that feed has no row for the session."""
+    licensed = _sp500_close_licensed(date_iso)
+    if licensed is not None:
+        return licensed
     from api.services import yf_util
 
     def _get():

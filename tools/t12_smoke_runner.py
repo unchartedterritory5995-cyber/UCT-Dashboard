@@ -240,6 +240,17 @@ def step0_sign_in(page, run, creds) -> tuple[str, str]:
     if not submitted:
         page.keyboard.press("Enter")
     page.wait_for_timeout(7000)
+    if email.strip().lower().endswith("@uctintelligence.internal"):
+        # tools/synthetic_session.py takes the session the FORM just made (this context is
+        # fresh) and signs it OUT when the run ends, however it ends.
+        try:
+            from tools import synthetic_session as S  # noqa: PLC0415 — package import
+        except ImportError:
+            import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+        try:
+            S.adopt_playwright(page, BASE, credentials=creds)
+        except S.SignInError as exc:
+            return FAIL, f"sign-in did not take as the expected account ({exc})"
     me = page.evaluate("""async () => {
       const r = await fetch('/api/auth/me', {credentials:'include'});
       let b = null; try { b = await r.json() } catch {}

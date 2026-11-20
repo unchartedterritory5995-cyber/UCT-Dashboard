@@ -415,6 +415,24 @@ def get_index_history_eod_full(index_symbol: str, from_date: str, to_date: str, 
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
+def get_index_intraday(index_symbol: str, interval: str, from_date: str, to_date: str, *,
+                       timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Intraday OHLCV for a cash index in a date window (`/stable/historical-chart/{interval}`,
+    `interval` one of FMP's `1min` / `5min` / `15min` / `30min` / `1hour`): `[{date, open, low,
+    high, close, volume}, ...]`, NEWEST FIRST, `date` the bar's START as Eastern wall-clock text
+    ("2026-02-02 09:30:00"), `volume` may be null. The shape this repo already parses on the same
+    endpoint (`bars_fetch._fetch_intraday_fmp`, provider-ledger.md "FMP timestamps are ET text").
+
+    The ONE caller is `api/index_bars.py`'s hole repair: settled sessions only, the sessions
+    Yahoo's answer lacks (2026-11-18: ^GSPC 60m had no 2026-01-30 11:30 .. 2026-02-02 12:30 ET and
+    no 12:30 bar on any half-day). Same data class, vendor and audience as the daily index
+    primary above (licensing row ("fmp", "indices"))."""
+    return _fetch(f"/stable/historical-chart/{interval}",
+                   {"symbol": _fmp_index_symbol(index_symbol), "from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_index_intraday", data_class="indices",
+                   not_found_if=_empty_list, freshness="historical", timeout=timeout)
+
+
 def get_earnings(ticker: str, *, limit: int = 20, timeout: Optional[int] = None) -> _pe.ProviderResult:
     return _fetch("/stable/earnings", {"symbol": ticker.upper(), "limit": limit},
                    source_activity="fmp_client.get_earnings", data_class="earnings",
@@ -642,6 +660,9 @@ def get_cash_flow_statement(ticker: str, *, period: str = "quarter", limit: int,
 #       Both consumers are owner-excluded from this branch, so a typed
 #       function for either would be adapter surface no authorized caller
 #       could ever migrate onto. Recorded, deliberately not built.
+#       ⭐ 2026-11-18: built for a NEW caller, `get_index_intraday` above (cash
+#       indices only, `api/index_bars.py`'s hole repair). `bars_fetch`'s equity
+#       fallback still builds its own URL and is NOT migrated by that change.
 #
 # Also deliberately excluded: every FMP path that appears ONLY inside
 # `api/routers/earnings.py::debug_earnings_sources` (`/stable/earnings-
@@ -764,14 +785,21 @@ def get_grades_news(ticker: str, *, limit: Optional[int] = None, timeout: Option
     per date with no firm attached; this one carries the
     `gradingCompany`/`action`/`previousGrade`/`newGrade` fields.
 
-    `data_class="analyst_grades"` (not "news") because the payload IS the
-    grade action — the `newsURL`/`newsPublisher` fields are the citation
-    for it, not the content."""
+    `data_class="analyst_actions_news"` — neither "news" nor "analyst_grades"
+    (2026-11-19). The payload IS a grade action, but its ORIGIN is TheFly /
+    StreetInsider: the live capture in tests/test_analyst_intel_fmp_shapes.py
+    reads `newsPublisher: "TheFly"`, `newsURL: thefly.com/...`. Licensing
+    register T-45 names that sublicence chain and holds it at U even with the
+    DDLA, so the pair is deliberately UNREGISTERED in
+    `provider_licensing_class._TABLE` and stamps "U". ⚰️ It stamped
+    "analyst_grades" until the 2026-11-19 restatement moved that class to LA
+    (T-34): the split had to land first, or the restatement would have
+    reached a TheFly-origin feed."""
     params: dict = {"symbol": ticker.upper()}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-news", params,
-                   source_activity="fmp_client.get_grades_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
@@ -780,12 +808,16 @@ def get_grades_latest_news(*, limit: Optional[int] = None, timeout: Optional[int
     (`/stable/grades-latest-news`) — `catalyst/sources.py`'s analyst pull.
     Market-wide, not per-symbol, so like `get_earnings_calendar` /
     `get_economic_calendar` / `get_ipo_calendar` it does NOT take
-    `ticker: str`; the caller filters by symbol from the returned rows."""
+    `ticker: str`; the caller filters by symbol from the returned rows.
+
+    `data_class="analyst_actions_news"`, unregistered, stamps "U": this is
+    the endpoint licensing register T-45 names (TheFly + StreetInsider
+    origin, DDLA U). See `get_grades_news` above."""
     params: dict = {}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-latest-news", params,
-                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 

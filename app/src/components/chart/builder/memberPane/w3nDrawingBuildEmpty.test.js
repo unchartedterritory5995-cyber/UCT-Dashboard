@@ -91,9 +91,10 @@ describe('W3W4-D2 — the door names the drawing build\'s refusal, not the value
     expect(own.probe.objectOps).toBeGreaterThan(0)
   })
 
-  it('control: the same host drawing with a plot (value build stands) keeps the host program', () => {
+  it('the same host drawing with a plot (value build stands): the run draws, the clean host program rides beside it (PARITY UNIT LF)', () => {
     const t = translatePine(HOST_DRAWS_AND_PLOTS, {})
     const own = runtimeOwnObjectsOf({ source: HOST_DRAWS_AND_PLOTS, t })
-    expect(own.probe).toBeNull()
+    expect(own.probe && own.probe.ok).toBe(true)
+    expect(own.hostFallback).toBe(true)
   })
 })

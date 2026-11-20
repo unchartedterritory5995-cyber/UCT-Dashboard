@@ -229,7 +229,13 @@ def test_the_COOKIE_PATH_does_not_reach_the_historical_cache_surfaces():
     for other in ("/api/history/AAPL", "/api/histogram", "/api/bars/AAPL", "/api/bars-history/AAPL",
                   "/api/bars-today-pack", "/api/coverage", "/api/auth/me"):
         assert not rfc6265_sends(h, other), other
-    assert cet.COOKIE_PATHS == (cet.COOKIE_PATH, cet.HIST_COOKIE_PATH)
+    # The live chart stream's cookie path reaches that one stream and nothing else.
+    st = cet.STREAM_COOKIE_PATH
+    assert rfc6265_sends(st, "/api/stream/bars")
+    for other in ("/api/stream/prices", "/api/stream/bars-v3", "/api/stream", "/api/stream/status",
+                  "/api/bars/AAPL", "/api/auth/me"):
+        assert not rfc6265_sends(st, other), other
+    assert cet.COOKIE_PATHS == (cet.COOKIE_PATH, cet.HIST_COOKIE_PATH, cet.STREAM_COOKIE_PATH)
 
 
 def test_the_HISTORY_cookie_path_IS_the_worker_route_prefix():

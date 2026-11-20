@@ -8,7 +8,7 @@ import { createRegistry } from './registry'
 import { createNetwork, barsHistoryUrl } from './network'
 import { keyOf } from './types'
 import { FIRST_PAINT_BARS, fullBarsFor } from '../../utils/barsBackfill'
-import { lastSealedDate, etPeriodStartISO } from '../../utils/barsHistorySplit'
+import { lastSealedDate, etPeriodStartISO, calendarSealedDate, historySealedDate } from '../../utils/barsHistorySplit'
 
 const T0 = Date.UTC(2026, 10, 10, 15, 0)   // Tue 2026-11-10 10:00 ET
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(T0); localStorage.removeItem('uct.barsHistory.enabled'); localStorage.setItem('uct.barsHistory.bucket', '5') })
@@ -27,10 +27,11 @@ function weekdays(n, last) {
 }
 const bar = (t, c = 100) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 })
 
-function world({ history = 'ok', depth = fullBarsFor('D') } = {}) {
+function world({ history = 'ok', depth = fullBarsFor('D'), tailLast = '2026-11-10', tailGate = null } = {}) {
   const calls = []
   const request = vi.fn(async (url) => {
     calls.push(url)
+    if (tailGate && url.startsWith('/api/bars/')) await tailGate   // the tail answers when the test says
     if (url.startsWith('/api/bars-history/')) {
       if (history === 'throw') throw Object.assign(new Error('edge down'), { status: 502 })
       if (history === 'unsealed') return { ticker: 'SIM', tf: 'D', bars: [], sealed: false }
@@ -39,7 +40,7 @@ function world({ history = 'ok', depth = fullBarsFor('D') } = {}) {
       return { ticker: 'SIM', tf: 'D', sealed: true, last_sealed: '2026-11-09', bars: weekdays(3000, '2026-11-09').map((t) => bar(t)) }
     }
     const n = Number(/[?&]bars=(\d+)/.exec(url)[1])
-    return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, 3001), '2026-11-10').map((t) => bar(t)) }
+    return { ticker: 'SIM', tf: 'D', bars: weekdays(Math.min(n, 3001), tailLast).map((t) => bar(t)) }
   })
   const registry = createRegistry({ ctx: () => ({ nowMs: Date.now() }) })
   const net = createNetwork({ registry, request, isHidden: () => false, onVisible: () => () => {} })
@@ -133,5 +134,59 @@ describe('BarStore D/W/M split: tail from the origin, deep sealed history from t
     expect(lastSealedDate([...held].reverse(), 'D', now)).toBe('2026-11-09')   // order does not matter
     // 20:30 ET on Tuesday is still Tuesday (not UTC's Wednesday)
     expect(etPeriodStartISO('D', Date.UTC(2026, 10, 11, 1, 30))).toBe('2026-11-10')
+  })
+
+  it("the daily d is the NYSE calendar's last session before today (api/routers/bars.py calendar_last_sealed_day)", () => {
+    const et = (y, mo, d, h, mi) => Date.UTC(y, mo - 1, d, h + 5, mi)   // EST (UTC-5) wall clock
+    expect(calendarSealedDate('D', et(2026, 11, 10, 10, 0))).toBe('2026-11-09')    // Tue -> Mon
+    expect(calendarSealedDate('D', et(2026, 11, 23, 9, 0))).toBe('2026-11-20')     // Mon -> Fri (the weekend)
+    expect(calendarSealedDate('D', et(2026, 11, 27, 10, 0))).toBe('2026-11-25')    // Fri -> Wed (Thanksgiving 11-26)
+    expect(calendarSealedDate('D', et(2026, 11, 28, 10, 0))).toBe('2026-11-27')    // Sat -> the half day
+    expect(calendarSealedDate('D', et(2026, 11, 10, 23, 30))).toBe('2026-11-09')   // 23:30 ET Tue is still Tue
+    expect(calendarSealedDate('D', et(2026, 11, 11, 0, 30))).toBe('2026-11-10')    // 00:30 ET Wed rolls
+    expect(calendarSealedDate('W', et(2026, 11, 10, 10, 0))).toBe('')              // W/M keep the held-bars rule
+    expect(calendarSealedDate('M', et(2026, 11, 10, 10, 0))).toBe('')
+    // a ticker that did not trade yesterday still asks the calendar's URL (the one the sweep warmed)
+    expect(historySealedDate('D', ['2026-11-04', '2026-11-05'], et(2026, 11, 10, 10, 0))).toBe('2026-11-09')
+    expect(historySealedDate('W', ['2026-10-30', '2026-11-06', '2026-11-09'], et(2026, 11, 10, 10, 0))).toBe('2026-11-06')
+  })
+
+  it('the history job asks the calendar URL even when the tail has no bar for yesterday', async () => {
+    // an illiquid ticker: its newest bar is last Thursday (no trade Friday or Monday). The held-bars
+    // rule would ask d=2026-11-05, a URL the sweep never warmed; the calendar's is the warmed one.
+    const w = world({ tailLast: '2026-11-05' })
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(50)
+    expect(histCalls(w)).toEqual([`/api/bars-history/SIM?tf=D&bars=${fullBarsFor('D')}&d=2026-11-09`])
+  })
+
+  it('a primed history is taken by the job: one request, and the join is the same as asking it after the tail', async () => {
+    let openTail
+    const w = world({ tailGate: new Promise((resolve) => { openTail = resolve }) })
+    const primed = w.net.deepPrime(w.key, { priority: 'visible', want: true })
+    w.net.fetchOnce(w.key, { depth: w.depth })
+    await vi.advanceTimersByTimeAsync(20)
+    // the history is on the wire while the tail has NOT answered (it used to wait for that answer)
+    expect(w.calls.map((u) => (u.startsWith('/api/bars-history/') ? 'history' : 'tail')).sort()).toEqual(['history', 'tail'])
+    expect(w.registry.getSnapshot(w.key).depth).toBe(0)
+    await expect(primed).resolves.toBe(true)                // the history already arrived ...
+    expect(w.net.deepPending(w.key)).toBe(true)             // ... and waits for the tail to join it
+    openTail()
+    await vi.advanceTimersByTimeAsync(50)
+    await expect(primed).resolves.toBe(true)
+    expect(histCalls(w).length).toBe(1)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
+    expect(w.net.deepPending(w.key)).toBe(false)
+    await expect(w.net.deepJoined(w.key, 10)).resolves.toBe(true)
+  })
+
+  it('a caller joining a shallow tail with more depth still gets the history join', async () => {
+    const w = world()
+    w.net.fetchOnce(w.key)                              // a shallow ask (no history wanted) ...
+    w.net.fetchOnce(w.key, { depth: w.depth })          // ... joined by a deep one before it answers
+    await vi.advanceTimersByTimeAsync(50)
+    expect(tailBars(w)).toEqual([FIRST_PAINT_BARS])
+    expect(histCalls(w).length).toBe(1)
+    expect(w.registry.getSnapshot(w.key).depth).toBe(3000)
   })
 })

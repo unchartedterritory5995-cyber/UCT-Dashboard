@@ -41,10 +41,12 @@ const consensus = (currency, rows) => ({
   annual: rows, quarterly: [], currency,
 })
 const estimates = (c, extra = {}) => ({
-  sym: 'X', entity: null, forward: [], revisions: [], consensus: c,
-  sources: { forward: 'Yahoo Finance', revisions: 'Yahoo Finance', consensus: 'FMP' },
+  sym: 'X', entity: null, forward: [], consensus: c,
+  sources: { forward: 'Yahoo Finance', consensus: 'FMP' },
   reporting_currency: c?.currency ?? null, ...extra,
 })
+// The revisions card's own read (`?revisions=1`): one source, named in the answer.
+const revisionsRead = (rows) => ({ sym: 'X', revisions: rows, sources: { revisions: 'Yahoo Finance' } })
 
 const Q = ['Q3 2025', 'Q4 2025', 'Q1 2026', 'Q2 2026']
 const history = (sym, currency) => ({
@@ -125,15 +127,18 @@ describe('EE — TSM in TWD, NVDA in USD', () => {
     routes['/api/research/estimates/TSM?consensus=1'] = estimates(
       { state: 'empty', annual: [], quarterly: [], currency: 'TWD' },
       { forward: [{ period: 'Current Yr', eps_avg: 16.95, eps_low: 15.23, eps_high: 17.8,
-        num_analysts: 20, eps_growth: 30, rev_avg: 5.443e12 }],
-      revisions: [{ period: 'Current Yr', current: 16.95, ago30: 16.5, ago90: 15.9, up30: 4, down30: 0 }] })
+        num_analysts: 20, eps_growth: 30, rev_avg: 5.443e12 }] })
+    routes['/api/research/estimates/TSM?revisions=1'] = revisionsRead(
+      [{ period: 'Current Yr', current: 16.95, ago30: 16.5, ago90: 15.9, up30: 4, down30: 0 }])
     mount(<ConsensusEstimates sym="TSM" />)
     const fb = await screen.findByTestId('ee-fallback')
     expect(fb).toHaveTextContent('TWD 5.44T')
     expect(fb).toHaveTextContent('16.95')
     expect(fb).not.toHaveTextContent('$16.95')
     expect(within(fb).getByTestId('ee-yahoo-currency')).toHaveTextContent('Revenue in TWD')
-    expect(screen.getByTestId('ee-revisions')).not.toHaveTextContent('$16.95')
+    const revs = await screen.findByTestId('ee-revisions')
+    expect(revs).toHaveTextContent('16.95')
+    expect(revs).not.toHaveTextContent('$16.95')
   })
 })
 

@@ -47,7 +47,7 @@ from api.services.bars_fetch import (
 # Re-export module for any consumer that imports `from api.routers import bars`
 from api.services import bars_fetch as _bars_fetch  # noqa: F401
 
-# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — Schwab's
+# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — the equity bar
 # /pricehistory silently returns empty for these, so route through yfinance.
 # See api/index_bars.py for the symbol map and divisor logic.
 from api.index_bars import is_index, fetch_index_bars
@@ -874,13 +874,18 @@ def _since_key(since, tf: str):
 
 def _augment_with_contract(response, ticker: str, tf: str, session: str | None, *,
                            store_backed: bool, tail_status: bool, to: bool = False,
-                           meta: dict | None = None, since_key: int | None = None):
+                           meta: dict | None = None, since_key: int | None = None,
+                           own_history_rev: bool = False):
     """THE BAR CONTRACT (docs/architecture/bar-contract.md) onto EVERY 200 bars answer
     — every tf, every serve branch, full / `since=` / `to=` alike — in ONE parse that
     also carries `tail_status` where it always applied (`tail_status=True`: live equity
     intraday, not replay). Additive: `bars` is untouched. Computed by
     `bar_contract.compute`, the one implementation. Returns the response unchanged on
-    ANY problem — a contract field must never break a chart serve."""
+    ANY problem — a contract field must never break a chart serve.
+
+    `own_history_rev`: the answer states its own `history_rev` (a cash index: the time its
+    hole repair last changed held history, `index_bars.repair_rth_holes`) and the contract,
+    which reads only bars.db, has none for it: the answer's own value stands."""
     try:
         payload = orjson.loads(response.body)
     except Exception:
@@ -891,6 +896,7 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
     if not isinstance(rows, list):
         return response
     headers = {}
+    own_hist = payload.get("history_rev") if own_history_rev else None
     try:
         from api.services import bar_contract
         fields = bar_contract.compute(ticker, tf, session, rows,
@@ -904,6 +910,8 @@ def _augment_with_contract(response, ticker: str, tf: str, session: str | None, 
     except Exception as e:                 # noqa: BLE001
         _bars_log.warning("[bars] contract fields failed %s tf=%s: %s", ticker, tf,
                           type(e).__name__)
+    if own_hist is not None and payload.get("history_rev") is None:
+        payload["history_rev"] = own_hist
     if tail_status and tf in _INTRADAY_TFS:
         try:
             if "contract" in payload and store_backed:
@@ -1090,6 +1098,10 @@ def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
         return resp
     payload["tf"] = "60"
     payload["session"] = "eth"
+    # A cash index's 15m hole-repair record (`index_bars._repair_fields`) names 15m buckets and
+    # 15m sessions; it does not describe the hours derived here, so it is not passed on as theirs.
+    for k in ("repaired", "holes", "holes_total"):
+        payload.pop(k, None)
     base_contract = {k: payload.get(k) for k in ("series_rev", "history_rev", "sealed_through",
                                                  "verified_through", "complete_through")}
     rows = payload.get("bars")
@@ -1189,10 +1201,10 @@ def _serve_bars_impl(
     _meta_pre = None
     try:
         try:
-            # Schwab /pricehistory doesn't serve cash-settled indexes — silently
+            # The equity bar path doesn't serve cash-settled indexes — silently
             # returns empty bar arrays for SPX/NDX/VIX/RUT/DJX/XSP/XND. Route
             # these through yfinance instead (SPX → ^GSPC, etc.). Equity and ETF
-            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing Schwab
+            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing equity
             # path unchanged.
             # DELISTED entity (dead company — Yahoo, Enron, Bear Stearns): serve its
             # FROZEN historical bars from an isolated path that fetches the provider symbol
@@ -1425,7 +1437,7 @@ def _serve_bars_impl(
                     response, ticker, tf, session,
                     store_backed=_live_equity and get_serve_layer() != "yf-only",
                     tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre,
-                    since_key=_since_key(since, tf))
+                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker))
             except Exception:
                 pass
 
@@ -1502,6 +1514,31 @@ def _period_start_iso(tf: str) -> str:
     if tf == "M":
         return today.replace(day=1).isoformat()
     return today.isoformat()
+
+
+def calendar_last_sealed_day() -> str:
+    """The last NYSE trading day strictly before today (ET), as YYYY-MM-DD: the daily `d` EVERY browser sends.
+
+    The browser stamps its history request with the newest sealed bar of ITS tail (`lastSealedDate`,
+    utils/barsHistorySplit.js), and the tail (/api/bars) holds yesterday's bar as soon as the session closes.
+    The worker's deep store can lag a day behind after a restart (its D/W/M refresh is a ~13,000-symbol queue),
+    so its own `last_sealed` cannot be the authority for which URL is the current one. Measured 2026-11-19
+    02:20 ET: browsers asked d=2026-11-18 while the worker answered last_sealed=2026-11-17, so every daily
+    history was served with the short 1 h cache and rebuilt on each cold edge (1-2 s), and the pre-warm sweep
+    warmed the 11-17 URLs nobody asked for. "" if the calendar cannot answer.
+    """
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    from api.services import session_calendar as _sc
+    day = datetime.now(ZoneInfo("America/New_York")).date() - timedelta(days=1)
+    for _ in range(14):
+        try:
+            if _sc.is_trading_day(day):
+                return day.isoformat()
+        except Exception:  # noqa: BLE001 - the calendar never decides by raising
+            return ""
+        day -= timedelta(days=1)
+    return ""
 
 
 def _is_iso_date(t) -> bool:
@@ -1615,7 +1652,12 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
         if if_none_match and etag in [t.strip() for t in if_none_match.split(",")]:
             from fastapi.responses import Response as _Resp
             return _Resp(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
-    elif d and last_sealed and d == last_sealed:
+    elif d and last_sealed and (d == last_sealed or (
+            # ⭐ D: the CURRENT boundary by the calendar, even when this store's newest sealed bar is older (a
+            # worker catching up after a restart). The content then ends a day or two early; the browser's
+            # always-fresh /api/bars tail covers those days, exactly as it covers a late correction (see the
+            # policy above). Only ever the calendar's day, never a future or an older one.
+            tfu == "D" and last_sealed < d and d == calendar_last_sealed_day())):
         out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
@@ -1700,15 +1742,54 @@ async def get_bars_history(
         # composed on the web pod (collector rows + the OHLC store + the breadth authority
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
         try:
-            return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
+    resp = await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
                                    if_none_match=request.headers.get("if-none-match", ""))
+    return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+
+
+# ⭐⭐ A LENGTH, OR CACHE RESERVE NEVER KEEPS IT (2026-11-19). Cloudflare's Cache Reserve (the
+# persistent tier behind the edge) stores only responses that carry a Content-Length; a chunked
+# response is refused (developers.cloudflare.com/cache/advanced-configuration/cache-reserve,
+# eligibility). This route's IMMUTABLE answers went out chunked whenever the client asked for gzip,
+# which Cloudflare always does: a middleware inside GZip re-streams the body in several messages, so
+# GZipMiddleware takes its streaming branch and drops the length (measured against the origin: gzip
+# -> `transfer-encoding: chunked`, no length; identity -> `content-length: 873380`). The deep daily
+# history therefore lived only in the ordinary edge cache, which evicts it within hours: at 10:00 ET
+# on 2026-11-19, 0 of 100 tickers the 04:00 sweep had stocked were still cached, and every first
+# open of a daily chart paid the 2-3 s origin build again.
+# The body is gzipped ONCE here, with its length; GZipMiddleware passes an already-encoded response
+# through untouched (`content_encoding_set`), and the length survives to the client.
+GZIP_WITH_LENGTH_MIN_BYTES = 1000
+
+
+def gzip_with_length(resp, accept_encoding: str, *, level: int = 5):
+    """`resp` gzipped with a Content-Length when the client accepts gzip and it is a 200 worth
+    compressing; otherwise `resp` unchanged. Headers (Cache-Control, ETag, Server-Timing) carry over."""
+    import gzip as _gzip
+    from starlette.responses import Response as _Resp
+    body = getattr(resp, "body", None)
+    if (getattr(resp, "status_code", 0) != 200 or not isinstance(body, (bytes, bytearray))
+            or len(body) < GZIP_WITH_LENGTH_MIN_BYTES
+            or "gzip" not in (accept_encoding or "").lower()
+            or "content-encoding" in resp.headers):
+        return resp
+    packed = _gzip.compress(bytes(body), compresslevel=level, mtime=0)
+    headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding")}
+    out = _Resp(content=packed, status_code=200, headers=headers)
+    out.headers["Content-Encoding"] = "gzip"
+    out.headers["Content-Length"] = str(len(packed))
+    vary = out.headers.get("vary", "")
+    if "accept-encoding" not in vary.lower():
+        out.headers["Vary"] = (vary + ", " if vary else "") + "Accept-Encoding"
+    return out
 
 
 @router.post("/api/admin/warm-universe")

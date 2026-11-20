@@ -575,6 +575,18 @@
    "source": "s21",
    "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
    "claim": "We never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h4",
+   "source": "s21",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "Our stop sits a few cents under the low of the day."
+  },
+  {
+   "id": "h5",
+   "source": "s21",
+   "quote": "A tight stop never justifies a bigger position than that: a gap can jump the stop.",
+   "claim": "A tight stop never justifies a bigger position, because a gap can jump the stop."
   }
  ],
  "walkthroughs": [
@@ -582,10 +594,10 @@
    "key": "w1",
    "title": "The price you saw, the price you got",
    "steps": [
-    "Hit enter and your order goes to your broker first. The broker picks the market.",
-    "That trip takes time, and a quote covers only so many shares.",
-    "So your fill can land away from the quote. That gap is slippage.",
-    "Fast markets and big orders widen it. On a stop, it can cost more than you planned."
+    "You hit buy and the order goes to your broker first, not straight to the market. The broker picks where it fills.",
+    "That trip takes time. And the quote you saw only covers so many shares.",
+    "So you get filled away from the quote. That gap is slippage, and it comes out of your money.",
+    "Fast markets and big orders make it worse. On a stop, it can cost you more than you planned."
    ],
    "facts": [
     "f01",
@@ -604,9 +616,10 @@
    "key": "w2",
    "title": "Partial fills and your place in line",
    "steps": [
-    "A limit order can fill in part. Some shares now, the rest later or never.",
-    "Orders at one price usually fill in line, first come, first served. A trade at your limit is no promise.",
-    "All-or-none waits for the full size. Immediate-or-cancel takes what's there and cancels the rest."
+    "A limit order can fill in pieces. Some shares now, the rest later, or never.",
+    "Orders at one price fill first come, first served. So it can trade right at your limit and still skip you.",
+    "All-or-none waits for every share. Immediate-or-cancel grabs what's there and cancels the rest.",
+    "Me, I market order everything. The stop sits with the broker."
    ],
    "facts": [
     "f46",
@@ -616,16 +629,18 @@
     "f47",
     "f14",
     "f15",
-    "f12"
+    "f12",
+    "h1"
    ]
   },
   {
    "key": "w3",
    "title": "Fills outside the regular session",
    "steps": [
-    "Before the open and after the close, fewer people trade. Spreads usually widen, or quotes vanish.",
-    "Your order may fill in part or not at all. Venues aren't linked, so your price can be worse.",
-    "That price may not hold into the next open. Ask your broker whether unfilled orders cancel."
+    "Before the open and after the close, fewer people are trading. Spreads widen, or there's no quote at all.",
+    "You might fill in part or not at all. The venues aren't linked, so your price can be worse.",
+    "And that price may not hold into the open. Ask your broker if unfilled orders cancel or carry over.",
+    "For us it's simple: no new buys outside regular hours."
    ],
    "facts": [
     "f21",
@@ -637,7 +652,8 @@
     "f22",
     "f30",
     "f19",
-    "f31"
+    "f31",
+    "h2"
    ]
   }
  ],
@@ -648,27 +664,27 @@
    "rung": 1,
    "format": "mcq",
    "term": "slippage",
-   "q": "What is slippage on a trade?",
+   "q": "You planned to buy at $45.00 and got filled at $45.20. What do you call that gap?",
    "choices": [
-    "Gap between expected price and fill",
-    "Bid-ask spread shown on the quote",
-    "Commission your broker charges per trade",
-    "Gap between the day's high and low"
+    "Slippage",
+    "The spread",
+    "Your commission",
+    "The day's range"
    ],
-   "answer": "Gap between expected price and fill",
-   "why": "The gap between the price you expected and your fill. Schwab defines slippage as a trade executed at a different price than expected. It often comes from market movement or thin liquidity. Nasdaq frames it as the gap between estimated and actual trading costs. The spread and the commission you see before you trade are not slippage. A change in either can add to it.",
-   "lesson_line": "Slippage is the gap between the price you planned on and the price you got.",
+   "answer": "Slippage",
+   "why": "Slippage. You planned on $45.00 and got $45.20. That gap between the price you planned and the price you got is slippage. It comes from the market moving while your order travels, or from thin size at your price. The spread and the commission you can see before you click. Slippage is the part you didn't plan on, and it comes straight out of your money. So write the planned price next to every fill. That's how you find out what it's really costing you.",
+   "lesson_line": "Slippage is the price you planned versus the price you got. Track it, it's real money.",
    "facts": [
     "f36",
     "f32",
     "f23"
    ],
    "wrong": {
-    "Bid-ask spread shown on the quote": "The spread is a cost you can see before you trade. Slippage is the extra you didn't plan on.",
-    "Commission your broker charges per trade": "Commission is a fee you know before you trade. Slippage is the gap between the cost you expected and the cost you got.",
-    "Gap between the day's high and low": "That's the day's range. It says nothing about how your own order filled."
+    "The spread": "You see the spread on the quote before you click. Slippage is the extra past the price you planned on.",
+    "Your commission": "You know the commission before you trade. It isn't the gap between your planned price and your fill.",
+    "The day's range": "That's the day's high to its low. It says nothing about how your own order filled."
    },
-   "simple": "Slippage is the gap between the price you expected and the price you got, often because the market moved.",
+   "simple": "That's slippage, the gap between the price you planned on and the price you actually got.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -676,24 +692,24 @@
      "stable definition; Schwab, Nasdaq and FINRA agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "orders.slippage",
    "rung": 1,
    "format": "tf",
-   "q": "When you hit enter, your order goes straight to the exchange.",
+   "q": "You click Buy in your broker's app. The order goes straight to the exchange.",
    "answer": "False",
-   "why": "False. Your order goes over the internet to your broker first. The broker then decides which market to send it to. By the time it reaches that market, the price can be slightly or very different. Your broker has a duty to seek the best execution reasonably available.",
-   "lesson_line": "Your order travels before it fills. Price can move on the way.",
+   "why": "False. It goes to your broker first, over the internet. Your broker then picks the market that fills it. That trip takes time, and the price can move on the way, a little or a lot. Your broker has to seek the best execution it reasonably can. But nobody can freeze the market while your order travels. That's where slippage starts.",
+   "lesson_line": "Your order takes a trip before it fills. Price can move while it travels.",
    "facts": [
     "f01",
     "f02",
     "f04",
     "f66"
    ],
-   "simple": "False, your order goes to your broker first, and the broker picks the market that fills it.",
+   "simple": "False. Your order goes to your broker first, and your broker picks the market that fills it.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -701,7 +717,7 @@
      "stable; SEC facts confirmed on the page 2026-11-12"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -743,30 +759,31 @@
    "rung": 2,
    "format": "mcq",
    "term": "all-or-none order",
-   "q": "What does an all-or-none (AON) order do?",
+   "q": "You tick all-or-none (AON) on a 1,000-share buy limit. What does that do to your order?",
    "choices": [
-    "Fills the whole order or none of it",
-    "Fills what it can now, cancels the rest",
-    "Fills only at the closing price",
-    "Fills every share at the price you saw"
+    "All 1,000 shares or nothing",
+    "It fills what it can, cancels the rest",
+    "It fills only at the close",
+    "Every share at the price you saw"
    ],
-   "answer": "Fills the whole order or none of it",
-   "why": "Fills the whole order or none of it. The SEC defines all-or-none as an order that must execute in its entirety, or not at all. So it refuses a partial fill. It sets how many shares fill, not the price, and it does not pick the closing price.",
-   "lesson_line": "All-or-none means no partial fill. Every share, or none.",
+   "answer": "All 1,000 shares or nothing",
+   "why": "All 1,000 or nothing. AON refuses a partial fill. It controls how many shares you get, not the price and not the time of day. Someone uses it when a sliver of a position is worse to them than no position. We don't use it on entries. We market order the trigger, and an AON can sit there giving you nothing while the stock leaves without you.",
+   "lesson_line": "All-or-none means no partial fill. Every share, or nothing.",
    "facts": [
     "f14",
     "f48",
     "f62",
     "f12",
     "f63",
-    "f03"
+    "f03",
+    "h1"
    ],
    "wrong": {
-    "Fills what it can now, cancels the rest": "That order takes a partial fill and cancels the leftover. All-or-none refuses a partial fill.",
-    "Fills only at the closing price": "That's an on-close order. All-or-none is about how many shares fill, not when.",
-    "Fills every share at the price you saw": "All-or-none sets how many shares fill, not the price. A quote covers only a set number of shares, so your price can differ."
+    "It fills what it can, cancels the rest": "That's immediate-or-cancel. It takes a partial fill. AON refuses one.",
+    "It fills only at the close": "That's an on-close order. AON is about how many shares fill, not when.",
+    "Every share at the price you saw": "AON says nothing about price. A quote covers only so many shares, so your fill can still land away from it."
    },
-   "simple": "It fills the whole order or none of it, so you never get just part of your shares.",
+   "simple": "It fills all 1,000 shares or none of them, so you never end up with just part of the order.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -774,24 +791,24 @@
      "stable definition; SEC and Fidelity agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "orders.slippage",
    "rung": 3,
    "format": "tf",
-   "q": "An all-or-none order that can't fill right away is canceled.",
+   "q": "Your all-or-none buy can't fill in full right away. It gets canceled on the spot.",
    "answer": "False",
-   "why": "False. That describes fill-or-kill, which must fill completely at once or the whole order is canceled. An all-or-none order that can't fill at once stays active until it fills or is canceled. Both refuse a partial fill. Only fill-or-kill adds the time limit.",
-   "lesson_line": "Fill-or-kill: every share now, or cancel. All-or-none: every share, and it can wait.",
+   "why": "False. That's fill-or-kill. Fill-or-kill gets one shot: every share right now, or the whole order's canceled. All-or-none can wait. It stays working until it fills in full or you cancel it. Both refuse a partial fill, and the difference is time. On a day order, an AON that never fills is gone at the close anyway.",
+   "lesson_line": "Fill-or-kill: every share now or it's dead. All-or-none: every share, and it can wait.",
    "facts": [
     "f15",
     "f13",
     "f14",
     "f11"
    ],
-   "simple": "False, an all-or-none order that can't fill right away stays active until it fills or is canceled.",
+   "simple": "False. All-or-none keeps waiting until it fills in full or gets canceled, unlike fill-or-kill.",
    "deeper": {
     "trap": "Both names sound like everything or nothing, so traders mix them up. The difference is time. Fill-or-kill gets one instant, then it is gone. All-or-none can wait for the full size. A day order still generally cancels at the end of regular hours. So an all-or-none day order that never fills is gone by the close."
    },
@@ -802,7 +819,7 @@
      "fixed before (2026-11-09 checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -843,14 +860,15 @@
    "skill": "orders.slippage",
    "rung": 3,
    "format": "tf",
-   "q": "In extended hours, many of the traders you deal with are professionals, who generally have more information than you.",
+   "q": "After hours, a lot of the people trading against you are pros who know more than you do.",
    "answer": "True",
-   "why": "True. The SEC warns that many extended-hours traders are professional traders. By the nature of their job, they generally have access to more information than individual investors. 'Generally' is the SEC's word: it is a warning, not a rule about every trade.",
-   "lesson_line": "After hours, assume the other side knows more. Name your price with care.",
+   "why": "True. The SEC says it straight: many extended-hours traders are pros, with access to more information than you have. So think about who's on the other side of your order. After hours there are fewer people trading, and a lot of them do this for a living. That's one more reason we don't open new buys out of hours. If you have to sell out there, put a price on it with a limit. Don't hand them a market order.",
+   "lesson_line": "After hours, assume the other side knows more than you. Name your price.",
    "facts": [
-    "f20"
+    "f20",
+    "h2"
    ],
-   "simple": "True, the SEC warns that many after-hours traders are pros who often know more than you do.",
+   "simple": "True. Many after-hours traders are professionals with better information, so the other side of your order likely knows more.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -858,14 +876,14 @@
      "one cited fact only (SEC f20)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "orders.slippage",
    "rung": 3,
    "format": "mcq",
-   "q": "Which public report shows where a broker routes its customers' stock orders?",
+   "q": "You want to see where your broker sends your stock orders, and what it gets paid for them. What do you pull up?",
    "choices": [
     "The broker's Rule 606 report",
     "The broker's Rule 605 report",
@@ -873,8 +891,8 @@
     "Your own monthly account statement"
    ],
    "answer": "The broker's Rule 606 report",
-   "why": "The broker's Rule 606 report. Under SEC Rule 606, every broker or dealer must make public a report for each calendar quarter. It shows where the broker routed customer orders, and the net payment for order flow it received. Rule 605 is a different report: monthly data on the quality of executions.",
-   "lesson_line": "Your broker's Rule 606 report shows where it routes customer orders and what it was paid for them.",
+   "why": "The Rule 606 report. Every broker has to publish one each quarter. It shows where it routed customer orders and the payment for order flow it got back. Rule 605 is the other one, monthly numbers on how well orders filled. Read them together. One tells you where your orders go, the other how they fill. If your fills keep coming in worse than you expect, that's where I'd start looking.",
+   "lesson_line": "Your broker's 606 report shows where your orders go and what it was paid.",
    "facts": [
     "f34",
     "f35",
@@ -884,11 +902,11 @@
     "f57"
    ],
    "wrong": {
-    "The broker's Rule 605 report": "Rule 605 is the monthly report on execution quality: how orders filled. Where they went is Rule 606.",
+    "The broker's Rule 605 report": "605 is the monthly report on how well orders filled. Where they went is in 606.",
     "A quarterly report the SEC writes": "The SEC sets the rule, but each broker publishes its own routing report.",
-    "Your own monthly account statement": "The question asks for a public report. Every broker must make its Rule 606 routing report public for each calendar quarter."
+    "Your own monthly account statement": "Your statement shows your trades, not where the broker sent them. The routing is in the public 606 report."
    },
-   "simple": "The Rule 606 report, which every broker must publish each quarter to show where it sent customer orders.",
+   "simple": "Pull the broker's Rule 606 report. Every broker posts one each quarter that shows where it sent your orders.",
    "deeper": {
     "example": "Schwab says a Rule 606 report breaks down the venues, so investors see which ones handle most of their trades. Pair it with Rule 605, the monthly execution-quality data. One shows where orders go, the other how well they fill."
    },
@@ -900,14 +918,14 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "orders.slippage",
    "rung": 4,
    "format": "mcq",
-   "q": "Your buy stop at $50.00 triggers on a breakout. You're filled at $50.40. What was your slippage, in percent?",
+   "q": "The stock breaks out through $50.00 and your buy stop triggers. You're filled at $50.40. How much did you slip?",
    "answer": "0.8%",
    "calc": {
     "fn": "pct_change",
@@ -917,15 +935,15 @@
     }
    },
    "suffix": "%",
-   "why": "Slippage is fill minus trigger, over the trigger: $50.40 less $50.00, over $50.00. That is 0.8%. A stop becomes a market order at the trigger. A fast breakout can fill it above the trigger.",
-   "lesson_line": "Slippage % is the gap between fill and planned price, over the planned price. Log it on every trade.",
+   "why": "0.8%. You planned on $50.00 and paid $50.40, so $0.40 a share. $0.40 over $50.00 is 0.8%. A buy stop turns into a market order when it triggers, and a fast breakout can fill you above the trigger. On a real breakout I'll take a little slip to be in. But log it every time. Your stop sits under the low of the day, so every cent you slip is a cent more you lose if the trade fails.",
+   "lesson_line": "Slippage % is the gap between your fill and your planned price, over the planned price. Log it every trade.",
    "facts": [
     "f08",
     "f36",
     "f32",
     "f06"
    ],
-   "simple": "It is 0.8%, the gap between your $50.40 fill and the $50.00 trigger, measured against $50.00.",
+   "simple": "0.8%, because you paid $50.40 on a $50.00 trigger, and that gap over $50.00 is 0.8%.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -933,7 +951,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.4%",
     "0.08%",
@@ -941,7 +959,7 @@
     "0.8%"
    ],
    "wrong": {
-    "0.4%": "Read the cents gap as a percent. Divide it by the $50.00 trigger.",
+    "0.4%": "You read the $0.40 gap as a percent. Divide it by the $50.00 trigger.",
     "8.0%": "A decimal slip: 0.8% written as 8%.",
     "0.08%": "A decimal slip the other way: 0.8% written as 0.08%."
    }
@@ -951,7 +969,7 @@
    "skill": "orders.slippage",
    "rung": 4,
    "format": "mcq",
-   "q": "A stock trades about 300,000 shares a day. You want 2,000 shares. What percent of a day's volume is that?",
+   "q": "A stock trades about 300,000 shares a day. You want 2,000 shares. How big is your order next to a day's volume?",
    "answer": "0.67%",
    "calc": {
     "fn": "arith",
@@ -962,14 +980,15 @@
     }
    },
    "suffix": "%",
-   "why": "Divide your 2,000 shares by the 300,000 a day, then write it as a percent. That is 0.67%. That is small next to a whole day. But the day's volume never sits on the quote at once. An order that is large next to daily volume is hard to fill.",
-   "lesson_line": "Daily volume is spread across the session. A market order meets only what's offered right now.",
+   "why": "0.67%. 2,000 over 300,000 is 0.0067. Times 100, that's 0.67%. Small, and under our 1% cap on owning any stock. But the day's volume never sits on the quote at once. It trades all session long. Right now the ask may only show a few hundred shares. So even a small slice of the day can walk up through several prices if you send it all at once. Check the size on the ask before you hit it.",
+   "lesson_line": "Daily volume is spread over the whole session. Your order only meets what's offered right now.",
    "facts": [
     "f58",
     "f03",
-    "f60"
+    "f60",
+    "h3"
    ],
-   "simple": "About 0.67%, because 2,000 shares is a small slice of the 300,000 that trade in a whole day.",
+   "simple": "About 0.67%, a small slice of the day, but the day's volume is spread out and never all on the quote at once.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -978,7 +997,7 @@
      "fixed before (rounding instruction added)"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "6.7%",
     "0.0067%",
@@ -987,8 +1006,8 @@
    ],
    "wrong": {
     "6.7%": "A decimal slip: the point moved one place too far.",
-    "0.0067%": "Divided but forgot to turn the answer into a percent.",
-    "150%": "Flipped it: divided the day's volume by your order."
+    "0.0067%": "You divided but forgot to turn the answer into a percent.",
+    "150%": "Flipped it: that divides the day's volume by your order."
    }
   },
   {
@@ -996,8 +1015,8 @@
    "skill": "orders.slippage",
    "rung": 4,
    "format": "scenario",
-   "story": "A headline hits. Your screen shows a $25.10 ask with 2,000 shares. You send a market buy for 300 and fill at $25.60.",
-   "q": "What most likely caused the higher fill?",
+   "story": "A headline hits and the stock jumps. Your screen shows $25.10 on the ask, with 2,000 shares there. You market buy 300 and fill at $25.60.",
+   "q": "Why did you pay more than the ask on your screen?",
    "choices": [
     "Price moved before your order arrived",
     "The ask didn't have enough shares",
@@ -1005,8 +1024,8 @@
     "You paid the spread between bid and ask"
    ],
    "answer": "Price moved before your order arrived",
-   "why": "Price moved before your order arrived. Your order travels to the market, and execution takes time. By then the price can be slightly or very different, especially in a fast market. In heavy or volatile trading, a quote shown as real time can already be stale. The ask showed 2,000 shares and you wanted 300, so size was not the problem.",
-   "lesson_line": "In a fast market, the quote you see may already be gone. Plan for the fill, not the quote.",
+   "why": "Price moved before your order got there. Your order goes to your broker, then to a market, and that takes time. On a headline, the quote can be stale before you even click, even when it says real time. 2,000 shares showed at $25.10 and you only wanted 300, so size wasn't it. The price was already gone. When news hits, plan on the fill, not the quote.",
+   "lesson_line": "In a fast market the quote you see may already be gone. Plan on the fill, not the quote.",
    "facts": [
     "f04",
     "f05",
@@ -1016,11 +1035,11 @@
     "f06"
    ],
    "wrong": {
-    "The ask didn't have enough shares": "2,000 shares showed at $25.10 and you wanted 300. Size wasn't the problem; time was.",
-    "Your broker added its own markup": "Nothing points to a markup. Your broker must seek the best execution reasonably available, and the market simply moved.",
+    "The ask didn't have enough shares": "2,000 shares showed at $25.10 and you wanted 300. Size wasn't the problem, time was.",
+    "Your broker added its own markup": "Nothing points to a markup. Your broker has to seek the best execution it can. The market simply moved.",
     "You paid the spread between bid and ask": "Paying the spread puts a buy at the $25.10 ask. You paid above the ask itself, so the price moved while your order traveled."
    },
-   "simple": "The price moved before your order got there, since the ask showed 2,000 shares and you only wanted 300.",
+   "simple": "The price moved before your order arrived. The ask had 2,000 shares and you wanted 300, so size wasn't the problem.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1028,23 +1047,23 @@
      "SEC, FINRA and Fidelity agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "orders.slippage",
    "rung": 4,
    "format": "tf",
-   "q": "Brokers differ on whether an unfilled extended-hours order is canceled or carried into the regular session.",
+   "q": "Your after-hours order doesn't fill. Whether it carries into the next morning depends on your broker.",
    "answer": "True",
-   "why": "True. The SEC tells investors to check whether unfilled extended-hours orders are canceled or entered automatically when regular hours begin. FINRA says brokers may have different policies on canceling or carrying them over. Fidelity, for one, cancels unfilled after-hours orders at the end of its session.",
-   "lesson_line": "Know what your broker does with an unfilled extended-hours order before you place one.",
+   "why": "True. Brokers handle it differently. Some cancel it when the session ends. Fidelity does, for one. Others can carry it into the regular session. The SEC tells you to check with your broker, and I would. Know which one you have before you place it. Otherwise you wake up with an order working that you forgot about, or without one you thought was there.",
+   "lesson_line": "Know what your broker does with an unfilled after-hours order before you place one.",
    "facts": [
     "f19",
     "f31",
     "f55"
    ],
-   "simple": "True, some brokers cancel an unfilled after-hours order when the session ends, and others can carry it over.",
+   "simple": "True. Some brokers cancel an unfilled after-hours order when the session ends, and others can carry it over.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1052,15 +1071,15 @@
      "broker policy that changes over time"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "orders.slippage",
    "rung": 5,
    "format": "scenario",
-   "story": "Your day order to buy 500 shares sits at a $30.00 limit. The stock trades at $30.00 briefly and you get 200 shares. Then it lifts to $30.60.",
-   "q": "What should you expect for the other 300 shares?",
+   "story": "Your day order to buy 500 shares sits at a $30.00 limit. The stock trades at $30.00 for a moment and you get 200 shares. Then it lifts to $30.60.",
+   "q": "What happens to the other 300 shares?",
    "choices": [
     "They keep working at $30.00",
     "They fill at $30.60 right away",
@@ -1068,22 +1087,24 @@
     "They work until you cancel them"
    ],
    "answer": "They keep working at $30.00",
-   "why": "They keep working at $30.00. A limit order can fill in parts until it is complete. A buy limit only executes at its limit or lower, so the 300 never chase $30.60. Most likely, orders ahead of yours took the shares that traded at $30.00. The rest stays in line until it fills or the day order ends.",
+   "why": "They keep working at $30.00. A limit order can fill in pieces. A buy limit never pays more than its limit, so your 300 won't chase $30.60. Limit orders at one price line up first come, first served. Only so many shares traded at $30.00, and you got 200 of them before it lifted. Now you own 200 and still have 300 live until they fill or the day order ends. Know both numbers. If the trade's off, cancel the 300 too, or they can still fill later. It's one reason I just market order the trigger.",
    "lesson_line": "A partial fill leaves the rest working at your price. Know what's still live.",
    "facts": [
     "f46",
     "f10",
     "f11",
     "f39",
+    "f40",
     "f12",
-    "f14"
+    "f14",
+    "h1"
    ],
    "wrong": {
-    "They fill at $30.60 right away": "A buy limit never pays more than $30.00. The 300 wait at your price.",
-    "They're canceled with the fill": "A plain limit order keeps working after a partial fill. Only a condition like immediate-or-cancel kills the rest.",
-    "They work until you cancel them": "Not on a day order. If it doesn't fill, a day order generally cancels at the end of regular hours on its own."
+    "They fill at $30.60 right away": "A buy limit never pays more than $30.00. Your 300 wait at your price.",
+    "They're canceled with the fill": "A plain limit keeps working after a partial fill. Only a condition like immediate-or-cancel kills the rest.",
+    "They work until you cancel them": "Not on a day order. If it doesn't fill, a day order cancels at the end of regular hours on its own."
    },
-   "simple": "They keep waiting at $30.00, since a buy limit never pays more and stays live until it fills or the day ends.",
+   "simple": "They keep waiting at $30.00. A buy limit never pays more, and it stays live until it fills or the day ends.",
    "deeper": {
     "trap": "A partial fill leaves you two things: 200 shares you own and 300 still working. If you change your mind about the trade, cancel the working 300 as well. Otherwise they can still fill later that day."
    },
@@ -1094,14 +1115,14 @@
      "fixed before (why reworded)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "orders.slippage",
    "rung": 5,
    "format": "mcq",
-   "q": "Your day limit order to buy 1,000 shares has 400 filled by the close. What happens to the other 600?",
+   "q": "The bell rings. Your day limit to buy 1,000 shares has 400 filled. What happens to the other 600?",
    "choices": [
     "They cancel at the close",
     "They carry over to tomorrow",
@@ -1109,7 +1130,7 @@
     "They work after hours tonight"
    ],
    "answer": "They cancel at the close",
-   "why": "They cancel at the close. Day orders that don't execute generally cancel at the end of regular trading hours. They do not carry over to the extended-hours session or the next trading day. Any part not filled by the expiry is canceled. You keep the 400 that filled.",
+   "why": "They're canceled at the close. A day order lives for the regular session and that's it. It doesn't roll into after hours, and it doesn't roll into tomorrow. You keep the 400 that filled. So you go home with a smaller position than you planned and nothing working. If the setup's still good tomorrow, decide fresh. Don't buy the rest just to finish the number.",
    "lesson_line": "A day order's unfilled shares die at the close. Re-enter only if the plan still holds.",
    "facts": [
     "f11",
@@ -1123,7 +1144,7 @@
     "They fill at the closing price": "Nothing turns them into a closing order. They simply cancel when the day order ends.",
     "They work after hours tonight": "A day order that doesn't fill generally cancels at the end of regular hours. It does not carry over to the extended-hours session."
    },
-   "simple": "They cancel at the close, because a day order ends with the regular session, and you keep the 400 that filled.",
+   "simple": "They cancel at the close. A day order ends with the regular session, and you keep the 400 that filled.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1131,14 +1152,14 @@
      "fixed before (spelling, track audit)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "orders.slippage",
    "rung": 5,
    "format": "mcq",
-   "q": "You hold 500 shares. Your sell stop at $38.00 fills at $37.70 in a fast drop. What did slippage cost you, in dollars?",
+   "q": "You're long 500 shares. The stock drops fast through your $38.00 stop, and you're filled at $37.70. What did the slip cost you?",
    "answer": "$150",
    "calc": {
     "fn": "arith",
@@ -1150,15 +1171,15 @@
     }
    },
    "prefix": "$",
-   "why": "Slippage per share is the stop minus the fill: $38.00 less $37.70. Multiply by your 500 shares to get $150. When the stop price is reached, a stop order becomes a market order. In a fast market it can fill well below the stop. FINRA's own example: a $50 sell stop can get less, potentially significantly less, than $50.",
-   "lesson_line": "A stop is a trigger, not a price. Slippage times shares is real money.",
+   "why": "$150. $38.00 minus $37.70 is $0.30 a share. Times 500 shares, that's $150. Your stop is a trigger, not a price. Once it's hit, it's a market order, and in a fast drop it sells into whatever bids are left. That's the cost of having a real stop with the broker, and it's still far better than no stop. Plan on a little slip when you set your risk.",
+   "lesson_line": "A stop is a trigger, not a price. Slip times shares is real money.",
    "facts": [
     "f09",
     "f27",
     "f44",
     "f08"
    ],
-   "simple": "$150, because all 500 shares sold at $37.70 instead of the $38.00 stop you planned on.",
+   "simple": "$150, because all 500 shares sold $0.30 under the $38.00 stop you planned on.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1166,7 +1187,7 @@
      "computed key"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$1,500",
     "$0.30",
@@ -1175,8 +1196,8 @@
    ],
    "wrong": {
     "$1,500": "A decimal slip: ten times too big.",
-    "$0.30": "That is the slippage on one share. You sold 500 shares.",
-    "$18,850": "That is what the 500 shares sold for, not what slippage cost."
+    "$0.30": "That's the slip on one share. You sold 500.",
+    "$18,850": "That's what the 500 shares sold for, not what the slip cost."
    }
   },
   {
@@ -1184,12 +1205,12 @@
    "skill": "orders.slippage",
    "rung": 6,
    "format": "mcq",
-   "q": "Offers: 400 at $25.00, 600 at $25.05, 1,000 at $25.10. Your 2,000-share market buy takes all three. Slippage vs $25.00, in percent?",
+   "q": "The ask shows 400 at $25.00, 600 at $25.05 and 1,000 at $25.10. You market buy 2,000. How much do you slip vs $25.00?",
    "answer": "0.26%",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "((a * pa + b * pb + c * pc) / (a + b + c) - pa) / pa * 100",
+     "expr": "((a * pa + b * pb + c * pc) - (a + b + c) * pa) / ((a + b + c) * pa) * 100",
      "a": 400,
      "pa": 25,
      "b": 600,
@@ -1199,8 +1220,8 @@
     }
    },
    "suffix": "%",
-   "why": "Multiply each price by its shares, add them up and divide by 2,000. That is your average fill. Then take its gap over $25.00 as a percent of $25.00. That is 0.26%. A large market order can fill at different prices when one price lacks enough shares.",
-   "lesson_line": "Read the offers before you send size. You can estimate slippage before you click.",
+   "why": "About 0.26%. Your 2,000 shares ate through three prices. 400 at $25.00 is $10,000. 600 at $25.05 is $15,030. 1,000 at $25.10 is $25,100. That's $50,130 in all. At $25.00 flat, 2,000 shares would cost $50,000. So you paid $130 extra, and $130 over $50,000 is 0.26%. Only the first 400 got the price you saw. The good news is you can see this one coming. Read the size on the offers before you send the order.",
+   "lesson_line": "Read the offers before you send size. You can see the slip coming before you click.",
    "facts": [
     "f07",
     "f59",
@@ -1218,7 +1239,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.26%",
     "0.40%",
@@ -1226,8 +1247,8 @@
     "2.60%"
    ],
    "wrong": {
-    "0.40%": "Used the last price, $25.10, instead of the average of all three fills.",
-    "0.60%": "Added the slippage of each fill instead of weighting by shares.",
+    "0.40%": "You used the last price, $25.10, not the average of all three fills.",
+    "0.60%": "You added up the slip at each price instead of weighting it by shares.",
     "2.60%": "A decimal slip: ten times too big."
    },
    "visual": {
@@ -1264,17 +1285,17 @@
    "skill": "orders.slippage",
    "rung": 7,
    "format": "scenario",
-   "story": "After weak earnings you place an after-hours limit to sell 1,000 shares at $45. Only 300 fill. Your broker cancels unfilled extended-hours orders when the session ends.",
-   "q": "What do you hold going into the next morning?",
+   "story": "Weak earnings. You put in an after-hours limit to sell 1,000 shares at $45. Only 300 fill. Your broker cancels unfilled extended-hours orders when the session ends.",
+   "q": "What are you holding when you wake up?",
    "choices": [
-    "700 shares, with no sell order working",
-    "No shares; the rest sells at the open",
+    "700 shares, no sell order working",
+    "No shares, the rest sells at the open",
     "700 shares, still offered at $45",
-    "1,000 shares; the 300 sale gets canceled"
+    "1,000 shares, the sale is undone"
    ],
-   "answer": "700 shares, with no sell order working",
-   "why": "700 shares, and nothing working to sell them. In extended hours, a limit order may fill only in part, or not at all, before the session ends. This broker cancels unfilled extended-hours orders at the session end. The 300 that sold stay sold. Nothing sells the 700 unless you enter a new order.",
-   "lesson_line": "After an extended-hours fill, check what you still hold and what's still working. Then decide again.",
+   "answer": "700 shares, no sell order working",
+   "why": "700 shares and nothing working. After hours, a limit can fill in part or not at all before the session ends. 300 sold, and those stay sold. Your broker canceled the rest when the session ended. So you're still long 700 after weak earnings, with no order out. That's the trap. You think you're out and you're not. Check your position and your open orders after every extended-hours session, then decide again before the open.",
+   "lesson_line": "After an after-hours fill, check what you still hold and what's still working. Then decide again.",
    "facts": [
     "f42",
     "f28",
@@ -1284,11 +1305,11 @@
     "f50"
    ],
    "wrong": {
-    "No shares; the rest sells at the open": "Nothing sells the 700 unless you enter a new order. The leftover was canceled, not sent to the open.",
-    "700 shares, still offered at $45": "This broker cancels unfilled extended-hours orders at the session end. The $45 offer is gone.",
-    "1,000 shares; the 300 sale gets canceled": "Only the unfilled part is canceled. The 300 that sold stay sold, and the cancel applies to the 700 left."
+    "700 shares, still offered at $45": "Your broker cancels unfilled extended-hours orders at the session end. The $45 offer is gone.",
+    "No shares, the rest sells at the open": "Nothing sells the 700 unless you put in a new order. The leftover was canceled, not sent to the open.",
+    "1,000 shares, the sale is undone": "Only the unfilled part is canceled. The 300 that sold stay sold."
    },
-   "simple": "You still own 700 shares with no sell order working, because only 300 filled and the broker canceled the rest.",
+   "simple": "You still own 700 shares with no sell order out, because only 300 filled and your broker canceled the rest.",
    "deeper": {
     "trap": "The danger is thinking you are out. After weak earnings you can wake up still long 700 shares, with no order working. Brokers differ: some cancel, some carry orders over. Check your position and open orders after every extended-hours session, then decide again."
    },
@@ -1299,7 +1320,7 @@
      "broker policy that changes over time (stated in the story)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1307,7 +1328,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "You hold 2,000 shares with a sell stop at $18.00. Bad news hits and it drops through $18 fast. Only 300 shares show on the bid.",
-   "q": "What should you expect from your stop?",
+   "q": "What does your stop do now?",
    "choices": [
     "Fills at several prices below $18",
     "All 2,000 sold at exactly $18.00",
@@ -1315,7 +1336,7 @@
     "It turns into a limit order at $18"
    ],
    "answer": "Fills at several prices below $18",
-   "why": "Fills at several prices below $18. Once the stop price is reached, a stop order becomes a market order. Its fill can be far from the stop price. Only 300 shares show on the bid. Parts of a large market order can execute at different prices when one price lacks enough shares.",
+   "why": "It fills at several prices under $18. Once $18.00 trades, your stop is a market order. Only 300 shares are bid up there. The rest of your 2,000 sells into lower and lower bids until the order's done. A stop decides when you get out, not the price you get. On bad news the bids thin out fast, even on a stock that normally trades plenty. That's why a tight stop never makes a big position safe. Your size decides how much a fast drop through your stop can hurt.",
    "lesson_line": "In a fast drop, a stop can't promise your price. Thin bids mean fills below it.",
    "facts": [
     "f08",
@@ -1324,12 +1345,14 @@
     "f07",
     "f58",
     "f67",
-    "f47"
+    "f47",
+    "h5",
+    "h3"
    ],
    "wrong": {
     "All 2,000 sold at exactly $18.00": "The stop price is a trigger, not a promised price. A fast drop fills you lower.",
-    "It waits for buyers to return to $18": "A triggered stop is a market order. It doesn't wait; it sells into whatever bids are there.",
-    "It turns into a limit order at $18": "That's a stop-limit order, where the stop triggers a limit order. A plain stop becomes a market order."
+    "It waits for buyers to return to $18": "A triggered stop is a market order. It doesn't wait, it sells into whatever bids are there.",
+    "It turns into a limit order at $18": "That's a stop-limit. A plain stop becomes a market order."
    },
    "simple": "It sells at several prices below $18, because a triggered stop becomes a market order and only 300 shares were bid.",
    "deeper": {
@@ -1342,23 +1365,25 @@
      "SEC, FINRA and Fidelity agree; stop-limit note now cites FINRA (f67)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "orders.slippage",
    "rung": 7,
    "format": "tf",
-   "q": "In extended hours, you get the same volatility safeguards as in the regular session.",
+   "q": "The volatility safeguards that protect you during the day work the same way after hours.",
    "answer": "False",
-   "why": "False. The SEC says some volatility safeguards, for single stocks or the whole market, may be limited or not available in extended hours. With fewer trades, stocks can also swing more. 'May' is the SEC's word, so don't count on any safeguard out of hours.",
-   "lesson_line": "Out of hours, fewer guardrails and fewer traders. Price and size your orders for that.",
+   "why": "False. The SEC says some of them, for single stocks or the whole market, may be limited or not there at all out of hours. Fewer trades means bigger swings. And the after-hours systems aren't even linked to each other, so one can show a worse price than another. Out there you get fewer guardrails and fewer traders. I don't treat an after-hours print as the real price until the stock opens.",
+   "lesson_line": "Out of hours, fewer guardrails and fewer traders. Price your orders for that.",
    "facts": [
     "f18",
     "f29",
-    "f16"
+    "f16",
+    "f17",
+    "f22"
    ],
-   "simple": "False, some safety tools that slow wild price swings may be limited or missing outside regular hours.",
+   "simple": "False. Some of the tools that slow wild swings may be limited or missing outside regular hours.",
    "deeper": {
     "trap": "Outside regular hours, don't count on the safeguards you know. Some may be limited or missing. With fewer trades, stocks can swing more, and the trading systems are not linked."
    },
@@ -1369,14 +1394,14 @@
      "SEC and FINRA agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "orders.slippage",
    "rung": 8,
    "format": "mcq",
-   "q": "You risk $400 with a stop $1.00 below entry, so you buy 400 shares. A fast drop fills your stop $0.25 lower. What do you lose?",
+   "q": "You size for $400 of risk: 400 shares, stop $1.00 under your entry. A fast drop fills your stop $0.25 lower. What's your loss?",
    "answer": "$500",
    "calc": {
     "fn": "arith",
@@ -1388,8 +1413,8 @@
     }
    },
    "suffix": "",
-   "why": "Each share loses the $1.00 down to the stop plus $0.25 of slippage. Multiply that by your 400 shares to get $500. When the stop price is reached, a stop order becomes a market order. There is no guarantee it fills at or near the stop price. So the real loss can run past the $400 you planned.",
-   "lesson_line": "Your planned risk assumes the stop price. A fill below the stop makes the real loss bigger.",
+   "why": "$500. Each share loses the $1.00 to your stop plus $0.25 of slip, so $1.25 a share. Times 400 shares, that's $500. That's $100 more than the $400 you planned. Your plan assumed a fill right at the stop. A triggered stop is a market order, and in a fast drop nothing promises that price. This is why I keep the risk per trade small. When a stop slips, a small plan stays a small loss.",
+   "lesson_line": "Your planned risk assumes a fill at the stop. A slip makes the real loss bigger.",
    "facts": [
     "f61",
     "f45",
@@ -1398,7 +1423,7 @@
     "f44",
     "f27"
    ],
-   "simple": "$500, because each of your 400 shares lost the $1.00 to the stop plus $0.25 more when it filled lower.",
+   "simple": "$500, because each of your 400 shares lost the $1.00 to the stop plus $0.25 more on a lower fill.",
    "deeper": {
     "trap": "The $400 was your plan, not a promise. In a fast market a triggered stop can fill well below the stop price. FINRA's example: a $50 sell stop could get less, potentially significantly less, than $50."
    },
@@ -1411,7 +1436,7 @@
     ]
    },
    "prefix": "$",
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$400",
     "$100",
@@ -1419,9 +1444,9 @@
     "$500"
    ],
    "wrong": {
-    "$400": "Used the planned risk. The slippage adds to it.",
-    "$100": "Counted only the $0.25 of slippage on 400 shares.",
-    "$1.25": "That is the loss on one share. You hold 400 shares."
+    "$400": "That's the risk you planned. The slip adds to it.",
+    "$100": "That counts only the $0.25 of slip on 400 shares.",
+    "$1.25": "That's the loss on one share. You hold 400."
    },
    "visual": {
     "kind": "size",
@@ -1458,7 +1483,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "You plan 1,000 shares at a $40.00 limit, stop $39.00. Only 300 fill. The stock jumps, and you buy the other 700 at market for $41.20.",
-   "q": "What is your total risk to the $39.00 stop now?",
+   "q": "What's your total risk to the $39.00 stop now?",
    "choices": [
     "$1,840",
     "$1,000",
@@ -1477,7 +1502,7 @@
      "stop": 39
     }
    },
-   "why": "$1,840. The 300 shares risk from $40.00 down to $39.00. The 700 you chased risk from $41.20 down to $39.00. Add the two. That is far past the $1,000 you planned with all 1,000 shares at $40.00. A partial fill is just a smaller trade. Chasing the rest raises the risk.",
+   "why": "$1,840. Work it in two pieces. The 300 at $40.00 risk $1.00 each to the $39.00 stop, so $300. The 700 you chased at $41.20 risk $2.20 each, so $1,540. Together that's $1,840, against the $1,000 you planned. Chasing nearly doubled your risk. And from $41.20 that $39.00 stop is a long way off, wider than I'd take on a fresh buy. A partial fill is just a smaller trade. Keep the 300 and let it work.",
    "lesson_line": "A partial fill is just a smaller trade. Chase the rest and your risk balloons.",
    "facts": [
     "f45",
@@ -1486,9 +1511,9 @@
     "f26"
    ],
    "wrong": {
-    "$1,000": "That's the risk you planned, with all 1,000 shares at $40.00. You paid $41.20 for 700 of them.",
-    "$2,200": "That prices all 1,000 shares at $41.20. Only 700 cost that; 300 filled at $40.00.",
-    "$300": "That counts only the first 300 shares. The 700 you chased carry risk too."
+    "$1,000": "That's the risk you planned, with all 1,000 at $40.00. You paid $41.20 for 700 of them.",
+    "$2,200": "That prices all 1,000 at $41.20. Only 700 cost that. 300 filled at $40.00.",
+    "$300": "That counts only the first 300. The 700 you chased carry risk too."
    },
    "simple": "$1,840, because the 700 shares you chased at $41.20 sit much farther above the $39.00 stop than your first 300.",
    "deeper": {
@@ -1502,7 +1527,7 @@
      "rests on the owner's rulebook (A5 one price and one stop; C28 chasing costs size)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "ladder",
     "side": "long",
@@ -1537,7 +1562,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "You hold 500 shares. The stock closes at $80. Right after the close, the company beats earnings. It trades $88 after hours on thin volume, with a wide quote.",
-   "q": "You sell with a limit at $87.50. What does the limit protect you from?",
+   "q": "You put in a sell limit at $87.50 after hours. What does that limit protect you from?",
    "choices": [
     "Getting less than the next open",
     "Getting less than $87.50 a share",
@@ -1545,8 +1570,8 @@
     "Getting less than $88 a share"
    ],
    "answer": "Getting less than $87.50 a share",
-   "why": "Getting less than $87.50 a share. A sell limit can only execute at the limit price or higher. Fidelity says the same holds in its extended-hours sessions. That is all it protects. An after-hours price on news may not hold into the next open. Thin trading can fill you in part, or not at all.",
-   "lesson_line": "After-hours prices on news can overshoot. A limit sets your price; it can't promise a fill.",
+   "why": "Selling for less than $87.50 a share. That's all it does. A sell limit fills at your price or higher, after hours too. It doesn't promise a fill. Thin trading can fill part of it or none of it. It can't promise tomorrow's open either. A pop on news after hours can run further than the stock holds, or the open can be higher still. The limit sets your worst price. The rest is still up to the market.",
+   "lesson_line": "After-hours prices on news can overshoot. A limit sets your price, it can't promise a fill.",
    "facts": [
     "f10",
     "f26",
@@ -1558,9 +1583,9 @@
     "f42"
    ],
    "wrong": {
-    "Getting only part of your order": "A limit can't promise a full fill. In extended hours an order may fill in part, or not at all.",
-    "Getting less than the next open": "A limit can't do that. An after-hours price may not match the next open, and it can be worse than the next regular session.",
-    "Getting less than $88 a share": "Your limit is $87.50, not $88. A sell limit fills at its limit or higher, so a fill at $87.50 is allowed."
+    "Getting only part of your order": "A limit can't promise a full fill. After hours an order may fill in part, or not at all.",
+    "Getting less than the next open": "A limit can't do that. The after-hours price may not match the next open, either way.",
+    "Getting less than $88 a share": "Your limit is $87.50, not $88. A sell limit fills at $87.50 or higher."
    },
    "simple": "It stops you selling for less than $87.50 a share, but it can't promise a full fill or tomorrow's price.",
    "deeper": {
@@ -1574,7 +1599,7 @@
      "fixed before (rewritten 2026-11-09)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1582,7 +1607,7 @@
    "rung": 3,
    "format": "mcq",
    "house": true,
-   "q": "Under our rules, what order do you use to enter a new trade?",
+   "q": "Your setup triggers and price trades through the pivot. What order gets you in?",
    "choices": [
     "A plain market order",
     "A limit at the buy point",
@@ -1590,21 +1615,22 @@
     "An all-or-none limit"
    ],
    "answer": "A plain market order",
-   "why": "A plain market order. Our rule: entries are market orders, and the stop still sits with the broker. A market order often fills away from the last price or quote, so plan for some slippage.",
-   "simple": "A plain market order, because our rule is to enter with a market order and keep the stop with the broker.",
-   "lesson_line": "We enter with market orders and keep the stop with the broker. Plan for some slippage.",
+   "why": "Market order. That's how I do every entry. The trigger is the moment, so I want to be in. A limit at the pivot can watch the stock trade right through your price and leave you with nothing, or with a piece of the position. A market order can fill a little off the quote. That's the price of being in, so plan for some slip. Then the stop goes in with the broker, a few cents under the low of the day.",
+   "simple": "A market order. We enter on the trigger with a market order, then the stop goes in with the broker.",
+   "lesson_line": "Market order on the trigger, stop in with the broker. Plan for a little slip.",
    "facts": [
     "h1",
     "f06",
     "f39",
     "f67",
     "f47",
-    "f15"
+    "f15",
+    "h4"
    ],
    "wrong": {
-    "A limit at the buy point": "Our entries are market orders. A resting limit can see the stock trade at your price and still not fill you.",
-    "A stop-limit order": "Our entries are market orders. A stop-limit's stop triggers a limit order, and a limit is not sure to fill.",
-    "An all-or-none limit": "Our entries are market orders. An all-or-none order that can't fill at once keeps waiting, so you may get nothing."
+    "A limit at the buy point": "A resting limit can see the stock trade at your price and still not fill you. We enter with market orders.",
+    "A stop-limit order": "Its stop triggers a limit, and a limit isn't sure to fill. On a fast break you can miss it entirely.",
+    "An all-or-none limit": "An all-or-none that can't fill at once keeps waiting, so you may get nothing while it runs."
    },
    "tier": "core",
    "risk": {
@@ -1614,7 +1640,7 @@
      "new in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -1622,11 +1648,11 @@
    "rung": 7,
    "format": "tf",
    "house": true,
-   "q": "Under our rules, you never open a new buy outside regular trading hours, even with a limit order.",
+   "q": "Earnings beat after the close and the stock's up 8% after hours. For us, the buy waits for the regular session.",
    "answer": "True",
-   "why": "True. Our rule: no new buys outside regular trading hours. A limit only sets your price. In extended hours an order may fill in part or not at all, and the price may not hold into the next open.",
-   "simple": "True, our rule bars new buys outside regular hours, and a limit order does not change that.",
-   "lesson_line": "Our rule: no new buys outside regular trading hours, even with a limit order.",
+   "why": "True. We don't open new buys outside regular trading hours, limit order or not. A limit only sets your price. After hours an order can fill in part or not at all. And a price pushed around by news in thin trading may not hold into the next open. The big move feels urgent. It isn't. Let it open, see how it trades in the regular session, then decide.",
+   "simple": "True. We don't open new buys outside regular hours, and a limit order doesn't change that.",
+   "lesson_line": "No new buys out of hours. Let it open, then decide.",
    "deeper": {
     "trap": "A big after-hours move on news feels urgent. News plus thin, volatile trading can push a price further than it can hold. Wait for the regular session."
    },
@@ -1645,7 +1671,7 @@
      "new in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
@@ -1653,7 +1679,7 @@
    "rung": 7,
    "format": "mcq",
    "house": true,
-   "q": "A $50 stock averages 800,000 shares a day. Our cap is 1% of average daily volume. What is the most shares you can own?",
+   "q": "A $50 stock trades 800,000 shares on an average day. What's the most shares you'd ever own of it?",
    "answer": "8,000 shares",
    "calc": {
     "fn": "arith",
@@ -1664,9 +1690,9 @@
     }
    },
    "suffix": "shares",
-   "why": "Our rule: never own more than 1% of a stock's average daily volume. Take 1% of 800,000 to get 8,000 shares. The $50 price does not change that. An order that is large next to daily volume is hard to fill.",
-   "simple": "8,000 shares, because our rule caps you at 1% of the 800,000 shares that trade on an average day.",
-   "lesson_line": "Never own more than 1% of a stock's average daily volume. Orders large next to daily volume are hard to fill.",
+   "why": "8,000 shares. We never own more than 1% of a stock's average daily volume. 1% of 800,000 is 8,000. The $50 price doesn't enter into it. The cap is about getting out. Own a big chunk of a day's trading and your own sell order pushes the price down, so your stop slips badly. Stay at 1% or under and the stock can take your shares in and out.",
+   "simple": "8,000 shares, because we never own more than 1% of the 800,000 shares that trade on an average day.",
+   "lesson_line": "Never own more than 1% of a stock's average daily volume. You have to be able to get out.",
    "facts": [
     "h3",
     "f60",
@@ -1681,7 +1707,7 @@
      "new in wave6"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "8,000 shares",
     "16,000 shares",
@@ -1689,9 +1715,9 @@
     "400,000 shares"
    ],
    "wrong": {
-    "80,000 shares": "A decimal slip: that is ten times the cap.",
-    "16,000 shares": "Divided the 800,000 by the $50 price. The price does not enter the cap.",
-    "400,000 shares": "Multiplied the 8,000 by the $50 price. That is a dollar amount, not shares."
+    "80,000 shares": "A decimal slip: that's ten times the cap.",
+    "16,000 shares": "You divided 800,000 by the $50 price. The price doesn't enter the cap.",
+    "400,000 shares": "You multiplied 8,000 by the $50 price. That's a dollar amount, not shares."
    }
   },
   {
@@ -1699,7 +1725,7 @@
    "skill": "orders.slippage",
    "rung": 3,
    "format": "mcq",
-   "q": "You want whatever shares are there right now, and no leftover order working after. Which order condition fits?",
+   "q": "You'll take whatever shares are offered right now, and you want nothing left working after. Which condition fits?",
    "choices": [
     "Immediate-or-cancel",
     "All-or-none",
@@ -1707,8 +1733,8 @@
     "Day order"
    ],
    "answer": "Immediate-or-cancel",
-   "why": "Immediate-or-cancel. It fills any part it can at once and cancels the rest, so no order is left working. All-or-none refuses a partial fill. Good-'til-canceled and day orders keep working until they fill or expire.",
-   "lesson_line": "Immediate-or-cancel takes a partial fill now and leaves no order behind.",
+   "why": "Immediate-or-cancel, IOC. It fills what it can at once and cancels the rest. So nothing's left sitting out there to fill later, after you've moved on. All-or-none won't take a partial fill. Good-'til-canceled and day orders leave the rest working until they fill or expire. Use IOC when you want what's there now and a clean slate after.",
+   "lesson_line": "Immediate-or-cancel takes what's there now and leaves no order behind.",
    "facts": [
     "f12",
     "f49",
@@ -1721,7 +1747,7 @@
     "Good-'til-canceled": "Good-'til-canceled keeps the unfilled shares working until they fill in full or you cancel.",
     "Day order": "A day order keeps the unfilled shares working until the close, then cancels them."
    },
-   "simple": "Immediate-or-cancel, because it takes the shares available now and cancels whatever is left.",
+   "simple": "Immediate-or-cancel. It takes the shares that are there now and cancels whatever is left.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1729,7 +1755,7 @@
      "stable rule: order conditions agree across brokers"
     ]
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1771,13 +1797,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer before key: gap between expected price and fill (Schwab f36, Nasdaq f32). Matches. Key 35 chars, not the longest (commission choice 40). No grammar tell, 'Gap between' shared with the day-range distractor, so no echo. Wrong notes rest on f32 (estimated vs actual cost). Term answer within 40 chars."
+   "notes": "A real fill ($45.00 planned, $45.20 got). Answer right, wrong notes name the mix-ups. Why gives the reason (it comes out of your money) and the how (log planned vs fill)."
   },
   "q02": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Plain claim, false. Broker-first route and best execution match f01, f02, f04, f66. Ends on where slippage starts."
   },
   "q03": {
    "status": "cut",
@@ -1789,13 +1815,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer: whole order or none (SEC f14, Fidelity f48). Matches. IOC distractor note no longer names IOC, so q04 does not answer q06; nothing here says AON waits, so q05 stays open. Key 35 chars, not the longest. 'Sets how many shares fill, not the price' is a fair reading of f14 plus f03; no number used."
+   "notes": "AON on a 1,000-share limit. Right answer and wrong notes check out (f14, f12, f63, f03). Ties to our market-order entries (h1) with the reason."
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "False is right: that is fill-or-kill (f13, f15). Time is named as the difference. Day order line rests on f11."
   },
   "q06": {
    "status": "cut",
@@ -1805,124 +1831,123 @@
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "True is right (f20). Fixed an overclaim: 'the people trading it there know that news cold' is in no fact. Its closing line was also copied word for word in q19; this one now says don't hand them a market order."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Why checked against f34 (each calendar quarter, every broker or dealer), f35 (net payment for order flow), f56 (on behalf of customers), f57 (605 monthly execution quality). Jargon gone. Key not longest. No date dependence on the 2026 Rule 605 change."
+   "notes": "606 vs 605 correct (f34, f35, f57). Stem says what you want to know without naming the answer. Borderline broker minutiae under rule 1, but it ties to bad fills, so kept."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Calc 0.8. Choices real. The 0.08% note was vague; made it name the slip."
+   "fixed": false,
+   "notes": "0.40 / 50.00 = 0.8%, steps shown. Wrong notes are real slips. 'I'll take a little slip to be in' is his register. A buy stop becomes a market order (f08), consistent with market-order entries."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.67 shown. 6.7% point slip, 0.0067% forgot x100 (2000/300000), 150% flipped. Why walks the steps."
+   "notes": "2,000 / 300,000 = 0.0067 = 0.67%, right. Ties to our 1% cap (h3) and says check the ask size (f58). No price given, so no liquidity-minimum clash."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from the story: 2,000 shown vs 300 wanted rules out size; fill $25.60 sits above the $25.10 ask, so not the spread; headline = fast market, so price moved or the quote was stale (f04, f05, f24, f65). Key covers both. Spread note correctly uses the fill above the ask. Markup note rests on f66 and claims nothing about a broker's practice. Key 37 chars; spread choice 39 is longer. Story no longer echoes the key."
+   "notes": "Story in screen order; 2,000 on the ask vs 300 wanted rules out size. Stale real-time quote rests on f65. Good closing line."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "True on SEC f19 (check whether cancelled or entered when regular hours begin) and FINRA f31 (may have different policies on canceled or carried over); Fidelity f55 as one example, its 8:00 p.m. time not repeated. TF now 3 True / 3 False with q24. q17's story names one broker's policy but does not settle q12. Housekeeping: the file's conflicts note still says q12 is keyed False on 'always'; the integrator must update that line (outside this question's fields)."
+   "fixed": true,
+   "notes": "True is right (f19, f31, f55). Fixed one overclaim: FINRA only says brokers' policies differ, it does not 'tell you to check'; the SEC does."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: a plain day limit after a partial fill keeps the 300 working at $30.00 until filled or the day ends (f46, f10, f11). Matches. New distractor 'They work until you cancel them' is a real day-order vs GTC mix-up, wrong on f11 because the story says day order; not silly, not a second answer. Lengths 27-31, key shortest. Story models a limit buy entry while rulebook E57 says entries are market orders; the key teaches order mechanics, not an entry method, and the owner flag already covers it."
+   "fixed": true,
+   "notes": "Answer right ($30.00 buy limit keeps working, day order). Fixed one claim stated as fact with no support in the story: that orders ahead of yours 'took those shares'. Now it says what f40 says: limits at one price fill first come, first served, and only so many traded at $30.00."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "The bell rings, 400 of 1,000. Cancel at the close is right (f11). 'Don't buy the rest just to finish the number' is real mentor judgment."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(38-37.70) x 500 = 150. $1,500 slip, $0.30 per share, $18,850 sale proceeds (500 x 37.70). All real."
+   "notes": "0.30 x 500 = $150; $18,850 = 500 x 37.70. 'Your stop is a trigger, not a price' and 'still far better than no stop' carry the reason."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "three offers by size and price; label says vs the first offer; key '0.26%'"
+   "notes": "Recomputed: 10,000 + 15,030 + 25,100 = 50,130; minus 50,000 = 130; 130 / 50,000 = 0.26%. 0.40% (last price) and 0.60% (summed slips) are real mistakes. Practical how: read the offers first."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: the 'sells at the open' text is a distractor on a canceled after-hours order, no gap-up trim rule."
+   "notes": "700 held, nothing working is right given the broker cancels (f42, f55). 'You think you're out and you're not' names the trap the way he would."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer: triggered stop becomes a market order (f08), can fill far below (f09, f27), and 2,000 against a 300-share bid fills at several prices (f07, f58). Matches; 'expect' covers unseen bids (conflicts note). Volume sentence gone, so no B23/D42 clash. Stop-limit distractor wrong on f67. Key 33 chars, not the longest. Deeper trap fits A4/D41 (the stop is the exit)."
+   "fixed": true,
+   "notes": "Answer right (stop becomes a market order, f08, f09; 300 bid vs 2,000). Fixed a truth slip: 'On a thin name with a fast drop' implies we trade thin names, and we don't even watch illiquid stocks (h3, rule 15). Bids thin out in a fast drop even on a liquid stock."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Decided False before the key, from f18 (SEC: volatility mechanisms 'may be limited or not available' in extended hours). Why hedges on 'may' correctly. Simple and deeper stay within f18/f29/f16. No tell, does not answer another question, no conflict with the rulebook (E58 bars only new buys). Investor.gov returned 403 to WebFetch; f18 matches the SEC bulletin's known wording."
+   "fixed": true,
+   "notes": "False is right (f18, f29, f16). Its last line was a copy of q07's; replaced with the judgment that an after-hours print isn't the real price until the open (f17, f22 added to facts)."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "shares, stop distance, slip all right; key '$500'"
+   "notes": "Kept: 'the slip adds to it' is loss math. 400 x 1.25 = 500, right. Voice 5."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "stop below two fills; total risk label; key '$1,840'"
+   "fixed": true,
+   "notes": "Math right: 300 x 1.00 + 700 x 2.20 = 300 + 1,540 = $1,840. Fixed a truth slip: 'if you still want more, size the add from the new price' endorses buying at $41.20 against a $39.00 stop, over 5% away and wider than we accept on a buy. Now: keep the 300; the chased price sits too far off the stop."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (f10/f54: a sell limit fills only at the limit or higher). Two breaks. (1) Tell: the key is the only choice that repeats a price from the stem ($87.50), so a guesser can match it. (2) The distractor 'Getting filled by pros who know more' and its wrong-text restate q07's answer (extended-hours traders are pros with more information), and the choice is weak. Fix: swap that distractor for 'Getting less than $88 a share' so two choices name a price. A sell limit at $87.50 can fill between $87.50 and $88, so it does not protect against that. That is unambiguous and grounded in f10. Dro",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Sell limit $87.50 after hours: worst price only, no fill or open promised (f10, f28, f22, f53). Wrong notes clear. Selling after hours does not clash with no new buys out of hours."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "House item. Own answer from h1 (rulebook E57, quote verified verbatim in sizing_rule.md line 217): entries are market orders. Matches. Key 20 chars; choices 18-24, not the longest. Wrong notes each say ours is market orders, then a cited fill risk (f39; f67 + f47; f15) without claiming that is the owner's reason. Why's slippage line on f06. Does not answer q24 or any other stem. Limit-entry stories in q13/q14/q21 remain an owner flag."
+   "notes": "'Under our rules' stem gone; the trigger moment instead. Market order on every entry (h1), stop a few cents under the low of the day (h4). Reason given: a resting limit can miss the move."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "House TF. Own answer from h2 (E58 verbatim, sizing_rule.md line 218): no new buys outside regular hours, so True; 'even with a limit order' is inside 'no new buys'. A True statement with 'never' works against the absolute-means-False tell. Why on f10, f28, f22; deeper on f53. Stem does not answer q22 (a sell) and q22 does not reveal it."
+   "notes": "Real after-hours earnings pop; true matches h2. 'The big move feels urgent. It isn't. Let it open' is his register."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "notes": "1% of 800,000 = 8,000 (h3). 16,000 = 800,000 / 50 and 400,000 = 8,000 x 50 check out. Stem no longer hands over the rule. Reason given: being able to get out."
   },
   "q97": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Replacement agreed: no live choice question tests immediate-or-cancel, and traders pick it at the ticket. Facts f12, f49, f14, f64, f50 support the answer and every wrong note. The stem paraphrases the definition but the four choices are similar in length and form, so no real tell. Style fine."
+   "notes": "IOC is right (f12, f49); AON, GTC and day order notes correct. Plain how-to-use line."
   }
  }
 }

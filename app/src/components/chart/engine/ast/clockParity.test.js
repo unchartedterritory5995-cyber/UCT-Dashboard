@@ -141,6 +141,8 @@ describe('the clock oracle — this lane against the committed fixture', () => {
     expect(blank.sort()).toEqual(['dayofmonth', 'dayofweek', 'dayopentime',
       'hour', 'lastbardayofmonth', 'lastbarhour', 'lastbarminute',
       'lastbarmonth', 'lastbartime', 'lastbaryear', 'minute', 'month',
+      // ⭐ 2026-11-17 — the regular session's two leaves read the same `t`
+      'regularfirst', 'regularhours',
       'sessionfirst', 'time', 'year'])
   })
 

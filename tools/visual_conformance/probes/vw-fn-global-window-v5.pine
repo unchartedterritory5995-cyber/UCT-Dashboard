@@ -1,0 +1,49 @@
+//@version=5
+indicator("UCTPROBE_VW_FN_GLOBAL_WINDOW_V5", overlay = false, max_bars_back = 500)
+
+// PROVENANCE: written 2026-11-19 for the Pine parity programme (libraries chain, U-FGS `function-global-state`),
+// capture queue rows Q-FGS-3a / Q-FGS-3b (docs/pine/capture-queue-2026-11-19-libchain.md). NEVER COMPILED ON
+// TRADINGVIEW. No licence-held text. The v5 twin of vw-fn-global-window.pine: three of the scripts this unit frees
+// are v5 (breaks-and-retests-hg, bolingger-bands-inside-bar-boxes, interactive-atr-stop-loss), and v5 evaluates
+// both sides of `and` where v6 skips the right side.
+//
+// --- THE SAME QUESTIONS UNDER v5 RULES ---
+// Rows:
+//   A00  bar_index                                                     control
+//   V01  g[1] in a function called on even bars only                  v5 twin of G05: previous CALL's g?
+//   V02  ta.change(g) in a function called on even bars only          v5 twin of W06: 2 per call, 1 per bar
+//   V03  `bar_index % 2 == 0 and ta.change(g) == 1` in a function     v5 runs ta.change on every call, so 1 on
+//        called on every bar                                          even bars; a lazy `and` would give 0 there
+//   V04  g[1] inside an `if close > open` of the body                 v5 twin of W08
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, each from the listing, inputs at defaults (none), after the close. Read
+// every plot on every bar as full float64 text. If a row does not compile, record the error text and the line,
+// remove only that row, and capture the rest.
+plot(bar_index, "A00_bar_index_CONTROL")
+
+var float g = 0.0
+g += 1
+
+v01() =>
+    g[1]
+float r01 = na
+if bar_index % 2 == 0
+    r01 := v01()
+plot(r01, "V01_global_hist_in_fn_even_bars")
+
+v02() =>
+    ta.change(g)
+float r02 = na
+if bar_index % 2 == 0
+    r02 := v02()
+plot(r02, "V02_change_of_global_in_fn_even_bars")
+
+v03() =>
+    bar_index % 2 == 0 and ta.change(g) == 1
+plot(v03() ? 1 : 0, "V03_change_right_of_and_in_fn")
+
+v04() =>
+    float r = na
+    if close > open
+        r := g[1]
+    r
+plot(v04(), "V04_global_hist_in_body_block_some_calls")

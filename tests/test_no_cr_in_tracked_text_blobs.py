@@ -21,15 +21,28 @@ import subprocess
 
 # `git ls-files --eol` prints one row per tracked path: `i/<eol> w/<eol> attr/<a>`.
 # `i/` is the INDEX — the bytes a commit would store. `lf` is the only acceptable
-# value for text; `none` (no line endings at all) and `-text` (declared binary in
-# `.gitattributes`) are fine and are not text files in the sense meant here.
+# value for text; `none` (no line endings at all) and `-text` (sniffed binary) are
+# fine and are not text files in the sense meant here.
 _OK_INDEX_EOL = frozenset({"i/lf", "i/none", "i/-text"})
+
+# ⭐ A path `.gitattributes` DECLARES `-text` (`attr/-text`; `binary` expands to it) is
+# not a text file in that sense either, and is exempt whatever its `i/` column says.
+# ⚰️ This file said so from the start ("`-text` (declared binary in .gitattributes)
+# are fine") but tested only the `i/` column, where a declared-`-text` blob reports
+# its endings (`i/crlf`), never `-text`. Two deliberate policies are such paths:
+# SD-1 S1 (7073a66b02, 2026-09-15) declares every blob ALREADY STORED with CR `-text`
+# so nothing flattens it into a whole-file diff (its own rail is
+# tests/test_gitattributes_eol.py), and Wave P5 freezes
+# `tools/wave_p_cert_corpus/manifest.json` as bytes. The first full backend run
+# (PR #1855) found this rail red on exactly those.
+_DECLARED_NOT_TEXT = "attr/-text"
 
 # Scanning the whole repo costs ~1s, so there is no reason to sample.
 _ROOTS = ("app/src", "api", "tests", "tools", "docs", "scripts")
 
 
-def _rows() -> list[tuple[str, str]]:
+def _rows() -> list[tuple[str, bool, str]]:
+    """``(index eol, declared -text in .gitattributes, path)`` per tracked path."""
     out = subprocess.run(
         ["git", "ls-files", "--eol", "--", *_ROOTS],
         capture_output=True, text=True, encoding="utf-8", errors="replace", check=True,
@@ -42,12 +55,22 @@ def _rows() -> list[tuple[str, str]]:
         fields, _, path = line.partition("\t")
         parts = fields.split()
         if parts:
-            rows.append((parts[0], path.strip()))
+            rows.append((parts[0], _DECLARED_NOT_TEXT in parts[1:], path.strip()))
     return rows
 
 
+def _offenders(rows) -> list[str]:
+    return sorted(p for eol, declared, p in rows if eol not in _OK_INDEX_EOL and not declared)
+
+
+def test_CONTROL_only_a_DECLARED_minus_text_path_may_carry_cr():
+    rows = [("i/crlf", False, "undeclared.js"), ("i/mixed", False, "undeclared.md"),
+            ("i/crlf", True, "declared.js"), ("i/lf", False, "clean.py")]
+    assert _offenders(rows) == ["undeclared.js", "undeclared.md"]
+
+
 def test_no_tracked_text_file_is_staged_with_cr_line_endings():
-    offenders = sorted(p for eol, p in _rows() if eol not in _OK_INDEX_EOL)
+    offenders = _offenders(_rows())
     assert not offenders, (
         "these tracked files would be committed with CR line endings, which makes "
         "`git blame` attribute the whole file to one commit and turns any "
@@ -61,8 +84,8 @@ def test_the_census_actually_READ_the_repository():
     what it read, not only its verdict."""
     rows = _rows()
     assert len(rows) > 3000, f"expected thousands of tracked files, read {len(rows)}"
-    assert any(p.endswith(".js") for _, p in rows), "no .js files were read at all"
-    assert any(p.endswith(".py") for _, p in rows), "no .py files were read at all"
+    assert any(p.endswith(".js") for _, _d, p in rows), "no .js files were read at all"
+    assert any(p.endswith(".py") for _, _d, p in rows), "no .py files were read at all"
 
 
 def test_the_eol_vocabulary_this_rail_ACCEPTS_is_still_the_whole_vocabulary():
@@ -70,7 +93,7 @@ def test_the_eol_vocabulary_this_rail_ACCEPTS_is_still_the_whole_vocabulary():
     reporting a new shape would be silently accepted. Assert that every value git
     actually produces here is one this file has considered — the same reason the
     rail above asserts a size."""
-    seen = {eol for eol, _ in _rows()}
+    seen = {eol for eol, _d, _p in _rows()}
     unconsidered = seen - _OK_INDEX_EOL - {"i/crlf", "i/mixed"}
     assert not unconsidered, (
         f"git reported index EOL values this rail has never considered: {sorted(unconsidered)}. "

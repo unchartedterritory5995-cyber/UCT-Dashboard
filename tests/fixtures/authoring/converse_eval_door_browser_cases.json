@@ -1,0 +1,515 @@
+{
+ "contract": "uct.converse-eval.cases/1",
+ "_": "THE DOOR ACCEPTS WHAT THE BROWSER REFUSES, as cases (Studio, 2026-11-17, Indicators backlog 59). Each case is one request with TWO scripted answers: first the answer the assistant really gave on production, which the door used to accept and the browser then refused whole (a member read \"Nothing was changed\"); then the repaired answer. With the door's rule in place the first is refused at the door, the repair is accepted, the browser applies it and the outputs compute: two model calls, a built indicator. With the rule gone the door accepts the first, the browser refuses it, and the runner fails the case as ACCEPT-THEN-REFUSE. The five rules: colour states on an output drawn as markers; a calculation timeframe on an indicator that draws a marker; the column limit with hidden colour columns counted; a table cell pointing at a setting; a calculation timeframe on an indicator that reads another symbol (graded on the door and the browser's apply alone: there are no second symbol's bars to compute on). ONE MORE CASE is not a door rule (`browser-sends-its-refusal-back`): the door accepts a candle colour that follows a number, the browser refuses it, and the browser sends its own refusal back to the door for one repair. Controls are the standard ones.",
+ "chart": {
+  "sym": "TEST",
+  "tf": "D"
+ },
+ "cases": [
+  {
+   "id": "door-marker-colour-states",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Close minus its 20 day average, and dots on zero that are red in a squeeze and green out of it.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 0
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "door-calc-timeframe-marker",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Three weeks tight: mark where three weekly closes sit within 5 percent.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": "<=",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "tf",
+               "value": "W",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "highest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "tf",
+               "value": "W",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "lowest",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 3
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "tf",
+             "value": "W",
+             "args": [
+              {
+               "type": "call",
+               "name": "lowest",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 3
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 0.05
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "door-column-limit",
+   "group": "example",
+   "turns": [
+    {
+     "words": "A ribbon of EMAs 8, 13, 21, 34 and 55, green when stacked.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 8
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 13
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 21
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 34
+          }
+         ]
+        }
+       },
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 55
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "door-table-cell-setting",
+   "group": "example",
+   "turns": [
+    {
+     "words": "A band of close times a multiplier I can set, with a table showing both.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 2
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "browser-sends-its-refusal-back",
+   "group": "example",
+   "turns": [
+    {
+     "words": "A 10 EMA, and colour the candles green above it.",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "series",
+        "tree": {
+         "type": "call",
+         "name": "ema",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       },
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "ema",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 10
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ],
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "door-calc-timeframe-other-symbol",
+   "group": "example",
+   "turns": [
+    {
+     "words": "Mansfield relative strength versus SPY over 52 weeks",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
+      ],
+      "max_model_calls": 2
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-unknown-name",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Add the Gann Fan",
+     "model_expected": false,
+     "expect": {
+      "kind": "refused",
+      "max_model_calls": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-other-symbol",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight when the close is above the SPY close",
+     "expect": {
+      "kind": "safe-change-allowed",
+      "named_symbols": [
+       "SPY"
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-screener-text",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Highlight it when the sector is Technology",
+     "expect": {
+      "kind": "none"
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-ambiguous",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "add volume confirmation",
+     "expect": {
+      "kind": "clarify",
+      "name_fixed": true
+     }
+    }
+   ]
+  },
+  {
+   "id": "ctl-rename-nothing",
+   "group": "control",
+   "turns": [
+    {
+     "words": "Show RSI 14 above 70.",
+     "role": "setup",
+     "expect": {
+      "kind": "change",
+      "outputs": [
+       {
+        "type": "condition",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "words": "rename it",
+     "expect": {
+      "kind": "none",
+      "name_fixed": true
+     }
+    }
+   ]
+  }
+ ]
+}

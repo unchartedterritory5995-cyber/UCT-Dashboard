@@ -18,8 +18,10 @@ import {
 
 const REPO = path.resolve(process.cwd(), '..')
 const read = (p) => fs.readFileSync(path.join(REPO, p), 'utf8')
-// listed: SPY daily grades DIVERGE (TradingView holds 204 lines, ours 205); it transfers on the production lane
-const LISTED = read('corpus/committed/contraction-box-doji-lines__1486658151.pine')
+// listed: RDDT and SPY daily grade DIVERGE (TradingView holds 31 table cells, ours 30); it transfers on the production
+// lane. (contraction-box-doji-lines stood here until engine 78 (#1858), Pine's tolerant compare, re-graded both its
+// SPY captures to MATCH and its entry was lifted.)
+const LISTED = read('corpus/committed/heat-map-seasons__53acdf3223.pine')
 // control: not listed, both committed captures grade MATCH on the production lane
 const CONTROL = read('corpus/committed/atr-bands__ad60b125e6.pine')
 
@@ -41,7 +43,7 @@ describe('the list', () => {
     expect(hostKnownDivergenceList()).not.toContain(runtimeSourceHash(CONTROL))
   })
 
-  it('is ON in the app: no source outside the rails turns it off (the seam is called by test-setup.js only)', () => {
+  it('is ON in the app: no source outside the rails turns it off (the seam is called by the test grant only)', () => {
     const SRC = path.join(REPO, 'app', 'src')
     const callers = []
     const walk = (dir) => {
@@ -53,7 +55,8 @@ describe('the list', () => {
       }
     }
     walk(SRC)
-    expect(callers.sort()).toEqual(['components/chart/engine/hostKnownDivergence.js', 'test-setup.js'])
+    // ⭐ the test grant lives in `testing/runtimeGate.js` since the GATE-BLIND rail (2026-11-19); test-setup.js calls it
+    expect(callers.sort()).toEqual(['components/chart/engine/hostKnownDivergence.js', 'test-setup.js', 'testing/runtimeGate.js'])
   })
 
   it('names the script by its source hash, the CRLF form included', () => {
@@ -71,8 +74,8 @@ describe('the member preview door', () => {
     expect(r.definition).toBe(null)
     expect(r.guard).toBe(HOST_KNOWN_DIVERGENCE_GUARD)
     expect(r.reason).toMatch(/draws something that differs from TradingView/)
-    expect(r.reason).toMatch(/capture contraction-box-doji-lines-spy-1d-2026-10-03/)   // names the capture
-    expect(r.reason).toMatch(/204/)                                       // the diverging item, from the list
+    expect(r.reason).toMatch(/capture heat-map-seasons-rddt-1d-2026-09-28/)   // names the capture
+    expect(r.reason).toMatch(/TradingView 31, ours 30/)                   // the diverging item, from the list
     expect(r.reason).toMatch(/withheld until that is fixed/)
     expect(r.reason).not.toMatch(/\u2014/)
   })

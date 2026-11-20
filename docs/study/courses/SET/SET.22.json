@@ -2,7 +2,7 @@
  "unit": "SET.22",
  "track": "SET",
  "title": "Gap Support",
- "teaches": "Gap Support as we trade it: a leader gaps up, price drifts back days or weeks later to the gap-up day's low (not the prior day's high) while the gap is still open, holds it or breaches it slightly, and closes back over it in the upper half of the test day; above a flat or rising 50-day and the 200-day; the stop sits a few cents under the test day's low; the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, the rest on the 10-day or 21-day trail, and a loss taken at the stop is the system working.",
+ "teaches": "Gap Support as we trade it: a leader gaps up, price drifts back days or weeks later to the gap-up day's low (not the prior day's high) while the gap is still open, holds it or breaches it slightly, and closes back over it in the upper half of the test day; above a flat or rising 50-day and the 200-day; the stop sits a few cents under the test day's low; the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, the rest on the 9 or 20 EMA trail, and a loss taken at the stop is the system working.",
  "skills": [
   {
    "id": "setup.gap_support",
@@ -91,6 +91,22 @@
    "title": "Our rules, in our words (2026-11-14)",
    "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
    "accessed": "2026-11-14"
+  },
+  {
+   "id": "u4",
+   "tier": 3,
+   "publisher": "UCT (the owner's published Sunday Scans)",
+   "title": "Sunday Scans, 2025-11-02 (TSLA, on bull gaps)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-b99",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u5",
+   "tier": 3,
+   "publisher": "UCT (the owner's published Sunday Scans)",
+   "title": "Sunday Scans, 2025-11-16 (DDOG, the hourly entry)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-d6a",
+   "accessed": "2026-11-09"
   }
  ],
  "facts": [
@@ -849,6 +865,36 @@
    "source": "h2",
    "quote": "Optional, my judgment",
    "claim": "Gap-open sell (owner, chat 2026-11-12): selling part at the open on a big gap is optional, his judgment, never a rule."
+  },
+  {
+   "id": "u05",
+   "source": "u4",
+   "quote": "We want to see bull gaps stay open because it shows who is in control of the strength. Gaps act as support and resistance not as open price spots that need to be retraced.",
+   "claim": "UCT's Sunday Scans: we want bull gaps to stay open, because an open gap shows who is in control; gaps act as support, not as spots that must be retraced."
+  },
+  {
+   "id": "u06",
+   "source": "u5",
+   "quote": "Look to the hourly for entry on a red to green early in the week.",
+   "claim": "UCT's Sunday Scans on DDOG at its gap-up low: look to the hourly chart for the entry, on a red to green."
+  },
+  {
+   "id": "n01",
+   "source": "hw",
+   "quote": "Stop distance: 1-3% is preferred, 3.5% is good, and up to 5% is acceptable; past 5%, we mostly wait for a tighter trigger.",
+   "claim": "Our stop band: 1-3% preferred, 3.5% good, up to 5% acceptable; past 5%, wait for a tighter trigger."
+  },
+  {
+   "id": "n02",
+   "source": "hw",
+   "quote": "Volume raises the grade; it is not a requirement, except where volume is the setup.",
+   "claim": "Volume raises the grade; it is not a requirement, except where volume is the setup."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
   }
  ],
  "walkthroughs": [
@@ -856,10 +902,10 @@
    "key": "w1",
    "title": "GPN, October 2013: the first touch of the line",
    "steps": [
-    "GPN, 2013. A quiet stock gaps up on 2013-10-02 on 11.5x volume. The gap-up low, 27.00, is the line.",
-    "Five sessions later, on 2013-10-09, the low dips 0.3% under the line. The day closes at 62% of its range.",
-    "We buy as price trades back over the line, not the close. Scan fill 27.15. Stop under the test low, 26.89.",
-    "Failure mode: a close under the line. Instead it ran to 24.9R. First sell: a judgment, into the push."
+    "GPN gapped up October 2, 2013, opening 7.0% higher on 11.5 times normal volume. The gap-up low, 27.00, is the line.",
+    "A week later, October 9, it comes back. The low dips 0.3% under 27.00 and it closes well off the low.",
+    "Buy as it trades back over the line, around 27.15. Stop 26.89, under the test-day low. That's 0.9% of risk.",
+    "Close under the line and the gap's failed. It held, and ran to 24.9R."
    ],
    "facts": [
     "e01",
@@ -877,10 +923,10 @@
    "key": "w2",
    "title": "ILMN, November 2010: the slight undercut that reclaims",
    "steps": [
-    "ILMN, 2010. An earnings gap on 2010-10-27 opens 5.6% up on 3.6x volume. The gap-up low, 53.03, is the line.",
-    "Four sessions later the low breaks the line by 1.1%, but the day closes at 94% of its range.",
-    "We buy as price trades back over the line, not the close. Scan fill 53.27. Stop under the low, 52.40, 1.6% away.",
-    "Failure mode: a close under the line. Instead it ran to 18.6R. First sell: a judgment, into the push."
+    "October 27, 2010: ILMN gaps on earnings, opening 5.6% up on 3.6 times volume. The gap-up low, 53.03, is the line.",
+    "Four sessions later the low slips 1.1% under it. Looks broken. But the day closes near its high, back over the line.",
+    "A slight undercut that gets taken back still counts. Buy back over the line, around 53.27. Stop 52.40, 1.6% away.",
+    "What makes it wrong is a close under 53.03 with no reclaim. It ran to 18.6R instead."
    ],
    "facts": [
     "e04",
@@ -898,10 +944,10 @@
    "key": "w3",
    "title": "AXON, December 2022: the late test",
    "steps": [
-    "AXON, 2022. A gap on 2022-11-09 opens 8.0% up on 3.6x volume. The gap-up low, 161.70, is the line.",
-    "The test comes 35 sessions later, on 2022-12-30. A 15% slide stops 0.4% above the line, closing at 82% of its range.",
-    "We buy as price trades back over the line, not the close. Scan fill 165.93. Stop under the low, 162.22, 2.2% away.",
-    "Failure mode: the gap fills. Instead it ran to 16.2R: sell part into the push, trail the rest."
+    "Earnings put AXON up 8.0% at the open, November 9, 2022, on 3.6 times volume. The line: the gap-up low, 161.70.",
+    "Then a 15% slide off the high. It takes 35 sessions, and stops just 0.4% above the line with a hammer.",
+    "A late test still counts. Buy as it turns up off the line, around 165.93. Stop 162.22, under the hammer, 2.2% away.",
+    "A close under the line kills it. It held and ran to 16.2R. Sell part into the push, trail the rest."
    ],
    "facts": [
     "e07",
@@ -910,6 +956,8 @@
     "g01",
     "g12",
     "g27",
+    "g30",
+    "g51",
     "h05",
     "h20",
     "h21",
@@ -924,7 +972,7 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "gs.line_is_gap_up_low",
-   "q": "The test day is the last bar. Which line does Gap Support defend here?",
+   "q": "Price has drifted back into an old earnings gap and the last bar is the test. Which line has to hold?",
    "choices": [
     "The gap-up day's low",
     "The prior day's high",
@@ -932,22 +980,23 @@
     "The 200-day line"
    ],
    "answer": "The gap-up day's low",
-   "why": "The gap-up day's low. That low is the line Gap Support defends, and Morales says a buyable gap-up should hold above it. The prior day's high is the gap-fill spot, a different level. On a true gap it sits below the line. The record-volume day's close is the High Volume Edge's line, and the 200-day is a filter for the test day.",
-   "lesson_line": "The line is the gap-up day's low.",
+   "why": "The gap-up day's low. That's the line. As long as price holds it, the gap stays open. An open gap shows who's in control, and it's the buyers. The prior day's high is a different level, the gap-fill spot. On a true gap it sits under the line, and a close there means the gap filled. Mark the gap-up low with a horizontal line the day it gaps and set an alert on it. Then you're ready when it comes back.",
+   "lesson_line": "The gap-up day's low is the line. Mark it the day it gaps.",
    "facts": [
     "g01",
     "m01",
     "g40",
     "g05",
-    "g03"
+    "g03",
+    "u05"
    ],
    "wrong": {
-    "The prior day's high": "That is the gap-fill spot. It sits below the line, and it is not what we defend.",
-    "The record-volume day's close": "That is the High Volume Edge's line, a different setup.",
-    "The 200-day line": "The 200-day is a filter for the test day, not the line."
+    "The prior day's high": "That's the gap-fill spot, under the line. A close down there means the gap filled and the trade's gone.",
+    "The record-volume day's close": "That's the High Volume Edge line, a different setup. Here the gap-up day's low has to hold.",
+    "The 200-day line": "The 200-day has to be under you on the test day, but it's not the line you trade against."
    },
    "house": true,
-   "simple": "Gap Support defends the low of the gap-up day, not the prior day's high, which is only where the gap fills.",
+   "simple": "The gap-up day's low. While it holds, the gap stays open and the buyers still own the move.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -955,12 +1004,15 @@
      "settled criteria card line, two facts"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "ADSK",
     "asof": "2004-03-17",
     "window": 120,
     "forward": 20
+   },
+   "deeper": {
+    "counter": "Gil Morales and Chris Kacher named the buyable gap-up. They say the same thing: a good gap-up holds above the gap-up day's intraday low, and that low is the selling guide."
    }
   },
   {
@@ -984,17 +1036,20 @@
    "rung": 1,
    "format": "tf",
    "criterion": "gs.above_200",
-   "q": "A Gap Support test day may close under the 200-day if the 50-day is rising.",
+   "q": "A rising 50-day makes up for a test day that closes under the 200-day.",
    "answer": "False",
-   "why": "False. The test day closes above the 200-day SMA, whatever the 50-day is doing. A test day that closes under the 200-day is off. Our rulebook bars longs below the 200-day simple moving average, unless it is a parabolic long.",
-   "lesson_line": "Under the 200-day, there is no Gap Support to buy.",
+   "why": "False. Under the 200-day we don't buy stocks, period. A rising 50-day is nice. It says the shorter trend is healthy. But a stock closing under its 200-day is in a longer downtrend, and we only want leaders in uptrends. The only things we'll buy under the 200 are indexes and levered ETFs, never a single stock. Check it on the test day's close before you do anything else.",
+   "lesson_line": "Under the 200-day, no stock gets bought. Not even a pretty one.",
    "facts": [
     "g03",
     "g29",
-    "h10"
+    "r02",
+    "r03",
+    "g04",
+    "m02"
    ],
    "house": true,
-   "simple": "False. A Gap Support test day must close above the 200-day, so a rising 50-day does not excuse a close under it.",
+   "simple": "False. A stock that closes under its 200-day is a hard no for us, whatever the 50-day is doing.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1002,7 +1057,7 @@
      "rests on the owner's rulebook (B26)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -1034,27 +1089,27 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "gs.market_reading",
-   "q": "In which market reading do we take only A+ gap tests?",
+   "q": "Our market filter just turned Orange, one step from Red. Three gap tests trigger: an A+, an A and a B. Which do you take?",
    "choices": [
-    "Orange",
-    "Green",
-    "Yellow",
-    "Red"
+    "Just the A+ setup",
+    "All three, full size",
+    "None, Orange is all cash",
+    "The A+ and the A, half size"
    ],
-   "answer": "Orange",
-   "why": "Orange. In an Orange market we take only A+ setups. Green is full risk per grade, Yellow is smaller and fewer, and Red is mostly cash and shorts. The market reading is a guide to how much risk to take.",
-   "lesson_line": "Orange means A+ only.",
+   "answer": "Just the A+ setup",
+   "why": "Just the A+. Orange means the market's under pressure, one step from Red. Bounces off support fail more often when the market isn't backing them. So I only want my very best idea, the cleanest test with the tightest risk. The A and the B can wait for a better market. Green is when we press. Yellow, smaller and fewer. Red is mostly cash. It's a guide, not a hard cap, but in Orange I get picky.",
+   "lesson_line": "Orange means A+ only. Let the market earn your exposure.",
    "facts": [
     "g32",
     "h26"
    ],
    "wrong": {
-    "Green": "Green is full risk per grade, not A+ only.",
-    "Yellow": "Yellow is smaller and fewer, not A+ only.",
-    "Red": "Red is mostly cash and shorts, not A+ only."
+    "All three, full size": "That's how you trade Green. In Orange, full size on everything gets you chopped up.",
+    "None, Orange is all cash": "That's closer to Red. Orange still lets your best setup through.",
+    "The A+ and the A, half size": "The A waits for a better market. Orange is the A+ only."
    },
    "house": true,
-   "simple": "Orange means only A+ setups. Green is full risk, Yellow is smaller and fewer, and Red is mostly cash.",
+   "simple": "Just the A+, because in an Orange market only your very best setup is worth the risk.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1062,7 +1117,7 @@
      "rests on the owner's rulebook (market reading, A10)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -1070,16 +1125,17 @@
    "rung": 1,
    "format": "tf",
    "criterion": "gs.order",
-   "q": "Gap Support buys are limit orders set just under the line.",
+   "q": "The way to buy a Gap Support test is a limit order resting just under the line.",
    "answer": "False",
-   "why": "False. Our rulebook says entries are market orders. We buy as price trades through the trigger, not with a limit order resting under the line.",
-   "lesson_line": "Entries are market orders.",
+   "why": "False. We buy with a market order as price trades back up through the line, during the day. A limit resting under the line fills on the way down. The stock is still falling, and you don't know yet if the line holds. That's catching it, not buying a hold. Let it undercut, turn and trade back over. Then buy it at market. An alert at the gap-up low tells you when to start watching.",
+   "lesson_line": "Let it prove the line, then buy it at market.",
    "facts": [
     "h22",
-    "r01"
+    "r01",
+    "g30"
    ],
    "house": true,
-   "simple": "False. We buy Gap Support with market orders, not limit orders set under the line.",
+   "simple": "False. We buy at market as it trades back over the line, so we know the line held first.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1087,7 +1143,7 @@
      "rests on the owner's rulebook (E57)"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -1095,26 +1151,28 @@
    "rung": 1,
    "format": "mcq",
    "criterion": "gs.true_gap",
-   "q": "What makes an up gap a true gap?",
+   "q": "Yesterday's high was 41.80. This morning the stock opens at 43.00. What has to happen for this to be a true gap?",
    "choices": [
-    "Its low is above the prior high",
-    "The open is above the prior close",
-    "Volume doubles the average",
-    "The close is above the day's open"
+    "Today's low stays above 41.80",
+    "It closes above where it opened",
+    "Volume comes in at 2x average",
+    "It holds above yesterday's close"
    ],
-   "answer": "Its low is above the prior high",
-   "why": "Its low is above the prior day's high. A true gap means the whole gap day trades above the prior day's high. An open above the prior close is not enough, because the low can fall back into the prior day's range.",
-   "lesson_line": "A true gap leaves a hole above yesterday's high.",
+   "answer": "Today's low stays above 41.80",
+   "why": "Today's low has to stay above 41.80, yesterday's high. That's a true gap: the whole day trades above yesterday's range and leaves a hole on the chart. Open at 43.00 and then sell off into yesterday's range, and there's no hole and no gap-up low worth defending. The hole is the point. It shows buyers wouldn't let it trade back where it was.",
+   "lesson_line": "A true gap leaves a hole over yesterday's high. No hole, no line.",
    "facts": [
-    "g05"
+    "g05",
+    "g06",
+    "n02"
    ],
    "wrong": {
-    "The open is above the prior close": "That can happen with the low back inside the prior day's range; a true gap needs more.",
-    "Volume doubles the average": "Volume is a different test.",
-    "The close is above the day's open": "A close above the open says nothing about a hole."
+    "It closes above where it opened": "A green candle is nice, but it can still dip into yesterday's range first. Then there's no hole.",
+    "Volume comes in at 2x average": "Volume raises the grade. It doesn't make a gap true. Only the low does that.",
+    "It holds above yesterday's close": "Above the close isn't enough. The low has to clear yesterday's high, 41.80."
    },
    "house": true,
-   "simple": "A true gap means the day's low stays above the prior day's high, so the whole day trades above it.",
+   "simple": "Its low stays above yesterday's high, so the whole day trades above yesterday's range and leaves a hole.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1122,7 +1180,7 @@
      "one cited fact only (a proposed card criterion)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -1130,28 +1188,29 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "gs.gap_still_open",
-   "q": "When is the gap still open?",
+   "q": "Before you buy the test, you check that the old gap is still open. What tells you it is?",
    "choices": [
-    "No close at or under prior high",
-    "No trade under the gap-up low",
-    "Green closes every day since",
-    "Volume stays above average since"
+    "No close at or under the prior high",
+    "Price never traded under the gap-up low",
+    "Every day since closed green",
+    "Volume stayed above average since"
    ],
-   "answer": "No close at or under prior high",
-   "why": "No close at or under the prior day's high since the gap day. That prior high is the gap-fill spot. One close at or under it means the gap filled and the setup is dead.",
-   "lesson_line": "Open means no close back at the gap-fill spot.",
+   "answer": "No close at or under the prior high",
+   "why": "No close at or under the prior day's high, the gap-fill spot. That's the one that counts. Price can trade under the gap-up low during the day and the gap's still open. But one close back at the prior high and the hole is filled. The buyers who gapped it up have given it all back, and the setup is dead. So check the closes since the gap day, not the wicks.",
+   "lesson_line": "Check the closes, not the wicks. One close at the fill spot and it's done.",
    "facts": [
     "g08",
     "g01",
-    "g26"
+    "g26",
+    "g11"
    ],
    "wrong": {
-    "No trade under the gap-up low": "A slight trade under the gap-up low is allowed. The gap-fill spot is the test.",
-    "Green closes every day since": "Only a close at or under the prior day's high ends it. The color of the days does not matter.",
-    "Volume stays above average since": "Volume does not decide whether a gap is open."
+    "Price never traded under the gap-up low": "Too strict. A slight trade under the line is fine, even good. The closes decide.",
+    "Every day since closed green": "Red days on the drift back are normal. Only a close at the fill spot ends it.",
+    "Volume stayed above average since": "Volume doesn't open or close a gap. Price does."
    },
    "house": true,
-   "simple": "The gap stays open while no day has closed at or under the prior day's high since the gap day.",
+   "simple": "It's open as long as no day has closed at or under the prior day's high since the gap.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1159,7 +1218,7 @@
      "fixed before; the card's wording on closes inside the gap overlaps the failed-gap line (see conflicts)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
@@ -1199,16 +1258,16 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "gs.stop_not_fill_spot",
-   "q": "Why not put the stop under the gap-fill spot?",
+   "q": "You'd like more room, so you think about a stop under the gap-fill spot instead. What's wrong with that?",
    "choices": [
-    "It is usually far from the entry",
-    "It is too close to the entry",
-    "It sits above the gap-up day's low",
+    "It sits far from your entry",
+    "It's too close to your entry",
+    "It sits above the gap-up low",
     "It moves up as the stock rises"
    ],
-   "answer": "It is usually far from the entry",
-   "why": "It is far from the entry. A stop under the gap-fill spot is a median 6% away, only 12% within 3%, and it wins less often per R. If the honest stop is more than about 3% away, we size down or skip. Our stop goes a few cents under the test day's low.",
-   "lesson_line": "Stop under the test day's low, not the fill spot.",
+   "answer": "It sits far from your entry",
+   "why": "It's too far away. In our own history a stop under the gap-fill spot sat a median 6% from the entry, and only 12% were within 3%. Those stops also won less often per R. The size comes from the stop, so twice the distance means half the shares for the same dollars at risk. You pay for that room in size and get a worse trade. We like 1-3% and take up to 5%. Put the stop a few cents under the test day's low.",
+   "lesson_line": "Room isn't free. A wide stop costs you shares.",
    "facts": [
     "g13",
     "g12",
@@ -1216,17 +1275,18 @@
     "h01",
     "h12",
     "g01",
-    "g05"
+    "g05",
+    "n01"
    ],
    "wrong": {
-    "It sits above the gap-up day's low": "On a true gap the gap-fill spot sits under the gap-up day's low, not above it.",
-    "It is too close to the entry": "It is the opposite. A stop under the gap-fill spot is far from the entry.",
-    "It moves up as the stock rises": "The gap-fill spot is the prior day's high. It is a fixed price, not a trailing level."
+    "It moves up as the stock rises": "It's yesterday's high from before the gap. A fixed price, not a trailing level.",
+    "It's too close to your entry": "Backwards. It's the far stop, a median 6% away.",
+    "It sits above the gap-up low": "On a true gap the fill spot is under the gap-up low, not above it."
    },
    "house": true,
-   "simple": "A stop under the gap-fill spot sits a median 6% away, which is far, and it wins less often per R.",
+   "simple": "It sits far from your entry, so it cuts your size, and those stops won less often per R.",
    "deeper": {
-    "trap": "A far stop feels like more room, but the size comes from the stop. The shares shrink as the distance grows. If the honest stop does not fit the risk, skip the trade and do not pull the stop in."
+    "trap": "A far stop feels safer because it gets hit less. But the size comes from the stop, so the shares shrink as the distance grows. If the honest stop doesn't fit your risk, skip the trade. Never pull it in to fit."
    },
    "tier": "core",
    "risk": {
@@ -1236,7 +1296,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
@@ -1295,16 +1355,17 @@
    "rung": 2,
    "format": "tf",
    "criterion": "gs.one_entry",
-   "q": "Gap Support is bought at full size, at one price, with one stop, and not built up in pieces.",
+   "q": "You buy your whole Gap Support position at once, at one price, with one stop.",
    "answer": "True",
-   "why": "True. We buy the full size at one price with one stop, and we do not add. A gap test is a new trade, not an add.",
-   "lesson_line": "One buy, one price, one stop.",
+   "why": "True. One buy, one price, one stop. No starter piece, and no plan to add later. The test day gives you one clean spot to be wrong, the low of the day. Your size is worked out from that stop before you buy. Add later at a higher price and your average cost creeps up while the stop stays put. That's more risk on the same trade. If it sets up again later, that's a new trade with its own stop.",
+   "lesson_line": "One buy, one price, one stop. No starter piece.",
    "facts": [
     "g18",
-    "h31"
+    "h03",
+    "aw1"
    ],
    "house": true,
-   "simple": "True. We buy the whole size at once, at one price with one stop, and we never add to it.",
+   "simple": "True. You buy it all at one price with one stop, and a later test is a new trade, not an add.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1312,7 +1373,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "wave3"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q15",
@@ -1320,17 +1381,19 @@
    "rung": 2,
    "format": "tf",
    "criterion": "gs.stop_broker",
-   "q": "The stop sits in a real stop order with the broker, and it only moves up.",
+   "q": "Your stop sits with your broker as a real stop order, not in your head.",
    "answer": "True",
-   "why": "True. The card calls for a real stop order with the broker. The stop is the exit, and it only moves up, never down or wider. The one exception is the gap rule: when a gap goes through the stop, the first 30-minute low is the new stop.",
-   "lesson_line": "A real stop order, and it only moves up.",
+   "why": "True. A real stop order, sitting with your broker. The stop is an appointment, not a debate. A stop in your head is one you'll argue with while the stock falls. Put it in when you buy, a few cents under the low of the day. From there it only moves up, never down or wider. The one exception is a gap down through your stop. Then the low of the first 30 minutes is your new stop, and past 2R you're just out.",
+   "lesson_line": "The stop is an appointment, not a debate.",
    "facts": [
     "g16",
     "h02",
-    "h06"
+    "h06",
+    "h07",
+    "h24"
    ],
    "house": true,
-   "simple": "True. The stop is a real order with the broker, and it only moves up, never down or wider.",
+   "simple": "True. The stop is a real order with your broker, so you never argue with yourself when it hits.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1338,7 +1401,7 @@
      "rests on the owner's rulebook (A4, B20)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
@@ -1346,7 +1409,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.test_low",
-   "q": "The test day is the last bar. Gap-up low 53.03, test-day low 52.45. How deep is the breach, in percent?",
+   "q": "Gap-up low 53.03. The test day dipped to 52.45, then closed near its high. How far under the line did it go?",
    "answer": "1.1%",
    "calc": {
     "fn": "arith",
@@ -1357,17 +1420,18 @@
     },
     "round": 1
    },
-   "why": "1.1%. The breach is the gap-up low minus the test-day low, 53.03 minus 52.45. Divide that by the gap-up low, 53.03, and show it as a percent. ILMN's slight undercut was this deep, and the day closed at 94% of its range.",
-   "lesson_line": "Breach depth is the dip under the line, over the line.",
+   "why": "1.1%. Take 53.03 minus 52.45, divide that by 53.03, times 100, and you get 1.1%. That's a slight undercut, and one that snaps back is one of the best looks this setup gives. It shakes out the weak holders right at the line, then buyers take it back. ILMN did exactly that and closed at 94% of its range. How deep is too deep is a judgment, not one number. Measure it anyway, so you know a slight undercut from a broken line.",
+   "lesson_line": "Measure the undercut. A slight one that snaps back is the good kind.",
    "facts": [
     "e05",
-    "e06"
+    "e06",
+    "e04"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "Subtract the test-day low from the gap-up low, then divide by the gap-up low, to get about 1.1 percent.",
+   "simple": "About 1.1 percent. Take the dip under the line and divide it by the gap-up low.",
    "deeper": {
-    "example": "ILMN: the test day's low broke the 53.03 line by 1.1%, yet the day closed at 94% of its range."
+    "example": "ILMN, November 2010. The test day's low broke the 53.03 line by 1.1%. The day still closed at 94% of its range."
    },
    "tier": "core",
    "risk": {
@@ -1376,7 +1440,7 @@
      "computed key"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "98.9%",
     "0.6%",
@@ -1384,9 +1448,9 @@
     "1.1%"
    ],
    "wrong": {
-    "0.6%": "Read the dollar gap as a percent.",
-    "10.9%": "Slipped the decimal one place to the right.",
-    "98.9%": "Divided the test low by the gap-up low and skipped the subtraction."
+    "0.6%": "That's the dollar dip read as a percent. Divide by the price first.",
+    "10.9%": "The decimal slipped one place. An undercut that deep would be a broken line.",
+    "98.9%": "That's 52.45 over 53.03. You skipped the subtraction."
    },
    "chart": {
     "sym": "ILMN",
@@ -1401,7 +1465,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.trim_1",
-   "q": "Bought at 25.10 with the stop at 24.71. Where is 3R?",
+   "q": "You bought at 25.10 with your stop at 24.71. Before the open you mark your levels. Where's 3R?",
    "answer": "$26.27",
    "calc": {
     "fn": "arith",
@@ -1412,15 +1476,17 @@
     },
     "round": 2
    },
-   "why": "$26.27. One R is the fill minus the stop, 25.10 minus 24.71. Add three of those to the 25.10 fill. 3R is a yardstick for the trade, not a fixed sell.",
-   "lesson_line": "Know your 3R before the close. It is a yardstick, not a sell order.",
+   "why": "$26.27. One R is your risk per share, 25.10 minus 24.71. Take three of those, add them to 25.10, and you're at 26.27. Mark it. Somewhere between 2R and 5R is where your stop can come up to breakeven, so a winner can't turn into a loser. 3R isn't an automatic sell, though. The first sell is a judgment, often into a 3, 5 or 7 day push.",
+   "lesson_line": "Know your R levels before the open. They tell you when to protect the trade.",
    "facts": [
     "e11",
-    "r06"
+    "r06",
+    "h05",
+    "r07"
    ],
    "house": true,
    "prefix": "$",
-   "simple": "3R is the fill plus three times the distance from the fill to the stop, which is 26.27.",
+   "simple": "3R is your buy price plus three times your risk per share. That lands at 26.27.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1429,7 +1495,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$23.93",
     "$26.27",
@@ -1437,9 +1503,9 @@
     "$26.66"
    ],
    "wrong": {
-    "$23.93": "Subtracted three R from the fill.",
-    "$25.49": "Added one R, not three.",
-    "$26.66": "Counted four R, one too many."
+    "$23.93": "You took three R off the buy. 3R is a profit level, above you.",
+    "$25.49": "That's one R. Three of them puts you at 26.27.",
+    "$26.66": "That's four R, one too many."
    },
    "chart": {
     "sym": "AKAM",
@@ -1496,31 +1562,32 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.stop",
-   "q": "The test day is the last bar. Where does the stop go on a Gap Support buy?",
+   "q": "The last bar is the test day. It dipped under the gap-up low and closed back over it. Where does your stop go?",
    "choices": [
     "Just under the test day's low",
-    "Under the gap-fill for room",
-    "Exactly on the gap-up low",
-    "A fixed 2% under the gap low"
+    "Under the gap-fill spot, for room",
+    "Right on the gap-up low",
+    "A fixed 2% under your entry"
    ],
    "answer": "Just under the test day's low",
-   "why": "A few cents under the test day's low. The stop is set from the test day's low, not from the gap-up low. It is not a fixed 1% to 3% cushion. Under the gap-fill spot the stop is a median 6% away. Only 12% are within 3%, and it wins less often per R.",
-   "lesson_line": "Stop a few cents under the test day's low.",
+   "why": "A few cents under the test day's low. That's the low of the day, LOD for short, and it's where the chart says you're wrong. If buyers were really defending the line, price shouldn't trade back under the day they defended it. Not exactly on the low, either. A few cents under keeps one stray tick from tagging you. This test already traded under the line today, so a stop on the line would've been hit. Under the gap-fill spot is a median 6% away, too wide to size well.",
+   "lesson_line": "Stop a few cents under the low of the day. That's where you're wrong.",
    "facts": [
     "g12",
     "g13",
     "g14",
-    "h24"
+    "h24",
+    "h01"
    ],
    "wrong": {
-    "Under the gap-fill for room": "That stop is a median 6% away.",
-    "Exactly on the gap-up low": "The stop sits a few cents under the test day's low, not exactly on a low or a line.",
-    "A fixed 2% under the gap low": "A fixed 1% to 3% cushion is not our stop."
+    "Under the gap-fill spot, for room": "That's a median 6% away. The room costs you shares, and it wins less per R.",
+    "Right on the gap-up low": "This day already traded under the line. A stop there would've been hit today.",
+    "A fixed 2% under your entry": "A percent off your fill means nothing to the chart. Use the real low."
    },
    "house": true,
-   "simple": "The stop goes a few cents under the test day's low, not under the gap-fill spot and not a fixed cushion.",
+   "simple": "A few cents under the test day's low, because a trade back under that low means the hold failed.",
    "deeper": {
-    "trap": "Picking the wide stop for room. Under the gap-fill spot the stop is a median 6% away, and only 12% sit within 3%. The card also records that this stop wins less often per R."
+    "trap": "Picking the wide stop for room. Under the gap-fill spot the stop sat a median 6% away in our history, and only 12% were within 3%. Those stops also won less often per R."
    },
    "tier": "core",
    "risk": {
@@ -1529,7 +1596,7 @@
      "settled stop rule (A3), three facts"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "XYZ",
     "asof": "2017-03-22",
@@ -1618,7 +1685,7 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.stop_width",
-   "q": "Bought at 15.96 with the stop at 15.48. How far is the stop from the fill, in percent?",
+   "q": "You bought at 15.96 with the stop at 15.48, a few cents under the test day's low. How far away is that stop?",
    "answer": "3.0%",
    "calc": {
     "fn": "arith",
@@ -1629,15 +1696,16 @@
     },
     "round": 1
    },
-   "why": "3.0%. The fill minus the stop is 15.96 minus 15.48. Divide that by the fill, 15.96, and show it as a percent. That is right at the 'about 3%' line. If the honest stop is more than about 3% away, size down or skip, and never pull it in.",
-   "lesson_line": "Stop distance is the fill minus the stop, over the fill.",
+   "why": "3.0%. Take 15.96 minus 15.48, your risk per share. Divide it by 15.96, times 100, and you get 3.0%. That's right where I like it. We prefer 1-3%, 3.5% is still good, and we'll take up to 5%. Past 5%, wait for a tighter trigger. Check this before you buy, every time. The stop distance is what sets your size.",
+   "lesson_line": "Know your stop in percent before you buy.",
    "facts": [
     "g15",
-    "e13"
+    "e13",
+    "n01"
    ],
    "house": true,
    "suffix": "%",
-   "simple": "Take the fill minus the stop, divide by the fill, and you get 3.0 percent, right at the 3 percent line.",
+   "simple": "About 3 percent. Divide your risk per share by your buy price.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1645,7 +1713,7 @@
      "computed key; the 'about 3%' line is marked settled on the card"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "30.1%",
     "0.5%",
@@ -1653,9 +1721,9 @@
     "97.0%"
    ],
    "wrong": {
-    "0.5%": "Read the dollar gap as a percent.",
-    "30.1%": "Slipped the decimal one place to the right.",
-    "97.0%": "Divided the stop by the fill and skipped the subtraction."
+    "0.5%": "That's the dollar risk read as a percent. Divide by the price first.",
+    "30.1%": "The decimal slipped one place. A stop that far away isn't a stop.",
+    "97.0%": "That's 15.48 over 15.96. You skipped the subtraction."
    },
    "chart": {
     "sym": "VIAV",
@@ -1674,17 +1742,17 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.inv_failed_gap",
-   "q": "Is this test a buy?",
-   "story": "The test day undercut the gap-up low by 4% and ended the day 3% below it.",
+   "q": "Is there a trade here?",
+   "story": "A leader drifts back into its earnings gap. The test day slices 4% under the gap-up low and closes 3% under it, near the lows.",
    "choices": [
-    "Pass; the day did not hold the line",
-    "Buy it; an undercut is just a shakeout",
-    "Buy half size now, to be safe",
-    "Buy it, with the stop at the gap fill"
+    "No, it closed under the line",
+    "Yes, an undercut is a shakeout",
+    "Half size, to be safe",
+    "Yes, stop under the gap-fill"
    ],
-   "answer": "Pass; the day did not hold the line",
-   "why": "No buy. The test day ended 3% under the gap-up low, so the line did not hold and there was no reclaim. That is a failed gap. We also never buy at the close. We buy as price trades through the trigger.",
-   "lesson_line": "A close under the line is not a hold.",
+   "answer": "No, it closed under the line",
+   "why": "No trade. The undercut alone was fine. Closing 3% under the line with no reclaim is a failed gap. The whole bet is that buyers defend that low, and they didn't. They let it close well below. Remember, we only buy as price trades back up through the line during the day. It never did, so there was never a trigger to hit.",
+   "lesson_line": "An undercut is fine. A close under the line with no reclaim is a failed gap.",
    "facts": [
     "g27",
     "g01",
@@ -1692,12 +1760,12 @@
     "r01"
    ],
    "wrong": {
-    "Buy it; an undercut is just a shakeout": "An undercut alone can be fine. This day also ended under the line, and that close with no reclaim is a failed gap.",
-    "Buy half size now, to be safe": "Half size on a failed test is still a failed test.",
-    "Buy it, with the stop at the gap fill": "Our stop is not under the gap-fill spot. That stop is a median 6% away."
+    "Yes, an undercut is a shakeout": "A shakeout snaps back. This one closed 3% under the line. That's a failed gap.",
+    "Half size, to be safe": "Half size on a failed test is still a failed test. Wait for one that holds.",
+    "Yes, stop under the gap-fill": "There's no trigger to buy, and that stop sits a median 6% away anyway."
    },
    "house": true,
-   "simple": "Do not buy, because the day ended under the gap-up low, so the line did not hold.",
+   "simple": "No. It closed well under the line and never traded back over it, so there was never a buy.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1708,7 +1776,7 @@
    "depends_on": [
     "D-094"
    ],
-   "batch": "rulings2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
@@ -1793,33 +1861,34 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.no_chase",
-   "q": "Buy or pass?",
-   "story": "You planned to buy the test day's close at 50.00 but were away from your desk. The next morning the stock opens at 52.30.",
+   "q": "Do you still take it?",
+   "story": "You planned to buy the test as it traded back over the line at 50.00, then got pulled away from your desk. Next morning it opens at 52.30, 4.6% above your plan.",
    "choices": [
-    "Pass; that is too far to chase",
-    "Buy, the hold is confirmed",
-    "Buy half size to cut risk",
-    "Buy with a wider stop"
+    "No, it's past the chase line",
+    "Yes, the hold is confirmed now",
+    "Yes, but at half size",
+    "Yes, with a wider stop"
    ],
-   "answer": "Pass; that is too far to chase",
-   "why": "Pass. 52.30 is more than 4% over the 50.00 buy point, and we never buy more than 4% above it. Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink.",
-   "lesson_line": "Miss it rather than chase it. Four percent and done.",
+   "answer": "No, it's past the chase line",
+   "why": "Pass. 4.6% over your buy point is past our 4% line, and we don't chase past it. Here's why that matters. Your stop doesn't move up because you're late. It still sits under the test day's low. So the stop's further away and your shares shrink. You'd be paying more for less. I'd rather miss it than chase it. If it pulls back and gives a new trigger, take that one.",
+   "lesson_line": "I'd rather miss it than chase it.",
    "facts": [
     "g24",
     "h11",
     "h12",
     "h01",
-    "h02"
+    "h02",
+    "r01"
    ],
    "wrong": {
-    "Buy, the hold is confirmed": "A confirmed hold is not the question. The chase line is 4% above the buy point.",
-    "Buy half size to cut risk": "The rule limits the price, not the size: no buy more than 4% over the buy point.",
-    "Buy with a wider stop": "The stop goes where the chart puts it and never gets wider. If the honest stop does not fit the risk, skip the trade."
+    "Yes, the hold is confirmed now": "The hold being right doesn't move the line. 4.6% over the buy point is a chase.",
+    "Yes, but at half size": "The rule caps the price you pay, not the size. Past 4%, it's a pass.",
+    "Yes, with a wider stop": "The stop goes where the chart puts it and never gets wider. Skip it."
    },
    "house": true,
-   "simple": "Pass, because the open is more than 4% above your buy point, and we never chase past 4%.",
+   "simple": "Pass. The open is past the 4 percent chase line, and chasing only shrinks your size.",
    "deeper": {
-    "trap": "A confirmed hold feels like a reason to buy anyway. But the setup being right does not move the line. The limit is 4% over the buy point, and past it, chasing shrinks the size, not the risk."
+    "trap": "A confirmed hold feels like a reason to pay up. But the setup being right doesn't move your stop. Pay 4.6% more and the distance to the stop grows, so the shares shrink for the same risk."
    },
    "tier": "core",
    "risk": {
@@ -1828,7 +1897,7 @@
      "rests on the owner's rulebook (C28)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q28",
@@ -1836,28 +1905,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.earnings_window",
-   "q": "Buy the test?",
-   "story": "A clean test day closes back over the line on Wednesday. The company reports Thursday after the close.",
+   "q": "Can you take it Wednesday?",
+   "story": "A clean test: it holds the gap-up low and closes strong on Wednesday. The company reports earnings Thursday after the close.",
    "choices": [
-    "No; a report is within 3 days",
-    "Yes; the test day is clean",
-    "Yes, but at half size only",
+    "No, earnings are too close",
+    "Yes, the test is clean",
+    "Yes, but at half size",
     "Yes, and hold through the report"
    ],
-   "answer": "No; a report is within 3 days",
-   "why": "No. We take no new buy in the 3 days before an earnings report. The report comes after Thursday's close, so a Wednesday buy is inside that window. Holding through a report needs a trade already up 5R, and this would be a new buy.",
-   "lesson_line": "A report within 3 days means no new buy.",
+   "answer": "No, earnings are too close",
+   "why": "No. We don't open a new trade in the 3 days before a report, and Thursday's report is a day away. The reason is simple. A report can gap the stock right through your stop, and no stop protects you overnight. A clean chart doesn't change that. We only hold through earnings when a trade is already up 5R, so the cushion can absorb a bad gap. Put it on your list and look again after the report.",
+   "lesson_line": "Earnings in 3 days means no new buy. Look again after.",
    "facts": [
     "h08",
-    "g25"
+    "g25",
+    "g17"
    ],
    "wrong": {
-    "Yes; the test day is clean": "A clean chart does not remove the report risk.",
-    "Yes, but at half size only": "Half size is still a new buy in the report window.",
-    "Yes, and hold through the report": "Holding through a report needs a trade already up 5R, not a new position."
+    "Yes, and hold through the report": "Holding through a report needs a trade already up 5R. This one's brand new.",
+    "Yes, the test is clean": "A clean chart doesn't remove the gap risk of a report.",
+    "Yes, but at half size": "Half size is still a new buy inside the report window."
    },
    "house": true,
-   "simple": "Do not buy, because the report is within 3 days and we take no new buy that close to earnings.",
+   "simple": "No. A report can gap it right through your stop, so we take no new buys in the 3 days before one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1865,7 +1935,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q29",
@@ -1873,31 +1943,32 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.stop_width",
-   "q": "How do you handle this stop?",
-   "story": "The test day's low puts your stop 5% under the fill. A friend says to use 1.5% under the fill instead, so you can buy more shares.",
+   "q": "What do you do with the stop?",
+   "story": "The test day's low puts your stop 5% under your entry. A friend says to use 1.5% instead, so you can buy more shares.",
    "choices": [
-    "Buy fewer shares to fit the 5% stop",
-    "Pull the stop in to 1.5% under the fill",
-    "Buy the usual share count anyway",
-    "Put the stop at the gap-fill spot"
+    "Keep it, buy fewer shares",
+    "Pull it in to 1.5%",
+    "Keep it, buy the usual size",
+    "Move it to the gap-fill spot"
    ],
-   "answer": "Buy fewer shares to fit the 5% stop",
-   "why": "Buy fewer shares. The stop goes a few cents under the test day's low, and the size comes from that stop. When the stop is more than about 3% away, size down or skip. Never pull the stop in.",
-   "lesson_line": "If the honest stop does not fit, size down or skip.",
+   "answer": "Keep it, buy fewer shares",
+   "why": "Keep the stop, buy fewer shares. The stop goes a few cents under the low of the day because that's where the chart says you're wrong. Pull it in to 1.5% and it sits inside the day's normal range. Ordinary noise takes you out of a good trade. The size comes from the stop, never the other way around. 5% is the widest I'll take. Past that, I'd wait for a tighter trigger.",
+   "lesson_line": "Stop first, size second. Never move the stop to fit the size.",
    "facts": [
     "g15",
     "h01",
     "h02",
     "g01",
-    "g40"
+    "g40",
+    "n01"
    ],
    "wrong": {
-    "Put the stop at the gap-fill spot": "The gap-fill spot sits below the line, so a stop there is even wider. It does not fit the size.",
-    "Pull the stop in to 1.5% under the fill": "Pulling the stop in to fit the size is the mistake, not the plan.",
-    "Buy the usual share count anyway": "The usual count on a 5% stop risks more than the plan allows. The size comes from the stop."
+    "Pull it in to 1.5%": "That stop sits inside the day's range. Normal noise stops you out.",
+    "Keep it, buy the usual size": "Same shares on a wider stop means more dollars at risk than you planned.",
+    "Move it to the gap-fill spot": "That's even further away, under the line. It makes the size problem worse."
    },
    "house": true,
-   "simple": "Buy fewer shares, because the stop stays under the test day's low and is never pulled in.",
+   "simple": "Keep the stop where the chart puts it and buy fewer shares, because the size comes from the stop.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1906,7 +1977,7 @@
      "wrong note on the gap-fill spot reworded to the cited median"
     ]
    },
-   "batch": "polish"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q30",
@@ -1914,29 +1985,29 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.time_stop",
-   "q": "Ten days in, what is the move?",
-   "story": "You bought a Gap Support test. Ten trading days later it sits at 0.3R, never near 3R and never near the stop.",
+   "q": "Day ten. What's the move?",
+   "story": "You bought a Gap Support test. Ten trading days later it's up 0.3R. It never came near your stop, and it never really went anywhere.",
    "choices": [
-    "Sell; under 1R at 10 trading days",
-    "Hold; the stop has not been hit",
-    "Sell half now and hold the rest",
-    "Move the stop to breakeven and wait"
+    "Sell it, it's under 1R",
+    "Hold, the stop isn't hit",
+    "Sell half, hold the rest",
+    "Stop to breakeven, wait"
    ],
-   "answer": "Sell; under 1R at 10 trading days",
-   "why": "Sell. A trade still under 1R after 10 trading days is sold, which frees the money. At 0.3R after ten days this trade is under 1R, so the time stop applies. The stop was never hit, and the trade is not working.",
-   "lesson_line": "A slow trade under 1R gets sold on day ten.",
+   "answer": "Sell it, it's under 1R",
+   "why": "Sell it. Ten trading days and still under 1R means it isn't working. A good test should launch off the line, and this one didn't. Meanwhile your money sits in a dead trade while other setups trigger. Sell, free the money, move on. If it sets up again later, it can earn its way back onto your list.",
+   "lesson_line": "Ten days and under 1R, it's not working. Free the money.",
    "facts": [
     "g22",
     "h15",
-    "g19"
+    "h05"
    ],
    "wrong": {
-    "Hold; the stop has not been hit": "The time stop exists for exactly this trade.",
-    "Move the stop to breakeven and wait": "The stop goes to breakeven at the first trim by default, not as a way to keep waiting.",
-    "Sell half now and hold the rest": "The time stop sells the trade. It does not trim it."
+    "Hold, the stop isn't hit": "The time stop is for exactly this trade. Not losing isn't the same as working.",
+    "Sell half, hold the rest": "The time stop sells the trade. It doesn't trim it.",
+    "Stop to breakeven, wait": "Breakeven is for a trade that's working, between 2R and 5R. This one hasn't done anything."
    },
    "house": true,
-   "simple": "Sell it, because a trade still under 1R after 10 trading days hits the time stop, even though the stop was never touched.",
+   "simple": "Sell it. After ten trading days under 1R the trade isn't working, and that money can go to one that is.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1944,7 +2015,7 @@
      "rests on the owner's time-stop rule (C33)"
     ]
    },
-   "batch": "polish"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q31",
@@ -1952,28 +2023,28 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.market_reading",
-   "q": "What does the Red reading call for?",
-   "story": "The market reading is Red. A leader's test day holds the gap-up low, closes in the upper half, and the 50-day is rising.",
+   "q": "The chart looks great. What do you do?",
+   "story": "Our market filter reads Red, the weakest of its four colors. A leader's test day holds the gap-up low, closes in the upper half, and its 50-day is rising.",
    "choices": [
-    "Mostly cash and shorts",
-    "Full risk, up to 10 positions",
-    "Smaller and fewer positions",
-    "Only A+ setups, nothing lower"
+    "Stay mostly in cash",
+    "Full size, it's a leader",
+    "Smaller size, fewer names",
+    "Buy it, the chart's what counts"
    ],
-   "answer": "Mostly cash and shorts",
-   "why": "Mostly cash and shorts. In a Red market we are mostly in cash and short. Green is full risk, Yellow is smaller and fewer, and Orange is A+ only.",
-   "lesson_line": "Red market: mostly cash and shorts.",
+   "answer": "Stay mostly in cash",
+   "why": "Mostly cash. Red means the market's in real trouble, and in a market like that even good charts fail. So we sit mostly in cash. It's a guide, not a hard rule, but this is when you protect the account. Keep this leader on your list and watch how it acts. When the market turns, the names that held their gaps through the mess are where I look first.",
+   "lesson_line": "Red is mostly cash. Keep the leaders on your list for the turn.",
    "facts": [
     "g32",
     "h26"
    ],
    "wrong": {
-    "Full risk, up to 10 positions": "Full risk is the Green reading.",
-    "Smaller and fewer positions": "Smaller and fewer is Yellow. Red means mostly cash and shorts.",
-    "Only A+ setups, nothing lower": "Only A+ setups is the Orange reading. Red means mostly cash and shorts."
+    "Full size, it's a leader": "Full size is how we trade Green. In Red the market drags leaders down too.",
+    "Smaller size, fewer names": "That's Yellow. Red is a step past that, mostly cash.",
+    "Buy it, the chart's what counts": "The chart's only half of it. In Red, good charts fail too."
    },
    "house": true,
-   "simple": "Mostly cash and shorts. That is what a Red reading means.",
+   "simple": "Mostly cash. In a Red market even good charts fail, so keep this leader on your list for the turn.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1981,7 +2052,7 @@
      "rests on the owner's market-reading rule (A10, F65)"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q32",
@@ -1989,29 +2060,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "gs.not_gap_day",
-   "q": "Gap Support or PEG?",
-   "story": "The gap day is the last bar. It opened 10.1% over the prior close on 11.9x volume, an earnings gap. You are deciding which setup owns today's buy.",
+   "q": "Which setup is today's buy, if any?",
+   "story": "The last bar is the gap day itself. It opened 10.1% over the prior close on 11.9x volume after an earnings report.",
    "choices": [
-    "A PEG; the gap day is not Gap Support",
-    "Gap Support; the gap is holding",
-    "Gap Support; today's low is the line",
-    "Neither; there is no setup on a gap day"
+    "A PEG, the gap day setup",
+    "Gap Support, the gap's holding",
+    "Gap Support off today's low",
+    "None, never buy a gap day"
    ],
-   "answer": "A PEG; the gap day is not Gap Support",
-   "why": "A PEG. The gap day itself is a PEG, never Gap Support. A PEG is bought on the gap day or its first pause, with the gap-day low as the outer stop. Gap Support waits for price to come back to the gap-up day's low and defend it.",
-   "lesson_line": "Count the days since the gap. Day zero is a PEG.",
+   "answer": "A PEG, the gap day setup",
+   "why": "A PEG, a power earnings gap. Today's the gap day, so there's no test yet. A PEG gets bought on the gap day or its first pause, with the gap day's low as the outer stop. Gap Support comes later. Price drifts back to this day's low, days or weeks out, and defends it. So mark today's low now. That's the line you'll be watching if it ever comes back.",
+   "lesson_line": "Day zero is a PEG. Gap Support is the comeback to its low.",
    "facts": [
     "g02",
     "g38",
     "g39"
    ],
    "wrong": {
-    "Gap Support; the gap is holding": "Holding today is the PEG day; Gap Support is a later test.",
-    "Gap Support; today's low is the line": "Today's low is not yet a line that has been tested and defended.",
-    "Neither; there is no setup on a gap day": "A PEG is bought on the gap day or its first pause."
+    "Gap Support, the gap's holding": "Holding on day zero is the PEG. Gap Support needs a later test of the line.",
+    "Gap Support off today's low": "Today's low hasn't been tested or defended yet. It's the line for later.",
+    "None, never buy a gap day": "A PEG is bought on the gap day or its first pause."
    },
    "house": true,
-   "simple": "A PEG. The gap day is a PEG, and Gap Support is the later test when price returns to the gap-up low.",
+   "simple": "A PEG. The gap day is a PEG, and Gap Support is the later test of this day's low.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -2019,7 +2090,7 @@
      "settled card line, three facts"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "ADSK",
     "asof": "2004-02-27",
@@ -2070,28 +2141,28 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "gs.not_downtrend",
-   "q": "What kind of gap is this?",
-   "story": "A stock gapped down off its highs. Weeks later price is rallying back up toward the gap.",
+   "q": "How do you read this gap?",
+   "story": "A stock gapped down off its highs. A few weeks later it's rallying back up toward the bottom of that gap.",
    "choices": [
-    "A bear gap; its high must cap price",
-    "Gap Support; the gap will act as support",
-    "Gap Support; buy as it fills the gap",
-    "A buyable gap-up; price is rallying"
+    "A bear gap, it caps price",
+    "Gap Support, it'll hold",
+    "A buy as it fills the gap",
+    "A buyable gap-up, it's rallying"
    ],
-   "answer": "A bear gap; its high must cap price",
-   "why": "A bear gap, not Gap Support. A bear gap is a gap down off the highs, and its high must cap price. Gap Support is a gap up above a flat or rising 50-day whose low holds. On our card a bear gap is never a long.",
-   "lesson_line": "A gap down is a bear gap, not Gap Support.",
+   "answer": "A bear gap, it caps price",
+   "why": "A bear gap. It gapped down off the highs, so the gap sits overhead now, not under you. Its high acts as a ceiling, and price has to fight its way back through it. Gap Support is the mirror image: a gap UP above a flat or rising 50-day, with the low holding under you. A bear gap is never a long for us. If you can't tell which way the gap went, you're not ready to trade it.",
+   "lesson_line": "A gap down is overhead. It's a ceiling, not support.",
    "facts": [
     "g41",
     "g04"
    ],
    "wrong": {
-    "Gap Support; the gap will act as support": "A gap down is not support for a long. Gap Support is a gap up.",
-    "Gap Support; buy as it fills the gap": "Buying a rally into a gap down is the opposite of this setup.",
-    "A buyable gap-up; price is rallying": "This gap went down, so it is not a gap-up."
+    "Gap Support, it'll hold": "Gap Support is a gap up with the low under you. This one's above you.",
+    "A buy as it fills the gap": "Buying a rally into a gap down is buying into the ceiling.",
+    "A buyable gap-up, it's rallying": "This gap went down. A rally toward it doesn't make it a gap-up."
    },
    "house": true,
-   "simple": "A bear gap, not Gap Support. A gap down off the highs is the opposite of this setup.",
+   "simple": "A bear gap. It went down off the highs, so it sits above price as a ceiling, not under it as support.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2100,7 +2171,7 @@
      "two facts"
     ]
    },
-   "batch": "rulings"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q35",
@@ -2108,29 +2179,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "gs.test_low",
-   "q": "Gap Support or Undercut and Rally?",
-   "story": "The stock gapped up months ago. Now price undercuts the lowest low of a base from five weeks ago and closes back over it two days later. The gap-up day's low is far below.",
+   "q": "Which setup is this?",
+   "story": "This stock gapped up months ago, and the gap-up low is far below. Now price undercuts the low of a base from five weeks ago and closes back over it two days later.",
    "choices": [
-    "Undercut and Rally; a swing low",
-    "Gap Support; it gapped up",
-    "A PEG; reclaimed a swing low",
-    "Neither; a reclaim is one day"
+    "Undercut and Rally",
+    "Gap Support",
+    "A PEG",
+    "None, reclaims take one day"
    ],
-   "answer": "Undercut and Rally; a swing low",
-   "why": "An Undercut and Rally. On our card a U&R reclaims a prominent prior swing low on the daily chart within 3 sessions. Here price undercut the low of a base and closed back over it two days later. Gap Support's undercut is of a gap-up day's low.",
-   "lesson_line": "Name the low that was undercut. A swing low is a U&R.",
+   "answer": "Undercut and Rally",
+   "why": "An Undercut and Rally. Name the low that got undercut. Here it's a base low, a swing low on the daily chart, reclaimed in two days. A U&R gives the reclaim up to 3 sessions, so that fits. Gap Support only cares about one low, the gap-up day's, and that's far below here. Same kind of move, a different line, so a different setup and a different plan.",
+   "lesson_line": "Name the low that got undercut. That tells you the setup.",
    "facts": [
     "g42",
     "g01",
     "g38"
    ],
    "wrong": {
-    "Gap Support; it gapped up": "Gap Support's undercut is of the gap-up day's low. This undercut is of a base low.",
-    "A PEG; reclaimed a swing low": "A PEG is the gap day itself or its first pause. This is a later reclaim of a swing low.",
-    "Neither; a reclaim is one day": "Our card lets a reclaim take up to 3 sessions, so two days fits."
+    "Gap Support": "Gap Support's undercut is of the gap-up day's low. This one's a base low, and the gap low is far below.",
+    "A PEG": "A PEG is the gap day itself or its first pause. This is months later.",
+    "None, reclaims take one day": "A U&R gets up to 3 sessions to reclaim. Two days fits."
    },
    "house": true,
-   "simple": "An Undercut and Rally. It undercut a swing low of a base, not a gap-up day's low.",
+   "simple": "An Undercut and Rally. It undercut a base low and reclaimed it, not the gap-up day's low.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2139,7 +2210,7 @@
      "a 3-session count"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q36",
@@ -2147,27 +2218,29 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "gs.fill_reclaim_lesser",
-   "q": "Which test is stronger?",
-   "story": "Two tests of two gaps. One holds the gap-up low to the tick and closes on a hammer. The other trades down to the prior day's high and reclaims the line by the close.",
+   "q": "Which one would you rather own?",
+   "story": "Two tests of two different gaps. One holds the gap-up low to the tick and closes on a hammer. The other trades all the way down to the prior day's high, then reclaims the line by the close.",
    "choices": [
-    "First stronger; a hold beats a fill",
-    "Second stronger; it tested harder",
-    "Both equal; both closed over the line",
-    "Neither is a valid Gap Support test"
+    "The one that held to the tick",
+    "The one that filled and reclaimed",
+    "Either, both closed over the line",
+    "Neither, both broke the line"
    ],
-   "answer": "First stronger; a hold beats a fill",
-   "why": "The first test is stronger. Our card ranks a hold first, then a slight breach, then a fill to the gap-fill spot that reclaims the line. A fill that reclaims is allowed, but it ranks last.",
-   "lesson_line": "Held beats a slight breach, and a fill that reclaims ranks last.",
+   "answer": "The one that held to the tick",
+   "why": "The one that held to the tick. A hold is the strongest test there is. Buyers wouldn't even let it under the line. The other one is allowed, but it ranks last: price got all the way to the gap-fill spot before buyers showed up. The order goes held, then a slight breach, then a fill that reclaims. The hold gives you a tighter stop too, since the test day's low sits right on the line.",
+   "lesson_line": "Held beats a slight breach. A fill that reclaims ranks last.",
    "facts": [
-    "g11"
+    "g11",
+    "g12",
+    "g43"
    ],
    "wrong": {
-    "Second stronger; it tested harder": "A deeper fill is weaker, not stronger.",
-    "Both equal; both closed over the line": "Both ended well, but the card ranks a hold above a fill that reclaims.",
-    "Neither is a valid Gap Support test": "A fill that reclaims the line is allowed. It just ranks below a hold."
+    "The one that filled and reclaimed": "Falling to the fill spot is weaker, not stronger. It's allowed, but it ranks last.",
+    "Either, both closed over the line": "Both ended well, but a hold ranks above a fill that reclaims.",
+    "Neither, both broke the line": "The first one never broke it. And a fill that reclaims is still allowed."
    },
    "house": true,
-   "simple": "The first test is stronger. It held the gap-up low, and a fill that only reclaims the line ranks last.",
+   "simple": "The one that held. Buyers stepped in right at the line, and its low gives you the tighter stop.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2175,7 +2248,7 @@
      "teaches the card's ranking of tests, not a fixed grade (E50 keeps grading a judgment call)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q37",
@@ -2225,31 +2298,32 @@
    "rung": 5,
    "format": "scenario",
    "criterion": "gs.test_close_position",
-   "q": "Grade each close.",
-   "story": "Two test days hold the gap-up low. One closes near its high on a hammer with a long lower wick. The other closes at 60% of its range.",
+   "q": "How do these two closes compare?",
+   "story": "Two test days both hold the gap-up low. One closes near its high on a hammer with a long lower wick. The other closes at 60% of its range.",
    "choices": [
-    "First an A+ cue; second is plain",
-    "Both the same; both held the line",
-    "Second stronger; 60% is a safer close",
-    "Both A+; any hold is good enough"
+    "First is the A+ look, second holds",
+    "They're the same, both held the line",
+    "The second is safer at 60%",
+    "Both A+, any hold is good"
    ],
-   "answer": "First an A+ cue; second is plain",
-   "why": "First an A+ cue, second a plain test. The A+ cue has two parts. The gap-up low holds, and the day closes back above it near its high on a lower wick or hammer. A close at 60% of the range is in the upper half, so it holds the line. It is not near the high, so it earns no A+ cue.",
-   "lesson_line": "A hammer close near the high is A+. Upper half just holds.",
+   "answer": "First is the A+ look, second holds",
+   "why": "The first one's the A+ look. A hammer near the high with a long lower wick tells a story. Sellers pushed it down and buyers slammed it all the way back. That's what I want to see. A close at 60% of the range is in the upper half, so it passes. It held. But it didn't close strong. Grading's a judgment, with no checklist. But a hammer close at the line is one of the things that gets me to size up.",
+   "lesson_line": "A hammer at the line is the A+ look. Upper half just passes.",
    "facts": [
     "g43",
     "g10",
-    "g48"
+    "g48",
+    "h30"
    ],
    "wrong": {
-    "Both the same; both held the line": "Both held, but only the first closed near its high on a hammer, which is the A+ cue.",
-    "Both A+; any hold is good enough": "Only a close near the high with a lower wick or hammer is the A+ cue. A close at 60% just holds.",
-    "Second stronger; 60% is a safer close": "A hammer close near the high is the stronger look. A 60% close just holds."
+    "They're the same, both held the line": "Both held, but only the first closed near its high on a hammer. That's the stronger look.",
+    "The second is safer at 60%": "A lower close isn't safer. It just shows buyers didn't push as hard.",
+    "Both A+, any hold is good": "Any hold passes. Only the strong close near the high is the A+ look."
    },
    "house": true,
-   "simple": "A close near the high on a hammer is an A+ cue. A close at 60% of the range just holds the line.",
+   "simple": "A hammer close near the high is the A+ look. A close at 60 percent just holds the line.",
    "deeper": {
-    "trap": "Do not mistake the gate for the grade. A close in the upper half only passes the test. Near the high with a lower wick or hammer is the A+ cue. A close in the lower part of the range is a B- cue."
+    "trap": "Don't mistake passing for the grade. A close in the upper half only passes the test. Near the high with a lower wick or hammer is the A+ look. A close in the lower part of the range knocks the grade down."
    },
    "tier": "extended",
    "risk": {
@@ -2259,7 +2333,7 @@
      "the card's close-position rows overlap (upper-half gate against a lower-part B- cue)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q39",
@@ -2295,7 +2369,7 @@
    "rung": 6,
    "format": "mcq",
    "criterion": "gs.stop",
-   "q": "Bought at 53.27, stop 52.40. Account 50,000, risk 0.5%. How many shares does the risk allow?",
+   "q": "You buy at 53.27 with the stop at 52.40. Your account is 50,000 and you risk 0.5%. How many shares?",
    "answer": "287 shares",
    "calc": {
     "fn": "shares_from_risk",
@@ -2307,7 +2381,7 @@
     },
     "round": 0
    },
-   "why": "287 shares. Risk dollars are 0.5% of 50,000. Divide that by the fill minus the stop, 53.27 minus 52.40, and round down. The stop sets the size. The position cap is a second limit. This question asks for the risk-based size.",
+   "why": "287 shares. 0.5% of 50,000 is $250 at risk. 53.27 minus 52.40 is 0.87 a share. 250 divided by 0.87 is 287.4, so round down to 287. Always round down, so a full stop-out costs you no more than you planned. Stop first, then the distance, then the size. The position cap is a second check after that.",
    "lesson_line": "Stop first, distance second, size last.",
    "facts": [
     "h03",
@@ -2316,7 +2390,7 @@
    ],
    "house": true,
    "suffix": " shares",
-   "simple": "Divide the 0.5% risk on 50,000 by the distance from fill to stop, and round down to get 287 shares.",
+   "simple": "Divide the dollars you risk by your risk per share, then round down. That gives 287 shares.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2325,7 +2399,7 @@
      "rests on the owner's rulebook (A5)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "287 shares",
     "938 shares",
@@ -2333,9 +2407,9 @@
     "2,873 shares"
    ],
    "wrong": {
-    "574 shares": "Risked double the risk percent.",
-    "938 shares": "Bought the whole account at the fill price.",
-    "2,873 shares": "Slipped the decimal: used ten times the risk percent."
+    "574 shares": "That's double the risk, 1% instead of 0.5%.",
+    "938 shares": "That's the whole account in stock at 53.27. The stop sets the size, not the account.",
+    "2,873 shares": "The decimal slipped. That's ten times the risk you meant to take."
    },
    "chart": {
     "sym": "ILMN",
@@ -2354,31 +2428,31 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.intraday_version",
-   "q": "Where does the stop go?",
-   "story": "Midday on the test day, price undercuts the gap-up low and reclaims it on the 30-minute chart. You want to buy the reclaim.",
+   "q": "Where's your stop?",
+   "story": "Midday on the test day, price undercuts the gap-up low, then reclaims it on the 30-minute chart. You want to buy the reclaim.",
    "choices": [
-    "Just under the day's low so far",
-    "At the gap-fill for more room",
-    "Exactly on the gap-up low",
-    "A fixed 2% under the reclaim"
+    "Under the day's low so far",
+    "Under the gap-fill spot",
+    "Right on the gap-up low",
+    "A fixed 2% under your buy"
    ],
-   "answer": "Just under the day's low so far",
-   "why": "A few cents under the test day's low so far. The intraday version is an undercut and reclaim of the gap-up low, a red to green, or an hourly higher low. It uses the same stop. The stop is not on the line, not at the gap-fill spot and not a fixed percent.",
-   "lesson_line": "Same stop on the intraday version.",
+   "answer": "Under the day's low so far",
+   "why": "A few cents under the low of the day so far. Same stop as the daily version, you're just getting in earlier. That's the edge of buying it intraday. You buy the reclaim right near the line, so the low of the day is close and the stop is tight. A red to green, an undercut and reclaim, or an hourly higher low all work the same way. Like I wrote on DDOG, look to the hourly for the entry.",
+   "lesson_line": "Buy the reclaim, risk the low of the day.",
    "facts": [
     "g30",
     "g12",
     "u02",
     "g13",
-    "g14"
+    "u06"
    ],
    "wrong": {
-    "At the gap-fill for more room": "The gap-fill spot is a median 6% away, far from the entry.",
-    "Exactly on the gap-up low": "The stop sits a few cents under a low, not on the line.",
-    "A fixed 2% under the reclaim": "The stop comes from a real low, not a fixed percent."
+    "Under the gap-fill spot": "That's a median 6% away. You'd throw away the tight stop that makes this entry good.",
+    "Right on the gap-up low": "Price already traded under the line today. A stop there gets tagged.",
+    "A fixed 2% under your buy": "A percent off your fill means nothing to the chart. Use the real low."
    },
    "house": true,
-   "simple": "Just under the day's low so far, by a few cents. The intraday version uses the same stop as the daily one.",
+   "simple": "Just under the day's low so far. Buying the reclaim near the line keeps that stop tight.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2387,7 +2461,7 @@
      "owner's Sunday Scans quote on one stock"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q42",
@@ -2422,16 +2496,16 @@
    "rung": 6,
    "format": "tf",
    "criterion": "gs.gap_day_close",
-   "q": "The gap day can close back inside the prior day's range and still count.",
+   "q": "A gap day that closes back inside yesterday's range still sets up a Gap Support.",
    "answer": "False",
-   "why": "False. The gap day closes above the prior day's high. It must also be a true gap, where the whole day trades above that high. A close back inside the prior range fails the test, so the setup never starts.",
-   "lesson_line": "The gap day must close above the prior day's high.",
+   "why": "False. The gap day has to close above yesterday's high, and its whole range has to stay above it, a true gap. Close back inside yesterday's range and the buyers couldn't hold the gap even for one day. There's no hole left on the chart and no gap-up low worth defending. Skip it and wait for a real one.",
+   "lesson_line": "No close above yesterday's high, no Gap Support.",
    "facts": [
     "g06",
     "g05"
    ],
    "house": true,
-   "simple": "False. The gap day must close above the prior day's high, so a close back inside the prior range fails that test.",
+   "simple": "False. If the gap day closes back inside yesterday's range, there's no real gap left to defend.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2439,7 +2513,7 @@
      "proposed criterion on the card"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q44",
@@ -2515,28 +2589,29 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.leadership",
-   "q": "Take the test?",
-   "story": "A test day holds the gap-up low and closes in the upper half. The stock's RS rating is 52 and its group is one of the weakest.",
+   "q": "Can you take it?",
+   "story": "A test day holds the gap-up low and closes in the upper half. But the stock's RS rating is 52, and its group is one of the weakest in the market.",
    "choices": [
-    "No; it is a laggard, not a leader",
-    "No; it needs a deeper undercut",
-    "Yes; the test holds, closes high",
-    "Yes, but at half the usual size"
+    "No, it's a laggard",
+    "No, it needs a deeper undercut",
+    "Yes, the test is clean",
+    "Yes, but at half size"
    ],
-   "answer": "No; it is a laggard, not a leader",
-   "why": "No. We buy leaders: an RS rating of 80 or more, in one of the strongest groups. At 52, in one of the weakest groups, this stock is a laggard, and a clean test does not change that.",
-   "lesson_line": "A leader first: RS 80 or more, in a strong group.",
+   "answer": "No, it's a laggard",
+   "why": "No. We buy leaders: an RS rating of 80 or better, in one of the strongest groups. An RS of 52 is middle of the pack, in a weak group. That's a laggard. I want the stocks money is already chasing, because those are the gaps that hold and run. A clean bounce in a laggard has a lot less behind it. Check the RS rating before you ever look at the test.",
+   "lesson_line": "Leader first, test second.",
    "facts": [
     "g33",
-    "h14"
+    "h14",
+    "g49"
    ],
    "wrong": {
-    "No; it needs a deeper undercut": "No undercut is required. The problem here is leadership.",
-    "Yes; the test holds, closes high": "A clean chart on a laggard is not our setup.",
-    "Yes, but at half the usual size": "Half size does not turn a laggard into a leader."
+    "No, it needs a deeper undercut": "No undercut is required. The problem is the stock, not the test.",
+    "Yes, the test is clean": "A clean test on a laggard still isn't our trade.",
+    "Yes, but at half size": "Half size doesn't turn a laggard into a leader."
    },
    "house": true,
-   "simple": "No. Gap Support wants a leader, and an RS rating of 52 in one of the weakest groups is not one.",
+   "simple": "No. We buy leaders with an RS of 80 or more, and a 52 in a weak group isn't one.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2544,7 +2619,7 @@
      "rests on the owner's leader rule (C31)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q46",
@@ -2552,17 +2627,17 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.not_stretched",
-   "q": "Take the buy?",
-   "story": "A test day holds the line and price trades through your trigger, but it is 12% above the 9 EMA.",
+   "q": "Do you take the buy?",
+   "story": "Your trigger hits on a strong reclaim of the line. But after the rip, the stock is now 12% above its 9 EMA.",
    "choices": [
-    "No; more than 10% over the 9 EMA",
-    "No; price must sit under the 9 EMA",
-    "Yes; the test day looks textbook",
-    "Yes, but only at half the usual size"
+    "No, it's too stretched",
+    "No, it must sit under the 9 EMA",
+    "Yes, the test looks textbook",
+    "Yes, but at half size"
    ],
-   "answer": "No; more than 10% over the 9 EMA",
-   "why": "No. We skip a long that is more than 10% above its 9 EMA. At 12% over, the stock is too stretched to buy, however textbook the test looks. At 10% or less it passes this check.",
-   "lesson_line": "Skip a long more than 10% above its 9 EMA.",
+   "answer": "No, it's too stretched",
+   "why": "No. More than 10% over the 9 EMA is too stretched to buy, and 12% is past that. A stock that far from its short-term average tends to snap back toward it. Buy here and that snap back can hit your stop before the trade ever gets going. Let it come in, or let the 9 EMA catch up. Then look for a fresh trigger.",
+   "lesson_line": "More than 10% over the 9 EMA, let it come in first.",
    "facts": [
     "g37",
     "h13",
@@ -2570,12 +2645,12 @@
     "r10"
    ],
    "wrong": {
-    "Yes; the test day looks textbook": "A textbook chart still has to pass the stretch rule.",
-    "Yes, but only at half the usual size": "Half size does not fix a stretched entry.",
-    "No; price must sit under the 9 EMA": "Our stretch rule is about being more than 10% above the 9 EMA, not about sitting under it."
+    "No, it must sit under the 9 EMA": "That's not the rule. We just don't want it more than 10% over.",
+    "Yes, the test looks textbook": "A textbook test still has to pass the stretch check.",
+    "Yes, but at half size": "Half size doesn't fix a stretched entry. The snap back still hits the stop."
    },
    "house": true,
-   "simple": "No. We skip a long more than 10% above its 9 EMA, and 12% is over that line.",
+   "simple": "No. At 12 percent over the 9 EMA it's too stretched, and a snap back can hit your stop.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -2584,7 +2659,7 @@
      "the question says buy the close, which waits on D-003"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q47",
@@ -2621,17 +2696,17 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "gs.after_entry_stop",
-   "q": "What was that loss?",
-   "story": "A 16.2% earnings gap on 4.3x volume. Thirteen sessions later the test day holds near perfectly. The low is 0.7% above the line and the close is at 88% of its range. You buy at 339.31 with the stop at 333.47. The stop trades the next session without any gain.",
+   "q": "How do you file this loss?",
+   "story": "An earnings gap of 16.2% on 4.3x volume. Thirteen sessions later the test is near perfect. The low stays 0.7% above the line and it closes at 88% of its range. You buy at 339.31, stop 333.47. Next session the stop hits.",
    "choices": [
-    "A planned loss; a clean test can lose",
-    "A sign the setup no longer works",
-    "A mistake; you should have held",
-    "A broken rule; stop too tight"
+    "A good trade that lost",
+    "Proof the setup's broken",
+    "A mistake, I should've held",
+    "A broken rule, stop too tight"
    ],
-   "answer": "A planned loss; a clean test can lose",
-   "why": "A planned loss; a clean test can still lose. In the AVGO case the hold was near perfect, with the low 0.7% above the line. The stop still traded without any gain. The stop is the exit, a few cents under the test day's low, so taking it is the plan working.",
-   "lesson_line": "The stop is the exit, even on a clean test.",
+   "answer": "A good trade that lost",
+   "why": "A good trade that lost. That's AVGO, and it did everything right. The test held, the close was strong, and your risk was 1.7%. Then it stopped you out with no gain. That happens. A clean test is an edge, not a promise. That's the cost of being there for the ones that work. You followed the plan, so there's nothing to fix. Log it and look for the next one.",
+   "lesson_line": "Judge the trade by the plan, not by one result.",
    "facts": [
     "e15",
     "g12",
@@ -2640,14 +2715,14 @@
     "r01"
    ],
    "wrong": {
-    "A sign the setup no longer works": "One loss does not show that. AVGO held near perfectly and still lost. A clean test can lose.",
-    "A mistake; you should have held": "The stop is the exit. It only moves up, never wider.",
-    "A broken rule; stop too tight": "The stop sat a few cents under the test day's low, as the rules say."
+    "Proof the setup's broken": "One loss proves nothing. A clean test can lose, and the stop kept it small.",
+    "A mistake, I should've held": "The stop is the exit. It only moves up, never wider.",
+    "A broken rule, stop too tight": "The stop sat a few cents under the test day's low, right where it belongs."
    },
    "house": true,
-   "simple": "A planned loss. A near perfect test can still lose, and the stop is the exit, so taking it is the system working.",
+   "simple": "A good trade that lost. You followed the plan, and a clean test can still lose.",
    "deeper": {
-    "trap": "Calling the loss a mistake because the chart was clean. This test closed at 88% of its range with 1.7% risk, and the stop still traded without any gain. Judge the trade by whether the rules were followed, not by one result."
+    "trap": "Calling the loss a mistake because the chart was clean. This test closed at 88% of its range with 1.7% risk, and the stop still hit with no gain. Judge the trade by whether you followed the plan."
    },
    "tier": "extended",
    "risk": {
@@ -2658,7 +2733,7 @@
      "story says buy the close, D-003"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "AVGO",
     "asof": "2025-09-24",
@@ -2676,16 +2751,16 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "gs.inv_fill",
-   "q": "What does the second close tell you?",
-   "story": "The test day closed on the line with a hammer. The stop traded the next session. Two sessions later the stock closes under the gap-fill spot.",
+   "q": "What's that last close telling you?",
+   "story": "The test day closed right on the line with a hammer. Your stop hit the next session. Two sessions after that, the stock closes under the gap-fill spot.",
    "choices": [
-    "The gap filled; the setup is dead",
-    "The line held; buy again",
-    "A fresh Gap Support; buy the close",
-    "A bounce is due; wait"
+    "The gap filled, it's done",
+    "The line held, buy again",
+    "Fresh setup, buy the close",
+    "A bounce is due, wait for it"
    ],
-   "answer": "The gap filled; the setup is dead",
-   "why": "The gap filled; the setup is dead. A close at or under the gap-fill spot, the prior day's high, means the gap filled. The hammer close on the line was fine, and the stop traded the next session. The later close under the spot ended any new buy.",
+   "answer": "The gap filled, it's done",
+   "why": "The gap filled, and the setup's dead. A close under the prior day's high means the whole gap is gone. The buyers who gapped it up gave it all back. The hammer on the line was fine, and taking the stop the next day was right. This close just tells you not to come back. That's AEHR, and it halved by late October. Take it off your list.",
    "lesson_line": "A close at the gap-fill spot ends it for good.",
    "facts": [
     "e16",
@@ -2693,14 +2768,14 @@
     "h28"
    ],
    "wrong": {
-    "The line held; buy again": "A close at the gap-fill spot means the line failed.",
-    "A fresh Gap Support; buy the close": "A close under the gap-fill spot is a dead gap, not a fresh one.",
-    "A bounce is due; wait": "Waiting for a bounce on a dead gap is hope."
+    "The line held, buy again": "A close under the fill spot means the line failed, all the way.",
+    "Fresh setup, buy the close": "It's a dead gap, not a fresh one. And we never buy the close anyway.",
+    "A bounce is due, wait for it": "Waiting on a bounce in a dead gap is hope, not a plan."
    },
    "house": true,
-   "simple": "The gap filled, so the setup is dead. A close under the gap-fill spot ends it, even after a hammer on the line.",
+   "simple": "The gap filled, so the setup's dead. Take it off your list, even after that hammer on the line.",
    "deeper": {
-    "trap": "Buying again because the first stop-out felt unlucky. After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule. Here the gap filled on a close two sessions later, and the stock halved by 10-30."
+    "trap": "Buying again because the first stop felt unlucky. After a stop-out, buy again only on a new trigger, as a new trade with its own stop. Here the gap filled on a close two sessions later, and the stock halved by late October."
    },
    "tier": "extended",
    "risk": {
@@ -2710,7 +2785,7 @@
      "settled card line"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "AEHR",
     "asof": "2023-08-17",
@@ -2782,32 +2857,33 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "gs.not_downtrend",
-   "q": "Take it or pass?",
-   "story": "In 2025, a 9.1% gap on 5.4x volume closed 2.6% under a falling 50-day. Eleven sessions later the test looks fine.",
+   "q": "Do you want this one?",
+   "story": "A 9.1% gap on 5.4x volume, but the gap day closed 2.6% under a falling 50-day. Eleven sessions later the test looks clean.",
    "choices": [
-    "Pass; the gap is in a downtrend",
-    "Pass; the test came too long after",
-    "Take it; the test day looks clean",
-    "Take it; 5.4x volume is huge"
+    "No, the gap's in a downtrend",
+    "No, the test came too late",
+    "Yes, the test looks clean",
+    "Yes, 5.4x volume is huge"
    ],
-   "answer": "Pass; the gap is in a downtrend",
-   "why": "Pass. We take no downtrend gaps: the gap day must close above a flat or rising 50-day. The gap closed 2.6% under a falling 50-day. The test 11 sessions later looked fine, but it was a bounce in a downtrend.",
+   "answer": "No, the gap's in a downtrend",
+   "why": "Pass. The gap day closed under a falling 50-day, so it's a gap in a downtrend. Big gap, big volume, still a downtrend. That clean test 11 sessions later is a bounce, not a leader resting. We want the gap day to close above a flat or rising 50-day, so the trend is at your back. That's DOCU in 2025. I'd pass on it every time.",
    "lesson_line": "A clean test in a downtrend is still a bounce.",
    "facts": [
     "e23",
     "e24",
     "g04",
-    "g51"
+    "g51",
+    "n02"
    ],
    "wrong": {
-    "Take it; the test day looks clean": "A clean test does not cancel the downtrend.",
-    "Take it; 5.4x volume is huge": "Heavy volume does not turn a downtrend gap into a leader.",
-    "Pass; the test came too long after": "The wait is not the problem. A long drift back to the line is not a minus by itself."
+    "No, the test came too late": "The wait isn't the problem. A long drift back to the line is fine.",
+    "Yes, the test looks clean": "A clean test doesn't cancel the downtrend.",
+    "Yes, 5.4x volume is huge": "Volume raises the grade. It can't turn a downtrend gap into a leader."
    },
    "house": true,
-   "simple": "Pass. The gap day closed under a falling 50-day, so the test was a bounce in a downtrend, however fine it looked.",
+   "simple": "Pass. The gap day closed under a falling 50-day, so the clean test was just a bounce in a downtrend.",
    "deeper": {
-    "trap": "Judging the gap by size and volume alone. A 9.1% gap on 5.4x volume sounds strong, but the trend check still applies. Here the 50-day was 3.2% lower than 10 sessions earlier, so the gap was a downtrend gap."
+    "trap": "Judging the gap by size and volume alone. A 9.1% gap on 5.4x volume sounds strong. But the 50-day was 3.2% lower than 10 sessions earlier, so it was a downtrend gap."
    },
    "tier": "extended",
    "risk": {
@@ -2817,7 +2893,7 @@
      "settled card line"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "DOCU",
     "asof": "2025-03-31",
@@ -2831,33 +2907,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "gs.above_200",
-   "q": "Take it or pass?",
-   "story": "In 2019, a stock gaps 11.3% on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
+   "q": "Do you take this test?",
+   "story": "A stock gaps 11.3% on 4.1x volume above a rising 50-day. Six sessions later the test closes 6.9% under the 200-day.",
    "choices": [
-    "Pass; it closed under the 200-day",
-    "Pass; the 50-day is not rising enough",
-    "Take it; the gap is huge on volume",
-    "Take it, but at half the usual size"
+    "No, it's under the 200-day",
+    "No, the 50-day isn't rising enough",
+    "Yes, big gap on big volume",
+    "Yes, but at half size"
    ],
-   "answer": "Pass; it closed under the 200-day",
-   "why": "Pass. The test closed 6.9% under the 200-day. The gap came on 4.1x volume above a rising 50-day. Still, below the 200-day is a hard no for a stock. Only indexes and levered ETFs may be bought there, on a reversal extension or a parabolic long.",
+   "answer": "No, it's under the 200-day",
+   "why": "No. The test closed 6.9% under the 200-day, and under the 200 we don't buy stocks. That's a hard line. The gap looked great, 11.3% on 4.1x volume over a rising 50-day. Doesn't matter. Under the 200 the long-term trend is against you, and one big gap can't fix that. The only things we'll buy under it are indexes and levered ETFs, never a single stock.",
    "lesson_line": "A stock under its 200-day is a pass, however good the rest looks.",
    "facts": [
     "e25",
     "g03",
-    "h10",
     "r02",
     "r03"
    ],
    "wrong": {
-    "Take it; the gap is huge on volume": "Gap size does not change the 200-day rule.",
-    "Pass; the 50-day is not rising enough": "The 50-day was rising. The problem is the 200-day.",
-    "Take it, but at half the usual size": "Half size does not fix a 200-day failure."
+    "No, the 50-day isn't rising enough": "The 50-day was rising. The problem is the 200-day.",
+    "Yes, big gap on big volume": "Gap size doesn't change the 200-day line.",
+    "Yes, but at half size": "Half size doesn't fix a stock under its 200-day."
    },
    "house": true,
-   "simple": "Pass. The test closed 6.9% under the 200-day, and a stock below its 200-day is a hard no.",
+   "simple": "No. It closed under the 200-day, and a stock under its 200-day is a hard no, however good the gap.",
    "deeper": {
-    "trap": "Letting a strong gap overrule the 200-day. An 11.3% gap on 4.1x volume above a rising 50-day looks strong. The test day still closed under the 200-day, and the rule is checked on the test day's close."
+    "trap": "Letting a strong gap overrule the 200-day. The gap looked strong, but the test day closed under the 200-day, and that's the close we check."
    },
    "tier": "extended",
    "risk": {
@@ -2867,7 +2942,7 @@
      "example read from our own bars"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "EVR",
     "asof": "2019-02-07",
@@ -2881,32 +2956,32 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "gs.stop_gap",
-   "q": "What do you do?",
-   "story": "You bought at 20.00 with the stop at 19.40. A report gaps it down to 18.70, and the first 30-minute bar's low is 18.50.",
+   "q": "The gap blew right through your stop. What now?",
+   "story": "You bought at 20.00 with the stop at 19.40. A downgrade gaps it down to 18.70 at the open, and the first 30-minute bar's low is 18.50.",
    "choices": [
-    "Get out; the loss is past 2R",
-    "Set the stop at 18.50, wait",
-    "Stop at 19.40; it'll bounce",
-    "Add at 18.50 to lower cost"
+    "Get out, it's past 2R",
+    "Make 18.50 the new stop",
+    "Keep 19.40, it'll bounce",
+    "Buy more at 18.50"
    ],
-   "answer": "Get out; the loss is past 2R",
-   "why": "Get out. On a gap through the stop, the first 30-minute low is the new stop. With a ceiling: if the first 30 minutes take the loss past 2R, get out. Here the low, 18.50, is more than 2R under the 20.00 fill, where one R is the distance from 20.00 to 19.40.",
-   "lesson_line": "Past 2R in the first half hour, get out.",
+   "answer": "Get out, it's past 2R",
+   "why": "Get out. One R here is 20.00 minus 19.40. The first 30-minute low at 18.50 is two and a half of those under your buy. When a gap goes through your stop, the low of the first 30 minutes becomes your new stop. But there's a ceiling. If that takes you past 2R, you just get out. The gap already cost you more than you planned. Don't let hope make it bigger.",
+   "lesson_line": "Past 2R in the first half hour, you're out.",
    "facts": [
     "g17",
     "h06",
     "h07",
-    "h31"
+    "aw1"
    ],
    "wrong": {
-    "Set the stop at 18.50, wait": "The first 30-minute low is the new stop only while the loss is within 2R. Past 2R, you get out.",
-    "Stop at 19.40; it'll bounce": "The gap went through that stop. The rule sets a new one, or sends you out, and does not wait for a bounce.",
-    "Add at 18.50 to lower cost": "Adding breaks one buy, one price, one stop."
+    "Make 18.50 the new stop": "The first 30-minute low is the new stop only while the loss is inside 2R. This is past it.",
+    "Keep 19.40, it'll bounce": "The gap went through 19.40. That stop's gone. Waiting for a bounce is hope.",
+    "Buy more at 18.50": "Adding to a loser breaks one buy, one price, one stop."
    },
    "house": true,
-   "simple": "Get out, because the gap took the loss past 2R in the first half hour.",
+   "simple": "Get out. The gap took you past 2R in the first half hour, and that's the ceiling.",
    "deeper": {
-    "trap": "Do not read the 30-minute rule as wait for the low. The low only becomes the new stop when the loss is within 2R. Past 2R it is a ceiling, and you are out. A test near earnings season can gap, so this can happen on a clean setup."
+    "trap": "Reading the 30-minute rule as 'wait for the low'. The low only becomes the new stop while the loss is inside 2R. Past 2R it's a ceiling, and you're out. Any stock can gap on news, so this can hit a clean setup."
    },
    "tier": "extended",
    "risk": {
@@ -2916,7 +2991,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q55",
@@ -2924,15 +2999,15 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "gs.post_gap_high_trim",
-   "q": "Which level does price reach first on the way up?",
-   "story": "A news gap. The test is bought at 231.13 with the stop at 228.43. The post-gap high is 239.37.",
+   "q": "You're marking levels. Which one does price hit first?",
+   "story": "A big news gap. You buy the test at 231.13 with the stop at 228.43. The old post-gap high sits up at 239.37.",
    "choices": [
-    "3R, 239.23, comes first",
-    "The post-gap high, 239.37, comes first",
-    "5R, 244.63, comes first",
-    "Both are the same price"
+    "3R, at 239.23",
+    "The post-gap high, 239.37",
+    "5R, at 244.63",
+    "They're the same price"
    ],
-   "answer": "3R, 239.23, comes first",
+   "answer": "3R, at 239.23",
    "calc": {
     "fn": "arith",
     "args": {
@@ -2942,23 +3017,24 @@
     },
     "round": 2
    },
-   "why": "3R, 239.23. One R is the fill minus the stop, 231.13 minus 228.43. Three of those above the fill is 239.23. The post-gap high, 239.37, is a little higher, so price reaches 3R first. Where the first sell comes is a judgment.",
-   "lesson_line": "3R is a yardstick. The first sell is a judgment.",
+   "why": "3R, at 239.23. Your risk is 231.13 minus 228.43. Three of those on top of 231.13 is 239.23. The old high at 239.37 is just above it. Mark both. The old high is where the stock turned down last time, so a push up there can stall. Get there on day 3 or later, in a strong push, and it's a fine spot to think about a first sell. On day 1, I'm not selling anything.",
+   "lesson_line": "Mark 3R and the old high. The first sell is still a judgment.",
    "facts": [
     "e30",
     "e31",
     "r07",
-    "r06"
+    "r06",
+    "r08"
    ],
    "wrong": {
-    "The post-gap high, 239.37, comes first": "239.23 is below 239.37, so price reaches 3R first.",
-    "5R, 244.63, comes first": "5R is a long way above the post-gap high, so it comes last.",
-    "Both are the same price": "The two levels are different prices. 3R is the lower one."
+    "The post-gap high, 239.37": "239.23 is just under 239.37, so price tags 3R first.",
+    "5R, at 244.63": "5R is well above the old high, so it comes last.",
+    "They're the same price": "Close, but not the same. 3R is the lower one."
    },
    "house": true,
-   "simple": "3R is 239.23. The post-gap high, 239.37, is a little above it, so price reaches 3R first.",
+   "simple": "3R comes first at 239.23, just under the old high at 239.37.",
    "deeper": {
-    "trap": "The two levels sit close together, so it is easy to pick the high. 3R is the lower of the two, so price reaches it first. Where to sell first is a judgment, often into a 3, 5 or 7 day push."
+    "trap": "The two levels sit close together, so it's easy to pick the high. 3R is the lower of the two. Where you sell first is a judgment, often into a 3, 5 or 7 day push."
    },
    "tier": "expert",
    "risk": {
@@ -2968,7 +3044,7 @@
      "computed key"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "LLY",
     "asof": "2021-07-01",
@@ -2986,17 +3062,17 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "gs.retry_limit",
-   "q": "May you take it?",
-   "story": "You were stopped out of the same gap-up low three times this week. On Friday it tests the line again and closes strong.",
+   "q": "Do you take a fourth shot?",
+   "story": "You've been stopped out on the same gap-up low three times this week. On Friday it tests the line again and closes strong.",
    "choices": [
-    "No; the weekly limit is reached",
-    "Yes; new trigger, new trade",
-    "No; never rebuy after a stop",
+    "No, that's three for the week",
+    "Yes, new trigger, new trade",
+    "No, never rebuy after a stop",
     "Yes, with a wider stop"
    ],
-   "answer": "No; the weekly limit is reached",
-   "why": "No. We allow at most 3 tries a week and 6 a month on the same line. You were stopped out three times this week, so the weekly tries are used. After a stop-out, a new trigger makes a new trade, but only inside that cap.",
-   "lesson_line": "Three tries a week on one line, then stop.",
+   "answer": "No, that's three for the week",
+   "why": "No. Three tries a week on the same stock, six a month, then you stop. Each try was fair on its own, because a new trigger is a new trade. But three stops in one week is the market telling you this line isn't holding right now. Keep swinging at it and a pile of small losses turns into a big one. Let it set up again next week.",
+   "lesson_line": "Three tries a week on one stock, then step back.",
    "facts": [
     "g36",
     "h29",
@@ -3004,14 +3080,14 @@
     "h01"
    ],
    "wrong": {
-    "Yes; new trigger, new trade": "A new trigger is a new trade, but the tries per week are capped at 3.",
-    "No; never rebuy after a stop": "After a stop-out we may buy again on a new trigger. Here the weekly cap is what says no.",
-    "Yes, with a wider stop": "The stop goes a few cents under the test day's low. If it does not fit the risk, skip the trade."
+    "Yes, with a wider stop": "The stop goes a few cents under the test day's low. It never gets wider.",
+    "Yes, new trigger, new trade": "A new trigger is a new trade, but you get three a week. You've used them.",
+    "No, never rebuy after a stop": "You can buy again on a new trigger. The weekly cap is what says no here."
    },
    "house": true,
-   "simple": "No, because we allow at most 3 tries a week on one line and you have used all of them.",
+   "simple": "No. Three stops in a week on one line is your limit, and the market's telling you it isn't holding.",
    "deeper": {
-    "trap": "A new trigger after a stop-out is a new trade with its own stop and every rule, so it feels allowed. But the cap still counts: 3 tries a week and 6 a month on the same line."
+    "trap": "A new trigger after a stop-out feels allowed, and most weeks it is. But the cap still counts: 3 tries a week and 6 a month on the same stock."
    },
    "tier": "expert",
    "risk": {
@@ -3021,7 +3097,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q57",
@@ -3158,16 +3234,16 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "gs.test_close_position",
-   "q": "The test day is the last bar. Judging the test day alone, is it a buy or a pass?",
+   "q": "Judge the last bar, the test day, on its own. Do you take it?",
    "choices": [
-    "Take it; closed back over the line",
-    "Pass; the gap has already filled",
-    "Pass; it closed in the lower half",
-    "Pass; it closed under the gap-up low"
+    "Take it, it closed back over",
+    "Pass, the gap already filled",
+    "Pass, it closed in the lower half",
+    "Pass, it closed under the line"
    ],
-   "answer": "Take it; closed back over the line",
-   "why": "Take it. The low dipped 0.3% under the 27.00 gap-up low, but the day closed at 27.15, back over the line. That close is 62% of its range, in the upper half. The stop sits a few cents under the day's low, at 26.89.",
-   "lesson_line": "A hold at the line with a strong close is the setup.",
+   "answer": "Take it, it closed back over",
+   "why": "Take it. The low dipped 0.3% under the 27.00 gap-up low, then buyers took it right back. It closed at 62% of its range, back over the line. That's a hold. On GPN you'd buy as it traded back over 27.00 during the day. The stop goes a few cents under the day's low, at 26.89. That's under a percent of risk, on a stock that had gapped on 11x volume. Tight risk on a strong gap is exactly what I want.",
+   "lesson_line": "A dip under the line that closes back over it is the hold you want.",
    "facts": [
     "e01",
     "e02",
@@ -3179,9 +3255,9 @@
     "r01"
    ],
    "wrong": {
-    "Pass; the gap has already filled": "The gap was still open. No close had sat at or under the prior day's high since the gap day.",
-    "Pass; it closed in the lower half": "The close was at 62% of its range, in the upper half.",
-    "Pass; it closed under the gap-up low": "It dipped under the line but closed back over it."
+    "Pass, the gap already filled": "No close had come back to the prior day's high. The gap was still open.",
+    "Pass, it closed in the lower half": "It closed at 62% of its range. That's the upper half.",
+    "Pass, it closed under the line": "It dipped under the line during the day but closed back over it."
    },
    "house": true,
    "chart": {
@@ -3190,7 +3266,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it. The low dipped 0.3% under the gap-up low, but the day closed back over it, in the upper half.",
+   "simple": "Take it. It dipped under the line, but buyers took it back and it closed in the upper half.",
    "deeper": {
     "trap": "A dip under the line is not a failed test. A close under the line with no reclaim is. So is a day still falling into the close."
    },
@@ -3203,7 +3279,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q62",
@@ -3211,16 +3287,16 @@
    "rung": 9,
    "format": "mcq",
    "criterion": "gs.inv_still_falling",
-   "q": "The test day is the last bar. Did it hold the line and close back strong? Is it a buy or a pass?",
+   "q": "Here's the test day, the last bar. Would you buy it?",
    "choices": [
-    "Pass; it closed right at its low",
-    "Pass; it needs a deeper undercut first",
-    "Take it; it held the line today",
-    "Take it; a small undercut is fine"
+    "Pass, it closed at its low",
+    "Pass, the undercut's too shallow",
+    "Take it, it held the line",
+    "Take it, small undercuts are fine"
    ],
-   "answer": "Pass; it closed right at its low",
-   "why": "Pass. The test closed at 0.01 of its range, 0.8% under the line, still falling into the close. A test with no hold and no reclaim is not the setup.",
-   "lesson_line": "A test that closes at its low is not a hold.",
+   "answer": "Pass, it closed at its low",
+   "why": "Pass. It closed at 0.01 of its range, right on the low, and 0.8% under the line. No hold, no reclaim, still falling into the close. You want to see buyers take it back over the line during the day. That never happened, so your trigger never hit. A close at the very low tells you sellers had it all day. Leave it alone and see what it does next.",
+   "lesson_line": "A test that closes at its low isn't a hold.",
    "facts": [
     "e21",
     "e22",
@@ -3229,9 +3305,9 @@
     "r01"
    ],
    "wrong": {
-    "Take it; it held the line today": "It closed under the line, not on it.",
-    "Pass; it needs a deeper undercut first": "No undercut is required. This day failed because it closed at its low.",
-    "Take it; a small undercut is fine": "This day had no hold and no reclaim, so it is not a slight breach."
+    "Pass, the undercut's too shallow": "No undercut is required. This day failed because it closed at its low.",
+    "Take it, it held the line": "It closed 0.8% under the line, not on it.",
+    "Take it, small undercuts are fine": "A small undercut that snaps back is fine. This one never snapped back."
    },
    "house": true,
    "chart": {
@@ -3240,9 +3316,9 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass. The test day closed at the bottom of its range, 0.8% under the line, so it did not hold.",
+   "simple": "Pass. It closed right on its low, under the line, so buyers never took it back.",
    "deeper": {
-    "trap": "Waving through a near miss. The card ranks tests as held, then a slight breach, then a fill that reclaims the line. This day was none of those: no hold and no reclaim, and it closed at 0.01 of its range."
+    "trap": "Waving through a near miss. Tests rank as held, then a slight breach, then a fill that reclaims the line. This day was none of those. No hold, no reclaim, and it closed at 0.01 of its range."
    },
    "tier": "expert",
    "risk": {
@@ -3253,7 +3329,7 @@
      "choice added"
     ]
    },
-   "batch": "visuals-2"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q63",
@@ -3261,17 +3337,17 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "gs.leadership",
-   "q": "Which grade do these cues point to?",
-   "story": "A leader, RS 85, in a strong group, with growing sales and earnings. It gapped 10% on 4x volume. Eight sessions later a quiet pullback tags the line to the tick and closes near its high on a hammer. The stop is 2.1% away in a Green market.",
+   "q": "How would you grade it?",
+   "story": "A leader, RS 85, in a strong group, with growing sales and earnings. It gapped 10% on 4x volume. Eight sessions later it pulls back quietly, volume drying up, and tags the line to the tick. It closes near its high on a hammer. The stop is 2.1% away, and the market filter reads Green.",
    "choices": [
-    "A+; all the cues line up",
-    "A; the gap is only 10%",
-    "B-; the test came too late",
-    "B-; the stop is too wide"
+    "A+, everything lines up",
+    "A, the gap's only 10%",
+    "B-, the test came too late",
+    "B-, the stop's too wide"
    ],
-   "answer": "A+; all the cues line up",
-   "why": "A+. Every cue shows, though grading stays a judgment. It is a leader (RS 85, strong group) with growing sales and earnings. The pullback is quiet on lighter volume. The line held to the tick, with a hammer close near the high. The risk is 2.1%, under 3%, in a Green market.",
-   "lesson_line": "When every cue lines up, it is an A+.",
+   "answer": "A+, everything lines up",
+   "why": "A+. Grading's a judgment, but this one checks everything I look for. It's a leader, RS 85 in a strong group, with growing sales and earnings. Volume dried up on the pullback, so the sellers were done. It held the line to the tick and closed near the high on a hammer. Risk is 2.1% in a Green market. When it all lines up like this, I size up.",
+   "lesson_line": "When every cue lines up, size up.",
    "facts": [
     "g49",
     "g43",
@@ -3279,17 +3355,18 @@
     "g45",
     "g07",
     "g51",
-    "h30"
+    "h30",
+    "n02"
    ],
    "wrong": {
-    "A; the gap is only 10%": "A gap over 30% is the size flag. A 10% gap is no minus.",
-    "B-; the test came too late": "A long drift back to the line is not a minus by itself, and this one took only eight sessions.",
-    "B-; the stop is too wide": "The A+ cue is risk under 3%, and 2.1% is inside it."
+    "A, the gap's only 10%": "10% is plenty. Only a gap over 30% knocks the grade down.",
+    "B-, the test came too late": "A long drift back to the line isn't a minus, and this one took eight sessions.",
+    "B-, the stop's too wide": "2.1% is tight. Under 3% is part of what makes it an A+."
    },
    "house": true,
-   "simple": "A+, because the stock is a leader, the pullback is quiet, the line held to the tick and the risk is tight.",
+   "simple": "A+. A leader, a quiet pullback, a hold to the tick with a strong close, and tight risk in a Green market.",
    "deeper": {
-    "trap": "Inventing minuses. A gap of 10% is not a flag, since a gap over 30% is the lower-grade flag. A long drift is not a minus, and this took only eight sessions. A hold to the tick is an A+ cue, not a flaw."
+    "trap": "Inventing minuses. A 10% gap isn't a flag, since only a gap over 30% lowers the grade. A long drift isn't a minus. A hold to the tick is the best look, not a flaw."
    },
    "tier": "expert",
    "risk": {
@@ -3299,7 +3376,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q64",
@@ -3335,17 +3412,17 @@
    "rung": 9,
    "format": "scenario",
    "criterion": "gs.after_entry_stop",
-   "q": "What do you do?",
-   "story": "In 2021, you bought the test and the stop traded the next session on a 2.4% undercut that closed back on the line. Weeks later the stock has traded as high as 147.39.",
+   "q": "Looking at it now, what do you do?",
+   "story": "You bought the test and the stop hit the next session on a 2.4% undercut. That same day it closed back on the line. Weeks later the stock has traded as high as 147.39.",
    "choices": [
-    "Nothing; wait for a new trigger",
-    "Buy now; the reclaim was a new trigger",
-    "Rebuy now at double size to catch up",
-    "Widen your stops on the next buy"
+    "Nothing, wait for a new trigger",
+    "Buy now, the reclaim was a trigger",
+    "Rebuy at double size to catch up",
+    "Widen your stop next time"
    ],
-   "answer": "Nothing; wait for a new trigger",
-   "why": "Nothing now. The stop is the exit, and a re-entry needs a new trigger. The stop traded on a 2.4% undercut that closed back on the line, and the stock then ran to 147.39. Seeing that afterward does not change what the rule said at the time.",
-   "lesson_line": "A stop that was right by the rules stays right.",
+   "answer": "Nothing, wait for a new trigger",
+   "why": "Nothing, today. That one stings. DKS undercut 2.4%, took your stop, closed back on the line and ran to 147.39 without you. But the stop did its job. It sat where the chart said you were wrong, and you couldn't know it would come back. The ones that keep falling are why the stop is there. Now it's far above any buy point, way past 4%. If it sets up again, take the new trigger with its own stop.",
+   "lesson_line": "A stop that was right by the plan stays right.",
    "facts": [
     "e17c",
     "e18c",
@@ -3355,14 +3432,14 @@
     "h01"
    ],
    "wrong": {
-    "Widen your stops on the next buy": "The stop goes a few cents under the test day's low. If it does not fit the risk, skip the trade.",
-    "Rebuy now at double size to catch up": "A re-entry needs a new trigger, and the size comes from the risk percent and the stop, not from catching up.",
-    "Buy now; the reclaim was a new trigger": "The reclaim was weeks ago. The stock is far above the buy point now, and we never buy more than 4% above it."
+    "Buy now, the reclaim was a trigger": "That reclaim was weeks ago. It's far above the buy point now, and we never chase past 4%.",
+    "Rebuy at double size to catch up": "Size comes from your risk and your stop, never from catching up.",
+    "Widen your stop next time": "The stop goes a few cents under the test day's low. It never gets wider."
    },
    "house": true,
-   "simple": "Do nothing now. The stop was the exit, and a new buy needs a new trigger, even though the stock ran.",
+   "simple": "Nothing now. The stop was right when you took it, and a new buy needs a new trigger.",
    "deeper": {
-    "trap": "A stop-out that reverses feels like proof the stop was wrong. Here a 2.4% undercut closed back on the line and the stock ran to 147.39, yet the stop is the exit. A re-entry is a new trade with its own stop and every rule."
+    "trap": "A stop-out that reverses feels like proof the stop was wrong. Here a 2.4% undercut closed back on the line and the stock ran to 147.39. The stop is still the exit. A re-entry is a new trade with its own stop."
    },
    "tier": "expert",
    "risk": {
@@ -3372,7 +3449,7 @@
      "fixed before"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "DKS",
     "asof": "2021-09-07",
@@ -3386,28 +3463,28 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "gs.liquidity",
-   "q": "Which stock passes our price and dollars-traded rule?",
+   "q": "Which one can you actually trade?",
    "choices": [
-    "$12 stock, $24M traded a day",
-    "$8 stock, $40M traded a day",
+    "$12 stock, $24M a day",
+    "$8 stock, $40M a day",
     "$35 stock, $15M a day",
     "$11 stock, $19M a day"
    ],
-   "answer": "$12 stock, $24M traded a day",
-   "why": "The $12 stock. Our rule is a price of $10 or more and at least $20 million traded a day. The $8 stock fails on price. The $35 stock at $15M and the $11 stock at $19M fail on dollars traded.",
-   "lesson_line": "Ten dollars and twenty million. Both tests, every time.",
+   "answer": "$12 stock, $24M a day",
+   "why": "The $12 stock. We need $10 or more a share and at least $20 million traded a day. The $8 stock fails on price. Under $10 just isn't our universe. The $35 and $11 stocks fail on dollars traded. Thin names give you bad fills getting in and worse ones getting out, and your stop can slip right through. $11 at $19 million is close, but close is still no. Check the dollar volume before it ever goes on your list.",
+   "lesson_line": "Ten dollars and twenty million. Both, every time.",
    "facts": [
     "g52",
     "h32"
    ],
    "wrong": {
-    "$8 stock, $40M traded a day": "A price under $10 fails, whatever the volume.",
     "$35 stock, $15M a day": "Under $20 million a day fails, whatever the price.",
-    "$11 stock, $19M a day": "Just under $20 million a day still fails the rule."
+    "$11 stock, $19M a day": "Just under $20 million a day still fails.",
+    "$8 stock, $40M a day": "Under $10 fails, whatever the volume."
    },
    "house": true,
-   "story": "Four stocks hold their gap-up lows today and close strong. You check the price and the dollars traded each day.",
-   "simple": "The $12 stock with $24M a day. Our rule needs a price of $10 or more and at least $20 million traded a day.",
+   "story": "Four stocks hold their gap-up lows today and close strong. Before anything else, you check each one's price and the dollars it trades a day.",
+   "simple": "The $12 stock. It's the only one with a price of $10 or more and at least $20 million a day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3416,7 +3493,7 @@
      "two numbers to apply"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q67",
@@ -3457,9 +3534,9 @@
    "rung": 5,
    "format": "mcq",
    "criterion": "gs.position_adv",
-   "q": "The stock trades 600,000 shares a day on average. The most shares we may own?",
+   "q": "This stock trades 600,000 shares a day on average. What's the most you'd ever own?",
    "answer": "6,000 shares",
-   "why": "6,000 shares. We never own more than 1% of a stock's average daily volume. 1% of 600,000 is 6,000.",
+   "why": "6,000 shares. We never own more than 1% of the average daily volume, and 1% of 600,000 is 6,000. The reason is getting out. If your position is a big chunk of a day's trading, your own selling moves the price against you. Keep it small next to the volume and you can get out at your stop cleanly.",
    "lesson_line": "One percent of the daily volume is the ceiling.",
    "facts": [
     "h33"
@@ -3474,7 +3551,7 @@
     "round": 0
    },
    "suffix": " shares",
-   "simple": "Take 1 percent of the 600,000 shares a day, which gives 6,000 shares.",
+   "simple": "6,000 shares, 1 percent of the daily volume, so you can always get out cleanly.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -3483,7 +3560,7 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "6,000 shares",
     "60,000 shares",
@@ -3491,9 +3568,9 @@
     "600,000 shares"
    ],
    "wrong": {
-    "60,000 shares": "Took ten percent of the volume, not one percent.",
-    "12,000 shares": "Used two percent, double the rule.",
-    "600,000 shares": "Used the whole average daily volume as the limit."
+    "60,000 shares": "That's ten percent of the volume. Your own selling would move the stock.",
+    "12,000 shares": "That's two percent, double the limit.",
+    "600,000 shares": "That's a whole day's trading. You'd never get out."
    }
   },
   {
@@ -3502,15 +3579,15 @@
    "rung": 3,
    "format": "tf",
    "criterion": "gs.position_adv",
-   "q": "Even on a clean Gap Support, we cap our position at 1% of the stock's average daily volume.",
+   "q": "However clean the test, you never own more than 1% of a stock's average daily volume.",
    "answer": "True",
-   "why": "True. Never own more than 1% of a stock's average daily volume, however clean the setup. Illiquid stocks are not even watched.",
+   "why": "True. 1% of the daily volume, max, however good it looks. Liquidity is how you get out. A great setup doesn't help you if your own sell order is a big piece of the day's trading. Stocks that thin aren't even on our watchlist.",
    "lesson_line": "Clean setup or not, one percent of the daily volume is the limit.",
    "facts": [
     "h33"
    ],
    "house": true,
-   "simple": "True. We never own more than 1 percent of a stock's average daily volume, even on a clean setup.",
+   "simple": "True. You cap it at 1 percent of the daily volume, so you can always get out.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3518,7 +3595,7 @@
      "rests on the owner's rulebook (D42)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q70",
@@ -3526,28 +3603,28 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "gs.fundamentals",
-   "q": "Which do you prefer?",
+   "q": "You only want one. Which do you buy?",
    "choices": [
-    "The grower; the charts are equal",
-    "The flat-sales stock; it is safer",
-    "Neither; fundamentals are not a factor",
-    "The grower; the chart no longer matters"
+    "The grower, charts are equal",
+    "The flat one, it's safer",
+    "Either, sales don't matter",
+    "The grower, chart doesn't matter"
    ],
-   "answer": "The grower; the charts are equal",
-   "why": "The grower. We prefer stocks with growing sales and earnings, but the chart comes first. Here the charts are equal, so growth is the preference that decides.",
-   "lesson_line": "Chart first. Then prefer the growing business.",
+   "answer": "The grower, charts are equal",
+   "why": "The grower. With the charts equal, I'll take the company that's growing sales and earnings every time. Growth gives big buyers a reason to keep adding, and that's what keeps a gap holding. But the chart comes first. If the flat-sales stock had the better test, I'd take the chart.",
+   "lesson_line": "Chart first. Then take the growing business.",
    "facts": [
     "g56",
     "h34"
    ],
    "wrong": {
-    "The flat-sales stock; it is safer": "Growth is the preference when the charts match.",
-    "Neither; fundamentals are not a factor": "Growth is a preference on our list. The chart still comes first.",
-    "The grower; the chart no longer matters": "Growth is a preference, not a pass on the chart. The chart still comes first."
+    "The flat one, it's safer": "Flat sales isn't safer. With equal charts, growth wins.",
+    "Either, sales don't matter": "Growth is a real preference. It breaks the tie when the charts match.",
+    "The grower, chart doesn't matter": "Right stock, wrong reason. The chart still comes first."
    },
    "house": true,
-   "story": "Two stocks hold their gap-up lows on the same day, both with strong closes and otherwise equal charts. One grows sales and earnings fast. The other has flat sales.",
-   "simple": "Pick the grower, because with equal charts we prefer growing sales and earnings.",
+   "story": "Two stocks hold their gap-up lows on the same day, both with strong closes and charts you can't split. One is growing sales and earnings fast. The other has flat sales.",
+   "simple": "The grower. With equal charts, growing sales and earnings break the tie.",
    "deeper": {
     "trap": "Growth is a preference, never a pass on the chart. If the flat-sales stock had the better chart, the chart would still come first."
    },
@@ -3559,7 +3636,7 @@
      "fixed before"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q71",
@@ -3592,13 +3669,14 @@
    "rung": 4,
    "format": "mcq",
    "criterion": "gs.trim_2",
-   "q": "Bought at 27.15 with the stop at 26.89. Where is 5R?",
+   "q": "Your fill was 27.15 and your stop is 26.89. Where's 5R on this one?",
    "answer": "$28.45",
-   "why": "$28.45. One R is the fill minus the stop, 27.15 minus 26.89. Add five of those to the 27.15 fill. 5R is a yardstick. A strong trade often runs well past it.",
-   "lesson_line": "Know your 5R before the open. A strong trade often runs past it.",
+   "why": "$28.45. Your risk is 27.15 minus 26.89. Five of those on top of 27.15 gets you to 28.45. Mark it. 5R is the line for holding through earnings: we only hold through a report when a trade is up 5R. And around 5 to 10R, into a 3, 5 or 7 day push, is often where I sell a first piece. GPN ran to 24.9R, way past it.",
+   "lesson_line": "Know your 5R. It decides if you can hold through earnings.",
    "facts": [
     "e02",
-    "r07"
+    "r07",
+    "h08"
    ],
    "house": true,
    "calc": {
@@ -3611,7 +3689,7 @@
     "round": 2
    },
    "prefix": "$",
-   "simple": "5R is the fill plus five times the distance from the fill to the stop, which is 28.45.",
+   "simple": "5R is your fill plus five times your risk per share. That's 28.45.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3619,7 +3697,7 @@
      "computed key"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$28.45",
     "$27.41",
@@ -3627,9 +3705,9 @@
     "$25.85"
    ],
    "wrong": {
-    "$27.41": "Added one R, not five.",
-    "$28.19": "Added five R to the stop, not the fill.",
-    "$25.85": "Took five R off the fill instead of adding it."
+    "$27.41": "That's one R. Five of them gets you to 28.45.",
+    "$28.19": "You added five R to the stop, not the fill.",
+    "$25.85": "You took five R off the fill. 5R is a profit level, above you."
    },
    "chart": {
     "sym": "GPN",
@@ -3648,28 +3726,28 @@
    "rung": 2,
    "format": "mcq",
    "criterion": "gs.trim_2",
-   "q": "You bought this test. When do we usually make the first sell?",
+   "q": "You just bought this test. When do you start thinking about a first sell?",
    "choices": [
-    "Day 3 at the earliest, often later",
-    "On the buy day, into strength",
+    "Day 3 at the earliest",
+    "Right away, on the buy day",
     "The next morning, at the open",
-    "At the first close above the buy"
+    "At the first close above my buy"
    ],
-   "answer": "Day 3 at the earliest, often later",
-   "why": "Day 3 at the earliest. We very rarely sell on day 1 of the buy. We usually wait for a push of 3, 5 or 7 days, and the first sell is a judgment.",
-   "lesson_line": "The first sell usually waits until day 3 at the earliest.",
+   "answer": "Day 3 at the earliest",
+   "why": "Day 3 at the earliest, and often later. I very rarely sell anything on day 1. A good test can take a few days to get going. Sell early and you're left with a small piece of a big move. What I'm looking for is a push of 3, 5 or 7 days, then I sell some into that strength. It's a judgment, not a date on the calendar.",
+   "lesson_line": "Give it three days. Sell into the push, not the first green bar.",
    "facts": [
     "r08",
     "r09",
     "r07"
    ],
    "wrong": {
-    "On the buy day, into strength": "We very rarely sell on day 1 of the buy.",
-    "The next morning, at the open": "A sell the next morning is early. We usually wait until day 3 at the earliest.",
-    "At the first close above the buy": "The first sell does not key off a close above the buy. It is a judgment, usually on day 3 or later."
+    "The next morning, at the open": "Still too early. Give it until day 3 at the earliest.",
+    "Right away, on the buy day": "We very rarely sell on day 1. The trade hasn't had a chance yet.",
+    "At the first close above my buy": "A close above your buy isn't a sell signal. Let it push."
    },
    "house": true,
-   "simple": "We usually wait until day 3 at the earliest, often into a push of several days.",
+   "simple": "Day 3 at the earliest. Selling sooner leaves you with a small piece of what could be a big move.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -3677,7 +3755,7 @@
      "rests on the owner's trim rule (E51, B19)"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "MA",
     "asof": "2009-08-19",
@@ -3691,28 +3769,28 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.trim_gap_open",
-   "q": "Is selling at the open required here?",
+   "q": "Do you have to sell some at the open?",
    "choices": [
-    "No; selling part now is optional",
-    "Yes; a gap past 3R is an auto sell",
-    "Yes; sell it all into the gap",
-    "No; never sell into a gap up"
+    "No, it's your call",
+    "Yes, past 3R is an auto sell",
+    "Yes, sell it all into the gap",
+    "No, never sell into a gap"
    ],
-   "answer": "No; selling part now is optional",
-   "why": "No. After five days of push and about 8R, selling a first piece is often a good choice. A gap is a fine time for it, but it is our call, not an automatic rule. The rest trails.",
-   "lesson_line": "A gap past a profit level is not an automatic sell; it is a judgment.",
+   "answer": "No, it's your call",
+   "why": "No, it's your call. You're about 8R up after a five-day push, so selling a piece here makes a lot of sense. A gap up is a nice place to do it, and I often will. But it's a judgment, not a rule. Some days that gap is the start of the next leg. Whatever you sell, trail the rest.",
+   "lesson_line": "A gap past a profit level is a chance to sell, not an order to.",
    "facts": [
     "r07",
     "r11"
    ],
    "wrong": {
-    "Yes; a gap past 3R is an auto sell": "A gap past a profit level is not an automatic sell. It is a judgment.",
-    "Yes; sell it all into the gap": "No gap forces a sell, and selling it all is not the plan. We keep some on the trail.",
-    "No; never sell into a gap up": "Never is too strong. After a five-day push and about 8R, selling a first piece is often best."
+    "Yes, past 3R is an auto sell": "No level forces a sell at the open. It's a judgment.",
+    "Yes, sell it all into the gap": "Selling it all isn't the plan. Keep some on the trail.",
+    "No, never sell into a gap": "Never is too strong. After a five-day push at 8R, selling a piece into a gap is often smart."
    },
    "house": true,
-   "story": "You bought at 25.10 with the stop at 24.71, five days ago. Nothing is sold yet. Today it opens at 28.20, about 8R up after a five-day push.",
-   "simple": "No. Selling part at the open is our call, never a rule, and the rest trails.",
+   "story": "You bought at 25.10 with the stop at 24.71, five days ago. Nothing's sold yet. Today it opens at 28.20, about 8R up after a five-day push.",
+   "simple": "No. Selling some into the gap is a good option at 8R, but it's a judgment, not a rule.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3721,7 +3799,7 @@
      "levels given in the story"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q75",
@@ -3729,33 +3807,33 @@
    "rung": 8,
    "format": "scenario",
    "criterion": "gs.climax",
-   "q": "What do you do with your long?",
+   "q": "What's the move with your position?",
    "choices": [
-    "Sell a big part into the run",
-    "Buy more while it is strong",
-    "Hold it all and trail the 9 EMA",
-    "Move the stop to breakeven only"
+    "Sell a big part into it",
+    "Buy more while it's strong",
+    "Hold it all, trail the 9 EMA",
+    "Stop to breakeven, that's it"
    ],
-   "answer": "Sell a big part into the run",
-   "why": "Sell a big part into it. The story is a climax run: three up days, two gap ups, wider ranges, rising volume and a gap up today. On a climax run in your own long, we sell a big part into it. How much is a judgment call.",
-   "lesson_line": "A climax run in your own long: sell a big part into it.",
+   "answer": "Sell a big part into it",
+   "why": "Sell a big part into it. Three straight up days on wider ranges and rising volume, two gaps up in a row, and another gap today. That's a climax run. Runs like that tend to end fast, and the gains go just as fast. So take a big chunk off while buyers are paying up. How much is a judgment. Trail the rest.",
+   "lesson_line": "A climax run on your own long: sell a big part into it.",
    "facts": [
     "g55",
     "h36",
     "h37",
-    "h31",
-    "r10"
+    "r10",
+    "aw1"
    ],
    "wrong": {
-    "Buy more while it is strong": "No adding. We buy the full size at one price with one stop.",
-    "Move the stop to breakeven only": "A stop at breakeven takes no profit. A climax run is when we sell a big part.",
-    "Hold it all and trail the 9 EMA": "Trailing alone waits for the stock to turn. The rule is to sell a big part into the run."
+    "Buy more while it's strong": "Not into a climax run. That's where you sell, not buy.",
+    "Hold it all, trail the 9 EMA": "Trailing alone waits for the stock to turn. Sell a big part into the run.",
+    "Stop to breakeven, that's it": "A stop at breakeven takes no profit. This is when you sell."
    },
    "house": true,
-   "story": "You own a Gap Support winner up about 4R. It has risen three straight days on wider ranges and rising volume, with two gap ups in a row. Today it gaps up again.",
-   "simple": "Sell a big part into the run, because a climax run in your own long is when we take profit.",
+   "story": "You own a Gap Support winner, up about 4R. It has risen three straight days on wider ranges and rising volume, with two gap ups in a row. Today it gaps up again.",
+   "simple": "Sell a big part into it. A climax run is when buyers pay up most, and it can end fast.",
    "deeper": {
-    "trap": "A climax run feels like the best time to hold or add. The rulebook says the opposite: sell a big part into it. How big is a judgment call, so there is no fixed fraction to memorize."
+    "trap": "A climax run feels like the best time to hold or add. It's the opposite: sell a big part into it. How big is a judgment call, so there's no fixed fraction to memorize."
    },
    "tier": "expert",
    "risk": {
@@ -3765,7 +3843,7 @@
      "fixed before"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "rulings-2026-11-17"
   },
   {
    "key": "q76",
@@ -3807,31 +3885,31 @@
    "rung": 7,
    "format": "scenario",
    "criterion": "gs.trail",
-   "q": "What is your move today?",
-   "story": "You hold what is left of a steadier Gap Support winner, with part already sold. Today it closes under its 9 EMA but still above its 20 EMA.",
+   "q": "What's your move on what's left?",
+   "story": "You hold what's left of a steadier Gap Support winner, with part already sold. Today it closes under its 9 EMA but still above its 20 EMA.",
    "choices": [
-    "Hold; the line for it is the 20 EMA",
-    "Sell what is left; the 9 EMA broke",
-    "Hold; sell if the 9 EMA stays broken",
-    "Sell half now and trail the rest"
+    "Hold, its line is the 20 EMA",
+    "Sell it, the 9 EMA broke",
+    "Hold, sell if the 9 stays broken",
+    "Sell half, trail the rest"
    ],
-   "answer": "Hold; the line for it is the 20 EMA",
-   "why": "Hold. A steadier mover trails the 20 EMA, and we sell on a close below it. Today it closed under the 9 EMA but still above its 20 EMA. The 9 EMA is the fast mover's line.",
-   "lesson_line": "Steadier mover, 20 EMA line. A close under that line is the sell.",
+   "answer": "Hold, its line is the 20 EMA",
+   "why": "Hold. This one's a steadier mover, so it trails the 20 EMA, and it's still above it. The 9 EMA is for fast movers. Steadier names wobble under the 9 all the time and keep going. Sell them on that and you get shaken out of a good winner. A close under the 20 EMA is your sell.",
+   "lesson_line": "Steadier mover, 20 EMA. A close under it is the sell.",
    "facts": [
     "g21",
     "h21",
     "r10"
    ],
    "wrong": {
-    "Sell half now and trail the rest": "Part is already sold. What is left rides until a close under its line.",
-    "Sell what is left; the 9 EMA broke": "The 9 EMA is the fast mover's trail. This steadier mover trails the 20 EMA.",
-    "Hold; sell if the 9 EMA stays broken": "The 9 EMA is the fast mover's line. The steadier mover's line is the 20 EMA."
+    "Sell it, the 9 EMA broke": "The 9 EMA is the fast mover's trail. This steadier one rides the 20.",
+    "Hold, sell if the 9 stays broken": "The 9 isn't this stock's line. The 20 EMA is.",
+    "Sell half, trail the rest": "Part's already sold. What's left rides until a close under its line."
    },
    "house": true,
-   "simple": "Hold. A steadier mover trails the 20 EMA and we sell on a close below it, because the 9 EMA is the fast mover's line.",
+   "simple": "Hold. A steadier mover trails the 20 EMA, and it's still above it.",
    "deeper": {
-    "trap": "Using the fast mover's trail on a steadier winner. The 9 EMA is for fast movers and the 20 EMA for steadier ones. Trailing the 9 EMA here would sell today, while the stock's own line still holds."
+    "trap": "Using the fast mover's trail on a steadier winner. Trail the 9 EMA here and you sell today, while the stock's own line still holds."
    },
    "tier": "extended",
    "risk": {
@@ -3841,7 +3919,7 @@
      "choice added"
     ]
    },
-   "batch": "sweep-2026-11-14"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q80",
@@ -3849,11 +3927,11 @@
    "rung": 8,
    "format": "tf",
    "criterion": "gs.line_is_gap_up_low",
-   "q": "In our scan's history, most Gap Support hits reached 3R.",
+   "q": "Most Gap Support hits in our scan's history went on to reach 3R.",
    "answer": "False",
-   "simple": "False. Only 28.9% of hits reached 3R in our scan's history, so most did not.",
-   "why": "False. In our scan's history, 28.9% of hits reached 3R and 20.4% reached 5R, so most did not. A past rate is not a promise for the next trade.",
-   "lesson_line": "A past hit rate is a base rate, not a promise.",
+   "simple": "False, most didn't reach 3R. You win by keeping losses small and letting the few winners run.",
+   "why": "False. Only 28.9% reached 3R, and 20.4% reached 5R, so most didn't. That's normal for a good setup. You win by keeping the losses small on the ones that fail and letting the few that run, run. That's why the stop matters so much. A past rate isn't a promise for the next trade either.",
+   "lesson_line": "Most won't run. The ones that do pay for the rest.",
    "facts": [
     "e26"
    ],
@@ -3869,7 +3947,7 @@
    "deeper": {
     "trap": "Reading a past rate as a promise. A base rate says how often it happened in past scan hits, not how the next trade ends."
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q81",
@@ -3877,11 +3955,11 @@
    "rung": 6,
    "format": "tf",
    "criterion": "gs.earnings_window",
-   "q": "The bar to hold a trade through an earnings report is 3R.",
+   "q": "You can hold a trade through earnings once it's up 3R.",
    "answer": "False",
-   "simple": "False. The bar to hold through a report is 5R, not 3R.",
-   "why": "False. We hold a trade through an earnings report only if it is up 5R, not 3R.",
-   "lesson_line": "Hold through a report only if the trade is up 5R.",
+   "simple": "False. The bar is 5R, so a bad gap on the report still leaves you with a winner.",
+   "why": "False. We hold through a report only when the trade's up 5R. A report can gap the stock right through your stop overnight. At 5R up, you've got enough cushion that a bad gap still leaves you with a winner. At 3R, one bad gap can wipe it out. Under 5R going into the report, sell before it.",
+   "lesson_line": "Hold through a report only if you're up 5R.",
    "facts": [
     "h08"
    ],
@@ -3893,7 +3971,7 @@
      "rests on the owner's earnings rule (B22)"
     ]
    },
-   "batch": "wave3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q82",
@@ -3939,17 +4017,17 @@
    "rung": 6,
    "format": "scenario",
    "criterion": "gs.stop_not_porosity",
-   "q": "Why is a fixed stop 1% under the line wrong here?",
-   "story": "The test day is the last bar. Its low dips 1.8% under the gap-up low. Then the day closes back over the line at 87% of its range.",
+   "q": "A friend always puts the stop 1% under the line. What's the problem with that here?",
+   "story": "The last bar is the test day. Its low dips 1.8% under the gap-up low. Then it closes back over the line at 87% of its range.",
    "choices": [
-    "The day already traded below it",
-    "It would sit too far from the entry",
-    "The card wants it on the line itself",
-    "Morales allows no undercut at all"
+    "Today's low is already below it",
+    "It's too far away from your entry",
+    "The stop belongs on the line",
+    "No undercut is ever allowed"
    ],
-   "answer": "The day already traded below it",
-   "why": "The day already traded below it. A stop 1% under the line sits above a low 1.8% under it, so the day itself would take it out. Our card sets no fixed cushion under the line, since slight breaches are often deeper. Our stop goes a few cents under the test day's low.",
-   "lesson_line": "The test day's real low sets the stop, not a fixed cushion under the line.",
+   "answer": "Today's low is already below it",
+   "why": "Today's low is already below it. The low went 1.8% under the line. A stop 1% under would've been hit today, in a day that ended up holding. A fixed cushion ignores what the stock actually did. Slight breaches often go deeper than that. Put the stop a few cents under the test day's real low, the low of the day. That's the price that proves the hold failed.",
+   "lesson_line": "The day's real low sets the stop, not a fixed cushion.",
    "facts": [
     "g57",
     "g14",
@@ -3958,12 +4036,12 @@
     "m03"
    ],
    "wrong": {
-    "It would sit too far from the entry": "It is the reverse. A 1% stop sits above this day's low, inside its range.",
-    "The card wants it on the line itself": "The stop goes a few cents under the test day's low, not on the line.",
-    "Morales allows no undercut at all": "Morales and Kacher say a 1 to 2% undercut can be permitted in some cases."
+    "It's too far away from your entry": "It's the reverse. A 1% stop sits above this day's low, inside its range.",
+    "The stop belongs on the line": "The stop goes a few cents under the test day's low, not on the line.",
+    "No undercut is ever allowed": "Slight undercuts are fine, even good. Some of the best tests break the line and snap back."
    },
    "house": true,
-   "simple": "A fixed 1% stop under the line sits above this day's low, so our stop goes a few cents under that low instead.",
+   "simple": "Today already traded below that stop. Put it a few cents under the test day's real low instead.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -3972,12 +4050,15 @@
      "the 3.2% dip is given in the story and sits inside the card's up-to-5% undercut allowance"
     ]
    },
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "VIAV",
     "asof": "2025-11-21",
     "window": 120,
     "forward": 20
+   },
+   "deeper": {
+    "counter": "Gil Morales and Chris Kacher allow a 1 to 2% undercut of the gap-up low in some cases. This test went 1.8% under and closed at 87% of its range."
    }
   },
   {
@@ -3986,17 +4067,17 @@
    "rung": 2,
    "format": "tf",
    "criterion": "gs.inv_under_200",
-   "q": "A test day that closes under the 200-day is off, even if the gap day closed above it.",
+   "q": "You check the 200-day on the test day's close, not the gap day's.",
    "answer": "True",
-   "why": "True. The check is on the test day's close. Before entry, a test day that closes under the 200-day is off. Our rulebook takes no longs below the 200-day simple moving average, unless it is a parabolic long.",
-   "lesson_line": "Check the 200-day on the test day's close, not the gap day's.",
+   "why": "True. What matters is where the stock is when you buy. A gap day above the 200-day can fade back under it by the time the test comes. If the test day closes under the 200, it's off. Under the 200-day we don't buy stocks, full stop.",
+   "lesson_line": "Check the 200-day on the test day's close.",
    "facts": [
     "g29",
     "g03",
-    "h10"
+    "r02"
    ],
    "house": true,
-   "simple": "True. The test day itself must close above the 200-day, so a gap day above it does not save the trade.",
+   "simple": "True. The test day is when you buy, so that's the close that has to be over the 200-day.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4004,7 +4085,7 @@
      "rests on the owner's 200-day rule (B26)"
     ]
    },
-   "batch": "polish"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q85",
@@ -4037,26 +4118,26 @@
    "rung": 3,
    "format": "mcq",
    "criterion": "gs.breakeven",
-   "q": "You bought this test. When does the stop move to breakeven, by default?",
+   "q": "You bought this test and it's working. When can your stop come up to breakeven?",
    "choices": [
-    "When the first trim is made",
-    "The moment the buy fills",
-    "When the stock is up 1R",
-    "Only after the final sell is made"
+    "From 2R to 5R, or at a first sell",
+    "The moment your buy order is filled",
+    "As soon as it's up 1R",
+    "Only after your very last sell"
    ],
-   "answer": "When the first trim is made",
-   "why": "At the first trim, by default. Breakeven means moving the stop up to your entry price, so a stop-out costs about nothing. The rulebook's ideal window is 2R to 5R, and the Gap Support card sets the first trim as the default.",
-   "lesson_line": "First trim, then the stop to breakeven.",
+   "answer": "From 2R to 5R, or at a first sell",
+   "why": "Somewhere between 2R and 5R, or when you make your first sell. Breakeven means the stop goes up to your buy price, so a winner can't turn into a loser. Do it too early, at 1R, and normal wiggle stops you out of a good trade for nothing. Wait until it's up 2R to 5R and the trade has proved itself. Where in that window is a judgment.",
+   "lesson_line": "Let it prove itself, then lock in breakeven.",
    "facts": [
     "g19",
     "h05"
    ],
    "wrong": {
-    "The moment the buy fills": "Too early. At the fill the stop stays under the test day's low. Breakeven comes only after the trade has made 2R to 5R.",
-    "When the stock is up 1R": "At 1R the trade has not made enough. The window opens at 2R, so the original stop stays.",
-    "Only after the final sell is made": "That is too late. Breakeven comes at the first trim by default, while most of the position is still on."
+    "The moment your buy order is filled": "Way too early. At the fill, the stop stays under the test day's low.",
+    "As soon as it's up 1R": "Too soon. At 1R normal wiggle takes you out. Wait for 2R to 5R.",
+    "Only after your very last sell": "Too late. By then there's nothing left to protect."
    },
-   "simple": "By default the stop moves to breakeven at the first trim, inside the ideal 2R to 5R window.",
+   "simple": "Between 2R and 5R, or at your first sell. Any sooner and normal wiggle stops you out for nothing.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -4065,7 +4146,7 @@
     ]
    },
    "house": true,
-   "batch": "visuals-2",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "ONC",
     "asof": "2020-07-30",
@@ -4210,49 +4291,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LLY buy day 2021-07-01, 231.13/228.43, post-gap high 239.37 match dossier row 8; 3R = 239.23 and 5R = 244.63 correct. Pass."
+   "notes": "Recomputed: 2.70 a share, 3R 239.23 just under the 239.37 high, 5R 244.63. First sell framed as day 3 or later, a judgment (D-013)."
   },
   "q01": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ADSK test day 2004-03-17 is card winners_list; dossier s12 row 1 (13 sessions after 2004-02-27 gap, low 0.3% above 13.88). No numbers in text; ticker hidden; right answer (gap-up low) true. Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right: g03, g29, h10 (B26) all bar a close under the 200-day, the 50-day does not excuse it. Parabolic exception is the rulebook's own."
+   "notes": "Writer's truth fix verified: a stock under the 200-day is a hard no; only indexes and levered ETFs are excepted (D-009)."
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Rule 19/28: the stem named no grades but the choices did, so the member had to guess what the three tests were. Stem now says an A+, an A and a B."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "Entry through the line during the day, at market (D-003, E57). Right."
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key follows g13 (median 6% away, 12% within 3%). Key is not the longest choice; wrong notes rest on g01/g05/g13. Numbers sit in a cited quote. Sentences within 22 words."
+   "fixed": true,
+   "notes": "Leading stem: it said the fill spot 'sits well under your entry' and the answer was 'It sits far from your entry'. Stem no longer gives it away; why opens on the verdict instead of 'Because it's far away'."
   },
   "q12": {
    "status": "cut",
@@ -4264,31 +4345,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True; h31 and g18 quote it. No absolute word in the statement."
+   "notes": "Agrees: no starter piece, no plan to add later. Voice 4."
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave3; awaiting cold re-read"
+   "notes": "Uses his line 'appointment, not a debate'; B20 30-minute rule and 2R ceiling stated right."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ILMN test day 2010-11-02, gap-up low 53.03, test low 52.45 = 1.1% under (dossier row 4); trade numbers and undated 18.6R trimmed from deeper. Second ILMN use (q40) ok. Pass."
+   "fixed": true,
+   "notes": "Steps kept in words (an arith calc carries no in-between numbers for the grounding gate). Why now says what the number tells you: a slight undercut vs a broken line (rule 23)."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AKAM buy day 2006-02-14, buy 25.10 stop 24.71 match dossier row 2 and text; 3R = 26.27 correct; undated 30.4R removed. Pass."
+   "notes": "Recomputed: 0.39 a share, 3R 26.27; wrongs 23.93 (3R down), 25.49 (1R), 26.66 (4R). Steps in words because an arith calc grounds no in-between numbers. 3R correctly framed as a level, not an automatic sell (D-013)."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "XYZ test day 2017-03-22, low 1.3% under the 16.32 line per dossier row 6; no numbers in text; stop-under-test-low answer true. Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q20": {
    "status": "cut",
@@ -4305,50 +4386,49 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "VIAV buy day 2025-11-21, 15.96/15.48 = 3.0% match dossier row 10 and text; undated 25.4R removed. Pass."
+   "notes": "Recomputed: 0.48 / 15.96 = 3.0%. Stop band 1-3%, 3.5% good, up to 5% (D-005) stated right."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.30 vs 50.00 is 4.6%, over the 4% line (h11, g24). Wrong notes rest on h11/h01/h02. Key is not the longest. Lone Pass shape accepted.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "52.30 over 50.00 is 4.6%, past the 4% chase line. Chasing-costs-size reason is his."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wednesday buy, Thursday report is inside the window under either '3 days' (h08, rulebook wins) or '3 sessions' (g25). Key follows the rulebook. Lone No shape accepted."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only the q text changed. Key (buy fewer shares) matches g15 and h01: an honest stop more than about 3% away means size down or skip, never pull it in. No choice offers skip, so no second defensible answer. Correct choice is not the longest. Minor: the risk reason mentions a median that the gap-fill wrong note no longer cites."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: not about entry"
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q32": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ADSK gap day 2004-02-27: +10.1% open on 11.9x earnings gap match dossier row 1; PEG answer true on day zero. Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q33": {
    "status": "cut",
@@ -4360,20 +4440,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "keep: bear gap is not a long; no short teaching"
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Base low reclaimed within 3 sessions = U&R per g42; gap-up low far below rules out Gap Support; PEG and one-day distractors answered by g38/g42. Could not find a second defensible answer.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q36": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Ranking from g11 only, no grade (E50 respected). Overlaps q58 (rung 8 ranking recall); spaced, kept."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q37": {
    "status": "cut",
@@ -4385,20 +4464,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Near-high hammer close is the g43 A+ cue; 60% is in the upper half so it passes g10 but is not near the high; no B- cue (g48 is lower part). Cue wording respects E50. Longest choice is a wrong one. Minor: the 'Only a close near the high...' wrong note is slightly absolute but acceptable."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "ILMN buy day 2010-11-02, 53.27/52.40 match dossier row 4 and text; 250/0.87 = 287 shares. Pass."
+   "fixed": true,
+   "notes": "Truth: 'Here you're well under it' (the position cap) does not hold: 287 x 53.27 is about 30% of the account, over the old 20-25% guide and near the 40% cap. Claim removed. Steps right (250 / 0.87 = 287.4)."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g30/g12 matches. Parallel to q19 but intraday; acceptable.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q42": {
    "status": "cut",
@@ -4410,64 +4488,61 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "lesson_line matches g06. False key stands."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q44": {
-   "status": "pass",
-   "by": "checker",
+   "status": "cut",
+   "by": "writer",
    "fixed": false,
-   "notes": "Roles, find label, slot format and ladder checked; ok."
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q45": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from g33/h14; both No choices distinct; lengths balanced.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AVGO buy day 2025-09-24, 339.31/333.47, gap 16.2% on 4.3x, low 0.7% above line, close 88%, stop traded 2025-09-25 all match dossier s13 failure 1; forward 20 covers next-session stop; ticker absent from story/choices. Pass."
+   "notes": "5.84 over 339.31 is 1.7%. AVGO e15 matches."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "AEHR test 2023-08-14, stop 08-15, close under gap-fill spot 08-17 (card: gap filled on a close two sessions later, 08-17); asof = decision day 08-17; forward 60 reaches 10-30 (halved, 21.57). No numbers in text. Pass."
+   "fixed": true,
+   "notes": "Deeper read 'halved by 10-30'; written as 'by late October' to match the why."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "DOCU test 2025-03-31: 9.1% gap on 5.4x, 2.6% under falling 50-day, test 11 sessions later all match near-miss 3; undated 0.0R removed from why. Pass."
+   "fixed": true,
+   "notes": "Why claimed DOCU 'never got going', which no fact supports (e24 says only a bounce in a downtrend). Replaced with the year and a plain verdict."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "EVR test 2019-02-07: 11.3% on 4.1x, 6 sessions later, 6.9% under 200-day match near-miss 4. Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Calc: 1R = 20.00 - 19.40 = 0.60; 2R = 1.20 (18.80). Open 18.70 and first-30 low 18.50 (2.5R) are both past 2R, so B20's ceiling says get out. Distractors grounded (h06/h07/h31).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Kept: adding to a loser. 20.00 - 18.50 = 1.50 = 2.5R on 0.60, past 2R, right. Voice 4."
   },
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right (E56: at most 3 tries a week). Tell: lone 'No' against three 'Yes' choices. Replaced the weakest Yes (double size) with a wrong No that tests B21, so the cue no longer gives it away. Dropped h03 with that choice.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q57": {
    "status": "cut",
@@ -4484,33 +4559,32 @@
   "q61": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "GPN test day 2013-10-09 (chart already present and identical to live); text numbers match dossier row 5. Pass."
+   "fixed": true,
+   "notes": "Truth: the why said 'about 0.9% of risk', the scan's close fill (27.15 to 26.89 is 0.96%), while the same why buys through 27.00 during the day (0.4%). Now 'under a percent', true for both."
   },
   "q62": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "DE test day 2026-02-25 (chart already present and identical to live); text matches near-miss 2 (0.01 of range, 0.8% under). Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "Grading stated as a judgment (E50); A+ cues from the lesson facts."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "DKS: stop 2021-06-17, 2.4% undercut closed back on line, 147.39 by 09-07 per card failure; asof 09-07 shows the run. Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Only $12/$24M passes B23 ($10, $20M); distractors fail one limit each; lengths equal.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "$10 and $20M a day (B23); each wrong choice fails one leg."
   },
   "q67": {
    "status": "cut",
@@ -4522,19 +4596,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Right answer unchanged, sorts to the target rank, wrong choices real and similar in form."
+   "notes": "1% of 600,000 = 6,000 (D42)."
   },
   "q69": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per h33. Statement carries no absolute word. Teaches the rule that q68 later applies."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q70": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "D40/g56: prefer growth, chart first; equal charts make growth the decider. Second grower choice tests 'chart no longer matters'. Overlaps q71 only in feedback, not in the stem."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q71": {
    "status": "cut",
@@ -4546,25 +4620,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GPN buy day 2013-10-09, 27.15/26.89 match dossier row 5 and text; 5R = 28.45 correct; undated 24.9R removed. Pass."
+   "notes": "Recomputed: 0.26 a share, 5R 28.45; wrongs 27.41 (1R), 28.19 (off the stop), 25.85 (down). 5R tied to holding through a report (B22)."
   },
   "q73": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MA test day 2009-08-19 per dossier row 3; no numbers, no outcome named; day-3 rule is house policy. Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q74": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Sentence over 22 words; split it. Re-key to optional is right (GAP-TRIM, r11 quote exact, 8R and five days from the story, r07)."
+   "fixed": false,
+   "notes": "28.20-25.10 = 3.10, over 0.39 is 7.95, 'about 8R'. Selling at the open is optional judgment."
   },
   "q75": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "Agrees: never into a climax. Voice 4."
   },
   "q76": {
    "status": "cut",
@@ -4576,19 +4650,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Final text agrees with the rulings it touches; key right, wrongs wrong, quotes and numbers grounded, style ok."
+   "notes": "9 EMA fast, 20 EMA steady (D-021). Right."
   },
   "q80": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "scan base rate, 3R only a measuring stick"
+   "notes": "28.9% and 20.4% from e26."
   },
   "q81": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "earnings hold bar, not first sell"
+   "notes": "Hold through a report only if up 5R (B22)."
   },
   "q82": {
    "status": "cut",
@@ -4600,13 +4674,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "VIAV test day 2025-11-21: low 1.8% under 15.80 line, close 87% match dossier row 10; re-keyed to a 1% stop (a 3% stop would sit under a 1.8% dip) with story, why, simple and wrong all agreeing. Pass."
+   "notes": "Voice and truth checked: answer right, wrongs clearly wrong, no working words, numbers trace to the story, calc or facts."
   },
   "q84": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key True matches settled card lines g03 and g29 and the owner's B26 (h10). The new angle (the test day's close is checked, not the gap day's) is real, but this is the fifth 200-day item after q03, q47, q53 and q76. It is valid, but consider trimming one if the pool runs heavy. Simple is 21 words with no banned punctuation."
+   "notes": "Writer's truth fix verified: no parabolic-long exception for a stock."
   },
   "q85": {
    "status": "cut",
@@ -4618,7 +4692,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ONC test day 2020-07-30 per dossier row 7; no numbers, no outcome named; breakeven-at-first-trim rule is house policy. Pass."
+   "notes": "Breakeven 2R to 5R or at the first sell. Right."
   }
  }
 }

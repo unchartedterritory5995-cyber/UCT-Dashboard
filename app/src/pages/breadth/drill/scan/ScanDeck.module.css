@@ -255,8 +255,8 @@ span.metric:hover { background-color: transparent; }
 .mixBar { display: flex; height: 3px; gap: 1px; flex-shrink: 0; }
 .mixBar span { display: block; height: 100%; opacity: .85; }
 
-.up { color: var(--gain); }
-.dn { color: var(--loss); }
+.up { color: var(--success-ink); }
+.dn { color: var(--danger-ink); }
 
 /* Chart column */
 .stage { flex: 1 1 auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; }

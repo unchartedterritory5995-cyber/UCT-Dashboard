@@ -537,6 +537,42 @@
    "source": "s14",
    "quote": "No chasing: never buy more than 4% above the buy point.",
    "claim": "UCT's rule: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "f68",
+   "source": "s14",
+   "quote": "Tired, sick, angry or distracted: no new trades that day.",
+   "claim": "UCT's rule: no new trades on a day you're tired, sick, angry or distracted."
+  },
+  {
+   "id": "f69",
+   "source": "s14",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "UCT's rule: every planned buy has its entry, stop and size written down before the open."
+  },
+  {
+   "id": "f70",
+   "source": "s14",
+   "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+   "claim": "UCT's rule: journal every trade the same day and review the week every weekend, ideally."
+  },
+  {
+   "id": "f71",
+   "source": "s14",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "UCT's rule: every position has a real stop order with the broker."
+  },
+  {
+   "id": "f72",
+   "source": "s14",
+   "quote": "Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics.",
+   "claim": "UCT's rule: each month, review the win rate, the average win and loss in R, and the expectancy."
+  },
+  {
+   "id": "f73",
+   "source": "s14",
+   "quote": "Chasing costs size, not risk",
+   "claim": "UCT's rule: chasing costs size, not risk. The stop stays under the buy point, so the distance grows and the shares shrink."
   }
  ],
  "walkthroughs": [
@@ -544,10 +580,10 @@
    "key": "w1",
    "title": "Three grades, every day",
    "steps": [
-    "Brett Steenbarger gives himself at least three grades every trading day.",
-    "One for his ideas: whether the trade had a genuine edge behind it.",
-    "One for how he traded them: the entry, the size, the management and the exit.",
-    "And one for his preparation: morning exercise, a look at the markets and a review of the day before."
+    "Trading coach Brett Steenbarger gives himself at least three grades every trading day. Do the same.",
+    "First, your ideas. A real edge behind the trade, or just a bias or a headline pulling you in.",
+    "Second, how you traded it. A good entry or a chase, then the size, how you managed it, and the exit.",
+    "Third, your prep. His is exercise, a look at the markets, and a review of yesterday, all before the open."
    ],
    "facts": [
     "f07",
@@ -563,8 +599,8 @@
    "title": "The result is not the grade",
    "steps": [
     "In poker you can win with the worst hand and lose with the best. One trade works the same way.",
-    "Grading a decision by how it turned out is what Annie Duke calls resulting.",
-    "So grade what you did. A trade made on all your criteria is an A, even if it lost."
+    "Judging a decision by how it turned out is what Annie Duke calls resulting.",
+    "So grade what you did. Follow your whole plan and it's an A trade, even if it lost."
    ],
    "facts": [
     "f29",
@@ -577,9 +613,9 @@
    "key": "w3",
    "title": "When the results do count",
    "steps": [
-    "One trade tells you very little. Many trades taken the same way start to tell you something.",
-    "Jared Tendler calls money the scoreboard, just not for the short term. He points to three to six months.",
-    "Grade each trade on process. Then let the pile of trades judge the setup."
+    "One trade tells you almost nothing. A pile of trades taken the same way starts to talk.",
+    "Money is the scoreboard, just not in the short run. Jared Tendler looks at three to six months.",
+    "So grade each trade on process. Let the pile judge the setup."
    ],
    "facts": [
     "f35",
@@ -595,16 +631,16 @@
    "skill": "process.grading",
    "rung": 1,
    "format": "mcq",
-   "q": "Brett Steenbarger gives himself at least three grades every trading day. What does he grade?",
+   "q": "Brett Steenbarger grades himself at least three ways every trading day. What's he grading?",
    "choices": [
-    "Ideas, how he traded them, prep",
+    "His ideas, his trading, his prep",
     "Win rate, P&L and trade count",
-    "Entry and exit prices, profit",
-    "The market, sector, stock"
+    "His entries, exits and profit",
+    "The market, the sector, the stock"
    ],
-   "answer": "Ideas, how he traded them, prep",
-   "why": "His ideas, how he traded them, and his preparation. Steenbarger says he gets at least three grades every day. He grades an idea apart from how he traded it. The trading grade covers the entry, the size, the management and the exit. Preparation is his morning work before the open: reviewing the markets and the day before. None of the three grades is the day's profit.",
-   "lesson_line": "Three grades: the idea, how you traded it, and how ready you were.",
+   "answer": "His ideas, his trading, his prep",
+   "why": "His ideas, how he traded them, and his prep. Steenbarger is a trading coach, and he gives himself at least three grades every day. The idea grade asks if the trade had a real edge behind it. The trading grade covers the entry, the size, how he managed it and the exit. The prep grade is his work before the open: reviewing the markets and the day before. Notice what's missing. Not one of the three is the day's P&L. Split it up like this and you can see which part of your game is leaking.",
+   "lesson_line": "Three grades: the idea, how you traded it, and how ready you were. The P&L isn't one of them.",
    "facts": [
     "f07",
     "f03",
@@ -613,14 +649,15 @@
     "f06",
     "f12",
     "f13",
-    "f14"
+    "f14",
+    "f02"
    ],
    "wrong": {
-    "Win rate, P&L and trade count": "Those are results and activity. His grades score the quality of his own work, not what the market paid him.",
-    "Entry and exit prices, profit": "Entry and exit sit inside one grade, how he traded the idea. Profit isn't one of his grades.",
-    "The market, sector, stock": "That's a way to pick trades from the top down. His grades score his own work after the day."
+    "Win rate, P&L and trade count": "Those are results and activity. His grades score his own work, not what the market paid him that day.",
+    "His entries, exits and profit": "Entries and exits sit inside one grade, how he traded the idea. Profit isn't graded at all.",
+    "The market, the sector, the stock": "That's a top-down way to pick trades. His grades look back at his own work."
    },
-   "simple": "He grades his ideas, how he traded them, and his prep, judging each one apart from the others.",
+   "simple": "Ideas, how he traded them, and prep. Each one gets its own grade, and none of them is the P&L.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -628,29 +665,29 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "process.grading",
    "rung": 1,
    "format": "tf",
-   "q": "A single trade's profit or loss tells you whether it was a good trade.",
+   "q": "One trade's P&L tells you whether it was a good trade.",
    "answer": "False",
-   "why": "False. One trade's P&L is a result, not a grade. Good decisions can lead to bad outcomes, and bad decisions to good ones. In poker you can win with the worst hand and lose with the best. Money is the scoreboard, but it is not reliable for measuring performance in the short term.",
-   "lesson_line": "One trade's P&L is a result, not a grade.",
+   "why": "False. One trade's P&L is a result, not a grade. Good decisions can end in bad outcomes, and bad ones can end well. In poker you can win with the worst hand and lose with the best. A single trade works the same way. Jared Tendler calls money the scoreboard, but not a reliable one in the short term. You'll have clean trades stop out and sloppy ones pay. So grade the trade on what you did: the idea, the entry, the stop, the size.",
+   "lesson_line": "The P&L is the result. The grade is how you did it.",
    "facts": [
     "f23",
     "f29",
     "f54"
    ],
-   "simple": "False, because good trades can lose and bad ones can win, so one result tells you little.",
+   "simple": "False. Good trades can lose and bad ones can win, so one result tells you little about the trade.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -688,15 +725,15 @@
    "skill": "process.grading",
    "rung": 2,
    "format": "mcq",
-   "q": "Steenbarger's first grade is on the idea itself. What does that grade ask?",
+   "q": "You're giving last week's trade its idea grade, apart from how you traded it. What are you really asking?",
    "choices": [
-    "Did the trade have a real edge?",
-    "Did the stock go up the next week?",
-    "Did I size and exit it well?",
+    "Was there a real edge in it?",
+    "Did it go up the next week?",
+    "Did I size and sell it well?",
     "Was I ready before the open?"
    ],
-   "answer": "Did the trade have a real edge?",
-   "why": "Whether the trade had a real edge. Steenbarger asks if the idea had a genuine edge behind it. Or he asks if a bias, a market flow or a piece of news pulled him in. This grade is about the idea alone. Entry, size and exit belong to the second grade, and being ready to the third. A real edge can still lose, so the move afterward does not grade the idea.",
+   "answer": "Was there a real edge in it?",
+   "why": "The edge. That's all the idea grade asks. Steenbarger checks if the trade had a genuine edge behind it. Or if a bias, a market flow or a piece of news pulled him in instead. The entry, the size and the sell belong to how you traded it. Being ready belongs to prep. Where the stock went the next week doesn't count either, because a real edge still loses some of the time. Be straight with yourself here. It was a setup on your plan, or it was a story you liked.",
    "lesson_line": "The idea grade asks one thing: was there a real edge, or just a story I liked.",
    "facts": [
     "f02",
@@ -707,24 +744,24 @@
     "f29"
    ],
    "wrong": {
-    "Did I size and exit it well?": "That's the second grade, how you traded the idea.",
-    "Was I ready before the open?": "That's the third grade, your preparation.",
-    "Did the stock go up the next week?": "That's the outcome. A real edge can still lose, so the move afterward doesn't grade the idea."
+    "Was I ready before the open?": "That's the third grade, your prep.",
+    "Did it go up the next week?": "That's the outcome. A real edge can still lose, so next week's move can't grade the idea.",
+    "Did I size and sell it well?": "That's the second grade, how you traded the idea. Keep it apart."
    },
-   "simple": "It asks if the trade had a real edge, not whether it worked or how you sized and sold it.",
+   "simple": "It asks if the trade had a real edge, not whether it worked or how well you sized and sold it.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "process.grading",
    "rung": 2,
    "format": "mcq",
-   "q": "Which of these belongs under how you traded the idea?",
+   "q": "You're going over Tuesday's trades. Which of these goes under how you traded the idea?",
    "choices": [
     "You chased it past your entry",
     "The setup had no real edge",
@@ -732,7 +769,7 @@
     "It fell the day after you sold"
    ],
    "answer": "You chased it past your entry",
-   "why": "The chase. How you traded the idea covers the entry, the reward you got for the risk, the size, the management and the exit. Steenbarger names chasing in this grade: it turns good reward for the risk into poor. A setup with no real edge belongs to the idea grade, and a skipped review to preparation. A drop after you sold is an outcome, not something you did.",
+   "why": "The chase. How you traded the idea covers the entry, what you got paid for the risk, the size, the management and the exit. Steenbarger names chasing right in this grade, because it turns good reward for the risk into poor. And chasing costs you size. The stop stays where the chart put it, so the distance grows and you buy fewer shares. We don't buy more than 4% above the buy point for exactly that reason. A setup with no edge is an idea problem. A skipped morning review is prep. A drop after you sold isn't something you did at all.",
    "lesson_line": "A good idea can still be traded badly. Grade the entry, size and exit on their own.",
    "facts": [
     "f04",
@@ -740,57 +777,60 @@
     "f14",
     "f56",
     "f02",
-    "f06"
+    "f06",
+    "f67",
+    "f73"
    ],
    "wrong": {
     "The setup had no real edge": "That's the idea grade. You can trade a weak idea perfectly and it's still a weak idea.",
-    "You skipped your morning review": "That's preparation, the third grade.",
-    "It fell the day after you sold": "That happened after you were out. It's an outcome, not something you did."
+    "You skipped your morning review": "That's prep, the third grade.",
+    "It fell the day after you sold": "You were already out. That's an outcome, not something you did."
    },
-   "simple": "Chasing is part of how you traded it, because it is about your entry and what you got paid for the risk.",
+   "simple": "Chasing goes under how you traded it. It's about your entry and what you got paid for the risk.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "process.grading",
    "rung": 3,
    "format": "tf",
-   "q": "Steenbarger's grades take in the trader's own state, not just the market.",
+   "q": "Your own state counts in Steenbarger's grades, not just your read on the market.",
    "answer": "True",
-   "why": "True. His preparation grade includes morning exercise, as well as reviewing the markets and the day before. His blog's list of separate reviews also asks how well you managed yourself to stay focused through the day. So the trader's own state is graded, not only the market work.",
+   "why": "True. His prep grade includes physical exercise in the morning, along with reviewing the markets and the day before. On his blog he also grades how well you managed yourself through the day, to stay focused and at your best. So you get graded, not just your charts. We take that part seriously. Tired, sick, angry or distracted, we don't take new trades that day. Before the open, check how you feel as well as what the market's doing.",
    "lesson_line": "Your own state is part of your prep. Grade it too.",
    "facts": [
     "f06",
     "f16",
-    "f07"
+    "f07",
+    "f68"
    ],
-   "simple": "True, because his prep includes morning exercise, and his reviews also check how well you kept your focus through the day.",
+   "simple": "True. His prep includes morning exercise, and he grades how well you kept your focus through the day.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "process.grading",
    "rung": 3,
    "format": "mcq",
-   "q": "Annie Duke compares chess and poker. In which game does one win tell you more about the players' decisions?",
+   "q": "Annie Duke, the poker player, compares chess and poker. In which game does one win tell you more about the decisions?",
    "choices": [
     "Chess, there's almost no luck",
     "Poker, real money is at stake",
     "Both tell you the same amount",
-    "Neither, one game never tells you"
+    "Neither, one game never does"
    ],
    "answer": "Chess, there's almost no luck",
-   "why": "Chess. Duke says chess has no dice, and each player can see the other's position. So if Taylor beat Morgan at chess, Taylor made the better decisions. In poker you can win with the worst hand, so one win says very little. The more skill decides a result, the more one result tells you. Duke says almost no real decisions are like chess. They are much more poker-like.",
+   "why": "Chess. Duke's point is simple. In chess there are no dice, and you can see your opponent's whole position. So if Taylor beat Morgan at chess, Taylor made the better decisions. In poker you can win with the worst hand, so one win tells you very little. The more skill decides a result, the more one result tells you. Here's why it matters to us. Duke says almost no real decisions are like chess. A trade is a poker hand.",
    "lesson_line": "A trade is a hand of poker, not a game of chess. One hand tells you little.",
    "facts": [
     "f31",
@@ -802,9 +842,9 @@
     "f39"
    ],
    "wrong": {
-    "Poker, real money is at stake": "Money doesn't make a result more telling. Luck and hidden cards mean one poker win says little.",
-    "Both tell you the same amount": "Duke's point is the opposite: the more skill decides a game, the more one result tells you.",
-    "Neither, one game never tells you": "In chess it does. With so little luck, the winner made the better decisions."
+    "Poker, real money is at stake": "Money doesn't make a result more telling. With luck and hidden information, one poker win says little.",
+    "Both tell you the same amount": "Duke's point is the opposite. The more skill decides a game, the more one result tells you.",
+    "Neither, one game never does": "In chess it does. With no dice, the winner made the better decisions."
    },
    "simple": "Chess, because there are no dice and nothing hidden, so the winner made the better decisions.",
    "tier": "core",
@@ -814,7 +854,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -823,19 +863,19 @@
    "format": "tf",
    "q": "In a 1988 study, people rated the thinking behind a decision higher when it happened to turn out well.",
    "answer": "True",
-   "why": "True. Baron and Hershey found people rated the thinking as better when the outcome was favorable. They also rated the decision maker as more competent. The people in the study were judging someone else's decision. Duke sees the same thing in investing: people assume this year's winner decided better, even when the data does not show it.",
-   "lesson_line": "Grades tend to drift toward the result. Watch for it in yours.",
+   "why": "True. In Baron and Hershey's study, people rated the thinking as better when the outcome was good. They even rated the person deciding as more competent. And they were judging someone else's decision, not their own. Duke sees the same thing in investing. We assume this year's winner decided better, even when the data doesn't show it. Your own grades can drift toward the P&L the same way. So watch for it, especially after a big green week.",
+   "lesson_line": "Grades drift toward the result. Watch for it in yours.",
    "facts": [
     "f22",
     "f33"
    ],
-   "simple": "True, because people in the study judged the same thinking as better when the result happened to be good.",
+   "simple": "True. People judged the thinking as better when the result happened to be good.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
@@ -875,16 +915,16 @@
    "skill": "process.grading",
    "rung": 4,
    "format": "scenario",
-   "story": "The setup met every rule on your written checklist. You bought at your price, sized to plan, with your stop set. It hit the stop for your planned loss.",
-   "q": "How do you grade it?",
+   "story": "The setup checked every box on your written plan. You bought at your price, sized to plan, with your stop in. It hit the stop for your planned loss.",
+   "q": "How do you grade this one?",
    "choices": [
-    "Good idea, traded well, just lost",
-    "Bad trade, since it lost real money",
-    "Good idea, but you traded it badly",
+    "A good trade that just lost",
+    "Bad trade, it lost real money",
+    "Good idea, but traded badly",
     "Bad idea, since it didn't work"
    ],
-   "answer": "Good idea, traded well, just lost",
-   "why": "Good idea, traded well, just lost. A trade made on all your criteria is an A trade, even if it was not profitable that time. You can lose with the best hand. A loss with good process is not a step backward. The grade comes from the rules you followed, not from the money.",
+   "answer": "A good trade that just lost",
+   "why": "A good trade that just lost. You did everything your plan asked: the entry, the size, the stop. Make a trade on all of that and it's an A trade, even when that one doesn't pay. In poker you can lose with the best hand. Tendler goes further. Losing with good process isn't a step backward. So log it as an A and take the next one the same way. The loss is just the cost of doing business.",
    "lesson_line": "A loss on a clean trade is the cost of doing business. I grade the work.",
    "facts": [
     "f08",
@@ -892,25 +932,25 @@
     "f53"
    ],
    "wrong": {
-    "Bad trade, since it lost real money": "That's resulting, grading the decision by the result. A loss with good process isn't a step backward.",
     "Bad idea, since it didn't work": "A real edge still loses some of the time. One stop-out doesn't make the idea bad.",
-    "Good idea, but you traded it badly": "Nothing in the story says so. Entry, size and stop all went to plan."
+    "Bad trade, it lost real money": "That's resulting, grading the decision by how it ended. A loss with good process isn't a step backward.",
+    "Good idea, but traded badly": "Nothing says so. Entry, size and stop all went to plan."
    },
-   "simple": "It was a good idea traded well that just lost, because you followed every rule and a real edge still loses sometimes.",
+   "simple": "A good trade that lost. You followed every rule, and a real edge still loses sometimes.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "process.grading",
    "rung": 4,
    "format": "scenario",
-   "story": "Your plan is to buy tight setups in leading stocks. A headline gets you excited, and you buy a stock that fits none of it. Your entry, stop and size follow your usual rules. It stops out.",
-   "q": "Which grade is low?",
+   "story": "Your plan is to buy tight setups in leading stocks. A headline gets you fired up, and you buy a stock that fits none of it. Your entry, stop and size follow your usual rules. It stops out.",
+   "q": "Which of your three grades comes out low?",
    "choices": [
     "The idea behind it",
     "How you traded it",
@@ -918,19 +958,20 @@
     "None, losses happen"
    ],
    "answer": "The idea behind it",
-   "why": "The idea behind it. Steenbarger's first grade asks whether the trade had a genuine edge, or whether a piece of news pulled you in. This stock fit none of your plan. Your entry, stop and size followed your rules, so how you traded it holds up. The low idea grade stands whether the trade wins or loses.",
+   "why": "The idea. Steenbarger's idea grade asks if the trade had a real edge, or if a piece of news pulled you in. Here the headline did. The stock fit nothing on your plan, so no edge from your plan stood behind it. You did trade it right. Entry, stop and size went by your rules, so that grade holds up. But clean execution can't rescue an idea that was never on your plan. It'd be the same low grade if it had worked. We write down every planned buy, with its entry, stop and size, before the open. A headline isn't on that list.",
    "lesson_line": "Clean execution can't rescue an idea that was never in your plan.",
    "facts": [
     "f02",
     "f13",
-    "f04"
+    "f04",
+    "f69"
    ],
    "wrong": {
-    "How you traded it": "Entry, stop and size followed your rules. That part was done well.",
+    "How you traded it": "Entry, stop and size followed your rules. That part you did right.",
     "Your preparation": "Nothing says you skipped your prep. The slip came when the headline hit.",
-    "None, losses happen": "Losses do happen, but this trade had no edge from your plan behind it. It earns a low idea grade, win or lose."
+    "None, losses happen": "Losses do happen. But this one had no edge from your plan behind it, so it grades low, win or lose."
    },
-   "simple": "The idea is the low grade, because a headline pulled you into a stock your plan never called for.",
+   "simple": "The idea grade is low. A headline pulled you into a stock your plan never called for.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -938,7 +979,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
@@ -946,7 +987,7 @@
    "rung": 5,
    "format": "scenario",
    "story": "Your plan says this trade should not be held through earnings. You skip your weekly look ahead. You miss that the stock reports tonight, and it gaps down through your stop.",
-   "q": "Where did the mistake start?",
+   "q": "Where did this one go wrong?",
    "choices": [
     "Your preparation work",
     "How you traded the stock",
@@ -954,20 +995,21 @@
     "None, it was just bad luck"
    ],
    "answer": "Your preparation work",
-   "why": "Your preparation. The earnings date was knowable before you held through it. Schwab's weekly plan looks ahead for earnings announcements. Our own rule is to hold through a report only if the trade is up 5R. You held only because you didn't know the date. Which way the report moved the stock was luck. Not knowing it was coming was not.",
+   "why": "Your prep. That report date was knowable days ahead. A weekly look ahead is built to catch exactly this. Schwab's version checks for earnings, dividends and big economic news. Our rules on earnings are plain. No new buys in the 3 days before a report, and we only hold through one if the trade is up 5R. You held because you never saw the date. Which way it gapped was luck. Not knowing it was coming wasn't. Earnings dates are on the calendar in the UCT Terminal. Check it before you buy, and again in your weekend review.",
    "lesson_line": "If you could have known it ahead of time, missing it isn't bad luck. It's prep.",
    "facts": [
     "f57",
     "f06",
     "f17",
-    "f66"
+    "f66",
+    "f70"
    ],
    "wrong": {
     "How you traded the stock": "Holding broke your plan only because you didn't know the date. The miss started earlier, in the look ahead you skipped.",
     "The idea, since it lost": "Losing money doesn't grade the idea. The miss was not knowing the report was due.",
     "None, it was just bad luck": "Which way the report moved it may be luck. Not knowing it was coming isn't. The date was knowable ahead of time."
    },
-   "simple": "Your prep, because the earnings date was on the calendar and a weekly look ahead would have shown it.",
+   "simple": "Your prep. The earnings date was knowable, and a weekly look ahead would have shown it.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -975,14 +1017,14 @@
      "rebuilt around earnings to follow the owner's rulebook (C32 news days, B22 earnings)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "process.grading",
    "rung": 5,
    "format": "mcq",
-   "q": "Plan: buy at $50, stop $48, target $56. You chase and fill at $53, same stop and target. Reward per $1 of risk now?",
+   "q": "Plan: buy $50, stop $48, target $56. You chase and fill at $53, same stop and target. What do you get per $1 of risk now?",
    "answer": "$0.60",
    "calc": {
     "fn": "arith",
@@ -994,17 +1036,18 @@
     }
    },
    "prefix": "$",
-   "why": "Reward is the $56 target minus your $53 entry, or $3. Risk is the $53 entry minus the $48 stop, as in Schwab's example. Divide the reward by that risk to get $0.60 of reward for each $1 of risk. At your planned $50, the target was much further away than the stop. The chart did not change, only your entry did. Chasing turned good reward for the risk into poor, and that is graded under how you traded it. Our own rule is never to buy more than 4% above the buy point, and $53 is past it.",
+   "why": "$0.60. Work it from your real fill. The reward is $56 minus $53, so $3. The risk is $53 minus $48, so $5. $3 over $5 is $0.60 for every $1 you risk. At $50 the same plan paid $3.00 for every $1. The chart didn't change. Only your entry did. That's why Steenbarger grades chasing under how you traded the idea. And with the stop still at $48, the bigger risk per share means fewer shares. We don't buy more than 4% over the buy point, and $53 is past it.",
    "lesson_line": "Chasing doesn't change the chart. It changes what you get paid for the risk.",
    "facts": [
     "f04",
     "f14",
     "f58",
-    "f67"
+    "f67",
+    "f73"
    ],
-   "simple": "Just $0.60, because from $53 the target is closer to you than the stop is.",
+   "simple": "Just $0.60. From $53 the target is closer to you than the stop is.",
    "deeper": {
-    "trap": "The chart looks the same after a chase, so it feels like the same trade. It is not. The stop and the target stay where they were. Every dollar you pay above the plan moves your entry closer to the target and further from the stop. Here a fill at $53 instead of $50 left the target closer than your stop. Grade that at the entry, even if the trade later reaches $56."
+    "trap": "A chase feels like the same trade because the chart looks the same. It isn't. The stop and the target stay put. Every dollar you pay over the plan moves you closer to the target and further from the stop. Here a $53 fill instead of $50 put the target closer than the stop. Grade that at the entry, even if the trade goes on to reach $56."
    },
    "tier": "extended",
    "risk": {
@@ -1014,7 +1057,7 @@
      "fill moved past the rulebook's chase line (C28)"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$0.60",
     "$1.20",
@@ -1022,9 +1065,9 @@
     "$3.00"
    ],
    "wrong": {
-    "$3.00": "That is the reward for the risk at your planned $50 entry, before you chased.",
-    "$1.67": "Flipped it: risk over reward.",
-    "$1.20": "Measured the reward from the old $50 entry but the risk from the new one."
+    "$3.00": "That's what the plan paid at your $50 entry, before you chased.",
+    "$1.67": "Flipped. That's the risk over the reward.",
+    "$1.20": "Mixed entries. You measured the reward from $50 but the risk from $53."
    }
   },
   {
@@ -1032,15 +1075,15 @@
    "skill": "process.grading",
    "rung": 5,
    "format": "mcq",
-   "q": "You're grading the idea behind last week's trade. What should that grade rest on?",
+   "q": "Last week's trade is up for review. What should its idea grade rest on?",
    "choices": [
-    "What you knew when you entered",
+    "What you knew at the entry",
     "Where it closed a week later",
     "How much the trade made or lost",
     "News that came out after you sold"
    ],
-   "answer": "What you knew when you entered",
-   "why": "What you knew when you entered. Information that is available only after a decision is irrelevant to its quality. When a trade turns out badly, re-check it from where you stood at the time. Duke reviews her hands the same way, from her seat when she had to decide. Where it closed, what it made and later news all came after the entry.",
+   "answer": "What you knew at the entry",
+   "why": "What you knew at the entry. Information you only get after a decision has nothing to do with how good the decision was. That comes straight from Baron and Hershey's study. So when a trade goes bad, go back to where you stood when you clicked. Duke reviews her poker hands the same way, from her seat at the moment she had to decide. Where it closed, what it made and the later news all came after. You couldn't have used any of it.",
    "lesson_line": "Grade from your seat at the entry, not from where the chart sits now.",
    "facts": [
     "f24",
@@ -1052,13 +1095,13 @@
     "How much the trade made or lost": "That's the result. Luck sits between the decision and the result.",
     "News that came out after you sold": "You couldn't have known it at the entry, so it can't grade the entry."
    },
-   "simple": "Grade it on what you knew when you bought, since things you learn later can't make the choice better or worse.",
+   "simple": "Grade it on what you knew when you bought. What you learn later can't make the choice better or worse.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
@@ -1068,13 +1111,13 @@
    "story": "You buy a clean setup right at your entry. It reaches your target, where your plan says take profits. You hold for more instead. It fades, and you sell for a small gain.",
    "q": "Which grade takes the hit?",
    "choices": [
-    "How you traded it, at the exit",
+    "How you traded it, the exit",
     "None, the trade made money",
     "The idea, the gain was small",
     "Your preparation that morning"
    ],
-   "answer": "How you traded it, at the exit",
-   "why": "How you traded it, at the exit. Your plan said take profits at the target, and you held instead. Steenbarger's own example is like this: a great entry, then he should have taken profits earlier. He made some money, but not nearly what he should have. A trade that made money can still earn a low grade on the exit.",
+   "answer": "How you traded it, the exit",
+   "why": "How you traded it, at the exit. The idea worked. It got to your target. Then you broke your own sell plan and gave most of it back. Steenbarger tells the same story about himself. A great entry, and he should have taken profits earlier. He made some money, just not nearly what he should have. So a green trade can still earn a low grade. Making money and doing it right aren't the same thing.",
    "lesson_line": "A green trade can still earn a low grade. Making money isn't the same as doing it right.",
    "facts": [
     "f09",
@@ -1088,7 +1131,7 @@
     "The idea, the gain was small": "The idea did its job. It reached your target. The gain shrank after that, at your exit.",
     "Your preparation that morning": "Nothing in the story points to your prep. The slip came at the exit."
    },
-   "simple": "How you traded it takes the hit, because your plan said take profits at the target and you broke it.",
+   "simple": "How you traded it. Your plan said take profits at the target, and you held instead.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1096,22 +1139,22 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "process.grading",
    "rung": 6,
    "format": "mcq",
-   "q": "Resulting often means blaming a bad outcome on a bad decision. What's the other half of the trap?",
+   "q": "Resulting means blaming a bad outcome on a bad decision. What's the other half of the trap?",
    "choices": [
-    "Crediting skill for a lucky win",
+    "Calling a lucky win skill",
     "Blaming luck for every loss",
     "Trading smaller after a loss",
     "Selling winners too early"
    ],
-   "answer": "Crediting skill for a lucky win",
-   "why": "Crediting skill for a lucky win. Resulting works in both directions. A bad outcome gets blamed on a bad process. A good outcome gets put down to a sound process when it was just luck. Duke warns resulting can make you believe some bad decisions should be reinforced. That is how a lucky habit gets repeated.",
+   "answer": "Calling a lucky win skill",
+   "why": "Calling a lucky win skill. Resulting cuts both ways. A bad outcome gets blamed on a bad process. A good outcome gets credited to a sound process when it was just luck. The second half is the sneaky one. Duke warns resulting can make you believe some bad decisions should be reinforced. Break a rule, get paid, call it skill, and you'll do it again. That's how a bad habit grows.",
    "lesson_line": "A lucky win graded as skill gets repeated. That's how bad habits grow.",
    "facts": [
     "f51",
@@ -1120,11 +1163,11 @@
     "f50"
    ],
    "wrong": {
-    "Blaming luck for every loss": "That's a cousin bias: wins are your skill, losses are bad luck. Resulting grades by the result either way.",
-    "Trading smaller after a loss": "That's a reaction to losing, not a way of judging the decision.",
+    "Blaming luck for every loss": "That's a cousin bias: wins are skill, losses are bad luck. Resulting grades by the result either way.",
+    "Trading smaller after a loss": "That's a reaction to losing, not a way of judging a decision.",
     "Selling winners too early": "That's an exit habit. Resulting is about how you judge a decision after the fact."
    },
-   "simple": "The other half is calling a lucky win good skill, which can lead you to repeat a bad choice.",
+   "simple": "The other half is calling a lucky win skill. That can lead you to repeat a bad decision.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1132,7 +1175,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1141,16 +1184,17 @@
    "format": "tf",
    "q": "Once you know about resulting, a trade's result stops swaying how you grade it.",
    "answer": "False",
-   "why": "False. Baron and Hershey found that just understanding the bias is not enough to remove it. Tell a reviewer how a hand ended and they will fit the story to the ending. So smart poker players go further: they ban talk of how a hand turned out when they review it. For a trade, that means writing your grade before you look at the result.",
+   "why": "False. Knowing the bias doesn't switch it off. Baron and Hershey found that just understanding it is not enough to remove it. Tell someone how a hand ended and they'll fit the story to the ending. That's why smart poker players ban talk of how a hand turned out when they review it. Do the same with your trades. Journal each trade the same day, and write the grade before you look at the P&L.",
    "lesson_line": "Knowing the bias won't save you. I write the grade before I look at the P&L.",
    "facts": [
     "f26",
     "f40",
-    "f38"
+    "f38",
+    "f70"
    ],
-   "simple": "False, because knowing about the bias does not switch it off, so hide the result while you grade.",
+   "simple": "False. Knowing about the bias doesn't switch it off, so hide the result while you grade.",
    "deeper": {
-    "trap": "The trap is feeling safe because you know the word. Knowing that outcomes color your judgment is not enough to stop it. So the fix is a habit, not an insight. Write down your grade for the idea, the trading and your prep first. Open the P&L only after that."
+    "trap": "The trap is feeling safe because you know the word. Knowing that outcomes color your judgment doesn't stop them from doing it. So the fix is a habit, not an insight. Write your grade for the idea, the trading and your prep first. Open the P&L only after that."
    },
    "tier": "extended",
    "risk": {
@@ -1159,7 +1203,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1175,7 +1219,7 @@
     "No grade until he calls it again"
    ],
    "answer": "A sound call with a bad outcome",
-   "why": "A sound call with a bad outcome. Duke calls it mathematically well reasoned. On the facts Carroll had, an interception was highly unlikely, and an incomplete pass would have stopped the clock. The public reaction judged it by the result, which is the common trap she names. This is Duke's verdict, and the question asks how she grades it.",
+   "why": "A sound call with a bad outcome. Duke calls it mathematically well reasoned. Look at what Carroll knew before the snap. An interception was highly unlikely, and an incomplete pass would have stopped the clock. Most people judged it by the ending, the exact trap Duke names. You don't have to agree with her on the football. The lesson is how she grades it: from the facts at the snap, not from the result. Grade your trades from the moment you clicked.",
    "lesson_line": "A well-reasoned call that loses is still well reasoned. Grade your trades the same way.",
    "facts": [
     "f45",
@@ -1188,11 +1232,11 @@
    "wrong": {
     "A bad call, since it lost the game": "That's resulting, the common trap Duke warns about. The interception was the unlikely outcome.",
     "A bad call, a run was the safe play": "Not in Duke's view. An interception was highly unlikely, and an incomplete pass would have stopped the clock.",
-    "No grade until he calls it again": "You can grade a call by the odds and the facts at the time. What you can't do is grade it by the result."
+    "No grade until he calls it again": "You can grade a call on the odds and the facts at the time. What you can't do is grade it by the result."
    },
-   "simple": "Duke calls it sound with a bad result: an interception was very unlikely, and an incomplete pass stops the clock.",
+   "simple": "Duke calls it sound with a bad result. An interception was very unlikely, and an incomplete pass stops the clock.",
    "deeper": {
-    "trap": "The trap is the vivid ending. The pass was intercepted at the 1-yard line and Seattle lost, so the call feels wrong. Duke judges it on what Carroll knew before the snap. He was down four with one timeout. An incomplete pass would stop the clock, and an interception was highly unlikely. Judge the call from there. A trade that stops out works the same way: judge it from the moment you bought."
+    "trap": "The trap is the vivid ending. The pass was picked off at the 1-yard line and Seattle lost, so the call feels wrong. Duke judges it on what Carroll knew before the snap. He was down four with one timeout. An incomplete pass would stop the clock, and an interception was highly unlikely. Judge the call from there. A trade that stops out works the same way. Judge it from the moment you bought."
    },
    "tier": "extended",
    "risk": {
@@ -1201,7 +1245,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1209,7 +1253,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "A stock that's not on your list rips on a headline. You buy at the open with no stop, at double your normal size. It runs, and you sell for your best win of the month.",
-   "q": "Grade it. Which grades fail?",
+   "q": "Your best win of the month. Which grades does it fail?",
    "choices": [
     "The idea and how you traded it",
     "None, it was your best win",
@@ -1217,23 +1261,24 @@
     "Only your preparation that day"
    ],
    "answer": "The idea and how you traded it",
-   "why": "The idea and how you traded it. The stock was not on your list, so there was no edge from your plan behind it. No stop and double size break the trading grade. Making money with bad process is a step backward, not forward. Resulting can make a bad decision look like one to repeat. The story says nothing about your prep.",
+   "why": "The idea and how you traded it. It wasn't on your list, so no edge from your plan stood behind it. That's the idea grade gone. No stop and double size wreck the trading grade. Every trade we take has a real stop order with the broker, and the size comes from that stop. Tendler says making money with bad process is a step backward. I'd take a clean loss over this win. A win like this can teach you to do it again.",
    "lesson_line": "A bad trade that pays is dangerous. It can teach you to do it again.",
    "facts": [
     "f53",
     "f43",
     "f02",
     "f04",
-    "f56"
+    "f56",
+    "f71"
    ],
    "wrong": {
     "None, it was your best win": "That's resulting. Winning doesn't fix a missing stop or double size.",
     "Only the size, the idea was fine": "A headline stock that wasn't on your list had no edge from your plan. The idea fails too.",
-    "Only your preparation that day": "The story doesn't say how you prepped. The failures came at the click: the idea and the trading of it."
+    "Only your preparation that day": "The story doesn't say how you prepped. The failures came at the click: the idea and how you traded it."
    },
-   "simple": "Both the idea and the trading fail: the stock was off your plan, with no stop and twice your size.",
+   "simple": "Both fail. The stock was off your plan, with no stop and twice your size.",
    "deeper": {
-    "trap": "The trap is that the money is real, so it feels like proof. Duke warns that resulting can make bad decisions look worth repeating. Try grading it as if it had lost: an off-plan idea, no stop, double size. That grade is low, and the win does not change it. The win was luck on top of a bad trade."
+    "trap": "The money is real, so it feels like proof. Duke warns that resulting can make bad decisions look worth repeating. Grade it as if it had lost: an off-plan idea, no stop, double size. That grade is low, and the win doesn't change it. The win was luck on top of a bad trade."
    },
    "tier": "extended",
    "risk": {
@@ -1242,7 +1287,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1251,25 +1296,26 @@
    "format": "tf",
    "q": "Over many trades taken the same way, your results start to say something about your process.",
    "answer": "True",
-   "why": "True. One hand of poker tells you little about the decisions in it. But over enough hands, the outcome in the aggregate starts to tell you something. Baron and Hershey say outcome information works only within a sequence of similar decisions, not a single one. Tendler calls money the scoreboard, just not a reliable one over the short term. He would judge P&L over three to six months.",
+   "why": "True. One trade is like a single hand of poker. It says little about the decisions in it. Play enough hands, though, and the results taken together start to tell you something. Trades work the same way. Tendler calls money the scoreboard, just not a reliable one short term. He'd judge P&L over three to six months. That's how we run it. Every month we review the numbers: win rate, average win and loss in R, and expectancy. Each trade I grade on process. The pile I judge on results.",
    "lesson_line": "Grade each trade on process. Judge the process on the pile of trades.",
    "facts": [
     "f35",
     "f36",
     "f54",
     "f28",
-    "f55"
+    "f55",
+    "f72"
    ],
-   "simple": "True, because one trade says little, but many trades taken the same way start to show if your process works.",
+   "simple": "True. One trade says little, but many trades taken the same way start to show if your process works.",
    "deeper": {
-    "counter": "The pile only counts if the trades really were taken the same way. Mix breakouts, news trades and dip buys in one total, and the total tells you little about any of them. Results inform you within a sequence of similar decisions. So keep each setup's trades in its own pile before you judge it."
+    "counter": "The pile only counts if the trades really were taken the same way. Mix breakouts, news trades and dip buys in one total, and the total tells you little about any of them. Results inform you within a run of similar decisions. So keep each setup's trades in their own pile before you judge it."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1277,7 +1323,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "You want a friend's honest read on a trade you took last week. You plan to walk him through it step by step.",
-   "q": "What do you hold back until he gives his view?",
+   "q": "What do you keep back until he gives his read?",
    "choices": [
     "How the trade turned out",
     "Your entry and your stop",
@@ -1285,7 +1331,7 @@
     "The market at the time"
    ],
    "answer": "How the trade turned out",
-   "why": "How the trade turned out. Annie Duke reviews a poker hand by putting the listener in her seat at the time she had to decide. She leaves out the result, because the listener will naturally fit the story to what happened. Give him your reasons, your entry and stop, and what the market was doing then. Those were all part of the decision.",
+   "why": "How it turned out. Duke reviews a poker hand by putting the listener in her seat at the moment she had to decide. She leaves the result out. Tell him the ending and he'll fit his story to it without meaning to. So give him everything you had when you clicked: your reasons, the market that day, your entry and your stop. Get his grade. Then tell him how it ended.",
    "lesson_line": "For an honest grade, hide the ending.",
    "facts": [
     "f38",
@@ -1297,7 +1343,7 @@
     "Your reasons for the trade": "That's what he's grading. Hide the result, not the reasons.",
     "The market at the time": "You knew that when you decided, so it belongs in the picture."
    },
-   "simple": "Hold back how it turned out, because once he knows the ending he will fit his story to it.",
+   "simple": "Hold back how it turned out. Once he knows the ending, he'll fit his story to it.",
    "deeper": {
     "example": "Walk him through it the way you saw it when you clicked. Give the setup, why you liked it, the market that day, and your entry, stop and size. Ask for his grade on the idea and on how you planned to trade it. Only then tell him how it ended. If his view shifts once he hears the ending, that shift is the bias at work."
    },
@@ -1308,7 +1354,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1316,30 +1362,31 @@
    "rung": 9,
    "format": "scenario",
    "story": "Six months, 40 trades on one setup. Almost every trade graded A on process. Taken together, the setup has lost money.",
-   "q": "What does that tell you?",
+   "q": "What's the pile of trades telling you?",
    "choices": [
-    "The setup itself needs a hard look",
+    "The setup needs a hard look",
     "Nothing, process is what counts",
     "Your grades have been too harsh",
     "Trade it bigger to win it back"
    ],
-   "answer": "The setup itself needs a hard look",
-   "why": "The setup itself needs a hard look. Your process grades say you traded it the way you planned. Over a stretch like this, the results taken together start to tell you something. A losing run can be bad luck, or it can point to a real problem with the strategy. Check whether you make or lose money net, then look for patterns in the wins and losses. It does not mean drop the setup at once.",
+   "answer": "The setup needs a hard look",
+   "why": "The setup needs a hard look. Your process grades say you traded it the way you planned, so execution isn't the problem. Over 40 trades and six months, the results taken together start to talk. A losing run can be bad luck, or it can point to a real problem with the strategy. So check. See whether the setup makes or loses money net, then look for patterns in the winners and the losers. Tag the setup on every trade in your journal, then pull its win rate, average win and loss in R, and expectancy. That doesn't mean drop it tomorrow. It means find out.",
    "lesson_line": "Good process can't save a setup with no edge. Over months, the pile of trades shows if yours has one.",
    "facts": [
     "f36",
     "f59",
     "f60",
-    "f55"
+    "f55",
+    "f72"
    ],
    "wrong": {
     "Nothing, process is what counts": "Process grades judge each trade. Over months, the results judge the setup.",
     "Your grades have been too harsh": "The grades say you followed the plan. The question now is whether the plan has an edge.",
     "Trade it bigger to win it back": "Sizing up a setup that's losing money makes a possible problem bigger."
    },
-   "simple": "The setup needs a hard look: the trades were taken well, so the losses may point to a setup with no edge.",
+   "simple": "The setup needs a hard look. You traded it well, so the losses may point to a setup with no edge.",
    "deeper": {
-    "trap": "The trap is to hide behind good process grades. Process grades judge each trade, and these were good. They cannot judge whether the setup has an edge. The pile of results is what starts to tell you. Six months is the kind of stretch Tendler means. So the loss deserves a real look: what the winners had in common, and what the losers did."
+    "trap": "The trap is hiding behind good process grades. They judge each trade, and these were good. They can't tell you whether the setup has an edge. The pile of results starts to. Six months is the kind of stretch Tendler means. So the loss deserves a real look: what the winners had in common, and what the losers did."
    },
    "tier": "expert",
    "risk": {
@@ -1348,7 +1395,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1356,15 +1403,15 @@
    "rung": 9,
    "format": "scenario",
    "story": "Your reviews show the same thing for weeks. Your idea grades are high, and those ideas often work. But you hesitate, and take few of them, often late.",
-   "q": "Where should your work go?",
+   "q": "Where should your work go next?",
    "choices": [
-    "Acting on the ideas you find",
+    "Acting on your own ideas",
     "Finding better trade ideas",
     "More time on morning prep",
     "Taking trades of any kind"
    ],
-   "answer": "Acting on the ideas you find",
-   "why": "Acting on the ideas you find. Separate grades show where the leak is, and here it is at the click. SMB tells of probably their highest-P&L trader: terrific at ideas, trouble pulling the trigger. The work was giving him more confidence to make those trades. Like a tennis player working on one part of the game, work on the weak part.",
+   "answer": "Acting on your own ideas",
+   "why": "Acting on your own ideas. Separate grades show you where the leak is, and here it's at the click. Your ideas grade high and they work. You're just not taking them. SMB had this exact problem with probably their highest-P&L trader. Terrific at ideas, trouble pulling the trigger. The work was giving him the confidence to take those trades. A tennis player drills the weak part of the game. Do the same.",
    "lesson_line": "Separate grades show you where the leak is. Fix that part, not everything.",
    "facts": [
     "f11",
@@ -1376,9 +1423,9 @@
     "Finding better trade ideas": "Your ideas already grade high and often work. Better ones won't help if you don't take them.",
     "More time on morning prep": "Nothing points to prep. The leak is at the click."
    },
-   "simple": "Work on acting on the ideas you find, because they already grade well and the leak is in taking them.",
+   "simple": "Work on acting on your ideas. They already grade well, and the leak is in taking them.",
    "deeper": {
-    "trap": "The trap is to fix what feels comfortable. Hunting for better ideas is fun and feels like work, but your ideas already grade high. A tennis player works on the backhand when the backhand is the weak part, not on the serve. Your separate grades tell you which part of your game that is."
+    "trap": "The trap is fixing what feels comfortable. Hunting for better ideas is fun and feels like work, but your ideas already grade high. A tennis player works on the backhand when the backhand is the weak part, not on the serve. Your separate grades tell you which part of your game that is."
    },
    "tier": "expert",
    "risk": {
@@ -1387,7 +1434,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -1395,7 +1442,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "You look back at a month of your own trade grades. Every winner got an A. Every loser got a C or worse.",
-   "q": "What's the most likely problem?",
+   "q": "What's really going on here?",
    "choices": [
     "Your grades are tracking the P&L",
     "You only take truly great trades",
@@ -1403,7 +1450,7 @@
     "Your stops are set much too tight"
    ],
    "answer": "Your grades are tracking the P&L",
-   "why": "Your grades are tracking the P&L. Good decisions can end badly, and bad ones can end well. So over a month you would expect some good trades among the losers. When every winner is an A and every loser a C, the grades are following the result. People rate the thinking as better when the outcome is good. Grading yourself by outcomes can leave you smug after wins and hard on yourself after losses.",
+   "why": "Your grades are tracking the P&L. Good decisions can end badly, and bad ones can end well. So over a month, some of your losers should be good trades that just lost. Not one A on a loser is the giveaway. The grades are following the money. That's Baron and Hershey's finding again: people rate the thinking as better when the outcome is good. Do it to yourself and you can end up smug after wins and hard on yourself after losses. Write the grade before you look at the P&L.",
    "lesson_line": "If my grades always match my P&L, I'm grading the result, not the trade.",
    "facts": [
     "f22",
@@ -1416,9 +1463,9 @@
     "Your losers were all just bad trades": "Some losers are good trades that just lost. Every single one being bad is a pattern in your grading.",
     "Your stops are set much too tight": "Tight stops could mean more losers. They don't explain grades that match the P&L every time."
    },
-   "simple": "Your grades are tracking the P&L, because good trades sometimes lose, so a month with no good losers points to the grading.",
+   "simple": "Your grades are tracking the P&L. Good trades sometimes lose, so a month with no good losers points to the grading.",
    "deeper": {
-    "example": "Re-grade a few of the losers without looking at the P&L. Ask only three things: was the idea on plan, were the entry, stop and size right, and were you prepared. If some come out as A trades, your first grades were reading the result. Do the same with a few winners. An off-plan win should come out low."
+    "example": "Re-grade a few of the losers without looking at the P&L. Ask only three things: was the idea on plan, were the entry, stop and size right, and were you ready. If some come out as A trades, your first grades were reading the result. Do the same with a few winners. An off-plan win should come out low."
    },
    "tier": "expert",
    "risk": {
@@ -1427,7 +1474,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1467,14 +1514,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Solved cold from f07: ideas, trading them, prep. Key matches. Choices 29-33 chars, no tell. Why no longer names exercise, so it does not answer q06. Every sentence grounded (f03, f04, f05, f06, f07).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Key from f07, f03-f06; choices 29-33 chars, key not longest. Why grounded; 'which part of your game is leaking' is his register. Names Steenbarger by design (lesson conflict: the three axes are his method, not ours)."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from f23, f29, f54. Simple softened to 'tells you little' (f30/f35 hedge kept). Why no longer states q20's aggregate line."
+   "notes": "False from f23, f29, f54. Ends on the practical: grade the idea, entry, stop, size. Hedge kept in simple ('tells you little')."
   },
   "q03": {
    "status": "cut",
@@ -1485,32 +1531,32 @@
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Real edge from f02. Choices 28-34, key not longest. Why split to short sentences, all grounded (f02, f04, f06, f29)."
+   "fixed": true,
+   "notes": "Truth fine (f02). Voice: the verdict 'Was there a real edge in it.' read as a question with a period, the 25-word Steenbarger sentence ran long, and 'Put plainly, was it on your plan...' was stilted. Rewritten: verdict first, sentence split, a straight closing line."
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Chasing under the trading grade (f04). 'Chasing costs size' and the 4% line verified verbatim in sizing_rule.md C28 (f67, f73). Wrong notes plain."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True from f06 (physical exercise in prep) and f16 (manage yourself, peak performing state). No absolute in the statement; T/F balance now 3 True, 2 False. Consistent with rulebook F67 (tired, sick, distracted: no new trades). Simple 21 words."
+   "notes": "True from f06, f16. f68 verified verbatim (F67). One plain claim, no 'but' clause. Practical close: check how you feel before the open."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Chess from f31, f64, f65. Simple grounded in f64 (no dice) and f65 (see opponent's position)."
+   "notes": "Chess from f31, f64, f65; f39 for 'more skill, more one result tells you'. 'A trade is a poker hand' lands the point."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Solved cold as True from f22 (Baron and Hershey abstract: thinking rated better when the outcome was favorable; 'more competent' also in the quote). 1988 is in the source title. f33 checked on the Wharton page: the speaker is Duke, so 'Duke sees the same thing' holds; 'does not show it' is a fair read of 'does not necessarily bear that out'. Statement 103 chars, no lone absolute; T/F balance in the lesson 3 True, 2 False. 'Happened to' leans toward the luck framing but does not decide the answer. Lesson line is a watch-for, not a claim about self-grading, so the others-vs-self gap is respected"
+   "fixed": true,
+   "notes": "Truth: the study tested people judging OTHERS (lesson conflict note); 'So expect your own grades to drift' stated as certain what the source only suggests. Softened to 'can drift', kept the watch-for with a mentor line."
   },
   "q09": {
    "status": "cut",
@@ -1522,94 +1568,91 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Clean process plus planned loss gives 'good idea, traded well' (f08, f53). Choices now 30-35, balanced. Re-keyed wrong note matches the story (entry, size, stop to plan). 'A trade' letter clash with D38/E50 is already an owner flag."
+   "notes": "Good trade that lost (f08, f29, f53). Verdict, reason, and 'log it as an A and take the next one the same way' is the how. 'A trade' vs setup-grade letters already an owner flag."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Idea grade low (f02). f69 verified (D39). 'A headline isn't on that list' is his kind of blunt line."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Decided cold: the miss starts at the skipped look ahead (prep), f57. Rebuilt around earnings, so it no longer teaches the economic-report view C32 replaced; the why teaches B22 (f66, quote verified verbatim in sizing_rule.md section 9). 'How you traded the stock' is answered by the 'where did it start' wording and its wrong note. Choices 21-26, key not longest, no story echo. No date dependence."
+   "fixed": true,
+   "notes": "Truth fine: f66 matches B22 verbatim, 3 and 5R cited. Added where to find it (rule 14: earnings dates on the UCT Terminal calendar) and tightened the opening so the reason (knowable ahead) leads."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answer unchanged, rank verified, wrong values recomputed and match the stated mistakes."
+   "fixed": true,
+   "notes": "Recomputed: (56-53)/(53-48) = 3/5 = 0.60 (key). Distractors: plan (56-50)/(50-48) = 3.00; flipped 5/3 = 1.67; mixed (56-50)/(53-48) = 1.20. All match their wrong notes. One overstatement: $53 is 6% over $50, two points past the 4% line, so 'well past it' became 'past it'."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Key from f24, f25, f37. Researchers named because the question is about their finding (rule 13). Practical: go back to where you stood when you clicked."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Exit grade from f10 and the story's broken plan (C36). Key no longer the lone colon choice; choices 26-30. B19 trim rule clash already an owner flag."
+   "notes": "Exit grade (f09, f10, f05). Story is about breaking your own sell plan, not a fixed trim rule, so it does not misstate the first-sell ruling."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Other half from f52; why grounded in f43 ('can make you believe some bad decisions should be reinforced'). Two distractors share 'every', so no lone absolute.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Other half from f52; f43 for 'bad decisions reinforced'. 'Break a rule, get paid, call it skill' is good. Wrong notes plain."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from f26. Why's last step is now stated as the step, not an unsupported claim; f40 and f38 support the ban on outcome talk. Overlap with q21 noted: q17's reveal teaches hiding the result before q21 applies it at rung 8; accepted as teaching, not a giveaway, but flag for the sequencer."
+   "notes": "False from f26; f40, f38. f70 verified (B27). The how (grade before you look at the P&L) is in why, simple and lesson line."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Duke's verdict from f45, f62, f49. Simple 20 words, 'very unlikely' matches f62's 'highly unlikely'. Deeper uses only f46, f47 (down four, one timeout), f49, f62; no 2% figure."
+   "notes": "Duke's verdict (f45, f62, f49, f47). No 2% figure. 'You don't have to agree with her on the football' keeps the disputed call honest."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Idea fails (f02: news pull, off plan) and trading fails (f04 size, f56 stops). f56 added for the stop point. Consistent with D41 and F66."
+   "notes": "Idea and trading fail (f02, f04, f56). f71 verified (D41). 'I'd take a clean loss over this win' is his register."
   },
   "q20": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth fine (f35, f36, f54, f55, f28, f72 = E59). Voice: three authorities stacked in a row read like a literature review. Rewritten around the poker point, Tendler's stretch and how we review each month, ending on a mentor line."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Hold back the ending (f37, f38). Rebalanced choices 22-26, wrong notes re-keyed correctly. Deeper example split and grounded in f38."
+   "notes": "Hold back the ending (f37, f38). Practical order of the walk-through is in why and deeper."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key decided cold and matches: clean process plus a losing pile over six months points at the setup (f36, f59, f60, f55); consistent with rulebook E59 (monthly review of the numbers) and 'Trade it bigger' is rightly wrong (D45, E49). Choices 30-34 chars, key tied longest with a distractor, echoes balanced. Only the lesson line breaks: 'The pile of trades tells you which one you have' has no clear antecedent ('which one' of what?), and 'a setup with no edge still loses' states as fact what the why only says may be so (f59: bad luck or a real problem). Reworded to a clear line that stays inside f",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Key holds (f36, f59, f60, f55, f72); 'Trade it bigger' rightly wrong (D45). Added the practical how: tag the setup on every trade so its numbers can be pulled."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Leak is at the click (f11, f63, f18). Key no longer echoes 'often late'; choices 28-30, key shortest-but-one. Consistent with D44 (no forcing trades), which the 'any kind' wrong note respects.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Leak at the click (f11, f63, f18). Consistent with D44 via the 'any kind' wrong note."
   },
   "q24": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Key holds (f22, f42, f51). f27 says people 'may' become smug or self-reproachful; why stated it as certain. Hedge restored ('can end up')."
   }
  }
 }

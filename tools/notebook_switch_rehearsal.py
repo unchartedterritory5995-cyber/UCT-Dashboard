@@ -309,6 +309,19 @@ NOT_REHEARSED = {
                                      "(test_tool_types_hidden_while_w11_off_and_listed_when_on) shows the new library"
                                      " types absent while off; its rendered evidence is the wave 11 walk (Task "
                                      "11.20), not a probe here"),
+    # Import a tweet (PRs #987/#996/#999). Armed on web 2026-11-09; the ledger row said dark until 2026-11-17.
+    "NOTEBOOK_TWEET_IMPORT_ENABLED": ("armed on web 2026-11-09 (docs/feature_flags.json): Import a tweet, the "
+                                      "/tweet and toolbar doors in the editor and the ticker page's Import a tweet "
+                                      "button over the three /api/j2/research-capture/tweets routes; payload key "
+                                      "only: armed, so the window switches it with the armed set and verifies "
+                                      "notebook_tweet_import_enabled on the auth payload; no rendered on/off probe "
+                                      "in this tool, because its surface is a pasted X link resolved through the "
+                                      "vendor and a save that writes into a note, which this read-only window does "
+                                      "not do; its off evidence is tests/test_notebook_tweet_capture.py "
+                                      "(test_routes_404_when_flag_off, test_the_flag_is_read_per_request, "
+                                      "test_save_route_is_404_while_the_flag_is_off) and "
+                                      "tests/test_notebook_tweet_capture_sync.py (test_flag_off_does_nothing), "
+                                      "which shows the nightly removal jobs pause while it is off"),
     # Connector fidelity Plan F: a KILL SWITCH, not an enablement gate. Unset (production), the sweep it stops RUNS.
     "NOTEBOOK_DOC_PENDING_SWEEP_DISABLED": ("dark = the kill switch is UNSET, so in production the sweep RUNS "
                                             "(docs/feature_flags.json records it pending; setting it to 1 is what "
@@ -561,7 +574,17 @@ def verify_run(base: str, expect: str, email: str, pw: str, table: dict[str, boo
     if payload_envs is None:
         payload_envs = set(capability_table()[0])
     c = _Client(base)
-    s, _ = c.call("POST", "/api/auth/login", {"email": email, "password": pw})
+    # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 — package import
+    except ImportError:
+        import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+    try:
+        s = S.sign_in_urllib(c.op, c.base, credentials=(email, pw), timeout=20).status
+    except urllib.error.HTTPError as e:
+        s = e.code
+    except Exception:  # noqa: BLE001 -- unreachable or the wrong account: "not measured", never a status
+        s = None
     if s != 200:
         return "INCONCLUSIVE", [f"VERIFY {expect.upper()}: INCONCLUSIVE -- sign-in answered {s}"]
     _s, health = c.call("GET", "/api/health")

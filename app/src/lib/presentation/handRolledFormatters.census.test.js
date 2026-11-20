@@ -115,6 +115,30 @@ function hasMagnitudeDivision(node) {
 }
 
 /**
+ * The operand that actually sits DIRECTLY in front of a `+ 'M'` suffix: the right end of a `+`
+ * chain, and inside a template literal its last expression only when no text follows it.
+ * ⛔ Without this the `+` rule read the WHOLE left side: a sentence such as
+ * `'... within ' + \`${ms / 1000} s, so it stopped. \` + 'The chart is unaffected'` counted as a
+ * hand-rolled "T" suffix (hostLaneAsync.js, 2026-11-17), because a division by 1e3 appears
+ * SOMEWHERE on the left and the next sentence starts with a capital T. That is a division that
+ * lands in front of " s, ...", not in front of the "T" — not what this census says it counts.
+ */
+function adjacentToSuffix(node) {
+  let n = node
+  for (let guard = 0; n && guard < 1000; guard++) {
+    if (n.type === 'BinaryExpression' && n.operator === '+') { n = n.right; continue }
+    if (n.type === 'TemplateLiteral') {
+      const tail = n.quasis[n.quasis.length - 1]?.value?.cooked ?? ''
+      if (tail !== '' || !n.expressions.length) return null
+      n = n.expressions[n.expressions.length - 1]
+      continue
+    }
+    return n
+  }
+  return null
+}
+
+/**
  * Count the hand-rolled formatter sites in one source text, by kind.
  * ⛔ Takes SOURCE, not a path, so the controls can plant a site without touching
  * the working tree. Comments never reach the AST, so prose that talks about
@@ -143,7 +167,7 @@ export function countSites(src) {
     }
     if (n.type === 'BinaryExpression' && n.operator === '+'
       && n.right?.type === 'Literal' && typeof n.right.value === 'string'
-      && SUFFIX.test(n.right.value) && hasMagnitudeDivision(n.left)) bump('magnitudeSuffix')
+      && SUFFIX.test(n.right.value) && hasMagnitudeDivision(adjacentToSuffix(n.left))) bump('magnitudeSuffix')
   })
   const total = Object.values(kinds).reduce((a, b) => a + b, 0)
   return { total, kinds: { ...kinds } }
@@ -292,6 +316,19 @@ describe('the detector reads CODE, and can see every kind it claims to', () => {
     expect(countSites(cat).kinds.magnitudeSuffix).toBe(1)
     // numeric separators resolve to the same value, so they are seen too
     expect(countSites('const s = `${Math.round(v / 1_000)}K`').kinds.magnitudeSuffix).toBe(1)
+  })
+
+  it('a `+` suffix counts only when the division sits DIRECTLY in front of it', () => {
+    // The false positive (hostLaneAsync.js): a division inside an earlier piece of a sentence,
+    // followed by more text, then a string that merely starts with a capital T.
+    const sentence = "const s = 'did not answer within ' + `${ms / 1" + "000} s, so it stopped. ` + 'The chart is unaffected.'"
+    expect(countSites(sentence).kinds.magnitudeSuffix ?? 0).toBe(0)
+    // ...and the control: the same chain whose LAST piece is the division is still a site,
+    const tail = "const s = 'cap ' + (v / 1" + "e9)." + TF + "(1) + 'B'"
+    expect(countSites(tail).kinds.magnitudeSuffix).toBe(1)
+    // as is a template literal whose division is its last piece, with no text after it.
+    const tplTail = "const s = `$${v / 1" + "e6}` + 'M'"
+    expect(countSites(tplTail).kinds.magnitudeSuffix).toBe(1)
   })
 
   it('a kind named like an Object.prototype method still counts as a NUMBER', () => {

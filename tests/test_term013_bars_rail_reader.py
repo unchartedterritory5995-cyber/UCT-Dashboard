@@ -451,7 +451,10 @@ def test_the_page_flag_defaults_OFF(monkeypatch):
     assert brm.page_enabled() is True
 
 
-def test_the_page_flag_is_declared_in_the_ledger_as_dark():
+def test_the_page_flag_is_declared_in_the_ledger_as_armed_on_web():
+    # Shipped dark 2026-09-28; found ARMED (1) on web 2026-10-11 and recorded so (4634e24f3e), read 1 on web
+    # again 2026-11-18 (`railway variables --service web --kv`). The rail said dark, `where: []`, until then.
     ledger = json.loads((_REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
     entry = ledger["flags"][brm.FLAG]
-    assert entry["status"] == "dark" and entry["where"] == [] and entry["note"]
+    assert entry["status"] == "armed" and entry["where"] == ["web"]
+    assert "Found ARMED (value 1) on web when read 2026-10-11" in entry["note"]

@@ -185,7 +185,9 @@ describe('routing v2: a words-only group never rides the fill, and is still sent
   // SERVER-ARMED words-only groups, BY NAME: their words are empty in routing.js until their capability registers (the server
   // serves the kind), so their own-words / fill checks live in their own file with the capability served. Only these ids are
   // skipped here; any OTHER words-only group with no words fails below, by name.
-  const SERVER_ARMED = new Map([['cot', 'agentCot.test.js'], ['catalysts', 'agentCatalysts.test.js'], ['rs', 'agentRsLeadership.test.js']])
+  const SERVER_ARMED = new Map([['cot', 'agentCot.test.js'], ['catalysts', 'agentCatalysts.test.js'], ['rs', 'agentRsLeadership.test.js'],
+    ['marketBoards', 'agentTerminalDataWave3.test.js'], ['marketViews', 'agentTerminalDataWave4.test.js'],
+    ['shortInterest', 'agentTerminalDataWave5.test.js']])
   it.each([...SERVER_ARMED])('server-armed words-only group %s: its words are empty until armed, and %s pins its own words / fill', (id, file) => {
     const g = GROUPS.find(x => x.id === id)
     expect(g, `${id} is not a routing group`).toBeTruthy()

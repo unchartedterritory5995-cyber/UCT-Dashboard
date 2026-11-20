@@ -48,12 +48,15 @@ Kill switch: `BARS_OFFGRID_GUARD=0` (escape hatch, not a mode).
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
 import time
 from functools import lru_cache
 from typing import Iterable, Optional
+
+from api.services import bg_lane
 
 _log = logging.getLogger(__name__)
 
@@ -63,7 +66,7 @@ STEP_S = {"1": 60, "5": 300, "15": 900, "30": 1800, "60": 3600}
 _stats_lock = threading.Lock()
 _stats = {"write_folded": 0, "write_snapped": 0, "serve_folded": 0, "serve_snapped": 0,
           "serve_dropped": 0, "repair_pairs": 0, "repair_deleted": 0, "repair_snapped": 0,
-          "sweep_runs": 0, "sweep_tickers": 0, "sweep_last_s": None, "merge_refused": 0}
+          "sweep_runs": 0, "sweep_tickers": 0, "sweep_skipped_clean": 0, "sweep_last_s": None, "merge_refused": 0}
 
 
 def enabled() -> bool:
@@ -433,18 +436,22 @@ def sweep(tickers: Optional[Iterable[str]] = None, days: Optional[float] = None)
         # ⛔ A FRESH connection per ticker: a snapshot install bumps the db epoch and
         # closes this thread's cached one; a handle held across the walk then fails
         # every later pair (review #1062, LOW 3).
-        c = bars_sqlite._conn()
-        for tf in STEP_S:
-            try:
-                mx = c.execute("SELECT MAX(ts) FROM ohlcv WHERE ticker=? AND tf=?",
-                               (tkr, tf)).fetchone()[0]
-                if mx is None:
-                    continue
-                r = repair_pair(tkr, tf, int(mx) - reach)
-                deleted += r["deleted"]
-                snapped += r["snapped"]
-            except Exception as e:  # noqa: BLE001 — one pair never stops the sweep
-                _log.warning("[bars-grid] sweep %s tf=%s failed (non-fatal): %s", tkr, tf, e)
+        # ⚡ One ticker per lane turn on the web pod (api/services/bg_lane.py). SWEEP_PAUSE_S
+        # alone (2 ms after ~110 ms of contended work per ticker, measured 2026-11-17: 13,355
+        # tickers in 1,480 s) never gave the interpreter back to requests.
+        with bg_lane.turn("bars-offgrid-sweep"):
+            c = bars_sqlite._conn()
+            for tf in STEP_S:
+                try:
+                    mx = c.execute("SELECT MAX(ts) FROM ohlcv WHERE ticker=? AND tf=?",
+                                   (tkr, tf)).fetchone()[0]
+                    if mx is None:
+                        continue
+                    r = repair_pair(tkr, tf, int(mx) - reach)
+                    deleted += r["deleted"]
+                    snapped += r["snapped"]
+                except Exception as e:  # noqa: BLE001 — one pair never stops the sweep
+                    _log.warning("[bars-grid] sweep %s tf=%s failed (non-fatal): %s", tkr, tf, e)
         if SWEEP_PAUSE_S > 0:
             time.sleep(SWEEP_PAUSE_S)
     took = time.monotonic() - t0
@@ -478,9 +485,87 @@ def _iter_tickers_fresh():
 _sweep_lock = threading.Lock()
 _sweep_running = False
 
+# ⚡ A CLEAN STORE IS NOT SWEPT AGAIN AT EVERY BOOT (2026-11-19). Every bars-api, web and worker boot
+# ran the full sweep over the whole store (bars-api: 20,224 tickers, 243-246 s, on a cold 20 GB file)
+# and on the last two bars-api boots it removed 0 rows and filled 0 buckets: every write door folds
+# (the docstring's list), so a store swept clean stays clean. Meanwhile members' bar reads on that pod
+# ran p90 350-810 ms (max 1.2-2.0 s) for the first minutes after each boot against 10-30 ms settled
+# (Railway HTTP logs, deployment 7725cacb), and bars-api restarted 26-47 times a day. So a FULL sweep
+# that repaired nothing leaves a marker naming the store FILE it swept (device + inode: a snapshot
+# install replaces the file, merges and writes keep it); a boot on that same file within
+# SWEEP_CLEAN_TTL_S skips the sweep. A new file, a sweep that repaired anything, an unreadable marker,
+# or the TTL passing (a write door added later that forgets to fold is still caught weekly) all sweep.
+#: How long a clean full sweep of one store file stands in for the boot sweep.
+SWEEP_CLEAN_TTL_S = float(os.environ.get("BARS_OFFGRID_SWEEP_CLEAN_TTL_S", str(7 * 86400)))
+#: Bump when the fold rule changes, so every store is swept once under the new rule.
+SWEEP_MARKER_VERSION = 1
+_MARKER_NAME = ".offgrid_sweep_clean.json"
+
+
+def _store_file_identity() -> Optional[dict]:
+    """(device, inode) of the bars store file, or None when it cannot be read."""
+    from api.services import bars_sqlite
+    try:
+        st = os.stat(bars_sqlite._DB_PATH)
+    except OSError:
+        return None
+    return {"dev": int(st.st_dev), "ino": int(st.st_ino)}
+
+
+def _marker_path() -> str:
+    from api.services import bars_sqlite
+    return os.path.join(os.path.dirname(bars_sqlite._DB_PATH) or ".", _MARKER_NAME)
+
+
+def clean_marker_current(now: Optional[float] = None) -> bool:
+    """Did a full sweep of THIS store file repair nothing within SWEEP_CLEAN_TTL_S?"""
+    ident = _store_file_identity()
+    if ident is None:
+        return False
+    try:
+        with open(_marker_path(), encoding="utf-8") as f:
+            m = json.load(f)
+    except (OSError, ValueError):
+        return False
+    t = time.time() if now is None else now
+    return (isinstance(m, dict) and m.get("version") == SWEEP_MARKER_VERSION
+            and m.get("dev") == ident["dev"] and m.get("ino") == ident["ino"]
+            and isinstance(m.get("at"), (int, float)) and 0 <= t - m["at"] < SWEEP_CLEAN_TTL_S)
+
+
+def _note_sweep_result(result: dict, ident: Optional[dict]) -> None:
+    """Write the clean marker after a full sweep that repaired nothing; remove it otherwise."""
+    path = _marker_path()
+    clean = bool(ident) and not result.get("deleted") and not result.get("snapped")
+    try:
+        if clean and ident == _store_file_identity():
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump({"version": SWEEP_MARKER_VERSION, "at": time.time(), **ident,
+                           "tickers": result.get("tickers")}, f)
+            os.replace(tmp, path)
+        elif os.path.exists(path):
+            os.remove(path)
+    except OSError as e:
+        _log.warning("[bars-grid] sweep marker not written (non-fatal): %s", e)
+
+
+def sweep_once_unless_clean() -> Optional[dict]:
+    """The boot sweep: skipped when this store file was swept clean recently (see above)."""
+    if clean_marker_current():
+        _bump(sweep_skipped_clean=1)
+        _log.info("[bars-grid] sweep skipped: this store file was swept clean within %.0f h",
+                  SWEEP_CLEAN_TTL_S / 3600)
+        return None
+    ident = _store_file_identity()
+    result = sweep()
+    _note_sweep_result(result, ident)
+    return result
+
 
 def sweep_async(delay_s: float = 0.0) -> bool:
-    """Run `sweep` once in a daemon thread (deduped). `BARS_OFFGRID_SWEEP=0` disables."""
+    """Run the boot sweep once in a daemon thread (deduped; skipped on a store swept clean
+    recently, `sweep_once_unless_clean`). `BARS_OFFGRID_SWEEP=0` disables."""
     global _sweep_running
     if os.environ.get("BARS_OFFGRID_SWEEP", "1") == "0" or not enabled():
         return False
@@ -496,7 +581,7 @@ def sweep_async(delay_s: float = 0.0) -> bool:
         try:
             if delay_s > 0:
                 time.sleep(delay_s)
-            sweep()
+            sweep_once_unless_clean()
         except Exception as e:  # noqa: BLE001
             _log.warning("[bars-grid] sweep failed (non-fatal): %s", e)
         finally:

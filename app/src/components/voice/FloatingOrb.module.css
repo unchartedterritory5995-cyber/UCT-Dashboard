@@ -212,6 +212,14 @@
     bottom: calc(68px + env(safe-area-inset-bottom, 0px));
   }
 }
+/* UCT Terminal, boards in tabs (phone only): its search box is the bottom row of the screen
+   (BoardTabsChrome stamps html[data-terminal-bottom-box] while mounted), so the orb steps up
+   over it the same way. */
+@media (max-width: 640px) {
+  :global(html[data-terminal-bottom-box]) .orbCluster {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+}
 /* Decision B3 (2026-11-07): on the chart shell the orb tucks away while a finger is
    on the chart (html[data-chart-touching], set by hooks/useChartTouchTuck.js) and
    fades back a short idle after it lifts. Never during a live call (the orb is how

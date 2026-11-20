@@ -20,6 +20,7 @@ import gzip
 import json
 import os
 import pathlib
+import sys
 import threading
 
 import pytest
@@ -386,6 +387,23 @@ def _clean_stats():
     fa._STATS.pop("_last_alert_bad", None)
 
 
+@pytest.fixture
+def _machinery_present(tmp_path, monkeypatch):
+    """`health()` checks the flag, the bundle FILE and the node BINARY before it grades anything.
+    The bundle (app/dist/flow-facts.cjs) is built only by `npm run build`, and a CI test run does
+    `npm ci` only, so on a runner every health rail below stopped at `bundle_missing` before it
+    reached what it tests. ⚰️ Red on runners, green on a dev box with a built dist/: found by the
+    first full backend run (PR #1855). These rails grade health's REASONING, never the bundle, so
+    both are stubbed with things that exist; a case that needs one missing sets that itself.
+    Not autouse: the build tests above skip on `not fa.available()` and must keep doing so."""
+    bundle = tmp_path / "flow-facts.cjs"
+    bundle.write_text("// stub: health() only checks that this file exists\n", encoding="utf-8")
+    monkeypatch.setenv("FLOW_FACTS_BUNDLE", str(bundle))
+    monkeypatch.setenv("FLOW_NODE_BIN", sys.executable)
+    monkeypatch.delenv("FLOW_AGGREGATE_ENABLED", raising=False)
+
+
+@pytest.mark.usefixtures("_machinery_present")
 def test_warm_means_this_exact_version_not_merely_something_cached(monkeypatch):
     """⛔ THE CASE A STALLED WARMER WOULD HIDE BEHIND.
 
@@ -403,6 +421,7 @@ def test_warm_means_this_exact_version_not_merely_something_cached(monkeypatch):
     assert "stale" in stale["reason"] and "v5" in stale["reason"]
 
 
+@pytest.mark.usefixtures("_machinery_present")
 def test_cold_is_reported_but_is_not_a_failure():
     """A pod that just booted has an empty cache BY CONSTRUCTION."""
     h = fa.health(current_version=1)
@@ -411,6 +430,7 @@ def test_cold_is_reported_but_is_not_a_failure():
     assert h["available"] is fa.available()
 
 
+@pytest.mark.usefixtures("_machinery_present")
 @pytest.mark.parametrize("env,expected", [
     ({"FLOW_AGGREGATE_ENABLED": "0"}, "disabled"),
     ({"FLOW_FACTS_BUNDLE": "/nope/missing.cjs"}, "bundle_missing"),
@@ -426,6 +446,7 @@ def test_each_way_it_can_break_names_itself(monkeypatch, env, expected):
     assert h["reason"] == expected
 
 
+@pytest.mark.usefixtures("_machinery_present")
 def test_it_alerts_on_TRANSITION_only(monkeypatch):
     """⛔ A check that posts every cycle while broken gets muted inside a week,
     and a muted alert is worse than none because it reads as coverage."""
@@ -444,6 +465,7 @@ def test_it_alerts_on_TRANSITION_only(monkeypatch):
     assert len(posts) == 1, "it re-alerted while the state was unchanged"
 
 
+@pytest.mark.usefixtures("_machinery_present")
 def test_recovery_is_announced_too(monkeypatch):
     """Without this nobody knows whether this morning's alert still stands."""
     posts = []

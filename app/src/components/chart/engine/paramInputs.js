@@ -102,9 +102,11 @@ export function withParamInputs(def) {
 }
 
 /** A definition with EVERY load-time projected input taken off (a `param<N>`, and since 2c a
- *  run half's own setting, `fromRunHalf`: `runHalfInputs.js`), for anything written back. */
+ *  run half's own setting, `fromRunHalf`: `runHalfInputs.js`; a symbol setting, `fromSymbol`; and a
+ *  runtime document's timeframe setting, `fromTimeframe`: `runtime/runtimeInputs.js`), for anything
+ *  written back. */
 export function stripParamInputs(def) {
-  const projected = (i) => !!(i && (i.fromParam || i.fromRunHalf || i.fromSymbol))
+  const projected = (i) => !!(i && (i.fromParam || i.fromRunHalf || i.fromSymbol || i.fromTimeframe))
   if (!isObj(def) || !Array.isArray(def.inputs) || !def.inputs.some(projected)) return def
   return { ...def, inputs: def.inputs.filter((i) => !projected(i)) }
 }
@@ -121,6 +123,13 @@ export function paramValueRefusal(spec, value) {
 
 /** Copy-on-write write of `value` at `path` inside `node` (a `{type:'num'}` leaf, or an
  *  offset node's bare `value`, the two shapes a locator ends at). */
+/** Do two trees hold the same literal at `path` (both a plain number there, equal)? */
+function sameLiteralAt(a, b, path) {
+  const x = literalValueOf(readAt(a, path))
+  const y = literalValueOf(readAt(b, path))
+  return x !== null && y !== null && Object.is(x, y)
+}
+
 function writeLiteral(node, path, value) {
   const [head, ...rest] = path
   if (rest.length === 0) {
@@ -170,11 +179,23 @@ export function specializeParams(def, inputs) {
   let ast = compute.ast
   const trees = Array.isArray(compute.trees) ? compute.trees.slice()
     : (isObj(compute.trees) ? { ...compute.trees } : compute.trees)
+  // ⭐⭐ A NULL `treeIndex` NAMES THE SCAN PLOT'S TREE (`graphDocument.tagFromManifest` reads it so), and a
+  // multi-tree document RUNS that plot from `trees[scanPlot]`, not from `ast`. Every saved Pine copy reads
+  // back as a shared graph whose hydration (`hydrateGraphDocument`) writes the scan plot's locators with
+  // `treeIndex: null`, so writing them into `ast` alone left the plot at the author's literal: a moved
+  // setting did nothing to the first plot while the run half took it, and the column rail refused the run
+  // (Fred RS's "Approximate Value of Comparative Symbol", found by the 10-member sweep, 2026-11-18). The
+  // scan plot's tree is written too wherever it holds the same literal at that path (`sameLiteralAt`), so a
+  // document whose `ast` is some other tree is never written blind.
+  const scan = typeof compute.scanPlot === 'string' && isObj(trees) && trees[compute.scanPlot] !== undefined
+    ? compute.scanPlot : null
   for (const [spec, v] of moved) {
     for (const loc of compute.paramManifest[spec.fromParam].locators) {
       const path = Array.isArray(loc.astPath) ? loc.astPath : []
-      if (loc.treeIndex === null || loc.treeIndex === undefined) ast = writeLiteral(ast, path, v)
-      else trees[loc.treeIndex] = writeLiteral(trees[loc.treeIndex], path, v)
+      if (loc.treeIndex === null || loc.treeIndex === undefined) {
+        if (scan !== null && sameLiteralAt(trees[scan], ast, path)) trees[scan] = writeLiteral(trees[scan], path, v)
+        ast = writeLiteral(ast, path, v)
+      } else trees[loc.treeIndex] = writeLiteral(trees[loc.treeIndex], path, v)
     }
   }
   const out = { ...def, compute: { ...compute, ast, ...(trees ? { trees } : {}) } }

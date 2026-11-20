@@ -61,12 +61,74 @@ def test_real_plan_is_a_partition():
     assert rep["is_partition"] is True
 
 
-def test_timing_file_is_real_and_covers_the_root():
-    files, timings, _plan = _real()
+def test_timing_file_is_real():
+    _files, timings, _plan = _real()
     assert len(timings) > 1000
-    loose = [f for f in files if f.count("/") == 1]
-    covered = sum(1 for f in loose if f in timings) / len(loose)
-    assert covered >= ps.MIN_TIMING_COVERAGE, covered
+
+
+def _thin_copy(tmp_path, keep_every):
+    """The real timing file with most loose-root entries dropped: coverage far under the line."""
+    doc = json.loads((ROOT / TIMINGS).read_text(encoding="utf-8"))
+    loose = set(ps.loose_root_files(ps.all_test_files()))
+    kept = {k: v for i, (k, v) in enumerate(sorted(doc["files_ms"].items()))
+            if k not in loose or i % keep_every == 0}
+    p = tmp_path / "thin.json"
+    ps.write_timings(p, kept, ["thinned copy for a rail"])
+    return p
+
+
+def test_thin_timing_coverage_warns_and_never_fails_the_self_check(tmp_path, capsys):
+    """⚰️ 11-16 and 11-17: the coverage row was a REFUSAL, the plan job failed, and the whole
+    nightly (every pytest and vitest shard) was skipped. Thin timings must warn, not refuse."""
+    thin = _thin_copy(tmp_path, keep_every=3)
+    loose = ps.loose_root_files(ps.all_test_files())
+    cov = sum(1 for f in loose if f in ps.load_timings(thin)) / len(loose)
+    assert cov < ps.MIN_TIMING_COVERAGE, cov               # the control: it IS thin
+    assert ps._self_check(str(thin)) == ps.OK
+    out = capsys.readouterr().out
+    assert "pytest shard timings are thin" in out and "SELF-CHECK: PASS" in out, out
+
+
+def test_every_testpaths_root_is_in_the_plan_and_tests_ids_keep_their_shape():
+    """⚰️ 2026-11-18: the plan covered tests/ only, so api/** (203 files) ran in no job."""
+    files, _t, plan = _real()
+    roots, _pats = ps.pytest_discovery()
+    assert "api" in roots and "tests" in roots, roots
+    for r in roots:
+        mine = [f for f in files if f.startswith(r + "/")]
+        assert mine, r
+        assert set(mine) <= {f for v in plan.values() for f in v}, r
+    assert [k for k in plan if k.startswith("api-")], sorted(plan)
+    # the tests/ ids every baseline was recorded under are unchanged in shape
+    assert all(k.startswith(("dir-", "tests-", "api-")) for k in plan), sorted(plan)
+
+
+def test_merge_into_keeps_unobserved_files_and_drops_deleted_ones(tmp_path):
+    junit = tmp_path / "j.xml"
+    junit.write_text('<testsuites><testsuite>'
+                     '<testcase classname="tests.test_pytest_shards_balance" name="x" time="4"/>'
+                     '</testsuite></testsuites>', encoding="utf-8")
+    base = tmp_path / "base.json"
+    ps.write_timings(base, {"tests/test_pytest_shards_balance.py": 1000,
+                            "tests/test_house_terms.py": 7000,
+                            "tests/test_long_gone_xyz.py": 5000}, ["older run"])
+    out = tmp_path / "out.json"
+    assert ps.main(["--record-timings", str(junit), "--merge-into", str(base),
+                    "--timings", str(out), "--source", "newer run"]) == ps.OK
+    got = json.loads(out.read_text(encoding="utf-8"))
+    assert got["files_ms"]["tests/test_pytest_shards_balance.py"] == 4000   # observed: overwritten
+    assert got["files_ms"]["tests/test_house_terms.py"] == 7000             # not observed: kept
+    assert "tests/test_long_gone_xyz.py" not in got["files_ms"]        # not a file any more
+    assert got["sources"][:2] == ["newer run", "older run"]
+
+
+def test_plan_digest_moves_when_a_file_changes_shard():
+    _f, timings, plan = _real()
+    assert ps.plan_digest(plan) == ps.plan_digest(ps.shard_plan(timings=timings))
+    moved = {k: list(v) for k, v in plan.items()}
+    a, b = sorted(moved)[-2:]
+    moved[b] = moved[b] + [moved[a].pop()]
+    assert ps.plan_digest(moved) != ps.plan_digest(plan)
 
 
 def test_no_planned_shard_exceeds_the_rail():
@@ -92,7 +154,7 @@ def test_rail_fires_just_under_the_plans_own_max():
 
 def test_root_buckets_are_contiguous_sorted_and_at_least_the_floor():
     files, _t, plan = _real()
-    loose = [f for f in files if f.count("/") == 1]
+    loose = ps.loose_root_files(files)
     roots = _roots(plan)
     assert len(roots) >= ps.ROOT_BUCKETS
     joined = [f for k in roots for f in plan[k]]

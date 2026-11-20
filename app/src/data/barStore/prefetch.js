@@ -114,6 +114,13 @@ const COOLDOWN_MAX_KEYS = 400
  *  the server like any key the cache does not hold. */
 const NOTHING_HYDRATED = null
 const nothingHydrated = () => NOTHING_HYDRATED
+/** TERM-033: what a neighbor hold's deep window resolves to when the store's `scrollBack` THREW
+ *  (`createNeighborHold` → `deepen`). "This window did not arrive", never "nothing older": it ends
+ *  that ROW's deepening for now (the chart's own loader asks again when the member lands on it),
+ *  and the hold goes on to the next row. Shaped like a refused window (`ok: false`) so the one
+ *  stop rule there reads it; `failed` says which kind of stop it was. */
+const DEEP_WINDOW_FAILED = Object.freeze({ ok: false, failed: true, added: 0 })
+const deepWindowFailed = () => DEEP_WINDOW_FAILED
 
 /** Re-ask cooldown of a key the server already answered (see header). */
 export function cooldownMs(tf) {
@@ -167,6 +174,13 @@ export const INTENT_HYDRATE_RACE_MS = 60
  *  `deep`). Past the chart's own DEEP_ARM_MS (250) and its first window, so the visible chart's
  *  deep history always goes first. */
 export const NEIGHBOR_DEEP_MS = 500
+/** D/W/M: how long a list selection must rest before the hold fetches the next rows' deep sealed
+ *  history (createNeighborHold `deepenDates`). The visible daily chart joins its own history before
+ *  it paints (~100 ms after the key when nothing was primed), so this follows it; a held key (rows
+ *  ~33 ms apart) never starts one. */
+export const DATE_NEIGHBOR_DEEP_MS = 150
+/** D/W/M: the longest the hold waits for one row's history join before it goes on to the next. */
+export const DATE_NEIGHBOR_JOIN_MS = 3000
 /** The neighbor deepening's switch: on unless 'uct.deepNeighbors' (or the chart's whole intraday
  *  deep history, 'uct.intradayDeepBackfill.enabled') is '0' in this browser. */
 export function deepNeighborsEnabled() {
@@ -177,6 +191,37 @@ export function deepNeighborsEnabled() {
   } catch { return true }
 }
 const LOCAL_PAINTS = Symbol('local copy paints')
+const LAKE_PAINTS = Symbol('lake copy painted')
+/** How long after Enter a lake copy may be committed ALONE (the server has not answered): a normal
+ *  answer (~70-300 ms) lands first and the chart paints it with the lake's depth already joined. */
+export const LAKE_ALONE_MS = 450
+/** A lake copy whose newest bars are NOT current for the view (during the session the lake never
+ *  holds today's bars) waits for the server's answer, so the chart paints once with the newest bars
+ *  in place; past this it is committed anyway (the answer then adds the newest bars). Measured
+ *  2026-11-18 on production: never-opened tickers' first answers 485-926 ms. */
+export const LAKE_BEHIND_MAX_MS = 1200
+/** After an answer (or a saved copy) that paints, how long the handoff waits for the lake's whole
+ *  depth to join it, so the first paint is the whole chart and nothing loads in view afterwards.
+ *  550, not 350 (2026-11-18): on production, never-opened 5m tickers' lake loads landed 441-458 ms
+ *  after the key (4/4), so a held copy painted alone at ~370 ms and the depth redrew the averages
+ *  ~80 ms later. A lake already in the browser joins in tens of ms; only a cold load waits. */
+export const LAKE_JOIN_WAIT_MS = 550
+/** D/W/M: the longest the daily handoff's prepare waits, from Enter, for the deep history to join
+ *  the tail answer (prepareDailyForDisplay). Just under the handoff's own bound (useSymbolHandoff
+ *  DAILY_HOLD_MAX_MS = 400), so the prepare's outcome, not the hang guard, commits. */
+export const DEEP_JOIN_WAIT_MS = 380
+/** The edge warm of a list (edgeWarmList): the chart timeframes that warm (the chart's own, then 60m,
+ *  the deepest and slowest cold), the rows per list, the keys per page (each ~1 index GET + 2-23 HEADs),
+ *  and how long after the latest list it starts. */
+export const EDGE_WARM_TFS = Object.freeze(['60', '30', '5'])
+export const EDGE_WARM_CAP = 40
+export const EDGE_WARM_PAGE_BUDGET = 200
+export const EDGE_WARM_DELAY_MS = 1500
+/** historyFeed.edgeWarm's answer when the edge refused the member (401/403): the warm stops for the page. */
+export const EDGE_WARM_REFUSED = -1
+/** How long a typed text the daily pack does not know may wait for the lake's answer to "is it a
+ *  ticker?" (its index: one edge round trip) before the warm gives up on it. */
+export const INTENT_LAKE_INDEX_WAIT_MS = 400
 const SHORT_FULL_MAX = 4000
 
 export function createPrefetch(o = {}) {
@@ -439,20 +484,25 @@ export function createPrefetch(o = {}) {
       // in 42 ms median). A read that answers within HYDRATE_WAIT_MS takes the old path below;
       // otherwise the request leaves now and a local copy that paints still commits if it lands
       // before the answer.
+      const t0 = now()
       const hyd = _hydrate(key)
+      // The lake's whole depth loads from here, in parallel with the server (after the saved-copy
+      // read: a saved copy is never overtaken). See _lakeAlone / _joined.
+      const lake = date ? Promise.resolve(false) : _lakeLoad(key, hyd)
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (s0 === undefined) {
         const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
         const localFirst = hyd.then((h) => (_localPaints(h, fetchTf(String(tf)), showExtended) ? LOCAL_PAINTS : new Promise(() => {})))
-        const won = await Promise.race([req, localFirst])
-        if (won === LOCAL_PAINTS) return 'current'
-        return _outcome(won, { aborted: !!signal?.aborted, date })
+        const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
+        if (won === LOCAL_PAINTS) { await _joined(lake); return 'current' }
+        if (won === LAKE_PAINTS) return 'lake'
+        return _whole(_outcome(won, { aborted: !!signal?.aborted, date }), lake)
       }
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
       // the chart's own request catches the tail up. A LOCAL-only copy is judged by the legacy
       // paint rule on the next line, never by this one (#2c).
-      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status)) return 'current'
-      if (_localPaints(s0, fetchTf(String(tf)), showExtended)) return 'current'   // legacy: no request
+      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status)) { await _joined(lake); return 'current' }
+      if (_localPaints(s0, fetchTf(String(tf)), showExtended)) { await _joined(lake); return 'current' }   // legacy: no request
       // Otherwise only a SERVER answer prepares it. ⛔ NOT a `&warm=1` request and NOT in the
       // shared warm lane: this is the request for the chart the member just asked for. As a
       // warm it could be shed by the server (which committed an EMPTY chart: the blank frame
@@ -460,13 +510,115 @@ export function createPrefetch(o = {}) {
       // warmers' two lane slots and their backoff (first candles 353 ms median against the
       // legacy path's 30 ms). At `visible` rank it leaves at once, and the chart's own request
       // for the same URL joins it.
-      const s = await ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
-      return _outcome(s, { aborted: !!signal?.aborted, date })
+      const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
+      // (a D/W/M key never paints from the lake: network.lakeSeed carries intraday keys only)
+      const s = await Promise.race([req, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
+      if (s === LAKE_PAINTS) return 'lake'
+      return _whole(_outcome(s, { aborted: !!signal?.aborted, date }), lake)
     } catch {
       return 'error'
     } finally {
       _release(key)
     }
+  }
+
+  /**
+   * ⭐ THE LAKE IS A CONTESTANT IN THE HANDOFF RACE (2026-11-17). The /charts handoff keeps the old
+   * chart until this prepare reports, and the lake paint (store.lakeSeed) used to start only when the
+   * NEW chart subscribed: after the commit, so a slow first answer (a cold bar-server read: FROG
+   * 1,523 ms) was waited out with the lake's copy of the same history already in the browser. Now
+   * the lake's newest bars land in the store while the server request is in flight, and the handoff
+   * commits on them ('lake'): the chart paints that history at once (provisional: live paused, the
+   * forming candle held back) and the answer completes it. Never resolves when the lake has nothing
+   * to paint, so the server request decides as before. `after` (the cache read) goes first: a saved
+   * copy is never overtaken by the lake.
+   */
+  //
+  // ⭐⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "it shows a good chunk, then the rest a quick
+  // blink later. I want them ALL instant"). The server's first answer (~70-300 ms) usually beat the
+  // lake, the handoff committed on its ~1,150 bars, and the depth came in a second, visible step
+  // (DEEP_ARM_MS, then windows: ~1.9 s). Now the lake's whole depth loads from Enter (store.lakeSeed:
+  // one load, LAKE_PREFETCH_TARGET_BARS), and the handoff commits ONCE:
+  //   * the server answers: commit when the lake's depth has joined it, waiting at most
+  //     LAKE_JOIN_WAIT_MS for the join (its pieces are primed at intent);
+  //   * the server is slow: commit on the lake's history alone once LAKE_ALONE_MS has passed, if it
+  //     is current for the view (overnight, a lake that reaches the close); a copy without the newest
+  //     bars waits for the answer, up to LAKE_BEHIND_MAX_MS (2026-11-18: the answer added a whole
+  //     session in view);
+  //   * a saved copy that paints: the same bounded join before it commits.
+  // A key the lake does not carry resolves the load false at once and nothing waits.
+  function _lakeLoad(key, after = null) {
+    // a key the lake cannot carry (no lake, D/W/M, a replay window, found exhausted) answers at once:
+    // nothing waits on the cache read for it
+    if (!S().lakeCarries?.(key)) return Promise.resolve(false)
+    // ⭐ THE CACHE READ GOES FIRST, BUT FOR AT MOST HYDRATE_WAIT_MS (2026-11-18). Measured live (MDB 1h,
+    // never opened): the lake's pieces were in the browser at 862 ms, but the IDB read the load waited
+    // for answered at ~1,240 ms (the list warm writes to the same database), and the depth joined then.
+    // A read that answers within the bound still lands first (never overtaken); a later one is merged
+    // by the reducer's rule (applyLocal: a saved copy after the lake joins it only on a proven basis,
+    // otherwise replaces it). The same bound the handoff gives the read before it asks the server.
+    const bounded = Promise.race([
+      Promise.resolve(after).catch(() => {}),
+      new Promise((resolve) => setTimer(resolve, HYDRATE_WAIT_MS)),
+    ])
+    return bounded
+      .then(() => S().lakeSeed?.(key) ?? false)
+      .catch(() => false)
+  }
+
+  /** A warm's best-effort join of the lake's whole depth (store.lakeSeed). Never rejects. */
+  function _joinLake(key) {
+    try { if (S().lakeCarries?.(key)) Promise.resolve(S().lakeSeed?.(key)).catch(() => {}) } catch { /* a warm only */ }
+  }
+
+  /** D/W/M: fetch `key`'s deep sealed history now and join it, the daily handoff's way with no
+   *  display waiting (network.deepPrime beside a tail asked for the chart's full depth; the key's
+   *  history job takes the primed answer). Resolves once joined, not due, or after `ms`; never
+   *  rejects. The neighbor hold's next rows and a row the pointer rests on. */
+  async function _joinDeepDate(key, { priority = 'grid', ms = DATE_NEIGHBOR_JOIN_MS } = {}) {
+    await _hydrate(key)                           // a copy saved whole in this browser is not due
+    if (!S().deepPending?.(key)) return false     // already whole here (or saved whole), or the split is off
+    const p = parseKey(key)
+    S().deepPrime?.(key, { priority })
+    const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false })
+    return s?.restSeen && !s.error ? !!(await S().deepJoined?.(key, ms)) : false
+  }
+
+  /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
+   *  The handoff paints a held key at once only when it is not: otherwise it prepares, and the
+   *  prepare waits for the join (bounded) so the first paint is the whole chart. */
+  function lakePending(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && !!S().lakePending?.(key)
+  }
+
+  /** LAKE_PAINTS once the lake has painted before any answer AND the server has had LAKE_ALONE_MS,
+   *  if the copy is current for the view (`_localPaints`); a copy that is behind waits for the answer
+   *  until LAKE_BEHIND_MAX_MS. ⛔ During the session the lake never holds today's bars: committed at
+   *  LAKE_ALONE_MS, the chart drew yesterday's close as its edge and the answer then added the whole
+   *  session in view (the step the owner sees). */
+  function _lakeAlone(lake, t0, key, tf, showExtended) {
+    const never = new Promise(() => {})
+    return lake.then((r) => (r === 'seed'
+      ? new Promise((resolve) => {
+        const at = (ms, fn) => setTimer(fn, Math.max(0, t0 + ms - now()))
+        at(LAKE_ALONE_MS, () => {
+          if (_localPaints(S().peek(key), tf, showExtended)) resolve(LAKE_PAINTS)
+          else at(LAKE_BEHIND_MAX_MS, () => resolve(LAKE_PAINTS))
+        })
+      })
+      : never), () => never)
+  }
+
+  /** The lake load, or LAKE_JOIN_WAIT_MS, whichever comes first. Never rejects. */
+  function _joined(lake) {
+    return Promise.race([lake, new Promise((resolve) => setTimer(resolve, LAKE_JOIN_WAIT_MS))]).catch(() => {})
+  }
+
+  /** A server outcome the chart paints waits for the lake's depth to join it (bounded). */
+  async function _whole(outcome, lake) {
+    if (outcome === 'current' || outcome === 'authoritative') await _joined(lake)
+    return outcome
   }
 
   async function prepareDailyForDisplay(sym, tf, { signal = null, showExtended } = {}) {
@@ -475,13 +627,41 @@ export function createPrefetch(o = {}) {
     if (typed && typed.key === key) typed.kept = true   // Enter on a typed text: never abort its warm
     _own(key)
     try {
-      const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal })
-      return _outcome(s, { aborted: !!signal?.aborted, date: true })
+      // ⭐⭐ ONE PAINT, THE WHOLE DAILY CHART (2026-11-19, owner: "about 200 bars instantly and then
+      // the rest shortly after, definitely in 2 phases. I want that all to load perfectly and
+      // instantly"). Where the deep history is due (network.deepPending) it leaves NOW, beside the
+      // tail (deepPrime), the tail is asked for the chart's full depth so its answer queues the join,
+      // and the handoff commits once the join has settled, waiting at most DEEP_JOIN_WAIT_MS from here
+      // (the handoff's own bound, DAILY_HOLD_MAX_MS, is just above it). The cache read is raced, not
+      // awaited (the intraday prepare's rule, HYDRATE_WAIT_MS): a busy IndexedDB held the daily
+      // request 0.15-0.7 s after Enter (production 2026-11-18). A shallow set already in memory has
+      // its history due for certain, so it leaves before the read; a saved copy that turns out deep
+      // (its history joined on an earlier visit) is not due, and takes the old path.
+      const t0 = now()
+      if (S().peek(key)?.bars?.length && S().deepPending?.(key)) S().deepPrime?.(key, { priority: 'visible', want: true })
+      const hyd = _hydrate(key)
+      const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
+      if (!S().deepPending?.(key)) {
+        const s = await ensure(key, { until: DAILY_PREPARED, priority: 'urgent', signal, _s0: s0 ?? null })
+        return _outcome(s, { aborted: !!signal?.aborted, date: true })
+      }
+      S().deepPrime?.(key, { priority: 'visible', want: true })   // (joins the one above, if it left)
+      const depth = fullBarsFor(normTf(tf) ?? fetchTf(String(tf))) || 0
+      const s = await ensure(key, { until: DAILY_PREPARED, depth, priority: 'visible', signal, local: false, _s0: s0 ?? S().peek(key) ?? {} })
+      if (!signal?.aborted && s?.restSeen && !s.error) await S().deepJoined?.(key, Math.max(0, DEEP_JOIN_WAIT_MS - (now() - t0)))
+      return _outcome(S().peek(key) ?? s, { aborted: !!signal?.aborted, date: true })
     } catch {
       return 'error'
     } finally {
       _release(key)
     }
+  }
+
+  /** D/W/M: is the deep sealed history still due for the chart `sym` / `tf` would show? The handoff
+   *  then prepares instead of painting a held shallow set at once (see prepareDailyForDisplay). */
+  function deepPending(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    return !!key && !!S().deepPending?.(key)
   }
 
   // ── the legacy warmers, as store prefetches ────────────────────────────────
@@ -562,16 +742,37 @@ export function createPrefetch(o = {}) {
   // (the next one or two): the flip then paints them deep. Bounded: only after the selection has
   // rested NEIGHBOR_DEEP_MS (a held key or a fast scan never starts one), one request at a time,
   // at `grid` rank (the chart's own deep windows' rank, behind the visible chart), a new `set`
-  // abandons the rest. Intraday, non-replay keys only (D/W/M come whole from the daily pack).
+  // abandons the rest. Intraday, non-replay keys only here; D/W/M below.
   // Off: localStorage 'uct.deepNeighbors' = '0' (or the chart's 'uct.intradayDeepBackfill.enabled'
   // = '0', which turns every intraday deep window off).
+  //
+  // ⭐ ...AND THE NEXT DAILY ROWS ARRIVE WHOLE TOO (2026-11-19, owner: "only some load instantly, then
+  // some take time. Some load 400 candles or so and then load the rest a second later"). D/W/M were
+  // left out on the belief that they "come whole from the daily pack", but the pack holds ~300 rows a
+  // symbol: every daily flip onto a row not opened before waited for its deep sealed history at the
+  // flip (production flip proof, Nasdaq 100 at 0.8 s a row: first frame median 112 ms, and a row whose
+  // tail request stalled painted 600 bars at +443 ms and its 11,766 at +659). So once the selection has
+  // rested DATE_NEIGHBOR_DEEP_MS, the hold fetches the next rows' deep history the way the daily
+  // handoff does (network.deepPrime beside a tail asked for the chart's full depth, joined by the key's
+  // history job), one row at a time, at `grid` rank; the flip then paints them whole from memory. The
+  // history is one edge-cached request (~50-100 ms), so the rest is shorter than the intraday one.
+  // Same switch ('uct.deepNeighbors' = '0').
   function createNeighborHold() {
     let held = new Map()   // key → true
     let deepTimer = null
+    let dateTimer = null
     let deepGen = 0
     const stopDeep = () => {
       deepGen++
       if (deepTimer != null) { clearTimer(deepTimer); deepTimer = null }
+      if (dateTimer != null) { clearTimer(dateTimer); dateTimer = null }
+    }
+    // D/W/M: the deep sealed history of each row, joined before the member gets there.
+    async function deepenDates(keys, gen) {
+      for (const k of keys) {
+        if (gen !== deepGen || !held.has(k)) return
+        await _joinDeepDate(k, { priority: 'grid' })
+      }
     }
     async function deepen(keys, gen) {
       for (const k of keys) {
@@ -585,8 +786,26 @@ export function createPrefetch(o = {}) {
             s = S().peek(k)
           }
           // the chart's own target: deeper where the lake carries the key (historyPrepend)
-          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(!!S().lakeCarries?.(k))) break
-          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(() => null)
+          const lakeCarries = !!S().lakeCarries?.(k)
+          // ⭐ A LOCAL COPY GETS THE LAKE'S DEPTH TOO (2026-11-19). A row that still holds only a saved
+          // copy after the warm (it paints as it is, so the warm asked nothing; or the ask was cooling or
+          // shed) stopped here, and on 5m the flip onto it waited the whole LAKE_JOIN_WAIT_MS for its lake
+          // pieces and then painted ~1,000 bars with the rest ~200 ms later (production flip proof: AEP,
+          // IDXX, HONA, every piece from the network). The lake joins a local copy only where its rows
+          // prove the held basis (reducer applyLocal), exactly as on the typed and hovered paths.
+          if (!s?.restSeen && lakeCarries && s?.bars?.length) {
+            await Promise.resolve().then(() => S().lakeSeed?.(k)).catch(() => false)
+            break
+          }
+          if (!s?.restSeen || !s.bars?.length || s.status === STATUS.UNAVAILABLE || s.depth >= prefetchTargetBars(lakeCarries, parseKey(k)?.tf)) break
+          // ⭐ Where the lake carries it, the WHOLE depth in one load (store.lakeSeed), so the flip paints
+          // the row as deep as the chart will ever hold it (2026-11-17: two windows left it at ~13,000 of
+          // 20,000, and the chart's own deepening then showed in view). Server windows otherwise.
+          if (lakeCarries) {
+            const joined = await Promise.resolve().then(() => S().lakeSeed?.(k)).catch(() => false)
+            if (joined) break
+          }
+          const res = await Promise.resolve().then(() => S().scrollBack(k, { priority: 'grid' })).catch(deepWindowFailed)
           // Nothing older, refused at the seam, still filling or failed: this row is done for now
           // (the chart's own loader retries a filling window when the member lands on it).
           if (!res?.ok || !(res.added > 0) || res.filling) break
@@ -604,13 +823,17 @@ export function createPrefetch(o = {}) {
         stopDeep()
         if (!deep?.length || !deepNeighbors()) return
         const next = []
+        const dates = []
         for (const sym of deep) {
           const k = keyFor(sym, tf, { showExtended })
           const p = k ? parseKey(k) : null
-          if (p && !p.window && isIntradayTf(p.tf) && want.has(k) && !next.includes(k)) next.push(k)
+          if (!p || p.window || !want.has(k) || next.includes(k) || dates.includes(k)) continue
+          if (isIntradayTf(p.tf)) next.push(k)
+          else if (isDateTf(p.tf)) dates.push(k)
         }
-        if (!next.length) return
         const gen = deepGen
+        if (dates.length) dateTimer = setTimer(() => { dateTimer = null; deepenDates(dates, gen).catch(() => {}) }, DATE_NEIGHBOR_DEEP_MS)
+        if (!next.length) return
         deepTimer = setTimer(() => { deepTimer = null; deepen(next, gen).catch(() => {}) }, NEIGHBOR_DEEP_MS)
       },
       clear() {
@@ -641,6 +864,67 @@ export function createPrefetch(o = {}) {
     prefetchBarsToIDB(list.slice(memTop), tf, { priority: true })
     if (tf !== 'D') prefetchBarsToIDB(list, 'D', { priority: true })
     warmMemFromIDB(list.slice(0, memTop), tf !== 'D' ? [tf, 'D'] : ['D'])
+    edgeWarmList(list, { chartTf: tf })
+  }
+
+  // ── the EDGE warm of a list's intraday history (2026-11-18) ──
+  // Owner's standard: a ticker opened on 1h (any intraday tf), zoomed all the way out, shows its whole
+  // history at once. Its pieces load in ~70 ms when this data center's edge already holds them and
+  // 300-950 ms when it does not (measured live), so a list a member views on an INTRADAY chart warms
+  // the edge for its top rows: HEADs, no bodies (historyFeed.edgeWarm). Bounded (review of #1880):
+  //  - only intraday callers (a daily list such as Market Map warms nothing), and only the chart's own
+  //    timeframe plus 60m (the deepest), for the first EDGE_WARM_CAP rows;
+  //  - a new list REPLACES the queue (the old list is off screen); EDGE_WARM_PAGE_BUDGET keys per page;
+  //  - one key at a time, EDGE_WARM_DELAY_MS after the latest list (its own bars go first);
+  //  - a hidden tab pauses it; a 401/403 (no entitlement) stops it for the page.
+  const edgeQueue = []
+  const edgeDone = new Set()
+  let edgeRunning = false
+  let edgeBlocked = false
+  let edgeSpent = 0
+  let edgeListAt = 0
+  const edgeHidden = () => { try { return typeof document !== 'undefined' && document.visibilityState === 'hidden' } catch { return false } }
+  function edgeWarmList(tickers, { chartTf = 'D', cap = EDGE_WARM_CAP } = {}) {
+    const st = S()
+    const tf0 = String(chartTf)
+    if (edgeBlocked || !st?.lakeEdgeWarm || !tickers?.length || !EDGE_WARM_TFS.includes(tf0)) return
+    const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+    const fresh = []
+    for (const tf of [...new Set([tf0, '60'])]) {
+      for (const sym of list) {
+        const k = keyFor(sym, tf)
+        if (!k || edgeDone.has(k) || fresh.includes(k)) continue
+        let carries = false
+        try { carries = !!st.lakeCarries?.(k) } catch { carries = false }
+        if (carries) fresh.push(k)
+      }
+    }
+    // the list on screen replaces the one before it; the same list sent again (a retime, a refresh)
+    // neither restarts the delay nor reorders the queue
+    const same = fresh.length === edgeQueue.length && fresh.every((k, i) => k === edgeQueue[i])
+    if (!same) {
+      edgeQueue.length = 0
+      edgeQueue.push(...fresh)
+      edgeListAt = Date.now()
+    }
+    if (edgeRunning || !fresh.length) return
+    edgeRunning = true
+    const pause = (ms) => new Promise((r) => setTimeout(r, ms))
+    ;(async () => {
+      try {
+        while (edgeQueue.length && !edgeBlocked && edgeSpent < EDGE_WARM_PAGE_BUDGET) {
+          const wait = edgeListAt + EDGE_WARM_DELAY_MS - Date.now()
+          if (wait > 0) { await pause(wait); continue }
+          if (edgeHidden()) break      // the next list a visible page opens resumes it
+          const k = edgeQueue.shift()
+          if (edgeDone.has(k)) continue
+          edgeDone.add(k); edgeSpent++
+          let r = 0
+          try { r = await S().lakeEdgeWarm(k) } catch { r = 0 }
+          if (r === EDGE_WARM_REFUSED) edgeBlocked = true
+        }
+      } finally { edgeRunning = false }
+    })()
   }
 
   function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP, priority = false } = {}) {
@@ -670,9 +954,13 @@ export function createPrefetch(o = {}) {
     intentTimers.set(key, setTimer(() => {
       intentTimers.delete(key)
       tellSymbolWarmers([sym], tf, { priority: true })
-      if (!held) prefetch([key], { priority: 'urgent' })
-      // the pointer rests on the row: its deep history from now too (a no-op off the lake)
+      // the pointer rests on the row: its deep history from now too (a no-op off the lake), and its
+      // whole depth joins the answer, so the click paints the whole chart at once
       try { S().primeLake?.(key) } catch { /* a warm only */ }
+      // D/W/M: its deep sealed history joins now too (2026-11-19: a click onto a daily row not opened
+      // before waited for it, ~100 ms, or painted the pack's rows first when the tail stalled)
+      if (isDateTf(parseKey(key)?.tf) && S().deepPending?.(key)) { _joinDeepDate(key, { priority: 'urgent' }).catch(() => {}); return }
+      Promise.resolve(held ? null : prefetch([key], { priority: 'urgent' })).catch(() => {}).then(() => _joinLake(key))
     }, delay))
     if (!held) tickerMeta(sym)
   }
@@ -705,19 +993,32 @@ export function createPrefetch(o = {}) {
       // left before Enter, and NAGE / RIOT painted 229-237 ms after it. Each read gets
       // INTENT_HYDRATE_RACE_MS; one that has not answered by then does not hold the request up.
       // While the pack ingests it cannot vouch either way, so its read is skipped.
+      // The lake's index and newest pieces are fetched NOW, before anything is decided (a prefix's
+      // index is a cheap 404): by Enter the pieces are in the browser for the lake paint.
+      try { S().primeLake?.(key) } catch { /* a warm only */ }
       if (!packIngesting()) {
         const d = await _raced(_hydrate(keyFor(T, 'D')), INTENT_HYDRATE_RACE_MS)
         if (typed !== mine) return 'superseded'
-        if (d !== undefined && !d?.depth) return 'unknown'   // read in time, and the pack has no such symbol
+        if (d !== undefined && !d?.depth) {
+          // The daily pack does not know it. A partial word, or a real ticker the pack lacks
+          // (2026-11-17: 4 of 10 never-opened tickers sent nothing before Enter): the lake's index
+          // is the second authority.
+          const inLake = await _raced(S().lakeHas?.(T) ?? Promise.resolve(false), INTENT_LAKE_INDEX_WAIT_MS)
+          if (typed !== mine) return 'superseded'
+          if (inLake !== true) return 'unknown'
+        }
       }
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       tellSymbolWarmers([T], tf, { priority: true })
-      // the deep history too, from now (historyFeed prime): by Enter its pieces are on their way
-      try { S().primeLake?.(key) } catch { /* a warm only */ }
-      if (_localPaints(s0, fetchTf(String(tf)))) return 'cache'
+      if (_localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
       const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false
+      // ⭐ AND ITS WHOLE DEPTH BEFORE ENTER (2026-11-17): the handoff paints a held key at once, so a
+      // key held with only the answer's ~1,150 bars painted shallow and the depth joined a blink later
+      // (production A/B: first frame ~1,100 bars, the lake's depth ~250 ms after). The lake's whole
+      // depth joins it now, while the member is still typing.
+      if (typed === mine) _joinLake(key)
       // (an intraday answer early in a bucket can be the forming bar alone: still the server's answer)
       return s?.restSeen && !s.error && (s.depth || s.developing) ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
@@ -747,15 +1048,21 @@ export function createPrefetch(o = {}) {
       const s0 = await _hydrate(key)
       if (typed !== mine) return 'superseded'
       // Legacy `_typedCachePaints`: the chart's daily paint authority, with the record's savedAt.
+      // ⭐ THE WHOLE DEPTH BEFORE ENTER (2026-11-19): a real ticker whose deep history is still due
+      // has it fetched now (network.deepPrime) and its tail asked for the chart's depth, so the join
+      // lands while the member is still typing and Enter paints the whole chart at once.
+      const deep = !!s0?.depth && !!S().deepPending?.(key)
+      if (deep) S().deepPrime?.(key, { priority: 'urgent' })
       if (s0?.depth) {
         // A held set exists, so the text IS a ticker (a prefix has none, see below).
         tellSymbolWarmers([typedSym], tf, { priority: true })
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
-        if (_typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
+        if (!deep && _typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
       // ⛔ A PREFIX IS NOT A TICKER: with the pack held, uncached text is a partial word.
       if (!s0?.depth && !packIngesting()) return 'unknown'
-      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false })
+      const depth = deep ? (fullBarsFor(String(tf)) || 0) : 0
+      const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false })
       if (ctl.signal.aborted && !mine.kept) return false
       const answered = !!(s?.restSeen && !s.error && s.depth)
       if (answered && !s0?.depth && typed === mine) tellSymbolWarmers([typedSym], tf, { priority: true })   // the authority just said it is real
@@ -764,10 +1071,10 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
-    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold,
+    prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
     /** @internal */ _stats: () => ({ asked: asked.size, preparing: preparing.size, urgent: urgentCtl.size }),
   }
 }
@@ -784,6 +1091,8 @@ export const prefetch = (keys, opts) => _f().prefetch(keys, opts)
 export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayable(sym, tf, opts) }
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
+export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
+export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }
@@ -798,6 +1107,7 @@ export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f(
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
 export function warmTypedSymbol(sym, tf = 'D') { return _f().warmTypedSymbol(sym, tf) }
 export function createNeighborHold() { return _f().createNeighborHold() }
+export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 
 // ⭐ THE WARMERS' REGISTRY (2026-11-17, utils/barsWarm.js). Under BARSTORE the store's warmers
 // stand in for the legacy ones on every list that warms through `barsWarm`, so a list's warm

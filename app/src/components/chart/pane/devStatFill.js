@@ -6,6 +6,7 @@
 // the build (checked by grepping app/dist for DEV_STAT_FILL_MARK). Off switch on localhost: `?realstats`.
 // Stable per symbol + stat key (a seeded hash, never Math.random), so a live tick never makes it flicker.
 import { SIGN_POS, SIGN_NEG } from '../headerFields'
+import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 export const DEV_STAT_FILL_MARK = 'uct-dev-stat-fill'
 
@@ -16,7 +17,15 @@ function unit(s) {
   return ((h >>> 0) % 100000) / 100000
 }
 const pick = (u, list) => list[Math.floor(u * list.length) % list.length]
-const compact = (n) => (n >= 1e12 ? `${(n / 1e12).toFixed(2)}T` : n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : `${(n / 1e3).toFixed(1)}K`)
+// The placeholder ladder: T at two decimals, B / M / K at one, and K covers everything below it (TERM-066: the
+// suffix is decided by the shared formatter; `promote: false` keeps each tier the magnitude chose).
+const PLACEHOLDER_TIERS = Object.freeze([
+  Object.freeze({ at: 1e12, suffix: 'T', decimals: 2 }),
+  Object.freeze({ at: 1e9, suffix: 'B', decimals: 1 }),
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 1 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
+export const compact = (n) => formatCompact(n, { tiers: PLACEHOLDER_TIERS, fixedUnit: true, promote: false })
 
 const TEXT = {
   name: ['Example Corp', 'Sample Holdings', 'Demo Industries'],

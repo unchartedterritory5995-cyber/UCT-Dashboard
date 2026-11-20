@@ -2,7 +2,9 @@
  * DockFinancials — the Financials tab of the Company Intelligence panel.
  *
  * A full Income Statement / Balance Sheet / Cash Flow, Annual · Quarterly · TTM,
- * from /api/fundamentals-statements (yfinance — no new paid provider).
+ * from /api/fundamentals-statements. The server reads FMP first and Yahoo
+ * Finance only for a ticker FMP holds no statements for; `meta.source` names
+ * the one that answered, and "Data & sources" prints it.
  *
  * DESIGN NOTES (the non-obvious decisions):
  *
@@ -18,9 +20,10 @@
  *   statement get an uncoloured YoY: still signed, still precise, but never
  *   implying that expenses doubling is bullish. See `dir: 'signed'`.
  *
- * • PERIOD DEPTH IS WHAT THE SOURCE ACTUALLY HAS. yfinance returns ~4-5 annual
- *   and ~5-7 quarterly periods, so 5Y CAGR is NOT computable and is never shown;
- *   3Y is, when four annual points exist and both endpoints are positive.
+ * • PERIOD DEPTH IS WHAT THE SOURCE ACTUALLY HAS. FMP carries up to 12 fiscal
+ *   years and 24 quarters; Yahoo Finance ~4-5 annual and ~5-7 quarterly. CAGR is
+ *   labelled with the span it really covers and needs positive endpoints; a TTM
+ *   year-on-year needs eight quarters and is left blank without them.
  *
  * • Derived rows (margins, FCF margin, CAGR) are computed locally and marked as
  *   calculated in their tooltip. Missing data is "—". Nothing is fabricated.
@@ -40,6 +43,9 @@ const STATEMENTS = [
   { key: 'balance', label: 'Balance' },
   { key: 'cashflow', label: 'Cash Flow' },
 ]
+// The source line prints what the payload says answered. A payload that does not
+// say is "not recorded": a source is never named by default.
+const SOURCE_NOT_RECORDED = 'Source not recorded'
 // Securities that legitimately have no company financial statements.
 const FUND_TYPES = new Set(['etf', 'mutualfund', 'index', 'currency', 'cryptocurrency', 'future'])
 const PERIODS = [
@@ -430,8 +436,8 @@ function DataAndSources({ sym, meta, periods, annual, mode }) {
         <span className={styles.finProvK}>Source</span>
         <span className={styles.finProvV}>
           <Provenance
-            value={`${meta?.source || 'Yahoo Finance'} · as-reported figures`}
-            provenance={{ sourceActivity: meta?.source || 'Yahoo Finance',
+            value={`${meta?.source || SOURCE_NOT_RECORDED} · as-reported figures`}
+            provenance={{ sourceActivity: meta?.source || SOURCE_NOT_RECORDED,
               timestamp: Number.isFinite(meta?.retrieved_at) ? meta.retrieved_at * 1000 : null }}
           />
         </span>
@@ -496,7 +502,7 @@ export default function DockFinancials({ sym }) {
   const hostRef = useRef(null)
   const [width, setWidth] = useState(0)
 
-  const { data, isLoading } = useMobileSWR(sym ? `/api/fundamentals-statements/${encodeURIComponent(sym)}` : null, jsonFetcher,
+  const { data, isLoading, mutate } = useMobileSWR(sym ? `/api/fundamentals-statements/${encodeURIComponent(sym)}` : null, jsonFetcher,
     { refreshInterval: 0, dedupingInterval: 3600000, revalidateOnFocus: false })
 
   // Panel width drives how many historical columns fit. Measured rather than
@@ -616,6 +622,16 @@ export default function DockFinancials({ sym }) {
         {isLoading && !data ? (
           <div className={styles.finSkeleton} aria-label="Loading financials">
             {Array.from({ length: 12 }).map((_, i) => <div key={i} className={styles.finSkelRow} />)}
+          </div>
+        ) : data?.state === 'unavailable' || (!periods.length && data?.meta?.partial?.length) ? (
+          // The statements read FAILED, or the part of it this view needs did
+          // (`meta.partial`). That is not "this company has no statements", so
+          // it gets its own words and a way to ask again (this panel otherwise
+          // keeps an answer for an hour).
+          <div className={styles.emptyState} data-testid="fin-unavailable">
+            Financial statements for {sym} could not be loaded just now. Nothing is wrong with the
+            company's filings; the data source did not answer.{' '}
+            <button type="button" className={styles.finMethodBtn} onClick={() => mutate()}>Try again</button>
           </div>
         ) : !periods.length ? (
           // §28: a fund has no income statement to be missing. Say which case

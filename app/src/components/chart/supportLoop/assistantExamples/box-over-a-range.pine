@@ -1,0 +1,9 @@
+//@version=5
+indicator("Range box", overlay=true)
+n = input.int(20, "Bars")
+hi = ta.highest(high, n)
+lo = ta.lowest(low, n)
+var box b = box.new(bar_index, high, bar_index, low, bgcolor=color.new(color.blue, 85), border_color=color.blue)
+if not na(hi)
+    box.set_lefttop(b, bar_index - n, hi)
+    box.set_rightbottom(b, bar_index, lo)

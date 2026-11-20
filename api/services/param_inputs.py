@@ -141,9 +141,28 @@ def specialize(definition: Mapping, params: Optional[Mapping]) -> tuple:
         return definition, None
     out = copy.deepcopy(dict(definition))
     compute = out["compute"]
+    # ⭐⭐ A NULL `treeIndex` NAMES THE SCAN PLOT'S TREE, and a multi-tree document runs that plot from
+    # `trees[scanPlot]` — mirrors `paramInputs.js::specializeParams`. Written there too wherever it holds
+    # the same literal at that path (never blind), whether or not it is the very object `ast` is (a
+    # materialised graph aliases them; a JSON-loaded document does not).
+    trees = compute.get("trees")
+    scan = compute.get("scanPlot")
+    scan_tree = trees.get(scan) if isinstance(trees, dict) and isinstance(scan, str) else None
     for spec, v in moved:
         for loc in compute["paramManifest"][spec["fromParam"]]["locators"]:
             ti = loc.get("treeIndex")
-            tree = compute["ast"] if ti is None else compute["trees"][ti]
-            _write(tree, list(loc.get("astPath") or []), v)
+            path = list(loc.get("astPath") or [])
+            if ti is None:
+                if scan_tree is not None and scan_tree is not compute["ast"] and _same_literal_at(scan_tree, compute["ast"], path):
+                    _write(scan_tree, path, v)
+                _write(compute["ast"], path, v)
+            else:
+                _write(compute["trees"][ti], path, v)
     return out, None
+
+
+def _same_literal_at(a: Any, b: Any, path: list) -> bool:
+    """Do two trees hold the same literal at ``path`` (both a plain number there, equal)?"""
+    x = _literal_value(_walk(a, path))
+    y = _literal_value(_walk(b, path))
+    return x is not None and y is not None and x == y

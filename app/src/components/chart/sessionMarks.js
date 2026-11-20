@@ -113,6 +113,19 @@ export function createSessionBreaksPrimitive() {
       draw: (target) => {
         if (!chart || !times.length) return
         const ts = chart.timeScale()
+        // ⭐ ONLY THE BREAKS ON SCREEN (2026-11-18): this draws every frame, and a deep 1h chart
+        // holds ~5,800 day breaks with four coordinate conversions each (the same cost the session
+        // shade had, measured live as 70 ms frames). `times` is in time order (sessionBreakTimes).
+        let vr = null
+        try { vr = ts.getVisibleRange?.() ?? null } catch { vr = null }
+        const vFrom = vr && typeof vr.from === 'number' ? vr.from : null
+        const vTo = vr && typeof vr.to === 'number' ? vr.to : null
+        let start = 0
+        if (vFrom != null) {
+          let lo = 0, hi = times.length
+          while (lo < hi) { const mid = (lo + hi) >> 1; if (times[mid] < vFrom) lo = mid + 1; else hi = mid }
+          start = lo
+        }
         try {
           target.useBitmapCoordinateSpace(({ context: ctx, bitmapSize, horizontalPixelRatio: hpr, verticalPixelRatio: vpr }) => {
             ctx.save()
@@ -120,7 +133,9 @@ export function createSessionBreaksPrimitive() {
             ctx.lineWidth = Math.max(1, Math.floor(hpr))
             ctx.setLineDash([Math.round(4 * vpr), Math.round(4 * vpr)])
             ctx.beginPath()
-            for (const t of times) {
+            for (let i = start; i < times.length; i++) {
+              const t = times[i]
+              if (vTo != null && t > vTo) break
               let x
               try { x = ts.timeToCoordinate(t) } catch { continue }
               if (x == null || !Number.isFinite(x)) continue

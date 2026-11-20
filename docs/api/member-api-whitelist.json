@@ -172,6 +172,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/alerts/lists",
+      "rate_limit_family": "member-workspace",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/alerts/routing",
       "rate_limit_family": "member-workspace",
       "tier": "paid"
@@ -540,6 +548,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "date",
+      "path": "/api/calendar/earnings-season",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "date",
       "path": "/api/calendar/enrichment",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -775,14 +791,6 @@
       "path": "/api/charts/list-sources/theme/{theme_id}",
       "rate_limit_family": "member-workspace",
       "tier": "member"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
-      "params": "limit=10, note_type",
-      "path": "/api/coaching-notes",
-      "rate_limit_family": "member-workspace",
-      "tier": "paid"
     },
     {
       "limit": "600/minute",
@@ -1269,6 +1277,14 @@
       "method": "GET",
       "params": "{ticker}, quarter",
       "path": "/api/earnings/call-recap/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "month",
+      "path": "/api/earnings/call-themes",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4187,14 +4203,6 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "days=30",
-      "path": "/api/psychology-events",
-      "rate_limit_family": "member-workspace",
-      "tier": "paid"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
       "params": "fresh=False",
       "path": "/api/regime",
       "rate_limit_family": "market-analytics",
@@ -4283,6 +4291,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/dilution-watch/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}",
       "path": "/api/research/earnings-reaction/{sym}",
       "rate_limit_family": "research",
@@ -4299,7 +4315,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "{sym}, consensus=0",
+      "params": "{sym}, consensus=0, revisions=0",
       "path": "/api/research/estimates/{sym}",
       "rate_limit_family": "research",
       "tier": "paid"
@@ -4621,6 +4637,30 @@
       "method": "GET",
       "params": "{sym}",
       "path": "/api/research/seasonality/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}",
+      "path": "/api/research/short-data/{ticker}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "rank, limit",
+      "path": "/api/research/short-interest-list",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/treasury-yields",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4972,6 +5012,14 @@
       "limit": "600/minute",
       "method": "GET",
       "params": "",
+      "path": "/api/screener/layout-gallery",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
       "path": "/api/screener/meta",
       "rate_limit_family": "screener",
       "tier": "paid"
@@ -5182,14 +5230,6 @@
       "params": "{symbol}",
       "path": "/api/single-stock-etfs/{symbol}",
       "rate_limit_family": "market-data",
-      "tier": "paid"
-    },
-    {
-      "limit": "600/minute",
-      "method": "GET",
-      "params": "",
-      "path": "/api/skill-assessments",
-      "rate_limit_family": "member-workspace",
       "tier": "paid"
     },
     {
@@ -5613,6 +5653,14 @@
       "method": "GET",
       "params": "graph=False, engine",
       "path": "/api/user-definitions",
+      "rate_limit_family": "screener",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/user-definitions/assistant-memory",
       "rate_limit_family": "screener",
       "tier": "paid"
     },

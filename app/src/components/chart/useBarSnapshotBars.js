@@ -23,12 +23,12 @@
 //
 // The full legacy-selector → rule map (and what is intentionally dropped) is in the P3-S1 PR
 // body and docs/architecture/barstore.md §P3-S1.
-import { useEffect, useRef, useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
 import { getBarStore } from '../../data/barStore/index'
-import { legacyBars, legacyDevelopingOf } from '../../data/barStore/adapter'
-import { prefetch as storePrefetch, viewKeyFor } from '../../data/barStore/prefetch'
-import { keyOf, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
+import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
+import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
+import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
@@ -36,6 +36,10 @@ import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBa
 import { createTailPollState, TAIL_CATCHUP_MAX_TRIES } from '../../utils/intradayTailPoll'
 import { timingMark } from '../../utils/intradayTiming'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
+
+/** How long a member rests on a symbol (after the background warm starts) before its other intraday
+ *  timeframes' lake depth loads: a scan past a row never pays for it. */
+export const LAKE_WARM_DWELL_MS = 2500
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const PRIOR_SESSION_S = 8 * 3600
@@ -208,9 +212,42 @@ export function useBarSnapshotBars({
   )
   const _edgeProvisional = !!snap && (_localLayer ? !_localTailComplete
     : (chosen == null || (snap.restSeen && status !== STATUS.CURRENT && status !== STATUS.CONTEXT)))
-  const _tfSwitchHold = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
-    && !!snap && !_answered && _edgeProvisional
+  const _isTfSwitch = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
     && !!_onScr && _onScr.sym === sym && _onScr.ext === showExtended && _onScr.tf !== resolvedTf
+  // ⭐ ONE PAINT ON A TIMEFRAME SWITCH TOO (2026-11-18). The symbol handoff already waits (bounded)
+  // for the lake's whole depth before it commits (#1774, prefetch LAKE_JOIN_WAIT_MS); a timeframe
+  // button did not, so 1h/30m/5m painted the server's few hundred bars and then grew in steps for
+  // ~1-1.8 s (measured on production: 1h AAPL 475 -> 3,884 -> 6,950 -> 10,261 bars). While the lake's
+  // depth is still due for the new key (store.lakePending: in flight or never asked), the previous
+  // timeframe stays on screen for at most LAKE_JOIN_WAIT_MS from the switch; then whatever is held
+  // paints. A key the lake does not carry, or one already deep, never waits.
+  const _lakeSwitchRef = useRef({ key: null, t0: 0 })
+  if (!_isTfSwitch) {
+    // a later switch to the same key is a new switch with its own bound (review of #1795)
+    if (_lakeSwitchRef.current.key !== null) _lakeSwitchRef.current = { key: null, t0: 0, done: false }
+  } else if (_lakeSwitchRef.current.key !== key) {
+    // eslint-disable-next-line react-hooks/purity
+    _lakeSwitchRef.current = { key, t0: Date.now(), done: false }
+  }
+  const [, _setLakeTick] = useState(0)
+  const _lakeDue = _isTfSwitch && !!key && _lakeSwitchRef.current.key === key
+    && !_lakeSwitchRef.current.done && !!store.lakePending?.(key)
+  // eslint-disable-next-line react-hooks/purity
+  const _lakeAge = Date.now() - _lakeSwitchRef.current.t0
+  // a clock that stepped backwards reads as expired, and the timer below ends the hold whatever the
+  // clock says, so the bound holds on any clock (review of #1795)
+  const _lakeHold = _lakeDue && _lakeAge >= 0 && _lakeAge < LAKE_JOIN_WAIT_MS
+  useEffect(() => {
+    if (!_lakeHold) return undefined
+    let alive = true
+    const wake = () => { if (alive) _setLakeTick((n) => n + 1) }
+    const left = Math.max(0, LAKE_JOIN_WAIT_MS - (Date.now() - _lakeSwitchRef.current.t0))
+    const sw = _lakeSwitchRef.current
+    const id = setTimeout(() => { sw.done = true; wake() }, left + 1)
+    Promise.resolve().then(() => store.lakeSeed?.(key)).catch(() => {}).then(wake)
+    return () => { alive = false; clearTimeout(id) }
+  }, [_lakeHold, key, store])
+  const _tfSwitchHold = _isTfSwitch && !!snap && ((!_answered && _edgeProvisional) || _lakeHold)
   tfSwitchHoldRef.current = _tfSwitchHold
   const bars = _tfSwitchHold ? null : chosen
 
@@ -232,6 +269,10 @@ export function useBarSnapshotBars({
       // THE developing bar (store-merged: server developing + push frames + tick fallback).
       // Writer D re-tops from exactly this (StockChart updateChart, BARSTORE branch).
       developing: dev ? { t: dev.t, o: dev.o, h: dev.h, l: dev.l, c: dev.c, v: dev.v } : null,
+      // ⭐⭐ (2026-11-18) the route's tri-state for the newest row, as the legacy source hands it (StockChart reads
+      // `data.newest_bar_is_forming` into every run's context); null = unknown. ⚰️ Absent here, every chart on
+      // this source told its strategies "unknown" at every hour, so a closed newest bar was read as forming.
+      newest_bar_is_forming: newestBarIsFormingOf(snap),
     }
   }, [snap])  // eslint-disable-line react-hooks/exhaustive-deps
   const error = useMemo(() => {
@@ -409,7 +450,7 @@ export function useBarSnapshotBars({
       let tries = 0
       for (let i = 0; i < PREFETCH_WINDOWS && !cancelled;) {
         // deeper where the lake carries the key (historyPrepend.prefetchTargetBars)
-        if ((store.peek(key)?.depth || 0) >= prefetchTargetBars(!!store.lakeCarries?.(key))) break
+        if ((store.peek(key)?.depth || 0) >= prefetchTargetBars(!!store.lakeCarries?.(key), parseKey(key)?.tf)) break
         const res = await _loadOlder(true, { dwell: true })
         if (cancelled) break
         // A failed or still-filling window is asked again (at most DEEP_RETRIES times per
@@ -432,6 +473,8 @@ export function useBarSnapshotBars({
     if (!sym || !backgroundWarm || _hasOverride) return undefined
     const ORDER = breadthSeries ? ['D', 'W', 'M'] : ['D', '5', '60', '30', '15', 'W', 'M', '1']
     const ac = typeof AbortController !== 'undefined' ? new AbortController() : null
+    let left = false
+    let lakeId = null
     const id = setTimeout(() => {
       const keys = []
       for (const tf of ORDER) {
@@ -439,8 +482,27 @@ export function useBarSnapshotBars({
         try { keys.push(keyOf({ sym, tf, session: _session })) } catch { /* not a bars symbol */ }
       }
       storePrefetch(keys, { priority: 'background', warm: true, signal: ac?.signal ?? null })
+      // ⭐ ...and the lake's whole depth for the intraday ones a member flips to (2026-11-18), so a
+      // later timeframe click finds it held and paints at once (the hold above never waits). Only on a
+      // symbol the member STAYS on (a scan never pays ~100k rows a row), one key at a time, stopping
+      // when the member leaves (review of #1795: a scan stacked loads for symbols already left).
+      // network.lakeSeed skips a key already deep; the pieces come from the HTTP cache after the first time.
+      const lakeKeys = (isIntraday ? keys : []).filter((k) => {   // a member on daily is not flipping intraday
+        const tf = parseKey(k)?.tf
+        try { return (tf === '5' || tf === '30' || tf === '60') && !!store.lakeCarries?.(k) } catch { return false }
+      })
+      if (!lakeKeys.length) return
+      lakeId = setTimeout(async () => {
+        for (const k of lakeKeys) {
+          if (left) return
+          try { await store.lakeSeed?.(k) } catch { /* a warm only */ }
+        }
+      }, LAKE_WARM_DWELL_MS)
     }, _intradaySmoothSwitchEnabled() ? 1600 : 600)
-    return () => { clearTimeout(id); try { ac?.abort() } catch { /* ignore */ } }
+    return () => {
+      left = true; clearTimeout(id); if (lakeId != null) clearTimeout(lakeId)
+      try { ac?.abort() } catch { /* ignore */ }
+    }
   }, [sym, backgroundWarm])  // eslint-disable-line react-hooks/exhaustive-deps
 
   return {

@@ -119,6 +119,10 @@ import { carryPriorParamIds, savedParamManifest, carryNotice, inputPlaces } from
 import ParamControls from './ParamControls'
 import SettingsFields from './studio/SettingsFields'
 import { settingsOfTrees } from './authoring/derivedSettings'
+import { libraryParts, namedByTitle } from './authoring/checkedLibrary'
+import { nameOfTree } from './authoring/derivedName'
+import { noLongerChecked } from './authoring/readback'
+import { collapseExpansions } from '../engine/ast/callExpansions'
 import { formulasWithSetting } from './authoring/settingsOnFormulas'
 import { applyParamEdit } from './paramEdit'
 // ⭐ W1a HAND-BACK — THE DRAFT, DRAWN WHILE IT IS BEING TYPED. The preview is
@@ -1060,9 +1064,15 @@ function EvidenceBody({ editing, rows, source, plotRows }) {
  */
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
+  /* ⭐ the chart the sheet was opened over AS THE ENGINE SEES IT (`StockChart`'s `engineChart`): the script
+     tab's status panel runs a pasted script on it before it says "Runs" */
+  engineChart = null,
   /* W1a hand-back: the chart the sheet was opened over — the live preview draws on it */
   sym = null, tf = null,
   initialMode = null, editRow = null, initialDraft = null, initialDescription = null,
+  /* ⭐ A SCRIPT TO OPEN ON THE SCRIPT TAB (Create Indicator's assistant wrote it: `authoring/scriptAnswer.js`).
+     A string, so it compares by value; it lands in the ONE script field the paste box owns. */
+  initialPine = null,
   /* ⭐ WHAT THIS WINDOW IS CALLED, BY WHERE IT OPENS (owner decision 2026-11-17, backlog 49). From a
      chart the member pressed "Create indicator", so the window says so; from the Screener the same
      window builds a scan's formula and keeps "New formula". Only the title and the footer's
@@ -1157,6 +1167,8 @@ export default function BuilderSheet({
    *  consistency."* Import was the one tab whose state was purely local, so it
    *  was the one tab that broke the rule the others follow. */
   const [pineText, setPineText] = useState('')
+  /** Bumped when a caller hands in a script (`initialPine`): the paste box mounts again and reads it. */
+  const [pineSeed, setPineSeed] = useState(0)
   // ⭐ STUDIO R4 — the status panel's sentence for the text in the script box (`PineBox` reports
   // it), and the versions it has already been put on record for in this window.
   const [statusHeadline, setStatusHeadline] = useState(null)
@@ -1555,6 +1567,9 @@ export default function BuilderSheet({
     // ⭐ TERM-087: a generated answer's draft lands in the ONE source field, AFTER
     // the reset emptied it (same effect, later line — one writer of the opening
     // state). An `editRow` still wins: `openForEdit` runs after this effect.
+    // ⭐ a script handed in by the caller lands in the script field AFTER the reset emptied it
+    // (the paste box reads its text on MOUNT, so it is given a fresh key to mount again with this one)
+    if (!editRow && typeof initialPine === 'string' && initialPine.trim()) { setPineText(initialPine); setPineSeed((n) => n + 1) }
     if (draftSourceOf(initialDraft)) {
       setSource(draftSourceOf(initialDraft))
       importTelemetryRef.current = initialDraft.importId
@@ -1567,7 +1582,7 @@ export default function BuilderSheet({
     // warning on that prop matters: a string compares by value, an object
     // compares by identity, so a row rebuilt inline per render would empty this
     // form on every parent render.
-  }, [open, editRow, initialMode, initialDraft, initialDescription, resetPlots])
+  }, [open, editRow, initialMode, initialDraft, initialDescription, initialPine, resetPlots])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
    *
@@ -2660,6 +2675,13 @@ export default function BuilderSheet({
     setOrigin(mode); setView('editor'); setStoreError(null)
   }, [])
   const writeMyself = useCallback(() => { setView('editor'); setStoreError(null) }, [])
+  /** ⭐ A script the assistant wrote in "Describe it" lands in the SCRIPT EDITOR: the same text field,
+   *  the same check, preview and Save as a script the member pasted (`ConverseBox.onOpenScript`). */
+  const openAssistantScript = useCallback(({ pine } = {}) => {
+    if (typeof pine !== 'string' || !pine.trim()) return
+    setPineText(pine); setPineSeed((n) => n + 1)
+    startFrom('pine'); setBuildMode('pine')
+  }, [startFrom])
   const backToStart = useCallback(() => { setView('start'); setStoreError(null) }, [])
   /** The one-shot describe box's "Use this formula": the formula lands in the editor,
    *  on the Formula tab, exactly as a paste or a starter does. */
@@ -2699,6 +2721,45 @@ export default function BuilderSheet({
     .map((r, i) => ({ key: r.key || (i === 0 ? 'value' : `plot${i}`), tree: (i === 0 ? result : r.result)?.ast || null }))
     .filter((o) => o.tree)), [allRows, result, paramManifest])
   const formSettings = useMemo(() => settingsOfTrees(formTrees), [formTrees])
+  // ⭐ 2026-11-18 (ruling) — A TITLE THAT NAMES A CHECKED LIBRARY INDICATOR IS A CLAIM ABOUT THE
+  // FORMULA, HERE TOO. The patch engine already drops such a title when a change leaves a formula
+  // that is no longer the library's (`derivedName.libraryTitleOf`). A hand edit in this tab went
+  // round it: the name field kept "Kaufman Adaptive Moving Average" over a formula that no longer
+  // was one. So while the title and the formulas AGREE the claim is armed; when the formulas stop
+  // holding that indicator the title gives way to the name of what the formula now is, and the
+  // sheet says so. Putting the formula back puts the title back. A title the member then types
+  // themselves is theirs and is left alone.
+  const libraryClaim = useMemo(() => namedByTitle(name), [name])
+  const formHolds = useCallback((entry) => formTrees.some((o) => {
+    try { return libraryParts(collapseExpansions(o.tree)).some((p) => p.entry.id === entry.id) } catch { return false }
+  }), [formTrees])
+  const claimArmedRef = useRef(null)          // the library indicator the title and the formulas last agreed on
+  const [lostClaim, setLostClaim] = useState(null)   // {name, derived}: the title that gave way, and to what
+  useEffect(() => {
+    if (!formTrees.length) return             // nothing parsed yet (mid-edit): decide nothing
+    if (lostClaim) {
+      // the formula is that indicator again: the line goes, and the title returns unless the
+      // member has typed their own in the meantime
+      const entry = namedByTitle(lostClaim.name)
+      if (entry && formHolds(entry)) {
+        if (name === lostClaim.derived) setName(lostClaim.name)
+        setLostClaim(null)
+        return
+      }
+    }
+    if (libraryClaim && formHolds(libraryClaim)) {
+      claimArmedRef.current = libraryClaim
+      return
+    }
+    if (libraryClaim && claimArmedRef.current && claimArmedRef.current.id === libraryClaim.id) {
+      // the formulas were that indicator and no longer are, under a title that still says so
+      let derived = ''
+      try { derived = String(nameOfTree(formTrees[0].tree) || '').slice(0, 48) } catch { derived = '' }
+      claimArmedRef.current = null
+      setLostClaim({ id: libraryClaim.id, name: libraryClaim.name, derived })
+      if (derived) setName(derived)
+    }
+  }, [formTrees, libraryClaim, formHolds, lostClaim, name])
   const setFormSetting = useCallback((setting, value) => {
     const out = formulasWithSetting(formTrees, setting, value)
     if (!out.ok) return out
@@ -2834,6 +2895,12 @@ export default function BuilderSheet({
             </div>
           )}
 
+          {isEditor && lostClaim && (
+            <p role="status" data-testid="library-title-dropped" style={{ margin: '4px 16px 0', fontSize: 12, color: '#a9a59b' }}>
+              {noLongerChecked(lostClaim.name)}
+            </p>
+          )}
+
           {/* ── THE TABS — gold underline on the current one only (UCT Signature §2b) ── */}
           {isEditor ? (
             <div className={styles.tabs} role="tablist" aria-label="How to build this" data-guide="builder.modes">
@@ -2900,6 +2967,7 @@ export default function BuilderSheet({
                   variant={isEditor ? 'ask' : 'start'}
                   settings={settings} onChange={onChange} sym={sym} tf={tf}
                   editing={editing} disabled={saving} prefill={prefill}
+                  onOpenScript={openAssistantScript} engineChart={engineChart}
                   onCommitState={setConverseCommit} commitRef={converseCommitRef}
                   onSaved={(defId, version) => setConversationSaved({ defId, version, formPrint: formPrintRef.current })} />
               )}
@@ -3158,9 +3226,10 @@ export default function BuilderSheet({
             <ImportBox
               // ⭐ UIE PHASE 5 (M1) — a script opened for edit seeds a FRESH box (its
               // source is an initial value, read on mount)
-              key={editing && editing.runtime ? `edit:${editing.defId}` : 'new'}
+              key={editing && editing.runtime ? `edit:${editing.defId}` : `new:${pineSeed}`}
               dialect="auto"
               disabled={saving}
+              engineChart={engineChart}
               // ⭐ STUDIO R4 — the status panel's sentence and the text it is about
               onStatusHeadline={setStatusHeadline}
               // ⭐ STUDIO R5 — Inspect a bar's `line N` uses this box's own line jump

@@ -639,7 +639,12 @@ export function computeWilliamsR(bars, period = 14) {
  *  a hole in real OHLCV would have silently blanked it from that bar on, not
  *  because a fixture caught it. That is a smaller claim than the other three
  *  carry and it is made deliberately smaller. */
-export function computeADX(bars, period = 14) {
+/** ⭐⭐ engine 78 (#1858) — `opts.gt` is the comparison `+DM` / `-DM` are chosen by: IEEE for the native
+ *  chart / screener ADX (the default, byte for byte), `pineCompare.js::pineGt` for Pine's `ta.dmi`, whose
+ *  built-in compares within TradingView's epsilon (vw-fcmp-builtins B32-B34: on AMEX:SPY 1D bar 5,333 the up
+ *  and down moves differ by 2.84e-14 and TradingView counts a tie, DI+ 27.576070967939575). */
+export function computeADX(bars, period = 14, opts = null) {
+  const gt = opts && typeof opts.gt === 'function' ? opts.gt : (a, b) => a > b
   const empty = { adx: [], plusDI: [], minusDI: [] }
   if (!bars || bars.length < 2 * period) return empty
   const plusDI = blank(bars), minusDI = blank(bars), adxOut = blank(bars)
@@ -659,8 +664,8 @@ export function computeADX(bars, period = 14) {
     // directional movement cannot be COMPUTED contributes nothing; it does not
     // contribute a zero.
     if (!Number.isFinite(up) || !Number.isFinite(down) || !Number.isFinite(tr)) continue
-    const pDM = (up > down && up > 0) ? up : 0
-    const mDM = (down > up && down > 0) ? down : 0
+    const pDM = (gt(up, down) && gt(up, 0)) ? up : 0
+    const mDM = (gt(down, up) && gt(down, 0)) ? down : 0
 
     if (!diReady) {
       sPlus += pDM; sMinus += mDM; sTR += tr; diSeen += 1
@@ -1276,7 +1281,22 @@ export const CLOCK_PERIOD_SECONDS = Object.freeze({
  *  `computeClock` reads it in both directions so the two halves cannot drift. */
 const CLOCK_TIME_DERIVED = ['time', 'year', 'month', 'dayofmonth', 'dayofweek',
   'hour', 'minute', 'sessionfirst', 'dayopentime',
-  'timeclose', 'dayclosetime', 'weekfirst', 'monthfirst']
+  'timeclose', 'dayclosetime', 'weekfirst', 'monthfirst',
+  'regularhours', 'regularfirst']
+
+/** ⭐ `regularhours` / `regularfirst` (2026-11-17) — THE REGULAR SESSION, ONE AUTHORITY.
+ *  `sessionfirst` is the first bar of the New York CALENDAR day, which is 04:00 on a chart that
+ *  shows extended hours; "the opening range" and "today's high" are about the regular session.
+ *   · `regularhours` is 1 on a bar that opens inside the regular session AS THE CALENDAR HAS IT
+ *     — a weekday the vendor's session trades, from 09:30 to that day's close
+ *     (`tradingViewCloseMinute`: 16:00, 13:00 on a half-day) — and 0 on every other bar.
+ *   · `regularfirst` is 1 on the FIRST such bar of its New York day: the 09:30 bar where there
+ *     is one, else the first regular print (a thin symbol's 09:37). 0 on every other regular bar
+ *     and on every bar outside regular hours. ⛔ BLANK when a regular bar later than 09:30 has NO
+ *     bar before it: the window was cut mid-session, and answering 1 there would make the value
+ *     depend on the window rather than the tape (`sessionfirst`'s own reason, `lookback: 1`).
+ *  A date-keyed daily, weekly or monthly bar is stamped 09:30 by `barOpenInstant`, so both read
+ *  1 on every bar there with no special case. Mirrors `indicator_compute.py::compute_clock`. */
 
 /** ⭐⭐ `time_close`, `time_close("D")` AND `timeframe.change("W"/"M")` — THE
  *  LAST FOUR NAMES ABOVE. They read `t`, so the unit gate refuses them with the
@@ -1980,6 +2000,7 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
   }
   let prevWeek = null
   let prevMonth = -1
+  let prevRegularDay = -1
   for (let i = 0; i < length; i++) {
     const t = opens[i]
     // ⭐ unfloored: every `opens[i]` already passed `barOpenInstant`, the gate
@@ -2032,6 +2053,13 @@ export function computeClock(bars, tf, newestBarIsForming = null, opts = {}) {
     const sinceMidnight = minuteOfDay * 60 + (t % 60)
     const closeMinute = weekday ? tradingViewCloseMinute(day) : null
     const sessionClose = closeMinute === null ? NA : t + (closeMinute * 60 - sinceMidnight)
+    // `regularhours` / `regularfirst` — see `CLOCK_TIME_DERIVED`.
+    const inRegular = closeMinute !== null && minuteOfDay >= RTH_OPEN_MINUTE && minuteOfDay < closeMinute
+    cols.regularhours[i] = inRegular ? 1 : 0
+    if (!inRegular || prevRegularDay === day) cols.regularfirst[i] = 0
+    else if (minuteOfDay === RTH_OPEN_MINUTE || i > 0) cols.regularfirst[i] = 1
+    else cols.regularfirst[i] = NA           // a window cut mid-session: not known, never guessed
+    if (inRegular) prevRegularDay = day
     let close = NA
     let dayClose = NA
     if (!known || !weekday) {
@@ -2185,4 +2213,87 @@ function etClockParts(t) {
     else if (p.type === 'hour') h = Number(p.value) % 24
   }
   return { y, m, d, wd, h }
+}
+
+// ─── THE REGULAR SESSION'S OWN VALUES (2026-11-17) ───────────────────────────
+//
+// `sessionOpen()`, `sessionHigh()`, `sessionLow()`, `openingRangeHigh(minutes)` and
+// `openingRangeLow(minutes)`: what the regular session has done so far, on any chart.
+//
+// ⚰️ WHAT THIS REPLACES. Asked for "the high and low of the first 30 minutes of the day", the
+// assistant could only write a clock condition over a fixed number of bars, right on one chart
+// timeframe and wrong on every other. A window in the closed table is a literal bar count, and
+// "since the open" is a count that depends on the timeframe. It also cannot be an `accum` over a
+// reset: open to next open is 960 one-minute bars, the whole lookback budget (`sessionMaxBars`).
+//
+// ⭐ ONE CLOCK AUTHORITY. The session is whatever `computeClock` says it is (`regularfirst`,
+// `regularhours`): the vendor calendar's regular hours, early closes included. Nothing here
+// reads an hour or a minute.
+//
+//   · the value is UNKNOWN until a bar that is the first of a regular session (never a partial
+//     session read as a whole one: a window cut mid-session answers nothing until the next open);
+//   · on that bar it starts (the bar's open / high / low); on every later bar INSIDE regular
+//     hours it steps (kept / the higher / the lower); for an opening range it steps only while
+//     the bar opens less than `minutes` after the session's first bar, and is frozen after;
+//   · every other bar CARRIES it: after-hours and the next pre-market read the last regular
+//     session's value until the next regular open. An early close ends when the bars do;
+//   · a price that is not a finite number makes the rest of that session unknown (the VWAP rule:
+//     an extreme with an unknown term is unknown).
+//
+// Mirrors `indicator_compute.py::compute_session_regular_raw` value for value.
+
+const SESSION_READER_FIELDS = { open: 'o', high: 'h', low: 'l' }
+
+/** Why an opening range cannot be read on a chart, as CODES (`interpret.js` owns the sentences). */
+export const OPENING_RANGE_BARS_LONGER = 'opening-range:bars-longer'
+export const OPENING_RANGE_BARS_DO_NOT_DIVIDE = 'opening-range:bars-do-not-divide'
+
+/** Why an opening range of `minutes` cannot be read on bars `periodSeconds` long, or null when
+ *  it can: one bar is longer than the range (a daily chart), or the range is not a whole number
+ *  of bars. An unknown bar length is not a range to read either. */
+export function openingRangeRefusal(periodSeconds, minutes) {
+  if (typeof periodSeconds !== 'number' || !Number.isFinite(periodSeconds) || periodSeconds <= 0) return OPENING_RANGE_BARS_LONGER
+  const span = Number(minutes) * 60
+  if (periodSeconds > span) return OPENING_RANGE_BARS_LONGER
+  if (span % periodSeconds !== 0) return OPENING_RANGE_BARS_DO_NOT_DIVIDE
+  return null
+}
+
+const sessionPrice = (bar, field) => {
+  const v = bar ? bar[field] : undefined
+  return typeof v === 'number' && Number.isFinite(v) ? v : NaN
+}
+
+/** One forward pass. `kind` is `open` / `high` / `low`; `minutes` bounds an opening range
+ *  (null: the whole regular session). `[]` for no bars, else one value per bar (NaN = unknown). */
+export function computeSessionRegular(bars, tf, kind, minutes = null) {
+  const n = bars && bars.length ? bars.length : 0
+  if (n === 0) return []
+  const field = SESSION_READER_FIELDS[kind]
+  const out = new Array(n).fill(NaN)
+  const clock = computeClock(bars, tf)
+  const first = clock.regularfirst
+  const inside = clock.regularhours
+  const when = clock.time
+  if (minutes !== null && openingRangeRefusal(clock.periodseconds[0], minutes) !== null) return out
+  let value = NaN
+  let known = false
+  let openTime = 0
+  for (let i = 0; i < n; i += 1) {
+    // A BLANK `regularfirst` (the unit gate, or an oldest bar cut mid-session) needs no branch:
+    // it is neither 1 nor a known session, so nothing is known until the next regular open.
+    const f = first[i]
+    if (f === 1) {
+      known = true
+      openTime = when[i]
+      value = sessionPrice(bars[i], field)
+    } else if (known && inside[i] === 1 && (minutes === null || when[i] < openTime + minutes * 60)) {
+      const price = sessionPrice(bars[i], field)
+      if (Number.isNaN(value) || Number.isNaN(price)) value = NaN
+      else if (kind === 'high') value = Math.max(value, price)
+      else if (kind === 'low') value = Math.min(value, price)
+    }
+    out[i] = known ? value : NaN
+  }
+  return out
 }

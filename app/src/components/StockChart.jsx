@@ -2,7 +2,8 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
-import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar } from './chart/barTime'
+import { recordPaint } from './chart/paintLog'
+import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, keepRthBars, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -273,7 +274,7 @@ import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStor
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
 import * as realtimeCandle from '../lib/realtimeCandle'
-import { newestSeriesBar } from './chart/newestSeriesBar'
+import { newestSeriesBar, newestRealLogicalIndex } from './chart/newestSeriesBar'
 import { barsHistorySplitEnabled } from '../utils/barsHistorySplit'
 import { LIVE_PERIOD_SECONDS } from '../lib/liveBarMerge'
 import { publishChartReadout } from '../lib/chartReadoutStore'
@@ -1444,6 +1445,13 @@ function zoomLimitsOf(chart) {
 // Falls back to the candle count when the time scale cannot answer (mid-load / stand-ins).
 function newestLogicalIndex(chart, candleSeries, fallbackCount) {
   try {
+    // ⭐ BY INDEX LOOKUPS FIRST, NEVER A COPY (2026-11-19). `data()` rebuilds every row of the series
+    // as a new object (a 50,000-row copy on an hourly chart; ~14 ms of each flip on the production
+    // CPU profile). The newest real candle is found from the end with the library's own search,
+    // stepping left over the whitespace slots (the D/W/M load reserve) by their logical index.
+    const n = newestRealLogicalIndex(chart, candleSeries)
+    if (n != null) return n
+    // the time scale could not answer (mid-load / stand-ins): the series' rows, as before
     const d = candleSeries?.data?.() || []
     let i = d.length - 1
     while (i >= 0 && isWhitespacePoint(d[i])) i--
@@ -1705,7 +1713,7 @@ import {
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
-import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources } from './chart/engine/useSecondarySources'
+import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources, heldSpanFor } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
@@ -2018,6 +2026,11 @@ const _BAR_INFO_MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG'
 // ⛔ A NUMERIC `time` HERE IS CHART TIME (ET wall clock read as UTC — what the
 // crosshair's param.time carries), so it is printed in UTC. Printing it in
 // America/New_York shifted the hovered intraday time a SECOND time (10:30 → 06:30).
+// Built once: a fresh formatter per call showed in the live ticker-switch profile (2026-11-19).
+const _BAR_INFO_FMT = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'UTC', month: 'short', day: 'numeric',
+  hour: '2-digit', minute: '2-digit', hour12: false,
+})
 export function formatBarInfoDate(time) {
   if (typeof time === 'string') {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(time)
@@ -2027,10 +2040,7 @@ export function formatBarInfoDate(time) {
   }
   if (!Number.isFinite(time)) return ''
   const d = new Date(time * 1000)
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'UTC', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
+  const parts = _BAR_INFO_FMT.formatToParts(d).reduce((a, p) => { a[p.type] = p.value; return a }, {})
   if (!parts.month) return ''
   return `${String(parts.month).toUpperCase()} ${parts.day} ${parts.hour}:${parts.minute}`
 }
@@ -4437,7 +4447,7 @@ export default function StockChart({
       // For daily/weekly, convert to YYYY-MM-DD date string in ET so it aligns with daily bars
       let time
       if (isDailyWeekly) {
-        time = new Date(tsRaw * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        time = etDateLabel(tsRaw)
       } else {
         time = toChartTime(tsRaw)
       }
@@ -4907,6 +4917,12 @@ export default function StockChart({
   // one for that class or string, else OURS, tagged substituted; a missing field settles nothing.
   // ⛔ The live meta only: Model Book's curated watermark industry is a display fact, not the
   // symbol's classification.
+  const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
+  // ⭐⭐ (2026-11-19, Fred RS 1h) — and the symbol's FIRST TRADE day, FINAL answers only (`/api/ticker-ipo`): the listing
+  // fact a run's own-daily read rests on for the chart's first session (`requestSupply.js::aboveChartRead`). Not a
+  // classification field: `bindSymbolOf` ignores it and the run cache keys do not carry it.
+  const _firstTradeDate = ipoInfo && ipoInfo.first_trade_final === true && typeof ipoInfo.first_trade_date === 'string'
+    ? ipoInfo.first_trade_date : null
   const symbolMeta = useMemo(() => (
     sym ? {
       ticker: sym,
@@ -4914,9 +4930,9 @@ export default function StockChart({
       industry: (tickerMeta && tickerMeta.industry) || null,
       sector: (tickerMeta && tickerMeta.sector) || null,
       securityType: (tickerMeta && tickerMeta.security_type) || null,
+      ...(_firstTradeDate ? { firstTradeDate: _firstTradeDate } : {}),
     } : null
-  ), [sym, tickerMeta])
-  const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
+  ), [sym, tickerMeta, _firstTradeDate])
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
@@ -8719,8 +8735,27 @@ export default function StockChart({
   // (a timeframe flip) re-ran it (measured 10-09, sandbox; OPEN-FINDINGS §6).
   // `useLowerTfSources` below takes `userDefsGeneration` for the same reason.
   const _otherSymbolsRevalidate = useMemo(() => ({ csView, userDefsGeneration }), [csView, userDefsGeneration])
+  // ⭐⭐ RS RATING L11 PR 2 — whether THIS chart's newest bar is forming, for the other-symbol live tail
+  // (`useSecondarySources.liveTailTick`): written below where the bars payload is bound (`data`), read at
+  // each tick through a stable getter, so it never re-runs the hook's effect
+  const _chartFormingRef = useRef(null)
+  const _chartFormingOf = useCallback(() => _chartFormingRef.current, [])
+  // ⭐ RS RATING L12 PR 2 (U-DAILY) — and this chart's symbol, for a run that reads its own daily rows
+  // ⭐⭐ RS RATING (2026-11-19, the e81 live capture) — THE HELD SERIES FOLLOW THE CHART'S LOADED DEPTH. `barCount` is
+  // the REQUESTED first-paint depth (600 on intraday); the deep backfill grows the loaded rows to 3,000-28,000 without
+  // changing it, so SP:SPX was held 600 bars deep and the RS line was blank on every older bar. The loaded row count
+  // (`barCountRef`, set where the rows are bound) is read after each render and kept only when it crosses a ladder
+  // rung (`heldSpanFor`), so a filling chart refetches a few times, never once per fill step.
+  const [_heldLoaded, _setHeldLoaded] = useState(0)
+  const _heldSpan = heldSpanFor(_heldLoaded, barCount)
+  useEffect(() => {
+    const loaded = barCountRef.current
+    if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
+  })
+  // ⭐⭐ (2026-11-19, e83 live) — and the symbol BINDING the run is handed (`symbolMeta`), so the own-daily question
+  // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, barCount, instFetcher, _otherSymbolsRevalidate)
+    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -8815,6 +8850,8 @@ export default function StockChart({
     _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled, _persistHistorySoon,
     barsSwrOnErrorRetry, fetcher, _storeDevRef, _storeDevPaintRef,
   })
+  // ⭐⭐ RS RATING L11 PR 2 — the chart's own forming flag, for the other-symbol live tail (declared above)
+  _chartFormingRef.current = data?.newest_bar_is_forming === true
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -9176,7 +9213,8 @@ export default function StockChart({
     if (showExtended) return gridBars
 
     // Regular session = 09:30 to the day's close (13:00 on an NYSE half-day): barTime.isRthBar.
-    return gridBars.filter(b => typeof b.t !== 'number' || isRthBar(b.t))
+    // The same array when every bar already is (the server's rth answer): no 45,000-row copy.
+    return keepRthBars(gridBars)
   }, [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
@@ -9317,7 +9355,7 @@ export default function StockChart({
       if (replayCutoff && out?.length) {
         out = out.filter(b => (
           typeof b.t === 'number'
-            ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= replayCutoff
+            ? etDateLabel(b.t) <= replayCutoff
             : String(b.t).slice(0, 10) <= replayCutoff
         ))
       }
@@ -9608,6 +9646,21 @@ export default function StockChart({
   const historyFromListing = useMemo(() => historyFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
+  // (`chart/builder/runsHere.js`): the bars the binder computes on and the five facts of the compute
+  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`).
+  // A script judged on anything else would be judged on a chart the member is not looking at.
+  // `engineChart.test.js` holds these five to the binder's own, expression for expression.
+  const engineChart = useMemo(() => ({
+    bars: filteredBars,
+    ctx: {
+      sym,
+      symbol: symbolMeta,
+      tf: resolvedTf,
+      newestBarIsForming: data?.newest_bar_is_forming ?? null,
+      historyFromListing,
+    },
+  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -11374,6 +11427,7 @@ export default function StockChart({
     // re-apply below.
     const _noop = _cfgSame && _plan.mode === 'noop' && !_freshChart
     lastCfgSigRef.current = _cfgSig
+    recordPaint(sym, resolvedTf, displayBars?.length ?? 0, _noop ? 'noop' : _incr ? 'incr' : 'full')
     // TEMP DIAGNOSTIC — log only when the painted ticker changes (transitions are
     // rare, so this is quiet). A phantom-chart blip = an unexpected extra hop here.
     if (typeof window !== 'undefined' && window.__uctBarsDebug && paintSymRef.current !== `${sym}_${resolvedTf}`) {
@@ -14624,7 +14678,9 @@ export default function StockChart({
     // (mutation M3 SURVIVED): something else in this list is already unstable per
     // render. Kept as the one declaration that names this dependency; the full
     // reasoning is at the `useInstalledUserDefinitions` call site above.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
+    // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
+    // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -21948,6 +22004,7 @@ export default function StockChart({
             /* ⭐ THE WINDOW THE USER SEES (Phase D Task 13) — the concierge's
                compute stage runs on these. Same array the chart is drawing. */
             bars={bars}
+            engineChart={engineChart}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -22123,6 +22180,7 @@ export default function StockChart({
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
+              engineChart={engineChart}
               activeTool={activeTool}
               setActiveTool={setActiveTool}
               color={drawColor}
@@ -22222,6 +22280,7 @@ export default function StockChart({
               chartInstances={engineInstancesRef.current}
               chartId={chartId}
               bars={bars}
+              engineChart={engineChart}
               activeTool={indexActiveTool}
               setActiveTool={setIndexActiveTool}
               color={drawColor}

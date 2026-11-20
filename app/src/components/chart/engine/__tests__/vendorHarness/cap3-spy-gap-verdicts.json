@@ -567,18 +567,12 @@
       "script": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
+        "verdict": "MATCH",
         "reason": null,
         "plots": [],
         "objects": [
-          "DIVERGE",
-          [
-            [
-              "lines",
-              204,
-              205
-            ]
-          ]
+          "MATCH",
+          []
         ],
         "paints": null
       },
@@ -1033,11 +1027,11 @@
       "script": "corpus/committed/htf-candle-footprint-cartel-console__ca3ff4e904.pine",
       "state": "on",
       "signature": {
-        "verdict": "DIVERGE",
-        "reason": null,
+        "verdict": "INCONCLUSIVE",
+        "reason": "1 of 1 items could not be compared",
         "plots": [],
         "objects": [
-          "DIVERGE",
+          "INCONCLUSIVE",
           [
             [
               "lines",

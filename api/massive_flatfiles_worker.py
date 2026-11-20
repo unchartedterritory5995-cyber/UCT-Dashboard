@@ -170,7 +170,7 @@ def _load_ticker_metadata(db_path: str, symbols: list) -> dict:
     Look up MktCap + Sector for each symbol from the most recent non-blank
     FlowDB row that has those values. Same pattern as the WS worker -- any
     ticker that's been in FlowDB before has its metadata cached and we can
-    read it for free without hitting Schwab.
+    read it for free without a vendor call.
 
     Returns: {"AAPL": {"mktcap": 3100000000000, "sector": "Technology"}, ...}
     Symbols never seen before are simply omitted.

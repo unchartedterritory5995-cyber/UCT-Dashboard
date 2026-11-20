@@ -190,6 +190,14 @@
    "file": "corpus/pivots.pine"
   },
   {
+   "name": "request_fn_history",
+   "file": "corpus/request_fn_history.pine",
+   "barSets": [
+    "listing"
+   ],
+   "note": "engine 85: a request of the chart's own symbol on a higher timeframe whose value hoists (a helper's ta.change of its parameter, ta.change of an expression, of a root binding); each drew na on every bar from e82 to e84. Listing only: off the listing (d5000) a request is withheld"
+  },
+  {
    "name": "rma_alma_hma",
    "file": "corpus/rma_alma_hma.pine"
   },
@@ -304,7 +312,7 @@
    "barSets": [
     "listing"
    ],
-   "expectGuard": "runtime:statement"
+   "expectGuard": "runtime:lower"
   },
   {
    "name": "h_request_security",
@@ -340,8 +348,8 @@
    "barSets": [
     "listing"
    ],
-   "expectGuard": "runtime:statement",
-   "note": "the front end's own stack overflow, named runtime:statement; the stack depth is a host property, so this case measures it"
+   "expectGuard": "runtime:lower",
+   "note": "the front end's own stack overflow, named runtime:lower since engine 84 (S14, #1956: an exception that is not a refusal is never a statement shape); the stack depth is a host property, so this case measures it"
   }
  ]
 }

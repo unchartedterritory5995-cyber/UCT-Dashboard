@@ -1,4 +1,4 @@
-// ⭐ NUMBER PENDING (bt, 2026-11-16) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK.
+// ⭐ Engine 66 (#1473) (bt, 2026-11-16) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK.
 //
 // `lastbaryear` (and its siblings) declare `lookback: 0` and `forward: "unbounded"`: the value is the
 // newest bar's, so no bar makes it final, and it reads no earlier bar at all. `lint.js::ownWindow`

@@ -11,6 +11,18 @@ from api.services import tweet_store
 
 router = APIRouter(prefix="/api/tweets", tags=["tweets"])
 
+#: The provider's stored payload for a post. The store keeps it for the server's own use (the image
+#: links in `media` are read out of it); no screen reads it, so no route sends it.
+_SERVER_ONLY = ("raw_json",)
+
+
+def _public(row):
+    """A stored post as a route sends it: every column a screen reads, without the provider's
+    stored payload. Anything that is not a row is passed through untouched."""
+    if not isinstance(row, dict):
+        return row
+    return {k: v for k, v in row.items() if k not in _SERVER_ONLY}
+
 
 def _current_mover_symbols() -> set[str]:
     """Pull the current MoversSidebar symbol set so /tape can exclude them.
@@ -35,7 +47,7 @@ def tweets_for_ticker(sym: str = Depends(sym_path),
     # `sym_path` is the one route spelling: the store holds cashtags in the HYPHEN
     # form (`ticker_resolver.canonical`), and the old `isalpha()` check refused
     # every dual-class name -- BRK.B and BRK-B alike -- with a 400.
-    return tweet_store.tweets_for_ticker(sym, hours=hours)
+    return [_public(r) for r in tweet_store.tweets_for_ticker(sym, hours=hours)]
 
 
 @router.get("/tape")
@@ -46,7 +58,7 @@ def tape(hours: int = Query(12, ge=1, le=72),
     rows = tweet_store.tape(hours=hours, limit=limit * 3)
     movers = _current_mover_symbols()
     filtered = [r for r in rows if r["ticker"] not in movers]
-    return filtered[:limit]
+    return [{**r, "sample_tweet": _public(r.get("sample_tweet"))} for r in filtered[:limit]]
 
 
 @router.get("/feed")
@@ -61,7 +73,7 @@ def feed(hours: int = Query(12, ge=1, le=168),
     When ``official=1`` restricts to the firm's official UCT accounts (The Desk
     → Posts section).
     """
-    return tweet_store.feed(hours=hours, limit=limit, official_only=official)
+    return [_public(r) for r in tweet_store.feed(hours=hours, limit=limit, official_only=official)]
 
 
 @router.get("/has-tweets-batch")

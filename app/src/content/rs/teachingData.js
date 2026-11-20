@@ -37,8 +37,8 @@ export const GLOSSARY = Object.freeze([
     definition: 'The stock\'s price divided by the benchmark\'s price, drawn as a line: up means the stock is beating the market, down means it is lagging. Only its direction and its own prior highs matter, not where it sits beside price.',
     aliases: ['relative strength line', 'price relative'] },
   { key: 'rsRating', term: 'RS Rating',
-    // ⭐ MEASURED 2026-11-08 (design round; `tests/fixtures/indicators/rs_parity_deepvue.json`,
-    // railed by `tests/test_rs_parity_deepvue.py`): 21 names, Spearman 1.00 against
+    // ⭐ MEASURED 2026-11-08 (design round; `tests/fixtures/indicators/rs_parity_reference.json`,
+    // railed by `tests/test_rs_parity_reference.py`): 21 names, Spearman 1.00 against
     // Deepvue's 12M, mean |diff| 1.4 at 75 and above, ours 11.1 lower below 75.
     definition: 'A 1 to 99 rank of the stock\'s price change over roughly the past year against every other stock in the universe; 90 means it beat 90% of them. Ours is IBD-style and ranked against every stock we hold a recent price for, the way Deepvue\'s is: across 61 of its readings at 1, 3, 6, 9 and 12 months, ours sit about 3 points away on average with no lean either way; it has not been measured against MarketSurge.',
     aliases: ['relative strength rating', 'IBD-style rating'] },
@@ -51,9 +51,9 @@ export const GLOSSARY = Object.freeze([
   { key: 'benchmark', term: 'Benchmark',
     definition: 'What the stock is compared against: the S&P 500, the equal-weight S&P 500, the Nasdaq 100, the Russell 2000, or the stock\'s sector or industry group. Change it and the question changes.' },
   { key: 'mansfieldRs', term: 'Mansfield RS',
-    // U9: where UCT computes it. The screener's Mansfield RS column (200 daily bars) is
-    // the reading that stays once the slim RS Line ships; the sentence is true today too.
-    definition: 'Weinstein\'s version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the screener\'s Mansfield RS column, read on 200 daily bars.',
+    // U9: where UCT computes it. The screener's Mansfield RS column (200 daily bars), and since
+    // 2026-11-18 the UCT Mansfield RS indicator (`rsMansfield`, its own pane: the same column)
+    definition: 'Weinstein\'s version: the RS ratio measured against its own long average (52 weeks on his weekly charts), so it swings around zero, and above zero and rising means the stock is outperforming its own trend against the benchmark. On UCT it is the UCT Mansfield RS indicator on a chart (200 bars by default, a setting) and the screener\'s Mansfield RS column, read on 200 daily bars.',
     aliases: ['Mansfield relative strength'] },
   { key: 'rotationQuadrant', term: 'Rotation quadrant',
     // U9: where UCT computes it: the Terminal's rotation graph and the screener's weekly

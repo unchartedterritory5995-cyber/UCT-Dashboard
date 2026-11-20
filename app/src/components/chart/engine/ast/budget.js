@@ -136,7 +136,7 @@ import { SESSION_MAX_BARS } from './parse.js'
  *  (`lesson_gate_that_cannot_fail` — named here because this is an instance of
  *  it that is being DECLARED, not one that is being denied).
  *
- *  ⚰️ NUMBER PENDING (bt, 2026-11-16) — "UNREACHABLE" HELD FOR THE TABLE'S PRICE SERIES ONLY.
+ *  ⚰️ Engine 66 (#1473) (bt, 2026-11-16) — "UNREACHABLE" HELD FOR THE TABLE'S PRICE SERIES ONLY.
  *  A clock column (`hour`, `dayofweek`, `time`, …), `self` and every member input declared as a
  *  knob are `series` nodes too, so a member-door tree CAN reach the cap, and did: measured 9 and
  *  10 against 8 on `session-hilo__WM2g5GtC4h`, refused at install. The door now gives knobs back

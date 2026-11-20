@@ -40,7 +40,13 @@ const { Parser } = require('acorn')
 const jsx = require('acorn-jsx')
 const JsxParser = Parser.extend(jsx())
 
-const SKIP_DIRS = new Set(['node_modules', '__tests__', '__mocks__', 'dist', 'assets'])
+// ⛔ `testing` and `__fixtures__` hold test harnesses and their mock payloads, which no shipped module
+// imports (checked 2026-11-18: no import of either from outside tests, `testing/`, `qa/` or
+// `__fixtures__/`). A mock is not a hop to the screen. ⚰️ Before this, `agent/qa/capabilityRegression/
+// testing/harness.jsx`'s mock of the agent `earnings.expectedMove` kind (a different payload, which
+// leaves the Setup Grade out on purpose) shared four key names with `/api/research/expected-move` and
+// was reported as a hop that "drops grade" (tests/test_refusal_reaches_every_surface.py).
+const SKIP_DIRS = new Set(['node_modules', '__tests__', '__mocks__', '__fixtures__', 'testing', 'dist', 'assets'])
 const isTest = (name) => /\.(test|spec)\.[jt]sx?$/.test(name)
 
 function sources(dir, out = []) {

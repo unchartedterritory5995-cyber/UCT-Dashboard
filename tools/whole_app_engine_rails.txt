@@ -10,6 +10,12 @@
 # engine; 240 only Pine fixtures/docs/tools outputs (now pine heavy triggers); 71 read the app. The first PR
 # run (#1690) then found the corpus harness reading api/services/bars_window.py (merged the same day); that file
 # (HISTORY_WINDOW_BARS, Pine's history window) became a pine heavy trigger, which leaves these 68.
+# 2026-11-18: + ast/namedIndicators.test.js, which reads api/data/named_indicators.json (the named-indicator
+# library): a PR that changes the library and never touches the engine must run it.
+# 2026-11-18: + pineCompareCensus.test.js, which walks app/src for every `interpret()` call site and its declared
+# comparison role (Pine's tolerant compare): a new call site anywhere in the app must run it.
+# 2026-11-19: + heldSpanFollowsChart.test.js, which reads app/src/components/StockChart.jsx (the held span it hands
+# useSecondarySources) and api/routers/bars.py (/api/bars's le=60000, the ladder's top rung): either can break it.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
 src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
@@ -20,6 +26,7 @@ src/components/chart/engine/__tests__/eventColumns.test.js
 src/components/chart/engine/__tests__/flipB.test.jsx
 src/components/chart/engine/__tests__/flipCGeometry.test.jsx
 src/components/chart/engine/__tests__/flipCRecord.test.js
+src/components/chart/engine/__tests__/hostLaneWorker.rail.test.js
 src/components/chart/engine/__tests__/jsdocParams.test.js
 src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx
 src/components/chart/engine/__tests__/listingDeepen.test.js
@@ -35,6 +42,7 @@ src/components/chart/engine/__tests__/primitiveGate.test.js
 src/components/chart/engine/__tests__/r1StoreWriterCensus.test.js
 src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js
 src/components/chart/engine/__tests__/runtimeSwitchOn.test.js
+src/components/chart/engine/__tests__/secondaryLiveTail.test.jsx
 src/components/chart/engine/__tests__/secondarySourcesRevalidate.test.jsx
 src/components/chart/engine/__tests__/settingsBlobMigration.test.js
 src/components/chart/engine/__tests__/singleWriterIndex.test.js
@@ -42,6 +50,7 @@ src/components/chart/engine/__tests__/storeIntradayAgreement.test.js
 src/components/chart/engine/__tests__/suiteCoverage.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c45BarIndex.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.l8RecordedSupply.test.js
+src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js
 src/components/chart/engine/__tests__/volumeNumericPane.test.js
 src/components/chart/engine/__tests__/volumePaneResidency.test.js
 src/components/chart/engine/__tests__/vwapUtcBucketing.test.js
@@ -52,6 +61,7 @@ src/components/chart/engine/ast/freshness.test.js
 src/components/chart/engine/ast/interpret.test.js
 src/components/chart/engine/ast/lint.test.js
 src/components/chart/engine/ast/manifestProse.test.js
+src/components/chart/engine/ast/namedIndicators.test.js
 src/components/chart/engine/ast/parse.test.js
 src/components/chart/engine/ast/pcf.test.js
 src/components/chart/engine/ast/productScorecard.test.js
@@ -61,10 +71,12 @@ src/components/chart/engine/ast/symbolScope.test.js
 src/components/chart/engine/ast/symbolScopeProse.test.js
 src/components/chart/engine/ast/thinkscript.test.js
 src/components/chart/engine/defSchema.test.js
+src/components/chart/engine/heldSpanFollowsChart.test.js
 src/components/chart/engine/hostKnownDivergence.test.js
 src/components/chart/engine/lineIdentity.test.js
 src/components/chart/engine/nativeRegistry.test.js
 src/components/chart/engine/paneLayout.test.js
+src/components/chart/engine/pineCompareCensus.test.js
 src/components/chart/engine/runtime/__tests__/brokerPinsLock.test.js
 src/components/chart/engine/runtime/__tests__/hostNeutralClosure.rail.test.js
 src/components/chart/engine/runtime/__tests__/i6aN4BlockIndent.test.js
@@ -72,6 +84,7 @@ src/components/chart/engine/runtime/__tests__/minContractLock.test.js
 src/components/chart/engine/runtime/__tests__/runtimeDoorBudget.rail.test.js
 src/components/chart/engine/runtime/__tests__/runtimeInputKinds.test.js
 src/components/chart/engine/runtime/__tests__/serverBundle.rail.test.js
+src/components/chart/engine/runtime/__tests__/timeframeInputSetting.test.js
 src/components/chart/engine/runtime/__tests__/w9T11Record.test.js
 src/components/chart/engine/runtime/__tests__/w9T1Broker.test.js
 src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js

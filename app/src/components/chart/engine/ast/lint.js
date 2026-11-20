@@ -225,6 +225,16 @@ function argYieldsBool(node, table) {
       const functions = (table && table.functions) || {}
       return own(functions, node.name) ? functions[node.name].yields === 'bool' : false
     }
+    // ⭐ 2026-11-17 — AN OFFSET CHANGES *WHEN*, NEVER *WHAT*: `(high >= highest(high, 252))[1]` is
+    // the yes/no it was a bar ago. ⚰️ `offset` was not listed here, so `barssince(newHigh[1], 30)`
+    // ("a new high for the first time in 30 days") was called unanalysable and therefore
+    // "repaints", while `sentence.js::yieldsOf` accepted the same tree (Indicators backlog 63;
+    // the server twin is `ast_lint._arg_yields_bool`).
+    // Engine 74 (#1740, the engine 74 train) — THE SERVED SET GROWS. A formula or a pasted script that passes a
+    // shifted condition to a condition-role function (`ta.valuewhen(cond[1], x, 0)`) measured
+    // `repaints` and the store refused the save; it now measures `non-repainting` and is saved
+    // and served. No STORED document changes its answer: none of this shape could be stored.
+    case 'offset':
     case 'sym':
     case 'ltf':
     case 'tf_live':
@@ -393,7 +403,7 @@ function ownWindow(spec, argNodes) {
   if (lookback === UNBOUNDED) {
     return { back: UNKNOWN, forward: UNBOUNDED }
   }
-  // ⭐ NUMBER PENDING (bt) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK. The two halves
+  // ⭐ Engine 66 (#1473) (bt) — AN UNBOUNDED FORWARD REACH SAYS NOTHING ABOUT HOW FAR BACK. The two halves
   // are one declaration, but they are two numbers: `lastbaryear` (`lookback: 0`, `forward: "unbounded"`)
   // reads no earlier bar at all. Answering `back: UNKNOWN` here made this reader disagree with
   // `interpret.js::maxLookback`, which reads the lookback alone, on the first corpus tree that holds such

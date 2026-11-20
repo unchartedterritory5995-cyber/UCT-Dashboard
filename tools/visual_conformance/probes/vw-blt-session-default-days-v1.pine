@@ -1,0 +1,13 @@
+study("UCTPROBE_VW_BLT_SESSION_DEFAULT_DAYS_V1", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (parity2, U-BUILTIN), capture queue rows
+// Q-BLT-2a/b (docs/pine/capture-queue-2026-11-18-parity2.md). NEVER COMPILED ON TRADINGVIEW. No version pragma
+// (Pine v1), the sibling of `vw-blt-session-default-days.pine`: the same rows, each 1 when `time(period,
+// session)` is not `na`, else 0.
+plot(na(time(period, "0930-1600")) ? 0 : 1, title = "R01_rth_nodays")
+plot(na(time(period, "0930-1600:23456")) ? 0 : 1, title = "R02_rth_23456")
+plot(na(time(period, "0930-1600:1234567")) ? 0 : 1, title = "R03_rth_1234567")
+plot(na(time(period, "1000-1200")) ? 0 : 1, title = "R04_mid_nodays")
+plot(na(time(period, "1000-1200:23456")) ? 0 : 1, title = "R05_mid_23456")
+plot(na(time(period, "1900-0200")) ? 0 : 1, title = "R06_overnight_nodays")
+plot(na(time(period, "1900-0200:1234567")) ? 0 : 1, title = "R07_overnight_1234567")

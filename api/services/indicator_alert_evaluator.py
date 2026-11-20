@@ -566,12 +566,23 @@ def rs_alerts_offered() -> bool:
 
 def rs_rating_offered() -> bool:
     """The rating's gate: RS alerts offered AND `RS_HISTORY_ENABLED` (its one
-    reader, `api.main.rs_history_enabled`, imported lazily). Any failure to read
-    it is "not offered" — dark is the safe answer."""
+    definition, `api.services.rs_history_flag.rs_history_enabled`). Any failure to
+    read it is "not offered" — dark is the safe answer.
+
+    ⛔⛔ **NEVER IMPORT THIS FROM `api.main` AGAIN.** It was
+    `from api.main import rs_history_enabled` until 2026-11-15, and that one lazy
+    line put the whole web app inside **flow-worker's** import closure: 1,654 files
+    reachable against 24 watched, including the S7 `alert_taxonomy/price_level*`
+    modules, which both reddened
+    `test_price_level_is_STILL_OUTSIDE_flow_workers_closure` and silently made those
+    modules behaviour-changing under that gate's CP3 ruling. The value is identical;
+    only the import cost changed. `tests/test_flow_worker_closure.py` fails if
+    `api.main` re-enters the closure, by this route or any other.
+    """
     if not rs_alerts_offered():
         return False
     try:
-        from api.main import rs_history_enabled
+        from api.services.rs_history_flag import rs_history_enabled
         return bool(rs_history_enabled())
     except Exception:  # noqa: BLE001 - an unreadable switch is an off switch
         return False

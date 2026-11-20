@@ -113,11 +113,32 @@ export const PANEL_IMPORTERS = {
   RepeatContracts: () => import('./panels/RepeatContractsPanel'),
   PeriodChange: () => import('./panels/PeriodChangePanel'),
   CallSearch: () => import('./panels/CallSearchPanel'),
+  CallThemes: () => import('./panels/CallThemesPanel'),
   ExpectedMove: () => import('./panels/ExpectedMovePanel'),
   ThemeRotation: () => import('./panels/ThemeRotationPanel'),
+  // data wave 6 (2026-11-17)
+  IntradayUpdate: () => import('./panels/IntradayUpdatePanel'),
+  // UNEWS (2026-11-19): UCT News, the live news wire; shares the tab's one stream, no new route
+  UctNews: () => import('./panels/UctNewsPanel'),
+  TopFlow: () => import('./panels/TopFlowPanel'),
+  // UNVOL (2026-11-18): stocks far above their usual volume for the time of day, over the Screener's scan route.
+  UnusualVolume: () => import('./panels/UnusualVolumePanel'),
+  // MYH: the member's own Journal record on one stock (trades, position, notes); no new route
+  MyHistory: () => import('./panels/MyHistoryPanel'),
+  // GRP: one sector, industry or theme and its stocks ranked, with RS and flow; no new route
+  GroupDrill: () => import('./panels/GroupDrillPanel'),
+  // SHINT / SHRTS (2026-11-18): FINRA short interest and daily short volume, one stock and the market list
+  ShortInterest: () => import('./panels/ShortInterestPanel'),
+  ShortList: () => import('./panels/ShortListPanel'),
+  // DILU (2026-11-18): one company's share-issuance filings from its public SEC EDGAR filing index
+  Dilution: () => import('./panels/DilutionPanel'),
+  // the earnings season screen (owner pick, 2026-11-17)
+  EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
   // wave 8, lane E: market reads (SENT)
   Sentiment: () => import('./panels/SentimentPanel'),
+  // RATES (2026-11-18): Treasury yields by maturity, the two curve spreads and two small pictures
+  Rates: () => import('./panels/RatesPanel'),
   Scatter: () => import('./panels/ScatterPanel'),
   // end wave 8, lane E
   // my names (lane 9) — terminal-native; read the routes the watchlist page and the alert bell use

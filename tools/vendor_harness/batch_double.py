@@ -103,6 +103,18 @@ class _Request:
         self.page = page
 
     def get(self, url):
+        # ⭐ (2026-11-20) UCT's own API through the rig's browser context: the automation account's session and the
+        # listing answers production gives (`batch_capture.uct_first_trade_date`, a public GET); `page.ipo` steers it
+        if url.startswith(bc.UCT_ORIGIN + "/api/"):
+            self.page._log("request", "uct_api", url)
+            path = url[len(bc.UCT_ORIGIN):]
+            if path.startswith("/api/ticker-ipo/"):
+                t = path.rsplit("/", 1)[-1]
+                row = self.page.ipo.get(t)
+                if row is None:
+                    return _Resp(404, json.dumps({"detail": "not found"}), url)
+                return _Resp(200, json.dumps({"symbol": t, **row}), url)
+            return _Resp(404, "{}", url)
         self.page._log("request", "layout_access", url)
         if self.page.signed_in:
             return _Resp(200, "<html><title>UCT CAPTURE RIG</title></html>", url)
@@ -133,6 +145,11 @@ class _Keyboard:
         self.page._log("press", key, None)
         if key == "Escape":
             self.page.menu = None
+        if key == bc.SAVE_SHORTCUT:
+            # the layout's own Save: the persisted copy becomes the page as it is now (the guarded clean-save)
+            self.page.persisted = {"studies": json.loads(json.dumps(self.page.studies)),
+                                   "symbol": self.page.symbol, "resolution": self.page.resolution}
+            self.page.saved_word = True
 
 
 TITLE_XY = (300.0, 100.0)
@@ -157,7 +174,20 @@ class RecordingTVPage:
     """
 
     def __init__(self, behaviours=None, stays_bound=(), symbol="NASDAQ:AAPL", resolution="5",
-                 studies=None, signed_in=True, visible=True):
+                 studies=None, signed_in=True, visible=True, autosave=None, persisted=None, attach_delay_s=0.0):
+        # ⭐ THE LAYOUT'S PERSISTED COPY, what a fresh load reads (`reload`). None: a fresh load reads the page as
+        # it is. autosave="tradingview": the MEASURED rig (2026-11-18): an editor add saves the layout as it is
+        # then; a widget-API removal or resolution change is never saved.
+        self.autosave = autosave
+        self.persisted = json.loads(json.dumps(persisted)) if persisted is not None else None
+        # ⭐ A SLOW ATTACH (2026-11-19, htfform-c): after a fresh load the chart handle answers at once, with 0 studies,
+        # and the layout's saved studies attach `attach_delay_s` (virtual) seconds later. 0: they are there at once.
+        self.attach_delay_s = float(attach_delay_s)
+        # ⭐ UCT's answers through the rig's browser context: `/api/ticker-ipo` per ticker as
+        # production answers it (measured 2026-11-19: RDDT 2024-03-21 and ALAB 2024-03-20, both final)
+        self.ipo = {"RDDT": {"first_trade_date": "2024-03-21", "first_trade_final": True},
+                    "ALAB": {"first_trade_date": "2024-03-20", "first_trade_final": True}}
+        self.attach_at = None
         self.behaviours = behaviours or {}
         self.stays_bound = set(stays_bound)
         self.symbol, self.resolution = symbol, resolution
@@ -195,6 +225,8 @@ class RecordingTVPage:
             bc.VH_CAPTURE_JS: ("VH_CAPTURE", self._vh_capture), bc.VH_CHUNK_JS: ("VH_CHUNK", self._vh_chunk),
             bc.VH_CLEANUP_JS: ("VH_CLEANUP", self._vh_cleanup), bc.GLOBALS_JS: ("GLOBALS", self._globals),
             bc.ACCOUNT_JS: ("ACCOUNT", lambda a: self.account),
+            bc.SAVED_TEXT_JS: ("SAVED_TEXT", lambda a: bool(getattr(self, "saved_word", False))),
+            bc.FOCUS_BODY_JS: ("FOCUS_BODY", lambda a: getattr(self, "focus_leaves", True)),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
@@ -225,6 +257,16 @@ class RecordingTVPage:
     def goto(self, url, **kw):
         self._check_alive()
         self._log("goto", url, None)
+
+    def reload(self, **kw):
+        """A fresh load: the page reads the layout's persisted copy (when one is modelled); injected globals are gone."""
+        self._check_alive()
+        self._log("reload", "reload", None)
+        self.injected, self.globals, self.editor_open = False, set(), False
+        if self.persisted is not None:
+            self.studies = json.loads(json.dumps(self.persisted["studies"]))
+            self.symbol, self.resolution = self.persisted["symbol"], self.persisted["resolution"]
+        self.attach_at = self.t + self.attach_delay_s if self.attach_delay_s > 0 else None
 
     def _pointer(self, kind, x, y):
         self._check_alive()
@@ -265,9 +307,11 @@ class RecordingTVPage:
         return {"signedOut": [], "signedIn": ["header-user-menu-toggle"], "ambiguous": [], "title": "rig"}
 
     def _state(self, _):
+        attached = self.attach_at is None or self.t >= self.attach_at     # a slow attach: 0 studies until then
         return {"handle": "TradingViewApi", "vis": "visible" if self.visible else "hidden",
                 "symbol": self.symbol, "resolution": self.resolution,
-                "studies": [{"id": s["id"], "name": s["name"]} for s in self.studies], "panes": list(self.panes)}
+                "studies": [{"id": s["id"], "name": s["name"]} for s in self.studies] if attached else [],
+                "panes": list(self.panes)}
 
     def _set_symbol(self, s):
         self.symbol = s
@@ -341,6 +385,8 @@ class RecordingTVPage:
         self.studies.append({"id": f"st{self.next_id}", "name": declared_title(src) or "Untitled",
                              "sha": sha, "source": src, "reads": 0})
         self.bound = "update"        # every add binds the editor (capture-procedure.md, S5)
+        if self.autosave == "tradingview":
+            self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
         return {"clicked": True, "vis": "visible", "gate": gate}
 
     def _find(self, sid):

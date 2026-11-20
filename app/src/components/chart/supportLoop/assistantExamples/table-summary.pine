@@ -1,0 +1,11 @@
+//@version=5
+indicator("ATR summary table", overlay=true)
+len = input.int(14, "ATR length", minval=1)
+a = ta.atr(len)
+var table t = table.new(position.top_right, 2, 3, border_width=1)
+table.cell(t, 0, 0, "ATR", text_color=color.white, bgcolor=color.gray)
+table.cell(t, 1, 0, str.tostring(a, "#.##"), text_color=color.white)
+table.cell(t, 0, 1, "ATR %", text_color=color.white, bgcolor=color.gray)
+table.cell(t, 1, 1, str.tostring(a / close * 100, "#.##") + "%", text_color=color.white)
+table.cell(t, 0, 2, "From 50 SMA", text_color=color.white, bgcolor=color.gray)
+table.cell(t, 1, 2, str.tostring((close - ta.sma(close, 50)) / a, "#.#") + " ATR", text_color=color.white)

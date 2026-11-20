@@ -3645,9 +3645,12 @@ def _build_enrichment_for_date(target: str) -> dict:
     def _compute_hist_stats(sym: str) -> dict | None:
         """Return compact hist_stats from get_historical_earnings_moves.
 
-        Uses _fetch_quarterly_history (FMP → AV fallback) to get the AV-shaped
-        quarters list required by get_historical_earnings_moves, then computes
+        Uses _fetch_quarterly_history to get the AV-shaped quarters list
+        required by get_historical_earnings_moves, then computes
         avg_abs_move, up_count, total, and last_n (newest first, capped at 8).
+        The prices behind the moves are our own daily bars first, Yahoo when
+        they cannot answer; the read of our bars waits a bounded time, so one
+        symbol's slow read never holds this sweep.
         """
         try:
             from api.services.engine import _fetch_quarterly_history
@@ -3934,6 +3937,24 @@ def get_implied_moves(date_str: str | None = Query(None, alias="date")):
     is_past = target < _today_et().isoformat()
     cache.set(ck, out, ttl=(6 * 3600) if is_past else 300)
     return out
+
+
+@router.get("/api/calendar/earnings-season")
+def get_earnings_season(date_str: str | None = Query(None, alias="date"),
+                        user: dict = Depends(require_paid)):
+    """One day's earnings reporters for the Terminal's earnings season screen (ERNS): who
+    reports before the open and after the close, the move options priced before each report,
+    how each stock moved on its past reports, and the result and move once it lands.
+
+    `date` is `YYYY-MM-DD`, within one calendar week either side of the week the Calendar
+    shows; with none it is the next day that has a reporter. Paid, like the Calendar's other
+    member routes. NEVER builds on the request: `api/services/earnings_season.py` answers what
+    it holds, else waits a few seconds on its one background build, else says
+    `{"status": "computing"}` and the panel asks again. That module's docstring names every
+    source and why the enrichment batch is not one of them.
+    """
+    from api.services import earnings_season
+    return earnings_season.get_day(date_str)
 
 
 @router.get("/api/calendar/enrichment-batch")

@@ -16,8 +16,14 @@ import { adjustColumns, cleanSplitTable } from './adjust'
 
 export const HIST_BASE = '/api/hist'
 export const HEADER_NAME = 'X-Ubh-Header'
-/** Pieces in flight at once for one load (the connection is shared: HTTP/2 or 3 to the edge). */
-export const MAX_PARALLEL = 8
+/** Pieces in flight at once for one load (the connection is shared: HTTP/2 or 3 to the edge).
+ *  ⭐ 24, not 8 (2026-11-18): measured live, a cold 1h ticker with 9 yearly pieces fetched its NEWEST one
+ *  only after the first eight landed (the list is oldest first), a whole extra edge round trip (~500 ms)
+ *  before the depth could join; a 23-year 1h series (50,000 bars) paid three rounds. 24 asks a whole
+ *  50k-bar 60m / 40k-bar 30m depth in one round; the pieces are 20-60 KB each. */
+export const MAX_PARALLEL = 24
+/** Symbols whose index a page keeps (least recently used forgotten first). */
+export const INDEX_CACHE_MAX = 150
 
 /** The app's chart timeframe -> the lake series. 60m has two series: regular-session buckets
  *  (09:30-aligned) and extended-hours buckets (clock hours). */
@@ -33,18 +39,54 @@ export function lakeSymbol(sym) {
 }
 
 /** The index's periods of one series that overlap [from, to] (epoch seconds, either may be null),
- *  oldest first: `[{ period, bars, bytes, crc, first, last }]`. */
+ *  oldest first: `[{ period, bars, bytes, crc, first, last }]`.
+ *
+ *  An entry may count only part of its piece (tools/history_lake/identity.py, 2026-11-17): `from`
+ *  (inclusive) and `until` (exclusive) bound the bars that belong to this symbol's company (a reused
+ *  ticker's earlier holder is cut away), and `sym` + `period` name a piece stored under the symbol
+ *  the company traded as before (META's 2012-2022 bars are FB's pieces). `first` / `last` here are
+ *  that window, and loadBars keeps only the bars inside it. */
 export function periodsFor(index, series, { from = null, to = null } = {}) {
   const periods = index && index.series && index.series[series]
   if (!periods || typeof periods !== 'object') return []
   const out = []
-  for (const [period, e] of Object.entries(periods)) {
+  for (const [key, e] of Object.entries(periods)) {
     if (!e || !Number.isFinite(e.first) || !Number.isFinite(e.last)) continue
-    if (from != null && e.last < from) continue
-    if (to != null && e.first > to) continue
-    out.push({ period, ...e })
+    const [lo, hi] = windowOf(e)
+    if (hi < lo) continue
+    if (from != null && hi < from) continue
+    if (to != null && lo > to) continue
+    out.push({ period: key, ...e, first: lo, last: hi })
   }
   out.sort((a, b) => a.first - b.first)
+  return out
+}
+
+/** [first, last] of the bars an entry counts (its piece's, narrowed by `from` / `until`). */
+function windowOf(e) {
+  const lo = Number.isFinite(e.from) ? Math.max(e.first, e.from) : e.first
+  const hi = Number.isFinite(e.until) ? Math.min(e.last, e.until - 1) : e.last
+  return [lo, hi]
+}
+
+/** The symbol a piece is stored under: its own, or the one a stitched entry names. */
+function ownerOf(symbol, entry) {
+  return typeof entry.sym === 'string' && entry.sym ? entry.sym : symbol
+}
+
+/** Keep the bars inside the entry's window (no copy when nothing is cut). */
+function clip(cols, entry) {
+  const hasFrom = Number.isFinite(entry.from)
+  const hasUntil = Number.isFinite(entry.until)
+  if (!hasFrom && !hasUntil) return cols
+  const t = cols.t
+  let a = 0
+  let b = t.length
+  if (hasFrom) while (a < b && t[a] < entry.from) a++
+  if (hasUntil) while (b > a && t[b - 1] >= entry.until) b--
+  if (a === 0 && b === t.length) return cols
+  const out = {}
+  for (const k of Object.keys(cols)) out[k] = cols[k].subarray(a, b)
   return out
 }
 
@@ -86,6 +128,7 @@ export function createHistorySource(o = {}) {
   function loadIndex(sym, { signal } = {}) {
     const symbol = lakeSymbol(sym)
     let p = indexes.get(symbol)
+    if (p) { indexes.delete(symbol); indexes.set(symbol, p) }   // most recently used last
     if (!p) {
       p = (async () => {
         const res = await get(`${base}/v1/index/${encodeSymbol(symbol)}.json`, signal)
@@ -98,6 +141,8 @@ export function createHistorySource(o = {}) {
         return doc
       })()
       indexes.set(symbol, p)
+      // bounded (review of #1880: list warms load indexes too); a forgotten index is only read again
+      if (indexes.size > INDEX_CACHE_MAX) indexes.delete(indexes.keys().next().value)
       p.catch(() => { if (indexes.get(symbol) === p) indexes.delete(symbol) })   // an error is not kept
     }
     return p
@@ -115,7 +160,8 @@ export function createHistorySource(o = {}) {
     if (!placed(entry)) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index gives no place for the piece`, { stale: true })
     }
-    const url = pieceUrl(symbol, series, entry)
+    const owner = ownerOf(symbol, entry)
+    const url = pieceUrl(owner, series, entry)
     const res = await get(url, signal)
     if (res.status === 409 || res.status === 404) {
       throw new HistoryError(`${symbol} ${series}/${entry.period}: the index is out of date`, { status: res.status, stale: true })
@@ -125,10 +171,10 @@ export function createHistorySource(o = {}) {
     if (!headerJson) throw new HistoryError(`${symbol} ${series}/${entry.period}: no piece header in the answer`)
     const d = decodeColumns(headerJson, new Uint8Array(await res.arrayBuffer()))
     const hd = d.header
-    if (hd.symbol !== symbol || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
+    if (hd.symbol !== owner || hd.series !== series || hd.period !== entry.period || hd.crc !== entry.crc) {
       throw new PieceError(`${symbol} ${series}/${entry.period}: the answer is a different piece`)
     }
-    return toFloats(d)
+    return clip(toFloats(d), entry)
   }
 
   /**
@@ -170,11 +216,27 @@ export function createHistorySource(o = {}) {
   async function warmPieces(sym, series, entries) {
     const symbol = lakeSymbol(sym)
     await mapLimit((entries || []).filter(placed), maxParallel, async (e) => {
-      try { const res = await get(pieceUrl(symbol, series, e)); if (res.ok) await res.arrayBuffer() } catch { /* a warm only */ }
+      try { const res = await get(pieceUrl(ownerOf(symbol, e), series, e)); if (res.ok) await res.arrayBuffer() } catch { /* a warm only */ }
     })
   }
 
-  return { loadIndex, refreshIndex, loadBars, warmPieces }
+  /**
+   * Warm the EDGE's copy of pieces without downloading them (edge history.js readObject keeps a piece
+   * it validated, HEAD included; a HEAD answers no body). Measured 2026-11-18 (1h, 8 pieces): a first
+   * read in a data center 300-950 ms; with the edge's copy, 70 ms for all eight. `limit` at a time.
+   * Never rejects; resolves how many pieces it asked for.
+   */
+  async function warmEdge(sym, series, entries, { limit = 4, signal } = {}) {
+    const symbol = lakeSymbol(sym)
+    const list = (entries || []).filter(placed)
+    await mapLimit(list, limit, async (e) => {
+      if (signal?.aborted) return
+      try { await doFetch(pieceUrl(ownerOf(symbol, e), series, e), { method: 'HEAD', credentials: 'same-origin', signal }) } catch { /* a warm only */ }
+    })
+    return list.length
+  }
+
+  return { loadIndex, refreshIndex, loadBars, warmPieces, warmEdge }
 }
 
 function emptyResult(symbol, series) {

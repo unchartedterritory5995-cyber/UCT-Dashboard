@@ -183,13 +183,13 @@ function PerformanceBody({ pick, registry, code, several }) {
           <section aria-label="Your results by setup" data-testid="terminal-perf-setups">
             <h3 className={styles.muted}>By setup ({count(a.setups.length)})</h3>
             {a.setups.length ? (
-              <div className={styles.tableBox}>
+              <div className={styles.tableBox} data-fold="590">
                 <table className={styles.table} data-testid="terminal-perf-setup-table"
                   aria-label={`Your results by setup, best expectancy first, ${a.setups.length} ${a.setups.length === 1 ? 'setup' : 'setups'}`}>
                   <thead>
                     <tr>
-                      <th scope="col" className={styles.wrapCell}>Setup</th>
-                      <th scope="col" title="Closed trades tagged with this setup: the sample behind every number in the row">Trades</th>
+                      <th scope="col" className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>Setup</th>
+                      <th scope="col" className={styles.phoneWrap} title="Closed trades tagged with this setup: the sample behind every number in the row">Trades</th>
                       <th scope="col" title="Wins divided by wins and losses; breakeven trades are left out">Win rate</th>
                       <th scope="col" title="The setup's total profit or loss before fees, divided by its trades">Expectancy</th>
                       <th scope="col" className={styles.phoneHide} title="The average result in R, over this setup's trades with a known R">Average R</th>
@@ -199,8 +199,8 @@ function PerformanceBody({ pick, registry, code, several }) {
                   <tbody>
                     {a.setups.map((r) => (
                       <tr key={r.key} data-testid="terminal-perf-setup-row" data-low={r.lowConfidence ? 'true' : 'false'}>
-                        <td className={styles.wrapCell}>{r.setup}</td>
-                        <td>{count(r.trades)}{r.lowConfidence ? ` (small sample, ${count(CONFIDENCE_MIN)} needed)` : ''}</td>
+                        <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>{r.setup}</td>
+                        <td className={styles.phoneWrap}>{count(r.trades)}{r.lowConfidence ? ` (small sample, ${count(CONFIDENCE_MIN)} needed)` : ''}</td>
                         <td>{r.winRatePct === null ? 'No win or loss yet' : formatPercent(r.winRatePct, { decimals: 1 })}</td>
                         <td className={tone(r.expectancy)}>{r.expectancy === null ? NA : signedUsd(r.expectancy)}</td>
                         <td className={`${styles.phoneHide} ${tone(r.avgR) || ''}`.trim()}>{r.avgR === null ? 'R not known' : rText(r.avgR)}</td>
@@ -263,7 +263,8 @@ function PerformanceBody({ pick, registry, code, several }) {
         dollars lost, after fees. Expectancy in R is the average result per trade, in units of the risk taken. Edge score
         is the Journal&apos;s own: win rate times profit factor (before fees, counted up to 5) times how steady your R
         results are. A number from fewer than {count(CONFIDENCE_MIN)} trades is marked a small sample. A sign (+/-) marks
-        every gain and loss, so color is never the only signal. For every chart and filter, open the{' '}
+        every gain and loss, so color is never the only signal. For your record on one stock, type its ticker and
+        MYH (<kbd>NVDA MYH</kbd>). For every chart and filter, open the{' '}
         <PanelCommand cmd="JRNL" label="Open the Journal">Journal (JRNL)</PanelCommand>.
         {readAt ? ` Read at ${formatTimeEt(readAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>

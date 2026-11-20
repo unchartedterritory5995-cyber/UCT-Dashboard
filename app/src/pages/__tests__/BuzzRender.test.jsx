@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import BuzzRender from '../BuzzRender'
 
@@ -301,5 +301,33 @@ describe('BuzzRender', () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 500 })))
     render(<BuzzRender />)
     expect(await screen.findByText('Unavailable')).toBeInTheDocument()
+  })
+
+  // One check, on the server: the page forwards ?token= and takes the answer.
+  it.each([403, 401])('a %i answer shows "Unavailable", no board, and never claims ready', async (status) => {
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: false, status }))
+    vi.stubGlobal('fetch', fetchMock)
+    window.history.pushState({}, '', '/r/buzz?token=token-from-the-address&window=open')
+    try {
+      const { container } = render(<BuzzRender />)
+      expect(await screen.findByText('Unavailable')).toBeInTheDocument()
+      expect(container.querySelector('#buzz-export').textContent).toBe('Unavailable')
+      await new Promise((r) => setTimeout(r, 30))
+      expect(window.__buzzReady).toBeUndefined()
+      // The page asked the server, with the address's token, before showing anything.
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(String(fetchMock.mock.calls[0][0])).toBe('/api/r/buzz?token=token-from-the-address&window=open')
+    } finally {
+      window.history.pushState({}, '', '/')
+    }
+  })
+
+  it('asks the server whatever the address carries: the page makes no check of its own', async () => {
+    const fetchMock = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(PAYLOAD) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<BuzzRender />)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/api/r/buzz?token=&window=open')
+    expect(screen.queryByText('Unavailable')).toBeNull()
   })
 })

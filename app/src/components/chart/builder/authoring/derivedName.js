@@ -35,7 +35,8 @@
 import { helperKeysOfRows, sameTree } from './colorRules'
 import { tableSpecOf } from './tables'
 import PREFLIGHT_RULES from './preflightRules.json'
-import { recogniseExpansion } from '../../engine/ast/callExpansions'
+import { recogniseExpansion, collapseExpansions } from '../../engine/ast/callExpansions'
+import { libraryParts, libraryOutputOf, namedByTitle } from './checkedLibrary'
 
 const OP_WORDS = Object.freeze({
   '>': '>', '<': '<', '>=': '≥', '<=': '≤', '==': '=', '!=': '≠',
@@ -148,6 +149,12 @@ const PLAIN_CALL_WORDS = Object.freeze({
   supertrend: 'Supertrend', supertrendDirection: 'Supertrend direction',
   // 2026-10-30 — Parabolic SAR (#523): "Parabolic SAR 0.02,0.2", not "SAR 0.02,0.2".
   sar: 'Parabolic SAR', sarDirection: 'Parabolic SAR trend',
+  // 2026-11-18: "Fisher Transform 9", "Laguerre RSI 0.5", not "FISHER 9" or "LAGUERRERSI 0.5".
+  fisher: 'Fisher Transform', laguerre: 'Laguerre Filter', laguerreRsi: 'Laguerre RSI',
+  dpo: 'Detrended Price Oscillator',
+  // 2026-11-17 — the regular session's own values: "Opening range high 30", not "OPENINGRANGEHIGH 30".
+  sessionOpen: 'Session open', sessionHigh: 'Session high', sessionLow: 'Session low',
+  openingRangeHigh: 'Opening range high', openingRangeLow: 'Opening range low',
 })
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s)
 
@@ -364,7 +371,24 @@ function calculatorName(model) {
 export function derivedRowName(row, model = null) {
   const t = model ? tableNames(model) : null
   const label = t && row ? t.labelOf.get(row.key) : null
-  return label ? clip(label, LABEL_MAX) : formulaRowName(row)
+  if (label) return clip(label, LABEL_MAX)
+  const library = libraryLabelOf(row, model)
+  return library ? clip(library, LABEL_MAX) : formulaRowName(row)
+}
+
+/** ⭐ 2026-11-18 — A LIBRARY OUTPUT IS NAMED BY THE LIBRARY. A line that IS one of a checked
+ *  indicator's outputs carries that output's own label ("Trigger", "Signal", "+DI"). Found live:
+ *  the Fisher Transform's trigger line read "previous FISHER 9", its arithmetic, beside a line the
+ *  window called by the indicator's name. Only a WHOLE formula that is the output counts; a formula
+ *  that merely uses one inside other maths is still named by its maths. */
+function libraryLabelOf(row, model) {
+  if (!row || !row.ast) return null
+  try {
+    const inputs = ((model && model.memberInputs) || []).map((x) => x && x.key)
+    const part = libraryOutputOf(collapseExpansions(row.ast), inputs)
+    const label = part && part.output && part.output.label
+    return typeof label === 'string' && label.trim() ? label.trim() : null
+  } catch { return null }
 }
 
 /**
@@ -406,6 +430,24 @@ function formulaDefName(model, mode = 'plain') {
  */
 const notPrimary = (model, row) => !!model.scanKey && model.scanKey !== row.key
 
+// ⭐ 2026-11-18 (ruling) — A TITLE THAT NAMES A CHECKED LIBRARY INDICATOR IS A CLAIM ABOUT THE
+// FORMULA. "Kaufman Adaptive Moving Average" over a formula edited until it is no longer that
+// indicator would be a name on the chart with no checked formula behind it (the withheld-name rule,
+// for an edited copy). So such a title is kept while the definition still holds that indicator's
+// formula and gives way to the name derived from the maths once it does not. A member who names it
+// themselves in the same change keeps their own words, as always.
+function heldLibraryIndicator(model, entry) {
+  const inputs = ((model && model.memberInputs) || []).map((x) => x && x.key)
+  return ((model && model.rows) || []).some((r) => {
+    try { return !!(r && r.ast) && libraryParts(collapseExpansions(r.ast), inputs).some((p) => p.entry.id === entry.id) } catch { return false }
+  })
+}
+/** The library indicator `model`'s title names AND its formulas hold, or null. */
+export function libraryTitleOf(model) {
+  const entry = model ? namedByTitle(model.name) : null
+  return entry && heldLibraryIndicator(model, entry) ? entry : null
+}
+
 /** What "auto" looked like before the patch: name + each row's label. */
 export function namingSnapshot(model) {
   if (!model) return null
@@ -432,6 +474,7 @@ export function namingSnapshot(model) {
     name: model.name,
     nameAuto: model.name === derivedDefName(model) || model.name === formulaDefName(model)
       || model.name === formulaDefName(model, 'formula'),
+    libraryTitle: libraryTitleOf(model),
     rows,
   }
 }
@@ -446,7 +489,10 @@ export function applyDerivedNaming(model, before, explicit) {
   const changes = []
   const renamedOutputs = explicit.renamedOutputs || new Set()
   // ── the definition's name ──
-  const nameIsAuto = !explicit.renamedDefinition && (!before || before.nameAuto)
+  // the title named a library indicator the definition held, and no longer holds: it follows the maths
+  const claimLost = !explicit.renamedDefinition && !!before && !!before.libraryTitle
+    && model.name === before.name && !heldLibraryIndicator(model, before.libraryTitle)
+  const nameIsAuto = !explicit.renamedDefinition && (!before || before.nameAuto || claimLost)
   if (nameIsAuto) {
     const next = derivedDefName(model)
     if (next && next !== model.name) {

@@ -5422,6 +5422,231 @@
      "modes": {}
     }
    }
+  },
+  "stock.gammaLevels": {
+   "digest": "4b720eca7ef409e8",
+   "phrasings": {
+    "gamma levels for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "where is the call wall on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA gamma walls": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is the zero gamma level for NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.topFlowPicks": {
+   "digest": "74ae11576d419656",
+   "phrasings": {
+    "show me the top flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how are the top flow picks doing": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are the top flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "top flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.flowRecord": {
+   "digest": "c714c8f31e36cbe4",
+   "phrasings": {
+    "what is the flow record's win rate": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how has the flow record done": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "flow record results": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is the win rate of the flow picks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.earningsReactions": {
+   "digest": "720c755c0b81e4be",
+   "phrasings": {
+    "show me the latest earnings reactions": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did the latest earnings reporters move": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "earnings reactions": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how did the stocks that just reported earnings react": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.earningsSeason": {
+   "digest": "6c6492c7105e03ee",
+   "phrasings": {
+    "earnings season": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "show me the earnings season": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how does earnings season look": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "give me the earnings season": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.callThemes": {
+   "digest": "5f6a906b863ba93d",
+   "phrasings": {
+    "what are CEOs saying": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "call themes": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "rising phrases on earnings calls": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what are executives talking about": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.groupDrill": {
+   "digest": "ca1a3af76f3a28ad",
+   "phrasings": {
+    "stocks in the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is in the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "members of the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "drill into the technology sector": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.shortInterest": {
+   "digest": "6475998f9588ff5e",
+   "phrasings": {
+    "short interest on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "what is the short interest on NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "how heavily shorted is NVDA": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "NVDA days to cover": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "stock.shortList": {
+   "digest": "94d91a5bbee046f7",
+   "phrasings": {
+    "most shorted stocks": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "which stocks have the highest short interest": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "short interest list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "highest days to cover": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
   }
  },
  "refusals": {

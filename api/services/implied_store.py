@@ -259,6 +259,30 @@ def get_implied_for_date(report_date: str) -> dict[str, float]:
     return {r["sym"]: r["pct"] for r in rows}
 
 
+def get_implied_rows_for_date(report_date: str) -> list[dict]:
+    """Every capture stored for `report_date`, as rows: the same read as
+    `get_implied_for_date` with the fields a list needs beside the percent
+    (`dollar`, when it was captured, the expiry it priced, the price at capture
+    and which chain it came from). One indexed read; `sym` is the store's own
+    canonical form (`_canon`). For the Terminal's earnings season screen, which
+    lists a whole day and must not read one stock at a time."""
+    if not report_date:
+        return []
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT sym, report_date, captured_at, pct, dollar, expiry, spot, source "
+            "FROM implied_snapshots WHERE report_date = ? AND pct IS NOT NULL",
+            (str(report_date),),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def canonical_symbol(sym: str) -> str:
+    """The form this store keys a symbol by (BRK.B and BRK-B are one row)."""
+    return _canon(sym)
+
+
 def all_symbols() -> list[str]:
     """Every symbol with at least one snapshot, ascending.
 

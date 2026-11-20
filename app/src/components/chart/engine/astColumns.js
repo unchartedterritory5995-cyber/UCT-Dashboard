@@ -21,6 +21,7 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import {
   otherSymbolRefusalOfTree, isOtherSymbolRefusal, colourReaderRefusal, colourReaderMessage, plotValueIsNaLiteral,
+  withChartNewestDay,
 } from './otherSymbols'
 import { resolveLowerTf } from './lowerTf'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
@@ -163,10 +164,25 @@ export function withRuntimeErrorStop(out, stop) {
   return out
 }
 
-function astColumnsFor(def, bars, inputs, ctx) {
-  const stop = runtimeErrorStopFn && def && def.meta && def.meta.runtimeErrors
+/** ⭐ HOST WORKER — the registered `runtime.error` evaluator's answer for these arguments (null with
+ *  no evaluator or no stamp): the stop `astColumnsFor` reads. Its own function so the chart can ask
+ *  it on the main thread, where the evaluator is registered (`runtimeErrorStop.js`, which reaches
+ *  the chart registry), and hand the answer to a worker that computes the values
+ *  (`hostLaneWorkerCore.js`). */
+export function astRuntimeErrorStop(def, bars, inputs, ctx) {
+  return runtimeErrorStopFn && def && def.meta && def.meta.runtimeErrors
     ? runtimeErrorStopFn(def, bars, inputs, ctx)
     : null
+}
+
+function astColumnsFor(def, bars, inputs, ctx) {
+  return astColumnsGiven(def, bars, inputs, ctx, astRuntimeErrorStop(def, bars, inputs, ctx))
+}
+
+/** ⭐ HOST WORKER — `astColumnsFor` with its `runtime.error` stop already decided
+ *  (`astRuntimeErrorStop`, same arguments). The ONE body both threads run: the main thread through
+ *  `astColumnsFor`, the host lane's worker through `hostLaneWorkerCore.js`. */
+export function astColumnsGiven(def, bars, inputs, ctx, stop) {
   if (stop && stop.reached) {
     // ⛔ EVERY COLUMN, AND BY NAME: an absent column with no reason reads as "the
     // definition never declared it" (`columnErrors`).
@@ -260,7 +276,7 @@ function astColumnsUnstopped(def, bars, inputs, ctx) {
   const bound = (tree) => foldBound(tree, bindConsts)
   // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
   // tree of the document (`otherSymbolsFor`).
-  const other = otherSymbolsFor(def, ctx)
+  const other = otherSymbolsFor(def, withChartNewestDay(ctx, bars))   // ⭐ RS RATING L11 PR 2: the bind reads no bars
   // ⭐⭐ C41 — which lower-timeframe codes this binding may read, decided ONCE for
   // every tree of the document (`lowerTfFor`). Null for a document that reads none.
   const lower = lowerTfFor(def, ctx)
@@ -760,6 +776,25 @@ const NO_EXTRAS = (def, out) => out
 // renders nothing. The throw is right for a native that lost its function and wrong for a definition
 // that never had one.
 export function astLaneColumns(def, bars, inputs, ctx, extras = NO_EXTRAS) {
+  const plan = astLanePlan(def, bars, inputs, ctx)
+  if (plan.done) return plan.done
+  const out = astColumnsFor(plan.def, plan.valueRows, plan.scalars, plan.valueCtx)
+  return astLaneFinish(plan, out, inputs, ctx, extras)
+}
+
+/**
+ * ⭐⭐ HOST WORKER — `astLaneColumns` IN ITS THREE PARTS, so the middle one (the VALUES,
+ * `astColumnsFor`, which is where a host document's time goes) can be computed on another thread
+ * (`hostLaneAsync.js`) while the two around it stay on the chart's: what `astLaneColumns` does,
+ * in the order it does it, split and nothing else.
+ *
+ * `astLanePlan` → `{done}` (a whole answer that computes nothing: a refused setting, a windowed
+ * request) or `{def, rows, win, valueRows, valueCtx, scalars}`: the document the member's settings
+ * specialised, the rows and context its values are computed over, and the scalars they read.
+ * `astLaneFinish(plan, out, …)` → the run-read parts (`extras`) and, for a window, the widening and
+ * its record, over the values `out`.
+ */
+export function astLanePlan(def, bars, inputs, ctx) {
   const rows = Array.isArray(bars) ? bars : []
   // ⭐ SETTINGS PARITY (2a): the instance's parameter settings (`param<N>` inputs) are
   // written into the literals they stand for (`paramInputs.specializeParams`), memoised per
@@ -769,52 +804,90 @@ export function astLaneColumns(def, bars, inputs, ctx, extras = NO_EXTRAS) {
   // parameter settings. A choice no binding can serve is refused by name on every column, never fetched.
   const symbols = specializeSymbols(def, inputs)
   if (!symbols.ok) {
-    return withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: SYMBOL_SETTING_GUARD, message: symbols.message }])))
+    return { done: withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: SYMBOL_SETTING_GUARD, message: symbols.message }]))) }
   }
   def = symbols.def
   const special = specializeParams(def, inputs)
   if (special && special.refused) {
     const message = `${special.refused}: the chart does not compute a setting the indicator's own bounds refuse`
-    return withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: PARAM_SETTING_GUARD, message }])))
+    return { done: withColumnErrors({}, Object.fromEntries(astPlotKey(def).map((k) => [k, { guard: PARAM_SETTING_GUARD, message }]))) }
   }
   def = special
   // ⭐⭐ CBC-FMT — `calc_bars_count`: THE ONE SEAM where the host lane takes its window
   // (`engine/calcBarsWindow.js`). Every caller of `computeFor` (the binder, the object
   // lane, the vendor harness) inherits it; a chart of N bars or fewer, and every document
   // without the stamp, takes the path below unchanged.
+  //
+  // ⭐⭐ CBC-FMT — AN `ast` DOCUMENT'S COLUMNS OVER ITS `calc_bars_count` WINDOW.
+  // The run is the ordinary one (`astColumnsFor`, then the run-read colours and the run
+  // half, exactly as `computeFor` composes them) over the window's rows, told its first bar
+  // is the history's first bar and TradingView's `bar_index` 0 (`windowContext`, both
+  // witnessed). Its columns are widened back to the chart (`NaN` before the window) and
+  // carry the window's record (`astLaneFinish`). Three things the window does not witness are
+  // withheld or refused BY NAME, never computed as if they were (`barstate.isfirst`,
+  // `last_bar_index` and a history read are witnessed: the slice computes them as TradingView
+  // does, S10):
+  //   · a request of other bars (`meta.calcBarsRequest`, or a `sym` / `ltf` / higher-
+  //     timeframe read): every plot is refused (`CALC_BARS_REQUEST_GUARD`);
+  //   · the newest bar while it may be forming (`withCalcBarsRecord`).
   const win = calcBarsWindowOf(def, rows)
-  if (win) return windowedAstColumns(def, win, inputs, ctx, extras)
-  const out = astColumnsFor(def, rows, treeScalars(def, resolveInputs(def, inputs)), ctx)
-  // ⭐⭐ ENGINE 53 / DIV-4 — the run-read colours and the run half, when the caller hands them
-  // (`nativeRegistry.astRunExtras`); the headless export hands none (`headlessCompute.js`).
-  return extras(def, out, rows, inputs, ctx)
+  if (win && calcBarsRequests(def)) {
+    const errors = {}
+    for (const key of astPlotKey(def)) errors[key] = { guard: CALC_BARS_REQUEST_GUARD, message: calcBarsRequestSentence(win.count) }
+    return { done: withCalcBarsRecord(withColumnErrors({}, errors), win, ctx, RUNTIME_OBJECTS_KEY) }
+  }
+  const scalars = treeScalars(def, resolveInputs(def, inputs))
+  return win
+    ? { def, rows, win, valueRows: win.rows, valueCtx: windowContext(ctx), scalars }
+    : { def, rows, win: null, valueRows: rows, valueCtx: ctx, scalars }
 }
 
-/**
- * ⭐⭐ CBC-FMT — AN `ast` DOCUMENT'S COLUMNS OVER ITS `calc_bars_count` WINDOW.
- *
- * The run is the ordinary one (`astColumnsFor`, then the run-read colours and the run
- * half, exactly as `computeFor` composes them) over the window's rows, told its first bar
- * is the history's first bar and TradingView's `bar_index` 0 (`windowContext`, both
- * witnessed). Its columns are widened back to the chart (`NaN` before the window) and
- * carry the window's record. Three things the window does not witness are withheld or
- * refused BY NAME, never computed as if they were (`barstate.isfirst`, `last_bar_index` and
- * a history read are witnessed: the slice computes them as TradingView does, S10):
- *   · a request of other bars (`meta.calcBarsRequest`, or a `sym` / `ltf` / higher-
- *     timeframe read): every plot is refused (`CALC_BARS_REQUEST_GUARD`);
- *   · the newest bar while it may be forming (`withCalcBarsRecord`).
- */
-function windowedAstColumns(def, win, inputs, ctx, extras) {
-  const keys = astPlotKey(def)
-  if (calcBarsRequests(def)) {
-    const errors = {}
-    for (const key of keys) errors[key] = { guard: CALC_BARS_REQUEST_GUARD, message: calcBarsRequestSentence(win.count) }
-    return withCalcBarsRecord(withColumnErrors({}, errors), win, ctx, RUNTIME_OBJECTS_KEY)
+/** ⭐⭐ HOST WORKER — the second half of `astLaneColumns` (see `astLanePlan`): the values `out`
+ *  of `plan`, with the run-read parts and, for a `calc_bars_count` window, the widening and its
+ *  record. `ctx` is the CHART's context (the window's own is `plan.valueCtx`). */
+export function astLaneFinish(plan, out, inputs, ctx, extras = NO_EXTRAS) {
+  // ⭐⭐ ENGINE 53 / DIV-4 — the run-read colours and the run half, when the caller hands them
+  // (`nativeRegistry.astRunExtras`); the headless export hands none (`headlessCompute.js`).
+  if (!plan.win) return extras(plan.def, out, plan.rows, inputs, ctx)
+  const ran = extras(plan.def, out, plan.win.rows, inputs, plan.valueCtx)
+  return withCalcBarsRecord(widenToChart(ran, plan.win.cut, RUNTIME_OBJECTS_KEY), plan.win, ctx, RUNTIME_OBJECTS_KEY)
+}
+
+// ─── ⭐⭐ HOST WORKER — THE RECORDS A VALUES MAP CARRIES BESIDE ITS COLUMNS ───────────────────────
+//
+// `astColumnsFor` attaches its reasons NON-ENUMERABLY (a visible key is a phantom plot), and a
+// structured clone (a worker's `postMessage`) copies only enumerable properties. So the records
+// cross the boundary as plain data (`astSideRecordsOf`) and are re-attached on the other side
+// (`withAstSideRecords`) EXACTLY as the helpers above attach them: the same keys, non-enumerable,
+// frozen to the same depth. ⛔ ONE TABLE, every key a `with*` helper above defines on a values map;
+// `hostLaneWorker.rail.test.js` reads this file and fails on a `defineProperty(out, KEY` that is
+// not in it.
+const freezeRows = (v) => Object.freeze(Object.fromEntries(Object.entries(v).map(([k, r]) => [k, Object.freeze(r)])))
+export const AST_SIDE_RECORDS = Object.freeze({
+  [COLUMN_ERRORS]: (v) => Object.freeze(v),
+  [RUNTIME_ERROR_STOP]: (v) => v,
+  [LOWER_TF]: (v) => Object.freeze(v),
+  [OTHER_SYMBOLS]: (v) => Object.freeze(v),
+  [WITHHELD_BARS]: freezeRows,
+  [CHART_CLOCK]: (v) => Object.freeze({ ...v, withheld: Object.freeze(v.withheld) }),
+})
+
+/** The non-enumerable records a values map carries, as one plain object (null when none). */
+export function astSideRecordsOf(out) {
+  let sides = null
+  for (const key of Object.keys(AST_SIDE_RECORDS)) {
+    if (out && Object.prototype.hasOwnProperty.call(out, key)) (sides = sides || {})[key] = out[key]
   }
-  const wctx = windowContext(ctx)
-  const out = astColumnsFor(def, win.rows, treeScalars(def, resolveInputs(def, inputs)), wctx)
-  const ran = extras(def, out, win.rows, inputs, wctx)
-  return withCalcBarsRecord(widenToChart(ran, win.cut, RUNTIME_OBJECTS_KEY), win, ctx, RUNTIME_OBJECTS_KEY)
+  return sides
+}
+
+/** Re-attach `astSideRecordsOf`'s records to a values map, as `astColumnsFor` attached them. */
+export function withAstSideRecords(out, sides) {
+  for (const [key, value] of Object.entries(sides || {})) {
+    const shape = AST_SIDE_RECORDS[key]
+    if (shape) Object.defineProperty(out, key, { value: shape(value), enumerable: false })
+  }
+  return out
 }
 
 /** Does a windowed document request other bars? The door's stamp (the source's own

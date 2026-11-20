@@ -1,0 +1,69 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "ONCE-EMPTY LIST (coordinator ruling (B), fix/pine-host-two-step-delete): a test of a `var` list nothing has written yet (every write later, under a provably `barstate.islast` `if`; the test in no loop) runs no step on the host lane's one recompute, so its block is not walked and a correct picture (htf-candle-footprint's body boxes) is not taken away. Every condition, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "B1",
+   "mutant": "a write standing BEFORE the test is allowed",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "      if (!(r.at > me.hi) || !r.once) return false",
+   "to": "      if (!r.once) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostOnceEmptyList.test.js",
+   "expectRed": "written BEFORE the test"
+  },
+  {
+   "id": "B2",
+   "mutant": "a write outside a last-bar block is allowed",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "      if (!(r.at > me.hi) || !r.once) return false",
+   "to": "      if (!(r.at > me.hi)) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostOnceEmptyList.test.js",
+   "expectRed": "written on every bar"
+  },
+  {
+   "id": "B3",
+   "mutant": "a test inside a loop is allowed",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "    if (!me || me.loop !== 0) return false",
+   "to": "    if (!me) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostOnceEmptyList.test.js",
+   "expectRed": "the test inside a loop"
+  },
+  {
+   "id": "B4",
+   "mutant": "a list made with elements counts as empty",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "      lists.set(name, empty ? { lo: t[0].index, hi: lastIndex(st) } : null)",
+   "to": "      lists.set(name, r[0] && r[0].value === 'array.new' ? { lo: t[0].index, hi: lastIndex(st) } : null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostOnceEmptyList.test.js",
+   "expectRed": "a list made with an element"
+  },
+  {
+   "id": "B5",
+   "mutant": "the `size() > 0` test is walked again (the rule off at the `if`)",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "        if (!listEmptyOnOnce(sizeTestedList(cond), st)) {",
+   "to": "        if (true) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostOnceEmptyList.test.js src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c31Loops.test.js",
+   "expectRed": "history, then two realtime bars"
+  },
+  {
+   "id": "B6",
+   "mutant": "the `for … in` test is walked again (the rule off at the loop)",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "        if (word === 'for' && !head && listEmptyOnOnce(forInList(t), st)) {",
+   "to": "        if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostOnceEmptyList.test.js",
+   "expectRed": "`for p in ps` with no size test"
+  },
+  {
+   "id": "B7",
+   "mutant": "the function form `array.size(ps) > 0` is not read as a test",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "c[0].value === 'array.size' && h.isPunct(c[1], '(')",
+   "to": "c[0].value === 'array.size_' && h.isPunct(c[1], '(')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostOnceEmptyList.test.js",
+   "expectRed": "`array.size(ps) > 0`"
+  }
+ ]
+}

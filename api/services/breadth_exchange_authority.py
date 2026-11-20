@@ -557,6 +557,33 @@ def status() -> dict:
             "last_sync": _SYNC["last"], "last_sync_at": _SYNC["at"], "token": token()}
 
 
+#: ⚡ AN UNCHANGED SET IS PROVEN ONCE PER PROCESS (2026-11-17, web boot starvation). `install` re-hashed
+#: the three objects and re-ran `verify_set` (a `SELECT *` with `json.dumps` per row, every session since
+#: 2008 re-derived in Python) on EVERY 600 s tick only to answer "same", and that thread was busy in every
+#: event-loop stall capture after a boot. The proof is keyed on everything it proved: the pointer's bytes,
+#: the replica root, CURRENT.json's bytes and each local object's size and mtime. Any change (a new
+#: publication, a rewritten or replaced object, a moved CURRENT) runs the full proof again, as before.
+_PROVEN: dict = {"fp": None, "res": None}
+
+
+def _proof_fingerprint(pointer_bytes: bytes, root: str) -> Optional[tuple]:
+    """What a proof of `pointer_bytes` at `root` covered, or None when the installed set is not that
+    pointer (then nothing is skipped)."""
+    try:
+        p = parse_pointer(pointer_bytes)
+        with open(os.path.join(root, "CURRENT.json"), "rb") as f:
+            cur = f.read()
+        if cur != pointer_bytes:
+            return None
+        objs = []
+        for a in ("historical", "derived", "live"):
+            st = os.stat(local_path(p[a]["sha256"], root))
+            objs.append((a, p[a]["sha256"], st.st_size, st.st_mtime_ns))
+        return (os.path.abspath(root), sha_bytes(pointer_bytes), tuple(objs))
+    except Exception:  # noqa: BLE001 - anything unreadable means "prove it again"
+        return None
+
+
 def sync_once(store=None) -> dict:
     """Adopt the published pointer if it differs from the installed one. Never raises."""
     try:
@@ -565,14 +592,22 @@ def sync_once(store=None) -> dict:
             res = {"ok": False, "reason": "no-credentials"}
         else:
             b = store.get(key(POINTER_KEY))
-            res = {"ok": True, **install(b, store)}
-            if res.get("result") == "installed":
-                # ⭐ A new pointer: refresh the pre-built NYSE / Nasdaq Monitor rows (background).
-                try:
-                    from api.services import breadth_universe_monitor as _bum
-                    _bum.kick_refresh(("nasdaq", "nyse"))
-                except Exception:
-                    pass
+            root = _root()
+            fp = _proof_fingerprint(b, root)
+            if fp is not None and _PROVEN["fp"] == fp:
+                res = {"ok": True, **_PROVEN["res"], "result": "same", "proof": "earlier in this process"}
+            else:
+                got = install(b, store)
+                res = {"ok": True, **got}
+                after = _proof_fingerprint(b, root)
+                _PROVEN.update(fp=after, res=got if after is not None else None)
+                if got.get("result") == "installed":
+                    # ⭐ A new pointer: refresh the pre-built NYSE / Nasdaq Monitor rows (background).
+                    try:
+                        from api.services import breadth_universe_monitor as _bum
+                        _bum.kick_refresh(("nasdaq", "nyse"))
+                    except Exception:
+                        pass
     except Refused as e:
         res = {"ok": False, "reason": e.reason, "detail": e.detail}
     except Exception as e:  # noqa: BLE001
@@ -582,9 +617,19 @@ def sync_once(store=None) -> dict:
 
 
 def sync_loop(interval: int = 600) -> None:
-    """Web background thread (never from a request): follow the pointer."""
+    """Web background thread (never from a request): follow the pointer.
+
+    ⚡ When an authority is already installed, the first tick waits for the web pod's settle window
+    (api/services/bg_lane.py) and every tick is one lane turn: following a new pointer up to one
+    cadence late is this loop's own bound, and the served view never waits on it (`_view` reads
+    CURRENT itself). A volume with nothing installed yet syncs at once."""
+    from api.services import bg_lane
     while True:
-        r = sync_once()
+        if os.path.exists(os.path.join(_root(), "CURRENT.json")):
+            with bg_lane.turn("breadth-exch-sync"):
+                r = sync_once()
+        else:
+            r = sync_once()
         if not r.get("ok"):
             print("[breadth_exchange_authority] sync: %s" % r, flush=True)
         time.sleep(interval)

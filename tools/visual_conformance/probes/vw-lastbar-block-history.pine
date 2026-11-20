@@ -1,0 +1,50 @@
+//@version=6
+indicator("UCTPROBE_VW_LASTBAR_BLOCK_HISTORY", overlay = true, max_lines_count = 50, max_labels_count = 50)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (lang-units, U-COND), capture queue
+// rows Q-ISLAST-1 / Q-ISLAST-2 (docs/pine/capture-queue-2026-11-18-lang-units.md, CR-C1). NEVER COMPILED ON
+// TRADINGVIEW. The v4 sibling is `vw-lastbar-block-history-v4.pine`.
+//
+// --- A BLOCK THAT RUNS ON ONE HISTORICAL BAR: `if barstate.islast` ---
+// committed:trendlinesample (v4) does all of its work inside `if barstate.islast`: it draws two
+// lines, deletes `sup[1]` / `res[1]` there, and alerts on a cross read there. Pine keeps a call's
+// history per call site (C48, `vw-call-site-history`), and on a closed chart this block runs ONCE,
+// on the newest bar. What TradingView answers there is not captured. Each row is ONE label on the
+// newest bar whose text is "<row>|<value>" (`na` prints as "NaN"):
+//   L1  `x = close * 2` written in the block, `x[1]` read in the block    a block local's history
+//   L2  `close[1]` read in the block                                       control: the chart's series (C06)
+//   L3  `ta.sma(close, 3)` called in the block                             first run: `na`, or the every-bar sma?
+//   L4  `ta.change(close)` called in the block                             first run: `na`, or close - close[1]?
+//   L5  `ta.crossover(close, ta.sma(close, 5))` in the block, as 1 / 0     first run: false, or the every-bar cross?
+//   L6  `bar_index[1]` read in the block                                   control: the chart's bar_index (C06)
+//   E3 / E4 / E5  the same three calls made on EVERY bar, read in the block (the every-bar answers, so a
+//                 reading of L3 / L4 / L5 can be told from them)
+//   D1  `l = line.new(...)` then `line.delete(l[1])` in the block: read the capture's LINE COUNT and the
+//       line's coordinates (one line if `l[1]` is `na` there, as trendlinesample's `sup[1]` would be)
+// CAPTURE: NYSE:RDDT 1D and AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE, so the newest bar
+// is historical and the block runs once. Record `newestBarIsForming`. If a row does not compile, record
+// the error text and the line, remove only that row, and capture the rest.
+
+e3 = ta.sma(close, 3)
+e4 = ta.change(close)
+e5 = ta.crossover(close, ta.sma(close, 5))
+
+plot(close, "C00_close_CONTROL")
+
+if barstate.islast
+    x = close * 2
+    l1 = x[1]
+    l3 = ta.sma(close, 3)
+    l4 = ta.change(close)
+    l5 = ta.crossover(close, ta.sma(close, 5))
+    label.new(bar_index, close, "L1|" + str.tostring(l1))
+    label.new(bar_index, close, "L2|" + str.tostring(close[1]))
+    label.new(bar_index, close, "L3|" + str.tostring(l3))
+    label.new(bar_index, close, "L4|" + str.tostring(l4))
+    label.new(bar_index, close, "L5|" + (l5 ? "1" : "0"))
+    label.new(bar_index, close, "L6|" + str.tostring(bar_index[1]))
+    label.new(bar_index, close, "E3|" + str.tostring(e3))
+    label.new(bar_index, close, "E4|" + str.tostring(e4))
+    label.new(bar_index, close, "E5|" + (e5 ? "1" : "0"))
+    l = line.new(bar_index - 10, low, bar_index, high)
+    line.delete(l[1])

@@ -142,16 +142,19 @@ describe('F4 — contraction-box-doji-lines SPY: lines 204/178, boxes 53/54 are 
   // (cap 200 + 5) stands one creation apart on the two sides (lines 204 vs 205), so ours
   // has not yet taken the line TradingView's already took. A DIVERGE by one held object,
   // explained, where it was 26 lines and a box.
-  it('all 257 TradingView objects are ours IN ORDER; ours holds ONE more, its oldest line: the collector one creation apart (DIV-1)', () => {
+  // ⭐⭐ RE-PIN (engine 78 (#1858), Pine's tolerant compare, 2026-11-18): the "one creation apart" was a
+  // COMPARISON, not the collector. Pine compares two floats within 1e-10 (Q-FCMP); compared that way, ours makes
+  // exactly the lines TradingView made, so the one extra line is gone and every object pairs: lines 204/204,
+  // boxes 53/53, the capture MATCHES (as does contraction-box-doji-lines-spy-1d-2026-11-15, 200/201 before).
+  it('all 257 TradingView objects are ours IN ORDER, and we hold no other (Pine\'s tolerant compare)', () => {
     const c = cap(ID)
     const V = vendorObjects(c)
     const O = ourObjects(ours(ID))
-    expect([V.length, O.length]).toEqual([257, 258])
+    expect([V.length, O.length]).toEqual([257, 257])
     const { pairs, unV, unO } = inOrderUnpaired(V, O)
     expect(pairs).toBe(257)
     expect(unV).toEqual([])
-    expect(unO.map(key)).toEqual(['line||287.395,287.395'])
-    expect(unO[0].id).toBe(Math.min(...O.filter((o) => o.f === 'line').map((o) => o.id)))
+    expect(unO).toEqual([])
   }, T)
 
   it('TradingView\'s 26 objects we lack were all created BEFORE our bar 0 (ids <= 7345), all lines: what the cold window lacked', () => {
@@ -170,9 +173,10 @@ describe('F4 — contraction-box-doji-lines SPY: lines 204/178, boxes 53/54 are 
     const c = cap(ID)
     expect(spyBarIndexOfFirstBar(c)).toBe(6677)
     const v = graded(ID)
-    // the boxes agree; the lines sit one apart inside the collector band (above)
+    // the boxes agree, and since Pine's tolerant compare the lines do too (above)
     expect(family(v, 'boxes')).toMatchObject({ vendor: 53, ours: 53 })
-    expect(family(v, 'lines')).toMatchObject({ vendor: 204, ours: 205 })
+    expect(family(v, 'lines')).toMatchObject({ vendor: 204, ours: 204 })
+    expect(v.objects.verdict).toBe('MATCH')
   }, T)
 
   it('control: on RDDT (from the listing) the same script MATCHES', () => {

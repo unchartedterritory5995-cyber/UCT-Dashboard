@@ -17,9 +17,9 @@
 // witnessed spelling (`SP:SPX`) by `interpret.js::isoDay`, and `requestAlignment` then matches the
 // chart's rows by exact key. Both paths a member reaches RS Rating by are run: the door's definition,
 // and the stored row as "Your indicators" installs it (the same document through JSON).
-// ⛔ CONTROL: the same forming chart with SPX ending at yesterday is refused `runtime:request` and
-// draws nothing; that is production before the fix, and it is what turns this rail red if the
-// index answer loses today's bar or the re-keying stops reading unix seconds.
+// ⛔ CONTROL: the same forming chart with SPX ending at yesterday draws nothing (it was refused `runtime:request`;
+// since the e85 tail-lag ruling it waits for SPX's newest bar, by name); that is production before the fix, and it is
+// what turns this rail red if the index answer loses today's bar or the re-keying stops reading unix seconds.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -125,10 +125,14 @@ describe('L10 — in session, with the index answer ending at today, RS Rating d
       expect(labels.map((o) => o.props.text.trim())).toEqual(['RS Rating', expect.stringMatching(/^\d{1,2}$/)])
     })
 
-    it(`${name}: ⛔ CONTROL — SPX ending at yesterday is refused runtime:request and draws nothing`, () => {
+    // ⭐ (e85, the tail-lag ruling 2026-11-19) SPX ending at yesterday on a chart whose newest bar is forming is SPX's
+    // newest bar not arrived yet: the run half WAITS for it, by name (`tailLag.test.js`), where it was refused
+    // `runtime:request`. Still nothing is drawn from this run, so this control still turns red if the index answer loses
+    // today's bar (the served rail above then waits instead).
+    it(`${name}: ⛔ CONTROL — SPX ending at yesterday waits for SPX's newest bar and draws nothing`, () => {
       const def = install(build())
       const cols = registry.computeFor(def, CHART, {}, ctxWith(SPX_THROUGH_YESTERDAY))
-      expect(runHalfOf(cols)).toEqual({ state: 'refused', code: 'runtime:request' })
+      expect(runHalfOf(cols)).toEqual({ state: 'pending', code: 'runtime:request-pending', waitingFor: 'SPX' })
       expect(runtimeObjectsOf(cols)).toBeNull()
     })
   }

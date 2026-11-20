@@ -68,6 +68,8 @@ describe('refusal families', () => {
 
   it('the chart door\'s own guards have the families chosen for them (spec section 4)', () => {
     expect(familyOf('pine:paint-pane').id).toBe('presentation')
+    // a `plotarrow` alone: the value is computed, its arrows are not drawn (never a line of its value)
+    expect(familyOf('pine:plotarrow-not-drawn').id).toBe('presentation')
     expect(familyOf('runtime:na-test').id).toBe('state')
     expect(familyOf('runtime:withheld-all').id).toBe('shape')
     expect(familyOf('runtime:nothing-drawn').id).toBe('shape')

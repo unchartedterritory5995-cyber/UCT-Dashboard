@@ -3,9 +3,10 @@
 // ─── ⭐⭐ WS-C (Phase 3) — THE HISTORY AND SERIES WALLS BESIDE P3 ────────────────
 //
 //   1. `max_bars_back`: a read past Pine's history buffer STOPS the script on
-//      TradingView. A constant offset past it refuses the build by name; an
-//      offset over runtime state stops the run by name in the VM. The buffer is
-//      5,000 bars, or the `max_bars_back = N` the declaration names.
+//      TradingView. An offset over runtime state stops the run by name in the VM.
+//      The buffer is 5,000 bars, or the `max_bars_back = N` the declaration names.
+//      ⭐ engine 83 (WS-C M1 / M5, captured 2026-11-18): a CONSTANT offset is
+//      SERVED past both (TradingView never stopped one): it used to refuse the build.
 //   2. Infinity: `x[1]` of a slot that held `1/0` reads `na`, as the columnar
 //      lane's shifted column does — the two lanes now agree on `x[1] > y`.
 //   (The v6 `for` bound re-read is WS-A's: plan section 5, handed off.)
@@ -38,28 +39,42 @@ const refusal = (src) => { const b = built(src); return b.ok ? null : b.refusal 
 
 describe('1 — max_bars_back: a read past the buffer is an error, never an answer', () => {
   const v5 = (decl, body) => `//@version=5\nindicator("t"${decl})\n${body}`
-  it('a constant offset past 5,000 refuses by name (it used to read the chart)', () => {
-    const r = refusal(v5('', 'plot(close[6000])\n'))
-    expect(r && r.guard).toBe('runtime:directive')
-    expect(r.message).toMatch(/history buffer of 5000 bars/)
+  // ⭐ engine 83 (WS-C M5, `vw-w4-max-bars-back-m5-spy-1d-2026-11-18`): `close[6000]` with no
+  // declaration is real on every bar past bar 6,000 and `na` before it. It used to refuse `runtime:directive`.
+  it('a constant offset past 5,000 is SERVED: the bar 6,000 back, `na` only before it (M5)', () => {
+    const LONG = Array.from({ length: 6100 }, (_, i) => ({ t: 1600000000 + i * 86400, o: 1, h: 2, l: 0.5, c: 10 + i, v: 1 }))
+    const b = buildRuntimeIr(v5('', 'plot(close[6000])\n'), { bars: LONG, inputs: {} })
+    expect(b.ok, b.ok ? '' : b.refusal.message).toBe(true)
+    const p = lowerIrProgram(b.ir)
+    const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(LONG.map((x) => x[k])))
+    const [y] = execute(p, { bars: LONG.length, series, columns: p.columns, confirmed: true }).outputs.map((o) => Array.from(o))
+    expect(y.slice(0, 6000).every(Number.isNaN)).toBe(true)
+    expect(y.slice(6000)).toEqual(LONG.slice(0, 100).map((x) => x.c))
   })
-  it('a constant offset past a DECLARED buffer refuses; within it builds and reads the chart', () => {
-    expect(refusal(v5(', max_bars_back = 20', 'plot(close[30])\n')).guard).toBe('runtime:directive')
+  // ⭐ engine 83 (WS-C M1, `vw-w4-max-bars-back-m1-spy-1d-2026-11-18`): `close[30]` under a declared
+  // `max_bars_back = 20` is real on every bar from bar 30. It used to refuse `runtime:directive`.
+  it('a constant offset past a DECLARED buffer is SERVED, like one within it (M1)', () => {
+    const [y30] = run(v5(', max_bars_back = 20', 'plot(close[30])\n'))
+    expect(y30.slice(30)).toEqual(BARS.slice(0, N - 30).map((b) => b.c))
+    expect(y30.slice(0, 30).every(Number.isNaN)).toBe(true)  // before bar 0: na
     const [y] = run(v5(', max_bars_back = 20', 'plot(close[10])\n'))
     expect(y.slice(10)).toEqual(BARS.slice(0, N - 10).map((b) => b.c))
     expect(y.slice(0, 10).every(Number.isNaN)).toBe(true)   // before bar 0, inside the buffer: na
   })
-  it('a variable\'s constant offset past the declared buffer refuses too', () => {
-    const r = refusal(v5(', max_bars_back = 20', 'var float x = 0.0\nx := x + close\nplot(x[25])\n'))
-    expect(r && r.guard).toBe('runtime:directive')
+  it('a variable\'s constant offset past the declared buffer is SERVED from a ring that deep', () => {
+    const [y] = run(v5(', max_bars_back = 20', 'var float x = 0.0\nx := x + close\nplot(x[25])\n'))
+    const sums = []
+    BARS.reduce((acc, b) => { sums.push(acc + b.c); return acc + b.c }, 0)
+    expect(y.slice(25)).toEqual(sums.slice(0, N - 25))
+    expect(y.slice(0, 25).every(Number.isNaN)).toBe(true)
   })
   it('an offset over runtime state past 5,000 STOPS the run (it used to answer `na`)', () => {
     expect(() => run(v5('', 'var int n = 0\nn := bar_index >= 30 ? 6000 : 1\nplot(close[n])\n')))
       .toThrow(/past Pine's history buffer of 5000 bars/)
   })
-  it('… past a DECLARED buffer stops it too; within it the run is untouched', () => {
-    expect(() => run(v5(', max_bars_back = 20', 'var int n = 0\nn := bar_index >= 30 ? 25 : 1\nplot(close[n])\n')))
-      .toThrow(/history buffer of 20 bars/)
+  it('… past a DECLARED buffer it is the REAL history (WS-C Q1 M2 / Q-MBB-2, captured 2026-11-18: TradingView never stops there); within it the run is untouched', () => {
+    const [p] = run(v5(', max_bars_back = 20', 'var int n = 0\nn := bar_index >= 30 ? 25 : 1\nplot(close[n])\n'))
+    expect(p[35]).toBe(BARS[10].c)                        // 25 back, past the declared 20
     const [y] = run(v5(', max_bars_back = 20', 'var int n = 0\nn := bar_index >= 30 ? 15 : 1\nplot(close[n])\n'))
     expect(y[35]).toBe(BARS[20].c)
     expect(y[5]).toBe(BARS[4].c)

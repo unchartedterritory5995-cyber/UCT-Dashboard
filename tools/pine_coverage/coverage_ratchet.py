@@ -16,7 +16,8 @@ transfer with the committed snapshot `docs/pine/coverage-ratchet.json` (keys + t
 THE PREDICATE is the coverage map's, imported, never restated (`coverage_map.py`):
   production   `transfers_fully`: the census's `clean` (isClean of step 0) and not a strategy that places
                orders. The headline "transfers fully" of docs/pine/COVERAGE-MAP.md.
-  runtime-on   `runtime_on_transfers`: clean, or attached on the runtime lane, and not placing orders.
+  runtime-on   `runtime_on_transfers`: clean, or attached on the runtime lane, or a host document whose run
+               half draws what its object program lost (`cleanByRunHalf`), and not placing orders.
 Both read step 0 only, so the census runs with cap 1 (no peeling: the wall list is the map's job).
 
 VERDICTS (exit code):
@@ -47,6 +48,8 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import coverage_map as CM  # noqa: E402 -- the predicates and the script sha: one authority
+sys.path.insert(0, os.path.join(ROOT, "tools", "vendor_harness"))
+import store_held as SH  # noqa: E402 -- the store-held rule (libraries chain, 2026-11-19): one authority
 import run_census as RC  # noqa: E402 -- the census loop and the lane proof: one authority
 
 SCHEMA = "uct.pine-coverage-ratchet/v1"
@@ -153,6 +156,12 @@ def wall_of(lane, row, src):
             parts.append("attached with refusals %s" % ", ".join(guards))
         if st.get("lossVerdict") not in (None, "clean"):
             parts.append("objects %s" % st.get("lossVerdict"))
+            # ⭐⭐ PARITY UNIT 1 - the run half that would draw what the host program lost, as bound
+            rhb = st.get("runHalfBound") or {}
+            if lane == RC.LANE_RUNTIME_ON and rhb:
+                parts.append("run half %s%s" % (rhb.get("state"), " %s" % rhb["code"] if rhb.get("code") else ""))
+                if row.get("cleanByRunHalf") and CM.is_runtime_killed(src, _killed()):
+                    parts.append("on the runtime kill list (api/data/pine_runtime_killlist.json)")
         if st.get("withheldObjects"):
             parts.append("object program withheld")
         if (st.get("withheldPaints") or 0) > 0:
@@ -201,6 +210,25 @@ def measured_problems(lane, rows, scripts):
     return probs
 
 
+def store_held_of(doc, lane, rows):
+    """{key: "store-held: ..."} for each snapshot script measured WITH a store whose pins this run's rows do not
+    hold. A run without a store holds none; a run with the same store holds them all and judges the script."""
+    pinned = ((((doc or {}).get("lanes") or {}).get(lane) or {}).get("storeHeld") or {})
+    out = {}
+    for k, pins in pinned.items():
+        loaded = set(SH.pins_of((rows or {}).get(k)))
+        missing = [x for x in sorted(pins) if x not in loaded]
+        if missing:
+            out[k] = SH.reading(missing)
+    return out
+
+
+def judge(snap, now, held):
+    """(lost, gained), sorted: a snapshot script that no longer transfers is LOST unless it is store-held (`held`),
+    which this run cannot grade and names instead; a script that newly transfers is gained."""
+    return sorted(k for k in set(snap) - set(now) if k not in held), sorted(set(now) - set(snap))
+
+
 def transfer_set(lane, rows, scripts):
     return {k for k in scripts if k in rows and transfers(lane, rows[k], scripts[k]["src"])}
 
@@ -234,6 +262,13 @@ def snapshot_problems(doc, lane, scripts):
     if changed:
         probs.append("the text of %d snapshot script(s) changed since the snapshot (sha differs): %s - re-measure and "
                      "--write" % (len(changed), ", ".join(changed[:5])))
+    held = sec.get("storeHeld") or {}
+    stray = sorted(k for k in held if k not in names)
+    if stray:
+        probs.append("the %s lane marks %d store-held script(s) it does not list: %s" % (lane, len(stray), ", ".join(stray[:5])))
+    bad = sorted(k for k, pins in held.items() if not pins or not all(SH.parse_pin(x) for x in pins))
+    if bad:
+        probs.append("the %s lane has malformed store pins for: %s" % (lane, ", ".join(bad[:5])))
     return probs
 
 
@@ -241,7 +276,7 @@ def snapshot_text(doc):
     return json.dumps(doc, indent=1, sort_keys=True, ensure_ascii=True) + "\n"
 
 
-def write_snapshot(path, doc, lane, keys, scripts):
+def write_snapshot(path, doc, lane, keys, scripts, held=None):
     doc = dict(doc or {})
     doc["schema"] = SCHEMA
     doc["about"] = ("The committed-corpus scripts (corpus/committed) that transfer on each lane, by the coverage "
@@ -249,6 +284,11 @@ def write_snapshot(path, doc, lane, keys, scripts):
                     "pine-heavy coverage-ratchet legs. Keys and text sha only.")
     lanes = dict(doc.get("lanes") or {})
     lanes[lane] = {"count": len(keys), "scripts": {k: scripts[k]["sha"] for k in sorted(keys)}}
+    # ⭐ store-held (2026-11-19): a script whose transfer was measured WITH a library store names its pins, so a
+    # run without that store skips it by name instead of reading a loss
+    pinned = {k: v for k, v in sorted((held or {}).items()) if k in keys and v}
+    if pinned:
+        lanes[lane]["storeHeld"] = pinned
     doc["lanes"] = lanes
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
@@ -273,7 +313,7 @@ def update_commands(lane):
 
 # ─── the run ──────────────────────────────────────────────────────────────────
 
-def measure(lane, scripts, out_dir):
+def measure(lane, scripts, out_dir, library_store=None):
     """The census over every committed script, in `lane`, into `out_dir` (must be empty: ⛔ never judge a
     census.jsonl left by another tree as today's)."""
     if os.path.isdir(out_dir) and os.listdir(out_dir):
@@ -285,7 +325,7 @@ def measure(lane, scripts, out_dir):
     items = [{"key": k, "path": scripts[k]["path"], "cap": CAP} for k in sorted(scripts)]
     print("coverage ratchet: measuring %d committed scripts, lane %s, cap %d -> %s" % (len(items), lane, CAP, out_dir),
           flush=True)
-    RC.drive(items, out_dir, lane)
+    RC.drive(items, out_dir, lane, library_store=library_store)
     return os.path.join(out_dir, "census.jsonl")
 
 
@@ -318,6 +358,9 @@ def main(argv=None):
     ap.add_argument("--rows", default=None, help="judge this census.jsonl (with lane.jsonl and inputs.json beside it) "
                                                  "instead of measuring")
     ap.add_argument("--write", action="store_true", help="update the snapshot's lane from the measurement")
+    ap.add_argument("--library-store", default=None,
+                    help="measure with this library store (production's: the allowlist's promote rows); each script "
+                         "whose transfer needed it is recorded store-held, and a run without it skips it by name")
     ap.add_argument("--snapshot", default=SNAPSHOT)
     ap.add_argument("--corpus", default=CORPUS, help=argparse.SUPPRESS)
     ap.add_argument("--corpus-index", default=CORPUS_INDEX, help=argparse.SUPPRESS)
@@ -373,7 +416,7 @@ def main(argv=None):
             rows_path = a.rows
             result["problems"] += rows_dir_problems(rows_path, lane, scripts)
         else:
-            rows_path = measure(lane, scripts, out_dir)
+            rows_path = measure(lane, scripts, out_dir, library_store=a.library_store)
     except RC.CensusRunError as e:
         result["problems"].append("the census did not finish: %s" % e)
         return finish("REFUSED", EXIT_REFUSED)
@@ -398,7 +441,8 @@ def main(argv=None):
                                                                                if k in scripts else "not in the corpus", k))
         for k in sorted(now - had):
             print("ADDED to the %s snapshot: %s" % (lane, k))
-        write_snapshot(a.snapshot, doc, lane, now, scripts)
+        write_snapshot(a.snapshot, doc, lane, now, scripts,
+                       held={k: SH.pins_of(rows.get(k)) for k in now if SH.pins_of(rows.get(k))})
         result["snapshot"] = len(now)
         print("wrote %s (%s lane: %d scripts)" % (a.snapshot, lane, len(now)))
         return finish("WRITTEN", EXIT_PASS)
@@ -408,8 +452,12 @@ def main(argv=None):
         return finish("REFUSED", EXIT_REFUSED)
     snap = set(doc["lanes"][lane]["scripts"])
     result["snapshot"] = len(snap)
-    result["lost"] = [{"key": k, "wall": wall_of(lane, rows.get(k), scripts[k]["src"])} for k in sorted(snap - now)]
-    result["gained"] = sorted(now - snap)
+    held = store_held_of(doc, lane, rows)
+    result["storeHeld"] = held
+    for k, why in sorted(held.items()):
+        print("%s (not judged: this run does not hold that store): %s" % (why, k))
+    lost, result["gained"] = judge(snap, now, held)
+    result["lost"] = [{"key": k, "wall": wall_of(lane, rows.get(k), scripts[k]["src"])} for k in lost]
     if result["lost"]:
         return finish("LOST", EXIT_LOST)
     return finish("PASS", EXIT_PASS)

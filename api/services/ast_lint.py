@@ -384,7 +384,20 @@ def _arg_yields_bool(node: Any, table: Mapping[str, Any]) -> bool:
     if kind == "call":
         functions = table.get("functions") or {}
         return functions.get(node.get("name"), {}).get("yields") == "bool"
-    if kind in ("sym", "ltf", "tf_live", "tf_merge", "tf"):
+    # ⭐ 2026-11-17 -- AN OFFSET CHANGES *WHEN*, NEVER *WHAT* (`scan_definition.is_boolean_tree`'s own
+    # words for the same node). `(high >= highest(high, 252))[1]` is the yes/no it was a bar ago.
+    # ⚰️ This arm did not list `offset`, so "a new 52-week high for the first time in at least 30
+    # days" -- spelled the natural way, `barssince(newHigh[1], 30) >= 30` -- was called
+    # UNANALYSABLE here and therefore "repaints", while the interpreter's resolver accepted the
+    # same tree. The door refused it twice as `lint:repaint` and a member read "the formula would
+    # repaint" about a formula that reads only earlier bars (Indicators backlog 63).
+    # Engine 74 (#1740, the engine 74 train) -- THE SERVED SET GROWS. A formula or a pasted
+    # script that passes a shifted condition to a condition-role function
+    # (`ta.valuewhen(cond[1], x, 0)`) measured `repaints` and the store's `repaint` gate refused
+    # the save ("a formula whose past values can change after the fact is not saved"); it now
+    # measures `non-repainting` and is saved and served. No STORED document changes its answer:
+    # none of this shape could be stored.
+    if kind in ("sym", "ltf", "tf_live", "tf_merge", "tf", "offset"):
         args = node.get("args") or []
         return len(args) == 1 and _arg_yields_bool(args[0], table)
     return False
@@ -561,7 +574,7 @@ def _own_window(spec: Any, arg_nodes: List[Any]) -> Tuple[Reach, Reach]:
         return UNKNOWN, UNKNOWN
     if lookback == UNBOUNDED:
         return UNKNOWN, UNBOUNDED
-    # NUMBER PENDING (bt) -- an unbounded FORWARD reach says nothing about how far BACK: the
+    # Engine 66 (#1473) (bt) -- an unbounded FORWARD reach says nothing about how far BACK: the
     # twin of `lint.js::ownWindow`. `lastbaryear` (lookback 0, forward "unbounded") reads no
     # earlier bar; answering UNKNOWN made this reader disagree with `max_lookback` in
     # `ast_interpret`, which reads the lookback alone. The repaint verdict is untouched.

@@ -605,6 +605,105 @@ def _unsupplied_reason(tree: Any, codes: Sequence[str]) -> str:
     return "; ".join(parts) + "."
 
 
+def _whole_back(v: Any) -> bool:
+    """A history offset's ``k`` is a literal whole number >= 1 (``evaluability.js::wholeBack``)."""
+    return (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+            and float(v).is_integer() and v >= 1)
+
+
+def _param_offset_ids(tree: Any, compute: Any) -> set:
+    """The ``offset`` nodes of ``tree`` a parameter setting can move: every locator of
+    ``compute.paramManifest`` read against THIS tree, whatever tree it was recorded for (an
+    over-read only refuses more), that ends at an offset node or at its ``value``
+    (``param_inputs._write``'s two shapes). Twin of ``evaluability.js::paramOffsets``."""
+    from api.services.param_manifest import _walk
+    manifest = compute.get("paramManifest") if isinstance(compute, Mapping) else None
+    out: set = set()
+    if not isinstance(manifest, Mapping):
+        return out
+    for entry in manifest.values():
+        locators = entry.get("locators") if isinstance(entry, Mapping) else None
+        if not isinstance(locators, list):
+            continue
+        for loc in locators:
+            path = loc.get("astPath") if isinstance(loc, Mapping) else None
+            if not isinstance(path, list) or not all(
+                    isinstance(s, str) or (isinstance(s, int) and not isinstance(s, bool)) for s in path):
+                continue
+            at = _walk(tree, path)
+            if isinstance(at, Mapping) and at.get("type") == "offset":
+                out.add(id(at))
+            if path and path[-1] == "value":
+                parent = _walk(tree, path[:-1])
+                if isinstance(parent, Mapping) and parent.get("type") == "offset":
+                    out.add(id(parent))
+    return out
+
+
+def merge_newest_unproven(tree: Any, compute: Any = None) -> bool:
+    """⭐⭐ ALERT TF_MERGE (coordinator ruling 2026-11-19, option A) -- does this plot read a ``tf_merge``
+    the alert lane cannot PROVE settled on the bar it reads? Then it is refused, ``withheld`` /
+    ``request:htf-newest-unconfirmed``, as every ``tf_merge`` plot was before.
+
+    A STATIC rule, CONSERVATIVE BY CONSTRUCTION: it reads the tree and the parameter manifest, never
+    bars, so an alert admitted today is admitted on every day's bars. A merge is PROVEN when EVERY path
+    from the root to it passes a history offset ``x[k]`` whose ``k`` is a literal whole number >= 1
+    that no parameter setting moves (#1996's ``cutHistory`` rule, ``strategyTaint.js``), and nothing
+    on that path or inside the merge is
+      * another request (``tf`` / ``tf_live`` / ``tf_merge`` / ``sym`` / ``ltf``, ``_SCOPE_TYPES``):
+        its newest bar is another series', and the drawing lane keeps the whole-tree rule;
+      * a call the closed table declares ``forward`` (``pivothigh`` / ``pivotlow`` /
+        ``ichimokuChikou``): it reads LATER bars, so ``pivothigh(x, 2, 2)[2]`` reads ``x`` on the
+        newest bar through an offset of 2 (the drawing lane's witness walk withholds it);
+      * an offset a parameter setting moves (``compute.paramManifest``): a member's ``0`` would
+        read the newest bar, a negative one a later bar.
+    Everything else -- ``x`` / ``x[0]``, a conditional with one arm on ``x``, ``barsAgo(x, ...)``
+    (a dynamic offset, however spelled) -- is not proven and stays refused.
+
+    ⛔ WHY NOT ``ast_interpret._newest_reads_merge``: that is a witness walk over THESE bars, so its
+    answer depends on the data; an alert admitted on one day's bars could read a withheld bar on
+    another. Every shape this proves, the walk answers "not read on the newest bar" for any bars: an
+    offset >= 1 shifts the merge's one unknown bar past the newest, and only a forward call, a nested
+    request or a moved offset could bring it back.
+    The twin of ``evaluability.js::mergeNewestUnproven``, held equal case by case by
+    ``tests/fixtures/ast/alert_tf_merge_history.json``."""
+    from api.services import ast_interpret as _lane
+    if not _lane.reads_tf_merge(tree):
+        return False
+    scope = _lane._SCOPE_TYPES
+    functions = _lane.TABLE[_lane.FUNCTIONS_SECTION]
+    forward = {name for name, spec in functions.items() if isinstance(spec, Mapping) and "forward" in spec}
+    moved = _param_offset_ids(tree, compute)
+    stack = [(tree, False, False, False)]
+    seen: set = set()
+    while stack:
+        node, cut, tainted, inside = stack.pop()
+        if not isinstance(node, Mapping):
+            continue
+        key = (id(node), cut, tainted, inside)
+        if key in seen:
+            continue
+        seen.add(key)
+        kind = node.get("type")
+        moved_here = kind == "offset" and id(node) in moved
+        blocks = kind in scope or moved_here or (kind == "call" and node.get("name") in forward)
+        if inside and blocks:
+            return True
+        if kind == "tf_merge":
+            if tainted or not cut:
+                return True
+            inside = True
+        if kind == "offset" and not moved_here and _whole_back(node.get("value")):
+            cut = True
+        if blocks:
+            tainted = True
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, cut, tainted, inside))
+    return False
+
+
 def _make_value_fn(def_id: str, plot_key: str,
                    definition: Mapping[str, Any]) -> Callable[[list, dict], Optional[float]]:
     """One admitted (definition, plot) -> "what number is this formula at now".
@@ -796,7 +895,10 @@ def _make_value_fn(def_id: str, plot_key: str,
     # finished bar closes its period is the next session's date — so on the bar an
     # alert reads the value is withheld (`ast_interpret.tf_merge_mask`). Refused
     # here, under the `withheld` gate and its sibling rule.
-    if _lane.reads_tf_merge(tree):
+    # ⭐⭐ ALERT TF_MERGE (coordinator ruling 2026-11-19, option A) — UNLESS EVERY MERGE IS READ
+    # THROUGH A HISTORY OFFSET k >= 1 (`merge_newest_unproven`, static): `x[1]` reads the bar
+    # before's merge, which is settled, and the drawing lane draws it on the newest bar (#1996).
+    if merge_newest_unproven(tree, compute):
         unsupplied = list(unsupplied) + [_lane.TF_MERGE_NEWEST_CODE]
     if unsupplied:
         raise AdmissionRefused(
@@ -1019,6 +1121,49 @@ def runtime_inputs_for(definition: Mapping[str, Any], params: Optional[Mapping])
     return {str(k): v for k, v in dict(params or {}).items() if str(k) in declared}
 
 
+#: ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) -- a runtime document declares its timeframe inputs as
+#: settings ON LOAD only (`runtime/runtimeInputs.js::withTimeframeInputs`, never stored), so this lane, which
+#: reads the STORED document, has no declared key for one and would run the author's timeframe. An alert on a
+#: script whose timeframe setting is moved is therefore withheld by name, never computed at another timeframe.
+TIMEFRAME_SETTING_GUARD = "setting:timeframe-moved"
+_SP = "[ \t]"   # a blank on one line (never a newline)
+_TF_INPUT_RX = re.compile(
+    "^" + _SP + "*(?:(?:var|varip)" + _SP + "+)?(?:(?:simple|const|series|input)" + _SP + "+)?(?:string"
+    + _SP + "+)?([A-Za-z_][A-Za-z0-9_]*)" + _SP + "*=" + _SP + "*input[.]timeframe" + _SP + "*[(]", re.M)
+_TF_LEGACY_RX = re.compile(
+    "^" + _SP + "*([A-Za-z_][A-Za-z0-9_]*)" + _SP + "*=" + _SP + "*input" + _SP + "*[(]"
+    + "(?=[^\n]*[^A-Za-z0-9_.]type" + _SP + "*=" + _SP + "*(?:input[.])?(?:resolution|timeframe)(?![A-Za-z0-9_]))",
+    re.M)
+_TF_DEFAULT_RX = re.compile(_SP + "*(?:defval" + _SP + "*=" + _SP + "*)?(['\"])(.*?)\\1")
+
+
+def runtime_timeframe_inputs(definition: Mapping[str, Any]) -> dict:
+    """``{Pine name: author's default text or None}`` for every timeframe input of a runtime document's
+    script (``compute.source``). Over-reads, never under-reads: a name whose default is not a literal
+    maps to ``None``, and any value given for it counts as moved."""
+    src = ((definition or {}).get("compute") or {}).get("source")
+    if not isinstance(src, str) or not src:
+        return {}
+    out: dict = {}
+    for rx in (_TF_INPUT_RX, _TF_LEGACY_RX):
+        for m in rx.finditer(src):
+            d = _TF_DEFAULT_RX.match(src, m.end())
+            out.setdefault(m.group(1), d.group(2) if d else None)
+    return out
+
+
+def runtime_timeframe_moved(definition: Mapping[str, Any], params: Optional[Mapping]) -> Optional[str]:
+    """Why an alert on this runtime document is withheld for a moved timeframe setting, or ``None``."""
+    given = dict(params or {})
+    for name, default in runtime_timeframe_inputs(definition).items():
+        v = given.get(name)
+        if isinstance(v, str) and v != default:
+            at = f" ({default if default else 'the chart'})" if default is not None else ""
+            return (f"its timeframe setting {name} is set to {v or 'the chart'}: an alert computes this script at "
+                    f"its author's timeframe{at} only, so it is not armed at another")
+    return None
+
+
 class RuntimeBarsRefused(RuntimeError):
     """A bar whose time this lane cannot state in the unit the runtime reads."""
 
@@ -1175,6 +1320,9 @@ def _make_runtime_value_fn(row: Mapping[str, Any], def_id: str, plot_key: str,
         out: list = [None] * len(bars or [])
         if k < 0:
             return out
+        tf_why = runtime_timeframe_moved(definition, params)
+        if tf_why:
+            raise rsl.ServerLaneWithheld(TIMEFRAME_SETTING_GUARD, f"{address}: {tf_why}")
         run = rsl.runtime_column_fn(row, plot_key, RUNTIME_LANE, client_factory=_client_factory())
         col = run(wire, runtime_inputs_for(definition, params), tf=str(tf), ticker=str(sym))
         if len(col) != len(wire):
@@ -1319,6 +1467,9 @@ def _gate_runtime_service(row: Mapping[str, Any], definition: Mapping[str, Any],
         raise _server_run_refusal(def_id, "", exc.guard, exc.sentence) from exc
     if k < 0 or not wire:
         raise AdmissionRefused("bars", f"{REFUSAL_FRAGMENTS['bars']}: {def_id} (no bar has closed)")
+    tf_why = runtime_timeframe_moved(definition, params)
+    if tf_why:
+        raise _server_run_refusal(def_id, "", TIMEFRAME_SETTING_GUARD, tf_why)
     keys = runtime_output_keys(definition)
     job = prc.Job(job=f"{sym}|{tf}|arm", ticker=str(sym), tf=str(tf), bars=wire, want=tuple(keys),
                   runtime_inputs=runtime_inputs_for(definition, params))
@@ -1399,7 +1550,11 @@ def _prime_runtime_batch(batch: RuntimeBatch, alerts: Sequence[Mapping[str, Any]
         definition = row.get("definition") or {}
         jobs: dict = {}
         for alert, plot in members:
-            inputs = runtime_inputs_for(definition, ev._parse_params(dict(alert)))
+            params = ev._parse_params(dict(alert))
+            # a moved timeframe setting is not batched: its own call withholds it by name (`column`)
+            if runtime_timeframe_moved(definition, params):
+                continue
+            inputs = runtime_inputs_for(definition, params)
             ikey = json.dumps(inputs, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
                               default=str)
             jobs.setdefault(ikey, (inputs, set()))[1].add(plot)

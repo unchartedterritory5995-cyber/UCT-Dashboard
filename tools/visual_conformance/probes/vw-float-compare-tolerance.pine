@@ -1,0 +1,36 @@
+//@version=6
+indicator("vw-float-compare-tolerance")
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (coordinator ruling 2026-11-18 (2),
+// fix/kill-spy-runtime-diverges). adx-and-di-for-v4 on AMEX:SPY 1D from its 1993 listing grades DIVERGE from bar 5,333
+// (2014-04-03): there the up move high - high[1] = 189.22 - 189.13 = 0.09000000000000341 and the down move
+// low[1] - low = 188.14 - 188.05 = 0.08999999999997499 differ only in their last binary digits. This engine's `up > down`
+// counts +DM on that bar; TradingView's DI+ / ADX read as if it counted a tie and gave neither, and the Wilder smoothing
+// takes ~370 bars to agree again. A second witness: the library DMI check found the same tie on the same bar.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: do Pine's comparison operators (`>`, `<`, `==`) compare two floats exactly, or within a tolerance?
+// F00 is the control. F01-F04 and F11-F12 are the same on every bar (literals); F05-F10 read the bars, and bar 5,333 of
+// SPY from the listing is the tie bar.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history.startsAtBar0 asserted), then NYSE:RDDT 1D, inputs at defaults.
+
+a = 0.1 + 0.2
+b = 0.3
+x = 1.0
+y = x + 3e-14
+up = high - high[1]
+down = low[1] - low
+tieUp = 189.22 - 189.13
+tieDown = 188.14 - 188.05
+plot(bar_index, "F00_bar_index_CONTROL")
+plot(a == b ? 1 : 0, "F01_sum_eq_point3")
+plot(a > b ? 1 : 0, "F02_sum_gt_point3")
+plot(y > x ? 1 : 0, "F03_y_gt_x_3e-14")
+plot(y == x ? 1 : 0, "F04_y_eq_x_3e-14")
+plot(up > down ? 1 : 0, "F05_up_gt_down")
+plot(up < down ? 1 : 0, "F06_up_lt_down")
+plot(up == down ? 1 : 0, "F07_up_eq_down")
+plot(up - down, "F08_up_minus_down")
+plot(up, "F09_up")
+plot(down, "F10_down")
+plot(tieUp > tieDown ? 1 : 0, "F11_tie_literals_gt")
+plot(tieUp == tieDown ? 1 : 0, "F12_tie_literals_eq")

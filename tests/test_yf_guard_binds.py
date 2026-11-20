@@ -121,9 +121,12 @@ def test_catalyst_ticker_metadata_reaches_yfinance_through_the_guard(spy):
 def test_engine_sym_cap_reaches_yfinance_through_the_guard(spy):
     """`fast_info` is lazy, so the whole read block must be inside the guarded
     callable — and the fallback must stay FAIL-OPEN (True), or a rate limit
-    would silently drop every news item."""
+    would silently drop every news item. The gate reads the company profile
+    first; with no answer there, this read is the one that decides."""
     from api.services import engine
-    assert engine._check_sym_cap("AAPL") == ("AAPL", True)
+    from api.services.catalyst import ticker_metadata
+    with patch.object(ticker_metadata, "profile_facts", return_value=None):
+        assert engine._check_sym_cap("AAPL") == ("AAPL", True)
     assert spy.fired
 
 
@@ -131,16 +134,6 @@ def test_massive_snapshot_reaches_yfinance_through_the_guard(spy):
     from api.services import massive
     assert massive._yfinance_snapshot("^VIX") == {}
     assert spy.fired
-
-
-def test_massive_avg_dollar_volume_reaches_yfinance_through_the_guard(spy):
-    """And a guard failure must map to inf ("couldn't fetch, don't filter it
-    out"), never 0.0 ("fetched, no volume, filter it out") — a 429 must not
-    quietly delete tickers from the universe."""
-    from api.services import massive
-    out = massive._get_avg_dollar_vol(["AAPL", "MSFT"])
-    assert spy.fired
-    assert out == {"AAPL": float("inf"), "MSFT": float("inf")}
 
 
 def test_index_bars_reaches_yfinance_through_the_guard(spy):
@@ -156,6 +149,26 @@ def test_index_bars_proxy_ratio_reaches_yfinance_through_the_guard(spy):
     assert index_bars._proxy_ratio("^GSPC", "SPY") is None
     assert spy.fired
     assert len(spy.calls) == 2, "both legs of the ratio must be guarded"
+
+
+def test_breadth_eod_extras_reaches_yfinance_through_the_guard(spy):
+    """`sp500_close` is the EOD collector's ^GSPC read; a suppressed call is "no close
+    for that day" (None), never an exception out of the collector."""
+    from api.services import breadth_eod_extras
+    assert breadth_eod_extras.sp500_close("2026-11-13") is None
+    assert spy.fired
+
+
+def test_earnings_session_resolver_reaches_yfinance_through_the_guard(spy, monkeypatch):
+    """`_yahoo_fetch` asks the guard to RERAISE (lane "earnings"); the resolver's own
+    `_cached` turns that into "Yahoo has no answer" (None), so a refused call degrades
+    the vote instead of failing the resolve. Fresh cache and health so neither leaks."""
+    from api.services import earnings_session_resolver as esr
+    monkeypatch.setattr(esr, "_cache", {})
+    monkeypatch.setattr(esr, "_health", {})
+    assert esr._yahoo("ZZZQ") is None
+    assert spy.fired
+    assert spy.calls[0]["reraise"] is True and spy.calls[0]["lane"] == "earnings"
 
 
 def test_charts_router_reaches_yfinance_through_the_guard(spy):
@@ -189,14 +202,6 @@ def test_industry_map_fallback_reaches_yfinance_through_the_guard(spy):
     assert out[2] != "yfinance", "a suppressed yfinance leg must not claim a source"
 
 
-def test_news_aggregator_reaches_yfinance_through_the_guard(spy):
-    from api.services import news_aggregator
-    with patch.object(news_aggregator, "requests") as fake_requests:
-        fake_requests.get.side_effect = RuntimeError("no network in tests")
-        news_aggregator.fetch_yahoo_ticker_news(["AAPL"])
-    assert spy.fired
-
-
 def test_yfinance_pool_fetch_history_reaches_the_shared_guard(spy):
     from api.services import yfinance_pool
     with pytest.raises(RuntimeError):
@@ -219,14 +224,15 @@ def test_yfinance_pool_run_in_pool_reaches_the_shared_guard(spy):
 BOUND_HERE = {
     "api/index_bars.py",
     "api/routers/charts.py",
+    "api/services/breadth_eod_extras.py",
     "api/services/catalyst/ticker_metadata.py",
+    "api/services/earnings_session_resolver.py",
     "api/services/engine.py",
     "api/services/financial_statements.py",
     "api/services/fundamentals.py",
     "api/services/industry_map.py",
     "api/services/institutional_holdings.py",
     "api/services/massive.py",
-    "api/services/news_aggregator.py",
     "api/services/short_interest.py",
     "api/services/ticker_logos.py",
     "api/services/ticker_meta.py",

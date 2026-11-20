@@ -5,22 +5,23 @@
 // picker or resize handles, no chart animation. chart-renderer screenshots
 // #cot-export (api/services/cot_image.py).
 //
-// Public route (no AuthGuard). ?token= is checked against the bundled render token
-// and forwarded to the /api/r/cot doors — every /api/cot/* read is paid and this page
-// runs logged OUT, so a paid endpoint is unreachable from here by construction.
+// Public route (no AuthGuard). ?token= is forwarded to the /api/r/cot doors, where the
+// server checks it; when the rows read is refused (401/403) the page shows the same
+// "unavailable" box as for a malformed symbol. Every /api/cot/* read is paid and this
+// page runs logged OUT, so a paid endpoint is unreachable from here by construction.
 //
 // Readiness: window.__cotReady is true once the charts are drawn AND the written read
-// has settled (stored or not), 'error' when the market has no data. cot_image's probe
-// counts the canvases and checks the width below, so a ready-but-blank page is
-// discarded rather than posted.
+// has settled (stored or not), 'error' when the market has no data or the rows read
+// was refused. cot_image's probe counts the canvases and checks the width below, so a
+// ready-but-blank page is discarded rather than posted.
 //
 // ⛔ The export geometry is INLINE, never in a CSS module: css-modules hashes `#id`
 // selectors, which is how /buzz shipped a stretched board for two days.
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import CotData from './CotData'
-import { renderTokenOk } from '../lib/renderToken'
+import { renderRefused } from '../lib/renderToken'
 
 export const COT_EXPORT_W = 1560
 export const COT_CHART_H = 860
@@ -40,7 +41,8 @@ export default function CotRender() {
   const token = sp.get('token') || ''
   const symbol = (sp.get('symbol') || '').trim().toUpperCase()
   const weeks = COT_LOOKBACKS[(sp.get('lookback') || '1Y').toUpperCase()] || 52
-  const ok = renderTokenOk(token) && SYMBOL_RE.test(symbol)
+  const ok = SYMBOL_RE.test(symbol)
+  const [refused, setRefused] = useState(false)
 
   useEffect(() => {
     window.__cotReady = ok ? false : 'error'
@@ -48,10 +50,13 @@ export default function CotRender() {
 
   const render = useMemo(() => ({
     symbol, weeks, token, height: COT_CHART_H,
-    onState: (s) => { window.__cotReady = s === 'ready' ? true : 'error' },
+    onState: (s, status) => {
+      window.__cotReady = s === 'ready' ? true : 'error'
+      if (s !== 'ready' && renderRefused(status)) setRefused(true)
+    },
   }), [symbol, weeks, token])
 
-  if (!ok) return <div id="cot-export" style={EXPORT_STYLE}>unavailable</div>
+  if (!ok || refused) return <div id="cot-export" style={EXPORT_STYLE}>unavailable</div>
   return (
     <div id="cot-export" data-cot-symbol={symbol} style={EXPORT_STYLE}>
       <CotData render={render} />

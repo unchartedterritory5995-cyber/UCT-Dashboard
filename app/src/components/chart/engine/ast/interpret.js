@@ -60,6 +60,8 @@ import {
 // `export function` bindings are hoisted; `budget.js`'s header states the whole
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
+import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../lib/marketClock/tradingViewSession.js'
+import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
 // ⭐⭐ THE LANE'S ONE ANSWER TO "DOES THIS TREE YIELD A YES/NO", IMPORTED RATHER
@@ -87,6 +89,7 @@ import {
   computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
   computeClock, computeVWAP, computeAVWAP, computeOBV, computePVT, AVWAP_MIN_INSTANT,
   CLOCK_PERIOD_SECONDS, computePeriodCalendar,
+  computeSessionRegular, openingRangeRefusal, OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE,
 } from '../../indicators.js'
 
 // --------------------------------------------------------------------------- //
@@ -545,6 +548,28 @@ function isoWeekKey(iso) {
   const [year] = civilFromDays(zThu)
   const week = Math.floor((zThu - daysFromCivil(year, 1, 1)) / 7) + 1
   return `${year}-W${week}`
+}
+
+/** ⭐⭐ RS RATING L11 (Q-RS7) — THE DAY OF AN ISO DAY'S MONDAY-TO-SUNDAY WEEK at `weekday`
+ *  (Mon=1 … Sun=7), as `YYYY-MM-DD`; null for a day it cannot read. Friday (5) is the day the
+ *  product keys a weekly bar by (`bars_fetch._resample_weekly_iso`, holiday Fridays included;
+ *  the harness mirrors it, `ourSide.js::productPeriodKey`), Monday (1) the week's first
+ *  calendar day. Integer arithmetic only, as `isoWeekKey`. */
+export function isoWeekDayOf(iso, weekday) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  const z = daysFromCivil(y, m, d)
+  const dow = (((z + 3) % 7) + 7) % 7 + 1
+  const [yy, mm, dd] = civilFromDays(z + (weekday - dow))
+  return `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+}
+
+/** ⭐ RS RATING L11 — an ISO day moved by whole calendar days, as `YYYY-MM-DD` (null when unreadable). */
+export function isoDayPlus(iso, days) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+  const [y, m, d] = iso.split('-').map(Number)
+  const [yy, mm, dd] = civilFromDays(daysFromCivil(y, m, d) + days)
+  return `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
 }
 
 /** The higher-timeframe bucket key for an ISO day. Mirrors `_tf_bucket`. */
@@ -1061,8 +1086,11 @@ const RANGE_ORDER = new Set(['<', '<=', '>', '>='])
 const RANGE_FLIP = Object.freeze({ '<': '>', '<=': '>=', '>': '<', '>=': '<=' })
 const rangeOf01 = (outs, na) => rangeNorm(outs.length ? Math.min(...outs) : RANGE_EMPTY_LO,
   outs.length ? Math.max(...outs) : RANGE_EMPTY_HI, na)
-/** The interval extension of one operator over at least one range. */
-function rangeOp(name, values) {
+/** The interval extension of one operator over at least one range.
+ *  ⭐ `table` is the evaluation's own operator table (`binaryFor`): its comparisons decide the interval
+ *  answer through `pineCompare.js::compareRange`, so the proof and the run read ONE rule (an IEEE proof
+ *  over a Pine run would call `x > c` certain on a state 1e-11 above `c`, which Pine reads as a tie). */
+function rangeOp(name, values, table = BINARY) {
   if (name === 'u-') {
     const A = asRange(values[0])
     return rangeNorm(-A.hi, -A.lo, A.na)
@@ -1089,14 +1117,9 @@ function rangeOp(name, values) {
     let canT = false
     let canF = na
     if (rangeHasNumber(A) && rangeHasNumber(B)) {
-      const point = A.lo === A.hi && B.lo === B.hi
-      const overlap = A.lo <= B.hi && B.lo <= A.hi
-      if (name === '>') { canT = A.hi > B.lo; canF = canF || A.lo <= B.hi }
-      else if (name === '<') { canT = A.lo < B.hi; canF = canF || A.hi >= B.lo }
-      else if (name === '>=') { canT = A.hi >= B.lo; canF = canF || A.lo < B.hi }
-      else if (name === '<=') { canT = A.lo <= B.hi; canF = canF || A.hi > B.lo }
-      else if (name === '==') { canT = overlap; canF = canF || !(point && A.lo === B.lo) }
-      else { canT = !(point && A.lo === B.lo); canF = canF || overlap }
+      const r = compareRange(name, A, B, table)
+      canT = r.canT
+      canF = canF || r.canF
     }
     return rangeOf01([...(canF ? [0] : []), ...(canT ? [1] : [])], false)
   }
@@ -1481,6 +1504,16 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, arg = false) {
   if ((reduce === windowMean || reduce === windowSum) && policy !== NA.FFILL && allFinite(series)) {
     return rollingExactSum(series, n, reduce === windowMean)
   }
+  // ⭐⭐ SKIP IS ONE FORWARD PASS (2026-11-19, MEASURED on production e86): the last `n` FINITE values kept in a ring,
+  // never gathered by a backward scan per bar. ⚰️ The gather (`windowOperands`' SKIP branch, `for (j = i; j >= 0 && k
+  // > 0 ...)`) walked back over every `na` before it found `n` finite values, so one bar's cost was the length of the
+  // gap before it: a series that is `na` for its first 19,864 of 28,006 bars (Fred RS on RDDT 5m, the chart reaching
+  // before the SPX bars we hold) cost ~2e8 steps. That was 16.1 s of a 21.9 s main-thread freeze on a 1D -> 5m switch;
+  // the same switch without the script had 1.6 s of long tasks. The ring hands `reduce` the same operands in the same
+  // order (oldest first, a fresh dense buffer per bar, exactly what the gather built) and answers on the same bars (none
+  // before the bar holding the n-th finite value), so the output is byte-identical (`rollingSkipLinear.test.js`); a
+  // window size that is not a positive integer keeps the old path. The Python twin is `ast_interpret._rolling`.
+  if (policy === NA.SKIP && Number.isInteger(n) && n >= 1) return rollingSkip(series, n, reduce)
   const out = nan(series.length)
   // ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE. `ta.wma` replaces an `na`
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
@@ -1521,6 +1554,38 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, arg = false) {
   }
   return out
 }
+
+/** ⭐⭐ `NA.SKIP` in one forward pass: bar `i` (from `n - 1`) reads the last `n` FINITE values at or before it, oldest
+ *  first, once `n` exist; before that, `na`. Each series value is read once; each answering bar copies `n` values out
+ *  of the ring (the dense buffer `reduce` always got). O(N·n) whatever the gaps. */
+function rollingSkip(series, n, reduce) {
+  const len = series.length
+  const out = nan(len)
+  const ring = new Float64Array(n)
+  let pos = 0        // the next slot written; once the ring is full, the OLDEST value's slot
+  let filled = 0
+  for (let i = 0; i < len; i++) {
+    const v = series[i]
+    if (Number.isFinite(v)) {
+      ring[pos] = v
+      pos = pos + 1 === n ? 0 : pos + 1
+      if (filled < n) filled += 1
+    }
+    if (i < n - 1 || filled < n) continue
+    const buf = new Float64Array(n)
+    for (let k = 0, at = pos; k < n; k++) {
+      buf[k] = ring[at]
+      at = at + 1 === n ? 0 : at + 1
+    }
+    out[i] = reduce(buf, 0, n - 1)
+  }
+  return out
+}
+
+/** Rails only: the rolling family, so `rollingSkipLinear.test.js` can hold the ring to the gather it replaced. */
+export const __rollingForTests = Object.freeze({
+  rolling, windowOperands, windowMean, windowSum, windowStdev, windowMedian, NA,
+})
 
 /** ⭐⭐ ENGINE HL — `NA.FINITE`: the last `n` FINITE values, FEWER while fewer exist, `na` before
  *  bar `n - 1` and before the first finite value, an answer on an `na` bar. One forward pass that
@@ -1618,7 +1683,7 @@ function halfGap(r) {
   const gap = a === 2 ** e && e > -1022 ? 2 ** (e - 53) : 2 ** (e - 52)
   return gap / 2
 }
-/** ⭐⭐ SMA-EXACT (NUMBER PENDING) — THE EXACTLY ROUNDED SUM of `series[lo..hi]`: the true sum of the
+/** ⭐⭐ SMA-EXACT (Engine 65 (#1484)) — THE EXACTLY ROUNDED SUM of `series[lo..hi]`: the true sum of the
  *  doubles rounded ONCE, identical to Python's `math.fsum` (the twin `ast_interpret._window_mean` /
  *  `_window_sum` call it; 23,000 / 23,000 random windows, adversarial magnitudes included).
  *
@@ -1941,10 +2006,12 @@ function valueWhenOccurrence(cond, src, occurrence) {
  *    · an `na` offset reads the CURRENT bar: `close[na]` is `close`
  *      (`vw-offset-na-spy-1d-2026-09-30`, all 100 na-offset bars);
  *    · a read is one this engine can answer only when its offset is a whole
- *      number of bars, not negative (a future bar), and below the buffer — the
- *      script's `max_bars_back`, or `objectProgram.js::AUTO_MAX_BARS_BACK`, the
+ *      number of bars, not negative (a future bar), and below the buffer
+ *      (`pine.js::historyReadBufferOf`): the script's `max_bars_back` when it is at
+ *      least `objectProgram.js::AUTO_MAX_BARS_BACK`, else that automatic buffer, the
  *      reach TradingView's automatic buffer was measured to cover
- *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars). */
+ *      (`vw-mbb-auto-spy-1d-2026-09-30`: offsets 0..399 ran and read its own bars;
+ *      WS-C: a smaller declaration does not shrink it, `vw-w4-max-bars-back-m2`). */
 export const historyBackOf = (raw) => (Number.isNaN(raw) ? 0 : raw)
 export const historyReadable = (back, limit) => Number.isInteger(back) && back >= 0 && back < limit
 /** ⭐⭐ C45 — A READ THAT LANDS BEFORE THE FIRST BAR HELD: is its answer one this
@@ -2233,7 +2300,7 @@ function almaCol(series, n, offset, sigma) {
  *  vendor capture confirming divisor `length` with the current bar EXCLUDED
  *  from the sample (not `length + 1` with it included) — see
  *  `_functions_vendor_parity_resolutions.percentrank_resolution`. */
-function percentrankAt(series, i, length) {
+function percentrankAt(series, i, length, le = (a, b) => a <= b) {
   const cur = series[i]
   if (Number.isNaN(cur)) return NaN
   let count = 0
@@ -2248,7 +2315,9 @@ function percentrankAt(series, i, length) {
     // holds the `na` of bar 0. The divisor stays `length` (a divisor of the finite
     // count reads 0.845 where TradingView reads 0.49).
     if (Number.isNaN(v)) continue
-    if (v <= cur) count++
+    // ⭐ engine 78 (#1858) — `le` is IEEE for a native document and `pineCompare.js::pineLe` for Pine's
+    // `ta.percentrank` (Q-FCMP2 B30 / Z14: a prior value 3e-14 or 9e-11 above counts as "<=")
+    if (le(v, cur)) count++
   }
   return (100 * count) / length
 }
@@ -2395,6 +2464,10 @@ function monotoneStep(st, o, v, n, cmp) {
 
 const risingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a > b)
 const fallingStep = (st, o, v, n) => monotoneStep(st, o, v, n, (a, b) => a < b)
+// ⭐⭐ engine 78 (#1858) (Q-FCMP2 vw-fcmp-builtins-v2 B24 / B25 / Z09 / Z10): Pine's `ta.rising` / `ta.falling`
+// compare with TradingView's epsilon (a step 3e-14 or 9e-11 up is NOT rising). `CARRIED_PINE` below.
+const risingStepPine = (st, o, v, n) => monotoneStep(st, o, v, n, pineGt)
+const fallingStepPine = (st, o, v, n) => monotoneStep(st, o, v, n, pineLt)
 
 /** ⭐⭐ PINE'S `ta.barssince(condition)` — ONE CELL, AND IT IS UNBOUNDED.
  *
@@ -3469,8 +3542,8 @@ export const CARRIED2 = Object.freeze({
 /** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
  *  cannot drift: both reach `CARRIED[name].step` and nothing else computes an
  *  exponential average in this file. */
-const carriedFn = (name) => (series, n) => {
-  const spec = CARRIED[name]
+const carriedFn = (name, table = CARRIED) => (series, n) => {
+  const spec = table[name]
   // ⛔ DRIVEN FROM `cells`/`init`/`step`, NOT FROM A SMOOTHER. This used to call
   // `smoothCol` directly, which silently made "carried" mean "exponential
   // average" and would have refused `rising`/`falling` a seat at the table they
@@ -3819,6 +3892,34 @@ export const FN_V2 = Object.freeze({
   adx: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).adx),
   plusDI: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).plusDI),
   minusDI: (h, l, c, n) => bindHeld(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).minusDI),
+})
+
+/** ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2) — THE BUILT-INS WHOSE INSIDE COMPARES WITH PINE'S EPSILON, for a
+ *  PINE document only (`opts.pineCompare`, `binaryFor`'s key): measured tolerant by vw-fcmp-builtins-v2 —
+ *  `ta.rising` / `ta.falling` (B24 / B25 / Z09 / Z10), `ta.percentrank` (B30 / Z14), and `ta.dmi`'s three legs
+ *  (vw-fcmp-builtins B32-B34: DI+ 27.576070967939575 on AMEX:SPY 1D bar 5,333, where the up and down moves tie
+ *  within 2.84e-14). `switch`, `array.indexof` and `array.includes` are tolerant too, and need no entry here:
+ *  the first lowers onto `==`, the other two are the runtime's (`runtime/collections.js`) and the host's
+ *  `==` tokens. ⛔ EVERY OTHER BUILT-IN STAYS EXACT, measured (crossover / crossunder / cross, highest /
+ *  lowest(bars), pivothigh / pivotlow, math.max / min / sign, array.max / min / sort, ta.mode): a built-in is
+ *  NOT the operator rule. A native document reads `FN`, byte for byte. */
+export const CARRIED_PINE = Object.freeze({
+  ...CARRIED,
+  rising: { ...CARRIED.rising, step: risingStepPine },
+  falling: { ...CARRIED.falling, step: fallingStepPine },
+})
+const PINE_DMI = Object.freeze({ gt: pineGt })
+export const FN_PINE = Object.freeze({
+  rising: carriedFn('rising', CARRIED_PINE),
+  falling: carriedFn('falling', CARRIED_PINE),
+  percentrank: (series, n) => {
+    const out = nan(series.length)
+    for (let i = n; i < series.length; i++) out[i] = percentrankAt(series, i, n, pineLe)
+    return out
+  },
+  adx: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n, PINE_DMI).adx),
+  plusDI: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n, PINE_DMI).plusDI),
+  minusDI: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n, PINE_DMI).minusDI),
 })
 
 /** One line of the Ichimoku family, with `_functions_domain`'s guard in front.
@@ -4213,9 +4314,22 @@ function barCumFrom(bars, args) {
  *  `groupb-round-max-vwap-spy-1d-2026-09-10` (N14 + N12). */
 const barVwapOf = (bars, args) => computeVWAP(bars, args[0] || [])
 
+/** ⭐ 2026-11-17 — `sessionOpen()` .. `openingRangeLow(minutes)`: the regular session's own values
+ *  (`indicators.js::computeSessionRegular`, where the rules are written once). They resolve a
+ *  date-keyed daily bar and the bar length through the clock, so they read the chart's timeframe
+ *  (`opts.tf`) as well as its bars. */
+const sessionReader = (kind, ranged) => (bars, args, opts) => computeSessionRegular(
+  bars, opts ? opts.tf : undefined, kind, ranged ? args[0] : null).map((value) => ({ value }))
+
+/** The opening-range calls: the two whose answer depends on the chart's bar length. */
+export const OPENING_RANGE_CALLS = Object.freeze(['openingRangeHigh', 'openingRangeLow'])
+
 export const BAR_FN = Object.freeze({
   vwap: barVwap, vwapOf: barVwapOf, avwap: barAvwap, obvN: barObvN, pvtN: barPvtN, cumFrom: barCumFrom,
   aroonUp: barAroonUp, aroonDown: barAroonDown, bop: barBop,
+  sessionOpen: sessionReader('open', false), sessionHigh: sessionReader('high', false),
+  sessionLow: sessionReader('low', false),
+  openingRangeHigh: sessionReader('high', true), openingRangeLow: sessionReader('low', true),
 })
 
 // ⛔ A DECLARED-BUT-UNBOUND ENTRY IS A FORMULA THE BUILDER OFFERS AND THIS LANE
@@ -4283,7 +4397,7 @@ function barColumn(name, bars, args, length, opts) {
   const out = nan(length)
   const daily = (name === 'vwap' || name === 'vwapOf') ? dailySessionVwap(name, bars, args, length, opts) : null
   if (daily) return daily
-  const points = BAR_FN[name](bars, args)
+  const points = BAR_FN[name](bars, args, opts)
   if (!Array.isArray(points) || points.length !== length) return out
   for (let i = 0; i < length; i++) {
     const v = points[i] ? points[i].value : undefined
@@ -4324,7 +4438,6 @@ function barColumn(name, bars, args, length, opts) {
 
 const isNan = (x) => Number.isNaN(x)
 
-const cmp = (f) => (a, b) => (isNan(a) || isNan(b) ? 0 : (f(a, b) ? 1 : 0))
 const logical = (f) => (a, b) => (isNan(a) || isNan(b) ? NaN : (f(a !== 0, b !== 0) ? 1 : 0))
 
 // ⭐⭐ EXPORTED FOR THE BAR-BY-BAR RUNTIME, and for the reason this file already
@@ -4339,17 +4452,16 @@ const logical = (f) => (a, b) => (isNan(a) || isNan(b) ? NaN : (f(a !== 0, b !==
 // what actually differs between the lanes (history indexing, ordering, emit
 // alignment, warm-up NaN patterns) instead of re-testing arithmetic that is
 // shared by construction.
+//
+// ⭐⭐ THE SIX COMPARISONS ARE `pineCompare.js`'s (engine 78 (#1858), Q-FCMP / Q-FCMP2): `EXACT_CMP` here,
+// IEEE with `na` -> 0, exactly the `cmp` entries this table held; `BINARY_PINE` below swaps in `PINE_CMP`
+// (TradingView's absolute epsilon) for a PINE document's evaluation (`binaryFor`, `opts.pineCompare`).
 export const BINARY = Object.freeze({
   '+': (a, b) => a + b,
   '-': (a, b) => a - b,
   '*': (a, b) => a * b,
   '/': (a, b) => a / b,
-  '>': cmp((a, b) => a > b),
-  '<': cmp((a, b) => a < b),
-  '>=': cmp((a, b) => a >= b),
-  '<=': cmp((a, b) => a <= b),
-  '==': cmp((a, b) => a === b),
-  '!=': cmp((a, b) => a !== b),
+  ...EXACT_CMP,
   '&&': logical((a, b) => a && b),
   '||': logical((a, b) => a || b),
 })
@@ -4380,8 +4492,24 @@ export const BINARY_V2 = Object.freeze({
   '==': cmpUnknown((a, b) => a === b),
   '!=': cmpUnknown((a, b) => a !== b),
 })
-/** The operator table THIS evaluation reads (`semanticsV2`). */
-export const binaryFor = (opts) => (semanticsV2(opts) ? BINARY_V2 : BINARY)
+/** ⭐⭐ THE PINE TABLE (engine 78 (#1858), coordinator ruling D1): a Pine document's evaluation compares
+ *  with TradingView's absolute epsilon (`pineCompare.js::PINE_CMP`), its arithmetic and logic unchanged.
+ *  Chosen by `opts.pineCompare === true`, which `definitionSemantics.js::semanticsOptsFor` sets for every
+ *  Pine document (a translation or a Builder "Apply" import) and the runtime lane sets for every column it
+ *  hands this lane; nothing else sets it, so a native, PCF or thinkScript formula keeps `BINARY` byte for
+ *  byte. One rule in every Pine version at run time (Q-FCMP2: the v1-v6 form twins agree on every series
+ *  row); the compile-time exception (v1-v4 constants) is the translator's (`pine.js::constCompareFold`). */
+export const BINARY_PINE = Object.freeze({ ...BINARY, ...PINE_CMP })
+
+/** ⭐ The opts key a Pine document's evaluation carries. */
+export const PINE_COMPARE_OPT = 'pineCompare'
+export const pineCompareOn = (opts) => !!opts && opts.pineCompare === true
+
+/** The operator table THIS evaluation reads (`semanticsV2`, then the Pine compare). */
+export const binaryFor = (opts) => {
+  if (semanticsV2(opts)) return BINARY_V2
+  return pineCompareOn(opts) ? BINARY_PINE : BINARY
+}
 
 export const UNARY = Object.freeze({
   'u-': (a) => -a,
@@ -5123,8 +5251,9 @@ export function nodeCount(ast, held) {
 
 /** The node types whose child is evaluated by a FRESH `interpret` call on other
  *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
- *  own, with its own memo. See `evaluationUnits`. */
-const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
+ *  own, with its own memo. See `evaluationUnits`. Exported for the alert lane's
+ *  `tf_merge` proof (`evaluability.js::mergeNewestUnproven`; Python `_SCOPE_TYPES`). */
+export const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
 
 /** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
  *  units it memoises. The number `budget:nodes` thresholds.
@@ -5159,8 +5288,13 @@ const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
  *  walk visits a unit once: a unit's children's units depend only on the unit
  *  (a self-free node's descendants are self-free except a recurrence's own
  *  body, which is keyed on that recurrence). */
-export function evaluationUnits(root, held) {
+export function evaluationUnits(root, held, recurrences) {
   const { idOf, freeOf } = structuralMaps(root)
+  // ⭐ ROUTE BY COST (Engine 73 (#1711)) — `recurrences`, when a Map is handed in, is filled with
+  // every recurrence this walk reaches (its unit key -> `{node, units}`) and how many of the units
+  // are keyed on it: what ONE step of that recurrence computes. `recurrenceStepsPerBar` reads it.
+  // The units and their count are unchanged: this only says which recurrence a unit belongs to.
+  const tally = recurrences instanceof Map ? recurrences : null
   const heldShape = new Map()
   if (held && typeof held.has === 'function') {
     const seen = new Set()
@@ -5202,17 +5336,45 @@ export function evaluationUnits(root, held) {
     const free = freeOf.get(n)
     if (units.has(key)) continue
     units.add(key)
+    if (tally && !read && rec) tally.get(rec).units += 1
     if (!n || typeof n !== 'object' || Array.isArray(n)) continue
     if (runtimeRead) continue
     if (scope === '' && free && heldShape.get(sid) === true) continue
     const args = Array.isArray(n.args) ? n.args : []
     const childScope = SCOPE_TYPES.has(n.type) ? `${scope}>${sid}` : scope
     const bodies = bodyArgsOf(n)
+    if (tally && bodies.size && !tally.has(`${scope}|${sid}`)) tally.set(`${scope}|${sid}`, { node: n, units: 0 })
     for (let ai = 0; ai < args.length; ai += 1) {
       stack.push([args[ai], childScope, bodies.has(ai) ? `${scope}|${sid}` : rec])
     }
   }
   return { count: units.size }
+}
+
+/** ⭐⭐ ROUTE BY COST (Engine 73 (#1711), docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
+ *  THE STEPS ONE BAR OF THIS TREE COSTS IN RECURRENCES, on the bounded window.
+ *
+ *  The host lane computes a recurrence (`accum`, `accumK`: a Pine `var` / running state) over a
+ *  BOUNDED WINDOW: every bar re-runs the recurrence from its warm-up bar, so one bar costs the
+ *  recurrence's warm-up times what one of its steps computes. That is the work the runtime lane does
+ *  once per bar instead (it carries the state forward), and it is what made the 17 host documents
+ *  over a second slow (supertrend and trailing-stop state, a 250-bar warm-up per `var`).
+ *
+ *  ⭐ DERIVED FROM THE EVALUATOR'S OWN UNITS (`evaluationUnits`, the walk `budget:nodes` thresholds and
+ *  the memo is keyed on): a step computes the units keyed on its recurrence, the warm-up is the
+ *  recurrence's own declared lookback (`ownLookback`, the manifest's `lookback`). Per recurrence the
+ *  walk visits once, so a shared recurrence counts once, exactly as it is memoised.
+ *  ⛔ AN ESTIMATE, AND AN UPPER ONE: a chart that states its listing takes the listing pass where the
+ *  trajectories agree (cheaper), and a recurrence under `tf` steps on fewer bars. No clock: the same
+ *  tree gives the same number everywhere. */
+export function recurrenceStepsPerBar(root) {
+  const recurrences = new Map()
+  evaluationUnits(root, undefined, recurrences)
+  let steps = 0
+  for (const { node, units } of recurrences.values()) {
+    steps += ownLookback(node, fnSpec(node.name)) * units
+  }
+  return steps
 }
 
 /** Does the pass hold this node's column? The ONE predicate `evalNode` skips on
@@ -5345,7 +5507,26 @@ function readsClock(ast, table) {
  *  ⛔ A tree with no switched recurrence takes the single pass unchanged, so no
  *  existing column moves. The returned column is a COPY: the real run's column
  *  may be the memoised one another plot shares. */
+// ⭐ PERF (Fred RS filled chart, C1, coordinator ruling 2026-11-19) — A BARE CONSTANT IS ITS COLUMN. A tree that is one
+// finite `num` (an input folded to its value, a literal) reads no bar, no clock, no other symbol and no history, so
+// every stage below answers it the same way on every chart: `chartClockWhole` finds no clock, `interpretAgreed` no
+// switched state, `evalNode` the number itself (a `num` that is not finite is refused there, so it takes the full path),
+// `toColumn` its column, and no mask (`withSymAlignment`, `withheldReadMask`'s nine, `withLowerTfWithheld`) has a read
+// to withhold. So its column is `toColumn` of the number, made at once. ⛔ Only with NO inputs: an input is checked
+// against the table's names before any tree is evaluated (`interpretOnce`, "shadows a table name"), and that check is
+// the pipeline's to make (measured: 868 of 876 constant trees the corpus evaluates come with none). Measured: 47 of Fred RS's 65 precomputed
+// columns, 52 ms of a 147 ms build over 11,520 bars, each paying the whole pipeline's setup for a fill.
+let _constantFastPathOff = false
+const noOwnKeys = (o) => {
+  if (!o) return true
+  for (const k in o) if (Object.prototype.hasOwnProperty.call(o, k)) return false
+  return true
+}
+/** Tests: every tree takes the whole pipeline, as before (the identity rails compare both). */
+export function __constantColumnFastPathOffForTests(off) { _constantFastPathOff = !!off }
 export function interpret(ast, bars, inputs, budget, scalars, opts) {
+  if (!_constantFastPathOff && ast && ast.type === 'num' && typeof ast.value === 'number' && Number.isFinite(ast.value)
+    && Array.isArray(bars) && noOwnKeys(inputs)) return toColumn(ast.value, bars.length)
   // ⭐ C36 — a tree whose `time(<timeframe>)` / `time_close(<timeframe>)` cannot
   // be answered on THIS chart at all (it is not daily, its daily bars include one
   // weekend day but not the other, …) is withheld whole and NAMED before it is
@@ -5993,6 +6174,19 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'with a `bool` whose `na` bars this engine cannot follow (a value carried from another series this way, '
     + 'or a recurrence it does not track), so what it draws from that comparison is withheld rather than '
     + 'guessed. What would settle it: a capture of this indicator on TradingView.',
+  // ⭐ 2026-11-17 — an opening range on bars it cannot be read from. A formula has no other way to
+  // refuse a call for a timeframe, and answering a daily bar's high as "the first 30 minutes" is the
+  // confident wrong number this channel exists to prevent.
+  [OPENING_RANGE_BARS_LONGER]: (tf) => 'An opening range is the high or low of the first minutes of the '
+    + `regular session, so it is read on bars no longer than the range itself. This chart's bars (${tfSpelled(tf)}) `
+    + 'are longer than the opening range this indicator asks for, so what it draws from it is withheld on this '
+    + 'chart rather than answered with a whole bar\'s high or low. What would settle it here: a chart '
+    + 'timeframe whose bars are no longer than the range (a shorter one).',
+  [OPENING_RANGE_BARS_DO_NOT_DIVIDE]: (tf) => 'An opening range is the high or low of the first minutes of the '
+    + `regular session, read from whole bars. This chart's bars (${tfSpelled(tf)}) do not divide the opening `
+    + 'range this indicator asks for evenly (a 45-minute range on 30-minute bars), so what it draws from it is '
+    + 'withheld on this chart rather than rounded to a longer or shorter range. What would settle it here: '
+    + 'a chart timeframe that divides the range into whole bars.',
   // ⭐⭐ ENGINE 56 (S4-2) — a tie in a `highestbars` / `lowestbars` window over a computed source.
   [TIE_UNWITNESSED]: () => 'When two bars of a `highestbars` / `lowestbars` window hold the same extreme, '
     + 'TradingView names the NEWEST of them, over any source and at every Pine version measured (v4, v5 and '
@@ -6005,7 +6199,8 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
 export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-clock:unreadable',
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
-  'time-clock:weekend-session', 'running-total:window', 'var-origin:window'])
+  'time-clock:weekend-session', 'running-total:window', 'var-origin:window',
+  OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE])
 
 /** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
  *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
@@ -6018,7 +6213,9 @@ export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-
  *  opens an FX week on its Sunday 17:00 bar and a month by the trading day, where
  *  this engine's ISO week and calendar date put both a bar later or earlier. */
 export const SESSION_CLOCK_LEAVES = Object.freeze(['time', 'hour', 'minute', 'timeclose',
-  'dayopentime', 'dayclosetime', 'weekfirst', 'monthfirst', 'lastbartime', 'lastbarhour', 'lastbarminute'])
+  'dayopentime', 'dayclosetime', 'weekfirst', 'monthfirst', 'lastbartime', 'lastbarhour', 'lastbarminute',
+  // ⭐ 2026-11-17 — the regular session is a time of day: a 17:00 FX open is not inside it
+  'regularhours', 'regularfirst'])
 
 /** Every chart-clock node of a tree: the anchors, the period closes, the own-time
  *  nodes (`time(timeframe.period)`) and the `time("60")` nodes, whether any sits
@@ -6032,6 +6229,7 @@ function scanChartClock(tree) {
   const sixties = []
   const folds = []
   const leaves = []
+  const ranges = []
   let nested = false
   const stack = [[tree, false]]
   const seen = new Set()
@@ -6064,6 +6262,11 @@ function scanChartClock(tree) {
       closes.push(node)
       continue
     }
+    // an opening-range call: its `minutes`, whatever it sits under (the range is this chart's)
+    if (node.type === 'call' && OPENING_RANGE_CALLS.includes(node.name)) {
+      const m = node.args && node.args[0]
+      if (m && m.type === 'num' && typeof m.value === 'number' && !ranges.includes(m.value)) ranges.push(m.value)
+    }
     const base = requestBaseOf(node)
     if (base !== null && !folds.includes(base)) folds.push(base)
     // C41: an `ltf` child runs on the symbol's INTRADAY series, another clock, so a
@@ -6071,7 +6274,7 @@ function scanChartClock(tree) {
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  return { anchors, closes, owns, sixties, folds, nested, leaves }
+  return { anchors, closes, owns, sixties, folds, nested, leaves, ranges }
 }
 
 /** One clock leaf (or small clock tree) over the chart's own bars, as a column. */
@@ -6175,9 +6378,18 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   // is not FX (a Monday stamped 00:00 UTC is Sunday 20:00 New York — measured on
   // `objectDoorDraws.test.js`'s SPY bars), so it is never asked.
   const dayLeaves = scan.leaves.length > 0 && tf === 'D' && dateKeyed(bars)
-  if (!clocked && !scan.folds.length && !dayLeaves) return null
+  // ⭐ 2026-11-17 — an opening range is asked about on a chart that STATES its timeframe. An
+  // unstated one is the server's daily consumers: the reader itself answers nothing there.
+  const ranged = scan.ranges.length > 0 && typeof tf === 'string' && tf !== ''
+  if (!clocked && !scan.folds.length && !dayLeaves && !ranged) return null
   const why = []
   const add = (code) => { if (!why.includes(code)) why.push(code) }
+  if (ranged) {
+    for (const minutes of scan.ranges) {
+      const refusal = openingRangeRefusal(CLOCK_PERIOD_SECONDS[tf], minutes)
+      if (refusal) add(refusal)
+    }
+  }
   // ⭐ C49 — a request translated for one base period, on a chart that STATES
   // another timeframe: those are not the bars it asked for (`requestBaseNode`). An
   // unstated timeframe is the server's daily consumers, and is served as it always was.
@@ -6946,7 +7158,7 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     varOriginMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 57 — `ta.rci` / `ta.stoch` bars no capture pins
     builtinWitnessMask(tree, bars, inputs, budget, scalars, opts),
-    tfMergeMask(tree, bars, opts),
+    tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
@@ -7101,8 +7313,13 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
  *  `request:htf-first-period-partial`, unless the first bar CERTAINLY opens its period (a
  *  daily chart with no weekend bars whose first bar follows a weekday in another period —
  *  the mirror of the L3 test). Formula `tf` keeps its own behaviour.
+ *  ⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) — THOSE BARS ARE THE MERGE'S, NOT THE ROOT'S. They were
+ *  withheld at the root's own positions, so `x[1]` drew the partial first period's value one bar after the
+ *  last withheld bar (3.5 on bar 6 of PR #2049's Tuesday fixture, where TradingView, holding the whole week,
+ *  draws another). Which root bars READ one is engine 56's walk (`firstPeriodPartialReadMask`): `x[k]` moves
+ *  them k bars later, a window or a running value over x reads them where it reads x.
  *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
-export function tfMergeMask(tree, bars, opts) {
+export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, scalars = undefined) {
   const n = Array.isArray(bars) ? bars.length : 0
   const found = []
   const stack = [[tree, false, null]]
@@ -7129,8 +7346,15 @@ export function tfMergeMask(tree, bars, opts) {
   // withheld unless known to be forming, and under another request whatever the chart says.
   const forming = !!opts && opts.newestBarIsForming === true
   const known = forming || newestClosesEveryMergePeriod(bars, found, opts)
-  if (!known || found.some((f) => f.under)) mask[n - 1] = 1
-  const firstMask = firstPeriodPartialMask(bars, found, opts)
+  // ⭐⭐ HTF-NEWEST-NARROW (coordinator ruling 2026-11-19) — ONLY A ROOT THAT READS THE MERGE ON ITS NEWEST BAR.
+  // The newest bar was withheld for the WHOLE tree, so `x[1]` (the bar before's merge, settled) was blank wherever
+  // `x` was. Which root bars read the unknown merge is engine 56's dependency walk (`witnessMask`), with each
+  // merge a site unknown on its newest bar only: `x[k]` moves it k bars later, so `x[1]` draws; `nz(x)`,
+  // `na(x) ? x[1] : x`, a window or a running value over x read x on that bar and stay withheld. ⛔ A merge under
+  // another request keeps the whole-tree rule (its newest bar is another series').
+  if (found.some((f) => f.under)) mask[n - 1] = 1
+  else if (!known && newestReadsMerge(tree, bars, opts, inputs, budget, scalars)) mask[n - 1] = 1
+  const firstMask = firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars)
   const supplied = (opts && opts.symbols) || {}
   for (const f of found) {
     if (!f.sym) continue
@@ -7189,6 +7413,62 @@ function firstPeriodPartialMask(bars, found, opts) {
     }
   }
   return out
+}
+
+/** ⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) — THE ROOT BARS THAT READ A FIRST-PERIOD-PARTIAL VALUE, as a 0/1
+ *  column (1 = withheld), or null when none does.
+ *
+ *  A SITE is a read whose value is a merge's: a `tf_merge` under no other request, or the OUTERMOST request
+ *  (`tf` / `tf_live` / `sym` / `ltf`) that holds one. Its own bars are `firstPeriodPartialMask`'s over the merges it
+ *  holds, unchanged, so a lone `x` (and a merge under `sym` or another request) withholds exactly what it withheld.
+ *  Which ROOT bars read them is engine 56's walk (`witnessMask`), the one `newestReadsMerge` asks about the newest
+ *  bar: `x[k]` moves them k bars later; an operator or a pointwise call (`nz`, `na`, `+`) reads them on the same
+ *  bar; a window over the bars it spans; `barssince` / `valuewhen` by their own rules. The walk is taken EXACTLY
+ *  (`walk.exact`), so that a bar whose value reads only whole periods stays drawn (the walk's bounds would withhold
+ *  correct bars there, pictures that were drawn): `barsAgo` reads the bar its count lands on, not its whole buffer;
+ *  `c ? a : b` reads the arm its known condition takes, not both; a finite window (`sma`, `highest`, ...) reads its
+ *  own span, not its declared lookback (one bar wider). ⛔ A RUNNING value (`ema`, `cum`, a recurrence) is withheld
+ *  where its argument is, as before, and NOT from there on: its memory of the partial period is an open question
+ *  (`witnessMask`'s note), not settled here.
+ *  The sinks are stripped: `tfMergeMask` names `TF_MERGE_FIRST_CODE` itself, for a mask that withholds a bar. */
+function firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars) {
+  const n = bars.length
+  const mergesUnder = (top) => {
+    const merges = []
+    const stack = [top]
+    const seen = new Set()
+    while (stack.length) {
+      const node = stack.pop()
+      if (!node || typeof node !== 'object' || seen.has(node)) continue
+      seen.add(node)
+      if (node.type === TF_MERGE) merges.push({ code: node.value })
+      if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+    }
+    return merges
+  }
+  const own = new Map()
+  let any = false
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (SCOPE_TYPES.has(node.type)) {
+      const merges = mergesUnder(node)
+      if (merges.length) {
+        const m = firstPeriodPartialMask(bars, merges, opts)
+        if (m) any = true
+        own.set(node, m || new Float64Array(n))
+      }
+      continue
+    }
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!any) return null
+  const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
+  return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
+    (nd) => Float64Array.from(own.get(nd)), TF_MERGE_FIRST_CODE, { exact: true })
 }
 
 /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE FIRST PERIOD OF A LOOK-AHEAD READ, OFF THE LISTING, for the
@@ -7254,6 +7534,18 @@ function tfLiveFormingMask(bars, opts) {
   return out
 }
 
+/** ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) — does the ROOT's newest bar read a `tf_merge` on that merge's newest bar
+ *  (the one bar whose merge is unknown when the bar is finished)? Engine 56's walk (`witnessMask`), every merge a
+ *  site flagged on the newest bar only, with the sinks stripped: `tfMergeMask` names the code itself. */
+function newestReadsMerge(tree, bars, opts, inputs, budget, scalars) {
+  const n = bars.length
+  const newestOnly = () => { const c = new Float64Array(n); c[n - 1] = 1; return c }
+  const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
+  const m = witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => nd.type === TF_MERGE, newestOnly,
+    TF_MERGE_NEWEST_CODE)
+  return !!m && m[n - 1] === 1
+}
+
 /** ⭐ REVIEW L3 — the weekday of an ISO day, Mon = 1 … Sun = 7, from the day count alone. */
 function isoWeekday(iso) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -7303,10 +7595,21 @@ function newestClosesEveryMergePeriod(bars, found, opts) {
  *    - anything else (a recurrence, `cum`, the smoothers, a series-lookback call): every bar
  *      from the first unknown one on (it carries state it cannot forget).
  *  The result names `code` in the chart-clock channel and records the mask in
- *  `opts.withheldBarsSink` (code -> 0/1 column; the vendor harness reads it). Null when no bar is. */
+ *  `opts.withheldBarsSink` (code -> 0/1 column; the vendor harness reads it). Null when no bar is.
+ *  ⭐ `walk.exact` (HTF-PARTIAL-THROUGH-OFFSET, `firstPeriodPartialReadMask` only), three reads taken as the evaluator
+ *  takes them: `barsAgo(src, back, limit)` is unknown on a bar whose count is, or whose readable count lands on an
+ *  unknown `src` bar (`historyBackOf` / `historyReadable`, the evaluator's own rule), instead of over its whole
+ *  buffer; `c ? a : b` is unknown where `c` is, else where the arm a known `c` takes is (`TERNARY`: non-zero takes
+ *  `a`), and where either arm is on a bar whose `c` is `na`; a `FINITE_WINDOW` call over its own span (the bar and
+ *  `span - 1` before it), not its declared lookback. And a RUNNING value (the "anything else" kind) is unknown only
+ *  on its argument's own unknown bars: its memory is NOT followed, because "from the first unknown bar on" would
+ *  take away pictures a smoother has long forgotten the unknown bar in (measured for the first partial period: an
+ *  `ema(x, 3)` over a weekly merge, cut from a longer history at 120 starts, drew 116,772 bars of which 2,533 differ
+ *  from the longer chart; the forward rule withheld about 93,000 that agree). What such a value carries forward is
+ *  an open question this walk does not answer. Every other caller keeps the bounds. */
 const WITNESS_NESTED = new Set(['sym', 'tf', 'tf_live', 'tf_merge', 'ltf'])
 const WITNESS_WINDOW_CALLS = new Set(['change', 'crossOver', 'crossUnder', 'percentrank', 'barsAgo'])
-function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code) {
+function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, walk = {}) {
   const n = Array.isArray(bars) ? bars.length : 0
   const hasSiteMemo = new Map()
   const hasSite = (node) => {
@@ -7349,7 +7652,7 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
     if (!hasSite(node)) return null
     if (memo.has(node)) return memo.get(node)
     let out = null
-    if (WITNESS_NESTED.has(node.type)) out = ALL
+    if (WITNESS_NESTED.has(node.type) && !isSite(node)) out = ALL
     else {
       const args = Array.isArray(node.args) ? node.args : []
       if (isSite(node)) {
@@ -7363,6 +7666,21 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
           const k = Number(node.value) || 0
           out = new Float64Array(n)
           for (let i = k; i < n; i++) out[i] = u[i - k]
+        }
+      } else if (walk.exact === true && node.type === 'op' && node.name === '?:' && args.length === 3
+        && !readsRecurrenceBinding(args[0])) {
+        const uc = unk(args[0])
+        if (uc === ALL) out = ALL
+        else {
+          const c = colOf(args[0])
+          const ua = asCol(unk(args[1]))
+          const ub = asCol(unk(args[2]))
+          out = new Float64Array(n)
+          for (let i = 0; i < n; i++) {
+            const a = !!(ua && ua[i])
+            const b = !!(ub && ub[i])
+            if ((uc && uc[i]) || (Number.isNaN(c[i]) ? a || b : (c[i] !== 0 ? a : b))) out[i] = 1
+          }
         }
       } else if (node.type === 'op') {
         for (const a of args) out = orInto(out, unk(a))
@@ -7412,6 +7730,21 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
               }
             }
           }
+        } else if (walk.exact === true && node.name === 'barsAgo' && args.length === 3
+          && !readsRecurrenceBinding(args[1])) {
+          const us = unk(args[0])
+          const uk = unk(args[1])
+          if (us === ALL || uk === ALL) out = ALL
+          else {
+            const back = colOf(args[1])
+            const limit = windowLiteral(node, 2)
+            out = new Float64Array(n)
+            for (let i = 0; i < n; i++) {
+              if (uk && uk[i]) { out[i] = 1; continue }
+              const k = historyBackOf(back[i])
+              if (us && historyReadable(k, limit) && i - k >= 0 && us[i - k]) out[i] = 1
+            }
+          }
         } else if (node.name === 'pivothigh' || node.name === 'pivotlow') {
           let u = null
           for (const a of args) u = orInto(u, unk(a))
@@ -7421,11 +7754,17 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
           let u = null
           for (const a of args) u = orInto(u, unk(a))
           const lb = typeof spec.lookback === 'number' ? spec.lookback : windowLiteral(node, Number(String(spec.lookback).slice(3)))
-          out = windowed(u, Math.max(0, lb))
+          // `walk.exact`: a finite window's own span (`FINITE_WINDOW`), the bar and the `span - 1` before it, not the
+          // declared lookback (an upper bound, one bar wider)
+          const reach = walk.exact === true && own(FINITE_WINDOW, node.name) && typeof spec.lookback !== 'number'
+            ? FINITE_WINDOW[node.name].span(lb) - 1 : lb
+          out = windowed(u, Math.max(0, reach))
         } else {
           let u = null
           for (const a of args) u = orInto(u, unk(a))
-          out = forward(u)
+          // `walk.exact`: a running value keeps the rule it had, unknown on its argument's own unknown bars; its
+          // memory is not followed (see the note above `WITNESS_NESTED`)
+          out = walk.exact === true ? u : forward(u)
         }
       } else {
         for (const a of args) out = orInto(out, unk(a))
@@ -7547,6 +7886,10 @@ export function treeReadsSym(tree) {
  *  of its gaps. Q-RS2: `request.seed` lands each row on the chart bar of the same date, and a
  *  chart bar with no row reads `na` (no carry-forward). */
 export const SERIES_GAPS_READ_NA = '__gapsReadNa'
+/** ⭐ RS RATING L12 — set (not enumerable) on a supplied series whose first row is where OUR store's history of it
+ *  begins, not the instrument's (an index's intraday bars: yfinance holds 60 days of 5m): a chart bar before that
+ *  row is UNKNOWN to `symAlignmentMask` (withheld, by name), never `na`. */
+export const SERIES_UNKNOWN_BEFORE_FIRST = '__unknownBeforeFirst'
 
 /** ⭐⭐ C26 — THE BARS OF A TREE WHOSE ANSWER DEPENDS ON AN OTHER-SYMBOL BAR WE
  *  DO NOT HOLD, as a 0/1 column (1 = withheld), or null when nothing is withheld.
@@ -7600,6 +7943,10 @@ export function symAlignmentMask(tree, bars, opts) {
     // ⭐ RS RATING L6b — a series whose WITNESS says a chart bar with no bar of its date reads
     // `na` (`SERIES_GAPS_READ_NA`: Q-RS2, a Pine seed) has no unknown bar: its gaps are known.
     if (series[SERIES_GAPS_READ_NA] === true) continue
+    // ⭐ RS RATING L12 — a series whose FIRST row is our store's depth, not the instrument's first bar
+    // (`SERIES_UNKNOWN_BEFORE_FIRST`: an index's intraday bars, 60 days deep): a chart bar before it is
+    // UNKNOWN (withheld), never read as `na` (TradingView holds those bars and draws there).
+    const unknownBefore = series[SERIES_UNKNOWN_BEFORE_FIRST] === true
     let reach = Math.max(0, rootReach - maxLookback(a))
     if (!Number.isFinite(reach)) reach = n
     const held = new Set()
@@ -7617,6 +7964,7 @@ export function symAlignmentMask(tree, bars, opts) {
       const missing = key === undefined || key === null || first === undefined
         || typeof key !== typeof first
         || (!held.has(key) && key > first)
+        || (unknownBefore && key < first)
       if (missing) last = i
       if (i - last <= reach) { mask[i] = 1; any = true }
     }
@@ -7640,10 +7988,46 @@ export function tfMergeReads(isos, code, at) {
     const b = at.get(tfBucket(iso, code))
     const next = i + 1 < length ? isos[i + 1] : null
     if (i + 1 < length && !next) continue
-    if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) out[i] = b
-    else if (b > 0) out[i] = b - 1
+    // ⭐⭐ U-HTF-CALENDAR — a period a later weekday of which TradingView's session never closed
+    // closes on the NEXT bar: this bar still reads the period before (`htfClosesOnNextBar`).
+    if (next === null || tfBucket(next, code) !== tfBucket(iso, code)) {
+      out[i] = next !== null && b > 0 && htfClosesOnNextBar(iso, code) ? b - 1 : b
+    } else if (b > 0) out[i] = b - 1
   }
   return out
+}
+
+/** ⭐⭐ U-HTF-CALENDAR (2026-11-18) — A PERIOD CLOSES WHERE TRADINGVIEW'S SESSION SAYS IT DOES. One rule for
+ *  both lanes (`tfMergeReads` is the run's supply pick and the host's `tf_merge` arm; the Python twin is
+ *  `ast_interpret.py::htf_closes_on_next_bar`), read off the one authority on TradingView's session,
+ *  `lib/marketClock/tradingViewSession.js` (never restated here): it applies no closure before
+ *  `TRADINGVIEW_CLOSURES_FROM`, nor the ones listed in `TRADINGVIEW_UNAPPLIED_CLOSURES` (11-14 September 2001,
+ *  Hurricane Sandy).
+ *
+ *  With look-ahead off a completed week or month is shown on the bar that closes it (read off the next bar). When a
+ *  later weekday of that period is one TradingView's session never closed, that bar was not the period's last session
+ *  to TradingView, and it shows the period's close one bar LATER, on the next period's first session. Measured on
+ *  Q-HTF-CAL-1a / 1b (`vw-request-htf-alignment-{spy,qqq}-1d-2026-11-18`, AMEX and NASDAQ alike): every short period
+ *  through 23 Dec 1999 on the NEXT bar (SPY 13 weeks and 2 months, QQQ 2 weeks and 1 month), every one from 20 Apr
+ *  2000 on its LAST bar (46 weeks and 7 months on each, the closure of 11 Jun 2004 included), and the week of 10 Sep
+ *  2001 on the NEXT bar on both (`tests/test_pine_htf_calendar_switch_year.py`). The same session facts answer C49's
+ *  `time()` / `time_close()` anchors (`indicators.js::computePeriodCalendar`). ⛔ A weekday our bars merely lack
+ *  (a gap after 2000) moves nothing: only a day TradingView's session never closed does. */
+const TV_UNAPPLIED_CLOSURE_DAYS = new Set(TRADINGVIEW_UNAPPLIED_CLOSURES.map((e) => e.date))
+export function htfClosesOnNextBar(iso, code) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
+  if (code !== 'W' && code !== 'M') return false
+  const [y, m, d] = iso.split('-').map(Number)
+  const z = daysFromCivil(y, m, d)
+  const key = tfBucket(iso, code)
+  for (let k = 1; k <= 31; k++) {
+    const [yy, mm, dd] = civilFromDays(z + k)
+    const next = `${String(yy).padStart(4, '0')}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+    if (tfBucket(next, code) !== key) return false
+    const weekday = ((((z + k + 3) % 7) + 7) % 7) + 1 <= 5             // Mon = 1 ... Fri = 5 (`isoWeekKey`)
+    if (weekday && (next < TRADINGVIEW_CLOSURES_FROM || TV_UNAPPLIED_CLOSURE_DAYS.has(next))) return true
+  }
+  return false
 }
 
 /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE LOOK-AHEAD PICK, ONE AUTHORITY: for each bar of an
@@ -7854,6 +8238,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
   // ⭐ P0G — decided ONCE per evaluation from the caller's opts (`semanticsV2`).
   const binary = binaryFor(opts)
   const v2Fn = semanticsV2(opts)
+  const pineFn = pineCompareOn(opts)
   // ⭐ THE COMPUTE-TIME BUDGET, AND IT IS THE SAFETY HALF. It runs BEFORE the
   // scope is built and before a single node is walked, because the tree it
   // exists to refuse is the one that never returns. `assertBudget`'s
@@ -7965,7 +8350,11 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // `api/services/indicator_compute.py::bar_close_state`, which is the ONE
     // consumer of the NYSE sets, and that function's answer is the tri-state
     // the caller now passes as `newestBarIsForming`.
-    const cols = computeClock(bars, opts ? opts.tf : undefined,
+    // ⭐ PERF (C4) — a caller may hand in `opts.clockOf`, called exactly as `computeClock` is, with THESE bars,
+    // timeframe and tri-state: the runtime lane hands `clockMemo.js::clockColumnsOf`, which computes the columns once
+    // per bars array and answers each ask with its own copy. The memo is not kept here: this module is pure.
+    const clockOf = opts && typeof opts.clockOf === 'function' ? opts.clockOf : computeClock
+    const cols = clockOf(bars, opts ? opts.tf : undefined,
       opts ? opts.newestBarIsForming : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]
@@ -8305,7 +8694,9 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
         // family HOLDS across a hole instead of restarting after it (`FN_V2`).
         // ⭐ ENGINE 56 (S4-2) — over a price the bar holds, the newest tied bar wins
         if (own(FN_BAR_PRICE_NEWEST, n.name) && isBarPriceTree(n.args[0])) return FN_BAR_PRICE_NEWEST[n.name](...args)
-        return (v2Fn && own(FN_V2, n.name) ? FN_V2 : FN)[n.name](...args)
+        // ⭐⭐ engine 78 (#1858) — a PINE document's built-ins whose inside compares with TradingView's
+        // epsilon (`FN_PINE`, Q-FCMP2); every other built-in, and every native document, reads `FN`.
+        return (v2Fn && own(FN_V2, n.name) ? FN_V2 : (pineFn && own(FN_PINE, n.name) ? FN_PINE : FN))[n.name](...args)
       }
       case 'str':
       case 'symtext':
@@ -9034,15 +9425,16 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
       if (typeof c !== 'number' || c !== c) return st
       const S = asRange(st)
       // `s OP c` holds below `c` for `<`/`<=` and above it for `>`/`>=`
-      const below = (op === '<' || op === '<=') === branch
-      const lo = below ? S.lo : Math.max(S.lo, c)
-      const hi = below ? Math.min(S.hi, c) : S.hi
+      // ⭐ engine 78 (#1858): under the Pine compare a branch reaches up to `compareSlack` past `c`
+      // (`s > c` is FALSE for `s` within the epsilon above `c`), so the bound is widened by it: wider is
+      // sound, narrower would drop a state the run can be in. IEEE's slack is 0, as before.
+      const { lo, hi } = compareNarrow(op, branch, S.lo, S.hi, c, binary)
       let na = false
       if (S.na) {
         // `na` compares as 0 (`cmp`); inside `nz(self, k)` it reads as `k` — and a
         // `k` this engine cannot compute could answer either way, so `na` stays
         const k = ref.nzDefault ? columnAt(ref.nzDefault, j) : NaN
-        na = k !== k ? (ref.nzDefault ? true : !branch) : ((BINARY[op](k, c) !== 0) === branch)
+        na = k !== k ? (ref.nzDefault ? true : !branch) : ((binary[op](k, c) !== 0) === branch)
       }
       return rangeNorm(lo, hi, na)
     }
@@ -9073,7 +9465,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
           const values = n.args.map((a) => walk(a, st))
           v = values.every((x) => typeof x === 'number')
             ? (n.type === 'op' ? applyOpStep(n, values) : POINTWISE[n.name](...values))
-            : (n.type === 'op' ? rangeOp(n.name, values) : rangeCall(n.name, values))
+            : (n.type === 'op' ? rangeOp(n.name, values, binary) : rangeCall(n.name, values))
         }
         if (shared) {
           if (!memo) memo = new Map()

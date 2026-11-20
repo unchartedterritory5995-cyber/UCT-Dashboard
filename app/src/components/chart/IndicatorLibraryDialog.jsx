@@ -291,6 +291,8 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // way back. They are now two of the choices in one "Showing" control, beside "On this chart",
   // "Your indicators" and each catalogue heading, every one with its count where it is known.
   const [shelf, setShelf] = useState(SHELF_ALL)
+  // ⭐ how many UCT house indicators match a search on "All indicators" (the UCT set is its own file)
+  const [houseMatchCount, setHouseMatchCount] = useState(0)
   useEffect(() => { if (!open) setShelf(SHELF_ALL) }, [open])
   const { seen: tourSeen } = useIndicatorTours(typeof onFirstAdd === 'function')
   const searchRef = useRef(null)
@@ -891,7 +893,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             )}
           </div>
         )}
-        {shown === SHELF_ALL && rows.length === 0 && refusals.length === 0 && (
+        {shown === SHELF_ALL && rows.length === 0 && refusals.length === 0 && !(query.trim() && houseMatchCount > 0) && (
           <div className={styles.empty}>
             {/* ⚠️ A REQUEST IN FLIGHT IS NOT A FINISHED ANSWER, AND BOTH FACTS GO IN
                 ONE SENTENCE. Replacing the line with a bare "Searching…" hid the
@@ -909,6 +911,27 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                 Describe “{query.trim()}” instead
               </button>
             )}
+          </div>
+        )}
+        {/* ⭐ "All indicators" SEARCHES THE UCT SET TOO (2026-11-18): "Fred" found nothing while Fred RS sat on
+            the "UCT indicators" shelf. Its matches lead the results, under their own heading. */}
+        {shown === SHELF_ALL && query.trim() && (
+          <div data-testid="library-house-search">
+            <IndicatorHouseTab
+              query={query}
+              searchOnly
+              onMatches={setHouseMatchCount}
+              listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+              isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+              onPutOnChart={(defId) => {
+                if (!defId || !registry?.getDefinition?.(defId)) return false
+                const next = addInstance(settings, defId, registry)
+                if (next === settings) return false
+                onChange?.({ ...next, preset: 'custom' })
+                onClose?.()
+                return true
+              }}
+            />
           </div>
         )}
         {!isListShelf(shown) && indicatorGroups.filter((c) => shelfRows.some((r) => r.category === c)).map(renderGroup)}

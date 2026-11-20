@@ -1,6 +1,6 @@
 """Mutation proofs for the evidence engine (the proof record). Each mutation: save the file's bytes, apply
-ONE edit, run the NAMED rail from tests/test_evidence_engine.py, expect it red, restore the saved bytes,
-verify sha256. Never git checkout.
+ONE edit, run the NAMED rail from tests/test_evidence_engine.py (or the rails file a mutation names as its sixth
+element), expect it red, restore the saved bytes, verify sha256. Never git checkout.
 
     python -B tools/vendor_harness/evidence_engine_mutations.py           # every mutation, then the CONTROL
     python -B tools/vendor_harness/evidence_engine_mutations.py --dry     # only check each pattern occurs once
@@ -18,6 +18,8 @@ EL = W / "tools" / "vendor_harness" / "evidence_ledger.py"
 BC = W / "tools" / "vendor_harness" / "batch_capture.py"
 DOC = W / "docs" / "pine" / "EVIDENCE-ENGINE-DESIGN.md"
 RAILS = "tests/test_evidence_engine.py"
+#: The driver's own rails (the recording double): a mutation of `batch_capture.py` names this file as its sixth element.
+BATCH_RAILS = "tests/test_vendor_batch_capture.py"
 
 LICENCE = "test_the_licence_gate_admits_probes_corpus_and_permitted_headers_only"
 PROMOTE = "test_promote_needs_the_packet_sha_and_files_every_verdict"
@@ -37,6 +39,23 @@ SECTION = "test_a_sections_chart_beats_the_preambles_and_the_listing_flag_follow
 PROSE_CELL = "test_a_probe_named_in_a_prose_cell_is_a_reference_never_a_request"
 HEADING = "test_a_finished_capture_heading_is_recognised_numbered_or_in_any_case"
 LOCAL_EVIDENCE = "test_there_is_no_local_evidence_mode_and_the_design_doc_says_so"
+# ── the capture phase (2026-11-19) ──
+PHASE_ID = "test_a_capture_id_parses_with_and_without_a_phase_and_an_unknown_phase_is_refused"
+PHASE_CELL = "test_a_phase_cell_outside_the_vocabulary_refuses_the_queue_by_name"
+PHASE_TARGETS = "test_phased_rows_of_one_probe_and_chart_are_distinct_targets_and_unphased_ones_merge_as_before"
+PHASE_CHECK = "test_queue_check_refuses_phased_rows_that_would_collide_and_passes_distinct_phases"
+PHASE_STATUS = "test_fixture_status_matches_a_capture_by_its_phase"
+PHASE_MANIFEST = "test_the_manifest_carries_each_phase_as_its_own_script"
+BATCH_ID = "test_the_capture_id_carries_the_phase_and_an_unphased_id_is_unchanged"
+BATCH_VOCAB = "test_a_capture_phase_outside_the_vocabulary_is_refused_before_any_page_step"
+BATCH_CLASH = "test_two_scripts_naming_one_capture_id_refuse_the_batch_before_any_page_step"
+# ── the x-table marker (2026-11-19) ──
+XT_RAIL = "test_a_row_asking_for_the_x_table_is_not_answered_by_a_capture_without_one"
+XT_BAD = "test_an_x_table_cell_outside_yes_no_refuses_the_queue_by_name"
+# ── reference scripts (2026-11-19) ──
+REF_TARGET_RAIL = "test_a_reference_script_with_its_cached_text_is_a_target_and_a_held_one_is_licence_hold"
+REF_UNCACHED_RAIL = "test_a_reference_script_without_its_cached_text_is_needs_probe_by_name_and_takes_no_section_probe"
+REF_CI_RAIL = "test_the_committed_reference_rows_derive_and_queue_check_passes_on_a_machine_without_the_cache"
 
 MUTATIONS = [
     # ── the first eight (2026-11-02, tip ec0882c16a) ──
@@ -162,8 +181,8 @@ MUTATIONS = [
     ("an inline probe shape inherits a source", EE,
      r'                    and not re.search(r"\bprobe(?: shape)?:|indicator\(", rtext):',
      "                    and True:", PROSE),
-    ("an owed probe inherits a source", EE, "if not sources and not owed and not NO_PROBE_RX",
-     "if not sources and not NO_PROBE_RX", PROSE),
+    ("an owed probe inherits a source", EE, "if not sources and not owed and not ref_why",
+     "if not sources and not ref_why", PROSE),
     ("a version variant reads as the plain file", EE, "            variant = bool(VARIANT_RX.search(rtext))",
      "            variant = False", "test_a_version_variant_takes_its_sibling_file_or_needs_a_probe"),
     ("STALE is never derived", EE, '    if stale:\n        return "STALE"', '    if False:\n        return "STALE"',
@@ -186,8 +205,8 @@ MUTATIONS = [
     ("the preamble's listing wording flags a row on a section's chart", EE,
      '(chart_source == "preamble" and LISTING_RX.search(preamble))', "LISTING_RX.search(preamble)", SECTION),
     ("a prose cell can ask for a probe", EE,
-     '            sources, owed, fx = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if not pr))\n',
-     "            sources, owed, fx = resolve_sources(world, rtext)\n", PROSE_CELL),
+     '            request = " | ".join(c for c, pr in zip(cells, prose) if not pr)\n',
+     "            request = rtext\n", PROSE_CELL),
     ("no column is read as prose", EE, "bool(PROSE_HEAD_RX.match(header[ci]))", "False", PROSE_CELL),
     ("a bare probe stem in a prose cell is not filed as a reference", EE,
      "        if tok in world.probes and refs_only:\n", "        if False:\n", PROSE_CELL),
@@ -213,6 +232,65 @@ MUTATIONS = [
     ("RDDT's listing day carries over to another symbol", BC,
      '            o.listing_date = script.get("listingDate") or KNOWN_LISTING.get(o.symbol.upper())',
      "            pass", DRIVER),
+    # ── the capture phase (2026-11-19): one vocabulary, distinct targets, the queue check, the batch-start refusal ──
+    ("an id accepts any suffix as a phase", EL,
+     'PHASE_SUFFIX_RX = "(?:-(?:" + "|".join(re.escape(p) for p in CAPTURE_PHASES) + "))?"',
+     'PHASE_SUFFIX_RX = "(?:-[a-z-]+)?"', PHASE_ID),
+    ("the script key keeps the phase", EL, '    return m.group(1) if m else (capture_id or "")',
+     '    return (m.group(1) + m.group(2)) if m else (capture_id or "")', PHASE_ID),
+    ("a phase cell outside the vocabulary is admitted", EE, "    if v not in el.CAPTURE_PHASES:\n", "    if False:\n",
+     PHASE_CELL),
+    ("a phased row is not its own target", EE, ' + (f"@{phase}" if phase else "")', "", PHASE_TARGETS),
+    ("a target carries no capturePhase", EE, '"capturePhase": t["phase"],', '"capturePhase": None,', PHASE_TARGETS),
+    ("the queue never runs the phase check", EE, "    clash = phase_refusals(phase_groups)\n    if clash:\n",
+     "    clash = phase_refusals(phase_groups)\n    if False:\n", PHASE_CHECK),
+    ("phased and unphased rows of one probe and chart are admitted", EE, "        if not all(phases):\n",
+     "        if False:\n", PHASE_CHECK),
+    ("a repeated phase is admitted", EE, "        elif len(set(phases)) != len(phases):\n", "        elif False:\n",
+     PHASE_CHECK),
+    ("a capture of another phase answers the target", EE, 'and f["tf"] == t\n             and f["phase"] == phase and (not',
+     'and f["tf"] == t\n             and (not', PHASE_STATUS),
+    ("a capture of another phase makes the target stale", EE, ' and f["sha"] != sha and f["phase"] == phase]',
+     ' and f["sha"] != sha]', PHASE_STATUS),
+    ("a ledger verdict of another phase answers the target", EE,
+     ' and has_verdict and el.capture_phase(r.get("captureId")) == phase:', " and has_verdict:", PHASE_STATUS),
+    ("the manifest slug drops the phase", EE, '{norm_tf(t[\'tf\'])}" + (f"-{phase}" if phase else ""))',
+     '{norm_tf(t[\'tf\'])}")', PHASE_MANIFEST),
+    ("the manifest drops capturePhase", EE, '            **({"capturePhase": phase} if phase else {}),\n', "",
+     PHASE_MANIFEST),
+    ("the capture id drops the phase", BC, '    return f"{capture_id}-{phase}" if phase else capture_id',
+     "    return capture_id", BATCH_ID, BATCH_RAILS),
+    ("a capturePhase outside the vocabulary is admitted", BC,
+     "    if phase is not None and phase not in CAPTURE_PHASES:\n", "    if False:\n", BATCH_VOCAB, BATCH_RAILS),
+    ("the batch never checks its capture ids at its start", BC,
+     '            clash = capture_id_refusal(manifest["scripts"], drv.opts_for)\n', "            clash = None\n",
+     BATCH_CLASH, BATCH_RAILS),
+    ("two scripts naming one capture id are admitted", BC, "        if cid in seen:\n", "        if False:\n",
+     BATCH_CLASH, BATCH_RAILS),
+    # ── 2026-11-19: the x-table marker (a row asking where objects sit is answered only by a capture that records it) ──
+    ("a capture without the x table answers a row that asks for it", EE,
+     '             and f["phase"] == phase and (not needs_x_table or f.get("xTable"))]',
+     '             and f["phase"] == phase]', XT_RAIL),
+    ("the x-table column is never read", EE,
+     '                "needsXTable": row_needs_x_table(header, cells, f"{path.name}:{line_no} ({rid!r})"),',
+     '                "needsXTable": False,', XT_RAIL),
+    ("an x-table cell outside yes / no is read as no", EE,
+     '    raise XTableMarkerError(f"{where}: an', '    return False and (f"{where}: an', XT_BAD),
+    # ── 2026-11-19: reference scripts, ONE form `reference:<slug>` (cached text: a target; none: NEEDS_PROBE by name) ──
+    ("an uncached reference script is not named as one", EE,
+     '            why.append(f"{REF_UNCACHED}: `reference:{slug}`")\n', "            pass\n", REF_UNCACHED_RAIL),
+    ("a reference row that resolves to nothing takes the section's probe", EE,
+     "            if not sources and not owed and not ref_why and not NO_PROBE_RX",
+     "            if not sources and not owed and not NO_PROBE_RX", REF_UNCACHED_RAIL),
+    ("a held reference script is queued as if it were ours", EE, '    if kind == "corpus":\n        return "corpus"\n',
+     '    if kind in ("corpus", "reference"):\n        return "corpus"\n', REF_TARGET_RAIL),
+    ("the published script loses its PUB; prefix", EE, '"id": sid if sid.startswith("PUB;") else f"PUB;{sid}"',
+     '"id": sid', REF_TARGET_RAIL),
+    ("another spelling of a reference script reads as prose", EE,
+     '        why.append(f"a reference script is named `reference:{slug}`, not `reference/{slug}`")\n', "        pass\n",
+     REF_TARGET_RAIL),
+    ("a reference script's text is taken whether or not the cache holds it", EE,
+     "        return p if p.is_file() else None\n", "        return p\n", REF_CI_RAIL),
 ]
 
 
@@ -223,10 +301,15 @@ def adapt(text, a, b):
     return a, b
 
 
+def rails_of(m) -> str:
+    """The rails file a mutation's rail lives in: its sixth element, else RAILS."""
+    return m[5] if len(m) > 5 else RAILS
+
+
 def main() -> int:
     dry = "--dry" in sys.argv
     bad = []
-    for label, path, a, b, rail in MUTATIONS:
+    for label, path, a, b, rail, *_ in MUTATIONS:
         text = path.read_bytes().decode("utf-8")
         a2, _ = adapt(text, a, b)
         if text.count(a2) != 1:
@@ -237,7 +320,8 @@ def main() -> int:
         return 1 if bad else 0
     out, killed = [], 0
     env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
-    for label, path, a, b, rail in MUTATIONS:
+    for m in MUTATIONS:
+        label, path, a, b, rail = m[:5]
         saved = path.read_bytes()
         sha = hashlib.sha256(saved).hexdigest()
         text = saved.decode("utf-8")
@@ -245,7 +329,7 @@ def main() -> int:
         try:
             path.write_bytes(text.replace(a2, b2).encode("utf-8"))
             # pycache defeats a same-length mutation: never write bytecode
-            p = subprocess.run([sys.executable, "-B", "-m", "pytest", RAILS, "-q", "-p", "no:cacheprovider", "-k", rail],
+            p = subprocess.run([sys.executable, "-B", "-m", "pytest", rails_of(m), "-q", "-p", "no:cacheprovider", "-k", rail],
                                cwd=str(W), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
             last = p.stdout.strip().splitlines()[-1] if p.stdout.strip() else p.stderr.strip()[-200:]
             red = p.returncode != 0 and ("failed" in last or "error" in last)
@@ -255,8 +339,9 @@ def main() -> int:
             path.write_bytes(saved)
             assert hashlib.sha256(path.read_bytes()).hexdigest() == sha, f"restore failed for {path}"
         print(out[-1], flush=True)
-    # control: unmutated, the same rails are green
-    p = subprocess.run([sys.executable, "-B", "-m", "pytest", RAILS, "-q", "-p", "no:cacheprovider"],
+    # control: unmutated, the same rails are green (every rails file a mutation named)
+    p = subprocess.run([sys.executable, "-B", "-m", "pytest", *sorted({rails_of(m) for m in MUTATIONS}), "-q",
+                        "-p", "no:cacheprovider"],
                        cwd=str(W), capture_output=True, text=True, encoding="utf-8", errors="replace", env=env)
     control = p.stdout.strip().splitlines()[-1] if p.stdout.strip() else p.stderr[-400:]
     print("CONTROL:", control)

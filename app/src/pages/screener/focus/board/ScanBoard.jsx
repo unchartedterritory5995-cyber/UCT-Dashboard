@@ -1,10 +1,11 @@
 // The Screener as a widget board (boardModel.js). It is the Charts board's grid and its own drop
 // rule (24 x 20, locked to the window; nothing moves while you drag, and on the drop every other
-// widget re-tiles around the one you moved: ChartsWorkspace `repackAroundMoved`), so a scan board
+// widget re-tiles around the one you moved: charts/repackAroundMoved.js), so a scan board
 // behaves the way a Charts layout does. Locked until Customize is on.
 //
-// The drop rule lives in the Charts workspace module, which is large: it is loaded only when the
-// member first turns Customize on, never to draw a board.
+// The drop rule is its own small module, loaded when the member first turns Customize on. It must
+// never be imported from the Charts workspace module: that pulls the whole workspace, and the
+// Agent with it, into every page that mounts a scan board (scanBoardLoad.rail.test.js).
 import { useEffect, useMemo, useRef, useState } from 'react'
 import GridLayout, { WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
@@ -15,7 +16,7 @@ const Grid = WidthProvider(GridLayout)
 const SIDE_WORD = { left: 'to the left of', right: 'to the right of', up: 'above', down: 'below' }
 const RESIZE_WORD = { left: 'narrower', right: 'wider', up: 'shorter', down: 'taller' }
 
-export default function ScanBoard({ board, api, renderWidget, onRefused, loadRepack = () => import('../../../charts/ChartsWorkspace').then(m => m.repackAroundMoved) }) {
+export default function ScanBoard({ board, api, renderWidget, onRefused, loadRepack = () => import('../../../charts/repackAroundMoved').then(m => m.repackAroundMoved) }) {
   const host = useRef(null)
   const [height, setHeight] = useState(0)
   useEffect(() => {

@@ -38,7 +38,7 @@ class TestFmpClientNewsMethods:
         with patch.object(fc._session, "get", return_value=_fmp_resp(200, body)) as m:
             result = fc.get_news_stock("aapl", limit=10)
         assert result.value == body
-        assert result.licensing_class == "R"
+        assert result.licensing_class == "LA"     # T-38 DDLA column (restated 2026-11-19)
         assert result.provenance.vendor == "fmp"
         assert result.provenance.source_activity == "fmp_client.get_news_stock"
         called_url = m.call_args[0][0]

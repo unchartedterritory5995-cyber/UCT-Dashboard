@@ -164,18 +164,49 @@ def _evidence_cells() -> list[str]:
     return cells
 
 
-def test_every_backticked_repo_path_in_an_evidence_cell_exists_at_head():
-    tracked = _tracked()
-    assert 'docs/notebook/competitive-gap-ledger.md' in tracked, 'non-vacuity: git ls-files did not answer'
+def _tracked_at(rev: str) -> set[str]:
+    """Every path in the tree of ``rev`` (`git ls-tree -r`), the tree the scorecard says it measured."""
+    out = subprocess.run(['git', '-C', str(REPO), 'ls-tree', '-r', '--name-only', rev], capture_output=True, text=True,
+                         check=True, encoding='utf-8', errors='replace')
+    return set(out.stdout.splitlines())
+
+
+def _cited_paths(cells) -> set[str]:
     paths = set()
-    for cell in _evidence_cells():
+    for cell in cells:
         for tok in re.findall(r'`([^`\s]+)`', cell):
             if '/' not in tok or tok.startswith('http'):
                 continue
             paths.add(re.sub(r':[\d\-]+$', '', tok))
+    return paths
+
+
+def test_every_backticked_repo_path_in_an_evidence_cell_exists_in_the_tree_it_measured():
+    """PINNED to the revision the scorecard records, like the fragment check below (fix round 1): the
+    scorecard is a dated measurement, so a cited path must exist in the tree it measured. It said `at_head`
+    until 2026-11-18, and went red on master on 2026-11-12 when a3e226e11d deleted Research home
+    (`.../notebook/ResearchHome.jsx`, G-110's CODE citation) -- a later edit, the class the pin exists to
+    keep out ("a later unrelated edit never reds it"). Whether a cited file still exists today is the
+    human's question, `tools/parity_scorecard.py --verify --rev HEAD` (it says FAIL for the deleted file)."""
+    _text, rev = _written_at()
+    tracked = _tracked_at(rev)
+    assert 'docs/notebook/competitive-gap-ledger.md' in tracked, f'non-vacuity: git ls-tree {rev} did not answer'
+    paths = _cited_paths(_evidence_cells())
     assert len(paths) > 50, f'non-vacuity: only {len(paths)} cited paths found'
     missing = sorted(p for p in paths if p not in tracked)
     assert not missing, missing
+
+
+def test_the_path_check_refuses_a_path_its_measured_tree_never_had():
+    # control, at the same pinned revision: a cited path that tree does not hold is refused, and the file
+    # deleted since (present then, gone at HEAD) is exactly what the pin admits
+    _text, rev = _written_at()
+    tracked = _tracked_at(rev)
+    cells = ['CODE `app/src/never/existed.jsx`:12 "x"',
+             'CODE `app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx`:507 "Continue working"']
+    assert sorted(p for p in _cited_paths(cells) if p not in tracked) == ['app/src/never/existed.jsx']
+    assert 'app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx' not in _tracked(), \
+        'non-vacuity: the deleted file is back at HEAD, so this control no longer shows what the pin admits'
 
 
 def test_every_competitor_part_has_a_url_and_a_date_or_reads_not_verified():
@@ -357,13 +388,30 @@ def test_a_gate_retired_as_always_on_still_satisfies_an_armed_record():
 W9 = ('wave 9', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '1c4b0bf74')
 
 
-def test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous():
+def test_the_evidence_index_holds_on_the_real_inputs_and_is_not_vacuous(monkeypatch):
+    """2026-11-18: and it never SEARCHES. Waves 10 L1c, 12 C2, 13 and 15 were recorded with tip and squash None, so
+    once squashed the index walked every later master commit for one that ties (`_find_squash`): 78 s for L1c, and
+    endless for 12 C2 / 13 / 15, whose own heads #281 never squashed alone -- this test timed out at 300 s and would
+    have refused all three had it finished. Each wave now records the head its squash carries."""
+    monkeypatch.setattr(psc, '_find_squash',
+                        lambda *a, **k: pytest.fail(f'the index searched history for a squash ({a}): record it in B0_WAVES'))
     rows, problems = psc.evidence_index('HEAD')
     assert not problems, problems
     assert len(rows) == 3 * len(psc.B0_WAVES) + len(psc.B0_EVIDENCE) + len(psc.B0_TIPS)
     assert len(psc.B0_WAVES) >= 8 and len(psc.B0_EVIDENCE) >= 30 and len(psc.B0_TIPS) >= 10
     # fix round 1 (review I-3): no measured tree leans on HEAD, which a squash would leave behind
     assert all(ref != 'HEAD' for _, ref in psc.B0_TIPS), psc.B0_TIPS
+    # the four the search used to hunt: each pinned, landed and tied to its RECORDED squash
+    for wave, squash in (('wave 10 L1c', '38bb9a421'), ('wave 12 C2', '2265f4ac3'), ('wave 13', '2265f4ac3'),
+                         ('wave 15', '2265f4ac3')):
+        mine = [c for a, _b, c in rows if a.startswith(wave + ':')]
+        assert mine[0].endswith('(the recorded head)'), (wave, mine)
+        assert mine[1] == 'landed (an ancestor)' and any(f'squash `{squash}`' in a for a, _b, _c in rows if a.startswith(wave)), (wave, mine)
+        assert mine[2].startswith('the squash is the head merged onto its parent'), (wave, mine)
+    # ...and the committed §0 is this index, as the tool renders it (`--write-index` regenerates it)
+    sec = _section(_text(SCORECARD), '§0')
+    assert [l for l in sec if l.startswith('| ') and not l.startswith(('| item', '|---'))] == \
+        [f'| {a} | `{b}` | {c} |' for a, b, c in rows], 'the committed §0 is stale: python tools/parity_scorecard.py --write-index'
 
 
 def test_a_tag_that_does_not_pin_the_recorded_tip_is_refused():
@@ -411,7 +459,7 @@ MASTER_WITH_SQUASHES = '4bba30b73'   # a named master commit holding wave 9's, L
 
 
 def test_the_squash_of_a_recorded_head_is_found_in_heads_history():
-    """L1c's squash is not recorded (it does not exist yet); the tool finds it. Shown on the waves whose squash
+    """A wave whose squash is not recorded is found by search (L1c's was, until 2026-11-18 recorded it). Shown on the waves whose squash
     IS recorded, against a NAMED master commit (review R12-M4: origin/master moves, and a clone's or a stale
     worktree's can predate the squashes): the commit found is the recorded one."""
     assert _git('cat-file', '-t', MASTER_WITH_SQUASHES) == 'commit', f'{MASTER_WITH_SQUASHES} not in this clone'
@@ -421,6 +469,17 @@ def test_the_squash_of_a_recorded_head_is_found_in_heads_history():
             assert found and found.startswith(squash), (wave, found, squash)
     # control: a head no squash carries is not "found" at some later commit
     assert psc._find_squash('e6f418194', MASTER_WITH_SQUASHES) is None
+
+
+def test_the_lane_tags_the_squashed_heads_replaced_stay_defined_and_pushed():
+    """2026-11-18: waves 12 C2, 13 and 15 (and their walked trees) moved to the tag of the head #281 squashed, the
+    QR/RS/SC precedent. The lanes' own tags are the record of where each was cut: they stay defined and resolvable,
+    never deleted or moved; the new tag pins #281's head."""
+    for tag, sha in ((psc.W12C2_TAG, 'aa9ff0d14'), (psc.WAVE13SC_TAG, '69355d352'), (psc.WAVE15SC_TAG, '215d58aed'),
+                     (psc.W12_15_TIP_TAG, '4a06aa6e7')):
+        assert _git('rev-parse', '--verify', f'refs/tags/{tag}^{{commit}}').startswith(sha), tag
+    for _sha, ref in psc.B0_TIPS:
+        assert ref in {t for _w, t, _h, _s in psc.B0_WAVES}, f'{ref} is not a declared wave tag'
 
 
 def test_evidence_that_changed_since_it_landed_is_refused():

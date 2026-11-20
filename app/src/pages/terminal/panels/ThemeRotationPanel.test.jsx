@@ -169,10 +169,11 @@ describe('theme rotation panel, populated', () => {
     expect(screen.getByRole('table', { name: 'Rotating in (2)' })).toBeTruthy()
     expect(screen.getByRole('table', { name: 'Rotating out (2)' })).toBeTruthy()
     // theme, rank change (signed), rank over 1 month then 1 week, 1 week return, 1 month return
-    expect(cells(rowsOf('in')[0])).toEqual(['1Semiconductors', '+42', '49 to 91', '+6.2%', '+1.1%'])
-    expect(cells(rowsOf('in')[1])).toEqual(['2Gold miners', '+42', '13 to 55', '-0.4%', '-9.8%'])
+    // (the theme cell ends with its second door, "stocks": the theme's stocks ranked, in GRP)
+    expect(cells(rowsOf('in')[0])).toEqual(['1Semiconductors stocks', '+42', '49 to 91', '+6.2%', '+1.1%'])
+    expect(cells(rowsOf('in')[1])).toEqual(['2Gold miners stocks', '+42', '13 to 55', '-0.4%', '-9.8%'])
     // a missing return is n/a, never 0
-    expect(cells(rowsOf('out')[1])).toEqual(['2Regional banks', '-30', '60 to 30', '-1.2%', 'n/a'])
+    expect(cells(rowsOf('out')[1])).toEqual(['2Regional banks stocks', '-30', '60 to 30', '-1.2%', 'n/a'])
     const method = screen.getByTestId('terminal-trot-method').textContent
     expect(method).toContain('1 week rank less the 1 month rank')
     expect(method).toContain('20 points or more')
@@ -189,6 +190,17 @@ describe('theme rotation panel, populated', () => {
     await screen.findByTestId('terminal-trot-in')
     fireEvent.click(within(rowsOf('in')[0]).getByRole('button', { name: /Open the stocks driving Semiconductors/ }))
     expect(open).toHaveBeenCalledWith('IMOV THEME SEMI 1W')
+  })
+
+  it('"stocks" beside a theme opens every stock of it, ranked over the month (GRP)', async () => {
+    jsonFetcher.mockResolvedValue(BODY)
+    const { open } = renderPanel()
+    await screen.findByTestId('terminal-trot-in')
+    const door = within(rowsOf('out')[1]).getByRole('button', { name: 'Open the stocks of Regional banks, ranked (GRP THEME REGIONAL BANKS 1M)' })
+    expect(door.textContent).toBe('stocks')
+    fireEvent.click(door)
+    expect(open).toHaveBeenLastCalledWith('GRP THEME REGIONAL BANKS 1M')
+    expect(screen.getByTestId('terminal-trot-method').textContent).toContain('"stocks" opens every stock of the theme, ranked.')
   })
 
   it('one list empty says so beside the other, and is not drawn as a table', async () => {

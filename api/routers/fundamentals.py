@@ -515,10 +515,14 @@ def get_fundamentals_full(ticker: str = Depends(ticker_path)):
 @router.get("/api/fundamentals-statements/{ticker}")
 def get_fundamentals_statements(ticker: str = Depends(ticker_path)):
     """Historical income / balance-sheet / cash-flow statements (annual + quarterly
-    + TTM) for the Company Intelligence panel's Financials tab. Sourced from
-    yfinance (already a dependency — no new paid provider), curated to a stable set
-    of line items, cached 12h, every fetch bounded. No auth (public reference data,
-    same bucket as the other fundamentals endpoints)."""
+    + TTM) for the Company Intelligence panel's Financials tab. Sourced from FMP
+    (the statements the Financials panels already read), and from Yahoo Finance
+    only for a ticker FMP holds no statements for; `meta.source` names the one
+    used. Curated to a stable set of line items, every fetch bounded, and stored:
+    a stored copy is read again only when a newer quarter can exist
+    (`financial_statements._store_ttl`).
+    No auth (public reference data, same bucket as the other fundamentals
+    endpoints)."""
     sym = (ticker or "").upper().strip()
     if not sym:
         return {}

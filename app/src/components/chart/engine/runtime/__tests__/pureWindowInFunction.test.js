@@ -93,8 +93,10 @@ describe('⛔ unchanged where the source or the length is runtime state', () => 
     expect(g.message).toMatch(/only known while the bar is running/)
   })
 
-  it('a mutable GLOBAL source is still refused as one', () => {
-    const r = refusalOf('var float g = 0.0\ng := close\nf(int len) => ta.highest(g, len)\nplot(f(3))\n')
+  it('a GLOBAL source bound once is still refused as one (W13 / W14); a mutable one is its value at the call', () => {
+    const r = refusalOf('var float g = 0.0\ng := close\nh = g * 2\nf(int len) => ta.highest(h, len)\nplot(f(3))\n')
     expect(r.guard).toBe('runtime:function-global-state')
+    // ⭐ U-FGS F2 — the mutable global itself builds (its frame copy)
+    expect(build('var float g = 0.0\ng := close\nf(int len) => ta.highest(g, len)\nplot(f(3))\n').ok).toBe(true)
   })
 })

@@ -685,26 +685,28 @@
    "key": "w1",
    "title": "Four times a year",
    "steps": [
-    "A quarter ends. Over the next few weeks, most public companies report. That's earnings season.",
-    "Most use calendar quarters, so it usually starts in early to mid January, April, July and October.",
-    "Hundreds of names report in a short window. It can be a busy, volatile stretch for the market."
+    "A quarter ends, and over the next few weeks most public companies report. That's earnings season.",
+    "Most run on calendar quarters, so it kicks off early to mid January, April, July and October.",
+    "Hundreds of names report in a short window. It gets busy, and it can get volatile.",
+    "So check the date on everything you own or want. We don't buy in the 3 days before a report."
    ],
    "facts": [
     "f1",
     "f2",
     "f3",
     "f44",
-    "f15"
+    "f15",
+    "h01"
    ]
   },
   {
    "key": "w2",
    "title": "Before the open or after the close",
    "steps": [
-    "Most companies report while regular trading is shut: before the 9:30 a.m. open or after the 4:00 p.m. close.",
-    "After the close, the stock can swing after hours. The regular session first takes the news at the next open.",
-    "Before the open, that same morning's open takes it. Either way, the close before the report is your last regular-session exit.",
-    "Get the time from the company's own release. Meta's said after the close on Feb. 2, 2022."
+    "Most companies report while the market's shut: before the 9:30 a.m. open or after the 4:00 p.m. close.",
+    "Report after the close and it can swing after hours. The regular session gets its say at the next open.",
+    "Report before the open, and that morning's open takes it. Either way, the close before is your last regular-session exit.",
+    "Get the time from the company's own release. Meta's said after the close on February 2, 2022."
    ],
    "facts": [
     "f7",
@@ -719,9 +721,9 @@
    "key": "w3",
    "title": "The implied move",
    "steps": [
-    "Options price in a move for the report, a plus or minus number. That's the implied move, also called the expected move.",
-    "It's a size, not a direction, and not a cap. The real move can be bigger or smaller.",
-    "Put it in dollars on your position. A stop is a trigger, not a price. It can't catch that gap."
+    "The options market puts a number on the report: a move, plus or minus. That's the implied move, or the expected move.",
+    "It's a size, not a direction. And it's not a cap. The real move can be bigger, smaller, or nothing at all.",
+    "Your stop can't catch a gap. So put that move in dollars on your whole position before you decide to hold."
    ],
    "facts": [
     "f47",
@@ -741,28 +743,30 @@
    "rung": 1,
    "format": "mcq",
    "term": "earnings season",
-   "q": "What does \"earnings season\" mean?",
+   "q": "It's mid-April, and the names on your watchlist start reporting one after another. What's going on?",
    "choices": [
-    "The weeks after a quarter ends",
-    "The last weeks of each quarter",
-    "One month a year, for annual reports",
-    "Any week a company pays a dividend"
+    "Earnings season, a quarter ended",
+    "Quarter-end, the books are closing",
+    "Annual report season, once a year",
+    "Dividend season, most pay this month"
    ],
-   "answer": "The weeks after a quarter ends",
-   "why": "The weeks after a quarter ends. FINRA calls earnings season the multi-week stretch after each quarter, when most public companies report. It usually starts in early to mid January, April, July and October. So it comes once each quarter, not once a year.",
-   "lesson_line": "A quarter ends, then the reports roll in. That stretch is earnings season.",
+   "answer": "Earnings season, a quarter ended",
+   "why": "Earnings season. The quarter closed at the end of March, and now the reports roll in. That's the few weeks after each quarter ends, when most public companies put out their numbers. Most run on calendar quarters, so it kicks off in early to mid January, April, July and October. Four times a year, not once. Why you care: hundreds of names report in a short window, and the reactions can be fast and big. So when the season starts, I pull up the dates on everything I hold and everything I want to buy.",
+   "lesson_line": "Quarter ends, the reports roll in. That's earnings season, and it's when I check every date I own.",
    "facts": [
     "f1",
     "f2",
     "f3",
-    "f23"
+    "f23",
+    "f44",
+    "f15"
    ],
    "wrong": {
-    "The last weeks of each quarter": "That's when the quarter closes. The reports come in the weeks after it.",
-    "One month a year, for annual reports": "Companies report every quarter, so the season comes each quarter, not once a year.",
-    "Any week a company pays a dividend": "Earnings season is about quarterly results, not dividends."
+    "Quarter-end, the books are closing": "The quarter already closed at the end of March. The reports come in the weeks after it.",
+    "Annual report season, once a year": "Companies report every quarter, so the season comes four times a year.",
+    "Dividend season, most pay this month": "Dividends have nothing to do with it. This is quarterly results coming out."
    },
-   "simple": "It is the few weeks after each quarter ends, because that is when most companies put out their results.",
+   "simple": "The few weeks after each quarter ends are earnings season, when most companies report, so check the dates on what you hold.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -770,14 +774,14 @@
      "stable definition, several FINRA (Tier 1) facts agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "fund.season",
    "rung": 1,
    "format": "mcq",
-   "q": "You want to buy a stock and hold it for a few weeks. Which date do you look up first?",
+   "q": "You like a setup and plan to hold it a few weeks. Before you buy, which date do you pull up first?",
    "choices": [
     "Its next earnings date",
     "Its ex-dividend date",
@@ -785,7 +789,7 @@
     "Its last stock split date"
    ],
    "answer": "Its next earnings date",
-   "why": "Its next earnings date. A report can move a stock a lot, up or down, and nobody knows which way ahead of time. So find out when the company reports before you buy. If the date falls inside your hold, the report lands while you own the stock. Our own rule on buying near a report starts from that date too.",
+   "why": "The next earnings date. A report can move a stock a lot, up or down, and nobody knows which way ahead of time. If that date lands inside your hold, the report lands while you own it. That changes the whole trade. Whether you can buy at all, and whether you can hold through the report, both start from that date. You'll find it in the earnings list on the Calendar page in our app. Then confirm it on the company's own website before you get involved.",
    "lesson_line": "Before I get involved, I check the date. Then I know if a report sits inside my hold.",
    "facts": [
     "f56",
@@ -793,14 +797,16 @@
     "f57",
     "f15",
     "f44",
-    "h01"
+    "h01",
+    "f74",
+    "f75"
    ],
    "wrong": {
-    "Its ex-dividend date": "That date is about the dividend. The earnings date is when results can move the stock a lot.",
-    "Its last earnings date": "That one already passed. What matters for a hold is the next report inside it.",
-    "Its last stock split date": "That's in the past. What matters for a hold is the next report inside it."
+    "Its ex-dividend date": "That one's about the dividend. The earnings date is the one that can gap the stock.",
+    "Its last earnings date": "That report is done. What matters is the next one, and whether it lands inside your hold.",
+    "Its last stock split date": "That's history. The next report inside your hold is what can hurt you."
    },
-   "simple": "Look up the next earnings date first, because a report inside your hold can move the stock a lot.",
+   "simple": "Look up the next earnings date first, because a report inside your hold can move the stock a lot either way.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -808,7 +814,7 @@
      "the why points to our earnings rule (B22, the owner's rulebook) without stating it; q24 teaches it"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -903,7 +909,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "beat",
-   "q": "A company \"beats\" estimates. What does that mean?",
+   "q": "A name on your list just reported. The headline says it \"beat.\" What does that tell you?",
    "choices": [
     "Results topped the analysts' average",
     "The stock price rose after the report",
@@ -911,8 +917,8 @@
     "It reported before the SEC deadline"
    ],
    "answer": "Results topped the analysts' average",
-   "why": "Results topped the analysts' average. A beat means actual earnings or revenue came in above the consensus estimate, the average of the analysts who cover the stock. A miss means results fell short of it. A beat alone does not decide the price: a company can beat and still fall on a weak outlook. The market's real bar can also be an unofficial whisper number that differs from the consensus.",
-   "lesson_line": "A beat is the numbers against estimates. The stock can still go either way.",
+   "why": "Results came in above the analysts' average. That average is the consensus, what the analysts who cover the stock expect. Come in above it and it's a beat. Fall short and it's a miss. That's all a beat tells you. It says nothing about where the stock goes next. A company can beat and still drop on a weak outlook. And the bar the market really trades against can be a whisper number, not the posted one. So I never buy a headline. I watch how the stock acts.",
+   "lesson_line": "A beat is the numbers against the estimate. How the stock reacts is a separate question.",
    "facts": [
     "f9",
     "f10",
@@ -921,11 +927,11 @@
     "f13"
    ],
    "wrong": {
-    "The stock price rose after the report": "That's the reaction, not the beat. A company can beat and the stock can still drop.",
-    "Results grew from a year earlier": "That's growth. A beat compares results with what analysts expected for this quarter.",
-    "It reported before the SEC deadline": "That's about timing. A beat is results against the analysts' estimates, not when they came out."
+    "The stock price rose after the report": "That's the reaction, not the beat. Plenty of stocks beat and still drop.",
+    "Results grew from a year earlier": "That's growth. A beat is results against what analysts expected for this quarter.",
+    "It reported before the SEC deadline": "That's timing. A beat is about the numbers against the estimate."
    },
-   "simple": "A beat means results came in above what analysts expected on average, not that the stock went up.",
+   "simple": "A beat means results topped what analysts expected on average. It doesn't tell you the stock will go up.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -933,7 +939,7 @@
      "FINRA (Tier 1) definition; stable"
     ]
    },
-   "batch": "review3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -972,10 +978,10 @@
    "skill": "fund.season",
    "rung": 3,
    "format": "tf",
-   "q": "The after-hours price right after a report tells you where the stock will open.",
+   "q": "A stock trades 20% lower after hours on its report. That's where it will open tomorrow.",
    "answer": "False",
-   "why": "False. After-hours trading is extended-hours trading, outside 9:30 a.m. to 4:00 p.m. ET. The SEC warns that an extended-hours price may not reflect the price at the next day's regular open. Meta traded at $249.90 after hours on Feb. 2, 2022, down 22.6%. The price kept moving: the next regular session ended at $237.76. Treat the after-hours print as a first read, not a forecast of the open.",
-   "lesson_line": "An after-hours print is a first guess. The open can be somewhere else.",
+   "why": "False. After hours is a first read, not a forecast. The SEC warns that an extended-hours price may not match the next regular open. Meta's a good example. It traded at $249.90 after hours on Feb. 2, 2022, down 22.6%. It kept falling and closed the next day at $237.76. So don't build your plan on the after-hours print. Have your plan ready for the open, and let the regular session show you where it really wants to trade.",
+   "lesson_line": "After hours is a first guess. The open can be somewhere else.",
    "facts": [
     "f19",
     "f18",
@@ -984,7 +990,7 @@
     "f64",
     "f25"
    ],
-   "simple": "False, because the price can keep moving after hours, so the open can be somewhere else.",
+   "simple": "False, because the price can keep moving after hours and overnight, so the open can be somewhere else.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -992,7 +998,7 @@
      "the key rests on one cited fact (f19, SEC)"
     ]
    },
-   "batch": "review3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
@@ -1035,20 +1041,22 @@
    "skill": "fund.season",
    "rung": 4,
    "format": "mcq",
-   "q": "MSFT was $209.58 hours before its July 22, 2020 report. Options priced a $9.48 move. What is that as a percent?",
+   "q": "MSFT trades at $209.58 a few hours before its July 22, 2020 report. Options price a $9.48 move. How big is that, in percent?",
    "answer": "4.5%",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "move / price * 100",
-     "move": 9.48,
+     "expr": "(leg1 + leg2 - (strike - price)) / price * 100",
+     "leg1": 4.75,
+     "leg2": 5.15,
+     "strike": 210,
      "price": 209.58
     },
     "round": 1
    },
    "suffix": "%",
-   "why": "4.5%. The implied move is the move the options market prices in for the report. It is a size, not a direction. Divide it by the price: $9.48 / $209.58 is about 4.5%. In the UCT app, the Calendar page shows it in the Impl. Move column, and you can sort by it. To find it by hand, use the nearest at-the-money straddle, a call and a put at the strike closest to the price. Add their prices, 4.75 and 5.15. Subtract the gap between the 210 strike and the 209.58 price. That leaves 9.48. MSFT closed at $202.54 the next day.",
-   "lesson_line": "Turn the priced move into a percent. Read it in the Calendar page's Impl. Move column, or work it from the straddle.",
+   "why": "About 4.5%. Divide the dollar move by the price, then times 100. 9.48 divided by 209.58, times 100, is about 4.5%. That's the implied move, how big a move options are pricing on MSFT for the report. Up or down, they don't know which. You don't have to work it out yourself. Open the Calendar page in our app. The earnings list has an Impl. Move column, and you can sort by it to see the biggest priced moves. To do it by hand, take the at-the-money straddle in the nearest expiry. That's the call and the put at the strike closest to the price, here the 210. They were 4.75 and 5.15. Add them and you get 9.90. Then take off the 0.42 the 210 strike sits above the 209.58 price. That leaves 9.48. MSFT closed at $202.54 the next day, a drop inside that priced move. I check this number on anything I'm thinking of holding into a report.",
+   "lesson_line": "Turn the priced move into a percent. Our Calendar page shows it, or work it from the straddle.",
    "facts": [
     "f52",
     "f51",
@@ -1058,7 +1066,7 @@
     "f74",
     "f75"
    ],
-   "simple": "About 4.5%, because $9.48 is about 4.5% of the $209.58 price. The Calendar page shows this number for you.",
+   "simple": "About 4.5%, because 9.48 divided by 209.58 is about 4.5%. The Calendar page in our app shows it for you.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1066,7 +1074,7 @@
      "computed key (calc); inputs from one IBKR page, which refused a plain client (403) on 2026-11-12"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "0.5%",
     "22.1%",
@@ -1074,9 +1082,9 @@
     "4.5%"
    ],
    "wrong": {
-    "22.1%": "You flipped it and divided the stock price by the priced move.",
-    "9.5%": "You read the $9.48 dollar move as a percent.",
-    "0.5%": "A decimal slip: you moved the point the wrong way."
+    "22.1%": "You flipped it and put the price over the move. The move goes on top.",
+    "9.5%": "You read the $9.48 dollar move as a percent. On a $209.58 stock it's a lot less.",
+    "0.5%": "A decimal slip. You moved the point one place too far."
    },
    "visual": {
     "kind": "size",
@@ -1121,17 +1129,17 @@
    "skill": "fund.season",
    "rung": 5,
    "format": "scenario",
-   "story": "Stock A reports Tuesday after the close. Stock B reports Wednesday before the open. You hold both into Tuesday's close.",
-   "q": "Which regular session first trades each report?",
+   "story": "You hold two names into Tuesday's close. One reports Tuesday after the close. The other reports Wednesday before the open.",
+   "q": "When does each report first hit you in the regular session?",
    "choices": [
     "Both at Wednesday's open",
-    "A on Tuesday, B on Wednesday",
-    "A on Wednesday, B on Thursday",
+    "Tuesday's close, then Wednesday's open",
+    "Wednesday's open, then Thursday's open",
     "Both at Tuesday's close"
    ],
    "answer": "Both at Wednesday's open",
-   "why": "Both at Wednesday's open. A reports after Tuesday's 4:00 p.m. close, so the regular session first sees it at Wednesday's 9:30 a.m. open. B reports before that open, so the same open takes it. A can still trade after hours on Tuesday night. Tuesday's close was your last regular-session exit for both.",
-   "lesson_line": "After the close or before the open, the gap hits the next open. Decide before the close.",
+   "why": "Both hit at Wednesday's open. The first name reports once Tuesday's 4:00 p.m. close is done. So the first regular-session price on it is Wednesday's 9:30 a.m. open. The second reports Wednesday morning, before that same open. So both gaps land on you at once. That's the part people miss. The first one can trade after hours Tuesday night, but that's not the regular session. Tuesday's close is your last regular-session exit for both, so make the call on each one there.",
+   "lesson_line": "After the close or before the open, it all hits the next open. Make your call before the close.",
    "facts": [
     "f7",
     "f17",
@@ -1140,11 +1148,11 @@
     "f31"
    ],
    "wrong": {
-    "A on Tuesday, B on Wednesday": "A's news comes after Tuesday's session ends, so Tuesday's session never trades it.",
-    "A on Wednesday, B on Thursday": "B reports before Wednesday's open, so Wednesday's open takes it.",
-    "Both at Tuesday's close": "Neither one has reported yet at Tuesday's close."
+    "Both at Tuesday's close": "Neither one has reported yet at Tuesday's close.",
+    "Tuesday's close, then Wednesday's open": "The first name reports after Tuesday's session ends, so Tuesday's session never trades it.",
+    "Wednesday's open, then Thursday's open": "The second name reports before Wednesday's open, so Wednesday's open takes it."
    },
-   "simple": "Both hit at Wednesday's open, because A comes after Tuesday's close and B comes before Wednesday's open.",
+   "simple": "Both hit at the same open, because one reports after the close and the other before the next open.",
    "deeper": {
     "trap": "Two reports, one exit. Hold both into Tuesday's close and two gaps can land at the same Wednesday open. If both gap down, both losses hit in the same session. Tuesday's close is your last regular-session chance to act on either."
    },
@@ -1155,7 +1163,7 @@
      "timing logic from FINRA and SEC (Tier 1); stable"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
@@ -1163,7 +1171,7 @@
    "rung": 5,
    "format": "scenario",
    "story": "You plan to buy a breakout and hold for a few weeks. The calendar shows a report in eight days, marked \"Time Not Supplied\".",
-   "q": "What do you do before you buy?",
+   "q": "What's your move before you buy?",
    "choices": [
     "Check the company's own website",
     "Assume it reports after the close",
@@ -1171,8 +1179,8 @@
     "Trust the calendar date, it is official"
    ],
    "answer": "Check the company's own website",
-   "why": "Check the company's own website. \"Time Not Supplied\" is Nasdaq's label when the calendar has no report time yet. A calendar date can also be tentative, or just an estimate from past reports. The company's investor relations site, where it posts its own release, settles both. Meta's site posted its Jan. 4, 2022 notice: results after the close on Feb. 2. JPMorgan's site gave about 7:00 a.m. ET for its Oct. 13, 2026 results, before the open. The time matters, because it tells you which session first trades the news.",
-   "lesson_line": "A calendar date is a lead. The company's own website is the answer.",
+   "why": "Go to the company's own website. \"Time Not Supplied\" means the calendar doesn't have the time yet. The date itself can be soft too, tentative or just guessed from past reports. The company settles both. Open its investor relations page and find the release that sets the date. Meta's, posted Jan. 4, 2022, said results after the market close on Feb. 2. JPMorgan's said about 7:00 a.m. ET on Oct. 13, 2026, before the open. The time tells you which open takes the gap, and when your last chance to sell is. With a report inside your hold, you need that plan before you buy, not after.",
+   "lesson_line": "The calendar gives you a lead. The company's website gives you the answer.",
    "facts": [
     "f24",
     "f25",
@@ -1183,11 +1191,11 @@
     "f34"
    ],
    "wrong": {
-    "Assume it reports after the close": "Many do, but some report before the open. Guess wrong and the gap comes a session earlier than you planned.",
+    "Assume it reports after the close": "Plenty do, but not all. Guess wrong and the gap hits a whole session earlier than you planned.",
     "Nothing, your stop has it covered": "A stop is a trigger, not a price. It can't catch a gap.",
-    "Trust the calendar date, it is official": "A calendar date can be tentative, or just an estimate from the company's past pattern. The company's own release is the answer."
+    "Trust the calendar date, it is official": "A calendar date can be tentative, or a guess from past reports. Only the company makes it official."
    },
-   "simple": "Check the company's own website, because a calendar date can be a guess and may not list the time.",
+   "simple": "Check the company's own website, because the calendar date can be a guess and the time may be missing.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1195,14 +1203,14 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "review3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q14",
    "skill": "fund.season",
    "rung": 6,
    "format": "mcq",
-   "q": "You hold 200 shares of a $40 stock into earnings. The implied move is ±9%. What do you lose if it gaps down that much?",
+   "q": "You're holding 200 shares of a $40 stock into tonight's report. The implied move is ±9%. If it gaps down that much, what does it cost you?",
    "answer": "$720",
    "calc": {
     "fn": "arith",
@@ -1214,14 +1222,16 @@
     }
    },
    "prefix": "$",
-   "why": "$720. The implied move is the move options are pricing in, here 9% either way. Your position is 200 shares times $40, which is $8,000. A 9% drop on $8,000 is $720. The implied move is no cap: the real gap can be bigger or smaller.",
-   "lesson_line": "Put the implied move in dollars on your position. Plan for that loss, and know it can be bigger.",
+   "why": "$720. Work it through. 200 shares at $40 is an $8,000 position. 9% of $8,000 is $720. That's the move options are pricing, either way. Now the part that matters. The implied move is no cap. The real gap can be bigger, and your stop can't sell above it. So before the close, look at that $720 and ask if you're fine losing it, or more. We only hold through a report when the trade is up 5R. Short of that, you're out before the number.",
+   "lesson_line": "Put the implied move in dollars on your position. That's the loss to plan for, and it can be bigger.",
    "facts": [
     "f39",
     "f38",
-    "f45"
+    "f45",
+    "f46",
+    "h01"
    ],
-   "simple": "$720, because 9% of 200 shares at $40 is $720. A real gap can be bigger.",
+   "simple": "200 shares at $40 is $8,000, and a 9% gap down takes $720. A real gap can be bigger.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1230,7 +1240,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$720",
     "$1,800",
@@ -1238,9 +1248,9 @@
     "$8,000"
    ],
    "wrong": {
-    "$1,800": "You treated the 9% as $9 a share.",
-    "$7,200": "A decimal slip: you added a zero.",
-    "$8,000": "You gave the value of the whole position. The loss is only 9% of it."
+    "$1,800": "You took the 9% as $9 a share. It's 9% of the position.",
+    "$7,200": "A decimal slip, one zero too many.",
+    "$8,000": "That's the whole position. The gap takes 9% of it, not all of it."
    },
    "visual": {
     "kind": "size",
@@ -1343,10 +1353,10 @@
    "skill": "fund.season",
    "rung": 7,
    "format": "tf",
-   "q": "A stock that beat estimates four quarters running is safe to hold into its next report.",
+   "q": "Your stock beat estimates four quarters in a row. That makes it safe to hold into the next report.",
    "answer": "False",
-   "why": "False. A beat means results came in above the analysts' average estimate. A beat streak is only history, and beating is normal: on FactSet's 5-year average, 78% of S&P 500 companies beat EPS estimates. So four beats in a row tells you little. The stock can still fall if the outlook disappoints. It can also stall if it ran up into the report and has no new buyers left. The payoff is lopsided too: beaters gained 0.9% on average around the report, while misses lost 3.1%. Holding shares into a report leaves you fully exposed to a move either way.",
-   "lesson_line": "A beat streak is a record, not a forecast. The report can still gap you either way.",
+   "why": "False. Beating is normal, so a streak tells you less than it feels like. On FactSet's 5-year average, 78% of S&P 500 companies beat their EPS estimates. So four beats in a row doesn't make your stock special. What moves the price is the outlook, and how far the stock ran into the report. A company can beat and still drop on a weak outlook. A stock that ran hard into the report can meet the numbers and stall, with no new buyers left. And the downside is lopsided. Around the report, beats gained 0.9% on average and misses lost 3.1%. So the streak doesn't change anything. We hold through a report only when the trade is up 5R. Otherwise you're out before it.",
+   "lesson_line": "A beat streak is history, not a forecast. Into a report, I hold only when I'm up 5R.",
    "facts": [
     "f60",
     "f62",
@@ -1355,9 +1365,10 @@
     "f13",
     "f14",
     "f45",
-    "f57"
+    "f57",
+    "h01"
    ],
-   "simple": "False, because beating is normal and the stock can still fall on a weak outlook, so past beats do not make it safe.",
+   "simple": "False, because most companies beat, and a beat can still drop on a weak outlook. Past beats don't make a report safe.",
    "deeper": {
     "trap": "A beat streak feels like safety, but beating is the normal case: 78% of S&P 500 companies beat on FactSet's 5-year average. What moves the price is the outlook and the run into the report. FINRA notes a company may beat and give a weak outlook. A stock that rallied into its report may lack new buyers. And the miss hurts more than the beat pays: on that same average, beaters gained 0.9% and misses lost 3.1%."
    },
@@ -1369,7 +1380,7 @@
      "fixed before (checker, 2026-11-09)"
     ]
    },
-   "batch": "review3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1417,8 +1428,8 @@
    "skill": "fund.season",
    "rung": 8,
    "format": "scenario",
-   "story": "Meta (then ticker FB) reported after the close on Feb. 2, 2022. You hold with a sell stop at $300. After hours, it trades at $249.90, down 22.6%.",
-   "q": "If it opens near that price, where does your stop sell?",
+   "story": "You hold Meta (then ticker FB) with a sell stop at $300. It reports after the close on Feb. 2, 2022. After hours it trades at $249.90, down 22.6%.",
+   "q": "If it opens near there, where does your stop actually fill?",
    "choices": [
     "Far below $300, at the market",
     "At $300, the stop price you set",
@@ -1426,8 +1437,8 @@
     "Nowhere until $300 trades again"
    ],
    "answer": "Far below $300, at the market",
-   "why": "Far below $300, at the market. A stop price is a trigger, not a promised price. Once the stock trades through it, the stop becomes a market order and fills at the price available. Meta traded at $249.90 after hours, down 22.6%. It ended that Thursday at $237.76, down 26%. A stop-limit avoids that fill but may not fill at all.",
-   "lesson_line": "A stop can't sell above a gap. Into a report, your real risk is the gap.",
+   "why": "Far below $300, at the market. Your stop price is a trigger, not a promise. Once the stock trades through it, the stop turns into a market order and takes whatever price is there. If Meta opens near $249.90, that's about where you sell, way under your $300. And it got worse. Meta closed that Thursday at $237.76, down 26%. A stop-limit would skip the bad fill, but it might never fill at all, and then you're still holding. That's why your stop distance isn't your risk into a report. The gap is.",
+   "lesson_line": "A stop can't sell above a gap. Into a report, the gap is your real risk.",
    "facts": [
     "f25",
     "f67",
@@ -1439,11 +1450,11 @@
     "f22"
    ],
    "wrong": {
-    "At the last close, before the news": "That price is gone. The report reset it after the close.",
-    "Nowhere until $300 trades again": "That's closer to a stop-limit, which may not fill at all. A plain stop sells at the market.",
-    "At $300, the stop price you set": "The stop price only triggers the order. The sale happens at whatever the market pays."
+    "At the last close, before the news": "That price is gone. The report reset everything after the close.",
+    "Nowhere until $300 trades again": "That's how a stop-limit acts, and it might never fill. A plain stop sells at the market.",
+    "At $300, the stop price you set": "The $300 only triggers the order. The fill is whatever the market pays."
    },
-   "simple": "Far below $300, because a stop turns into a market order once hit, and the market is far lower.",
+   "simple": "Far below $300, because a stop turns into a market order once it's hit, and the market is way lower.",
    "deeper": {
     "trap": "In a gap, the price jumps with no trading in between, so nothing trades at your stop price. The stop triggers and sells at the market, and the fill can land far below the stop. Into a report, the gap is the real risk, not the stop distance."
    },
@@ -1454,7 +1465,7 @@
      "touches the owner's gap rule (B20) and real stop orders (D41); see owner_flags"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1462,7 +1473,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "You hold a $20,000 position into tonight's report. Your stop is 4% below the price. The implied move is ±10%.",
-   "q": "Which loss should you plan for if you hold?",
+   "q": "If you hold, what loss do you plan for?",
    "choices": [
     "About $2,000, and maybe more",
     "About $800, plus a little slippage",
@@ -1478,7 +1489,7 @@
      "move": 10
     }
    },
-   "why": "About $2,000, and maybe more. A 10% gap on $20,000 is $2,000. A gap that size jumps a 4% stop: the stop triggers and sells at the market, below its price. The implied move is not a cap either, so the real loss can be bigger.",
+   "why": "About $2,000, and maybe more. 10% of $20,000 is $2,000. Your stop says $800, 4% of $20,000. But a gap that size jumps right over a 4% stop. The stop triggers and sells at the market, under its price. And the implied move is no cap, so the real gap can be bigger. That's how I measure risk into a report: by the implied move, not the stop. If $2,000 or more is too much to lose, don't hold it into the number. We only hold through a report when we're up 5R anyway.",
    "lesson_line": "Into a report, I measure risk by the implied move, not my stop distance.",
    "facts": [
     "f39",
@@ -1488,14 +1499,15 @@
     "f34",
     "f35",
     "f46",
-    "f20"
+    "f20",
+    "h01"
    ],
    "wrong": {
-    "About $800, plus a little slippage": "That's 4% of $20,000 with a small miss. A gap can skip the stop, and the fill can land far below it.",
-    "None, the stop caps the loss": "A stop caps nothing in a gap. It triggers and sells at the market.",
-    "About $1,000, half of the ±10%": "The ± means 10% either way, not 10% in total. Schwab's example: a $10 move spans $90 to $110."
+    "About $800, plus a little slippage": "That's 4% of $20,000, your stop distance. A gap doesn't stop at your stop, and the fill can land far below it.",
+    "None, the stop caps the loss": "A stop caps nothing in a gap. It triggers and sells at whatever the market pays.",
+    "About $1,000, half of the ±10%": "The ± means 10% either way, not 10% split in two. A $10 move on a $100 stock spans $90 to $110."
    },
-   "simple": "Plan for about $2,000 or more, because a 10% gap on $20,000 jumps right past a 4% stop.",
+   "simple": "Plan for $2,000 or more, because a 10% gap on $20,000 jumps right over a 4% stop.",
    "deeper": {
     "trap": "Your stop distance is not your risk into a report. A 4% stop on $20,000 says $800. A gap the size of the implied move, 10%, costs $2,000, and the stop cannot sell above the gap. With shares alone, the only sure way to cap that risk is to be out before the report."
    },
@@ -1506,7 +1518,7 @@
      "computed key (calc)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The loss to plan for",
@@ -1568,7 +1580,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "You own a smaller social media stock. The group's biggest name reports after the close tonight. Yours reports later.",
-   "q": "Does tonight's report matter for your position?",
+   "q": "Should tonight's report matter to you?",
    "choices": [
     "Yes, it can move the whole group",
     "No, only your own report can move it",
@@ -1576,7 +1588,7 @@
     "Yes, but a beat there can only help"
    ],
    "answer": "Yes, it can move the whole group",
-   "why": "Yes, it can move the whole group. A big company's report can move the stocks around it. After Meta reported on Feb. 2, 2022, Snap fell more than 18% after hours. It lost 23% the next day. Your stock can gap on someone else's report.",
+   "why": "Yes, it can move the whole group. A big name's report doesn't stay in its own lane. Feb. 2, 2022 is the one to remember. Meta reported after the close, and Snap fell more than 18% after hours that night. The next day Snap lost 23%, on Meta's news, not its own. So check when the leaders in your group report, not just your own name. If the biggest stock in your group reports tonight, you're exposed to that gap too.",
    "lesson_line": "Check the leaders' dates too. Their report can gap your stock.",
    "facts": [
     "f68",
@@ -1588,11 +1600,11 @@
     "f13"
    ],
    "wrong": {
-    "No, only your own report can move it": "Big names move their groups. Your stock can gap on someone else's report.",
-    "Not unless you also own the big name": "You don't need to own it to feel it. The group can move together.",
-    "Yes, but a beat there can only help": "Not always. A company can beat and still fall on a dour outlook, and its group can fall with it."
+    "No, only your own report can move it": "Big names move their groups. Snap gapped on Meta's report.",
+    "Not unless you also own the big name": "You don't have to own it to feel it. The group trades together.",
+    "Yes, but a beat there can only help": "Not always. A company can beat and still fall on a weak outlook, and drag its group down with it."
    },
-   "simple": "Yes, because a big name's report can drag its whole group, as Meta's did to Snap in 2022.",
+   "simple": "Yes, because a big name's report can drag its whole group, the way Meta's did to Snap.",
    "deeper": {
     "example": "Meta reported after the close on Feb. 2, 2022, and fell 26% the next day. Pinterest, Snap and Twitter all slid after hours that night. The next day Snap lost 23% and Twitter dropped 5.6%. Check when the leaders in your group report, not just your own stock."
    },
@@ -1603,7 +1615,7 @@
      "two Tier 2 publishers (CNBC, CBS) agree; historical, fixed numbers"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -1611,11 +1623,11 @@
    "rung": 5,
    "format": "tf",
    "house": true,
-   "q": "Our earnings rule allows a new buy today in a stock that reports a week from now.",
+   "q": "A breakout triggers today. The company reports a week from now. You can still buy it.",
    "answer": "True",
-   "why": "True. Our rule bars new buys only in the 3 days before an earnings report. A week away is outside that window, so a new buy is allowed. The report still lands soon after, so plan for it before you buy. Our rule lets you hold through a report only when the trade is up 5R, five times what you risked. So a buy a week out must be up 5R by the report, or be sold before it.",
-   "simple": "True, because our rule bars new buys only in the 3 days before a report, and a week is further out.",
-   "lesson_line": "No new buys in the 3 days before a report. Look up the date before every buy.",
+   "why": "True. We don't make new buys in the 3 days before a report. A week out is outside that, so the buy is fine. But the report is coming, so plan for it on the way in. We only hold through a report when the trade is up 5R, five times what you risked. So you've got about a week to get there. If it isn't up 5R by then, you sell before the report. Know that before you click buy.",
+   "simple": "True, because we only block new buys in the 3 days before a report, and a week out is further away.",
+   "lesson_line": "No new buys 3 days before a report. A week out, you can buy. Be up 5R or out by the report.",
    "facts": [
     "h01",
     "f56"
@@ -1628,7 +1640,7 @@
      "days versus sessions is an open owner question elsewhere; a week out is clear under either reading"
     ]
    },
-   "batch": "review3"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
@@ -1685,25 +1697,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f1 (FINRA, re-fetched 2026-11-12, quote present). Choices 30-36, key not longest. 'once each quarter' follows from f1 'each quarter'. No give-away of q04 or q25."
+   "notes": "Truth ok (f1-f3, f15, f44). Stem is a screen moment, why gives the reason and what I do. Season dates stated without FINRA's 'typically', but 'most run on calendar quarters' carries the qualifier."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f56/f55/f57. Choices 20-25, key not longest. Neutral on holding; the pointer to our rule does not state the 3 days, so it does not answer q24."
+   "notes": "Truth ok; Calendar page (f74, f75) and company site as the how. Does not give away q24's 3 days. Good mentor close."
   },
   "q03": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review4: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q04": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review4: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q05": {
    "status": "cut",
@@ -1714,32 +1726,32 @@
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fix: 'whisper number above the consensus' overreached. FINRA (syndication.finra.org/node/846, re-fetched) says the whisper number 'differs from the consensus' (analysts may be too cautious or too optimistic) and 'can become the market expectation'. Reworded to 'differs'. Rest correct."
+   "fixed": false,
+   "notes": "Truth ok (f9-f13). Defines consensus, beat, miss, whisper number plainly; 'I never buy a headline' is his register."
   },
   "q07": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review3: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False is right. Meta $249.90 after hours, down 22.6% (f67), and $237.76 close the next session (f64) are verbatim and the why claims only that the price kept moving, not that it opened there. SEC point is f19. Definition of after-hours is in the why."
+   "notes": "False is right (f19). Meta 249.90 AH, 237.76 next close (f67, f64) checked. Example shows the next day kept moving rather than the open itself, acceptable as illustration."
   },
   "q09": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review4: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "price before report and the options' $ move; percent; key '4.5%'"
+   "fixed": true,
+   "notes": "Math ok: 9.48/209.58*100 = 4.52, 209.58/9.48 = 22.1, 0.45 slip, 9.5 = dollars as percent. His note asked for the app AND the by-hand way; the original already named both tersely, so the writer's version barely moved. Fix shows the straddle steps in numbers (4.75 + 5.15 = 9.90, 210 - 209.58 = 0.42, 9.90 - 0.42 = 9.48), adds the real outcome (202.54 next day, inside the priced move) and why I look at it. The calc now works from the straddle legs (same 4.5 key) so the step numbers are grounded."
   },
   "q11": {
    "status": "cut",
@@ -1750,20 +1762,20 @@
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Only deeper.trap and facts changed. Trap rests on f28/f31; 'last regular-session chance' follows from f7 + f17. Holding into a report is the story's premise, covered by the B22 owner flag."
+   "fixed": true,
+   "notes": "Answer right (f7, f17). Writer's stem 'Which open takes each report?' clashed with two choices that name Tuesday's close, and narrowed the answer. Stem reworded to the trader's question; why kept."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Answers the owner's 'company website' note; the sources s7 and s8 are the companies' own investor-relations sites (f25, f27) and Nasdaq's 'Time Not Supplied' label is f24. Key is the shortest choice by two characters (31 vs 33); within the validator's bar, left. Fix: the Meta sentence was broken English ('Meta posted its on Jan. 4') and JPMorgan 'posted its report' misdescribed a notice of the release time; both reworded."
+   "notes": "His note 'company website' is met: answer and why point to the company's investor relations page with Meta and JPMorgan as real cases (f25, f27, f70). Stem 'What do you check' hinted a check is needed, making 'Nothing' and 'Assume' easy; reworded neutral."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "shares, price, implied move; loss on the gap; key '$720'"
+   "notes": "200 x 40 = 8,000; 9% = 720; 1,800 = 200 x 9; 7,200 decimal slip; 8,000 whole position. Steps shown; 5R hold rule (B22) stated right; no-cap point (f38)."
   },
   "q15": {
    "status": "cut",
@@ -1775,13 +1787,13 @@
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in review4: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Answer False kept; the owner's 'explain' note is met: defines a beat, shows the 78% base rate (f60), the 0.9% vs 3.1% payoff (f62, f63), the outlook and run-up causes (f13, f14) and the full exposure (f45). All numbers sit in cited quotes. Fix: one 23-word sentence split to stay under 22."
+   "fixed": false,
+   "notes": "His note 'false, yes, but explain' is met at the magnitude asked: why the streak means little (78%), what really moves it (outlook, run-up, f13, f14), the lopsided 0.9 / -3.1, and what we do instead (hold only at 5R)."
   },
   "q18": {
    "status": "cut",
@@ -1799,13 +1811,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f20/f21/f34; numbers from f67 ($249.90, 22.6%) and f64 ($237.76, 26%); Thursday follows from f25's Wednesday. Choices 29-34, key shortest. Keys order mechanics only, not what we do on a gap (B20); that is already an owner flag, so not keyed against the rulebook."
+   "notes": "Truth ok (f20-f22, f64, f67). Narrates the fill in the question's numbers and ends on the lesson. Sounds like him."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "position, stop and implied move all as stated; calc (position x move) ignores the stop, which is the lesson, and the label 'Loss to plan for' fits; slot '$2,000'"
+   "notes": "20,000 x 10% = 2,000; 4% = 800; the half-of-10% trap via f37. 'That's how I measure risk into a report' is his register."
   },
   "q22": {
    "status": "cut",
@@ -1816,14 +1828,14 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f68/f69/f65/f59; numbers 18% (f69) and 23% (f65). Choices 32-36, key shortest; two Yes, two No. 'a beat can only help' wrong per f13 + f12."
+   "fixed": true,
+   "notes": "Truth catch: 'Snap lost 23%, without reporting a thing' is not in the facts and is shaky (Snap reported its own quarter that same evening). f65 supports only that Meta's stumble pulled Snap down; reworded to 'on Meta's news, not its own'."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "True is right under h01 (no new buys in the 3 days before; hold through only if up 5R). Fix: the added sentence ran 25 words, split; and made it teach the real consequence of buying a week out (up 5R by the report or out before it), which follows directly from h01."
+   "fixed": false,
+   "notes": "True is right under B22 (3 days, a week out is clear either way). 5R hold plan stated right. True/false mix: 1 of 3 true; with 3 true/false questions no split lands in 35-65%, and the audit checks it only from 8."
   },
   "q25": {
    "status": "cut",

@@ -122,10 +122,29 @@ def capture_store() -> pathlib.Path:
     return pathlib.Path(v) if v else DEFAULT_CAPTURE_STORE
 
 
+#: ⭐ THE ONE CAPTURE-PHASE VOCABULARY (coordinator, 2026-11-19). Two rows of ONE probe on the same symbol, timeframe
+#: and day (in session, then after the close on a fresh load) named the same capture and collided. A capture id may
+#: therefore end with one phase: `<stem>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]`. Closed: a phase outside this tuple is
+#: refused wherever one is read (a queue doc's `phase` column, a manifest's `capturePhase`, an id). Defined HERE
+#: only; `evidence_engine.py` and `batch_capture.py` import it and never restate it.
+CAPTURE_PHASES = ("insession", "postclose-open", "postclose-fresh", "preopen")
+#: The optional `-<phase>` an id may end with, as a regex fragment (every id pattern appends it; built from the tuple).
+PHASE_SUFFIX_RX = "(?:-(?:" + "|".join(re.escape(p) for p in CAPTURE_PHASES) + "))?"
+_ID_RX = re.compile(r"^(.*)-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}(" + PHASE_SUFFIX_RX + ")$")
+
+
 def script_key(capture_id: str) -> str:
-    """The script part of a capture id `<script>-<sym>-<tf>-<yyyy-mm-dd>` (the capture stem)."""
-    m = re.match(r"^(.*)-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}$", capture_id or "")
+    """The script part of a capture id `<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]` (the capture stem). The phase is
+    never part of it: two phases of one probe are one script."""
+    m = _ID_RX.match(capture_id or "")
     return m.group(1) if m else (capture_id or "")
+
+
+def capture_phase(capture_id: str):
+    """The phase a capture id ends with (one of CAPTURE_PHASES), or None for an unphased id or a string that is not
+    an id at all."""
+    m = _ID_RX.match(capture_id or "")
+    return m.group(2)[1:] if m and m.group(2) else None
 
 
 def source_shas(text: str) -> set:
@@ -140,6 +159,27 @@ def _lane_verdict(v) -> dict | None:
     if not isinstance(v, dict) or v.get("verdict") is None:
         return None
     out = {"verdict": v.get("verdict"), "reason": (str(v.get("reason") or "")[:MAX_STRING] or None)}
+    # ⭐⭐ (coordinator rulings 2026-11-19) WHAT A HELD CAPTURE DECIDES, FROM THIS ROW ALONE: the lane's first diverging
+    # item and its kind (drawn / withheld / unpositioned), the document the grade was taken on (`door`), and the
+    # NARROWEST withholds that remove exactly what differs (`held_evidence.lane_withholds`, the one classifier). Only a
+    # grader result carries the items; a lane verdict already filed keeps what it has.
+    if any(k in v for k in ("first", "withholds", "door")):
+        if isinstance(v.get("first"), dict):
+            out["first"] = {"kind": v["first"].get("kind"), "item": str(v["first"].get("item") or "")[:MAX_STRING]}
+        if v.get("door") in ("host", "runtime"):
+            out["door"] = v["door"]
+        if isinstance(v.get("withholds"), list) and v["withholds"]:
+            out["withholds"] = v["withholds"]
+    elif "plots" in v or "objects" in v or "objectsV2" in v or "paints" in v:
+        import held_evidence  # noqa: PLC0415 -- held_evidence imports this module
+        first = held_evidence.lane_first(v, MAX_STRING)
+        if first:
+            out["first"] = first
+        if v.get("ourDoor") in held_evidence.DOORS:
+            out["door"] = v["ourDoor"]
+        withholds = held_evidence.lane_withholds(v)
+        if withholds:
+            out["withholds"] = withholds
     # ⭐ L7 — the substituted inputs the grade ran with (the harness's `substituted` record), names only
     subs = v.get("substituted")
     if isinstance(subs, list) and subs:

@@ -615,6 +615,85 @@
   font-size: var(--text-xs);
 }
 
+/* Ready-made boards (starterBoards.js): the codes a board opens, quiet beside its name (never
+   gold: gold marks only the board that is open now), and its one sentence, which wraps. */
+.menuCodes {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.menuAbout {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+/* One ready-made board = one button: the name and codes on the first line, the sentence under
+   it. Taller than a touch target on its own, so it needs no minimum height on a phone. */
+.starterBtn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-xs);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.starterBtn:hover {
+  background: var(--bg-hover);
+}
+
+/* A stock board with no ticker to open for: the row stays, quiet and not clickable, and the
+   reason is written under it (BoardsMenu.jsx), never left to the cursor alone. */
+.starterBtn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.starterBtn:disabled:hover {
+  background: transparent;
+}
+
+/* The label over the stock boards, inside the ready-made section: a sub-heading, quieter than
+   the section's own (`.menuHead`) and in sentence case as written. */
+.menuSub {
+  margin-top: var(--space-xs);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.starterTop {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+/* The one gold mark in the section: the board that is on screen now. */
+.starterNow {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .menuInput,
 .menuInputSm {
   min-width: 0;
@@ -992,6 +1071,7 @@
   .panelGrip,
   .menuBtn,
   .menuMainBtn,
+  .starterBtn,
   .menuInput,
   .menuInputSm,
   .menuCheck {

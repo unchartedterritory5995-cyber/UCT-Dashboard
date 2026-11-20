@@ -685,10 +685,10 @@
    "key": "w1",
    "title": "Margin is a loan",
    "steps": [
-    "A margin account lets you borrow from your broker. Under Regulation T, it can lend up to half of a new buy.",
-    "After that, FINRA's floor applies: your equity must not fall below 25% of the stock's value. Your broker can set it higher.",
-    "Drop under it and expect a margin call. The broker can sell your stock without telling you first.",
-    "Borrowed money grows your losses too. You can lose more than you put in."
+    "Margin is your broker lending you money to buy. Under Regulation T, it can lend up to half of a new buy.",
+    "Then there's a floor. Your equity can't drop under 25% of what the stocks are worth. Your broker's line can be higher.",
+    "Break it and you get a margin call. They can sell your stock without even telling you first.",
+    "And the loan cuts both ways. It grows your losses too, and you can lose more than you put in."
    ],
    "facts": [
     "f75",
@@ -704,9 +704,9 @@
    "key": "w2",
    "title": "The day trading rule changed",
    "steps": [
-    "Old rule: four or more day trades in five business days made you a pattern day trader. Then you needed $25,000.",
-    "FINRA replaced it, effective June 4, 2026. No trade count, no $25,000. Your equity must cover your positions all day.",
-    "Brokers have until October 20, 2027 to switch. Until then, ask yours which rules your account runs on."
+    "Old rule: four or more day trades in five business days, and you're a pattern day trader. That meant $25,000 minimum.",
+    "FINRA scrapped it June 4, 2026. No trade count, no $25,000. Now your equity has to cover your positions all day.",
+    "Brokers have until October 20, 2027 to switch over. So ask yours which rules your account runs on today."
    ],
    "facts": [
     "f45",
@@ -722,9 +722,9 @@
    "key": "w3",
    "title": "Settled cash in a cash account",
    "steps": [
-    "Most trades settle T+1, the next business day. Sell on Tuesday and the cash settles on Wednesday.",
-    "Buy with cash that hasn't settled, then sell before it does, and that's a good faith violation.",
-    "Buy and sell before you pay at all, and that's freeriding. Your broker can freeze the account for 90 days."
+    "Most trades settle T+1, the next business day. Sell Tuesday, and that cash is yours Wednesday.",
+    "Buy with cash that hasn't settled, then sell before it does. That's a good faith violation.",
+    "Buy and sell before you've paid at all, and that's freeriding. Your broker can freeze the account for 90 days."
    ],
    "facts": [
     "f39",
@@ -742,7 +742,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "margin account",
-   "q": "What does a margin account let you do?",
+   "q": "Your broker offers to switch your cash account to margin. What does that actually let you do?",
    "choices": [
     "Borrow from your broker to buy",
     "Cap your loss at what you deposit",
@@ -750,8 +750,8 @@
     "Hold shares safe from forced sales"
    ],
    "answer": "Borrow from your broker to buy",
-   "why": "Borrow from your broker to buy. The broker lends you cash, and your account is the collateral. Under Regulation T, it can lend up to 50% of a new stock buy. Some securities can't be bought on margin at all. The loan works both ways. It raises your buying power and your possible losses, and you can lose more than you deposit.",
-   "lesson_line": "Margin is a loan. It grows your buying power and your losses.",
+   "why": "You borrow from your broker to buy. The broker lends you cash, and your account backs the loan. Under Regulation T it can lend up to 50% of a new stock buy. Some stocks can't be bought on margin at all. Here's the part people forget. The loan cuts both ways. It grows your buying power, and it grows your losses. You can lose more than you put in. We only use margin when the app's market reading is Green.",
+   "lesson_line": "Margin's a loan. It makes your winners bigger and your losers bigger.",
    "facts": [
     "f75",
     "f21",
@@ -760,14 +760,16 @@
     "f23",
     "f36",
     "f30",
-    "f52"
+    "f52",
+    "f79",
+    "f83"
    ],
    "wrong": {
-    "Cap your loss at what you deposit": "Backwards. FINRA warns you can lose more than you deposit in a margin account.",
-    "Buy any stock with no money down": "Regulation T has you put up part of a new buy yourself. Some securities can't be bought on margin at all.",
-    "Hold shares safe from forced sales": "Backwards. On margin your broker can sell your securities without notice to cover a shortfall."
+    "Cap your loss at what you deposit": "Backwards. On margin you can lose more than you put in. That's the whole danger of it.",
+    "Buy any stock with no money down": "You put up part of every new buy yourself, and some stocks can't be bought on margin at all.",
+    "Hold shares safe from forced sales": "Backwards. Fall short and your broker can sell your shares without telling you."
    },
-   "simple": "A margin account lets you borrow money from your broker to buy stock, and your account backs the loan.",
+   "simple": "Margin is a loan from your broker, backed by your account. It grows your buying power and your losses.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -775,24 +777,24 @@
      "fixed before (checker split a wrong note)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "risk.account_rules",
    "rung": 1,
    "format": "tf",
-   "q": "Your broker can sell your stock to meet a margin call without contacting you first.",
+   "q": "You're on margin and you get a margin call. Your broker can sell your shares to cover it without reaching you first.",
    "answer": "True",
-   "why": "True. FINRA says your broker can sell your securities without notice. The SEC adds that it can do so without informing you in advance. Most brokers try to tell you about a margin call, but they don't have to. Even if your broker gives you a few days to pay, it can still sell sooner.",
-   "lesson_line": "A margin call is not a conversation. Watch your equity before the broker has to.",
+   "why": "True, and people get burned by this. Your broker doesn't have to reach you before it sells. FINRA and the SEC both say so. Most brokers will try to tell you about a call, but they don't have to. Even if you're given a few days to pay, they can still sell sooner. So don't sit waiting on an email. Watch your equity yourself, and cover a call right away.",
+   "lesson_line": "A margin call isn't a conversation. Watch your equity so the broker never has to.",
    "facts": [
     "f30",
     "f31",
     "f52",
     "f53"
    ],
-   "simple": "True, your broker can sell your shares to cover a margin call, and it does not have to reach you first.",
+   "simple": "True. Your broker can sell your shares to cover a call, and it doesn't have to reach you first.",
    "deeper": {
     "trap": "A note from your broker giving you a few days to cover a call is not a promise. The SEC says the broker may still sell your securities before then. Plan to meet a call at once."
    },
@@ -801,15 +803,15 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
    "skill": "risk.account_rules",
    "rung": 2,
    "format": "fill",
-   "q": "Tap the number that completes FINRA's rule.",
-   "sentence": "Your equity in a margin account must not fall below ___ of the stocks' current value.",
+   "q": "You're holding stock on margin. How low can your equity sit, as a share of what the stocks are worth, before you're under FINRA's floor?",
+   "sentence": "Your equity must stay at or above ___ of what your stocks are worth right now.",
    "bank": [
     "25%",
     "50%",
@@ -817,15 +819,15 @@
     "75%"
    ],
    "answer": "25%",
-   "why": "25%. Equity is what you own after you subtract the margin loan. FINRA says it must not fall below 25% of the stocks' current market value. That is the maintenance margin. It is a floor, not a target. Your broker can set a stricter level, and that is the one you must meet. Fall under it and you get a margin call. It is not the 50% Regulation T limit on the loan for a new buy.",
-   "lesson_line": "Know your broker's maintenance number. FINRA's is only the floor.",
+   "why": "25%. Your equity is what's yours after you take away the loan. FINRA says it can't drop below 25% of what the stocks are worth today. That's maintenance margin, and it's a floor, not a target. Your broker can set it higher, and its number is the one that calls you. So look up your broker's maintenance number before you borrow. Don't mix it up with the 50% Regulation T lets you borrow on a new buy.",
+   "lesson_line": "Know your broker's maintenance number. FINRA's 25% is just the floor.",
    "facts": [
     "f24",
     "f37",
     "f27",
     "f23"
    ],
-   "simple": "It is 25%, the floor FINRA sets for your equity on margin, and your broker can set it higher.",
+   "simple": "25%. FINRA won't let your equity fall below that share of what your stocks are worth, and brokers can ask for more.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -833,14 +835,14 @@
      "a rule number FINRA sets and could change"
     ]
    },
-   "batch": "fills"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "risk.account_rules",
    "rung": 2,
    "format": "mcq",
-   "q": "Under Regulation T, how much of a new stock purchase can your broker lend you?",
+   "q": "Before you buy on margin: under Regulation T, how much of a new stock buy can your broker lend you?",
    "choices": [
     "Up to 50%",
     "Up to 25%",
@@ -848,19 +850,19 @@
     "Up to 100%"
    ],
    "answer": "Up to 50%",
-   "why": "Up to 50%. Under Regulation T, brokers can generally lend up to 50% of the total purchase price of a new stock buy. You put up the rest from your own money. That is the limit at the start only. After the buy, FINRA's 25% maintenance floor is the level your equity must stay above.",
-   "lesson_line": "On a new buy, at least half is your own money.",
+   "why": "Up to 50%. Regulation T lets the broker lend up to half the price of a new stock buy. The other half is your money. That limit is only for getting in. Once you own it, the line to watch is FINRA's 25% maintenance floor. So 50% to get in, 25% to stay in.",
+   "lesson_line": "50% to get in, 25% to stay in.",
    "facts": [
     "f23",
     "f55",
     "f24"
    ],
    "wrong": {
-    "Up to 25%": "25% is FINRA's maintenance floor, the equity you must keep later. It isn't the loan on a new buy.",
-    "Up to 75%": "Too much. Regulation T caps the loan on a new stock buy at half the price.",
-    "Up to 100%": "That's buying with none of your own money. Regulation T has you put up at least half."
+    "Up to 25%": "Mixed up the two numbers. 25% is the equity you have to keep after the buy, not the loan.",
+    "Up to 75%": "Too much. Regulation T caps the loan on a new buy at half the price.",
+    "Up to 100%": "That's buying with none of your own money. At least half of every new buy is yours."
    },
-   "simple": "Up to 50%, because Regulation T lets your broker lend at most half the price of a new stock buy.",
+   "simple": "Up to half. Regulation T has you put up at least the other half of a new stock buy.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -868,24 +870,24 @@
      "a rule number (Regulation T's 50%) that the Federal Reserve sets and could change"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
    "skill": "risk.account_rules",
    "rung": 3,
    "format": "tf",
-   "q": "As of November 2026, FINRA's margin rule still sets a $25,000 minimum for pattern day traders.",
+   "q": "It's November 2026. FINRA's margin rule still says you need $25,000 in the account to day trade.",
    "answer": "False",
-   "why": "False. FINRA's new intraday margin rule replaced the old day trading rules in their entirety. The pattern day trader count and the $25,000 minimum went with them. It took effect June 4, 2026. Brokers that need more time may phase it in until October 20, 2027. So your broker may still run the old rules for now. Ask which rules your account is on.",
-   "lesson_line": "The $25,000 rule is gone from FINRA's rulebook. Ask your broker whether it has switched yet.",
+   "why": "False. FINRA threw out the old day trading rules on June 4, 2026. The pattern day trader count and the $25,000 minimum went with them. Here's the catch. Brokers can phase the new rule in until October 20, 2027. So your broker might still hold you to $25,000 today. Don't go by the headline. Ask your broker which rules your account is on before you day trade a small account.",
+   "lesson_line": "FINRA dropped the $25,000 rule. Your broker might not have yet, so ask.",
    "facts": [
     "f01",
     "f02",
     "f05",
     "f09"
    ],
-   "simple": "False, FINRA's new rule dropped the $25,000 minimum on June 4, 2026, but your broker may still use it for now.",
+   "simple": "False. FINRA dropped the $25,000 minimum, but your broker may still use the old rule for a while.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -893,14 +895,14 @@
      "a rule that changed in 2026, with a phase-in for brokers until October 20, 2027"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
    "skill": "risk.account_rules",
    "rung": 2,
    "format": "mcq",
-   "q": "You sell shares on a Thursday, with no holiday that week. When does the sale settle?",
+   "q": "You sell a stock Thursday morning, and there's no holiday this week. When is that cash actually settled?",
    "choices": [
     "Friday",
     "Thursday, the same day",
@@ -908,8 +910,8 @@
     "The next Thursday"
    ],
    "answer": "Friday",
-   "why": "Friday. Under T+1, most trades settle on the next business day after the trade date. FINRA's own example: sell on Tuesday and it settles on Wednesday. T+1 began with trades on or after May 28, 2024. Before that, most trades settled in two business days, T+2, which would have meant Monday.",
-   "lesson_line": "Trade date plus one business day. That's when the cash or the shares are really yours.",
+   "why": "Friday. Trades settle T+1 now, one business day after the trade. FINRA's own example is a Tuesday sale settling Wednesday, so Thursday's sale settles Friday. Why you care: in a cash account, that money isn't free to trade in and out with until it settles. Before May 28, 2024 it took two business days, which would've meant Monday.",
+   "lesson_line": "Trade day plus one business day. That's when the cash is really yours.",
    "facts": [
     "f39",
     "f40",
@@ -919,10 +921,10 @@
    ],
    "wrong": {
     "Thursday, the same day": "That's the trade date. Settlement comes one business day later.",
-    "The next Monday": "That's two business days, the old T+2 cycle. T+1 took over on May 28, 2024.",
-    "The next Thursday": "Far too long. Under T+1, most trades settle the next business day, so a Thursday sale settles Friday."
+    "The next Monday": "That's two business days, the old T+2. T+1 took over on May 28, 2024.",
+    "The next Thursday": "Way too long. A Thursday sale settles Friday."
    },
-   "simple": "It settles Friday, because most trades now settle one business day after the trade.",
+   "simple": "Friday. Trades settle one business day after you make them.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -930,14 +932,14 @@
      "a settlement cycle that changed in 2024 and could change again"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
    "skill": "risk.account_rules",
    "rung": 3,
    "format": "mcq",
-   "q": "Which kind of account do you need to sell a stock short?",
+   "q": "A stock on your list just broke below its 200-day and you want to short it. Which account lets you do that?",
    "choices": [
     "A margin account",
     "A cash account",
@@ -945,40 +947,40 @@
     "An options account"
    ],
    "answer": "A margin account",
-   "why": "A margin account. A short sale borrows stock from your broker to sell it, hoping the price falls. FINRA says a margin account is the only type of account that allows short selling. A cash account can't borrow from the broker at all, so it can't short.",
-   "lesson_line": "No margin account, no short selling.",
+   "why": "A margin account. When you short, you borrow shares from your broker and sell them, hoping to buy them back lower. FINRA says a margin account is the only kind that allows that. A cash account can't borrow anything, so it can't short. If you ever plan to short, set up margin ahead of time, not the day the chart breaks.",
+   "lesson_line": "No margin account, no shorting.",
    "facts": [
     "f21",
     "f22",
     "f76"
    ],
    "wrong": {
-    "A cash account": "A cash account can't borrow from the broker, and a short sale sells borrowed stock.",
-    "Either one works": "Only a margin account allows short selling, because the stock you sell is borrowed.",
-    "An options account": "Options approval doesn't let you short a stock. Shorting means borrowing the stock, and FINRA says only a margin account allows that."
+    "A cash account": "A cash account can't borrow from the broker, and a short sells borrowed shares.",
+    "Either one works": "Only margin works. The shares you sell short are borrowed.",
+    "An options account": "Options approval doesn't let you short shares. Shorting means borrowing them, and that takes margin."
    },
-   "simple": "You need a margin account, because a short sale sells borrowed stock and only a margin account can borrow.",
+   "simple": "A margin account. A short sells borrowed shares, and only a margin account can borrow.",
    "tier": "core",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
    "skill": "risk.account_rules",
    "rung": 3,
    "format": "tf",
-   "q": "Options trades settle T+1, the same as stocks.",
+   "q": "You buy calls in a cash account on Monday. The money for them is due Tuesday, one business day later, just like stock.",
    "answer": "True",
-   "why": "True. FINRA lists stocks, bonds, options, ETFs and more under the T+1 cycle. In a cash account you pay for options by settlement, one day after the buy, just as for stocks.",
-   "lesson_line": "Stock or option, the money is due one business day after the trade.",
+   "why": "True. Options settle T+1 too. FINRA puts stocks, options, ETFs and bonds on the same one-day cycle. So in a cash account the money for Monday's calls is due Tuesday, same as a stock. It works the other way too. Sell those calls and the cash isn't settled until the next business day.",
+   "lesson_line": "Stock or option, it all settles the next business day.",
    "facts": [
     "f41",
     "f34"
    ],
-   "simple": "True, options settle one business day after the trade, the same as stocks.",
+   "simple": "True. Options settle one business day after the trade, the same as stock.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -986,24 +988,25 @@
      "a settlement cycle that changed in 2024 and could change again"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "risk.account_rules",
    "rung": 4,
    "format": "mcq",
-   "q": "You bought $20,000 of stock with a $10,000 margin loan. It's now worth $12,500. What's your equity as a percent of its value?",
+   "q": "$20,000 of stock, bought with a $10,000 margin loan, is now worth $12,500. Where's your equity, as a percent of its value?",
    "answer": "20%",
    "calc": {
-    "fn": "margin_equity_pct",
+    "fn": "arith",
     "args": {
-     "market_value": 12500,
+     "expr": "(value - loan) / value * 100",
+     "value": 12500,
      "loan": 10000
     }
    },
    "suffix": "%",
-   "why": "20%. Equity is the $12,500 value minus the $10,000 loan. Divide that by the $12,500 value to get 20%. That is under FINRA's 25% floor, so expect a margin call.",
+   "why": "20%, so expect a margin call. Your equity is the value minus the loan. $12,500 minus $10,000 is $2,500. $2,500 over $12,500 is 0.2, so 20%. FINRA's floor is 25%, and your broker's may be higher. Here's what bites people. The loan never shrinks when the stock falls, so the whole drop comes out of your equity. That's why I check equity as a percent, not just dollars.",
    "lesson_line": "Equity is value minus loan. On margin, check it as a percent every day.",
    "facts": [
     "f38",
@@ -1011,7 +1014,7 @@
     "f24",
     "f27"
    ],
-   "simple": "It is 20%, which is under FINRA's 25% floor, so expect a margin call.",
+   "simple": "20%. The loan stayed the same while the stock fell, so your equity sank under FINRA's floor.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1019,7 +1022,7 @@
      "computed key (calc margin_equity_pct)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "50%",
     "80%",
@@ -1027,9 +1030,9 @@
     "20%"
    ],
    "wrong": {
-    "80%": "Gave the loan share of the value, not the equity.",
-    "12.5%": "Divided the equity by the original $20,000.",
-    "50%": "Used the equity share you started with."
+    "80%": "That's the loan's share of the value. You want the part that's yours.",
+    "12.5%": "Divided the $2,500 by the $20,000 you paid. Use what it's worth now.",
+    "50%": "That's where you started. The drop came out of your equity, not the loan."
    },
    "visual": {
     "kind": "size",
@@ -1059,19 +1062,19 @@
    "skill": "risk.account_rules",
    "rung": 4,
    "format": "tf",
-   "q": "Cash account: you buy A with all your settled cash, sell it, then buy B with the proceeds. Selling B today is not a violation.",
+   "q": "Cash account. You buy A with settled cash, sell it, then buy B with that money. Selling B today is fine.",
    "answer": "False",
-   "why": "False. Selling A was fine, because you paid for A with settled cash. But you bought B with the cash from A's sale, and that cash settles the next business day. Sell B before then and you've sold a stock bought with unsettled money. That is a good faith violation. Hold B until A's sale settles, or fund B with settled cash.",
-   "lesson_line": "Settled cash can fund a same-day round trip. Cash from today's sale can't, until it settles.",
+   "why": "False. Selling A was fine, because you paid for A with settled cash. B is the problem. You paid for B with the money from A's sale, and that money doesn't settle until the next business day. Sell B before then and you've sold a stock bought with unsettled cash. That's a good faith violation. The fix is simple. Hold B until A's sale settles, or pay for B with cash that's already settled.",
+   "lesson_line": "Settled cash can do one round trip. Today's sale money can't, until it settles.",
    "facts": [
     "f58",
     "f56",
     "f15",
     "f16"
    ],
-   "simple": "False, B was bought with cash from selling A, and that cash has not settled, so selling B today breaks the rule.",
+   "simple": "False. B was bought with A's sale money, which hasn't settled, so selling B today is a violation.",
    "deeper": {
-    "trap": "Starting the day with settled cash protects only the buys that cash paid for. In Fidelity's example, Trudy sold ABC before Monday's sale of XYZ settled, and that was a violation. Each time you reuse cash from a same-day sale, hold what it buys until that cash settles."
+    "trap": "Starting the day with settled cash protects only the buys that cash paid for. In Fidelity's example, Trudy sold ABC before Monday's sale of ZQRT settled, and that was a violation. Each time you reuse cash from a same-day sale, hold what it buys until that cash settles."
    },
    "tier": "core",
    "risk": {
@@ -1080,14 +1083,14 @@
      "fixed before (rebuilt by the checker on Fidelity's Trudy case)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "risk.account_rules",
    "rung": 4,
    "format": "mcq",
-   "q": "Under FINRA's rule as of November 2026, what's the least equity you need to borrow on margin?",
+   "q": "Your margin account has $1,500 of equity. How much does FINRA want to see before you can borrow on margin?",
    "choices": [
     "$2,000",
     "$25,000",
@@ -1095,8 +1098,8 @@
     "25% of the position"
    ],
    "answer": "$2,000",
-   "why": "$2,000. Under FINRA's rule as of November 2026, you need at least $2,000 of equity in a margin account to trade on margin. Below that you can still trade in the margin account, but only with your own cash. Brokers can set higher house minimums. The old $25,000 pattern day trader minimum was never the floor to borrow.",
-   "lesson_line": "FINRA's floor to borrow is $2,000. Your broker's minimum may be higher.",
+   "why": "$2,000. FINRA wants at least $2,000 of equity before you can trade on margin. At $1,500 you can still trade in that account, just with your own cash. No borrowing. Your broker can ask for more, so check its minimum too. And don't mix this up with $25,000. That was the old pattern day trader minimum, and it was never the line to borrow.",
+   "lesson_line": "$2,000 to borrow. Your broker's number may be higher.",
    "facts": [
     "f10",
     "f18",
@@ -1107,11 +1110,11 @@
     "f24"
    ],
    "wrong": {
-    "$25,000": "That was the old minimum for pattern day traders, not the floor to borrow. FINRA's new rule dropped it.",
-    "No minimum at all": "Under $2,000 you can still trade in a margin account, but only with your own cash, no borrowing.",
-    "25% of the position": "That's FINRA's 25% maintenance floor, the equity you must keep after you borrow. The minimum to borrow at all is $2,000."
+    "$25,000": "That was the old day trading minimum, never the line to borrow, and FINRA's dropped it.",
+    "No minimum at all": "There's a floor. Under $2,000 you trade only with your own cash.",
+    "25% of the position": "That's the equity you have to keep once you've borrowed. The line to borrow at all is $2,000."
    },
-   "simple": "It is $2,000, the least equity FINRA requires before you can borrow on margin, and your broker may ask for more.",
+   "simple": "$2,000 of equity. Under that you can still trade the account, but only with your own cash.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1120,14 +1123,14 @@
      "fixed before (checker changed the $25,000 note)"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "risk.account_rules",
    "rung": 5,
    "format": "mcq",
-   "q": "$40,000 of stock bought with a $20,000 margin loan falls to $24,000. Using FINRA's 25% floor, how big is the margin call?",
+   "q": "Margin call math: $40,000 of stock, a $20,000 loan, and it's fallen to $24,000. At FINRA's 25% floor, how big is the call?",
    "answer": "$2,000",
    "calc": {
     "fn": "arith",
@@ -1139,15 +1142,15 @@
     }
    },
    "prefix": "$",
-   "why": "$2,000. You need 25% of $24,000, which is $6,000. You have $24,000 minus the $20,000 loan, which is $4,000. $6,000 minus $4,000 is $2,000.",
-   "lesson_line": "The call is the equity you need minus the equity you have.",
+   "why": "$2,000. Work out what you need, then what you have. You need 25% of $24,000, which is $6,000. You have $24,000 minus the $20,000 loan, which is $4,000. $6,000 minus $4,000 leaves you $2,000 short. That's the call. Pay it in cash and you're right back on the floor, so the next red day can call you again. Ask why you're that close to the line in the first place.",
+   "lesson_line": "The call is what you need minus what you have.",
    "facts": [
     "f26",
     "f25",
     "f24",
     "f27"
    ],
-   "simple": "The call is $2,000, the gap between the 25% equity you need and the equity you have.",
+   "simple": "The call is the gap between the equity you need and the equity you have.",
    "deeper": {
     "trap": "Paying the call in cash only brings you back to the floor, so the next dip puts you under it again. FINRA's own example works the same way: required equity of $15,000 less equity of $10,000 is a $5,000 call."
    },
@@ -1158,7 +1161,7 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$6,000",
     "$4,000",
@@ -1166,9 +1169,9 @@
     "$2,000"
    ],
    "wrong": {
-    "$6,000": "Gave the equity you need, and never subtracted what you have.",
-    "$4,000": "Gave the equity you have, not the gap.",
-    "$10,000": "Took 25% of the old $40,000 value."
+    "$6,000": "That's the equity you need. You never took off what you already have.",
+    "$4,000": "That's the equity you have, not the gap.",
+    "$10,000": "Took 25% of the old $40,000. The floor runs off what it's worth now."
    },
    "visual": {
     "kind": "size",
@@ -1204,27 +1207,29 @@
    "skill": "risk.account_rules",
    "rung": 5,
    "format": "mcq",
-   "q": "You put up $10,000 and borrow $10,000 to buy $20,000 of stock. It falls 30%. Ignoring interest, what percent of your money is lost?",
+   "q": "You put in $10,000 and borrow $10,000 to buy $20,000 of stock. It drops 30%. Ignoring interest, how much of your money is gone?",
    "answer": "60%",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "position * drop_pct / own",
+     "expr": "position * drop_pct / 100 / own * 100",
      "position": 20000,
      "drop_pct": 30,
      "own": 10000
     }
    },
    "suffix": "%",
-   "why": "60%. The drop hits the whole $20,000 position, not just your half. The loan does not shrink, so the loss comes out of your $10,000 alone. Divide the loss by $10,000 to get 60%.",
-   "lesson_line": "Borrow half the position and every drop hits your money twice as hard.",
+   "why": "60%. The 30% drop hits the whole $20,000 position, and that's $6,000. The loan doesn't shrink, so all of it comes out of your $10,000. $6,000 over $10,000 is 0.6, so 60%. The stock fell 30% and you lost 60%. That's margin. It's why we only borrow when the app's market reading is Green.",
+   "lesson_line": "Borrow half and every drop hits your money twice as hard.",
    "facts": [
     "f54",
     "f29",
     "f20",
-    "f25"
+    "f25",
+    "f79",
+    "f83"
    ],
-   "simple": "You lose 60% of your own money, because a 30% drop on the whole $20,000 comes out of your $10,000.",
+   "simple": "60%. The whole drop comes out of your money, because the loan stays the same.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1232,7 +1237,7 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "30%",
     "60%",
@@ -1240,9 +1245,9 @@
     "6%"
    ],
    "wrong": {
-    "30%": "Forgot the loan and used the stock's drop.",
-    "15%": "Halved the loss because you borrowed half.",
-    "6%": "Decimal slip: moved the decimal one place."
+    "30%": "That's the stock's drop. Your loss is twice that, because half the position was borrowed.",
+    "15%": "Halved the loss because you borrowed half. The loan doesn't share the loss.",
+    "6%": "Slipped a decimal. $6,000 out of $10,000 is 60%."
    },
    "visual": {
     "kind": "size",
@@ -1278,16 +1283,16 @@
    "skill": "risk.account_rules",
    "rung": 5,
    "format": "scenario",
-   "story": "Cash account with no settled cash. Monday morning you sell XYZ. Monday afternoon you buy ABC with that money.",
-   "q": "When can you sell ABC without a good faith violation?",
+   "story": "Cash account, no settled cash. Monday morning you sell ZQRT. That afternoon you buy ABC with the money.",
+   "q": "When's the earliest you can sell ABC without a good faith violation?",
    "choices": [
-    "Once XYZ's sale has settled",
-    "Right away, XYZ is sold",
-    "Only after you add cash",
-    "After Monday's close"
+    "Tuesday, once ZQRT settles",
+    "Right away, ZQRT is already sold",
+    "Only after you add new cash",
+    "Anytime after Monday's close"
    ],
-   "answer": "Once XYZ's sale has settled",
-   "why": "Once XYZ's sale has settled. You paid for ABC with XYZ's sale cash, and that cash settles the next business day. Sell ABC before then and you've sold a stock bought with unsettled money. That is a good faith violation. Fidelity's example matches: XYZ sold Monday settles Tuesday, and selling ABC before Tuesday is a violation.",
+   "answer": "Tuesday, once ZQRT settles",
+   "why": "Tuesday, once ZQRT settles. You paid for ABC with ZQRT's sale money, and that money settles the next business day. Sell ABC before then and you've sold a stock bought with cash you didn't have yet. That's a good faith violation. Here's where it really hurts. Say ABC breaks down Monday afternoon. Now you're choosing between the violation and your stop. Keep settled cash on hand for your buys and you never face that choice.",
    "lesson_line": "Bought with unsettled cash means you hold it until that cash settles.",
    "facts": [
     "f15",
@@ -1296,11 +1301,11 @@
     "f39"
    ],
    "wrong": {
-    "Right away, XYZ is sold": "Sold isn't settled. XYZ's cash settles the next business day, not when the sale fills.",
-    "Only after you add cash": "No new money needed. XYZ's proceeds pay for ABC once they settle.",
-    "After Monday's close": "The close isn't settlement. Under T+1, XYZ's sale settles the next business day, Tuesday, not at Monday's close."
+    "Right away, ZQRT is already sold": "Sold isn't settled. ZQRT's cash settles the next business day.",
+    "Only after you add new cash": "No new money needed. ZQRT's proceeds pay for ABC once they settle.",
+    "Anytime after Monday's close": "The close isn't settlement. ZQRT's sale settles the next business day, Tuesday."
    },
-   "simple": "Wait until the XYZ sale settles, because ABC was bought with that sale's cash and selling sooner is a good faith violation.",
+   "simple": "Tuesday, once ZQRT's sale settles. ABC was paid for with that money.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1308,15 +1313,15 @@
      "rests on the T+1 settlement cycle, which changed in 2024"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "risk.account_rules",
    "rung": 6,
    "format": "scenario",
-   "story": "Cash account with $0 in it. Monday you buy $5,000 of a stock and send no money. Wednesday you sell it for $5,400 to cover the cost.",
-   "q": "What did you just do?",
+   "story": "Cash account with $0 in it. Monday you buy $5,000 of a stock and never send the money. Wednesday you sell it for $5,400 and use that to pay.",
+   "q": "What's your broker going to call this?",
    "choices": [
     "Freeriding, a Regulation T breach",
     "A good faith violation on the sale",
@@ -1324,8 +1329,8 @@
     "A pattern day trader violation"
    ],
    "answer": "Freeriding, a Regulation T breach",
-   "why": "Freeriding. You bought and sold the stock before paying for it. Regulation T does not permit that, and your broker may freeze the cash account for 90 days. During a freeze you can still buy, but you must pay in full on the trade date. It isn't a good faith violation, which needs a buy paid with unsettled sale cash. Here you never paid at all.",
-   "lesson_line": "Pay for it before you sell it. A freeze means paying in full on the trade date for 90 days.",
+   "why": "Freeriding. You bought it and sold it without ever paying for it. Regulation T doesn't allow that, profit or not. Your broker can freeze the cash account for 90 days. During a freeze you can still buy, but you pay in full on the trade date. It's not a good faith violation. That one's when you paid with unsettled sale money. Here you never paid at all. Fund the account before you buy.",
+   "lesson_line": "Pay for it before you sell it, or risk a 90-day freeze.",
    "facts": [
     "f49",
     "f50",
@@ -1336,17 +1341,17 @@
     "f47"
    ],
    "wrong": {
-    "A good faith violation on the sale": "Close, but that's selling a stock bought with unsettled sale cash. You never paid at all, and that's freeriding.",
-    "Nothing wrong, it made a profit": "Profit doesn't fix it. You sold the stock before you paid for it.",
-    "A pattern day trader violation": "The old pattern day trader rule counted trades in a margin account. This is a cash account, and you sold before you ever paid."
+    "A good faith violation on the sale": "Close, but that's paying with unsettled sale money. You never paid at all.",
+    "Nothing wrong, it made a profit": "Profit doesn't fix it. You sold it before you paid for it.",
+    "A pattern day trader violation": "That old rule counted day trades in a margin account. You held from Monday to Wednesday in a cash account."
    },
-   "simple": "It is freeriding, because you sold the stock before you ever paid for it, and Regulation T does not allow that.",
+   "simple": "Freeriding. You sold the stock before you ever paid for it, and that can freeze the account.",
    "tier": "extended",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
@@ -1354,16 +1359,16 @@
    "rung": 6,
    "format": "scenario",
    "story": "Your broker has switched to FINRA's new intraday margin rule. You day trade a few times a week in a $15,000 margin account.",
-   "q": "What does the new rule check?",
+   "q": "What's the new rule actually watching?",
    "choices": [
-    "Equity against positions all day",
-    "Day trades over five days",
+    "Equity vs. positions, all day",
+    "Your day trades over five days",
     "A $25,000 minimum balance",
     "Nothing, trading is unlimited"
    ],
-   "answer": "Equity against positions all day",
-   "why": "Your equity against your positions during the trading day. The new rule has no pattern day trader count and no $25,000 minimum. If your equity falls short of your open positions, you have an intraday margin deficit to cover as promptly as possible. Keep failing to cover them and the account can be restricted for up to 90 days.",
-   "lesson_line": "The new rule doesn't count your trades. Your equity must cover your positions all day.",
+   "answer": "Equity vs. positions, all day",
+   "why": "Your equity against your positions, all day long. The new rule doesn't count your day trades, and it has no $25,000 minimum. So $15,000 isn't a problem by itself. What it watches is whether your equity covers what you're holding during the day. Come up short and that's an intraday margin deficit, which you cover fast. Miss them over and over and the account can be restricted for up to 90 days.",
+   "lesson_line": "The new rule doesn't count trades. Your equity has to cover your positions all day.",
    "facts": [
     "f06",
     "f05",
@@ -1371,11 +1376,11 @@
     "f08"
    ],
    "wrong": {
-    "Day trades over five days": "That was the old pattern day trader count. The new rule has no trade count.",
-    "A $25,000 minimum balance": "The new rule has no $25,000 minimum for day trading.",
-    "Nothing, trading is unlimited": "Run short of equity and you owe an intraday margin deficit. Keep missing them and the account can be restricted for up to 90 days."
+    "A $25,000 minimum balance": "The new rule has no $25,000 minimum to day trade.",
+    "Nothing, trading is unlimited": "Run short of equity and you owe an intraday margin deficit. Keep missing them and you get restricted.",
+    "Your day trades over five days": "That was the old pattern day trader count. The new rule doesn't count trades."
    },
-   "simple": "The new rule requires your equity to cover your open positions during the day, with no trade count and no $25,000 minimum.",
+   "simple": "Whether your equity covers your open positions during the day. No trade count and no $25,000 minimum.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1383,7 +1388,7 @@
      "a rule that changed in 2026 and that brokers may phase in until October 20, 2027"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1391,15 +1396,15 @@
    "rung": 7,
    "format": "scenario",
    "story": "$20,000 margin account. You make four day trades in five business days, and no other trades. Your broker still runs the old day trading rules.",
-   "q": "What happens?",
+   "q": "What happens to your account?",
    "choices": [
-    "Flagged; need $25,000 to day trade",
+    "Flagged, you need $25,000",
     "Nothing, FINRA dropped that rule",
     "Nothing until a fifth day trade",
-    "Flagged; $2,000 is enough to go on"
+    "Flagged, but $2,000 is enough"
    ],
-   "answer": "Flagged; need $25,000 to day trade",
-   "why": "Flagged, and you need $25,000 to keep day trading. Under the old rule, four or more day trades in five business days made you a pattern day trader. They also had to be more than six percent of your margin trades. With no other trades, yours are all of them. A pattern day trader needed at least $25,000. Brokers may run the old rules until October 20, 2027.",
+   "answer": "Flagged, you need $25,000",
+   "why": "You get flagged, and now you need $25,000 to keep day trading. Under the old rule, four or more day trades in five business days made you a pattern day trader. They also had to be more than six percent of your margin trades in that stretch. With no other trades, yours are all of them, and $20,000 is short of $25,000. Yes, FINRA dropped this rule. But your broker can keep running it until October 20, 2027. Go by your account, not the headline.",
    "lesson_line": "Know which rules your broker runs. The old count still bites until it switches.",
    "facts": [
     "f45",
@@ -1410,11 +1415,11 @@
     "f18"
    ],
    "wrong": {
-    "Nothing, FINRA dropped that rule": "FINRA did, but brokers can phase the change in. Until yours switches, the old count and the $25,000 minimum apply.",
-    "Nothing until a fifth day trade": "The old rule kicks in at four or more day trades in five business days, not five.",
-    "Flagged; $2,000 is enough to go on": "$2,000 is the minimum to trade on margin, not to day trade. Under the old rules a pattern day trader needed at least $25,000."
+    "Nothing, FINRA dropped that rule": "FINRA did, but your broker can phase it in. Until it switches, the old count applies.",
+    "Nothing until a fifth day trade": "The old rule kicks in at four or more day trades in five business days.",
+    "Flagged, but $2,000 is enough": "$2,000 is the line to borrow, not to day trade. A pattern day trader needed $25,000."
    },
-   "simple": "Four day trades in five business days flag you under the old rule, and then you need $25,000.",
+   "simple": "Flagged. Four day trades in five business days does it under the old rule, and then you need $25,000.",
    "deeper": {
     "trap": "The trap is going by the news, not your account. FINRA's new rule took effect June 4, 2026. A broker that needs more time may keep the old count until October 20, 2027. Until yours switches, the old count and the $25,000 minimum still apply to you."
    },
@@ -1425,7 +1430,7 @@
      "a rule that changed in 2026; the key depends on the broker not having switched yet"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
@@ -1433,7 +1438,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "Cash account. Twice this month you bought with cash from a same-day sale. Both times the new stock hit its stop and you sold it that day.",
-   "q": "What's the best habit to stop this happening again?",
+   "q": "Which habit fixes this for good?",
    "choices": [
     "Buy only with settled cash",
     "Hold losers until the cash settles",
@@ -1441,7 +1446,7 @@
     "Keep to three trades a week"
    ],
    "answer": "Buy only with settled cash",
-   "why": "Buy only with settled cash. FINRA says to day trade in a cash account, pay for each buy at purchase with settled funds. Then you can sell whenever your stop hits. Both of your trades were good faith violations. At Fidelity, three in 12 months restricts the account to settled-cash buys for 90 days. That count is Fidelity's stated practice.",
+   "why": "Buy only with settled cash. Both of those trades were good faith violations. You bought with unsettled money, then sold before it settled. Pay for every buy with settled cash and your stop is always free to work. That's what matters. The stop is the exit, and you never want a rule keeping you in a loser. At Fidelity, three violations in 12 months gets you 90 days of buying with settled cash only. That count is Fidelity's, so check your own broker's.",
    "lesson_line": "Trade a cash account with settled cash, so your stop is always free to work.",
    "facts": [
     "f17",
@@ -1451,13 +1456,13 @@
     "f82"
    ],
    "wrong": {
-    "Hold losers until the cash settles": "That swaps a rule problem for risk you never planned. Our rule is that the stop is the exit.",
+    "Hold losers until the cash settles": "Now you're in a trade past your stop just to dodge a rule. The stop is the exit.",
     "Sell with a limit order instead": "The order type doesn't matter. Selling before the cash settles is the violation.",
-    "Keep to three trades a week": "Good faith violations aren't about a trade count. One buy with unsettled cash, sold before that cash settles, is a violation."
+    "Keep to three trades a week": "It's not a trade count. One buy with unsettled cash, sold before it settles, is a violation."
    },
-   "simple": "Only buy with settled cash, so you can sell the moment your stop is hit without breaking the rule.",
+   "simple": "Only buy with settled cash. Then you can sell the second your stop hits, with no violation.",
    "deeper": {
-    "trap": "The trap is holding the loser to dodge the violation. That leaves you in a trade past your plan. Our rule is that the stop is the exit. So fix it before the buy: pay with settled cash, and the stop stays free to work."
+    "trap": "The trap is holding the loser to dodge the violation. Now you're in a trade past your plan. The stop is the exit, so fix it before the buy and pay with settled cash."
    },
    "tier": "extended",
    "risk": {
@@ -1467,16 +1472,16 @@
      "the three-in-12-months count is one broker's practice and can change"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
    "skill": "risk.account_rules",
    "rung": 7,
    "format": "tf",
-   "q": "Under FINRA's new intraday rule, the 25% maintenance floor applies all day, not just at the close.",
+   "q": "Once your broker is on FINRA's new intraday rule, the 25% maintenance floor counts all day, not just at the close.",
    "answer": "True",
-   "why": "True. Under FINRA's new intraday rule, you must hold at least 25% maintenance margin all through the trading day. It applies all day, not just at the close. The new rule adds to the regular maintenance rules and does not change them. Your broker can set a higher number.",
+   "why": "True. On the new rule, the 25% floor covers the whole session, not just the close. Say a name you hold on margin flushes midday and bounces by the bell. Under the old way, only where you finished mattered. Now that midday low counts too. If your equity can't cover your positions during the day, that's an intraday margin deficit, and you cover it fast. Your broker can also set its number above 25%. So on margin, know where your equity sits through the day.",
    "lesson_line": "On margin, watch your equity through the day, not just at the close.",
    "facts": [
     "f12",
@@ -1484,7 +1489,7 @@
     "f04",
     "f07"
    ],
-   "simple": "True, under the new rule your equity must stay at least 25% of your stocks' value all day.",
+   "simple": "True. On the new rule your equity has to stay at 25% or better all day, not just at the close.",
    "deeper": {
     "trap": "The trap is thinking only the close counts. The 25% floor applies all through the trading day. If your equity can't cover your open positions during the day, that is an intraday margin deficit. You are expected to cover it as promptly as possible."
    },
@@ -1495,14 +1500,14 @@
      "a rule that changed in 2026, with a broker phase-in"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "risk.account_rules",
    "rung": 8,
    "format": "scenario",
-   "story": "You hold a volatile stock on margin. Your equity is 35% of its value. Your broker raises its house requirement on that stock to 40%, starting today.",
+   "story": "You hold a volatile stock on margin, with equity at 35% of its value. Today your broker raises its requirement on that stock to 40%.",
    "q": "What should you expect?",
    "choices": [
     "A margin call, right away",
@@ -1511,7 +1516,7 @@
     "A week's notice before any sale"
    ],
    "answer": "A margin call, right away",
-   "why": "A margin call, right away. Brokers can set house requirements stricter than FINRA's 25%, and those changes often take effect immediately. At 35% equity against a 40% house level, you're short today. You're not entitled to extra time, and the broker can sell your securities without notice.",
+   "why": "A margin call, today. Your broker can set its own requirement above FINRA's 25%, and a change can kick in at once. You're at 35% against a new 40%, so you're short right now. You're not owed extra time, and the broker can sell your shares without telling you. So on a volatile name, don't run your equity close to the line. Leave room for the broker to move it.",
    "lesson_line": "FINRA's 25% is the floor. Your broker's number is the one that calls you.",
    "facts": [
     "f27",
@@ -1521,46 +1526,46 @@
     "f30"
    ],
    "wrong": {
-    "Nothing, FINRA's floor is 25%": "Your broker can require more than FINRA's floor, and its number is the one you have to meet.",
-    "Nothing until your next buy": "House changes often take effect immediately and can trigger a call on what you already hold.",
-    "A week's notice before any sale": "You're not entitled to extra time, and the broker can sell without notice."
+    "Nothing, FINRA's floor is 25%": "FINRA's 25% is the least a broker can ask. Your broker's number is the one you meet.",
+    "Nothing until your next buy": "A new requirement can hit what you already hold, starting at once.",
+    "A week's notice before any sale": "You're not owed extra time, and they can sell without telling you."
    },
-   "simple": "Expect a margin call right away, because your 35% equity is now under the broker's new 40% level.",
+   "simple": "Expect a call right away. Your equity is now under your broker's new line.",
    "deeper": {
-    "trap": "The trap is reading FINRA's 25% as the most a broker may ask for. It is the least. A broker can raise its house level, and the change often takes effect immediately. Know your broker's house level on every margin stock you hold."
+    "trap": "The trap is reading FINRA's 25% as the most a broker can ask for. It's the least. A broker can raise its own number, and the change can take effect at once. Know your broker's number on every stock you hold on margin."
    },
    "tier": "expert",
    "risk": {
     "score": 0,
     "reasons": []
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
    "skill": "risk.account_rules",
    "rung": 8,
    "format": "mcq",
-   "q": "You buy $20,000 of stock with a $9,000 margin loan. How far, in percent, can it fall before your equity hits FINRA's 25% floor?",
+   "q": "Say you buy $20,000 of stock with a $9,000 margin loan. How far can it fall before your equity hits FINRA's 25% floor?",
    "answer": "40%",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "(1 - loan / ((1 - floor_pct / 100) * value)) * 100",
+     "expr": "(value - loan / (1 - floor_pct / 100)) / value * 100",
      "loan": 9000,
      "floor_pct": 25,
      "value": 20000
     }
    },
    "suffix": "%",
-   "why": "40%. The $9,000 loan stays fixed. At the floor, your equity is 25% of the value and the loan is the rest. That puts the floor value below $20,000. The fall to it is 40%.",
+   "why": "40%. The $9,000 loan stays put while the stock falls. At the floor your equity is 0.25 of the value, so the loan is the other 0.75. $9,000 over 0.75 is $12,000. That's the value where you hit the floor. From $20,000 down to $12,000 is $8,000, and $8,000 over $20,000 is 0.4, so 40%. Do this before you borrow. Then you know exactly how much room you've got.",
    "lesson_line": "Know the drop that triggers a margin call before you borrow, not after.",
    "facts": [
     "f35",
     "f24",
     "f38"
    ],
-   "simple": "It can fall 40% before your equity hits 25%, because the $9,000 loan stays the same as the stock drops.",
+   "simple": "It can fall 40% before your equity hits the floor, because the loan stays the same as the stock drops.",
    "deeper": {
     "trap": "The trap is taking 25% of the $20,000 you paid. FINRA's floor is 25% of the stock's current market value, so it moves down as the price falls. Work it from the value after the drop, with the loan held fixed."
    },
@@ -1571,7 +1576,7 @@
      "computed key (calc arith)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "25%",
     "30%",
@@ -1579,9 +1584,9 @@
     "40%"
    ],
    "wrong": {
-    "55%": "Gave the equity share you start with.",
-    "25%": "Used the floor as the size of the fall.",
-    "30%": "Took the 25% floor off the 55% starting equity."
+    "55%": "That's the equity you start with, not how far it can fall.",
+    "25%": "Used the floor as the size of the drop.",
+    "30%": "Took 25 off your 55% starting equity. The floor moves down as the price falls."
    },
    "visual": {
     "kind": "size",
@@ -1617,7 +1622,7 @@
    "skill": "risk.account_rules",
    "rung": 8,
    "format": "mcq",
-   "q": "Going to cash protects you when stocks fall. What does it cost you?",
+   "q": "The market's rolling over and you sell everything to cash. It protects you. What does it cost you?",
    "choices": [
     "Missing a sharp market rebound",
     "Margin interest on cash you hold",
@@ -1625,7 +1630,7 @@
     "A 90-day freeze on the account"
    ],
    "answer": "Missing a sharp market rebound",
-   "why": "Missing a sharp market rebound. Bear markets often end as abruptly as they began, with a quick rebound that is very hard to predict. Out of the market at the wrong time, you risk not getting back in for the upswing. Idle cash also loses ground to inflation over time. Cash is not a loan, so it carries no margin interest.",
+   "why": "Missing a sharp market rebound. Bear markets often end as fast as they started, with a quick rebound that's very hard to call. Sit out at the wrong time and you can miss the upswing. Idle cash also loses ground to inflation over time. So cash isn't free. It's a trade with a cost, and I take that trade on purpose when the market's weak. What it doesn't cost you is margin interest. Interest is only on money you borrow.",
    "lesson_line": "Going to cash is a trade too. It has a payoff and a cost.",
    "facts": [
     "f66",
@@ -1642,7 +1647,7 @@
     "Nothing, cash holds its value": "Idle cash loses ground to inflation over time, and you can miss the upswing.",
     "A 90-day freeze on the account": "A 90-day freeze follows a rule break, such as freeriding: buying and selling before you pay. Selling shares you paid for isn't freeriding."
    },
-   "simple": "Missing a sharp rebound, since bear markets often end abruptly and the turn is hard to predict.",
+   "simple": "Missing a sharp rebound. Bear markets often end fast, and the turn is hard to call.",
    "deeper": {
     "counter": "Both views are real. Investopedia says the biggest risk of market timing is usually being out of the market at critical times. IBD's view: make money when the market trends higher, and protect profits when it heads lower."
    },
@@ -1653,7 +1658,7 @@
      "Tier 2 sources only (Investopedia, Schwab); both blocked this agent on 2026-11-12, last read in context 2026-11-09"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1661,16 +1666,16 @@
    "rung": 9,
    "format": "scenario",
    "story": "The market is in a correction. Your last five breakouts failed within days. Few stocks are holding their moves.",
-   "q": "What's the best use of your account now?",
+   "q": "So how do you run your account right now?",
    "choices": [
-    "More cash, build a watch list",
-    "Go to cash, stop watching",
+    "Raise cash, build a list",
+    "Go to cash and stop looking",
     "Borrow to buy the dip",
-    "Size up to win losses back"
+    "Size up to win it back"
    ],
-   "answer": "More cash, build a watch list",
-   "why": "More cash, build a watch list. New buys in a correction are riskier, since most stocks follow the market down. Your last five breakouts failing says the same. Growth leaders can fall fast when the market turns. Use the time to find the stocks you'll want when a new uptrend starts, so you're ready to act.",
-   "lesson_line": "Cash is a position. In a correction, hold more cash and build a sharp watch list.",
+   "answer": "Raise cash, build a list",
+   "why": "Raise cash and build a list. Five breakouts failing in a row is the market telling you something. In a correction most stocks follow the market down, so new buys are riskier. Even leaders can fall fast. You don't have to force anything. Cash is a position. Use the time to find the names holding up best, so you're ready when the new uptrend starts. Protect what you've got first.",
+   "lesson_line": "Cash is a position. In a correction, hold more of it and build your list.",
    "facts": [
     "f62",
     "f63",
@@ -1683,11 +1688,11 @@
     "f77"
    ],
    "wrong": {
-    "Go to cash, stop watching": "Stepping back is right, but keep watching. IBD says use this time to build a watch list for the next uptrend.",
-    "Borrow to buy the dip": "A correction can keep going. Borrowing into it grows your losses, and you can lose more than you put in.",
-    "Size up to win losses back": "Bigger size where most breakouts fail means bigger losses. New buys in a correction are riskier, not safer."
+    "Borrow to buy the dip": "Corrections can keep going. Borrow into one and you can lose more than you put in.",
+    "Go to cash and stop looking": "Stepping back is right. Stop looking, though, and you miss the leaders for the next uptrend.",
+    "Size up to win it back": "Bigger size where most breakouts fail means bigger losses. That's how a drawdown gets deep."
    },
-   "simple": "Hold more cash and build a watch list, since new buys in a correction are riskier.",
+   "simple": "Hold more cash and build a list of the strongest names. New buys in a correction are riskier.",
    "deeper": {
     "trap": "The trap is trying to win back losses with more size or borrowed money. A sharp correction can be disastrous for traders on heavy margin, and on margin you can lose more than you put in. Protect what you have until the market turns up."
    },
@@ -1698,7 +1703,7 @@
      "matches the owner's rulebook (sizing_rule.md section 9, D44 and D46: cash is a position, mostly cash in a Red market); must keep teaching it"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -1706,7 +1711,7 @@
    "rung": 6,
    "format": "mcq",
    "house": true,
-   "q": "Our rule: when the app's market reading is Green, all your longs together can reach what share of the account?",
+   "q": "The app's market reading is Green and you're using margin. How big can all your longs together get, as a share of the account?",
    "choices": [
     "Up to 200% of the account",
     "Up to 100% of the account",
@@ -1714,14 +1719,14 @@
     "Up to 50% of the account"
    ],
    "answer": "Up to 200% of the account",
-   "why": "Up to 200%. Our rule: all positions together can reach 200% of the account in a Green market, and up to 100% otherwise. Going past 100% means margin, and we use margin only in a Green market. The market reading is the app's filter: Green, Yellow, Orange or Red. Risk per trade is still a percent of the account.",
+   "why": "Up to 200%. When the app's market reading is Green, all your positions together can reach 200% of the account. Anything past 100% is borrowed money, and Green is the only color where we borrow. In Yellow, Orange or Red, the cap is 100%. Two things don't change on margin. Risk per trade stays a percent of the account, and one position still tops out at 40%. Borrowing makes a bad stretch hurt more, so we only do it when the market's backing our trades.",
    "wrong": {
-    "Up to 100% of the account": "That's our limit when the reading isn't Green. Margin is used only in a Green market.",
-    "Up to 40% of the account": "40% is our cap on one position. All positions together can reach 200% in a Green market.",
-    "Up to 50% of the account": "50% is what Regulation T lets a broker lend on a new buy. Our longs together can reach 200% in a Green market."
+    "Up to 100% of the account": "That's the cap when the reading isn't Green. Green is the only time we use margin.",
+    "Up to 40% of the account": "40% is our cap on one position, not all of them together.",
+    "Up to 50% of the account": "That's what Regulation T lets a broker lend on a new buy. It isn't our limit on the whole book."
    },
-   "simple": "Up to 200% of the account, using margin, but only in a Green market.",
-   "lesson_line": "We use margin only in a Green market. Risk per trade stays a percent of the account.",
+   "simple": "Up to 200%, using margin. Green is the only market where we borrow.",
+   "lesson_line": "We borrow only in a Green market. Risk per trade stays a percent of the account.",
    "facts": [
     "f78",
     "f79",
@@ -1740,7 +1745,7 @@
      "rests on the owner's rulebook A7, B24 and F60, house rules that can change"
     ]
    },
-   "batch": "wave9"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1775,148 +1780,145 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided from f75/f21 before reading it: borrow to buy. Why sentences each rest on f75, f23, f36, f54, f29. The 50% preview of q04 is taught first in w1 step 1, so it gives nothing away. Choices 30/33/32/34, no tell."
+   "notes": "Real situation (broker offers margin), verdict first, the both-ways point with a mentor turn, ties to our Green-only margin rule (f79). 50% and the Green rule check out."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper rests on f53 (SEC: may still sell before then) and f52 ('immediately'). No new numbers."
+   "notes": "Blunt opener, practical how (watch your equity yourself). Facts f30/f31/f52/f53 match."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Keep is right: the 25% maintenance floor is the number behind a margin call a trader meets at the screen; bank is four numbers, no giveaway; the new why defines equity and maintenance margin in plain words, and its numbers (25%, 50%) are in the bank and the cited quotes."
+   "fixed": true,
+   "notes": "Stem read like a glossary prompt ('Tap the number FINRA sets as the least equity'). Rewritten as a trader holding margin asking how low equity can go. Why and simple were fine; 25% and 50% both cited."
   },
   "q04": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Verdict first, '50% to get in, 25% to stay in' is a line he'd say. Numbers right."
   },
   "q05": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Simple is 21 words. June 4, 2026 is in f02; 'may still use it' is f09; the dropped $25,000 minimum is f01/f05."
+   "notes": "Keys the current rule (June 4, 2026; phase-in to October 20, 2027) and tells you to ask your broker. Correct per the conflicts note."
   },
   "q06": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Thursday to Friday on T+1 is right; T+2 would be Monday. Says why a cash trader cares."
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Fine voice; 'That stock' had no referent. Stem now names a stock on your list."
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "Options T+1 per f41/f34. Plain and practical."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Current value and loan clear; slot 20% matches key."
+   "fixed": true,
+   "notes": "Math right: 12,500 - 10,000 = 2,500; 2,500 / 12,500 = 0.2. Truth tweak: 'you're getting a margin call' overstated it; FINRA says the firm will likely call (the walkthrough checker made the same change), so 'expect a margin call'."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Re-fetched Fidelity 2026-11-12: Trudy starts with $10,000 settled, buys and sells XYZ Monday (no violation), buys ABC with the proceeds and sells it Monday (violation). The deeper's 'settled cash protects only the buys that cash paid for' matches the page; f58 quote is on it."
+   "notes": "The A-then-B chain is right (f58). Gives the fix: hold B or pay with settled cash."
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read"
+   "notes": "$2,000 to borrow (f10/f18), under it cash only (f11), $25,000 was the old PDT line. Correct."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'FINRA floor' 25% is ambiguous (floor of what?); name it the minimum equity."
+   "fixed": false,
+   "notes": "Shows the steps: 25% of 24,000 = 6,000; 24,000 - 20,000 = 4,000; gap 2,000. Mentor line about being that close to the line. Paying 2,000 cash does land exactly on the floor (equity 6,000 on 24,000)."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own money, borrowed and the 30% fall labelled; slot 60% matches key."
+   "notes": "20,000 x 30% = 6,000; 6,000 / 10,000 = 0.6. 'The stock fell 30% and you lost 60%. That's margin.' is his register."
   },
   "q14": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave9; awaiting cold re-read",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth fine (Tuesday, f57). The 'Fidelity's own example is this exact trade' line read like a research note in the why; replaced with the stop-versus-violation situation spelled out and the practical fix."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided first from f49/f61: sold before ever paying = freeriding. Good faith note correctly separates f15 (unsettled sale cash) from never paying. PDT note rests on f46/f47 (margin-account rule) and needs no day-trade definition."
+   "notes": "Freeriding vs good faith split is taught cleanly; 90-day freeze and pay-on-trade-date (f50/f51) correct."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Simple and lesson line say the requirement applies all day (f06, f07, f12), matching the conflicts note. The stem's 'check' is kept: f06 (Tier 1) itself says the firm monitors equity during the trading day. Near-duplicate with q19 acceptable: both reinforce w2; q19 adds the 25% level.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "New rule: equity against positions, no count, no $25,000, deficit and 90-day restriction (f06/f07/f08). Does not claim the broker checks all day, which respects the conflicts note."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Simple: story fixes four trades, no other trades, so f45 and the f46 six percent test are both met; $25,000 is f47."
+   "notes": "Old rule applied correctly: four in five days, over 6% of margin trades (all of them here), $20,000 short of $25,000. Phase-in date right."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key decided first from f17 (FINRA, re-read live 2026-11-12: 'engage in intraday trading in a cash account, be sure that you fully pay ... with settled funds'): buy only with settled cash. Both trades are good faith violations by f15. Holding the loser also avoids the violation but breaks our A4 (f82, stop is the exit), and the wrong note says so; not a second best habit. Three, 12 and 90 are in f59/f60, named as Fidelity's. Lengths 26/34/31/27, key shortest, no tell. Stem does not answer q10 or q14."
+   "notes": "Best in the lesson: ties settled cash to the stop being free to work ('The stop is the exit'), names the Fidelity count as Fidelity's as the conflicts note requires."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key decided from f12 (25% 'throughout the entire trading day, not just at end of the day'). Why: f12, f04, f13. Deeper: f07. Simple says 'at least 25%'."
+   "fixed": true,
+   "notes": "Correct but a list of facts. Rewritten with a concrete midday-flush picture and what to do. Does not claim the broker monitors in real time (conflicts note), only that the requirement covers the whole day (f12)."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Deeper rests on f27 (house levels must be more stringent, so 25% is the least) and f28 (often take effect immediately). No new numbers."
+   "notes": "35% against a new 40% house level, call right away (f27/f28/f32). Practical: leave room on volatile names."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'FINRA floor' ambiguous and 'How far it can fall' does not say 'before the floor is hit'."
+   "fixed": false,
+   "notes": "Steps shown: 9,000 / 0.75 = 12,000; 20,000 - 12,000 = 8,000; 8,000 / 20,000 = 0.4. Wrong notes match real mistakes (55% start equity, 55 - 25 = 30)."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key, choices, why, wrong notes and simple hold: Investopedia Market Timing (re-read 2026-11-12) and Schwab (re-read 2026-11-12: 'they often end as abruptly as they began, with a quick rebound' in a bear market passage) agree, two Tier 2 publishers. f70 inflation backed by the Cash Is King page. DEFECT in deeper counter: 'For a long-term investor, the biggest risk of timing is ...' pins Investopedia's line to long-term investors (the page says it of 'investors who try to time the market') and drops its 'usually considered'; 'IBD's view for active traders' adds a label IBD's page does not use. R"
+   "fixed": false,
+   "notes": "Cost of cash from f66-f70; 'I take that trade on purpose when the market's weak' is his voice. Authors only in deeper."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key decided first from f62/f63 (IBD, both quotes re-read live 2026-11-12): more cash and a watch list; fits our D44 and D46. DEFECT: the key is the single longest choice, 33 characters against 29/31/30 (the earlier note's 32/29/31/30 miscounted), against README section 5 ('Do not make the right choice the longest'). Shortened to 'More cash, build a watch list' (29, tied shortest) and the why's verdict to match. Also the margin wrong note says borrowing 'grows your losses', which is f54, not cited; f54 added to facts. Everything else passes.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Raise cash and build a list; cash is a position (f77). No 'no buys' rule stated. Wrong notes name the real mistakes."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key decided first from sizing_rule.md section 9 A7 ('up to 200% of the account in a Green market'), B24 (total long positions up to 200%) and F60: 200%. All four house quotes (f78, f79, f80, f81, f83) are word for word in section 9. Distractors are real confusions (100% non-Green, 40% one position, 50% Reg T, f23). Lengths 25/25/24/24. Stem no longer says margin. Wrong note repeats q04's 50% only after answering, and q01's why already teaches it."
+   "fixed": true,
+   "notes": "Numbers right (200/100/40 from his rules, f78-f81) but the why read like a spec sheet ('The market reading is the app's filter: Green, Yellow, Orange or Red.'). Rewritten as us talking."
   }
  }
 }

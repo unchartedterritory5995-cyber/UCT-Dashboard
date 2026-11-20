@@ -17,7 +17,7 @@
 // `onChange` — the chart's own settings writer, exactly as BuilderSheet does.
 
 import { withoutGuardIds } from '../../engine/ast/guardIdText'
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
 import * as engineRegistry from '../../engine/nativeRegistry'
@@ -25,6 +25,8 @@ import { presentationLines, vocabularyLines } from '../authoring'
 import { colorRuleWords, outputNamer } from '../authoring/readback'
 import { helpersOfDefinition, plotColorRule } from '../authoring/colorRules'
 import { converseTurn } from '../authoring/converseClient'
+import { offerableBuiltIns, applyOffer } from '../authoring/builtInOffer'
+import { isDefinitionOffered, subscribeServerDefinitions, serverDefinitionsVersion } from '../../engine/serverCompute'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { claimPreview, releasePreview, installPreview, removePreview } from './previewChannel'
 import { withPendingInputs } from './editPreview'
@@ -38,6 +40,7 @@ const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
 import SettingsFields from './SettingsFields'
 import { restoreNote } from '../authoring/restoreVersion'
+import { scriptNeedsFixing } from '../authoring/scriptAnswer'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
 /** The hint inside the message box, by what the member is doing.
@@ -226,11 +229,22 @@ export function allowanceLine(left) {
 }
 
 export default function CreateIndicatorPanel({
-  onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
+  onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null, onOpenScript = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
   seed = null, sendSeed = false, previewChartRef = null, readHistory = undefined,
+  engineChart = null,
 }) {
+  // ⭐ THE CHART THIS DOCK SITS BESIDE, as the engine sees it (`StockChart`'s `engineChart`: the bars
+  // its binder computes on and the compute context it hands that binder). Kept in a ref and read
+  // through a stable getter, so a new bar does not re-render the conversation and a script is run on
+  // the bars of the moment it is checked.
+  const chartRef = useRef(engineChart)
+  useEffect(() => { chartRef.current = engineChart }, [engineChart])
+  const chartOf = useCallback(() => {
+    const c = chartRef.current
+    return c && c.ctx && Array.isArray(c.bars) ? c : null
+  }, [])
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
   const [open] = useState(() => (editRow && editRow.definition && editRow.def_id
@@ -239,7 +253,15 @@ export default function CreateIndicatorPanel({
   const editMode = !!open
   const editability = useMemo(() => (open ? conversationEditability(open.def) : null), [open])
   const blocked = !!(editability && !editability.editable)
-  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open,
+  // ⭐ WHAT THIS WINDOW CAN ADD TO THE CHART RIGHT NOW (`builtInOffer.js`, rule 1): the library's
+  // built-in names this build's registry offers, re-read when the live server's list arrives.
+  // Nothing while the chart cannot be written from here.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
+  const builtIns = useMemo(
+    () => offerableBuiltIns({ registry: engineRegistry, isOffered: isDefinitionOffered, canWrite: !!onChange }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- serverVersion is the re-read signal
+    [serverVersion, onChange])
+  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open, builtIns, chartOf,
     ...(readHistory ? { readHistory } : {}) })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
@@ -347,6 +369,16 @@ export default function CreateIndicatorPanel({
       || (panelRef.current && panelRef.current.contains(active) && !isEditable(active))   // e.g. Send, which disabled itself
     if (lost) panelRef.current?.querySelector('[data-testid="create-indicator-choices"] button:not(:disabled)')?.focus({ preventScroll: true })
   }, [busy, hasChoices, focusComposer])
+
+  /** ⭐ THE TAP ON AN OFFER: asks again whether this build offers it, makes the Indicators
+   *  list's own write, and says what happened. One tap settles the offer either way. */
+  const takeOffer = useCallback((entry) => {
+    if (!entry || !entry.offer || busy || saving) return
+    // (`tf`: so the line can say when a built-in that draws only on some timeframes will not show here)
+    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered, tf })
+    if (out.ok && onChange) onChange(out.next)
+    conv.settleOffer(entry.id, out.ok && !onChange ? 'This chart cannot be changed from here, so nothing was added.' : out.line)
+  }, [busy, saving, conv, onChange, tf])
 
   const submit = useCallback(async (text) => {
     const words = String(text ?? message).trim()
@@ -542,6 +574,29 @@ export default function CreateIndicatorPanel({
                     <span className={styles.said} data-testid="create-indicator-said">
                       <span className={styles.saidLabel}>What the assistant says it built</span>
                       {t.said}
+                    </span>
+                  )}
+                  {/* ⭐ AN OFFER — the one action this answer is about (add one of UCT's own built-in
+                      indicators). One tap; the entry stops offering once it is settled. */}
+                  {t.offer && (
+                    <button type="button" className={styles.chip} data-testid="create-indicator-offer"
+                      disabled={busy || saving} onClick={() => takeOffer(t)}>{t.offer.label}</button>
+                  )}
+                  {/* ⭐ A SCRIPT ANSWER — the lines above are the ENGINE's verdict. The script itself opens
+                      in the script editor, where it is checked again, previewed and saved like any
+                      pasted script. Nothing is put on the chart from here. */}
+                  {t.script && typeof t.script.pine === 'string' && (
+                    <span className={styles.said} data-testid="create-indicator-script" data-runs={t.script.runs ? 'true' : 'false'}>
+                      {onOpenScript && (
+                        <button type="button" className={styles.chip} data-testid="create-indicator-open-script"
+                          disabled={busy || saving} onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
+                          {scriptNeedsFixing(t.script) ? 'Open this script to fix it' : 'Open this script'}
+                        </button>
+                      )}
+                      <details data-testid="create-indicator-script-text">
+                        <summary>The script the assistant wrote</summary>
+                        <pre>{t.script.pine}</pre>
+                      </details>
                     </span>
                   )}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}

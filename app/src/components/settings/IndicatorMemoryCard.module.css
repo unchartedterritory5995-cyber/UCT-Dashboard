@@ -1,0 +1,104 @@
+/* Settings → What Create Indicator remembers. UCT Signature (docs/uct-signature-style.md):
+   a card of rows with hairlines on the panel, sentence case, two greys, no gold of its own. */
+
+.lede {
+  margin: 0 0 10px;
+  max-width: 68ch;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #93939a;
+}
+
+.card {
+  background: #1a1b1f;
+  border-radius: 9px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  padding: 8px 12px;
+}
+
+.row + .row {
+  border-top: 1px solid #26282c;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ededed;
+}
+
+.hint {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #93939a;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  min-height: 28px;
+}
+
+.pill {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(248, 247, 243, 0.06);
+  color: #ededed;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pill:hover:not(:disabled) {
+  background: rgba(248, 247, 243, 0.11);
+}
+
+.pill:focus-visible {
+  outline: 2px solid rgba(248, 247, 243, 0.5);
+  outline-offset: 2px;
+}
+
+.pill:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.status {
+  font-size: 11.5px;
+  color: #93939a;
+}
+
+/* Touch tier: the dropdown drops under the words, and the tap targets grow. */
+@media (max-width: 640px) {
+  .row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+}
+
+/* Tablet is touch too (styles/tapFloor.test.js): the finger target holds up to 1024px, not only on
+   a phone. */
+@media (max-width: 1024px) {
+  .pill {
+    min-height: var(--tap-min, 44px);
+  }
+}

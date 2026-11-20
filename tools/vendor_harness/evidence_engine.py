@@ -13,6 +13,8 @@ with no TradingView access. `batch` hands the page work to `batch_capture.py run
 
 ⛔ WHAT THIS NEVER DOES
   * writes Pine from a prose row (a row with no probe file is NEEDS_PROBE);
+  * reads a reference script's text from anywhere but this machine's pine_survey cache (a row names one as
+    `reference:<slug>`; without the cached text the row is NEEDS_PROBE, by name: REF_UNCACHED);
   * counts a row its doc DISPOSES of as not a capture question (a `| not a capture | disposition | reason |`
     table, see DISPOSITIONS) as needing a probe: such a row is listed, counted and reasoned in
     `rowsNotCaptureQuestions`, never dropped;
@@ -100,13 +102,14 @@ FINISHED_HEAD_RX = re.compile(r"^(?:(?:\d+(?:\.\d+)*|[A-Za-z]\d*)[.):]\s+|\d+(?:
 #: an unheaded one, the first) can still ask. Matched on the cleaned, lowercased header.
 PROSE_HEAD_RX = re.compile(r"^(?:what\b|question|settles|why\b|notes?\b|shipped|gap\b|errs\b|where\b|alternative|"
                            r"candidates|withheld|served|rule\b|reading|evidence|ruling|grade when|witnessed)")
-#: A capture id written out in a doc: `<stem>-...-<yyyy-mm-dd>`, optionally `.json`.
-ID_TOKEN_RX = re.compile(r"`([a-z0-9][a-z0-9.-]*-\d{4}-\d{2}-\d{2})(?:\.json)?`")
+#: A capture id written out in a doc: `<stem>-...-<yyyy-mm-dd>[-<phase>]`, optionally `.json`.
+ID_TOKEN_RX = re.compile(r"`([a-z0-9][a-z0-9.-]*-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX + r")(?:\.json)?`")
 #: Anything shaped `EXCH:SYM`, known exchange or not (an unknown one is a chart this parser cannot read).
 CHART_TOKEN_RX = re.compile(r"\b([A-Z][A-Z0-9_]{1,15}):([A-Z0-9][A-Z0-9.!]{0,14})")
-#: What `capture_stem` yields, and what follows it in an id the driver writes (`batch_capture.Driver.capture`).
+#: What `capture_stem` yields, and what follows it in an id the driver writes (`batch_capture.capture_id_for`): the
+#: chart, the day and, for a phased row, `-<phase>` (one of `evidence_ledger.CAPTURE_PHASES`, never another word).
 STEM_RX = re.compile(r"[a-z0-9][a-z0-9.-]*")
-TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}")
+TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX)
 #: Strongest first: where a target's chart was read. Only `default` (nothing named) is NEEDS_CHART.
 CHART_RANK = {"row": 0, "section": 1, "preamble": 2, "census": 3, "default": 4}
 
@@ -147,6 +150,17 @@ VERSION_RX = re.compile(r"//@version=(\d)")
 NO_PROBE_RX = re.compile(r"\bno probe\b", re.I)
 GUARD_RX = re.compile(r"(?<![\w:-])((?:host:)?(?:pine|runtime|fn|paint|lower-tf):[a-z][a-z0-9-]*[a-z0-9])")
 PINE_RX = re.compile(r"([A-Za-z0-9_./-]+\.pine)\b")
+#: ⭐ A REFERENCE SCRIPT (a published sample whose text is never in git) is named in ONE form: `reference:<slug>`, its
+#: census key (`coverage-map.json`). Its metadata is `corpus/reference/<slug>.json` (title, scriptIdPart, url); its
+#: text is the pine_survey cache's `sources/<slug>.pine` (`World.cache_dir`, git-ignored), on the machines that
+#: fetched it. With the text the row is a target whose licence is read off that text (`licence_of`), so a held one is
+#: LICENCE_HOLD, never QUEUED, and carries what the add-the-published-script path needs (`publishedScript`). Without
+#: it the row is NEEDS_PROBE, by name (REF_UNCACHED): CI never has the cache, and the queue derives the same there.
+REF_RX = re.compile(r"`reference:([a-z0-9][a-z0-9-]*__[A-Za-z0-9]+)`")
+#: ⚰️ `reference/<slug>` named three rows on 2026-11-19 and resolved to nothing ("no probe file named"): any other
+#: spelling is named as one, never read as prose.
+REF_MISSPELT_RX = re.compile(r"`reference/([a-z0-9][a-z0-9-]*__[A-Za-z0-9]+)(?:\.pine)?`")
+REF_UNCACHED = "reference source not cached on this machine"
 TICK_RX = re.compile(r"`([a-z0-9][a-z0-9._-]*[a-z0-9])`")
 SLUG_RX = re.compile(r"\b([a-z0-9][a-z0-9-]*__[0-9a-f]{6,12})\b")
 SYMBOL_RX = re.compile(r"\b(?:(" + "|".join(EXCHANGES) + r"):([A-Z0-9.!]{1,12})|(" + "|".join(HOUSE_SYMBOLS) + r"))\b")
@@ -286,8 +300,9 @@ class World:
 
     @property
     def fixture_index(self) -> list:
-        """[{id, file, sha, symbol, tf}] for every v1 capture ANYWHERE under the fixture root (recursive:
-        a capture beside `harness/` is as committed as one in it)."""
+        """[{id, file, sha, symbol, tf, phase}] for every v1 capture ANYWHERE under the fixture root (recursive:
+        a capture beside `harness/` is as committed as one in it). `phase` is read off the id's suffix
+        (`evidence_ledger.capture_phase`): None for an unphased capture."""
         if self._fixtures is None:
             out = []
             if self.fixtures.exists():
@@ -299,10 +314,15 @@ class World:
                     if not isinstance(c, dict) or c.get("schema") != "uct.vendor-capture/v1":
                         continue
                     sym = c.get("symbol") or {}
-                    out.append({"id": c.get("id") or f.stem, "file": rel(f),
+                    cid = c.get("id") or f.stem
+                    # ⭐⭐ (2026-11-19) does it record WHERE its objects sit: the x table (`objects.xIndex`), or an
+                    # xmap sidecar beside it (`<dir>/../xmap/<id>.json`, `harness.js::loadCapture`)?
+                    xi = (c.get("objects") or {}).get("xIndex") or {}
+                    x_table = bool(isinstance(xi, dict) and xi.get("found")) or (f.parent.parent / "xmap" / f"{cid}.json").is_file()
+                    out.append({"id": cid, "file": rel(f),
                                 "sha": (c.get("source") or {}).get("sha256"),
                                 "symbol": (sym.get("pro_name") or sym.get("full_name") or sym.get("name") or "").upper(),
-                                "tf": norm_tf(c.get("timeframe"))})
+                                "tf": norm_tf(c.get("timeframe")), "phase": el.capture_phase(cid), "xTable": x_table})
             self._fixtures = out
         return self._fixtures
 
@@ -359,6 +379,18 @@ class World:
                             continue
             self._ledger = rows
         return self._ledger
+
+    def reference_meta(self, slug: str):
+        """`corpus/reference/<slug>.json` (title, scriptIdPart, url, ...), or None."""
+        try:
+            return json.loads((self.corpus / "reference" / f"{slug}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    def reference_source(self, slug: str):
+        """The cached text of a reference script (`<cache_dir>/sources/<slug>.pine`), or None on a machine without it."""
+        p = self.cache_dir / "sources" / f"{slug}.pine"
+        return p if p.is_file() else None
 
     def resolve_pine(self, name: str):
         """A `.pine` reference -> (kind, path) or (None, None)."""
@@ -575,6 +607,36 @@ def resolve_sources(world: World, text: str, refs_only: bool = False):
     return sources, owed, fx
 
 
+def resolve_references(world: World, text: str):
+    """(sources [("reference", path)], why [str]) for every reference script named in `text` (REF_RX). `why` says,
+    by name, why a named reference is no source here: its text is not cached on this machine (REF_UNCACHED), it has
+    no `corpus/reference/<slug>.json`, or it is spelt another way (REF_MISSPELT_RX)."""
+    sources, why = [], []
+    for slug in REF_RX.findall(text):
+        if world.reference_meta(slug) is None:
+            why.append(f"no corpus/reference/{slug}.json for `reference:{slug}`")
+            continue
+        p = world.reference_source(slug)
+        if p is None:
+            why.append(f"{REF_UNCACHED}: `reference:{slug}`")
+        elif all(str(p) != str(q) for _, q in sources):
+            sources.append(("reference", p))
+    for slug in REF_MISSPELT_RX.findall(text):
+        why.append(f"a reference script is named `reference:{slug}`, not `reference/{slug}`")
+    return sources, why
+
+
+def published_script(world: World, slug: str):
+    """What the add-the-published-script path needs for a reference script: `{id: "PUB;<scriptIdPart>", search:
+    <title>, url, meta}` off `corpus/reference/<slug>.json`, or None when it names no scriptIdPart or no title."""
+    meta = world.reference_meta(slug) or {}
+    sid, title = str(meta.get("scriptIdPart") or ""), meta.get("title")
+    if not sid or not title:
+        return None
+    return {"id": sid if sid.startswith("PUB;") else f"PUB;{sid}", "search": title, "url": meta.get("url"),
+            "meta": f"corpus/reference/{slug}.json"}
+
+
 def explicit_pines(world: World, text: str) -> list:
     """Sources named as `.pine` files (never a bare stem): what a section or preamble may hand down."""
     out = []
@@ -617,6 +679,75 @@ def row_needs_live(header, cells, rtext: str, where: str) -> bool:
             return False
         raise LiveMarkerError(f"{where}: a `live` cell must be one of {sorted(LIVE_YES | LIVE_NO)}, not {v!r}")
     return bool(LIVE_RX.search(NOT_LIVE_RX.sub(" ", rtext)))
+
+
+#: ⭐⭐ THE ONE x-TABLE MARKER (coordinator ruling 2026-11-19). A row whose table has an `x table` column with `yes` asks
+#: for a capture that records WHERE its objects sit (`objects.xIndex`, or an xmap sidecar): a capture without one never
+#: answers it (`fixture_status`), whatever else matches. ⚰️ htf-candle-footprint-cartel-console's committed captures
+#: predate the x table, so a row asking for its boxes' bars read CAPTURED and would never have been asked again.
+#: Anything but yes / no (or blank) refuses the queue by name.
+X_TABLE_HEAD = "x table"
+
+
+class XTableMarkerError(ValueError):
+    """An `x table` column cell the queue cannot read as yes or no."""
+
+
+def row_needs_x_table(header, cells, where: str) -> bool:
+    col = next((i for i, h in enumerate(header) if h == X_TABLE_HEAD), None)
+    if col is None:
+        return False
+    v = clean_cell(cells[col]).lower() if col < len(cells) else ""
+    if v in LIVE_YES:
+        return True
+    if v in LIVE_NO:
+        return False
+    raise XTableMarkerError(f"{where}: an `x table` cell must be one of {sorted(LIVE_YES | LIVE_NO)}, not {v!r}")
+
+
+#: ⭐ THE ONE PHASE COLUMN (coordinator, 2026-11-19). A table may carry a `phase` column: each cell is one of
+#: `evidence_ledger.CAPTURE_PHASES` (the session state the capture is taken in), or blank / `-` for an unphased row.
+#: Anything else refuses the queue (`PhaseError`). A phased row is its own target (`build_queue`) and its own capture
+#: id (`batch_capture.capture_id_for`), so two rows of one probe on one chart and one day never name one capture.
+PHASE_HEAD = "phase"
+PHASE_NONE = {"", "-"}
+
+
+class PhaseError(ValueError):
+    """A `phase` cell outside the vocabulary, or phased rows of one probe on one chart that would collide."""
+
+
+def row_phase(header, cells, where: str):
+    """The row's capture phase from its table's `phase` column, or None (no column, or a blank / `-` cell)."""
+    col = next((i for i, h in enumerate(header) if h == PHASE_HEAD), None)
+    if col is None:
+        return None
+    v = clean_cell(cells[col]).lower() if col < len(cells) else ""
+    if v in PHASE_NONE:
+        return None
+    if v not in el.CAPTURE_PHASES:
+        raise PhaseError(f"{where}: a `phase` cell must be one of {list(el.CAPTURE_PHASES)} (or blank), not {v!r}")
+    return v
+
+
+def phase_refusals(groups: dict) -> list:
+    """Why phased rows of the queue would collide, per probe source on one (symbol, tf): `groups` maps
+    (source, symbol, tf) -> [(row, phase)]. When ANY row of a group carries a phase, EVERY row of it must, and no
+    phase may repeat. ⛔ An unphased row beside phased ones would be captured in no named state, under an id the
+    phased ones do not hold apart; a repeated phase is one capture asked twice. Groups with no phase are untouched
+    (they merge into one target, exactly as before phases existed)."""
+    out = []
+    for (src, sym, tf), members in sorted(groups.items()):
+        phases = [ph for _r, ph in members]
+        if not any(phases):
+            continue
+        named = ", ".join(f"{r['doc']}:{r['line']} {r['key'].split('#', 1)[-1]} ({ph or 'no phase'})"
+                          for r, ph in members)
+        if not all(phases):
+            out.append(f"{src} on {sym} {tf}: phased and unphased rows mixed: {named}")
+        elif len(set(phases)) != len(phases):
+            out.append(f"{src} on {sym} {tf}: a phase is repeated: {named}")
+    return out
 
 
 class DispositionError(ValueError):
@@ -689,12 +820,15 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             # ⛔ Only the row's REQUEST cells can ask for a probe; a prose cell ("covered by `x`", "the old `y.pine`
             # read 0") only refers to one.
             prose = [ci < len(header) and bool(PROSE_HEAD_RX.match(header[ci])) for ci in range(len(cells))]
-            sources, owed, fx = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if not pr))
+            request = " | ".join(c for c, pr in zip(cells, prose) if not pr)
+            sources, owed, fx = resolve_sources(world, request)
+            ref_sources, ref_why = resolve_references(world, request)
+            sources = sources + [s for s in ref_sources if s not in sources]
             _, _, fx_prose = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if pr), refs_only=True)
             fx = fx + [x for x in fx_prose if x not in fx]
             inherited = False
             variant = bool(VARIANT_RX.search(rtext))
-            if not sources and not owed and not NO_PROBE_RX.search(rtext) and len(inherit_from) == 1 \
+            if not sources and not owed and not ref_why and not NO_PROBE_RX.search(rtext) and len(inherit_from) == 1 \
                     and not re.search(r"\bprobe(?: shape)?:|indicator\(", rtext):
                 sources = list(inherit_from)
                 inherited = True
@@ -711,6 +845,8 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             if not sources:
                 if NO_PROBE_RX.search(rtext):
                     needs_probe = needs_probe or "the row says no probe"
+                elif ref_why:
+                    needs_probe = needs_probe or "; ".join(ref_why)
                 elif owed:
                     needs_probe = needs_probe or f"probe file owed: {', '.join(owed)}"
                 else:
@@ -750,6 +886,8 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                 "unparsedCharts": unparsed,
                 "fromListing": listing,
                 "needsLive": row_needs_live(header, cells, rtext, f"{path.name}:{line_no} ({rid!r})"),
+                "needsXTable": row_needs_x_table(header, cells, f"{path.name}:{line_no} ({rid!r})"),
+                "phase": row_phase(header, cells, f"{path.name}:{line_no} ({rid!r})"),
                 "needsProbe": needs_probe,
                 "guards": sorted(set(GUARD_RX.findall(rtext))),
                 "namedScripts": sorted(set(SLUG_RX.findall(rtext))),
@@ -778,22 +916,27 @@ def licence_of(world: World, kind: str, path: pathlib.Path) -> str:
         return "held"
 
 
-def fixture_status(world: World, path, sha: str, symbol: str, tf: str):
+def fixture_status(world: World, path, sha: str, symbol: str, tf: str, phase=None, needs_x_table=False):
+    """⛔ BY PHASE TOO: a phased target is answered only by a capture whose id carries THAT phase, an unphased
+    target only by an unphased capture (an in-session capture does not answer a question asked after the close).
+    ⛔ AND BY x TABLE (`X_TABLE_HEAD`): a target a row asks the x table of is answered only by a capture that records
+    one; the local ledger cannot say so, so it never answers such a target."""
     t = norm_tf(tf)
-    exact = [f for f in world.fixture_index if f["sha"] == sha and f["symbol"] == symbol.upper() and f["tf"] == t]
+    exact = [f for f in world.fixture_index if f["sha"] == sha and f["symbol"] == symbol.upper() and f["tf"] == t
+             and f["phase"] == phase and (not needs_x_table or f.get("xTable"))]
     if exact:
         return "CAPTURED", [f["file"] for f in exact]
-    for r in world.ledger:
+    for r in ([] if needs_x_table else world.ledger):
         has_verdict = r.get("verdict") or any(isinstance(v, dict) and v.get("verdict")
                                               for v in (r.get("verdicts") or {}).values())
         if r.get("sourceSha256") == sha and str(r.get("symbol", "")).upper() == symbol.upper() \
-                and norm_tf(r.get("timeframe")) == t and has_verdict:
+                and norm_tf(r.get("timeframe")) == t and has_verdict and el.capture_phase(r.get("captureId")) == phase:
             return "VERDICT_LOCAL", [r.get("captureId")]
     # a capture of an OLDER version of this file, found by its capture stem (never a sibling probe's
     # `x-v4-...` fixture, never another corpus file's that shares the slug: that one carries its -sha8)
     lead = f"{capture_stem(world, path)}-{slugify(symbol.split(':')[-1])}-"
     stale = [f for f in world.fixture_index if f["id"].startswith(lead) and f["symbol"] == symbol.upper()
-             and f["tf"] == t and f["sha"] != sha]
+             and f["tf"] == t and f["sha"] != sha and f["phase"] == phase]
     if stale:
         return "STALE", [f["file"] for f in stale]
     return None, []
@@ -806,17 +949,20 @@ def build_queue(world: World | None = None) -> dict:
     docs = [parse_doc(world, p) for p in sorted(world.docs_dir.glob("capture-queue-*.md"))]
     targets = {}
 
-    def target_for(kind, path, symbol, tf, listing, origin, chart_source):
+    def target_for(kind, path, symbol, tf, listing, origin, chart_source, phase=None):
         raw = path.read_bytes()
         sha = sha256_bytes(raw)
-        tid = f"{path.stem}@{symbol}@{norm_tf(tf)}"
+        # ⭐ a PHASED row is its own target (`@<phase>`): one probe on one chart in two session states is two
+        # captures. An unphased row's id is exactly what it was before phases existed, so it merges as it did.
+        tid = f"{path.stem}@{symbol}@{norm_tf(tf)}" + (f"@{phase}" if phase else "")
         t = targets.get(tid)
         if t is None:
             t = targets[tid] = {
                 "id": tid, "path": path, "source": rel(path), "sourceKind": kind, "sha256": sha, "bytes": len(raw),
-                "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "fromListing": False,
+                "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "phase": phase, "fromListing": False,
                 "licence": licence_of(world, kind, path), "rows": [], "origins": [],
-                "needsLive": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
+                "needsLive": False, "needsXTable": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
+                "publishedScript": published_script(world, path.stem) if kind == "reference" else None,
                 "docWaves": set(), "docDates": set(), "chartSources": set(), "unparsed": set(),
             }
         t["fromListing"] = t["fromListing"] or listing
@@ -826,6 +972,7 @@ def build_queue(world: World | None = None) -> dict:
         return t
 
     rows_out, needs_probe, not_capture = [], [], []
+    phase_groups = collections.defaultdict(list)    # (source, symbol, tf) -> [(row, phase)]: `phase_refusals`
     for d in docs:
         for r in d["rows"]:
             rows_out.append(r)
@@ -838,18 +985,27 @@ def build_queue(world: World | None = None) -> dict:
             for s in r["sources"]:
                 p = REPO / s["path"] if not pathlib.Path(s["path"]).is_absolute() else pathlib.Path(s["path"])
                 for sym, tf in r["charts"]:
-                    t = target_for(s["kind"], p, sym, tf, r["fromListing"], "queue-doc", r["chartSource"])
+                    phase_groups[(rel(p), sym, norm_tf(tf))].append((r, r.get("phase")))
+                    t = target_for(s["kind"], p, sym, tf, r["fromListing"], "queue-doc", r["chartSource"],
+                                   r.get("phase"))
                     t["rows"].append(r["key"])
                     t["unparsed"].update(r["unparsedCharts"])
                     t["needsLive"] = t["needsLive"] or r["needsLive"]
+                    t["needsXTable"] = t["needsXTable"] or r.get("needsXTable", False)
                     t["guards"].update(r["guards"])
                     t["named"].update(f"committed:{x}" for x in r["namedScripts"])
                     if s["kind"] == "corpus":
                         t["direct"].add(f"committed:{p.stem}")
+                    if s["kind"] == "reference":
+                        t["direct"].add(f"reference:{p.stem}")
                     if r["statedUnblocks"] is not None:
                         t["stated"].append(r["statedUnblocks"])
                     t["docWaves"].add(r["docWave"])
                     t["docDates"].add(r["docDate"])
+    # ⛔ THE PHASE CHECK: phased rows that would collide REFUSE the whole queue (and so `queue --check`), by name
+    clash = phase_refusals(phase_groups)
+    if clash:
+        raise PhaseError("phased rows of one probe on one chart must each name a distinct phase: " + "; ".join(clash))
 
     # the census pool (wave E-census): transfers today, never MATCHed
     held = []
@@ -876,7 +1032,7 @@ def build_queue(world: World | None = None) -> dict:
         by_sha[f["sha"]].add(f"{f['symbol']} {f['tf']}")
     out_targets = []
     for t in targets.values():
-        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"])
+        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"], t["phase"], t["needsXTable"])
         chart_source = min(t["chartSources"], key=CHART_RANK.__getitem__)
         chart_defaulted = chart_source == "default"     # no row, section, preamble or pool named this chart
         # ⛔ THE CHART GUARD: a target whose chart nobody named is NEEDS_CHART whatever is on disk for the
@@ -892,11 +1048,13 @@ def build_queue(world: World | None = None) -> dict:
         out_targets.append({
             "id": t["id"], "status": st, "evidence": ev,
             "source": t["source"], "sourceKind": t["sourceKind"], "sha256": t["sha256"], "bytes": t["bytes"],
-            "stem": t["stem"], "captureStem": capture_stem(world, t["path"]),
+            "stem": t["stem"], "captureStem": capture_stem(world, t["path"]), "capturePhase": t["phase"],
             "symbol": t["symbol"], "tf": t["tf"], "fromListing": t["fromListing"],
             "chartDefaulted": chart_defaulted, "chartSource": chart_source, "unparsedCharts": sorted(t["unparsed"]),
             "capturedOn": sorted(by_sha.get(t["sha256"], ())),
             "licence": t["licence"], "needsLive": t["needsLive"],
+            **({"needsXTable": True} if t["needsXTable"] else {}),
+            **({"publishedScript": t["publishedScript"]} if t["publishedScript"] else {}),
             "priority": u["priority"], "unblocks": u,
             "statedUnblocks": max(t["stated"]) if t["stated"] else None,
             "guards": sorted(t["guards"]), "planWave": plan_wave(t["guards"], t["direct"], bucket),
@@ -998,7 +1156,10 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
     picked.sort(key=lambda t: (order[band(t["priority"])], t["symbol"], t["tf"], priority_key(t)))
     scripts, seen = [], set()
     for t in picked:
-        slug = slugify(f"{t['stem']}--{t['symbol'].split(':')[-1]}-{norm_tf(t['tf'])}")
+        phase = t.get("capturePhase")
+        # a phased target's slug carries its phase: the slug keys the run's result and scratch files, and two
+        # phases of one probe on one chart are two scripts (an unphased slug is what it always was)
+        slug = slugify(f"{t['stem']}--{t['symbol'].split(':')[-1]}-{norm_tf(t['tf'])}" + (f"-{phase}" if phase else ""))
         if slug in seen:
             continue
         seen.add(slug)
@@ -1010,10 +1171,12 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
             "plots": None, "drawsObjects": None, "largestWindow": None,
             "symbol": t["symbol"], "tf": t["tf"],
             "captureStem": capture_stem(world, p),
+            **({"capturePhase": phase} if phase else {}),
             "listingDate": KNOWN_LISTING.get(t["symbol"].upper()) if t["fromListing"] else None,
             "chartDefaulted": bool(t.get("chartDefaulted")), "chartSource": t.get("chartSource"),
             "queueTargetId": t["id"], "rows": t["rows"], "priority": t["priority"],
             "planWave": t["planWave"], "localOnly": t["licence"] == "held",
+            **({"publishedScript": t["publishedScript"]} if t.get("publishedScript") else {}),
         })
     state, source = door_flag_state()
     return {"schema": MANIFEST_SCHEMA, "generatedBy": "tools/vendor_harness/evidence_engine.py manifest",
@@ -1024,7 +1187,8 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
 
 
 # ─── V: the fixture gate ─────────────────────────────────────────────────────
-ID_RX = re.compile(r"^[a-z0-9][a-z0-9.-]*-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}$")
+ID_RX = re.compile(r"^[a-z0-9][a-z0-9.-]*-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}"
+                   + el.PHASE_SUFFIX_RX + "$")
 
 
 def licence_of_capture(world: World, capture: dict) -> str:

@@ -6,6 +6,7 @@ Every library here is a fixture written from scratch for this file (no third-par
 """
 from __future__ import annotations
 
+import glob
 import hashlib
 import json
 import os
@@ -470,6 +471,8 @@ JS_LIBRARY_FIXTURE_FILES = {
     "app/src/components/chart/engine/ast/pineLibraryValueFnName.test.js": "a fixture library",
     "app/src/components/chart/engine/ast/pineLibraryVersion.test.js": "the cross-version rail's fixture libraries (U15 Phase B)",
     "app/src/components/chart/engine/__tests__/libraryLinkParity.test.js": "the splice check's fixture library",
+    "app/src/components/chart/engine/__tests__/vendorHarness/storeHeld.test.js":
+        "two fixture libraries written for the store-held rail (tester/inner/1, tester/outer/1)",
     "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.capRound4.test.js":
         "a stand-in written for the rail; the real version is read from the out-of-git store, opt-in",
     "app/src/components/chart/engine/runtime/__tests__/libraryImportRefusal.test.js": "a fixture library",
@@ -532,12 +535,100 @@ def test_no_library_store_is_in_the_repository():
 
 # ── the promotion allowlist is held to its own rule ───────────────────────────────────────────
 # (tools/pine_library/promotion_allowlist.json: the only versions an owner may copy into the
-# production store. The runtime pane is off for members, so the HOST-ONLY grade is the one that counts.)
+# production store.) A version is promoted on one of two grades:
+#   * HOST-ONLY: every capture of every importing script the host lane newly draws grades MATCH with the runtime
+#     pane off (`hostOnly`, U15). That was the only path while members had no runtime lane.
+#   * RUNTIME-ONLY (coordinator ruling 2026-11-19, libraries chain L2): since 2026-11-17 every member is on the
+#     runtime lane (PINE_RUNTIME_STAGE=all) and its per-version admission row (`library:Author/Library/N`) is the
+#     member gate there. A version that NO importer draws on the host lane may be promoted with an EMPTY `hostOnly`
+#     when (a) `notAttaching` names EVERY importer capture with its host-only refusal (so the promotion draws
+#     nothing new on the host lane), and (b) `runtimeOn` carries the full admission evidence for that version,
+#     pinned to the sha256 it graded and stamped with the engine it was graded at (`gradedAtEngine`).
+#     `rollout_gate.pine_capability_admission` judges (b): the rule is the admission row's, never restated here.
 
 PROMOTION = os.path.join(REPO, "tools", "pine_library", "promotion_allowlist.json")
+CAPTURES = os.path.join(REPO, "tests", "fixtures", "vendor", "harness")
+_IMPORT_LINE = re.compile(r"(?m)^\s*import\s+([A-Za-z0-9_]+/[A-Za-z0-9_]+/[0-9]+)")
 
 
-def promotion_problems(doc, deny_paths):
+def committed_capture_imports(folder=CAPTURES):
+    """{capture id: {library versions its recorded source imports}} over the committed captures. Only a file that
+    holds `import ` at all is parsed (48 of 909 on 2026-11-19, ~2 s)."""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(folder, "*.json"))):
+        with open(f, "rb") as fh:
+            raw = fh.read()
+        if b"import " not in raw:
+            continue
+        cap = json.loads(raw)
+        src = (cap.get("source") or {}).get("text") if isinstance(cap.get("source"), dict) else None
+        found = set(_IMPORT_LINE.findall(src or ""))
+        if found:
+            out[cap.get("id") or os.path.splitext(os.path.basename(f))[0]] = found
+    return out
+
+
+def _importing_versions(path, promoted_rows):
+    """`path` and every promoted version that imports it, directly or through another promoted version."""
+    out = {path}
+    grew = True
+    while grew:
+        grew = False
+        for r in promoted_rows:
+            p = r.get("path")
+            if p not in out and set(r.get("imports") or []) & out:
+                out.add(p)
+                grew = True
+    return out
+
+
+def runtime_only_problems(row, doc, captures, engine):
+    """Why a promote row with an EMPTY `hostOnly` does not meet the runtime-only path, [] when it does."""
+    p = row.get("path")
+    out = []
+    promoted = [r for r in doc.get("promote") or [] if isinstance(r, dict)]
+    via = _importing_versions(p, promoted)
+    # (a) every importer capture is named, with its host-only refusal
+    na = row.get("notAttaching")
+    if not isinstance(na, dict) or not na or not all(isinstance(v, str) and v.strip() for v in na.values()):
+        out.append("%s has an empty host-only grade and no `notAttaching` refusal for its importers" % p)
+        na = {}
+    importers = sorted(c for c, libs in (captures or {}).items() if libs & via)
+    missing = [c for c in importers if c not in na]
+    if missing:
+        out.append("%s: importer capture(s) %s are named neither in hostOnly nor in notAttaching" % (p, missing))
+    # (b) the full admission evidence, pinned and stamped
+    ev = row.get("runtimeOn")
+    at = row.get("gradedAtEngine")
+    if not isinstance(ev, list) or not ev:
+        return out + ["%s has an empty host-only grade and no runtime admission evidence (`runtimeOn`)" % p]
+    if not (isinstance(at, int) and not isinstance(at, bool) and isinstance(engine, int) and 0 < at <= engine):
+        out.append("%s: `gradedAtEngine` %r is not an engine at or before this one (%r)" % (p, at, engine))
+    shas = {r.get("path"): str(r.get("sha256") or "").lower() for r in promoted}
+    libs = {(e.get("library") or {}).get("path") for e in ev if isinstance(e, dict)}
+    if len(libs) != 1 or not (libs <= via):
+        return out + ["%s: `runtimeOn` must grade one version, this one or a promoted version importing it: %r"
+                      % (p, sorted(map(str, libs)))]
+    lib = libs.pop()
+    for e in ev:
+        pin = (e.get("library") or {}) if isinstance(e, dict) else {}
+        if str(pin.get("sha256") or "").lower() != shas.get(lib):
+            out.append("%s: runtime evidence %r graded %s under another sha than the one promoted"
+                       % (p, e.get("capture") if isinstance(e, dict) else e, lib))
+        if not isinstance(e, dict) or e.get("scriptEngineVersion") != at:
+            out.append("%s: runtime evidence %r is not stamped with the engine it was graded at (%r)"
+                       % (p, e.get("capture") if isinstance(e, dict) else e, at))
+        if isinstance(e, dict) and e.get("capture") not in na:
+            out.append("%s: runtime evidence %r is not named in notAttaching (it must not draw host-only)"
+                       % (p, e.get("capture")))
+    reasons = rollout_gate.pine_capability_admission(
+        rollout_gate.PINE_CAPABILITY_LIBRARY_PREFIX + lib,
+        {"status": rollout_gate.PINE_CAPABILITY_CONFORMANT, "admitted": True, "sha256": shas.get(lib), "evidence": ev})
+    out.extend("%s: %s" % (p, r) for r in reasons)
+    return out
+
+
+def promotion_problems(doc, deny_paths, captures=None, engine=None):
     """Why a promotion allowlist breaks its rule, one sentence per problem ([] = it holds)."""
     out = []
     never = set((doc.get("neverPromoted") or {}).get("paths") or [])
@@ -563,10 +654,13 @@ def promotion_problems(doc, deny_paths):
         else:
             out.extend("%s imports %s, which is not promoted" % (p, dep) for dep in imports if dep not in promoted)
         graded = row.get("hostOnly")
-        if not isinstance(graded, dict) or not graded:
+        if isinstance(graded, dict) and graded:
+            if any(v != "MATCH" for v in graded.values()):
+                out.append("%s is not MATCH host-only on every capture: %r" % (p, graded))
+        elif isinstance(graded, dict):
+            out.extend(runtime_only_problems(row, doc, captures, engine))
+        else:
             out.append("%s has no host-only grade" % p)
-        elif any(v != "MATCH" for v in graded.values()):
-            out.append("%s is not MATCH host-only on every capture: %r" % (p, graded))
     return out
 
 
@@ -574,7 +668,10 @@ def test_every_promoted_library_is_pinned_licensed_undenied_and_match_host_only(
     doc = json.load(open(PROMOTION, encoding="utf-8"))
     deny = {d["path"] for d in json.load(open(store.DENY_FILE, encoding="utf-8"))["deny"]}
     assert doc["promote"], "an empty promote list would pass every check below: nothing was read"
-    assert promotion_problems(doc, deny) == []
+    from api.services import user_definitions
+    caps = committed_capture_imports()
+    assert len(caps) > 20, "the committed captures yielded almost no importer: the scan is not reading them"
+    assert promotion_problems(doc, deny, caps, user_definitions.SCRIPT_ENGINE_VERSION) == []
     # every denied version is accounted for as held out, never silently absent
     assert deny <= {r["path"] for r in doc["heldOut"]}
     # every never-promoted path is a version, and none is promoted
@@ -605,6 +702,70 @@ def test_the_promotion_rule_refuses_each_way_a_row_can_be_wrong():
     assert problems(imports=["tester/other/1"]) != []
     dep = dict(good, path="tester/other/1")
     assert promotion_problems({"promote": [dict(good, imports=["tester/other/1"]), dep]}, set()) == []
+
+
+def _rt_entry(cap, script, community, path="tester/pinlib/1", sha="a" * 64, engine=80, **extra):
+    return dict({"capture": cap, "script": script, "community": community, "verdict": "MATCH", "runtimePane": "on",
+                 "library": {"path": path, "sha256": sha}, "scriptEngineVersion": engine}, **extra)
+
+
+RT_GOOD = {"path": "tester/pinlib/1", "sha256": "a" * 64, "licence": "MPL-2.0", "imports": [], "hostOnly": {},
+           "notAttaching": {"cap-a": "host-only: refused by name (pine:state)",
+                            "cap-b": "host-only: refused by name (pine:function-def)"},
+           "gradedAtEngine": 80,
+           "runtimeOn": [_rt_entry("cap-a", "Community script", True), _rt_entry("cap-b", "Our probe", False)]}
+RT_CAPTURES = {"cap-a": {"tester/pinlib/1"}, "cap-b": {"tester/pinlib/1"}, "cap-x": {"tester/other/1"}}
+
+
+def test_the_runtime_only_promotion_refuses_each_way_a_row_can_be_wrong():
+    """Coordinator ruling 2026-11-19: an EMPTY `hostOnly` is a promotion only when (a) `notAttaching` names every
+    importer capture with its host-only refusal and (b) `runtimeOn` carries the full admission evidence, pinned to
+    the sha and stamped with the engine it was graded at. Each control below breaks exactly one of those."""
+
+    def problems(captures=RT_CAPTURES, engine=80, rows=None, **change):
+        return promotion_problems({"promote": rows or [dict(RT_GOOD, **change)]}, set(), captures, engine)
+
+    assert problems() == []
+    # (a) every importer capture named, with a refusal
+    assert problems(notAttaching=None) != []
+    assert problems(notAttaching={}) != []
+    assert problems(notAttaching=dict(RT_GOOD["notAttaching"], **{"cap-a": " "})) != []
+    assert problems(captures=dict(RT_CAPTURES, **{"cap-c": {"tester/pinlib/1"}})) != []
+    # (b) the admission evidence: present, enough, community, MATCH with the pane on
+    assert problems(runtimeOn=None) != []
+    assert problems(runtimeOn=[]) != []
+    assert problems(runtimeOn=RT_GOOD["runtimeOn"][:1]) != []
+    assert problems(runtimeOn=[_rt_entry("cap-a", "Probe one", False), _rt_entry("cap-b", "Probe two", False)]) != []
+    assert problems(runtimeOn=[_rt_entry("cap-a", "Community script", True, verdict="DIVERGE"),
+                               RT_GOOD["runtimeOn"][1]]) != []
+    assert problems(runtimeOn=[_rt_entry("cap-a", "Community script", True, runtimePane="off"),
+                               RT_GOOD["runtimeOn"][1]]) != []
+    # ... pinned to the promoted sha: one stray entry under another sha fails even when two good ones remain
+    na3 = dict(RT_GOOD["notAttaching"], **{"cap-c": "host-only: refused by name"})
+    caps3 = dict(RT_CAPTURES, **{"cap-c": {"tester/pinlib/1"}})
+    stray = RT_GOOD["runtimeOn"] + [_rt_entry("cap-c", "Third script", True, sha="b" * 64)]
+    assert problems(captures=caps3, notAttaching=na3, runtimeOn=RT_GOOD["runtimeOn"] + [
+        _rt_entry("cap-c", "Third script", True)]) == []
+    assert problems(captures=caps3, notAttaching=na3, runtimeOn=stray) != []
+    assert problems(runtimeOn=[_rt_entry("cap-a", "Community script", True, path="tester/other/1"),
+                               _rt_entry("cap-b", "Our probe", False, path="tester/other/1")]) != []
+    # ... stamped with the engine it was graded at, never a later one than this build's
+    assert problems(gradedAtEngine=None) != []
+    assert problems(gradedAtEngine=81, runtimeOn=[_rt_entry("cap-a", "Community script", True, engine=81),
+                                                  _rt_entry("cap-b", "Our probe", False, engine=81)]) != []
+    assert problems(engine=82) == []
+    assert problems(runtimeOn=[_rt_entry("cap-a", "Community script", True, engine=79),
+                               RT_GOOD["runtimeOn"][1]]) != []
+    # ... and every runtime capture is one the host lane refuses (named in notAttaching)
+    assert problems(notAttaching={"cap-a": "host-only: refused by name"},
+                    captures={"cap-a": {"tester/pinlib/1"}}) != []
+    # a nested-only version is graded through a promoted version that imports it, and only such a version
+    outer = dict(RT_GOOD, imports=["tester/inner/1"])
+    inner = dict(RT_GOOD, path="tester/inner/1", sha256="c" * 64)
+    assert problems(rows=[outer, inner]) == []
+    assert problems(rows=[dict(RT_GOOD), inner]) != []
+    # a non-empty hostOnly keeps the host-only rule, untouched
+    assert promotion_problems({"promote": [dict(RT_GOOD, hostOnly={"cap-1": "MATCH"})]}, set(), RT_CAPTURES, 80) == []
 
 
 # ── U15 Phase B: the cross-version admission table (coordinator ruling 2026-11-16) ─────────────────
@@ -736,7 +897,9 @@ def test_the_promotion_check_defaults_to_this_servers_store(root, capsys):
 # member's chart with no grade (docs/pine/evidence/2026-11-17-library-store-fail-closed/EVIDENCE.md).
 
 HELD_PATH = "PineCoders/ConditionalAverages/2"      # a `heldOut` row of the committed allowlist
-UNLISTED_PATH = "TradingView/ta/7"                  # on no list: production held it, served `ok`
+# on no list. It was `TradingView/ta/7` (production held it, served `ok`) until ta/7 was promoted on 2026-11-19;
+# `TradingView/ta/9` is another version production's store holds that no list names.
+UNLISTED_PATH = "TradingView/ta/9"
 STAND_IN = {HELD_PATH: "//@version=5\nlibrary(\"ConditionalAverages\")\nexport f() => 1\n",
             UNLISTED_PATH: "//@version=5\nlibrary(\"ta\")\nexport f() => 1\n"}
 SENTENCE = "this library version is withheld until its drawing is verified against TradingView"

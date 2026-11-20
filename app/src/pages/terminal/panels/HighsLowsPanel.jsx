@@ -344,7 +344,7 @@ export default function HighsLowsPanel({ side: sideProp = null, group: groupProp
           ) : null}
           {/* Its own read and its own states: a failed chart never fails the lists (HighsLowsPulse.jsx). */}
           <HighsLowsPulse scoped={group !== 'stocks'} />
-          <div className={styles.split}>
+          <div className={`${styles.split} ${styles.splitRoomy}`}>
             {showHighs && board.highs.length > 0 && (board.grouped
               ? <GroupTable side="highs" rows={board.highs} total={board.highsTotal} words={words} onDrill={setValue} />
               : <StockTable side="highs" rows={board.highs} total={board.highsTotal} offset={0} />)}

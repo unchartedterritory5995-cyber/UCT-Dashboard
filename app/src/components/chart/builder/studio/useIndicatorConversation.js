@@ -31,6 +31,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readback, isDirty } from '../authoring'
 import { converseTurn, transcriptSnippets } from '../authoring/converseClient'
+import { withoutOffer } from '../authoring/builtInOffer'
 import { writeSession, clearSession, holdInDock, releaseDock } from '../authoring/conversationSessions'
 import { logStudioAction } from '../authoring/studioTelemetry'
 import { keepAssistantName, keepAssistantLabel } from '../authoring/readableName'
@@ -62,7 +63,7 @@ import { fetchDefinitionHistory } from '../../../../hooks/useUserDefinitions'
  *   opened, untouched definition is clean.
  */
 export default function useIndicatorConversation({ sym = null, tf = null, converse = converseTurn, sessionKey = null, open = null,
-  readHistory = fetchDefinitionHistory } = {}) {
+  readHistory = fetchDefinitionHistory, builtIns = null, chartOf = null } = {}) {
   // ⭐ Restored once, at mount — the same key reopened is the same conversation.
   // ⭐ PHASE 4 — an EDIT's draft is restored only while it was opened from the
   // version that is STILL the stored one; a draft of an older version is stale
@@ -97,7 +98,15 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const recovered = restored && !!initial.recovered
   /** ⭐ PHASE 4 — true while this studio edits a stored definition. */
   const editing = !!(state.defId && Number.isInteger(state.baseVersion))
-  const gateCtx = useMemo(() => ({ tf, symbol: sym }), [tf, sym])
+  // ⭐ `builtIns`: the built-in indicator ids this window can add to the chart right now, told to
+  // the door on every turn (`builtInOffer.offerableBuiltIns`). Keyed on its text, so a new array
+  // holding the same ids is the same context.
+  const builtInsKey = Array.isArray(builtIns) ? builtIns.join(',') : ''
+  // ⭐ `showsScripts`: THIS window checks a script answer with its own engine and shows it and its
+  // verdict (`authoringSession.modelTurn` -> `scriptAnswer.checkScript`, the script entry of the panel),
+  // so it is the one sender that tells the door it accepts one (`converseClient.ACCEPTS_SCRIPT`).
+  const gateCtx = useMemo(() => ({ tf, symbol: sym, showsScripts: true, ...(builtInsKey ? { builtIns: builtInsKey.split(',') } : {}) }),
+    [tf, sym, builtInsKey])
 
   // Keep the session current. Nothing to keep (a fresh, untouched dock) is not
   // stored, so opening and closing an empty dock leaves no session behind.
@@ -122,6 +131,17 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   const say = useCallback((entry) => {
     setTranscript((t) => {
       const next = [...t, { id: t.length, ...entry }]
+      transcriptRef.current = next
+      return next
+    })
+  }, [])
+
+  /** ⭐ AN OFFER SETTLED — taken, or found to be no longer possible. The entry stops offering
+   *  (one tap, one outcome) and what happened is said on a line of its own. */
+  const settleOffer = useCallback((entryId, line) => {
+    setTranscript((t) => {
+      const kept = t.map((e) => (e && e.id === entryId ? withoutOffer(e) : e))
+      const next = line ? [...kept, { id: kept.length, role: 'uct', kind: 'offer', lines: [String(line)] }] : kept
       transcriptRef.current = next
       return next
     })
@@ -157,12 +177,14 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
     try {
       return take(await modelTurn(before, () => stateRef.current, words,
         // ⭐ a new indicator keeps the assistant's name only where the derived one is unreadable
-        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName, keepCreateLabel: keepAssistantLabel }))
+        { snippets, gateCtx, converse: converseTracked, signal: ctl ? ctl.signal : null, keepCreateName: keepAssistantName, keepCreateLabel: keepAssistantLabel,
+          // ⭐ a script answer is run on THIS chart before the dock says it runs (`runsHere.js`)
+          ...(typeof chartOf === 'function' ? { chartOf } : {}) }))
     } finally {
       if (abortRef.current === ctl) abortRef.current = null
       setBusy(false)
     }
-  }, [busy, converseTracked, gateCtx, sym, tf, say, take])
+  }, [busy, converseTracked, gateCtx, sym, tf, say, take, chartOf])
 
   /** ⭐ STOP — give up waiting for the turn in flight. The answer, if one still comes, is
    *  not read (`modelTurn`); the working indicator and the preview are untouched. */
@@ -308,6 +330,7 @@ export default function useIndicatorConversation({ sym = null, tf = null, conver
   return {
     state, transcript, rb, busy, saving, acked, setAcked, needsAck, questions, changeSeq,
     previewDefinition, send, stop, undo, goBackTo, steps, save, discard, dirty, restored, recovered, dropped, editing,
+    settleOffer,
     allowanceLeft, settings, setNumber, savedVersions, savedVersionsError, loadVersions, restoreVersion,
     canUndo: state.history.length > 0 && !busy && !saving,
     canSave: dirty && !busy && !saving && (!needsAck.length || acked),

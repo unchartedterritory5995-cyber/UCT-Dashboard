@@ -52,9 +52,14 @@ describe('the Layout menu', () => {
   test('an admin with layouts to review sees the count on the Community entry; with none, nothing is added', () => {
     const first = render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={vi.fn()} onShare={vi.fn()} reviewCount={3} />)
     expect(itemNames(openLayout())).toContain('Community layouts…3 to review')
+    // and on the Layout button itself, so a waiting layout is not missed with the menu shut
+    expect(screen.getByTestId('board-review-count')).toHaveTextContent('3')
+    expect(screen.getByTestId('board-review-count')).toHaveAttribute('title', '3 shared layouts to review')
+    expect(screen.getByRole('button', { name: 'Layout' })).toContainElement(screen.getByTestId('board-review-count'))
     first.unmount()
     render(<BoardMenu board={boardOf()} api={api()} onSaveAs={vi.fn()} onCommunity={vi.fn()} onShare={vi.fn()} />)
     expect(itemNames(openLayout())).toContain('Community layouts…')
+    expect(screen.queryByTestId('board-review-count')).toBeNull()
   })
   test('each item calls the board with what it names', () => {
     const a = api()

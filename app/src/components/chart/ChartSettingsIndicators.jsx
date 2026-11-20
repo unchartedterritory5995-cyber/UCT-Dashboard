@@ -402,6 +402,8 @@ export default function ChartSettingsIndicators({
   // Click a tab WHILE searching and it narrows, and stays narrowed until the box
   // is cleared. One flag, three behaviours, no hidden mode.
   const [tabPinned, setTabPinned] = useState(false)
+  // ⭐ how many UCT house indicators match a search across every tab (the UCT set is its own file)
+  const [houseMatchCount, setHouseMatchCount] = useState(0)
   // ⛔ SEEDED FROM `openRowId`, AND `useState`'s INITIALISER IS THE WHOLE POINT.
   // The modal is unmounted when closed (`if (!open) return null`), so this
   // component is fresh on every open and the initial value IS the deep link. An
@@ -4085,7 +4087,8 @@ export default function ChartSettingsIndicators({
             onPutOnChart={putInstalledOnChart}
           />
         )}
-        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0
+          && !(activeTab === null && query.trim() && houseMatchCount > 0) && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -4130,6 +4133,19 @@ export default function ChartSettingsIndicators({
             <div className={styles.insSectionLabel}>{SYMBOL_CATEGORY}</div>
             <div className={styles.insSearching}>Searching symbols…</div>
           </section>
+        )}
+        {/* ⭐ A SEARCH ACROSS EVERY TAB REACHES THE UCT SET TOO (2026-11-18): "Fred" found nothing while
+            Fred RS sat in the UCT tab. Its matches lead the results, under their own heading. */}
+        {activeTab === null && query.trim() && (
+          <IndicatorHouseTab
+            styles={styles}
+            query={query}
+            searchOnly
+            onMatches={setHouseMatchCount}
+            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
         )}
         {groups.map((c) => (
           <section key={c} className={styles.insAddGroup}>

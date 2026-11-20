@@ -1,0 +1,100 @@
+//@version=6
+indicator("UCTPROBE_VW_TF_FORMAT_DATE_STYLES", overlay = true)
+
+// PROVENANCE: written 2026-11-19 (Q-TF-W2-d, docs/pine/capture-queue-2026-11-20-text-format.md). Our probe, licence `probe`.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// ⛔ A pattern letter TradingView does not hold may STOP the script with a runtime error: then the error text
+// is the reading, recorded with the row it names.
+//
+// ─── W2: `str.format` DATE / TIME STYLES, QUOTES, AND ARGUMENTS THAT ARE NOT A PLAIN TIMESTAMP ───
+//
+// S01-S10 the element with no pattern and the four named styles (the committed capture shows only
+// `{0,date,short}` = "3/5/24"); S11-S13 MessageFormat quotes, inside an element and around a brace; S14 / S15
+// the same instant with no date element (the number it is). One column per instant:
+//   iA   2024-03-05 14:07:09 UTC, the instant of vw-w3-format-date (continuity)
+//   iB   2024-07-04 03:02:01.045 UTC: summer, one-digit hour / minute / second
+//   iD   2021-01-01 00:00:00 UTC: midnight, a Friday
+// Table 2: X01 `{0,date,yyyy-MM-dd}` over an int `na`; X02 `{0,date,yyyy-MM-dd HH:mm:ss.SSS}` over a float
+// instant 0.7 ms after iA; X03 the same pattern over `timenow` (it moves: read its SHAPE only, never its digits).
+//
+// CAPTURE: AMEX:SPY 1D and BITSTAMP:BTCUSD 1D. Inputs at defaults.
+
+int iA = timestamp("UTC", 2024, 3, 5, 14, 7, 9)
+int iB = timestamp("UTC", 2024, 7, 4, 3, 2, 1) + 45
+int iD = timestamp("UTC", 2021, 1, 1, 0, 0, 0)
+int naInst = na
+float fInst = iA + 0.7
+
+if barstate.islast
+    var table t = table.new(position.top_right, 4, 16)
+    table.cell(t, 0, 0, "id P")
+    table.cell(t, 1, 0, "iA")
+    table.cell(t, 2, 0, "iB")
+    table.cell(t, 3, 0, "iD")
+    table.cell(t, 0, 1, "S01 {0,date}")
+    table.cell(t, 1, 1, str.format("{0,date}", iA))
+    table.cell(t, 2, 1, str.format("{0,date}", iB))
+    table.cell(t, 3, 1, str.format("{0,date}", iD))
+    table.cell(t, 0, 2, "S02 {0,time}")
+    table.cell(t, 1, 2, str.format("{0,time}", iA))
+    table.cell(t, 2, 2, str.format("{0,time}", iB))
+    table.cell(t, 3, 2, str.format("{0,time}", iD))
+    table.cell(t, 0, 3, "S03 {0,date,short}")
+    table.cell(t, 1, 3, str.format("{0,date,short}", iA))
+    table.cell(t, 2, 3, str.format("{0,date,short}", iB))
+    table.cell(t, 3, 3, str.format("{0,date,short}", iD))
+    table.cell(t, 0, 4, "S04 {0,date,medium}")
+    table.cell(t, 1, 4, str.format("{0,date,medium}", iA))
+    table.cell(t, 2, 4, str.format("{0,date,medium}", iB))
+    table.cell(t, 3, 4, str.format("{0,date,medium}", iD))
+    table.cell(t, 0, 5, "S05 {0,date,long}")
+    table.cell(t, 1, 5, str.format("{0,date,long}", iA))
+    table.cell(t, 2, 5, str.format("{0,date,long}", iB))
+    table.cell(t, 3, 5, str.format("{0,date,long}", iD))
+    table.cell(t, 0, 6, "S06 {0,date,full}")
+    table.cell(t, 1, 6, str.format("{0,date,full}", iA))
+    table.cell(t, 2, 6, str.format("{0,date,full}", iB))
+    table.cell(t, 3, 6, str.format("{0,date,full}", iD))
+    table.cell(t, 0, 7, "S07 {0,time,short}")
+    table.cell(t, 1, 7, str.format("{0,time,short}", iA))
+    table.cell(t, 2, 7, str.format("{0,time,short}", iB))
+    table.cell(t, 3, 7, str.format("{0,time,short}", iD))
+    table.cell(t, 0, 8, "S08 {0,time,medium}")
+    table.cell(t, 1, 8, str.format("{0,time,medium}", iA))
+    table.cell(t, 2, 8, str.format("{0,time,medium}", iB))
+    table.cell(t, 3, 8, str.format("{0,time,medium}", iD))
+    table.cell(t, 0, 9, "S09 {0,time,long}")
+    table.cell(t, 1, 9, str.format("{0,time,long}", iA))
+    table.cell(t, 2, 9, str.format("{0,time,long}", iB))
+    table.cell(t, 3, 9, str.format("{0,time,long}", iD))
+    table.cell(t, 0, 10, "S10 {0,time,full}")
+    table.cell(t, 1, 10, str.format("{0,time,full}", iA))
+    table.cell(t, 2, 10, str.format("{0,time,full}", iB))
+    table.cell(t, 3, 10, str.format("{0,time,full}", iD))
+    table.cell(t, 0, 11, "S11 {0,date,yyyy-MM-dd'T'HH:mm:ss}")
+    table.cell(t, 1, 11, str.format("{0,date,yyyy-MM-dd'T'HH:mm:ss}", iA))
+    table.cell(t, 2, 11, str.format("{0,date,yyyy-MM-dd'T'HH:mm:ss}", iB))
+    table.cell(t, 3, 11, str.format("{0,date,yyyy-MM-dd'T'HH:mm:ss}", iD))
+    table.cell(t, 0, 12, "S12 {0,date,h 'o''clock' a}")
+    table.cell(t, 1, 12, str.format("{0,date,h 'o''clock' a}", iA))
+    table.cell(t, 2, 12, str.format("{0,date,h 'o''clock' a}", iB))
+    table.cell(t, 3, 12, str.format("{0,date,h 'o''clock' a}", iD))
+    table.cell(t, 0, 13, "S13 '{0}' is {0,date,yyyy}")
+    table.cell(t, 1, 13, str.format("'{0}' is {0,date,yyyy}", iA))
+    table.cell(t, 2, 13, str.format("'{0}' is {0,date,yyyy}", iB))
+    table.cell(t, 3, 13, str.format("'{0}' is {0,date,yyyy}", iD))
+    table.cell(t, 0, 14, "S14 {0}")
+    table.cell(t, 1, 14, str.format("{0}", iA))
+    table.cell(t, 2, 14, str.format("{0}", iB))
+    table.cell(t, 3, 14, str.format("{0}", iD))
+    table.cell(t, 0, 15, "S15 {0,number,#}")
+    table.cell(t, 1, 15, str.format("{0,number,#}", iA))
+    table.cell(t, 2, 15, str.format("{0,number,#}", iB))
+    table.cell(t, 3, 15, str.format("{0,number,#}", iD))
+    var table x = table.new(position.bottom_right, 2, 3)
+    table.cell(x, 0, 0, "X01 na")
+    table.cell(x, 1, 0, str.format("{0,date,yyyy-MM-dd}", naInst))
+    table.cell(x, 0, 1, "X02 float")
+    table.cell(x, 1, 1, str.format("{0,date,yyyy-MM-dd HH:mm:ss.SSS}", fInst))
+    table.cell(x, 0, 2, "X03 timenow")
+    table.cell(x, 1, 2, str.format("{0,date,yyyy-MM-dd HH:mm:ss.SSS}", timenow))

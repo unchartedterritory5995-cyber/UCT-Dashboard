@@ -527,7 +527,8 @@ export default function IndicatorSettingsDialog({ open, instanceId, settings, on
   const panelId = `${uid}-panel`
 
   const renderField = (field, inPack) => {
-    const active = evalActiveWhen(field.activeWhen, shown)
+    // a LOCKED setting (`field.disabled`, its sentence the visible tip below) is inert like an inactive one
+    const active = !field.disabled && evalActiveWhen(field.activeWhen, shown)
     const id = `${uid}-${field.key}`
     const labelId = `${id}-lbl`
     const tipId = field.tooltip ? `${id}-tip` : null

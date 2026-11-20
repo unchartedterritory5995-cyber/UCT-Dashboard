@@ -815,6 +815,10 @@ const RUN_HALF_WHY = Object.freeze({
   'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is not loaded',
   'runtime:load-failed': 'the part of the app that runs scripts bar by bar could not be loaded in this tab',
   'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand that run',
+  // ⭐ (e85) `requestSupply.js::REQUEST_LAG_GUARD`: a live-tail lag past the wait, never a depth or a hole
+  'runtime:request-lag': "the newest bars of another symbol the script reads haven't arrived on this chart",
+  'runtime:request-hoisted-history': 'the script reads another symbol or timeframe through a helper whose '
+    + 'earlier values this chart can read only from its own bars',
 })
 const RUN_HALF_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed'
 const RUN_HALF_WHY_OTHER = "part of the script can't be run bar by bar here"

@@ -930,7 +930,7 @@ def test_ONE_clock_entry_has_a_REAL_window_or_the_rail_above_proves_nothing():
                       if s["lookback"] > 0)
     # (2026-09-28, C8) ``weekfirst`` / ``monthfirst`` are the same rule over a
     # week and a month (``timeframe.change("W"/"M")``) and declare the same window.
-    assert windowed == ["monthfirst", "sessionfirst", "weekfirst"], windowed
+    assert windowed == ["monthfirst", "regularfirst", "sessionfirst", "weekfirst"], windowed
     for name in windowed:
         assert al.max_lookback({"type": "series", "name": name}) == 1, name
     # …and it agrees with the FUNCTION that reads exactly the same history.
@@ -1050,3 +1050,69 @@ def test_the_FROZEN_manifest_lints_identically_to_the_plain_dict_one():
         "reading a manifest entry) must test `Mapping`, never `dict`")
     assert default["mode"] == "non-repainting" and default["back"] == 20, (
         f"the shipped default itself moved: {default}")
+
+
+# --------------------------------------------------------------------------- #
+# a condition read from an earlier bar is still a condition (2026-11-17)
+# --------------------------------------------------------------------------- #
+
+def _n(v):
+    return {"type": "num", "value": v}
+
+
+def _s(name):
+    return {"type": "series", "name": name}
+
+
+def _call(name, *args):
+    return {"type": "call", "name": name, "args": list(args)}
+
+
+def _op(name, *args):
+    return {"type": "op", "name": name, "args": list(args)}
+
+
+def _back(node, bars):
+    return {"type": "offset", "value": bars, "args": [node]}
+
+
+NEW_HIGH = _op(">=", _s("high"), _call("highest", _s("high"), _n(252)))
+
+
+def test_a_condition_read_from_an_earlier_bar_is_still_a_condition():
+    """Found on production, 2026-11-17: "a new 52-week high for the first time in at least 30
+    days" was refused twice as `lint:repaint`. The natural spelling is "a new high now, and none
+    on the 30 bars before": `newHigh && barssince(newHigh[1], 30) >= 30`. It reads only earlier
+    bars; this walk's own copy of the yes/no rule did not know an offset, called the call
+    unanalysable, and unanalysable is reported as "repaints"."""
+    first_in_30 = _op("&&", NEW_HIGH, _op(">=", _call("barssince", _back(NEW_HIGH, 1), _n(30)), _n(30)))
+    got = al.lint_repaint(first_in_30)
+    assert got["mode"] == "non-repainting", got
+    assert got["forward"] == 0 and isinstance(got["back"], int) and got["back"] >= 252 + 30
+    # the other condition-role readers, and a deeper offset
+    for tree in (_call("valuewhen", _back(NEW_HIGH, 1), _s("close"), _n(30)),
+                 _call("barssince", _back(_back(NEW_HIGH, 1), 4), _n(30))):
+        assert al.lint_repaint(tree)["mode"] == "non-repainting", tree
+    # the same two calls without the offset were always accepted: the offset is the only change
+    assert al.lint_repaint(_call("barssince", NEW_HIGH, _n(30)))["mode"] == "non-repainting"
+
+
+def test_CONTROL_a_NUMBER_read_from_an_earlier_bar_is_still_not_a_condition():
+    """Never more permissive than the rule: the offset passes the kind through, it does not grant one."""
+    for arg in (_back(_s("close"), 1), _back(_call("sma", _s("close"), _n(20)), 3)):
+        got = al.lint_repaint(_call("barssince", arg, _n(30)))
+        assert got["mode"] == "repaints" and "is its condition" in "; ".join(got["reasons"]), got
+
+
+def test_this_walks_yes_no_rule_agrees_with_the_interpreters_on_every_wrapper():
+    """Three readers of one rule (this file's `_arg_yields_bool`, `scan_definition.is_boolean_tree`,
+    and the JS pair). The one here is a narrow local copy, and a copy drifts: asked of the same
+    wrapped trees, it must answer what the interpreter's resolver answers."""
+    from api.services import scan_definition
+    wrap = [lambda t: _back(t, 1), lambda t: {"type": "tf", "value": "W", "args": [t]},
+            lambda t: {"type": "sym", "value": "SPY", "args": [t]}, lambda t: _back({"type": "tf", "value": "W", "args": [t]}, 2)]
+    for inner, want in ((NEW_HIGH, True), (_s("close"), False)):
+        for w in wrap:
+            tree = w(inner)
+            assert al._arg_yields_bool(tree, al.TABLE) is want, tree
+            assert scan_definition.is_boolean_tree(tree) is want, tree

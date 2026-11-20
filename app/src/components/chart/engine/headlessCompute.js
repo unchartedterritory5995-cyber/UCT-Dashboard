@@ -76,7 +76,9 @@
 //   newestBarIsForming  default `false`: a headless series is a finished history
 //   inputs              the instance's settings; default `{}`, the definition's own defaults
 //   otherBars           bars for another symbol: `(storeKey) => rows | null`, or `{[storeKey]: rows}`,
-//                       keyed as the chart fetches them (`otherSymbols.js::fetchableOtherSymbols`)
+//                       keyed as the chart fetches them (`otherSymbols.js::fetchableOtherSymbols`), at the
+//                       timeframe the chart fetches them at: `tf`'s own, except a key `heldFetchOf` holds at
+//                       another (SP:SPX and the RS seed on a weekly chart: their DAILY rows, RS RATING L11)
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 import {
   astLaneColumns, astPlotKey, columnErrors, otherSymbolReport, lowerTfReport, chartClockReport, withheldBarsReport,
@@ -86,7 +88,7 @@ import {
   computeRuntimeColumns, runtimeWarmupOf, RUNTIME_REQUEST_WITHHELD_KEY, RUNTIME_HISTORY_GUARD,
 } from './runtime/runtimeColumns.js'
 import { runtimeInputValues } from './runtime/runtimeInputs.js'
-import { fetchableOtherSymbols } from './otherSymbols.js'
+import { fetchableOtherSymbols, heldFetchesOf } from './otherSymbols.js'
 import { instanceDocumentForFetch } from './symbolInputs.js'
 import { HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence.js'
 import { plotOwnTitlesOf } from './pinePresentation.js'
@@ -110,7 +112,7 @@ function refused(lane, code, message, extra = {}) {
 
 /** The other-symbol supply, in the shape the chart's cache has (`useSecondarySources`): a Map
  *  store key → `{bars, status}`, for exactly the keys the chart would fetch for this document. */
-function supplyOf(def, otherBars, inputs) {
+function supplyOf(def, otherBars, inputs, tf) {
   if (!otherBars) return null
   // ⭐ as THIS instance's symbol settings make the document (`useSecondarySources`'s own call)
   const keys = fetchableOtherSymbols(instanceDocumentForFetch(def, { inputs }))
@@ -120,7 +122,15 @@ function supplyOf(def, otherBars, inputs) {
   const secondary = new Map()
   for (const k of keys) {
     const rows = read(k)
-    if (Array.isArray(rows) && rows.length) secondary.set(k, { bars: rows, status: 'available' })
+    // ⭐ RS RATING L11 — a key this timeframe HOLDS at another one (`heldFetchOf`: SP:SPX on a weekly
+    // chart) is filed under its held key, as the chart files it; its rows are that timeframe's (daily)
+    const held = heldFetchesOf(k, tf)
+    if (Array.isArray(rows) && rows.length) secondary.set(held.length ? held[0].key : k, { bars: rows, status: 'available' })
+    // ⭐ RS RATING L12 — a second held series (an intraday chart's daily rows) is read under its own key
+    for (const h of held.slice(1)) {
+      const extra = read(h.key)
+      if (Array.isArray(extra) && extra.length) secondary.set(h.key, { bars: extra, status: 'available' })
+    }
   }
   return secondary.size ? secondary : null
 }
@@ -132,7 +142,7 @@ function contextOf(def, opts) {
     historyFromListing: opts.historyFromListing === true,
     newestBarIsForming: opts.newestBarIsForming === true,
   }
-  const secondary = supplyOf(def, opts.otherBars, isObj(opts.inputs) ? opts.inputs : {})
+  const secondary = supplyOf(def, opts.otherBars, isObj(opts.inputs) ? opts.inputs : {}, opts.tf)
   if (secondary) ctx.secondary = secondary
   return ctx
 }
@@ -165,7 +175,10 @@ function drawnOutputs(def, out) {
       if (bars) withheld.push({ code, bars })
     }
     if (warm && warm.withheldBars > 0) withheld.push({ code: RUNTIME_HISTORY_GUARD, bars: warm.withheldBars })
-    if (newest) for (const code of newest.codes || []) withheld.push({ code, bars: 1 })
+    // ⭐⭐ HTF-NEWEST-NARROW — only the plots the run blanked (`keys`; `null` = every column)
+    if (newest && (!Array.isArray(newest.keys) || newest.keys.includes(p.key))) {
+      for (const code of newest.codes || []) withheld.push({ code, bars: 1 })
+    }
     entries.push({ key: p.key, title: titles.has(p.key) ? titles.get(p.key) : null, values: Array.from(col),
       ...(withheld.length ? { withheld } : {}) })
   }

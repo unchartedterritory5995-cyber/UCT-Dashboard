@@ -33,8 +33,11 @@ import { BARSTORE } from '../components/chart/barStoreSwitch'
 import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
+import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
+/** The longest a switch waits for its panes' server columns before it commits anyway. */
+export const COLUMNS_WAIT_MS = 300
 
 // ⭐ P3-S1: the handoff prepares through the SAME source the chart reads (chart/barStoreSwitch.js,
 // read once at module load). Under BARSTORE: the store's facade (data/barStore/prefetch) — its
@@ -111,12 +114,24 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     if (requestedSym === displayedSym) return undefined
 
     const gen = ++genRef.current
-    const commit = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    const commitNow = () => { if (genRef.current === gen) setDisplayedSym(requestedSym) }
+    // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
+    // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
+    // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
+    const commit = () => {
+      if (genRef.current !== gen) return
+      if (columnsReadyFor(requestedSym, tf)) { setDisplayedSym(requestedSym); return }
+      whenColumnsReady(requestedSym, tf, COLUMNS_WAIT_MS).then(commitNow, commitNow)
+    }
 
     // ⛔ AN ECONOMIC SERIES (`ECON:USCPI`) IS NOT A BARS SYMBOL: nothing to prepare
     // or prefetch through the bars lane (it would 404) — the chart loads it from
     // /api/econ itself, so the request commits straight through.
-    if (/^ECON:/i.test(String(requestedSym))) { commit(); return undefined }
+    if (/^ECON:/i.test(String(requestedSym))) { commitNow(); return undefined }
+
+    // The panes' server columns leave NOW, beside the bars (the prepare below, or the daily one), so
+    // the commit's bounded wait (COLUMNS_WAIT_MS) covers only what is left of them.
+    warmColumnsFor(requestedSym, tf)
 
     // FAST PATH — synchronous, same tick, no scheduling latency added.
     // ⛔ THE SYNCHRONOUS setState IS THE POINT, NOT AN OVERSIGHT. A neighbour the
@@ -133,9 +148,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // in memory is promoted (or fetched) first, and A stays whole meanwhile. Bounded:
     // past DAILY_HOLD_MAX_MS the chart gets the symbol and shows its own loading state.
     // A pseudo symbol (`$IDX:…`) has no bars lane and commits straight through.
+    // ⭐ ...AND A HELD SET PAINTS AT ONCE ONLY WHEN ITS DEEP HISTORY IS NOT STILL DUE (2026-11-19,
+    // owner: "about 200 bars instantly and then the rest shortly after, definitely in 2 phases").
+    // A shallow held set (the pack's ~300 rows) whose deep history has not joined goes through the
+    // same bounded prepare, which waits for the join, so the first frame is the whole chart.
     if (isNativeTf(tf) && !INTRADAY.has(String(tf))
         && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
-        && !holdsDailySet(requestedSym, tf)) {
+        && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf)))) {
       let live = true
       const land = (outcome) => {
         if (!live || genRef.current !== gen) return
@@ -151,7 +170,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
 
     const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
     const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
-    if (peekDisplayable(requestedSym, tf, sess)) { commit(); return undefined }
+    // ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink
+    // later"). A held key paints at once only when the lake's whole depth is not still due for it;
+    // otherwise the prepare below waits for that join (bounded, prefetch LAKE_JOIN_WAIT_MS) and the
+    // chart's first frame holds it. The warms join it before Enter, so this is the rare case.
+    const paintsWhole = () => peekDisplayable(requestedSym, tf, sess)
+      && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess))
+    if (paintsWhole()) { commit(); return undefined }
 
     // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
     // above; a custom code (2m, 45m...) fetches its own base, which this coordinator
@@ -194,7 +219,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     let timer = null
     const tick = () => {
       if (!alive || genRef.current !== gen) return
-      if (peekDisplayable(requestedSym, tf, sess)) { commitHere(); return }
+      if (paintsWhole()) { commitHere(); return }
       timer = setTimeout(tick, POLL_MS)
     }
     timer = setTimeout(tick, POLL_MS)

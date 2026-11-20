@@ -381,3 +381,10 @@
    (StockChart reads --time-axis-min-height into the time scale's minimumHeight): the dates print at the top of that
    band, and the mark, the chips and the brackets' lower arms sit in the strip under them. */
 .chartBox { --time-axis-min-height: 56px; }
+
+/* THE VOLUME READOUT FITS ITS PANE ON A PHONE (the localhost review, 2026-11-17): the volume pane's legend is a stack,
+   Volume and then the member's volume average ("SMA 50 276K"), and on a phone the pane is too short for two rows, so
+   the second printed over the first date labels. On a phone the drill shows the Volume row only. */
+@media (max-width: 640px) {
+  .chartBox [class*="volLegend"] > * + * { display: none; }
+}

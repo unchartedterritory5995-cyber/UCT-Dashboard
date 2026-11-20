@@ -158,6 +158,14 @@ const REFUSAL_BY_GATE = Object.freeze({
 })
 const PLATFORM = 'The UCT Agent is briefly unavailable. Try again in a moment.'
 const MODEL = "The UCT Agent couldn't produce a valid change for that. Try rephrasing it."
+// ⭐ 2026-11-18 (ruling): AN INTERNAL ERROR NEVER TELLS THE MEMBER TO REPHRASE. It is ours, and no
+// other wording of the request would have gone differently (found live: a remembered choice broke a
+// turn, and the member read "Try rephrasing it"). The door's own `internal:error` reason is this
+// same sentence (`tests/test_internal_error.py` holds the two together).
+export const INTERNAL = "That didn't work on our side and nothing was changed. Try again in a moment."
+// ⭐ 2026-11-18 (ruling): a whole turn passed its wall-clock ceiling (`TURN_CEILING_S` in the door).
+// The member is told what happened, by name; the door's `internal:timeout` reason is this sentence.
+export const TOOK_TOO_LONG = 'That took too long on our side and nothing was changed. Try again.'
 
 /**
  * The member sentence for a refused conversation turn, or the server's own reason
@@ -200,6 +208,8 @@ export function memberRefusal(gate, reason = '', extra = {}) {
   // `model:unavailable` (O7): the provider refused our account. The member is told what they are
   // told for an outage, never the reason: it is ours to fix and nothing they did.
   if (g === 'network' || g === 'model:transport' || g === 'model:unavailable' || /^http:(0|5\d\d)$/.test(g)) return PLATFORM
-  if (/^(envelope|model|schema|converse|internal):/.test(g)) return MODEL
+  if (g === 'internal:timeout') return TOOK_TOO_LONG
+  if (/^internal:/.test(g)) return INTERNAL
+  if (/^(envelope|model|schema|converse):/.test(g)) return MODEL
   return reason || MODEL
 }

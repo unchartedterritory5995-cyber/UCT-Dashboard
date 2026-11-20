@@ -233,7 +233,7 @@ DEFAULT_THRESHOLDS = {
     # reading). Set higher (e.g. 1.5) for stricter "fresh and dominant"
     # positioning. Set to 0 to disable this gate.
     #
-    # Contracts with unknown OI (Schwab snapshot misses, fresh strikes
+    # Contracts with unknown OI (OI snapshot misses, fresh strikes
     # with no OI history) are REJECTED at this gate -- we can't verify
     # the freshness criterion without known OI. Those rows fall through
     # to Size tier where the requirement doesn't apply.
@@ -524,7 +524,7 @@ DEFAULT_THRESHOLDS = {
     #
     # Default 1.0 = vol must strictly exceed OI. Set to 0 to disable
     # (recover previous behavior). Like the Alpha Gold gate, this
-    # requires KNOWN OI (>0); Schwab snapshot misses fail this gate
+    # requires KNOWN OI (>0); OI snapshot misses fail this gate
     # and fall through to bullish/bearish tier.
     "size_min_vol_oi_ratio": 1.0,
     # Strict directional rule (added 6/30 evening, after audit).
@@ -549,7 +549,7 @@ DEFAULT_THRESHOLDS = {
     "derive_strict_bid_only_bb": True,
     # Fresh-strike promotion threshold (added 6/30 evening).
     #
-    # When OI is explicitly known to be zero (Schwab confirmed: no
+    # When OI is explicitly known to be zero (the OI source confirmed: no
     # settled OI yesterday — usually a brand new strike that opened
     # today), AND today's volume is at least this threshold, treat the
     # contract as PASSING the V/OI gate (any V/OI test reads as
@@ -561,7 +561,7 @@ DEFAULT_THRESHOLDS = {
     # possible.
     #
     # Critically, this only applies when OI is EXPLICITLY zero from
-    # Schwab. When OI is null/empty (Schwab fetch failed, status unknown),
+    # the OI source. When OI is null/empty (OI fetch failed, status unknown),
     # the gate still rejects -- we don't know if it's a fresh strike or
     # a transient API failure. Erring conservative on data quality.
     #
@@ -1025,7 +1025,7 @@ def _parse_int(s, default=0):
 
 def _oi_status(raw):
     """Distinguish 'OI explicitly known to be zero' (fresh strike, no
-    settled positions yesterday) from 'OI unknown' (Schwab couldn't
+    settled positions yesterday) from 'OI unknown' (the OI source couldn't
     retrieve data for this contract).
 
     Both return integer 0 from _parse_int, but they're semantically
@@ -1034,9 +1034,9 @@ def _oi_status(raw):
     while unknown OI is just missing data.
 
     Returns one of:
-      ("known", int)  — Schwab returned a positive integer value
-      ("zero", 0)     — Schwab explicitly returned "0" (real fresh strike)
-      ("unknown", 0)  — Schwab returned null/empty (failed fetch)
+      ("known", int)  — the OI source returned a positive integer value
+      ("zero", 0)     — the OI source explicitly returned "0" (real fresh strike)
+      ("unknown", 0)  — the OI source returned null/empty (failed fetch)
     """
     if raw is None:
         return ("unknown", 0)
@@ -1618,7 +1618,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     v_oi = (volume / oi) if oi > 0 else 0
 
     # Distinguish "explicitly zero OI" (real fresh strike) from "unknown
-    # OI" (Schwab fetch failed). _parse_int collapses both to 0 for math,
+    # OI" (OI fetch failed). _parse_int collapses both to 0 for math,
     # but the gates need the distinction to handle fresh strikes correctly.
     oi_status, _ = _oi_status(row.get("OI"))
     # oi_status is one of: "known", "zero", "unknown"
@@ -1628,7 +1628,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             "fresh_strike_min_volume", 100)
     except Exception:
         fresh_strike_min_vol = 100
-    # A row counts as "fresh-strike-with-volume" when Schwab confirmed
+    # A row counts as "fresh-strike-with-volume" when the OI source confirmed
     # zero OI yesterday AND today's volume crosses the threshold.
     # Every contract trading today is brand-new exposure -- the strongest
     # possible "fresh positioning" signal.
@@ -1676,7 +1676,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
     # Massive's classifier assigns Color from cum_vol/OI: WHITE (< 1.0),
     # YELLOW (> 1.0), MAGENTA (>= 1.5). A big-dollar print gets
     # under-ranked by that ratio alone in two ways:
-    #   WHITE  — OI unknown (fresh strike / Schwab miss) → ratio 0 → WHITE
+    #   WHITE  — OI unknown (fresh strike / OI miss) → ratio 0 → WHITE
     #            → filtered out entirely, even a $3M ASK sweep.
     #   YELLOW — vol DID exceed OI (confirmed new positioning) but the
     #            ratio landed just under 1.5×, so the row is walled out of
@@ -1777,10 +1777,10 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
             #
             # Two pass conditions (added 6/30 evening, for fresh strikes):
             #   1. Normal: oi > 0 AND v_oi > min_vol_oi_ratio
-            #   2. Fresh strike: Schwab confirmed OI=0 AND volume above
+            #   2. Fresh strike: the OI source confirmed OI=0 AND volume above
             #      fresh_strike_min_volume floor.
             #
-            # Schwab MISSES (oi unknown / fetch failed) still fail this
+            # OI MISSES (oi unknown / fetch failed) still fail this
             # gate -- we don't have the data to evaluate freshness.
             vol_exceeds_oi = (
                 (oi > 0 and v_oi > min_vol_oi_ratio)
@@ -1867,9 +1867,9 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
         # Size now requires fresh institutional positioning. Two pass
         # conditions:
         #   1. Normal: oi > 0 AND v_oi > size_min_vol_oi_ratio
-        #   2. Fresh strike: Schwab confirmed OI=0 AND volume above
+        #   2. Fresh strike: the OI source confirmed OI=0 AND volume above
         #      fresh_strike_min_volume floor (added 6/30 evening).
-        # Schwab misses (oi unknown) fall through to bullish/bearish.
+        # OI misses (oi unknown) fall through to bullish/bearish.
         if premium >= 500_000:
             try:
                 size_min_voi = _load_thresholds().get("size_min_vol_oi_ratio", 1.0)
@@ -3740,14 +3740,15 @@ def _build_diagnostic(today):
 
 # ─── Current quotes endpoint (for P/L column) ─────────────────────────────
 # Frontend polls this every 30s with the unique tickers visible on the page.
-# Server uses the same Schwab quote service liveflow_worker uses, with a
-# 2-min TTL cache (so two pages polling the same tickers don't double-hit
-# Schwab). Returns a dict of ticker → current spot price.
+# Server reads the Massive equities snapshot (flow_market_data.equity_spots:
+# ONE batch call for all the uncached tickers), with a 2-min TTL cache (so two
+# pages polling the same tickers don't double-hit the vendor). Returns a dict
+# of ticker → current spot price. (Schwab's quote API answered this until it
+# was retired on 2026-11-17; with its login dead every quote came back empty.)
 
 from pydantic import BaseModel
 
-# Reuse liveflow_worker's spot cache — same TTL, same source of truth.
-# Avoids duplicate Schwab calls from /live-flow + /live-massive both polling.
+# Same TTL as liveflow_worker's spot cache.
 _SPOT_CACHE_TTL = 120  # 2 min; matches liveflow_worker
 _quote_cache: dict = {}  # ticker → (price, cached_at_unix)
 
@@ -3756,26 +3757,40 @@ class CurrentQuotesPayload(BaseModel):
     tickers: list[str] = []
 
 
-async def _fetch_one_quote(ticker: str) -> float | None:
-    """Single ticker quote with 2-min cache. Lazy import of schwab_service
-    so we don't pull it on cold start when this endpoint isn't used."""
-    if not ticker or ticker.startswith("$") or "." in ticker:
-        return None
+def _quotable(ticker: str) -> bool:
+    return bool(ticker) and not ticker.startswith("$") and "." not in ticker
+
+
+async def _fetch_quotes(tickers: list[str]) -> dict:
+    """{ticker: price} with the 2-min cache. The tickers the cache does not hold
+    are read in ONE Massive batch snapshot (lazy import, so the module is not
+    pulled on cold start when this endpoint isn't used). A ticker with no quote
+    is absent, which lets the frontend show "—" in P/L. Never raises."""
     now = time.time()
-    cached = _quote_cache.get(ticker)
-    if cached and (now - cached[1]) < _SPOT_CACHE_TTL:
-        return cached[0]
-    try:
-        from api import schwab_service
-        price = await schwab_service.get_equity_quote(ticker)
-        if price:
-            _quote_cache[ticker] = (float(price), now)
-            return float(price)
-    except Exception:
-        # Quote unavailable for this ticker — likely index/unusual symbol or
-        # rate-limited. Returning None lets the frontend show "—" in P/L.
-        pass
-    return None
+    out: dict = {}
+    need: list[str] = []
+    for t in tickers:
+        if not _quotable(t):
+            continue
+        cached = _quote_cache.get(t)
+        if cached and (now - cached[1]) < _SPOT_CACHE_TTL:
+            out[t] = cached[0]
+        else:
+            need.append(t)
+    if need:
+        try:
+            from api.services import flow_market_data
+            fresh = await flow_market_data.equity_spots(need)
+        except Exception:
+            # Quote unavailable — rate-limited or the vendor is down.
+            fresh = {}
+        for t in need:
+            # equity_spots keys are upper-case; the page sends upper-case tickers.
+            price = fresh.get(t) or fresh.get(str(t).upper())
+            if price:
+                _quote_cache[t] = (float(price), now)
+                out[t] = float(price)
+    return out
 
 
 @router.post("/current-quotes")
@@ -3798,12 +3813,10 @@ async def current_quotes(payload: CurrentQuotesPayload,
     # (the live page maxes at 200 alerts which is typically <100 uniques).
     tickers = tickers[:200]
 
-    # Fire all lookups concurrently. Schwab service handles its own rate
-    # limiting; cache layer (above) dedupes same-ticker repeats within TTL.
-    results = await asyncio.gather(
-        *[_fetch_one_quote(t) for t in tickers], return_exceptions=False
-    )
-    quotes = {t: p for t, p in zip(tickers, results) if p is not None}
+    # One batch read for the uncached tickers; the cache layer (above) dedupes
+    # same-ticker repeats within TTL. Key order follows the request.
+    found = await _fetch_quotes(tickers)
+    quotes = {t: found[t] for t in tickers if t in found}
     return {"quotes": quotes, "fetched_at": time.time(), "requested": len(tickers)}
 
 
@@ -5333,7 +5346,7 @@ def _compute_ticker_flow_window(symbol: str, days: str = "1", source: str = "sto
     # up to 40 pages / 10,000 contracts) to read ~10-20 known contract keys out
     # of it — measured as the wasteful "second OI walk" on this same card path.
     # fetch_price_oi_for_contracts() reuses the per-contract single-endpoint
-    # mechanism already in production for schwab_router.py, scoped to just
+    # mechanism already in production for POST /api/schwab/options-quotes, scoped to just
     # `top`, with a ≤60s per-contract cache. It intentionally does NOT read the
     # R61 daily OI cache (R69's own shorthand plan text) — that would regress
     # the IREN 65C incident this live-OI-first logic exists to guard against
@@ -5549,8 +5562,7 @@ def _massive_webhook() -> str:
     ).strip()
 _UCT_LOGO_URL = os.getenv(
     "UCT_LOGO_URL",
-    "https://raw.githubusercontent.com/unchartedterritory5995-cyber/"
-    "UCT-Dashboard/master/app/public/UCT_logo_512.png",
+    "https://uctintelligence.com/api/brand/massive-card-logo.png",
 ).strip()
 
 
@@ -8465,7 +8477,7 @@ def side_method_stats():
     }
 
 
-# ─── OI enrichment from contract_oi_snapshots (snapshot-only, no Schwab) ──
+# ─── OI enrichment from contract_oi_snapshots (snapshot-only, no vendor call) ──
 # The frontend "fetch OI" button was previously wired to /api/oi-snapshot/
 # bulk-fetch, which tries snapshot lookup with an incorrect key format then
 # falls through to Schwab options_quotes_batch for the (100%) miss set.
@@ -8476,7 +8488,7 @@ def side_method_stats():
 # call due to SQLite lock contention.
 #
 # This endpoint is the surgical replacement:
-#   1. Snapshot table ONLY. Never touches Schwab, so no hang risk.
+#   1. Snapshot table ONLY. Never calls a vendor, so no hang risk.
 #   2. Uses the contract_key format proven correct by tonight's confirmation-
 #      map endpoint (`TICKER|C_or_P|STRIKE.0|M/D/YYYY`), with the same 7-
 #      variant probe fallback if that format ever changes.
@@ -8693,7 +8705,7 @@ async def enrich_oi(
                     k, sd, oi_val = r[0], r[1], int(r[2] or 0)
                     # Keep only the latest snap per key (last-wins after ORDER BY).
                     # Skip zero-OI snapshots so a real earlier value isn't
-                    # shadowed by a later Schwab-write-failed sentinel row.
+                    # shadowed by a later write-failed sentinel row.
                     if oi_val <= 0:
                         continue
                     prev = snap_by_key.get(k)

@@ -132,7 +132,11 @@ export function AuthProvider({ children }) {
   const [screenerFocusPhoneEnabled, setScreenerFocusPhoneEnabled] = useState(false)
   // The Screener as a customizable widget board (SCREENER_SCAN_BOARD_ENABLED; desktop only).
   const [screenerScanBoardEnabled, setScreenerScanBoardEnabled] = useState(false)
+  // The Terminal's new shell, boards in tabs (TERMINAL_BOARD_TABS_ENABLED): present and true only
+  // when the server says it is on for this viewer; anything else draws today's shell.
+  const [terminalBoardTabsEnabled, setTerminalBoardTabsEnabled] = useState(false)
   const [screenerLayoutGalleryEnabled, setScreenerLayoutGalleryEnabled] = useState(false)
+  const [screenerScanBoardTabletEnabled, setScreenerScanBoardTabletEnabled] = useState(false)
   // TERM-039 — member-facing feature status (the Support strip + the Beta mark).
   // ⛔ DEFAULTS NULL, which every surface renders as "not available" — never as an
   // empty list, because "we could not say" and "nothing is here" are different facts.
@@ -207,7 +211,9 @@ export function AuthProvider({ children }) {
     ['screener_new_today_enabled', (d) => d.screener_new_today_enabled === true, setScreenerNewTodayEnabled],
     ['screener_focus_phone_enabled', (d) => d.screener_focus_phone_enabled === true, setScreenerFocusPhoneEnabled],
     ['screener_scan_board_enabled', (d) => d.screener_scan_board_enabled === true, setScreenerScanBoardEnabled],
+    ['terminal_board_tabs_enabled', (d) => d.terminal_board_tabs_enabled === true, setTerminalBoardTabsEnabled],
     ['screener_layout_gallery_enabled', (d) => d.screener_layout_gallery_enabled === true, setScreenerLayoutGalleryEnabled],
+    ['screener_scan_board_tablet_enabled', (d) => d.screener_scan_board_tablet_enabled === true, setScreenerScanBoardTabletEnabled],
     ['watchlist_copy_or_link_enabled', (d) => d.watchlist_copy_or_link_enabled === true, setWatchlistCopyOrLinkEnabled],
     ['charts_list_subscribe_enabled', (d) => d.charts_list_subscribe_enabled === true, setChartsListSubscribeEnabled],
     ['charts_extra_groups_enabled', (d) => d.charts_extra_groups_enabled === true, setChartsExtraGroupsEnabled],
@@ -488,7 +494,7 @@ export function AuthProvider({ children }) {
     || !!(trial && trial.active)
 
   return (
-    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, screenerScanBoardEnabled, screenerLayoutGalleryEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, chartIqEnabled, levelsSrEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
+    <AuthContext.Provider value={{ user, plan, isPaid, subscription, trial, annualAvailable, hubPreviewEnabled, studyEnabled, researchTechnicalTabEnabled, researchFlowTabEnabled, decisionRecordEnabled, tickerHistoryEnabled, wisdomTickerHistoryEnabled, wisdomArchiveEnabled, addressSpaceEnabled, optionsChainEnabled, optionsVolSurfaceEnabled, optionsBacktestEnabled, seasonalityEnabled, filingBlacklineEnabled, researchDepth, researchNotices, memberInterestSurfaces, calendarDepth, cohorts, researchPeopleEnabled, estimateHistoryEnabled, filingsFeedEnabled, optionsScreenerEnabled, ivHistoryEnabled, optionsStrategyScreensEnabled, cohortsWithdrawn, s7FilingWatchEnabled, breadthDcV22Enabled, breadthDcV23Enabled, screenerFocusLayoutEnabled, screenerNewTodayEnabled, screenerFocusPhoneEnabled, screenerScanBoardEnabled, terminalBoardTabsEnabled, screenerLayoutGalleryEnabled, screenerScanBoardTabletEnabled, watchlistCopyOrLinkEnabled, chartsListSubscribeEnabled, chartsExtraGroupsEnabled, howToChecklistsEnabled, researchFmpDepthEnabled, autoStructuresEnabled, autoStructuresMembersEnabled, chartIqEnabled, levelsSrEnabled, featureStatus, loading, authTransient, login, verifyTotp, signup, logout, startCheckout, openPortal, refetch: fetchUser, retryAuth: fetchUser }}>
       {children}
     </AuthContext.Provider>
   )

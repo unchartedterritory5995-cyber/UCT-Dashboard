@@ -1,0 +1,24 @@
+//@version=4
+study("UCTPROBE_VW_BLT_SESSION_DEFAULT_DAYS", overlay = false)
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme (parity2, U-BUILTIN), capture queue rows
+// Q-BLT-1a/b (docs/pine/capture-queue-2026-11-18-parity2.md). NEVER COMPILED ON TRADINGVIEW. The v1 sibling
+// (no pragma) is `vw-blt-session-default-days-v1.pine`.
+//
+// --- `time(period, session)` WITH NO DAY LIST ---
+// reference:vp-period (v4), reference:cm-forex-sessions-highlight-v1 and reference:trading-session-indicator
+// (no pragma) pass a session with no `:days` part. The v4 reference states v4's default days (Monday to
+// Friday); v1 to v3 state none, so our lanes refuse the call by name. On an equity chart, whose bars are all
+// weekdays, a row with no day list equals its `:23456` and its `:1234567` twins on every bar if the default
+// holds every weekday. Each row plots 1 when `time(...)` is not `na`, else 0.
+//   R01 "0930-1600"           R02 "0930-1600:23456"     R03 "0930-1600:1234567"
+//   R04 "1000-1200"           R05 "1000-1200:23456"
+//   R06 "1900-0200" (overnight, trading-session's shape)  R07 "1900-0200:1234567"
+inSess(s) => na(time(timeframe.period, s)) ? 0 : 1
+plot(inSess("0930-1600"), "R01_rth_nodays")
+plot(inSess("0930-1600:23456"), "R02_rth_23456")
+plot(inSess("0930-1600:1234567"), "R03_rth_1234567")
+plot(inSess("1000-1200"), "R04_mid_nodays")
+plot(inSess("1000-1200:23456"), "R05_mid_23456")
+plot(inSess("1900-0200"), "R06_overnight_nodays")
+plot(inSess("1900-0200:1234567"), "R07_overnight_1234567")

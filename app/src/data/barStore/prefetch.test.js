@@ -352,16 +352,21 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     await expect(w.pf.prepareForDisplay('', '5')).resolves.toBe('error')
   })
 
-  it('daily: a held set is prepared with no request; an uncached one is fetched; an aborted one is an error', async () => {
-    const w = await boot()
-    await w.idb.idbPutMonotonic('DLY', 'D', [{ t: '2026-11-06', o: 1, h: 1, l: 1, c: 1, v: 1 }])
-    await expect(w.pf.prepareDailyForDisplay('DLY', 'D')).resolves.toBe('current')
-    expect(w.server.calls.length).toBe(0)
-    const p = w.pf.prepareDailyForDisplay('NEWD', 'D'); await w.server.drain()
-    await expect(p).resolves.toBe('current')
-    const gone = new AbortController(); gone.abort()
-    await expect(w.pf.prepareDailyForDisplay('GONE', 'D', { signal: gone.signal })).resolves.toBe('error')
-    expect(symsOf(w.server.calls)).toEqual(['NEWD'])
+  // (the deep sealed history off: nothing deeper is due, the old contract; the deep path is
+  // prefetch.deepDaily.test.js)
+  it('daily, split off: a held set is prepared with no request; an uncached one is fetched; an aborted one is an error', async () => {
+    localStorage.setItem('uct.barsHistory.enabled', '0')
+    try {
+      const w = await boot()
+      await w.idb.idbPutMonotonic('DLY', 'D', [{ t: '2026-11-06', o: 1, h: 1, l: 1, c: 1, v: 1 }])
+      await expect(w.pf.prepareDailyForDisplay('DLY', 'D')).resolves.toBe('current')
+      expect(w.server.calls.length).toBe(0)
+      const p = w.pf.prepareDailyForDisplay('NEWD', 'D'); await w.server.drain()
+      await expect(p).resolves.toBe('current')
+      const gone = new AbortController(); gone.abort()
+      await expect(w.pf.prepareDailyForDisplay('GONE', 'D', { signal: gone.signal })).resolves.toBe('error')
+      expect(symsOf(w.server.calls)).toEqual(['NEWD'])
+    } finally { localStorage.removeItem('uct.barsHistory.enabled') }
   })
 
   it('a typed warm joined by the handoff is never aborted by the next keystroke', async () => {
@@ -378,6 +383,9 @@ describe('handoff contract (peekDisplayable / prepareForDisplay / prepareDailyFo
     await w.server.drain()
     await expect(enter).resolves.toBe('current')
     await expect(typed).resolves.toBe('network')
-    expect(countBy(w.server.calls)['TYP_D']).toBe(1)
+    const tails = w.server.calls.filter((c) => !c.q.history)
+    expect(countBy(tails)['TYP_D']).toBe(1)
+    // Enter also fetched the deep history beside it, once (the history job took that answer)
+    expect(w.server.calls.filter((c) => c.q.history).map((c) => c.q.sym)).toEqual(['TYP'])
   })
 })

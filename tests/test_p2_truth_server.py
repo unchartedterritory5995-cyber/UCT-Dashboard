@@ -810,7 +810,8 @@ def test_P2_integration_UCT_product_nouns_are_not_refused_as_unknown_indicators(
     BEFORE: the planner's Title-Case rule refused "Info Row" as an unknown named
     indicator and the turn died with no model call · NOW: UCT's own surface nouns
     reach the model as plain words; an unknown Title-Case indicator name is STILL
-    refused by name (the McGinley rule is untouched)."""
+    refused by name (the McGinley rule is untouched; the unknown name here is a Gann Fan since
+    the McGinley Dynamic joined the named-indicator library, 2026-11-18)."""
     e = env(1, [{"op": "request_info_value", "output": "value", "format": "auto"}])
     client = model([emits(e)])
     r = conv.converse("Show me the RSI value in my Info Row.", user_id="u1",
@@ -818,6 +819,6 @@ def test_P2_integration_UCT_product_nouns_are_not_refused_as_unknown_indicators(
     assert r["ok"] is True and r["turn"] == "patch"
     assert "info row" in _block(client.calls[0]["messages"][0]["content"], "uct_member_request")
     model([])
-    r = conv.converse("Use the McGinley Dynamic instead", user_id="u1",
+    r = conv.converse("Use the Gann Fan instead", user_id="u1",
                       view=view(1, [out("value", RSI_GT_70)]))
     assert r["ok"] is False

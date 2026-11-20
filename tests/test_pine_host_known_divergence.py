@@ -30,7 +30,10 @@ from api.services import host_known_divergence as hkd  # noqa: E402
 from api.services import runtime_definitions as rt  # noqa: E402
 from api.services import user_definitions as svc  # noqa: E402
 
-LISTED = (ROOT / "corpus" / "committed" / "contraction-box-doji-lines__1486658151.pine").read_text(encoding="utf-8")
+#: listed: both committed production captures (RDDT and SPY daily) grade DIVERGE, TradingView holds 31 table cells and
+#: ours 30. (contraction-box-doji-lines stood here until engine 78 (#1858), Pine's tolerant compare, re-graded both
+#: its SPY captures to MATCH and its entry was lifted.)
+LISTED = (ROOT / "corpus" / "committed" / "heat-map-seasons__53acdf3223.pine").read_text(encoding="utf-8")
 #: not listed: both committed production captures grade MATCH
 CONTROL = (ROOT / "corpus" / "committed" / "atr-bands__ad60b125e6.pine").read_text(encoding="utf-8")
 
@@ -59,7 +62,7 @@ def test_the_rail_fails_when_a_DIVERGE_script_is_missing_from_the_list():
     sha = hd.source_hash(LISTED)
     assert sha in committed
     probs = hd.disagreements({k: v for k, v in committed.items() if k != sha}, hd.derive())
-    assert probs and all("contraction-box-doji-lines" in p and p.startswith("NOT LISTED") for p in probs), probs
+    assert probs and all("heat-map-seasons" in p and p.startswith("NOT LISTED") for p in probs), probs
 
 
 def test_the_rail_fails_when_the_list_holds_a_script_no_capture_witnesses():
@@ -125,12 +128,49 @@ def test_a_WITHHELD_ONLY_divergence_is_not_listed_and_one_drawn_difference_lists
     assert any(c["kind"] == "drawn" for c in d[sha]["evidence"]["diverge"])
 
 
+HTF = (ROOT / "corpus" / "committed" / "htf-candle-footprint-cartel-console__ca3ff4e904.pine").read_text(encoding="utf-8")
+HTF_CAPTURES = ("htf-candle-footprint-cartel-console-rddt-1d-2026-09-28", "htf-candle-footprint-cartel-console-spy-1d-2026-10-03")
+
+
+def _htf_regraded(tmp_path, partial_guard):
+    """The committed verdicts with htf's two captures graded the way the vendor harness grades them since the
+    disclosed-partial fix: INCONCLUSIVE, its lines and labels withheld whole by name, its boxes a disclosed partial."""
+    moved = json.loads(hd.VERDICTS.read_text(encoding="utf-8"))
+    for r in moved["results"]:
+        if r["id"] in HTF_CAPTURES:
+            r["verdict"] = "INCONCLUSIVE"
+            r["objects"] = {**(r.get("objects") or {}), "verdict": "INCONCLUSIVE",
+                            "withheld": f"objects:not-carried,{partial_guard}"}
+            r.pop("objectsV2", None)
+    f = tmp_path / f"verdicts-{partial_guard.replace(':', '-')}.json"
+    f.write_text(json.dumps(moved), encoding="utf-8")
+    return f
+
+
+def test_a_partial_whose_place_no_capture_witnessed_keeps_its_entry_and_x_agreeing_drops_it(tmp_path):
+    """Coordinator ruling 2026-11-19: never lift a withhold on a field no capture witnessed. htf-candle-footprint's
+    3 drawn boxes agree with TradingView's on every field its 09-28 / 10-03 captures hold, but those captures predate
+    the x table: graded `objects:partial-unpositioned`, the script STAYS listed, and only a capture with the x table
+    (graded `objects:partial`, its place agreeing) lifts it."""
+    sha = hd.source_hash(HTF)
+    assert sha in hd.derive()                                        # listed today
+    kept = hd.derive(_htf_regraded(tmp_path, hd.UNPOSITIONED))
+    assert sha in kept and hd.is_listed(kept[sha])
+    assert {c["kind"] for c in kept[sha]["evidence"]["diverge"]} == {"unpositioned"}
+    assert "x table" in kept[sha]["liftWhen"] and "where they sit" in kept[sha]["reason"]
+    row = next(x for x in hd.render_queue(hd.derive_all(_htf_regraded(tmp_path, hd.UNPOSITIONED))).splitlines()
+               if x.startswith(f"| {hd.queue_row_id('htf-candle-footprint-cartel-console')} | withheld-ledger |"))
+    assert "re-capture WITH the x table" in row
+    # CONTROL: the same captures with the place witnessed and agreeing (`objects:partial`) lift it
+    assert sha not in hd.derive(_htf_regraded(tmp_path, "objects:partial"))
+
+
 # ═══ the server doors ════════════════════════════════════════════════════════════
 
 def test_the_reader_names_a_listed_script_and_not_an_unlisted_one():
     why = hkd.refused(LISTED)
-    assert why and why.startswith(hkd.GUARD + ":") and "204" in why and "withheld until that is fixed" in why
-    assert "capture contraction-box-doji-lines-spy-1d-2026-10-03" in why and "\u2014" not in why
+    assert why and why.startswith(hkd.GUARD + ":") and "TradingView 31, ours 30" in why and "withheld until that is fixed" in why
+    assert "capture heat-map-seasons-rddt-1d-2026-09-28" in why and "\u2014" not in why
     assert hkd.refused(LISTED.replace("\n", "\r\n"))                    # the CRLF form is the same script
     assert hkd.refused(CONTROL) is None
     assert hkd.LIST_PATH == str(hd.LIST)                                # ONE authority: the file the browser imports

@@ -13380,6 +13380,430 @@
         "who talked about tariffs on their earnings call",
         "find mentions of tariffs in earnings call transcripts"
       ]
+    },
+    {
+      "id": "stock.gammaLevels",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.gammaLevels"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.gammaLevels"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.gammaLevels",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*levels\\.gamma.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA gamma levels from options expiring within a week",
+          "not a quote of the moment"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "gamma levels for NVDA",
+        "where is the call wall on NVDA",
+        "NVDA gamma walls",
+        "what is the zero gamma level for NVDA"
+      ]
+    },
+    {
+      "id": "stock.topFlowPicks",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.topFlowPicks"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.topFlowPicks"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.topFlowPicks",
+            "target": "$stockData",
+            "args": {
+              "status": null,
+              "direction": null,
+              "sort": null,
+              "limit": null,
+              "symbol": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*flow\\.topPicks.*\"params\":\\{\"status\":\"all\",\"direction\":\"any\",\"sort\":\"gain\",\"limit\":20\\}"
+        ],
+        "says": [
+          "UCT Top Flow picks:",
+          "not the stock's move",
+          "too new to score",
+          "It is not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the top flow picks",
+        "how are the top flow picks doing",
+        "what are the top flow picks",
+        "top flow picks"
+      ]
+    },
+    {
+      "id": "stock.flowRecord",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.flowRecord"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.flowRecord"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.flowRecord",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*flow\\.record.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "UCT Flow Record:",
+          "Losers are in every rate",
+          "Past results, not a forecast"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what is the flow record's win rate",
+        "how has the flow record done",
+        "flow record results",
+        "what is the win rate of the flow picks"
+      ]
+    },
+    {
+      "id": "stock.earningsReactions",
+      "source": "Terminal data wave 3 (11-17): the Agent half of the LVL panel's options levels, the TOPF panel, the Flow Record page and the EMOV panel, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.earningsReactions"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earningsReactions"
+      ],
+      "ownWords": [
+        "marketBoards"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earningsReactions",
+            "target": "$stockData",
+            "args": {
+              "date": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.reactions.*\"params\":\\{\"limit\":25\\}"
+        ],
+        "says": [
+          "Earnings reactions for",
+          "close-to-close change around the report"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "show me the latest earnings reactions",
+        "how did the latest earnings reporters move",
+        "earnings reactions",
+        "how did the stocks that just reported earnings react"
+      ]
+    },
+    {
+      "id": "stock.earningsSeason",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.earningsSeason"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.earningsSeason"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.earningsSeason",
+            "target": "$stockData",
+            "args": {
+              "date": null,
+              "session": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.season.*\"params\":\\{\"session\":\"all\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Earnings season for",
+          "options priced a move of",
+          "which is not the same as 0%",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "earnings season",
+        "show me the earnings season",
+        "how does earnings season look",
+        "give me the earnings season"
+      ]
+    },
+    {
+      "id": "stock.callThemes",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.callThemes"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.callThemes"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.callThemes",
+            "target": "$stockData",
+            "args": {
+              "month": null,
+              "list": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*earnings\\.callThemes.*\"params\":\\{\"list\":\"both\",\"limit\":10\\}"
+        ],
+        "says": [
+          "What was said on earnings calls in Nov 2026",
+          "A call counts once",
+          "No transcript text is shown"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "what are CEOs saying",
+        "call themes",
+        "rising phrases on earnings calls",
+        "what are executives talking about"
+      ]
+    },
+    {
+      "id": "stock.groupDrill",
+      "source": "Terminal data wave 4 (11-18): the Agent half of the ERNS, CEOS and GRP terminal panels, plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.groupDrill"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.groupDrill"
+      ],
+      "ownWords": [
+        "marketViews"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.groupDrill",
+            "target": "$stockData",
+            "args": {
+              "group": "technology",
+              "kind": "sector",
+              "range": null,
+              "sort": null,
+              "dir": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*group\\.drill.*\"params\":\\{\"range\":\"ytd\",\"kind\":\"sector\"\\}",
+          "^POST /api/agent/data .*group\\.drill.*\"params\":\\{\"range\":\"ytd\",\"kind\":\"sector\",\"group\":\"Technology\",\"sort\":\"pct\",\"dir\":\"desc\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Technology \\(sector\\), this year",
+          "RS rank",
+          "on the confluence board",
+          "It is not a recommendation"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "stocks in the technology sector",
+        "what is in the technology sector",
+        "members of the technology sector",
+        "drill into the technology sector"
+      ]
+    },
+    {
+      "id": "stock.shortInterest",
+      "source": "Terminal data wave 5 (11-18): the Agent half of the SHINT and SHRTS terminal panels (FINRA short interest), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.shortInterest"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.shortInterest"
+      ],
+      "ownWords": [
+        "shortInterest"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.shortInterest",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "reports": null,
+              "days": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*short\\.interest.*\"params\":\\{\"symbol\":\"NVDA\",\"reports\":12,\"days\":10\\}"
+        ],
+        "says": [
+          "NVDA short interest, FINRA's report for settlement date Thu, Oct 15, 2026",
+          "Daily short volume is not short interest",
+          "about two weeks old",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "short interest on NVDA",
+        "what is the short interest on NVDA",
+        "how heavily shorted is NVDA",
+        "NVDA days to cover"
+      ]
+    },
+    {
+      "id": "stock.shortList",
+      "source": "Terminal data wave 5 (11-18): the Agent half of the SHINT and SHRTS terminal panels (FINRA short interest), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.shortList"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.shortList"
+      ],
+      "ownWords": [
+        "shortInterest"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.shortList",
+            "target": "$stockData",
+            "args": {
+              "rank": null,
+              "limit": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*short\\.list.*\"params\":\\{\"rank\":\"dtc\",\"limit\":25\\}"
+        ],
+        "says": [
+          "Short interest list, FINRA's report for settlement date Thu, Oct 15, 2026",
+          "most days to cover first",
+          "about two weeks old",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "most shorted stocks",
+        "which stocks have the highest short interest",
+        "short interest list",
+        "highest days to cover"
+      ]
     }
   ],
   "refusals": [

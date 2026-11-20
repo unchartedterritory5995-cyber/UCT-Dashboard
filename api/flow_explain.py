@@ -18,12 +18,13 @@ Guarantees:
     FLOW_EXPLAIN_DB_PATH).
 
 GEX context note (inspected api/gex_service.py 2026-07-06): get_gex_data()
-is a LIVE Schwab /chains fetch with NO cache anywhere in the codebase, so
+was a LIVE Schwab /chains fetch with NO cache anywhere in the codebase (it is a Massive
+chain walk since Schwab was retired, 2026-11-17, cached 60s and still slow when cold), so
 there is no cheap cache-backed GEX read available today. We therefore only
 attach GEX context when a cached classification snapshot exists under the
 shared TTL cache key ``flow_gex_state_{TICKER}`` (populated by nothing yet
 — a future caching layer can write it); otherwise the field is omitted.
-We NEVER make the slow uncached Schwab call on this request path.
+We NEVER make the slow chain call on this request path.
 
 Blocking work (SQLite, Anthropic) runs in a sync ``def`` route so FastAPI
 dispatches it to the anyio threadpool — never on the shared event loop.
@@ -432,7 +433,7 @@ def _earnings_proximity(ticker: str) -> str:
 
 def get_cached_gex(ticker: str) -> Optional[dict]:
     """Cheap, cache-backed GEX read ONLY. gex_service.get_gex_data() is a
-    live uncached Schwab fetch (verified 2026-07-06) — never call it here.
+    live, slow option-chain walk (verified 2026-07-06) — never call it here.
     A future GEX caching layer can populate ``flow_gex_state_{TICKER}`` in
     the shared TTL cache with get_gex_data()'s classification block."""
     try:

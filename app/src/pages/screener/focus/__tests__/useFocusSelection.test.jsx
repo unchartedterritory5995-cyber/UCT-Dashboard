@@ -2,8 +2,10 @@ import { renderHook, act } from '@testing-library/react'
 import { vi, expect, test } from 'vitest'
 vi.mock('../../../../hooks/useNeighborWarm', () => ({ useNeighborWarm: vi.fn() }))
 import { useNeighborWarm } from '../../../../hooks/useNeighborWarm'
+const hold = { set: vi.fn(), clear: vi.fn() }
 vi.mock('../../../../utils/prefetchBars', () => ({
   prefetchBars: vi.fn(), prefetchBarsToIDB: vi.fn(), warmMemFromIDB: vi.fn(), prewarmVisibleList: vi.fn(),
+  createNeighborHold: vi.fn(() => hold),
 }))
 import { prefetchBars, prefetchBarsToIDB, prewarmVisibleList, warmMemFromIDB } from '../../../../utils/prefetchBars'
 import useFocusSelection from '../useFocusSelection'
@@ -196,4 +198,16 @@ test('the whole result list is pre-warmed on the chart timeframe, like the watch
   vi.clearAllMocks()
   renderHook(() => useFocusSelection({ rows: rows(40), tf: 'W' }))
   expect(prewarmVisibleList).toHaveBeenCalledWith(rows(40).map(r => r.ticker), { chartTf: 'W', memTop: 60 })
+})
+
+// ⭐ The store's neighbor hold (2026-11-19): the focus walk holds its ±MEM_AROUND rows and deepens the
+// next URGENT_NEXT once the selection rests (daily: their deep sealed history), like the watchlist.
+test('holds the rows around the selection and deepens the next ones; clears on unmount', () => {
+  hold.set.mockClear(); hold.clear.mockClear()
+  const { result, unmount } = renderHook(() => useFocusSelection({ rows: rows(12) }))
+  expect(hold.set).toHaveBeenLastCalledWith(['T1', 'T2', 'T3', 'T4', 'T5', 'T6'], 'D', { deep: ['T1', 'T2'] })
+  act(() => result.current.onKeyDown(key('ArrowDown')))
+  expect(hold.set).toHaveBeenLastCalledWith(['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T0'], 'D', { deep: ['T2', 'T3'] })
+  unmount()
+  expect(hold.clear).toHaveBeenCalled()
 })

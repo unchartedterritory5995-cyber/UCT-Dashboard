@@ -131,4 +131,30 @@ describe('/r/cot — the Discord /cot render page', () => {
     await waitFor(() => expect(window.__cotReady).toBe('error'))
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  // One check, on the server: the page forwards ?token= and takes the answer.
+  it.each([403, 401])("a %i answer shows the 'unavailable' box, no charts, and answers 'error'", async (status) => {
+    fetchMock = vi.fn(() => Promise.resolve({ ok: false, status, json: () => Promise.resolve({}) }))
+    globalThis.fetch = fetchMock
+    const { container } = mount('symbol=ES&token=tkn')
+
+    await waitFor(() => expect(window.__cotReady).toBe('error'), { timeout: 4000 })
+    await waitFor(() => expect(container.querySelector('#cot-export').textContent).toBe('unavailable'))
+    expect(screen.queryAllByTestId('chart')).toHaveLength(0)
+    expect(window.__cotReady).toBe('error')
+    // The page asked the server, with the address's token, before deciding anything.
+    expect(fetchMock.mock.calls.map((c) => String(c[0]))).toContain('/api/r/cot/ES?weeks=520&token=tkn')
+  })
+
+  it("CONTROL: a market with no data (404) answers 'error' and keeps the page's own message", async () => {
+    fetchMock = vi.fn((url) => routeFetch(String(url), { rows: null }))
+    globalThis.fetch = fetchMock
+    const { container } = mount('symbol=ES&token=tkn')
+
+    await waitFor(() => expect(window.__cotReady).toBe('error'), { timeout: 4000 })
+    await new Promise((r) => setTimeout(r, 50))
+    const box = container.querySelector('#cot-export')
+    expect(box.textContent).not.toBe('unavailable')
+    expect(box.textContent).toContain('HTTP 404')
+  })
 })

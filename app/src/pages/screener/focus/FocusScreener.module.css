@@ -367,6 +367,9 @@ button.pill:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 
 .page[data-board] .topBar > * { flex-shrink: 0; }
 .page[data-board] .topBar > .spacer { flex: 1 1 0; min-width: 0; }
 .page[data-board] .topBar > [aria-label='Pinned screens'] { flex-shrink: 1; min-width: 0; }
+/* a tablet's board (SCREENER_SCAN_BOARD_TABLET_ENABLED): the bar may take a second line, so Save, More and Help
+   are never pushed off the side when the tablet is held upright */
+@media (max-width: 1024px) { .page[data-board] .topBar { flex-wrap: wrap; row-gap: 6px; padding-right: 10px; } }
 .page[data-board] .subBar { border-bottom: 0; padding: 2px 14px 4px; min-height: 36px; }
 .page[data-board] .notices { border-bottom: 0; padding: 0 14px 6px; min-height: 0; }
 .page[data-board] .listWrap { flex: 1 1 auto; min-width: 0; border-right: 0; }

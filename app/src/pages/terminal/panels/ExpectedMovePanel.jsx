@@ -205,7 +205,7 @@ function Report({ sym: s, code, today, earn, earnState, earnQ, moveUrl }) {
 
       {rows.length ? (
         <>
-          <div className={styles.tableBox}>
+          <div className={styles.tableBox} data-fold="550">
             <table className={styles.table} data-testid="terminal-exmv-table"
               aria-label={`${s} earnings reports, newest first: the move options priced before each and the move the stock made`}>
               <thead>

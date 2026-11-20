@@ -711,7 +711,7 @@ def admin_refresh_baselines(
 
 
 @router.get("/admin/baselines/summary")
-def admin_baselines_summary():
+def admin_baselines_summary(_auth: dict = Depends(require_flow_admin)):
     """
     Quick stats on the loaded baseline cache — total tickers, data quality
     breakdown, last refresh time. Use this to verify the baselines module
@@ -729,7 +729,7 @@ def admin_baselines_summary():
 
 
 @router.get("/admin/baselines/{ticker}")
-def admin_baseline_for_ticker(ticker: str):
+def admin_baseline_for_ticker(ticker: str, _auth: dict = Depends(require_flow_admin)):
     """
     Return the baseline percentile data for a specific ticker. Useful for
     spot-checking how the system would gate a particular trade.
@@ -805,6 +805,7 @@ def admin_debug_retag(
     premium: float = Query(..., description="Premium in dollars, e.g. 634000"),
     dte: str = Query(..., description="DTE — accepts string or number, mimics CSV parsing"),
     grade: str = Query(default="D", description="Conviction grade: A+, A, B, C, D"),
+    _auth: dict = Depends(require_flow_admin),
 ):
     """
     Trace a SINGLE hypothetical alert through the retag function and gate

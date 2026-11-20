@@ -12,6 +12,7 @@
 // is the columns, or the refusal / the script's own `runtime.error` as plain
 // fields the main thread rebuilds (`runtimeAsync.js`).
 import { computeRuntimeColumns, RUNTIME_PANE_TIME_BUDGET_MS } from './runtimeColumns.js'
+import { errorImageOf } from './errorImage.js'
 import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
 import { runtimeStrategyOf } from './strategyRecord.js'
@@ -41,7 +42,10 @@ self.onmessage = (event) => {
         return { ...rest, secondary, exchangeOf: (k) => { const e = secondary.get(k); return (e && e.exchange) || null } }
       })()
       : plainCtx
-    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS })
+    // ⭐⭐ (coordinator ruling 2026-11-19) off the main thread the budget scales with the bars the run covers
+    // (`runtimeColumns.js::runtimePaneBudgetFor`); every main-thread door keeps 1,000 ms. ⭐⭐ (engine 86, A2) and
+    // here alone the VM's `WALL_TIME` follows that budget (`runLimitsOf`): every other caller keeps 5,000
+    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up
@@ -54,14 +58,9 @@ self.onmessage = (event) => {
     self.postMessage({
       id,
       ok: false,
-      error: {
-        name: (err && err.name) || 'Error',
-        message: String((err && err.message) || err),
-        guard: (err && err.guard) || null,
-        limit: (err && typeof err.limit === 'string') ? err.limit : null,
-        bar: err && Number.isInteger(err.bar) ? err.bar : null,
-        ms: Math.max(0, Math.round(clock() - startedAt)),
-      },
+      // ⛔⛔ EVERY FIELD THE MAIN THREAD READS CROSSES (`errorImage.js`): a hand-picked list here dropped
+      // `pending`, and a run waiting for another symbol's bars came back as a refusal (RS Rating L10b)
+      error: { ...errorImageOf(err), ms: Math.max(0, Math.round(clock() - startedAt)) },
     })
   }
 }

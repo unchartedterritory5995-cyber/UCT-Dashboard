@@ -9,8 +9,14 @@ import pytest
 
 from api.services.cache import cache
 
-MODS = [("financials", "research_fin"), ("estimates", "research_est"),
+MODS = [("financials", "research_fin::v2"), ("estimates", "research_est"),
         ("ownership", "research_own"), ("ratings", "research_rat")]
+
+
+def _record(result):
+    """The built / cached record a getter returned. `get_ownership` attaches the short interest
+    block on every read (it is never part of the built record), so it is set aside here."""
+    return {k: v for k, v in result.items() if k != "short"}
 
 
 @pytest.mark.parametrize("mod,key", MODS)
@@ -36,7 +42,7 @@ def test_concurrent_cold_opens_share_one_build(monkeypatch, mod, key):
     for t in threads:
         t.join(10)
     assert calls == [sym], f"{mod}: built {len(calls)} times"
-    assert len(results) == 10 and all(r == {"sym": sym, "built": True} for r in results)
+    assert len(results) == 10 and all(_record(r) == {"sym": sym, "built": True} for r in results)
 
 
 @pytest.mark.parametrize("mod,key", MODS)
@@ -50,7 +56,7 @@ def test_a_cache_hit_never_enters_the_flight(monkeypatch, mod, key):
 
     monkeypatch.setattr(m, f"_build_{mod}", never)
     try:
-        assert getattr(m, f"get_{mod}")(sym) == {"sym": sym, "cached": True}
+        assert _record(getattr(m, f"get_{mod}")(sym)) == {"sym": sym, "cached": True}
     finally:
         cache.invalidate(f"{key}::{sym}")
 

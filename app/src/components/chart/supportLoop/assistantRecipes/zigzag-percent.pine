@@ -1,0 +1,31 @@
+//@version=5
+indicator("Zigzag", overlay=true, max_lines_count=200)
+pct = input.float(8.0, "Reversal %", minval=0.1)
+var int dir = 0
+var float extreme = na
+var int extremeBar = na
+var float lastY = na
+var int lastX = na
+if na(extreme)
+    extreme := close
+    extremeBar := bar_index
+    lastY := close
+    lastX := bar_index
+if dir >= 0 and high > extreme
+    extreme := high
+    extremeBar := bar_index
+    dir := 1
+if dir <= 0 and low < extreme
+    extreme := low
+    extremeBar := bar_index
+    dir := -1
+downTurn = dir == 1 and low <= extreme * (1 - pct / 100)
+upTurn = dir == -1 and high >= extreme * (1 + pct / 100)
+if downTurn or upTurn
+    line.new(lastX, lastY, extremeBar, extreme, color=dir == 1 ? color.green : color.red, width=2)
+    lastX := extremeBar
+    lastY := extreme
+    dir := downTurn ? -1 : 1
+    extreme := downTurn ? low : high
+    extremeBar := bar_index
+plot(lastY, "Last confirmed swing", color=color.gray)

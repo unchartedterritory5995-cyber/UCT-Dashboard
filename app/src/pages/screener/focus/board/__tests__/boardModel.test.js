@@ -5,6 +5,7 @@ import {
   COLS, ROWS, WIDGETS, PRESETS, ROW_STYLES, MAX_MINE, DEFAULT_STATE,
   sanitize, serialize, cleanWidgets, pickLayout, addWidget, removeWidget, acceptArrangement, saveMine, updateMine, deleteMine,
   setRows, rowsOf, setOption, missingWidgets, currentLayout, fillGaps, settleDrop, shareable, freeName, adoptLayout, MAX_NAME, keyboardTarget, KEY_DIRS,
+  TABLET_PRESETS, BOARD_PREF, BOARD_PREF_TABLET, presetsOf, tabletStart, layoutsOf,
 } from '../boardModel'
 
 const area = ws => ws.reduce((n, w) => n + w.w * w.h, 0)
@@ -336,5 +337,51 @@ describe('Customize by keyboard: the box an arrow key asks for', () => {
       expect(rect.w >= WIDGETS[w.type].minW && rect.h >= WIDGETS[w.type].minH).toBe(true)
     }
     expect(asked).toBeGreaterThan(30)
+  })
+})
+
+describe('a tablet keeps a board of its own', () => {
+  test('its presets: one to three, each tiling the grid with sound widgets, none named like a desktop preset', () => {
+    expect(TABLET_PRESETS.length).toBeGreaterThanOrEqual(1)
+    expect(TABLET_PRESETS.length).toBeLessThanOrEqual(3)
+    for (const p of TABLET_PRESETS) {
+      expect(sound(p.widgets)).toBe(true)
+      expect(area(p.widgets)).toBe(COLS * ROWS)
+      expect(cleanWidgets(p.widgets)).toEqual(p.widgets)
+      expect(PRESETS.some(d => d.id === p.id)).toBe(false)
+    }
+    expect([presetsOf('tablet'), presetsOf(null), presetsOf('desktop')]).toEqual([TABLET_PRESETS, PRESETS, PRESETS])
+    expect(BOARD_PREF_TABLET).not.toBe(BOARD_PREF)
+  })
+  test('held sideways it starts side by side, upright it starts stacked', () => {
+    expect([tabletStart(true), tabletStart(false)]).toEqual(['side', 'stack'])
+    expect(TABLET_PRESETS.map(p => p.id)).toEqual(expect.arrayContaining(['side', 'stack']))
+  })
+  test('nothing stored, or garbage, is the first tablet preset; the desktop state is untouched by any of it', () => {
+    const t = sanitize(null, 'tablet')
+    expect([t.layoutId, t.tier]).toEqual([TABLET_PRESETS[0].id, 'tablet'])
+    expect(t.widgets).toEqual(TABLET_PRESETS[0].widgets)
+    expect(sanitize('{nope', 'tablet').widgets).toEqual(TABLET_PRESETS[0].widgets)
+    expect(sanitize(null)).toEqual(DEFAULT_STATE)
+    expect('tier' in sanitize(null)).toBe(false)
+  })
+  test('a desktop preset id means nothing on a tablet (and the other way round): the widgets are kept as an unnamed layout', () => {
+    const t = sanitize({ layoutId: 'board', widgets: PRESETS[0].widgets }, 'tablet')
+    expect([t.layoutId, t.widgets]).toEqual([null, PRESETS[0].widgets])
+    const d = sanitize({ layoutId: 'stack', widgets: TABLET_PRESETS[1].widgets })
+    expect([d.layoutId, d.widgets]).toEqual([null, TABLET_PRESETS[1].widgets])
+  })
+  test('the menu lists the tablet presets, picking one works, a saved layout sits beside them, and the tier is never stored', () => {
+    let s = sanitize(null, 'tablet')
+    expect(layoutsOf(s).map(l => l.id)).toEqual(TABLET_PRESETS.map(p => p.id))
+    s = pickLayout(s, 'stack')
+    expect([s.layoutId, s.widgets.length, s.tier]).toEqual(['stack', 2, 'tablet'])
+    expect(pickLayout(s, 'board')).toBe(s) // a desktop preset cannot be picked here
+    s = saveMine(setRows(s, 'compact'), 'Couch', 'm-t')
+    expect(layoutsOf(s).map(l => l.name)).toEqual([...TABLET_PRESETS.map(p => p.name), 'Couch'])
+    const stored = serialize(s)
+    expect(stored).not.toMatch(/tier|tablet/)
+    const back = sanitize(stored, 'tablet')
+    expect([back.layoutId, back.tier, rowsOf(back), back.mine.length]).toEqual(['m-t', 'tablet', 'compact', 1])
   })
 })

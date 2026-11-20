@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -136,9 +137,39 @@ def test_parse_press_pdftotext_letter_spacing_and_misaligned_change():
 def test_press_cross_checks_fail_closed(old, new, match):
     pytest.importorskip("pypdf")
     text = dol.pdf_text(PDF)
-    assert old in text, old
     with pytest.raises(MalformedPayload, match=match):
-        dol.parse_press_text(text.replace(old, new))
+        dol.parse_press_text(_edit_words(text, old, new))
+
+
+def _edit_words(text: str, old: str, new: str) -> str:
+    """`text` with the words of `old` replaced by the words of `new`, wherever they occur, the
+    WHITESPACE between them read as it actually is in `text`.
+
+    ⚰️ This was `text.replace(old, new)` behind `assert old in text`, with the needles typed from the
+    extraction of pypdf 6.19.0 (docs/economic-data/verification/dol.txt). requirements.txt allows any
+    pypdf >= 5.0.0, a Linux runner resolved a newer one, and the needles with DOUBLE spaces were
+    no longer found (first full backend run, PR #1855) although the parser still read the release.
+    The edit is now about the words, so this rail checks the cross-checks on whatever pypdf the
+    product actually installs, and not on one version."""
+    old_w, new_w = old.split(), new.split()
+    assert len(old_w) == len(new_w), (old, new)
+    pat = re.compile(r"(\s+)".join(re.escape(w) for w in old_w))
+
+    def rebuild(m):
+        gaps = m.groups()
+        return "".join(w + (gaps[i] if i < len(gaps) else "") for i, w in enumerate(new_w))
+
+    edited, n = pat.subn(rebuild, text)
+    assert n >= 1, f"needle not in the extracted text, whatever its spacing: {old!r}"
+    return edited
+
+
+def test_CONTROL_the_word_edit_keeps_the_text_s_own_spacing_and_finds_nothing_absent():
+    text = "Initial claims   was 197,000\nand\t was 198,000"
+    assert _edit_words(text, "claims  was 197,000", "claims  was 199,000") == \
+        "Initial claims   was 199,000\nand\t was 198,000"
+    with pytest.raises(AssertionError):
+        _edit_words(text, "claims was 555,000", "claims was 1")
 
 
 def test_press_sf_cross_check_fails_closed():

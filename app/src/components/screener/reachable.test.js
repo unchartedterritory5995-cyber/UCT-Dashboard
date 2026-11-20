@@ -771,6 +771,21 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/supportLoop/doorNameCoverage.js':
     'Support loop Phase B (docs/pine/support-loop/PHASE-B.md): its test regenerates the committed '
     + 'doorNameCoverage.json that the Python digest reads. A generator, not a screen.',
+  // ── THE ASSISTANT'S PINE REFERENCE, ITS GAPS AND ITS RECIPES (2026-11-19) ── three more generators of
+  // the same kind, beside the one above. Each is run by `assistantPineReference.test.js`, which writes the
+  // committed JSON the SERVER reads when it builds the script assistant's instructions
+  // (`api/services/pine_authoring.py`); the recipes module also hands the proofs their bars and their
+  // chart context. No screen imports them, by design: the product reads the JSON, never the generator.
+  'app/src/components/chart/supportLoop/assistantPineReference.js':
+    'The assistant-writes-Pine reference generator (docs/pine/assistant-writes-pine/GAPS.md): its test '
+    + 'regenerates assistantPineReference.json, which the server reads. A generator, not a screen.',
+  'app/src/components/chart/supportLoop/assistantGaps.js':
+    'The gap-probe generator of the same programme: its test regenerates assistantGaps.json, which '
+    + 'tools/assistant_gaps_build.py turns into GAPS.md. A generator, not a screen.',
+  'app/src/components/chart/supportLoop/assistantRecipes.js':
+    'The recipe generator and proof harness of the same programme: its test regenerates assistantRecipes.json '
+    + '(the server hands recipes to the script assistant from it) and the value proofs read its bars. '
+    + 'A generator, not a screen.',
   'app/src/agent/nlm1/routers.js':
     'NLM-1 D1 pluggable routers for the dev/held-out scorers (devMetrics, nlm1Routing tests), '
     + 'behind the dark UCT_AGENT_ROUTING_V2 flag (default off). Measurement tooling, not a route.',
@@ -825,6 +840,17 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/rails/railSupport.js':
     'Shared support for the chart-data P0 rails (193c79dcb5), read only by those rails and '
     + 'railScan.js. Move under a testing/ path.',
+  'app/src/components/chart/builder/memberPane/costRouteParity.js':
+    'Route-by-cost parity checker (#1711, engine 73): compares a host document and its runtime '
+    + 'twin bar for bar; read only by routeByCost / costRoute tests. Move under a testing/ path.',
+  // ── PINE DATA CATALOG — S4-0, READ BY THE DATA SUPPLY (2026-11-19) ──────────
+  // Pine data unit S4-0 (coordinator rulings 2026-11-19): the chart's half of the Pine data families,
+  // built with its rails ahead of the request supply that reads it (S4-3 onward). The server half
+  // (api/services/pine_data_catalog.py) and the generated licence blocks are railed by
+  // tests/test_pine_data_catalog.py. The first S4 unit that imports it removes this entry.
+  'app/src/components/chart/engine/pineDataCatalog.js':
+    'Pine data families (S4-0): read by the S4 data supply when it lands; reached today only by '
+    + 'pineDataCatalog.test.js.',
   }
 
 /**
@@ -882,6 +908,7 @@ const PARKING_EXPIRES = {
   // Short on purpose: three of the four were removed by the owner, so the decision is one line each.
   'SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17)': '2026-11-30',
   'TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17)': '2026-12-31',
+  'PINE DATA CATALOG — S4-0, READ BY THE DATA SUPPLY (2026-11-19)': '2026-12-31',
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch

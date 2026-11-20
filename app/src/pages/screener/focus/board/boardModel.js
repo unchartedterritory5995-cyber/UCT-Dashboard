@@ -9,6 +9,9 @@
 // (2026-11-17). `sanitize` drops anything a stored layout holds that the board no longer offers.
 
 export const BOARD_PREF = 'screener_scan_board'
+// A tablet keeps a layout of its own (SCREENER_SCAN_BOARD_TABLET_ENABLED): a desktop arrangement is
+// too tight at tablet width, and arranging the tablet must never disturb the desktop.
+export const BOARD_PREF_TABLET = 'screener_scan_board_tablet'
 export const COLS = 24
 export const ROWS = 20
 export const MAX_MINE = 12
@@ -47,6 +50,19 @@ export const PRESETS = [
     widgets: [W('results', 0, 0, 9, 20, { rows: 'two' }), W('chart', 9, 0, 15, 13), W('details', 9, 13, 15, 7)] },
 ]
 export const DEFAULT_PRESET = PRESETS[0]
+// The tablet's presets: fewer, bigger widgets. `side` reads best held sideways, `stack` upright.
+export const TABLET_PRESETS = [
+  { id: 'side', name: 'Side by side', blurb: 'Results on the left; the chart and the reasons on the right.',
+    widgets: [W('results', 0, 0, 9, 20, { rows: 'line' }), W('chart', 9, 0, 15, 13), W('details', 9, 13, 15, 7)] },
+  { id: 'stack', name: 'Stacked', blurb: 'The chart on top, the results under it, both the full width.',
+    widgets: [W('chart', 0, 0, 24, 10), W('results', 0, 10, 24, 10, { rows: 'line' })] },
+  { id: 'top', name: 'Chart on top', blurb: 'The chart across the top; results and the reasons side by side under it.',
+    widgets: [W('chart', 0, 0, 24, 9), W('results', 0, 9, 13, 11, { rows: 'two' }), W('details', 13, 9, 11, 11)] },
+]
+// `tier` is 'tablet' on a tablet's board and absent everywhere else (so a desktop state is
+// exactly what it always was). It is never stored: the preference key already says which it is.
+export const presetsOf = tier => (tier === 'tablet' ? TABLET_PRESETS : PRESETS)
+export const tabletStart = landscape => (landscape ? 'side' : 'stack')
 
 export const copyWidgets = ws => ws.map(w => ({ ...w, ...(w.opts ? { opts: { ...w.opts } } : {}) }))
 
@@ -92,31 +108,36 @@ const cleanName = n => (typeof n === 'string' ? n.trim().slice(0, MAX_NAME) : ''
 
 // Whatever was stored (a string from the preferences, an object, garbage), as a state the board
 // can draw. Never throws; anything unreadable is the default preset.
-export function sanitize(raw) {
+export function sanitize(raw, tier = null) {
   let v = raw
   if (typeof v === 'string') { try { v = JSON.parse(v) } catch { v = null } }
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return { ...DEFAULT_STATE, widgets: copyWidgets(DEFAULT_PRESET.widgets) }
+  const presets = presetsOf(tier)
+  const mark = tier === 'tablet' ? { tier } : {}
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return { ...DEFAULT_STATE, layoutId: presets[0].id, widgets: copyWidgets(presets[0].widgets), ...mark }
   const mine = (Array.isArray(v.mine) ? v.mine : []).map(m => {
     const widgets = cleanWidgets(m?.widgets)
     const name = cleanName(m?.name)
     return widgets && name && typeof m.id === 'string' && m.id.startsWith('m-') ? { id: m.id, name, widgets } : null
   }).filter(Boolean).slice(0, MAX_MINE)
   const widgets = cleanWidgets(v.widgets)
-  const known = typeof v.layoutId === 'string' && (PRESETS.some(p => p.id === v.layoutId) || mine.some(m => m.id === v.layoutId))
+  const known = typeof v.layoutId === 'string' && (presets.some(p => p.id === v.layoutId) || mine.some(m => m.id === v.layoutId))
   const out = {
-    layoutId: widgets && known ? v.layoutId : widgets ? null : DEFAULT_PRESET.id,
-    widgets: widgets || copyWidgets(DEFAULT_PRESET.widgets),
+    layoutId: widgets && known ? v.layoutId : widgets ? null : presets[0].id,
+    widgets: widgets || copyWidgets(presets[0].widgets),
     changed: !!widgets && v.changed === true,
     mine,
     screens: SCREEN_NAV.some(n => n[0] === v.screens) ? v.screens : 'tabs',
   }
   SWITCHES.forEach(([k]) => { out[k] = v[k] === true })
-  return out
+  return { ...out, ...mark }
 }
-// What is written to the preferences: the state, nothing transient.
-export const serialize = state => JSON.stringify({ v: 1, ...sanitize(state) })
+// What is written to the preferences: the state, nothing transient (and never the tier).
+export const serialize = state => {
+  const { tier: _tier, ...kept } = sanitize(state, state?.tier)
+  return JSON.stringify({ v: 1, ...kept })
+}
 
-export const layoutsOf = state => [...PRESETS, ...(state?.mine || [])]
+export const layoutsOf = state => [...presetsOf(state?.tier), ...(state?.mine || [])]
 export const currentLayout = state => layoutsOf(state).find(l => l.id === state?.layoutId) || null
 
 // ── actions: (state, ...) -> state ──

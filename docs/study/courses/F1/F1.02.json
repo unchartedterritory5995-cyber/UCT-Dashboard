@@ -807,8 +807,8 @@
    "key": "w1",
    "title": "A share, and its ticker",
    "steps": [
-    "A share is a small piece of ownership in a company. That's why stocks are also called equities.",
-    "Every US stock gets a short code that names it: its ticker, one to five letters.",
+    "Buy a share and you own a small piece of the company. That's why stocks get called equities.",
+    "Every US stock has a short code that names it, its ticker. One to five letters, like NVDA.",
     "Funds get tickers too. SPY, QQQ and IWM are funds, and each one tracks an index."
    ],
    "facts": [
@@ -826,9 +826,9 @@
    "key": "w2",
    "title": "Where it trades",
    "steps": [
-    "A company can list its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
-    "To list, it has to meet that exchange's standards. Fall short later and it can be delisted.",
-    "When you buy, your broker picks where the order goes: that exchange, another one, or a market maker."
+    "A company lists its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
+    "To get listed it has to meet that exchange's standards. Stop meeting them and it can get delisted.",
+    "When you hit buy, your broker decides where the order goes. That exchange, another one, or a market maker."
    ],
    "facts": [
     "f14",
@@ -844,9 +844,9 @@
    "key": "w3",
    "title": "Three funds, three markets",
    "steps": [
-    "SPY tracks the S&P 500: large US companies from all eleven sectors.",
-    "QQQ tracks the Nasdaq-100, the largest non-financial Nasdaq names. IWM tracks the Russell 2000: small caps.",
-    "Check all three before any stock. A stock's price also moves with the market, not just on its own news."
+    "SPY tracks the S&P 500: the big US companies, across all eleven sectors.",
+    "QQQ tracks the Nasdaq-100, the biggest non-financial Nasdaq names. IWM tracks the Russell 2000, the small caps.",
+    "Check all three before you open a single chart. Most stocks follow the market, about three of every four."
    ],
    "facts": [
     "f42",
@@ -869,30 +869,31 @@
    "rung": 1,
    "format": "mcq",
    "term": "share",
-   "q": "What does one share of a company's common stock give you?",
+   "q": "Say you buy 100 shares of NVDA. What do you actually own?",
    "choices": [
-    "Part ownership of the company",
+    "A slice of the company",
     "A loan to the company",
     "A promised yearly dividend",
     "A vote on every decision"
    ],
-   "answer": "Part ownership of the company",
-   "why": "Part ownership. A share is an ownership stake, called equity, in the company. It gives you a claim on your proportional share of its assets and profits. It is not a loan to the company: that is a bond. It does not promise a dividend. Most stocks give a vote only on certain decisions, such as electing directors.",
-   "lesson_line": "A share is a slice of the business. You own part of it, good and bad.",
+   "answer": "A slice of the company",
+   "why": "A slice of the company. A share is ownership, which is why stocks get called equities. Your 100 shares are a claim on your piece of the company's assets and profits. Good and bad, you own it. It's not a loan. Lending the company money is a bond. Nobody promises you a dividend either. And your vote covers certain things, like electing directors, not every call the company makes. You're in it for the move, but know what you're holding.",
+   "lesson_line": "A share is a slice of the business. You own your piece, good and bad.",
    "facts": [
     "f1",
     "f2",
+    "f4",
     "f7",
     "f5",
     "f3",
     "f6"
    ],
    "wrong": {
-    "A loan to the company": "That's a bond. A bond lends the company money. A share owns part of it.",
-    "A promised yearly dividend": "Nothing is promised. A company may pay dividends, but it doesn't have to.",
-    "A vote on every decision": "Most stocks get a vote on certain decisions, like electing directors. Not on every decision."
+    "A loan to the company": "That's a bond. With a bond you lend the company money. With a share you own a piece of it.",
+    "A promised yearly dividend": "Nobody promises you a dividend. A company may pay one, but it doesn't have to.",
+    "A vote on every decision": "Most stocks get a vote on certain things, like electing directors. Not on everything."
    },
-   "simple": "Part ownership. A share makes you an owner of a small slice of the company and its profits.",
+   "simple": "A slice of the company. You own a small piece of the business and its profits, which is why stocks are called equities.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -900,7 +901,7 @@
      "fixed before (stem narrowed to common stock)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
@@ -940,15 +941,15 @@
    "skill": "basics.shares",
    "rung": 2,
    "format": "tf",
-   "q": "A company can cut its dividend, or stop paying one altogether.",
+   "q": "A stock you hold pays a dividend. The company can still cut it, or stop paying it altogether.",
    "answer": "True",
-   "why": "True. A company may pay dividends, but it does not have to. If it does pay, the amount is not guaranteed. The company can cut the dividend or drop it altogether. That is FINRA's line on common stock. Owning the shares does not make the payment a promise.",
-   "lesson_line": "You own the business, not a promised check. Dividends can change or stop.",
+   "why": "True. Owning the shares doesn't make the check a promise. A company may pay a dividend, but it doesn't have to. If it does pay, the amount isn't locked in. It can cut it, or drop it completely. We're swing traders. We're in a stock for the move in the price, so a dividend is a bonus at best. Never count on it.",
+   "lesson_line": "A dividend is a bonus, never a promise. We're here for the move.",
    "facts": [
     "f5",
     "f6"
    ],
-   "simple": "True. A company may pay a dividend, but it does not have to, and it can cut or stop one.",
+   "simple": "True. A company may pay a dividend but doesn't have to, and it can cut it or stop it.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -956,7 +957,7 @@
      "one source only (FINRA's Common Stock section)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
@@ -964,29 +965,32 @@
    "rung": 2,
    "format": "mcq",
    "term": "SPY",
-   "q": "SPY is a fund. Which index is it built to track?",
+   "q": "You pull up SPY to check the market before the open. Which index are you really reading?",
    "choices": [
-    "S&P 500",
-    "Nasdaq-100",
-    "Russell 2000",
+    "The S&P 500",
+    "The Nasdaq-100",
+    "The Russell 2000",
     "The Dow Jones"
    ],
-   "answer": "S&P 500",
-   "why": "S&P 500. SPY seeks results that, before expenses, correspond generally to the price and yield of the S&P 500. That index measures the large-cap part of the US stock market. The Nasdaq-100, the Russell 2000 and the Dow are other indexes, each with its own rules.",
-   "lesson_line": "SPY follows the S&P 500: the big US companies, in one ticker.",
+   "answer": "The S&P 500",
+   "why": "The S&P 500. SPY is a fund built to match it, before its costs. That's the big US companies, from all eleven sectors. So SPY tells you how the large caps are doing as a group. QQQ is your read on the Nasdaq-100, and IWM on the Russell 2000. The Dow is its own index. I check all three funds before I look at any one stock. Each one shows me a different part of the market.",
+   "lesson_line": "SPY is the big caps in one ticker. Check it before any stock.",
    "facts": [
     "f42",
     "f43",
+    "f44",
+    "f49",
     "f54",
+    "f59",
     "f61",
     "f36"
    ],
    "wrong": {
-    "Nasdaq-100": "The Nasdaq-100 is 100 of the largest non-financial Nasdaq companies. SPY's index is the S&P 500.",
-    "Russell 2000": "The Russell 2000 is the small-cap index. SPY tracks large caps.",
-    "The Dow Jones": "The Dow is a separate index of 30 blue-chip stocks. SPY's index is the S&P 500."
+    "The Dow Jones": "The Dow is its own index, 30 blue chips. SPY follows the S&P 500.",
+    "The Nasdaq-100": "That's QQQ's index, the biggest non-financial Nasdaq names.",
+    "The Russell 2000": "That's IWM's index, the small caps. SPY is the big caps."
    },
-   "simple": "The S&P 500. SPY is built to match that index of large US companies, before its costs.",
+   "simple": "The S&P 500. SPY is built to match that index of big US companies, so it's your large-cap read.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -994,7 +998,7 @@
      "one source only (the fund's own page)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -1002,16 +1006,16 @@
    "rung": 3,
    "format": "mcq",
    "term": "market index",
-   "q": "What is a market index?",
+   "q": "Every market headline quotes an index, like the Dow or the S&P 500. What is an index?",
    "choices": [
-    "A measure of a basket of stocks",
+    "A score for a basket of stocks",
     "A fund you buy through your broker",
-    "The exchange where a stock is listed",
-    "A company's total stock market value"
+    "The exchange a stock lists on",
+    "One company's total market value"
    ],
-   "answer": "A measure of a basket of stocks",
-   "why": "A measure of a basket of stocks. An index tracks how a chosen group of stocks performs, a group picked to stand for a market or a sector. The Dow, for example, is an index of 30 blue-chip US stocks. You cannot invest in an index directly. You buy a fund that tracks it.",
-   "lesson_line": "An index is a scoreboard for a group of stocks. You trade a fund that follows it.",
+   "answer": "A score for a basket of stocks",
+   "why": "A score for a basket of stocks. An index picks a group of stocks to stand for a market or a sector, then tracks how that group does. The Dow is 30 big blue-chip names. You can't buy an index itself. You buy a fund that follows it, like SPY for the S&P 500. So when I say the market's up today, I mean those scoreboards are up.",
+   "lesson_line": "An index is the scoreboard. The fund that follows it is what you actually trade.",
    "facts": [
     "f35",
     "f36",
@@ -1019,14 +1023,15 @@
     "f37",
     "f67",
     "f41",
-    "f65"
+    "f65",
+    "f42"
    ],
    "wrong": {
-    "A fund you buy through your broker": "That's an index fund. You can't invest in an index directly. You buy a fund that tracks it.",
-    "The exchange where a stock is listed": "That's an exchange, like the NYSE or Nasdaq. An index measures a group of stocks, and one index can hold stocks from both.",
-    "A company's total stock market value": "That's market cap: one share's price times all the shares outstanding."
+    "A fund you buy through your broker": "That's the fund that follows an index, like SPY. You can't buy the index itself.",
+    "The exchange a stock lists on": "That's where a stock lists, like the NYSE or Nasdaq. One index can hold stocks from both.",
+    "One company's total market value": "That's market cap: one share's price times all the shares outstanding."
    },
-   "simple": "An index measures how a chosen basket of stocks does, and that basket stands for a market or a sector.",
+   "simple": "A score for a basket of stocks picked to stand for a market or a sector. You trade a fund that follows it.",
    "deeper": {
     "counter": "An index is not a thing you own. The Dow is a list of 30 blue-chip stocks and a way to score them. An index fund is the thing you buy: it aims for about the same return as its index, before fees. Market cap is a third idea: the value of one company, price times shares outstanding."
    },
@@ -1039,7 +1044,7 @@
      "key text shortened in wave6 (was the longest choice and echoed the stem)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q06",
@@ -1072,16 +1077,16 @@
    "rung": 4,
    "format": "mcq",
    "term": "QQQ",
-   "q": "Which index does the QQQ fund track?",
+   "q": "You want a quick read on the big tech names, so you check QQQ. Which index does it track?",
    "choices": [
-    "Nasdaq-100",
-    "Nasdaq Composite",
-    "S&P 500",
-    "Russell 2000"
+    "The Nasdaq-100",
+    "The Nasdaq Composite",
+    "The S&P 500",
+    "The Russell 2000"
    ],
-   "answer": "Nasdaq-100",
-   "why": "Nasdaq-100. Invesco says QQQ is passively managed and tracks the Nasdaq-100. That index measures 100 of the largest Nasdaq-listed non-financial companies. It is not the Nasdaq Composite, which includes all common-type stocks listed on Nasdaq. The S&P 500 and the Russell 2000 belong to other funds.",
-   "lesson_line": "QQQ is the Nasdaq-100: big non-financial Nasdaq names, including many of the leading tech stocks.",
+   "answer": "The Nasdaq-100",
+   "why": "The Nasdaq-100. That's 100 of the largest non-financial companies listed on Nasdaq, a lot of the leading tech names. Don't mix it up with the Nasdaq Composite. The Composite holds every common stock listed on Nasdaq, so it's a much wider basket. QQQ is your big-tech read. SPY covers the large caps across every sector, and IWM the small caps.",
+   "lesson_line": "QQQ is the Nasdaq-100. Your big-tech read, not the whole Nasdaq.",
    "facts": [
     "f49",
     "f54",
@@ -1092,11 +1097,11 @@
     "f87"
    ],
    "wrong": {
-    "Nasdaq Composite": "Close, but a different index. The Composite measures all the common stocks listed on Nasdaq, not just 100 of the largest.",
-    "S&P 500": "That's SPY's index: large US companies from every sector.",
-    "Russell 2000": "That's IWM's index, the small caps."
+    "The Nasdaq Composite": "Close, but no. The Composite is every common stock on Nasdaq. QQQ's index is just 100 of the largest.",
+    "The S&P 500": "That's SPY. Large US companies from every sector.",
+    "The Russell 2000": "That's IWM, the small caps."
    },
-   "simple": "The Nasdaq-100. QQQ tracks 100 of the largest non-financial Nasdaq companies, not the wider Nasdaq Composite.",
+   "simple": "The Nasdaq-100. QQQ follows the biggest non-financial Nasdaq names, not the wider Nasdaq Composite.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1104,7 +1109,7 @@
      "two Tier 1 sources agree (Invesco, Nasdaq methodology)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -1145,7 +1150,7 @@
    "rung": 5,
    "format": "scenario",
    "story": "Midday, you check the market. SPY is up 0.3%. QQQ is up 0.4%. IWM is down 2.1%.",
-   "q": "Which part of the market is under pressure?",
+   "q": "Where's the selling?",
    "choices": [
     "Small-cap stocks",
     "Large tech names",
@@ -1153,7 +1158,7 @@
     "Mid-cap stocks"
    ],
    "answer": "Small-cap stocks",
-   "why": "Small-cap stocks. IWM tracks the Russell 2000, the small-cap index, and it is down 2.1%. SPY, the S&P 500 fund, is up 0.3%. QQQ, the Nasdaq-100 fund, is up 0.4%. So the selling sits in one group, the small caps, not in the whole market.",
+   "why": "Small caps. IWM tracks the Russell 2000, the small-cap index, and it's down 2.1%. SPY's up 0.3% and QQQ's up 0.4%, so the big caps and big tech are fine. The selling sits in one group, not the whole market. That's worth knowing before you buy a smaller name. It'd be swimming against its own group today. A glance at all three tells you where the pressure is.",
    "lesson_line": "Check all three. When one splits from the others, it shows you where the selling is.",
    "facts": [
     "f59",
@@ -1164,11 +1169,11 @@
     "f43"
    ],
    "wrong": {
-    "Large tech names": "QQQ, the Nasdaq-100 fund, is up 0.4%. Big tech is holding fine.",
-    "The biggest US companies": "SPY tracks the large caps of the S&P 500, and it's up 0.3%.",
-    "Mid-cap stocks": "IWM tracks the Russell 2000, the small caps, not mid caps. It's the only one of the three that is down."
+    "Large tech names": "QQQ's up 0.4%. Big tech is holding fine.",
+    "The biggest US companies": "SPY follows the big caps, and it's up 0.3%.",
+    "Mid-cap stocks": "IWM is the Russell 2000, the small caps, not mid caps. It's the only one of the three that's red."
    },
-   "simple": "Small caps. IWM, the small-cap fund, is the only one of the three that is down.",
+   "simple": "Small caps. IWM, the small-cap fund, is the only one of the three that's down.",
    "tier": "extended",
    "risk": {
     "score": 0,
@@ -1176,17 +1181,17 @@
      "made-up numbers in the story; key rests on two agreeing sources"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q10",
    "skill": "basics.shares",
    "rung": 5,
    "format": "tf",
-   "q": "Your SPY order can be filled somewhere other than NYSE Arca, the exchange SPY lists on.",
+   "q": "You buy SPY, which lists on NYSE Arca. Your order can still fill on another exchange, or with a market maker.",
    "answer": "True",
-   "why": "True. SPY lists on NYSE Arca, but your order goes to your broker first. The broker decides which market gets it: the listing exchange, another exchange, or a market maker. The trade happens at that venue. ETF shares trade throughout the day on national exchanges at market prices.",
-   "lesson_line": "Where a stock lists and where your order fills are two different things.",
+   "why": "True. Where a stock lists and where your order fills are two different things. SPY lists on NYSE Arca, but your order goes to your broker first. The broker picks the venue: that exchange, another one, or a market maker. The trade happens wherever it lands. You don't have to choose it. What you control is your price and your stop.",
+   "lesson_line": "Where it lists and where you get filled are two different things.",
    "facts": [
     "f46",
     "f20",
@@ -1195,7 +1200,7 @@
     "f40",
     "f38"
    ],
-   "simple": "True. Your broker picks where your order goes, and that can be another exchange or a market maker, not just NYSE Arca.",
+   "simple": "True. Your broker picks where the order goes, so it can fill on another exchange or with a market maker.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1204,24 +1209,24 @@
      "fixed before (stem reworded by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
    "skill": "basics.shares",
    "rung": 6,
    "format": "scenario",
-   "story": "A large US bank lists its stock on Nasdaq. It's one of the biggest companies in the country.",
-   "q": "Which index's own rules keep it out, however big it gets?",
+   "story": "Banks are leading the market today. You're watching a big US bank whose stock lists on Nasdaq.",
+   "q": "Which index won't hold it, however big it gets?",
    "choices": [
-    "Nasdaq-100",
-    "S&P 500",
-    "Nasdaq Composite",
+    "The Nasdaq-100",
+    "The S&P 500",
+    "The Nasdaq Composite",
     "The Dow Jones"
    ],
-   "answer": "Nasdaq-100",
-   "why": "Nasdaq-100. It measures 100 of the largest Nasdaq-listed non-financial companies. Its rules bar any company classified in the Financial Industry, and a bank is a financial company. Size does not change that. The Nasdaq Composite has no industry or sector rule, so a Nasdaq-listed bank is in it. The S&P 500 holds all eleven sectors.",
-   "lesson_line": "Know what an index can hold. QQQ has no banks, so it can miss a move in financials.",
+   "answer": "The Nasdaq-100",
+   "why": "The Nasdaq-100. Its rules keep out financial companies, and a bank is a financial company. Size doesn't change that. The Nasdaq Composite has no sector rule, so that bank's in it. The S&P 500 holds all eleven sectors. Here's why you care. QQQ follows the Nasdaq-100. So on a day the banks lead, QQQ can sit there and miss the whole move. Know what's in a fund before you read the market off it.",
+   "lesson_line": "Know what's in the fund. QQQ has no banks, so it can miss a day the banks lead.",
    "facts": [
     "f54",
     "f57",
@@ -1234,11 +1239,11 @@
     "f88"
    ],
    "wrong": {
-    "S&P 500": "The S&P 500 holds companies from all eleven sectors, listed on the NYSE or Nasdaq. A big bank can qualify.",
-    "Nasdaq Composite": "The Composite takes every common stock listed on Nasdaq, with no sector rule. A Nasdaq-listed bank is in it.",
-    "The Dow Jones": "The Dow leaves out utilities and transportation. Banks aren't ruled out."
+    "The Dow Jones": "The Dow leaves out utilities and transportation. Banks aren't ruled out.",
+    "The S&P 500": "It holds all eleven sectors, from the NYSE or Nasdaq. A big bank can be in it.",
+    "The Nasdaq Composite": "No sector rule at all. Every common stock on Nasdaq is in it, banks included."
    },
-   "simple": "The Nasdaq-100. Its rules shut out companies in the financial industry, so a bank stays out however big it gets.",
+   "simple": "The Nasdaq-100. Its rules keep out financial companies, so a bank stays out however big it gets.",
    "deeper": {
     "trap": "QQQ is not the whole Nasdaq. Its index leaves out financial companies, so a big Nasdaq-listed bank is not in it, however large. On a day when banks lead, QQQ can miss the move. The Nasdaq Composite, which has no industry rule, holds that bank."
    },
@@ -1251,34 +1256,35 @@
      "fixed before"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "basics.shares",
    "rung": 6,
    "format": "mcq",
-   "q": "A ticker on your screen has an extra Q added after it. What is that Q telling you?",
+   "q": "A friend sends you a ticker with an extra Q tacked on the end. What's that Q telling you?",
    "choices": [
-    "The company is in bankruptcy",
-    "The stock is listed on Nasdaq",
+    "The company's in bankruptcy",
+    "The stock lists on Nasdaq",
     "The stock pays a dividend",
-    "Its quarterly report is due"
+    "Its earnings report is due soon"
    ],
-   "answer": "The company is in bankruptcy",
-   "why": "The company is in bankruptcy. Letters added after a ticker carry extra information, and Investor.gov says a Q signifies bankruptcy. The Q does not mark the exchange, a dividend or an earnings date.",
-   "lesson_line": "Read the whole ticker. An added Q means bankruptcy, and I'd stay away.",
+   "answer": "The company's in bankruptcy",
+   "why": "Bankruptcy. Letters added after a ticker carry extra information, and a Q means the company is in bankruptcy. It's got nothing to do with the exchange, a dividend or the quarter. I'd walk away. There's no guarantee a company comes back from that, and you can lose the money you put in. Read the whole ticker before you ever get involved.",
+   "lesson_line": "Read the whole ticker. A Q on the end means bankruptcy. Pass.",
    "facts": [
     "f13",
     "f11",
-    "f12"
+    "f12",
+    "f9"
    ],
    "wrong": {
-    "The stock is listed on Nasdaq": "An added Q does not name the exchange. Investor.gov says it signifies a company in bankruptcy.",
-    "The stock pays a dividend": "An added Q doesn't mark dividends. It marks a company in bankruptcy.",
-    "Its quarterly report is due": "Q here does not stand for quarter. Investor.gov says an added Q signifies a company in bankruptcy."
+    "The stock pays a dividend": "Nothing to do with dividends. A Q flags bankruptcy.",
+    "The stock lists on Nasdaq": "A Q doesn't name the exchange. It flags a company in bankruptcy.",
+    "Its earnings report is due soon": "Q isn't for quarter here. It flags a company in bankruptcy."
    },
-   "simple": "Bankruptcy. A Q added after a ticker is a flag that the company is in bankruptcy.",
+   "simple": "Bankruptcy. A Q added after a ticker flags a company in bankruptcy, and I'd stay away from it.",
    "tier": "extended",
    "risk": {
     "score": 5,
@@ -1287,15 +1293,15 @@
      "symbol conventions change (Nasdaq dropped the Q on its own listings in 2006, see conflicts)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q13",
    "skill": "basics.shares",
    "rung": 7,
    "format": "scenario",
-   "story": "July 11, 2024. A cooler inflation report comes out. The S&P 500 falls 0.9% and the Nasdaq Composite falls 2%. The Russell 2000 jumps 3.6%.",
-   "q": "Where was money flowing that day?",
+   "story": "July 11, 2024. A cooler inflation report hits that morning. By the close the S&P 500 is down 0.9% and the Nasdaq Composite is down 2%. The Russell 2000 is up 3.6%.",
+   "q": "Where's the money going?",
    "choices": [
     "Into small caps",
     "Into big tech",
@@ -1303,8 +1309,8 @@
     "Into bets on higher rates"
    ],
    "answer": "Into small caps",
-   "why": "Into small caps. The Russell 2000 rose 3.6% while the S&P 500 fell 0.9% and the Nasdaq Composite fell 2%. CNBC tied it to the cooler inflation report, which sent rates lower and investors into small caps. Investors rotated out of the year's big tech winners, like Nvidia. Money moved between groups. It did not leave stocks altogether.",
-   "lesson_line": "When small caps and big tech split hard, look for money moving between groups. Read all three.",
+   "why": "Into small caps. The Russell 2000 ran 3.6% while the S&P 500 fell 0.9% and the Nasdaq Composite fell 2%. The cooler inflation report sent rates lower, and investors piled into small caps. They rotated out of the year's big tech winners, like Nvidia. So money didn't leave stocks. It moved from one group to another. That's rotation. Look at the chart: one big candle, up to the top of a range it had chopped in for months.",
+   "lesson_line": "When small caps and big tech split hard, that's money rotating. Read all three.",
    "facts": [
     "f75",
     "f81",
@@ -1317,11 +1323,11 @@
     "f89"
    ],
    "wrong": {
-    "Into big tech": "Big tech was being sold. Investors rotated out of the year's big tech winners, like Nvidia.",
-    "Out of stocks altogether": "Small caps jumped 3.6%. Money moved between groups. It didn't leave stocks altogether.",
-    "Into bets on higher rates": "The cooler inflation report sent rates lower, not higher. Investors hoped for a Fed rate cut, and money went into small caps."
+    "Into big tech": "Big tech was the one getting sold. Investors rotated out of the year's big winners, like Nvidia.",
+    "Out of stocks altogether": "Small caps jumped 3.6%. Money moved between groups. It didn't leave stocks.",
+    "Into bets on higher rates": "The cooler inflation report sent rates lower, not higher. That's what sent money into small caps."
    },
-   "simple": "Into small caps. The small-cap index jumped while big tech fell, so money moved from one group to the other.",
+   "simple": "Into small caps. The small-cap index jumped while big tech sold off, so money rotated from one group to the other.",
    "deeper": {
     "counter": "A down day for the S&P 500 is not proof that money left stocks. On July 11, 2024 the Russell 2000 rose 3.6% while the S&P 500 and the Nasdaq Composite fell. Check the small caps before you call it selling everywhere."
    },
@@ -1332,7 +1338,7 @@
      "fixed before"
     ]
    },
-   "batch": "index-charts-2026-11-16",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "RUT",
     "asof": "2024-07-11",
@@ -1382,10 +1388,10 @@
    "skill": "basics.shares",
    "rung": 8,
    "format": "tf",
-   "q": "On July 11, 2024 the S&P 500 fell 0.9%. So most S&P 500 stocks fell that day.",
+   "q": "The S&P 500 fell 0.9% on July 11, 2024. Most of the stocks in it fell that day too.",
    "answer": "False",
-   "why": "False. AP counted three out of every four S&P 500 stocks up that day. Slumps in Nvidia, Tesla and other Magnificent Seven giants dragged the index down 0.9%. The S&P 500 is weighted by float-adjusted market cap, so its largest companies move it most. An index move does not tell you what most of its stocks did.",
-   "lesson_line": "The S&P 500 is weighted by size. A few giants can hide what most stocks are doing.",
+   "why": "False. Three of every four S&P 500 stocks went up that day. A few giants did the damage. Nvidia, Tesla and other Magnificent Seven names slumped and dragged the index down 0.9%. The S&P 500 is weighted by size, so its biggest names move it most. A red index can hide a lot of green stocks. That's what breadth is for: how many stocks are actually rising. Our Breadth page shows it.",
+   "lesson_line": "A few giants can hide what most stocks are doing. Check breadth, not just the index.",
    "facts": [
     "f76",
     "f77",
@@ -1394,7 +1400,7 @@
     "f73",
     "f90"
    ],
-   "simple": "False. Most S&P 500 stocks rose that day, but a few giants fell hard enough to pull the index down.",
+   "simple": "False. Most S&P 500 stocks rose that day, but a few giants fell hard enough to drag the index down.",
    "deeper": {
     "example": "A trillion-dollar company moves the S&P 500 more than a company a quarter of its size making the same move. So a handful of giants can sink the index on a day when three of every four members rise. Check how many stocks rose, not just the index."
    },
@@ -1405,24 +1411,24 @@
      "two publishers agree (AP, CNBC)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q16",
    "skill": "basics.shares",
    "rung": 8,
    "format": "scenario",
-   "story": "A stock you like just reported strong earnings. Its chart looks good. But SPY, QQQ and IWM have all fallen hard for two weeks.",
-   "q": "How should you treat this setup while the market is weak?",
+   "story": "A name on your list just reported strong earnings, and the chart looks good. But SPY, QQQ and IWM have all been falling hard for two weeks.",
+   "q": "What's the play?",
    "choices": [
-    "Track it. Watch its relative strength",
-    "Buy it. Strong earnings make it safe",
-    "Ignore the market. Stocks move alone",
-    "Buy the dip. The market is on sale"
+    "Track its relative strength",
+    "Buy it, the earnings make it safe",
+    "Ignore the market, buy it",
+    "Buy the dip, it's on sale"
    ],
-   "answer": "Track it. Watch its relative strength",
-   "why": "Track it and watch its relative strength. Relative strength is how well a stock holds up while the market falls. A good setup that holds up while SPY, QQQ and IWM drop is a name to track until the market stabilizes. A stock's price moves on its own news and also on the market as a whole. When the whole market drops, it can pull down the stocks you hold. IBD's rule of thumb is that 3 of 4 stocks move with the general market. Strong earnings do not make a stock immune. At UCT, a market filter decides when we trade: the app's market reading.",
-   "lesson_line": "In a weak market, track the strong setup's relative strength. Act when the market stabilizes.",
+   "answer": "Track its relative strength",
+   "why": "Track it. Keep it on your watchlist and watch how it acts while SPY, QQQ and IWM keep falling. That's its relative strength. If it holds up while everything around it drops, that's a leader showing itself. That's the name you want when the market stabilizes. Buy now and you're buying into the wind. Most stocks follow the market down, and good earnings don't make one immune. The market reading in our app, Green down to Red, is your guide to how much to trade. Let the market settle, then get involved.",
+   "lesson_line": "In a weak market, track the strong setup's relative strength. Get involved when the market stabilizes.",
    "facts": [
     "f27",
     "f28",
@@ -1434,11 +1440,11 @@
     "h3"
    ],
    "wrong": {
-    "Buy it. Strong earnings make it safe": "Nothing makes it safe. A single stock's price also depends on what the whole market is doing.",
-    "Ignore the market. Stocks move alone": "Stocks don't trade alone. Market events move prices in ways the company can't control.",
-    "Buy the dip. The market is on sale": "Buying in a correction is riskier. IBD says most stocks follow the market's downward trend."
+    "Buy it, the earnings make it safe": "Nothing makes it safe. Good news or not, the whole market can drag it down.",
+    "Ignore the market, buy it": "Stocks don't trade alone. Market events move prices in ways the company can't control.",
+    "Buy the dip, it's on sale": "A falling market isn't a sale. Most stocks follow it down, and you'd be buying right into that."
    },
-   "simple": "Track it. A strong stock that holds up in a weak market is one to watch until the market stabilizes.",
+   "simple": "Track it. A strong stock that holds up in a weak market is the one you want once the market stabilizes.",
    "deeper": {
     "trap": "Good news can make a falling market feel beside the point. IBD says the reverse: in a market downtrend, even the best stocks have a hard time moving higher. A drop in the whole market is not a sale on your stock. It is the wind you would be buying into."
    },
@@ -1449,7 +1455,7 @@
      "fixed before (stem reworded by the checker)"
     ]
    },
-   "batch": "review1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1500,17 +1506,17 @@
    "skill": "basics.shares",
    "rung": 9,
    "format": "scenario",
-   "story": "The evening news says the Nasdaq fell 2% today. You check QQQ and it fell 1.6%.",
-   "q": "What is the likeliest reason the two numbers differ?",
+   "story": "The evening news says \"the Nasdaq\" fell 2% today. They mean the Nasdaq Composite. You check QQQ, and it's down 1.6%.",
+   "q": "Why doesn't QQQ match the headline?",
    "choices": [
-    "QQQ follows a different basket",
+    "QQQ tracks a different index",
     "QQQ's yearly fee ate the gap",
-    "QQQ stopped trading early today",
+    "QQQ stopped trading early",
     "QQQ weights stocks by price"
    ],
-   "answer": "QQQ follows a different basket",
-   "why": "QQQ follows a different basket. When the news says \"the Nasdaq\", it often means the Nasdaq Composite, which holds all common-type stocks listed on Nasdaq. QQQ tracks the Nasdaq-100, only 100 of the largest non-financial Nasdaq companies. Different baskets can move by different amounts on the same day. Fees do not explain it. QQQ's fee is 0.18% for a whole year. The gap here is 2 minus 1.6, which is bigger than that, and it came in one day.",
-   "lesson_line": "A headline's \"Nasdaq\" is often the Composite. QQQ follows the Nasdaq-100, so the two can differ.",
+   "answer": "QQQ tracks a different index",
+   "why": "Different index. The headline is the Nasdaq Composite, every common stock listed on Nasdaq. QQQ tracks the Nasdaq-100, just 100 of the largest non-financial names. Two baskets, two numbers. Nothing's wrong with your fund. The fee can't explain it either. QQQ charges 0.18% for a whole year. The gap here is 2 minus 1.6 in one day, more than double that. When the news says \"the Nasdaq\", it often means the Composite. So read the market off the funds you trade, not the headline.",
+   "lesson_line": "The headline's Nasdaq is often the Composite. Read the market off the funds you trade.",
    "facts": [
     "f70",
     "f78",
@@ -1525,11 +1531,11 @@
     "f75"
    ],
    "wrong": {
-    "QQQ weights stocks by price": "The Nasdaq-100 uses a modified market cap weighting, not share price. The gap comes from tracking a different basket.",
-    "QQQ's yearly fee ate the gap": "QQQ's fee is 0.18% for a whole year. The gap here is 2 minus 1.6 in one day, which is bigger.",
-    "QQQ stopped trading early today": "ETF shares trade throughout the day on exchanges. The gap comes from what each one tracks."
+    "QQQ weights stocks by price": "The Nasdaq-100 weights by market cap, not share price. The gap is a different basket.",
+    "QQQ's yearly fee ate the gap": "The fee is 0.18% for a whole year. This gap is 2 minus 1.6 in one day. Way bigger.",
+    "QQQ stopped trading early": "ETFs trade all day, like stocks. The gap comes from what each one tracks."
    },
-   "simple": "Likely they track two different sets of stocks. News often means the Nasdaq Composite, but QQQ follows the smaller Nasdaq-100.",
+   "simple": "QQQ tracks a different index. The headline is the Nasdaq Composite, but QQQ follows the smaller Nasdaq-100.",
    "deeper": {
     "example": "On July 11, 2024, AP reported that the Nasdaq composite fell 2%. That headline number is the Composite, not QQQ's index. Before you compare a headline to your fund, check which index the headline names."
    },
@@ -1541,7 +1547,7 @@
      "fixed before (key reworded by the checker)"
     ]
    },
-   "batch": "review1"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q19",
@@ -1549,11 +1555,11 @@
    "rung": 6,
    "format": "tf",
    "house": true,
-   "q": "Our rule needs $10 or more and at least $20 million traded a day. A $12 stock that trades $5 million a day passes it.",
+   "q": "A $12 stock that trades $5 million a day hits your scan. We need $10 a share and $20 million a day. It makes the cut.",
    "answer": "False",
-   "why": "False. Our rule has two tests: a price of $10 or more, and at least $20 million traded a day. This stock passes on price but fails on trading. So we skip it.",
-   "simple": "False. We need a price of $10 or more and at least $20 million traded a day, and this one trades $5 million.",
-   "lesson_line": "Two tests before any stock: $10 or more, and at least $20 million traded a day.",
+   "why": "False. The price is fine, $12 clears our $10 floor. The trading isn't. $5 million a day is a quarter of the $20 million we want. So I'd leave it alone. Thin names hurt you on the way out. When you need to sell, there may not be enough buyers near your price. Your stop can fill a lot worse than you planned. To check any name, multiply its price by the shares it trades a day. That's its dollar volume.",
+   "simple": "False. It clears $10, but $5 million a day is far under the $20 million a day we need.",
+   "lesson_line": "$10 or more and $20 million a day. Miss either one and it's not on my list.",
    "facts": [
     "h1"
    ],
@@ -1565,7 +1571,7 @@
      "new in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1602,8 +1608,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key re-derived from f1/f2 (ownership). Why now matches f2, f7, f5, f3; 'give a vote only on certain decisions' follows f3. Choices balanced, no tell.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Voice 4 (final 4). A real buy (100 NVDA) and a plain question. The why says what you own and what you don't (bond, dividend, vote), from f2, f3, f4, f5, f7. Truth checked. Owner: good."
   },
   "q02": {
    "status": "cut",
@@ -1613,21 +1618,21 @@
   },
   "q03": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 4). The why is in his voice (dividend as a bonus, we trade the move), f5 and f6. But the stem put the member in a stock 'partly for its dividend', which is the opposite of the why's 'we're in it for the move'. The stem is now plain: a stock you hold pays one. Still True."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key from f42. 'The Dow Jones' (13 chars) removes the old length outlier; note grounded in f36. q06 pairing accepted (w3 teaches it first)."
+   "fixed": true,
+   "notes": "Voice 4 (final 4). TRUTH: 'So when SPY's green, the large caps are green' is false and contradicts q15 in this same lesson (July 11, 2024: S&P 500 red, three of four members green). Now: SPY tells you how the large caps do as a group. The 'check all three' line is now first person (I check all three)."
   },
   "q05": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Voice 4 (final 4). The scoreboard framing and 'when I say the market's up' sound like a person. Facts f35, f36, f47, f41. 'Every market headline' is light talk, not a claim tested. Owner: good."
   },
   "q06": {
    "status": "cut",
@@ -1639,7 +1644,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f49/f54; simple follows f54 ('100 of the largest'). Composite note grounded in f87/f51."
+   "notes": "Voice 4 (final 4). Stem gives the reason to look (the big tech read); why separates the Nasdaq-100 (f54) from the Composite (f87). Owner: good."
   },
   "q08": {
    "status": "cut",
@@ -1651,31 +1656,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Derived Small-cap stocks before reading the key: only IWM (Russell 2000, small caps, f59/f61) is down. No second defensible choice: QQQ (Nasdaq-100, f49/f50) and SPY (S&P 500 large caps, f42/f43) are up; no fund tracks mid caps and the wrong note says why. Choice lengths 14-24, key 16, not longest; key does not echo the story (story names IWM, not small caps). Numbers 0.3/0.4/2.1 come from the story. No em dash, no rulebook conflict (B18 untouched). Rung 5 after q08 (rung 4), so it does not leak q08's blank."
+   "notes": "Voice 4 (final 4). Numbers worked from the story (IWM -2.1, SPY +0.3, QQQ +0.4); 'swimming against its own group' gives the reason. Owner: good."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f46 + f20/f21/f22; why's last line now follows f40. 'Can' hedge balanced by q19 (hedged, False)."
+   "notes": "Voice 4 (final 4). Plain claim in your seat; why ends on what you control. f20, f21, f22, f46. Owner: good."
   },
   "q11": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Key Nasdaq-100 from f54/f57; Composite ruled out by f87/f88, S&P 500 by f44/f67, Dow by f68. Open minor gap stays: no quote names a bank as ICB Financial. Re-tried 2026-11-12: LSEG ICB page names no industries; Invesco QQQ about page says only 'non-financial' and lists 'financials' as an industry; nasdaq.com Nasdaq-100 page timed out (unreachable); ICB definitions PDF 404. Plain-English bank = financial company accepted."
+   "fixed": true,
+   "notes": "Voice 4 (final 4). The why is good (QQQ can miss a bank day; f54, f57, f88, f44, f68). The story's second sentence read clumsily ('One of the biggest is a US bank whose stock lists on Nasdaq') and needed a second read (rule 5). Rewritten plainly."
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Owner marked good; live (verify pass) and left unchanged."
+   "notes": "Voice 4 (final 4). Real moment (a friend's ticker), blunt verdict (I'd walk away, Pass). f13, f9. Owner: good."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Words agree with the data: 2024-07-10 -> 07-11 closes S&P 500 5633.91 -> 5584.54 = -0.88% ('falls 0.9%'), Nasdaq Composite 18647.45 -> 18283.41 = -1.95% ('falls 2%'), Russell 2000 2051.75 -> 2125.04 = +3.57% ('jumps 3.6%'). No give-away: the hidden-symbol RUT window (2024-01-19 to 07-11) ends on the +3.6% candle the story already states, the highest close of the window (the March 28 intraday high 2135.46 stays above it); it supports no wrong choice. Worth it: it shows the jump breaking a six-month sideways small-cap range, and the replay that the move kept running. FIX: forward 10 -> 5. Yahoo'"
+   "fixed": false,
+   "notes": "Voice 4 (final 4). Story narrates the day; why names the rotation (f81, f79, f80, f82, f83). Chart claim checked on RUT daily bars: July 11, 2024 closed 2,125.04 (+3.57%), just over the March 28 close of 2,124.55, the top of a range held since January, so 'one big candle, up to the top of a range it had chopped in for months' is true. Owner: good."
   },
   "q14": {
    "status": "cut",
@@ -1685,15 +1690,15 @@
   },
   "q15": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 5). TRUTH: 'Nvidia, Tesla and the rest of the Magnificent Seven slumped' says all seven fell; AP (f77) says Nvidia, Tesla and OTHER stocks in that group. Now 'other Magnificent Seven names'. Rest kept: breadth and our Breadth page is the practical how."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Answers the owner's note: key is now 'Track it. Watch its relative strength', matching his rule (a strong setup is a name to track for relative strength until the market stabilizes). h3 quote is verbatim from REVIEW_LEARNINGS.md line 14. Relative strength is defined in the why in plain words. Wrong choices (buy it, ignore the market, buy the dip) are clearly wrong, each wrong note is supported by f27-f34. House flag set and h3 cited. Choices all in the same 'Verb it. Reason' pattern, 34-37 chars, so the key does not stand out."
+   "fixed": true,
+   "notes": "Voice 4 (final 4). His note is fully met: the key is 'Track its relative strength', and the why and lesson line say to track it for when the market stabilizes (h3). IBD is out of the why, kept in deeper. TRUTH: 'Our app's market reading tells you when we trade' states the reading as an on/off switch; the color is a guide to how much we trade (rule 19; Red is mostly cash, not a ban). Reworded and the label explained."
   },
   "q17": {
    "status": "cut",
@@ -1705,13 +1710,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Stem 'likeliest reason' and the 0.18%-a-year versus the one-day gap in the explanation answer his 'misleading' note. But the key 'They follow different baskets' is the only choice that does not start with 'QQQ', so it is the odd one out in wording. Also 'usually' in the lesson_line overclaims: fact f70 says the Composite is 'often' called the Nasdaq. Fix: key becomes 'QQQ follows a different basket', lesson_line says 'often', simple says 'often means'."
+   "notes": "Voice 4 (final 4). His note 'slightly misleading': the writer dropped 'likeliest', but the story still left the member to guess which index the headline meant, so the right answer rested on an assumption. The story now says the headline is the Nasdaq Composite (f70, f80), so the question tests one thing: QQQ follows the Nasdaq-100. The fee math is said plainly (2 minus 1.6 in a day is more than double QQQ's 0.18% a year, f52). Answer unchanged."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Derived False first: $5 million is under the $20 million line even though $12 clears $10. h1 matches rulebook B23 verbatim (sizing_rule.md section 9). $10/$20 million from h1, $12/$5 million from the question. Stem about 117 chars, states the rule so it no longer relies on q17 (rung 9), and does not answer q17 (whose key is about OTC info and fraud). TF balance in the lesson: q03 T, q06 F, q10 T, q15 F, q19 F. No em dash, plain voice. 'Fails on trading' in the why is slightly loose but not wrong."
+   "fixed": true,
+   "notes": "Voice 3 (final 4). The stem still opened on the rule ('Our floor is ...') and then asked for a 5-against-20 comparison, a rule restated. Now the situation comes first (a name on your scan), then our minimums (not yet taught in this lesson, so they stay in the stem, rule 28), then the claim. The why works it (5 is a quarter of 20), says why thin names hurt, and gives the how (dollar volume = price times shares a day). Still False. h1."
   }
  }
 }

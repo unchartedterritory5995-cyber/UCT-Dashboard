@@ -926,6 +926,29 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  // ⭐ 2026-11-18 — WHEN THE STAT MENU CLOSES, FOCUS RETURNS TO THE CHART, the rule this pane keeps for
+  // every chart menu ("so type-to-search works immediately — else the first keypress hits a global
+  // drawing-tool hotkey, not the search"). A stat is a focusable button since 11-17, and the menu
+  // hands focus back to its stat on Escape. Measured on production: with focus left there, `t` armed
+  // the trendline tool and `a` the arrow tool (a crosshair on the chart), where the same key on the
+  // chart opens ticker search. So a member who restyled a stat and then typed a ticker got drawing
+  // tools. Runs AFTER the menu's own focus return (this effect commits later than its handler).
+  // ⛔ Only when focus was left on the stat, inside the menu that just went away, or nowhere: a
+  // control the member pressed elsewhere keeps it, and so does Chart Settings when "Add a stat…" or
+  // "Header settings…" opened it in the same step (it holds the focus by then; the rail checks the
+  // chart is never even asked).
+  const statMenuAnchorRef = useRef(null)
+  useEffect(() => {
+    if (statMenu) { statMenuAnchorRef.current = statMenu.el; return }
+    const stat = statMenuAnchorRef.current
+    statMenuAnchorRef.current = null
+    if (!stat) return
+    const doc = stat.ownerDocument || document
+    const at = doc.activeElement
+    if (!at || at === doc.body || !at.isConnected || at === stat || stat.contains(at)) {
+      focusableRef.current?.focus({ preventScroll: true })
+    }
+  }, [statMenu])
   // ResizeObserver wiring for the responsive header fit (paneRef/paneWidth are
   // declared higher up — before the header computation that reads paneWidth).
   useEffect(() => {

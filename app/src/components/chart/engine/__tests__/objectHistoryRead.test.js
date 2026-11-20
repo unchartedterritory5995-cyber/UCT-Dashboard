@@ -167,9 +167,12 @@ describe('the translator emits the read, or names why not', () => {
     expect(JSON.stringify(ops)).not.toContain('"limit":5000')
   })
 
-  it('⛔ the per-series `max_bars_back(x, n)` form refuses by name', () => {
-    const { diag } = translate(script(', max_bars_back = 5000', 'max_bars_back(high, 100)', ...BODY))
-    expect(diag.historyReadRefusals).toEqual({ 'max-bars-back-call': 1 })
+  // ⭐ engine 83 (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): the per-series form bounds
+  // nothing (TradingView drew `x[60]` after `max_bars_back(x, 50)` on every bar), so it no longer refuses this read
+  it('the per-series `max_bars_back(x, n)` form is read like any other script: no refusal, the declaration\'s buffer', () => {
+    const { ops, diag } = translate(script(', max_bars_back = 5000', 'max_bars_back(high, 100)', ...BODY))
+    expect(diag.historyReadRefusals || {}).toEqual({})
+    expect(JSON.stringify(ops)).toContain('"limit":5000')
   })
 
   it('⛔ a REASSIGNED source refuses — its history is its end-of-bar value', () => {

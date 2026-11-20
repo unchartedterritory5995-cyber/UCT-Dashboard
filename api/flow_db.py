@@ -1062,7 +1062,7 @@ class FlowDB:
         BBS exports it that way; we parse to int here and skip blanks/zeros.
 
         Used by /api/schwab/mktcap-batch as the first lookup layer so the
-        dark pool view can resolve mkt caps without hitting Schwab or Yahoo
+        dark pool view can resolve mkt caps without hitting Yahoo
         for every ticker. The flow CSV ships MktCap as a column, so for any
         ticker that's appeared in options flow this is a free, instant,
         offline lookup.

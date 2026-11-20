@@ -1,0 +1,22 @@
+//@version=5
+indicator("Fib levels", overlay=true)
+n = input.int(100, "Lookback")
+hh = ta.highest(high, n)
+ll = ta.lowest(low, n)
+levels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+prices = array.new_float(0)
+for lv in levels
+    array.push(prices, hh - (hh - ll) * lv)
+var line[] ls = array.new_line(0)
+var label[] lbs = array.new_label(0)
+if not na(hh)
+    for i = 0 to array.size(prices) - 1
+        y = array.get(prices, i)
+        if array.size(ls) <= i
+            array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))
+            array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white))
+        level = array.get(ls, i)
+        line.set_xy1(level, bar_index - n, y)
+        line.set_xy2(level, bar_index, y)
+        label.set_xy(array.get(lbs, i), bar_index, y)
+plot(array.get(prices, 3), "50% level", color=color.gray)

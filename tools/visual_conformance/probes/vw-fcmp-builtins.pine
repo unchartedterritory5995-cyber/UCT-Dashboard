@@ -1,0 +1,94 @@
+//@version=6
+indicator("vw-fcmp-builtins")
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme, the second float-comparison probe (after Q-FCMP,
+// vw-float-compare-tolerance.pine). Q-FCMP found TradingView's comparison OPERATORS tolerant (the v6 reference: `==`
+// "rounds "float" operands to nine fractional digits"). This probe asks the same of the BUILT-INS that compare inside.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: do built-ins compare exactly or with the operators' tolerance? Every near tie here is e = 3e-10 at
+// magnitude 1, one 9-digit bucket (1.0000000003 rounds to 1.0): an exact compare tells 1 + e from 1, a rounding one
+// does not. Each series cycles on bar_index % 3 or % 4, so every bar from bar 4 on repeats one of three or four cases.
+// - B01-B04 ta.crossover / crossunder / cross: a series going 0.5 -> 1 + e -> 2.0 against 1.0. Exact: the cross is on
+//   the 1 + e bar (p3 = 1); tolerant: on the 2.0 bar (p3 = 2). B04 is the exact-tie control (0.5 -> 1.0 -> 2.0).
+// - B05-B08 ta.highest / highestbars / lowest / lowestbars over 2 bars of 1, 1 + e, 1 (and 1, 1 - e, 1): the value
+//   (minus 1.0) and the offset show whether 1 + e is told apart from 1, and which of a tie is kept (p3 = 0 is an exact
+//   tie, the control for the tie rule).
+// - B09-B14 ta.pivothigh / pivotlow (1, 1) over 4-bar cycles: an exact tie (control), a near tie on the right of the
+//   centre and on the left. Each row reports at p4 = 1 (centre p4 = 0) and p4 = 2 (centre p4 = 1).
+// - B15-B18 math.max / math.min of 1 and 1 +- e in both argument orders (minus 1.0). B19-B20 array.max / array.min.
+// - B21-B23 math.sign of 3e-10, -3e-10 and 3e-14. B24-B25 ta.rising / ta.falling (1) over 1, 1 + e, 1.
+// - B26 `switch` on the float 1 + e with a 1.0 arm (1 = matched). B27-B28 array.indexof / array.includes of 1 + e
+//   in [1.0, 2.0]. B29 array.sort ascending of [1 + e, 1.0]: the first element minus 1.0 (0 = sorted, e = kept order).
+// - B30 ta.percentrank(1) over 1, 1 + e, 1 (on p3 = 2: 0 exact, 100 tolerant). B31 ta.mode(3) over 1 + e, 1.0, 0.5
+//   (exact: no value repeats, so the smallest, 0.5; tolerant: 1 and 1 + e are one value).
+// - B32-B34 the built-in ta.dmi(14, 14) (DI+, DI-, ADX): on SPY 1D its up / down moves tie on bars 5,333 and 5,453.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history.startsAtBar0 asserted), then NYSE:RDDT 1D, inputs at defaults.
+
+one = bar_index >= 0 ? 1.0 : 0.0
+e = 3e-10
+p3 = bar_index % 3
+p4 = bar_index % 4
+
+plot(bar_index, "B00_bar_index_CONTROL")
+
+xo = (p3 == 0 ? 0.5 : p3 == 1 ? 1.0 + e : 2.0) * one
+xu = (p3 == 0 ? 1.5 : p3 == 1 ? 1.0 - e : 0.0) * one
+xt = (p3 == 0 ? 0.5 : p3 == 1 ? 1.0 : 2.0) * one
+plot(ta.crossover(xo, one) ? 1 : 0, "B01_crossover_neartie")
+plot(ta.crossunder(xu, one) ? 1 : 0, "B02_crossunder_neartie")
+plot(ta.cross(xo, one) ? 1 : 0, "B03_cross_neartie")
+plot(ta.crossover(xt, one) ? 1 : 0, "B04_crossover_exacttie_CONTROL")
+
+hs = (p3 == 1 ? 1.0 + e : 1.0) * one
+ls = (p3 == 1 ? 1.0 - e : 1.0) * one
+plot(ta.highest(hs, 2) - 1.0, "B05_highest2_minus1")
+plot(ta.highestbars(hs, 2), "B06_highestbars2")
+plot(ta.lowest(ls, 2) - 1.0, "B07_lowest2_minus1")
+plot(ta.lowestbars(ls, 2), "B08_lowestbars2")
+
+phT = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 : 0.0) * one
+phN = (p4 == 0 ? 1.0 + e : p4 == 1 ? 1.0 : 0.0) * one
+phM = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 + e : 0.0) * one
+plT = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 : 2.0) * one
+plN = (p4 == 0 ? 1.0 - e : p4 == 1 ? 1.0 : 2.0) * one
+plM = (p4 == 0 ? 1.0 : p4 == 1 ? 1.0 - e : 2.0) * one
+plot(ta.pivothigh(phT, 1, 1), "B09_pivothigh_exacttie_CONTROL")
+plot(ta.pivothigh(phN, 1, 1), "B10_pivothigh_e_first")
+plot(ta.pivothigh(phM, 1, 1), "B11_pivothigh_e_second")
+plot(ta.pivotlow(plT, 1, 1), "B12_pivotlow_exacttie_CONTROL")
+plot(ta.pivotlow(plN, 1, 1), "B13_pivotlow_e_first")
+plot(ta.pivotlow(plM, 1, 1), "B14_pivotlow_e_second")
+
+up1 = (1.0 + e) * one
+dn1 = (1.0 - e) * one
+plot(math.max(one, up1) - 1.0, "B15_max_1_1pe")
+plot(math.max(up1, one) - 1.0, "B16_max_1pe_1")
+plot(math.min(one, dn1) - 1.0, "B17_min_1_1me")
+plot(math.min(dn1, one) - 1.0, "B18_min_1me_1")
+plot(array.max(array.from(one, up1)) - 1.0, "B19_arraymax_1_1pe")
+plot(array.min(array.from(one, dn1)) - 1.0, "B20_arraymin_1_1me")
+
+plot(math.sign(e * one), "B21_sign_3e-10")
+plot(math.sign(-e * one), "B22_sign_m3e-10")
+plot(math.sign(3e-14 * one), "B23_sign_3e-14")
+plot(ta.rising(hs, 1) ? 1 : 0, "B24_rising1")
+plot(ta.falling(hs, 1) ? 1 : 0, "B25_falling1")
+
+sw = switch up1
+    1.0 => 1
+    => 0
+plot(sw, "B26_switch_float")
+plot(array.indexof(array.from(1.0, 2.0), up1), "B27_indexof")
+plot(array.includes(array.from(1.0, 2.0), up1) ? 1 : 0, "B28_includes")
+srt = array.from(up1, one)
+array.sort(srt, order.ascending)
+plot(array.get(srt, 0) - 1.0, "B29_sort_first_minus1")
+
+plot(ta.percentrank(hs, 1), "B30_percentrank1")
+md = (p3 == 0 ? 1.0 + e : p3 == 1 ? 1.0 : 0.5) * one
+plot(ta.mode(md, 3), "B31_mode3")
+
+[diPlus, diMinus, adxV] = ta.dmi(14, 14)
+plot(diPlus, "B32_dmi_diplus")
+plot(diMinus, "B33_dmi_diminus")
+plot(adxV, "B34_dmi_adx")

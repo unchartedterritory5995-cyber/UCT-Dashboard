@@ -828,6 +828,33 @@ class TestNewEvidenceFormatters:
         assert len(out) == 1
         assert "calendar-quarter label" in out[0]["date"]
         assert "94,500,000,000" in out[0]["text"]
+        # a payload that names no source is cited as the fallback, caveat and all
+        assert out[0]["source"] == "UCT Financials (yfinance)"
+
+    def test_financials_evidence_cites_the_source_the_payload_names(self):
+        row = {"period": "Q3 2026", "revenue": 100_000_000_000, "eps": 1.79,
+               "net_margin": 27.0, "revenue_yoy": 8.7}
+        from_fmp = te._financials_evidence({
+            "quarterly": [row], "balance": {"cash": "$61.00B"}, "metrics": {},
+            "sources": {"statements": "FMP", "summary": "Yahoo Finance"}})
+        quarter = [e for e in from_fmp if e["type"] == "financials_quarter"]
+        assert len(quarter) == 1
+        assert quarter[0]["source"] == "FMP, via UCT Financials"
+        assert "yfinance" not in quarter[0]["source"]
+        # the FMP statements label the company's own fiscal quarters: no calendar caveat
+        assert quarter[0]["date"] == ("Q3 2026 (fiscal-quarter label -- this company's own "
+                                      "fiscal-quarter numbering)")
+        assert quarter[0]["text"].startswith("Quarter Q3 2026: revenue $100,000,000,000, EPS $1.79")
+        # the snapshot is the fundamentals service's whichever source supplied the quarters
+        snap = [e for e in from_fmp if e["type"] == "financials_snapshot"]
+        assert snap[0]["source"] == "UCT Financials (yfinance)"
+
+        fallback = te._financials_evidence({
+            "quarterly": [row], "balance": {}, "metrics": {},
+            "sources": {"statements": "Yahoo Finance", "summary": "Yahoo Finance"}})
+        assert fallback[0]["source"] == "UCT Financials (yfinance)"
+        assert "calendar-quarter label -- may not match" in fallback[0]["date"]
+        assert "FMP" not in fallback[0]["source"]
 
     def test_financials_snapshot_from_balance_and_metrics(self):
         # Live-validation regression: fundamentals.py's `cash`/`total_debt`/
@@ -861,6 +888,38 @@ class TestNewEvidenceFormatters:
         thirteen_f_items = [e for e in out if e["type"] == "ownership_13f"]
         assert len(thirteen_f_items) == 1
         assert "45-day" in thirteen_f_items[0]["date"] or "45 days" in thirteen_f_items[0]["date"]
+
+    def test_ownership_evidence_names_the_source_of_the_institutional_percent(self):
+        own = {"institutional": {"state": "ok", "pct_held": 63.46, "quarter": "2026Q3"},
+              "short": {"state": "not_held", "shares_short": None, "settlement_date": None},
+              "share_counts": {}, "thirteen_f": None, "insider": []}
+        out = te._ownership_evidence(own)
+        snap = [e for e in out if e["type"] == "ownership_snapshot"]
+        assert len(snap) == 1
+        assert snap[0]["source"] == "FMP, via UCT Ownership (Form 13F)"
+        assert "63.46%" in snap[0]["text"] and "2026Q3" in snap[0]["date"]
+        # nothing held for short interest: no short evidence at all, never a zero
+        assert not [e for e in out if e["type"] == "ownership_short"]
+        assert "short" not in snap[0]["text"]
+
+    def test_ownership_evidence_dates_short_interest_by_its_settlement_date(self):
+        own = {"institutional": {}, "share_counts": {}, "thirteen_f": None, "insider": [],
+              "short": {"state": "ok", "shares_short": 50_000_000, "short_pct_float": 0.74,
+                        "days_to_cover": 1.85, "settlement_date": "2026-10-30"}}
+        out = te._ownership_evidence(own)
+        short = [e for e in out if e["type"] == "ownership_short"]
+        assert len(short) == 1
+        assert short[0]["source"] == "FINRA short interest through Massive, via UCT Ownership"
+        assert short[0]["date"].startswith("2026-10-30 (FINRA settlement date")
+        assert short[0]["text"] == "Short interest: 50,000,000 shares short, 0.74% of float, 1.85 days to cover."
+
+    def test_ownership_evidence_no_longer_names_the_old_source(self):
+        own = {"institutional": {"pct_held": 61.0, "quarter": "2026Q3"},
+              "short": {"shares_short": 1, "settlement_date": "2026-10-30"},
+              "share_counts": {"float_shares": 9.0, "shares_outstanding": 10.0, "_meta": None},
+              "thirteen_f": None, "insider": []}
+        for e in te._ownership_evidence(own):
+            assert "yfinance" not in e["source"] and "Yahoo" not in e["source"], e
 
     def test_ownership_evidence_formats_insider_activity_from_the_real_schema(self):
         own = {"institutional": {}, "short": {}, "share_counts": {}, "thirteen_f": None,

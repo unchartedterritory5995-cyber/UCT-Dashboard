@@ -879,10 +879,10 @@
    "key": "w1",
    "title": "Count the stocks, not the points",
    "steps": [
-    "Big indexes like the S&P 500 weight each stock by its market cap. The giants move the number most.",
-    "So an index can climb while more than half its stocks fall. A handful of big winners drags it up.",
+    "The S&P 500 weights every stock by its market cap. So the giants move the number most.",
+    "That means the index can climb while more than half its stocks fall. A handful of big winners drags it up.",
     "Breadth counts stocks instead. On the A/D line every stock gets one vote, big or small.",
-    "McClellan saw it all through 1999: a few big caps lifted the indexes while the A/D data showed the rest struggling."
+    "All through 1999 a few big caps carried the indexes. The A/D data showed the rest of the market struggling."
    ],
    "facts": [
     "f109",
@@ -899,10 +899,10 @@
    "key": "w2",
    "title": "Confirm or diverge",
    "steps": [
-    "Each day, take the stocks that rose minus the ones that fell. That's net advances. The A/D line keeps a running total.",
-    "When the A/D line makes new highs with the index, the rally is broad. That's healthy.",
-    "Index at a new high, A/D line below its last peak: fewer stocks are doing the lifting. That's a bearish divergence.",
-    "A condition, not a signal. In 2007 the NYSE A/D line peaked in June. The index still hit new highs in October."
+    "Stocks up minus stocks down is net advances. Keep a running total and that's the A/D line.",
+    "When the A/D line makes new highs with the index, the rally is broad. That's what you want to see.",
+    "Index at a new high, A/D line under its last peak. Fewer stocks are doing the lifting. That's a bearish divergence.",
+    "Not a sell signal. In 2007 the NYSE A/D line peaked in June. The index made new highs into October anyway."
    ],
    "facts": [
     "f02",
@@ -919,10 +919,10 @@
    "key": "w3",
    "title": "Three more gauges",
    "steps": [
-    "Percent above the 50-day: the share of stocks above their 50-day average. Over 50% leans bullish, under 50% leans bearish.",
-    "New highs vs new lows: more stocks at 52-week highs than at 52-week lows favors the bulls.",
-    "It lags at turns. In 2009 the NYSE Composite bottomed in early March; net new highs didn't top +100 until August.",
-    "The McClellan Oscillator is the 19-day EMA of net advances minus the 39-day EMA. Above zero, advancing stocks have the upper hand."
+    "Start with the share of stocks over their 50-day. Over 50% leans bullish, under 50% leans bearish.",
+    "Then new highs vs new lows. More stocks making 52-week highs than 52-week lows, the bulls have the edge.",
+    "That one's slow at turns. The NYSE Composite bottomed in early March 2009. Net new highs didn't top +100 until August.",
+    "Last, the McClellan Oscillator. A fast EMA of net advances, 19-day, minus a slow one, 39-day. Over zero, advancers are winning."
    ],
    "facts": [
     "f20",
@@ -946,7 +946,7 @@
    "rung": 1,
    "format": "mcq",
    "term": "market breadth",
-   "q": "What does market breadth measure?",
+   "q": "SPY is green, but most of your watchlist is red. Somebody calls it a breadth problem. What is breadth measuring?",
    "choices": [
     "How many stocks join a move",
     "How far the index moved today",
@@ -954,20 +954,21 @@
     "How much volume traded today"
    ],
    "answer": "How many stocks join a move",
-   "why": "How many stocks join a move. Breadth gauges count the number or share of stocks in a group that take part in a trend. It is not the index's point change. It is not market depth either, which is how much size trades without moving the price much. Some breadth gauges add volume, but the core count is stocks.",
+   "why": "How many stocks join the move. That's all breadth is. The index tells you how far it went. Breadth tells you how many came along. So a green SPY with a red watchlist isn't in your head. A few big gainers can carry the index while most stocks sit it out. Breadth isn't volume. Some gauges add volume, but the core is a count of stocks. And it isn't market depth either, which is how much size the market takes without moving the price.",
    "lesson_line": "The index tells you how far. Breadth tells you how many came along.",
    "facts": [
     "f01",
     "f51",
     "f56",
-    "f53"
+    "f53",
+    "f52"
    ],
    "wrong": {
     "How far the index moved today": "That's the index's change. Breadth asks how many stocks went with it.",
-    "How big an order the market absorbs": "That's market depth: how much size trades without moving the price much. A different idea.",
-    "How much volume traded today": "That's volume. Some breadth gauges add volume, but breadth itself counts the stocks taking part."
+    "How big an order the market absorbs": "That's market depth, how much size trades without moving the price much. Different idea.",
+    "How much volume traded today": "That's volume. Some breadth gauges add it, but breadth itself counts the stocks taking part."
    },
-   "simple": "Breadth measures how many stocks join a move, not how far the index moved.",
+   "simple": "Breadth counts how many stocks join a move. The index only tells you how far it went.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -975,16 +976,16 @@
      "stable definition; ChartSchool and Investopedia agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q02",
    "skill": "history.breadth",
    "rung": 1,
    "format": "tf",
-   "q": "An index can close higher on a day when most of its stocks close lower.",
+   "q": "The S&P 500 can close green on a day when most of its stocks close red.",
    "answer": "True",
-   "why": "True. The S&P 500 is weighted by float-adjusted market cap, and the Nasdaq-100 by market cap. The biggest companies move each index most. So a few giants with big gains can lift the index while more than half its stocks fall. The gain is real, but it is narrow, and breadth is how you see that.",
+   "why": "True, and it fools a lot of people. The S&P 500 is weighted by float-adjusted market cap. The biggest companies move it the most. So a handful of giants with big gains can lift the index while more than half its stocks fall. The gain is real. It's just narrow. That's why I never judge the market off the index alone. Check how many stocks actually went up, and check how your own names acted. In our app, the Breadth tab's Data Charts plot net advancers and the A/D line.",
    "lesson_line": "Green index, red stocks. It happens, and breadth is how you catch it.",
    "facts": [
     "f52",
@@ -996,7 +997,7 @@
     "f105",
     "f106"
    ],
-   "simple": "True, because big companies move a weighted index most, so a few big gainers can lift it while most stocks fall.",
+   "simple": "True. The biggest companies move a weighted index the most, so a few big gainers can lift it while most stocks fall.",
    "deeper": {
     "example": "Tom McClellan says that all through 1999 a few big cap stocks pushed the indexes higher. Meanwhile the advance-decline data showed the rest of the market struggling to breathe. The index looked healthy. The average stock did not."
    },
@@ -1007,7 +1008,7 @@
      "fixed before (a second publisher added)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q03",
@@ -1015,7 +1016,7 @@
    "rung": 2,
    "format": "mcq",
    "term": "A/D line",
-   "q": "What is the A/D line?",
+   "q": "Breadth tab, Data Charts. You pull up the A/D Line next to the index. What is that line actually adding up?",
    "choices": [
     "A running total of net advances",
     "Up volume minus down volume",
@@ -1023,7 +1024,7 @@
     "The index minus its 50-day average"
    ],
    "answer": "A running total of net advances",
-   "why": "A running total of net advances. Net advances are the stocks that rose minus the ones that fell that day. Each day's figure is added to the prior total, so a positive day lifts the line and a negative day lowers it. It counts stocks, not shares, volume or index points.",
+   "why": "Net advances, added up day after day. Each day you take the stocks that rose minus the stocks that fell. That's net advances. Add it to yesterday's total and you get today's A/D line. More stocks up than down, the line rises. More down than up, it falls. It counts stocks, not shares, volume or index points. That's the whole point. It shows you what the average stock is doing, the part the index can hide.",
    "lesson_line": "Net advances are one day. The A/D line is every day added up.",
    "facts": [
     "f02",
@@ -1039,9 +1040,9 @@
    "wrong": {
     "Up volume minus down volume": "That's an up/down volume spread, a volume gauge. The A/D line counts stocks, not shares.",
     "The index minus its 50-day average": "That's a price reading on one chart. The A/D line counts how many stocks rose and fell.",
-    "New 52-week highs minus new lows": "That's net new highs, a different breadth gauge."
+    "New 52-week highs minus new lows": "That's net new highs. Useful, but a different breadth gauge."
    },
-   "simple": "The advance-decline line is a running total that adds each day's rising stocks minus falling stocks.",
+   "simple": "It's a running total. Each day adds the stocks that rose minus the stocks that fell.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1049,14 +1050,14 @@
      "stable definition; ChartSchool, Investopedia and McClellan agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "history.breadth",
    "rung": 2,
    "format": "mcq",
-   "q": "A $2 trillion company and a $2 billion company both close up today. How does each count on the A/D line?",
+   "q": "A $2 trillion giant and a $2 billion name both close green today. How much does each one count on the A/D line?",
    "choices": [
     "The same: one advance each",
     "The giant counts for far more",
@@ -1064,7 +1065,7 @@
     "By how many shares each traded"
    ],
    "answer": "The same: one advance each",
-   "why": "The same: one advance each. On the A/D line an advance counts +1 and a decline counts -1, whatever the stock's market cap or volume. The size of the gain does not matter either. A cap-weighted index works the other way: the bigger the company, the more it moves the index.",
+   "why": "The same, one advance each. On the A/D line every stock that rises counts +1 and every stock that falls counts -1. Size doesn't matter. Volume doesn't matter. How far it moved doesn't matter. The $2 trillion giant gets one vote, same as the $2 billion name. A cap-weighted index works the other way, where the giant moves the number far more. That's exactly why I look at both. The index shows you the giants. The A/D line shows you everybody else.",
    "lesson_line": "On the A/D line, every stock gets one vote.",
    "facts": [
     "f18",
@@ -1077,7 +1078,7 @@
     "By how much each one rose": "A tiny gain and a huge gain both count as one advance.",
     "By how many shares each traded": "Volume doesn't enter the A/D line. Volume-based breadth gauges are separate tools."
    },
-   "simple": "Each counts as one advance, because the advance-decline line gives every stock one vote whatever its size.",
+   "simple": "One advance each. The advance-decline line gives every stock one vote, whatever its size.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1085,7 +1086,7 @@
      "stable definition; three publishers agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -1125,9 +1126,9 @@
    "skill": "history.breadth",
    "rung": 3,
    "format": "tf",
-   "q": "On the A/D line, the actual number matters more than its shape and direction.",
+   "q": "Two A/D line charts of the same market show very different numbers. One of them must be wrong.",
    "answer": "False",
-   "why": "False. The A/D line's value depends on the day the count starts. So two charts of the same market can show very different numbers. ChartSchool says the shape and direction matter, not the value. McClellan says the scale only reflects the chosen start point. Compare its highs and lows with the index's.",
+   "why": "False. Both can be right. The A/D line is a running total, so its number depends on the day the count started. Start the count in a different year and you get a different number. That's why the level tells you almost nothing. What you read is the shape and direction. Check whether it's making new highs with the index or lagging behind. Put its highs and lows next to the index's highs and lows. That's the read.",
    "lesson_line": "Read the A/D line's trend, its highs and its lows. Ignore its level.",
    "facts": [
     "f05",
@@ -1136,7 +1137,7 @@
     "f07",
     "f08"
    ],
-   "simple": "False, because the line's number depends on the day you start counting, so read its shape and direction.",
+   "simple": "False. The number depends on the day the count started, so you read the line's shape and direction instead.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -1144,7 +1145,7 @@
      "fixed before (credits each source correctly)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q07",
@@ -1152,7 +1153,7 @@
    "rung": 3,
    "format": "mcq",
    "term": "Bearish divergence",
-   "q": "The index makes a higher high. The A/D line makes a lower high. What is this called?",
+   "q": "This week SPY makes a higher high, but the A/D line under it makes a lower high. What do you call that?",
    "choices": [
     "Bearish divergence",
     "Bullish divergence",
@@ -1160,7 +1161,7 @@
     "Breadth thrust"
    ],
    "answer": "Bearish divergence",
-   "why": "Bearish divergence. The index makes a higher high, but the A/D line makes a lower high, so fewer stocks are carrying the move. That is narrowing participation. It is a condition, not a signal: a warning about the rally's health, not a sell order on its own.",
+   "why": "A bearish divergence. Price went higher, but fewer stocks came with it. That's narrowing participation, a rally leaning on fewer and fewer names. I treat it as a warning about the rally's health. It's not a sell order on its own. A divergence is a condition, not a signal. So I note it, I get pickier on new buys, and I watch price for a break of its trendline or support.",
    "lesson_line": "Higher high in price, lower high in breadth: fewer stocks are carrying it.",
    "facts": [
     "f60",
@@ -1170,14 +1171,15 @@
     "f97",
     "f07",
     "f10",
-    "f47"
+    "f47",
+    "f75"
    ],
    "wrong": {
-    "Bullish divergence": "That's the mirror image at a low: the index makes a lower low and the A/D line a higher low.",
+    "Bullish divergence": "That's the mirror image at a low. The index makes a lower low and the A/D line a higher low.",
     "Breadth confirmation": "Confirmation is the A/D line making new highs with the index. Here it fell short.",
-    "Breadth thrust": "A thrust is a fast surge in advancing stocks, usually off a low. Nothing here is surging."
+    "Breadth thrust": "A thrust is a fast surge in advancing stocks, mostly off a low. Nothing here is surging."
    },
-   "simple": "Bearish divergence, because the index is rising while fewer stocks rise with it.",
+   "simple": "A bearish divergence. The index went higher while fewer stocks went with it.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1185,7 +1187,7 @@
      "stable definition; ChartSchool, Investopedia and Fidelity agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -1193,7 +1195,7 @@
    "rung": 3,
    "format": "mcq",
    "term": "McClellan Oscillator",
-   "q": "What is the McClellan Oscillator built from?",
+   "q": "You add the McClellan Osc to your breadth charts and it looks a lot like MACD. What's it built from?",
    "choices": [
     "Two averages of net advances",
     "Two averages of the index price",
@@ -1201,7 +1203,7 @@
     "Up volume divided by down volume"
    ],
    "answer": "Two averages of net advances",
-   "why": "Two averages of net advances. It is the 19-day EMA of net advances minus the 39-day EMA. So it works like MACD, but on breadth instead of price. It is positive when the 19-day EMA is above the 39-day. Sherman and Marian McClellan created it in 1969.",
+   "why": "Two averages of net advances. Take the 19-day EMA of net advances and subtract the 39-day EMA. That's the whole oscillator. So it's MACD, just run on breadth instead of price. Above zero, the fast average is over the slow one, and advancing stocks have the upper hand. Below zero, decliners do. Sherman and Marian McClellan built it in 1969. In our app it's on the Breadth tab under Data Charts.",
    "lesson_line": "The McClellan Oscillator is momentum for breadth, not for price.",
    "facts": [
     "f44",
@@ -1213,11 +1215,11 @@
     "f31"
    ],
    "wrong": {
-    "Two averages of the index price": "That's MACD on price. The McClellan Oscillator works like MACD, but on net advances.",
+    "Two averages of the index price": "That's MACD on price. The McClellan Oscillator does the same thing on net advances.",
     "New highs minus new lows": "That's net new highs, a separate breadth gauge.",
     "Up volume divided by down volume": "That's a volume ratio. The McClellan Oscillator counts advancing and declining stocks."
    },
-   "simple": "It is built from net advances, as a fast average of them minus a slow average.",
+   "simple": "Net advances. It's a fast average of them minus a slow average, like MACD for breadth.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1225,14 +1227,14 @@
      "stable definition; ChartSchool, Investopedia and McClellan agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q09",
    "skill": "history.breadth",
    "rung": 4,
    "format": "mcq",
-   "q": "On the NYSE today, 2,140 stocks rose and 1,060 fell. What were net advances?",
+   "q": "End of day on the NYSE: 2,140 stocks up, 1,060 down. What were net advances?",
    "answer": "1,080",
    "calc": {
     "fn": "arith",
@@ -1242,14 +1244,14 @@
      "dec": 1060
     }
    },
-   "why": "1,080. Net advances are advancing stocks minus declining stocks: 2,140 minus 1,060. The number is positive, so today adds 1,080 to the A/D line's running total. A day with more decliners than advancers would subtract instead.",
+   "why": "1,080. Advancers minus decliners: 2,140 minus 1,060 is 1,080. It's positive, so today adds 1,080 to the A/D line. That's a healthy day under the hood, with about twice as many stocks up as down. Run this at the close and you know whether the index's move had company. A day with more decliners than advancers subtracts instead.",
    "lesson_line": "More stocks up than down, the A/D line rises. More down than up, it falls.",
    "facts": [
     "f02",
     "f03",
     "f58"
    ],
-   "simple": "It is 1,080, because net advances are the stocks that rose minus the stocks that fell.",
+   "simple": "Net advances are the stocks that rose minus the stocks that fell, so 1,080.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1257,7 +1259,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "3,200",
     "2,140",
@@ -1265,9 +1267,9 @@
     "1,080"
    ],
    "wrong": {
-    "3,200": "Added the two counts instead of subtracting.",
-    "-1,080": "Subtracted in the wrong order, advances from decliners.",
-    "2,140": "Counted only the advancing stocks."
+    "3,200": "You added the two counts. Net advances subtract the decliners.",
+    "-1,080": "Right size, wrong order. It's advancers minus decliners, not the other way.",
+    "2,140": "That's only the advancers. You still have to take away the 1,060 that fell."
    },
    "visual": {
     "kind": "size",
@@ -1297,18 +1299,18 @@
    "skill": "history.breadth",
    "rung": 4,
    "format": "mcq",
-   "q": "The A/D line read 15,200 yesterday. Today 1,250 stocks rose and 1,900 fell. Where does the A/D line stand now?",
+   "q": "Yesterday the A/D line closed at 15,200. Today 1,250 stocks rose and 1,900 fell. Where's the line now?",
    "answer": "14,550",
    "calc": {
     "fn": "arith",
     "args": {
-     "expr": "prior + adv - dec",
+     "expr": "prior + (adv - dec)",
      "prior": 15200,
      "adv": 1250,
      "dec": 1900
     }
    },
-   "why": "14,550. Today's line is yesterday's value plus today's net advances. Net advances were 1,250 minus 1,900, a negative number, so the line falls from 15,200 to 14,550. The level itself means little, since it depends on the start date. Its direction is what you read.",
+   "why": "14,550. Start with today's net advances: 1,250 minus 1,900 is -650. More stocks fell than rose, so the line goes down. 15,200 plus -650 is 14,550. Don't get hung up on the level itself. It depends on when the count started. What you read is the direction, and today it's down.",
    "lesson_line": "Yesterday's line plus today's net advances. That's the whole math.",
    "facts": [
     "f04",
@@ -1317,7 +1319,7 @@
     "f05",
     "f06"
    ],
-   "simple": "It is 14,550, because more stocks fell than rose, so the line drops from 15,200 by that gap.",
+   "simple": "More stocks fell than rose, so today's net advances are negative. They come off yesterday's 15,200, and the line drops.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1325,7 +1327,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "15,850",
     "13,300",
@@ -1333,9 +1335,9 @@
     "18,350"
    ],
    "wrong": {
-    "15,850": "Added the fall when it should be subtracted.",
-    "13,300": "Subtracted only the decliners and ignored the advancers.",
-    "18,350": "Added both counts to the old value."
+    "15,850": "You added the gap when more stocks fell. A down day pulls the line lower.",
+    "13,300": "You took away the decliners but forgot to add the advancers.",
+    "18,350": "You added both counts. The decliners come off, they don't add on."
    },
    "visual": {
     "kind": "size",
@@ -1371,9 +1373,9 @@
    "skill": "history.breadth",
    "rung": 4,
    "format": "tf",
-   "q": "The NYSE A/D line mostly tells you how the biggest companies are doing.",
+   "q": "The NYSE A/D line mostly shows you how the market's biggest companies are doing.",
    "answer": "False",
-   "why": "False. On the A/D line every stock counts +1 or -1, whatever its size. Most of the thousands of stocks that trade each day are small and mid caps, and relatively few are large caps. So the A/D line tracks the average stock, not the biggest companies.",
+   "why": "False. It's the other way around. Every stock counts +1 or -1 on the A/D line, whatever its size. And most of the thousands of stocks trading each day are small and mid caps. Relatively few are large caps. So the A/D line tracks the average stock. That's what makes it useful next to the index. The index shows you the giants. The A/D line shows you everyone else, and when the two split, I want to know.",
    "lesson_line": "The index shows the giants. The A/D line shows the average stock.",
    "facts": [
     "f16",
@@ -1381,7 +1383,7 @@
     "f64",
     "f18"
    ],
-   "simple": "False, because every stock counts the same and most stocks are small and mid caps, not giants.",
+   "simple": "False. Every stock counts the same and most stocks are small and mid caps, so it tracks the average stock.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1389,16 +1391,16 @@
      "stable definition; ChartSchool and Investopedia agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q12",
    "skill": "history.breadth",
    "rung": 4,
    "format": "tf",
-   "q": "The share of stocks above their 50-day average swings more than the share above their 200-day.",
+   "q": "On the Breadth tab, % Above 50SMA swings around a lot more than % Above 200SMA.",
    "answer": "True",
-   "why": "True. ChartSchool says the share above the 50-day is more volatile and crosses the 50% line more often. Investopedia calls the 50-day version the more sensitive gauge for short-term traders. For the medium to long-term trend, ChartSchool looks at the 150-day and 200-day versions.",
+   "why": "True. The 50-day is the faster average, so stocks cross it all the time. That makes % Above 50SMA jumpy, and it crosses the 50% line more often. % Above 200SMA moves slowly, because stocks don't cross the 200-day much. I use them for different jobs. The 50-day version is the swing read, the early warning. The 200-day version tells me about the big trend.",
    "lesson_line": "50-day breadth for the swing, 200-day breadth for the big trend.",
    "facts": [
     "f24",
@@ -1406,7 +1408,7 @@
     "f21",
     "f57"
    ],
-   "simple": "True, because the 50-day version reacts faster and crosses its middle line more often than the 200-day one.",
+   "simple": "True. Stocks cross the 50-day more often than the 200-day, so the 50-day share moves faster.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1414,14 +1416,17 @@
      "stable; ChartSchool and Investopedia agree"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "ChartSchool says the 50-day version is more volatile and crosses the 50% line more often. For the medium to long-term trend it points to the 150-day and 200-day versions. Investopedia calls the 50-day version the more sensitive gauge for short-term traders."
+   }
   },
   {
    "key": "q13",
    "skill": "history.breadth",
    "rung": 4,
    "format": "mcq",
-   "q": "In a 500-stock index, 120 stocks close above their 50-day average. What percent of the index is that?",
+   "q": "In a 500-stock index, 120 names close above their 50-day today. What should % Above 50SMA read?",
    "answer": "24%",
    "calc": {
     "fn": "arith",
@@ -1432,7 +1437,7 @@
     }
    },
    "suffix": "%",
-   "why": "24%. Divide the stocks above their 50-day average by all stocks in the index: 120 out of 500, times 100. Under 50% gives breadth a bearish bias, because fewer than half the stocks are above that average. It is a bias, not a trade signal on its own.",
+   "why": "24%. 120 divided by 500 is 0.24. Times 100, that's 24%. Under 50% means fewer than half the stocks are above their 50-day, and that gives breadth a bearish bias. More than three out of four names are below it. It's a bias, not a trade signal. What it tells me is to be choosy, and to let my own setups prove themselves.",
    "lesson_line": "Over 50% above the 50-day leans bullish. Under 50% leans bearish.",
    "facts": [
     "f22",
@@ -1440,7 +1445,7 @@
     "f42",
     "f73"
    ],
-   "simple": "It is 24%, because 120 of the 500 stocks are above their average, and under half leans bearish.",
+   "simple": "120 of 500 is 24%. With fewer than half above the 50-day, breadth leans bearish.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1448,7 +1453,7 @@
      "computed key"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "76%",
     "32%",
@@ -1456,9 +1461,9 @@
     "24%"
    ],
    "wrong": {
-    "76%": "Counted the stocks below the average.",
-    "417%": "Divided total by the stocks above, flipping the ratio.",
-    "32%": "Divided by the stocks below the average, not all 500."
+    "76%": "That's the share below the 50-day. You counted the wrong side.",
+    "417%": "You flipped it, the total over the stocks above. That's not a share of anything.",
+    "32%": "You divided by the stocks below the average. Divide by all 500."
    }
   },
   {
@@ -1466,7 +1471,7 @@
    "skill": "history.breadth",
    "rung": 5,
    "format": "mcq",
-   "q": "Today 60 stocks hit new 52-week highs and 140 hit new 52-week lows. What percent of that total are new highs?",
+   "q": "New Highs vs Lows today: 60 new 52-week highs, 140 new 52-week lows. What share of the total are new highs?",
    "answer": "30%",
    "calc": {
     "fn": "arith",
@@ -1477,7 +1482,7 @@
     }
    },
    "suffix": "%",
-   "why": "30%. Record High Percent is new highs divided by new highs plus new lows, times 100: 60 over 60 plus 140. Below 50, new lows outnumber new highs, and more new lows than new highs favors the bears. Above 50, new highs outnumber new lows.",
+   "why": "30%. Add them up first: 60 plus 140 is 200. Then 60 over 200 is 0.3, and times 100 that's 30%. That number is called Record High Percent. Under 50, new lows outnumber new highs, and that leans bearish. Think about what it means at the screen. More stocks are breaking down to yearly lows than breaking out to yearly highs. That's a tough place to be buying breakouts.",
    "lesson_line": "Below 50, new lows rule the day. That leans bearish.",
    "facts": [
     "f38",
@@ -1487,7 +1492,7 @@
     "f71",
     "f33"
    ],
-   "simple": "It is 30%: new highs divided by all new highs and lows, so new lows outnumber new highs, which leans bearish.",
+   "simple": "New highs are 30% of the total. Under half means new lows are winning, and that leans bearish.",
    "deeper": {
     "trap": "One day's Record High Percent is a single reading. The High-Low Index is a 10-day moving average of it. In a strong trend that index can give extreme readings for a long time. So a low reading alone does not say a bottom is near."
    },
@@ -1498,7 +1503,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "43%",
     "70%",
@@ -1506,9 +1511,9 @@
     "30%"
    ],
    "wrong": {
-    "43%": "Divided new highs by new lows, leaving out the highs in the total.",
-    "70%": "Gave the new lows' share, not the new highs'.",
-    "233%": "Flipped the ratio: new lows over new highs."
+    "43%": "You divided new highs by new lows. Divide by the total, highs plus lows.",
+    "70%": "That's the new lows' share. The question asks for the new highs.",
+    "233%": "You flipped it, new lows over new highs. That's not a share of anything."
    },
    "visual": {
     "kind": "size",
@@ -1538,7 +1543,7 @@
    "skill": "history.breadth",
    "rung": 5,
    "format": "mcq",
-   "q": "The 19-day EMA of net advances is +150. The 39-day EMA is +60. What is the McClellan Oscillator?",
+   "q": "Net advances: the 19-day EMA sits at +150 and the 39-day EMA at +60. Where's the McClellan Oscillator?",
    "answer": "90",
    "calc": {
     "fn": "arith",
@@ -1548,7 +1553,7 @@
      "ema39": 60
     }
    },
-   "why": "90. The McClellan Oscillator is the 19-day EMA of net advances minus the 39-day EMA: 150 minus 60. It is positive, so advancing stocks have the upper hand. It is a momentum gauge like MACD and gives false signals, so confirm it with price.",
+   "why": "90. Fast minus slow: 150 minus 60 is 90. Above zero means the 19-day is over the 39-day, so advancing stocks have the upper hand right now. Good to know, but don't trade it alone. It's a jumpy momentum gauge like MACD, and it throws false signals. I use it to read the backdrop. Then price on my own names makes the call.",
    "lesson_line": "Above zero, breadth momentum favors the bulls. Below zero, the bears.",
    "facts": [
     "f44",
@@ -1557,7 +1562,7 @@
     "f45",
     "f68"
    ],
-   "simple": "It is 90, because the oscillator is the 19-day average minus the 39-day average of net advances.",
+   "simple": "Subtract the slow average from the fast one. 150 minus 60 is 90, and above zero favors the bulls.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1565,7 +1570,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "210",
     "-90",
@@ -1573,9 +1578,9 @@
     "90"
    ],
    "wrong": {
-    "210": "Added the two averages instead of subtracting.",
-    "-90": "Subtracted in the wrong order.",
-    "2.5": "Divided the two averages instead of subtracting."
+    "210": "You added the two averages. The oscillator is fast minus slow.",
+    "-90": "Right size, wrong order. It's the 19-day minus the 39-day.",
+    "2.5": "You divided them. The oscillator subtracts."
    },
    "visual": {
     "kind": "size",
@@ -1606,15 +1611,15 @@
    "rung": 5,
    "format": "scenario",
    "story": "The S&P 500 closes at a record high. Its A/D line is still below the peak it set two months ago. The share of its stocks above their 50-day average is lower than at that peak.",
-   "q": "What is breadth telling you?",
+   "q": "SPX just printed a record close. What's breadth telling you here?",
    "choices": [
     "Fewer stocks are carrying the rally",
     "Breadth confirms the new record high",
     "The top is in, so get out now",
-    "Little; the index price is what counts"
+    "Not much, only price counts"
    ],
    "answer": "Fewer stocks are carrying the rally",
-   "why": "Fewer stocks are carrying the rally. The index made a record high, but the A/D line stayed below its last peak. That is a bearish divergence: narrowing participation. It is a condition, not a signal. Many bullish new highs can come before the last one, so watch price for a break of its trendline or support.",
+   "why": "Fewer stocks are carrying it. The index made a record, but the A/D line is still under its peak from two months ago. Fewer stocks are above their 50-day than back then, too. Price is up, participation is down. That's a bearish divergence. It's a warning, not a sell signal. A lot of bullish new highs can pile up before the last one. So I don't dump everything. I get pickier on new buys and watch the index for a break of its trendline or support.",
    "lesson_line": "A new high on fewer stocks is a warning. Price still has to confirm it.",
    "facts": [
     "f08",
@@ -1628,11 +1633,11 @@
     "f96"
    ],
    "wrong": {
-    "Breadth confirms the new record high": "Confirmation needs the A/D line at a new high too. It's still below its last peak.",
-    "The top is in, so get out now": "A divergence is a condition, not a signal. A lot of bullish new highs can come before the last one, so watch price for a break of support.",
-    "Little; the index price is what counts": "A cap-weighted index can rise on a few giants while most stocks fall. Breadth shows whether the rest are coming along, and here fewer are."
+    "Breadth confirms the new record high": "Confirmation needs the A/D line at a new high too. It's still under its last peak.",
+    "The top is in, so get out now": "A divergence is a warning, not a sell signal. A lot of bullish new highs can come before the last one.",
+    "Not much, only price counts": "A cap-weighted index can climb on a few giants while most stocks lag. Breadth shows you whether the rest are coming along, and here fewer are."
    },
-   "simple": "Fewer stocks are carrying the rally, because the index made a new high while the advance-decline line did not.",
+   "simple": "Fewer stocks are carrying the rally. The index hit a record, but the advance-decline line didn't.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1640,7 +1645,7 @@
      "fixed before (a strawman choice)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
@@ -1648,15 +1653,15 @@
    "rung": 6,
    "format": "scenario",
    "story": "The index breaks below last month's low. This time the A/D line holds above its own low from last month.",
-   "q": "What's the best read?",
+   "q": "The index just undercut last month's low. How do you read what breadth did?",
    "choices": [
-    "Fewer stocks falling; watch price",
-    "Selling is spreading; watch price",
+    "Fewer stocks falling, watch price",
+    "Selling is spreading, watch price",
     "The bottom is in, so buy with size",
-    "A bearish divergence; expect more lows"
+    "Bearish divergence, more lows ahead"
    ],
-   "answer": "Fewer stocks falling; watch price",
-   "why": "Fewer stocks falling; watch price. The index made a lower low, but the A/D line held above its own prior low. That is a bullish divergence: fewer stocks are declining, and the decline may be nearing an end. It is not a buy signal on its own. Confirm it with price.",
+   "answer": "Fewer stocks falling, watch price",
+   "why": "Fewer stocks are falling, so watch price. The index made a lower low, but the A/D line held above its own low. That's a bullish divergence. Under the surface the selling is drying up, and sellers may be losing conviction. It's a clue the drop may be nearing an end. It's not a buy signal. I want price to confirm it first, with the index reversing and reclaiming that low. Then I start small, with the leaders that held up best.",
    "lesson_line": "Breadth can show the selling drying up. It is a clue, not a buy signal.",
    "facts": [
     "f10",
@@ -1665,11 +1670,11 @@
     "f50"
    ],
    "wrong": {
-    "The bottom is in, so buy with size": "A bullish divergence says the decline may be ending. It isn't a buy signal on its own.",
-    "Selling is spreading; watch price": "Spreading selling would drag the A/D line to a new low too. It held above its last low, so fewer stocks are falling.",
-    "A bearish divergence; expect more lows": "It's the other way round. The index made the lower low and the A/D line didn't. That's a bullish divergence: fewer stocks are falling."
+    "The bottom is in, so buy with size": "A bullish divergence says the drop may be ending. It's not a buy signal on its own, and it's never a reason to size up.",
+    "Selling is spreading, watch price": "Spreading selling would drag the A/D line to a new low too. It held above its last low, so fewer stocks are falling.",
+    "Bearish divergence, more lows ahead": "Other way round. The index made the lower low and the A/D line didn't. That's a bullish divergence."
    },
-   "simple": "Fewer stocks are falling with the index, which is a bullish divergence, but wait for price to confirm the turn.",
+   "simple": "Fewer stocks are falling with the index. That's a bullish divergence, but let price confirm the turn first.",
    "tier": "extended",
    "risk": {
     "score": 1,
@@ -1677,14 +1682,14 @@
      "fixed before (a strawman choice; the short choice replaced by a mixed-up divergence)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "history.breadth",
    "rung": 6,
    "format": "mcq",
-   "q": "The McClellan Oscillator jumps from -75 to +60 within a week. How many points did it climb?",
+   "q": "After a hard selloff, the McClellan Osc goes from -75 to +60 in a week. How big a swing is that?",
    "answer": "135",
    "calc": {
     "fn": "arith",
@@ -1694,14 +1699,14 @@
      "end": 60
     }
    },
-   "why": "135 points. The climb is end minus start: 60 minus -75 is 135. On the McClellan Oscillator, a large move from negative to positive, typically 100 points or more, is called a breadth thrust. ChartSchool's typical thrust runs from below -50 to above +50. Not every thrust leads to an extended advance, but most important lows show a sharp surge in breadth.",
+   "why": "135 points. End minus start: 60 minus -75 is 135. A swing that big, from below zero to above it, is what people call a breadth thrust. One common version runs from below -50 to above +50, a 100-point surge. That's a lot of stocks turning up at once. Not every thrust starts a big run. But most important lows show a sharp surge in breadth like this. When I see one, I'm going through my watchlist for leaders setting up.",
    "lesson_line": "Most important lows show a sharp surge in breadth. Not every surge starts a big run.",
    "facts": [
     "f47",
     "f66",
     "f48"
    ],
-   "simple": "It climbed 135 points, from below zero to above it, the size of move typically called a breadth thrust.",
+   "simple": "It climbed 135 points, from below zero to above it. A swing that size is called a breadth thrust.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1710,7 +1715,7 @@
      "fixed before (restored 'typically'; named the McClellan version)"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "15",
     "135",
@@ -1718,9 +1723,9 @@
     "75"
    ],
    "wrong": {
-    "-135": "Reversed the direction of the move.",
-    "15": "Subtracted 75 from 60 and ignored the sign.",
-    "75": "Counted only the climb up to zero."
+    "-135": "Right size, wrong direction. It went up, so the swing is positive.",
+    "15": "You took 60 from 75 and dropped the minus sign. Below zero to above zero adds up.",
+    "75": "That only gets you back to zero. It kept going to +60."
    },
    "visual": {
     "kind": "size",
@@ -1751,7 +1756,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "After a sharp drop, only 12% of S&P 500 stocks are above their 50-day average. That share is still falling, and the index keeps making lower lows.",
-   "q": "What does this breadth reading tell you?",
+   "q": "Only 12% of S&P 500 stocks are above their 50-day, and that share is still falling. What's that telling you?",
    "choices": [
     "Deeply oversold, with no upturn yet",
     "Oversold, so the drop is ending",
@@ -1759,7 +1764,7 @@
     "Breadth only matters at tops"
    ],
    "answer": "Deeply oversold, with no upturn yet",
-   "why": "Deeply oversold, with no upturn yet. ChartSchool counts below 30% above the 50-day as oversold, and says levels vary by index. But oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times. ChartSchool waits for an upturn from oversold levels.",
+   "why": "Deeply oversold, and no upturn yet. Under 30% above the 50-day is a common oversold line, and 12% is way under it. But oversold is a place, not a turn. In a strong downtrend this gauge can go oversold again and again. Here the share is still falling while the index makes lower lows. So I'm not buying just because it's low. I wait for the upturn, breadth turning up and price holding, before I get involved.",
    "lesson_line": "Oversold tells you where breadth is, not when it turns.",
    "facts": [
     "f25",
@@ -1770,11 +1775,11 @@
     "f55"
    ],
    "wrong": {
-    "Oversold, so the drop is ending": "Oversold alone is not always a buy signal. In a strong downtrend this gauge can go oversold many times, and this share is still falling.",
-    "A bullish divergence is forming": "In a bullish divergence, the A/D line holds above its low as the index makes a lower low. Here breadth is still falling.",
-    "Breadth only matters at tops": "Breadth matters at lows too. ChartSchool reads oversold levels and waits for an upturn from them."
+    "Oversold, so the drop is ending": "Oversold alone isn't a buy signal. In a strong downtrend this gauge can go oversold again and again, and this share is still falling.",
+    "A bullish divergence is forming": "A bullish divergence needs breadth holding up while the index makes a lower low. Here breadth is still falling with it.",
+    "Breadth only matters at tops": "Breadth matters at lows too. You read the oversold level and wait for the upturn from it."
    },
-   "simple": "It is deeply oversold, but no upturn has come, and oversold alone is not always a buy signal.",
+   "simple": "Deeply oversold, but still falling. Oversold isn't a buy signal by itself, so wait for it to turn up.",
    "deeper": {
     "trap": "Oversold is a place, not a turn. In ChartSchool's downtrend example, oversold readings were ignored and overbought bounces were used as selling alerts. The gauge can sit below 30% again and again. The clue to watch for is an upturn from oversold."
    },
@@ -1786,7 +1791,7 @@
      "reframed in the final check as a breadth read, not a plan: our rule (B18, F68) decides when we buy, as q27 teaches"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
@@ -1794,7 +1799,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "Early June 2007: the NYSE A/D line peaks. The NYSE Composite still makes new highs in July and October. Then the 2008 bear market begins.",
-   "q": "What does this case teach about breadth divergences?",
+   "q": "Look at 2007 on this chart. What does it teach you about breadth divergences?",
    "choices": [
     "They can warn months before a top",
     "They can time the top to the week",
@@ -1802,7 +1807,7 @@
     "They prove the index's highs were fake"
    ],
    "answer": "They can warn months before a top",
-   "why": "They can warn months before a top. The NYSE A/D line peaked in early June 2007. McClellan dates it to June 4, just over 4 months before the Dow's final top. The NYSE Composite still made new highs in July and October. So a divergence is a warning with no clock: breadth gauges are poor timing tools.",
+   "why": "They can warn months early. The NYSE A/D line peaked on June 4, 2007. That's just over 4 months before the Dow's final top. The NYSE Composite still made new highs in July and again in October. So the warning was right, but early. Sell everything in June and you'd have sat in cash through new highs for months. That's why I treat a divergence as a warning with no clock on it. Breadth gives the bias. Price gives the timing, and here that was the January support break.",
    "lesson_line": "A divergence is a warning with no clock on it. Price tells you when.",
    "facts": [
     "f11",
@@ -1815,10 +1820,10 @@
    ],
    "wrong": {
     "They only show up after the top": "Here breadth turned first, months before the index did.",
-    "They can time the top to the week": "The A/D line peaked just over 4 months before the Dow's final top. Breadth gauges are poor timing tools.",
-    "They prove the index's highs were fake": "The NYSE Composite really made new highs in July and October. A divergence says fewer stocks took part, not that the highs were false."
+    "They can time the top to the week": "The A/D line peaked just over 4 months before the Dow's final top. Breadth is a poor timing tool.",
+    "They prove the index's highs were fake": "The NYSE Composite really did make new highs in July and October. A divergence says fewer stocks took part, not that the highs were false."
    },
-   "simple": "They can warn months early, because the line peaked in June 2007, months before the index topped.",
+   "simple": "They can warn months early. The advance-decline line peaked in June 2007, well before the index topped.",
    "deeper": {
     "trap": "The warning came early, and the index kept making new highs for months after it. Anyone who shorted in June 2007 faced an index that still made new highs in July and October. Breadth gave the bias. The January support break gave the price signal."
    },
@@ -1829,7 +1834,7 @@
      "fixed before (the story now names the 2008 bear market)"
     ]
    },
-   "batch": "history-charts-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SPY",
     "asof": "2007-10-31",
@@ -1843,15 +1848,15 @@
    "rung": 7,
    "format": "scenario",
    "story": "The index has been in an uptrend all year. The share of its stocks above their 50-day average has topped 70% several times.",
-   "q": "What do those repeated high readings tell you?",
+   "q": "This index has topped 70% above the 50-day several times this year. How do you read that?",
    "choices": [
     "A sign of strength, not weakness",
     "It's overbought, so go short",
     "The uptrend is about to end",
-    "Strength that rules out dips"
+    "A sign the rally is too narrow"
    ],
    "answer": "A sign of strength, not weakness",
-   "why": "A sign of strength, not weakness. ChartSchool calls readings above 70% overbought, but in a strong uptrend this gauge can go overbought again and again. It reads multiple overbought readings as strength. In its uptrend example, overbought readings were ignored and oversold dips were the buying chances.",
+   "why": "Strength, not weakness. Over 70% gets called overbought, and that word makes people want to sell. But in a strong uptrend this gauge goes overbought again and again. Repeated overbought readings are what a healthy market looks like. The play there isn't shorting the highs. It's buying the dips, when the share pulls back and your leaders set up. The real warning would be the index making new highs on fewer stocks.",
    "lesson_line": "In an uptrend, repeated overbought breadth is strength, not a sell signal.",
    "facts": [
     "f28",
@@ -1865,11 +1870,11 @@
     "f08"
    ],
    "wrong": {
-    "It's overbought, so go short": "In ChartSchool's uptrend example, overbought readings were ignored. Shorting strength fights the trend.",
+    "It's overbought, so go short": "In a strong uptrend overbought readings get ignored. Shorting strength fights the trend.",
     "The uptrend is about to end": "In a strong uptrend this gauge can go overbought again and again. A high reading alone doesn't end a trend.",
-    "Strength that rules out dips": "Even in ChartSchool's uptrend example the gauge went oversold, and those dips were used as buying chances."
+    "A sign the rally is too narrow": "Other way round. Narrow is a few stocks carrying the index. Over 70% above the 50-day means most stocks are in it."
    },
-   "simple": "It is a sign of strength, because in a strong uptrend this gauge can go overbought again and again.",
+   "simple": "Strength. In a strong uptrend this gauge goes overbought again and again, so it's not a sell signal.",
    "deeper": {
     "trap": "Overbought sounds like a sell. In a strong uptrend this gauge can go overbought again and again, and ChartSchool ignored those readings. High readings are not the warning. The warning is the index making new highs while fewer stocks join in."
    },
@@ -1881,7 +1886,7 @@
      "fixed before (lesson line)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
@@ -1889,7 +1894,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "Mid-April 2026. The S&P 500 is back above 7,000 after a selloff. Its A/D line has climbed with it since the late-March low.",
-   "q": "How does breadth grade this rally?",
+   "q": "Mid-April 2026, off the late-March low. How healthy does breadth say this rally is?",
    "choices": [
     "Broad: many stocks are joining in",
     "Narrow: a few giants carry it up",
@@ -1897,7 +1902,7 @@
     "Weak: it's only a bounce off the low"
    ],
    "answer": "Broad: many stocks are joining in",
-   "why": "Broad: many stocks are joining in. The S&P 500's A/D line has climbed with the index since the late-March low. An A/D line rising with its index shows strong participation, and Fidelity read that pairing as broadly bullish. It grades breadth as of mid-April 2026. It is not a forecast.",
+   "why": "Broad. Lots of stocks are joining in. The A/D line has climbed right alongside the S&P 500 since the late-March low. That's what a healthy rally looks like, the index and the average stock going up together. Fidelity read that pairing as broadly bullish too. It grades the rally as of mid-April 2026. It doesn't forecast the next month. Healthy breadth means you're not fighting the market. Your own setups still have to work.",
    "lesson_line": "Index and A/D line rising together is the healthy picture.",
    "facts": [
     "f80",
@@ -1910,9 +1915,9 @@
    "wrong": {
     "Narrow: a few giants carry it up": "Narrow means the index rises while the A/D line lags. Here the A/D line rose with it.",
     "Bearish: breadth is now diverging": "A divergence needs the two to split. They climbed together.",
-    "Weak: it's only a bounce off the low": "A bounce on few stocks would leave the A/D line behind. Here it climbed with the index since the late-March low, which Fidelity read as broadly bullish."
+    "Weak: it's only a bounce off the low": "A weak bounce would leave the A/D line behind. This one climbed with the index the whole way off the late-March low."
    },
-   "simple": "Broad, because the advance-decline line rose with the index, so many stocks are joining the rally.",
+   "simple": "Broad. The advance-decline line rose with the index, so lots of stocks are joining the rally.",
    "deeper": {
     "trap": "A rising A/D line grades the rally's breadth, not its future. Fidelity itself says these signals may not always confirm trends or forecast reversals. Healthy breadth today still needs price to keep working."
    },
@@ -1924,7 +1929,7 @@
      "fixed before (the key said 'most stocks')"
     ]
    },
-   "batch": "index-charts-2026-11-16",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SPX",
     "asof": "2026-04-16",
@@ -1938,7 +1943,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "June 2024. The Nasdaq Composite is making new all-time highs. Its A/D line sits near its all-time low.",
-   "q": "What's the best read?",
+   "q": "June 2024: the Nasdaq is at all-time highs and its A/D line is near all-time lows. What do you make of it?",
    "choices": [
     "A known Nasdaq quirk, not a crash call",
     "The Nasdaq rally is a false one",
@@ -1946,7 +1951,7 @@
     "Its record-low level says sell the index"
    ],
    "answer": "A known Nasdaq quirk, not a crash call",
-   "why": "A known Nasdaq quirk, not a crash call. Nasdaq's listing standards are looser than the NYSE's, so more stocks that fail list there, and each adds to the declines. Its A/D line started down when its data began in 1972 and has never got back to that level. It fell from 2010 to 2012 while the Nasdaq rose. McClellan called the June 2024 picture not unusual.",
+   "why": "A known Nasdaq quirk, not a crash call. Nasdaq's listing standards are looser than the NYSE's. So more companies that end up failing list there, and every one of them piles onto the declines. Its A/D line has drifted down since its data began in 1972 and never got back. It even fell from 2010 to 2012 while the Nasdaq rose. McClellan called the June 2024 picture not unusual. So for divergence reads, I lean on the NYSE line.",
    "lesson_line": "Don't read the Nasdaq A/D line like the NYSE's. It can fall for long stretches while the index rises.",
    "facts": [
     "f99",
@@ -1963,11 +1968,11 @@
     "f09"
    ],
    "wrong": {
-    "The Nasdaq rally is a false one": "The index really made new highs. The A/D line's slide comes largely from failing listings, which Nasdaq's looser standards let in.",
+    "The Nasdaq rally is a false one": "The index really made new highs. The A/D line's slide comes largely from failing listings, which the looser standards let in.",
     "Breadth confirms the Nasdaq's new highs": "Confirmation needs the A/D line at new highs with the index. Here it sits near its all-time low.",
-    "Its record-low level says sell the index": "The A/D line's level depends on where the count starts, so read its shape and direction. The Nasdaq's line never regained its 1972 start."
+    "Its record-low level says sell the index": "The level depends on where the count starts, so read shape and direction. The Nasdaq's line never got back to its 1972 start."
    },
-   "simple": "It's a known Nasdaq quirk: looser listing rules let in more stocks that fail, and each adds to the declines.",
+   "simple": "It's a Nasdaq quirk. Looser listing rules let in more stocks that fail, and every one adds to the declines.",
    "deeper": {
     "trap": "The same picture means different things on different exchanges. On the NYSE, an index at a record with its A/D line far below its peak would be a bearish divergence. On the Nasdaq, where the line never got back to its 1972 start, it says little on its own."
    },
@@ -1978,7 +1983,7 @@
      "fixed before (lesson line was too absolute)"
     ]
    },
-   "batch": "index-charts-2026-11-16",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "IXIC",
     "asof": "2024-06-05",
@@ -1992,7 +1997,7 @@
    "rung": 8,
    "format": "scenario",
    "story": "December 2013. The Dow makes a new high, but the NYSE A/D line is still below its October 29 peak. By June 2014 it is making higher highs again.",
-   "q": "What did that divergence turn out to be?",
+   "q": "December 2013: the Dow makes a new high, but the NYSE A/D line is still under its October peak. How did that play out?",
    "choices": [
     "A warning that later went away",
     "A sell signal for a bear market",
@@ -2000,7 +2005,7 @@
     "A bullish sign for the Dow's rally"
    ],
    "answer": "A warning that later went away",
-   "why": "A warning that later went away. In December 2013 the Dow made new highs while the NYSE A/D line stayed below its October 29 peak. By June 2014 the A/D line was making higher highs again. McClellan says a divergence goes away when that happens. He calls any divergence a condition, not a signal.",
+   "why": "A warning that went away. In December 2013 the Dow made new highs while the NYSE A/D line stayed under its October 29 peak. That was a real bearish divergence. Then breadth repaired. By June 2014 the A/D line was making higher highs again, and the divergence was gone. That's why a divergence is a condition, not a signal. Sell everything in December and you'd have watched breadth make new highs by June. Respect it, then keep checking.",
    "lesson_line": "Respect a divergence, then keep checking. Breadth can repair it.",
    "facts": [
     "f86",
@@ -2015,11 +2020,11 @@
     "f11"
    ],
    "wrong": {
-    "A sell signal for a bear market": "By June 2014 breadth was making new highs again. McClellan read that as liquidity lifting the majority of issues.",
+    "A sell signal for a bear market": "By June 2014 breadth was making new highs again. Selling on it would have been early and wrong.",
     "Proof the A/D line no longer works": "One warning that fades doesn't break the tool. The same kind of divergence came months before the 2007 top.",
-    "A bullish sign for the Dow's rally": "In December 2013 a Dow high without the A/D line was a bearish divergence, which McClellan called not good news. It faded later because breadth recovered."
+    "A bullish sign for the Dow's rally": "A Dow high without the A/D line is a bearish divergence, and McClellan called it not good news. It only faded because breadth recovered."
    },
-   "simple": "It was a warning that later went away, because the line was making higher highs again by June 2014.",
+   "simple": "A warning that went away. By June 2014 the advance-decline line was making higher highs again.",
    "deeper": {
     "trap": "Selling on every divergence would have meant selling in December 2013, then watching breadth make higher highs by June 2014. In 2007 the A/D line peaked just over 4 months before the Dow's final top. A divergence is a condition, not a signal. Price, and whether breadth repairs, decide."
    },
@@ -2030,16 +2035,16 @@
      "the dated 2013 and 2014 readings come from one publisher's data (McClellan)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q25",
    "skill": "history.breadth",
    "rung": 9,
    "format": "tf",
-   "q": "The S&P 500 has dropped 19% soon after a new high in the NYSE A/D line.",
+   "q": "A fresh high in the NYSE A/D line has still been followed by a 19% drop in the S&P 500.",
    "answer": "True",
-   "why": "True. In July-August 2011 the S&P 500 fell 19%, which broke the usual pattern. McClellan's study goes back to 1926. After a new A/D line high, the drop over the next 3 months was usually about 10% at most. 2020 was another big exception. A new high tilts the odds, but it does not remove the risk.",
+   "why": "True. It happened in 2011. The A/D line was still strong, and a month later, in July-August 2011, the S&P 500 fell 19%. McClellan's data goes back to 1926. After a new A/D line high, the worst drop over the next 3 months was most often about 10% or less. 2011 broke that pattern, and 2020 did too. So strong breadth tilts the odds your way. It never takes the risk away. Your stops do that job.",
    "lesson_line": "Strong breadth tilts the odds. It never removes the risk.",
    "facts": [
     "f93",
@@ -2051,7 +2056,7 @@
     "f83",
     "f102"
    ],
-   "simple": "True, because in 2011 the S&P 500 still fell 19% after a new advance-decline line high, and 2020 was another exception.",
+   "simple": "True. The S&P 500 has fallen 19% after a new advance-decline line high, so strong breadth never removes the risk.",
    "deeper": {
     "trap": "The 10% figure invites a false sense of safety: breadth is strong, so the risk feels small. Yet in 2011 the S&P 500 still fell 19%. In 2020 a big drop came despite new A/D line highs. McClellan says the exceptions show there are no guarantees."
    },
@@ -2063,7 +2068,7 @@
      "reworded in wave6 so the key no longer rests on an absolute; the key flipped to True"
     ]
    },
-   "batch": "index-charts-2026-11-16",
+   "batch": "voice-8-2026-11-17",
    "chart": {
     "sym": "SPX",
     "asof": "2011-07-07",
@@ -2123,17 +2128,17 @@
    "format": "scenario",
    "house": true,
    "story": "Your A setup breaks out. The index sits near its high, but its A/D line has slid for six weeks. New 52-week lows have outnumbered new highs for two weeks.",
-   "q": "Under our rules, which of these decides when the account trades?",
+   "q": "Breadth looks shaky, but your A setup just broke out. What decides whether the account trades today?",
    "choices": [
     "The app's own market reading",
     "Your setup's grade",
-    "The A/D line's six-week dip",
+    "The A/D line's six-week slide",
     "More new lows than highs"
    ],
    "answer": "The app's own market reading",
-   "why": "The app's own market reading. Our rule: a market filter decides when the account trades, and it is the app's market reading. The setup's grade sets the size. The breadth here is a real warning: fewer stocks are carrying the index.",
+   "why": "The app's own market reading. That's our filter: Green, Yellow, Orange or Red, and the color decides how much the account trades. Your setup's grade doesn't decide whether you trade. It sets the size. The breadth here is still a real warning. Fewer stocks are carrying the index, and new lows are beating new highs. I'd note it and stay picky. But one breadth gauge never becomes the switch. The market reading is.",
    "lesson_line": "Breadth warns. The app's market reading decides when we trade.",
-   "simple": "The app's market reading decides when we trade, and the breadth here is a warning about fewer stocks, not our filter.",
+   "simple": "The app's own market reading decides when we trade. The breadth here is a warning to note, not the switch.",
    "facts": [
     "h01",
     "h02",
@@ -2143,12 +2148,12 @@
     "f97"
    ],
    "wrong": {
-    "Your setup's grade": "Our rule: the grade sets the size. A and B are normal size, A+ sized up, B- or lower sized down.",
-    "The A/D line's six-week dip": "It's a warning that fewer stocks are carrying the index. A divergence is a condition, not a signal, and it is not our filter.",
-    "More new lows than highs": "More new lows than new highs favors the bears. It's a warning to note, but our filter is the app's market reading."
+    "Your setup's grade": "The grade sets the size, not whether you trade. A and B go normal size, A+ sized up, B- or lower sized down.",
+    "More new lows than highs": "That leans bearish, and it's worth noting. The call on when to trade still belongs to the app's market reading.",
+    "The A/D line's six-week slide": "A real warning that fewer stocks are carrying the index. But a divergence is a condition, not a signal, and it isn't our filter."
    },
    "deeper": {
-    "trap": "The trap is letting one breadth gauge become the filter. A sliding A/D line and more new lows than highs are real warnings. Our rule gives the call on when to trade to the app's market reading."
+    "trap": "The trap is letting one breadth gauge become your filter. A sliding A/D line and more new lows than highs are real warnings. The call on when to trade still goes to the app's market reading."
    },
    "tier": "expert",
    "risk": {
@@ -2158,7 +2163,7 @@
      "replaces q26, which keyed a web breadth rule as a plan"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -2193,27 +2198,27 @@
   },
   "q01": {
    "status": "pass",
-   "by": "writer",
-   "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "by": "checker",
+   "fixed": true,
+   "notes": "Writer's stem ('People call that a breadth problem') and the textbook tail (depth vs volume definitions) read like a glossary. Tightened stem; why now gives the verdict, the reason a red watchlist on a green SPY day is real, then the two wrong ideas in plain words. Facts unchanged (f01, f51, f52, f53, f56)."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key True from f52; weighting from f109 (State Street) and f107 (Nasdaq); deeper from f105, f106. Facts-only change is sound."
+   "notes": "True is right (f52, f109, f63). App path verified: Breadth tab Data Charts carries 'Net Advancers' and 'A/D Line' (app/src/pages/breadth/chartMetrics.js). Good 'I never judge the market off the index alone' line."
   },
   "q03": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'running total of net advances' from f03, f59, f84 before reading the key. Choices 27 to 34 chars, key not longest; each wrong is a real gauge (f77, f31). No tell."
+   "notes": "Answer right; wrongs correctly named (up/down volume, net new highs, price vs average). 'A/D Line' label matches the app."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f18 and f96. Why no longer states q11's answer. Dollar sizes come from the stem. No tell."
+   "notes": "One advance each is right (f18, f96). Numbers are the stem's. Clear index-vs-A/D contrast in his register."
   },
   "q05": {
    "status": "cut",
@@ -2225,123 +2230,121 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False from f05, f06, f91; closing line now cited to f07, f08."
+   "notes": "False is right (f05, f06, f91). Reads like a mentor: level means nothing, read shape and direction."
   },
   "q07": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Bearish divergence right (f08, f09, f60, f79). 'Condition, not a signal' (f97) and 'watch price for a break of its trendline or support' (f75) both sourced. 'Pickier on new buys' is fair judgment, not a stated rule."
   },
   "q08": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "19-day EMA minus 39-day EMA of net advances (f44); 1969 (f85). 'McClellan Osc' is the app's own label (chartMetrics.js). Creator name belongs here because the gauge is named for them."
   },
   "q09": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "advances and decliners; key '1,080'"
+   "notes": "2,140 - 1,060 = 1,080 recomputed. Wrongs: 3,200 = sum, -1,080 = reversed, 2,140 = advancers only. All correct."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "prior A/D line, advances, declines; key '14,550'"
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q11": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "False is right (f16, f17, f64). Good closing line about wanting to know when the two split."
   },
   "q12": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "True is right (f24, f20, f21, f57). '% Above 50SMA' matches the app label. ChartSchool and Investopedia kept in deeper only."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Answer unchanged and at the target rank after sorting. Each wrong choice follows from a real slip on this math and none is within rounding of the answer."
+   "notes": "120 / 500 = 0.24 = 24% recomputed. Wrongs: 76% = 380/500 below, 417% = 500/120, 32% = 120/380. 'More than three out of four below' is right (76%). Bias, not signal (f23, f73)."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "new highs/lows; highs as % of total; key '30%'"
+   "notes": "60 + 140 = 200; 60/200 = 30% recomputed. Wrongs: 43% = 60/140, 70% = lows' share, 233% = 140/60. Record High Percent (f38, f39). 'New Highs vs Lows' matches the app label."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "19-day and 39-day EMAs of net advances; key '90'"
+   "notes": "150 - 60 = 90. Wrongs: 210 sum, -90 reversed, 2.5 = 150/60. Above zero = advancers ahead (f46, f65); false signals, use price (f50, f68)."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key derivable from f08, f60, f79; story no longer copies the key's words. Choices 29 to 38 chars, key not longest. 'Many bullish new highs' on f90, the trendline/support line on f75. q07's why previews this idea as Learn before Practise; accepted, the stems do not give each other away."
+   "notes": "Bearish divergence read on a record close; warning not a sell (f97, f90, f75). Choices are plain trader reads; right answer does not stand out."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'bullish divergence, fewer stocks falling, confirm with price' before the key: matches. f10 (ChartSchool) and f61 (Investopedia) re-read on fresh fetches, f55 verbatim on Investopedia. Choices 33 to 38 chars, key not longest, 'watch price' on two choices so no lone hedge. The mirrored 'bearish divergence' distractor and 'buy with size' are both cleanly wrong. Why says confirm with price (f55), not that price is the trade trigger, so no clash with B18. q19's wrong note describes a bullish divergence, but only as feedback after q17."
+   "notes": "Bullish divergence (f10, f61); confirm with price (f55). Parallel choices ('..., watch price') keep the answer from standing out. 'Start small with the leaders that held up best' is judgment consistent with his start-with-a-few ruling."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "the validator cannot show -75, so 'Before: below zero' 75 carries the sign in its label; accepted; key '135'"
+   "notes": "60 - (-75) = 135 recomputed. Wrongs: 15 = 75 - 60, 75 = back to zero only, -135 = sign flipped. Thrust facts f47, f48, f66. 'Going through my watchlist for leaders setting up' is his voice."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Decided 'deeply oversold, no turn yet' from the story (12% vs ChartSchool's 30%, share still falling). f25, f26, f29, f30 verbatim on the ChartSchool page; its 70/30 levels sit in its S&P 500 50-day example, so the S&P 500 story fits, and 12% is far enough below 30% that 'levels vary' does not flip it. No action keyed, so no clash with B18 or q27. 'Little; breadth only matters at tops' is the weakest distractor but a real misconception, and q16 uses the same shape. Could not break it.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Oversold is a place, not a turn (f26, f29, f30); 30% line is ChartSchool's (f25), stated as 'a common oversold line', not as our rule. Fine."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "cold re-read 2026-11-15 (session lead): the chart and the words agree; check_course_charts 0 problems; the outcome the words name confirmed in the closes"
+   "notes": "June 4, 2007 peak, just over 4 months before the Dow's top (f89); July and October new highs (f11, f12); January support break (f13). Good 'warning with no clock on it' line."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Key 'Breadth is strong, not topping' overreaches: 'not topping' reads as a call that the uptrend is not ending, the exact opposite of distractor 3, and no quote says it. ChartSchool (f28, verbatim) says only 'a sign of strength, not weakness'. Key now uses f28's words; the why, simple and lesson line follow. Choices stay 32 to 34 chars; key not longest. Everything else verified on the page (f25, f26, f27).",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "notes": "Why is right and in voice (f25-f28). One wrong choice, 'Strength that rules out dips', was not a mistake any trader makes, so it read as filler. Replaced with a real named mistake, reading a broad overbought tape as narrow, which the why's last line already contrasts. Answer and other choices unchanged."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check 2026-11-15. Context chart for the index half of the story; the A/D line is in the words only. Agreement on SPX: asof Apr 16, 2026 close 7,041.28 (mid-April, the date Fidelity's FactSet data runs to, f81); the first close ever above 7,000 was Apr 15 (7,022.95), and the only earlier trade above 7,000 was the Jan 28, 2026 intraday high of 7,002.28, inside the window, so 'back above 7,000' (Fidelity's 'once again recaptured') reads true on the candles; the selloff ran from the Jan 27 close of 6,978.60 to the Mar 30 close of 6,343.72 (-9.1%), the lowest close of 2026 (intraday low 6,316."
+   "notes": "Broad rally off the late-March 2026 low (f80, f81, f82); grades, doesn't forecast (f83). Fidelity named as the reader of that chart, which is the cited source for a real date."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold check 2026-11-15. Context chart for the index half. Asof Jun 5, 2024: IXIC close 17,187.90, a record close above the May 28 record of 17,019.88, two days before McClellan's June 7, 2024 article (f99); Jun 6 and 7 closed just below it (17,173.12, 17,133.13), then records resumed Jun 10. The window (Dec 13, 2023 to Jun 5, 2024) ends on the window's highest close, so 'making new all-time highs' holds. It helps here: an index at a record while its A/D line sits near its low is the divergence picture the question asks about, and the chart shows the half that is real, which is the wrong-note's "
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Key from f86, f87, f92, f98. Choices 30 to 34 chars. Wrong notes on f92, f89, f88. Story gives the June 2014 repair, which is the point (f98); not a give-away of another question."
+   "notes": "Dec 2013 divergence that repaired by June 2014 (f86, f87, f92, f97, f98). 'Respect it, then keep checking' is a good mentor line."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold check 2026-11-15. Asof Jul 7, 2011 is the S&P 500's July top: close 1,353.22, high 1,356.48 (no July day higher; the 2011 high, Apr 29 close 1,363.61 and May 2 high 1,370.58, is inside the window, so the member sees a market near its highs, as the story's 'soon after a new high' implies). The '19%': high to low, Jul 7 1,356.48 to the Aug 9 low 1,101.54 is -18.8% (replay day 23); close to close Jul 7 to the Aug 8 close 1,119.46 is -17.3% (day 22). The words say 'fell 19%', not 'closed', and on a candle chart the eye reads the fall wick to wick, about 19%, so the chart does not make the wor"
+   "fixed": true,
+   "notes": "True is right (f93, f94, f95, f103, f104; 1926 is in f93's quote). One precision catch: McClellan's figure is the WORST drawdown within 3 months, 'usually limited to about a 10% max drawdown', not 'the drop'. Reworded so the 10% is the worst drop, not a typical one. Kept everything else."
   },
   "q26": {
    "status": "cut",
@@ -2352,9 +2355,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key right on h01 (B18) and h02 (D38), both verbatim in sizing_rule.md section 9. But the stem 'what decides whether you take the trade?' says more than B18: whether a trade is taken also turns on other section 9 rules (B26 200-day line, B22 earnings, A3 the stop must fit, C28 chasing). B18 says the market reading decides when the account trades. Stem now uses B18's own words and 'which of these'. All other fields unchanged.",
-   "lenfix": "answer lengths rebalanced 2026-11-12 (writer + cold checker)"
+   "fixed": false,
+   "notes": "Stem no longer leans on 'Under our rules'. Market reading as the filter (h01, B18, F65 colors), grade sets the size (h02, D38: A and B normal, A+ up, B- or lower down) both stated correctly. No 'no buys in Red' misstatement; the color sets how much the account trades."
   }
  }
 }

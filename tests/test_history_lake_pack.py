@@ -200,6 +200,20 @@ def test_publish_checks_merges_stamps_and_uploads_in_order(raw, tmp_path):
     with pytest.raises(BLD.BuildError, match="disagree"):
         PUB.build_indexes(PUB.collect_packs([a]), log=lambda *_: None)
     PUB.build_indexes(PUB.collect_packs([a]), check=False, log=lambda *_: None)    # unchecked: not read
+    # check_since: only packs written at or after it are read (an immutable pack was checked when written)
+    import os as _os
+    import time as _time
+    PUB.build_indexes(PUB.collect_packs([a]), check_since=_time.time() + 3600, log=lambda *_: None)
+    # a daily run's few rebuilt packs are checked without a process pool (never pool + uploader in one process)
+    real_pool = PUB.ProcessPoolExecutor
+    PUB.ProcessPoolExecutor = lambda *a, **k: (_ for _ in ()).throw(AssertionError("no pool for a few packs"))
+    try:
+        with pytest.raises(BLD.BuildError, match="disagree"):
+            PUB.build_indexes(PUB.collect_packs([a]), jobs=8, check_since=_os.path.getmtime(p) - 1, log=lambda *_: None)
+    finally:
+        PUB.ProcessPoolExecutor = real_pool
+    with pytest.raises(BLD.BuildError, match="disagree"):
+        PUB.build_indexes(PUB.collect_packs([a]), check_since=_os.path.getmtime(p) - 1, log=lambda *_: None)
     p.write_bytes(good)
     (a / "build.lock").write_text("1")
     with pytest.raises(BLD.BuildError, match="held by a build"):
@@ -253,6 +267,34 @@ def test_upload_is_resumable_and_reports_progress(raw, tmp_path):
     assert order == ["pack"] * (len(keys) - 1) + ["index"] * len(idx)      # indexes still last
     assert any(m.startswith(f"packs {len(keys)}/{len(keys)}") for m in logs)
     assert any("1 already there" in m for m in logs)
+
+
+def test_a_pack_rebuilt_by_the_daily_refresh_is_sent_even_at_the_same_size(raw, tmp_path):
+    """A current period's pack is rebuilt in place each day: the bucket's same-size copy is NOT proof it
+    is the same pack. Packs written since the run started (`forced_keys`) are always sent; the rest
+    keep the resumable size check."""
+    import os
+    a = tmp_path / "a"
+    BLD.Builder(raw, a, quality=5, packs=True, **QUIET).run(ALL)
+    packs = PUB.collect_packs([a])
+    idx = PUB.build_indexes(packs, log=lambda *_: None)
+    items = sorted(packs.items())
+    assert len(items) >= 2
+    (old_k, old_path), (new_k, new_path) = items[0], items[1]
+    os.utime(old_path, (1_000_000, 1_000_000))                 # written long ago
+    since = new_path.stat().st_mtime
+    force = PUB.forced_keys(packs, since, prefix="hist/")
+    key = lambda k: f"hist/{PUB.pack.pack_relpath(*k)}"
+    assert key(new_k) in force and key(old_k) not in force
+    everything_there = lambda k, size: True                   # the bucket holds every key at its size
+    sent = []
+    PUB.upload(packs, idx, lambda k, path, ct: sent.append(k), lambda k, data, ct: None,
+               prefix="hist/", jobs=1, log=lambda *_: None, exists=everything_there, force=force)
+    assert key(new_k) in sent and key(old_k) not in sent
+    sent.clear()                                              # without `force`: the old behaviour
+    PUB.upload(packs, idx, lambda k, path, ct: sent.append(k), lambda k, data, ct: None,
+               prefix="hist/", jobs=1, log=lambda *_: None, exists=everything_there)
+    assert sent == []
 
 
 def test_an_index_put_that_fails_is_retried_on_its_own_and_the_rest_carry_on(raw, tmp_path):
@@ -354,3 +396,23 @@ def test_publish_check_in_a_process_pool_is_identical_and_still_refuses(raw, tmp
     path.write_bytes(bytes(data))
     with pytest.raises(BLD.BuildError):
         PUB.build_indexes(packs, check=True, log=lambda *_: None, jobs=3)
+
+
+def test_both_stamping_paths_give_a_class_share_its_undotted_splits(tmp_path):
+    """publish.stamp_indexes and stamp_splits.stamp both run factors.with_class_share_spellings (2026-11-18)."""
+    rows = [{"ticker": "BF.B", "execution_date": "2004-01-21", "split_from": 1, "split_to": 2},
+            {"ticker": "BFB", "execution_date": "2016-08-19", "split_from": 1, "split_to": 2}]
+    want = [["2004-01-21", 2.0], ["2016-08-19", 2.0]]
+    idx = {"BF.B": {"symbol": "BF.B", "series": {}}, "AAA": {"symbol": "AAA", "series": {}}}
+    assert PUB.stamp_indexes(idx, rows, "2026-11-17") == 1
+    assert idx["BF.B"]["splits"] == want
+
+    from tools.history_lake import stamp_splits as SS
+    lake = tmp_path / "lake"
+    for sym in ("BF.B", "AAA"):
+        p = lake / piece.index_relpath(sym)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"v": 1, "symbol": sym, "series": {}}), encoding="utf-8")
+    SS.stamp(lake, rows, "2026-11-17", log=lambda *_: None)
+    got = json.loads((lake / piece.index_relpath("BF.B")).read_text(encoding="utf-8"))
+    assert got["splits"] == want

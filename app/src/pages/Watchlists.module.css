@@ -1832,8 +1832,8 @@
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
-:global(.uct-frame) .wlBreadthUp { color: var(--gain, #3fd47a); }
-:global(.uct-frame) .wlBreadthDown { color: var(--loss, #f0525a); }
+:global(.uct-frame) .wlBreadthUp { color: var(--success-ink, #3fd47a); }
+:global(.uct-frame) .wlBreadthDown { color: var(--danger-ink, #f0525a); }
 :global(.uct-frame) .wlBreadthBar {
   display: inline-block;
   width: 64px;

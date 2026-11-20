@@ -18,8 +18,8 @@ TIME (MD-1 §3; this is the "trustworthy as_of" MD-1 §4.4 deferred `darkpool` f
   * Whether the ledger itself is up to date is NOT checked here (a quiet stock is not a stale ledger); a note says so.
 
 MODEL-ISOLATED (ADR-005): the levels are computed by UCT (its own bin width, dollar floor and ranking) from vendor
-prints. A UCT-derived value, shown to the member only. Gamma walls (`/api/signature/gex-walls`) are NOT a kind: see
-the report with this change (licensing note in api/gex_service.py; a cold build is past a turn's provider budget).
+prints. A UCT-derived value, shown to the member only. Gamma walls (`/api/signature/gex-walls`) are a separate kind
+since data wave 3: `levels.gamma` (gamma_levels.py), which reads only what the route already holds, never a build.
 """
 from __future__ import annotations
 

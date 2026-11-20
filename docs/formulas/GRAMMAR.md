@@ -46,6 +46,8 @@ says which name and why — it never guesses a meaning.
 | `dayclosetime` | the session close, 16:00 New York (13:00 on a half-day the vendor honours), in SECONDS since 1970, on the date the bar opened -- the same value on every regular-session bar of that day, and on a weekly or monthly bar the close of its FIRST session. This engine's answer for Pine's time_close("D"). Blank on a weekend bar and an extended-hours bar |
 | `weekfirst` | 1 on the first bar of a New York calendar week (Monday to Sunday), otherwise 0 (blank on the oldest bar, which has no previous week to differ from). This engine's answer for Pine's timeframe.change("W") |
 | `monthfirst` | 1 on the first bar of a New York calendar month, otherwise 0 (blank on the oldest bar, which has no previous month to differ from). This engine's answer for Pine's timeframe.change("M") |
+| `regularhours` | 1 on a bar that opens inside the regular trading session (09:30 New York time to that day's close: 16:00, or 13:00 on a half-day), otherwise 0 |
+| `regularfirst` | 1 on the first bar of a regular trading session (the 09:30 New York bar, or the first regular-hours bar after it), otherwise 0 (blank on an oldest bar that opens later in the session, which has no earlier bar to show whether it is the first) |
 | `barindex` | the bar's position in the series, 0 on the oldest bar |
 | `isintraday` | 1 when the chart's timeframe is 1, 5, 15, 30 or 60 minutes, otherwise 0 |
 | `isdaily` | 1 when the chart's timeframe is daily, otherwise 0 |
@@ -89,7 +91,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (89)
+## Functions (94)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -155,6 +157,8 @@ decide whether a formula can run at all.
 | `na(source)` | true or false | 0 bars | `source` being unknown |
 | `nz(left, right)` | a number | 0 bars | `left` where it is known, and `right` where it is not |
 | `obvN(period)` | a number | whatever `period` asks for | the signed volume of the last `period` bars, which is on-balance volume's change across that window |
+| `openingRangeHigh(minutes)` | a number | a session (960 bars) | the highest price of the first `minutes` minutes of the regular session |
+| `openingRangeLow(minutes)` | a number | a session (960 bars) | the lowest price of the first `minutes` minutes of the regular session |
 | `percentileLinearInterpolation(source, period, percentage)` | a number | whatever `period` asks for | the `percentage`th percentile of `source` over the last `period` bars, linearly interpolated between the two nearest ranks |
 | `percentileNearestRank(source, period, percentage)` | a number | whatever `period` asks for | the nearest-rank `percentage`th percentile of `source` over the last `period` bars |
 | `percentrank(source, period)` | a number | whatever `period` asks for | the `period`-bar percent rank of `source` |
@@ -168,6 +172,9 @@ decide whether a formula can run at all.
 | `rma(source, period)` | a number | whatever `period` asks for | the `period`-bar Wilder average of `source` |
 | `round(source)` | a number | 0 bars | `source` rounded to a whole number |
 | `rsi(source, period)` | a number | whatever `period` asks for | the `period`-bar RSI of `source` |
+| `sessionHigh()` | a number | a session (960 bars) | the highest price of the regular session so far |
+| `sessionLow()` | a number | a session (960 bars) | the lowest price of the regular session so far |
+| `sessionOpen()` | a number | a session (960 bars) | the regular session's opening price |
 | `sign(source)` | a number | 0 bars | the sign of `source` |
 | `sin(source)` | a number | 0 bars | the sine of `source` |
 | `sinh(source)` | a number | 0 bars | the hyperbolic sine of `source` |

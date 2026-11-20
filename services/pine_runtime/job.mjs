@@ -78,7 +78,10 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // RS RATING L3: the wire's symbol is closed to {ticker, exchange} (protocol.mjs), so a server run
   // carries no classification: `syminfo.industry` / `sector` / `type` stay unsettled there and the
   // run refuses them by name (bind.js::classificationWith), never a guessed string.
-  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType']),
+  // (2026-11-19, Fred RS 1h) and the symbol's FINAL first-trade day (`firstTradeDate`, StockChart symbolMeta from
+  // /api/ticker-ipo): the listing fact requestSupply.js's own-daily first-session na rests on. This host does not state
+  // it, so no listing is claimed here and that session stays unknown (refused by name), never na.
+  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType', 'firstTradeDate']),
   // RS RATING L5: the ctx facts only this host states. `otherSymbolSupply: false` tells the run it
   // will never be handed another symbol's bars, so a `request.security` of one is refused by name
   // (requestSupply.js) instead of held as "still loading", which on this lane never ends.
@@ -86,6 +89,10 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // the whole document meta, so the run's own runtimeVersionRefusal (runtimeColumns.js) reads the
   // version facts on every document (design 3.2); the browser worker passes runtimeHistory only
   defMeta: 'doc.meta',
+  // (coordinator ruling 2026-11-19) the BROWSER WORKER's budget scales with the bars a run covers
+  // (runtimeColumns.js::runtimePaneBudgetFor, `budgetScales`); this host keeps the per-run 1,000 ms:
+  // a shared process, where a longer run is every queued job's wait, not one member's labels arriving later.
+  optsBrowserOnly: Object.freeze(['budgetScales']),
 })
 
 /** The bundle's per-run wall budget, or a throw: a run with no budget could have a wall-clock stop

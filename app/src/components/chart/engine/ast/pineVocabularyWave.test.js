@@ -327,7 +327,7 @@ describe('⭐⭐ time(tf, session[, tz]) — the session clock, vw-time-session 
     })
   }
 
-  // ⚰️ (bt, NUMBER PENDING) THIS SAID "an overnight window refuses by name — and the capture shows it
+  // ⚰️ (bt, Engine 66 (#1473)) THIS SAID "an overnight window refuses by name — and the capture shows it
   // could not have answered". The capture still cannot answer it ALONE (no bar here opens after
   // 20:00); `vw-w4-session-overnight-btcusd-60-2026-11-16` (row O3) did: "2000-0000" runs to
   // midnight. So S15 is served now, and on these bars it is `na` on every one, as captured.

@@ -89,6 +89,9 @@ from pine_vendor_capture import (  # noqa: E402
 from pine_member_pane_capture import TIERS, _gate  # noqa: E402
 
 HERE = pathlib.Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+from evidence_ledger import CAPTURE_PHASES  # noqa: E402 — the ONE phase vocabulary: imported, never restated
+
 TV_CAPTURE = HERE / "tv_capture.js"
 VERIFY = HERE / "verify_capture.mjs"
 DEFAULT_MANIFEST = REPO / "docs" / "pine" / "vendor-harness" / "batch-manifest.json"
@@ -99,6 +102,10 @@ DEFAULT_RUN_ROOT = pathlib.Path(
 CAPTURED = "CAPTURED"
 REFUSED_BY_TV = "REFUSED_BY_TV"
 GATE_FAILED = "GATE_FAILED"
+#: ⭐⭐ THE RIG'S PERSISTED STATE (coordinator, 2026-11-18): the batch's exit code when the rig layout, read on a
+#: FRESH load at the batch's end, carries a study or is not at the symbol / resolution the batch found. Every capture
+#: may still be good; the NEXT batch's gate would stop on the rig. (See `Driver.verify_fresh_load`.)
+RIG_DIRTY = 3
 INCONCLUSIVE = "INCONCLUSIVE"
 INCOMPLETE = "INCOMPLETE"
 OUTCOMES = (CAPTURED, REFUSED_BY_TV, GATE_FAILED, INCONCLUSIVE, INCOMPLETE)
@@ -111,11 +118,91 @@ MIN_THROTTLE_S = 10.0
 PROVENANCE_SALT_ENV = "UCT_PROVENANCE_SALT"
 MIN_SALT_CHARS = 16
 
+#: ⭐⭐ THE CONTROL PLOT a probe draws its own `bar_index` in (`I00_bar_index_CONTROL`, `F00_bar_index_CONTROL`, or a
+#: plot titled `bar_index`). ⛔ Never a request's bar_index (`F12_W_bar_index_OFF` reads ANOTHER timeframe's index).
+BAR_INDEX_CONTROL_RX = re.compile(r"(?:^|_)bar_index_CONTROL$|^bar_index$")
+
+
+def starts_at_bar0_contradiction(capture: dict, symbol: str):
+    """⭐⭐ (coordinator, 2026-11-19) Why the capture's OWN data refutes its `history.startsAtBar0` claim, or None. A capture
+    that does not claim it is never refuted. Refuted when:
+      1. the claim's `why` names a symbol that is not the chart's (`symbol.pro_name`), or the batch asserted it for
+         another symbol (`symbol`): the 2026-09-27 wave wrote RDDT's listing on SPY / AAPL charts;
+      2. a bar_index CONTROL plot reads anything but 0 on the capture's first row (vw-int-cast-spy-1d-2026-09-27 read
+         8172 there: its history starts deep, not at bar 0)."""
+    hist = (capture or {}).get("history") or {}
+    if hist.get("startsAtBar0") is not True:
+        return None
+    sym = (capture.get("symbol") or {})
+    pro = sym.get("pro_name") or sym.get("full_name") or ""
+    if symbol and pro and not sym_match(pro, symbol):
+        return f"it was asserted for {symbol}, and the chart is {pro}"
+    why = str(hist.get("why") or "")
+    named = re.match(r"\s*([A-Z0-9_.!]+:[A-Z0-9_.!]+)\s+listed\b", why)
+    if named and pro and not sym_match(pro, named.group(1)):
+        return f"its why names {named.group(1)}, and the chart is {pro}: {why[:120]!r}"
+    plots = {p.get("id"): p.get("title") for p in ((capture.get("study") or {}).get("plots") or []) if isinstance(p, dict)}
+    pv = capture.get("plotValues") or {}
+    fields, rows = pv.get("fields") or [], pv.get("rows") or []
+    if rows and fields:
+        for col, pid in enumerate(fields):
+            title = plots.get(pid)
+            if not title or not BAR_INDEX_CONTROL_RX.search(str(title)):
+                continue
+            first = rows[0][col] if col < len(rows[0]) else None
+            if isinstance(first, (int, float)) and first != 0:
+                return f"its bar_index control plot {title!r} reads {first:g} on the capture's first row, not 0"
+    return None
+
+
+#: ⭐⭐ The listing date's SOURCE (coordinator ruling 2026-11-20): UCT production's own answer, read as the automation account
+#: through the rig's browser context (`Driver.listing_for`). The table below is a CROSS-CHECK that must agree.
+UCT_ORIGIN = "https://uctintelligence.com"
+_ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def uct_ticker_of(symbol) -> str:
+    """Our store's ticker for a TradingView symbol: the part after the exchange, a class share's dot as a hyphen
+    (`NYSE:BRK.B` -> `BRK-B`, the bars route's own spelling)."""
+    return str(symbol or "").split(":")[-1].strip().upper().replace(".", "-")
+
+
+def _json_of(resp):
+    try:
+        return json.loads(resp.text())
+    except Exception:  # noqa: BLE001 -- an unreadable body is no answer
+        return None
+
+
+def uct_first_trade_date(page, symbol):
+    """(date | None, why): `/api/ticker-ipo/<T>`'s `first_trade_date` when `first_trade_final` is true, read through the
+    page's own browser context. ONE GET of a PUBLIC endpoint (measured 2026-11-20: it answers without a session), so
+    the capture profile, which holds no UCT session, reads it without signing in as anyone. Never raises: a lookup that
+    cannot answer is no listing date, with the reason."""
+    try:
+        req = page.context.request
+        t = uct_ticker_of(symbol)
+        r = req.get(f"{UCT_ORIGIN}/api/ticker-ipo/{t}")
+        body = _json_of(r) if getattr(r, "status", 200) == 200 else None
+        if not isinstance(body, dict):
+            return None, f"/api/ticker-ipo/{t} answered {getattr(r, 'status', '?')}"
+        day = body.get("first_trade_date")
+        if body.get("first_trade_final") is not True or not isinstance(day, str) or not _ISO_DAY.match(day):
+            return None, f"/api/ticker-ipo/{t} holds no FINAL first trade date ({body.get('first_trade_final')!r}, {day!r})"
+        return day, f"/api/ticker-ipo/{t}: first trade {day} (final)"
+    except Exception as exc:  # noqa: BLE001
+        return None, f"the listing date could not be read ({type(exc).__name__}: {exc})"
+
+
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
 #: SYMBOL"): the flag is asserted ONLY when the loaded history stopped growing AND
 #: its first bar falls on this date in the exchange's own timezone.
-KNOWN_LISTING = {"NYSE:RDDT": "2024-03-21"}
+KNOWN_LISTING = {
+    "NYSE:RDDT": "2024-03-21",
+    # Q-SD2 (2026-11-17): two sources agree, our /api/bars/ALAB?tf=D first bar and TradingView's first NASDAQ:ALAB 1D bar.
+    "NASDAQ:ALAB": "2024-03-20",
+}
 
 
 # ─── outcomes ────────────────────────────────────────────────────────────────
@@ -321,6 +408,86 @@ VH_STUDIES_JS = "() => window.__uctVH.studies()"
 VH_CAPTURE_JS = ("(o) => { try { return { ok: true, summary: window.__uctVH.capture(o) } } "
                  "catch (e) { return { ok: false, error: String((e && e.message) || e) } } }")
 VH_CHUNK_JS = "(i) => JSON.stringify(window.__uctVH.chunk(i))"
+# ⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19): the layout's own Save (its
+# keyboard shortcut), pressed ONLY by `Driver.guarded_clean_save` behind `clean_save_refusal`, and ONLY when the batch
+# runs with `--clean-save` (or the `repair` command). TradingView's saved word, waited for after the press.
+SAVE_SHORTCUT = "Control+s"
+SAVED_TEXT_JS = "() => /all changes saved/i.test(document.body ? (document.body.innerText || '') : '')"
+# ⛔ Before the Save key: focus leaves whatever holds it (the Pine editor's Ctrl+S saves a SCRIPT to the account, not
+# the layout). True only when nothing but the page itself holds focus; anything else refuses the save.
+FOCUS_BODY_JS = ("() => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); "
+                 "const b = document.activeElement; return !b || b === document.body || b === document.documentElement }")
+
+
+def clean_save_refusal(state: dict, original: dict):
+    """⛔ THE GUARD: why the in-page state may NOT be saved, or None when it may. Saved only when it reads exactly
+    0 studies on the batch's original symbol and resolution: a dirty layout is never saved."""
+    st = state or {}
+    studies = st.get("studies")
+    if studies is None:
+        return "the in-page state was not read"
+    if len(studies) != 0:
+        return f"{len(studies)} studies are still on the chart: {studies}"
+    if not sym_match(st.get("symbol"), (original or {}).get("symbol")):
+        return f"the symbol reads {st.get('symbol')!r}, not {(original or {}).get('symbol')!r}"
+    if res_norm(st.get("resolution")) != res_norm((original or {}).get("resolution")):
+        return f"the resolution reads {st.get('resolution')!r}, not {(original or {}).get('resolution')!r}"
+    return None
+
+
+#: ⭐⭐ ONE SETTLED READ OF THE RIG (coordinator ruling, 2026-11-19): the one definition of what a fresh load READS,
+#: for every clean-check (`Driver.verify_fresh_load`, which the batch end, the repair's verify-before and the guarded
+#: clean-save's verify-after all call, and the scratchpad end-of-batch rail `rig_verify.py`).
+#: ⚰️ THE CONTRADICTION IT ENDS (2026-11-19, 03:07Z and again 21:31Z): run htfform-c's verify_fresh_load took the first
+#: read where the chart handle answered (0 studies) and called the layout clean, so the guarded clean-save never ran;
+#: the end-of-batch rail's new launch, a few seconds later, read the saved leftover UCTPROBE_RS_SEED_RSRATING. The
+#: next batch (nhdot) read it on its own fresh load and repaired it. A handle that answers is not a layout that has
+#: finished attaching its studies: an empty list read too early is not "clean".
+#: A read counts once the handle answers with a studies list and a symbol; the state is SETTLED when (symbol,
+#: resolution, study ids) is unchanged for `RIG_SETTLE_S` straight. Never settled inside `RIG_SETTLE_MAX_S`: NOT
+#: READ, which no caller may report as clean.
+#: ⛔ RIG_SETTLE_S is a CHOICE, not a measured bound: the read-only measurement of 2026-11-19 22:02Z found the layout
+#: already clean (0 studies for 30 s on a new launch and on a reload), so no attach time was measured. Every settled read
+#: records when its state last changed (`lastChangeS`, `changes`), so the ledger measures it from here on.
+RIG_SETTLE_S = 10.0
+RIG_SETTLE_MAX_S = 90.0
+
+
+def rig_state_key(st):
+    """What a settled read compares: the symbol, the resolution and the study ids, in order. None until it counts."""
+    if not st or st.get("handle") is None or st.get("studies") is None or not st.get("symbol"):
+        return None
+    return (st.get("symbol"), str(st.get("resolution")), tuple(str(s.get("id")) for s in st.get("studies") or []))
+
+
+def settled_rig_read(read, clock, poll_s, settle_s=RIG_SETTLE_S, max_s=RIG_SETTLE_MAX_S) -> dict:
+    """⭐⭐ THE settled read (see RIG_SETTLE_S). `read()` returns the page's STATE_JS answer; `clock` has `monotonic()`
+    and `sleep()`. Returns {"state", "settled", "waitedS", "answeredS", "lastChangeS", "changes"}: `changes` is every
+    distinct state seen, with the second it was first seen, so a study that attaches late is on the record."""
+    t0 = clock.monotonic()
+    last_key, since, answered, st = None, None, None, None
+    changes = []
+    while True:
+        st = read()
+        now = clock.monotonic() - t0
+        key = rig_state_key(st)
+        if key is not None:
+            if answered is None:
+                answered = now
+            if key != last_key:
+                last_key, since = key, now
+                changes.append({"atS": round(now, 2), "symbol": key[0], "resolution": key[1],
+                                "studies": [s.get("name") for s in (st.get("studies") or [])]})
+            elif now - since >= settle_s:
+                return {"state": st, "settled": True, "waitedS": round(now, 2), "answeredS": round(answered, 2),
+                        "lastChangeS": round(since, 2), "changes": changes}
+        if now >= max_s:
+            return {"state": st, "settled": False, "waitedS": round(now, 2),
+                    "answeredS": None if answered is None else round(answered, 2),
+                    "lastChangeS": None if since is None else round(since, 2), "changes": changes}
+        clock.sleep(poll_s)
+
+
 VH_CLEANUP_JS = "() => (window.__uctVH ? window.__uctVH.cleanup() : { globalsLeft: [], absent: true })"
 GLOBALS_JS = "() => Object.keys(window).filter((k) => /^__uct/.test(k))"
 
@@ -351,6 +518,20 @@ def sym_match(have, want) -> bool:
 
 def res_norm(r) -> str:
     return re.sub(r"^1(?=[DWM]$)", "", str(r or "").strip().upper())
+
+
+def same_period(day, listing, tf) -> bool:
+    """Do two ISO days fall in one weekly (ISO week) or monthly (calendar month) period? Malformed: False."""
+    import datetime as _dt
+    try:
+        d, l = _dt.date.fromisoformat(str(day)[:10]), _dt.date.fromisoformat(str(listing)[:10])
+    except (TypeError, ValueError):
+        return False
+    if tf == "W":
+        return d.isocalendar()[:2] == l.isocalendar()[:2]
+    if tf == "M":
+        return (d.year, d.month) == (l.year, l.month)
+    return False
 
 
 def slugify(s) -> str:
@@ -386,6 +567,42 @@ def throttle_refusal(throttle_s) -> str | None:
         return f"--throttle-s {throttle_s} is not a finite number of seconds"
     if t < MIN_THROTTLE_S:
         return f"--throttle-s {throttle_s} is below {MIN_THROTTLE_S:.0f}s (this is the owner's own account)"
+    return None
+
+
+def capture_id_for(script: dict, o: Opts) -> str:
+    """⭐ THE capture id the driver writes for `script` on the chart `o` names (`Driver.opts_for`):
+    `<captureStem>-<sym>-<tf>-<yyyy-mm-dd>`, then `-<capturePhase>` when the manifest entry carries one. ONE authority:
+    `Driver.capture` names its file with it and `run_batch` checks every script's before the first capture.
+    ⛔ A capturePhase outside `evidence_ledger.CAPTURE_PHASES` is refused (GATE_FAILED, the batch stops): an id the
+    gate cannot read back is never written."""
+    phase = script.get("capturePhase")
+    if phase is not None and phase not in CAPTURE_PHASES:
+        raise GateFailed(f"capturePhase {phase!r} of {script.get('slug')} is not one of {list(CAPTURE_PHASES)}",
+                         abort=True)
+    sym_slug = slugify(o.symbol.split(":")[-1])
+    tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
+    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
+    return f"{capture_id}-{phase}" if phase else capture_id
+
+
+def capture_id_refusal(scripts, opts_for) -> str | None:
+    """None when every script of the manifest names its own capture id, else why the batch may not start.
+    ⛔ Checked at BATCH START over the WHOLE manifest (a `--only` / `--limit` run writes into the same run dir), before
+    any page step: two scripts naming one id would write one capture file twice (2026-11-19: rows Q-HTF-FORM-a and -c,
+    one probe on AMEX:SPY 1D in two session states on one day, named the same capture)."""
+    seen, clashes = {}, []
+    for s in scripts:
+        try:
+            cid = capture_id_for(s, opts_for(s))
+        except StepOutcome as so:
+            return so.reason
+        if cid in seen:
+            clashes.append(f"{seen[cid]} and {s.get('slug')} both name {cid}")
+        else:
+            seen[cid] = s.get("slug")
+    if clashes:
+        return "two scripts would write the same capture id (give each a distinct capturePhase): " + "; ".join(clashes)
     return None
 
 
@@ -527,6 +744,11 @@ class Opts:
         self.profile_leaf = kw.get("profile_leaf")
         self.retry = set(kw.get("retry", DEFAULT_RETRY))
         self.date = kw.get("date") or _dt.datetime.now().strftime("%Y-%m-%d")
+        # ⭐ the guarded clean-save (`Driver.guarded_clean_save`): OFF unless the run asks for it
+        self.clean_save = bool(kw.get("clean_save", False))
+        # ⭐⭐ the settled read of the rig (`settled_rig_read`): how long its state must hold still, and the most it waits
+        self.rig_settle_s = float(kw.get("rig_settle_s", RIG_SETTLE_S))
+        self.rig_settle_max_s = float(kw.get("rig_settle_max_s", RIG_SETTLE_MAX_S))
 
 
 class Driver:
@@ -539,6 +761,9 @@ class Driver:
         self.base_opts = opts
         self.provenance = {}         # batch-level: run, account fingerprint, profile, engine sha
         self.abort = None           # (exit code, reason) once the rig cannot be trusted
+        # batch-level: the titles of the studies THIS batch added (`capture`), the only ones the guarded repair may
+        # remove from a layout a fresh load shows dirty (`guarded_clean_save`)
+        self.added_titles = set()
         self._reset()
 
     def _reset(self):
@@ -579,6 +804,79 @@ class Driver:
             self.clock.sleep(self.opts.poll_s)
 
     # ── batch-level ─────────────────────────────────────────────────────────
+    def verify_fresh_load(self, original):
+        """⭐⭐ THE RIG'S PERSISTED STATE (coordinator, 2026-11-18): reload the rig layout and read it as the NEXT batch
+        will: 0 studies, and the symbol and resolution this batch found (`original`). The verdict is the FRESH load's,
+        never the page's own: on TradingView with the layout's autosave on, a study removed through the widget API
+        (`REMOVE_JS`) and a resolution set through it are NOT recorded, while an add from the Pine editor is.
+        ⚰️ MEASURED 2026-11-18: run l12-is-2026-11-18's last probe (UCTPROBE_RS_OWN_DAILY_INTRADAY, RDDT 5m) was removed
+        and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
+        saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
+        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`).
+        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c)."""
+        self.page.reload(wait_until="domcontentloaded")
+        s = settled_rig_read(lambda: self.ev("verify:state", STATE_JS), self.clock, self.opts.poll_s,
+                             self.opts.rig_settle_s, self.opts.rig_settle_max_s)
+        st, ok = s["state"] or {}, s["settled"]
+        studies = [{"id": x.get("id"), "name": x.get("name")} for x in (st.get("studies") or [])]
+        want = {"symbol": original.get("symbol"), "resolution": original.get("resolution")}
+        got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
+        clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
+                 and res_norm(got["resolution"]) == res_norm(want["resolution"]))
+        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
+                "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
+
+    def guarded_clean_save(self, original, label="repair") -> dict:
+        """⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19: "Save only through the
+        guarded clean-save step"). On the rig layout the editor's add is AUTOSAVED and a widget-API removal or
+        resolution change is NOT, so a probe that outlived an autosave persists. The repair, on the page a FRESH load
+        just gave (the persisted, dirty layout):
+          1. remove ONLY the studies THIS batch added (`added_titles`); a study it did not add is never touched,
+             and the layout is reported dirty instead;
+          2. put the symbol and resolution back (`restore`);
+          3. ⛔ THE GUARD: read the IN-PAGE state. Not exactly 0 studies on the original symbol and resolution: NO
+             SAVE, the result says why. A dirty layout is never saved;
+          4. clean: focus leaves any editor (`FOCUS_BODY_JS`; else NO SAVE: the Pine editor's Ctrl+S saves a SCRIPT),
+             the layout's own Save (`SAVE_SHORTCUT`), then wait for TradingView's saved word;
+          5. a FRESH load decides (`verify_fresh_load`): only a clean read is CLEAN.
+        Every save is recorded (`ok`, `saved`, the state before and after). Never raises."""
+        out = {"label": label, "at": utcnow(), "saved": False, "ok": False}
+        try:
+            st = self.read_state(f"{label}:dirty")
+            ours = [s for s in (st.get("studies") or []) if s.get("name") in self.added_titles]
+            foreign = [s for s in (st.get("studies") or []) if s.get("name") not in self.added_titles]
+            out["found"] = [{"id": s.get("id"), "name": s.get("name")} for s in (st.get("studies") or [])]
+            if foreign:
+                out["refused"] = f"studies this batch did not add are on the layout: {[s.get('name') for s in foreign]}"
+                return out
+            for s in ours:
+                self.ev(f"{label}:remove", REMOVE_JS, s.get("id"))
+            back = self.restore(original, label)
+            out["restore"] = back
+            now = self.read_state(f"{label}:in-page")
+            before = {"studies": [s.get("name") for s in (now.get("studies") or [])],
+                      "symbol": now.get("symbol"), "resolution": now.get("resolution")}
+            out["before"] = before
+            why = clean_save_refusal(before, original)
+            if why:
+                out["refused"] = why
+                return out
+            if self.ev(f"{label}:focus", FOCUS_BODY_JS) is not True:
+                out["refused"] = "focus could not leave the element holding it (an editor's Ctrl+S saves a script)"
+                return out
+            self.step(f"{label}:save")
+            self.page.keyboard.press(SAVE_SHORTCUT)
+            out["saved"] = True
+            _, out["sawSaved"] = self.poll(f"{label}:saved", SAVED_TEXT_JS, None, bool, max(self.opts.ui_timeout_s, 5))
+            self.clock.sleep(self.opts.settle_s)
+            after = self.verify_fresh_load(original)
+            out["after"] = after
+            out["ok"] = bool(after.get("ok"))
+            return out
+        except Exception as exc:  # noqa: BLE001 -- recorded; the batch reports RIG_DIRTY
+            out["error"] = f"{type(exc).__name__}: {exc}"
+            return out
+
     def read_state(self, name="state"):
         st = self.ev(name, STATE_JS)
         if not st or st.get("handle") is None:
@@ -761,6 +1059,28 @@ class Driver:
             last = r.get("count")
         return {"ok": True, "stable": False, "rounds": rounds, **(r or {})}
 
+    def listing_for(self, symbol, stated=None):
+        """⭐⭐ THE LISTING DATE IS READ, NOT TYPED (coordinator ruling 2026-11-20). The symbol's first session as UCT's
+        production answers it (`/api/ticker-ipo/<T>`: `first_trade_date`, only when `first_trade_final` is true), read
+        through the rig's own browser context (a public GET, no session). `KNOWN_LISTING` and a
+        manifest row's `listingDate` (`stated`) are CROSS-CHECKS: each one present must AGREE, and a disagreement STOPS the
+        batch by name (GateFailed, abort) -- never a silent override either way. No final answer: no listing date, so
+        `startsAtBar0` is not asserted (the safe direction), and the reason says why.
+        ⚰️ 2026-11-19: Q-FRED-NHDOT's NASDAQ:BGIN capture (listed 2025-10-21, first_trade_final true) carried no
+        startsAtBar0, because BGIN was not in the hand-typed table; the harness then graded it as a chart reaching before
+        its history (its run half refused `runtime:history-start`) where a member's daily chart draws it."""
+        key = str(symbol or "").upper()
+        cache = self.__dict__.setdefault("_listings", {})
+        if key not in cache:
+            cache[key] = uct_first_trade_date(self.page, symbol)
+        fetched, why = cache[key]
+        self.listing_why = why
+        for name, other in (("KNOWN_LISTING", KNOWN_LISTING.get(key)), ("the manifest row's listingDate", stated)):
+            if other and fetched and other != fetched:
+                raise GateFailed(f"{symbol}: {name} says {other}, and UCT's /api/ticker-ipo says {fetched} (first_trade_final) "
+                                 "-- the listing date is not settled; fix the table or the row before capturing", abort=True)
+        return fetched
+
     def history_assertion(self, depth):
         o = self.opts
         if not depth.get("ok"):
@@ -769,14 +1089,32 @@ class Driver:
             return False, f"history was still growing after {depth.get('rounds')} requestMoreData rounds — not asserted"
         first_day = iso_date_in(depth.get("first"), depth.get("tz") or "Etc/UTC") if depth.get("first") else None
         if not o.listing_date:
-            return False, f"no listing date is known for {o.symbol} — not asserted (first bar {first_day})"
+            return False, (f"no listing date is known for {o.symbol} ({getattr(self, 'listing_why', 'not read')}) — not asserted "
+                           f"(first bar {first_day})")
+        tf = res_norm(o.tf)
+        if tf in ("W", "M"):
+            # ⭐⭐ (coordinator ruling 2026-11-20) ON A WEEKLY / MONTHLY CHART the first bar starts at the listing when ITS
+            # PERIOD holds the first trade: the same ISO week, the same calendar month (the app's own
+            # `listingSeed.listingStartOf`). Without it Saturday's NASDAQ:BGIN 1W capture from the listing could never
+            # say so, and the W / M run half's serving gate would have no evidence to grade.
+            if not same_period(first_day, o.listing_date, tf):
+                unit = "week" if tf == "W" else "month"
+                return False, f"first loaded bar {first_day} is not in the listing {unit} of {o.listing_date} — not asserted"
+            unit = "week" if tf == "W" else "month"
+            return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar ({first_day}) is the listing {unit} after "
+                          f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
         if first_day != o.listing_date:
             return False, f"first loaded bar {first_day} is not the listing day {o.listing_date} — not asserted"
+        # ⭐ the claim names the symbol it was derived FOR; `starts_at_bar0_contradiction` refuses a capture whose own
+        # symbol is another (2026-11-19: 17 captures of the 2026-09-27 wave carried "NYSE:RDDT listed 2024-03-21" on SPY,
+        # AAPL and other charts, 12 of them false by their own bar_index rows)
         return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar is the listing day after "
                       f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
 
     def capture(self, script) -> dict:
         o = self.opts
+        # ⛔ the id first, before any page step: a capturePhase outside the vocabulary stops here, nothing touched
+        capture_id = capture_id_for(script, o)
         self.gate("script start")
         self.step("signin")
         verdict, detail = layout_access(self.page)
@@ -799,6 +1137,7 @@ class Driver:
         self.wait_compute(sid)
         depth = self.force_depth()
         rows = self.wait_compute(sid, "compute:settle")
+        self.opts.listing_date = self.listing_for(self.opts.symbol, self.opts.listing_date)
         starts, why = self.history_assertion(depth)
         lw = script.get("largestWindow")
         window = {"bars_loaded": rows, "largest_declared_window": lw,
@@ -818,10 +1157,8 @@ class Driver:
         title = listed[0].get("title") or listed[0].get("description")
         if not title:
             raise Inconclusive("the one indicator on the chart has no title to select it by", listed)
+        self.added_titles.add(title)
         forming, forming_why = newest_bar_forming(o.newest_bar_forming)
-        sym_slug = slugify(o.symbol.split(":")[-1])
-        tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
-        capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
         cap_opts = {
             "study": title, "source": text, "id": capture_id,
             "newestBarIsForming": forming, "startsAtBar0": starts, "startsAtBar0Why": why,
@@ -834,6 +1171,12 @@ class Driver:
             if script.get(key) is not None:
                 cap_opts[key] = script[key]
         res = self.ev("vh_capture", VH_CAPTURE_JS, cap_opts)
+        # ⭐ (c) THE PROBE LEAVES THE CHART THE MOMENT ITS VALUES ARE READ: `capture()` staged the whole capture text in
+        # the page (`tv_capture.js`: `chunk(i)` slices `staged.text`), so the chunk reads and the transport check below
+        # need no study. On the rig layout the editor's add is AUTOSAVED and a widget-API removal is not: a study that
+        # outlives an autosave stays on the owner's layout (01:17Z 2026-11-19, the settled L12 batch). The shorter its
+        # life, the smaller that window. `cleanup()` still runs after, as before (it finds nothing left to remove).
+        self.remove_added_now()
         if not res or not res.get("ok"):
             msg = (res or {}).get("error") or str(res)
             if "failed to compile" in msg:
@@ -865,6 +1208,11 @@ class Driver:
         back = self.verifier.verify_file(out)
         if not back["ok"]:
             raise Inconclusive(f"the written capture does not re-verify (exit {back['exit']}): {back['tail']}", back)
+        # ⭐⭐ A CLAIM THE CAPTURE'S OWN DATA REFUTES IS REFUSED HERE, never written as evidence (coordinator, 2026-11-19)
+        contra = starts_at_bar0_contradiction(json.loads(out.read_text(encoding="utf-8")), o.symbol)
+        if contra:
+            out.unlink()
+            raise Inconclusive(f"startsAtBar0 refused at capture time: {contra}")
         return {"capture": str(out), "captureId": capture_id, "verify": {"exit": v["exit"], "verdict": v["verdict"]},
                 "summary": {k: summary.get(k) for k in ("study", "symbol", "timeframe", "bars", "studyRows",
                                                         "plots", "objects", "warnings", "chars", "chunks")},
@@ -879,6 +1227,21 @@ class Driver:
                     "source": summary.get("newestBarIsFormingSource") or "asserted",
                     "asserted": forming, "why": forming_why},
                 "depth": depth}
+
+    def remove_added_now(self) -> list:
+        """(c) Remove every study this script added (not in the row's baseline) right now, through the same
+        model-level remove `cleanup()` uses; returns the ids asked to go. Never raises: a removal that fails here is
+        retried, checked and reported by `cleanup()`, which always runs."""
+        try:
+            st = self.page.evaluate(STATE_JS) or {}
+            base = self.baseline_ids if self.baseline_ids is not None else set()
+            ids = [s["id"] for s in (st.get("studies") or []) if s.get("id") not in base]
+            for sid in ids:
+                self.page.evaluate(REMOVE_JS, sid)
+            self.step("removed-at-capture")
+            return ids
+        except Exception:  # noqa: BLE001 — cleanup() owns the verdict
+            return []
 
     def cleanup(self) -> dict:
         """⛔ ALWAYS RUNS. Remove what this script added, put the chart back,
@@ -1062,6 +1425,10 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
     original = None
     try:
         try:
+            # ⛔ BEFORE ANY PAGE STEP: every script's capture id, and no two the same (nothing is captured otherwise)
+            clash = capture_id_refusal(manifest["scripts"], drv.opts_for)
+            if clash:
+                raise GateFailed(f"capture ids: {clash}", abort=True)
             drv.gate("batch start")
             original = drv.read_state("state_original")
             drv.provenance = batch_provenance(page, rd, opts)
@@ -1118,6 +1485,26 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
                 rd.ledger("batch-restore", **back, steps=drv.steps)
             except Exception as exc:  # noqa: BLE001
                 rd.ledger("batch-restore", ok=False, error=f"{type(exc).__name__}: {exc}")
+            # ⭐⭐ THE RIG'S PERSISTED STATE: only a FRESH load proves the batch left nothing persisted
+            try:
+                verified = drv.verify_fresh_load(original)
+            except Exception as exc:  # noqa: BLE001
+                verified = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+            rd.ledger("batch-verify", **verified)
+            # ⭐⭐ THE GUARDED CLEAN-SAVE: a layout the fresh load shows dirty is repaired only through the guard, and
+            # only when this run was started with `--clean-save`; every attempt is a ledger row
+            if not verified.get("ok") and verified.get("read") and getattr(opts, "clean_save", False):
+                rep = drv.guarded_clean_save(original, "batch-repair")
+                rd.ledger("clean-save", **rep)
+                if rep.get("ok"):
+                    log(f"[batch] the guarded clean-save repaired the rig: a fresh load reads clean ({json.dumps(rep.get('before'))})")
+                    verified = rep["after"]
+                else:
+                    log(f"[batch] the guarded clean-save did not repair the rig: {json.dumps({k: rep.get(k) for k in ('saved', 'refused', 'error')})}")
+            if not verified.get("ok"):
+                log(f"[batch] ⛔⛔ RIG LEFT DIRTY on a fresh load: {json.dumps(verified)} — the next batch's gate will "
+                    "stop on it; the rig needs a repair before any capture")
+                code = code or RIG_DIRTY
         rd.ledger("batch-end", counts=counts)
     log(f"[batch] done: {json.dumps(counts)}")
     return code
@@ -1290,6 +1677,15 @@ def main(argv=None) -> int:
     r.add_argument("--only", action="append", default=None, help="a slug (repeatable)")
     r.add_argument("--retry", default=",".join(DEFAULT_RETRY),
                    help="prior outcomes to retry on resume (comma list)")
+    r.add_argument("--clean-save", action="store_true",
+                   help="repair a layout the fresh load shows dirty through the GUARDED clean-save (owner ruling 2026-11-19)")
+    rp = sub.add_parser("repair", help="ONE guarded clean-save of the rig layout: remove the named leftover probes, "
+                                       "restore symbol / resolution, Save only if clean in the page, verify on a fresh load")
+    common(rp)
+    rp.add_argument("--symbol", default="NYSE:RDDT")
+    rp.add_argument("--tf", default="1D")
+    rp.add_argument("--remove-title", action="append", required=True,
+                    help="a leftover study's title this repair may remove (repeatable); nothing else is touched")
     g = sub.add_parser("grade", help="grade a run's captures (verdicts.json + summary.md)")
     g.add_argument("--run-dir", required=True)
     g.add_argument("--objects-only-pane", choices=["manifest", "on", "off"], default="manifest")
@@ -1316,6 +1712,28 @@ def main(argv=None) -> int:
     if args.cmd == "recon":
         return _launch(args, lambda page: _recon(page, args))
 
+    if args.cmd == "repair":
+        run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        rd = RunDir(DEFAULT_RUN_ROOT / f"repair-{run_id}", run_id)
+        opts = Opts(symbol=args.symbol, tf=args.tf, title_selector=args.title_selector,
+                    profile_leaf=resolve_profile(args.profile).name, clean_save=True)
+
+        def _repair(page):
+            drv = Driver(page, RealClock(page), opts, rd, None)
+            drv.added_titles = set(args.remove_title)
+            original = {"symbol": args.symbol, "resolution": args.tf}
+            first = drv.verify_fresh_load(original)
+            rd.ledger("repair-verify-before", **first)
+            if first.get("ok"):
+                print("[repair] the rig already reads clean on a fresh load: nothing to do")
+                return 0
+            out = drv.guarded_clean_save(original, "repair")
+            rd.ledger("clean-save", **out)
+            print(f"[repair] {json.dumps({k: out.get(k) for k in ('saved', 'refused', 'error', 'before', 'sawSaved')})}")
+            print(f"[repair] fresh load after: {json.dumps(out.get('after'))}")
+            return 0 if out.get("ok") else RIG_DIRTY
+        return _launch(args, _repair)
+
     if args.cmd == "run":
         why = throttle_refusal(args.throttle_s)
         if why:
@@ -1337,7 +1755,8 @@ def main(argv=None) -> int:
                     chunk_size=args.chunk_size, newest_bar_forming=args.newest_bar_forming,
                     title_selector=args.title_selector,
                     profile_leaf=resolve_profile(args.profile).name,
-                    retry=[x.strip() for x in args.retry.split(",") if x.strip()])
+                    retry=[x.strip() for x in args.retry.split(",") if x.strip()],
+                    clean_save=bool(args.clean_save))
         print(f"[batch] run dir: {run_dir}")
         return _launch(args, lambda page: run_batch(page, manifest, rd, opts, RealClock(page),
                                                     only=args.only, limit=args.limit))

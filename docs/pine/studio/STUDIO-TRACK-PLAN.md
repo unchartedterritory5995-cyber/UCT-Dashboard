@@ -127,6 +127,16 @@ Nothing this track adds may reach the entry chunk.
 **Machine rules.** One heavy job at a time through the heavy lock, named test files, one
 worker, a sparse worktree. Tests of this track's own code stay engine-free.
 
+**Before a push: a local failure is compared with a recorded list, test by test.** The sparse
+worktree has no script corpus and no workflow files, so about ninety browser tests under
+`engine/ast` and a dozen door tests fail in it for that reason alone. On 2026-11-18 two NEW
+failures in `engine/ast/namedIndicators.test.js` were read as more of the same and went to the
+remote lane, which was red for them. The rule since: keep the list of tests that fail on an
+unchanged tree (file AND test name), and after a change compare the new list with it. A failing
+test that is not on the list is this change's until shown otherwise; "that directory always fails
+here" is not a reading of it. The remote lane stays the verdict; this is what keeps a known red
+from being sent to it.
+
 ## 5. One name, one verdict
 
 **One name.** The member-facing word is **indicator**, everywhere: the Builder's title, the
@@ -469,11 +479,18 @@ screenshot and logs) were read from their public pages and not used hands-on.
 | Adapted copies | all eight conditions hold: a Pine-writing model that meets a measured bar on a hidden set (the bar derived from its first run); no output dropped; a line-by-line view of what changed before install; a forced "Adapted: " name and badge that travels with shares; the original refusal still counted in demand; never for strategies; offered only where the engine refuses; "your original now runs, switch?" when it later does |
 | A separate community feed | not planned; the Members tab is the library |
 | Side-by-side instruction versions; model routing | section 7, L9 |
+| Ehlers Super Smoother, Instantaneous Trendline and Cyber Cycle as named, checked indicators | a published statement of each recurrence can be READ (2026-11-18: the author's own site refuses automated fetches and no page that could be read states them). They are not written from memory. Until then each is built from a member's words with the name withheld, where its shape settles |
+| A setting as a coefficient of linked running values written out by hand (a gamma the member can change inside their own accum2 to accum4) | the settle bound is recomputed for the member's value when it is bound, not read once from the numbers. (The Laguerre pair does not wait on this: `laguerre` and `laguerreRsi` take gamma as their argument and size their own restart from it, so their gamma is an Inputs field today) |
 
 This track will not: edit engine-owned files or bump the engine version; add a second
 scripting language, runtime or authoring door; save or apply anything without a press; show
 a model's description of its own output as a verdict; copy a competitor's documents,
 formulas or members' scripts.
+
+One exception, made by ruling and recorded here: `fisher(length)` (2026-11-18) is a formula
+function in the engine's shared expansion module, built by this track under the engine
+programme coordinator's authorisation, with no engine version bump (its number is pending and
+rides the next train) and no Pine name. It follows the SuperTrend and Parabolic SAR precedent.
 
 ## 14. What has been measured
 
@@ -763,7 +780,7 @@ the deploy gate.
 | R5 | **Inspect a bar**: under the script preview in the builder, the value of every named top-level variable on one bar of the chart, why an empty one is empty, and "line N" to its line. A probe copy through the script's own door, on the engine's two exports (`topLevelNames` #1647, `computeHeadless` #1649). The plan's proof is a test: on twenty scripts (53 variables) each inspected value equals the same expression written out by hand, on every bar of the 5,000-bar reference series | LIVE (#1670; a wording fix for scripts that read another symbol is #1685). Seen on production 2026-11-17 on a real daily chart (1,406 bars): each named variable with its line and value; its 50-bar average read 91.8878 where the chart's own SMA 50 legend showed 91.89; an early bar said "Its first value is on Jun 24, 2021, 37 bars after this one"; "line 6" took the editor to line 6 |
 | R6 | **a load budget for the library**: when a member lists an indicator the server measures a formula with the engine's headless export (a work count over the reference series, never a clock), files it as light, moderate or heavy (0.10 / 0.25 / 0.50 of the lane's ceiling) and refuses a listing over half the ceiling; the same gate runs when a listed indicator's link is moved to a new version. Cards and the share page say the class; the share page adds the time on the viewer's device. A pasted script is not run on the web server: "not measured yet" until the script service measures it. Switch `DEFINITION_LOAD_BUDGET_ENABLED` | LIVE and ARMED 2026-11-17 (#1662). The driver was run on the web server first (the same count twice, about 0.35 s each); then, as the synthetic admin, listing a two-output formula answered "light" (4 of 16,384) in about 2.5 s, the library card and the Members tab card said "Light to draw.", and the share page added "Drew 5,000 bars in 2.5 ms on this device". The check unlisted it afterwards. The engine session reviewed it and caught one real gap before merge (a re-share of a listed indicator skipped the budget) |
 | baseline | the live baseline of the evaluation runner, without a key on this machine: each case's first request sent through the production door as the synthetic admin, three rounds, and the real answers graded by the runner offline. All three rounds passed. It measures first requests only | DONE 2026-11-17 (requests, answers and spend kept outside this repository) |
-| explore | the exploratory round the owner asked for after the plan: this track's own requests sent through the production window as a member would, across the kinds members ask for (oscillators, bands, signals, relative strength, volume, other timeframes, levels, running state, styling, combinations, statistics, vague and impossible ones), each answer read for whether the formula is right, not only whether it built. It found one door defect: SuperTrend and Parabolic SAR could never be built, because the door refused its own expansion of functions it offers (fixed, #1680, with two instruction rules: a period in weeks is time, and a value named for a day is a daily value). What is left is in Indicators backlog rows 54 to 57 | round DONE 2026-11-17 (requests and answers kept outside this repository); #1680 merged, to be seen on production with real requests |
+| explore | the exploratory rounds the owner asked for after the plan: this track's own requests sent through the production window as a member would, each answer read for whether the formula is right, not only whether it built. Round 1 (single requests across the kinds members ask for) found the SuperTrend / SAR door defect (#1680) and four smaller ones (#1692). A multi-turn round (build, then change it four ways, as the admin and as a member) found that the commonest edit cost two calls (#1699) and that names and labels were shown as formula text (#1693, #1702). Round 2 (harder single requests) found the class in Indicators backlog 59: the server door accepting what the browser then refuses (#1701, #1708, #1722). The opening-range gap became engine vocabulary (#1713). Each fix was proved able to fail and the served ones were seen on production | rounds DONE 2026-11-17 (requests and answers kept outside this repository); backlog 54 to 64 hold what was found and what is left |
 
 **The house set, second look (2026-11-16, production).** Of the five that did not draw on
 the first run: both relative-strength requests draw (the marker fix); volume bars coloured
@@ -834,10 +851,40 @@ Not finished, and why (as of the afternoon of 2026-11-17):
   that usually leads to it. The load budget was first checked only at List; a re-share moved
   the listed version past it. The engine's review caught it before it merged.
 
-**Next, in order:** see #1680 on production with real requests (SuperTrend, a trailing stop, a
-period in weeks, "yesterday's high"); the exploratory round's open findings (Indicators backlog 54
-to 57); then names and read-backs with the authoring owner, the house set a third time, and the
-owner's look.
+**Done since (2026-11-17, late):** Indicators backlog 59 in three parts: the door/browser rail (#1734), the sweep that measures the class (`tools/door_browser_sweep.py`, measure-only) and the general fix (#1738: the browser sends its own refusal back to the door for one repair). A correction on the record: "Mansfield relative strength versus SPY over 52 weeks" was reported fixed after #1680 from the door's answer alone; the window had refused it. It is #1730. A live result is the window's text, never the door's answer.
+
+**Next, in order:** see #1701, #1708, #1722, #1730, #1738 and #1713 on production with the requests that found them (the daily allowance is durable and renews at midnight Eastern, so re-checks queue for after it); backlog 63 and 64; the same request sent three times, to measure how often an answer changes; then names and read-backs with the authoring owner, the house set a third time, and the owner's look.
+
+**State at the end of 2026-11-18.** One day's work on "anything a member can describe is built, and
+what is built is what was asked for". Every row below is merged; "live" means used on production as a
+synthetic account afterwards.
+
+| what | state |
+|---|---|
+| Several LINKED running values (`accum2` to `accum4`): built from a member's words when their starting values provably stop mattering (a filter, or a chain), refused by name otherwise | live (#1863) |
+| The door asks the ENGINE which shapes it computes: a running value inside a window function, under a bar offset or inside another running value is refused at the door, not accepted and then refused by the browser | live (#1895) |
+| The library: 37 checked indicators. Added this day: Positive Volume Index, Fisher Transform (`fisher`), Laguerre Filter and Laguerre RSI (`laguerre`, `laguerreRsi`), Detrended Price Oscillator (`dpo`), Stochastic Oscillator (fast, slow and full in one entry), Pocket Pivot | live; the Stochastic merged (#1907); Pocket Pivot merged with this record |
+| A new kind of evidence: an entry may FOLLOW UCT'S OWN READER. Pocket Pivot, held until now, is the chart formula of the Screener's own detector, proved equal to it bar for bar by a test that imports the detector and runs it. One authority; no member is told "published by" or anything about a vendor | merged with this record |
+| Engine 79 numbered the four new functions; a function waiting on a number is marked in data and held to a line in the version file | live (#1891) |
+| Clarify and learn: the door's own questions (no assistant call) now include the benchmark of a relative-strength request, how far back a breakout looks, and which Stochastic; an answer is remembered, used and said; a member's usual choices are offered first | live (#1866, #1890); the Stochastic's merged (#1907) |
+| A function's high, low and close are put in the engine's order when an answer writes them in another vendor's (a Stochastic that was a different number on every bar); the weekly owner report counts saved indicators that carry it, and changes none. On production the report counts none | live (#1900, #1904) |
+| The read-back names a bar-field argument by its role when it is not the bar's own field in order | #1909 (engine; the next train numbers it) |
+| A decline offers the closest part of the SAME indicator; a stop that only rises is a running value, not a refusal | live (#1890) |
+| The server spells small numbers as the browser does (an answer holding 0.000001 was refused twice) | live (#1886) |
+| Several number lines of one indicator are drawn in several colours; a library indicator's lines carry the library's labels; colours are read back by name | live (#1877, #1890) |
+
+| A name that is one of UCT's own built-in indicators (RS Rating, RS Phases) is answered with no assistant call and one button that adds it to the chart, for a browser that can; Mansfield Relative Strength says where it is today (a Screener column) | merged with this record |
+| The same request sent three times through production, six requests of different kinds: every send built in one call; five gave the same maths on all three; one differed on whether an inside day's edges may touch the bar before | measured 2026-11-18 (answers kept outside this repository) |
+
+**What is left, in order.**
+1. The Stochastic's capture: TradingView's built-in at (14, 1, 3) and (14, 3, 3). Graded equal, the entry carries all three tiers and may say so.
+2. The two HELD names. Mansfield Relative Strength waits on a built-in that draws the Screener's own column (a chart formula was ruled out: a second join, and different after a missing benchmark bar); the name then points at it with the one-tap offer. TTM Squeeze needs its author's formula on a page that can be read.
+2a. The offer, extended: the rest of UCT's own built-in indicators and the house set by name ("bind the house set into the library").
+2b. "Inside day" means one thing: the measurement above found two readings of it.
+3. Super Smoother, Instantaneous Trendline and Cyber Cycle as named entries: a published statement of each recurrence that can be READ (section 13). They are built from a member's words today, name withheld.
+4. An instruction slice, measured live before and after like every one: the assistant under-claims on a formula that needs a choice among several terms (it declined one the language can express).
+5. The second turns of the multi-turn evaluation cases, and the same request sent three times (how often an answer changes).
+6. A setting as a coefficient of linked running values a member writes by hand (section 13).
 
 **Open for the owner:**
 1. Look at each of the fourteen house indicators on a chart (Indicators, UCT tab) and say which
@@ -845,6 +892,12 @@ owner's look.
 2. D23 to D28 in section 11 were taken as judgment calls. Reverse any by saying so.
 3. The 10 and 21 EMA trend indicator is held out of the house set by a false positive in the
    secret scanner (section 14b). Say whether to add an allow entry for that one identifier.
+4. (2026-11-18) The admin accounts' daily allowance at Create Indicator is 30 on production, raised
+   from the default 10 for the live checks (`docs/feature_flags.json`, `CONVERSE_ADMIN_CAP_DAILY`).
+   Say when to put it back; a member's allowance was not changed.
+5. (2026-11-18) The weekly report counts saved indicators that carry a function's high, low and
+   close in the wrong order. It counts none today. If it ever counts some, say whether they are
+   corrected for their owners or their owners are told; nothing touches a saved formula until then.
 
 **Kept outside this repository:** the competitor review, prompt sets and results, the
 hidden set, screenshots, the house-set pictures, and anything with cost figures.

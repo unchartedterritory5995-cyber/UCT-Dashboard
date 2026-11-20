@@ -232,6 +232,24 @@ GATED: dict[tuple[str, str], str] = {
     # These two are pinned session-only in test_paywall_gate_free_tier.LEFT_OPEN.
     ("GET", "/api/tweets/feed"): "session",
     ("GET", "/api/catalysts/today"): "session",
+    # ── 2026-11-18: routes that now name their own audience ──────────────────
+    # The options-flow page's POST routes under its historical prefix: the batch
+    # read takes the flow family's member gate; the two that operate the daily
+    # tracker (one REPLACES its registered list, one runs a vendor backfill)
+    # take the family's admin gate. `backfill-all` needs no body, so an ungated
+    # handler would RUN on a probe: it is verified structurally (NEVER_PROBED).
+    ("POST", "/api/schwab/earnings"): "flow_user",
+    ("POST", "/api/schwab/track-contracts"): "flow_admin",
+    ("POST", "/api/schwab/backfill-all"): "flow_admin",
+    # The desk ledger (one trader's records, no member key): admin only. The
+    # behaviour and the answer's shape are in
+    # tests/test_intelligence_desk_ledger_admin.py.
+    ("GET", "/api/psychology-events"): "admin",
+    ("GET", "/api/coaching-notes"): "admin",
+    ("GET", "/api/skill-assessments"): "admin",
+    # A machine door like `/lists` above: the worker's history backfill reads the
+    # breadth population with the PUSH_SECRET bearer; no member page reads it.
+    ("GET", "/api/breadth-monitor/universe"): "worker",
 }
 
 #: ⛔ NEVER DRIVEN WITH A REQUEST, IN EITHER DIRECTION. Each takes no body and no
@@ -249,6 +267,9 @@ NEVER_PROBED = {
     ("POST", "/api/cot/reseed"),
     ("POST", "/api/cot/refresh"),
     ("POST", "/api/theme-performance/refresh"),
+    # No body and no required param: a probe that got through would start a
+    # vendor backfill over every tracked contract.
+    ("POST", "/api/schwab/backfill-all"),
 }
 
 #: Path-param samples, validated against what each route DECLARES so a new param

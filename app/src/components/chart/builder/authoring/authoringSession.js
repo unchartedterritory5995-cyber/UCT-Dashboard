@@ -21,6 +21,8 @@ import { newAuthoringState, applyTurn, undo as undoState, undoTo as undoToState,
 import { openAuthoringState } from './authoringState'
 import { converseTurn, STOPPED_GATE, distinctNotUnderstood } from './converseClient'
 import { classifyTurn, OUTCOMES } from './turnOutcome'
+import { liveOffer, withoutOffer } from './builtInOffer'
+import { settleScript, checkScript as defaultCheckScript } from './scriptAnswer'
 import { preflight } from './preflight'
 import { readSession, clearSession } from './conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from '../conversationSave'
@@ -129,7 +131,10 @@ export function initialConversationState(initial, open = null) {
 
 /** The transcript a conversation starts from. */
 export function initialTranscript(initial, open = null) {
-  return (initial && initial.transcript) || (open && open.def ? [openedEntry(open)] : [])
+  // ⭐ A RESTORED CONVERSATION OFFERS NOTHING: an offer was for the chart as it stood when the
+  // answer arrived (`builtInOffer.js`, rule 3). The words stay; the button does not come back.
+  if (initial && initial.transcript) return initial.transcript.map(withoutOffer)   // a script entry keeps its text: opening it re-checks it
+  return open && open.def ? [openedEntry(open)] : []
 }
 
 /** Is there anything to keep? A fresh, untouched conversation — or an opened, untouched
@@ -304,8 +309,8 @@ export function nameFromAssistant(state, envelope, words, gateCtx, keep, keepLab
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null } = {}) {
-  const res = await converse({ message: words, state: before, gateCtx, snippets, signal })
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null, browserRefusal = null, checkScript = undefined, chartOf = undefined } = {}) {
+  const res = await converse({ message: words, state: before, gateCtx, snippets, signal, ...(browserRefusal ? { browserRefusal } : {}) })
   // ⭐ STOP (2026-11-16) — the member stopped waiting. Whatever came back (or did not) is
   // NOT read: no reply, no patch, no refusal. Checked on the signal as well as the gate,
   // so an answer that landed in the same instant as the press is dropped too.
@@ -317,8 +322,28 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   const gaps = [...unclear, ...unavailableLines(res)]
   const turn = classifyTurn(res)
   const said = (ok, entry, extra = {}) => ({ ok, state: null, changed: false, entries: [entry], outcome: turn.outcome, ...extra })
+  if (turn.outcome === OUTCOMES.ANSWER && res && res.script) {
+    // ⭐ THE ANSWER IS A SCRIPT (`scriptAnswer.js`): this window's own engine judges it. While it
+    // does not run fully the engine's refusal goes back for a repair, a bounded number of times;
+    // the entry leads with the ENGINE's verdict, whatever it is. The working indicator is not
+    // touched: a script is opened in the script editor, never applied as a patch.
+    // ⭐ `chartOf()` is the chart's bars and compute context NOW (asked per check: a repair is checked
+    // on the bars of that moment), so the verdict is a real run on this chart (`scriptAnswer.checkScript`)
+    const onChart = typeof chartOf === 'function' ? (pine) => (checkScript || defaultCheckScript)(pine, { chart: chartOf() }) : checkScript
+    const settled = await settleScript(res,
+      (refusal) => converse({ message: words, state: before, gateCtx, snippets, signal, scriptRefusal: refusal }),
+      { ...(onChart ? { check: onChart } : {}), cancelled: () => !!(signal && signal.aborted) })
+    if (signal && signal.aborted) {
+      return { ok: false, state: null, changed: false, outcome: 'stopped', stopped: true,
+        entries: [{ role: 'uct', kind: 'stopped', lines: [STOPPED_LINE, NOTHING_CHANGED] }] }
+    }
+    return said(settled.verdict.runs, { ...settled.entry, lines: [...settled.entry.lines, ...gaps] }, { script: true, rounds: settled.rounds })
+  }
   if (turn.outcome === OUTCOMES.ANSWER) {
-    return said(true, { role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
+    // ⭐ an answer may OFFER one action (add one of UCT's own built-in indicators): kept on the
+    // entry only when it names a built-in this window shipped with
+    const offer = liveOffer(res && res.offer)
+    return said(true, { role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps], ...(offer ? { offer } : {}) })
   }
   if (turn.outcome === OUTCOMES.UNSUPPORTED) {
     return said(false, { role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,
@@ -347,9 +372,23 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
   if (result.status === 'refused') {
-    return said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
+    const refusal = said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
       details: (result.errors || []).map((e) => memberError(e).detail),
       lines: [...(result.errors || []).map((e) => errorWords(e, now.working)), ...gaps, NOTHING_CHANGED] }, { errors: result.errors || [] })
+    // ⭐ 2026-11-17 — ONE REPAIR, WITH THIS ENGINE'S OWN WORDS. The door offered a change and this
+    // engine refused it: before the member reads "Nothing was changed" for a request the assistant
+    // built, the same turn goes back once with the refused patch and why (`converseClient.
+    // browserRefusalBlock`). Once: a turn that is already that repair is never repaired again, so a
+    // request costs at most one extra round trip. Whatever the repair turn says is what the member
+    // reads, except the door's own refusal of it (an allowance, the network): that says nothing
+    // about the request, so the member reads this engine's refusal instead.
+    const repairable = turn.outcome === OUTCOMES.CHANGE && !browserRefusal && !(signal && signal.aborted)
+      && turn.envelope && (result.errors || []).length > 0
+    if (!repairable) return refusal
+    const again = await modelTurn(before, current, words, { snippets, gateCtx, converse, keepCreateName, keepCreateLabel, signal,
+      browserRefusal: { envelope: turn.envelope, errors: (result.errors || []).map((e) => memberError(e).detail) } })
+    if (again.stopped) return again
+    return again.outcome === OUTCOMES.REFUSED ? refusal : { ...again, repairedAfterRefusal: true }
   }
   if (result.status === 'question') {
     return { ok: true, state: out.state, changed: false, outcome: turn.outcome,

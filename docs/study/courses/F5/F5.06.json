@@ -651,10 +651,10 @@
    "key": "w1",
    "title": "Why a report is different",
    "steps": [
-    "Most companies report before the open or after the close. The regular session reacts at the next open.",
-    "That reaction can be a gap: a sharp move with no trades in between.",
-    "Your stop can't trade inside a gap. It becomes a market order and fills at the next price.",
-    "Schwab's example: stop at $34, the stock gaps from over $34 to about $32, and the stop fills at $32."
+    "Here's what makes a report different. Most land while the market's shut. The first real trade is the next open.",
+    "And that open can be a gap: a sharp move with no trades in between.",
+    "Your stop can't fill inside a gap. It turns into a market order and takes the next price.",
+    "Say your stop's at $34 and it gaps from over $34 to about $32. You're out at $32, not $34."
    ],
    "facts": [
     "f1",
@@ -672,10 +672,10 @@
    "key": "w2",
    "title": "Three answers before the numbers",
    "steps": [
-    "You have three answers: hold it all, trim some, or step aside before the report.",
+    "Before a report you've got three choices: hold it all, trim some, or step aside.",
     "Nobody knows the reaction. A company can beat and still drop.",
     "ZM lost almost 17% the day after a report. AMBA climbed almost 35% within two days of one.",
-    "Step aside and you can still buy after the numbers, once you've seen the reaction."
+    "Step aside and you can still buy after, once you've seen how it reacts."
    ],
    "facts": [
     "f48",
@@ -693,18 +693,16 @@
    "key": "w3",
    "title": "Size and the gain decide",
    "steps": [
-    "The gap hits every share you hold. The bigger the position, the bigger the hit.",
-    "Your gain so far is your cushion. A big gain can absorb a gap. A fresh entry has no cushion.",
-    "The options market prices an expected move. It's a size, not a direction, and it's no cap.",
+    "A gap hits every share you hold. The bigger the position, the bigger the hit.",
+    "Your gain so far is your cushion. We only hold through a report if the trade's up 5R.",
+    "A fresh entry has no cushion at all. And we don't buy in the 3 days before a report.",
     "Plan it the night before. Act in the last regular session before the numbers."
    ],
    "facts": [
     "f35",
     "f34",
     "f49",
-    "f26",
-    "f27",
-    "f28",
+    "h4",
     "f1",
     "f12",
     "f47"
@@ -777,17 +775,17 @@
    "skill": "fund.earnings_decision",
    "rung": 2,
    "format": "tf",
-   "q": "If a report gaps a stock below your stop, the stop still sells you at your stop price.",
+   "q": "Your sell stop sits at $48. The stock reports overnight and opens at $44. Your stop still gets you out at $48.",
    "answer": "False",
-   "why": "False. The stop price is a trigger, not a promised price. Once it triggers, the order becomes a market order. After a gap down, the first trade is already below your stop, so you sell near there. The fill can land well away from the stop.",
-   "lesson_line": "A stop can't trade inside a gap. It sells at the next price, which can be far past your stop.",
+   "why": "False. You're out somewhere around $44, not $48. Your stop price is a trigger, not a promise. Once the stock trades at or under $48, the order turns into a market order. After a gap, the first trade is already down at $44. So that's about where you sell, well under the price you set. Nothing traded in between, so there was never a chance to fill at $48. That's why a stop protects you during the session and does very little over a report.",
+   "lesson_line": "A stop is a trigger, not a price. A gap walks right past it.",
    "facts": [
     "f6",
     "f7",
     "f9",
     "f32"
    ],
-   "simple": "False. A stop price only triggers a sale, so after a gap the order sells at the next price, below your stop.",
+   "simple": "False. Once it's hit, the stop becomes a market order and sells near the $44 open, not at $48.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -795,14 +793,14 @@
      "Tier 1 SEC facts on how a stop order works; stable"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q04",
    "skill": "fund.earnings_decision",
    "rung": 2,
    "format": "mcq",
-   "q": "You sell every share before the report and plan to look at the stock again after it. What is that choice called?",
+   "q": "Your stock reports tonight. You sell every share before the close and plan to look at it fresh tomorrow. Which play is that?",
    "choices": [
     "Step aside",
     "Trim",
@@ -810,22 +808,23 @@
     "Hedge it"
    ],
    "answer": "Step aside",
-   "why": "Step aside. You sell every share before the numbers, so the reaction can't touch you. After the report you study the results and decide fresh. A trim sells only part and keeps the rest. Holding through keeps every share. A hedge keeps the shares and adds an options trade against the move. You hold nothing, so it is none of those.",
-   "lesson_line": "Stepping aside isn't quitting the stock. It's skipping the coin flip and looking again after.",
+   "why": "Stepping aside. Every share is gone before the numbers, so whatever the gap does, it can't touch you. Tomorrow you look at the stock like any new idea. A trim keeps some shares in. Holding through keeps them all. A hedge keeps the shares and puts an options trade against them, and you've got nothing left to hedge. Short of 5R, this is our play into a report, because that's the only time we hold through.",
+   "lesson_line": "Stepping aside isn't giving up on the stock. You skip the coin flip and look again after.",
    "facts": [
     "f23",
     "f24",
     "f40",
     "f53",
     "f34",
-    "f36"
+    "f36",
+    "h4"
    ],
    "wrong": {
-    "Trim": "A trim sells only part and keeps the rest through the report.",
-    "Hold through": "Holding keeps every share through the report and takes the full gap, either way.",
-    "Hedge it": "A hedge keeps the shares and limits risk another way, such as with options. You sold every share, so nothing is left to hedge."
+    "Trim": "A trim sells some and keeps the rest, so part of the position still takes the gap.",
+    "Hold through": "Holding keeps every share in, and every share takes the gap, up or down.",
+    "Hedge it": "A hedge keeps the shares and adds protection, like an options trade. You sold them all, so there's nothing to hedge."
    },
-   "simple": "Step aside, because you sell every share before the report and only decide on the stock again after it.",
+   "simple": "Stepping aside. You're out of every share before the numbers and you decide on the stock again after.",
    "tier": "core",
    "risk": {
     "score": 1,
@@ -833,7 +832,7 @@
      "fixed before (question reworded by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q05",
@@ -881,10 +880,10 @@
    "skill": "fund.earnings_decision",
    "rung": 3,
    "format": "tf",
-   "q": "A standard stop order will trigger in after-hours trading if the stock drops on the news.",
+   "q": "Your stock drops hard after hours on its report, right through your sell stop. You can count on that stop to sell you tonight.",
    "answer": "False",
-   "why": "False. Don't count on it. Many brokers accept only limit orders in extended-hours trading. At Schwab, stop orders trigger only in the standard session, 9:30 a.m. to 4 p.m. ET. Its extended sessions take no stop orders. So at those brokers, after an evening drop, your stop waits for the next open, after the gap. Rules differ by broker, so check yours.",
-   "lesson_line": "Don't assume your stop is awake after the close. At many brokers it waits for the open.",
+   "why": "False. Don't count on it. Many brokers take only limit orders after hours. At Schwab, a stop only triggers in the regular session, 9:30 a.m. to 4 p.m. ET. So your stop sits there all night and wakes up at the next open, after the gap has already printed. Rules differ by broker, so check yours. Better yet, make the call on the position before the bell.",
+   "lesson_line": "At most brokers your stop sleeps after the close. Make the call before the bell, not after.",
    "facts": [
     "f11",
     "f61",
@@ -892,7 +891,7 @@
     "f33",
     "f14"
    ],
-   "simple": "False. Many brokers take only limit orders after hours, and at Schwab a stop order waits for the regular session.",
+   "simple": "False. At many brokers a stop only works in the regular session, so it waits for the next open.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -902,7 +901,7 @@
      "Schwab and Investor.gov pages unreachable on 2026-11-12, last confirmed 2026-11-09"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q08",
@@ -944,7 +943,7 @@
    "skill": "fund.earnings_decision",
    "rung": 4,
    "format": "mcq",
-   "q": "Your position is 20% of the account. A report gaps it down 15% at the open. What share of the account did you lose?",
+   "q": "Your biggest position is 20% of the account. It reports and gaps down 15% at the open. How much of the account did that cost you?",
    "answer": "3%",
    "calc": {
     "fn": "arith",
@@ -955,14 +954,14 @@
     }
    },
    "suffix": "%",
-   "why": "3% of the account. The gap hits every share you hold. So the loss is the position's share of the account times the gap: 20% times 15% is 3%. Your stop doesn't change it, because a stop can't trade inside a gap. The stock lost 15%. The account lost 3%.",
-   "lesson_line": "Position size times the gap is the hit. Size decides how much a report can hurt.",
+   "why": "3% of the account. Every share you hold takes the gap, so the hit is your size times the gap. 20% times 15% is 3%. The stock lost 15%. Your account lost 3%. Your stop didn't change any of that, because it can't trade inside a gap. That's why size is the first thing I look at before a report. The bigger the position, the more one gap can take.",
+   "lesson_line": "Size times the gap is what a report can cost you. Size is the part you control.",
    "facts": [
     "f35",
     "f17",
     "f32"
    ],
-   "simple": "3%, because a 15% drop on a position worth 20% of the account costs 3% of the whole account.",
+   "simple": "3%, because a 15% gap on a position worth 20% of the account takes 3% of the whole account.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -970,7 +969,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "5%",
     "15%",
@@ -978,9 +977,9 @@
     "3%"
    ],
    "wrong": {
-    "5%": "Subtracted the gap from the position size instead of multiplying.",
-    "1.3%": "Divided the position size by the gap.",
-    "15%": "Gave the stock's drop and ignored how big the position was."
+    "5%": "You subtracted, 20 minus 15. The gap multiplies your size, it doesn't come off it.",
+    "1.3%": "You divided 20 by 15. Multiply them instead.",
+    "15%": "That's the stock's drop. You only feel it on the 20% of the account you hold."
    },
    "visual": {
     "kind": "size",
@@ -1010,8 +1009,8 @@
    "skill": "fund.earnings_decision",
    "rung": 4,
    "format": "scenario",
-   "story": "You own a stock that reports before the open on Thursday. You want out before the numbers. You don't trade after hours.",
-   "q": "When is your last chance to sell in the regular session?",
+   "story": "You own a name that reports Thursday before the open. You want out before the numbers, and you don't trade after hours.",
+   "q": "When's your last shot to sell it?",
    "choices": [
     "Wednesday's close",
     "Thursday's open",
@@ -1019,8 +1018,8 @@
     "Wednesday's open"
    ],
    "answer": "Wednesday's close",
-   "why": "Wednesday's close. A before-the-open report lands before Thursday's regular session starts. The reaction can show first in extended hours, then at Thursday's open. So your last regular-session chance to sell before the numbers is Wednesday, up to the close. Know when each of your companies reports, and whether it is before the open or after the close.",
-   "lesson_line": "Check when it reports. A before-the-open report means you act the session before.",
+   "why": "Wednesday's close. A before-the-open report hits before Thursday's regular session even starts. It can trade in the pre-market first, then it gaps at Thursday's open. So Wednesday's session, right up to the close, is your last regular-session chance. Check the timing on every name you hold, before the open or after the close. That one detail moves your exit by a full day.",
+   "lesson_line": "Before the open or after the close changes your exit day. Check it on every name you hold.",
    "facts": [
     "f1",
     "f14",
@@ -1030,10 +1029,10 @@
    ],
    "wrong": {
     "Thursday's open": "The numbers are already out by then. The open is where the gap prints.",
-    "Thursday's close": "That's a full session after the news. You've already taken the reaction.",
-    "Wednesday's open": "That's a chance, but not the last one. The regular session runs on to the close, so you can still sell later that day."
+    "Thursday's close": "That's a full session after the news. You've already eaten the reaction.",
+    "Wednesday's open": "You can sell there, but it isn't your last shot. Wednesday's session runs all the way to the close."
    },
-   "simple": "Wednesday's close, because the numbers come out before Thursday's open, so Wednesday's session is the last one before the news.",
+   "simple": "Wednesday's close. The numbers come out before Thursday's open, so Wednesday is your last day to sell.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1041,7 +1040,7 @@
      "Tier 1 FINRA timing fact plus SEC; stable"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q11",
@@ -1089,7 +1088,7 @@
    "skill": "fund.earnings_decision",
    "rung": 5,
    "format": "mcq",
-   "q": "You hold 30% of the account in one name and sell half before the report. It gaps down 10%. How much does the account fall?",
+   "q": "30% of your account is in one name, well in profit. You sell half before the report and it gaps down 10%. How much does the account drop?",
    "answer": "1.5%",
    "calc": {
     "fn": "arith",
@@ -1101,14 +1100,14 @@
     }
    },
    "suffix": "%",
-   "why": "1.5% of the account. You sold half before the report, so you kept half of a 30% position. Half of 30% is 15%. A 10% gap on 15% of the account is 1.5%. That is the fall from the night before the report. Whether the trade as a whole ends up or down also depends on the profit you had built. A trim lowers what a gap costs. It doesn't remove it.",
-   "lesson_line": "Selling half before a report halves what the gap costs. The shares you keep take the full drop.",
+   "why": "1.5% off last night's account value. You sold half, so you kept half of a 30% position. That's 15% of the account. A 10% gap on 15% is 1.5%. Whether that's a real loss depends on the profit you were sitting on. Well in the green, a lot of that 1.5% is open profit you hadn't banked yet. Had you just bought it, it would come out of your own money. Either way, the trim halved the hit. It didn't remove it.",
+   "lesson_line": "Selling half before a report halves the hit. Whether it's a real loss depends on the profit you had.",
    "facts": [
     "f48",
     "f34",
     "f35"
    ],
-   "simple": "1.5%, because you kept half the shares, so the 10% gap hit only half of a 30% position.",
+   "simple": "1.5%, because you kept half of a 30% position and the 10% gap hit that half. Open profit absorbs some of it.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1117,7 +1116,7 @@
      "inputs changed in wave6 so it no longer reuses q09's numbers"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "1.5%",
     "3%",
@@ -1125,9 +1124,9 @@
     "15%"
    ],
    "wrong": {
-    "3%": "Let the whole position take the gap and ignored the sale.",
-    "15%": "Gave the size of the half you kept, not the loss on it.",
-    "7.5%": "Took half of the 15% you kept instead of 10% of it."
+    "3%": "That's the whole 30% taking the gap. You sold half first.",
+    "15%": "That's the half you kept, as a share of the account. The loss is 10% of it.",
+    "7.5%": "You took half of 15. The gap is 10%, so it's 10% of the 15."
    },
    "visual": {
     "kind": "size",
@@ -1163,7 +1162,7 @@
    "skill": "fund.earnings_decision",
    "rung": 5,
    "format": "mcq",
-   "q": "You're up 2% on a stock. A report gaps it down 15%. How far below your entry price are you now?",
+   "q": "You bought a name last week and you're up 2%. It reports and gaps down 15% at the open. How far under your entry are you now?",
    "answer": "13.3%",
    "calc": {
     "fn": "arith",
@@ -1174,12 +1173,13 @@
     }
    },
    "suffix": "%",
-   "why": "13.3% below your entry. The 15% gap comes off today's price, which is 15.3% of your entry. Your 2% gain covers part of that. 15.3% minus 2% is 13.3% below. You can't just subtract 2 from 15, because the gap comes off the higher price.",
+   "why": "13.3% under your entry. The gap comes off today's higher price, not off your entry. 15% off a price that's 2% above your entry works out to 15.3% of your entry. Your 2% gain covers 2 of that. 15.3 minus 2 is 13.3% under. So a 2% gain is no cushion at all. A gap goes straight through it and into your own money. That's why we want a real cushion, 5R, before we hold one through.",
    "lesson_line": "A small gain is no cushion. A gap goes straight through it and into your money.",
    "facts": [
     "f49",
     "f17",
-    "f32"
+    "f32",
+    "h4"
    ],
    "simple": "13.3%, because the 15% gap wiped out your 2% gain and then took the rest from your own money.",
    "deeper": {
@@ -1192,7 +1192,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "13.3%",
     "1.3%",
@@ -1200,9 +1200,9 @@
     "15.3%"
    ],
    "wrong": {
-    "15.3%": "Took the gap off the higher price but forgot to subtract your gain.",
-    "1.3%": "Slipped a decimal place.",
-    "11.0%": "Took the gain off the gap twice."
+    "15.3%": "You took the gap off the higher price but forgot your 2% gain covers part of it.",
+    "1.3%": "A decimal slip. You're a lot further under than that.",
+    "11.0%": "You took the 2% gain off the 15% gap twice."
    },
    "visual": {
     "kind": "size",
@@ -1232,17 +1232,17 @@
    "skill": "fund.earnings_decision",
    "rung": 5,
    "format": "scenario",
-   "story": "You bought two days ago and you're up 2%. Your stop is 6% under your entry. It reports tonight, and options price a move of about 10%.",
-   "q": "What's the real risk if you hold every share through?",
+   "story": "You bought two days ago and you're up 2%. Your stop is 4% under your entry. It reports tonight, and options price a move of about 10%.",
+   "q": "What are you really risking if you hold every share?",
    "choices": [
     "A loss past your stop",
-    "A loss no bigger than 6%",
+    "A loss no bigger than 4%",
     "Little, since you're in profit",
     "A loss capped at about 10%"
    ],
    "answer": "A loss past your stop",
-   "why": "A loss past your stop. You're up 2% and your stop is 6% under your entry. A gap of about 10% would open below that stop. The stop then becomes a market order and fills at the next price. The move can also be bigger than the options priced. Our rule: hold through a report only if the trade is up 5R. Up 2% on a 6% stop is far short of that.",
-   "lesson_line": "A thin cushion and a big expected move: be out. We hold through a report only when the trade is up 5R.",
+   "why": "A loss past your stop, maybe well past it. Your stop sits 4% under your entry, and you're only up 2%. A gap of about 10% opens below that stop. The stop then turns into a market order and sells wherever the stock opens. And the 10% isn't a cap. It can gap more than options priced. That's why we're out before this one. We hold through a report only when the trade's up 5R, and a 2% gain on a 4% stop is half an R.",
+   "lesson_line": "Thin cushion and a big priced move: be out. We hold through a report only at 5R.",
    "facts": [
     "f7",
     "f13",
@@ -1252,11 +1252,11 @@
     "h4"
    ],
    "wrong": {
-    "A loss no bigger than 6%": "Your stop can't fill inside a gap. If the stock opens about 10% lower, that's about where you sell.",
     "Little, since you're in profit": "A 2% gain covers a 2% drop. Against a gap of about 10%, it barely helps.",
-    "A loss capped at about 10%": "The expected move is no cap. It doesn't promise a size, and the gap can be bigger than priced."
+    "A loss capped at about 10%": "The priced move isn't a cap. It doesn't promise a size, and the gap can be bigger.",
+    "A loss no bigger than 4%": "Your stop can't fill inside a gap. Open about 10% lower and that's about where you sell."
    },
-   "simple": "A loss past your stop, because a 10% gap opens below a stop 6% under your entry.",
+   "simple": "A loss past your stop, because a gap of about 10% opens below a stop just 4% under your entry.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1265,15 +1265,15 @@
      "lesson line now teaches the owner's B22 instead of 'trim hard or step aside'"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q15",
    "skill": "fund.earnings_decision",
    "rung": 6,
    "format": "scenario",
-   "story": "A stock is 25% of your account. It reports after the close, and options price a move of about 8%. You normally risk 1% of the account on a trade.",
-   "q": "If it gaps down the full expected move, how does the hit compare with your normal risk?",
+   "story": "A name is 25% of your account. It reports after the close, and options price a move of about 8%. You normally risk 1% of the account on a trade.",
+   "q": "If it gaps down the full 8%, how does that hit compare with your normal risk?",
    "choices": [
     "About 2x your normal risk",
     "About the same as normal",
@@ -1291,8 +1291,8 @@
     },
     "round": 0
    },
-   "why": "About 2x your normal risk. 8% off a position worth 25% of the account is 2% of the account. That's double the 1% you normally risk. On a gap, your stop doesn't set the loss. So check the expected move against your size before the report. The expected move is no cap either. A bigger gap costs more.",
-   "lesson_line": "Check the expected move against your size. One gap can cost more than your normal risk.",
+   "why": "About 2x. 8% off a position that's 25% of the account is 2% of the account. That's double the 1% you'd normally put at risk on a trade. On a gap, your stop doesn't set the loss. Your size does. So before a report, put the priced move in account terms. If you wouldn't take that risk on a normal trade, don't take it here. Our Calendar page shows the implied move in the earnings list before the report. And it's no cap. Gap more than that and it costs you more.",
+   "lesson_line": "Put the priced move in account terms. One gap can cost more than a normal loss.",
    "facts": [
     "f28",
     "f29",
@@ -1301,8 +1301,8 @@
    ],
    "wrong": {
     "About the same as normal": "Your stop doesn't set the loss here. The gap does, and 8% of a 25% position is 2% of the account.",
-    "About 8x your risk": "That's the stock's move. The account feels it only on the 25% you hold.",
-    "About 25x your risk": "That reads the position's size as the loss. Only the 8% drop on that 25% hits the account."
+    "About 8x your risk": "That's the stock's move. The account only feels it on the 25% you hold.",
+    "About 25x your risk": "That reads the whole position as the loss. Only the 8% drop on that 25% hits the account."
    },
    "simple": "About 2x, because 8% off a position worth 25% of the account is 2%, double your 1% risk.",
    "tier": "extended",
@@ -1312,7 +1312,7 @@
      "computed key"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "The hit vs normal risk",
@@ -1347,16 +1347,16 @@
    "skill": "fund.earnings_decision",
    "rung": 6,
    "format": "tf",
-   "q": "After an evening report, you can count on a good fill when you sell in after-hours trading.",
+   "q": "It's 5 p.m. and your stock is down hard after hours on its report. You can count on a clean fill if you sell right now.",
    "answer": "False",
-   "why": "False. After hours there is less trading interest and less price competition. That can raise your costs, blur the real price and make orders harder to fill. News released then can move the stock sharply. Many brokers accept only limit orders in these sessions.",
-   "lesson_line": "After hours is a thin market. If you must sell there, use a limit order. Many brokers take nothing else.",
+   "why": "False. After hours is a thin market. Fewer people trade, so there's less competition on price. That can cost you more, blur the real price and make your order hard to fill at all. News that lands then can move the stock a lot in a hurry. Many brokers take only limit orders in these sessions. If you have to sell there, use a limit and expect to give up some price. I'd rather make the call before the close.",
+   "lesson_line": "After hours is a thin market. If you must sell there, use a limit order.",
    "facts": [
     "f12",
     "f10",
     "f11"
    ],
-   "simple": "False. After hours fewer people trade, so prices are less sure and your order may fill badly or be hard to fill.",
+   "simple": "False. After hours fewer people trade, so the price is shaky and your order may fill badly or not at all.",
    "tier": "extended",
    "risk": {
     "score": 3,
@@ -1366,21 +1366,23 @@
      "Investor.gov unreachable on 2026-11-12, last confirmed 2026-11-09"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q17",
    "skill": "fund.earnings_decision",
    "rung": 6,
    "format": "tf",
-   "q": "If you sell every share before a report, you also give up any gap up.",
+   "q": "Stepping aside before a report keeps you out of a gap down, and out of a gap up too.",
    "answer": "True",
-   "why": "True. Stepping aside protects you from a gap down, but a gap up happens without you. AMBA climbed almost 35% within two days of one report. Schwab says waiting out earnings season isn't always the right approach. Stepping aside is a choice with a price, not a free pass.",
-   "lesson_line": "Stepping aside trades a possible big gain for safety. Know that's the price you're paying.",
+   "why": "True. That's the price of stepping aside. A gap happens with no trades in between, and you're not in it either way. AMBA climbed almost 35% within two days of one report. Step aside and you watch that from the sidelines. I'm fine with that deal. A missed gain stings, but a real loss is much worse. And the stock isn't gone. You can still buy it after the numbers, as a fresh trade.",
+   "lesson_line": "Stepping aside costs you the gap ups too. I'll pay that to skip the gap downs.",
    "facts": [
     "f44",
     "f41",
-    "f25"
+    "f25",
+    "f39",
+    "f24"
    ],
    "simple": "True. Once you've sold, a big gap up happens without you, like AMBA's climb of almost 35%.",
    "tier": "extended",
@@ -1391,14 +1393,14 @@
      "statement flipped to True in wave6 to balance the unit's True and False keys"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q18",
    "skill": "fund.earnings_decision",
    "rung": 7,
    "format": "mcq",
-   "q": "You own 500 shares, sell stop at $34. A report gaps the stock to $32 and your stop fills there. How much more did you lose than planned?",
+   "q": "500 shares, sell stop at $34. The report gaps it to $32 at the open, and that's where you fill. How much more did you lose than planned?",
    "answer": "$1,000",
    "calc": {
     "fn": "arith",
@@ -1410,7 +1412,7 @@
     }
    },
    "prefix": "$",
-   "why": "$1,000 more than planned. You planned to sell at $34 and sold at $32, which is $2 less per share. $2 times 500 shares is $1,000. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop decided when you sold. The gap decided the price.",
+   "why": "$1,000 more than you planned. You planned on selling at $34 and got $32. That's $2 a share less. $2 times 500 shares is $1,000. This is Schwab's own gap example: the $34 sell stop triggers at the open and fills at $32. The stop picked when you sold. The gap picked the price. So when you size up the risk into a report, plan from the gap, not from the stop.",
    "lesson_line": "Plan the earnings loss from the gap, not from the stop.",
    "facts": [
     "f17",
@@ -1420,7 +1422,7 @@
    ],
    "simple": "$1,000, because you planned to sell at $34 but every one of your 500 shares sold at $32.",
    "deeper": {
-    "trap": "Planning the loss from the stop understates it on a report. Plan it from a possible gap instead. Our rule sidesteps most of it: under 5R, we're out before the report."
+    "trap": "Planning the loss from the stop understates it on a report. Plan it from a possible gap instead. Our 5R line sidesteps most of it: short of 5R, we're out before the report."
    },
    "tier": "extended",
    "risk": {
@@ -1430,7 +1432,7 @@
      "Schwab page unreachable on 2026-11-12, last confirmed 2026-11-09"
     ]
    },
-   "batch": "rank",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "$1,000",
     "$2",
@@ -1438,9 +1440,9 @@
     "$200"
    ],
    "wrong": {
-    "$2": "Gave the loss per share and skipped the share count.",
-    "$100": "Slipped a decimal place on the dollars.",
-    "$200": "Used 100 shares instead of 500."
+    "$2": "That's the loss per share. Multiply by your 500 shares.",
+    "$100": "A decimal slip. You're off by a factor of ten.",
+    "$200": "You used 100 shares. You own 500."
    }
   },
   {
@@ -1449,7 +1451,7 @@
    "rung": 7,
    "format": "scenario",
    "story": "You sold everything before the report. Next morning the stock gaps up 8% on strong numbers and holds near its high into midday.",
-   "q": "What's your next step with this stock?",
+   "q": "What's the play now?",
    "choices": [
     "Judge it fresh, like a new trade",
     "Leave it. That move is gone",
@@ -1457,7 +1459,7 @@
     "Rebuy at the old size and old stop"
    ],
    "answer": "Judge it fresh, like a new trade",
-   "why": "Judge it fresh, like a new trade. Once the numbers are out, you can study them, watch the reaction and decide if you still want it. If you buy, it's a new trade with a new entry and its own stop. The size comes from that stop. Our default stop sits a few cents under the day's low or the prior day's low.",
+   "why": "Judge it fresh, like a brand new trade. The numbers are out, so the coin flip is over. Now you can read what they said and watch how the stock acts. If you want it back, it needs its own entry and its own stop. Your stop goes a few cents under the low of the day, or the prior day's low. The size comes from that stop. And don't chase it. We never buy more than 4% above the buy point.",
    "lesson_line": "Stepping aside isn't goodbye. After the report it's a new trade, with a new entry and a new stop.",
    "facts": [
     "f24",
@@ -1467,13 +1469,13 @@
     "h10"
    ],
    "wrong": {
-    "Leave it. That move is gone": "That decides before you've looked. Once the numbers are out, you can study them and the reaction, then decide.",
-    "Rebuy at the old size and old stop": "Your old trade ended when you sold. A new buy needs its own stop, and the size comes from that stop.",
-    "Buy it now before it runs more": "That's fear of missing out, not a plan. A new buy needs a buy point and a stop first. Our rule: never buy more than 4% above the buy point."
+    "Leave it. That move is gone": "That decides before you've looked. The numbers are out, so read them and the chart, then decide.",
+    "Rebuy at the old size and old stop": "The old trade ended when you sold. A new buy gets its own stop, and the size comes from that.",
+    "Buy it now before it runs more": "That's fear of missing it, not a plan. You need a buy point and a stop first, and never more than 4% above the buy point."
    },
-   "simple": "Judge it fresh, because once the numbers are out you can study them and decide if you still want it.",
+   "simple": "Judge it fresh, because once the numbers are out you can read them, watch the stock, and decide if you want it.",
    "deeper": {
-    "trap": "After a strong gap up, the urge is to buy at once or give up on it. Neither is a plan. Treat it as a new trade: a buy point, a stop first, and size from the stop. Our rule: never buy more than 4% above the buy point."
+    "trap": "After a strong gap up, the urge is to buy at once or give up on it. Neither is a plan. Treat it as a new trade: a buy point, a stop first, and size from the stop. We never buy more than 4% above the buy point."
    },
    "tier": "extended",
    "risk": {
@@ -1483,17 +1485,17 @@
      "fixed before (wrong note's stop rule corrected)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q20",
    "skill": "fund.earnings_decision",
    "rung": 7,
    "format": "tf",
-   "q": "A sound earnings plan is set ahead of time, and one rule is applied to every stock you hold.",
+   "q": "Earnings week, and five of your names report. The best plan is one rule, set ahead of time, that you run every name through.",
    "answer": "True",
-   "why": "True. Nobody knows how the market will react to the numbers. A company can beat on sales and earnings, raise guidance and still fall. Guess stock by stock, and you can sell the ones that gap up and keep the ones that sink. Cabot's rule: have a plan ahead of time and follow it for all your stocks. Ours: hold through a report only if the trade is up 5R.",
-   "lesson_line": "Set your rules ahead of time and run every stock through them. Don't guess the reaction.",
+   "why": "True. Nobody knows how a stock will react to its numbers. A company can beat on sales and earnings, raise guidance and still fall. Guess name by name and you end up selling the ones that gap up and holding the ones that sink. So set the rule before the week starts. Ours is simple. We hold through a report only when the trade's up 5R. Everything else, we're out before the number.",
+   "lesson_line": "Set the rule before earnings week and run every name through it. Don't guess the reaction.",
    "facts": [
     "f4",
     "f42",
@@ -1504,9 +1506,9 @@
     "f5",
     "h4"
    ],
-   "simple": "True. Nobody can predict the reaction, so one rule set in advance beats guessing stock by stock.",
+   "simple": "True. Nobody can predict the reaction, so one rule set in advance beats guessing name by name.",
    "deeper": {
-    "trap": "The tempting plan is to pick the strong quarters and hold only those. But a beat is not the reaction. A stock that ran up into great numbers can stall for lack of new buyers. A rule based on your own trade, like how far it is up, avoids the guess."
+    "trap": "The tempting plan is to pick the strong quarters and hold only those. But a beat is not the reaction. A stock that ran up into great numbers can stall for lack of new buyers. A rule built on your own trade, like how far it's up, skips the guess. Cabot says the same: have a plan ahead of time and follow it for all your stocks."
    },
    "tier": "extended",
    "risk": {
@@ -1516,7 +1518,7 @@
      "statement flipped to True in wave6 to balance the unit's True and False keys"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q21",
@@ -1526,13 +1528,13 @@
    "story": "You hold a stock with a stop-limit to sell: stop $50, limit $49.50. It reports after the close and opens at $44 the next morning.",
    "q": "What happens to your order?",
    "choices": [
-    "It sells nothing; you keep it",
+    "Nothing sells, you still own it",
     "It sells at about $49.50",
     "It sells at exactly $50 a share",
     "It sells at about $44 at the open"
    ],
-   "answer": "It sells nothing; you keep it",
-   "why": "It doesn't fill, and you keep the shares. The open at $44 triggers the $50 stop. The order becomes a limit order to sell at $49.50 or better. With the stock at $44, no buyer pays $49.50. Unless it climbs back to $49.50, the order sits unfilled. A plain stop would have become a market order and sold near $44.",
+   "answer": "Nothing sells, you still own it",
+   "why": "Nothing sells. You're still holding it. The $44 open triggers your $50 stop. But a stop-limit turns into a limit order: sell at $49.50 or better. With the stock at $44, nobody pays $49.50. So the order just sits there unless the stock climbs back. Now you own a name that just gapped down, with nothing working to get you out. A plain stop would have sold near $44. Ugly, but you'd be out.",
    "lesson_line": "A stop-limit can't catch a gap either. It can leave you holding the bag.",
    "facts": [
     "f8",
@@ -1541,11 +1543,11 @@
     "f7"
    ],
    "wrong": {
-    "It sells at about $49.50": "The limit is the worst price you'll take. The market is far below it, so nothing fills.",
+    "It sells at about $49.50": "The limit is the worst price you'll take. The market is far under it, so nothing fills.",
     "It sells at exactly $50 a share": "The stop price only triggers the order. It's never a promised fill.",
-    "It sells at about $44 at the open": "That's how a plain stop works. A stop-limit becomes a limit order and won't sell below $49.50."
+    "It sells at about $44 at the open": "That's what a plain stop does. A stop-limit turns into a limit order and won't sell under $49.50."
    },
-   "simple": "It sells nothing, because the stop-limit becomes a limit order at $49.50, and no buyer pays that with the stock at $44.",
+   "simple": "Nothing sells, because the stop-limit becomes a limit order at $49.50, and nobody pays that with the stock at $44.",
    "deeper": {
     "trap": "A stop-limit feels safer because it promises a price. On a gap that promise is the problem. The price jumps past your limit and nothing sells. You end up holding a stock that just gapped down, with no order working at the market."
    },
@@ -1556,15 +1558,15 @@
      "fixed before (choice and why reworded)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q22",
    "skill": "fund.earnings_decision",
    "rung": 8,
    "format": "scenario",
-   "story": "Your stock reports after the close. Next morning it opens 14% lower, a loss of 4R, far under your stop. You use a mental stop, so nothing sold. It's 9:45 am.",
-   "q": "What do you do?",
+   "story": "Your stock reports after the close. Next morning it opens 14% lower, a 4R loss, way under your stop. You kept the stop in your head, so nothing sold. It's 9:45 am.",
+   "q": "What's your move?",
    "choices": [
     "Sell. Your plan says you're out",
     "Wait for a bounce to sell",
@@ -1572,7 +1574,7 @@
     "Sell half now and keep the other half"
    ],
    "answer": "Sell. Your plan says you're out",
-   "why": "Sell. The stock gapped far below your stop, and the loss is already 4R. Our gap rule lets the first 30 minutes set a new stop. But if they take the loss past 2R, we get out, and this one is past it. Cabot agrees: if it gaps down in a big way below your stop, get out. For a bad report you catch that same session, Bulkowski says sell right away. Next time, keep a real stop order with the broker, not one in your head.",
+   "why": "Sell it. All of it. The loss is already 4R. When a stock gaps through the stop, we let the first 30 minutes set the new stop, the low of that first 30-minute bar. But there's a ceiling. If those 30 minutes take the loss past 2R, we're out, and 4R is twice that. Waiting for a bounce turns a planned loss into a hope trade with no stop at all. And next time, put a real stop order in with the broker, not one in your head.",
    "lesson_line": "Past 2R in the first 30 minutes of a gap, we get out. Don't turn it into a hope trade.",
    "facts": [
     "f52",
@@ -1585,13 +1587,14 @@
     "h5"
    ],
    "wrong": {
-    "Wait for a bounce to sell": "Hoping for a bounce isn't a plan. The loss is already past our 2R ceiling, and Bulkowski expects more downside in the coming days.",
-    "Buy more while it's cheap": "That's adding to a loser right after a bad report. Bulkowski's answer to buying after bad earnings is no.",
-    "Sell half now and keep the other half": "Half the position still rides a broken trade. The loss is past our 2R ceiling, and out means all of it."
+    "Wait for a bounce to sell": "Hoping for a bounce isn't a plan. You're already past our 2R ceiling.",
+    "Buy more while it's cheap": "That's adding to a loser right after a bad report. You'd be putting more money into a trade that already broke your stop.",
+    "Sell half now and keep the other half": "Half still rides a broken trade. Past 2R, out means all of it."
    },
-   "simple": "Sell, because the loss is already 4R, past our 2R gap ceiling, and hoping for a bounce is no plan.",
+   "simple": "Sell all of it, because the loss is already 4R, past our 2R gap ceiling, and hoping for a bounce is no plan.",
    "deeper": {
-    "trap": "The open after a bad report is when hope is strongest. The stock is far under your stop and a bounce feels close. Holding on turns a planned loss into a hope trade with no stop at all."
+    "trap": "The open after a bad report is when hope is strongest. The stock is far under your stop and a bounce feels close. Holding on turns a planned loss into a hope trade with no stop at all.",
+    "example": "Cabot says it plainly: if it gaps down in a big way below your stop, get out. Bulkowski's study of bad earnings surprises found the drop kept going, a median 8% below the last close, and took a median of 7 days to bottom."
    },
    "tier": "expert",
    "risk": {
@@ -1602,7 +1605,7 @@
      "story text changed in wave6"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q23",
@@ -1618,7 +1621,7 @@
     "All equal"
    ],
    "answer": "XVRP",
-   "why": "XVRP. The same 10% gap costs each name's share of the account. XVRP is 25% of the account, so it costs the most. QZLA at 8% and JKQN at 5% cost far less. XVRP is also up only 1%, so it ends below your entry. QZLA, up 35%, stays in profit. Size sets the cost. The gain sets the cushion.",
+   "why": "XVRP. It's 25% of the account, against 8% for QZLA and 5% for JKQN. The same 10% gap does the most damage on the biggest position. Then look at the cushions. XVRP is up only 1%, so the gap puts it under your entry. QZLA is up 35%, so it stays green. JKQN, up 12%, stays above water too. Biggest size and thinnest cushion is the worst combo to carry into a report. That's the one I'd least want to hold.",
    "lesson_line": "Biggest size and the thinnest cushion: that's the riskiest one to carry into a report.",
    "facts": [
     "f35",
@@ -1626,8 +1629,8 @@
     "f28"
    ],
    "wrong": {
-    "All equal": "Each name drops the same 10%, but the account feels it only on what you hold. The biggest position costs the most.",
-    "QZLA": "QZLA has the biggest gain, but at 8% of the account it's a small position. The same gap costs the account less, and QZLA stays in profit.",
+    "All equal": "Each name drops the same 10%, but the account only feels it on what you hold. The biggest position costs the most.",
+    "QZLA": "QZLA has the biggest gain, but at 8% of the account it's a small position. It costs less, and it stays in profit.",
     "JKQN": "JKQN is the smallest position, at 5% of the account, so the same gap costs the account the least."
    },
    "simple": "XVRP, because it's the biggest position at 25% of the account, so the same 10% gap costs the account the most.",
@@ -1642,7 +1645,7 @@
      "fixed before (choices stripped of the account cost)"
     ]
    },
-   "batch": "owner-review-6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q24",
@@ -1650,7 +1653,7 @@
    "rung": 9,
    "format": "scenario",
    "story": "You're up 40%, or 8R, in a leader you've held for months. It reports after the close, and options price a move of about 9%.",
-   "q": "Our rule lets you hold this one through. Which belief about the gap holds up?",
+   "q": "You're holding it through. If it gaps down the full 9%, which of these holds up?",
    "choices": [
     "Still up about 27% after a 9% gap",
     "My stop will cap the loss",
@@ -1667,7 +1670,7 @@
     },
     "round": 0
    },
-   "why": "Still up about 27%. A 9% gap off a 40% gain leaves you about 27% above your entry. You hold because you're up 8R, past our 5R line, not because of the percent. The move can be bigger than the 9% priced. A stop can't cap the loss inside a gap.",
+   "why": "Still up about 27%. Take 9% off the higher price, not off your entry. 40% up, then 9% off that, leaves you about 27% above where you bought. That's what 8R buys you: a cushion that can take a normal gap and still leave you well in the green. It's why we only hold through past 5R. But the 9% isn't a cap. It can gap more, and your stop won't catch it inside a gap.",
    "lesson_line": "Hold through a report only past 5R. Even then, the move can be bigger than priced.",
    "facts": [
     "f49",
@@ -1679,13 +1682,13 @@
     "h4"
    ],
    "wrong": {
-    "My stop will cap the loss": "A stop can't fill inside a gap. If it opens far below your stop, that's where you sell.",
+    "My stop will cap the loss": "A stop can't fill inside a gap. If it opens far under your stop, that's where you sell.",
     "Leaders don't gap down on reports": "Any stock can tumble on its numbers, even one that ran up into a great report.",
-    "The priced 9% is the most it can drop": "The expected move is no cap. It doesn't promise a size, and the gap can be bigger."
+    "The priced 9% is the most it can drop": "The priced move isn't a cap. It doesn't promise a size, and the gap can be bigger."
    },
    "simple": "Still up about 27%, because a 9% gap off a 40% gain still leaves you well above your entry.",
    "deeper": {
-    "trap": "Up 40% sounds like plenty, but our rule measures the cushion in R, not in percent. Here 8R clears our 5R line. On a wider stop, the same 40% might not."
+    "trap": "Up 40% sounds like plenty, but we measure the cushion in R, not in percent. Here 8R clears our 5R line. On a wider stop, the same 40% might not."
    },
    "tier": "expert",
    "risk": {
@@ -1696,7 +1699,7 @@
      "story text changed in wave6"
     ]
    },
-   "batch": "cards-2026-11-15",
+   "batch": "voice-8-2026-11-17",
    "visual": {
     "kind": "size",
     "title": "A leader through the gap",
@@ -1772,10 +1775,10 @@
    "skill": "fund.earnings_decision",
    "rung": 9,
    "format": "tf",
-   "q": "If you hold only shares, selling some or all before the report is the one sure way to cut your gap risk.",
+   "q": "You only hold shares, no options. The one sure way to cut your gap risk before a report is to hold fewer of them.",
    "answer": "True",
-   "why": "True, for a holder of shares only. Cboe puts it plainly: holding stock into earnings, there is no way to limit downside without exiting. A stop can't fill inside a gap, so it doesn't count. Only the shares you no longer hold are safe from the gap. Options can define the risk, but the statement rules them out.",
-   "lesson_line": "With shares, risk into a report is cut one way: by holding fewer of them.",
+   "why": "True. With shares, the only way to limit the downside into a report is to sell. Cboe says it straight: hold stock into earnings and there's no way to limit downside without exiting. Your stop doesn't count here. A report lands while the market's shut, and the stock can open right past it. So the shares you sold are the only ones safe from the gap. Options can define the risk, but that's a different trade.",
+   "lesson_line": "With shares, you cut report risk one way: by holding fewer of them.",
    "facts": [
     "f34",
     "f32",
@@ -1783,7 +1786,7 @@
     "f36",
     "f1"
    ],
-   "simple": "True. With shares alone there's no way to limit the downside except selling, since a stop can't catch a gap.",
+   "simple": "True. With shares alone you limit the downside only by selling, since a stop can't catch a gap.",
    "deeper": {
     "trap": "The tempting answer is that a stop protects you. It does while the stock trades. A report usually lands while the market is shut, and the stock can open past your stop."
    },
@@ -1794,14 +1797,14 @@
      "fixed before (statement reworded by the checker)"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q27",
    "skill": "fund.earnings_decision",
    "rung": 4,
    "format": "mcq",
-   "q": "You bought at $50 with a stop at $48. The day before the report, the stock is at $62. How many R are you up?",
+   "q": "You bought at $50 with a stop at $48. It's the day before the report and the stock's at $62. How many R are you up?",
    "answer": "6R",
    "calc": {
     "fn": "r_multiple",
@@ -1812,7 +1815,7 @@
     }
    },
    "suffix": "R",
-   "why": "6R. R is your first risk per share: entry minus stop, so $50 minus $48. The stock rose $12, from $50 to $62. That rise is six times the risk, so it is 6R. Our rule: hold through a report only if the trade is up 5R. At 6R, this one may stay in.",
+   "why": "6R. One R is what you risked a share: $50 minus $48, so $2. The stock is up $12, from $50 to $62. $12 over $2 is 6R. That number matters today, because we only hold through a report when the trade's up 5R. At 6R this one clears the line, so you can hold it into the numbers.",
    "lesson_line": "Count your gain in R before a report. Under 5R, we're out before the numbers.",
    "facts": [
     "f63",
@@ -1828,7 +1831,7 @@
      "new in wave6: teaches the R that q11, q14, q20, q22, q24 and q28 use"
     ]
    },
-   "batch": "tomcq",
+   "batch": "voice-8-2026-11-17",
    "choices": [
     "7R",
     "6R",
@@ -1836,9 +1839,9 @@
     "24R"
    ],
    "wrong": {
-    "7R": "Measured the rise from the stop instead of from your entry.",
-    "12R": "Gave the dollar gain per share and never divided by the risk.",
-    "24R": "Multiplied the gain by the risk instead of dividing."
+    "7R": "You measured the rise from your stop, $48, instead of from your $50 entry.",
+    "12R": "That's the dollar gain a share. Divide it by the $2 you risked.",
+    "24R": "You multiplied the gain by the risk. Divide instead."
    }
   },
   {
@@ -1848,7 +1851,7 @@
    "format": "scenario",
    "house": true,
    "story": "NVDA reports on February 25, 2026, and today is the day before. You hold a full position, up 1R. Expectations for the quarter run high.",
-   "q": "What does our rule say to do before the report?",
+   "q": "What do you do with it before the report?",
    "choices": [
     "Step aside before the numbers",
     "Trim a third and hold the rest",
@@ -1856,7 +1859,7 @@
     "Add more before the numbers"
    ],
    "answer": "Step aside before the numbers",
-   "why": "Step aside before the numbers. Our rule: hold through a report only when the trade is up 5R. Up 1R is far short, so we're out. A trim would still carry shares into the gap. Great numbers don't promise a rise either. NVDA posted record results on February 25, 2026 and still dropped roughly 9% over the next two days.",
+   "why": "Step aside. Be out before the numbers. You're up 1R, and we only hold through a report at 5R. 1R is no cushion against a gap. A trim still leaves shares in the line of fire. And great numbers won't save you. NVDA posted record results on February 25, 2026 and still dropped roughly 9% over the next two days. When everyone expects a monster quarter, the bar it has to clear is that much higher.",
    "lesson_line": "Under 5R into a report, we're out. Record results can still fall when hopes run high.",
    "facts": [
     "h4",
@@ -1868,11 +1871,11 @@
     "f53"
    ],
    "wrong": {
-    "Trim a third and hold the rest": "A trim still carries shares through the report. We hold through only when the trade is up 5R, and this is up 1R.",
-    "Hold it all. The quarter looks great": "A great quarter can still drop when good news is already in the price. NVDA fell roughly 9% over the next two days.",
+    "Trim a third and hold the rest": "A trim still carries shares through the report. We hold through only at 5R, and this is up 1R.",
+    "Hold it all. The quarter looks great": "A great quarter can still drop when the good news is already in the price. NVDA fell roughly 9% over the next two days.",
     "Add more before the numbers": "We make no new buys in the 3 days before a report, and adding now would be one."
    },
-   "simple": "Step aside, because our rule holds through a report only at 5R or more, and this trade is up 1R.",
+   "simple": "Step aside, because we hold through a report only at 5R or more, and this trade is up 1R.",
    "deeper": {
     "example": "Record revenue and profit were already expected, so the stock needed something special to rise. It fell instead. High hopes raise the bar a report has to clear."
    },
@@ -1885,14 +1888,14 @@
      "replaces q25, whose key 'Trim it or step aside' went against B22"
     ]
    },
-   "batch": "wave6"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q29",
    "skill": "fund.earnings_decision",
    "rung": 2,
    "format": "mcq",
-   "q": "Why do some traders sell before a report instead of holding?",
+   "q": "Plenty of good traders sell before every report rather than hold. What's the main reason?",
    "choices": [
     "No one can predict how it will react",
     "A report always sends a stock lower",
@@ -1900,35 +1903,36 @@
     "Brokers do not allow holding through"
    ],
    "answer": "No one can predict how it will react",
-   "why": "No one can predict how it will react. A company can beat estimates and still fall on a weak outlook, and another can climb after a report. Some traders sell before the report because the reaction is mostly a roll of the dice, and a stop cannot trade inside a gap. Others hold. It is a choice set by a plan, and the reaction is never certain either way.",
-   "lesson_line": "Nobody calls the reaction. That is why stepping aside before a report is a sound choice.",
-   "simple": "Because nobody can predict how the stock will react, and a stop cannot catch a gap. Holding is a choice too.",
+   "why": "Nobody can call the reaction. A company can beat and still fall on a weak outlook. Another can climb almost 35% in two days, like AMBA did. And your stop can't trade inside a gap. So for a lot of traders it's a coin flip they'd rather skip. Others hold. Either way it's a plan you set, not a forecast. Ours sits in between: we hold through only when the trade's up 5R.",
+   "lesson_line": "Nobody calls the reaction. That's why stepping aside before a report is a sound play.",
+   "simple": "Because nobody can predict how the stock will react, and a stop can't catch a gap. Holding is a choice too.",
    "facts": [
     "f38",
     "f53",
     "f4",
     "f44",
     "f32",
-    "f54"
+    "f54",
+    "h4"
    ],
    "wrong": {
-    "A report always sends a stock lower": "No. AMBA climbed almost 35% within two days of a report. The reaction can go either way.",
-    "Stop orders work better after a report": "A stop cannot trade inside a gap, so it protects you less around a report, not more.",
-    "Brokers do not allow holding through": "Nothing forces you to sell. Holding through a report is your own choice."
+    "A report always sends a stock lower": "Not at all. AMBA climbed almost 35% within two days of one. It can go either way.",
+    "Stop orders work better after a report": "A stop can't trade inside a gap, so it protects you less around a report, not more.",
+    "Brokers do not allow holding through": "Nothing forces you to sell. Holding through is your call."
    },
    "tier": "core",
-   "batch": "cover"
+   "batch": "voice-8-2026-11-17"
   },
   {
    "key": "q30",
    "skill": "fund.earnings_decision",
    "rung": 3,
    "format": "tf",
-   "q": "Our rule lets you hold through a report only if the trade is already up 5R.",
+   "q": "Your breakout is up 7R and it reports tonight. That's enough of a cushion for us to hold it through.",
    "answer": "True",
-   "why": "True. Our rule is no new buys in the 3 days before a report, and hold through one only if the trade is up 5R. That gain is a cushion, because a gap that takes back part of it still leaves you ahead. Without that cushion, trim or step aside, since a stop cannot catch a gap.",
-   "lesson_line": "Hold through a report only on a cushion. Up 5R is ours.",
-   "simple": "True. A trade up 5R has a cushion, so a gap that takes back some of it still leaves you ahead.",
+   "why": "True. We hold through a report only when the trade's up 5R, and 7R clears it. That gain is your cushion. A gap that takes back part of it still leaves you ahead. Short of 5R, you're out before the numbers, because a stop can't catch a gap. And no new buys in the 3 days before a report either. You'd be adding risk right into the coin flip.",
+   "lesson_line": "Hold through a report only on a real cushion. Ours is 5R.",
+   "simple": "True. A trade up past 5R has a cushion, so a gap that takes back some of it still leaves you ahead.",
    "facts": [
     "h4",
     "f32",
@@ -1936,7 +1940,7 @@
    ],
    "tier": "core",
    "house": true,
-   "batch": "cover"
+   "batch": "voice-8-2026-11-17"
   }
  ],
  "conflicts": [
@@ -1987,13 +1991,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer False from f6/f7/f9 (SEC) before reading the key; matches. No number. Lesson line hedged ('can be far past'). No tell."
+   "notes": "Screen moment with real prices, $48 stop vs $44 open; why walks trigger to market order to fill. Matches f6/f7/f32."
   },
   "q04": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer Step aside (f23/f24, f40). Stem no longer lets 'Hedge it' eliminate itself. The hedge definition in the why and its wrong note are definitional, not a keyed fact. Minor: 'the reaction can't touch you' hints q17 a little, but does not give its key."
+   "fixed": true,
+   "notes": "Truth: 'It's the play we make on most names' claimed a frequency nothing in the facts supports. Now tied straight to B22: short of 5R, stepping aside is our play into a report."
   },
   "q05": {
    "status": "cut",
@@ -2010,8 +2014,8 @@
   "q07": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer False: f11 (SEC, many brokers take only limit orders after hours) plus f61/f62 (Schwab) make 'will trigger' something not to count on. The why bounds it to 'at those brokers' and says check yours. No ungrounded number (9:30 to 4 is in f61)."
+   "fixed": true,
+   "notes": "Truth: the T/F claim was 'That stop sells you tonight' with the why hedging 'False, at a lot of brokers', so the key was not false everywhere. Claim is now 'you can count on it', which is false at any broker, and the why keeps Schwab's regular-session fact and the check-your-broker how."
   },
   "q08": {
    "status": "cut",
@@ -2023,97 +2027,97 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "position share and gap; key '3%'"
+   "notes": "3% = 20 x 15 / 100 recomputed; each wrong note names the slip (20-15, 20/15, the stock's drop). 'Size is the first thing I look at' is his register."
   },
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Own answer Wednesday's close (f1, f14, f10). 'Wednesday's open' is a real timing slip, not silly; its wrong note is right. No second defensible answer given 'no after hours' in the story."
+   "fixed": true,
+   "notes": "Truth: a before-the-open report trades in the pre-market, not 'after hours'. Fixed that line; rest of the why stands."
   },
   "q11": {
    "status": "cut",
    "by": "writer",
    "fixed": false,
-   "notes": "cut in owner-review-6: see the resolver's notes"
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
   },
   "q12": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "30% position, half sold (0.5), 10% gap; key '1.5%'"
+   "notes": "His change note ('depends on what profit is unrealized but correct') is met: stem says well in profit, why says the 1.5% comes off open profit vs your own money had you just bought it, and the 1.5% key stands (30 x 0.5 x 10 / 100). Wrong notes recomputed."
   },
   "q13": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "gain so far and gap down; 'Below your entry'; key '13.3%'"
+   "notes": "His 'good' kept: 1.02 x 0.85 = 0.867, so 13.3% under; 15.3 and the 2 shown as steps; 11.0 = 15-2-2. Ties the lesson to the 5R hold line."
   },
   "q14": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: implied move of about 10% in a risk drill; hold-only-if-up-5R is the house rule B22, not a trim rule."
+   "notes": "Writer's truth fix confirmed: the old 6% stop broke our 5% cap, now 4%, choice and wrong note follow. 2% gain on a 4% stop = half an R, checked. A 10% gap from +2% lands near 8% under entry, well past the stop."
   },
   "q15": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "position, expected move, normal risk; slot '2x' format 2×"
+   "notes": "His 'good' kept and his 'odd focus on implied' note honored: the priced move is now just a yardstick, size carries the why. 25 x 8 / 100 / 1 = 2x. Calendar page as the place to read it matches F5.04/F5.05 facts."
   },
   "q16": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer False (f12, SEC). Schwab clause gone, so q16 no longer repeats q07's key fact. q07's reveal does not answer q16 (fill quality vs whether a stop triggers)."
+   "notes": "5 p.m. moment; thin market and limit-order how match f10-f12. 'I'd rather make the call before the close' is a mentor line."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True is right (a gap has no trades in between, so a seller can't take part; f44, f41, f25). It is close to self-evident for rung 6, but it carries the real cost of stepping aside and balances the unit's True/False keys (F,F,F,T,T,T after q05's cut). No tell of length; no second answer."
+   "notes": "One plain claim; AMBA almost 35% is f44; the missed-gain-vs-real-loss judgment is f39 in first person."
   },
   "q18": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: stop filling at the open on a gap DOWN."
+   "notes": "(34-32) x 500 = 1,000; $2 and 500 shown; Schwab's example is f17/f18. 'The stop picked when you sold. The gap picked the price.' is good."
   },
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Key is right (f24 Schwab, f46 StockCharts: study the numbers and the reaction, then decide; A3 via h8 for a new stop). But the deeper note says an 8% gap 'can leave the price far above any buy point' and to 'wait for a new setup rather than chase it'. That overreaches and fights our own setups: TRADE_PLANS.md gives the Kicker a day-1 30-minute opening-range entry and Gap Support an entry at the close as the gap holds, so a gap day creates its own buy point. The 'Buy it now' wrong note also calls a motive 'a chase', while C28 defines a chase by distance from the buy point. And the 'Leave it' wr"
+   "fixed": false,
+   "notes": "New-trade how is ours: stop a few cents under the low of the day or prior day's low (A3), size from the stop, 4% chase limit (C28)."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer True: Cabot f47 (plan ahead of time, follow it for all your stocks) and f50; StockCharts f40 (Bowley sells before every report) is a second publisher running one rule on every stock; B22 (h4) is ours, one rule that gives different actions by cushion. After the earlier fix, 'one rule is applied to every stock' no longer reads as 'do the same thing with every stock', so False is not defensible. True/False keys stay balanced (F,F,F,T,T,T). Why, simple and deeper are grounded (f42, f43, f50, f5). States B22 like the other reveals; accepted as practice per the earlier ruling."
+   "notes": "Earnings-week situation; Cabot moved to deeper; our 5R rule stated as the plan. Claim stays True."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keep is right: stop-limit on a gap DOWN."
+   "notes": "Stop-limit at $50 / $49.50 vs a $44 open: never fills, checked. 'No; ...' choice gone. 'Holding the bag' is plain trader talk."
   },
   "q22": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer Sell: 4R loss at the open is past B20's 2R ceiling (h7), and Cabot f52 and Bulkowski f56 agree, so it is answerable from the web sources even before B20 is learned. 4R and 14% come from the story. 'Sell half' is the longest choice and wrong, so no length tell. D41 lesson ('real stop with the broker') is grounded in h5."
+   "notes": "Agrees: buying more after a gap through the stop is adding to a loser; 4R past the 2R ceiling checks. Voice 4."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold solve: 25% position is the biggest, 10% gap costs 2.5% of the account (8% -> 0.8%, 5% -> 0.5%): XVRP. Tickers are made-up four-letter symbols used nowhere else in the courses; no real company's numbers are claimed (rule 7). Ticker names do not clash with F5.03's made-up ones. Answer is not the longest or the only distinct option; wrong notes keyed by exact choice texts, each clearly wrong. Simple has no new numbers, why says up 35% stays in profit (1.35 x 0.9 = 1.215, true) and up 1% ends below entry (1.01 x 0.9 = 0.909, true). Old Stock A/B/C wrong keys are dropped by the merge because t"
+   "notes": "25% vs 8% vs 5% of the account, same 10% gap: XVRP costs most. Cushion check recomputed: XVRP 1.01 x 0.9 under entry, QZLA green, JKQN 1.12 x 0.9 just above water."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Label 'Still up after a 9% gap' echoes the correct choice ('Still up about 27% after a 9% gap') and so gives the answer away before it is picked. Name what the calc computes without its sign: the change vs entry after the gap."
+   "fixed": false,
+   "notes": "1.40 x 0.91 = 1.274, about 27% up; 8R past our 5R line; 'no cap' and 'stop won't catch it inside a gap' are right. Leading 'Our rule lets you' stem is gone."
   },
   "q25": {
    "status": "cut",
@@ -2123,33 +2127,33 @@
   },
   "q26": {
    "status": "pass",
-   "by": "writer",
+   "by": "checker",
    "fixed": false,
-   "notes": "upgraded wave6; awaiting cold re-read"
+   "notes": "Shares-only claim, True per f34. Cboe named as a source fact, not a trader's principle; acceptable."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Recomputed: calc matches the answer and the wrong choices are real mistakes. The answer sat in slot 1 on every question in this lesson (a tell), so it moved to slot 2. Why rewritten to show the steps."
+   "fixed": false,
+   "notes": "(62-50)/(50-48) = 6R; 7R = measured from the stop, 12R = dollars, 24R = multiplied: each slip named. Tied to the 5R hold decision."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Own answer from h4 (B22): up 1R is under 5R, so out before the numbers; key matches. Trim (B19's first trim is at 3R), hold-all (f30/f60/f4) and add (B22 no new buys; A5 no adding) are wrong for distinct reasons. Key is not the longest; no story words repeated. The NVDA outcome (f30) is flavour; the key does not depend on it. Earlier reveals (q14, q27) state B22, which is the rule being tested: practice, not a giveaway. Minor: rung 9 is high for a recall of B22."
+   "notes": "Leading stem removed. 1R vs our 5R line; NVDA record results and roughly 9% drop over two days is f30; no new buys in the 3 days before (B22) right."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Learn-level mcq (rung 2). Right answer matches f38 and f53; wrong notes match f44 (AMBA +35%), f32 and f54. Fixed the why's last line: 'the reaction is likely tied to expectations' is unsupported by the cited facts; replaced with the supported point that holding is a choice and the reaction is never certain either way."
+   "fixed": false,
+   "notes": "Stem names who and asks why; AMBA and the beat-and-fall case from facts; ends on our 5R middle path."
   },
   "q30": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Learn-level true/false (rung 3) on the house rule B22: quote is word for word from h4, the cushion reasoning is the lesson's thesis (f32, f7: a stop cannot catch a gap). Matches q24, q28 and SET.29 q60. Plain statement of the rule, not a duplicate of the scenarios."
+   "notes": "7R breakout tonight, True under B22 (hold through only at 5R). 3-day no-buy stated as ours, correctly."
   }
  }
 }
