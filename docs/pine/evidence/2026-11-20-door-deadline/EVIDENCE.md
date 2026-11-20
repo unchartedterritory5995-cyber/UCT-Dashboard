@@ -115,16 +115,22 @@ of the whole answer (document, notes, rows, reason).
 | production | slow served (215) | 113 | 113 | **0** | 0 | 0 |
 
 - The two runtime-on documents that differ are both still served, on the runtime-on lane only (their production
-  documents are byte for byte equal): one host document whose digest differs, and one script drawn by the host lane
-  at base and by the runtime lane at head (route by cost). Both go through runtime-lane builds that answer under
-  wall-clock budgets of their own (the run's pane budget and each build's 10 s), so their answer is a function of
-  the machine's load; neither call came near the door's deadline.
+  documents are byte for byte equal), and BASE ITSELF does not repeat them, measured: each run twice at base and
+  twice at head, the first gives four different documents in four runs, base and head alike (the host lane draws it
+  every time); the second is drawn by the host lane in one base run and by the runtime lane in the other base run and
+  in both head runs. So neither difference is this change; both are answers the door gives differently from one
+  run to the next (an engine follow-up: a door verdict should not depend on the machine's load). Neither call came
+  near the door's deadline.
 - The rest of the full population's served scripts (2,469) had census rows under 2 s on a runner, so their door call
   is under the deadline by two orders of magnitude.
 - On GitHub runners, the committed corpus (266 scripts) through the door with its window OPEN and with no window,
   interleaved, 3 rounds, both lanes: every document identical (0 of 266 differ, both lanes), and the open window costs
   nothing measurable (total of the per-script minimum: production 48.4 s open vs 48.4 s closed, runtime-on 61.2 s vs
   61.3 s; median per-script ratio 1.002 and 1.003). The pine heavy coverage ratchet checks the same corpus on this PR.
+- Base vs head, interleaved, on the dev PC under the heavy lock (the 62 scripts of the 679 line over 200 ms,
+  production lane, two rounds each, 4 GB heap): head 76.0 s vs base 81.7 s (sum of each script's faster run; the two
+  rounds differ from each other by up to 20%, so this is no change), and all 62 documents equal in all four runs. A
+  first comparison of runs made 45 minutes apart read head 17-21% slower: that was the machine, not the change.
 
 ## 6. The main-thread block, and whether the build should leave the main thread
 
