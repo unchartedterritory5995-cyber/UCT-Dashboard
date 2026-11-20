@@ -170,6 +170,95 @@ def last_closed_session(now: Optional[datetime] = None, after_min: int = RTH_CLO
     return x
 
 
+def next_session(asof: date) -> date:
+    """The first trading day after `asof` (the device's `nextSessionISO`, same NYSE calendar)."""
+    x = asof + timedelta(days=1)
+    for _ in range(30):
+        if is_trading_day(x):
+            return x
+        x += timedelta(days=1)
+    return x
+
+
+# --------------------------------------------------------------------------------------------
+# the next session's splits (the device's split guard)
+# --------------------------------------------------------------------------------------------
+#
+# A device holds the seed's bars, adjusted AS OF `asof`. On the next session the server's answer for a
+# symbol that splits that day is on a new basis: every older bar is rescaled. The device store
+# (app/src/data/deviceStore/engine.js `_basisHolds`) therefore uses its copy past `asof` only when the
+# manifest's `splits` covers that next session and does not name the symbol, and fails CLOSED when the
+# field is missing.
+#
+# WHERE THE BASIS COMES FROM. The store's bars are Massive aggregates fetched `adjusted=true`, which
+# adjust for SPLITS ONLY (forward and reverse; never dividends or spin-offs), and the serve path heals a
+# split factor the store missed from FMP's split list (`bars_sanitize._fetch_meta` -> `_meta_cached`).
+# So a split is the only corporate action that rebases a served series, and the two lists that decide
+# one are the ones read here:
+#   1. Massive `/v3/reference/splits` for the next session's execution date
+#      (`reference_corp_actions.fetch_confirmed_splits_strict`): one paginated read for the whole
+#      market. Announced splits carry their future execution date, so it can answer at build time. It is
+#      the PROOF source: only a complete answer (every page, no error) produces the field; any failure
+#      OMITS it, so "no list" never reads as "no split".
+#   2. The serve path's own FMP list, CACHE ONLY (the build never calls the vendor): adds a name when it
+#      dates a split on the next session; it can never remove one, and its absence proves nothing.
+#
+# `symbols` is an OBJECT, symbol -> ratio (shares after per share before; null when the vendor gave no
+# usable ratio), because that is what the device reads (`Object.keys(sp.symbols)` in `_splitsOf`): an
+# array there would yield the keys "0", "1", ... and name nobody (fail OPEN). Symbols use the seed's own
+# spelling (BRK-B), the device folds '.' to '-'.
+
+def _massive_split_rows(session_iso: str) -> List[dict]:
+    from api.services import reference_corp_actions as rca
+    return rca.fetch_confirmed_splits_strict(session_iso, session_iso)
+
+
+def _fmp_cached_splits(sym: str) -> List[Tuple[str, float]]:
+    from api.services import bars_sanitize
+    with bars_sanitize.suppress_meta_warm():
+        meta = bars_sanitize._meta_cached(sym)
+    return list((meta or {}).get("splits") or [])
+
+
+def next_session_splits(asof: date, symbols: Iterable[str], *,
+                        massive_rows: Optional[Callable[[str], List[dict]]] = None,
+                        fmp_cached: Optional[Callable[[str], List[Tuple[str, float]]]] = None,
+                        ) -> Optional[dict]:
+    """`{"session": <next trading day>, "symbols": {SYM: ratio}}` for every symbol of `symbols` with a
+    split executing on the session after `asof`, or None when Massive could not answer completely (the
+    manifest then carries no `splits` and devices keep their guard closed)."""
+    session = next_session(asof).isoformat()
+    massive_rows = massive_rows or _massive_split_rows
+    fmp_cached = fmp_cached or _fmp_cached_splits
+    try:
+        rows = massive_rows(session)
+    except Exception as e:  # noqa: BLE001 - any failure: no list, never an empty one
+        log.warning("[ffseed] next-session splits unavailable for %s: %s", session, e)
+        return None
+    from api.services.massive import to_polygon_symbol
+    from api.services.reference_corp_actions import split_ratio
+    by_vendor: Dict[str, List[str]] = {}
+    for sym in symbols:
+        by_vendor.setdefault(to_polygon_symbol(sym), []).append(sym)
+    named: Dict[str, Optional[float]] = {}
+    for r in rows:
+        if str(r.get("execution_date") or "")[:10] != session:
+            continue
+        for sym in by_vendor.get(str(r.get("ticker") or "").upper(), []):
+            named[sym] = split_ratio(r.get("split_from"), r.get("split_to"))
+    for group in by_vendor.values():
+        for sym in group:
+            if sym in named:
+                continue
+            try:
+                hits = [ratio for d, ratio in fmp_cached(sym) if str(d)[:10] == session]
+            except Exception:  # noqa: BLE001 - the supplement can only add names
+                hits = []
+            if hits:
+                named[sym] = float(hits[0]) if hits[0] else None
+    return {"session": session, "symbols": dict(sorted(named.items()))}
+
+
 def session_ymd_of(bar: dict, tf: str) -> int:
     t = bar.get("t")
     if tf == "D":
@@ -301,7 +390,8 @@ def manifest_entry(tf: str, build: str, data: bytes, stats: dict) -> dict:
 def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
           asof: Optional[date] = None, comp: str = "gzip", read=store_read,
           now: Optional[datetime] = None, min_symbols: Optional[int] = None,
-          on_pack: Optional[Callable[[str, bytes, dict], None]] = None) -> dict:
+          on_pack: Optional[Callable[[str, bytes, dict], None]] = None,
+          splits: Optional[Callable[[date, List[str]], Optional[dict]]] = None) -> dict:
     """Build every timeframe. Returns {"manifest": {...}, "packs": {tf: bytes}} (or, with
     `on_pack`, hands each pack over as it is finished and keeps no bytes). Raises SeedBuildError
     when a timeframe is below the symbol floor, so a broken store never replaces a good build."""
@@ -314,6 +404,11 @@ def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
         "basis": fmt.BASIS, "grid": fmt.GRID, "universe": {"count": len(symbols)}, "tfs": {},
     }
     packs: Dict[str, bytes] = {}
+    # The next session's splits (see next_session_splits): read before any pack, so a build whose list
+    # failed still publishes, only without the field.
+    sp = (splits or next_session_splits)(asof, symbols)
+    if sp is not None:
+        manifest["splits"] = sp
     for tf in tfs:
         t0 = time.time()
         data, stats = build_tf(tf, symbols, asof, bid, comp=comp, read=read)
