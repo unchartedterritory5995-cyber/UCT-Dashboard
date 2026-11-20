@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import WidgetHost from '../../charts/WidgetHost'
+import { useWorkspace } from '../../charts/WorkspaceContext'
 import { clampSplit, LIST_WIDGET_ID, SPLIT_MIN, SPLIT_MAX } from './drillBoardPrefs'
 import styles from './BreadthDrillBoard.module.css'
 
@@ -107,6 +108,11 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
   // No chart widget at all (the MVP trial's withdrawal block hands the board over without
   // one) is laid out like a popped chart: the list takes the whole board, no divider.
   const chartGone = chartPopped || !chartWidget
+  // ⛔ NO CHART UNTIL THERE IS A STOCK (owner 2026-11-20). A chart whose colour group has no symbol
+  // yet falls back to SPY (ChartWidget), so while the list was still loading the window painted the
+  // S&P 500 and then switched. The pane stays an empty panel until the list's first row is picked.
+  const { groupSyms } = useWorkspace()
+  const chartSym = chartWidget ? groupSyms?.[chartWidget.color || 'A'] : null
   // With one pane ejected the other takes the whole board: a frozen split would
   // leave a dead gap where the popped widget used to be.
   const soloed = listPopped !== chartGone
@@ -177,7 +183,10 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
       )}
       {!chartGone && (
         <div className={`${styles.pane} ${styles.paneGrow} ${styles.paneChart}`}>
-          {chartWidget && (wrapChartPane ? wrapChartPane(host(chartWidget)) : host(chartWidget))}
+          {chartWidget && (() => {
+            const body = chartSym ? host(chartWidget) : <div className={styles.chartWaiting} data-testid="drill-chart-waiting" />
+            return wrapChartPane ? wrapChartPane(body) : body
+          })()}
         </div>
       )}
     </div>
