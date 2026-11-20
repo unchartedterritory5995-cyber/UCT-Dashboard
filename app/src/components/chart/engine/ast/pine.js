@@ -7400,11 +7400,10 @@ export function constantTestValue(tree) {
 const TF_READ_HOPS = 16
 
 /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
- *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops, and a call to a script function whose arguments
- *  and body settle it (`throughSettledCall`). Handed to `ownTimeframeOf` / `timeframeLiteralOf` by the request readers alone
- *  (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
+ *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops. Handed to `ownTimeframeOf` /
+ *  `timeframeLiteralOf` by the request readers alone (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
  *  the plot lane) keeps its own reach. */
-const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })
+const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS })
 
 /* ─── ⭐⭐ ENGINE 56 (A3) — A PINE v1-v5 `bool` CAN BE `na` ──────────────────────────────────
  *
@@ -8623,26 +8622,13 @@ export class Resolver {
     /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — THE RUNTIME LANE'S READING OF A REQUEST'S TIMEFRAME. Set by
      *  `pineRuntimeFrontend.js` on its own resolvers (`requestTimeframeReader: 'runtime'`) and by nothing else. The
      *  timeframe argument of a `request.security` (and only that argument: `requestTimeframeReach`) is followed
-     *  through `TF_READ_HOPS` names and arms, the object pass's reach (C10), and through a call to a script function
-     *  whose result is the literal its arguments and body settle before the first bar (an `if` chain over the chart's
-     *  own timeframe or an input's default: the same folds a written-out ternary already takes).
+     *  through `TF_READ_HOPS` names and ternary arms, the object pass's reach (C10), where the plot lane reads 4: the
+     *  literal a constant chain settles before the first bar (cppivot-boss-floor-pivots' six-hop
+     *  `floor_pivot_resolution`, over an input's default).
      *  ⛔ CONFINED, and the confinement is the point: the host translator never sets it, so no plot-lane
      *  translation moves and no parameter id is minted in a new order (the C10 reason the plot lane keeps 4;
      *  `requestTimeframeReader.test.js` holds the plot lane byte-identical over the committed corpus). */
     this.runtimeRequestTimeframes = opts.requestTimeframeReader === 'runtime'
-    /** ⭐⭐ (request unit, EXT-OWN, NUMBER PENDING) — THE CHART'S OWN SYMBOL ON THE EXTENDED SESSION, READ AS THE
-     *  CHART'S OWN DAILY BARS ON A DAILY CHART. Set by `pineRuntimeFrontend.js` on its own resolvers
-     *  (`requestExtendedOwn: 'daily-identity'`) and by nothing else: `request.security(ticker.new(syminfo.prefix,
-     *  syminfo.ticker, session.extended), <the chart's own daily timeframe>, x)` is `x` (`extendedOwnTickerOf`).
-     *  TradingView's manual (Sessions): "Extended hours data is only shown on intraday timeframes; on "1D" and above,
-     *  this variable is always `false`" (`session.ispremarket` / `session.ispostmarket`). It does not say what an
-     *  extended ticker's daily bars ARE, so this is served on its capture alone: Saty ATR Levels on NYSE:RDDT and
-     *  AMEX:SPY 1D from the listing (`saty-atr-levels-{rddt,spy}-1d-2026-11-14`, its `"D"` reads `close[1]`,
-     *  `ta.atr(14)[1]`, `high`, `low` through that ticker), graded MATCH on the runtime lane.
-     *  ⛔ NOTHING WIDER: a daily chart only, the identity only. The extended ticker at another timeframe (W / M on a
-     *  daily chart, `"D"` on an intraday chart, any lower timeframe) keeps its refusal: no capture reads it, and on an
-     *  intraday chart the extended series has bars the regular one does not. */
-    this.runtimeExtendedOwnDaily = opts.requestExtendedOwn === 'daily-identity'
     /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
      *  `pineRuntimeFrontend.js` when it builds a drawing script's values
      *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
@@ -13989,13 +13975,6 @@ export class Resolver {
       if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) return node.name
     }
-    if (reach && reach.calls && node.type === 'call') {
-      return this.throughSettledCall(node, (n) => this.ownTimeframeOf(n, depth + 1, reach))
-    }
-    // ⭐ (request unit, TF-FOLD) — an arm of an `if` chain's reassignment (`foldIfChain` writes each as a `bound` node)
-    if (reach && node.type === 'bound') {
-      return this.throughBinding(node.binding, (b) => (b && b.node ? this.ownTimeframeOf(b.node, depth + 1, reach) : null))
-    }
     return null
   }
 
@@ -14005,49 +13984,12 @@ export class Resolver {
     return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined
   }
 
-  /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — `fn(result)` for a call to a SCRIPT function
-   *  (`getAlignedTimeframe()`, `timeframe_func()`, `tf_of(1)`), where `result` is the node its body leaves as its
-   *  value, read in the body's own scope with the call's arguments as its parameters (the frame `throughBinding`
-   *  reads a parameter from, exactly as `textEqTree` inlines a helper); null for anything else (a built-in, an
-   *  overload, a named argument, an argument count that is not the function's, a body that left no expression).
-   *  ⭐ Pine returns a function's LAST value, and the body fold (`foldStatements`, `declarationIsValue`) is what
-   *  already turns `x = 'D'` + an `if` chain of `x := …` into that value, as it does for any helper the plot lane
-   *  inlines. Nothing is evaluated here that a written-out ternary would not fold: the reader handed `result`
-   *  (`timeframeLiteralOf` / `ownTimeframeOf`) asks `constantBranchOf` of each arm, so a test that varies per bar
-   *  (a per-bar argument included) still answers null. */
-  throughSettledCall(node, fn) {
-    if (!node || node.type !== 'call') return null
-    let b = this.env && this.env.get(node.name)
-    // ⭐ a function the plot lane refuses for ending in an `if` chain of reassignments carries the value that chain
-    // leaves (`requestLane`, set where it is refused): this reader alone takes it
-    if (b && b.kind === 'opaque' && b.isFunction && b.requestLane) b = b.requestLane
-    if (!b || b.kind !== 'fn' || !Array.isArray(b.params)) return null
-    const args = node.args || []
-    if (args.some((a) => !a || a.name) || args.length !== b.params.length) return null
-    const v = b.value
-    if (!v || v.kind !== 'expr' || !v.node) return null
-    if (this.frames.length >= MAX_CALL_DEPTH || this.stack.has(b)) return null
-    const callerEnv = this.env
-    this.stack.add(b)
-    this.frames.push(args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
-    this.env = v.env || callerEnv
-    try { return fn(v.node) } finally { this.frames.pop(); this.env = callerEnv; this.stack.delete(b) }
-  }
-
   timeframeLiteralOf(node, depth = 0, reach = undefined) {
     if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'string') return node.value
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
       return taken ? this.timeframeLiteralOf(taken, depth + 1, reach) : null
-    }
-    if (reach && reach.calls && node.type === 'call') {
-      const settled = this.throughSettledCall(node, (n) => this.timeframeLiteralOf(n, depth + 1, reach))
-      if (settled !== null) return settled
-    }
-    // ⭐ (request unit, TF-FOLD) — an arm of an `if` chain's reassignment (`foldIfChain` writes each as a `bound` node)
-    if (reach && node.type === 'bound') {
-      return this.throughBinding(node.binding, (b) => (b && b.node ? this.timeframeLiteralOf(b.node, depth + 1, reach) : null))
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
@@ -14525,23 +14467,6 @@ export class Resolver {
     return this.builtinNameThrough(bound.node, depth + 1)
   }
 
-  /** ⭐⭐ (request unit, EXT-OWN, NUMBER PENDING) — is this `ticker.new(syminfo.prefix, syminfo.ticker, session =
-   *  session.extended)` (followed through plain bindings and constant ternaries, as `tickerCallIn` follows), naming
-   *  nothing else (no adjustment, no back-adjustment, no settlement)? The one spelling a capture grades
-   *  (`runtimeExtendedOwnDaily`). ⛔ The prefix and the ticker are the chart's own BY NAME (`syminfo.prefix`,
-   *  `syminfo.ticker`, unbound): a literal names another listing, which this does not read. */
-  extendedOwnTickerOf(node) {
-    const call = this.tickerCallIn(node)
-    if (!call || call.name !== 'ticker.new') return false
-    const args = (call.args || []).filter(Boolean)
-    const slotOf = (name, i) => args.find((a) => a.name === name) || (args[i] && !args[i].name ? args[i] : null)
-    if (args.length !== 3) return false
-    if (args.some((a) => a.name && !['prefix', 'ticker', 'session'].includes(a.name))) return false
-    const builtin = (a) => (a && a.value ? this.builtinNameThrough(a.value) : null)
-    return builtin(slotOf('prefix', 0)) === 'syminfo.prefix' && builtin(slotOf('ticker', 1)) === 'syminfo.ticker'
-      && builtin(slotOf('session', 2)) === 'session.extended'
-  }
-
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
     // ⭐ A CONSTANT-CONDITION TERNARY PICKS ITS BRANCH — the idiom `ownTimeframeOf`
@@ -14942,12 +14867,7 @@ export class Resolver {
 
     // 1. WHOSE BARS: this chart's own, or a ticker we can name. Anything else —
     //    a computed symbol, another venue — falls through.
-    let own = this.ownSymbolNameOf(positional[0])
-    // ⭐⭐ (request unit, EXT-OWN) — the chart's own symbol on the extended session, on a daily chart, on the runtime
-    // lane's reader alone (`runtimeExtendedOwnDaily`); held to the identity below
-    const extendedOwn = own === null && this.runtimeExtendedOwnDaily && this.basePeriod === 'D'
-      && this.extendedOwnTickerOf(positional[0])
-    if (extendedOwn) own = 'syminfo.tickerid'
+    const own = this.ownSymbolNameOf(positional[0])
     const otherSym = own === null ? this.otherSymbolOf(positional[0]) : null
     const other = otherSym ? otherSym.ticker : null
     const venue = otherSym ? otherSym.venue : null
@@ -14984,8 +14904,6 @@ export class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
-      // ⛔ (request unit, EXT-OWN) — an extended-session ticker is read at the chart's own daily timeframe only
-      if (extendedOwn && code !== this.basePeriod) return null
       // ⭐⭐ C47 — THE QUARTER, `'3M'`, FOR A LOOK-AHEAD REQUEST ON A DAILY CHART.
       // `request.security(syminfo.tickerid, '3M', x, lookahead = barmerge.
       // lookahead_on)` reads the quarter the bar is INSIDE — `tf_live`, as the
@@ -15035,9 +14953,7 @@ export class Resolver {
           column: node.tok ? node.tok.column : null,
           requested: code,
           base: this.basePeriod,
-          foldedTo: extendedOwn
-            ? 'the chart\u2019s own daily series (on a daily chart TradingView shows no extended-hours data)'
-            : 'the chart\u2019s own series',
+          foldedTo: 'the chart\u2019s own series',
         })
         folded = code
         code = null
@@ -17942,29 +17858,6 @@ const stampInputName = (node, name) => {
  *  ⚠️ They arrive as SEPARATE statements at the same indent because that is how
  *  Pine is written; joining them here keeps `blockStatements` free of any
  *  knowledge of what the words mean. */
-/** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — the one name X when `stmts` END in an `if` chain WITH an `else`
- *  whose every arm's last statement is `X := …`; else null. (Such a body returns X's new value.) */
-function trailingIfReassignedName(stmts) {
-  if (!Array.isArray(stmts)) return null
-  for (let i = 0; i < stmts.length; i += 1) {
-    const h = stmts[i] && stmts[i].header
-    if (!h || !h.length || h[0].kind !== 'ident' || h[0].value !== 'if') continue
-    const chain = ifBranches(stmts, i)
-    if (!chain || chain.next !== stmts.length) continue
-    if (chain.branches[chain.branches.length - 1].condToks !== null) return null
-    let name = null
-    for (const br of chain.branches) {
-      const last = Array.isArray(br.sub) && br.sub.length ? br.sub[br.sub.length - 1] : null
-      const t = last && last.header
-      if (!t || t.length < 3 || t[0].kind !== 'ident' || !isPunct(t[1], ':=') || (last.sub && last.sub.length)) return null
-      if (name !== null && t[0].value !== name) return null
-      name = t[0].value
-    }
-    return name
-  }
-  return null
-}
-
 function ifBranches(stmts, i) {
   const branches = []
   const head = stmts[i].header
@@ -29010,22 +28903,11 @@ function translatePineResult(source, opts = {}) {
             // A trailing reassignment, `var`, or value-less `if` is not served
             // (its self-history is the history lane's), so it refuses by name
             // rather than answering with the wrong statement.
-            // ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — A BODY THAT ENDS IN AN `if` CHAIN WITH AN `else`, EVERY ARM
-            // ENDING IN `X := …` FOR ONE NAME X, returns X's new value (Pine returns the last statement of the arm
-            // that ran, and exactly one runs), which is X's binding after the chain (`foldIfChain`'s ternary). The
-            // plot lane keeps refusing it here; the value rides on the refusal (`requestLane`) for the runtime lane's
-            // request-timeframe reader alone (`throughSettledCall`): Saty ATR Levels' `timeframe_func()`.
-            const tailX = trailingIfReassignedName(stmt.sub)
-            const settled = tailX && fnEnv.has(tailX) && fnEnv.get(tailX) !== beforeFn.get(tailX) ? fnEnv.get(tailX) : null
-            const refusal = new PineRefusal('pine:function-def',
+            throw new PineRefusal('pine:function-def',
               `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` ends in a statement `
               + 'that is not a value this engine can read (a reassignment, a `var`, or an '
               + '`if` with no value), and Pine returns that LAST statement, not an earlier '
               + 'expression', locate(toks[arrow]))
-            if (settled && settled.kind === 'expr') {
-              refusal.requestLaneValue = { kind: 'fn', params, value: settled, at: locate(toks[arrow]) }
-            }
-            throw refusal
           }
         }
         for (const [localName, localBound] of fnEnv) {
@@ -29053,19 +28935,9 @@ function translatePineResult(source, opts = {}) {
           }
         }
         if (!value) {
-          const refusal = new PineRefusal('pine:function-def',
+          throw new PineRefusal('pine:function-def',
             `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` ends in no value this `
             + 'engine can read', locate(toks[arrow]))
-          // ⭐⭐ (request unit, TF-FOLD) — a body whose last statement is an `if` chain (with an `else`) of `X := …`
-          // (Saty ATR Levels' `timeframe_func()`: `timeframe = 'D'` then the chain) leaves no folded value here; the
-          // value that chain leaves rides on the refusal for the runtime lane's request-timeframe reader alone,
-          // exactly as at the trailing-statement refusal above (`trailingIfReassignedName`)
-          const tailX = arrow === toks.length - 1 ? trailingIfReassignedName(stmt.sub) : null
-          const settled = tailX && fnEnv.has(tailX) && fnEnv.get(tailX) !== beforeFn.get(tailX) ? fnEnv.get(tailX) : null
-          if (settled && settled.kind === 'expr') {
-            refusal.requestLaneValue = { kind: 'fn', params, value: settled, at: locate(toks[arrow]) }
-          }
-          throw refusal
         }
         self.value = value
         // ⭐ C48 — the `var`s of the enclosing scope this body reads, as they stand
@@ -29103,11 +28975,6 @@ function translatePineResult(source, opts = {}) {
         const refused = nameTok && env.get(nameTok.value)
         if (err && err.c47ObjectLane && refused && refused.kind === 'opaque' && refused.isFunction) {
           refused.objectLane = err.c47ObjectLane
-        }
-        // ⭐ (request unit, TF-FOLD) — the value a trailing `if` chain of reassignments leaves, for the runtime lane's
-        // request-timeframe reader alone (`throughSettledCall`); every other reader sees the refusal
-        if (err && err.requestLaneValue && refused && refused.kind === 'opaque' && refused.isFunction) {
-          refused.requestLane = err.requestLaneValue
         }
       }
       continue

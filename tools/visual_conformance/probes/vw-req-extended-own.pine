@@ -5,10 +5,10 @@ indicator("UCTPROBE_VW_REQ_EXTENDED_OWN", overlay = false)
 //     TIMEFRAME, BESIDE THE SAME REQUEST ON THE REGULAR SESSION ───────────────────────────────────────────────────
 //
 // `request.security(ticker.new(syminfo.prefix, syminfo.ticker, session = session.extended), "D", x)` is how Saty ATR
-// Levels (and the Saty block of Ripster + RVOL) read the previous close and the ATR. On a DAILY chart the runtime
-// lane serves it at the chart's own "D" as the chart's own daily bars, witnessed by Saty's own captures
-// (`saty-atr-levels-{rddt,spy}-1d-2026-11-14`). Not witnessed, and refused by name:
-//   * the extended ticker at "W" / "M" on a daily chart (Saty's Multiday / Swing modes): E03..E06;
+// Levels (and the Saty block of Ripster + RVOL) read the previous close and the ATR. The engine refuses every
+// non-regular session by name (`pine.js::tickerCallArg`): another series. TradingView's manual says only that
+// extended-hours data is not shown on "1D" and above. What this probe settles, beside the regular ticker:
+//   * the extended ticker at "D", "W", "M" on a DAILY chart (Saty's Day / Multiday / Swing modes): E01..E08;
 //   * the extended ticker at "D" on an INTRADAY chart with extended hours on (Saty's default use): E01, E02, E07,
 //     E08 on the 5-minute chart, read on pre-market, regular and post-market bars (E09 / E10 say which).
 //

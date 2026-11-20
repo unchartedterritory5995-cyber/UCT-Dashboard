@@ -2838,16 +2838,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
       aboveDailyReads: true,
       ...objectDoorOpts,
       // ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — a request's timeframe is read with the runtime lane's reach
-      // (`pine.js::requestTimeframeReach`): `TF_READ_HOPS` names and arms, and a no-argument script function's
-      // settled result. ⛔ The HOST translator never sets it: the plot lane reads as it did.
+      // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms). ⛔ The HOST translator never sets it.
       requestTimeframeReader: 'runtime',
-      // ⭐⭐ (request unit, EXT-OWN, NUMBER PENDING) — the chart's own symbol on the extended session, at the chart's own
-      // daily timeframe on a daily chart, is the chart's own daily bars (`pine.js::extendedOwnTickerOf`), witnessed by
-      // Saty ATR Levels' captures. ⛔ The HOST translator never sets it.
-      requestExtendedOwn: 'daily-identity',
     }
-    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime',
-      requestExtendedOwn: 'daily-identity' }
+    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime' }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
