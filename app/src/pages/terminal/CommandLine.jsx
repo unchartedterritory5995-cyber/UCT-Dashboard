@@ -269,7 +269,7 @@ function searchTickers(q) {
 }
 
 export default function CommandLine({
-  onSubmit, inputRef: externalRef, placeholder, aliases = {}, stats = {}, boards = null, recentTickers = [],
+  onSubmit, inputRef: externalRef, placeholder, prompt = null, aliases = {}, stats = {}, boards = null, recentTickers = [],
   history = null, onHistory = null,
 }) {
   // The member's history when the shell passes it (useCommandHistory); this browser's otherwise.
@@ -490,7 +490,7 @@ export default function CommandLine({
       </div>
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="terminal-echo-announce">{announce}</div>
       <div className={styles.cmdWrap}>
-        <span className={styles.cmdPrompt} aria-hidden="true">&gt;</span>
+        <span className={styles.cmdPrompt} aria-hidden="true">{prompt || '>'}</span>
         <Input
           ref={ref}
           className={styles.cmdInput}

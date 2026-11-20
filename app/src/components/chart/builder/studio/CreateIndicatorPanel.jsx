@@ -40,6 +40,7 @@ const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
 import SettingsFields from './SettingsFields'
 import { restoreNote } from '../authoring/restoreVersion'
+import { scriptNeedsFixing } from '../authoring/scriptAnswer'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
 /** The hint inside the message box, by what the member is doing.
@@ -589,7 +590,7 @@ export default function CreateIndicatorPanel({
                       {onOpenScript && (
                         <button type="button" className={styles.chip} data-testid="create-indicator-open-script"
                           disabled={busy || saving} onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
-                          {t.script.runs ? 'Open this script' : 'Open this script to fix it'}
+                          {scriptNeedsFixing(t.script) ? 'Open this script to fix it' : 'Open this script'}
                         </button>
                       )}
                       <details data-testid="create-indicator-script-text">

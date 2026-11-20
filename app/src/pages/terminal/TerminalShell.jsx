@@ -63,6 +63,8 @@ import { pushFunctionRecent, readFunctionRecents } from './recents'
 import { TERMINAL_CALENDAR_PATH, TERMINAL_PATH } from './terminalGate'
 import L0Strip from './L0Strip'
 import FirstRunCard from './FirstRunCard'
+import BoardTabsChrome, { BOX_PLACEHOLDER, ToolsList } from './BoardTabsChrome'
+import tabStyles from './BoardTabsChrome.module.css'
 import PanelShare from './share/PanelShare'
 import { shareDecision } from './share/shareRule'
 import {
@@ -269,6 +271,9 @@ export function Panel({
   onClose, onDuplicate, onPopout, onBringBack, canClose, isPhone, standalone, hidden = false,
   density = 'comfortable', domId, canMaximise = false, maximised = false, onMaximise,
   reorder = null, linkedSym = null, onNotice = null,
+  // The new shell (boards in tabs): `{ editing }` draws the one-line header and shows the layout
+  // controls only while "Edit board" is on. null (the default) is today's header, untouched.
+  tabsHeader = null,
 }) {
   const r = resolvePanel(panel, syms, auth)
   const Comp = r.state === 'ready' && !panel.popout ? panelComponent(r.name) : null
@@ -357,7 +362,7 @@ export function Panel({
       onDrop={reorder?.onDrop}
     >
       <header className={styles.panelHead}>
-        {reorder?.canMove && (
+        {reorder?.canMove && (!tabsHeader || tabsHeader.editing) && (
           // The reorder handle. Drag it onto another panel (mouse); or tap/click it for a "Move to
           // panel N" menu (touch: HTML5 drag never fires there); or focus it and press ←/→.
           <button
@@ -378,7 +383,7 @@ export function Panel({
             <UIcon name="menu" size={12} gold={false} />
           </button>
         )}
-        {standalone ? null : linkable ? (
+        {standalone || (tabsHeader && !tabsHeader.editing) ? null : linkable ? (
           <button
             type="button"
             className={styles.groupDot}
@@ -396,11 +401,21 @@ export function Panel({
           <span className={styles.groupDotStatic} title="This function does not follow a security"
             role="img" aria-label="Does not follow a security" data-testid={`terminal-group-${index}`} />
         )}
-        <span className={styles.panelTitle}>
-          <span className={styles.code}>{title}</span>
-          <span className={styles.panelLabel}>{r.fn?.label || ''}</span>
-          {freshness && <PanelProvenance report={freshness} index={index} />}
-        </span>
+        {tabsHeader ? (
+          // Boards in tabs: ONE line. The tool's plain name is the title, its command small and
+          // grey after it (never the accent), then the same provenance line.
+          <span className={styles.panelTitle}>
+            <span className={tabStyles.panelName} data-testid={`terminal-panel-name-${index}`}>{r.fn?.label || panel.code}</span>
+            <span className={tabStyles.panelCode} data-testid={`terminal-panel-code-${index}`}>{title}</span>
+            {freshness && <PanelProvenance report={freshness} index={index} />}
+          </span>
+        ) : (
+          <span className={styles.panelTitle}>
+            <span className={styles.code}>{title}</span>
+            <span className={styles.panelLabel}>{r.fn?.label || ''}</span>
+            {freshness && <PanelProvenance report={freshness} index={index} />}
+          </span>
+        )}
         {full && <Link className={styles.panelLink} to={full}>Full page</Link>}
         {!standalone && (
           <span className={styles.panelActions}>
@@ -416,7 +431,7 @@ export function Panel({
               <PanelShare index={index} decision={share} bodyRef={bodyRef} meta={shareMeta} onNotice={onNotice}
                 className={styles.panelAct} />
             )}
-            {!isPhone && (
+            {!isPhone && (!tabsHeader || tabsHeader.editing) && (
               <button type="button" className={styles.panelAct} onClick={onDuplicate} aria-keyshortcuts="Alt+C"
                 aria-label={`Duplicate panel ${index + 1}`} title="Duplicate (Alt+C)" data-testid={`terminal-dup-${index}`}>
                 <UIcon name="copy" size={14} gold={false} />
@@ -428,7 +443,7 @@ export function Panel({
                 <UIcon name="popOut" size={14} gold={false} />
               </button>
             )}
-            {canClose && (
+            {canClose && (!tabsHeader || tabsHeader.editing) && (
               <button type="button" className={styles.panelAct} onClick={onClose} aria-keyshortcuts="Alt+X"
                 aria-label={`Close panel ${index + 1}`} title="Close (Alt+X)" data-testid={`terminal-close-${index}`}>
                 <UIcon name="x" size={14} gold={false} />
@@ -526,6 +541,12 @@ export default function TerminalShell() {
   // Maximise is a VIEW state, never saved to the board: the focused panel fills the grid and
   // the others stay mounted and hidden (as on a phone), so restoring reloads nothing.
   const [zoomed, setZoomed] = useState(false)
+  // The new shell (boards in tabs), behind TERMINAL_BOARD_TABS_ENABLED. BoardTabsChrome mounts
+  // only when the switch is on and registers its tab API here; while this is null (the switch
+  // off, or a pop-out window) every line below behaves exactly as it did before the tabs existed.
+  const tabsRef = useRef(null)
+  const addBlockRef = useRef(null)   // the sheet it opens hands focus back to it
+  const [boardEditing, setBoardEditing] = useState(false)
   const inputRef = useRef(null)
   const layoutRef = useRef(layout)
   layoutRef.current = layout
@@ -549,6 +570,9 @@ export default function TerminalShell() {
 
   const popoutToken = useMemo(() => new URLSearchParams(location.search).get('popout'), [location.search])
   const popoutPanel = useMemo(() => (popoutToken ? decodePopout(popoutToken) : null), [popoutToken])
+  const tabsOn = auth?.terminalBoardTabsEnabled === true && !popoutToken
+  // The Boards menu's "open now" marks and its save field follow the selected tab.
+  const onTabCurrent = useCallback(({ board, starter }) => { setCurrentBoard(board); setCurrentStarter(starter) }, [])
 
   const count = layout.count
   const focus = Math.min(layout.focus, count - 1)
@@ -630,7 +654,17 @@ export default function TerminalShell() {
   }, [setGroupSym])
 
   /** Open a board snapshot (named, shared or preset), remembering the board it replaces. */
-  const openSnapshot = useCallback((snapshot, { sym, name, boardId, actions = [], text = null } = {}) => {
+  const openSnapshot = useCallback((snapshot, { sym, name, boardId, actions = [], text = null, tab = null } = {}) => {
+    const tabsApi = tabsRef.current
+    if (tabsApi) {
+      // Boards in tabs: the board opens in a tab of its own (`tab` says which kind), so the board
+      // it would have replaced is still there in its tab and there is nothing to go "back" to.
+      const res = tabsApi.open(snapshot, { sym, name, tab })
+      if (!res.ok) { setNotice({ kind: 'error', text: res.text }); return false }
+      if (boardId) saveLibrary(markOpened(libraryRef.current, boardId))
+      setNotice({ kind: 'info', text: text || `Opened ${name || 'board'}${sym ? ` for ${sym}` : ''}.`, actions })
+      return true
+    }
     if (!previousRef.current) {
       previousRef.current = { layout: layoutRef.current, syms: symsRef.current }
       writeRevert(previousRef.current)
@@ -671,7 +705,7 @@ export default function TerminalShell() {
       setNotice({ kind: 'error', text: `No board at ${ref}. Open Boards to see yours.` })
       return false
     }
-    openSnapshot(board.layout, { ...opts, name: board.name, boardId: board.id })
+    if (openSnapshot(board.layout, { ...opts, name: board.name, boardId: board.id, tab: { kind: 'saved', ref: board.id } }) === false) return false
     return true
   }, [openSnapshot])
 
@@ -714,11 +748,12 @@ export default function TerminalShell() {
       setNotice({ kind: 'error', text: `${starter?.name || 'That board'} could not be opened on this release; your board was not changed.` })
       return
     }
-    openSnapshot(next, {
+    if (openSnapshot(next, {
       name: starter.name,
       text: starterBoardNotice(starter),
       actions: [{ label: 'Save to my boards', id: 'save-starter', name: starter.name }],
-    })
+      tab: { kind: 'starter', ref: starter.id },
+    }) === false) return
     setCurrentStarter(starter.id)
   }, [openSnapshot])
 
@@ -733,11 +768,12 @@ export default function TerminalShell() {
       setNotice({ kind: 'error', text: refusal || `${board?.name || 'That stock board'} could not be opened on this release; your board was not changed.` })
       return false
     }
-    openSnapshot(next, {
+    if (openSnapshot(next, {
       name: board.name,
       text: stockBoardNotice(board, sym),
       actions: [{ label: 'Save to my boards', id: 'save-starter', name: board.name }],
-    })
+      tab: { kind: 'stock', ref: board.id, sym },
+    }) === false) return false
     setCurrentStarter(board.id)
     return true
   }, [openSnapshot])
@@ -1478,6 +1514,7 @@ export default function TerminalShell() {
       const replaced = library.boards.some((b) => b.id === res.board.id)
       setCurrentBoard(res.board.name)
       setCurrentStarter(null)   // saved: it is the member's own board now, listed under My boards
+      tabsRef.current?.markSaved(res.board)   // boards in tabs: the selected tab is that saved board now
       said = { kind: 'info', text: `${replaced ? `Replaced your board ${res.board.name} with this one` : `Saved as ${res.board.name}`} — open it any time with B:${res.board.slug}.` }
     }
     setNotice(said)
@@ -1848,7 +1885,7 @@ export default function TerminalShell() {
   ) : null
   return (
     <div className={styles.shell} data-phone={isPhone ? 'true' : 'false'} data-density={layout.density}
-      data-testid="terminal-shell">
+      data-shell={tabsOn ? 'tabs' : undefined} data-testid="terminal-shell">
       {/* a11y (audit 2026-10-06): ONE always-mounted polite live region speaks info notices. A
           role="status" element inserted together with its text (how the notice line mounts) is
           not reliably announced; a region that already exists and changes text is. Errors keep
@@ -1856,6 +1893,31 @@ export default function TerminalShell() {
       <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="terminal-notice-announce">
         {notice && notice.kind !== 'error' ? notice.text : ''}
       </div>
+      {tabsOn && (
+        // Boards in tabs (TERMINAL_BOARD_TABS_ENABLED): the new chrome in place of the bar below
+        // and of the left rail. Same engine: it is handed this shell's own state and handlers.
+        <BoardTabsChrome
+          apiRef={tabsRef} addBlockRef={addBlockRef} layout={layout} syms={syms} layoutStatus={layoutStatus} library={library}
+          libraryWritable={libraryWritable} save={save} setGroupSym={setGroupSym} saveLibrary={saveLibrary}
+          isPhone={isPhone} editing={boardEditing} onEditing={setBoardEditing}
+          status={<L0Strip layout={layout} isPhone={isPhone} />}
+          box={(
+            <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards}
+              recentTickers={recentTickers} history={commandHistory.history} onHistory={commandHistory.push}
+              placeholder={BOX_PLACEHOLDER}
+              prompt={<span className={tabStyles.boxIcon}><UIcon name="search" size={14} gold={false} /></span>} />
+          )}
+          onAddBlock={() => setSheet('functions')}
+          onOpenStarter={openStarter} onOpenStock={openStock} onOpenSaved={openNamed}
+          onNotice={setNotice} onCurrent={onTabCurrent}
+          onCount={setCount} onDensity={(d) => save(setDensity(layout, d))} onUndoClose={onUndoClose}
+          hasRevert={hasRevert} onRevert={revertLayout}
+          onVersions={() => { setBoardsOpenToVersions(true); setSheet('boards') }}
+          onBoards={() => setSheet('boards')} onRecents={() => setSheet('recents')}
+          zoom={zoom} onShowAll={() => { setZoomed(false); inputRef.current?.focus() }}
+        />
+      )}
+      {!tabsOn && (
       <div className={styles.bar}>
         <L0Strip layout={layout} isPhone={isPhone} />
         <CommandLine onSubmit={runTyped} inputRef={inputRef} aliases={aliases} stats={stats} boards={library.boards}
@@ -1917,6 +1979,7 @@ export default function TerminalShell() {
           </div>
         )}
       </div>
+      )}
       {isPhone && (
         <div className={styles.phoneBar}>
           <div className={styles.phoneSwitcher} role="tablist" aria-label="Panels" data-testid="terminal-phone-switcher"
@@ -1981,7 +2044,7 @@ export default function TerminalShell() {
       {!sheet && <FirstRunCard onTry={runTyped} />}
       {!sheet && noticeEl}
       <div className={styles.body}>
-        {!isPhone && (
+        {!isPhone && !tabsOn && (
           <nav className={styles.rail} aria-label="Terminal functions">
             {railGroups.map(({ g, fns }) => (
               <div key={g} className={g === 'Calendar' ? styles.railSectionPrimary : styles.railSection}>
@@ -2042,6 +2105,7 @@ export default function TerminalShell() {
                 reorder={reorderFor(p, i)}
                 linkedSym={syms[panelChannel(p) || layout.activeChannel || 'A'] || null}
                 onNotice={setNotice}
+                tabsHeader={tabsOn ? { editing: boardEditing } : null}
               />
           ))}
         </div>
@@ -2074,9 +2138,12 @@ export default function TerminalShell() {
           onClick: () => { setMoveMenu(null); if (k !== moveFrom) onReorder(movePanelRec.id, k) },
         })) : []}
       />
-      <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title="Functions" variant="bottom-sheet">
+      <Sheet open={sheet === 'functions'} onClose={() => setSheet(null)} title={tabsOn ? 'Add a block' : 'Functions'} variant="bottom-sheet"
+        returnFocusTo={tabsOn ? addBlockRef : undefined}>
         {noticeEl}
-        <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} auth={auth} />
+        {tabsOn
+          ? <ToolsList auth={auth} onPick={(code) => { setSheet(null); runTyped(code) }} />
+          : <HelpPanel onRun={(code) => { setSheet(null); runTyped(code) }} {...helpProps} auth={auth} />}
       </Sheet>
       <Sheet open={sheet === 'boards'} onClose={() => { setSheet(null); setBoardsOpenToVersions(false) }} title="Boards">
         {noticeEl}

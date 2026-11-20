@@ -146,7 +146,9 @@ def open_defects() -> Dict[str, Dict[str, Any]]:
     except Exception:                              # noqa: BLE001
         return {}
     rows = doc.get("defects") if isinstance(doc, dict) and doc.get("contract") == OPEN_DEFECTS_CONTRACT else None
-    return {k: v for k, v in (rows or {}).items()
+    if not isinstance(rows, dict):                  # (a list or a string here used to raise, on every built-in answer)
+        return {}
+    return {k: v for k, v in rows.items()
             if isinstance(k, str) and isinstance(v, Mapping) and isinstance(v.get("what"), str) and v["what"].strip()}
 
 
@@ -176,7 +178,7 @@ def built_in_answer(e: Mapping[str, Any]) -> str:
     s = built_in_setting(e)
     if s is not None:
         return (f"{b['name']}, one of UCT's own indicators, draws {e['name']} itself when its {s['label']} setting "
-                f"is on: {b['what']}. It is not a formula to build here.")
+                f"is on: {b['what']}.{differs} It is not a formula to build here.")
     named = e["name"] if e["name"] == b["name"] else f"{e['name']} is one of UCT's own indicators, {b['name']}"
     if e["name"] == b["name"]:
         return f"{named} is one of UCT's own indicators: {b['what']}.{differs} It is not a formula to build here."

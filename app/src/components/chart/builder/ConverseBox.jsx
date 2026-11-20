@@ -35,7 +35,7 @@ import {
 } from './authoring'
 import { converseTurn, transcriptSnippets, distinctNotUnderstood } from './authoring/converseClient'
 import { classifyTurn, OUTCOMES } from './authoring/turnOutcome'
-import { settleScript, checkScript } from './authoring/scriptAnswer'
+import { settleScript, checkScript, scriptNeedsFixing } from './authoring/scriptAnswer'
 import { preflight } from './authoring/preflight'
 import { readSession, writeSession, clearSession, editKey } from './authoring/conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from './conversationSave'
@@ -136,6 +136,10 @@ export default function ConverseBox({
   converse = converseTurn, onSaved = null, sessionKey = null, onCommitState = null, commitRef = null,
   variant = 'ask', prefill = null, onOpenScript = null, engineChart = null,
 }) {
+  // whether this box is still on screen: a script answer that is being checked when the sheet closes stops
+  // waiting and sends no more repair calls (`scriptAnswer.settleScript`, `cancelled`)
+  const openRef = useRef(true)
+  useEffect(() => { openRef.current = true; return () => { openRef.current = false } }, [])
   /** ⭐ DIRECTION A — 'start' is the start view's "Describe it" well (nothing to undo,
    *  no identity line until there is an indicator); 'ask' is the editor's Ask tab. */
   const startWell = variant === 'start'
@@ -291,7 +295,10 @@ export default function ConverseBox({
       if (turn.outcome === OUTCOMES.ANSWER && res && res.script && opensScripts) {
         const settled = await settleScript(res,
           (refusal) => converse({ message: words, state: before, gateCtx, snippets, scriptRefusal: refusal }),
-          chartRef.current ? { check: (pine) => checkScript(pine, { chart: chartRef.current }) } : {})
+          { ...(chartRef.current ? { check: (pine) => checkScript(pine, { chart: chartRef.current }) } : {}),
+            // (the sheet closed mid-answer: no more waiting, no more repair calls)
+            cancelled: () => !openRef.current })
+        if (!openRef.current) return
         say(settled.entry)
         setPartial(null)
         return
@@ -513,7 +520,7 @@ export default function ConverseBox({
                     {typeof onOpenScript === 'function' && (
                       <button type="button" style={S.button} data-testid="converse-open-script" disabled={busy || saving}
                         onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
-                        {t.script.runs ? 'Open this script in the editor' : 'Open this script in the editor to fix it'}
+                        {scriptNeedsFixing(t.script) ? 'Open this script in the editor to fix it' : 'Open this script in the editor'}
                       </button>
                     )}
                     <details style={S.muted} data-testid="converse-script-text">

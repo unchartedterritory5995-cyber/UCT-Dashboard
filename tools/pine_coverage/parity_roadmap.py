@@ -755,10 +755,10 @@ def build(m, facts_doc, map_sha=None):
             "evidence": evidence_status(sole_ok, facts),
         }
         if uid.startswith("admit:"):
-            # ready evidence: scripts the runtime lane already draws that use it, with a committed runtime-on MATCH
+            # ready evidence: scripts the runtime lane already draws that use it, whose committed captures grade MATCH
+            # on the members' lane (`members_lane_verdict`: one DIVERGE among them is not ready evidence)
             row["runtimeDrawnWithMatch"] = sorted(
-                k for k in members if k in added
-                and any(x.get("runtimeOn") == "MATCH" for x in (facts.get(k) or {}).get("captures") or []))
+                k for k in members if k in added and members_lane_verdict(facts.get(k)) == "MATCH")
         unit_rows.append(row)
     unit_pairs = pair_table(walls, unit_of)
     # RANKED: scripts unlocked per unit of work. Greedy: each step builds the unit whose completion frees the most
@@ -879,17 +879,26 @@ def build(m, facts_doc, map_sha=None):
     return out
 
 
+def members_lane_verdict(f):
+    """A script's verdict on the members' lane (runtime-on) over its committed captures (`facts.captures[].runtimeOn`):
+    `coverage_map.script_verdict`, the one rule, so ANY DIVERGE dominates (coordinator ruling 2026-11-19: three MATCH
+    and one DIVERGE are not a MATCH). None when no committed capture was graded on that lane."""
+    import coverage_map as cm  # noqa: PLC0415 - as `facts` imports it
+    return cm.script_verdict([x["runtimeOn"] for x in (f or {}).get("captures") or [] if x.get("runtimeOn")])
+
+
 def evidence_status(keys, facts):
-    """For a unit's sole scripts: what TradingView evidence exists today. `committedMatch` = a committed capture
-    grading runtime-on MATCH; `committedOther` = committed captures, none MATCH runtime-on; `ledgerOnly` = only
-    licence-held ledger rows; `localOnly` = only local capture runs not graded into the ledger; `none` = no capture:
-    each of those is a capture-queue row (RDDT 1D + SPY 1D, the coordinator's convention)."""
+    """For a unit's sole scripts: what TradingView evidence exists today. `committedMatch` = committed captures whose
+    runtime-on verdict is MATCH (`members_lane_verdict`: none DIVERGEs); `committedOther` = committed captures that are
+    not; `ledgerOnly` = only licence-held ledger rows; `localOnly` = only local capture runs not graded into the
+    ledger; `none` = no capture: each of those is a capture-queue row (RDDT 1D + SPY 1D, the coordinator's
+    convention)."""
     c = collections.Counter()
     rows = []
     for k in keys:
         f = facts.get(k) or {}
         caps = f.get("captures") or []
-        if any(x.get("runtimeOn") == "MATCH" for x in caps):
+        if members_lane_verdict(f) == "MATCH":
             st = "committedMatch"
         elif caps:
             st = "committedOther"

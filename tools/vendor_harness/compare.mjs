@@ -1797,7 +1797,11 @@ export function comparePaints(grade) {
   const withheldSaid = w0
     ? `; ${withheldByName.length} paint${withheldByName.length === 1 ? '' : 's'} withheld by name, not graded (first: ${w0.kind} ${w0.id}${w0.title ? ` "${w0.title}"` : ''} — ${w0.reason})`
     : ''
-  const rowsOut = () => rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) }))
+  // ⭐⭐ (2026-11-19, held evidence) each row says which of OUR paints it is (`line`, `title`) and whether it DIFFERS, so a
+  // licence-held capture's ledger row can name the one paint to withhold (`held_evidence.lane_withholds`)
+  const rowsOut = () => rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}),
+    ...(Number.isInteger(r.line) ? { line: r.line } : {}), ...(r.title ? { title: r.title } : {}),
+    differs: differing.includes(r) }))
   if (!graded) {
     // ⭐ G5 — a paint withheld BY NAME is an item that could not be compared, as a plot is
     if (withheldByName.length) {
