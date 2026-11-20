@@ -138,8 +138,12 @@ describe('a script this panel cannot compute says why, once, in a member\'s word
   })
 
   it('another timeframe likewise; anything else gets the plain sentence, and the engine\'s own text is not shown', async () => {
+    // ⭐ the audit after (A), 2026-11-20: a WEEKLY read of the chart's own symbol computes here now (its newest, unclosed
+    // week is withheld by name, `request:htf-newest-unconfirmed`, and every other bar is shown); the sentence is asked of
+    // the same read on a chart that is not daily (`request:other-timeframe`, withheld whole), so the sentence is that one's
     const weekly = src('wk = request.security(syminfo.tickerid, "W", close)', 'plot(wk)')
-    const got = await inspectScript({ source: weekly, bars: BARS, names, build, compute: computeFor({ tf: 'D', sym: 'TEST' }) })
+    expect((await inspectScript({ source: weekly, bars: BARS, names, build, compute: computeFor({ tf: 'D', sym: 'TEST' }) })).ok).toBe(true)
+    const got = await inspectScript({ source: weekly, bars: BARS, names, build, compute: computeFor({ tf: '60', sym: 'TEST' }) })
     expect(got.ok).toBe(false)
     expect(got.reason.startsWith("This script reads another timeframe. Inspect a bar reads this chart's own bars only")).toBe(true)
     expect(notComputedWords({ code: 'pine:known-divergence', reason: 'engineer text' })).toBe(PLAIN)
