@@ -119,7 +119,7 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // now drawn while the arm runs every bar; runtime-on MATCH). `momentum-based-zigzag-rddt-1d-2026-11-14`
 // left the report: the runtime lane reaches it too, its runtime-on grade is DIVERGE, so it is on the
 // committed kill list and no longer admitted (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md).
-// ⭐ TF-FOLD (request unit PR 1, NUMBER PENDING) re-pinned the two cppivot-boss-floor-pivots rows (and its
+// ⭐ TF-FOLD (request unit PR 1, engine 89) re-pinned the two cppivot-boss-floor-pivots rows (and its
 // `admittedGraded` row), lane `null` -> `runtime`, runtime-on MATCH (27 / 27 on RDDT and SPY 1D): the runtime lane
 // now reads its six-hop request timeframe (docs/pine/evidence/2026-11-19-request-unit/EVIDENCE.md); the
 // population block re-derived (`capability_admission.py::populations_of`).

@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "The version island, PR 3 (feat/pine-library-island-object-defaults, NUMBER PENDING, stacked on #2126): a v5 library's label.new / box.new / table.cell inside a v6 script draws v5's witnessed default colours for a slot it leaves unset (the call carries the island's default; the run's objects are drawn at the program's version), railed on the rendered objects; a named colour is the library's own, and the script's own calls keep v6's defaults. Every piece, broken once, must turn its rail red.",
+ "about": "The version island, PR 3 (feat/pine-library-island-object-defaults, engine 89, stacked on #2126): a v5 library's label.new / box.new / table.cell inside a v6 script draws v5's witnessed default colours for a slot it leaves unset (the call carries the island's default; the run's objects are drawn at the program's version), railed on the rendered objects; a named colour is the library's own, and the script's own calls keep v6's defaults. Every piece, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "X1",

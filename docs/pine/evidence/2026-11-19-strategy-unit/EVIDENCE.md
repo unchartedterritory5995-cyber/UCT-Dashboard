@@ -1,6 +1,6 @@
 # The strategy unit: three more community backtests served, on readings committed captures witness (2026-11-19)
 
-Base: `origin/master` `860e30c72a`, engine 87. Branch `feat/strategy-unit`. NUMBER PENDING (`scriptEngineVersion.js`).
+Base: `origin/master` `860e30c72a`, engine 87. Branch `feat/strategy-unit`. engine 89 (`scriptEngineVersion.js`).
 
 Ask (coordinator patrick-2b, owner's "get it all done"): strategy backtests reach members for every strategy the
 evidence allows, as fast as honesty permits. Serve only what a reference sentence states or a committed TradingView

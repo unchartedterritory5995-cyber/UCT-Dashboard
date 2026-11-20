@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "Finding 4 (fix/runtime-palette-scope, NUMBER PENDING): the runtime lane's front end opens the palette scope at the script's version, so a colour name it resolves through the shared Resolver (color.r/g/b/t of a constant, a color.new, a named variable) is a value equal to the host lane's column, not a runtime:lower stop; and the scope is restored however the build ends; and inside the version island (stacked on #2106) a v5 library's colour name is resolved at v5 (pine.js colourHexOf reads versionAt).",
+ "about": "Finding 4 (fix/runtime-palette-scope, engine 89): the runtime lane's front end opens the palette scope at the script's version, so a colour name it resolves through the shared Resolver (color.r/g/b/t of a constant, a color.new, a named variable) is a value equal to the host lane's column, not a runtime:lower stop; and the scope is restored however the build ends; and inside the version island (stacked on #2106) a v5 library's colour name is resolved at v5 (pine.js colourHexOf reads versionAt).",
  "mutants": [
   {
    "id": "P1",

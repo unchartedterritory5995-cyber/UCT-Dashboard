@@ -7409,7 +7409,7 @@ export function constantTestValue(tree) {
  *  `Resolver.objectPass`. */
 const TF_READ_HOPS = 16
 
-/** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
+/** ⭐⭐ (request unit, TF-FOLD, engine 89) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
  *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops. Handed to `ownTimeframeOf` /
  *  `timeframeLiteralOf` by the request readers alone (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
  *  the plot lane) keeps its own reach. */
@@ -8629,7 +8629,7 @@ export class Resolver {
      *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
      *  is an owner-ruled act. The object pass mints no parameters. */
     this.objectPass = opts.objectPass === true
-    /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — THE RUNTIME LANE'S READING OF A REQUEST'S TIMEFRAME. Set by
+    /** ⭐⭐ (request unit, TF-FOLD, engine 89) — THE RUNTIME LANE'S READING OF A REQUEST'S TIMEFRAME. Set by
      *  `pineRuntimeFrontend.js` on its own resolvers (`requestTimeframeReader: 'runtime'`) and by nothing else. The
      *  timeframe argument of a `request.security` (and only that argument: `requestTimeframeReach`) is followed
      *  through `TF_READ_HOPS` names and ternary arms, the object pass's reach (C10), where the plot lane reads 4: the
@@ -13997,7 +13997,7 @@ export class Resolver {
     return null
   }
 
-  /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — the reach a REQUEST's timeframe is read with: `REQUEST_TF_REACH` on
+  /** ⭐⭐ (request unit, TF-FOLD, engine 89) — the reach a REQUEST's timeframe is read with: `REQUEST_TF_REACH` on
    *  the runtime lane's resolvers (`runtimeRequestTimeframes`), else none (each reader's own). */
   requestTimeframeReach() {
     return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined
