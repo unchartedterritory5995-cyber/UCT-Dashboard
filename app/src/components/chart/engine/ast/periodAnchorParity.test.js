@@ -315,7 +315,10 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         // ⭐ 2026-11-17 — the two opening-range codes are not a `time(<timeframe>)` reading either: a
         // native call on bars it cannot be read from. Both lanes rail them on real bars in
         // `sessionRegular.test.js` / `tests/test_ast_session_regular.py`
-        && !k.startsWith('opening-range:')).sort())
+        && !k.startsWith('opening-range:')
+        // ⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — a look-ahead `request.security` read's first partial period is not a
+        // `time(<timeframe>)` reading; `htfLiveFirstPeriod.test.js` / `tests/test_pine_htf_live_first_period.py` rail it
+        && !k.startsWith('request:htf-lookahead-')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })

@@ -525,6 +525,30 @@ def _tf_bucket(iso: str, code: str) -> Any:
     return d.isocalendar()[:2] if code == "W" else (d.year, d.month)
 
 
+def _htf_resampled(bars: List[dict], code: str):
+    """The ``tf`` / ``tf_live`` / ``tf_merge`` arm's higher-timeframe bars, ONE authority (the arm and
+    ``_tf_live_first_period_read_mask`` both read it): ``(iso, keys, at, order, htf)`` -- each base bar's ISO day and
+    bucket, each bucket's index, the buckets in order, and the resampled bars.
+
+    ⭐ THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS. ``bars_fetch._resample_weekly_iso`` carries the
+    stable-Friday-key rationale; a private aggregation here would be a second authority on it, which
+    ``screener/candles.py`` already says in as many words."""
+    iso = [_iso_day(b.get("t")) for b in bars]
+    keys = [(_tf_bucket(d, code) if d else None) for d in iso]
+    order: List[Any] = []
+    at: Dict[Any, int] = {}
+    for k in keys:
+        if k is not None and k not in at:
+            at[k] = len(order)
+            order.append(k)
+    from api.services import bars_fetch                      # noqa: PLC0415
+    resample = (bars_fetch._resample_weekly_iso if code == "W"
+                else _resample_quarterly_iso if code == "3M"
+                else bars_fetch._resample_monthly_iso)
+    htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
+    return iso, keys, at, order, htf
+
+
 REFUSALS: Mapping[str, str] = {
     "resolve:name": "unknown name",
     "resolve:function": "unknown function",
@@ -4849,6 +4873,11 @@ def interpret(ast: Any, bars: List[dict],
         merged = tf_merge_mask(ast, bars, opts, inputs, budget, scalars)
         if merged is not None:
             column = [math.nan if merged[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ HTF-LIVE-FIRST-PERIOD -- ...and a look-ahead read of a period built from part of it
+        # (``interpret.js::tfLiveMask``).
+        lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
+        if lived is not None:
+            column = [math.nan if lived[i] else v for i, v in enumerate(column)]
     if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
@@ -5092,6 +5121,197 @@ def _first_period_partial_read_mask(tree: Any, bars: List[dict], opts, inputs, b
     quiet.pop("withheldBarsSink", None)
     return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
                          lambda nd: id(nd) in own, lambda nd: list(own[id(nd)]), exact=True)
+
+
+#: ⭐⭐ HTF-LIVE-FIRST-PERIOD -- ``interpret.js::TF_LIVE_FIRST_CODE``: a look-ahead (``tf_live``) read of a period built
+#: from part of it, off the listing.
+TF_LIVE_FIRST_CODE = "request:htf-lookahead-first-period-partial"
+#: The series leaves a higher-timeframe bar built from part of its period gets wrong: every one but ``close``,
+#: derived from the manifest (``interpret.js::PARTIAL_PERIOD_SERIES``).
+_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if name != "close")
+#: A leaf or call that reads the first-period bar's partial fields (``interpret.js::readsPartialField``): a series
+#: leaf other than ``close``, or a bar reader (``BAR_READERS``), which reads the bar's own fields.
+_FIELD_UNAWARE = "field-unaware"
+
+
+def _reads_partial_field(node: Any) -> bool:
+    if not isinstance(node, Mapping):
+        return False
+    kind = node.get("type")
+    return ((kind == "series" and node.get("name") in _PARTIAL_PERIOD_SERIES)
+            or (kind == "call" and node.get("name") in BAR_READERS))
+
+
+def _tree_any(tree: Any, pred: Callable[[Mapping[str, Any]], bool]) -> bool:
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if pred(node):
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def _holds_request_or_binding(tree: Any) -> bool:
+    """``interpret.js::holdsRequestOrBinding``."""
+    return _tree_any(tree, lambda nd: nd.get("type") in _SCOPE_TYPES
+                     or (nd.get("type") == "series" and nd.get("name") in RECURRENCE_BINDINGS))
+
+
+def _child_reads_partial_period(child: Any) -> bool:
+    """``interpret.js::childReadsPartialPeriod``: a partial field, or another request."""
+    return _tree_any(child, lambda nd: _reads_partial_field(nd) or nd.get("type") in _SCOPE_TYPES)
+
+
+def _partial_period_unknown(child: Any, htf: List[dict], code: str, inputs, budget, scalars, opts):
+    """``interpret.js::partialPeriodUnknown``: the higher-timeframe bars the child is unknown on (engine 56's walk,
+    exact, each partial field a site unknown on the first higher-timeframe bar only), ``None``, or ``_FIELD_UNAWARE``."""
+    if not htf:
+        return None
+    if _holds_request_or_binding(child):
+        return _FIELD_UNAWARE
+    quiet = dict(opts or {}, tf=code)
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+
+    def first_only(_node):
+        col = [0] * len(htf)
+        col[0] = 1
+        return col
+
+    return _witness_mask(child, htf, inputs if inputs is not None else {}, budget, scalars, quiet,
+                         _reads_partial_field, first_only, exact=True)
+
+
+def _tf_live_first_period_bars(bars: List[dict], code: Any,
+                               opts: Optional[Mapping[str, Any]]) -> Optional[List[int]]:
+    """``interpret.js::tfLiveFirstPeriodBars``: every chart bar inside the first period of ``code`` off the listing when
+    the first bar does not certainly open it, every bar when one has no readable day, else ``None``."""
+    n = len(bars)
+    if not n or not isinstance(code, str) or (opts or {}).get("historyFromListing") is True:
+        return None
+    days = [_iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars]
+    if any(not d for d in days):
+        return [1] * n
+    tf = (opts or {}).get("tf")
+    daily = tf in ("D", "1D") and all(datetime.date.fromisoformat(d).weekday() <= 4 for d in days)
+    if daily:
+        first = datetime.date.fromisoformat(days[0])
+        prev = (first - datetime.timedelta(days=3 if first.weekday() == 0 else 1)).isoformat()
+        if _tf_bucket(prev, code) != _tf_bucket(days[0], code):
+            return None                                        # the first bar opens its period
+    out = [0] * n
+    first_bucket = _tf_bucket(days[0], code)
+    for i in range(n):
+        if _tf_bucket(days[i], code) != first_bucket:
+            break
+        out[i] = 1
+    return out
+
+
+def _tf_live_first_period_read_mask(tree: Any, bars: List[dict], opts, inputs, budget,
+                                    scalars) -> Optional[List[int]]:
+    """⭐⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) -- the port of ``interpret.js::tfLiveFirstPeriodReadMask`` (its docstring
+    carries the rule and the measurement): the root bars that read a look-ahead value built from part of the first
+    period (1 = withheld), or ``None``. A site is a ``tf_live`` under no other request (its own bars: the chart bars
+    whose period's higher-timeframe bar its child is unknown on, ``_partial_period_unknown``) or the outermost request
+    holding one whose child reads the partial period (field-unaware, ``_tf_live_first_period_bars``); a ``tf_live``
+    reading only ``close`` is no site. Which root bars read them is engine 56's walk, exact."""
+    n = len(bars or [])
+    if not n:
+        return None
+
+    def lives_under(top: Any) -> list:
+        out = []
+        stack = [top]
+        seen: set = set()
+        while stack:
+            node = stack.pop()
+            if not isinstance(node, Mapping) or id(node) in seen:
+                continue
+            seen.add(id(node))
+            args = node.get("args")
+            if node.get("type") == "tf_live" and isinstance(args, list) and args \
+                    and _child_reads_partial_period(args[0]):
+                out.append(str(node.get("value")))
+            if isinstance(args, list):
+                stack.extend(args)
+        return out
+
+    def field_unaware(codes) -> Optional[List[int]]:
+        m = None
+        for code in sorted(set(codes)):
+            c = _tf_live_first_period_bars(bars, code, opts)
+            if c is None:
+                continue
+            m = m or [0] * n
+            m = [1 if (a or b) else 0 for a, b in zip(m, c)]
+        return m
+
+    def live_own(node: Mapping[str, Any]) -> Optional[List[int]]:
+        code = str(node.get("value"))
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        child = args[0] if args else None
+        if not _child_reads_partial_period(child):
+            return None
+        first = _tf_live_first_period_bars(bars, code, opts)
+        if first is None:
+            return None
+        if any(not _iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars):
+            return first                                       # every bar: no first period to place
+        _iso, keys, at, _order, htf = _htf_resampled(bars, code)
+        u = _partial_period_unknown(child, htf, code, inputs, budget, scalars, opts)
+        if u == _FIELD_UNAWARE:
+            return first
+        if u is None:
+            return None
+        m = [0] * n
+        for i, k in enumerate(keys):
+            if k is not None and u[at[k]]:
+                m[i] = 1
+        return m if any(m) else None
+
+    own: Dict[int, List[int]] = {}
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") in _SCOPE_TYPES:
+            m = live_own(node) if node.get("type") == "tf_live" else field_unaware(lives_under(node))
+            if m is not None:
+                own[id(node)] = m
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    if not own:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    sites = own
+    return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=True)
+
+
+def tf_live_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] = None,
+                 inputs: Any = None, budget: Any = None, scalars: Any = None) -> Optional[List[int]]:
+    """⭐⭐ HTF-LIVE-FIRST-PERIOD -- the port of ``interpret.js::tfLiveMask``: the host column's ``tf_live`` withholding,
+    named ``TF_LIVE_FIRST_CODE`` when it withholds a bar."""
+    mask = _tf_live_first_period_read_mask(tree, bars, opts, inputs, budget, scalars)
+    if not mask or not any(mask):
+        return None
+    _name_chart_clock(opts, [TF_LIVE_FIRST_CODE])
+    return mask
 
 
 def _newest_closes_every_merge_period(bars: List[dict], found: list,
@@ -6382,6 +6602,8 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "request:htf-newest-unconfirmed",
     # ENGINE 55 (review L2) -- the first period of a ``tf_merge`` read, off the listing
     "request:htf-first-period-partial",
+    # HTF-LIVE-FIRST-PERIOD -- the first period of a ``tf_live`` read, off the listing (``tf_live_mask``)
+    "request:htf-lookahead-first-period-partial",
     WINDOW_EXTREME_LEFT_EDGE,
 )
 
@@ -7350,25 +7572,10 @@ def _interpret_column(ast: Any, bars: List[dict],
                             "resampled out of %r."
                             % (code, str(base), code, str(base)))
 
-            # Every base bar\u2019s bucket, by the SAME keys the resampler groups on.
-            iso = [_iso_day(b.get("t")) for b in bars]
-            keys = [(_tf_bucket(d, code) if d else None) for d in iso]
-            order: List[Any] = []
-            at: Dict[Any, int] = {}
-            for k in keys:
-                if k is not None and k not in at:
-                    at[k] = len(order)
-                    order.append(k)
-
-            # \u2b50 THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS.
-            # `bars_fetch._resample_weekly_iso` carries the stable-Friday-key
-            # rationale; a private aggregation here would be a second authority on
-            # it, which `screener/candles.py` already says in as many words.
-            from api.services import bars_fetch                      # noqa: PLC0415
-            resample = (bars_fetch._resample_weekly_iso if code == "W"
-                        else _resample_quarterly_iso if code == "3M"
-                        else bars_fetch._resample_monthly_iso)
-            htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
+            # Every base bar\u2019s bucket, by the SAME keys the resampler groups on, and
+            # the higher-timeframe bars (``_htf_resampled``: one authority, read by
+            # ``_tf_live_first_period_read_mask`` too).
+            iso, keys, at, order, htf = _htf_resampled(bars, code)
 
             # \u26d4 AND THE TWO MUST AGREE. This function decides WHICH resampled bar
             # a base bar reads, using its own bucketing; the resampler decides what
