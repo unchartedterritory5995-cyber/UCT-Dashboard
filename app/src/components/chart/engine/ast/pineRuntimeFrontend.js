@@ -16704,7 +16704,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const checkedParamOf = (p, q, blocked, err, scope) => {
     if (atObjectDoor || inRequestValue || objectsInRun || loopDepth > 0) return false
     if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:conditional-history' || err.condParam !== true) return false
-    if (q === 'simple' || q === 'const') return false
+    if (q === 'const' || q === 'simple') return false
     if (typeof blocked === 'string') {
       const bs = scope ? scope.lookup(blocked) : null
       const blockedPerBar = bs !== null && ((frameChecked !== null && frameChecked.has(bs))

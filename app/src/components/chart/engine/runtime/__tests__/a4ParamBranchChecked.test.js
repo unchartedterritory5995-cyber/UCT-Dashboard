@@ -105,6 +105,20 @@ describe('A4 — support-and-resistance\'s Variance: a per-bar branch parameter,
     const { outs } = run(v4(`${SR}g(x, q) => Variance(x, q)\n${K_NEVER_ONE}plot(g(close, k))\n`))
     same(outs[0], varianceOf(C, kNeverOne), 'g -> Variance')
   })
+  it('a caller\'s own parameter fixed by ITS call site keeps C35\'s copy: exact, no check (the chain stays first)', () => {
+    const { outs, built } = run(v4(`${SR}g(x, q) => Variance(x, q)\nplot(g(close, 5))\n`))
+    expect(built.diagnostics.checkedSpecialisedCalls || 0).toBe(0)
+    same(outs[0], varianceOf(C, C.map(() => 5)), 'g(close, 5)')
+  })
+  it('an offset read first and then a branch on the same parameter: one copy reads it per bar AND checks the branch', () => {
+    const src = v6('f(src, p) =>\n    s = src[p]\n    p == 1 ? s : ta.highest(src, 3) + s\nk = close > 0 ? 3 : 2\nplot(f(close, k))\n')
+    const { outs, built } = run(src)
+    expect(built.diagnostics.checkedSpecialisedCalls).toBeGreaterThanOrEqual(1)
+    expect(built.diagnostics.seriesSpecialisedCalls).toBeGreaterThanOrEqual(1)
+    const hi = highestOf(C, 3)
+    const want = C.map((_, i) => (i - 3 >= 0 ? hi[i] + C[i - 3] : NaN))
+    same(outs[0], want, 'f(close, k)')
+  })
   it('the first call the arm skips STOPS the run by name, naming the bars (the then-arm taken on bar 3)', () => {
     const r = outcome(v4(`${SR}k = bar_index == 3 ? 1 : 5\nplot(Variance(close, k))\n`))
     expect(r && r.guard).toBe(R4)

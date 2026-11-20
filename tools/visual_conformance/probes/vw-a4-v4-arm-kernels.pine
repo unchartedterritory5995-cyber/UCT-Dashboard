@@ -1,0 +1,31 @@
+//@version=4
+study("UCTPROBE_VW_A4_V4_ARM_KERNELS", overlay=false)
+
+// PROVENANCE: written 2026-11-20 for the Pine parity programme, objects unit A4 (capture queue
+// docs/pine/capture-queue-2026-11-20-a4-param-branch.md, Q-A4-1). NEVER COMPILED ON TRADINGVIEW.
+// A v4 `?:` arm is LAZY (vw-cs2-v4-ternary-lazy T00 / T01 / T02: `sma`, `barssince` and a helper calling
+// `sma` count the arm's RUNS). Do `crossover` / `crossunder` (over series computed on every bar), `cum`, and a
+// helper's `cum` with a local read `[n]` back (the support-and-resistance `Sma` shape) count runs too, and is
+// a nested `?:` in the else arm (TA's `adxpoint` shape) lazy for its test's `crossunder`?
+//   T00 / T01  crossover / crossunder in one arm, both arguments every-bar series
+//   T02        cum in one arm
+//   T03        helper `a = cum(x), (a - a[n]) / n` in one arm (is `a[n]` n calls back or n bars back?)
+//   T04        `up and crossover(..) ? 1 : not up and crossunder(..) ? -1 : 0`: crossunder in the else arm's test
+//   E*         the same calls on every bar, for the reference
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; AMEX:SPY 1D second.
+
+up = close > open
+s5 = sma(close, 5)
+f(x, n) => a = cum(x), (a - a[n]) / n
+
+plot(bar_index, title="A00_bar_index_CONTROL")
+plot(up ? 1 : 0, title="A01_up")
+plot(up ? (crossover(close, s5) ? 1 : 0) : na, title="T00_up_crossover")
+plot(up ? (crossunder(close, s5) ? 1 : 0) : na, title="T01_up_crossunder")
+plot(up ? cum(close) : na, title="T02_up_cum")
+plot(up ? f(close, 3) : na, title="T03_up_helper_cum_offset")
+plot(up and crossover(close, s5) ? 1 : not up and crossunder(close, s5) ? -1 : 0, title="T04_else_arm_test_crossunder")
+plot(crossover(close, s5) ? 1 : 0, title="E00_crossover_every_bar")
+plot(crossunder(close, s5) ? 1 : 0, title="E01_crossunder_every_bar")
+plot(cum(close), title="E02_cum_every_bar")
+plot(f(close, 3), title="E03_helper_every_bar")
