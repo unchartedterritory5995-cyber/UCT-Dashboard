@@ -20,13 +20,13 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
-import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
-/** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
-function applyRenderWindow(chart, rw) {
-  if (!rw || rw.applied || !chart?.window) return
-  rw.applied = true
-  chart.window.setWindow(rw.rows, { span: rw.span })
-}
+import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+/** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
+function applyRenderWindow(chart, rw) {
+  if (!rw || rw.applied || !chart?.window) return
+  rw.applied = true
+  chart.window.setWindow(rw.rows, { span: rw.span })
+}
 import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import {
