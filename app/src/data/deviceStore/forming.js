@@ -15,10 +15,19 @@
 //                            minute volumes is not the vendor's day volume). W / M: the period in progress
 //                            from the D bars, only when today's forming D bar is in the copy.
 //
-// ⛔ BOTH OFF until the evidence says the server's bars ARE the minute rollups (the seed engineer measures
-// after the close, RTH vs extended basis included). Each path flips on its own evidence, here, once.
+// ⛔ EACH PATH FLIPS ON ITS OWN EVIDENCE, HERE, ONCE (the seed engineer measures the server's bars against
+// the minute rollups, RTH vs extended basis included).
+//   INTRADAY: ON (2026-11-20, mid-session, 59 symbols): 5/15/30/60 and the extended buckets equal the minute
+//     rollups on O/H/L/C at 4 dp in 100% of buckets. Volume is exact in 40-70%; every miss is the server
+//     ABOVE the rollup by less than 1 share per minute of the bucket (the vendor truncates minute volumes),
+//     sub-pixel on a volume pane. So a painted forming bucket's volume may trail the server's by < 1 share per
+//     minute in it, and the answer lifts it (store.deviceLive L13); its prices never move.
+//   DAILY: OFF. The server's D volume is above even the all-session minute sum (median x1.007, thin names up
+//     to x1.5), so D needs the accumulated day volume (av); and one of 56 D bars had O/H/L differ from its
+//     regular-session minutes (cause pending).
+// The device store itself stays switched off by default (switch.js), so members see none of this yet.
 // The extended-hours rule (barStore/prefetch: a regular-session copy never paints an extended view) and the
 // split guard (engine.js) apply to a forming bar exactly as to every other device bar.
 
-export const DEVICE_FORMING_INTRADAY = false
+export const DEVICE_FORMING_INTRADAY = true
 export const DEVICE_FORMING_DAILY = false

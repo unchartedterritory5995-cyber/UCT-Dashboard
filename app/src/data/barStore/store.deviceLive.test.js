@@ -235,6 +235,36 @@ describe('a device copy current to the last closed minute', () => {
     store.dispose()
   })
 
+  // ⭐ THE VOLUME TOLERANCE (deviceStore/forming.js, the intraday evidence): the vendor truncates minute volumes, so the
+  // server's bucket volume may be ABOVE the rollup of its minutes by less than 1 share per minute in the bucket. Its
+  // prices equal the rollup's. So the answer may lift the painted forming bar's volume by that much, never its prices.
+  it("L13 the forming bar's volume may trail the server's by < 1 share per minute in the bucket: the answer lifts only the volume", async () => {
+    vi.setSystemTime(NOW + 2 * 60000)                                // 11:33:00: the 11:30 bucket holds 3 closed minutes
+    const MINUTES = 3
+    const FORMING = bar(OPEN + 2 * 3600, 1, 24)
+    const ans = answer()
+    ans.verified_through = Math.floor((NOW + 2 * 60000) / 1000)
+    ans.developing = { ...ans.developing, v: FORMING.v + (MINUTES - 1) }   // the server above by < 1 share a minute
+    let release
+    const request = vi.fn(() => new Promise((r) => { release = () => r(ans) }))
+    const { store, pf, key } = boot({ device: fakeDevice([...DEVICE, FORMING], { through: THROUGH + 120 }), request })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)
+    expect(pf.devicePaints('NEWB', '5', { showExtended: false })).toBe(true)
+    const off = store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(1)
+    const before = store.getSnapshot(key).developing
+    expect(before.v).toBe(FORMING.v)
+    release()
+    await vi.advanceTimersByTimeAsync(20)
+    const after = store.getSnapshot(key).developing
+    expect([after.t, after.o, after.h, after.l, after.c]).toEqual([before.t, before.o, before.h, before.l, before.c])
+    expect(after.v).toBe(ans.developing.v)                            // the server's volume wins...
+    expect(after.v - before.v).toBeGreaterThanOrEqual(0)
+    expect(after.v - before.v).toBeLessThan(MINUTES)                  // ...and it was within the tolerance
+    off()
+    store.dispose()
+  })
+
   it('L7 the same device copy seen again is not dispatched again (the switch polls every 25 ms)', () => {
     const { store, pf } = boot({ device: fakeDevice(DEVICE) })
     pf.peekDisplayable('NEWB', '5')

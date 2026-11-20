@@ -42,11 +42,17 @@ function replay(opts, upto) {
 const lastRow = (c) => { const i = c.t.length - 1; return [c.t[i], c.o[i], c.h[i], c.l[i], c.c[i], c.v[i]] }
 
 describe('the forming bar, path by path', () => {
-  it('ships OFF: both constants false, and the default overlay hands out complete buckets only', () => {
-    expect(DEVICE_FORMING_INTRADAY).toBe(false)
+  it('ships as the evidence says: INTRADAY on (the default overlay ends 5m with the bucket in progress), DAILY off', () => {
+    expect(DEVICE_FORMING_INTRADAY).toBe(true)
     expect(DEVICE_FORMING_DAILY).toBe(false)
+    const sym0 = Object.keys(DAYFX.expected)[0]
+    expect(replay(undefined, SEQ_1132).read(sym0, '5', PREV).forming).toBe('intraday')
+    expect(replay(undefined, SEQ_1132).read(sym0, 'D', PREV).cols).toBeNull()
+  })
+
+  it('with the intraday path off, an overlay hands out complete buckets only', () => {
     const sym = Object.keys(DAYFX.expected)[0]
-    const r = replay(undefined, SEQ_1132).read(sym, '5', PREV)
+    const r = replay({ formingIntraday: false }, SEQ_1132).read(sym, '5', PREV)
     const through = r.through
     expect(r.forming).toBeUndefined()
     expect(r.cols.t.every((t, i) => bucketOf(t, '5')[1] <= through || i < 0)).toBe(true)
