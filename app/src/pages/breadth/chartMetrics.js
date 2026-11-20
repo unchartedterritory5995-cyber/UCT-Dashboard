@@ -252,11 +252,11 @@ export const METRIC_META = {
   adv_decline_cum: { label: 'A/D Line', group: 'Primary Breadth' },
   advancing: { short: 'Advancing', coverage: { from: '2026-03-16' } },
   atr_ext_7: { label: '>7× ATR Ext (50SMA)', short: '>7× ATR Ext', group: 'Highs / Lows', drillKey: 'atr_ext_7_list', coverage: { from: '2026-01-02' } },
-  avg_10d_cpc: { label: 'P/C 10D Avg', group: 'Sentiment', coverage: { lastReported: '2026-08-18' } },
+  avg_10d_cpc: { label: 'P/C 10D Avg', group: 'Sentiment' },
   avg_10d_vix: { label: 'VIX 10D Avg', group: 'Regime', coverage: { from: '2026-01-02' } },
   avg_10d_vxn: { label: 'VXN 10D Avg', group: 'Regime', coverage: { from: '2026-01-02' } },
   breadth_score: { label: 'Health Score', short: 'Health', group: 'Score' },
-  cboe_putcall: { label: 'CBOE P/C', group: 'Sentiment', coverage: { lastReported: '2026-08-07' } },
+  cboe_putcall: { label: 'CBOE P/C', group: 'Sentiment' },  // equity P/C, filled nightly since 2026-11 (no gap)
   cnn_fear_greed: { label: 'CNN Fear/Greed', short: 'CNN F/G', group: 'Sentiment' },
   declining: { short: 'Declining', coverage: { from: '2026-03-16' } },
   down_20pct_5d: { label: 'Dn 20%/5d', group: 'Primary Breadth', drillKey: 'down_20pct_5d_list' },
