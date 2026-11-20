@@ -158,7 +158,6 @@ def starts_at_bar0_contradiction(capture: dict, symbol: str):
 #: ⭐⭐ The listing date's SOURCE (coordinator ruling 2026-11-20): UCT production's own answer, read as the automation account
 #: through the rig's browser context (`Driver.listing_for`). The table below is a CROSS-CHECK that must agree.
 UCT_ORIGIN = "https://uctintelligence.com"
-UCT_AUTOMATION_ACCOUNT = "smoke@uctintelligence.internal"
 _ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -177,15 +176,11 @@ def _json_of(resp):
 
 def uct_first_trade_date(page, symbol):
     """(date | None, why): `/api/ticker-ipo/<T>`'s `first_trade_date` when `first_trade_final` is true, read through the
-    page's own browser context (the rig profile's UCT session) after checking that session is the automation account.
-    GETs only. Never raises: a lookup that cannot answer is no listing date, with the reason."""
+    page's own browser context. ONE GET of a PUBLIC endpoint (measured 2026-11-20: it answers without a session), so
+    the capture profile, which holds no UCT session, reads it without signing in as anyone. Never raises: a lookup that
+    cannot answer is no listing date, with the reason."""
     try:
         req = page.context.request
-        me = _json_of(req.get(f"{UCT_ORIGIN}/api/auth/me"))
-        user = (me or {}).get("user") if isinstance((me or {}).get("user"), dict) else (me or {})
-        email = str((user or {}).get("email") or "").lower()
-        if email != UCT_AUTOMATION_ACCOUNT:
-            return None, "the rig is not signed in to UCT as the automation account, so the listing date was not read"
         t = uct_ticker_of(symbol)
         r = req.get(f"{UCT_ORIGIN}/api/ticker-ipo/{t}")
         body = _json_of(r) if getattr(r, "status", 200) == 200 else None
@@ -1053,7 +1048,7 @@ class Driver:
     def listing_for(self, symbol, stated=None):
         """⭐⭐ THE LISTING DATE IS READ, NOT TYPED (coordinator ruling 2026-11-20). The symbol's first session as UCT's
         production answers it (`/api/ticker-ipo/<T>`: `first_trade_date`, only when `first_trade_final` is true), read
-        through the rig's own browser context, signed in as the automation account (checked first). `KNOWN_LISTING` and a
+        through the rig's own browser context (a public GET, no session). `KNOWN_LISTING` and a
         manifest row's `listingDate` (`stated`) are CROSS-CHECKS: each one present must AGREE, and a disagreement STOPS the
         batch by name (GateFailed, abort) -- never a silent override either way. No final answer: no listing date, so
         `startsAtBar0` is not asserted (the safe direction), and the reason says why.

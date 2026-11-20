@@ -715,12 +715,12 @@ def test_a_disagreement_stops_the_batch_by_name(tmp_path):
     assert drv3.listing_for("NYSE:RDDT", "2024-03-21") == "2024-03-21"
 
 
-def test_another_account_is_not_read(tmp_path):
+def test_the_lookup_is_one_public_get_per_symbol(tmp_path):
+    # /api/ticker-ipo answers without a session (measured 2026-11-20), so the capture profile signs in as no one
     page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT")
-    page.uct_account = "someone@example.com"
-    assert drv.listing_for("NYSE:RDDT", None) is None and "not signed in to UCT as the automation account" in drv.listing_why
-    # the lookup is GETs only, through the rig's own context
-    assert [n for k, n, _ in page.calls if k == "request"] and all(n in ("uct_api", "layout_access") for k, n, _ in page.calls if k == "request")
+    assert drv.listing_for("NYSE:RDDT", None) == "2024-03-21" and drv.listing_for("NYSE:RDDT", None) == "2024-03-21"
+    asked = [u for k, n, u in page.calls if k == "request" and n == "uct_api"]
+    assert asked == [bc.UCT_ORIGIN + "/api/ticker-ipo/RDDT"]          # once, cached; nothing but the listing endpoint
 
 
 def test_our_store_ticker_of_a_tradingview_symbol():
