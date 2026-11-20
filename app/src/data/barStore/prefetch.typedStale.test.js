@@ -19,9 +19,9 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers(); localStorage.removeItem('barspack.version') })
 
-async function boot() {
+async function boot({ modeFor } = {}) {
   vi.resetModules()
-  const server = installFakeBarsServer({})
+  const server = installFakeBarsServer({ modeFor })
   const { createBarStore } = await import('./index')
   const { createPrefetch } = await import('./prefetch')
   const idb = await import('../../utils/barsIDB')
@@ -71,5 +71,51 @@ describe('typed intraday warm · a copy behind the clock is asked again', () => 
     await w.server.drain()
     await expect(typed).resolves.toBe('cache')
     expect(ofTf(w.server.calls, '5')).toEqual([])
+  })
+})
+
+describe('the handoff (Enter) · a copy behind the clock waits for its tail', () => {
+  async function heldThenLater(w, sym, ms = 2 * 60_000) {
+    await w.known(sym)
+    w.pf.warmTypedSymbol(sym, '1'); await w.server.drain()
+    vi.setSystemTime(Date.now() + ms)
+  }
+
+  it('a held 1m answer two minutes old does not commit at once: Enter asks the tail and paints the answer', async () => {
+    const w = await boot()
+    await heldThenLater(w, 'SPYH')
+    expect(w.pf.peekDisplayable('SPYH', '1')).toBe(false)          // not painted as it is
+    const enter = w.pf.prepareForDisplay('SPYH', '1')
+    await w.server.flush(80)
+    expect(ofTf(w.server.open(), '1')).toEqual(['SPYH'])            // the tail is asked
+    await w.server.drain()
+    await expect(enter).resolves.toBe('current')
+    expect(w.pf.peekDisplayable('SPYH', '1')).toBe(true)           // the answer is current
+  })
+
+  it('a server that does not answer never pins the member: the copy paints after BEHIND_HOLD_MAX_MS', async () => {
+    const w = await boot()
+    const { BEHIND_HOLD_MAX_MS } = await import('./prefetch')
+    await heldThenLater(w, 'QQQH')
+    let done = null
+    w.pf.prepareForDisplay('QQQH', '1').then((o) => { done = o })
+    await vi.advanceTimersByTimeAsync(BEHIND_HOLD_MAX_MS - 20)
+    expect(done).toBe(null)
+    await vi.advanceTimersByTimeAsync(40)
+    expect(done).toBe('current')
+  })
+
+  it('a name that did not print (its answer is still behind) paints as it is and is not asked on every keystroke', async () => {
+    const w = await boot({ modeFor: (q) => (q.sym === 'THIN' ? 'behind' : 'ok') })
+    const { BEHIND_RECHECK_MS } = await import('./prefetch')
+    await w.known('THIN')
+    w.pf.warmTypedSymbol('THIN', '1'); await w.server.drain()
+    const n = w.server.calls.length
+    expect(w.pf.peekDisplayable('THIN', '1')).toBe(true)           // just answered: the name did not print
+    expect(w.pf.warmTypedSymbol('THIN', '1')).toBe(null)
+    await w.server.drain()
+    expect(w.server.calls.length).toBe(n)
+    vi.setSystemTime(Date.now() + BEHIND_RECHECK_MS + 1000)
+    expect(w.pf.peekDisplayable('THIN', '1')).toBe(false)          // later it is asked again
   })
 })
