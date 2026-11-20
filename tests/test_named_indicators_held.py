@@ -246,11 +246,11 @@ def test_own_words_notes_directly(conv):
     both = conv.own_words_notes(patch, [HELD["ttm_squeeze"], HELD["mansfield_relative_strength"]])
     # a name that is one of UCT's own BUILT-INS is said as that: the built-in exists, and this is not it
     assert both[0]["text"] == ("Built from your own description, as your own formula. UCT has not checked a formula for "
-                               "TTM Squeeze. UCT's own UCT Mansfield RS is in the Indicators list.")
+                               "TTM Squeeze. UCT Mansfield RS is one of UCT's own indicators, in the Indicators list.")
     assert len(both[0]["text"]) <= ni.SENTENCE_MAX
     only_built = conv.own_words_notes(patch, [HELD["mansfield_relative_strength"], HELD["rs_rating"]])
-    assert only_built[0]["text"] == ("Built from your own description, as your own formula. UCT's own UCT Mansfield RS and "
-                                     "UCT RS Rating are in the Indicators list.")
+    assert only_built[0]["text"] == ("Built from your own description, as your own formula. UCT Mansfield RS and UCT RS "
+                                     "Rating are UCT's own indicators, in the Indicators list.")
     assert "checked" not in only_built[0]["text"]
     assert conv.own_words_notes(patch, []) == []
     assert conv.own_words_notes(env(0, [{"op": "rename_definition", "name": "X"}]), [HELD["ttm_squeeze"]]) == []

@@ -320,6 +320,7 @@
   "runtime:repaint-unstated",
   "runtime:request",
   "runtime:request-hoisted-history",
+  "runtime:request-lag",
   "runtime:request-pending",
   "runtime:request-with-state",
   "runtime:runtime.error",

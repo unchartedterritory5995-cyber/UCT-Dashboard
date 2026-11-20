@@ -270,12 +270,39 @@ export const STORE_SECURITY_TYPES = Object.freeze(['Stock', 'ADR', 'ETF'])
 /** The Q-RS4 probe's label keys (`IND=<industry>|SEC=<sector>|TYPE=<type>`). */
 const CLASSIFICATION_PROBE_KEY = Object.freeze({ industry: 'IND', sector: 'SEC' })
 
-/** The recorded supply beside this capture, or null when none is committed. */
+// ⭐⭐ SUPPLY-HELD RECORDS (coordinator ruling 2026-11-19, Q-FRED-NHDOT): a supply record that may NOT enter the public
+// repository (a vendor's or a store's bars the owner has not cleared) lives in the HELD directory, never in
+// tests/fixtures/vendor-supply. It is read after the committed directory (a committed record always wins), and a row
+// graded with one records it (`supplyHeld`, `./storeHeld.js`; the Python rule is `tools/vendor_harness/store_held.py`),
+// so a run without the directory (CI) names that row "supply-held" instead of losing it.
+export const SUPPLY_HELD_ENV = 'UCT_HARNESS_SUPPLY_HELD'
+let _supplyHeldDirForTests = null
+/** Rails only: read held records from a scratch directory (null restores the configured one). */
+export function __setSupplyHeldDirForTests(dir) { _supplyHeldDirForTests = dir || null }
+/** The held supply directory, read per call (never the committed one). */
+export function supplyHeldDir() {
+  if (_supplyHeldDirForTests) return _supplyHeldDirForTests
+  if (process.env[SUPPLY_HELD_ENV]) return path.resolve(process.env[SUPPLY_HELD_ENV])
+  const base = process.env.LOCALAPPDATA || process.env.TEMP || os.tmpdir()
+  return path.join(base, 'uct-vendor-batch', 'supply-held')
+}
+/** Where this capture's recorded supply is read from: the committed file, else the held one, else null. */
+export function recordedSupplyFileOf(id, dir = _supplyDir) {
+  if (typeof id !== 'string' || !id) return null
+  const committed = path.join(dir, `${id}.json`)
+  if (fs.existsSync(committed)) return { file: committed, held: false }
+  if (dir !== _supplyDir) return null          // a rail's scratch directory stands alone
+  const held = path.join(supplyHeldDir(), `${id}.json`)
+  return fs.existsSync(held) ? { file: held, held: true } : null
+}
+
+/** The recorded supply beside this capture (committed, or held: `recordedSupplyFileOf`), or null when there is none. */
 export function recordedSupplyOf(capture, dir = _supplyDir) {
   const id = capture && capture.id
   if (typeof id !== 'string' || !id) return null
-  const file = path.join(dir, `${id}.json`)
-  if (!fs.existsSync(file)) return null
+  const at = recordedSupplyFileOf(id, dir)
+  if (!at) return null
+  const file = at.file
   const rec = JSON.parse(fs.readFileSync(file, 'utf8'))
   const bad = (why) => { throw new Error(`ourSide: recorded supply ${path.basename(file)} refused: ${why}`) }
   if (!rec || rec.schema !== HARNESS_SUPPLY_SCHEMA) bad(`schema is not ${HARNESS_SUPPLY_SCHEMA}`)

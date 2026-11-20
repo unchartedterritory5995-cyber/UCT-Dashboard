@@ -2,7 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint } from './chart/paintLog'
-import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, keepRthBars, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
 import { foldOffGridBars } from './chart/offGridBars'
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
@@ -9212,7 +9212,8 @@ export default function StockChart({
     if (showExtended) return gridBars
 
     // Regular session = 09:30 to the day's close (13:00 on an NYSE half-day): barTime.isRthBar.
-    return gridBars.filter(b => typeof b.t !== 'number' || isRthBar(b.t))
+    // The same array when every bar already is (the server's rth answer): no 45,000-row copy.
+    return keepRthBars(gridBars)
   }, [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──

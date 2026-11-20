@@ -1,0 +1,86 @@
+{
+ "worker": "off",
+ "scenario": "quiet",
+ "gap": 2.0,
+ "repairs": 0,
+ "worker_ready_at_s": null,
+ "worker_stats": {
+  "starts": 0,
+  "calls": 0,
+  "ok": 0,
+  "busy": 0,
+  "unavailable": 0,
+  "quarantined": 0,
+  "timeout": 0,
+  "crashed": 0,
+  "error": 0,
+  "raised": 0,
+  "killed": 0
+ },
+ "results": [
+  {
+   "script": "table",
+   "landed_s": 0.0,
+   "converse_detector_ms": 2.91,
+   "attempts": [
+    {
+     "t": 0.02,
+     "pending": false,
+     "gate": "ran",
+     "ms": 18.4,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.02
+  },
+  {
+   "script": "pivots",
+   "landed_s": 2.01,
+   "converse_detector_ms": 1.07,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 9.1,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "zones",
+   "landed_s": 4.02,
+   "converse_detector_ms": 1.9,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 13.8,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "levels",
+   "landed_s": 6.03,
+   "converse_detector_ms": 1.12,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 7.9,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  }
+ ]
+}

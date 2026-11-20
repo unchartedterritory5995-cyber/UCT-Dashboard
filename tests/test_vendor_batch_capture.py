@@ -600,3 +600,67 @@ def test_distinct_phases_of_one_probe_on_one_chart_both_capture_under_their_own_
         assert f.name == r["captureId"] + ".json" and json.loads(f.read_text(encoding="utf-8"))["id"] == r["captureId"]
     assert sorted(p.name for p in (tmp_path / "run" / "captures").glob("*.json")) == [
         "stemx-spy-1d-2026-09-28-insession.json", "stemx-spy-1d-2026-09-28-postclose-fresh.json"]
+
+
+# ── startsAtBar0 is DERIVED and checked against the capture's own data (coordinator, 2026-11-19) ─────────────────────
+# ⚰️ 17 captures of the 2026-09-27 vocabulary wave carried history.startsAtBar0 = true with RDDT's listing as the reason,
+# on SPY / AAPL / ES1! / EURUSD / ... charts; 12 of them are refuted by their own bar_index CONTROL row (8172, 7432, ...),
+# which made two probes grade DIVERGE and land on the host-known-divergence list.
+FX = REPO / "tests" / "fixtures" / "vendor"
+REFUTED_BY_BAR_INDEX = sorted(
+    ["vw-int-cast-spy-1d-2026-09-27", "vw-nvi-pvi-spy-1d-truncated-2026-09-27"]
+    + [f"vw-mintick-{s}-1d-2026-09-27" for s in ("aapl", "aitx", "brka", "btcusdt", "es1", "eurusd", "nkla", "sndl",
+                                                 "spx", "spy")])
+BOILERPLATE = REFUTED_BY_BAR_INDEX + ["vw-alma-spy-1d-2026-09-27", "vw-clock-vwap-spy-1d-2026-09-27",
+                                      "vw-nvi-pvi-spy-1d-full-2026-09-27", "vw-time-session-spy-1d-2026-09-27",
+                                      "vw-time-tf-spy-1d-2026-09-27"]
+
+
+def _cap(name):
+    return json.loads((FX / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def test_a_bar0_claim_whose_reason_names_another_symbol_is_refuted():
+    for name in BOILERPLATE:
+        c = _cap(name)
+        why = bc.starts_at_bar0_contradiction(c, c["symbol"]["pro_name"])
+        assert why and "NYSE:RDDT" in why and c["symbol"]["pro_name"] in why, (name, why)
+
+
+def test_a_bar0_claim_its_own_bar_index_control_refutes_is_refuted():
+    # the reason corrected to name the chart's own symbol: the bar_index rule alone refutes exactly these twelve
+    got = []
+    for name in BOILERPLATE:
+        c = _cap(name)
+        c["history"]["why"] = f"{c['symbol']['pro_name']} listed 1900-01-01; corrected for this rail"
+        why = bc.starts_at_bar0_contradiction(c, c["symbol"]["pro_name"])
+        if why:
+            assert "bar_index control plot" in why and "not 0" in why, (name, why)
+            got.append(name)
+    assert sorted(got) == REFUTED_BY_BAR_INDEX
+
+
+def test_control_genuine_bar0_claims_stand_and_a_request_bar_index_is_never_the_control():
+    for f in (FX / "harness" / "rs-rating-fred6724-rddt-1d-2026-11-16.json", FX / "harness" / "3-level-zigzag-semafor-spy-1d-2026-11-14.json"):
+        c = json.loads(f.read_text(encoding="utf-8"))
+        assert c["history"]["startsAtBar0"] is True
+        assert bc.starts_at_bar0_contradiction(c, c["symbol"]["pro_name"]) is None, f.name
+    # another timeframe's bar_index (Q-HTF-FORM v1's F12) reads that timeframe's index: never the chart's control
+    c = {"history": {"startsAtBar0": True, "why": "AMEX:SPY listed 1993-01-29; ..."}, "symbol": {"pro_name": "AMEX:SPY"},
+         "study": {"plots": [{"id": "plot_0", "title": "F12_W_bar_index_OFF"}, {"id": "plot_1", "title": "F00_bar_index_CONTROL"}]},
+         "plotValues": {"fields": ["time", "plot_0", "plot_1"], "rows": [[1, 1650, 0], [2, 1650, 1]]}}
+    assert bc.starts_at_bar0_contradiction(c, "AMEX:SPY") is None
+    c["plotValues"]["rows"][0][2] = 3                                # the chart's own control reading 3: refuted
+    assert "F00_bar_index_CONTROL" in bc.starts_at_bar0_contradiction(c, "AMEX:SPY")
+    # a capture asserted for one symbol on a chart of another is refuted whatever its reason says
+    c["plotValues"]["rows"][0][2] = 0
+    assert "asserted for NYSE:RDDT" in bc.starts_at_bar0_contradiction(c, "NYSE:RDDT")
+    # no claim, nothing to refute
+    assert bc.starts_at_bar0_contradiction({"history": {"startsAtBar0": False}}, "AMEX:SPY") is None
+
+
+def test_the_capture_path_refuses_a_refuted_claim_before_it_returns_the_capture():
+    tree = ast.parse((REPO / "tools" / "vendor_harness" / "batch_capture.py").read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == "capture")
+    names = [c.func.id for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)]
+    assert "starts_at_bar0_contradiction" in names

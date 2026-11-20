@@ -1,7 +1,8 @@
-// Five exact edits to lightweight-charts' production build, applied at BUILD time by
+// Six exact edits to lightweight-charts' production build, applied at BUILD time by
 // `patchChartLibrary()` in vite.config.js. Nothing in node_modules is changed. Edits 1-3 are the
 // data layer (below); edits 4-5 stop the series markers plugin copying the whole series on every
-// redraw and every data change (see their entries in PATCHES).
+// redraw and every data change; edit 6 stops `setData` rebuilding the time scale when no time
+// point was added or removed (see their entries in PATCHES).
 //
 // WHY. Flipping a chart to another symbol calls `series.setData` on every series. The library's
 // data layer does work proportional to (time points x series) on EACH of those calls, so a chart
@@ -71,6 +72,25 @@ export const PATCHES = [
     // row the copy's [0] was (the library's own binary search over the same rows).
     find: 'i=this.Te?.data();if(null==t.getVisibleLogicalRange()||!this.Te||0===i.length)return void(this.US=[]);const n=t.timeToIndex(u(i[0].time),!0);',
     replace: 'i=this.Te?.dataByIndex(-9007199254740991,1);if(null==t.getVisibleLogicalRange()||!this.Te||null==i)return void(this.US=[]);const n=t.timeToIndex(u(i.time),!0);',
+  },
+  // ⭐ A SERIES REPLACED ON THE SAME TIMES NO LONGER REBUILDS THE TIME SCALE (2026-11-19).
+  // `setSeriesData` first removed the series from every time point and counted ANY removal as a
+  // change of the time scale, so EVERY `setData` on a chart with more than one series rebuilt the
+  // whole time scale: one object per time point, a sort, and a walk comparing it to the old one.
+  // A symbol flip calls `setData` on every series (candles, volume, the moving averages), so an
+  // hourly chart of 45,000 points paid that rebuild six times per flip, though only the call that
+  // adds a time point and the call that empties one can change the scale at all.
+  // The time scale changes exactly when a time point is created (the library already notes that)
+  // or a point is left with no series and removed by its own cleanup (now noted by the cleanup
+  // shrinking the point map). With neither, the rebuilt scale has the same keys in the same order,
+  // and the library's own comparison of old and new returns "unchanged" and keeps the old scale
+  // object, so skipping the rebuild changes nothing anyone can see.
+  // Measured 2026-11-19 (real Chromium, the library alone, candles + volume + 4 lines x 45,000
+  // hourly points, both builds interleaved in one page, three runs): a flip 131-144 ms -> 105-108 ms.
+  {
+    name: 'setSeriesData rebuilds the time scale only when a time point is added or removed',
+    find: 'else for(const i of this.ng)i.pointData.GM.delete(t)&&(s=!0);let r=[];if(0!==i.length){const n=i.map((t=>t.time)),e=this.xu.createConverterToInternalObj(i),h=os(t.bh()),a=t.ll(),l=t.ol();r=i.map(((i,r)=>{const o=e(i.time),_=this.xu.key(o);let u=this.QM.get(_);void 0===u&&(u=_s(o),this.QM.set(_,u),s=!0);const c=h(o,u.$n,i,n[r],a,l);return u.GM.set(t,c),c}))}n&&this.eg(),this.rg(t,r);',
+    replace: 'else for(const i of this.ng)i.pointData.GM.delete(t);let r=[];if(0!==i.length){const n=i.map((t=>t.time)),e=this.xu.createConverterToInternalObj(i),h=os(t.bh()),a=t.ll(),l=t.ol();r=i.map(((i,r)=>{const o=e(i.time),_=this.xu.key(o);let u=this.QM.get(_);void 0===u&&(u=_s(o),this.QM.set(_,u),s=!0);const c=h(o,u.$n,i,n[r],a,l);return u.GM.set(t,c),c}))}n&&(n=this.QM.size,this.eg(),n!==this.QM.size&&(s=!0)),this.rg(t,r);',
   },
 ]
 

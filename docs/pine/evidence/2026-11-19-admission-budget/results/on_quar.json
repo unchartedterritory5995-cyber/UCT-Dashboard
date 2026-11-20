@@ -1,0 +1,289 @@
+{
+ "worker": "on",
+ "scenario": "quarantine",
+ "gap": 3.0,
+ "repairs": 0,
+ "worker_ready_at_s": null,
+ "worker_stats": {
+  "starts": 1,
+  "calls": 33,
+  "ok": 1,
+  "busy": 0,
+  "unavailable": 0,
+  "quarantined": 32,
+  "timeout": 0,
+  "crashed": 0,
+  "error": 0,
+  "raised": 0,
+  "killed": 0
+ },
+ "results": [
+  {
+   "script": "table",
+   "landed_s": 0.0,
+   "converse_detector_ms": 2.98,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 11.9,
+     "admitted": false
+    },
+    {
+     "t": 1.52,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 5.1,
+     "admitted": false
+    },
+    {
+     "t": 3.02,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.6,
+     "admitted": false
+    },
+    {
+     "t": 4.53,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.7,
+     "admitted": false
+    },
+    {
+     "t": 6.04,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 5.6,
+     "admitted": false
+    },
+    {
+     "t": 9.04,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.3,
+     "after_giveup": true
+    },
+    {
+     "t": 15.05,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.5,
+     "after_giveup": true
+    },
+    {
+     "t": 27.05,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.8,
+     "after_giveup": true
+    },
+    {
+     "t": 51.06,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 5.5,
+     "after_giveup": true
+    },
+    {
+     "t": 99.07,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.5,
+     "after_giveup": true
+    }
+   ],
+   "window_final": "STILL BEING CHECKED (window gave up)",
+   "verdict_at_s": null
+  },
+  {
+   "script": "pivots",
+   "landed_s": 99.07,
+   "converse_detector_ms": 0.99,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 7.6,
+     "admitted": false
+    },
+    {
+     "t": 1.52,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 8.5,
+     "admitted": false
+    },
+    {
+     "t": 3.03,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 7.8,
+     "admitted": false
+    },
+    {
+     "t": 4.53,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.9,
+     "admitted": false
+    },
+    {
+     "t": 6.04,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.7,
+     "admitted": false
+    },
+    {
+     "t": 9.04,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 5.0,
+     "after_giveup": true
+    },
+    {
+     "t": 15.05,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.5,
+     "after_giveup": true
+    },
+    {
+     "t": 27.05,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.9,
+     "after_giveup": true
+    },
+    {
+     "t": 51.06,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.4,
+     "after_giveup": true
+    },
+    {
+     "t": 99.07,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 5.3,
+     "after_giveup": true
+    }
+   ],
+   "window_final": "STILL BEING CHECKED (window gave up)",
+   "verdict_at_s": null
+  },
+  {
+   "script": "zones",
+   "landed_s": 198.14,
+   "converse_detector_ms": 1.54,
+   "attempts": [
+    {
+     "t": 0.0,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.8,
+     "admitted": false
+    },
+    {
+     "t": 1.51,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 7.5,
+     "admitted": false
+    },
+    {
+     "t": 3.02,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.5,
+     "admitted": false
+    },
+    {
+     "t": 4.52,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 3.9,
+     "admitted": false
+    },
+    {
+     "t": 6.03,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 6.4,
+     "admitted": false
+    },
+    {
+     "t": 9.04,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.9,
+     "after_giveup": true
+    },
+    {
+     "t": 15.04,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 5.0,
+     "after_giveup": true
+    },
+    {
+     "t": 27.05,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.4,
+     "after_giveup": true
+    },
+    {
+     "t": 51.05,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.7,
+     "after_giveup": true
+    },
+    {
+     "t": 99.06,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.9,
+     "after_giveup": true
+    }
+   ],
+   "window_final": "STILL BEING CHECKED (window gave up)",
+   "verdict_at_s": null
+  },
+  {
+   "script": "levels",
+   "landed_s": 297.2,
+   "converse_detector_ms": 0.91,
+   "attempts": [
+    {
+     "t": 0.0,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 4.0,
+     "admitted": false
+    },
+    {
+     "t": 1.51,
+     "pending": true,
+     "gate": "W2 worker quarantine (source or MEMBER)",
+     "ms": 5.2,
+     "admitted": false
+    },
+    {
+     "t": 3.02,
+     "pending": false,
+     "gate": "ran",
+     "ms": 9.7,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 3.02
+  }
+ ]
+}

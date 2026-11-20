@@ -773,19 +773,30 @@ def vendor_verdict_of(s):
     return LEDGER_STALE if v is None and stale else v
 
 
+#: A capture's grade where TradingView and our side disagree.
+DIVERGE = "DIVERGE"
+
+
 def script_verdict(verdicts):
-    """One script's vendor verdict over its captures' verdicts: MATCH if any capture MATCHes, else
-    MATCH_SUBSTITUTED if any capture is verified with substituted inputs (L7: its own bucket, never
-    MATCH and never DIVERGE), else DIVERGE if any DIVERGEs, else INCONCLUSIVE; None for a script
-    without a capture."""
+    """One script's vendor verdict over its captures' verdicts, which the caller takes from ONE lane graded at
+    one engine (the map: one verdicts run plus the FRESH ledger rows of the same lane).
+
+    ⛔ ANY DIVERGE DOMINATES (coordinator ruling 2026-11-19): DIVERGE if any capture DIVERGEs, whatever the others
+    grade. A script that draws the wrong picture on one chart is not a MATCH because it draws the right one on
+    three others. Else MATCH if any capture MATCHes, else MATCH_SUBSTITUTED if any capture is verified with
+    substituted inputs (L7: its own bucket, never MATCH), else INCONCLUSIVE; None for a script without a capture.
+    ⚰️ Until then MATCH won over everything, so sonarlab-order-blocks (AAPL 1D DIVERGE beside three MATCHes) read
+    MATCH, and a MATCH_SUBSTITUTED won over a DIVERGE."""
     v = set(verdicts)
     if not v:
         return None
+    if DIVERGE in v:
+        return DIVERGE
     if el.MATCH in v:
         return el.MATCH
     if el.MATCH_SUBSTITUTED in v:
         return el.MATCH_SUBSTITUTED
-    return "DIVERGE" if "DIVERGE" in v else "INCONCLUSIVE"
+    return "INCONCLUSIVE"
 
 
 def parity_counts(scripts, n):

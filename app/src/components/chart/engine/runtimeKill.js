@@ -231,12 +231,25 @@ const _admissionInFlight = new Map() // hash -> Promise
 // ⭐ (2026-11-18, the first-paste race) the hashes a consult ANSWERED "still being checked" for (bounded): a build
 // minted on that answer is waiting for one, and `runtimeConsultPendingOf` says so until the answer changes
 const _consultedPending = new Set()
+// ⭐ (2026-11-19) WHY the server's last answer for a hash was "still being checked" (`pending_reason`): the dock and
+// the editor panel word it, and a "paused" script stops re-checking early. Bounded; cleared when a verdict lands.
+const _pendingReasons = new Map()  // hash -> 'busy' | 'starting' | 'paused'
+/** The server's reasons a verdict is still pending (`api/services/runtime_definitions.py`: `PENDING_BUSY`,
+ *  `PENDING_STARTING`, `PENDING_PAUSED`). Anything else the server sends is ignored, never kept. */
+export const RUNTIME_PENDING_REASONS = Object.freeze(['busy', 'starting', 'paused'])
+
+function keepPendingReason(h, reason) {
+  _pendingReasons.delete(h)
+  if (!RUNTIME_PENDING_REASONS.includes(reason)) return
+  _pendingReasons.set(h, reason)
+  while (_pendingReasons.size > RUNTIME_ADMISSION_MAX) _pendingReasons.delete(_pendingReasons.keys().next().value)
+}
 
 /** Latch the server's switch (`capability_admission` on the kill read). Anything but
  *  `true` is OFF, and switching it off forgets every verdict. */
 export function setRuntimeCapabilityAdmission(on) {
   _capabilityAdmission = on === true
-  if (!_capabilityAdmission) _verdicts.clear()
+  if (!_capabilityAdmission) { _verdicts.clear(); _pendingReasons.clear() }
 }
 
 /** Is capability admission latched ON in this tab? */
@@ -250,6 +263,7 @@ export function latchRuntimeAdmission(hash, verdict) {
   const h = typeof hash === 'string' ? hash.toLowerCase() : ''
   if (!/^[0-9a-f]{64}$/.test(h) || !verdict || typeof verdict.admitted !== 'boolean') return
   _verdicts.delete(h)
+  _pendingReasons.delete(h)      // a verdict is not pending: whatever the last pending answer said no longer holds
   _verdicts.set(h, { admitted: verdict.admitted, historyOnly: verdict.historyOnly === true, at: Date.now() })
   while (_verdicts.size > RUNTIME_ADMISSION_MAX) _verdicts.delete(_verdicts.keys().next().value)
   notifyRuntimeLists()          // ⭐ a verdict that lands later changes the answer too
@@ -303,6 +317,7 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
         // ⛔ "still being checked" is NOT a verdict: never latched (the row stays "being checked",
         // fail closed); asked again a few times, the in-flight slot released first
         if (Array.isArray(d.missing) && d.missing.includes('pending')) {
+          keepPendingReason(h, d.pending_reason)   // ⭐ why, for the window's words (a malformed one is dropped)
           if (_attempt + 1 >= RUNTIME_ADMISSION_PENDING_RETRIES) return null
           return { retry: true }
         }
@@ -392,9 +407,22 @@ export function awaitRuntimeAdmission(source, { timeoutMs = RUNTIME_ADMISSION_AT
   })
 }
 
+/** ⭐ (2026-11-19) Why the server's LAST answer for this script was "still being checked": 'busy' (shared capacity
+ *  in use; ask again soon), 'starting' (the server's checker is starting; ask again in a few seconds) or 'paused'
+ *  (this script's check is paused after repeated failures; stop re-checking for now). Null when the last answer
+ *  carried no reason (an older server), named none of those, or a verdict has landed since. Touches nothing.
+ *  @param {{source?: string, hash?: string}} arg */
+export function runtimePendingReasonOf({ source, hash } = {}) {
+  const h = typeof hash === 'string' && hash ? hash.toLowerCase()
+    : (typeof source === 'string' ? runtimeSourceHash(source) : '')
+  if (!h) return null
+  return _pendingReasons.get(h) || null       // a verdict deletes it (`latchRuntimeAdmission`)
+}
+
 /** Rails only. */
 export function __resetRuntimeAdmission() {
   _capabilityAdmission = false
+  _pendingReasons.clear()
   _verdicts.clear()
   _admissionInFlight.clear()
   _askedAt.clear()

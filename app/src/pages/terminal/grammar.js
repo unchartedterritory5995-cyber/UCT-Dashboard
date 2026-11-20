@@ -35,7 +35,7 @@ export const COLLISION_RULE = 'A bare word that is a function code runs the func
   + 'you press Enter: it is never resolved silently.'
 
 /** A market-wide code given a ticker: the code that shows that ticker's own version, if any. */
-export const TICKER_INSTEAD = Object.freeze({ NEWS: 'CN', INS: 'PPL', SHRTS: 'SHINT' })
+export const TICKER_INSTEAD = Object.freeze({ NEWS: 'CN', INS: 'PPL', SHRTS: 'SHINT', UNEWS: 'UCN' })
 
 /** Pure: "NEWS is market-wide; NVDA is ignored." plus, when one exists, the code to type for the
  *  ticker's own view. `verb` is "is ignored" before Enter and "was not applied" after it. */
