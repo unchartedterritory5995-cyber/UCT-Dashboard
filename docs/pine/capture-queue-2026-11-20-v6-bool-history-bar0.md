@@ -41,8 +41,24 @@ are names declared `bool` or bound to a comparison or logic, the forms are `== f
 - `reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt__6pPzwGaxjU` (`not`): `stBull and not stBull[1]`
 
 Each one can differ only on bar 0, and only if its bool is true there (the edge idiom `x and not x[1]` then draws an
-edge on bar 0 under `false` and none under `na`). Whether any committed capture of these covers bar 0 was not
-checked in this census.
+edge on bar 0 under `false` and none under `na`).
+
+**What the committed captures already say (2026-11-20, the committed runtime-on and production snapshots, engine 85).**
+Eight of the ten have committed captures (the two `reference:` scripts have none). Every SPY capture among them
+starts after the listing (`startsAtBar0` false), so it says nothing about bar 0. The RDDT 1D captures start at the
+listing, and bar 0 is compared there (`warmupBars` 0, every bar compared):
+
+- MATCH on bar 0 for every plot: `atr-support-and-resistance` (9), `fibonacci-dolphintradebot` (2), `ict-killzones-pivots-tfo` (7),
+  `swing-highlow-zigzag-chartprime` (1), `trend-duration-forecast-chartprime` (1), and `artemis-oscillator-pro` and
+  `ema-ribbon-trend-filter-strixedge` (every plot, though the captures DIVERGE elsewhere).
+- Objects MATCH (runtime-on) for `atr-support-and-resistance`, `ict-killzones-pivots-tfo`, `swing-highlow-zigzag-chartprime`,
+  `trend-duration-forecast-chartprime`, whose affected reads gate drawings.
+- `session-highs-and-lows-indicator-smc-sessions-dst-safe`: INCONCLUSIVE, bar 0 not compared.
+
+**This bounds nothing yet.** In each affected expression the two readings differ on bar 0 only when the bool is
+true there. `fibonacci-dolphintradebot`'s `kop` is a `var bool` initialised `false`, so on bar 0 both readings agree and its
+MATCH cannot tell them apart. For the others, whether the bool is true on bar 0 of those captures was not checked,
+so their bar-0 MATCHes either agree with `na` or never met the case. Q-BH0 settles it directly.
 
 | id | probe | chart | question | live | phase |
 |---|---|---|---|---|---|
