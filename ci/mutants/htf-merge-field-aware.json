@@ -49,10 +49,10 @@
   },
   {
    "id": "PM1",
-   "mutant": "Python: a merge of close alone is a site again",
+   "mutant": "Python: close counted as a partial field, so a merge of close alone is a site again (the walk's field set: `merge_own`'s early `_child_reads_partial_period` return is the walk's own answer, an early-out a mutant cannot tell apart, CI run 44653648894)",
    "file": "api/services/ast_interpret.py",
-   "from": "        if not _child_reads_partial_period(child):            # item 3: a merge of close alone is drawn",
-   "to": "        if False:            # item 3: a merge of close alone is drawn",
+   "from": "_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if name != \"close\")",
+   "to": "_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if True)",
    "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
    "expectRed": "KEPT merge(close) (item 3"
   },
