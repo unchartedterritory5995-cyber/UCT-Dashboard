@@ -15,6 +15,10 @@ import { sha256Hex } from './ast/parse.js'
 
 /** The stable code a row's withheld colour, a withheld row's or paint's sentence, and a fail-closed refusal carry. */
 export const HELD_DIVERGENCE_GUARD = 'pine:held-divergence'
+/** ⭐ The SERVED stamp of a saved copy minted before its script's withholds (`api/services/held_withholds.py`:
+ *  `runtime_definitions.stamp_served` writes the server's sentence there). The install door
+ *  (`nativeRegistry.validateUserDefinitions`) and the headless compute refuse it by name; the stored row is kept. */
+export const HELD_DIVERGENCE_STAMP = 'heldDivergence'
 export const HELD_SCOPES = Object.freeze(['output', 'outputColour', 'paint', 'objectFamily'])
 
 const HASH_RE = /^[0-9a-f]{64}$/

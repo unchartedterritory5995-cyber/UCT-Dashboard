@@ -1447,9 +1447,10 @@ def _not_graded_for_stamp(source: Any, budget: "Optional[DetectorBudget]", capab
 def stamp_served(row: dict, *, budget: "Optional[DetectorBudget]" = None,
                  capability: bool = True) -> dict:
     """A stored row as SERVED: the runtime lane's stamps (`_stamp_served_runtime`), then the HOST
-    lane's known-divergence stamp (`_stamp_host_known_divergence`). Never stored; a copy when it moves."""
-    return _stamp_host_known_divergence(
-        _stamp_served_runtime(row, budget=budget, capability=capability))
+    lane's known-divergence stamp (`_stamp_host_known_divergence`), then the held-withholds stamp of a copy
+    saved before its script's narrow withholds (`_stamp_held_divergence`). Never stored; a copy when it moves."""
+    return _stamp_held_divergence(_stamp_host_known_divergence(
+        _stamp_served_runtime(row, budget=budget, capability=capability)))
 
 
 def _stamp_host_known_divergence(row: Any) -> Any:
@@ -1470,6 +1471,30 @@ def _stamp_host_known_divergence(row: Any) -> Any:
     meta = {k: v for k, v in meta_in.items() if k != hkd.STAMP}
     if why:
         meta[hkd.STAMP] = why
+    return dict(row, definition=dict(definition, meta=meta))
+
+
+def _stamp_held_divergence(row: Any) -> Any:
+    """⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — an ``ast`` or ``runtime`` row saved before its script's
+    narrow withholds is served with ``meta.heldDivergence`` (the sentence), which the client's install door and the
+    headless compute refuse by name. The sentence is the row's (``held_divergence``: `user_definitions._row_to_dict`
+    for a stored row, `resolve_share` for a shared version); a runtime document with none is judged on its own
+    source here (it carries it), so no door serves one unjudged. A stamp a client wrote back is dropped. Returns a
+    copy when anything moves; the stored row is not touched."""
+    from api.services import held_withholds as hw
+    definition = row.get("definition") if isinstance(row, dict) else None
+    if not hw.applies_to(definition):
+        return row
+    why = row.get("held_divergence")
+    if not (isinstance(why, str) and why) and hw.door_of(definition) == "runtime":
+        why = hw.refused(definition)
+    why = why if isinstance(why, str) and why else None
+    meta_in = definition.get("meta") if isinstance(definition.get("meta"), dict) else {}
+    if not why and hw.STAMP not in meta_in:
+        return row
+    meta = {k: v for k, v in meta_in.items() if k != hw.STAMP}
+    if why:
+        meta[hw.STAMP] = why
     return dict(row, definition=dict(definition, meta=meta))
 
 
@@ -1533,8 +1558,9 @@ def _stamp_served_runtime(row: dict, *, budget: "Optional[DetectorBudget]" = Non
 def scrub_served_stamps(definition: Any) -> Any:
     """The definition without any served stamp (`RUN_READ_STAMPS`): what the save door stores
     (re-review F4: a stamp a client wrote back is never stored). The SAME object when it carries none."""
+    from api.services import held_withholds as hw
     from api.services import host_known_divergence as hkd
-    stamps = RUN_READ_STAMPS + (hkd.STAMP,)
+    stamps = RUN_READ_STAMPS + (hkd.STAMP, hw.STAMP)
     meta = definition.get("meta") if isinstance(definition, dict) else None
     if not isinstance(meta, dict) or not any(k in meta for k in stamps):
         return definition
