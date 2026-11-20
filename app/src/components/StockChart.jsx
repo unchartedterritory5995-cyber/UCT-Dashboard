@@ -17804,7 +17804,7 @@ export default function StockChart({
    * plot is ~286 px and the strip (~230 px) steps aside, as it does in a pane, and
    * the same numbers stay one tap away in the readout's Rating card.
    */
-  const pinPriceTable = useCallback((el) => {
+  const pinPriceTable = useCallback(function pinPriceTable(el) {   // named: a layout read in a stack says whose it is
     if (!el) return
     try {
       const chart = chartRef.current, host = wrapperRef.current
@@ -17844,6 +17844,12 @@ export default function StockChart({
       }
     } catch { /* pane API missing → the CSS default */ }
   }, [paneBandOf])
+  // ⭐ (switch render cuts, 2026-11-20) THE STRIP'S REF IS ONE FUNCTION FOR THE CHART'S LIFE. An inline arrow is a new
+  // ref every render, so React detached and re-attached it on EVERY commit and each re-attach ran `pinPriceTable`:
+  // two `getBoundingClientRect` reads forcing a layout in the middle of the commit (2-6 ms of a symbol switch, and a
+  // switch commits up to four times). Attached once, it pins at mount; after that the price-chrome frame loop
+  // (`createAdaptiveFrameLoop` below, woken by the candles' data change) re-pins it before the frame paints.
+  const priceTableRefCb = useCallback((el) => { priceTableRef.current = el; if (el) pinPriceTable(el) }, [pinPriceTable])
 
   /**
    * ⭐ UCT RS split, U2 — THE LINE-END TAG (`plots[].endLabel`): `RS 96` at the last
@@ -21834,7 +21840,7 @@ export default function StockChart({
                 paneKey="price"
                 host="price"
                 canvas={topCanvasIsLight ? 'light' : 'dark'}
-                ref={(el) => { priceTableRef.current = el; if (el) pinPriceTable(el) }}
+                ref={priceTableRefCb}
               />
             ) : null}
             {hosted.ends.map((c) => {
