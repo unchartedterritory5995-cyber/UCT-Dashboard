@@ -8075,8 +8075,38 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
   const ALL = 'all'
   const memo = new Map()
   const colMemo = opaque ? (walk.memo instanceof Map ? walk.memo : new Map()) : undefined
-  const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars,
-    colMemo ? { ...witnessOpts(opts), crossMemo: colMemo } : witnessOpts(opts)), n)
+  // ⭐⭐ RULING 1 (cost, coordinator perf bar 2026-11-20) — A COLUMN IS READ, NOT RECOMPUTED, WHERE THE PASS HOLDS IT.
+  // `interpretOnce` builds every bar series before it walks a node, so each read costs O(series × bars) even on a hit;
+  // and the evaluator memoises only the FIRST copy of a repeated subtree (`structuralMaps` interns the rest), while this
+  // walk reads every copy (⚰️ measured: madrid-moving-average-ribbon on SPY 1D, 3,000 bars, 49 ms -> 497 ms, 1,368
+  // reads, every one a distinct object). So a read is, in order: the pass memo's own column for this node; the walk
+  // table's column for its SHAPE (`walk.shapes`, `walkShapesOf`: the pass's, shared by every plot over these bars); the
+  // pass memo's column for a node of the same shape; and only then an evaluation. A shape is `structuralMaps`' (type,
+  // name, value, arguments), the evaluator's own identity, and only a subtree that reads no recurrence binding has one.
+  const shapes = walk.shapes && walk.shapes.byShape instanceof Map ? walk.shapes : null
+  let memoShapes = null
+  const colOf = (node) => {
+    if (colMemo && colMemo.has(node)) return toColumn(colMemo.get(node), n)
+    const id = shapes !== null && !readsRecurrenceBinding(node) ? shapeIdIn(shapes, node) : undefined
+    if (id !== undefined && shapes.cols.has(id)) return shapes.cols.get(id)
+    if (id !== undefined && colMemo) {
+      if (memoShapes === null) {
+        memoShapes = new Map()
+        for (const [k, v] of colMemo) {
+          if (k && typeof k === 'object' && !Array.isArray(k) && !readsRecurrenceBinding(k)) memoShapes.set(shapeIdIn(shapes, k), v)
+        }
+      }
+      if (memoShapes.has(id)) {
+        const col = toColumn(memoShapes.get(id), n)
+        shapes.cols.set(id, col)
+        return col
+      }
+    }
+    const col = toColumn(interpretOnce(node, bars, inputs, budget, scalars,
+      colMemo ? { ...witnessOpts(opts), crossMemo: colMemo } : witnessOpts(opts)), n)
+    if (id !== undefined) shapes.cols.set(id, col)
+    return col
+  }
   const asCol = (u) => (u === ALL ? new Float64Array(n).fill(1) : u)
   const orInto = (acc, u) => {
     if (u === null) return acc
@@ -8155,14 +8185,23 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
       } else if (walk.exact === true && node.type === 'op' && node.name === '?:' && args.length === 3
         && !readsRecurrenceBinding(args[0])) {
         const uc = unk(args[0])
-        const ua0 = uc === ALL ? null : unk(args[1])
-        const ub0 = uc === ALL ? null : unk(args[2])
+        // ⭐ RULING 1 (cost) — an arm no bar takes is not walked: where the condition is known it reads one arm, so the
+        // arm it never chooses (an input's `i_exp ? ema(close, 5) : sma(close, 5)`) adds no unknown bar, and walking it
+        // evaluated a window the chart never draws
+        const c = uc === ALL ? null : colOf(args[0])
+        let takesA = false
+        let takesB = false
+        for (let i = 0; c !== null && i < n && !(takesA && takesB); i++) {
+          if ((uc && uc[i]) || Number.isNaN(c[i])) { takesA = true; takesB = true } else if (c[i] !== 0) takesA = true
+          else takesB = true
+        }
+        const ua0 = uc === ALL || !takesA ? null : unk(args[1])
+        const ub0 = uc === ALL || !takesB ? null : unk(args[2])
         if (uc === ALL) out = ALL
         else if (ua0 === null && ub0 === null) out = uc === null ? new Float64Array(n) : Float64Array.from(uc)
         else if (ua0 === ALL && ub0 === ALL) out = new Float64Array(n).fill(1)
         else {
           // the condition is read only where it chooses between two arms that differ (each arm read whatever it is)
-          const c = colOf(args[0])
           const ua = asCol(ua0)
           const ub = asCol(ub0)
           out = new Float64Array(n)
@@ -8459,6 +8498,45 @@ export const HISTORY_BEFORE_CHART_SENTENCE = 'This indicator reads a bar before 
  *  a session chart the chart clock answers it from the calendar, bar 0 included (C49, measured), and what it withholds
  *  — the bar before the series included — is `periodAnchorMask`'s, the one authority over the clock. Walking its
  *  literal tree withheld `plot(time("W"))` on bar 0 of every daily chart (`noticeScope`, `chartClockNotice`). */
+/** ⭐ RULING 1 (cost) — the witness walk's table of columns by subtree shape, one per PASS and bar set: kept in the pass
+ *  memo (`opts.crossMemo`, which a nested read on other bars scopes), so every plot of the definition over these bars
+ *  shares it; null without a pass memo. `byShape`/`idOf` intern a shape to an integer, `cols` holds the columns. */
+const WALK_SHAPES_KEY = 'witness-walk:shapes'
+function walkShapesOf(opts) {
+  const memo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  if (memo === null) return null
+  let table = memo.get(WALK_SHAPES_KEY)
+  if (!table || !(table.byShape instanceof Map)) {
+    table = { byShape: new Map(), idOf: new WeakMap(), cols: new Map() }
+    memo.set(WALK_SHAPES_KEY, table)
+  }
+  return table
+}
+/** A node's shape id in `table`: `structuralMaps`' identity (type, name, value, the arguments' shapes), interned to an
+ *  integer so no key grows with the tree's depth. ⛔ ITERATIVE, like `structuralMaps`. */
+function shapeIdIn(table, root) {
+  if (!root || typeof root !== 'object' || Array.isArray(root)) return undefined
+  if (table.idOf.has(root)) return table.idOf.get(root)
+  const stack = [[root, false]]
+  while (stack.length) {
+    const [node, expanded] = stack.pop()
+    if (table.idOf.has(node)) continue
+    const args = Array.isArray(node.args) ? node.args : []
+    const isNode = (a) => a && typeof a === 'object' && !Array.isArray(a)
+    if (!expanded) {
+      stack.push([node, true])
+      for (const a of args) if (isNode(a) && !table.idOf.has(a)) stack.push([a, false])
+      continue
+    }
+    const parts = args.map((a) => (isNode(a) ? `#${table.idOf.get(a)}` : `lit\u0001${JSON.stringify(a ?? null)}`))
+    const shape = `${node.type}\u0001${node.name ?? ''}\u0001${node.value ?? ''}\u0001${parts.join(',')}`
+    let id = table.byShape.get(shape)
+    if (id === undefined) { id = table.byShape.size; table.byShape.set(shape, id) }
+    table.idOf.set(node, id)
+  }
+  return table.idOf.get(root)
+}
+
 function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo = new Map()) {
   const n = Array.isArray(bars) ? bars.length : 0
   if (!n) return null
@@ -8481,7 +8559,8 @@ function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo = 
   // ⭐⭐ ITEM 4 — a running value carrying such a read is drawn only where two starts agree (`walkTwoStarts`)
   return walkTwoStarts(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
     (nd) => Float64Array.from(own.get(nd)), HISTORY_BEFORE_CHART_CODE,
-    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor }, own, memo)
+    { exact: true, requestSites: true, beforeFirst: off === true, memo, shapes: walkShapesOf(opts), skip: isPeriodAnchor },
+    own, memo)
 }
 
 /** ⭐⭐ PERIOD −1 — the bars of `bars` on which a read on other bars (`node`, a `SCOPE_TYPES` node) answers from a bar
