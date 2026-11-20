@@ -48,13 +48,19 @@ def test_the_committed_list_is_the_derivation_and_the_queue_doc_is_its_rendering
     assert set(derived) < set(every)                                    # withheld-only scripts: rows, not listed
     assert hd.QUEUE_DOC.read_text(encoding="utf-8") == hd.render_queue(every)
     # every entry is held to its evidence: its source file hashes to it, and each named capture is a
-    # committed production DIVERGE of THAT source
+    # committed production DIVERGE of THAT source, or (kind `unpositioned`, coordinator ruling 2026-11-19) a
+    # disclosed partial whose drawn records' place no capture witnessed (`host_divergence._unpositioned`), which
+    # keeps the listing and never lifts it
     v = {r["id"]: r for r in json.loads(hd.VERDICTS.read_text(encoding="utf-8"))["results"]}
     for sha, e in hd.committed().items():
         assert hd.source_hash((ROOT / e["source"]).read_text(encoding="utf-8")) == sha, e["slug"]
         assert e["reason"] and e["liftWhen"], e["slug"]
         for c in e["evidence"]["diverge"]:
-            assert any(r["verdict"] == "DIVERGE" for rid, r in v.items() if rid == c["capture"]), (e["slug"], c)
+            rows = [r for rid, r in v.items() if rid == c["capture"]]
+            if c.get("kind") == "unpositioned":
+                assert any(hd._unpositioned(r) for r in rows), (e["slug"], c)
+            else:
+                assert any(r["verdict"] == "DIVERGE" for r in rows), (e["slug"], c)
 
 
 def test_the_rail_fails_when_a_DIVERGE_script_is_missing_from_the_list():
