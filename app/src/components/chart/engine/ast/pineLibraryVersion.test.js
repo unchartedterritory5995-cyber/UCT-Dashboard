@@ -89,7 +89,10 @@ const CASES = [
   ['na() of a value not shown to be a number', '    b = x > 0\n    na(b) ? 1.0 : x', /`na\(\)` of a value not shown to be a number/, F.BOOL_NA],
   ['history of a bool', '    b = x > 0\n    b[1] ? 1.0 : x', /history of the bool `b`/, F.BOOL_NA],
   ['a condition not shown to be a bool', '    y = x * 2\n    y ? 1.0 : 0.0', /condition not shown to be a bool/, F.IMPLICIT_CAST],
-  ['an if value without else', '    bool b = if x > 0\n        true\n    b ? 1.0 : 0.0', /`if` used as a value without `else`/, F.BOOL_NA],
+  // ⚰️ Phase B's check did not hold it: the island drew `up == false` as v6 does on the warm-up bars
+  ['a bool compared with ==', '    up = x > ta.sma(x, 5)\n    up == false ? 1.0 : 0.0', /a bool compared with `==`/, F.BOOL_NA],
+  ['a bool compared with != (a typed bool, in parentheses)', '    bool up = x > ta.sma(x, 5)\n    (up) != true ? 1.0 : 0.0', /a bool compared with `!=`/, F.BOOL_NA],
+  ['an if value without else','    bool b = if x > 0\n        true\n    b ? 1.0 : 0.0', /`if` used as a value without `else`/, F.BOOL_NA],
   ['history of a literal', '    x + 5[1]', /history of a literal or of a field/, null],
   ['a negative literal index', '    a = array.from(1.0, 2.0)\n    array.get(a, -1) + x', /negative index/, null],
   ['str.tostring of a numeric constant', '    s = str.tostring(0.1234567890123)\n    str.length(s) + x', /`str\.tostring` of a numeric constant with no format/, F.TOSTRING_LITERAL],
@@ -619,7 +622,7 @@ describe('⭐⭐ the version island at run time: a v5 library\'s collection op i
     expect(island.b.ok, island.why).toBe(true)
     expect(island.cols, 'the island handed v6 rules a v5 na bool').toBe(null)
     expect(island.stop.name).toBe('CollectionError')
-    expect(island.stop.message).toMatch(/inside this Pine v6 script, a Pine v5 library's `map<string, bool>` value would be an `na` bool/)
+    expect(island.stop.message).toMatch(/belongs to a Pine v5 library's `map<string, bool>`: a v5 library's true\/false value that may be empty \(`na`\), read under this Pine v6 script's rules, isn't supported yet/)
     expect(island.stop.bar, island.stop.message).toBe(7)
     // CONTROL: the v5 script answers `na` there and runs on (its `?:` over that `na` is not known off the listing)
     const v5 = runStop(`${V5}${imp}${use}`)

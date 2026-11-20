@@ -88,10 +88,12 @@ export const islandOp = (budget) => !!budget && budget.opVersion !== undefined &
  *  (`pineRuntimeFrontend.js` `boolNaOnThisLane` and kin). A v5 library inside a v6 program is lowered with the
  *  PROGRAM's bool rules until the bool-na family is judged per token (island PR 2), so the same `na` would meet
  *  v6 rules that assume a bool is never `na`: a guessed value. The run stops here by name instead. */
-const islandBoolNaSentence = (what, map, budget) => `\`${what}\` answers \`na\` for a missing key; inside this `
-  + `Pine v${budget.pineVersion} script, a Pine v${budget.opVersion} library's \`map<${map.kt}, ${map.vt || '?'}>\` `
-  + 'value would be an `na` bool read under the script\'s bool rules, which a v5 library\'s code is not yet judged by '
-  + '(the version island holds bool `na` back), so the run stops here rather than serving a guessed value'
+const islandBoolNaSentence = (what, map, budget) => `\`${what}\` answers \`na\` for a missing key, and this key `
+  + `belongs to a Pine v${budget.opVersion} library's \`map<${map.kt}, ${map.vt || '?'}>\`: a v${budget.opVersion} `
+  + `library's true/false value that may be empty (\`na\`), read under this Pine v${budget.pineVersion} script's rules, `
+  + `isn't supported yet (a v${budget.pineVersion} true/false is never empty, and the version island does not yet judge `
+  + `a v${budget.opVersion} library's true/false values under v${budget.opVersion} rules), so the run stops here rather `
+  + 'than serving a guessed value'
 
 const W6K1 = 'the Pine reference and manual do not settle it, so the run stops here rather than '
   + 'serving a guessed convention (W6-K1)'

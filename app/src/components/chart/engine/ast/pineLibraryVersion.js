@@ -262,6 +262,8 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
   const numNames = new Set()
   const intLiteralNames = new Set()
   const notConstNames = new Set()
+  // names DECLARED with a type other than `bool` (`var color c`, `float x`): never a bool operand of `==` / `!=`
+  const typedNotBool = new Set()
   const bindings = []
   const possiblyConstInt = (span) => span.length > 0 && span.every((t) => (t.kind === 'number' && /^\d+$/.test(String(t.raw)))
     || (t.kind === 'ident' && !t.member && intLiteralNames.has(String(t.value)) && !notConstNames.has(String(t.value)))
@@ -274,6 +276,7 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
       const n = toks[i + 1]
       if (t.kind !== 'ident' || t.member || n.kind !== 'ident' || n.member || String(n.value).includes('.')) continue
       if (t.value === 'bool') boolNames.add(String(n.value))
+      else if (TYPE_WORDS.has(t.value)) typedNotBool.add(String(n.value))
       if (t.value === 'float' || t.value === 'int') numNames.add(String(n.value))
       if (TYPE_WORDS.has(t.value) && t.value !== 'int') notConstNames.add(String(n.value))
       if (QUALIFIERS.has(t.value) && t.value !== 'const') {
@@ -468,6 +471,40 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
               if (r) return r
             }
           }
+        }
+      }
+      // ⭐ (libchain, 2026-11-20) `==` / `!=` with a bool operand: a v5 bool can be `na`, and `na == false` is `na`
+      // at v5, while v6 holds no `na` bool and the comparison answers true or false. ⚰️ Phase B's check did not hold
+      // it: a v5 library's `up == false` (`up = x > ta.sma(x, 5)`) drew 1 on the warm-up bars inside a v6 script
+      // where the same library in a v5 script is refused by name (`pine:bool-na-unwitnessed`). An operand runs to the
+      // nearest delimiter of lower precedence (`,` `=` `:=` `=>` `?` `:` `and` `or` another `==` / `!=`, a bracket).
+      for (let i = 0; i < lt.length; i += 1) {
+        if (!(isPunct(lt[i], '==') || isPunct(lt[i], '!='))) continue
+        const stops = (x) => (x.kind === 'punct' && ['==', '!=', ',', '=', ':=', '=>', '?', ':'].includes(x.value))
+          || isWord(x, 'and') || isWord(x, 'or')
+        const operand = (from, step) => {
+          const out = []
+          let d = 0
+          for (let j = from; j >= 0 && j < lt.length; j += step) {
+            const x = lt[j]
+            const opens = x.kind === 'punct' && (step > 0 ? OPENERS : CLOSERS).has(x.value)
+            const closes = x.kind === 'punct' && (step > 0 ? CLOSERS : OPENERS).has(x.value)
+            if (opens) d += 1
+            else if (closes) { if (d === 0) break; d -= 1 }
+            else if (d === 0 && stops(x)) break
+            if (step > 0) out.push(x)
+            else out.unshift(x)
+          }
+          return out
+        }
+        const boolOperand = (span) => {
+          const u = unwrap(span)
+          if (u.length === 1 && u[0].kind === 'ident' && !u[0].member && typedNotBool.has(String(u[0].value))) return false
+          return evidentlyBool(span, boolNames)
+        }
+        if (boolOperand(operand(i - 1, -1)) || boolOperand(operand(i + 1, 1))) {
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `a bool compared with \`${lt[i].value}\``, why: 'na == false is na in v5, and a v6 bool is never na (Boolean values cannot be na)', tok: lt[i] })
+          if (r) return r
         }
       }
       // conditions: `if <cond>`, `<cond> ? a : b`, `not <x>`, operands of and/or
