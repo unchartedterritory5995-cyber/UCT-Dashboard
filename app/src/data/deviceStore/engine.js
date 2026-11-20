@@ -171,8 +171,11 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     const from = DERIVED_TFS[tf]
     if (from) {
       const r = _lookup(sym, from)
-      const w = r.out ? deriveFromDaily(r.out, tf, { through: r.out.through }) : null
-      if (w) w.through = r.out.through
+      // the period in progress only when today's FORMING D bar is in the copy (forming.js): without it the
+      // week / month so far would be built from days that are not the whole period's yet
+      const forming = r.out?.forming === 'D'
+      const w = r.out ? deriveFromDaily(r.out, tf, { through: r.out.through, forming }) : null
+      if (w) { w.through = r.out.through; if (forming) w.forming = 'D' }
       return { out: w, why: r.why }
     }
     const L = live.get(String(tf))
@@ -194,6 +197,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (!add) return { out: seed, why: `seed-only:${overlay.why ? overlay.why(S, String(tf), asof) : 'refused'}` }
     const out = add.cols ? _append(seed, add.cols) : seed
     out.through = Math.max(seed.through, add.through)
+    // today's forming bar is the copy's last row (forming.js): said so, for W / M and the reader
+    if (add.forming && add.cols) out.forming = add.forming
     return { out, why: 'ok' }
   }
   /** The seed's columns followed by the overlay's bars that are newer than its last one. */
