@@ -20,6 +20,7 @@ import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
 import { CALC_BARS_KEY } from '../calcBarsWindow.js'
+import { RUNTIME_OVERNIGHT_KEY } from './overnightTail.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
@@ -322,7 +323,7 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects, warmup, strategy, calcBars } = event.data || {}
+    const { id, ok, columns, error, objects, warmup, strategy, calcBars, overnight } = event.data || {}
     const job = _inFlight
     if (!job || job.id !== id) return
     _inFlight = null
@@ -336,6 +337,10 @@ function workerOf(factory) {
     // ⭐⭐ CBC-FMT — and its `calc_bars_count` window record (the disclosure strip reads it)
     if (landed && calcBars) {
       Object.defineProperty(landed, CALC_BARS_KEY, { value: calcBars, enumerable: false, configurable: true })
+    }
+    // ⭐⭐ (2026-11-20) and its overnight tail's record (`overnightTail.js`; the strip reads it)
+    if (landed && overnight) {
+      Object.defineProperty(landed, RUNTIME_OVERNIGHT_KEY, { value: overnight, enumerable: false, configurable: true })
     }
     settle(job, ok ? null : errorOf(error), landed)
     pump()
