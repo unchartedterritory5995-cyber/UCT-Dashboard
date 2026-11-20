@@ -31002,14 +31002,17 @@ export function isBareSource(node) {
 const NO_PALETTE_SCOPE = Symbol('no palette scope')
 let PALETTE_VERSION = NO_PALETTE_SCOPE
 
-/** Open a palette scope; returns the previous one so a caller can restore it. */
-function beginPaletteScope(version) {
+/** Open a palette scope; returns the previous one so a caller can restore it.
+ *  ⭐ (finding 4, 2026-11-20) EXPORTED for the runtime lane's front end (`pineRuntimeFrontend.js::buildRuntimeIr`),
+ *  which reaches this file's colour helpers through the shared `Resolver` and opened no scope: every colour name it
+ *  resolved (`color.r(color.red)`) stopped as `runtime:lower`, an engine defect, never a value. */
+export function beginPaletteScope(version) {
   const prior = PALETTE_VERSION
   PALETTE_VERSION = Number.isFinite(version) ? version : null
   return prior
 }
 
-function endPaletteScope(prior) { PALETTE_VERSION = prior }
+export function endPaletteScope(prior) { PALETTE_VERSION = prior }
 
 function activePaletteVersion() {
   if (PALETTE_VERSION === NO_PALETTE_SCOPE) {

@@ -41,7 +41,7 @@ import {
   selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars, neverNaBoolNamesOf, isBoolishTree,
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
-  carryShapeVersion,
+  carryShapeVersion, beginPaletteScope, endPaletteScope,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
@@ -1757,7 +1757,22 @@ function bindConstsReporting(consts, onRead) {
   })
 }
 
+/** ⭐⭐ (finding 4, 2026-11-20) THE PALETTE SCOPE. This lane reaches `pine.js`'s colour helpers through the shared
+ *  `Resolver` (`color.r(color.red)`, `color.t(color.new(c, 30))`, a colour constant bound to a name), and a colour name
+ *  is resolved at the script's own `//@version` (`pine.js` PALETTE_VERSION: `color.red` is #FF5252 at v5, #F23645 at
+ *  v6). The translation opens that scope for the host lane; this lane opened none, so each such read threw and the
+ *  whole script stopped as `runtime:lower` (an engine defect). The scope opens once the script is lexed (its version
+ *  known) and the previous one is restored however the build ends. */
 function buildRuntimeIrLinked(source, opts, holder) {
+  const palette = { opened: false, prior: undefined }
+  try {
+    return buildRuntimeIrLinkedInScope(source, opts, holder, palette)
+  } finally {
+    if (palette.opened) endPaletteScope(palette.prior)
+  }
+}
+
+function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
   // ⭐⭐⭐ THE OBJECT DOOR GATE (Phase 3 audit, 2026-11-01). The C18 object runtime
@@ -1949,6 +1964,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
   holder.link = lexed.libraryLink || null
   const { tokens, indents, version } = lexed
+  palette.prior = beginPaletteScope(version)
+  palette.opened = true
 
   /** ⭐ W4 T1 — the alias of every `import … as <alias>` the member wrote, read from
    *  the tokens as lexed (`unlinked`: the linker removes the line of a library it
