@@ -342,7 +342,10 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
         && !k.startsWith('opening-range:')
         // ⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — a look-ahead `request.security` read's first partial period is not a
         // `time(<timeframe>)` reading; `htfLiveFirstPeriod.test.js` / `tests/test_pine_htf_live_first_period.py` rail it
-        && !k.startsWith('request:htf-lookahead-')).sort())
+        && !k.startsWith('request:htf-lookahead-')
+        // ⭐ PERIOD −1 (2026-11-19) — a history read before the chart's first bar is not a `time(<timeframe>)` reading;
+        // `historyBeforeChart.test.js` / `tests/test_pine_history_before_chart.py` rail it
+        && !k.startsWith('history:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })
