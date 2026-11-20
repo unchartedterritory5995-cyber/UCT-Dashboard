@@ -30,14 +30,6 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 // it; the main thread's own clock would also count the queue and the bundle load).
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
-// ⭐⭐ (2026-11-20) TESTS ONLY — the run's clock, through the seam every run already has (`opts.now`,
-// `runtimeColumns.js` W5-T2: the pane budget, the VM's WALL_TIME and the translator's timeout). A rail that asserts a
-// SERVED run pins it, so its verdict is the run's work, not the speed of the machine it runs on. ⚰️ #2118's CI went red
-// on `ownDailyFollowsChartSymbol.test.js` 5m: `refused:runtime:time-budget` on a saturated runner. Null in production:
-// the host's own clock, exactly as before.
-let _clockForTests = null
-export function __runtimeWorkerClockForTests(now) { _clockForTests = typeof now === 'function' ? now : null }
-
 self.onmessage = (event) => {
   const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
@@ -53,8 +45,7 @@ self.onmessage = (event) => {
     // ⭐⭐ (coordinator ruling 2026-11-19) off the main thread the budget scales with the bars the run covers
     // (`runtimeColumns.js::runtimePaneBudgetFor`); every main-thread door keeps 1,000 ms. ⭐⭐ (engine 86, A2) and
     // here alone the VM's `WALL_TIME` follows that budget (`runLimitsOf`): every other caller keeps 5,000
-    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true,
-      ...(_clockForTests ? { now: _clockForTests } : {}) })
+    const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw
     // payload, a WITHHELD one included (its sentence is the member's), and the warm-up

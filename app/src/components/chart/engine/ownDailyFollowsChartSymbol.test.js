@@ -195,16 +195,17 @@ describe('⛔⛔ A PREDICATE THAT CANNOT ANSWER NEVER SAYS NO (the class behind 
   })
 })
 
-// ⭐⭐ (2026-11-20) A RAIL THAT ASSERTS SERVED PINS THE RUN'S CLOCK (`runtimeWorker.__runtimeWorkerClockForTests`, the
-// `opts.now` seam): a virtual clock that advances a microsecond per read, so the verdict is the run's work, never the
-// runner's speed. ⚰️ #2118's CI: "pending:runtime:in-flight > refused:runtime:time-budget" on a saturated runner.
-// `saturatedHost` stands in for that runner: the HOST clock jumps 50 ms on every read.
-const pinnedClock = () => { let v = 0; return () => (v += 0.001) }
+// ⭐⭐ (2026-11-20) A RAIL THAT ASSERTS SERVED PINS THE RUN'S CLOCK, so the verdict is the run's work, never the runner's
+// speed. ⚰️ #2118's CI: "pending:runtime:in-flight > refused:runtime:time-budget" on a saturated runner. Every clock the
+// run reads is the host's, read LATE (`runtimeColumns.hostNow` and `vm.defaultNow`: `performance.now`; the translator's
+// `pine.wallNow`: `Date.now`), so the pin is the test's alone: fake `Date` and `performance` (time stands still), real
+// timers (the replies land on `setTimeout`). No product code changes, so HP7 holds (`tests/test_pine_runtime_engine_identity.py`:
+// the worker and the service adapter build the SAME call). `saturatedHost` stands in for the saturated runner: the HOST
+// clock jumps 50 ms on every read.
 const saturatedHost = () => { let h = 0; vi.stubGlobal('performance', { now: () => (h += 50) }) }
 async function runHalfStates(tf, rows, map, { pin = true } = {}) {
   setRuntimeRunner(workerRunner(await realWorkerFactory()))
-  const { __runtimeWorkerClockForTests } = await import('./runtime/runtimeWorker.js')
-  __runtimeWorkerClockForTests(pin ? pinnedClock() : null)
+  if (pin) vi.useFakeTimers({ toFake: ['Date', 'performance'] })
   let cols = null
   const states = []
   try {
@@ -219,7 +220,7 @@ async function runHalfStates(tf, rows, map, { pin = true } = {}) {
       if (!landed) break
     }
   } finally {
-    __runtimeWorkerClockForTests(null)
+    if (pin) vi.useRealTimers()
   }
   return { cols, states }
 }
