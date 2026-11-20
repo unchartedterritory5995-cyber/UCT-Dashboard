@@ -222,12 +222,17 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
               <span className={styles.sym}>{sym}</span>
             </PanelTicker>
           </span>
-          {isNew && <span className={styles.newBadge}>NEW</span>}
-          {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
-          {teamBadge && <span className={styles.insiderBadge} title={`${teamBadge.label}: ${teamBadge.speaker}`} data-testid="uct20-team-badge">TEAM</span>}
-          {earnings && earnings.days <= ER_BADGE_MAX_DAYS && (
-            <span className={`${styles.erBadge} ${earnings.soon ? styles.erBadgeSoon : ''}`}>{earnings.badge}</span>
-          )}
+          {/* The badges are one group so a phone can give them their own line under the ticker
+              (UCT20.module.css, the phone block). On a wide screen the group is not a box
+              (display: contents), so the line reads exactly as it did. No badge = an empty group. */}
+          <span className={styles.badges}>
+            {isNew && <span className={styles.newBadge}>NEW</span>}
+            {hasInsiderBuy && <span className={styles.insiderBadge}>INSIDER</span>}
+            {teamBadge && <span className={styles.insiderBadge} title={`${teamBadge.label}: ${teamBadge.speaker}`} data-testid="uct20-team-badge">TEAM</span>}
+            {earnings && earnings.days <= ER_BADGE_MAX_DAYS && (
+              <span className={`${styles.erBadge} ${earnings.soon ? styles.erBadgeSoon : ''}`}>{earnings.badge}</span>
+            )}
+          </span>
           {company && <span className={styles.companyName}>{company}</span>}
         </span>
         <span className={styles.price}>{fmtPrice(livePrice) ?? '—'}</span>
@@ -236,7 +241,7 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
           {rsRank != null ? <span className={`${styles.rsBadge} ${rsClass(rsRank)}`}>{Math.round(rsRank)}</span> : <span className={styles.dim}>—</span>}
         </span>
         <span className={`${styles.cDays} ${styles.days}`}>{daysHeld != null ? `${daysHeld}d` : <span className={styles.dim}>—</span>}</span>
-        <span className={`${styles.since} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>{fmtPct(displayReturn) ?? <span className={styles.dim}>—</span>}</span>
+        <span className={`${styles.cSince} ${styles.since} ${(displayReturn ?? 0) >= 0 ? styles.gain : styles.loss}`}>{fmtPct(displayReturn) ?? <span className={styles.dim}>—</span>}</span>
         <span className={styles.rating}>{fmtRating(rating) ?? '—'}</span>
         {/* The row's own expand/collapse control — a REAL <button>, a sibling of
             the ticker chip above, never a wrapper around it. `stopPropagation`
@@ -687,7 +692,7 @@ export default function UCT20() {
               <SortHead k="chg" label="CHG" className={styles.alignR} />
               <SortHead k="rs" label="RS" className={`${styles.cRs} ${styles.alignC}`} title="Relative strength vs the S&P 500 (percentile)" />
               <SortHead k="days" label="DAYS" className={`${styles.cDays} ${styles.alignR}`} title="Days held in the tracking portfolio" />
-              <SortHead k="since" label="SINCE ADD" className={styles.alignR} title="Return since the name was added to the list" />
+              <SortHead k="since" label="SINCE ADD" className={`${styles.cSince} ${styles.alignR}`} title="Return since the name was added to the list" />
               <SortHead k="rating" label="RATING" className={styles.alignR} />
               <span />
             </div>
