@@ -179,7 +179,9 @@ FAMILIES: dict[str, Family] = {
          "/api/maintenance", "/api/adjustment-basis",
          # The Breadth Pack's manifest + immutable shards (the barspack's twin) and the
          # point-in-time market-cap series the chart draws: chart data, fetched in bursts.
-         "/api/breadthpack", "/api/marketcap"),
+         "/api/breadthpack", "/api/marketcap",
+         # Currency pairs (BTC/USD): the pair list and its quote, polled like any other quote.
+         "/api/crypto"),
     ),
     "options-flow": Family(
         TIER_BULK,
