@@ -14699,7 +14699,13 @@ export default function StockChart({
   }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
+  // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
+  // THIS updateChart before paint; running it again here planned 'noop' but still paid the settings
+  // serialization and an every-bar render-plan compare (production CPU profiles: two passes per switch).
+  // Skipped only when the layout effect ran this very callback (same render, same inputs).
+  const _layoutRanRef = useRef(null)
   useEffect(() => {
+    if (_layoutRanRef.current === updateChart) return
     updateChart()
   }, [updateChart])
 
@@ -14865,6 +14871,7 @@ export default function StockChart({
     if (_appliedSymTfRef.current === key) return
     _appliedSymTfRef.current = key
     updateChart()
+    _layoutRanRef.current = updateChart   // the passive effect of this same render need not run it again
     // ⭐ AND THE LEGEND CROSSES THE SAME BOUNDARY. A state write in a layout
     // effect re-renders synchronously before the browser paints, so the new
     // candles and the new readout land in ONE composited frame: A+A → B+B, never

@@ -8,6 +8,7 @@ import StockChart from '../../StockChart'
 import { sendSeedFrom, agentOpenOpts } from '../builder/agentSeams'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
+import useRowLadder from './useRowLadder'
 import ChartIdentityRow from './ChartIdentityRow'
 import SymbolActionsMenu from './SymbolActionsMenu'
 // /charts integrated header: at or above this pane width the timeframe row joins the
@@ -485,7 +486,6 @@ function ChartPane({
   // navigator, the day change, RTH/PM and the symbol ▾. The window controls (⚙ · + · pop out ·
   // ✕) are NEVER shed — the right cluster does not shrink; the ticker ellipsizes last.
   const [rowLevel, setRowLevel] = useState(0)
-  const rowWidthRef = useRef(null)
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -689,22 +689,22 @@ function ChartPane({
   }, [paneWidth, headerLabel, sym])
   // One-row ladder: when anything in the row is clipped (the row itself, or the timeframe
   // strip squeezed inside it), take one more step — synchronously, before paint, until it
-  // fits. Narrowing keeps the steps already taken (it can only need more); widening, a new
-  // symbol or different info resets to the full row and re-fits. jsdom lays nothing out
-  // (every width 0), so this is inert in tests.
-  useLayoutEffect(() => {
-    if (!oneRowMode) return
-    const prev = rowWidthRef.current
-    rowWidthRef.current = paneWidth
-    if (prev == null || !Number.isFinite(paneWidth) || paneWidth > prev) setRowLevel(0)
-  }, [oneRowMode, paneWidth])
-  useLayoutEffect(() => { if (oneRowMode) setRowLevel(0) }, [oneRowMode, headerLabel, sym, infoSig, visibleTfs.length])
-  useLayoutEffect(() => {
-    if (!oneRowMode || rowLevel >= ROW_LEVEL_MAX) return
-    const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
-    const row = identityRef.current
-    const partClipped = !!row && [...row.children].some(clipped)
-    if (clipped(row) || partClipped || clipped(tfBarRef.current)) setRowLevel((l) => Math.min(ROW_LEVEL_MAX, l + 1))
+  // fits. Narrowing keeps the steps already taken (it can only need more); widening resets to
+  // the full row at once; a new symbol or different info re-fits from the full row only once
+  // it has RESTED (useRowLadder: a scan never pays the climb). jsdom lays nothing out (every
+  // width 0), so this is inert in tests.
+  useRowLadder({
+    on: oneRowMode,
+    width: paneWidth,
+    content: `${headerLabel}|${sym}|${infoSig}|${visibleTfs.length}`,
+    level: rowLevel,
+    setLevel: setRowLevel,
+    max: ROW_LEVEL_MAX,
+    isClipped: () => {
+      const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
+      const row = identityRef.current
+      return clipped(row) || (!!row && [...row.children].some(clipped)) || clipped(tfBarRef.current)
+    },
   })
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
