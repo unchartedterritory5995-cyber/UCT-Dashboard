@@ -33,6 +33,9 @@ def _offline_split_sources(monkeypatch):
         raise RuntimeError("offline in tests")
     monkeypatch.setattr(ffseed, "_massive_split_rows", _offline)
     monkeypatch.setattr(ffseed, "_fmp_cached_splits", lambda sym: [])
+    # nor R2: the published manifest (a delta's base) reads as absent unless a test says otherwise
+    from api.services import data_sync
+    monkeypatch.setattr(data_sync, "get_bytes", lambda key: None)
 
 
 def _ts(d: date, hh: int, mm: int) -> int:

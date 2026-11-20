@@ -341,18 +341,82 @@ the variable may stay set; unset it at your convenience. It is refused (logged, 
 session IS the newest closed session: publishing an older build after a newer one would roll every device
 back. `status()` reports `forced_session`.
 
-**Daily delta (not built).** A returning device holds yesterday's packs. The new session adds, per
-symbol, at most 390 / 78 / 26 / 13 / 7 / 1 bars (1 / 5 / 15 / 30 / 60 / D) and drops as many old
-ones. A delta pack per timeframe, same format, `ffseed/<build>/<tf>.delta-<base build>.ffs`, would
-hold per symbol either:
+**Daily delta**: built, section 10.
 
-* `append`: only the bars after the base build's `last` (the overlap with the base was compared
-  value for value at build time and is unchanged), or
-* `replace`: the whole window, when any overlapping bar changed (a split re-based the history, a
-  repair rewrote a bar) or the symbol is new.
+## 10. The daily delta (`UFFSDLT1`)
 
-The entry gains a `mode` and the base build id. The device applies it by decoding the base window,
-appending, keeping the newest N, and re-encoding locally (or keeping two blobs until the next full
-download). Because a 1m delta is 390 of 600 bars, the saving is largest on 5m-60m and D: by section 7's
-numbers a nightly delta would be ~7 MB (1m) + ~2 MB (5m) + ~1.4 MB (15m, 30m and 60m together) + ~0.04 MB (D)
-plus `replace` entries, about 10-12 MB against 79.5 MB for the full set.
+A device that holds build N of a timeframe downloads only what changed to reach build N+1; anyone else
+(no copy, another base, a failed check) downloads the full pack, which is always published. Builder:
+`api/services/ffseed_delta.py`; reference applier: `ffseed_delta.apply_delta_iter`.
+
+### Files and manifest
+
+```
+R2 ffseed/<build>/<tf>.delta.ffs          edge /api/seed/v1/<build>/<tf>.delta.ffs   private, immutable
+```
+
+The manifest's timeframe entry gains, ONLY when the delta was proven (below):
+
+```json
+"delta": {"base": "20261120T1430Z", "base_asof": "2026-11-19", "bytes": 2034411,
+          "key": "ffseed/20261121T0131Z/5.delta.ffs", "ops": {"keep": 3, "merge": 3480, "remove": 4, "replace": 61},
+          "sha256": "...", "symbols": 3548, "url": "/api/seed/v1/20261121T0131Z/5.delta.ffs"}
+```
+
+A client holding exactly build `base` of that timeframe (and nothing else) may apply it; it checks
+`bytes` and `sha256` as for a pack. No `delta` key: take the full pack.
+
+### Layout
+
+The pack framing of section 3 with its own magic, so neither reader can take one for the other:
+
+```
+blob 0 | ... | blob k-1 | trailer (ASCII JSON) | u64 trailer length | "UFFSDLT1"
+```
+
+Trailer: `v` 1, `kind` `"ffseed-delta"`, `tf`, `tunit`, `basis`, `grid`, `comp`, `depth`, `asof` and
+`build` (the NEW build), `base` and `base_asof` (the build it applies to), `fields`, `symbols`.
+`fields` = `["op","off","len","rows","bars","first","last","asof","crc","body","pscale","vscale"]`:
+
+| field           | meaning                                                                          |
+|-----------------|----------------------------------------------------------------------------------|
+| `op`            | 0 keep, 1 merge, 2 replace, 3 remove                                             |
+| `off`, `len`    | the blob in the file (0, 0 for keep and remove)                                  |
+| `rows`          | bars in the blob                                                                 |
+| `bars` `first` `last` `crc` | the NEW window, exactly as its full-pack entry states them (section 3) |
+| `asof`          | the new as-of session, YYYYMMDD                                                  |
+| `body`          | the blob's decompressed length                                                   |
+| `pscale` `vscale` | the NEW window's scales; a blob is encoded at them                             |
+
+Every symbol of the base and of the new build has exactly one entry. A blob is a body (section 4) at the
+entry's scales, raw or gzip per `comp`; a merge blob's own rows carry no CRC: the applied window's does.
+
+### Applying one symbol (the device)
+
+* **remove** (3): drop the symbol.
+* **replace** (2): the blob is the whole new window: decode it exactly as a pack entry (section 5).
+* **keep** (0) and **merge** (1):
+  1. take the base window's rows with `first <= t <= last` (base entry, decoded as in section 5);
+  2. rescale them to the entry's `pscale`/`vscale`: multiply by `new / old` when the new scale is larger,
+     divide when smaller (exact by construction: every kept row is part of the new window);
+  3. merge only: decode the blob's `rows` rows (section 5 step 5, without its CRC check) and put each one
+     in place of the kept row with the same `t`, or add it;
+  4. the result must have `bars` rows, start at `first`, end at `last`, and its column CRC (section 4)
+     must equal `crc`. Anything else: discard the delta and download the full pack.
+
+### Which op the builder picks
+
+`replace` for a symbol new in the build, for every symbol the BASE manifest's next-session `splits`
+names for this as-of session (its basis changed), and whenever a merge cannot reproduce the new window
+(a bar the server removed inside the overlap, a base row that is not exact at the new scales) or would
+not be smaller than the full window. `keep` when the kept base rows ARE the new window. Otherwise
+`merge`, whose blob holds the new session's bars plus every overlapping bar whose values changed.
+
+### Fail-safe
+
+Before a delta is uploaded the builder applies it to the base with the independent reference applier
+and compares the result with the new pack, every symbol, every column, both scales, and the symbol set.
+Any difference, a base whose bytes do not match the base manifest's `sha256` (it is read from the
+worker's own copy of the last build, `<DATA_DIR>/ffseed_cache/`, else from R2), or any error: no delta
+for that timeframe, and the manifest carries none. The full packs are uploaded first and never depend on
+it.

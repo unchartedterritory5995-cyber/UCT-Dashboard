@@ -3,6 +3,7 @@
  *
  *   /api/seed/v1/latest.json              the manifest: build id, as-of session, per-timeframe url/bytes/sha256
  *   /api/seed/v1/<build>/<tf>.ffs         one timeframe's whole pack (docs/charts/first-frame-seed-format.md)
+ *   /api/seed/v1/<build>/<tf>.delta.ffs   that timeframe's daily delta from the previous build (spec section 10)
  *
  * WHY THE EDGE. Every member downloads every pack (tens of MB) once per build. The web pod is one Python
  * process; a download that size per member would hold it for seconds each. Here an entitled request is one
@@ -44,9 +45,11 @@ export function parseSeedPath(pathname) {
   if (parts[0] !== "v1") return null;
   if (parts.length === 2 && parts[1] === "latest.json") return { kind: "manifest", key: "latest.json" };
   if (parts.length === 3 && BUILD_RE.test(parts[1]) && parts[2].endsWith(".ffs")) {
-    const tf = parts[2].slice(0, -4);
+    // `<tf>.ffs` (a full pack) or `<tf>.delta.ffs` (the daily delta from the previous build, api/services/ffseed_delta.py)
+    const delta = parts[2].endsWith(".delta.ffs");
+    const tf = parts[2].slice(0, delta ? -10 : -4);
     if (!TFS.has(tf)) return null;
-    return { kind: "pack", key: `${parts[1]}/${tf}.ffs`, build: parts[1], tf };
+    return { kind: "pack", key: `${parts[1]}/${tf}${delta ? ".delta" : ""}.ffs`, build: parts[1], tf, ...(delta ? { delta: true } : {}) };
   }
   return null;
 }
