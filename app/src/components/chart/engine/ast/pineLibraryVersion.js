@@ -34,7 +34,8 @@
 //   timeframe.period [Timeframes must include a multiplier] "D" vs "1D".
 //   color.red/teal/yellow [Color changes] the values changed.
 //   label.new       [Color changes] its default text colour changed (refused
-//                   unless the call names `textcolor`).
+//                   unless the call names `textcolor`); `box.new`'s fill and
+//                   text colour and `table.cell`'s text colour likewise.
 //   for             [Dynamic for loop boundaries] refused when the end bound
 //                   calls anything but a size read of a collection the loop does
 //                   not resize, or names a variable the loop body reassigns.
@@ -102,6 +103,44 @@ export function versionAt(tok, programVersion) {
   const v = tok && typeof tok === 'object' ? tok[ISLAND_KEY] : undefined
   return Number.isFinite(v) ? v : programVersion
 }
+
+// ─── ⭐⭐ THE VERSION ISLAND, STEP 2: THE FAMILIES A LANE JUDGES PER TOKEN ─────────────────────────────────────────
+//
+// Each construct `crossVersionDifference` finds belongs to one FAMILY of the v6 migration guide. A lane whose every
+// rule for a family asks `versionAt` judges a v5 library's code in that family under v5, as TradingView does, so the
+// linker stops refusing that family for it: the lane hands its families to `linkLibraries` (`islandFamilies`) and
+// the check skips exactly those. ⛔ Only the RUNTIME lane hands any; the host lane keeps the whole check until its own
+// rules read per token. ⛔ A family joins `RUNTIME_ISLAND_FAMILIES` in the commit that moves the last of the runtime
+// lane's rules for it onto `versionAt`, with its rail: a v5 library in a v6 script computes what the same library
+// computes in a v5 script (`pineLibraryVersion.test.js`, "the version island, family by family"). A construct with
+// no family (`request.*`, `strategy.*`, `transp`/`offset`/`linewidth`, a repeated argument, a negative literal
+// index, history of a literal or a field, a const-int division) stays refused on
+// every lane.
+export const ISLAND_FAMILY = Object.freeze({
+  BOOL_NA: 'bool-na',
+  IMPLICIT_CAST: 'implicit-cast',
+  LAZY_AND_OR: 'lazy-and-or',
+  FOR_BOUND: 'for-bound',
+  COLOURS: 'colours',
+  TIMEFRAME_PERIOD: 'timeframe.period',
+  TOSTRING_LITERAL: 'str.tostring-literal',
+  // island PR 3: `label.new` / `box.new` / `table.cell` with a colour slot left to its version's default
+  OBJECT_DEFAULTS: 'object-defaults',
+})
+/** The families the runtime lane judges per token (`pineRuntimeFrontend.js` hands them to the linker). */
+export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
+  ISLAND_FAMILY.TIMEFRAME_PERIOD,
+  ISLAND_FAMILY.COLOURS,
+  ISLAND_FAMILY.TOSTRING_LITERAL,
+  ISLAND_FAMILY.FOR_BOUND,
+  ISLAND_FAMILY.LAZY_AND_OR,
+  // ⭐⭐ island PR 2: a v5 bool can be `na`, and a number read as a condition is cast (both judged per token, the run's
+  // rules and the columnar resolver's); a v5 `na` bool never leaves the island unrefused (`islandNaBoolResult`, LV6)
+  ISLAND_FAMILY.BOOL_NA,
+  ISLAND_FAMILY.IMPLICIT_CAST,
+  // ⭐⭐ island PR 3: a v5 library's object call carries v5's default colours (`pineRuntimeFrontend.js` lowerObjectCall)
+  ISLAND_FAMILY.OBJECT_DEFAULTS,
+])
 
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v
 const isWord = (t, v) => !!t && t.kind === 'ident' && !t.member && t.value === v
@@ -223,12 +262,17 @@ function unwrap(toks) {
  *   the library's kept definitions (what the importing script reaches)
  * @param {number[]} indents the library's indent table (`lexPine(...).indents`)
  */
-export function crossVersionDifference(kept, indents) {
+export function crossVersionDifference(kept, indents, { skip } = {}) {
+  // ⭐⭐ the version island: a family the lane judges per token (`islandFamilies`) is not a difference there
+  const skipped = new Set(Array.isArray(skip) ? skip : [])
+  const hit = (family, d) => (family && skipped.has(family) ? null : { ...d, family: family || null })
   // ── type evidence: names shown to be bools / numbers anywhere in the kept code ──
   const boolNames = new Set()
   const numNames = new Set()
   const intLiteralNames = new Set()
   const notConstNames = new Set()
+  // names DECLARED with a type other than `bool` (`var color c`, `float x`): never a bool operand of `==` / `!=`
+  const typedNotBool = new Set()
   const bindings = []
   const possiblyConstInt = (span) => span.length > 0 && span.every((t) => (t.kind === 'number' && /^\d+$/.test(String(t.raw)))
     || (t.kind === 'ident' && !t.member && intLiteralNames.has(String(t.value)) && !notConstNames.has(String(t.value)))
@@ -241,6 +285,7 @@ export function crossVersionDifference(kept, indents) {
       const n = toks[i + 1]
       if (t.kind !== 'ident' || t.member || n.kind !== 'ident' || n.member || String(n.value).includes('.')) continue
       if (t.value === 'bool') boolNames.add(String(n.value))
+      else if (TYPE_WORDS.has(t.value)) typedNotBool.add(String(n.value))
       if (t.value === 'float' || t.value === 'int') numNames.add(String(n.value))
       if (TYPE_WORDS.has(t.value) && t.value !== 'int') notConstNames.add(String(n.value))
       if (QUALIFIERS.has(t.value) && t.value !== 'const') {
@@ -262,6 +307,19 @@ export function crossVersionDifference(kept, indents) {
         }
       }
     }
+    // ⭐ (libchain, 2026-11-20) a DECLARED type is never a bool operand: `int k = c ? 0 : na` is an int whatever its
+    // right side looks like, and so is a later `k := …` of a name this definition declares `int` / `color` / ….
+    // ⚰️ The pass below read the right side alone, so `c ? 0 : na` (a comparison in its condition) made `k` a bool
+    // and the import was refused as "`na` given to the bool `k`": an over-refusal. Only this definition's own
+    // declarations count (a name is local to the function that declares it); an untyped `k = <bool>` anywhere still
+    // makes `k` a bool, so a shadowing bool stays held.
+    const declaredNotBool = new Set()
+    for (let i = 0; i + 1 < toks.length; i += 1) {
+      const t = toks[i]
+      const n = toks[i + 1]
+      if (t.kind === 'ident' && !t.member && TYPE_WORDS.has(t.value) && t.value !== 'bool'
+        && n.kind === 'ident' && !n.member && !String(n.value).includes('.')) declaredNotBool.add(String(n.value))
+    }
     // untyped bindings: the right side says what they hold
     for (const line of logicalLines(toks, indents)) {
       const lt = line.toks
@@ -272,7 +330,11 @@ export function crossVersionDifference(kept, indents) {
       if (!name || name.includes('.') || target.member) continue
       const rhs = lt.slice(eqAt + 1)
       bindings.push({ name, rhs })
-      if (evidentlyBool(rhs, boolNames)) boolNames.add(name)
+      const before = lt[eqAt - 2]
+      const typed = lt[eqAt].value === ':='
+        ? declaredNotBool.has(name)
+        : !!before && before.kind === 'ident' && !before.member && TYPE_WORDS.has(before.value) && before.value !== 'bool'
+      if (!typed && mayBeBool(rhs, boolNames, numNames)) boolNames.add(name)
       else if (evidentlyNumber(rhs, numNames)) numNames.add(name)
     }
   }
@@ -299,25 +361,58 @@ export function crossVersionDifference(kept, indents) {
       const next = toks[i + 1]
       const prev = toks[i - 1]
       if (v === 'timeframe.period') {
-        return { what: '`timeframe.period`', why: 'its text is "D" in Pine v5 and "1D" in v6 (Timeframes must include a multiplier)', tok: t }
+        const r = hit(ISLAND_FAMILY.TIMEFRAME_PERIOD, { what: '`timeframe.period`', why: 'its text is "D" in Pine v5 and "1D" in v6 (Timeframes must include a multiplier)', tok: t })
+        if (r) return r
+      }
+      // ⭐⭐ the version island: `str.tostring` of a numeric constant with no format prints the literal in full
+      // at v5 and to ten decimals at v6 (`pineTextFormat.js::literalTostringText`, captures S10 / S17 / s21).
+      // ⚰️ Phase B's check did not hold it, so a v5 library's `str.tostring(0.123456789012)` was linked and
+      // printed under v6 rules; it is a difference now, judged per token on the runtime lane.
+      if ((v === 'str.tostring' || v === 'tostring') && !t.member && isPunct(next, '(')) {
+        const args = splitTop(toks.slice(i + 2, closeOf(toks, i + 1) - 1), (x) => isPunct(x, ','))
+        const constant = args.length === 1 && args[0].some((x) => x.kind === 'number')
+          && args[0].every((x) => x.kind === 'number' || (x.kind === 'punct' && ['+', '-', '*', '/', '(', ')'].includes(x.value)))
+        if (constant) {
+          const r = hit(ISLAND_FAMILY.TOSTRING_LITERAL, { what: '`str.tostring` of a numeric constant with no format', why: 'TradingView prints the literal in full at v5 and to ten decimals at v6', tok: t })
+          if (r) return r
+        }
       }
       if (v && CHANGED_COLOURS[v]) {
-        return { what: `\`${v}\``, why: `its value changed: ${CHANGED_COLOURS[v]} (Color changes)`, tok: t }
+        const r = hit(ISLAND_FAMILY.COLOURS, { what: `\`${v}\``, why: `its value changed: ${CHANGED_COLOURS[v]} (Color changes)`, tok: t })
+        if (r) return r
       }
       if (v && !t.member && (v.startsWith('request.') || v === 'security')) {
-        return { what: `\`${v}\``, why: 'request rules changed in v6 (Dynamic requests)', tok: t }
+        return hit(null, { what: `\`${v}\``, why: 'request rules changed in v6 (Dynamic requests)', tok: t })
       }
       if (v && !t.member && v.startsWith('strategy.')) {
-        return { what: `\`${v}\``, why: 'strategy rules changed in v6 (Strategies)', tok: t }
+        return hit(null, { what: `\`${v}\``, why: 'strategy rules changed in v6 (Strategies)', tok: t })
       }
       if (v === 'label.new' && isPunct(next, '(')) {
         const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
         if (!args.some((a, k) => isWord(a, 'textcolor') && isPunct(args[k + 1], '='))) {
-          return { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t }
+          const r = hit(ISLAND_FAMILY.OBJECT_DEFAULTS, { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t })
+          if (r) return r
+        }
+      }
+      // ⭐ (libchain, 2026-11-20) the other object defaults a v5 script draws differently from this engine's v6 base
+      // (`objectDefaults.js` VERSION_DEFAULTS[5], each from a v5 capture): a box's unset fill is opaque `color.blue` at
+      // v5 and 80% transparent at v6 (`box.new`'s reference default), its unset text and a table cell's are
+      // `color.black` at v5. ⚰️ Phase B held `label.new` alone, so a v5 library's `box.new` without `bgcolor` would
+      // have drawn v6's fill inside a v6 script. Held when the call does not NAME the argument (a positional one is
+      // not read here, so it is held too).
+      if ((v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {
+        const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
+        const named = (w) => args.some((a, k) => isWord(a, w) && isPunct(args[k + 1], '='))
+        const missing = (v === 'box.new' ? ['bgcolor', 'text_color'] : ['text_color']).find((w) => !named(w))
+        if (missing) {
+          const r = hit(ISLAND_FAMILY.OBJECT_DEFAULTS, { what: `\`${v}\` without \`${missing}\``, why: missing === 'bgcolor'
+            ? 'its default fill is opaque `color.blue` in v5 and 80% transparent in v6 (Color changes)'
+            : 'its default text colour is `color.black` in v5, which this engine does not draw for v6', tok: t })
+          if (r) return r
         }
       }
       if ((v === 'transp' || v === 'offset' || v === 'linewidth') && !t.member && isPunct(next, '=') && (isPunct(prev, ',') || isPunct(prev, '('))) {
-        return { what: `the \`${v}\` argument`, why: `v6 changed it (${v === 'transp' ? 'The transp parameter is removed' : v === 'offset' ? 'No series offset values' : 'Minimum linewidth is 1'})`, tok: t }
+        return hit(null, { what: `the \`${v}\` argument`, why: `v6 changed it (${v === 'transp' ? 'The transp parameter is removed' : v === 'offset' ? 'No series offset values' : 'Minimum linewidth is 1'})`, tok: t })
       }
       // a repeated named argument
       if (isPunct(t, '(') && prev && prev.kind === 'ident') {
@@ -326,7 +421,7 @@ export function crossVersionDifference(kept, indents) {
         for (const part of splitTop(toks.slice(i + 1, end - 1), (x) => isPunct(x, ','))) {
           if (part.length > 1 && part[0].kind === 'ident' && isPunct(part[1], '=')) {
             if (seen.has(part[0].value)) {
-              return { what: `the argument \`${part[0].value}\` given twice`, why: 'v5 keeps the first and v6 refuses (Cannot repeat parameters)', tok: part[0] }
+              return hit(null, { what: `the argument \`${part[0].value}\` given twice`, why: 'v5 keeps the first and v6 refuses (Cannot repeat parameters)', tok: part[0] })
             }
             seen.add(part[0].value)
           }
@@ -338,7 +433,7 @@ export function crossVersionDifference(kept, indents) {
           const parts = splitTop(toks.slice(i + 1, end - 1), (x) => isPunct(x, ','))
           const idx = callee.startsWith('array.') ? parts[1] : parts[0]
           if (idx && isPunct(idx[0], '-') && idx[1] && idx[1].kind === 'number') {
-            return { what: `the negative index in \`${callee}\``, why: 'v5 stops with a runtime error and v6 counts from the end (Negative indices in arrays)', tok: idx[0] }
+            return hit(null, { what: `the negative index in \`${callee}\``, why: 'v5 stops with a runtime error and v6 counts from the end (Negative indices in arrays)', tok: idx[0] })
           }
         }
       }
@@ -349,17 +444,19 @@ export function crossVersionDifference(kept, indents) {
         const pv = prev.kind === 'ident' ? String(prev.value) : ''
         const field = prev.kind === 'ident' && (prev.member || (pv.includes('.') && !BUILTIN_HEADS.has(pv.split('.')[0])))
         if (lit || field) {
-          return { what: `\`${pv || prev.value}[…]\``, why: 'v6 no longer reads the history of a literal or of a field directly (History-referencing operator)', tok: t }
+          return hit(null, { what: `\`${pv || prev.value}[…]\``, why: 'v6 no longer reads the history of a literal or of a field directly (History-referencing operator)', tok: t })
         }
         if (prev.kind === 'ident' && boolNames.has(pv)) {
-          return { what: `the history of the bool \`${pv}\``, why: 'on the first bars it is na in v5 and false in v6 (Boolean values cannot be na)', tok: t }
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `the history of the bool \`${pv}\``, why: 'on the first bars it is na in v5 and false in v6 (Boolean values cannot be na)', tok: t })
+          if (r) return r
         }
       }
       // na() / nz() / fixnan() of anything not shown to be a number
       if ((v === 'na' || v === 'nz' || v === 'fixnan') && !t.member && isPunct(next, '(')) {
         const arg = splitTop(toks.slice(i + 2, closeOf(toks, i + 1) - 1), (x) => isPunct(x, ','))[0] || []
         if (!evidentlyNumber(arg, numNames)) {
-          return { what: `\`${v}()\` of a value not shown to be a number`, why: 'v5 reads an na bool there and v6 refuses a bool (Boolean values cannot be na)', tok: t }
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `\`${v}()\` of a value not shown to be a number`, why: 'v5 reads an na bool there and v6 refuses a bool (Boolean values cannot be na)', tok: t })
+          if (r) return r
         }
       }
       // const int / const int
@@ -391,7 +488,7 @@ export function crossVersionDifference(kept, indents) {
         const right = isPunct(toks[b], '(') ? toks.slice(i + 1, closeOf(toks, b)) : toks.slice(i + 1, b + 1)
         const leftOk = isPunct(t, '/=') ? possiblyConstInt(toks.slice(i - 1, i)) : possiblyConstInt(left)
         if (leftOk && possiblyConstInt(right) && !(right.length === 1 && right[0].kind === 'ident' && isPunct(toks[i + 2], '('))) {
-          return { what: 'a division of two values that may be `const int`', why: 'v5 truncates it and v6 keeps the fraction (Fractional division of constants)', tok: t }
+          return hit(null, { what: 'a division of two values that may be `const int`', why: 'v5 truncates it and v6 keeps the fraction (Fractional division of constants)', tok: t })
         }
       }
     }
@@ -414,9 +511,44 @@ export function crossVersionDifference(kept, indents) {
           for (let j = 0; j < right.length; j += 1) {
             const x = right[j]
             if (x.kind === 'ident' && isPunct(right[j + 1], '(') && !isPureCall(String(x.value), !!x.member)) {
-              return { what: `\`${t.value}\` with a call on its right (\`${x.value}\`)`, why: 'v5 evaluates both sides on every bar and v6 skips the right side when the left decides (Lazy evaluation of conditions)', tok: t }
+              const r = hit(ISLAND_FAMILY.LAZY_AND_OR, { what: `\`${t.value}\` with a call on its right (\`${x.value}\`)`, why: 'v5 evaluates both sides on every bar and v6 skips the right side when the left decides (Lazy evaluation of conditions)', tok: t })
+              if (r) return r
             }
           }
+        }
+      }
+      // ⭐ (libchain, 2026-11-20) `==` / `!=` with a bool operand: a v5 bool can be `na`, and `na == false` is `na`
+      // at v5, while v6 holds no `na` bool and the comparison answers true or false. ⚰️ Phase B's check did not hold
+      // it: a v5 library's `up == false` (`up = x > ta.sma(x, 5)`) drew 1 on the warm-up bars inside a v6 script
+      // where the same library in a v5 script is refused by name (`pine:bool-na-unwitnessed`). An operand runs to the
+      // nearest delimiter of lower precedence (`,` `=` `:=` `=>` `?` `:` `and` `or` another `==` / `!=`, a bracket).
+      for (let i = 0; i < lt.length; i += 1) {
+        if (!(isPunct(lt[i], '==') || isPunct(lt[i], '!='))) continue
+        const stops = (x) => (x.kind === 'punct' && ['==', '!=', ',', '=', ':=', '=>', '?', ':'].includes(x.value))
+          || isWord(x, 'and') || isWord(x, 'or')
+        const operand = (from, step) => {
+          const out = []
+          let d = 0
+          for (let j = from; j >= 0 && j < lt.length; j += step) {
+            const x = lt[j]
+            const opens = x.kind === 'punct' && (step > 0 ? OPENERS : CLOSERS).has(x.value)
+            const closes = x.kind === 'punct' && (step > 0 ? CLOSERS : OPENERS).has(x.value)
+            if (opens) d += 1
+            else if (closes) { if (d === 0) break; d -= 1 }
+            else if (d === 0 && stops(x)) break
+            if (step > 0) out.push(x)
+            else out.unshift(x)
+          }
+          return out
+        }
+        const boolOperand = (span) => {
+          const u = unwrap(span)
+          if (u.length === 1 && u[0].kind === 'ident' && !u[0].member && typedNotBool.has(String(u[0].value))) return false
+          return mayBeBool(span, boolNames, numNames)
+        }
+        if (boolOperand(operand(i - 1, -1)) || boolOperand(operand(i + 1, 1))) {
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `a bool compared with \`${lt[i].value}\``, why: 'na == false is na in v5, and a v6 bool is never na (Boolean values cannot be na)', tok: lt[i] })
+          if (r) return r
         }
       }
       // conditions: `if <cond>`, `<cond> ? a : b`, `not <x>`, operands of and/or
@@ -448,7 +580,8 @@ export function crossVersionDifference(kept, indents) {
       for (const c of conds) {
         for (const part of splitTop(unwrap(c), (x) => isWord(x, 'and') || isWord(x, 'or'))) {
           if (!evidentlyBool(part, boolNames)) {
-            return { what: `a condition not shown to be a bool (\`${part.map((x) => x.value).join(' ').slice(0, 60)}\`)`, why: 'v5 reads a number there as a bool and v6 refuses it (Explicit "bool" casting)', tok: part[0] }
+            const r = hit(ISLAND_FAMILY.IMPLICIT_CAST, { what: `a condition not shown to be a bool (\`${part.map((x) => x.value).join(' ').slice(0, 60)}\`)`, why: 'v5 reads a number there as a bool and v6 refuses it (Explicit "bool" casting)', tok: part[0] })
+            if (r) return r
           }
         }
       }
@@ -483,13 +616,15 @@ export function crossVersionDifference(kept, indents) {
               const sizeOf = SIZE_READS.has(s) && arg && arg.kind === 'ident' ? String(arg.value)
                 : (/\.size$/.test(s) && !/^(array|map|matrix)\./.test(s) ? s.slice(0, -5) : null)
               if (!sizeOf || resized.has(sizeOf) || reassigned.has(sizeOf)) {
-                return { what: `a \`for\` loop whose end bound calls \`${s}\``, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] }
+                const r = hit(ISLAND_FAMILY.FOR_BOUND, { what: `a \`for\` loop whose end bound calls \`${s}\``, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] })
+                if (r) return r
               }
               j = closeOf(bound, j + 1) - 1
               continue
             }
             if (reassigned.has(s.split('.')[0])) {
-              return { what: `a \`for\` loop whose end bound reads \`${s}\`, which the loop reassigns`, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] }
+              const r = hit(ISLAND_FAMILY.FOR_BOUND, { what: `a \`for\` loop whose end bound reads \`${s}\`, which the loop reassigns`, why: 'v5 evaluates the bound once and v6 before every iteration (Dynamic for loop boundaries)', tok: lt[0] })
+              if (r) return r
             }
           }
         }
@@ -499,7 +634,8 @@ export function crossVersionDifference(kept, indents) {
         const target = nameOf(lt[eqAt - 1])
         const rhs = lt.slice(eqAt + 1)
         if (target && boolNames.has(target) && rhs.some((x, j) => isWord(x, 'na') && !isPunct(rhs[j + 1], '('))) {
-          return { what: `\`na\` given to the bool \`${target}\``, why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[eqAt] }
+          const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `\`na\` given to the bool \`${target}\``, why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[eqAt] })
+          if (r) return r
         }
       }
       for (let i = 0; i < lt.length; i += 1) {
@@ -510,7 +646,8 @@ export function crossVersionDifference(kept, indents) {
           // the other arm of the ternary
           const arms = lt.filter((x) => isWord(x, 'true') || isWord(x, 'false'))
           if (arms.length) {
-            return { what: '`na` as the arm of a bool ternary', why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[i] }
+            const r = hit(ISLAND_FAMILY.BOOL_NA, { what: '`na` as the arm of a bool ternary', why: 'a bool can be na in v5 and not in v6 (Boolean values cannot be na)', tok: lt[i] })
+            if (r) return r
           }
         }
       }
@@ -542,17 +679,72 @@ export function crossVersionDifference(kept, indents) {
           || boolNames.has(String(x.value)) || BOOL_CALLS.has(String(x.value))
           || BOOL_PREFIXES.some((pre) => String(x.value).startsWith(pre)))))
       if (!closed && mayBeBool) {
-        return { what: `an \`${word}\` used as a value without ${word === 'if' ? '`else`' : 'a default arm'}`, why: 'a bool result is na in v5 and false in v6 (Boolean values cannot be na)', tok: value ? opener : lt[0] }
+        const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `an \`${word}\` used as a value without ${word === 'if' ? '`else`' : 'a default arm'}`, why: 'a bool result is na in v5 and false in v6 (Boolean values cannot be na)', tok: value ? opener : lt[0] })
+        if (r) return r
       }
     }
   }
   return null
 }
 
-/** Is this span a bool by its own shape? */
+/** The two arms of a `?:` at the top of `s` (`[yes, no]`), or null when `s` is no `?:` at its top. A nested `?:` in
+ *  an arm opens its own `:`. */
+function ternaryArms(s) {
+  const q = topIndex(s, (t) => isPunct(t, '?'))
+  if (q < 0) return null
+  let open = 0
+  let d = 0
+  for (let i = q + 1; i < s.length; i += 1) {
+    const t = s[i]
+    if (t.kind === 'punct' && OPENERS.has(t.value)) { d += 1; continue }
+    if (t.kind === 'punct' && CLOSERS.has(t.value)) { d -= 1; continue }
+    if (d !== 0) continue
+    if (isPunct(t, '?')) open += 1
+    else if (isPunct(t, ':')) {
+      if (open === 0) return [s.slice(q + 1, i), s.slice(i + 1)]
+      open -= 1
+    }
+  }
+  return null
+}
+
+/** Is this span SHOWN to be no bool: a number, a string, or a colour? */
+function shownNotBool(span, numNames) {
+  const s = unwrap(span || [])
+  if (!s.length) return false
+  if (evidentlyNumber(s, numNames || new Set())) return true
+  if (s.length === 1 && (s[0].kind === 'string' || s[0].kind === 'colour')) return true
+  if (s.length === 1 && s[0].kind === 'ident' && !s[0].member && /^color\.[a-z]+$/.test(String(s[0].value))) return true
+  if (s[0].kind === 'ident' && !s[0].member && ['color.new', 'color.rgb', 'color.from_gradient'].includes(String(s[0].value))
+    && isPunct(s[1], '(') && closeOf(s, 1) === s.length) return true
+  const arms = ternaryArms(s)
+  return !!arms && arms.every((a) => shownNotBool(a, numNames) || (unwrap(a).length === 1 && isWord(unwrap(a)[0], 'na')))
+    && arms.some((a) => shownNotBool(a, numNames))
+}
+
+/** ⭐ (libchain, 2026-11-20) May this span hold a bool? The CONSERVATIVE reading for a binding and for an operand of
+ *  `==` / `!=`, where calling it a bool holds the import: a `?:` holds what its arms hold, never its condition, so it
+ *  is a bool unless an arm is SHOWN to be no bool (`c ? 0 : na` is a number, `c ? color.red : color.blue` a colour);
+ *  an arm this cannot type keeps it a bool. ⚰️ The binding pass read `evidentlyBool`, which took the comparison in a
+ *  `?:`'s CONDITION for its value: `k = x > 1 ? 0 : na` made `k` a bool, and the import was refused as "`na` given to
+ *  the bool `k`". */
+function mayBeBool(span, boolNames, numNames) {
+  const s = unwrap(span || [])
+  const arms = ternaryArms(s)
+  if (!arms) return evidentlyBool(s, boolNames)
+  return !arms.some((a) => shownNotBool(a, numNames))
+}
+
+/** Is this span a bool by its own shape? A `?:` is one only when BOTH arms are (the reading for a condition, where
+ *  calling it a bool lets the import through). */
 function evidentlyBool(span, boolNames) {
   const s = unwrap(span || [])
   if (!s.length) return false
+  // ⭐ (libchain, 2026-11-20) a `?:` holds its arms, not its condition: `x > 1 ? x : 0` is no bool, read as a
+  // condition it is a number cast to a bool (v5) that v6 refuses. ⚰️ The scan below found the comparison in the
+  // condition and answered "a bool".
+  const arms = ternaryArms(s)
+  if (arms) return arms.every((a) => evidentlyBool(a, boolNames))
   let d = 0
   for (let i = 0; i < s.length; i += 1) {
     const t = s[i]

@@ -3,7 +3,7 @@
 // ─── THE TEST GRANT ON THE RUNTIME GATE, AND THE WAY A SUITE TAKES IT BACK ────────────────
 //
 // `src/test-setup.js` runs every test as a PERMITTED member with EVERY script graded and the
-// host-known-divergence list ignored (`grantRuntimeGate`, in a root `beforeEach`), so the suites
+// host-known-divergence list and the held withholds ignored (`grantRuntimeGate`, in a root `beforeEach`), so the suites
 // that exercise the runtime LANE keep measuring the lane rather than its doors.
 //
 // ⛔⛔ THE FINDING THIS FILE EXISTS FOR (test-grant census, 2026-11-19). A suite that narrowed
@@ -35,6 +35,9 @@ import {
   __ignoreHostKnownDivergenceForTests, __resetHostKnownDivergence, __setHostKnownDivergenceForTests,
   hostKnownDivergenceActive,
 } from '../components/chart/engine/hostKnownDivergence'
+import {
+  __ignoreHeldWithholdsForTests, __resetHeldWithholds, __setHeldWithholdsForTests, heldWithholdsState,
+} from '../components/chart/engine/heldWithholds'
 
 /** The calls that take a door back from the test grant (or set admission, which the grant
  *  makes moot). ONE list: the static rail reads it, and `asMember` uses only names on it. */
@@ -43,6 +46,8 @@ export const GATE_NARROWINGS = Object.freeze([
   '__resetRuntimePanePermission', 'latchRuntimePanePermission',
   '__resetHostKnownDivergence', '__setHostKnownDivergenceForTests',
   '__resetRuntimeAdmission', 'setRuntimeCapabilityAdmission', 'latchRuntimeAdmission',
+  // ⭐ the held withholds (`engine/heldWithholds.js`), a declared door of the grant since the e89 follow-up
+  '__resetHeldWithholds', '__setHeldWithholdsForTests',
 ])
 
 /** The test grant (`src/test-setup.js`, every test). */
@@ -50,15 +55,16 @@ export function grantRuntimeGate() {
   __permitRuntimePaneForTests()
   __allowEveryRuntimeScriptForTests()
   __ignoreHostKnownDivergenceForTests()
+  __ignoreHeldWithholdsForTests()
 }
 
-/** The four doors as they stand, one comparable string: the allowlist (`*` under the grant),
- *  the pane permission latch, whether the host-known-divergence list is consulted, and whether
- *  capability admission is latched on. */
+/** The five doors as they stand, one comparable string: the allowlist (`*` under the grant),
+ *  the pane permission latch, whether the host-known-divergence list is consulted, whether
+ *  capability admission is latched on, and the held withholds' state (`ignored` under the grant). */
 export function gateState() {
   return JSON.stringify([
     runtimeAllowList().join(','), runtimePanePermissionDebug().permitted,
-    hostKnownDivergenceActive(), runtimeCapabilityAdmissionOn(),
+    hostKnownDivergenceActive(), runtimeCapabilityAdmissionOn(), heldWithholdsState(),
   ])
 }
 
@@ -78,6 +84,15 @@ export function gateNarrowedOutsideTest({ granted, after, now }) {
     + 'the member\'s doors under the grant. Narrow in beforeEach instead: asMember({...}) from src/testing/runtimeGate.js.'
 }
 
+/** ⛔ ONLY FOR A FILE THAT MEASURES WHILE IT IS COLLECTED (the vendor corpus harness grades every capture in its
+ *  describe body, then its tests assert the STORED run, never the live gate). Takes back the doors it names at
+ *  once, so the measurement that follows in the same collection sees the member's doors; the root hooks re-grant
+ *  before the first test, which is harmless only because no test reads the gate. Anywhere else, use `asMember`.
+ *    hkd  true: the host lane's known-divergence list APPLIED (the app's state). */
+export function memberDoorsAtCollection({ hkd = true } = {}) {
+  if (hkd === true) __resetHostKnownDivergence()
+}
+
 /** ⭐ Run every test in this scope behind the MEMBER'S doors. Call it at module or describe scope
  *  (it registers a `beforeEach`, which runs after the root re-grant). Each option names a door the
  *  test grant opens and this takes back:
@@ -88,15 +103,19 @@ export function gateNarrowedOutsideTest({ granted, after, now }) {
  *               document (`{scripts: [...]}`): that list applied instead.
  *    admission  true: capability admission latched ON with no verdicts, as the server switches it on;
  *               an object `{ [sha256]: {admitted, historyOnly?} }`: those verdicts latched as well.
+ *    held       true: the committed held withholds APPLIED (the app's state), or a withholds document
+ *               (`{scripts: [...]}`): that one applied instead.
  *  Defaults are the member's doors the test grant hides most often: `{allow: true, hkd: true}`
  *  (a permitted member, admission off). Pass `false` to leave a door granted. */
-export function asMember({ allow = true, pane = false, hkd = true, admission = false } = {}) {
+export function asMember({ allow = true, pane = false, hkd = true, admission = false, held = false } = {}) {
   beforeEach(() => {
     if (allow === true) __resetRuntimeAllowList()
     else if (Array.isArray(allow)) setRuntimeAllowList(allow)
     if (pane === true) __resetRuntimePanePermission()
     if (hkd === true) __resetHostKnownDivergence()
     else if (hkd && typeof hkd === 'object') __setHostKnownDivergenceForTests(hkd)
+    if (held === true) __resetHeldWithholds()
+    else if (held && typeof held === 'object') __setHeldWithholdsForTests(held)
     if (admission) {
       __resetRuntimeAdmission()
       setRuntimeCapabilityAdmission(true)

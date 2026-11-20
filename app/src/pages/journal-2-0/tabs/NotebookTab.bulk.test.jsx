@@ -91,6 +91,11 @@ import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import { MQ } from '../../../styles/breakpoints'
 import { chooseView } from './__tests__/toolbarDoors'
+import { preloadLazyChunks, NOTEBOOK_TAB_CHUNKS } from '../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTEBOOK_TAB_CHUNKS)
 
 /** Turn the offline wave on with a store holding unsent work for `queued`;
  *  a note in `unreadable` fails its own read (R1-S1: it cannot be checked). */
@@ -482,6 +487,10 @@ describe('NotebookTab — selecting notes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
     fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true })
     expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' }))
+    // ⛔ THE TAG WRITE ENDS IN THIS TEST (2026-11-20): it settles its revision (`recordLandedRevision`) when the
+    // batch answers. Left in flight, that settle landed inside the NEXT async test, after its beforeEach had
+    // cleared the mocks, and "move: ... every advanced revision LANDED" read a third, leaked row on a slow runner.
+    expect(await screen.findByText('Tagged 1 note #swing.')).toBeInTheDocument()
   })
 
   it('the shortcut does nothing without a selection (nothing to jump to)', () => {

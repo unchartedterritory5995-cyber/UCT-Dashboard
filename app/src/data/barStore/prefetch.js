@@ -426,6 +426,18 @@ export function createPrefetch(o = {}) {
     return rows?.length ? rows : null
   }
 
+  /** SYNCHRONOUS: does the store hold any bars for (sym, tf)? `peekBars(...)?.length` without building the
+   *  whole legacy array (a new object + date string per bar: ~11 ms on a deep daily set, on every daily
+   *  switch, just to read its length; production CPU profile 2026-11-19). An unseen key is hydrated, its
+   *  mem half in this same call, exactly as peekBars does. */
+  function holdsBars(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    if (!key) return false
+    if (!S().peek(key)) _hydrate(key)
+    const s = S().peek(key)
+    return !!s && (s.bars.length > 0 || !!s.developing)
+  }
+
   function _own(key) { preparing.set(key, (preparing.get(key) || 0) + 1) }
   function _release(key) { const n = (preparing.get(key) || 1) - 1; if (n > 0) preparing.set(key, n); else preparing.delete(key) }
 
@@ -676,9 +688,12 @@ export function createPrefetch(o = {}) {
     const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
     if (urgent) {
       // Only the LATEST urgent call stays urgent: rows the member already passed are aborted
-      // (a waiting lane request never reaches the network).
+      // (a waiting lane request never reaches the network). ⛔ PER TIMEFRAME (2026-11-19): a list
+      // linked to a daily AND an hourly chart warms both on every press; aborting every other key
+      // made the second call cancel the first timeframe's next rows.
       const keep = new Set(syms.slice(0, nUrgent).map((x) => keyFor(x, tf)))
-      for (const [k, c] of urgentCtl) if (!keep.has(k)) { c.abort(); urgentCtl.delete(k) }
+      const callTf = parseKey([...keep][0] || '')?.tf
+      for (const [k, c] of urgentCtl) if (!keep.has(k) && parseKey(k)?.tf === callTf) { c.abort(); urgentCtl.delete(k) }
       for (const sym of syms.slice(0, nUrgent)) {
         const k = keyFor(sym, tf)
         if (!k) continue
@@ -1071,7 +1086,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1090,6 +1105,7 @@ export const ensure = (key, opts) => _f().ensure(key, opts)
 export const prefetch = (keys, opts) => _f().prefetch(keys, opts)
 export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayable(sym, tf, opts) }
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
+export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }

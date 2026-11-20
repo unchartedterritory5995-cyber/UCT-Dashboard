@@ -119,6 +119,10 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // now drawn while the arm runs every bar; runtime-on MATCH). `momentum-based-zigzag-rddt-1d-2026-11-14`
 // left the report: the runtime lane reaches it too, its runtime-on grade is DIVERGE, so it is on the
 // committed kill list and no longer admitted (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md).
+// ⭐ TF-FOLD (request unit PR 1, engine 89) re-pinned the two cppivot-boss-floor-pivots rows (and its
+// `admittedGraded` row), lane `null` -> `runtime`, runtime-on MATCH (27 / 27 on RDDT and SPY 1D): the runtime lane
+// now reads its six-hop request timeframe (docs/pine/evidence/2026-11-19-request-unit/EVIDENCE.md); the
+// population block re-derived (`capability_admission.py::populations_of`).
 // ⭐ DRAW-1 (engine 66, feat/pine-coverage-drawings): the reach run is RE-DERIVED on the engine-65 train
 // tree (input, CAPADMIT_MODE=admission, report), so it carries HIST's rows above as the tool answers them.
 // ⭐ ROUTE BY COST (Engine 73 (#1711), feat/route-by-cost) re-pinned 14 rows, lane `host` -> `runtime`: the
@@ -163,18 +167,14 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // (named); MATCH -> DIVERGE: none (docs/pine/evidence/2026-11-18-admit-obj-linefill/EVIDENCE.md section 7).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
-  // ⛔⛔ WHAT THIS MEASURES, EXACTLY (test-grant census, 2026-11-19): the member door with the allowlist
-  // EMPTY and capability admission ON (each script's verdict latched admitted below), but with the host
-  // lane's KNOWN-DIVERGENCE LIST IGNORED (`hkd: false`), because that is how the committed reach run was
-  // derived. It is therefore NOT the member's door for an HKD-listed script: with the list applied, 28
-  // rows recorded `host` take the RUNTIME lane and 3 are refused by name (`pine:known-divergence`), and
-  // 2 of the 28 (vw-int-cast-spy-1d-2026-09-27, vw-nvi-pvi-spy-1d-truncated-2026-09-27) DIVERGE on that
-  // lane. Until the runtime-on record and the reach run grade HKD-listed scripts on the lane the member
-  // gets (follow-up (a) of the GATE-BLIND finding, `src/testing/runtimeGate.js`), this rail holds the
-  // report to the door as the report measured it, and says so.
-  // ⚰️ It narrowed these doors in a beforeAll until 2026-11-19, so every case ran under the test grant
-  // (every script graded): the admission verdicts it latched were never consulted.
-  asMember({ allow: true, hkd: false, admission: true })
+  // ⭐⭐ THE MEMBER'S DOOR, EXACTLY (GATE-BLIND follow-up (a), 2026-11-19): the allowlist EMPTY, capability admission
+  // ON (each script's verdict latched admitted below) and the host lane's KNOWN-DIVERGENCE LIST APPLIED, as the
+  // committed reach run is now derived (`capabilityAdmission.measure.test.js` under asMember). With the list applied,
+  // 25 rows that read `host` take the runtime lane and 3 are refused by name (`pine:known-divergence`); the runtime-on
+  // record grades those on the lane the member gets (`vendorHarness.corpus.test.js`, `memberDoorsAtCollection`).
+  // ⚰️ Until 2026-11-19 it narrowed these doors in a beforeAll, so every case ran under the test grant (every script
+  // graded, the list ignored): the admission verdicts it latched were never consulted, and 31 rows answered `host`.
+  asMember({ allow: true, hkd: true, admission: true })
 
   it('records captures, some drawn by the run (a rail over nothing passes)', () => {
     expect(report.captures.length).toBeGreaterThanOrEqual(100)

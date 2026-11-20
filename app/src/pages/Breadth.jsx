@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useMemo, useEffect, useLayoutEffect, useCallback, useRef, Suspense } from 'react'
 import { lazyDeferrable } from '../utils/lazyWithRetry'
 import { useSearchParams } from 'react-router-dom'
 import useSWR, { useSWRConfig } from 'swr'
@@ -11,17 +11,29 @@ import MarketBreadth from '../components/tiles/MarketBreadth'
 import { SkeletonTileContent } from '../components/Skeleton'
 import { useAuth } from '../context/AuthContext'
 import { formatETFull } from '../utils/timeAgo'
+// The chart's own UCT Signature floating menu (`signature`): the Monitor's header
+// menu and its ⋯ menu wear exactly its panel and rows.
+import ContextPopover from '../components/mobile/ContextPopover'
 import useBreadthCustomize from './breadth/useBreadthCustomize'
 import { useLiveBreadth } from '../hooks/useLiveBreadth'
 import { drillTarget } from './breadth/liveDrill'
+import { shadeFor, SHADE_SPEC } from './breadth/shading'
+import { defaultsFor } from './breadth/defaultColumns'
+import { columnInfo, columnTitle } from './breadth/columnInfo'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
-import ScreenshotPopover from '../components/chart/ScreenshotPopover'
-import { downloadBreadthSnapshot, copyBreadthSnapshot, copyBreadthShareUrl } from './breadth/breadthShare'
+import {
+  MONITOR_UNIVERSES, DEFAULT_UNIVERSE, parseUniverse, universeLabel,
+  universeColumnNote, universeCellOverride, NOT_AVAILABLE_NOTE, columnTagFor,
+} from './breadth/monitorUniverses'
+import { mergeParams } from './calendar/useEarningsModalRoute'
+// ⋯ → Snapshot… (the /charts camera's Signature popover; its capture code is lazy) and Copy share link.
+import BreadthSnapshotPopover, { ShareLinkNote } from './breadth/BreadthSnapshotPopover'
+import { copyBreadthShareUrl } from './breadth/breadthShareLink'
 import DailyOverview from './breadth/DailyOverview'
-import CustomizePanel from './breadth/CustomizePanel'
+import ColumnsMenu from './breadth/ColumnsMenu'
 import customizeStyles from './breadth/CustomizePanel.module.css'
 import {
   pctColor, pairedUpColor, pairedDnColor, getMaStackTier,
@@ -32,9 +44,9 @@ import BreadthViews from './breadth/BreadthViews'
 import UnmountReporter from './breadth/UnmountReporter'
 import useBreadthUrlState from './breadth/useBreadthUrlState'
 import useBreadthHubSection, { resolveBreadthTabs } from '../hub/sections/breadthSection'
-import FreshnessBadge from '../components/provenance/FreshnessBadge'
 import { naaimAge } from './breadth/naaimAge'
-import { aaiiAge, dailyCarryAge } from './breadth/sentimentAge'
+import FreshnessBadge from '../components/provenance/FreshnessBadge'
+import { aaiiAge, dailyCarryAge, storedSessionFresh } from './breadth/sentimentAge'
 
 // The metric registry moved to breadth/heatmapMetrics.js (2026-07-22) so the
 // /charts Breadth widget can use it without bundling this whole page. Re-export
@@ -44,7 +56,6 @@ export {
   TIER_SCORES, TIER_LABELS, TIER_TIP_COLORS, TIER_CELL_COLORS,
   HM_METRICS, HM_METRICS_BY_KEY, FFILL_KEYS, PCTILE_KEYS, TREEMAP_DEF,
 }
-import UIcon from '../components/ui/UIcon'
 import SurfaceHeader from './SurfaceHeader'
 import { useInTerminalPanel, PanelState } from '../components/terminal'
 import jsonFetcher from '../utils/jsonFetcher'
@@ -68,9 +79,11 @@ export function breadthErrorText(error, what = 'Breadth data') {
   return `${what} could not be read right now. That is a gap in what we could read, not a market reading.`
 }
 
-function exportCsv(rows, cols) {
+function exportCsv(rows, cols, universe = DEFAULT_UNIVERSE) {
   const headers = ['date', ...cols.map(c => c.key)]
   const lines = [
+    // The universe the sheet was on, so a saved file says what population it measured.
+    `# Universe: ${universeLabel(universe)}`,
     headers.join(','),
     ...rows.map(row =>
       headers.map(h => {
@@ -85,7 +98,7 @@ function exportCsv(rows, cols) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `breadth-monitor-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `breadth-monitor-${universe}-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -141,9 +154,29 @@ export const VIEWS_DAY_CHOICES = [90, 180, 365]
 // (date box) drives WHERE the fixed window ends instead of how wide it is. This
 // is the fixed span it always shows (was the 90d default the pills topped out at).
 export const MONITOR_WINDOW = 90
-// Fixed Monitor row height in px — must match `.table td` height in Breadth.module.css.
+// Fixed Monitor row height in px — must match `.table` --br-row-h in Breadth.module.css.
 // A fixed height keeps virtual scroll-to-index pixel-exact across the whole timeline.
 export const MONITOR_ROW_H = 32
+// Wide screens (owner 2026-11-19): the sheet is ~10% larger at this width and up —
+// the SAME query as the `@media (min-width: 1700px)` block in Breadth.module.css.
+export const MONITOR_WIDE_QUERY = '(min-width: 1700px)'
+export const MONITOR_ROW_H_WIDE = 35
+
+/** The active Monitor row height: follows the wide-screen breakpoint live, so the
+ *  virtualizer's fixed size always equals the CSS row height. */
+function useMonitorRowH() {
+  const read = () => (typeof window !== 'undefined' && window.matchMedia?.(MONITOR_WIDE_QUERY).matches
+    ? MONITOR_ROW_H_WIDE : MONITOR_ROW_H)
+  const [h, setH] = useState(read)
+  useEffect(() => {
+    const mq = typeof window !== 'undefined' ? window.matchMedia?.(MONITOR_WIDE_QUERY) : null
+    if (!mq) return undefined
+    const on = () => setH(mq.matches ? MONITOR_ROW_H_WIDE : MONITOR_ROW_H)
+    mq.addEventListener?.('change', on)
+    return () => mq.removeEventListener?.('change', on)
+  }, [])
+  return h
+}
 
 export const COLS = [
   // ── Score ─────────────────────────────────────────────────────────────────
@@ -243,6 +276,13 @@ export const COLS = [
   { key: 'stage4_count', label: 'Stage 4 (MA Stack)', group: G.REGIME,
     rowColorFn: row => pairedDnColor(row.stage2_count, row.stage4_count),
     drillKey: 'stage4_list' },
+  // Round 13 (owner 2026-11-19): metrics already in every stored row, now columns.
+  // Distribution days: the Morning Wire's count (api/services/breadth_eod_extras.py).
+  { key: 'spy_dist_days', label: 'Dist Days', group: G.REGIME, fmt: fmtInt },
+  { key: 'qqq_dist_days', label: 'QQQ Dist Days', group: G.REGIME, fmt: fmtInt },
+  { key: 'rsp_spy_ratio', label: 'RSP/SPY', group: G.REGIME, fmt: v => fmtDec(v, 4) },
+  { key: 'iwm_qqq_ratio', label: 'IWM/QQQ', group: G.REGIME, fmt: v => fmtDec(v, 4) },
+  { key: 'vix_term_structure', label: 'VIX Term', group: G.REGIME, fmt: v => fmtDec(v, 2) },
 
   // ── Highs / Lows ──────────────────────────────────────────────────────────
   { key: 'new_52w_highs', label: '52W Hi', group: G.HIGHS,
@@ -272,6 +312,18 @@ export const COLS = [
   { key: 'atr_ext_7', label: '>7×ATR', group: G.HIGHS,
     colorFn: v => v == null ? '' : v > 50 ? 'g3' : v > 30 ? 'g2' : v > 15 ? 'g1' : '',
     drillKey: 'atr_ext_7_list' },
+  { key: 'net_new_high_low', label: 'Net NH-NL', group: G.HIGHS, fmt: fmtSigned },
+  { key: 'near_52w_high', label: 'Near 52W Hi', group: G.HIGHS },
+  { key: 'hi_ratio', label: '52W Hi %', group: G.HIGHS, fmt: v => fmtDec(v, 2) },
+  { key: 'lo_ratio', label: '52W Lo %', group: G.HIGHS, fmt: v => fmtDec(v, 2) },
+
+  // ── Volume / A-D (round 13) ───────────────────────────────────────────────
+  { key: 'adv_decline', label: 'A/D', group: G.VOLUME, fmt: fmtSigned },
+  { key: 'advancing', label: 'Advancing', group: G.VOLUME },
+  { key: 'declining', label: 'Declining', group: G.VOLUME },
+  { key: 'adv_decline_cum', label: 'A/D Line', group: G.VOLUME, fmt: fmtSigned },
+  // Up volume ÷ down volume (a ratio, not a percent): breadth_live.compute_metrics.
+  { key: 'up_vol_ratio', label: 'Up Vol', group: G.VOLUME, fmt: v => fmtDec(v, 2) },
 
   // ── Sentiment ─────────────────────────────────────────────────────────────
   { key: 'cnn_fear_greed', label: 'CNN F/G', group: G.SENTIMENT, fmt: v => fmtDec(v, 0),
@@ -333,6 +385,13 @@ function fmtBool(v) {
   if (v === null || v === undefined) return '—'
   return v === 1 ? '✓' : '✗'
 }
+// Signed counts (A/D, Net NH-NL, the A/D line): "+1,234" / "−663", thousands grouped.
+function fmtSigned(v) {
+  if (v === null || v === undefined) return '—'
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return `${n > 0 ? '+' : n < 0 ? '−' : ''}${formatNumber(Math.abs(n))}`
+}
 export function fmtInt(v) {
   if (v === null || v === undefined) return '—'
   return formatNumber(Number(v))
@@ -345,22 +404,136 @@ function fmtCell(col, val) {
   return String(val)
 }
 
-function cellClass(col, val, row = null) {
-  let c = ''
-  if (col.rowColorFn && row) {
-    c = col.rowColorFn(row)
-  } else if (col.colorFn && val != null) {
-    c = col.colorFn(val)
-  }
-  if (c === 'g3') return styles.bgG3
-  if (c === 'g2') return styles.bgG2
-  if (c === 'g1') return styles.bgG1
-  if (c === 'a')  return styles.bgA
-  if (c === 'r1') return styles.bgR1
-  if (c === 'r2') return styles.bgR2
-  if (c === 'r3') return styles.bgR3
-  return ''
+// Round 5 (owner 2026-11-19): a cell is shaded by how RARE its reading is across
+// all breadth history (frozen cutoffs, breadth/shading.js) at three levels, colored
+// bullish / bearish. The tier ladders above (colorFn / rowColorFn) still drive the
+// Daily tab and the Views; the Monitor reads `shadeFor` only.
+// A carried (older-than-its-cadence) value's note, for the tooltip and the
+// accessible name: "Weekly survey · as of 2026-03-04" / "Daily print · undated".
+function carriedNote(age) {
+  const kind = `${age.cadence ? age.cadence[0].toUpperCase() + age.cadence.slice(1) : 'Earlier'} ${age.dataClass === 'weekly' ? 'survey' : 'print'}`
+  return age.asOfDate ? `${kind} · as of ${age.asOfDate}` : `${kind} · undated`
 }
+
+// ── Stable column widths (owner 2026-11-19) ──────────────────────────────────
+// The Monitor's rows are virtualized, so an auto-layout table re-measured as rows
+// mounted and a column jumped wide when an unusually long value scrolled in. Each
+// header (always mounted) now carries a min-width from the widest value its FORMAT
+// can print, in `ch` (tabular digits are ≤ 1ch; commas/dots narrower), plus the
+// cell padding — so no row can ever be wider than its header, and the widths do not
+// depend on which rows are on screen.
+const VALUE_CH = {
+  sp500_close: 8, qqq_close: 7,           // 0,000.00 · 000.00
+  breadth_score: 3, uct_exposure: 3, cnn_fear_greed: 3,
+  ratio_5day: 5, ratio_10day: 5, vix: 5, naaim: 7, cboe_putcall: 5,   // 00.00
+  mcclellan_osc: 7,                        // -000.0
+  aaii_bulls: 5, aaii_neutral: 5, aaii_bears: 5, aaii_spread: 6,
+  is_ftd: 3,
+  // round 13
+  net_new_high_low: 6, adv_decline: 6,     // +0,000
+  adv_decline_cum: 8,                      // +000,000
+  up_vol_ratio: 5,                         // 00.00
+  spy_dist_days: 2, qqq_dist_days: 2,
+  rsp_spy_ratio: 6, iwm_qqq_ratio: 6,      // 0.0000
+  vix_term_structure: 4,                   // 0.00
+  hi_ratio: 5, lo_ratio: 5,                // 00.00
+}
+function valueCh(col) {
+  if (VALUE_CH[col.key] != null) return VALUE_CH[col.key]
+  if (col.fmt === fmtPct) return 5          // 100.0
+  // Counts: a count of stocks can never exceed the universe (~2,700 names), so the
+  // widest is four digits and a comma, "0,000" — 5ch, not a 6ch "00,000".
+  return 5
+}
+
+// ── Equal widths per visual group (owner 2026-11-19, round 11) ───────────────
+// Columns in one family share ONE width: the widest thing any VISIBLE member needs
+// (its widest value format or its header label), plus its padding. One map, keyed by
+// metric key, covers the default view and every family a member can turn on from
+// Columns. A column with no group keeps its own width (FTD, McClellan; the
+// SPY/QQQ dot columns are fixed at the same width already).
+const WIDTH_GROUP = {
+  breadth_score: 'core', uct_exposure: 'core', up_4pct_today: 'core', down_4pct_today: 'core',
+  ratio_5day: 'ratio', ratio_10day: 'ratio',
+  up_25pct_quarter: 'moveQ', down_25pct_quarter: 'moveQ', magna_up: 'moveQ', magna_down: 'moveQ',
+  up_20pct_5d: 'moveQ', down_20pct_5d: 'moveQ',   // round 14: with the 25%/13% counts
+  up_25pct_month: 'moveMo', down_25pct_month: 'moveMo', up_50pct_month: 'moveMo', down_50pct_month: 'moveMo',
+  pct_above_5sma: 'sma', pct_above_10sma: 'sma', pct_above_20sma: 'sma', pct_above_40sma: 'sma',
+  pct_above_50sma: 'sma', pct_above_100sma: 'sma', pct_above_150sma: 'sma', pct_above_200sma: 'sma',
+  vix: 'vol', cnn_fear_greed: 'vol',
+  sp500_close: 'close', qqq_close: 'close',
+  stage2_count: 'stage', stage4_count: 'stage',
+  new_52w_highs: 'hilo', new_52w_lows: 'hilo', new_20d_highs: 'hilo', new_20d_lows: 'hilo',
+  new_ath: 'lead', hvc_52w: 'lead', atr_ext_7: 'lead',
+  aaii_bulls: 'aaii', aaii_neutral: 'aaii', aaii_bears: 'aaii', aaii_spread: 'aaii',
+  naaim: 'survey', cboe_putcall: 'survey',
+  // round 13
+  net_new_high_low: 'net', adv_decline: 'net',
+  up_vol_ratio: 'volDist', spy_dist_days: 'volDist', qqq_dist_days: 'volDist',
+  advancing: 'advdec', declining: 'advdec',
+  rsp_spy_ratio: 'idxRatio', iwm_qqq_ratio: 'idxRatio',
+  near_52w_high: 'hilo',
+  hi_ratio: 'hiloPct', lo_ratio: 'hiloPct',
+  // round 14: Universe sits last in the default; a group of its own drops the family-
+  // start padding it would otherwise carry there (8px that made 2048 overflow by ~1px).
+  universe_count: 'universe',
+  // ⛔ (2026-11-19, universe switcher) EVERY column is in a group, so every natural width comes
+  // from the header + a FIXED value format, never from what happens to be on screen. An
+  // ungrouped column's natural width was read back as "current width − extra"; when its
+  // content held it wider than that (the SPY/QQQ dots before the rows rendered, on a first
+  // open of a universe with nothing cached), the natural sum came up short and the sheet
+  // overflowed 2048 by ~6px. Single-member groups behave exactly like solo columns otherwise.
+  spy_ma_stack: 'maDots', qqq_ma_stack: 'maDots',
+  is_ftd: 'ftd', mcclellan_osc: 'mcclellan', vix_term_structure: 'vixTerm', adv_decline_cum: 'adLine',
+}
+/** The SPY / QQQ dot cluster: 4 × 7px dots + 3 × 5px gaps (Breadth.module.css .maDots). */
+const MA_DOTS_PX = 43
+export const widthGroupOf = (key) => WIDTH_GROUP[key] ?? null
+
+// A header's width: its group's measured need (or, ungrouped, its own natural width),
+// plus the even share of the window's leftover width (round 13). Before the first
+// measurement, the format-based minimum.
+function colWidthStyle(col, isMa, { need, solo, extra }) {
+  const g = widthGroupOf(col.key)
+  const base = g ? need[g] : solo[col.key]
+  if (base) { const w = base + extra; return { minWidth: w, width: w } }
+  return isMa ? undefined : { minWidth: colMinWidth(col) }
+}
+// 32px = the cell padding (incl. a family start). The live "≈" sits in the padding.
+// `ch` here is the HEADER font's; × --br-fs-ratio makes it the cell font's, and the
+// padding follows --br-cell-px, so the widths scale with the wide-screen size too.
+const colMinWidth = (col) => `calc(${valueCh(col)}ch * var(--br-fs-ratio, 1.087) + 2 * var(--br-cell-px, 12px) + 8px)`
+
+function cellClass(col, val, row = null, universe = DEFAULT_UNIVERSE) {
+  const s = shadeFor(col.key, row, { universe })
+  return s ? styles[`sh${s.tone === 'bull' ? 'Up' : 'Dn'}${s.level}`] : ''
+}
+
+// A column's name in plain words + what it measures (breadth/columnInfo.js): the
+// top of the header's click menu, and its screen-reader description.
+function ColumnInfoBlock({ colKey, universe = DEFAULT_UNIVERSE }) {
+  const info = columnInfo(colKey)
+  if (!info) return null
+  // Off UCT: what this column is on THIS universe (market-wide, ratio-adjusted, not available).
+  const note = universeColumnNote(colKey, universe)
+  // In the chart menu's panel (ContextPopover `signature`), the description header is a
+  // real title + readable body (owner round 10): its own classes, so the chart menu's
+  // grey section labels (`groupLabel`) are untouched.
+  return (
+    <div className={styles.colInfo}>
+      <div className={styles.colInfoName}>{info.name}</div>
+      <div className={styles.colInfoDesc}>{info.desc}</div>
+      {info.weekly && <div className={styles.colInfoDesc}>A weekly survey: it updates once a week.</div>}
+      {note && <div className={`${styles.colInfoDesc} ${styles.colInfoNote}`} data-testid="col-universe-note">{note}</div>}
+    </div>
+  )
+}
+
+// SPY / QQQ MA columns: the header shows just the symbol; the title says what the
+// four dots are (owner 2026-11-17).
+const maStackSym = (col) => col.label.split(' ')[0]
+const maStackTitle = (col) => `${maStackSym(col)} above its ${col.maLabels.slice(0, -1).join(', ')} and ${col.maLabels[col.maLabels.length - 1]}-day averages`
+
 
 // ── The drill modal ───────────────────────────────────────────────────────
 // Clicking a breadth cell opens the REAL charts-workspace widgets — a watchlist
@@ -375,11 +548,32 @@ function cellClass(col, val, row = null) {
 const loadDrillModal = () => import('./breadth/drill/BreadthDrillModal')
 const BreadthDrillModal = lazyDeferrable(loadDrillModal)
 function preloadDrillModal() { loadDrillModal().catch(() => {}) }
+// The READING-ONLY window: a Monitor cell with no stock list behind it (a ratio, a percent, a
+// market-wide reading, any cell off UCT) opens its History instead of a list. Its own small
+// chunk, preloaded on hover like the scan window.
+const loadReadingModal = () => import('./breadth/drill/BreadthReadingModal')
+const BreadthReadingModal = lazyDeferrable(loadReadingModal)
+function preloadReadingModal() { loadReadingModal().catch(() => {}) }
+const isFiniteNum = (v) => typeof v === 'number' && Number.isFinite(v)
+// A count column (ranked as a share of the universe) reads "stocks" in the window.
+const isCountCol = (key) => key === 'universe_count' || SHADE_SPEC.cols[key]?.per === 'universe_count'
+// A value cell (a number on the sheet), not a dot strip or a sparkline.
+const isCellReadable = (col) => !!col && !col.type
 
 // ── COLS lookup map ────────────────────────────────────────────────────────
 const COLS_BY_KEY = Object.fromEntries(COLS.map(c => [c.key, c]))
+const MONITOR_DEFAULTS = defaultsFor(COLS.map(c => c.key))
+
+// The member's column order (a preset's saved `order`, known keys only), then
+// every metric it does not name, in code order — so a new metric still appears.
+function orderedColKeys(order) {
+  const saved = Array.isArray(order) ? order.filter(k => COLS_BY_KEY[k]) : []
+  const seen = new Set(saved)
+  return [...saved, ...COLS.map(c => c.key).filter(k => !seen.has(k))]
+}
 // Every column a member can drill, in table order — the scan window's list picker.
-const DRILL_COLS = COLS.filter(c => c.drillKey).map(c => ({ key: c.key, label: c.label, drillKey: c.drillKey }))
+// The drill window names a metric in full ("Down 4%+ today", not "Dn 4%+"); the switcher lists the same.
+const DRILL_COLS = COLS.filter(c => c.drillKey).map(c => ({ key: c.key, label: columnTitle(c.key, c.label), drillKey: c.drillKey }))
 
 // TIER_SCORES / TIER_LABELS / TIER_TIP_COLORS moved to breadth/heatmapMetrics.js
 // (imported + re-exported above).
@@ -505,7 +699,7 @@ function BreadthAnalogues() {
   return (
     <div className={styles.analoguesWrap}>
       <div className={styles.analoguesHeader}>
-        <h2 className={styles.analoguesTitle}>Historical Analogues</h2>
+        <h2 className={styles.analoguesTitle}>Historical analogues</h2>
         <span className={styles.analoguesSub}>
           Matching against {refDate}
         </span>
@@ -596,7 +790,16 @@ export default function Breadth() {
   // its value on the FIRST render is ever used — the `useState` initializer
   // below runs once, so a later `?tab=` write from elsewhere cannot loop back
   // in as a forced tab change.
-  const [tabSearchParams] = useSearchParams()
+  const [tabSearchParams, setSearchParams] = useSearchParams()
+
+  // ── the Monitor's universe (UCT / U.S. stocks / Nasdaq / NYSE) ─────────────
+  // `?universe=` is the link's half (absent = UCT, so every existing link is unchanged); read
+  // once on mount like `?tab=`, written on every switch through the same merge-and-replace the
+  // Views params use (one history entry, no other key touched).
+  const [universe, setUniverseState] = useState(() => parseUniverse(tabSearchParams.get('universe')))
+  const [universeMenu, setUniverseMenu] = useState(null)
+  const universeBtn = useRef(null)
+  const isUct = universe === DEFAULT_UNIVERSE
 
   // Phones land on the readable Overview; desktop/tablet keep the Monitor.
   // ⭐ A LINK CARRYING VIEWS STATE OPENS THE VIEWS TAB — otherwise the Discord
@@ -728,26 +931,38 @@ export default function Breadth() {
    * background refresh of the SAME window, where the two never disagree.
    */
   const windowMismatch = isValidating && data != null && data.days !== effectiveDays
-  const [collapsedCols, setCollapsedCols] = useState(() => {
-    try {
-      const raw = localStorage.getItem('breadth_collapsed_cols')
-      return raw ? new Set(JSON.parse(raw)) : new Set()
-    } catch { return new Set() }
-  })
+  // ⚰️ Click-to-collapse columns retired 2026-11-17 (replaced by the header menu).
+  // A member may still hold the old `breadth_collapsed_cols` key; it is ignored
+  // and dropped here, once.
+  useEffect(() => {
+    try { localStorage.removeItem('breadth_collapsed_cols') } catch { /* private mode */ }
+  }, [])
 
-  const customize = useBreadthCustomize()
-  const [customizeOpen, setCustomizeOpen] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
-  const toggleCol = key => {
-    setCollapsedCols(prev => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      try { localStorage.setItem('breadth_collapsed_cols', JSON.stringify([...next])) } catch {}
-      return next
-    })
-  }
+  // UCT Core = the focused core set (breadth/defaultColumns.js), computed, never stored;
+  // an edit to it is an unsaved draft ("UCT Core · edited") until saved as a template.
+  const customize = useBreadthCustomize({ defaults: MONITOR_DEFAULTS })
+  const [snapshotOpen, setSnapshotOpen] = useState(false)
+  const [linkNote, setLinkNote] = useState(null)   // 'ok' | 'fail' — "Copy share link" feedback
+  const moreBtn = useRef(null)
+  // The one floating as-of tooltip over a carried (older-than-its-cadence) cell.
+  const [ageTip, setAgeTip] = useState(null)
+
+  // The one header menu (chart Signature ContextPopover): { key, index, anchor }. It is
+  // the ONLY popup a header has (owner 2026-11-19: no hover card).
+  const [colMenu, setColMenu] = useState(null)
+  const colMenuBtn = useRef(null)
+  const [moreMenu, setMoreMenu] = useState(null)
+  const openColMenu = useCallback((key, index, btn) => {
+    if (colMenu?.key === key) { setColMenu(null); return }
+    colMenuBtn.current = btn
+    const r = btn.getBoundingClientRect()
+    setColMenu({ key, index, anchor: { x: r.left - 4, y: r.bottom + 6 } })
+  }, [colMenu])
+  const closeColMenu = useCallback(() => setColMenu(null), [])
 
   const [drill, setDrill] = useState(null)
+  const drillRef = useRef(null)
+  drillRef.current = drill
   // drill = { date, label, items: [{t,pct}] | null }
 
   // Takes the ROW, not a date: only the row knows whether it is the live one,
@@ -758,10 +973,25 @@ export default function Breadth() {
   // wrong answer. A pod restart mid-request (every deploy) or one dropped
   // connection told the member the market was quiet. `error` keeps the two
   // states apart and the list offers a retry instead of a lie.
-  const loadDrill = useCallback((url, live = false) => {
-    fetchDrill(url, { live })
+  const loadDrill = useCallback((url, live = false, devCount = null) => {
+    let req = fetchDrill(url, { live })
+    // ⛔ DEV ONLY: on localhost a list that fails or comes back empty (the local production copy
+    // holds no lists) is replaced by an INVENTED sample, labelled "dev sample list", so the window
+    // can be judged. `import.meta.env.DEV` is false in a build: Vite drops this branch and never
+    // emits devSampleList.js (devSampleList.test.js checks the built bundle).
+    if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+      // A failed load keeps its error: with no sample (off a local dev host) it rejects with
+      // the ORIGINAL failure, so the list below still says it could not load, never "none".
+      const devFallback = (data, err) => import('./breadth/drill/devSampleList')
+        .then(m => (m.isLocalDevHost()
+          ? m.devSampleList({ seed: url, count: devCount, down: /\/drill\/(down|dn|declin|magna_down|new_52w_lows|new_20d_lows)/.test(url) })
+          : data), () => data)
+        .then(d => { if (d) return d; throw err ?? new Error('drill') })
+      req = req.then(data => (data?.items?.length ? data : devFallback(data)), err => devFallback(null, err))
+    }
+    req
       .then(data => setDrill(prev => (prev && prev.url === url
-        ? { ...prev, items: data.items ?? [], error: null }
+        ? { ...prev, items: data.items ?? [], error: null, devSample: !!data.devSample }
         : prev)))
       .catch(() => setDrill(prev => (prev && prev.url === url
         ? { ...prev, items: [], error: 'load' }
@@ -779,12 +1009,30 @@ export default function Breadth() {
     // A list already fetched (the hover started it, or it was open before)
     // paints on the first frame; otherwise it lands when the request does.
     const cached = peekDrill(target.url)
-    setDrill({ date: target.date, label: col.label, live: target.live,
+    setDrill({ date: target.date, label: columnTitle(col.key, col.label), live: target.live,
                colKey: col.key, drillKey: col.drillKey,
                asOf: target.live ? live?.asOf ?? null : null,
-               url: target.url, items: cached ? (cached.items ?? []) : null, error: null })
-    if (!cached) loadDrill(target.url, target.live)
+               url: target.url, items: cached ? (cached.items ?? []) : null, error: null,
+               // The reading strip: the cell's own value (ranked when today's session is not
+               // stored yet) and how the column prints a number.
+               universe: 'uct', value: isFiniteNum(row[col.key]) ? row[col.key] : null,
+               per: isFiniteNum(row.universe_count) ? row.universe_count : null,
+               valueText: fmtCell(col, row[col.key]), fmt: (v) => fmtCell(col, v), isCount: isCountCol(col.key) })
+    const devRefill = import.meta.env.DEV && cached && !cached.items?.length
+    if (!cached || devRefill) loadDrill(target.url, target.live, row[col.key])
   }, [loadDrill])
+
+  // A cell with no list (or any cell off UCT): the reading-only window. ⛔ No list fetch.
+  const openReading = useCallback((row, col, uni = 'uct') => {
+    const val = row?.[col.key]
+    if (!row?.date || !isFiniteNum(val) && !row?._synthetic) return
+    setDrill({ readingOnly: true, date: row.date, label: columnTitle(col.key, col.label), live: !!row._live,
+               colKey: col.key, drillKey: col.drillKey || null, universe: uni,
+               value: isFiniteNum(val) ? val : null,
+               per: isFiniteNum(row.universe_count) ? row.universe_count : null,
+               valueText: isFiniteNum(val) ? fmtCell(col, val) : null,
+               fmt: (v) => fmtCell(col, v), isCount: isCountCol(col.key), hasList: !!col.drillKey })
+  }, [])
 
   const retryDrill = useCallback(() => {
     setDrill(prev => {
@@ -823,7 +1071,7 @@ export default function Breadth() {
   const onCellKey = useCallback((e, row, col) => {
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
       e.preventDefault()
-      openDrill(row, col, liveBreadth)
+      openCellRef.current?.(row, col, liveBreadth)
       return
     }
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return
@@ -841,7 +1089,8 @@ export default function Breadth() {
     cell.tabIndex = -1
     next.tabIndex = 0
     next.focus()
-  }, [openDrill, liveBreadth])
+  }, [liveBreadth])
+  const openCellRef = useRef(null)
 
   // Views/Overview read the latest window, today's live row on top.
   const rows = useMemo(
@@ -857,6 +1106,7 @@ export default function Breadth() {
   // click opens onto rows rather than "Loading…".
   const prefetchCell = useCallback((row, col) => {
     preloadDrillModal()
+    preloadReadingModal()
     const t = drillTarget(row, col, liveBreadth)
     if (t) prefetchDrill(t.url, { live: t.live })
   }, [liveBreadth])
@@ -884,25 +1134,53 @@ export default function Breadth() {
     }
   }, [drillUrl, drillColKey, drillDateNow, drillIsLive, rows, liveBreadth])
 
+  // ⭐ A date outside the page's window (a similar past day from the History drawer) resolves
+  // through the Monitor grid's rows, else a bare `{ date }`: a settled drill needs only the
+  // date. The Monitor table scrolls to the same day, so the sheet and the window agree.
+  const gridNavRef = useRef(null)
   const navigateDrill = useCallback(({ colKey, date, live }) => {
     const col = COLS_BY_KEY[colKey]
-    if (!col?.drillKey) return
-    const row = live ? rows.find(r => r?._live) : rows.find(r => !r?._live && r?.date === date)
-    if (row) openDrill(row, col, liveBreadth)
-  }, [rows, openDrill, liveBreadth])
+    if (!col) return
+    const nav = gridNavRef.current
+    let row = live ? rows.find(r => r?._live) : rows.find(r => !r?._live && r?.date === date)
+    if (!row && !live && date) {
+      const i = nav?.grid?.indexOfDate?.(date)
+      row = (Number.isInteger(i) && i >= 0 ? nav.grid.getRow(i) : null) || { date, _synthetic: true }
+    }
+    if (!row) return
+    if (!live && date && nav?.active) {
+      const i = nav.grid.indexOfDate?.(date)
+      if (Number.isInteger(i) && i >= 0) nav.monitorScrollTo(i)
+    }
+    // The reading-only window stays reading-only; the scan window stays the scan window.
+    const cur = drillRef.current
+    const uni = cur?.universe || 'uct'
+    if (cur?.readingOnly || uni !== 'uct' || !col.drillKey) openReading(row, col, uni)
+    else openDrill(row, col, liveBreadth)
+  }, [rows, openDrill, openReading, liveBreadth])
 
   // ── Monitor grid: virtualized over the FULL timeline index, rows loaded on
   //    demand in blocks (see useMonitorGrid). A teleport to any year is an instant
   //    scroll-to-index; only the visible rows fetch, so scrolling stays light. ──
-  const grid = useMonitorGrid({ enabled: activeTab === 'breadth', liveRow: liveBreadth.row })
+  const grid = useMonitorGrid({ enabled: activeTab === 'breadth', liveRow: liveBreadth.row, universe })
+  // ⛔ Drill lists are UCT's (the collector's ticker lists): off UCT no cell is drillable yet.
+  const gridDrill = useCallback((row, col, live) => (isUct ? drillTarget(row, col, live) : null), [isUct])
+  // ⭐ EVERY Monitor value cell opens a window (owner 2026-11-19): its stock list when it has one
+  // on this universe, else the reading-only window with its History.
+  const openCell = useCallback((row, col, live) => {
+    if (gridDrill(row, col, live)) openDrill(row, col, live)
+    else openReading(row, col, universe)
+  }, [gridDrill, openDrill, openReading, universe])
   const tableWrapRef = useRef(null)
+  const rowH = useMonitorRowH()
   const rowVirtualizer = useVirtualizer({
     count: grid.count,
     getScrollElement: () => tableWrapRef.current,
-    // FIXED row height (enforced in CSS: .table td is 32px border-box). No dynamic
-    // measurement — a fixed size makes scrollToIndex pixel-exact across all ~4,700
-    // rows, so a jump to any year lands on the right session with zero drift.
-    estimateSize: () => MONITOR_ROW_H,
+    // FIXED row height (enforced in CSS: .table --br-row-h, 32px or 35px on wide
+    // screens; `rowH` follows the same breakpoint). No dynamic measurement — a fixed
+    // size makes scrollToIndex pixel-exact across all ~4,700 rows, so a jump to any
+    // year lands on the right session with zero drift.
+    estimateSize: () => rowH,
     overscan: 14,
   })
   const virtualItems = rowVirtualizer.getVirtualItems()
@@ -910,9 +1188,21 @@ export default function Breadth() {
   // NOT virtualItems[0], which is the first OVERSCAN row rendered above the
   // viewport and would put the date box ~14 rows off.
   const monitorTopIndex = grid.count
-    ? Math.min(grid.count - 1, Math.max(0, Math.round((rowVirtualizer.scrollOffset ?? 0) / MONITOR_ROW_H)))
+    ? Math.min(grid.count - 1, Math.max(0, Math.round((rowVirtualizer.scrollOffset ?? 0) / rowH)))
     : 0
   const monitorTopDate = grid.allDates[monitorTopIndex] ?? null
+  // Crossing the breakpoint changes every row's size: re-measure, and keep the same
+  // session at the top (the index read at the OLD height, before this render's change).
+  const topIndexRef = useRef(0)
+  const lastRowH = useRef(rowH)
+  useEffect(() => {
+    if (lastRowH.current === rowH) { topIndexRef.current = monitorTopIndex; return }
+    lastRowH.current = rowH
+    rowVirtualizer.measure()
+    // Fixed rows: the session's offset is exactly index × height.
+    const el = tableWrapRef.current
+    if (el) el.scrollTop = topIndexRef.current * rowH
+  })
 
   // Keep the visible (and just-off-screen) rows loaded as the user scrolls.
   const visFirst = virtualItems[0]?.index ?? 0
@@ -930,6 +1220,21 @@ export default function Breadth() {
   // they arrive on screen). Works for any date/year, loaded or not.
   const onDatePick = useCallback((iso) => monitorScrollTo(grid.indexOfDate(iso)),
     [grid, monitorScrollTo])
+  // The drill window's navigation reads these (it is defined above the grid).
+  gridNavRef.current = { grid, monitorScrollTo, active: activeTab === 'breadth' }
+  openCellRef.current = openCell
+  const closeDrill = () => setDrill(null)
+  const drillWindow = drill ? (
+    <Suspense fallback={null}>
+      {drill.readingOnly ? (
+        <BreadthReadingModal drill={drill} onClose={closeDrill} rows={rows}
+          onNavigate={navigateDrill} universe={drill.universe || 'uct'} />
+      ) : (
+        <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={closeDrill}
+          rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} universe={drill.universe || 'uct'} />
+      )}
+    </Suspense>
+  ) : null
   const onYearPick = useCallback((y) => monitorScrollTo(grid.indexOfYearStart(y)),
     [grid, monitorScrollTo])
   const onDateStep = useCallback((dir) => {
@@ -939,6 +1244,38 @@ export default function Breadth() {
 
   // Jump straight back to the present day (index 0 = the latest/top row).
   const onJumpToday = useCallback(() => monitorScrollTo(0), [monitorScrollTo])
+
+  // ── Universe switch. Instant: the new universe's index + recent rows are in localStorage
+  // (or in memory, once viewed), its rows are pre-built server-side, and the sheet keeps the
+  // session it was framing (on the latest one it simply stays at the top). ──
+  const pendingTopRef = useRef(null)
+  const setUniverse = useCallback((u) => {
+    setUniverseMenu(null)
+    if (u === universe) return
+    pendingTopRef.current = monitorTopIndex > 0 ? monitorTopDate : null
+    setUniverseState(u)
+    try {
+      setSearchParams(prev => mergeParams(prev, { universe: u === DEFAULT_UNIVERSE ? null : u }), { replace: true })
+    } catch { /* the sheet still switches; only the link misses it */ }
+  }, [universe, monitorTopIndex, monitorTopDate, setSearchParams])
+  useEffect(() => {
+    const d = pendingTopRef.current
+    if (!d || !grid.count || grid.universe !== universe) return
+    pendingTopRef.current = null
+    const id = requestAnimationFrame(() => monitorScrollTo(grid.indexOfDate(d)))
+    return () => cancelAnimationFrame(id)
+  }, [universe, grid.count, grid, monitorScrollTo])
+  // The Columns menu's per-row tag on this universe: "Market-wide" / "n/a for Nasdaq" (UCT: none).
+  const columnTag = useCallback((key) => columnTagFor(key, universe), [universe])
+  // Off UCT the CSV is the sheet's own rows (the newest MONITOR_WINDOW sessions loaded).
+  const gridCsvRows = () => {
+    const out = []
+    for (let i = 0; i < Math.min(grid.count, MONITOR_WINDOW + 1); i++) {
+      const r = grid.getRow(i)
+      if (r) out.push(r)
+    }
+    return out
+  }
 
   // A shared snapshot link (`/breadth?d=YYYY-MM-DD`) teleports to that day once
   // the timeline index is ready. Fires exactly once; a bad/missing param no-ops.
@@ -968,22 +1305,66 @@ export default function Breadth() {
     ? formatETFull(storedRows[0]._created_at + 'Z')
     : null
 
-  // ── Share: a branded UCT snapshot of the on-screen sheet. The capture target
-  //    is the scroll container (tableWrapRef), so it's exactly what's visible. ──
-  const shareSubtitle = lastUpdated ? `updated ${lastUpdated}` : ''
-  const onShareDownload = () => downloadBreadthSnapshot(tableWrapRef.current, shareSubtitle)
-  const onShareCopy = () => copyBreadthSnapshot(tableWrapRef.current, shareSubtitle)
-  const onShareUrl = () => copyBreadthShareUrl(monitorTopDate)
+  // The top bar's status button (owner round 3). Fresh = the stored session is
+  // inside the end-of-day age threshold (TERM-006's authority, the same one every
+  // FreshnessBadge reads), or a live intraday reading is on screen.
+  const lastStamp = storedRows[0]?._created_at ? storedRows[0]._created_at + 'Z' : null
+  const statusFresh = !!liveBreadth?.data
+    || storedSessionFresh(lastStamp)
+  // The clock part of `lastUpdated` ("Aug 24, 2026, 7:24 PM EDT" → "7:24 PM").
+  // ⛔ Not formatETTime: no main-bundle code uses it, so importing it here would
+  // keep it (and its export) in the entry chunk — +280 B on the notebook budget.
+  const statusTime = lastUpdated ? (/,\s*([^,]+?)\s+[A-Z]{2,5}$/.exec(lastUpdated)?.[1] ?? '') : ''
+  const statusCount = isViewsTab
+    ? (rows.length > 0
+        ? (windowMismatch ? 'Updating…' : `${rows.length} trading days shown`)
+        : isLoading ? 'Loading…' : 'No data')
+    : (grid.count > 0
+        ? `${formatNumber(grid.count)} sessions shown`
+        : grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…')
+  const statusLabel = `${statusCount}${lastUpdated ? ` · updated ${lastUpdated}` : ''} · click to refresh`
+  const statusText = (isViewsTab ? windowMismatch : false)
+    ? 'Updating…'
+    : statusTime ? `Updated ${statusTime}`
+      : (isViewsTab ? (isLoading ? 'Loading…' : 'No data') : (grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…'))
+
+  // ── ⋯ menu: Snapshot… captures the sheet (tableWrapRef: headers + the rows in view, full
+  //    width); Copy share link copies this URL + the top row's session. ──
+  const getSheet = useCallback(() => tableWrapRef.current, [])
+  const onCopyShareLink = () => {
+    copyBreadthShareUrl(monitorTopDate).then((ok) => setLinkNote(ok ? 'ok' : 'fail'))
+  }
 
   const liveClock = liveBreadth.clock ?? 'LIVE'
   const liveTitle = liveBreadth.row
     ? `Provisional — computed ${liveClock} ET across ${liveBreadth.measured ?? '—'} names. `
       + `The 4:15 PM collector writes the day's authoritative row.`
     : undefined
+  // The member's full column order: the preset's saved order (known keys only),
+  // then any metric it does not name, in code order.
+  const orderedKeys = useMemo(() => orderedColKeys(customize.order), [customize.order])
   const visibleCols = useMemo(
-    () => COLS.filter(col => !customize.hidden.has(col.key)),
-    [customize.hidden],
+    () => orderedKeys.map(k => COLS_BY_KEY[k]).filter(col => !customize.hidden.has(col.key)),
+    [orderedKeys, customize.hidden],
   )
+
+  // ── Column header menu (Move left / Move right / Hide column) ──
+  // Same state the Columns menu edits, applied at once: on the built-in UCT Core it becomes
+  // the unsaved "edited" state (Columns offers Save as new / Revert), never a prompt.
+  const applyColChange = useCallback((change) => {
+    if (change.order) customize.setOrder(change.order)
+    if (change.hidden) customize.setHiddenSet([...customize.hidden, ...change.hidden])
+  }, [customize])
+  const moveCol = useCallback((key, dir) => {
+    const i = visibleCols.findIndex(c => c.key === key)
+    const other = visibleCols[i + dir]?.key
+    if (i < 0 || !other) return
+    const next = [...orderedKeys]
+    const a = next.indexOf(key), b = next.indexOf(other)
+    next[a] = other; next[b] = key
+    applyColChange({ order: next })
+  }, [visibleCols, orderedKeys, applyColChange])
+  const hideCol = useCallback((key) => applyColChange({ hidden: [key] }), [applyColChange])
   // First visible column of each metric family after the first — a hairline
   // rule keeps the families scannable now that the colored group-header row
   // is gone.
@@ -994,6 +1375,82 @@ export default function Breadth() {
     })
     return keys
   }, [visibleCols])
+
+  // Equal widths per group (round 11). Measured from the HEADER row only (always
+  // mounted), so the result never depends on which rows are on screen: each visible
+  // column's need = max(its label, its widest value format) + its
+  // own padding; each group takes its widest member's need. Re-measured when the
+  // visible columns, the sheet size (breakpoint) or the web font change.
+  const headRowRef = useRef(null)
+  const chProbeRef = useRef(null)
+  // { need: {group: px}, solo: {key: px}, extra: px } — see the effect below.
+  const [colSizing, setColSizing] = useState({ need: {}, solo: {}, extra: 0 })
+  const extraRef = useRef(0)
+  // Round 13: re-measure when the sheet's width changes (window resize, sidebar push).
+  const [wrapW, setWrapW] = useState(0)
+  useEffect(() => {
+    const el = tableWrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver(() => setWrapW(Math.round(el.clientWidth)))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [activeTab, grid.count > 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  const [fontsReady, setFontsReady] = useState(0)
+  useEffect(() => {
+    let live = true
+    document.fonts?.ready?.then(() => { if (live) setFontsReady(n => n + 1) })
+    return () => { live = false }
+  }, [])
+  const visibleKeySig = visibleCols.map(c => c.key).join(',')
+  useLayoutEffect(() => {
+    const row = headRowRef.current
+    const probe = chProbeRef.current
+    if (!row || !probe) return
+    const ch = probe.getBoundingClientRect().width / 10   // 1ch of the CELL font
+    if (!ch) return
+    const need = {}
+    for (const th of row.querySelectorAll('th[data-width-group]')) {
+      const key = th.getAttribute('data-col-key')
+      const btn = th.querySelector('button')
+      const cs = getComputedStyle(th)
+      const pad = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+      let label = 0
+      if (btn) {
+        const r = document.createRange()
+        r.selectNodeContents(btn)
+        label = r.getBoundingClientRect().width
+      }
+      // The live "≈" sits in the cell's right padding (round 12), so no extra 1ch.
+      const value = COLS_BY_KEY[key]?.type === 'ma_stack' ? MA_DOTS_PX : valueCh(COLS_BY_KEY[key]) * ch
+      const g = th.getAttribute('data-width-group')
+      need[g] = Math.max(need[g] ?? 0, Math.ceil(Math.max(label, value) + pad))
+    }
+    // ── Flush right edge (round 13) ──
+    // The leftover window width is spread EVENLY over the real columns (not Date):
+    // every column — so every group — grows by the same amount, capped at 12px each;
+    // past the cap the trailing filler takes the rest. A table wider than the window
+    // gets nothing and scrolls. Natural widths come from the header row only, so
+    // scrolling never changes them; an ungrouped column's natural width is its
+    // current width less the extra already applied.
+    const solo = {}
+    let natural = 0
+    let n = 0
+    let dateW = 0
+    for (const th of row.querySelectorAll('th')) {
+      const key = th.getAttribute('data-col-key')
+      const w = th.getBoundingClientRect().width
+      if (!key) { if (!th.className.includes('fillCol')) dateW += w; continue }
+      n += 1
+      const g = th.getAttribute('data-width-group')
+      if (g) natural += need[g]
+      else { solo[key] = Math.round((w - extraRef.current) * 10) / 10; natural += solo[key] }
+    }
+    const avail = tableWrapRef.current?.clientWidth ?? 0
+    const extra = n ? Math.max(0, Math.min(12, (avail - dateW - natural) / n)) : 0
+    const next = { need, solo, extra: Math.floor(extra * 100) / 100 }
+    extraRef.current = next.extra
+    setColSizing(prev => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next))
+  }, [visibleKeySig, rowH, fontsReady, grid.count > 0, activeTab, wrapW]) // eslint-disable-line react-hooks/exhaustive-deps -- re-measure on these only
 
   const errorBanner = error ? (
     <div className={styles.errorBanner} role="alert">
@@ -1018,7 +1475,7 @@ export default function Breadth() {
   // ⭐ W2-C1: what UCT Agent may read of this page (read only: tab, window, newest session, rows, columns).
   // Called BEFORE the tab branches below — a hook after an early return changes the hook count when the
   // member switches tab (React: "Rendered fewer hooks than expected"; breadth/breadthTabHookOrder.test.jsx).
-  useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading })
+  useBreadthAgentHost({ tab: activeTab, days: effectiveDays, topDate: monitorTopDate, rowCount: rows.length, columns: visibleCols.map(c => c.label || c.key || String(c)), live: !!liveBreadth?.data, loading: isLoading, universe: universeLabel(universe) })
 
   if (activeTab === 'overview') {
     // 2026-10-07 completeness audit: this branch returned before the error banner, so a failed
@@ -1028,7 +1485,7 @@ export default function Breadth() {
     const noRows = !rows.length
     return (
       <div className={pageCls}>
-        <SurfaceHeader icon="breadth" title="Breadth">
+        <SurfaceHeader title="Breadth" className={styles.sigHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <div className={styles.overviewBody}>
@@ -1041,12 +1498,7 @@ export default function Breadth() {
             )}
           <MarketBreadth />
         </div>
-        {drill && (
-          <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)}
-              rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} />
-          </Suspense>
-        )}
+        {drillWindow}
       </div>
     )
   }
@@ -1054,7 +1506,7 @@ export default function Breadth() {
   if (activeTab === 'cot') {
     return (
       <div className={`${pageCls} ${styles.pageCot}`}>
-        <SurfaceHeader icon="breadth" title="Breadth" className={styles.cotTabHeader}>
+        <SurfaceHeader title="Breadth" className={`${styles.cotTabHeader} ${styles.sigHeader}`}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <CotData />
@@ -1065,7 +1517,7 @@ export default function Breadth() {
   if (activeTab === 'charts') {
     return (
       <div className={pageCls}>
-        <SurfaceHeader icon="breadth" title="Breadth">
+        <SurfaceHeader title="Breadth" className={styles.sigHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <BreadthCharts />
@@ -1076,7 +1528,7 @@ export default function Breadth() {
   if (activeTab === 'analogues' && isAdmin) {
     return (
       <div className={pageCls}>
-        <SurfaceHeader icon="breadth" title="Breadth">
+        <SurfaceHeader title="Breadth" className={styles.sigHeader}>
           <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
         </SurfaceHeader>
         <BreadthAnalogues />
@@ -1085,132 +1537,177 @@ export default function Breadth() {
   }
 
   return (
-    <div className={pageCls}>
+    <div className={isViewsTab ? `${pageCls} ${styles.pageFlushBottom}` : pageCls}>
+      {/* ⭐ THE TOP BAR (owner round 3, 2026-11-17): the view tabs alone on the left;
+          everything actionable grouped on the right — status · date · Columns · ⋯.
+          Views keeps its window pills in the date's place; the other tabs carry
+          the tabs only. */}
       <SurfaceHeader
-        icon="breadth"
         title="Breadth"
-        right={activeTab !== 'heatmap' ? (
+        className={styles.sigHeader}
+        right={(
           <>
             <AgentDockButton className={styles.hdrBtn} />
-            {/* Share (branded snapshot) · CSV · Customize — Customize pinned to
-                the far right of the bar, next to the help "?". */}
-            {activeTab === 'breadth' && (
-              <div className={customizeStyles.anchor}>
-                <button
-                  className={styles.hdrBtn}
-                  onClick={() => setShareOpen(o => !o)}
-                  title="Share a UCT Intelligence snapshot of the breadth sheet"
-                >
-                  <UIcon name="camera" size={13} /> Share
-                </button>
-                {shareOpen && (
-                  <ScreenshotPopover
-                    title="Share Breadth"
-                    onDownload={onShareDownload}
-                    onCopy={onShareCopy}
-                    onShare={onShareUrl}
-                    onClose={() => setShareOpen(false)}
-                  />
-                )}
-              </div>
-            )}
+            {/* One status button replaces the "N sessions · updated …" line and the
+                refresh icon: the dot is the theme's up colour while the stored
+                session is fresh (the TERM-006 age authority), grey once stale;
+                clicking it refreshes. */}
             <button
-              className={styles.exportBtn}
-              onClick={() => exportCsv(rows, visibleCols)}
-              title="Download as CSV"
+              type="button"
+              className={styles.status}
+              data-testid="breadth-status"
+              onClick={onManualRefresh}
+              aria-busy={refreshing || undefined}
+              aria-label={statusLabel}
+              title={statusLabel}
             >
-              ↓ CSV
+              <span
+                className={`${styles.statusDot} ${statusFresh ? styles.statusFresh : ''} ${refreshing ? styles.statusPulse : ''}`}
+                aria-hidden="true"
+              />
+              {refreshing ? 'Refreshing…' : statusText}
             </button>
-            {activeTab === 'breadth' && (
-              <div className={customizeStyles.anchor}>
-                <button
-                  className={`${customizeStyles.triggerBtn} ${customizeOpen ? customizeStyles.triggerBtnActive : ''}`}
-                  onClick={() => setCustomizeOpen(o => !o)}
-                  data-guide="breadth.customize"
-                  title="Customize which metrics show in the sheet"
-                >
-                  <span className={customizeStyles.triggerIcon}><UIcon name="gear" size={14} /></span>
-                  Customize
-                </button>
-                {customizeOpen && (
-                  <CustomizePanel
-                    cols={COLS}
-                    activePreset={customize.activePreset}
-                    hidden={customize.hidden}
-                    presetNames={customize.presetNames}
-                    isDefaultActive={customize.isDefaultActive}
-                    onToggleHidden={customize.toggleHidden}
-                    onSavePreset={customize.savePreset}
-                    onRenamePreset={customize.renamePreset}
-                    onDeletePreset={customize.deletePreset}
-                    onSwitchPreset={customize.switchPreset}
-                    onResetActive={customize.resetActive}
-                    onClose={() => setCustomizeOpen(false)}
-                  />
-                )}
+            {isViewsTab ? (
+              // Views keeps its window pills (a lens is defined by how many sessions
+              // it spans). The Monitor sheet instead scrolls freely across all time.
+              <div className={styles.daysPills}>
+                {VIEWS_DAY_CHOICES.map(d => (
+                  <button
+                    key={d}
+                    className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
+                    onClick={() => setViewsDays(d)}
+                  >
+                    {d}d
+                  </button>
+                ))}
               </div>
+            ) : (
+              <>
+                <BreadthDateNav
+                  topDate={monitorTopDate}
+                  minDate={grid.min}
+                  maxDate={grid.max}
+                  canForward={monitorTopIndex > 0}
+                  onStep={onDateStep}
+                  onPickDate={onDatePick}
+                  onPickYear={onYearPick}
+                />
+                {/* Only when an earlier session is framed: on the latest one there is
+                    nothing to go back to. */}
+                {monitorTopIndex > 0 && (
+                  <button
+                    type="button"
+                    className={`${styles.hdrBtn} ${styles.todayBtn}`}
+                    onClick={onJumpToday}
+                    title="Jump back to the latest session (top of the sheet)"
+                  >
+                    Back to latest
+                  </button>
+                )}
+                {/* The universe the per-universe columns measure (UCT Signature menu: the
+                    chosen one wears the gold ✓). Before Columns, owner 2026-11-19. */}
+                <div className={customizeStyles.anchor}>
+                  <button
+                    type="button"
+                    ref={universeBtn}
+                    className={`${styles.hdrBtn} ${universeMenu ? styles.hdrBtnOpen : ''}`}
+                    data-testid="breadth-universe"
+                    aria-haspopup="menu"
+                    aria-expanded={!!universeMenu}
+                    aria-label={`Universe: ${universeLabel(universe)}`}
+                    title="Which stocks the breadth columns measure"
+                    onClick={(e) => {
+                      if (universeMenu) { setUniverseMenu(null); return }
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setUniverseMenu({ x: r.left, y: r.bottom + 6 })
+                    }}
+                  >
+                    {universeLabel(universe)}
+                    <span className={styles.hdrChevron} aria-hidden="true">
+                      <svg width="9" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </span>
+                  </button>
+                  <ContextPopover
+                    open={!!universeMenu}
+                    anchor={universeMenu}
+                    onClose={() => setUniverseMenu(null)}
+                    returnFocusTo={universeBtn}
+                    width={250}
+                    signature
+                    items={[
+                      { groupLabel: 'Universe' },
+                      ...MONITOR_UNIVERSES.map(u => ({
+                        key: u.id, label: u.label, aside: u.sub, hint: u.hint,
+                        checked: u.id === universe, onClick: () => setUniverse(u.id),
+                      })),
+                    ]}
+                  />
+                </div>
+                <div className={customizeStyles.anchor}>
+                  <ColumnsMenu
+                    cols={COLS}
+                    customize={customize}
+                    buttonClassName={`${styles.hdrBtn} ${styles.hdrBtnPrimary}`}
+                    openClassName={styles.hdrBtnOpen}
+                    chevronClassName={styles.hdrChevron}
+                    columnTag={columnTag}
+                  />
+                </div>
+                {/* ⋯ — the chart's Signature menu (ContextPopover `signature`):
+                    Snapshot…, Copy share link and Export CSV. */}
+                <div className={customizeStyles.anchor}>
+                  <button
+                    type="button"
+                    className={`${styles.hdrBtn} ${styles.moreBtn}`}
+                    ref={moreBtn}
+                    aria-label="More"
+                    aria-haspopup="menu"
+                    aria-expanded={!!moreMenu}
+                    data-testid="breadth-more-menu"
+                    onClick={(e) => {
+                      if (moreMenu) { setMoreMenu(null); return }
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setMoreMenu({ x: r.right - 180, y: r.bottom + 6 })
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true">
+                      <circle cx="3.5" cy="8" r="1.4" fill="currentColor" /><circle cx="8" cy="8" r="1.4" fill="currentColor" /><circle cx="12.5" cy="8" r="1.4" fill="currentColor" />
+                    </svg>
+                  </button>
+                  <ContextPopover
+                    open={!!moreMenu}
+                    anchor={moreMenu}
+                    onClose={() => setMoreMenu(null)}
+                    returnFocusTo={moreBtn}
+                    width={180}
+                    signature
+                    items={[
+                      // The snapshot is of the Monitor sheet: only offered where the sheet is drawn.
+                      ...(activeTab === 'breadth' && grid.count > 0 && visibleCols.length > 0
+                        ? [{ key: 'snapshot', label: 'Snapshot…', onClick: () => { setLinkNote(null); setSnapshotOpen(true) } }]
+                        : []),
+                      { key: 'link', label: 'Copy share link', onClick: () => { setSnapshotOpen(false); onCopyShareLink() } },
+                      { key: 'csv', label: 'Export CSV', onClick: () => exportCsv(isUct ? rows : gridCsvRows(), visibleCols, universe) },
+                    ]}
+                  />
+                  {snapshotOpen && (
+                    <BreadthSnapshotPopover
+                      getSheet={getSheet}
+                      universe={universe}
+                      universeLabel={universeLabel(universe)}
+                      topDate={monitorTopDate}
+                      returnFocusTo={moreBtn}
+                      onClose={() => setSnapshotOpen(false)}
+                    />
+                  )}
+                  {linkNote && <ShareLinkNote ok={linkNote === 'ok'} onDone={() => setLinkNote(null)} />}
+                </div>
+              </>
             )}
           </>
-        ) : null}
+        )}
       >
         <BreadthTabs active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
-        {isViewsTab ? (
-          // Views keeps its window pills (a lens is defined by how many sessions
-          // it spans). The Monitor sheet instead scrolls freely across all time.
-          <div className={styles.daysPills}>
-            {VIEWS_DAY_CHOICES.map(d => (
-              <button
-                key={d}
-                className={`${styles.daysPill} ${effectiveDays === d ? styles.daysPillActive : ''}`}
-                onClick={() => setViewsDays(d)}
-              >
-                {d}d
-              </button>
-            ))}
-          </div>
-        ) : (
-          // Monitor: the calendar comes right after the tabs, with a "Today"
-          // jump-to-present button beside it; the "updated" meta follows to its right.
-          <>
-            <BreadthDateNav
-              topDate={monitorTopDate}
-              minDate={grid.min}
-              maxDate={grid.max}
-              canForward={monitorTopIndex > 0}
-              onStep={onDateStep}
-              onPickDate={onDatePick}
-              onPickYear={onYearPick}
-            />
-            <button
-              className={styles.hdrBtn}
-              onClick={onJumpToday}
-              title="Jump to the present day (top of the sheet)"
-            >
-              Today
-            </button>
-          </>
-        )}
-        <span className={styles.meta}>
-          {isViewsTab
-            ? (rows.length > 0
-                ? (windowMismatch
-                    ? `Updating…${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                    : `${rows.length} trading days${lastUpdated ? ` · updated ${lastUpdated}` : ''}`)
-                : isLoading ? 'Loading…' : 'No data')
-            : (grid.count > 0
-                ? `${formatNumber(grid.count)} sessions${lastUpdated ? ` · updated ${lastUpdated}` : ''}`
-                : grid.ready ? 'No data' : grid.datesFailed ? 'Could not load' : 'Loading…')}
-        </span>
-        {activeTab === 'breadth' && (
-          <button
-            className={`${styles.hdrBtn} ${styles.refreshBtn} ${refreshing ? styles.spinning : ''}`}
-            onClick={onManualRefresh}
-            title="Refresh breadth data now"
-            aria-label="Refresh breadth data"
-          >
-            <UIcon name="refresh" size={13} />
-          </button>
-        )}
       </SurfaceHeader>
 
       {errorBanner}
@@ -1235,7 +1732,7 @@ export default function Breadth() {
 
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length === 0 && (
         <div className={styles.empty}>
-          All metrics hidden — open <strong>Customize</strong> to show some.
+          All metrics are hidden. Open <strong>Columns</strong> to show some.
         </div>
       )}
 
@@ -1244,7 +1741,7 @@ export default function Breadth() {
           and it disappears the moment the 4:15 collector makes it one. It only
           belongs above the LATEST window; teleported back in time, "today" has
           no business sitting over a historical sheet. */}
-      {activeTab === 'breadth' && <LiveSessionStrip live={liveBreadth} />}
+      {activeTab === 'breadth' && isUct && <LiveSessionStrip live={liveBreadth} />}
 
       {/* Completeness audit 2026-10-07: the Monitor grid swallowed a failed timeline read and
           failed row blocks -- "Loading…" forever, rows that never filled. Said, with a Retry;
@@ -1260,33 +1757,67 @@ export default function Breadth() {
       )}
 
       {grid.count > 0 && activeTab === 'breadth' && visibleCols.length > 0 && (
-        <div className={styles.tableWrap} ref={tableWrapRef} data-guide="breadth.table">
+        <div className={styles.tableWrap} ref={tableWrapRef} data-guide="breadth.table"
+             onScroll={ageTip ? () => setAgeTip(null) : undefined}>
           <table className={styles.table} aria-label="Breadth monitor">
             <thead>
               {/* Single column-label row — the colored group-header strip was
                   retired 2026-08-26; families are separated by a hairline rule
                   on each group's first column instead. */}
-              <tr>
-                <th scope="col" className={`${styles.th} ${styles.dateCol}`}>Date</th>
-                {visibleCols.map(col => {
-                  const isColCollapsed = collapsedCols.has(col.key)
+              <tr ref={headRowRef}>
+                <th scope="col" className={`${styles.th} ${styles.dateCol}`} style={{ minWidth: 72 }}>Date
+                  {/* 10ch of the CELL font, measured for the equal-width groups. */}
+                  <span ref={chProbeRef} className={styles.chProbe} aria-hidden="true" />
+                </th>
+                {visibleCols.map((col, ci) => {
+                  const isMa = col.type === 'ma_stack'
+                  const label = isMa
+                    // Just the symbol: the dots' order (10 → 200) is spelled out
+                    // in the header's title.
+                    ? maStackSym(col)
+                    : col.subLabels
+                      ? <>{col.label}<span className={styles.colSubLabel}>{col.subLabels}</span></>
+                      : col.label
                   return (
                     <th
                       scope="col"
                       key={col.key}
-                      title={isColCollapsed ? `Click to expand ${col.label}` : `Click to collapse ${col.label}`}
-                      className={`${styles.th} ${styles.colLabel} ${styles.colLabelClickable} ${isColCollapsed ? styles.colLabelCollapsed : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}
-                      onClick={() => toggleCol(col.key)}
+                      // No native title and no hover card: the column's meaning is the
+                      // header of its click menu (and the hidden description below).
+                      className={`${styles.th} ${styles.colLabel} ${groupStartKeys.has(col.key) && !widthGroupOf(col.key) ? styles.groupStart : ''} ${isMa ? styles.thMa : ''}`}
+                      data-col-key={col.key}
+                      data-width-group={widthGroupOf(col.key) ?? undefined}
+                      style={colWidthStyle(col, isMa, colSizing)}
                     >
-                      {isColCollapsed
-                        ? <span className={styles.colCollapsedLabel}>{col.label}</span>
-                        : col.subLabels
-                          ? <><div>{col.label}</div><div className={styles.colSubLabel}>{col.subLabels}</div></>
-                          : col.label
-                      }
+                      {/* The header opens the chart's Signature menu (one ContextPopover
+                          for the sheet, below): Enter/Space opens it, Esc closes it and
+                          focus returns here. */}
+                      <button
+                        type="button"
+                        className={styles.thBtn}
+                        data-testid={`col-menu-${col.key}`}
+                        aria-label={isMa ? `${maStackTitle(col)} — column options` : `${col.label} column options`}
+                        aria-haspopup="menu"
+                        aria-expanded={colMenu?.key === col.key}
+                        aria-describedby={columnInfo(col.key) ? `breadth-col-info-${col.key}` : undefined}
+                        onClick={(e) => openColMenu(col.key, ci, e.currentTarget)}
+                      >
+                        {label}
+                      </button>
+                      {/* The explanation for screen readers (the visible one is the
+                          menu's header): visually hidden, never a native title. */}
+                      {columnInfo(col.key) && (
+                        <span id={`breadth-col-info-${col.key}`} className={styles.srOnly}>
+                          {`${columnInfo(col.key).name}. ${columnInfo(col.key).desc}`}
+                        </span>
+                      )}
                     </th>
                   )
                 })}
+                {/* Filler: takes the width the table gains from filling the window, so every
+                    real column keeps its natural width (owner 2026-11-19: Date had slack).
+                    A <td>, not a <th>: an empty header cell names nothing (terminalA11yStatic). */}
+                <td className={styles.fillCol} aria-hidden="true" />
               </tr>
             </thead>
             <tbody>
@@ -1295,7 +1826,7 @@ export default function Breadth() {
                   rows hold the scroll height above and below the rendered window. */}
               {virtualItems.length > 0 && (
                 <tr aria-hidden="true" data-snapshot-skip="">
-                  <td colSpan={visibleCols.length + 1} style={{ height: virtualItems[0].start, padding: 0, border: 0 }} />
+                  <td colSpan={visibleCols.length + 2} style={{ height: virtualItems[0].start, padding: 0, border: 0 }} />
                 </tr>
               )}
               {virtualItems.map((vi) => {
@@ -1310,10 +1841,11 @@ export default function Breadth() {
                         className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${styles.skeletonRow}`}>
                       <td className={`${styles.td} ${styles.dateCell}`}>{skelDate}</td>
                       {visibleCols.map(col => (
-                        <td key={col.key} className={`${styles.td} ${collapsedCols.has(col.key) ? styles.colCollapsedCell : ''} ${groupStartKeys.has(col.key) ? styles.groupStart : ''}`}>
-                          {!collapsedCols.has(col.key) && <span className={styles.skelDot} aria-hidden="true">·</span>}
+                        <td key={col.key} className={`${styles.td} ${groupStartKeys.has(col.key) && !widthGroupOf(col.key) ? styles.groupStart : ''}`}>
+                          <span className={styles.skelDot} aria-hidden="true">·</span>
                         </td>
                       ))}
+                      <td className={styles.fillCol} aria-hidden="true" />
                     </tr>
                   )
                 }
@@ -1321,25 +1853,32 @@ export default function Breadth() {
                 // that IS the render order below — a second ordering here would
                 // put the stop on a cell that is not the first one on screen.
                 const firstDrillKey = visibleCols.find(
-                  c => !collapsedCols.has(c.key) && drillTarget(row, c, liveBreadth),
+                  c => gridDrill(row, c, liveBreadth)
+                    || (isCellReadable(c) && !universeCellOverride(c.key, universe) && isFiniteNum(row[c.key])),
                 )?.key ?? null
                 return (
-                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${phaseClass(row.webster_phase ?? row.market_phase, styles)} ${row._live ? styles.liveRow : ''}`}>
-                  <td className={`${styles.td} ${styles.dateCell}`}>
+                <tr key={row.date} className={`${ri % 2 === 0 ? styles.rowEven : styles.rowOdd} ${row._live ? styles.liveRow : ''}`}>
+                  <td className={`${styles.td} ${styles.dateCell} ${row._provisional && !row._live ? styles.provisionalDate : ''}`}
+                      title={row._provisional && !row._live
+                        ? `Provisional — the canonical ${universeLabel(universe)} session replaces it when it lands`
+                        : undefined}>
                     {row._live
                       ? (
-                        <span className={styles.liveStamp} title={liveTitle}>
+                        <span className={styles.liveStamp} title={isUct ? liveTitle
+                          : `Provisional — ${universeLabel(universe)} today, from the live snapshot. The canonical session replaces it after it lands.`}>
                           <span className={styles.livePulse} aria-hidden="true" />
                           {liveClock}
                         </span>
                       )
                       : row.date}
+                    {/* Follow-Through Day: a quiet tag on the date instead of its own
+                        column (owner 2026-11-19; the FTD column stays in Columns). */}
+                    {!!row.is_ftd && (
+                      <span className={styles.ftdExt}><span className={styles.ftdTag} title="Follow-Through Day" aria-label="Follow-Through Day">FTD</span></span>
+                    )}
                   </td>
                   {visibleCols.map(col => {
-                    const groupStart = groupStartKeys.has(col.key) ? styles.groupStart : ''
-                    if (collapsedCols.has(col.key)) {
-                      return <td key={col.key} className={`${styles.td} ${styles.colCollapsedCell} ${groupStart}`} />
-                    }
+                    const groupStart = groupStartKeys.has(col.key) && !widthGroupOf(col.key) ? styles.groupStart : ''
                     if (col.type === 'sparkline') {
                       const val = row[col.key]
                       const last10 = grid.trail(ri, col.key)
@@ -1354,43 +1893,25 @@ export default function Breadth() {
                       )
                     }
                     if (col.type === 'ma_stack') {
-                      // keys order: [10sma, 20sma, 50sma, 200sma]
-                      const above10  = row[col.keys[0]] === 1
-                      const above20  = row[col.keys[1]] === 1
-                      const above50  = row[col.keys[2]] === 1
-                      const above200 = row[col.keys[3]] === 1
-                      const hasData  = col.keys.some(k => row[k] != null)
-                      let stackBg = ''
-                      if (hasData) {
-                        if (above50) {
-                          // Green side — above 50SMA
-                          if (above10 && above20 && above200) stackBg = styles.bgG3  // all 4
-                          else if (above200 && (above10 || above20)) stackBg = styles.bgG2  // 50+200+1 short
-                          else if (above200)                         stackBg = styles.bgG1  // 50+200 only
-                          else                                       stackBg = styles.bgA   // above 50, not 200
-                        } else {
-                          // Red side — below 50SMA
-                          if (above200)              stackBg = styles.bgR1  // below 50, still above 200
-                          else if (above10 || above20) stackBg = styles.bgR2  // below 50+200, short-term bounce
-                          else                         stackBg = styles.bgR3  // below all
-                        }
-                      }
+                      // keys order: [10sma, 20sma, 50sma, 200sma]. Four small dots:
+                      // filled up colour = above that average, a hollow down-colour
+                      // ring = below, a faint ring = no reading. The title and the
+                      // label say which average is which.
+                      const sym = maStackSym(col)
+                      const said = col.keys.map((k, i) => {
+                        const v = row[k]
+                        return `${col.maLabels[i]}-day: ${v === 1 ? 'above' : v === 0 ? 'below' : 'no reading'}`
+                      }).join(' · ')
                       return (
-                        <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${stackBg}`}>
-                          <div className={styles.maStack}>
-                            {col.keys.map((k, i) => {
+                        <td key={col.key} className={`${styles.td} ${styles.maStackCell} ${groupStart}`}
+                            title={`${sym} vs its moving averages — ${said}`}>
+                          <span className={styles.maDots} role="img" aria-label={`${sym} moving averages: ${said}`}>
+                            {col.keys.map((k) => {
                               const v = row[k]
-                              const isCheck = v === 1
-                              const isCross = v === 0
-                              return (
-                                <div key={k} className={styles.maItem}>
-                                  <span className={isCheck ? styles.maCheck : isCross ? styles.maCross : styles.maDash}>
-                                    {v === null || v === undefined ? '—' : isCheck ? <UIcon name="check" size={12} /> : <UIcon name="x" size={12} />}
-                                  </span>
-                                </div>
-                              )
+                              const cls = v === 1 ? styles.maDotUp : v === 0 ? styles.maDotDown : styles.maDotNone
+                              return <span key={k} className={`${styles.maDot} ${cls}`} data-ma={k} />
                             })}
-                          </div>
+                          </span>
                         </td>
                       )
                     }
@@ -1401,8 +1922,22 @@ export default function Breadth() {
                     // A live cell drills what was MEASURED live; a carried one
                     // drills the session its number came from. `drillTarget`
                     // owns that choice so the tiles below make it identically.
-                    const drillTo = drillTarget(row, col, liveBreadth)
-                    const isDrillable = !!drillTo
+                    const drillTo = gridDrill(row, col, liveBreadth)
+                    const hasList = !!drillTo
+                    // No list here: the cell still opens its reading (History).
+                    const isDrillable = hasList || (isCellReadable(col) && isFiniteNum(val))
+                    // Off UCT: Health is hidden ("—") and the Phase 3 columns read "n/a".
+                    const override = universeCellOverride(col.key, universe)
+                    if (override) {
+                      return (
+                        <td key={col.key}
+                            className={`${styles.td} ${styles.naCell} ${groupStart}`}
+                            data-universe-na={col.key}
+                            title={override === 'n/a' ? NOT_AVAILABLE_NOTE : universeColumnNote(col.key, universe)}>
+                          {override}
+                        </td>
+                      )
+                    }
                     // A number carried from last night is not a live reading,
                     // and one that reconciles to ~8% should not look like one
                     // that reconciles to a point.
@@ -1410,18 +1945,23 @@ export default function Breadth() {
                       ? (liveBreadth.carried?.has(col.key) ? 'carried'
                         : liveBreadth.accuracy?.[col.key] ?? null)
                       : null
-                    // TERM-059: a slower-than-daily value states its as-of at
-                    // the value when the age authority says it must.
+                    // TERM-059: the age authority (col.age → sentimentAge.js /
+                    // naaimAge.js) still decides when a value is CARRIED from an
+                    // earlier survey / print. Owner 2026-11-19: it is no longer
+                    // printed inline (that widened the column and repeated on every
+                    // row); a carried value reads muted, and its as-of goes in the
+                    // cell's tooltip and accessible name.
                     const age = col.age ? col.age(row) : null
-                    const ageTitle = age?.mustLabel
-                      ? (age.asOfDate
-                        ? `${col.label}: ${age.cadence} ${age.dataClass === 'weekly' ? 'survey' : 'print'} dated ${age.asOfDate}`
-                        : `${col.label}: ${age.cadence} reading with no survey date`)
-                      : null
+                    const carried = !!age?.mustLabel
+                    const ageTitle = carried ? carriedNote(age) : null
+                    const showAgeTip = (e) => {
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setAgeTip({ left: r.left, top: r.bottom + 4, key: `${row.date}:${col.key}`, note: ageTitle, age })
+                    }
                     return (
                       <td
                         key={col.key}
-                        className={`${styles.td} ${cellClass(col, val, row)} ${isStaleAaii ? styles.aaiiStale : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
+                        className={`${styles.td} ${cellClass(col, val, row, universe)} ${isStaleAaii && !carried ? styles.aaiiStale : ''} ${carried ? styles.carriedValue : ''} ${isDrillable ? styles.drillable : ''} ${liveGrade === 'carried' ? styles.liveCarried : ''} ${liveGrade === 'approximate' ? styles.liveApprox : ''}`}
                         title={
                           liveGrade === 'carried'
                             ? `Last night's reading (${liveBreadth.carriedFrom}) — not live`
@@ -1429,14 +1969,26 @@ export default function Breadth() {
                               ? 'Provisional, reconciles to roughly 10%'
                               : liveBreadth.partial?.has(col.key) && row._live
                                 ? 'Builds through the session — only complete at the close'
-                                : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
-                                  : ageTitle ? ageTitle
-                                    : isDrillable ? 'Click to see stocks' : undefined
+                                : carried ? undefined   // its as-of shows in the age tooltip below
+                                  : isStaleAaii ? `Survey: ${row.aaii_survey_date}`
+                                    : hasList ? 'Click to see stocks'
+                                      : isDrillable ? 'Click to see where this reading sits in history' : undefined
                         }
-                        onClick={isDrillable ? () => openDrill(row, col, liveBreadth) : undefined}
-                        onPointerEnter={isDrillable ? () => prefetchCell(row, col) : undefined}
+                        {...(carried ? {
+                          'data-value-age': col.key,
+                          'aria-label': `${col.label} ${fmtCell(col, val)}, ${ageTitle.toLowerCase()}`,
+                          // Hover shows the value's own as-of as the provenance badge
+                          // (FreshnessBadge), in one floating tooltip for the sheet.
+                          onPointerEnter: showAgeTip,
+                          onPointerLeave: () => setAgeTip(null),
+                        } : {})}
+                        onClick={isDrillable ? () => openCell(row, col, liveBreadth) : undefined}
                         {...(isDrillable ? {
+                          // a carried value's as-of tip still shows on hover
+                          onPointerEnter: carried ? (e) => { showAgeTip(e); prefetchCell(row, col) } : () => prefetchCell(row, col),
                           'data-drill': '',
+                          // a list behind it (the scan window), or only its reading (History)
+                          ...(hasList ? { 'data-drill-list': '' } : {}),
                           role: 'button',
                           tabIndex: col.key === firstDrillKey ? 0 : -1,
                           onKeyDown: (e) => onCellKey(e, row, col),
@@ -1444,37 +1996,54 @@ export default function Breadth() {
                           // number. Name it with the metric, the value and the
                           // session, because "134" alone says nothing about what
                           // pressing it opens.
-                          'aria-label': `${col.label} ${val === null || val === undefined ? 'no reading' : val}`
-                            + `${row._live ? ', live session' : `, ${row.date}`} — open the list of stocks`,
+                          // A carried value keeps its own name (metric, value, as-of), set above.
+                          ...(carried && !hasList ? {} : {
+                            'aria-label': `${col.label} ${val === null || val === undefined ? 'no reading' : val}`
+                              + `${row._live ? ', live session' : `, ${row.date}`} — ${hasList ? 'open the list of stocks' : 'open its history'}`,
+                          }),
                         } : {})}
                       >
                         {fmtCell(col, val)}
-                        {age?.mustLabel && (
-                          <span className={styles.valueAge} data-value-age={col.key}>
-                            <FreshnessBadge age={{ dataClass: age.dataClass, asOfDate: age.asOfDate }} />
-                          </span>
-                        )}
                       </td>
                     )
                   })}
+                  <td className={styles.fillCol} aria-hidden="true" />
                 </tr>
                 )
               })}
               {virtualItems.length > 0 && (
                 <tr aria-hidden="true" data-snapshot-skip="">
-                  <td colSpan={visibleCols.length + 1} style={{ height: Math.max(0, rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end), padding: 0, border: 0 }} />
+                  <td colSpan={visibleCols.length + 2} style={{ height: Math.max(0, rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end), padding: 0, border: 0 }} />
                 </tr>
               )}
             </tbody>
           </table>
         </div>
       )}
-      {drill && (
-          <Suspense fallback={null}>
-            <BreadthDrillModal drill={drill} latestDate={rows[0]?.date} onRetry={retryDrill} onClose={() => setDrill(null)}
-              rows={rows} drillCols={DRILL_COLS} onNavigate={navigateDrill} />
-          </Suspense>
-        )}
+      {activeTab === 'breadth' && (
+        <ContextPopover
+          open={!!colMenu}
+          anchor={colMenu?.anchor}
+          onClose={closeColMenu}
+          returnFocusTo={colMenuBtn}
+          width={264}
+          signature
+          header={colMenu ? <ColumnInfoBlock colKey={colMenu.key} universe={universe} /> : null}
+          items={colMenu ? [
+            { key: 'move-left', label: 'Move left', disabled: colMenu.index === 0, onClick: () => moveCol(colMenu.key, -1) },
+            { key: 'move-right', label: 'Move right', disabled: colMenu.index === visibleCols.length - 1, onClick: () => moveCol(colMenu.key, 1) },
+            { key: 'hide', label: 'Hide column', onClick: () => hideCol(colMenu.key) },
+          ] : []}
+        />
+      )}
+      {ageTip && activeTab === 'breadth' && (
+        <div className={styles.ageTip} role="tooltip" data-testid="breadth-age-tip"
+             style={{ left: ageTip.left, top: ageTip.top }}>
+          <span className={styles.ageTipNote}>{ageTip.note}</span>
+          <FreshnessBadge age={{ dataClass: ageTip.age.dataClass, asOfDate: ageTip.age.asOfDate }} />
+        </div>
+      )}
+      {drillWindow}
     </div>
   )
 }

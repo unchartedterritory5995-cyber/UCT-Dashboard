@@ -197,7 +197,6 @@ const BASELINE = {
   'app/src/pages/breadth/BreadthDateNav.jsx': { literal: 1 },
   'app/src/pages/breadth/BreadthViews.jsx': { literal: 1 },
   'app/src/pages/breadth/BreadthViewsCustomizePanel.jsx': { literal: 1 },
-  'app/src/pages/breadth/CustomizePanel.jsx': { literal: 1 },
   'app/src/pages/breadth/PresetRow.jsx': { literal: 1 },
   'app/src/pages/breadth/drill/BreadthDrillModal.jsx': { literal: 1 },
   'app/src/pages/calendar/CalendarHeader.jsx': { literal: 1 },

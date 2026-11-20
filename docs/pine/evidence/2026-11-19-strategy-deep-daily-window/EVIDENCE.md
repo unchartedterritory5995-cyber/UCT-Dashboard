@@ -114,10 +114,19 @@ by every trade; a strategy trading from 1993 is the same broker rules on earlier
    [B-ROUND-MARK] shares the function and stays unpinned, so no served number rides its float tie.
 
 **The ledger.** `brokerPins.json` B-START-DEEP = the two captures; `evidence_engine.py pins` resolves 47 rules,
-`brokerPins.resolved.json` sha256 `cbcb5efe09bceb9e81743eaad4b0aa123d19a158582273b198b741030673d2e9`. Lock, at the train:
-the same train as `feat/strategy-unit` takes this sha as its entry (in place of `1db04b15...`; `COMMITTED_OLDER_DIGEST`
-stays `810f4850...`); a later train appends it under its own number and recomputes `COMMITTED_OLDER_DIGEST`
-(`brokerPinsLock.js::olderEntriesDigest`).
+`brokerPins.resolved.json` sha256 `cbcb5efe09bceb9e81743eaad4b0aa123d19a158582273b198b741030673d2e9`. Lock, at the train
+(`feat/strategy-unit` rode e89 with `"89": "1db04b15..."`; this unit was backed out of e90 and rides e91): append
+`"91": "cbcb5efe09bceb9e81743eaad4b0aa123d19a158582273b198b741030673d2e9"` after 89's entry and set
+`COMMITTED_OLDER_DIGEST` to `89b8390508cab900984182780d777846d4432e2afc5513680388adf293c80fa0` (the older entries 17, 60,
+66, 68, 80 and 89, `brokerPinsLock.js::olderEntriesDigest`; `checkLock` at version 91 answers ok).
+
+**The server lane (2026-11-20, after e90 backed the unit out).** The service tests (`node --test
+services/pine_runtime/test/*.test.mjs`, which only the master deploy gate runs) went 146/147: HP-7
+(`adapter.test.mjs`) saw the browser worker send `ctx.listingDepthBars` and the service adapter neither send it nor
+declare it. Parity, not a declaration: `job.mjs::runArgs` forwards the job's own `listingDepthBars` exactly as it forwards
+`historyWindowBars`, `protocol.mjs` accepts it as an optional positive integer, and `cache.mjs` adds `depth=` to the
+result key only when a job states one (every older key unchanged). Rails: HP-7's shape and its `expr:` facts,
+`protocol.test.mjs`, `job.test.mjs`, `cache.test.mjs`. The API's strategy route sends no depth, so its runs are unchanged.
 
 **The serve census** (the 70-row sample, `strategyServeAudit.measure.test.js`, the window the chart hands: 12,500 over a
 served depth of 5,000; heavy lock, 2026-11-20), against the strategy unit's after-census:

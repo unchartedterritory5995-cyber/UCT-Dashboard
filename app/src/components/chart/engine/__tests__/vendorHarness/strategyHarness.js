@@ -34,6 +34,7 @@ import { symbolConstants, minContractOf } from '../../ast/bind.js'
 import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
 import { toProductBars } from './ourSide.js'
 import { storeExchangeOfCapture } from './storeExchange.js'
+import { startsAtBar0Holds } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
 import { gradeStrategy, strategyFirstDifference, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { settingsAgreement, propertiesByKey, pineVersionOf, extractReportFields, isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
 import {
@@ -519,7 +520,7 @@ export function referenceTextsOf(capture) {
  *  first bar is the window's `firstBarTime`); the guard keeps every order inside [X, Y). */
 function runsFromTradingViewsFirstBar(capture, bars) {
   const method = capture.provenance && capture.provenance.gradeMethod
-  if (method === 'a') return !!(capture.history && capture.history.startsAtBar0 === true)
+  if (method === 'a') return startsAtBar0Holds(capture)
   if (method === 'b') return !!(capture.window && bars.length && capture.window.firstBarTime === bars[0].t)
   return false
 }

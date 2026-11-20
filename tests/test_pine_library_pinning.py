@@ -470,6 +470,8 @@ JS_LIBRARY_FIXTURE_FILES = {
     "app/src/components/chart/engine/ast/pineLibraryPinning.test.js": "the pinning rail's fixture libraries",
     "app/src/components/chart/engine/ast/pineLibraryValueFnName.test.js": "a fixture library",
     "app/src/components/chart/engine/ast/pineLibraryVersion.test.js": "the cross-version rail's fixture libraries (U15 Phase B)",
+    "app/src/components/chart/engine/ast/runtimePaletteScope.test.js":
+        "the palette-scope rail's fixture library (tester/palettelib/1, a v5 colour component inside the version island)",
     "app/src/components/chart/engine/__tests__/libraryLinkParity.test.js": "the splice check's fixture library",
     "app/src/components/chart/engine/__tests__/vendorHarness/storeHeld.test.js":
         "two fixture libraries written for the store-held rail (tester/inner/1, tester/outer/1)",

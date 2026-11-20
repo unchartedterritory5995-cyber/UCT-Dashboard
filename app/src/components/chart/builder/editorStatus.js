@@ -134,7 +134,7 @@ export const FAMILIES = Object.freeze([
     // HOST KNOWN-DIVERGENCE (owner decision 2026-11-17): a committed TradingView capture shows this script
     // drawing something different (`engine/hostKnownDivergence.js`); the door's own sentence names the capture
     id: 'divergence',
-    exact: ['pine:known-divergence'],
+    exact: ['pine:known-divergence', 'pine:held-divergence'],
     label: 'Differs from TradingView on a captured chart',
     why: 'On a chart we captured from TradingView, this script draws something that differs from what '
       + 'TradingView draws, so it is withheld until that is fixed. The message names the capture.',
@@ -229,7 +229,7 @@ export const FAMILIES = Object.freeze([
   {
     id: 'limits',
     exact: ['pine:window', 'pine:window-dependent', 'pine:budget', 'pine:timeout', 'runtime:limit',
-      'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges',
+      'runtime:time-budget', 'runtime:history-start', 'runtime:warmup-never-converges', 'runtime:listing-unverified',
       'chart:scalar-current-only',
       // door robustness: a plot past a host-lane compute budget, refused by the member door by name
       'budget:lookback', 'budget:series', 'budget:nodes'],
@@ -1096,12 +1096,18 @@ export function lineCount(text) {
  * the wrong line. ⛔ The worst severity on a line wins. ⛔ `source` is the text
  * the report was computed on; the editor applies the marks only while its own
  * document equals it (the X13 stale-text contract).
+ * ⛔ NO MARKS WHILE THE SCRIPT IS STILL BEING CHECKED (`status.admissionPending`, set beside the status by
+ * `PineEditorStatus.usePineEditorStatus`): until the server has said whether the chart may draw the script bar
+ * by bar, the items are the fast lane's refusal of a script the chart may draw a moment later. A line marked
+ * "withheld" for that is a false mark, so none is drawn; the status is made again when the answer lands, and
+ * its marks with it.
  *
  * @returns {{source: string, marks: Array<{line, severity, message, guards: string[]}>}}
  */
 export function lineMarks(status, source) {
   const out = { source: typeof source === 'string' ? source : '', marks: [] }
   if (!status || !Array.isArray(status.items) || typeof source !== 'string') return out
+  if (status.admissionPending === true) return out
   const max = lineCount(source)
   const byLine = new Map()
   for (const it of status.items) {

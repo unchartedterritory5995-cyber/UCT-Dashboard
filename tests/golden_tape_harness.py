@@ -339,8 +339,13 @@ async def _run_reader(frames, on_bar, active, listeners, universe, on_universe_a
                 yield raw
             raise _TapeEnd()
 
+    # universe_am_handler / note_gap_connect / start_minute_frames: the minute-frame hooks
+    # (bars_live_ingest), whose OFF state is exactly this: the plain on_am, and no-ops.
     fake_bli = types.SimpleNamespace(mark_connected=lambda: None, start_flusher=lambda loop: None,
-                                     on_am=on_universe_am)
+                                     on_am=on_universe_am,
+                                     universe_am_handler=lambda: on_universe_am,
+                                     note_gap_connect=lambda: None,
+                                     start_minute_frames=lambda loop: False)
     saved_active, saved_listeners = set(bs._active), list(bs._trade_listeners)
     saved_channels = {k: set(v) for k, v in bs._active_channels.items()}
     bs._active.clear()

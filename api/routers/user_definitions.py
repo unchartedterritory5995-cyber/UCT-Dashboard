@@ -1164,8 +1164,12 @@ def resolve_shared(token: str, user: dict = Depends(require_paid)):
     """
     try:
         shared = svc.resolve_share(token)
+        # ⭐ HELD WITHHOLDS — a version saved before its script's narrow withholds previews stamped
+        # (`meta.heldDivergence`, the install door's refusal), judged on the author's script by `resolve_share`
+        held = shared.pop("held_divergence", None)
         return {**shared, "definition": runtime_definitions.stamp_served(
-            {"def_id": shared.get("origin_def_id"), "definition": shared.get("definition")})["definition"]}
+            {"def_id": shared.get("origin_def_id"), "definition": shared.get("definition"),
+             **({"held_divergence": held} if held else {})})["definition"]}
     except svc.ShareRefused as exc:
         raise _share_http(exc) from exc
 

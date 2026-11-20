@@ -32,6 +32,7 @@ configure({ asyncUtilTimeout: 4000 })
 import { beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
 import { __ignoreHostKnownDivergenceForTests } from './components/chart/engine/hostKnownDivergence'
+import { __ignoreHeldWithholdsForTests } from './components/chart/engine/heldWithholds'
 import { grantRuntimeGate, gateState, gateNarrowedOutsideTest } from './testing/runtimeGate'
 // ⭐ W5-T2 — as in the app, where the registry imports it: the lower-timeframe gate is
 // registered at the door (`lowerTfServing.js`), so a suite that stubs its flag still flips it.
@@ -63,6 +64,14 @@ import { __setBenchmarkTailFetcherForTests } from './components/chart/engine/liv
 // before every hook, so it is railed statically (`testing/runtimeGateScope.rail.test.js`).
 // The decision is `testing/runtimeGate.js::gateNarrowedOutsideTest`, railed in `runtimeGate.test.js`.
 __ignoreHostKnownDivergenceForTests()
+// ── HELD WITHHOLDS (coordinator ruling 2026-11-19): the same, by name, for the narrow withholds licence-held captures
+// ask for (`engine/heldWithholds.js`): the measuring suites and the regrade see the picture the ENGINE draws, so a
+// regrade can lift a withhold when it matches. ⛔ The member door applies them, railed in
+// `components/chart/builder/memberPane/heldWithholds.door.test.js` (both sides). At load (a suite that measures while
+// it is collected), and before every test as a DECLARED door of the runtime gate's grant (`grantRuntimeGate`, its
+// state in `gateState`), so a hook outside any test that applies the list fails the next test by name, GATE-BLIND,
+// as the other doors do; a suite applies it with `asMember({ held: true })`.
+__ignoreHeldWithholdsForTests()
 let __gateGranted = null
 let __gateAfter = null
 beforeAll(() => {

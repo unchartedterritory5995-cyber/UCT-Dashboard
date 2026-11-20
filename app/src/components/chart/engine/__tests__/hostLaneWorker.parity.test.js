@@ -20,6 +20,14 @@
 //                  (`historyFromListing`), with ISO date times (what a daily chart's bars carry)
 //   intraday       the newest N bars of the SPY 60-minute capture
 // N = 600 by default (the chart's first paint); `HOST_WORKER_PARITY_BARS` widens it.
+//
+// ⭐⭐ AND THE MAIN THREAD'S OWN ROUTE THROUGH THE SAME DOOR (docs/pine/evidence/2026-11-19-host-lane-learned-
+// route/EVIDENCE.md): every chart pane's request now comes through `hostLaneAsync.hostLaneColumns`, and a request
+// the tab has measured cheap is computed there, on the main thread, with its values memoised for its bars. So
+// each document is answered a THIRD and a FOURTH time with no worker at all: the main route's first answer
+// (computed and memoised) and its second (the memo's, the run-read parts applied again). Both must be the
+// main thread's answer as it was before this door existed (`computeFor` with no pane), byte for byte, and a
+// throw the same throw.
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest'
@@ -29,6 +37,7 @@ import {
   setHostLaneWorkerFactory, resetHostLaneAsync, __routeEveryHostDocumentForTests, isHostLanePending, hostLaneStats,
   hostObjectsOffThread, hostObjectsSendable,
 } from '../hostLaneAsync'
+import { __setHostLaneCostClockForTests } from '../hostLaneRoute'
 import { hostObjectRun, hostObjectReaderOpts } from '../hostObjects'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
 import { asMember } from '../../../../testing/runtimeGate'
@@ -69,6 +78,7 @@ afterEach(() => { registry.uninstallUserDefinition(HARNESS_DEF_ID) })
 afterAll(() => {
   setHostLaneWorkerFactory(null)
   resetHostLaneAsync()
+  __setHostLaneCostClockForTests(null)
   vi.unstubAllEnvs()
 })
 // ⛔ The member's doors in a beforeEach, never a beforeAll: the test grant re-opens them before every
@@ -98,7 +108,24 @@ function bothAnswers(def, set) {
   return { main, mainErr, worker, workerErr, pendingFirst }
 }
 
-const tally = { docs: 0, compared: 0, threw: 0, bars: 0, drawings: 0, drawn: 0, records: {} }
+/** The main thread's route through the door, twice: the first answer computes (and memoises) the values,
+ *  the second is the memo's. No worker (so even a document over the estimate is computed here). */
+function mainRouteAnswers(def, set) {
+  resetHostLaneAsync()
+  setHostLaneWorkerFactory(null)
+  __setHostLaneCostClockForTests(() => 0)
+  const ctx = { ...set.ctx, hostPane: `parity-main\u0001${set.name}` }
+  const at = hostLaneStats()
+  const one = (n) => { try { return { cols: registry.computeFor(def, set.bars, undefined, ctx) } } catch (e) { return { err: e, n } } }
+  const first = one(1)
+  const mid = hostLaneStats()
+  const second = one(2)
+  const end = hostLaneStats()
+  return { first, second, computed: [mid.mainComputed - at.mainComputed, end.mainComputed - mid.mainComputed],
+    hits: end.memoHits - mid.memoHits, posted: end.posted - at.posted }
+}
+
+const tally = { docs: 0, compared: 0, threw: 0, bars: 0, drawings: 0, drawn: 0, mainRoute: 0, memoHits: 0, records: {} }
 
 /** The drawings as the binder reads them: the run, and the reader's facts it reads. */
 const drawingsOf = (host) => (host ? {
@@ -133,6 +160,32 @@ describe('host lane worker: byte-equal to the main thread over the committed cor
     workers = standInWorkers()
     setHostLaneWorkerFactory(workers.factory)
     for (const set of SETS) {
+      // ── the main thread's route through the door, first answer and memo hit (see the header) ──
+      const m = mainRouteAnswers(def, set)
+      const fresh = (() => { try { return { cols: registry.computeFor(def, set.bars, undefined, { ...set.ctx }) } } catch (e) { return { err: e } } })()
+      expect(m.posted, `${file} ${set.name}: the main route posted a job`).toBe(0)
+      if (fresh.err) {
+        for (const x of [m.first, m.second]) {
+          expect(x.err && x.err.message, `${file} ${set.name}: the main route did not throw ${fresh.err.message}`).toBe(fresh.err.message)
+          expect(x.err.guard).toBe(fresh.err.guard)
+        }
+        expect(m.computed, `${file} ${set.name}: a throw is computed once`).toEqual([1, 0])
+      } else {
+        expect(m.first.err, `${file} ${set.name}: ${m.first.err && m.first.err.message}`).toBeUndefined()
+        expect(m.second.err, `${file} ${set.name}: ${m.second.err && m.second.err.message}`).toBeUndefined()
+        expect(firstDifference(fresh.cols, m.first.cols), `${file} ${set.name} (main route)`).toBeNull()
+        expect(firstDifference(fresh.cols, m.second.cols), `${file} ${set.name} (memo hit)`).toBeNull()
+        // non-vacuity: the first computed (unless the plan answered whole), the second was the memo's
+        if (m.computed[0] === 1) {
+          expect(m.computed[1], `${file} ${set.name}: the second answer computed again`).toBe(0)
+          expect(m.hits, `${file} ${set.name}: the second answer was not the memo's`).toBe(1)
+          tally.memoHits += 1
+        }
+        tally.mainRoute += 1
+      }
+      resetHostLaneAsync()
+      __routeEveryHostDocumentForTests(true)
+      setHostLaneWorkerFactory(workers.factory)
       const before = hostLaneStats().posted
       const r = bothAnswers(def, set)
       if (r.mainErr) {
@@ -177,12 +230,14 @@ describe('host lane worker: byte-equal to the main thread over the committed cor
     // eslint-disable-next-line no-console
     console.log(`[host-worker parity] records compared: ${JSON.stringify(tally.records)}`)
     // eslint-disable-next-line no-console
-    console.log(`[host-worker parity] ${tally.docs} host documents, ${tally.compared} answers byte-equal, ${tally.threw} equal throws, ${tally.bars} bars; drawings equal on ${tally.drawings} (${tally.drawn} drawing something)`)
+    console.log(`[host-worker parity] ${tally.docs} host documents, ${tally.compared} answers byte-equal, ${tally.threw} equal throws, ${tally.bars} bars; drawings equal on ${tally.drawings} (${tally.drawn} drawing something); main route ${tally.mainRoute} answers equal, ${tally.memoHits} memo hits equal`)
     if (!ONLY) {
       expect(tally.docs).toBeGreaterThan(70)
       expect(tally.compared).toBeGreaterThan(200)
       expect(tally.drawings).toBeGreaterThan(90)
       expect(tally.drawn).toBeGreaterThan(30)
+      expect(tally.mainRoute).toBeGreaterThan(200)
+      expect(tally.memoHits).toBeGreaterThan(200)
     } else {
       expect(tally.compared + tally.threw).toBeGreaterThan(0)
     }

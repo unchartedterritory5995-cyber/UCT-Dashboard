@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (775)
+## Member session reads (781)
 
 ### Limits
 
@@ -176,14 +176,15 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/barspack/{date}/hot` | member | market-data | {date} |
 | GET | `/api/barspack/{date}/{idx}` | member | market-data | {date}, {idx} |
 | GET | `/api/breadth` | paid | market-analytics |  |
-| GET | `/api/breadth-monitor` | paid | market-analytics | days=90, end, anchor=le |
+| GET | `/api/breadth-monitor` | paid | market-analytics | days=90, end, anchor=le, universe=uct |
 | GET | `/api/breadth-monitor/analogues` | paid | market-analytics | top_n=5 |
-| GET | `/api/breadth-monitor/dates` | paid | market-analytics |  |
+| GET | `/api/breadth-monitor/dates` | paid | market-analytics | universe=uct |
 | GET | `/api/breadth-monitor/latest` | paid | market-analytics |  |
 | GET | `/api/breadth-monitor/library-health` | member | market-analytics |  |
 | GET | `/api/breadth-monitor/live` | paid | market-analytics | force=False |
 | GET | `/api/breadth-monitor/live/dividends` | paid | market-analytics |  |
 | GET | `/api/breadth-monitor/live/drill/{metric_key}` | paid | market-analytics | {metric_key} |
+| GET | `/api/breadth-monitor/reading` | paid | market-analytics | universe=uct, metric (required), date (required), value, per |
 | GET | `/api/breadth-monitor/score-components/{date}` | paid | market-analytics | {date}, days=90 |
 | GET | `/api/breadth-monitor/series` | paid | market-analytics | keys, from, to |
 | GET | `/api/breadth-monitor/session-path/{session_date}` | paid | market-analytics | {session_date} |
@@ -262,6 +263,8 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/cot/symbols` | paid | market-analytics |  |
 | GET | `/api/cot/{symbol}` | paid | market-analytics | {symbol}, weeks=52 |
 | GET | `/api/cot/{symbol}/narratives` | paid | market-analytics | {symbol}, limit=60 |
+| GET | `/api/crypto/pairs` | member | market-data |  |
+| GET | `/api/crypto/quote/{symbol}` | member | market-data | {symbol} |
 | GET | `/api/darkpool/aggregated` | member | options-flow | days=1, all_data=False |
 | GET | `/api/darkpool/data` | member | options-flow | days=1, all_data=False |
 | GET | `/api/darkpool/dates` | member | options-flow |  |
@@ -614,12 +617,14 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/options-screener/more-strategies` | paid | options-analytics |  |
 | GET | `/api/options-screener/more/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
 | GET | `/api/options-screener/multi-leg` | paid | options-analytics | underlyings, limit=50 |
+| GET | `/api/options-screener/oi-change/{sym}` | paid | options-analytics | {sym}, side=any |
 | GET | `/api/options-screener/screen` | paid | options-analytics |  |
 | GET | `/api/options-screener/sizzle` | paid | options-analytics |  |
 | GET | `/api/options-screener/strategies` | paid | options-analytics |  |
 | GET | `/api/options-screener/strategy/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
 | GET | `/api/options-screener/unusual-volume` | paid | options-analytics |  |
 | GET | `/api/options/market-tide` | paid | market-analytics | scope=all |
+| GET | `/api/options/market-tide/history` | paid | market-analytics | scope=all, sessions=60 |
 | GET | `/api/options/market-tide/minute` | paid | market-analytics | scope=all, t |
 | GET | `/api/options/market-tide/sectors` | paid | market-analytics | scope=all |
 | GET | `/api/options/positioning/refresh-policy` | paid | options-analytics |  |
@@ -708,6 +713,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/quote/{sym}` | paid | research | {sym} |
 | GET | `/api/research/ratings/{sym}` | paid | research | {sym} |
 | GET | `/api/research/rename-notice/{sym}` | paid | research | {sym} |
+| GET | `/api/research/seasonality-board` | paid | research |  |
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
 | GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-interest-list` | paid | research | rank, limit |

@@ -147,16 +147,20 @@ test('HP-7: the service adapter builds the browser worker\'s (def, rows, ctx, op
   assert.deepEqual(b.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', budgetScales: 'literal:true' })
   assert.deepEqual(s.opts, { budgetMs: 'name:RUNTIME_PANE_TIME_BUDGET_MS', incremental: 'literal:false' })
   assert.deepEqual(b.row, ['t', 'o', 'h', 'l', 'c', 'v'])
-  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'otherSymbolSupply', 'historyWindowBars'])
+  assert.deepEqual(Object.keys(s.ctx), ['tf', 'newestBarIsForming', 'historyFromListing', 'runtimeInputs', 'symbol', 'otherSymbolSupply', 'historyWindowBars', 'listingDepthBars'])
   // RS RATING L3 / L5: the browser ships every bind field and the other-symbol cache; the server
   // ships neither, and says so (DECLARED_DIFFERENCES), so the parse read them rather than skipped them
   // (2026-11-19) plus the browser's optional listing fact, `firstTradeDate` (declared browser-only in job.mjs)
-  assert.deepEqual(Object.keys(b.ctx.symbol), [...BIND_SYMBOL_FIELDS, 'firstTradeDate'])
+  // (2026-11-20) and whether that listing answer is still in flight, `firstTradeDatePending` (declared browser-only too)
+  assert.deepEqual(Object.keys(b.ctx.symbol), [...BIND_SYMBOL_FIELDS, 'firstTradeDate', 'firstTradeDatePending'])
   assert.ok('secondaryEntries' in b.ctx)
   assert.deepEqual(Object.keys(s.ctx.symbol), ['ticker', 'exchange'])
   // W9-T11: both hosts forward the window from their own ctx, never from a literal
   assert.equal(b.ctx.historyWindowBars, 'expr:ctx.historyWindowBars')
   assert.equal(s.ctx.historyWindowBars, 'expr:job.ctx.historyWindowBars')
+  // (2026-11-20) and the served depth of the strategy-only daily window, the same way (parity, never declared)
+  assert.equal(b.ctx.listingDepthBars, 'expr:ctx.listingDepthBars')
+  assert.equal(s.ctx.listingDepthBars, 'expr:job.ctx.listingDepthBars')
 })
 
 test('HP-7: every declared difference is still a real one (no stale declaration)', () => {

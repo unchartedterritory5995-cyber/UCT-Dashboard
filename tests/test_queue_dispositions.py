@@ -176,9 +176,15 @@ COMMITTED = {
     # 2026-11-17 (owner decision; feat/pine-host-known-divergence): ONE engine-gap row per script with a committed
     # production DIVERGE capture (listed, or withheld by name and not listed: coordinator ruling on #1541), generated
     # with the list (`tools/vendor_harness/host_divergence.py --write`) and read off its derivation here.
+    # ⭐ (engine 89 train, coordinator ruling 2026-11-20) ONE reviewed exception: master #2117 (8028b0f356) made
+    # htf-candle-footprint-cartel-console's row a disclosed partial (`withheld-ledger`: its drawn objects agree with
+    # TradingView's on every field held, their place (x) unwitnessed; a re-capture WITH the x table is its own row).
+    # This list was never moved with it, so the test was red on master. Named here, never derived: a NEW
+    # `withheld-ledger` row must be reviewed into this list too.
     "capture-queue-2026-11-17-host-known-divergence": {
-        __import__("host_divergence").queue_row_id(e["slug"]): "engine-gap"
-        for e in __import__("host_divergence").derive_all().values()},
+        **{__import__("host_divergence").queue_row_id(e["slug"]): "engine-gap"
+           for e in __import__("host_divergence").derive_all().values()},
+        "hkd:htf-candle-footprint-cartel-console": "withheld-ledger"},
     # 2026-11-17 (coordinator ruling on #1541): the SPX history our server serves (FMP ^GSPC) against TradingView's
     # SP:SPX, found by the supply-attributed grade of RS Rating NVDA; a data-source decision
     "capture-queue-2026-11-17-fmp-gspc-history": {"fmp-gspc-history": "ruling"},
@@ -191,6 +197,13 @@ COMMITTED = {
     # 2026-11-18 (coordinator ruling, parity2 BI1'): TradingView's own `ta.sar` is graded on the built-in Parabolic SAR
     # taken from the listing; no probe file stands in for a built-in
     "capture-queue-2026-11-18-parity2": {"Q-BLT-3a": "builtin", "Q-BLT-3b": "builtin"},
+    # 2026-11-19 (the strategy unit, PR #2141): seven TradingView built-in strategies, each taken from the listing by the
+    # capture session (section D); no probe file stands in for a built-in
+    "capture-queue-2026-11-19-strategy-unit": {f"Q-SU-B{i}": "builtin" for i in range(1, 8)},
+    # 2026-11-19 (the request unit, #2154; engine 89 train, coordinator ruling 2026-11-20): the rest of the unit's
+    # sole scripts wait on OWNER data decisions (lower-timeframe reads on a daily chart, data the platform does not
+    # hold), refused by name; a decision, not a capture or engine work
+    "capture-queue-2026-11-19-request-unit": {"Q-REQ-OWNER": "ruling"},
 }
 
 

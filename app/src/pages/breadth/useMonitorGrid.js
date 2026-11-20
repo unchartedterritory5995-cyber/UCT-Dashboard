@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 
 import jsonFetcher from '../../utils/jsonFetcher'
+import { DEFAULT_UNIVERSE, monitorDatesLsKey, monitorRecentLsKey, universeParam, withMarketWide } from './monitorUniverses'
 
 // Windowed data source for the Monitor's virtualized, infinitely-scrollable sheet.
 //
@@ -30,8 +31,9 @@ const SETTLE_MS = 90            // debounce so a fast fling doesn't fetch every 
 // instantly on open, then revalidated in the background (stale-while-revalidate).
 // The only thing that moves is a new day appearing at the top, which the
 // background refetch + the separate live row both pick up within a second.
-const LS_DATES = 'uct.breadth.dates.v1'   // timeline index (date strings)
-const LS_RECENT = 'uct.breadth.recent.v1' // the most-recent RECENT_N derived rows
+// ⭐ PER UNIVERSE (the Monitor's universe switcher): each universe has its own EXACT key pair
+// (monitorUniverses.MONITOR_LS_KEYS). UCT keeps the historical names
+// 'uct.breadth.dates.v1' (timeline index) and 'uct.breadth.recent.v1' (recent rows).
 const RECENT_N = 160                       // ~7-8 months cached for an instant first paint
 
 function readLS(key) {
@@ -41,21 +43,46 @@ function writeLS(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)) } catch { /* quota / private mode */ }
 }
 
-export default function useMonitorGrid({ enabled, liveRow }) {
+/** The SWR key of a universe's timeline index (UCT: the historical, param-free key). */
+export const monitorDatesKey = (universe = DEFAULT_UNIVERSE) =>
+  `/api/breadth-monitor/dates${universeParam(universe, '?')}`
+
+// One universe's row cache + block bookkeeping. Kept per universe for the life of the page, so
+// switching back to a universe already viewed paints from memory with no fetch.
+function newUniverseState(universe) {
+  const cache = new Map()
+  const cached = readLS(monitorRecentLsKey(universe))
+  if (Array.isArray(cached)) for (const r of cached) if (r?.date) cache.set(r.date, r)
+  return { cache, loaded: new Set(), loading: new Set(), failed: new Set(), idxKey: null }
+}
+
+export default function useMonitorGrid({ enabled, liveRow, universe = DEFAULT_UNIVERSE }) {
+  const isUct = universe === DEFAULT_UNIVERSE
   // Seed SWR from the cached index so `allDates` is populated on the FIRST paint
   // (no wait for the /dates round-trip), then revalidate + rewrite the cache.
-  const datesFallbackRef = useRef(undefined)
-  if (datesFallbackRef.current === undefined) datesFallbackRef.current = readLS(LS_DATES) || undefined
-  const { data: datesData, error: datesError, mutate: mutateDates } = useSWR(
-    enabled ? '/api/breadth-monitor/dates' : null, fetcher,
+  const datesFallbackRef = useRef({})
+  if (!(universe in datesFallbackRef.current)) datesFallbackRef.current[universe] = readLS(monitorDatesLsKey(universe)) || undefined
+  const { data: datesData, error: datesError, mutate: mutateDates } = useMobileSWR(
+    enabled ? monitorDatesKey(universe) : null, fetcher,
     {
       revalidateOnFocus: false,
       dedupingInterval: 60_000,
-      fallbackData: datesFallbackRef.current,
-      onSuccess: (d) => { if (d?.dates?.length) writeLS(LS_DATES, d) },
+      // Off UCT the index also carries today's provisional row and the provisional sessions,
+      // which move through the day; UCT's live row has its own feed (`liveRow`).
+      // `useMobileSWR` (pollingSites rail): the same tick on a desktop, half as often on a
+      // touch client, none while the tab is hidden.
+      refreshInterval: isUct ? 0 : 60_000,
+      fallbackData: datesFallbackRef.current[universe],
+      onSuccess: (d) => { if (d?.dates?.length) writeLS(monitorDatesLsKey(universe), d) },
     },
   )
-  const liveDate = liveRow?.date ?? null
+  // UCT: the page's live row. Elsewhere: the universe's own provisional row, with UCT's live
+  // market-wide readings laid over it (those are the same on every universe).
+  const live = useMemo(
+    () => (isUct ? liveRow : withMarketWide(datesData?.live_row ?? null, liveRow)),
+    [isUct, liveRow, datesData],
+  )
+  const liveDate = live?.date ?? null
 
   // The full index the scroller renders over — newest-first, today's live row on top.
   const allDates = useMemo(() => {
@@ -64,31 +91,30 @@ export default function useMonitorGrid({ enabled, liveRow }) {
     return d
   }, [datesData, liveDate])
 
-  // date -> row. Pre-hydrated ONCE from the cached recent window so those rows
+  // date -> row, per universe. Pre-hydrated ONCE from the cached recent window so those rows
   // paint instantly on open (immutable history → always safe to trust the cache).
-  const cacheRef = useRef(null)           // date -> row
-  if (cacheRef.current === null) {
-    cacheRef.current = new Map()
-    const cached = readLS(LS_RECENT)
-    if (Array.isArray(cached)) for (const r of cached) if (r?.date) cacheRef.current.set(r.date, r)
-  }
-  const loadedRef = useRef(new Set())     // block index -> loaded
-  const loadingRef = useRef(new Set())    // block index -> in flight
+  const statesRef = useRef({})
+  if (!statesRef.current[universe]) statesRef.current[universe] = newUniverseState(universe)
+  const st = statesRef.current[universe]
+  // ⭐ The refs below POINT AT THE CURRENT UNIVERSE'S state, so the rest of this hook reads as it
+  // always did; a universe's rows can never land in another universe's cache.
+  const cacheRef = useRef(null); cacheRef.current = st.cache          // date -> row
+  const loadedRef = useRef(null); loadedRef.current = st.loaded      // block index -> loaded
+  const loadingRef = useRef(null); loadingRef.current = st.loading   // block index -> in flight
   // block index -> its last read FAILED. Completeness audit 2026-10-07: a failed block (and a
   // failed /dates) was swallowed -- the rows stayed skeletons and the header said "Loading…"
   // forever. The failure is now reported up (blocksFailed / datesFailed) with a `retry`.
-  const failedRef = useRef(new Set())
+  const failedRef = useRef(null); failedRef.current = st.failed
   const [version, setVersion] = useState(0)
 
   // A new timeline (or live row) invalidates the block bookkeeping but not the row
   // cache (rows are keyed by date, so they stay valid).
   const idxKey = allDates.length ? `${allDates[0]}:${allDates.length}` : ''
-  const idxKeyRef = useRef(idxKey)
-  if (idxKeyRef.current !== idxKey) {
-    idxKeyRef.current = idxKey
-    loadedRef.current = new Set()
-    loadingRef.current = new Set()
-    failedRef.current = new Set()
+  if (st.idxKey !== idxKey) {
+    st.idxKey = idxKey
+    st.loaded = new Set(); loadedRef.current = st.loaded
+    st.loading = new Set(); loadingRef.current = st.loading
+    st.failed = new Set(); failedRef.current = st.failed
   }
 
   const fetchBlock = useCallback(async (k) => {
@@ -97,29 +123,33 @@ export default function useMonitorGrid({ enabled, liveRow }) {
     const dates = allDates.slice(lo, lo + BLOCK)
     const stored = dates.filter((d) => d !== liveDate)
     if (!stored.length) { loadedRef.current.add(k); return }
-    loadingRef.current.add(k)
+    // Captured, so a block that lands after a universe switch writes into ITS universe only.
+    const s = st
+    s.loading.add(k)
     try {
       const res = await fetcher(
-        `/api/breadth-monitor?days=${stored.length}&end=${stored[0]}&anchor=le`)
-      for (const row of res?.rows ?? []) cacheRef.current.set(row.date, row)
-      loadedRef.current.add(k)
-      failedRef.current.delete(k)
+        `/api/breadth-monitor?days=${stored.length}&end=${stored[0]}&anchor=le${universeParam(universe)}`)
+      // ⛔ A body for another universe (it can only be a server bug) is never cached here.
+      if (!isUct && res?.universe !== universe) throw new Error('universe mismatch')
+      for (const row of res?.rows ?? []) s.cache.set(row.date, row)
+      s.loaded.add(k)
+      s.failed.delete(k)
       setVersion((v) => v + 1)
       // Persist the freshly-revalidated recent window for the next instant open.
       if (k === 0) {
         const recent = allDates.slice(0, RECENT_N)
-          .map((d) => cacheRef.current.get(d)).filter(Boolean)
-        if (recent.length) writeLS(LS_RECENT, recent)
+          .map((d) => s.cache.get(d)).filter(Boolean)
+        if (recent.length) writeLS(monitorRecentLsKey(universe), recent)
       }
     } catch {
       // Left unloaded, so the next range change asks again -- and REPORTED, so the sheet says
       // these rows failed rather than drawing skeletons that never resolve.
-      failedRef.current.add(k)
+      s.failed.add(k)
       setVersion((v) => v + 1)
     } finally {
-      loadingRef.current.delete(k)
+      s.loading.delete(k)
     }
-  }, [allDates, liveDate])
+  }, [allDates, liveDate, st, universe, isUct])
 
   // Debounced: load the visible blocks (+1 buffer each side) once the scroll settles.
   const settleRef = useRef(0)
@@ -140,36 +170,36 @@ export default function useMonitorGrid({ enabled, liveRow }) {
   // are keyed by date and don't change — a manual refresh is the one time we
   // want a completed day re-pulled, e.g. after the collector writes today).
   const refresh = useCallback(() => {
-    cacheRef.current = new Map()
-    loadedRef.current = new Set()
-    loadingRef.current = new Set()
-    failedRef.current = new Set()
+    st.cache = new Map(); cacheRef.current = st.cache
+    st.loaded = new Set(); loadedRef.current = st.loaded
+    st.loading = new Set(); loadingRef.current = st.loading
+    st.failed = new Set(); failedRef.current = st.failed
     setVersion((v) => v + 1)
     const [f, l] = lastRangeRef.current
     const b0 = Math.max(0, Math.floor(f / BLOCK) - 1)
     const b1 = Math.floor(l / BLOCK) + 1
     for (let k = b0; k <= b1; k++) fetchBlock(k)
-  }, [fetchBlock])
+  }, [fetchBlock, st])
 
   useEffect(() => () => clearTimeout(settleRef.current), [])
 
   // Retry: re-ask the timeline index, and every block whose read failed.
   const retry = useCallback(() => {
     mutateDates()
-    const failed = [...failedRef.current]
-    failedRef.current = new Set()
+    const failed = [...st.failed]
+    st.failed = new Set(); failedRef.current = st.failed
     setVersion((v) => v + 1)
     for (const k of failed) fetchBlock(k)
-  }, [mutateDates, fetchBlock])
+  }, [mutateDates, fetchBlock, st])
 
   const getRow = useCallback((i) => {
     const d = allDates[i]
     if (!d) return null
-    if (d === liveDate) return liveRow
-    return cacheRef.current.get(d) ?? null
+    if (d === liveDate) return live
+    return st.cache.get(d) ?? null
     // `version` isn't read but is a dep so the identity changes as the cache fills,
     // which re-runs the render's getRow calls after a block lands.
-  }, [allDates, liveDate, liveRow, version])   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allDates, liveDate, live, version, st])   // eslint-disable-line react-hooks/exhaustive-deps
 
   // The 10-day trail ending at row `index` (oldest-first) for a sparkline, pulled
   // from whatever is cached — completes as neighbouring blocks load.
@@ -208,7 +238,8 @@ export default function useMonitorGrid({ enabled, liveRow }) {
     // a failed /dates read (with a saved index on screen, `count` stays > 0 and the sheet still
     // draws the saved dates; without one there is nothing to draw)
     datesFailed: Boolean(datesError),
-    blocksFailed: failedRef.current.size,
+    blocksFailed: st.failed.size,
     retry,
+    universe,
   }
 }

@@ -1,0 +1,9 @@
+//@version=5
+indicator("Average cloud", overlay=true)
+fastLen = input.int(8, "Fast EMA", minval=1)
+slowLen = input.int(21, "Slow EMA", minval=2)
+fast = ta.ema(close, fastLen)
+slow = ta.ema(close, slowLen)
+a = plot(fast, "Fast EMA", color=color.teal)
+b = plot(slow, "Slow EMA", color=color.orange)
+fill(a, b, color=fast >= slow ? color.new(color.green, 80) : color.new(color.red, 80), title="Cloud")

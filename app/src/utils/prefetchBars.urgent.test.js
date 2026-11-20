@@ -144,6 +144,20 @@ describe('prefetchBars urgent (opt-in cold-start bypass)', () => {
     for (let i = 0; i < 4; i++) expect(got).not.toContain(`R${i}`)
   })
 
+  it('…per TIMEFRAME: a list linked to a daily and a 5m chart keeps the next rows of both timeframes (2026-11-19)', async () => {
+    preload.mockImplementation(() => Promise.resolve({ bars: [{ t: 1 }] }))
+    mod._noteWarmResult({ bars: [], error: 'warming' })   // park everything in the queue
+    mod.prefetchBars(['TFA', 'TFB'], 'D', { urgent: true })
+    mod.prefetchBars(['TFA', 'TFB'], '5', { urgent: true })   // the same press, the second linked chart
+    mod._noteWarmResult({ bars: [{ t: 1 }] })
+    mod.prefetchBars(['TFA'], 'D', { urgent: true })          // nudge the pump; TFA:D is kept, TFB:D dropped by the D walk
+    await drain()
+    const got = urls()
+    expect(got.some((u) => u.includes('/TFA?tf=D'))).toBe(true)
+    expect(got.some((u) => u.includes('/TFA?tf=5'))).toBe(true)
+    expect(got.some((u) => u.includes('/TFB?tf=5'))).toBe(true)   // the D walk never drops a 5m row
+  })
+
   it('does not re-fetch a key fetched or in mem within the last 30s', async () => {
     preload.mockImplementation(() => Promise.resolve({ bars: [{ t: 1 }] }))
     mod.prefetchBars(['AAA'], 'D', { urgent: true })

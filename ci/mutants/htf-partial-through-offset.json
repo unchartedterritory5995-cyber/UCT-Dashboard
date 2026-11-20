@@ -96,8 +96,8 @@
    "id": "P11",
    "mutant": "JS: a site's own bars are lost (a merge withholds nothing for its first period)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "        own.set(node, m || new Float64Array(n))",
-   "to": "        own.set(node, new Float64Array(n))",
+   "from": "      const m = mergeOwn(node)",
+   "to": "      const m = null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
    "expectRed": "x (a direct read"
   },

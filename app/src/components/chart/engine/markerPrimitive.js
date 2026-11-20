@@ -23,6 +23,8 @@
 // `location.absolute` is for) would then mark every bar with a non-zero price,
 // which is every bar. So the test is explicit rather than truthy.
 
+import { createWindowedMarkers } from '../windowedChart'
+
 /** Does this column value mark its bar?
  *
  *  ⚠️ `> 0` RATHER THAN `!== 0`, and it is deliberate. Pine's own rule for
@@ -109,7 +111,8 @@ export function createMarkerLayer(createSeriesMarkers, series) {
       last = sig
       if (!controller) {
         if (!markers.length) return
-        controller = createSeriesMarkers(series, markers)
+        // window-aware: only the markers inside the chart's render window reach the plugin (chart/windowedChart.js)
+        controller = createWindowedMarkers(createSeriesMarkers, series, markers)
         return
       }
       controller.setMarkers(markers)
