@@ -1,0 +1,61 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "S1",
+   "mutant": "(a) the HOST document carries no source note",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "for (const n of otherSymbolSourceNotesFor(t.otherSymbols)) {",
+   "to": "for (const n of []) {",
+   "rail": "cd app && npx vitest run src/components/chart/builder/memberPane/otherSymbolSourceNote.test.js"
+  },
+  {
+   "id": "S2",
+   "mutant": "(b) the runtime decline names another code",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "return decline('runtime:request', `${probe.requests}",
+   "to": "return decline('runtime:request-other', `${probe.requests}",
+   "rail": "cd app && npx vitest run src/components/chart/builder/memberPane/otherSymbolSourceNote.test.js"
+  },
+  {
+   "id": "S3",
+   "mutant": "(b) the runtime decline of another symbol is removed",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (why) {\n      return decline('runtime:request',",
+   "to": "    if (false && why) {\n      return decline('runtime:request',",
+   "rail": "cd app && npx vitest run src/components/chart/builder/memberPane/otherSymbolSourceNote.test.js"
+  },
+  {
+   "id": "S4",
+   "mutant": "(c) the ruled sentence is not word for word",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "It uses UCT's own data for that symbol, ",
+   "to": "It uses UCT data for that symbol, ",
+   "rail": "cd app && npx vitest run src/components/chart/builder/memberPane/otherSymbolSourceNote.test.js"
+  },
+  {
+   "id": "S5",
+   "mutant": "(c) a duplicate symbol is said twice",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "    if (seen.has(name)) continue\n    seen.add(name)",
+   "to": "    seen.add(name)",
+   "rail": "cd app && npx vitest run src/components/chart/builder/memberPane/otherSymbolSourceNote.test.js"
+  },
+  {
+   "id": "S6",
+   "mutant": "(c) the script's spelling (its prefix) is dropped from the name",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "`${spelled.trim()}:${ticker}`",
+   "to": "`${ticker}`",
+   "rail": "cd app && npx vitest run src/components/chart/builder/memberPane/otherSymbolSourceNote.test.js"
+  },
+  {
+   "id": "S7",
+   "mutant": "(c) a malformed row (no ticker) is not skipped",
+   "file": "app/src/components/chart/engine/ast/symbolSubstitution.js",
+   "from": "if (!r || typeof r.ticker !== 'string' || !r.ticker.trim()) continue",
+   "to": "if (!r) continue",
+   "rail": "cd app && npx vitest run src/components/chart/builder/memberPane/otherSymbolSourceNote.test.js"
+  }
+ ]
+}
