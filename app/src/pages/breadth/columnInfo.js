@@ -20,8 +20,8 @@ const MA = (n, kind = 'simple') => ({
 
 const INFO = {
   // ── Score ──
-  breadth_score: { name: 'Breadth health', desc: 'UCT’s composite breadth score, built from the breadth readings on this sheet. Higher means healthier participation.' },
-  uct_exposure: { name: 'UCT Exposure', desc: 'UCT’s recommended market exposure rating for the session. Higher means more exposure is warranted.' },
+  breadth_score: { name: 'Breadth health', desc: 'A 0–100 score of how healthy the market’s breadth is. It combines nine readings: how many stocks are above their 50-day average, the 5-day up/down ratio, new highs, the 13%/34-day movers, Stage 2 stocks, advancers vs. decliners, and three fear gauges (VIX, put/call and AAII), which count as healthier when fear is high. Higher is healthier.' },
+  uct_exposure: { name: 'UCT Exposure', desc: 'The Morning Wire’s Exposure Rating for that day: how much of a full stock position UCT suggests, from 0% (all cash) to 100% (fully invested). Blank on days with no Morning Wire rating.' },
 
   // ── Primary breadth ──
   up_4pct_today: { name: 'Stocks up 4%+ today', desc: 'Stocks that closed up 4% or more from the prior close. Big counts are buying thrusts.' },
@@ -67,7 +67,7 @@ const INFO = {
   new_20d_highs: { name: 'New 20-day highs', desc: 'Stocks trading above their 20-session high during the session. A short-term read of breakouts.' },
   new_20d_lows: { name: 'New 20-day lows', desc: 'Stocks trading below their 20-session low during the session. A short-term read of breakdowns.' },
   new_ath: { name: 'New all-time highs', desc: 'Stocks closing at an all-time high. The strongest leadership in the market.' },
-  hvc_52w: { name: 'Highest-volume closes', desc: 'Stocks closing above their 10-day average on their highest volume in 52 weeks. A sign of heavy accumulation.' },
+  hvc_52w: { name: 'Highest-volume closes', desc: 'Stocks that traded their highest volume in 52 weeks today and closed above their 10-day moving average. Heavy buying rather than heavy selling. UCT universe only.' },
   atr_ext_7: { name: 'Extended 7+ ATRs', desc: 'Stocks more than 7 average true ranges above their 50-day moving average. High counts mean the market is stretched.' },
 
   net_new_high_low: { name: 'Net new highs minus lows', desc: 'New 52-week highs minus new 52-week lows for the session. Positive means highs lead; negative means lows dominate.' },

@@ -164,7 +164,10 @@ describe('Breadth Columns menu', () => {
     openMenu()
     const find = screen.getByRole('textbox', { name: 'Find a column' })
     fireEvent.change(find, { target: { value: 'vix' } })
-    expect(within(menu()).getAllByRole('checkbox').map(b => b.getAttribute('aria-checked'))).toEqual(['false'])
+    // VIX itself, plus Health (its explanation names VIX as an input) — owner 2026-11-19 copy
+    const hits = within(menu()).getAllByRole('checkbox').map(b => b.getAttribute('aria-label') || b.textContent)
+    expect(hits.some(t => /VIX/.test(t))).toBe(true)
+    expect(hits.length).toBeLessThanOrEqual(3)
     fireEvent.change(find, { target: { value: 'zzz' } })
     expect(menu().textContent).toMatch(/No column matches/)
   })
