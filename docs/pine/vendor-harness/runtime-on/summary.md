@@ -2,9 +2,9 @@
 
 Directories: `tests/fixtures/vendor`
 
-Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 516, host refusals 548) · objects-only pane ARMED · runtime drew 217, declined 299 · strategy lane: broker gate ON, 86 graded on their trades, 71 broker run(s)
+Lane: **runtime-on**. LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 516, host refusals 560) · objects-only pane ARMED · runtime drew 217, declined 299 · strategy lane: broker gate ON, 86 graded on their trades, 71 broker run(s)
 
-Graded at script engine **85**.
+Graded at script engine **87**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -1864,6 +1864,18 @@ rs-syminfo-industry-iwm-1d-2026-11-15        AMEX:IWM 1D      0      INCONCLUSIV
 rs-syminfo-industry-jpm-1d-2026-11-15        NYSE:JPM 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-ko-1d-2026-11-15         NYSE:KO 1D       0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-msft-1d-2026-11-15       NASDAQ:MSFT 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-a-1d-2026-11-19    NYSE:A 1D        0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-adt-1d-2026-11-19  NYSE:ADT 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-aer-1d-2026-11-19  NYSE:AER 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-appn-1d-2026-11-19 NASDAQ:APPN 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-avpt-1d-2026-11-19 NASDAQ:AVPT 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-azta-1d-2026-11-19 NASDAQ:AZTA 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-bgin-1d-2026-11-19 NASDAQ:BGIN 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-box-1d-2026-11-19  NYSE:BOX 1D      0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-brkr-1d-2026-11-19 NASDAQ:BRKR 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-cyrx-1d-2026-11-19 NASDAQ:CYRX 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-frog-1d-2026-11-19 NASDAQ:FROG 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
+rs-syminfo-industry-nhdot-gct-1d-2026-11-19  NASDAQ:GCT 1D    0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-nvda-1d-2026-11-15       NASDAQ:NVDA 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-pltr-1d-2026-11-15       NASDAQ:PLTR 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
 rs-syminfo-industry-pm-alab-1d-2026-11-16    NASDAQ:ALAB 1D   0      INCONCLUSIVE      refused on our side: member door refused: this script declares nothing a chart can draw
@@ -6976,10 +6988,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 954 captures — MATCH 341 · DIVERGE 73 · INCONCLUSIVE 517 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 222 captures) — MATCH 342 · DIVERGE 73 · INCONCLUSIVE 516
+TOTAL 966 captures — MATCH 341 · DIVERGE 73 · INCONCLUSIVE 529 · MATCH_SUBSTITUTED 23 (verified with substituted inputs; never counted as MATCH)
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 222 captures) — MATCH 342 · DIVERGE 73 · INCONCLUSIVE 528
 CHANGED BY OBJECT COLOUR (1): w9-d11-late-first-use-rddt-1d-2026-11-16 MATCH → INCONCLUSIVE
-WITHOUT PAINTS (the verdict before B1; paints graded on 83 captures) — MATCH 344 · DIVERGE 67 · INCONCLUSIVE 520
+WITHOUT PAINTS (the verdict before B1; paints graded on 83 captures) — MATCH 344 · DIVERGE 67 · INCONCLUSIVE 532
 CHANGED BY PAINTS (9): machine-learning-moving-average-backquant-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; one-sided-gaussian-support-resistance-rate-loxx-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-14 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-rddt-1d-2026-11-17 INCONCLUSIVE → DIVERGE; volatility-coil-edge-bullbyte-spy-1d-2026-11-17 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
 ```
 
