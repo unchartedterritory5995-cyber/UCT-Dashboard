@@ -28,6 +28,7 @@ import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
   OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS } from '../otherSymbols.js'
 import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
+import { overnightTailFrom, overnightSentence, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 
 /** ⭐⭐ (2026-11-19, no carried value) The exchange session strictly before `day` ('YYYY-MM-DD') by the published
  *  calendar, or null where the calendar does not cover it: no guess. */
@@ -568,6 +569,17 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       if (firstHeld !== null && typeof t === typeof firstHeld && t < firstHeld) return 'depth'
       if (lastHeld !== null && typeof t === typeof lastHeld && t > lastHeld) return 'tail'
       return 'hole'
+    }
+    // ⭐⭐ (coordinator ruling 2026-11-20) THE OVERNIGHT TAIL (`overnightTail.js`): every chart bar past this series' last
+    // held bar is an overnight bar (outside 04:00-20:00 ET, or a closed day). Not a lag (those bars never arrive) and not
+    // a whole-run refusal: the run is CUT at the first of them (`cutAt`, `runtimeColumns.js::computeRuntimeColumns`)
+    // and they are withheld by name. ⛔ A tail holding ANY bar inside 04:00-20:00 keeps the wait / lag rule below.
+    if (INTRADAY_CODES.has(chartCode) && typeof lastHeld === 'number') {
+      const cutAt = overnightTailFrom(rows, lastHeld)
+      if (cutAt > 0) {
+        out.refusal = { guard: REQUEST_OVERNIGHT_GUARD, message: overnightSentence([other]), cutAt, series: [other] }
+        return out
+      }
     }
     let early = -1
     for (let i = 0; i < n - 1; i += 1) if (aligned.withheld[i]) { early = i; break }

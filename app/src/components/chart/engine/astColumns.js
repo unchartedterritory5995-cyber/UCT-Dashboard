@@ -33,6 +33,7 @@ import { specializeSymbols } from './symbolInputs.js'
 import { calcBarsWindowOf, windowContext, widenToChart, withCalcBarsRecord, calcBarsWindowReport,
   CALC_BARS_REQUEST_GUARD, calcBarsRequestSentence } from './calcBarsWindow.js'
 import { RUNTIME_OBJECTS_KEY } from './runtime/runtimeObjects'
+import { runtimeOvernightOf } from './runtime/overnightTail.js'
 
 /** ⭐ HEADLESS (R6) — the caller's evaluation counter, as `interpret` reads it (`opts.workSink`).
  *  `{}` without one: the options every chart hands are unchanged. */
@@ -596,8 +597,11 @@ export function chartClockReport(columns) {
   // ⭐⭐ CBC-FMT — a `calc_bars_count` window says so on the same strip ("computed on its
   // last N bars", and the newest bar while it is withheld), in either lane.
   const win = calcBarsWindowReport(columns)
-  if (!win) return own
-  const rows = win.rows.map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
+  // ⭐⭐ (coordinator ruling 2026-11-20) — and an overnight tail the run was cut before (`runtime/overnightTail.js`)
+  const night = runtimeOvernightOf(columns)
+  if (!win && !night) return own
+  const rows = [...((win && win.rows) || []), ...((night && night.rows) || [])]
+    .map((r) => ({ code: r.code, reason: r.reason, plots: [] }))
   return Object.freeze({ withheld: Object.freeze([...((own && own.withheld) || []), ...rows]) })
 }
 
