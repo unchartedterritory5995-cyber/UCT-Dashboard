@@ -24,6 +24,7 @@ import {
   COMPANY_ONLY, OPTIONS_PANELS, PAIR_TF_NOTE, PAIR_VIEWS, newestBarDay, pairChartTf, pairDayNote, pairNewestBarUrl,
   pairSentence, pairViewOf, quoteFacts,
 } from './currencyPairModel'
+import { _url as chartBarsUrl } from '../../../utils/prefetchBars'
 import { FUNCTIONS } from '../functions'
 import { PANEL_IMPORTERS } from '../panels'
 import { colourLiteralsIn } from '../__tests__/themeScope'
@@ -31,7 +32,7 @@ import { expectNoAxeViolations } from '../../journal-2-0/a11y/axeHarness'
 
 const PAIR = { symbol: 'BTCUSD', name: 'Bitcoin', base: 'BTC', quote: 'USD', source: 'FMP' }
 const QUOTE_URL = '/api/crypto/quote/BTCUSD'
-const BARS_URL = '/api/bars/BTCUSD?tf=D&bars=1'
+const BARS_URL = '/api/bars/BTCUSD?tf=D&bars=600'
 const QUOTE = {
   symbol: 'BTCUSD', name: 'Bitcoin', source: 'FMP', state: 'fresh', price: 41234.5, change: 494.81, change_pct: 1.2,
   open: 40800, day_high: 41500.25, day_low: 40511, prev_close: 40739.69, year_high: 50000, year_low: 20000,
@@ -150,6 +151,8 @@ describe('BTCUSD GP: the chart', () => {
 
   it('the header gets the source and the newest bar\'s own day, and no day when there is no bar', async () => {
     expect(pairNewestBarUrl('BTCUSD')).toBe(BARS_URL)
+    // the daily chart's own address: no background-warm mark, no session, nothing of the panel's own
+    expect(pairNewestBarUrl('BTCUSD')).toBe(chartBarsUrl('BTCUSD', 'D', false))
     expect(newestBarDay(BARS)).toBe('2026-11-14')
     for (const none of [null, {}, { bars: [] }, { bars: 'x' }, { bars: [{ t: 1794657600 }] }, { bars: [{ t: '11/14/2026' }] }, { bars: [null] }]) {
       expect(newestBarDay(none), JSON.stringify(none)).toBe(null)

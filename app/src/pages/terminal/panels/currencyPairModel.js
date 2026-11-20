@@ -4,6 +4,7 @@
 // (its price). Every other one-security function says, in one plain sentence, that it has
 // nothing for a pair, and why where the reason is a fact about pairs.
 import { PAIR_TFS, pairPrice } from '../../../lib/cryptoPairs'
+import { _url as barsUrl } from '../../../utils/prefetchBars'
 
 /** What each panel name draws for a pair. Anything not named here draws the sentence. */
 export const PAIR_VIEWS = Object.freeze({ Chart: 'chart', Overview: 'quote' })
@@ -57,8 +58,9 @@ export const PAIR_TF_NOTE = 'A currency pair is charted on daily, weekly and mon
 /** Pure: why this chart has weekend bars, and what one daily bar is. */
 export const pairDayNote = (pair) => `${pair?.name || 'A currency pair'} trades every day, around the clock, so its chart has a bar for Saturdays and Sundays too. Each daily bar is one calendar day as ${pair?.source || 'FMP'} dates it.`
 
-/** `/api/bars` for the newest daily bar alone: the chart panel's as-of date. */
-export const pairNewestBarUrl = (sym) => `/api/bars/${encodeURIComponent(sym)}?tf=D&bars=1`
+/** Where the chart panel reads its as-of date: the daily chart's own first-paint address, from
+ *  the one module that builds bars addresses, so the panel and the chart ask the same question. */
+export const pairNewestBarUrl = (sym) => barsUrl(sym, 'D', false)
 
 /** Pure: the newest daily bar's own day (`2026-11-14`) from that answer, or null. */
 export function newestBarDay(body) {
