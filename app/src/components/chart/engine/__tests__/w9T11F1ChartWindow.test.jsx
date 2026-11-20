@@ -53,11 +53,12 @@ const flags = (broker) => {
   if (broker) vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
 }
 const inst = (defId = DEF_ID, id = 'i1') => ({ instanceId: id, defId, inputs: {}, hidden: false })
-const ctxFor = (instances, { bars, listing = true, window, pending, reg = registry, tf = 'D', frames }) => ({
+const ctxFor = (instances, { bars, listing = true, window, pending, reg = registry, tf = 'D', frames, depth }) => ({
   enabled: true, instances, registry: reg, bars, tf, sym: 'RDDT', newestBarIsForming: false,
   historyFromListing: listing, symbol: { ticker: 'RDDT', exchange: 'NYSE' },
   ...(window !== undefined ? { historyWindowBars: window } : {}),
   ...(pending !== undefined ? { historyWindowPending: pending } : {}),
+  ...(depth !== undefined ? { listingDepthBars: depth } : {}),
   ...(frames ? { frames } : {}),
   adjustTime: (t) => t, plan: { fresh: true },
   applyData: (series, data) => { if (series && data) series.setData(data) },
@@ -478,6 +479,30 @@ describe('W9-T11-F1 the binder hands a strategy run the chart\'s window', () => 
     for (const [, c] of strat) expect(c.historyWindowBars).toBe(SERVER_WINDOW)
     for (const [, c] of ind) expect('historyWindowBars' in c).toBe(false)
     expect(strategyRecordFor('i2')).toBe(null)
+  })
+
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) the served depth ([B-START-DEEP]) rides BESIDE the window: a
+  // strategy document handed a window is handed it too; an indicator, or a strategy with no window, never is
+  it('the served depth rides beside the window to strategy documents only', () => {
+    flags(true)
+    install(SRC, DEF_ID, 'Window strategy')
+    install(IND, IND_ID, 'Plain indicator')
+    const seen = []
+    const spy = { ...registry, computeFor: (def, b, inputs, c) => { seen.push([def.id, c]); return registry.computeFor(def, b, inputs, c) } }
+    binder.sync(ctxFor([inst(), inst(IND_ID, 'i2')], { bars: makeBars(40), window: SERVER_WINDOW + 7, depth: SERVER_WINDOW, reg: spy }))
+    const strat = seen.filter(([id]) => id === DEF_ID)
+    const ind = seen.filter(([id]) => id === IND_ID)
+    expect(strat.length).toBeGreaterThan(0)
+    for (const [, c] of strat) expect([c.historyWindowBars, c.listingDepthBars]).toEqual([SERVER_WINDOW + 7, SERVER_WINDOW])
+    for (const [, c] of ind) expect('listingDepthBars' in c).toBe(false)
+    // CONTROL: no window, no depth (the depth alone is never handed)
+    seen.length = 0
+    binder.teardown()
+    binder = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    binder.sync(ctxFor([inst()], { bars: makeBars(40), depth: SERVER_WINDOW, reg: spy }))
+    const noWindow = seen.filter(([id]) => id === DEF_ID)
+    expect(noWindow.length).toBeGreaterThan(0)
+    for (const [, c] of noWindow) expect('listingDepthBars' in c).toBe(false)
   })
 })
 
