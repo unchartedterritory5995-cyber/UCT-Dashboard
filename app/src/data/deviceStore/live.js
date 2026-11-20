@@ -37,6 +37,7 @@
 
 import { isRthBar } from '../../components/chart/barTime'
 import { bucketOf } from '../../lib/minuteFrames/rollup'
+import { serverPrice } from './price'
 import { prevSessionISO } from './sessions'
 import { STORED_TFS } from './tfs'
 
@@ -96,7 +97,10 @@ export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
       for (const k2 of COLS) s.cols[k2].copyWithin(i + 1, i, s.n)
       s.n++
     }
-    s.cols.t[i] = t; s.cols.o[i] = bar.o; s.cols.h[i] = bar.h; s.cols.l[i] = bar.l; s.cols.c[i] = bar.c; s.cols.v[i] = bar.v
+    // ⭐ Prices at the SERVER's grain (price.js: Python's round(x, 4), what /api/bars stores), so a bar painted
+    // from here is bit-identical to the server's. Rounding is monotone, so rounding the bucket's O/H/L/C equals
+    // rounding every minute first: a max stays a max, a first stays a first. Volume is stored as received.
+    s.cols.t[i] = t; s.cols.o[i] = serverPrice(bar.o); s.cols.h[i] = serverPrice(bar.h); s.cols.l[i] = serverPrice(bar.l); s.cols.c[i] = serverPrice(bar.c); s.cols.v[i] = bar.v
     if (bar.partial) s.bad = true
     stats.kept++
   }
