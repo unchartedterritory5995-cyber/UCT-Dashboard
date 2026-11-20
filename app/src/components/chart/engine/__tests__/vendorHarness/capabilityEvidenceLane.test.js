@@ -123,6 +123,11 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // `admittedGraded` row), lane `null` -> `runtime`, runtime-on MATCH (27 / 27 on RDDT and SPY 1D): the runtime lane
 // now reads its six-hop request timeframe (docs/pine/evidence/2026-11-19-request-unit/EVIDENCE.md); the
 // population block re-derived (`capability_admission.py::populations_of`).
+// ⭐ (request unit PR 2, NUMBER PENDING) re-pinned one `admittedUngraded` row, lane `null` (`pine:request`) -> `runtime`:
+// `reference:saty-atr-levels__99165984ef`. The runtime lane now reads its timeframe written as a call to its own function
+// (`timeframe_func()`) and its extended-session own ticker at the chart's own "D" (EXT-OWN); asked as the reach run asks
+// it (this file's member door), the door answers `runtime`. Its captures are licence-held (MATCH 32 / 32 on RDDT and SPY
+// 1D, runtime-on: docs/pine/evidence/2026-11-20-request-unit-pr2/EVIDENCE.md); the population block re-derived.
 // ⭐ DRAW-1 (engine 66, feat/pine-coverage-drawings): the reach run is RE-DERIVED on the engine-65 train
 // tree (input, CAPADMIT_MODE=admission, report), so it carries HIST's rows above as the tool answers them.
 // ⭐ ROUTE BY COST (Engine 73 (#1711), feat/route-by-cost) re-pinned 14 rows, lane `host` -> `runtime`: the
