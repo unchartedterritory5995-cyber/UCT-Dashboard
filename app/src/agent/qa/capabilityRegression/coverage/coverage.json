@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 236,
+  "all": 241,
   "withProductionKinds": 205,
-  "darkGated": 31
+  "darkGated": 36
  },
  "totals": {
-  "capabilities": 236,
-  "withAnyRegressionCase": 184,
+  "capabilities": 241,
+  "withAnyRegressionCase": 189,
   "perProtection": {
    "nl": {
-    "covered": 181,
-    "applicable": 236
+    "covered": 186,
+    "applicable": 241
    },
    "routing": {
-    "covered": 178,
-    "applicable": 236
+    "covered": 183,
+    "applicable": 241
    },
    "args": {
-    "covered": 184,
-    "applicable": 236
+    "covered": 189,
+    "applicable": 241
    },
    "execution": {
-    "covered": 181,
-    "applicable": 236
+    "covered": 186,
+    "applicable": 241
    },
    "receipt": {
-    "covered": 153,
-    "applicable": 236
+    "covered": 158,
+    "applicable": 241
    },
    "refusal": {
     "covered": 35,
-    "applicable": 236
+    "applicable": 241
    },
    "permission": {
-    "covered": 229,
-    "applicable": 236
+    "covered": 234,
+    "applicable": 241
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 236
+    "applicable": 241
    },
    "phrasings": {
-    "covered": 177,
-    "applicable": 236
+    "covered": 182,
+    "applicable": 241
    }
   }
  },
@@ -10136,6 +10136,60 @@
     "phrasings": []
    }
   },
+  "stock.oiChange": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.oiChange: \"open interest change on NVDA\"",
+     "stock.oiChange: \"what is the open interest change on NVDA\"",
+     "stock.oiChange: \"NVDA open interest change\"",
+     "stock.oiChange: \"NVDA oi change\""
+    ],
+    "routing": [
+     "stock.oiChange: \"open interest change on NVDA\"",
+     "stock.oiChange: \"what is the open interest change on NVDA\"",
+     "stock.oiChange: \"NVDA open interest change\"",
+     "stock.oiChange: \"NVDA oi change\""
+    ],
+    "args": [
+     "corpus stock.oiChange"
+    ],
+    "execution": [
+     "stock.oiChange (c)"
+    ],
+    "receipt": [
+     "stock.oiChange (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.profile": {
    "domain": "stock",
    "group": "data",
@@ -10243,6 +10297,114 @@
     "receipt": [
      "stock.quote (c)",
      "asset.commodity-decline (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.seasonality": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.seasonality: \"NVDA seasonality\"",
+     "stock.seasonality: \"seasonality for NVDA\"",
+     "stock.seasonality: \"best months for NVDA\"",
+     "stock.seasonality: \"how does NVDA usually do in december\""
+    ],
+    "routing": [
+     "stock.seasonality: \"NVDA seasonality\"",
+     "stock.seasonality: \"seasonality for NVDA\"",
+     "stock.seasonality: \"best months for NVDA\"",
+     "stock.seasonality: \"how does NVDA usually do in december\""
+    ],
+    "args": [
+     "corpus stock.seasonality"
+    ],
+    "execution": [
+     "stock.seasonality (c)"
+    ],
+    "receipt": [
+     "stock.seasonality (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.seasonalityBoard": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.seasonalityBoard: \"sector seasonality\"",
+     "stock.seasonalityBoard: \"seasonality board\"",
+     "stock.seasonalityBoard: \"which sectors usually do best in november\"",
+     "stock.seasonalityBoard: \"seasonality of the sector funds\""
+    ],
+    "routing": [
+     "stock.seasonalityBoard: \"sector seasonality\"",
+     "stock.seasonalityBoard: \"seasonality board\"",
+     "stock.seasonalityBoard: \"which sectors usually do best in november\"",
+     "stock.seasonalityBoard: \"seasonality of the sector funds\""
+    ],
+    "args": [
+     "corpus stock.seasonalityBoard"
+    ],
+    "execution": [
+     "stock.seasonalityBoard (c)"
+    ],
+    "receipt": [
+     "stock.seasonalityBoard (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10559,6 +10721,60 @@
     "phrasings": []
    }
   },
+  "stock.tideHistory": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.tideHistory: \"market tide history\"",
+     "stock.tideHistory: \"market tide by day\"",
+     "stock.tideHistory: \"market tide over the last week\"",
+     "stock.tideHistory: \"how has the market tide been this week\""
+    ],
+    "routing": [
+     "stock.tideHistory: \"market tide history\"",
+     "stock.tideHistory: \"market tide by day\"",
+     "stock.tideHistory: \"market tide over the last week\"",
+     "stock.tideHistory: \"how has the market tide been this week\""
+    ],
+    "args": [
+     "corpus stock.tideHistory"
+    ],
+    "execution": [
+     "stock.tideHistory (c)"
+    ],
+    "receipt": [
+     "stock.tideHistory (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.topFlowPicks": {
    "domain": "stock",
    "group": "marketBoards",
@@ -10605,6 +10821,60 @@
     ],
     "receipt": [
      "stock.topFlowPicks (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.treasuryYields": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.treasuryYields: \"treasury yields\"",
+     "stock.treasuryYields: \"what is the 10-year yield\"",
+     "stock.treasuryYields: \"is the yield curve inverted\"",
+     "stock.treasuryYields: \"where are bond yields\""
+    ],
+    "routing": [
+     "stock.treasuryYields: \"treasury yields\"",
+     "stock.treasuryYields: \"what is the 10-year yield\"",
+     "stock.treasuryYields: \"is the yield curve inverted\"",
+     "stock.treasuryYields: \"where are bond yields\""
+    ],
+    "args": [
+     "corpus stock.treasuryYields"
+    ],
+    "execution": [
+     "stock.treasuryYields (c)"
+    ],
+    "receipt": [
+     "stock.treasuryYields (c)"
     ],
     "refusal": [],
     "permission": [],
