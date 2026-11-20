@@ -633,7 +633,11 @@ export function historyFromListingFor(def, ctx) {
  *  pineTernaryFor`). Off the listing, or for a document that does not declare
  *  it, nothing changes. */
 export function listingOptsFor(def, ctx) {
-  if (!historyFromListingFor(def, ctx)) return {}
+  if (!historyFromListingFor(def, ctx)) {
+    // ⭐⭐ (2026-11-20) the listing FACT where it is not served (W / M): only the notes read it, for a true sentence
+    return ctx && ctx.listingStart === true && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN
+      ? { listingStart: true } : {}
+  }
   return { historyFromListing: true,
     ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}),
     ...(listingSeedUnpinnedFor(def) ? { listingSeedUnpinned: true } : {}) }

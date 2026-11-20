@@ -288,6 +288,7 @@
   "runtime:library",
   "runtime:limit",
   "runtime:limit:INSTRUCTIONS_PER_BAR",
+  "runtime:listing-unverified",
   "runtime:load-failed",
   "runtime:loop",
   "runtime:loop-value",

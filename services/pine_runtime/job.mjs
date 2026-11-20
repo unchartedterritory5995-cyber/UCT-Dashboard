@@ -74,7 +74,10 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // the wire has no framed instance (protocol.mjs closes ctx); a server run never slides that way.
   // RS RATING L5: nor does it carry the chart's other-symbol cache (`secondaryEntries`): a job
   // holds ONE symbol's bars, so a server run is handed no other symbol's bars (see ctxServerOnly).
-  ctxBrowserOnly: Object.freeze(['framed', 'secondaryEntries']),
+  // (2026-11-20, the W / M listing statement) nor the listing FACT on a weekly / monthly chart (`listingStart`, StockChart
+  // from /api/ticker-ipo): this host does not state it, so a withheld run here keeps the off-listing sentence; it never
+  // SERVES anything either way (serving stays `historyFromListing`, daily-only).
+  ctxBrowserOnly: Object.freeze(['framed', 'secondaryEntries', 'listingStart']),
   // RS RATING L3: the wire's symbol is closed to {ticker, exchange} (protocol.mjs), so a server run
   // carries no classification: `syminfo.industry` / `sector` / `type` stay unsettled there and the
   // run refuses them by name (bind.js::classificationWith), never a guessed string.
