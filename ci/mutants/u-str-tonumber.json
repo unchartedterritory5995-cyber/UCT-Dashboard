@@ -18,7 +18,7 @@
    "from": "  const t = s.replace(SURROUNDING_SPACES, '')",
    "to": "  const t = s",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/strToNumberVendor.test.js",
-   "expectRed": "N05_lead_space"
+   "expectRed": "two spaces either side"
   },
   {
    "id": "N3",
@@ -27,7 +27,7 @@
    "from": "  if (SURROUNDING_OTHER_BLANK.test(t)) {",
    "to": "  if (false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/strToNumberVendor.test.js",
-   "expectRed": "not measured"
+   "expectRed": "no-break space at either end"
   }
  ]
 }
