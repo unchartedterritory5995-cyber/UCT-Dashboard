@@ -141,22 +141,17 @@ const _legacyBarsMemo = new WeakMap()
 // sealed + developing array built for it. A NEW SNAPSHOT OF THE SAME BARS (a status or meta change: a warm's
 // answer that moved nothing, a subscribe's mem hydrate) used to append the same developing bar to the same
 // sealed rows as a NEW array, so everything filed under the old one (a row's indicators, computed ahead)
-// missed. Same sealed rows + an equal developing bar = the same array. Bounded: the newest DEV_MEMO_MAX.
-const _withDevMemo = new Map()
-const DEV_MEMO_MAX = 32
+// missed. Same sealed rows + an equal developing bar = the same array. A WeakMap keyed by the sealed array:
+// an entry lives exactly as long as the store keeps those rows, never past an eviction.
+const _withDevMemo = new WeakMap()
 const sameLegacyBar = (a, b) => !!a && !!b && a.t === b.t && a.o === b.o && a.h === b.h && a.l === b.l
   && a.c === b.c && a.v === b.v
 function withDeveloping(sealed, dev, tf) {
   if (!neighborFramesOn()) return [...sealed, dev]
   const hit = _withDevMemo.get(sealed)
-  if (hit && hit.tf === tf && sameLegacyBar(hit.dev, dev)) {
-    _withDevMemo.delete(sealed); _withDevMemo.set(sealed, hit)
-    return hit.out
-  }
+  if (hit && hit.tf === tf && sameLegacyBar(hit.dev, dev)) return hit.out
   const out = [...sealed, dev]
-  _withDevMemo.delete(sealed)
   _withDevMemo.set(sealed, { tf, dev, out })
-  while (_withDevMemo.size > DEV_MEMO_MAX) _withDevMemo.delete(_withDevMemo.keys().next().value)
   return out
 }
 /** Today's downstream `bars` array for a snapshot: sealed + developing appended, legacy

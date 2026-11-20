@@ -99,6 +99,9 @@ const noop = () => {}
 
 /** Mount AAA, hold BBB in the store, (ON: let the next row be prepared), switch to BBB. What the switch handed. */
 async function switchOnce(on) {
+  // a browser with a real idle signal (jsdom has none, and without one nothing is prepared: neighborFrames.idleSupported)
+  vi.stubGlobal('requestIdleCallback', (cb) => setTimeout(() => cb({ timeRemaining: () => 10, didTimeout: false }), 5))
+  vi.stubGlobal('cancelIdleCallback', (h) => clearTimeout(h))
   S.log.length = 0
   S.n = 0
   S.rec = false

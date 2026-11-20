@@ -7,7 +7,7 @@
 // `setData` / `update` / option call of the switch's sync, in order), so a prepared answer that differs
 // in one value at one bar is a red, whatever the reason.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createBinder, prepKeyOf } from './binder'
+import { createBinder, prepKeyOf, POINTS_SLICE_BARS } from './binder'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
 import * as nativeRegistry from './nativeRegistry'
 import { primeServerColumns, clearServerColumns, pickServerInputs } from './serverCompute'
@@ -48,7 +48,7 @@ const handed = (fake) => fake.calls
   .filter((c) => c.on === 'series' || c.on === 'priceScale')
   .map((c) => [c.method, JSON.stringify(c.args)])
 
-const drain = (gen) => { let n = 0; for (const _ of gen) n += 1; return n }   // eslint-disable-line no-unused-vars
+const drain = (gen) => { let n = 0; for (const _ of gen) n += 1; return n }
 
 /** A registry whose `computeFor` is counted per definition. */
 function countingRegistry() {
@@ -165,6 +165,66 @@ describe('a row prepared ahead is the row computed on the switch', () => {
     b.sync(ctxFor({ registry: nativeRegistry, instances: MIXED(), bars: barsA }))
     // no ctx was kept while off: nothing to prepare from
     expect(drain(b.prepare({ bars: barsB, sym: 'BBB' }))).toBe(0)
+  })
+})
+
+// ─── a long row: its points are made in slices, and the slices make the same array ─────────────────────────
+describe('a 13,000-bar row', () => {
+  const long1 = makeBars(13_000, 1_000_000_000)
+  const long2 = makeBars(13_200, 900_000_000).map((b, i) => ({ ...b, c: b.c + Math.sin(i / 17) * 3 }))
+  it('its points are made in slices of POINTS_SLICE_BARS, one piece each, and the switch is still the computed one', () => {
+    const want = control({ instances: MIXED(), bars1: long1, bars2: long2 })
+    __setNeighborFramesForTests(true)
+    const fake = createFakeChart()
+    const b = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    b.sync(ctxFor({ registry: nativeRegistry, instances: MIXED(), bars: long1 }))
+    const pieces = drain(b.prepare({ bars: long2, sym: 'BBB' }))
+    const st = neighborFramesStats()
+    expect(st.pointsPrepared).toBeGreaterThan(0)
+    expect(pieces).toBeGreaterThanOrEqual(st.colsPrepared + st.pointsPrepared * Math.ceil(long2.length / POINTS_SLICE_BARS))
+    fake.reset()
+    b.sync(ctxFor({ registry: nativeRegistry, instances: MIXED(), bars: long2, sym: 'BBB' }))
+    expect(handed(fake)).toEqual(want)
+    expect(neighborFramesStats().pointsHit).toBeGreaterThan(0)
+  })
+})
+
+// ─── a runtime / AST document's bar source stays a fresh array: context its memo key does not name still reaches it ─
+describe('the listing fact reaches a non-native document', () => {
+  const MA = nativeRegistry.getDefinition('movingAverage')
+  // a document on the AST lane (`computeLaneOf`), drawing what the average draws, whose values read `listingStart`
+  const AST = { ...MA, id: 'nfAstAverage', compute: { kind: 'ast', fn: 'nfAstAverage' } }
+  const astRegistry = () => {
+    const calls = []
+    const reg = {
+      ...nativeRegistry,
+      getDefinition: (id) => (id === AST.id ? AST : nativeRegistry.getDefinition(id)),
+      computeFor: (def, bars, inputs, ctx) => {
+        calls.push(def.id)
+        if (def.id !== AST.id) return nativeRegistry.computeFor(def, bars, inputs, ctx)
+        const cols = nativeRegistry.computeFor(MA, bars, inputs, ctx)
+        const k = ctx && ctx.listingStart ? 2 : 1
+        const out = {}
+        for (const key of Object.keys(cols)) out[key] = Float64Array.from(cols[key], (v) => v * k)
+        return out
+      },
+    }
+    return { reg, calls }
+  }
+  const instances = () => [
+    { instanceId: 'ast:1', defId: AST.id, inputs: { source: 'close', period: 10 }, hidden: false },
+    { instanceId: 'ma:1', defId: 'movingAverage', inputs: { source: 'close', period: 10 }, hidden: false },
+  ]
+  it('the same bars with the listing fact changed: the document recomputes; the native keeps its memo', () => {
+    __setNeighborFramesForTests(true)
+    const { reg, calls } = astRegistry()
+    const fake = createFakeChart()
+    const b = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    b.sync({ ...ctxFor({ registry: reg, instances: instances(), bars: barsA }), listingStart: false })
+    expect(calls.sort()).toEqual(['movingAverage', AST.id].sort())
+    calls.length = 0
+    b.sync({ ...ctxFor({ registry: reg, instances: instances(), bars: barsA }), listingStart: true })
+    expect(calls, 'the document kept the answer it gave before the listing fact').toEqual([AST.id])
   })
 })
 

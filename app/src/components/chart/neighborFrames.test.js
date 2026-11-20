@@ -97,6 +97,25 @@ describe('the idle queue', () => {
     expect(__idleQueueLength()).toBe(0)
   })
 
+  it('an input already waiting starts no piece: the queue is dropped at once', () => {
+    const log = []
+    scheduleIdle('a', 0, task(log, 'a', 20, 1))
+    vi.stubGlobal('navigator', { ...navigator, scheduling: { isInputPending: () => true } })
+    fireIdle(50)
+    expect(log).toEqual([])
+    expect(__idleQueueLength()).toBe(0)
+  })
+
+  it('without requestIdleCallback nothing is queued at all (no timer stands in for idleness)', () => {
+    vi.stubGlobal('requestIdleCallback', undefined)
+    const log = []
+    let started = false
+    function* t() { started = true; log.push('x'); yield }
+    scheduleIdle('a', 0, t())
+    expect(__idleQueueLength()).toBe(0)
+    expect(started).toBe(false)
+  })
+
   it('a piece that throws ends its task, not the queue', () => {
     const log = []
     function* bad() { yield; throw new Error('x') }

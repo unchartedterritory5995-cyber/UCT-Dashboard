@@ -405,8 +405,14 @@ export function displacedColumn(column, d) {
 const PACKED_NA_POINT = 'rgba(0, 0, 0, 0)'
 
 function toPoints(column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false, times = null) {
-  const out = new Array(bars.length)
-  for (let i = 0; i < bars.length; i++) {
+  return toPointsInto(new Array(bars.length), 0, bars.length, column, bars, adjustTime, signColors, colColors, condColumn,
+    unknownNone, times)
+}
+
+/** ⭐ NEIGHBOR FRAMES — `toPoints`' body over bars [from, to) of `out` (prepare fills one array in slices). */
+function toPointsInto(out, from, to, column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false,
+  times = null) {
+  for (let i = from; i < to; i++) {
     // ⭐ NEIGHBOR FRAMES — `times` is `chartTimesFor(bars, adjustTime)`: these values, built once per bars
     const time = times ? times[i] : adjustTime(bars[i].t)
     const v = column ? column[i] : NaN
@@ -1062,6 +1068,9 @@ function samePointsKey(m, column, bars, adjustTime, k) {
     && m.up === k.up && m.down === k.down && m.palette === k.palette && m.cond === k.cond
     && m.unknownNone === k.unknownNone
 }
+
+/** How many bars one piece of `prepare` turns into points (a 30,000-bar plot is several pieces). */
+export const POINTS_SLICE_BARS = 6000
 
 /** How many bars arrays one binder keeps prepared answers for (the rows ahead / behind it prepares:
  *  `useNeighborFrames.PREPARE_RANKS`). Older ones are dropped: a 30,000-bar row's columns are megabytes. */
@@ -2338,7 +2347,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
       for (const [key, value] of sourceInputsOf(def, inst)) {
         const parsed = parseSource(value)
         let series = null
-        if (parsed && parsed.kind === 'bar') series = nf ? barFieldOf(calcBars, parsed.field) : barFieldSeries(calcBars, parsed.field)
+        // ⛔ ONE array per (bars, field) ONLY for a native: its values are the bars, its inputs and this source,
+        // all in the memo key. A runtime / AST document also reads context the key does not name (the listing
+        // fact, the symbol landing after the bars), and on master it recomputes because a fresh source array is a
+        // new key every pass: it keeps that fresh array, so it keeps recomputing.
+        if (parsed && parsed.kind === 'bar') series = nf && computeLaneOf(def) === COMPUTE_LANE.NATIVE
+          ? barFieldOf(calcBars, parsed.field) : barFieldSeries(calcBars, parsed.field)
         else if (parsed && parsed.kind === 'instance') {
           // ⭐ A FRAMED dependent reads its source in the SOURCE'S OWN frame (it
           // inherited that frame), never the projected chart column.
@@ -2691,7 +2705,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       if (ctx.sym !== lastSyncSym) {
         nfCount(was ? 'switchPrepared' : 'switchUnprepared')
         const ms = typeof performance !== 'undefined' ? Math.round(performance.now() - nfT0) : 0
-        nfLogSwitch(`${ctx.sym}:${ctx.tf}:${was ? 'P' : 'U'}:h${nfHits}:m${nfMisses - nfHits}:${ms}`)
+        nfLogSwitch([ctx.sym, ctx.tf, was ? 'P' : 'U', `h${nfHits}`, `m${nfMisses - nfHits}`, ms].join(':'))
       }
     }
     if (nf) lastSyncSym = ctx.sym
@@ -3602,8 +3616,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
    * ⭐⭐ NEIGHBOR FRAMES — ask THIS chart's questions (its instances, registry, timeframe, colours) of
    * another row's bars, in idle time, and file the answers for the switch (`takePrepared`, `pointsFor`).
    *
-   * A generator: every `yield` is a place the idle queue may pause it (one compute, or one plot's points,
-   * per piece). It writes NOTHING but the two prepared stores: no notice, no memo, no series, no ask.
+   * A generator: every `yield` is a place the idle queue may pause it (one compute, or a slice of one plot's
+   * points, per piece). It writes no notice, no memo the sync reads, no series. ⚠️ NOT NOTHING ELSE: a server-lane
+   * compute notes its ask (`serverCompute._noteAsk`, what a warm replays) and marks its landed envelope as used
+   * (the lane cache's recency), exactly as the switch's own compute would. It never fetches (only a landed,
+   * non-provisional envelope is prepared: `landedEnvelopeFor`).
    *
    * @param {{bars: object[], sym: string, newestBarIsForming?: boolean|null, points?: boolean}} row
    *   the bars exactly as the chart will hand them to `sync` for that row (`filteredBars`), its symbol and
@@ -3706,11 +3723,15 @@ export function createBinder({ chart, LWC, scope = '' }) {
       if (!raw || isOhlcPayload(raw)) continue
       const k = pointsInputsOf(b, raw, (key) => cols.get(key), base.cs)
       if (k.ohlc || samePointsKey(preparedPoints.get(k.column), k.column, bars, adjustTime, k)) continue
-      const points = toPoints(k.column, bars, adjustTime, k.sc, k.cc, k.cond, k.unknownNone, times)
+      const points = new Array(bars.length)
+      for (let from = 0; from < bars.length; from += POINTS_SLICE_BARS) {
+        toPointsInto(points, from, Math.min(bars.length, from + POINTS_SLICE_BARS), k.column, bars, adjustTime,
+          k.sc, k.cc, k.cond, k.unknownNone, times)
+        yield
+      }
       preparedPoints.set(k.column, { column: k.column, bars, adjustTime, up: k.up, down: k.down,
         palette: k.palette, cond: k.cond, unknownNone: k.unknownNone, points })
       nfCount('pointsPrepared')
-      yield
     }
   }
 

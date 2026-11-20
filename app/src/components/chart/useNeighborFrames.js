@@ -14,13 +14,18 @@
 //
 // Each answer is filed under the very array it was computed from (`neighborFrames.deriveFrom`, the
 // binder's prepared store), so when the member arrives the chart's memos and its binder find them, or,
-// if the row changed meanwhile, compute exactly as before. Nothing here writes to the chart, the store
-// or the network: `registry.subscribe` is a listener without a life cycle (no hydrate, no request).
+// if the row changed meanwhile, compute exactly as before. Nothing here writes to the chart or makes a
+// request. ⚠️ It does touch the bar store's bookkeeping: reading a row's base snapshot marks it used (the
+// registry's LRU), and while a row is watched for new bars (`registry.subscribe`, a listener without a life
+// cycle: no hydrate, no request) the registry will not evict it (the list's hold pins those rows anyway).
+// A server-lane compute notes its ask (see `binder.prepare`).
 //
-// ⛔ Off unless `neighborFramesOn()`; the hook then returns before touching anything.
+// ⛔ Off unless `neighborFramesOn()`, the chart reads the bar store (`BARSTORE`) and the browser has a real idle
+// signal (`idleSupported`); otherwise the hook returns before touching anything (the store is never created).
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { getBarStore } from '../../data/barStore/index'
+import { BARSTORE } from './barStoreSwitch'
 import { legacyBars, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { STATUS } from '../../data/barStore/types'
 import { chartKeyFor } from './useBarSnapshotBars'
@@ -28,7 +33,7 @@ import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, compute
 import { toHeikinAshi } from './indicators'
 import {
   neighborFramesOn, scanNeighborsFor, subscribeScanNeighbors, scheduleIdle, cancelIdleFor,
-  deriveFrom, hasDerived, identitySig, chartTimesFor, nfCount,
+  deriveFrom, hasDerived, identitySig, chartTimesFor, nfCount, idleSupported,
 } from './neighborFrames'
 
 /** The statuses a chart paints its snapshot as it stands (useBarSnapshotBars `PAINTS`). */
@@ -79,7 +84,7 @@ export function deriveVolMa(sessionApplied, r) {
 export function* prepareRow(sym, rank, c) {
   const r = c.recipes()
   const v = c.view()
-  if (!r || !v || !r.plain) return
+  if (!r || !v || !r.plain || !BARSTORE) return
   const store = getBarStore()
   const key = chartKeyFor({ sym, resolvedTf: v.tf, showExtended: v.showExtended, replayCutoff: null, hasOverride: false })
   if (!key || !store.registry.has(key)) { nfCount('barsSkipped'); return }
@@ -87,14 +92,20 @@ export function* prepareRow(sym, rank, c) {
   if (!snap || !PAINTS.has(snap.status)) { nfCount('barsSkipped'); return }
   const all = legacyBars(snap)
   if (!all || !all.length) { nfCount('barsSkipped'); return }
+  yield
   // the chart's own chain, in the chart's own order (StockChart: sessionBars → filteredBars → sessionAppliedBars → displayBars)
   const filtered = deriveSession(all, r)
   if (!filtered || !filtered.length) return
   yield
   const display = deriveDisplay(filtered, r)
+  if (display !== filtered) yield
+  // one chart time per bar first (its own piece), then each array over it
+  chartTimesFor(display, r.adjustTime)
+  yield
   if (!hasDerived(display, 'ohlcBase', r.ohlc.sig)) { deriveOhlcBase(display, r); yield }
   if (!hasDerived(display, 'close', r.close.sig)) { deriveClose(display, r); yield }
   const hvc = deriveHvc(filtered, r)
+  yield
   if (r.vol.on) { deriveVol(filtered, hvc, null, r); yield }
   if (r.volMa.on) { deriveVolMa(filtered, r); yield }
   nfCount('barsPrepared')
@@ -118,7 +129,7 @@ export function useNeighborFrames({ on, sym, tf, showExtended, engineRef, recipe
     recipesRef.current = recipes
     viewRef.current = { tf, showExtended }
   })
-  const live = !!(on && neighborFramesOn() && sym && tf && recipes && recipes.plain)
+  const live = !!(on && BARSTORE && neighborFramesOn() && idleSupported() && sym && tf && recipes && recipes.plain)
   useEffect(() => {
     if (!live) return undefined
     const symU = String(sym).toUpperCase()

@@ -47,7 +47,7 @@ export function __setNeighborFramesForTests(v) { _flag = v === null || v === und
 
 // ─── what happened, for the flip proof's `--peek` and for tests ─────────────────────────────────────
 const _stats = {
-  pieces: 0, workMs: 0, maxPieceMs: 0, slices: 0, cancelled: 0,
+  pieces: 0, workMs: 0, maxPieceMs: 0, slices: 0, cancelled: 0, inputAborts: 0,
   colsPrepared: 0, colsHit: 0, colsMissed: 0,
   pointsPrepared: 0, pointsHit: 0,
   derivedPrepared: 0, derivedHit: 0,
@@ -230,10 +230,20 @@ let _handle = null
 let _inputBound = false
 
 const _now = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
-const _ric = (cb) => (typeof requestIdleCallback === 'function'
-  ? requestIdleCallback(cb)
-  : setTimeout(() => cb({ timeRemaining: () => IDLE_SLICE_MS, didTimeout: false }), 50))
-const _cic = (h) => { try { (typeof cancelIdleCallback === 'function' ? cancelIdleCallback : clearTimeout)(h) } catch { /* gone */ } }
+// ⛔ A REAL IDLE SIGNAL OR NOTHING. Without `requestIdleCallback` (Safari) nothing is prepared: a timer firing
+// every 50 ms whether the page is idle or not, with a budget it made up, would compete with exactly the work
+// this exists to keep off the main thread. That browser switches as it always did.
+/** Can this browser tell us when it is idle? (Nothing is queued when it cannot.) */
+export function idleSupported() { return typeof requestIdleCallback === 'function' }
+const _ric = (cb) => requestIdleCallback(cb)
+const _cic = (h) => { try { cancelIdleCallback(h) } catch { /* gone */ } }
+/** Is a key / press already waiting for the main thread? (Chromium's `isInputPending`; false where absent.) */
+function _inputPending() {
+  try {
+    const s = typeof navigator !== 'undefined' ? navigator.scheduling : null
+    return !!(s && typeof s.isInputPending === 'function' && s.isInputPending())
+  } catch { return false }
+}
 
 function _bindInput() {
   if (_inputBound || typeof window === 'undefined' || !window.addEventListener) return
@@ -263,6 +273,9 @@ function _run(deadline) {
   while (_queue.length) {
     const left = budget - (_now() - t0)
     if (left < IDLE_MIN_LEFT_MS) break
+    // ⛔ AN INPUT ALREADY WAITING STARTS NO PIECE: the queue is dropped now (its listener would drop it anyway,
+    // after this callback; the piece it would have run is the delay it would have added to the switch).
+    if (_inputPending()) { _stats.inputAborts += 1; cancelIdle(); return }
     const i = _pick()
     const q = _queue[i]
     const p0 = _now()
@@ -287,6 +300,7 @@ function _run(deadline) {
  */
 export function scheduleIdle(owner, rank, gen) {
   if (!gen || typeof gen.next !== 'function') return
+  if (!idleSupported()) { try { gen.return() } catch { /* never started */ } return }
   _bindInput()
   _expose()
   _queue.push({ owner, rank, gen, seq: ++_seq })

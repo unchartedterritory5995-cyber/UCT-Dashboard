@@ -9,6 +9,7 @@ const fakeStore = {
   getBaseSnapshot: (k) => snaps.get(k) ?? null,
 }
 vi.mock('../../data/barStore/index', () => ({ getBarStore: () => fakeStore }))
+vi.mock('./barStoreSwitch', () => ({ BARSTORE: true }))
 
 const { prepareRow, deriveSession, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa, deriveHvc } = await import('./useNeighborFrames')
 const { chartKeyFor } = await import('./useBarSnapshotBars')
