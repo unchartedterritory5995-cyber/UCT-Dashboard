@@ -9986,7 +9986,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
             if (!objectsInRun) functions[owner].rt5Lex = true
             r4Guard('a call-owned `bar_index[…]`', offAt)
           }
-          return mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
+          const hd = mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
+          // ⭐ A1 — inside a copy that reads a parameter per bar (`frameSeries`), a column's dynamic read is STRICT
+          // too (`src[n]` of a parameter passed `close`, `high[j]` in a loop to a per-bar bound): the VM stops a
+          // negative or fractional offset by name there instead of answering `na` (`READ_HIST_DYN`, operand -1)
+          return frameSeries && owner !== null ? { ...hd, strict: true } : hd
         }
         let back = Number(node.n)
         // ⭐ L4b — a NAMED constant (`n63 = 63`, `spx[n63]`) is the constant it folds to

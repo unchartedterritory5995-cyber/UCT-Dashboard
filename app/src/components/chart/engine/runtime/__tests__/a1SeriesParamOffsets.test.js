@@ -17,6 +17,7 @@ import { describe, it, expect } from 'vitest'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { OP } from '../program.js'
 
 const barsOf = (n) => Array.from({ length: n }, (_, i) => ({
   t: 1700000000 + i * 86400,
@@ -56,14 +57,22 @@ const same = (got, want, label, digits = 9) => {
   }
 }
 const back = (xs, i, n) => (i - n >= 0 ? xs[i - n] : NaN)
+/** The program's STRICT dynamic reads: chart-column / series reads with operand -1, and rings marked `strict`. */
+const strictOf = (program) => {
+  let columnReads = 0
+  for (let pc = 0; pc * 3 < program.code.length; pc += 1) {
+    const op = program.code[pc * 3]
+    if ((op === OP.READ_HIST_DYN || op === OP.READ_SERIES_HIST_DYN) && program.code[pc * 3 + 2] === -1) columnReads += 1
+  }
+  return { columnReads, rings: program.history.filter((h) => h.strict).map((h) => h.depth) }
+}
 
 describe('⭐⭐ A1 — a per-bar argument sizes the offset of the copy compiled for its call site', () => {
   it('⭐ `src[n]` of a parameter, `n` read per bar: the close `n` bars back, every bar', () => {
     const { outs, built, program } = run(`${CYCLE}f(src, n) => src[n]\nplot(f(close, c))\n`)
     expect(built.diagnostics.seriesSpecialisedCalls).toBe(1)
-    // the ring is Pine's 5,000 (nothing proves a smaller top) and STRICT
-    const ring = program.history.find((h) => h.strict)
-    expect(ring && ring.depth).toBe(5000)
+    // `src` is passed the chart's close, a column: its read is the STRICT dynamic column read
+    expect(strictOf(program).columnReads).toBe(1)
     same(outs[0], C.map((_, i) => back(C, i, cAt(i))), 'f(close, c)')
   })
 
@@ -71,7 +80,11 @@ describe('⭐⭐ A1 — a per-bar argument sizes the offset of the copy compiled
     const src = `${CYCLE}Sma(src,p) => a = cum(src), (a - a[max(p,0)])/max(p,0)\n`
       + 'Cov(x,y,p) => Sma(x*y,p) - Sma(x,p)*Sma(y,p)\n'
       + 'plot(Sma(close, c))\nplot(Cov(close, open, c))\n'
-    const { outs } = run(src, 4)
+    const { outs, program } = run(src, 4)
+    // `a` is the function's own series: one STRICT ring of Pine's 5,000 per call site (nothing proves a smaller top)
+    const rings = strictOf(program).rings
+    expect(rings.length).toBeGreaterThan(0)
+    expect(rings.every((d) => d === 5000)).toBe(true)
     const O = BARS.map((b) => b.o)
     const cum = (xs) => { let s = 0; return xs.map((x) => (s += x)) }
     const sma = (xs) => {
@@ -114,6 +127,11 @@ describe('⛔ what A1 does not serve keeps a refusal by name, or stops by name',
       .toThrow(/runtime:history-dynamic-offset.*negative or not a whole number/)
   })
 
+  it('⛔ ...and so does a negative offset into the function\'s own series (the strict ring)', () => {
+    expect(() => run(`${CYCLE}g(src, n) =>\n    a = ta.cum(src)\n    a[n]\nplot(g(close, c - 3))\n`))
+      .toThrow(/runtime:history-dynamic-offset.*negative or not a whole number/)
+  })
+
   it('⛔ a fractional offset read on a bar STOPS the run by name', () => {
     expect(() => run(`${CYCLE}f(src, n) => src[n]\nplot(f(close, c * 0.5))\n`))
       .toThrow(/runtime:history-dynamic-offset.*negative or not a whole number/)
@@ -142,10 +160,16 @@ describe('⛔ what A1 does not serve keeps a refusal by name, or stops by name',
     expect(r.message).toMatch(/declared `simple`.*Pine does not compile that/)
   })
 
+  it('⭐ CONTROL: a dynamic read OUTSIDE a per-bar copy keeps master\'s answer (not strict: `na` for a negative offset)', () => {
+    const { outs, program } = run(`${CYCLE}plot(close[c - 3])\n`)
+    expect(strictOf(program)).toEqual({ columnReads: 0, rings: [] })
+    expect(Number.isNaN(outs[0][0])).toBe(true)   // bar 0: c = 1, offset -2
+  })
+
   it('⭐ CONTROL: a fixed argument is still C35\'s constant window (no series copy, ring exactly deep enough)', () => {
     const { outs, built, program } = run('f(src, n) => src[n]\nplot(f(close, 3))\n')
     expect(built.diagnostics.seriesSpecialisedCalls).toBeUndefined()
-    expect(program.history.some((h) => h.strict)).toBe(false)
+    expect(strictOf(program)).toEqual({ columnReads: 0, rings: [] })
     expect(Math.max(...program.history.map((h) => h.depth))).toBe(3)
     same(outs[0], C.map((_, i) => back(C, i, 3)), 'f(close, 3)')
   })
@@ -153,7 +177,7 @@ describe('⛔ what A1 does not serve keeps a refusal by name, or stops by name',
   it('⭐ CONTROL: a caller\'s own parameter is still fixed by ITS call site (the C35 chain comes first)', () => {
     const { outs, built, program } = run('f(src, n) => src[n]\ng(src, m) => f(src, m)\nplot(g(close, 2))\n')
     expect(built.diagnostics.seriesSpecialisedCalls).toBeUndefined()
-    expect(program.history.some((h) => h.strict)).toBe(false)
+    expect(strictOf(program)).toEqual({ columnReads: 0, rings: [] })
     same(outs[0], C.map((_, i) => back(C, i, 2)), 'g(close, 2)')
   })
 

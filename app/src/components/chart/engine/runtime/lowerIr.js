@@ -371,10 +371,11 @@ export function lowerIrProgram(ir, opts = {}) {
         if (e.of.kind === EXPR.SERIES) {
           const si = SERIES_NAMES.indexOf(e.of.name)
           if (si < 0) throw new LoweringGap('series', `\`${e.of.name}\``)
-          emit(OP.READ_SERIES_HIST_DYN, si, e.limit || 0)
+          emit(OP.READ_SERIES_HIST_DYN, si, e.strict === true ? -1 : (e.limit || 0))
           return
         }
-        emit(OP.READ_HIST_DYN, e.of.index, e.limit || 0)
+        // ⭐ A1 — operand -1: a STRICT read (Pine's 5,000 ceiling, and a negative or fractional offset stops by name)
+        emit(OP.READ_HIST_DYN, e.of.index, e.strict === true ? -1 : (e.limit || 0))
         return
       }
       case EXPR.BINARY: {
