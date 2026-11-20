@@ -78,7 +78,7 @@ export default function PresetRow({ presets, groupOrder, activePreset, onApply }
             onClick={() => setOpen(o => !o)}
           >
             {activeInMore ? `More: ${activeInMore.label}` : 'More'}
-            <UIcon name="chevronDown" size={12} style={{ marginLeft: 4, verticalAlign: -1 }} />
+            <UIcon name="chevronDown" size={12} gold={false} style={{ marginLeft: 4, verticalAlign: -1 }} />
           </button>
 
           {open && (

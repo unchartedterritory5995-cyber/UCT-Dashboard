@@ -7,9 +7,9 @@
 // -> `nativeRegistry.computeFor` -> `astLaneColumns` -> `interpret`): pivot-point-supertrend held the
 // page for 5.6-6.3 s when the deep history landed and twice per daily poll, supertrend-strategy 8.6 s.
 //
-// What this module does, for a CHART's request (`ctx.hostPane`, set by the binder) of a document the
-// ONE cost estimate says holds the main thread (`hostLaneCost.js::hostLaneCostOf`, #1711's authority,
-// asked of the document the member's settings specialised):
+// What this module does, for a CHART's request (`ctx.hostPane`, set by the binder) that goes to the worker
+// (a document over #1711's estimate, `hostLaneCost.js::hostLaneCostOf`, or one this tab has not measured
+// cheap at this size: "ONE DOOR" below):
 //
 //   1. the chart's thread plans the compute as it always did (`astColumns.js::astLanePlan`: the
 //      member's settings, the `calc_bars_count` window, the scalars) and decides the script's own
@@ -49,9 +49,33 @@
 // a NEWER job of its pane already landed is dropped (`_landedSeq`): a picture is only ever replaced by
 // a newer one.
 //
-// ⭐ CHEAP DOCUMENTS STAY ON THE MAIN THREAD: a document under the estimate's budget, and every
-// request that is not a chart's (`validateEventColumns`, the vendor harness, a probe), is answered
-// by `astLaneColumns` exactly as before (this module answers `null`).
+// ⭐⭐ ONE DOOR FOR EVERY CHART PANE'S HOST VALUES, WHICHEVER THREAD COMPUTES THEM
+// (docs/pine/evidence/2026-11-19-host-lane-learned-route/EVIDENCE.md). Measured on production, a
+// member's RDDT 1D -> 5m switch with Fred RS attached: 18 main-thread long tasks, 4.2 s, the worst 525 ms,
+// against 7 / 1.6 s with no script. Two faults, multiplied:
+//   · THE ROUTE. Only a document over #1711's estimate came here. The estimate counts recurrences, and
+//     Fred RS's cost is window work (0 recurrence steps), so its 28,006-row values ran on the main thread.
+//     A static window count was measured and cannot predict it (2026-11-18 evidence, section 3).
+//   · THE REPETITION. The binder never memoises a host answer whose RUN HALF is in flight
+//     (`binder.js`, `halfPending`), and the main-thread path kept no values of its own, so EVERY chart pass
+//     while the run half waited (each secondary series landing, each runtime landing, the forming flag)
+//     computed the whole values pass again.
+// So every chart pane's host request now comes through `hostLaneColumns`:
+//   1. ⭐ THE VALUES ARE MEMOISED, on either thread (`_memo`: per bars array, keyed on everything the
+//      values read, the rows' own content revision included, `barsRevisionOf`): a pass that asks again
+//      for the same values re-applies only the run-read parts (`astLaneFinish`), never the values.
+//   2. ⭐ THE ROUTE IS LEARNED (`computesOnMain`): the main thread computes a document's values only when
+//      THIS TAB has measured them cheap at this size (a predicted `HOST_MAIN_BUDGET_MS` or less), or, for a
+//      document not measured yet, over a first paint's rows (`HOST_UNMEASURED_MAIN_ROWS`), where it is
+//      measured. Every other request (a document over #1711's estimate, a document measured dear, a deep
+//      history of one not measured yet) goes to the worker. The measurement is a clock (`learnCost`, the
+//      main thread's own timing of the values, or the worker's `ms`), per tab, bounded
+//      (`HOST_COST_MEMORY`), never persisted. ⛔ It picks only the THREAD: both threads run the same
+//      function on the same arguments (`astColumnsGiven`), so no rate history can change a value (railed:
+//      a cheap and a dear clock over the same documents answer byte-identical columns).
+// ⛔ Every request that is not a chart's (`validateEventColumns`, the vendor harness, the coverage ratchets,
+// the headless export, a probe) carries no `hostPane` and is answered by `astLaneColumns` exactly as before
+// (this module answers `null`): nothing graded against a capture reaches this module.
 //
 // ⛔ A WORKER THAT CANNOT TAKE A JOB NEVER BLANKS A PANE:
 //   · it cannot start, it crashed, a message could not be read, or the post was refused (a document
@@ -66,10 +90,11 @@
 //     chart's thread, as `astColumnsFor` would have thrown it there.
 import {
   astLanePlan, astLaneFinish, astRuntimeErrorStop, astSideRecordsOf, withAstSideRecords, astPlotKey,
-  columnErrors, withColumnErrors, otherSymbolsFor,
+  columnErrors, withColumnErrors, otherSymbolsFor, astColumnsGiven,
 } from './astColumns.js'
 import { lowerTfCodesOf } from './lowerTf.js'
 import { hostLaneCostOf } from './hostLaneCost.js'
+import { computesOnMain, learnCost, resetHostLaneRoute } from './hostLaneRoute.js'
 import { notifyColumnsLanded } from './serverCompute.js'
 import { packRows, ctxImageOf, answerFromImage, errorFromImage } from './hostLaneWire.js'
 
@@ -84,8 +109,10 @@ export const HOST_WORKER_WATCHDOG_MS = 180000
 export const HOST_WORKER_MAX_STARTS = 3
 /** How many documents the worker keeps (the chart's thread mirrors the order it evicts in). */
 export const HOST_WORKER_DOCS = 32
-/** How many pane pictures are kept for stale-while-revalidate (each holds one bars array). */
-const STALE_PANES = 16
+/** How many pane pictures are kept for stale-while-revalidate (each holds one bars array). 32 since every
+ *  chart pane's host answer is a picture (a document computed on the main thread too: its deep history may
+ *  then go to the worker, and the first paint is what the pane keeps meanwhile). */
+const STALE_PANES = 32
 
 /** The guard a column carries when the worker held its job past the watchdog. */
 export const HOST_WORKER_UNRESPONSIVE_GUARD = 'host-lane:worker-unresponsive'
@@ -134,7 +161,7 @@ const _last = new Map()      // `${pane}\u0001${sig}` -> the pane's latest pictu
 let _realigned = new WeakMap() // picture columns -> {rows, answer}
 let _costs = new WeakMap()   // specialised document -> hostLaneCostOf
 const _stats = { posted: 0, landed: 0, superseded: 0, cancelled: 0, retired: 0, dropped: 0, toMain: 0, refused: 0,
-  starts: 0, lost: 0, workerMs: 0, lastFallback: null }
+  starts: 0, lost: 0, workerMs: 0, mainComputed: 0, memoHits: 0, lastFallback: null }
 
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
@@ -176,14 +203,16 @@ export function resetHostLaneAsync() {
   _costs = new WeakMap()
   _objServed.clear()
   _routeAll = false
+  resetHostLaneRoute()
   for (const k of Object.keys(_stats)) _stats[k] = k === 'lastFallback' ? null : 0
 }
 
 const browserCanWork = () => typeof Worker === 'function' && typeof window !== 'undefined'
 const defaultFactory = () => new Worker(new URL('./hostLaneWorker.js', import.meta.url), { type: 'module' })
 
-/** ⭐ THE ROUTE, ONE AUTHORITY: does this (specialised) document compute off the main thread?
- *  `hostLaneCostOf(def).over` (#1711's estimate, no clock), memoised per document. */
+/** ⭐ THE ESTIMATE'S HALF OF THE ROUTE: is this (specialised) document over #1711's estimate
+ *  (`hostLaneCostOf(def).over`, no clock, memoised per document)? Such a document always computes off the
+ *  main thread; any other goes where this tab's measurements say (`hostLaneRoute.computesOnMain`). */
 export function hostLaneRunsOffThread(def) {
   let c = _costs.get(def)
   if (!c) { c = hostLaneCostOf(def); if (def && typeof def === 'object') _costs.set(def, c) }
@@ -238,7 +267,48 @@ function askedOf(def, ctx) {
   return asked
 }
 
-/** Everything the values read beyond the bars array, as one key. */
+// ─── ⭐⭐ THE ROWS' OWN REVISION ─────────────────────────────────────────────────────────────────────
+//
+// The memo is held per bars ARRAY (a `WeakMap`: it dies with the array), and an array is the same object
+// whatever it holds. Measured before this was written (the evidence, section 3): no path in this app changes
+// a bars array or a bar in place (the bar store freezes both, `data/barStore/reducer.js`; the chart's bar
+// hooks and session filters build new arrays; the six live writers write the renderer's series, never the
+// array; a secondary's tail lands as a new entry). ⛔ But a memo that only that audit keeps honest is one edit
+// away from drawing a stale picture, so the key also carries the rows' CONTENT: every bar's time, open, high,
+// low, close and volume (the fields the values read), hashed into 64 bits. A forming bar that moved, a bar
+// appended, a historical bar corrected: each is another key, and the values are computed again (railed, in
+// place, on the same array). Measured: well under a millisecond for 28,800 rows (the evidence).
+const _revF64 = new Float64Array(1)
+const _revU32 = new Uint32Array(_revF64.buffer)
+
+/** A 64-bit hash of every bar's `t`, `o`, `h`, `l`, `c`, `v` (and the row count), as a string. */
+export function barsRevisionOf(rows) {
+  if (!Array.isArray(rows)) return '-'
+  let a = 0x811c9dc5 ^ rows.length
+  let b = 0x9e3779b9 ^ rows.length
+  const num = (x) => {
+    if (typeof x === 'number') {
+      _revF64[0] = x
+      a = Math.imul(a ^ _revU32[0], 0x01000193)
+      b = Math.imul(b ^ _revU32[1], 0x5bd1e995)
+    } else if (typeof x === 'string') {
+      for (let k = 0; k < x.length; k += 1) a = Math.imul(a ^ x.charCodeAt(k), 0x01000193)
+      b = Math.imul(b ^ (x.length + 0x51ed27), 0x5bd1e995)
+    } else {
+      // null, undefined, anything else: a tag of its own, never the number it would coerce to
+      a = Math.imul(a ^ (x === null ? 0x6a09e667 : 0x3c6ef372), 0x01000193)
+      b = Math.imul(b ^ 0x2545f491, 0x5bd1e995)
+    }
+  }
+  for (let i = 0; i < rows.length; i += 1) {
+    const r = rows[i]
+    if (!r || typeof r !== 'object') { num(undefined); continue }
+    num(r.t); num(r.o); num(r.h); num(r.l); num(r.c); num(r.v)
+  }
+  return `${(a >>> 0).toString(36)}.${(b >>> 0).toString(36)}.${rows.length}`
+}
+
+/** Everything the values read beyond the bars array, as one key (the bars' own revision included). */
 function jobKeyOf(docId, plan, asked) {
   const c = plan.valueCtx || {}
   // each as the values read it: `tf` as given, the tri-state `newestBarIsForming ?? null`, and the
@@ -249,12 +319,13 @@ function jobKeyOf(docId, plan, asked) {
   const sym = c.symbol && typeof c.symbol === 'object' ? JSON.stringify(c.symbol) : null
   const entry = (map, k) => {
     const e = map && typeof map.get === 'function' ? map.get(k) : undefined
-    return [k, e ? serialOf(e) : 0, e ? serialOf(e.bars) : 0, e && e.status != null ? String(e.status) : null]
+    return [k, e ? serialOf(e) : 0, e ? serialOf(e.bars) : 0, e && e.status != null ? String(e.status) : null,
+      e && Array.isArray(e.bars) ? barsRevisionOf(e.bars) : null, e ? (e.newestBarIsForming ?? null) : null]
   }
   return JSON.stringify([docId, plan.scalars, plain, sym,
     [...asked.secondary].map((k) => entry(c.secondary, k)),
     [...asked.lowerTf].map((k) => entry(c.lowerTf, k)),
-    [...asked.exchange]])
+    [...asked.exchange], barsRevisionOf(plan.rows)])
 }
 
 // ─── the stale picture ──────────────────────────────────────────────────────────────────────────────
@@ -340,22 +411,55 @@ function refusedAnswer(plan, guard, sentence) {
 
 // ─── the door ────────────────────────────────────────────────────────────────────────────────────────
 
+/** The timeframe a plan's values are computed on (a framed instance's is its frame's). */
+const tfOf = (plan, ctx) => {
+  const c = plan.valueCtx || ctx || {}
+  return c.tf ?? (ctx && ctx.tf)
+}
+
+/** Is there a worker to send a job to (or one that can be started)? */
+const workerUsable = () => !_broken && !!(_factory || browserCanWork())
+
 /**
- * The host lane's answer, computed off the main thread — or `null`, and the caller computes it with
- * `astLaneColumns` exactly as before (a cheap document, a request that is not a chart's, no worker).
+ * ⭐⭐ THE VALUES ON THIS THREAD: `astLaneColumns`' own sequence (the plan made, the `runtime.error` stop
+ * decided, `astColumnsGiven` over the plan's rows, scalars and context, `astLaneFinish`), with the values
+ * memoised for these bars (`per`, `key`) and their cost learned (`hostLaneRoute.learnCost`). The run-read parts
+ * are applied to a copy of the container (`copyOut`), so the memo's values are never the map they write to: the
+ * same rule the worker's landed values follow, railed byte-equal to `astLaneColumns` over the corpus.
+ * ⛔ A THROW is remembered as thrown, for these bars and this key (the same arguments throw again), and thrown.
+ */
+function answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extras) {
+  const t0 = clock()
+  let out
+  try {
+    out = astColumnsGiven(plan.def, plan.valueRows, plan.scalars, plan.valueCtx, stop)
+  } catch (err) {
+    per.set(key, { state: 'threw', error: err })
+    throw err
+  }
+  learnCost(docId, tfOf(plan, ctx), plan.valueRows.length, clock() - t0)
+  _stats.mainComputed += 1
+  per.set(key, { state: 'done', out })
+  const cols = astLaneFinish(plan, copyOut(out), inputs, ctx, extras)
+  rememberPicture(pane, sig, { rows: plan.rows, cols })
+  return cols
+}
+
+/**
+ * ⭐⭐ A CHART PANE'S HOST ANSWER (see the header): the values memoised for these bars, computed on the main
+ * thread when this tab has measured them cheap here (`hostLaneRoute.computesOnMain`), in the worker otherwise
+ * (pending meanwhile: the pane's last picture, or none after a switch). `null` for a request that is not a
+ * chart pane's: the caller computes it with `astLaneColumns` exactly as before.
  * @param {object} def    an `ast` document
  * @param {object[]} bars the bars (`calcBars`)
  * @param {object} inputs the instance's inputs
  * @param {object} ctx    `computeFor`'s context; `ctx.hostPane` names the chart pane asking
  * @param {Function} extras the run-read parts (`nativeRegistry.astRunExtras`)
  */
-export function hostLaneOffThread(def, bars, inputs, ctx, extras) {
+export function hostLaneColumns(def, bars, inputs, ctx, extras) {
   if (!ctx || typeof ctx.hostPane !== 'string' || !ctx.hostPane) return null
-  if (_broken || !(_factory || browserCanWork())) return null
   const plan = astLanePlan(def, bars, inputs, ctx)
-  if (plan.done) return null
-  // ⭐ ONE AUTHORITY, NO CLOCK: under the budget, the main thread, as before
-  if (!(_routeAll || hostLaneRunsOffThread(plan.def))) return null
+  if (plan.done) return plan.done
   const pane = ctx.hostPane
   const docId = docIdOf(plan.def)
   const sig = paneSigOf(docId, plan, ctx)
@@ -366,16 +470,23 @@ export function hostLaneOffThread(def, bars, inputs, ctx, extras) {
   const hit = per.get(key)
   if (hit) {
     if (hit.state === 'done') {
+      _stats.memoHits += 1
       const cols = astLaneFinish(plan, copyOut(hit.out), inputs, ctx, extras)
       rememberPicture(pane, sig, { rows: plan.rows, cols })
       return cols
     }
     if (hit.state === 'failed') throw errorFromImage(hit.error, HOST_LANE_FAILED)
-    if (hit.state === 'main') return null
+    if (hit.state === 'threw') throw hit.error
+    if (hit.state === 'main') return answerOnMain(plan, per, key, hit.stop ?? null, pane, sig, docId, inputs, ctx, extras)
     if (hit.state === 'refused') return refusedAnswer(plan, hit.guard, hit.sentence)
     return pendingAnswer(pane, sig, plan.rows)
   }
   const stop = astRuntimeErrorStop(plan.def, plan.valueRows, plan.scalars, plan.valueCtx)
+  // ⭐⭐ THE ROUTE: a document over #1711's estimate always goes to the worker; any other, to the worker unless
+  // this tab measured it cheap here (`computesOnMain`); with no worker, the main thread, as before
+  const offThread = workerUsable() && (_routeAll || hostLaneRunsOffThread(plan.def)
+    || !computesOnMain(docId, tfOf(plan, ctx), plan.valueRows.length))
+  if (!offThread) return answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extras)
   const job = { kind: 'values', pane, sig, key, per, plan, inputs, ctx, extras, asked, stop, docId,
     rows: plan.rows, sendDef: plan.def, postRows: plan.valueRows, postCtx: plan.valueCtx }
   per.set(key, { state: 'pending', job })
@@ -383,7 +494,7 @@ export function hostLaneOffThread(def, bars, inputs, ctx, extras) {
   // ⛔ a job the worker could not take at once (no worker could be started, the post was refused)
   // is computed NOW on this thread, today's path, never left pending
   const now = per.get(key)
-  if (now && now.state === 'main') return null
+  if (now && now.state === 'main') return answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extras)
   return pendingAnswer(pane, sig, plan.rows)
 }
 
@@ -419,18 +530,21 @@ function objectsSigOf(docId, inputs, opts) {
   return JSON.stringify([docId, plainInputs(inputs), s, o.tf ?? null])
 }
 
-function objectsKeyOf(docId, inputs, opts, asked) {
+function objectsKeyOf(docId, inputs, opts, asked, bars) {
   const o = opts || {}
   const entry = (map, k) => {
     const e = map && typeof map.get === 'function' ? map.get(k) : undefined
-    return [k, e ? serialOf(e) : 0, e ? serialOf(e.bars) : 0, e && e.status != null ? String(e.status) : null]
+    return [k, e ? serialOf(e) : 0, e ? serialOf(e.bars) : 0, e && e.status != null ? String(e.status) : null,
+      e && Array.isArray(e.bars) ? barsRevisionOf(e.bars) : null, e ? (e.newestBarIsForming ?? null) : null]
   }
   return JSON.stringify(['objects', docId, plainInputs(inputs), o.tf ?? null, o.newestBarIsForming ?? null,
     o.historyFromListing === true, o.barIndexFromFirstBar === true,
     o.symbol && typeof o.symbol === 'object' ? JSON.stringify(o.symbol) : null,
     [...asked.secondary].map((k) => entry(o.secondary, k)),
     [...asked.lowerTf].map((k) => entry(o.lowerTf, k)),
-    [...asked.exchange]])
+    [...asked.exchange],
+    // ⭐ the rows' own revision, as the values' key carries it (`barsRevisionOf`)
+    barsRevisionOf(bars)])
 }
 
 /**
@@ -452,7 +566,7 @@ export function hostObjectsOffThread(def, bars, readerOpts, pane) {
   const inputs = readerOpts ? readerOpts.inputs : undefined
   const sig = objectsSigOf(docId, inputs, readerOpts)
   const asked = askedOf(def, readerOpts)
-  const key = objectsKeyOf(docId, inputs, readerOpts, asked)
+  const key = objectsKeyOf(docId, inputs, readerOpts, asked, bars)
   let per = _memo.get(bars)
   if (!per) { per = new Map(); _memo.set(bars, per) }
   const hit = per.get(key)
@@ -600,7 +714,8 @@ function pump() {
 
 /** ⛔ The worker could not take this job: today's path computes it, on the main thread. */
 function toMain(job, why) {
-  settleEntry(job, { state: 'main' })
+  // a values job keeps the `runtime.error` stop it was asked with: the main thread computes the same job
+  settleEntry(job, job.kind === 'values' ? { state: 'main', stop: job.stop ?? null } : { state: 'main' })
   _stats.toMain += 1
   _stats.lastFallback = why
   notifyColumnsLanded(`host:${job.key}`)
@@ -749,6 +864,8 @@ function settleLanded(job, reply) {
     settleEntry(job, { state: 'done', host: reply.objects || null })
   } else if (reply.ok) {
     const out = answerFromImage(reply.answer, withAstSideRecords)
+    // ⭐ the worker's own timing of the same function teaches the route, as the main thread's does
+    learnCost(job.docId, tfOf(job.plan, job.ctx), job.postRows.length, reply.ms)
     settleEntry(job, { state: 'done', out })
     rememberPicture(job.pane, job.sig, { rows: job.rows, out, plan: job.plan, inputs: job.inputs, ctx: job.ctx, extras: job.extras, cols: null })
   } else {

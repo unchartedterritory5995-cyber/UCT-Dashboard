@@ -393,50 +393,6 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-h5-format-volume-spy-1d-2026-11-16 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
-   "slug": "vw-int-cast",
-   "sha256": "adfb9b3e36cee933596bf9b6102611ce474b85e951dcdfd5c9dbe9e33f8cb812",
-   "title": "UCTPROBE_VW_INT_CAST",
-   "source": "tools/visual_conformance/probes/vw-int-cast.pine",
-   "reason": "on a captured AMEX:SPY D chart (capture vw-int-cast-spy-1d-2026-09-27) it draws something that differs from TradingView: plot `I00_bar_index_CONTROL`: 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0); persistent, last at bar 299",
-   "evidence": {
-    "diverge": [
-     {
-      "capture": "vw-int-cast-spy-1d-2026-09-27",
-      "symbol": "AMEX:SPY",
-      "timeframe": "D",
-      "kind": "drawn",
-      "firstDiverging": "plot `I00_bar_index_CONTROL`: 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0) — persistent, last at bar 299"
-     }
-    ],
-    "match": [],
-    "inconclusive": []
-   },
-   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-int-cast-spy-1d-2026-09-27 DIVERGE (MATCH, or INCONCLUSIVE by name)"
-  },
-  {
-   "slug": "vw-nvi-pvi",
-   "sha256": "aae643347742257de64e0828e0c15fd9610847185c41b044d9320b40640a81b7",
-   "title": "UCTPROBE_VW_NVI_PVI",
-   "source": "tools/visual_conformance/probes/vw-nvi-pvi.pine",
-   "reason": "on a captured AMEX:SPY D chart (capture vw-nvi-pvi-spy-1d-truncated-2026-09-27) it draws something that differs from TradingView: plot `P00_bar_index_CONTROL`: 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0); persistent, last at bar 1039",
-   "evidence": {
-    "diverge": [
-     {
-      "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
-      "symbol": "AMEX:SPY",
-      "timeframe": "D",
-      "kind": "drawn",
-      "firstDiverging": "plot `P00_bar_index_CONTROL`: 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039"
-     }
-    ],
-    "match": [
-     "vw-nvi-pvi-spy-1d-full-2026-09-27"
-    ],
-    "inconclusive": []
-   },
-   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-nvi-pvi-spy-1d-truncated-2026-09-27 DIVERGE (MATCH, or INCONCLUSIVE by name)"
-  },
-  {
    "slug": "vw-object-gc-a",
    "sha256": "abf0a7a54ee28a4bbb4a75cc6bcd8197af416b520dbd8f5bb042d2e918efc1d8",
    "title": "UCTPROBE_VW_OBJECT_GC_A",

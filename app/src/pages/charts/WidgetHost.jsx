@@ -165,6 +165,8 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // windows): every non-merged widget wears the chart widget's style — a titled one-surface
   // header (icon + link badge · name · quiet window controls), rounded corners, soft shadow.
   uctFrame = false,
+  // No "+ Add a tab" (the breadth drill: its two panes are fixed, a tab there means nothing).
+  noTabs = false,
   // S1 CP3 mount cap: defaults true so every caller that doesn't pass it (popped
   // boards, the single popout window, every existing test) is unaffected. Only
   // the main board's renderGrid call site passes false while this widget is
@@ -186,7 +188,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   const replace = (nextWidget) => onReplaceWidget?.(widget.id, nextWidget)
   const handleActiveColorChange = (c) => (onReplaceWidget ? replace(patchActiveTabColor(widget, c)) : onColorChange?.(c))
   const handleActiveOptsChange = (opts) => (onReplaceWidget ? replace(patchActiveTabOpts(widget, opts)) : onOptsChange?.(opts))
-  const handleAddTab = onReplaceWidget ? (type) => replace(addWidgetTab(widget, { type, color: active.color })) : undefined
+  const handleAddTab = onReplaceWidget && !noTabs ? (type) => replace(addWidgetTab(widget, { type, color: active.color })) : undefined
   // Non-chart widgets follow the app theme when uncustomized: on the light theme
   // the workspace otherwise keeps this .widget dark (border + chrome). This flag
   // lets the CSS re-flip the light tokens (incl. the border) for the whole widget.

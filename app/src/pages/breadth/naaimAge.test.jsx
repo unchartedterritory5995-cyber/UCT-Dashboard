@@ -11,7 +11,7 @@
  * file proves the Monitor ASKS it with the right inputs and SHOWS the answer.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import {
@@ -157,6 +157,9 @@ beforeEach(() => {
   localStorage.clear()
   localStorage.setItem('uct.breadth.dates.v1', JSON.stringify({ dates: ROWS.map(r => r.date) }))
   localStorage.setItem('uct.breadth.recent.v1', JSON.stringify(ROWS))
+  // The sentiment columns are off the core Default (2026-11-19); a member preset
+  // showing every metric puts them on screen, as the sheet showed them before.
+  localStorage.setItem('uct.breadth.customize.v1', JSON.stringify({ activePreset: 'All', presets: { All: { hidden: [] } } }))
 })
 
 const mount = () => render(<MemoryRouter initialEntries={['/breadth']}><Breadth /></MemoryRouter>)
@@ -175,27 +178,39 @@ describe('CONTROL — the monitor really rendered the NAAIM cells', () => {
   })
 })
 
-describe('the as-of renders AT THE VALUE, as text a member reads', () => {
-  it('the 101-day-old reading says so beside the number', () => {
+// Owner 2026-11-19: a carried reading is still MARKED as carried — muted, with its
+// as-of in the tooltip and the accessible name — but no longer as inline text.
+describe('a carried reading is marked carried, in the tooltip and aria', () => {
+  it('the 101-day-old reading: the number alone, its as-of in title + aria-label', () => {
     const { container } = mount()
     const td = cellFor(container, STALE.value)
-    expect(td.textContent).toBe(`${STALE.value}weekly · as of ${STALE.date}`)
-    expect(td.querySelector('[data-testid="freshness-age"]').textContent)
-      .toBe(`weekly · as of ${STALE.date}`)
-    expect(td.getAttribute('title')).toBe(`NAAIM: weekly survey dated ${STALE.date}`)
+    expect(td.textContent).toBe(STALE.value)
+    expect(td.querySelector('[data-testid="freshness-age"]')).toBeNull()
+    fireEvent.pointerOver(td)
+    expect(screen.getByTestId('breadth-age-tip').textContent).toContain(`Weekly survey · as of ${STALE.date}`)
+    expect(td.getAttribute('title')).toBeNull()
+    expect(td.getAttribute('aria-label')).toBe(`NAAIM ${STALE.value}, weekly survey · as of ${STALE.date}`)
+    expect(td.className).toMatch(/carriedValue/)
   })
 
-  it('an undated reading says it is undated, never renders bare', () => {
+  it('an undated reading says it is undated, never renders unmarked', () => {
     const { container } = mount()
     const td = cellFor(container, UNDATED.value)
-    expect(td.textContent).toBe(`${UNDATED.value}weekly · undated`)
+    expect(td.textContent).toBe(UNDATED.value)
+    fireEvent.pointerOver(td)
+    expect(screen.getByTestId('breadth-age-tip').textContent).toContain('Weekly survey · undated')
+    expect(td.getAttribute('title')).toBeNull()
+    expect(td.className).toMatch(/carriedValue/)
   })
 
   it('CONTROL: a reading from the row\'s own session renders BARE — the label is not on everything', () => {
     const { container } = mount()
     const td = cellFor(container, FRESH.value)
     expect(td.textContent).toBe(FRESH.value)
-    expect(td.querySelector('[data-testid="freshness-age"]')).toBeNull()
+    expect(td.className).not.toMatch(/carriedValue/)
+    // Every value cell opens its reading now (owner 2026-11-19), so it is named as a control,
+    // but never with a carried as-of.
+    expect(td.getAttribute('aria-label')).not.toMatch(/as of|undated|survey/)
   })
 
   it('no NAAIM label on any other column, and none that says UNKNOWN', () => {

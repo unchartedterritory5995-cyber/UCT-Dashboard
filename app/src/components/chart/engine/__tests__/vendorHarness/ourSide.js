@@ -52,6 +52,7 @@ import { normalizeColor, COLOUR_WITHHELD_POINT, substitutionProblems, vendorValu
 import { substitutedFor } from '../../ast/symbolSubstitution'
 import { CLASSIFICATION_FIELD_NAMES } from '../../ast/bind'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
+import { startsAtBar0Holds, startsAtBar0Refuted, BAR_INDEX_CONTROL } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
 import { fullBarsFor } from '../../../../../utils/barsBackfill'
 // ⭐ SETTINGS PARITY (2c): a capture is graded at the settings TradingView recorded in it
 import { captureInstanceInputs } from './captureInputs.js'
@@ -539,7 +540,9 @@ const warmCandidateRows = new Map()
 // malformed, stale, or an unreadable index) is rebuilt from the file itself, so the index can
 // never pick a supplier the full scan would not. Gitignored; rewritten atomically when it changes.
 export const WARM_INDEX_NAME = '.warm-candidates.index'
-export const WARM_INDEX_SCHEMA = 'uct.warm-candidates-index/v2'
+// ⛔ v3 (2026-11-19): a row's `listing` is the claim as `history_claim.mjs` reads it (a claim the capture's own
+// bar_index row refutes is false), so every v2 row, which stored the raw claim, is rebuilt.
+export const WARM_INDEX_SCHEMA = 'uct.warm-candidates-index/v3'
 
 /** A capture's bar times, run-length encoded on their deltas: `t0;d1xn1,d2xn2,...`. Small enough to
  *  keep in the index for every capture, and enough to place the window's first bar exactly. */
@@ -583,7 +586,7 @@ function warmMetaRow(dir, name, st) {
   if (!ticker) return { ...sig, skip: true }
   return { ...sig, key: `${String(ticker).toUpperCase()}|${tfCodeOf(cap.timeframe)}`, timeUnit: cap.bars.timeUnit,
     firstT: rows[0][0], lastT: rows[rows.length - 1][0],
-    listing: !!(cap.history && cap.history.startsAtBar0 === true),
+    listing: startsAtBar0Holds(cap),
     capturedAt: typeof cap.capturedAtUTC === 'string' ? cap.capturedAtUTC : '',
     times: encodeTimes(rows) }
 }
@@ -689,7 +692,7 @@ export function compareWarmSuppliers(a, b) {
  *  their metadata comes through the on-disk index (the default) or a full scan. */
 export function warmBarsSupply(capture, { dir = OTHER_CAPTURE_DIR, useIndex = true } = {}) {
   const none = (kind, reason, refused = []) => ({ kind, rows: null, file: null, bars: 0, refused, reason, historyFromListing: null })
-  if (capture && capture.history && capture.history.startsAtBar0 === true) {
+  if (startsAtBar0Holds(capture)) {
     return none('bar0', 'the capture starts at the listing (history.startsAtBar0); there is no history before bar 0')
   }
   if (barIndexStartsAtZero(capture)) {
@@ -1241,7 +1244,7 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
  *  bar is checked, not the first: a row that starts at 0 and skips is not it. */
 export function barIndexStartsAtZero(capture) {
   const plots = (capture && capture.study && capture.study.plots) || []
-  const control = plots.find((p) => /^[A-Za-z]\d\d_bar_index(_CONTROL)?$/.test(p.title || ''))
+  const control = plots.find((p) => BAR_INDEX_CONTROL.test(p.title || ''))
   const pv = capture && capture.plotValues
   if (!control || !pv || !Array.isArray(pv.rows) || !pv.rows.length) return false
   const at = pv.fields.indexOf(control.id)
@@ -1374,6 +1377,13 @@ function objectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
 /** Rails only (PARITY UNIT LF): the object report the grader builds for one instance's columns. */
 export const __objectsReportForTests = (...args) => hostObjectsOf(...args)
 
+/** `{partialFamilies}` — the families a disclosed partial drew fewer of (see `hostObjectsOf`), or nothing. */
+function partialFamiliesOf(program, run) {
+  const fams = new Set(Array.isArray(program && program.lostCreates) ? program.lostCreates : [])
+  for (const [f, n] of Object.entries((run && run.withheld) || {})) if (n > 0) fams.add(f)
+  return fams.size ? { partialFamilies: [...fams].sort() } : {}
+}
+
 /** The object lane's LIVE set at the last bar, as counts and texts. */
 function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
   // ⭐⭐ PARITY UNIT LF — the binder's own answer (`drawsRunObjectsOn`): a run-owned document carrying its
@@ -1473,6 +1483,11 @@ function hostObjectsOf(def, bars, ctx, cols, built = null, inputs = undefined) {
       // ⭐ OZ — and a family the run drew NONE of for a cause of the engine's own
       // (`objectRuntime.js`, `notShown`), by the same name the member reads.
       ...notShownReport(run.withheldBy, run.withheldWhy),
+      // ⭐⭐ DISCLOSED PARTIAL (coordinator ruling 2026-11-19) — the families of which this program drew FEWER objects
+      // than the script makes, and SAID SO at the door: a create the program lost (`program.lostCreates`, `'*'` = every
+      // family) or an object the run withheld by name (`run.withheld`). A count gap in such a family is graded on what
+      // is drawn (`compare.mjs::compareObjects`), never as a count DIVERGE.
+      ...partialFamiliesOf(reader.program, run),
     }
   } catch (err) {
     return { drawsObjects: true, ok: false, reason: `the object lane threw: ${String((err && err.message) || err)}` }
@@ -1652,6 +1667,8 @@ function runOurSideOnTheParityClock(capture) {
     const instanceInputs = taken.inputs
     if (instanceInputs) notes.push(`settings: graded at the capture's own moved settings ${JSON.stringify(taken.moved)}`)
     const bars = toProductBars(capture)
+    const refutedListing = startsAtBar0Refuted(capture)
+    if (refutedListing) notes.push(refutedListing)
     const tf = tfCodeOf(capture.timeframe)
     if (tf === capture.timeframe && !/^\d+$/.test(tf) && !['D', 'W', 'M'].includes(tf)) {
       notes.push(`timeframe ${JSON.stringify(capture.timeframe)} has no chart code — the bind-time fold folds nothing`)
@@ -1664,7 +1681,8 @@ function runOurSideOnTheParityClock(capture) {
       // (`StockChart`, `listingSeed.historyFromListingOf`); a capture states it as
       // `history.startsAtBar0`, asserted only when the vendor's loaded history
       // stopped growing AND began on the listing day. Same fact, same door.
-      historyFromListing: !!(capture.history && capture.history.startsAtBar0 === true),
+      // ⛔⛔ read through `history_claim.mjs`: a claim the capture's own bar_index row contradicts is FALSE
+      historyFromListing: startsAtBar0Holds(capture),
       // ⭐⭐ C45 — `bar_index` is TradingView's only where the series starts at
       // the bar TradingView counted as 0. A capture PROVES that about itself when
       // its own `plot(bar_index, …)` control row reads 0, 1, 2 … on its bars (an
