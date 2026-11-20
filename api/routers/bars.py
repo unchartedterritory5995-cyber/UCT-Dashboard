@@ -537,7 +537,6 @@ def _is_breadth_derived_indicator(ticker: str) -> bool:
 
 #: Seconds a member's chart waits before asking again when the tier is unreachable (a deploy swap is seconds).
 TIER_DOWN_RETRY_AFTER_S = 2
-_INTRADAY_TFS = ("1", "5", "15", "30", "60")
 
 
 def _tier_down_cold_tail(ticker: str, tf: str, to: str):
