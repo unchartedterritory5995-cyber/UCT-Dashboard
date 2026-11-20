@@ -54,7 +54,7 @@ import { BINARY, UNARY, CARRIED2, POINTWISE_FOR_PARITY as PW, historyBackOf, his
 import { PINE_CMP } from './pineCompare.js'
 // ⭐ `str.format`'s number rendering — the SAME module whose grammar the
 // translator compiled the pattern with (C15, objects-triage step 13).
-import { formatMessageNumber, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText,
+import { formatMessageNumber, messageNumberWhy, formatPlainNumber, formatPatternedNumber, isPlainNumberPattern, tickNumberText, volumeNumberText,
   tostringNumberText, tostringNumberWhy, plainNumberWhy, patternedNumberWhy, TOSTRING_DEFAULT_BOUNDS } from './pineTextFormat'
 
 /** Own-property test — a family name must not reach `POOL_LIMITS` through the
@@ -548,6 +548,13 @@ export function beginObjects(program, ctx) {
     const why = formatNumberWhy(n, fmt) || 'format:withheld'
     textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1
   }
+  /** ⭐ N01 — a withheld `str.format` number, BY NAME (`messageNumberWhy`: an exact or a
+   *  decimal tie, the grouping bound, `na`, a "-0"). */
+  const messageWithheld = (n, fmt) => {
+    textsWithheld += 1
+    const why = messageNumberWhy(n, fmt) || 'format:withheld'
+    textsWithheldWhy[why] = (textsWithheldWhy[why] || 0) + 1
+  }
   // ⭐ C29 — history reads past the measured automatic buffer, withheld (not read).
   let atBeyondAuto = 0
   /** ⭐ CELLS REMOVED BY `table.clear`, counted separately from `deleted` —
@@ -916,7 +923,7 @@ export function beginObjects(program, ctx) {
           // format: a withheld text is not drawn; a guessed one is drawn wrong.
           if (t.form === 'message') {
             const s = formatMessageNumber(n, t.fmt)
-            if (s === null) textsWithheld += 1
+            if (s === null) messageWithheld(n, t.fmt)
             return s
           }
           // ⭐⭐ F3 — a format the translator could not read (`fmtUnread`):

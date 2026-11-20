@@ -1,0 +1,214 @@
+{
+ "worker": "on",
+ "scenario": "quiet",
+ "gap": 2.0,
+ "repairs": 2,
+ "worker_ready_at_s": null,
+ "worker_stats": {
+  "starts": 1,
+  "calls": 12,
+  "ok": 12,
+  "busy": 0,
+  "unavailable": 0,
+  "quarantined": 0,
+  "timeout": 0,
+  "crashed": 0,
+  "error": 0,
+  "raised": 0,
+  "killed": 0
+ },
+ "results": [
+  {
+   "script": "table",
+   "landed_s": 0.0,
+   "converse_detector_ms": 3.06,
+   "attempts": [
+    {
+     "t": 0.02,
+     "pending": false,
+     "gate": "ran",
+     "ms": 15.9,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.02
+  },
+  {
+   "script": "table/r1",
+   "landed_s": 2.01,
+   "converse_detector_ms": 1.44,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 8.4,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "table/r2",
+   "landed_s": 4.02,
+   "converse_detector_ms": 1.41,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 10.8,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "pivots",
+   "landed_s": 6.03,
+   "converse_detector_ms": 0.93,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 10.4,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "pivots/r1",
+   "landed_s": 8.03,
+   "converse_detector_ms": 1.7,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 14.8,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "pivots/r2",
+   "landed_s": 10.04,
+   "converse_detector_ms": 1.01,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 11.3,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "zones",
+   "landed_s": 12.04,
+   "converse_detector_ms": 1.03,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 9.7,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "zones/r1",
+   "landed_s": 14.05,
+   "converse_detector_ms": 1.19,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 11.3,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "zones/r2",
+   "landed_s": 16.05,
+   "converse_detector_ms": 1.55,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 8.5,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "levels",
+   "landed_s": 18.06,
+   "converse_detector_ms": 1.66,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 14.5,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "levels/r1",
+   "landed_s": 20.07,
+   "converse_detector_ms": 1.17,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 11.7,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "levels/r2",
+   "landed_s": 22.07,
+   "converse_detector_ms": 1.49,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 9.0,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  }
+ ]
+}

@@ -248,6 +248,10 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
 // script per (symbol, timeframe, listing fact): a new bar does not re-run it.
 
 /** The display state of a script whose run stopped on this chart / whose drawings were lost. */
+/** How many more times, and how far apart, the panel asks for a run that was still pending when its wait ended. */
+export const PENDING_REASKS = 5
+export const PENDING_REASK_MS = 4000
+
 export const SHOWN_STATE = Object.freeze({ STOPPED_HERE: 'stopped-here', DRAWINGS_LOST: 'drawings-lost', WAITS_FOR_THE_BAR: 'waits-for-the-bar' })
 
 // ⛔ READ WHEN ASKED, NEVER WHEN THIS FILE LOADS. `editorStatus.js` reaches this file through an import
@@ -260,13 +264,15 @@ const runsStates = () => [PANEL_STATE.RUNS, PANEL_STATE.RUNS_WITH_NOTES, PANEL_S
  * A real run of `pane` on `chart` (`{bars, ctx}`), or null while there is nothing to run on.
  * PENDING from the moment it is asked for until the engine answers.
  */
-export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = afterFirstChartPaint } = {}) {
+export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = afterFirstChartPaint, reaskMs = PENDING_REASK_MS } = {}) {
   const [out, setOut] = useState(null)
   const bars = chart && Array.isArray(chart.bars) ? chart.bars : null
   const ctx = chart && chart.ctx ? chart.ctx : null
   const runnable = !!(pane && pane.ok === true && ctx && bars && bars.length >= MIN_BARS)
   // one run per script per chart identity, never per bar
-  const key = runnable ? `${ctx.sym}|${ctx.tf}|${ctx.historyFromListing === true ? 'listing' : 'off'}` : null
+  // (and per state of the newest bar: a script that waits for the bar is run again when the bar has finished)
+  const forming = ctx && ctx.newestBarIsForming === true ? 'forming' : ctx && ctx.newestBarIsForming === false ? 'finished' : 'unknown'
+  const key = runnable ? `${ctx.sym}|${ctx.tf}|${ctx.historyFromListing === true ? 'listing' : 'off'}|${forming}` : null
   // ⛔ the effect depends on the SCRIPT and the CHART'S IDENTITY only. The bars, the runner and the
   // "after first paint" hook are read through a ref: a caller that hands a fresh function (or a
   // fresh bars array) on every render must not start a run on every render.
@@ -278,14 +284,27 @@ export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = af
     let live = true
     const asked = latest.current.pane
     setOut({ pane: asked, result: { state: RUN.PENDING, stops: [], unchecked: [], waiting: [], notes: [] } })
-    latest.current.after(() => {
+    // ⛔ A RUN STILL PENDING WHEN ITS WAIT ENDS IS ASKED FOR AGAIN (review 2026-11-19): the run gives up
+    // listening after its own timeout, so a run that landed a second later was never read and the panel said
+    // "Still being checked on this chart" until the member edited the script. Bounded: `PENDING_REASKS` more.
+    let reasks = 0
+    let timer = null
+    const ask = () => {
       if (!live) return
       Promise.resolve()
         .then(() => latest.current.run(latest.current.pane, latest.current.chart))
-        .then((result) => { if (live) setOut({ pane: asked, result }) })
+        .then((result) => {
+          if (!live) return
+          setOut({ pane: asked, result })
+          if (result && result.state === RUN.PENDING && reasks < PENDING_REASKS) {
+            reasks += 1
+            timer = setTimeout(ask, reaskMs)
+          }
+        })
         .catch(() => { if (live) setOut(null) })
-    })
-    return () => { live = false }
+    }
+    latest.current.after(ask)
+    return () => { live = false; if (timer) clearTimeout(timer) }
   }, [pane, key])
   return out && out.pane === pane ? out.result : null
 }
@@ -295,20 +314,21 @@ export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = af
  *   a run that STOPPED here     -> "It does not run on this chart"
  *   drawings the lane lost      -> "Its plots run on the chart, but its drawings are not all drawn"
  *   a run still in flight       -> "Still being checked on this chart" (only where the status said "runs")
- *   a run waiting for the bar   -> "Draws once this bar has finished" (a last-bar script on a forming bar)
+ *   a run waiting for the bar   -> "Drawn after the close, not while the newest bar is forming"
  */
 export function shownStatus(status) {
   if (!status) return { headline: '', state: null, run: null }
   const run = status.run || null
   const says = runsStates().includes(status.state)
   if (says && run && run.state === RUN.STOPPED) return { headline: STOPPED_HEADLINE, state: SHOWN_STATE.STOPPED_HERE, run }
-  if (says && status.lostDrawings) return { headline: LOST_DRAWINGS_HEADLINE, state: SHOWN_STATE.DRAWINGS_LOST, run }
-  if (says && run && run.state === RUN.PENDING) return { headline: CHECKING_HEADLINE, state: PANEL_STATE.CHECKING, run }
   // (a script that draws on the chart's last bar, on a chart whose newest bar is still forming: nothing is wrong
-  // with it, and it is not drawn yet. `runsHere.js::WAITS_FOR_THE_BAR`)
+  // with it, and NOTHING of it is drawn yet, so this leads over "its drawings are not all drawn".
+  // `runsHere.js::WAITS_FOR_THE_BAR`)
   if (says && run && run.state === RUN.RAN && run.waiting && run.waiting.length) {
     return { headline: WAITING_HEADLINE, state: SHOWN_STATE.WAITS_FOR_THE_BAR, run }
   }
+  if (says && status.lostDrawings) return { headline: LOST_DRAWINGS_HEADLINE, state: SHOWN_STATE.DRAWINGS_LOST, run }
+  if (says && run && run.state === RUN.PENDING) return { headline: CHECKING_HEADLINE, state: PANEL_STATE.CHECKING, run }
   return { headline: status.headline, state: status.state, run }
 }
 

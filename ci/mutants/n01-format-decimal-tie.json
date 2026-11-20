@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "N01 (fix/str-format-number-ties, coordinator ruling 2026-11-19): `str.format(\"{N,number,#.##}\", x)` over a DECIMAL tie (1.005, 163.265, 2.675: the shortest decimal ends on a 5 one digit past the last kept digit) is withheld by name (`format:message-decimal-tie`) until capture row N01 grades which reading TradingView draws; non-ties print unchanged, the bare `{N}` keeps its witnessed binary reading (T24), and `str.tostring`'s witnessed decimal reading is unchanged. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "N1",
+   "mutant": "the tie check is dropped: the formatter prints the binary reading at a decimal tie again (1.005 -> \"1\")",
+   "file": "app/src/components/chart/engine/pineTextFormat.js",
+   "from": "return decimalTieAt(n, HASH_PATTERN_DECIMALS) ? null : trimmedFixed(n, HASH_PATTERN_DECIMALS)",
+   "to": "return trimmedFixed(n, HASH_PATTERN_DECIMALS)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/strFormatDecimalTie.test.js",
+   "expectRed": "every N01 value"
+  },
+  {
+   "id": "N2",
+   "mutant": "every value is a tie (`decimalTieAt` answers true)",
+   "file": "app/src/components/chart/engine/pineTextFormat.js",
+   "from": "return frac.length === d + 1 && frac[d] === '5'",
+   "to": "return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/strFormatDecimalTie.test.js src/components/chart/engine/__tests__/strFormat.vendor.test.js",
+   "expectRed": "the non-ties of the brief"
+  },
+  {
+   "id": "N3",
+   "mutant": "the formatter treats every value as a tie (the predicate untouched): the F12 SPY lengths and every non-tie go dark",
+   "file": "app/src/components/chart/engine/pineTextFormat.js",
+   "from": "return decimalTieAt(n, HASH_PATTERN_DECIMALS) ? null : trimmedFixed(n, HASH_PATTERN_DECIMALS)",
+   "to": "return true ? null : trimmedFixed(n, HASH_PATTERN_DECIMALS)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/strFormatDecimalTie.test.js src/components/chart/engine/__tests__/strFormat.vendor.test.js",
+   "expectRed": "our rendering has the vendor"
+  },
+  {
+   "id": "N4",
+   "mutant": "the tie is read one digit early (d decimals instead of d + 1)",
+   "file": "app/src/components/chart/engine/pineTextFormat.js",
+   "from": "return frac.length === d + 1 && frac[d] === '5'",
+   "to": "return frac.length === d && frac[d - 1] === '5'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/strFormatDecimalTie.test.js",
+   "expectRed": "every N01 value"
+  },
+  {
+   "id": "N5",
+   "mutant": "the decimal-tie withhold reaches the bare `{N}` too: T24's witnessed 1.0005 -> \"1\" is withheld",
+   "file": "app/src/components/chart/engine/pineTextFormat.js",
+   "from": "const s = trimmedFixed(n, MESSAGE_DEFAULT_DECIMALS)",
+   "to": "const s = decimalTieAt(n, MESSAGE_DEFAULT_DECIMALS) ? null : trimmedFixed(n, MESSAGE_DEFAULT_DECIMALS)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/strFormatDecimalTie.test.js src/components/chart/engine/__tests__/strTostringCore.cbcfmt.test.js",
+   "expectRed": "T24"
+  },
+  {
+   "id": "N6",
+   "mutant": "the run counts the withheld message text but no longer names it",
+   "file": "app/src/components/chart/engine/objectRuntime.js",
+   "from": "const why = messageNumberWhy(n, fmt) || 'format:withheld'",
+   "to": "const why = 'format:withheld'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/strFormatDecimalTie.test.js",
+   "expectRed": "the run names why"
+  }
+ ]
+}

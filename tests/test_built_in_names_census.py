@@ -214,8 +214,8 @@ def test_the_members_own_version_is_still_theirs_to_have_built(conv):
     patch = env(0, [{"op": "create", "name": "x", "placement": "price", "outputs": [
         {"key": "a", "tree": call("ema", {"type": "series", "name": "close"}, num(20))}]}])
     notes = conv.own_words_notes(patch, got["own_words"])
-    assert [n["text"] for n in notes] == ["Built from your own description, as your own formula. UCT's own ATR Bands is in "
-                                          "the Indicators list."]
+    assert [n["text"] for n in notes] == ["Built from your own description, as your own formula. ATR Bands is one of "
+                                          "UCT's own indicators, in the Indicators list."]
 
 
 # ═══ 2b. "build your own" is said exactly where the door takes one ════════
@@ -344,3 +344,84 @@ def test_a_malformed_ledger_is_no_ledger(monkeypatch, tmp_path):
         ni.open_defects.cache_clear()
         assert ni.open_defects() == {}
     ni.open_defects.cache_clear()
+
+
+# ═══ 4. review fixes (2026-11-19) ════════════════════════════════════════
+
+def test_one_setting_of_a_built_in_with_an_open_defect_says_what_differs_too(monkeypatch):
+    bands = ni.entry("session_vwap_bands")
+    assert "differs" not in ni.built_in_answer(bands)
+    monkeypatch.setattr(ni, "open_defects", lambda: {"vwap": {"what": "its bands are a session late", "ref": "X", "since": "2026-11-19"}})
+    said = ni.built_in_answer(bands)
+    assert ("UCT's built-in differs from the published indicator today: its bands are a session late; a fix is "
+            "pending. It is not a formula to build here.") in said
+    assert len(said) <= ni.SENTENCE_MAX + 120 and "checked" not in said.lower()
+
+
+@pytest.mark.parametrize("defects", [["ichimoku"], "ichimoku", 7, None, {"rsi": "late"}])
+def test_a_ledger_whose_defects_are_not_rows_is_no_ledger_and_never_raises(monkeypatch, tmp_path, defects):
+    path = tmp_path / "defects.json"
+    path.write_text(json.dumps({"contract": ni.OPEN_DEFECTS_CONTRACT, "defects": defects}), encoding="utf-8")
+    monkeypatch.setattr(ni, "OPEN_DEFECTS_PATH", path)
+    ni.open_defects.cache_clear()
+    try:
+        assert ni.open_defects() == {}
+        assert ni.open_defect("ichimoku") is None
+        assert "differs" not in ni.built_in_answer(ni.entry("builtin_atr_bands"))
+    finally:
+        ni.open_defects.cache_clear()
+
+
+def test_the_note_on_a_members_own_version_reads_as_a_sentence_for_one_two_and_three_names(conv):
+    patch = env(0, [{"op": "create", "name": "x", "placement": "price", "outputs": [
+        {"key": "a", "tree": call("ema", CLOSE, num(20))}]}])
+    said = lambda *ids: conv.own_words_notes(patch, [ni.entry(i) for i in ids])[0]["text"]   # noqa: E731
+    head = "Built from your own description, as your own formula. "
+    assert said("rs_rating") == head + "UCT RS Rating is one of UCT's own indicators, in the Indicators list."
+    assert said("rs_rating", "builtin_atr_bands") == head + ("UCT RS Rating and ATR Bands are UCT's own indicators, in the "
+                                                             "Indicators list.")
+    assert said("rs_rating", "builtin_atr_bands", "rs_phases") == head + (
+        "UCT RS Rating, ATR Bands and UCT RS Phases are UCT's own indicators, in the Indicators list.")
+    for ids in (("rs_rating",), ("mansfield_relative_strength", "rs_phases")):
+        assert "UCT's own UCT" not in said(*ids)
+
+
+@pytest.mark.parametrize("words", ["draw ATR Bands", "Draw the Historical Volatility", "draw UCT RS Rating",
+                                   "label Bollinger %B"])
+def test_a_drawing_word_does_not_take_a_built_ins_name_away_from_the_door(conv, clean_env, model, monkeypatch, words):
+    """"draw" is a script word and is also how members ask for anything. With the script lane open, a request that
+    is only a built-in's name is still the door's: no assistant call, the one-tap offer."""
+    from api.services import script_conversation as sc
+    monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, "all")
+    assert sc.wants_script(words)
+    understood = conv.understand_turn(words, CHART)
+    if understood.get("built_in") is None:
+        pytest.skip(f"the door does not read {words!r} as a built-in's name alone")
+    indicator = ni.built_in(understood["built_in"])["indicator"]
+    assert conv.door_answers_by_name(words, CHART, frozenset({indicator})) is True
+    client = model([])
+    r = conv.converse(words, user_id="u1", view=empty_view(0), chart=CHART, accepts=OFFERS + ["script"],
+                      addable=[indicator])
+    assert client.calls == [], "an assistant call was made for a request the door answers by name"
+    assert r["ok"] is True and r["turn"] == "offer" and r["offer"]["indicator"] == indicator
+    assert "script" not in r
+
+
+def test_the_door_reads_at_least_one_drawing_request_as_a_built_ins_name(conv):
+    """(so the test above is not all skips)"""
+    assert conv.door_answers_by_name("draw ATR Bands", CHART) is True
+    # CONTROL: a request the door does NOT answer by name is still the script lane's
+    assert conv.door_answers_by_name("draw a table with the ATR and the RSI", CHART) is False
+    assert conv.door_answers_by_name("draw trendlines between the last two pivot highs", CHART) is False
+    assert conv.door_answers_by_name(None, CHART) is False and conv.door_answers_by_name("", None) is False
+    # "VWAP with its bands" is the door's only for a browser that can add Session VWAP
+    assert conv.door_answers_by_name("draw vwap bands", CHART, frozenset({"vwap"})) is True
+    assert conv.door_answers_by_name("draw vwap bands", CHART, frozenset()) is False
+
+
+@pytest.mark.parametrize("words", ["vwap bands \uff12", "vwap bands \u0662", "vwap with \uff11 and \uff12 standard deviation bands"])
+def test_digits_the_reader_cannot_parse_are_not_a_vwap_bands_request(conv, words):
+    """Full-width and Arabic-Indic digits matched the pattern and then could not be parsed: the door raised."""
+    assert conv.vwap_bands_ask(words) is None
+    # CONTROL: the same request in ordinary digits is one
+    assert conv.vwap_bands_ask("vwap bands 2") is not None

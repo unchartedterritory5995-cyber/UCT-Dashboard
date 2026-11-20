@@ -1798,7 +1798,10 @@ def own_words_notes(envelope: Mapping[str, Any], own_words: Any) -> List[Dict[st
     if own:
         text += f" UCT has not checked a formula for {' or '.join(e['name'] for e in own)}."
     if built:
-        text += f" UCT's own {' and '.join(built)} {'is' if len(built) == 1 else 'are'} in the Indicators list."
+        # (never "UCT's own UCT RS Rating"; and a list reads "A, B and C": review 2026-11-19)
+        names = built[0] if len(built) == 1 else ", ".join(built[:-1]) + " and " + built[-1]
+        text += (f" {names} is one of UCT's own indicators, in the Indicators list." if len(built) == 1
+                 else f" {names} are UCT's own indicators, in the Indicators list.")
     return [{"output": key, "text": text[:named_indicators.SENTENCE_MAX]}
             for key, _tree in _patch_outputs(envelope) if isinstance(key, str)]
 
@@ -1988,7 +1991,9 @@ _VWAP_BANDS_WORDS = frozenset(
     "session intraday standard std dev devs deviation deviations stdev sigma sigmas sd upper lower above below "
     "around lines line please i want need can you could would like plus minus both either side sides too also "
     "in for times".split())
-_VWAP_BANDS_NUMBER = r"(?:\+/-|\+-|±|\+|-)?\s*\d+(?:\.\d+)?"
+# (`[0-9]`, not `\d`: `\d` also matches full-width and Arabic-Indic digits, which the reader below cannot
+# parse; "vwap bands ２" raised instead of going on to the assistant. Review 2026-11-19.)
+_VWAP_BANDS_NUMBER = r"(?:\+/-|\+-|±|\+|-)?\s*[0-9]+(?:\.[0-9]+)?"
 _VWAP_BANDS_TOKEN = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ")
 _VWAP_BANDS_REST = re.compile(_VWAP_BANDS_NUMBER + r"|[a-z]+|σ|[\s,.;:!?()&/'\"-]+")
 VWAP_BANDS_MAX_CHARS = 160
@@ -4385,7 +4390,7 @@ def converse(message: Any, *, user_id: Any, view: Any, authoring: Any = None,
                 lambda: _with_script_lane(formula_turn, message, user_id=user_id, view=view, authoring=authoring,
                                           snippets=snippets, chart=chart, cap_usd=cap_usd, calls=calls, trace=trace,
                                           admin=admin, accepts=accepts, script_refusal=script_refusal,
-                                          cancelled=cancelled),
+                                          cancelled=cancelled, can_add=can_add_built_ins(accepts, addable)),
                 cancelled)
             if result is None:
                 # ⭐ THE CEILING PASSED. The member is answered now and their slot is freed as this
@@ -4715,9 +4720,25 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
             "chart_sym": chart.get("sym") if isinstance(chart, Mapping) else None}
 
 
+def door_answers_by_name(message: Any, chart: Any, can_add: Any = frozenset()) -> bool:
+    """Would the door answer this request itself, with one of UCT's own BUILT-INS and no assistant call? A request
+    that is only a built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with
+    its bands" for a browser that can add Session VWAP. Pure: no model, nothing stored. Never raises (False)."""
+    try:
+        if vwap_bands_ask(message) is not None:
+            pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
+            if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in (can_add or ()):
+                return True
+        understood = understand_turn(message, chart)
+        return understood.get("refusal") is not None and understood.get("built_in") is not None
+    except Exception:                              # noqa: BLE001 -- the ordinary turn decides
+        return False
+
+
 def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: Any, authoring: Any, snippets: Any,
                       chart: Any, cap_usd: float, calls: List[Dict[str, Any]], trace: Dict[str, Any], admin: bool,
-                      accepts: Any, script_refusal: Any, cancelled: Optional[threading.Event]) -> Dict[str, Any]:
+                      accepts: Any, script_refusal: Any, cancelled: Optional[threading.Event],
+                      can_add: Any = frozenset()) -> Dict[str, Any]:
     """⭐ THE ASSISTANT WRITES PINE (`script_conversation`): where a script turn stands beside the
     formula turn. With the lane closed (the default: the switch is off, or the account is not an
     admin, or the browser does not accept a script) this IS the formula turn, untouched.
@@ -4747,7 +4768,10 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
     refused = sc.script_refusal(script_refusal)
     if refused is not None:
         return script(refused)
-    if sc.wants_script(words):
+    # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
+    # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
+    # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator.
+    if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()
     if cancelled is not None and cancelled.is_set():

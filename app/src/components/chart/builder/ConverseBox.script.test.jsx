@@ -75,7 +75,8 @@ describe('a script answer in the builder\'s own box', () => {
     // ⭐ this window shows a script, so it told the door it accepts one
     expect(spy.mock.calls[0][0].gateCtx.showsScripts).toBe(true)
     expect(converseBody({ message: 'x', state: spy.mock.calls[0][0].state, gateCtx: spy.mock.calls[0][0].gateCtx }).accepts).toContain('script')
-    expect(lines()[0]).toMatch(/^Runs on the chart/)                        // the ENGINE's headline, first
+    // (no chart beside this box: the script passed the check and was NOT run, and the entry says exactly that)
+    expect(lines()[0]).toBe('Passed the script check; not run on a chart yet')
     expect(screen.getByTestId('converse-script').dataset.runs).toBe('true')
     expect(screen.getByTestId('converse-script-said').textContent).toBe('UCT Agent: A table of the ATR in the corner.')
     expect(screen.getByTestId('converse-script-text').textContent).toContain('table.new(position.top_right')
@@ -115,7 +116,7 @@ describe('a script answer in the builder\'s own box', () => {
   it('CONTROL: with no chart beside it, the same script is judged by the paste check alone', async () => {
     mount({ converse: async () => scriptAnswer(TOTAL, 'A running total of volume.') })
     await say('Plot a running total of volume', entry)
-    expect(lines()[0]).toMatch(/^Runs on the chart/)
+    expect(lines()[0]).toBe('Passed the script check; not run on a chart yet')
   }, 120_000)
 })
 

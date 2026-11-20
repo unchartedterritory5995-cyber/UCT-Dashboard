@@ -449,23 +449,15 @@ def test_a_script_that_reads_where_the_chart_ends_is_said_to_wait_for_the_bar(co
     model([writes(LAST_BAR, name="Last close", reply="A label with the last close.")])
     r = ask(conv)
     assert r["ok"] is True and r["script"]["waits_for_the_bar"] is True
-    assert r["reply"].endswith(pine_authoring.FINISHED_BARS_LINE) and r["reply"].count(pine_authoring.FINISHED_BARS_LINE) == 1
-    assert pine_authoring.UNCHECKED_LINE in r["reply"]                    # both of UCT's lines, neither cut
+    # ⛔ the FACT is sent; the sentence is not written here (only the window knows the lane that draws the script,
+    # and a lone table, box or label that reads the last bar is drawn all session)
+    assert pine_authoring.FINISHED_BARS_LINE not in r["reply"]
+    assert r["reply"] == "A label with the last close. " + pine_authoring.UNCHECKED_LINE
     assert r["envelope"]["reply"] == r["reply"] and len(r["reply"]) <= pine_authoring.REPLY_MAX_CHARS
     # CONTROL: the same picture updated on every bar reads nothing past its own bar, and is not said to wait
     model([writes(EVERY_BAR, name="Last close", reply="A label with the last close.")])
     r = ask(conv)
     assert r["script"]["waits_for_the_bar"] is False and pine_authoring.FINISHED_BARS_LINE not in r["reply"]
-
-
-def test_the_two_lines_fit_whatever_the_assistant_wrote(conv, clean_env, model, lane):
-    model([writes(LAST_BAR, name="Last close", reply="x" * 900)])
-    r = ask(conv)
-    assert len(r["reply"]) <= pine_authoring.REPLY_MAX_CHARS
-    assert pine_authoring.UNCHECKED_LINE in r["reply"] and r["reply"].endswith(pine_authoring.FINISHED_BARS_LINE)
-    # an assistant that already said it is not told twice
-    model([writes(LAST_BAR, name="Last close", reply="A label. " + pine_authoring.FINISHED_BARS_LINE)])
-    assert ask(conv)["reply"].count(pine_authoring.FINISHED_BARS_LINE) == 1
 
 
 def test_a_last_bar_recipe_is_handed_over_with_the_reason_it_waits(conv, clean_env, model, lane):
@@ -478,7 +470,8 @@ def test_a_last_bar_recipe_is_handed_over_with_the_reason_it_waits(conv, clean_e
     sent = json.dumps(client.calls[0]["messages"])
     assert json.dumps(pine_authoring.LAST_BAR_RECIPE_LINE)[1:-1] in sent
     assert r["script"]["reference"] == "volume-profile" and r["script"]["waits_for_the_bar"] is True
-    assert r["reply"].endswith(pine_authoring.FINISHED_BARS_LINE) and pine_authoring.UNCHECKED_LINE not in r["reply"]
+    assert r["reply"] == "A volume profile."                               # nothing added: a recipe, and the window says the rest
+    assert "do not describe that yourself" in pine_authoring.LAST_BAR_RECIPE_LINE
     # a recipe that updates on every bar is handed over without that line
     fib = _recipe("fibonacci-swings")
     client = model([writes(_with_settings(fib["source"]), reply="Fib levels.")])
@@ -505,16 +498,20 @@ def test_a_repair_is_sent_back_to_the_recipe_the_request_was_handed(conv, clean_
     words = "Add a " + channel["asks"][0]
     assert channel["id"] in [h["id"] for h in pine_authoring.recipes_for(words)]
     # the refused script is the assistant's own: it is told the recipe is the way back
+    back = sc.RECIPE_BACK_LINE.replace("{recipes}", f"`{channel['title']}`")
+    kept = sc.RECIPE_KEPT_LINE.replace("{recipes}", f"`{channel['title']}`")
     sent = _repair_sent(conv, model, words, GOOD)
-    assert sent.startswith("[engine:refused]") and sent.endswith(sc.RECIPE_BACK_LINE)
-    assert sc.RECIPE_KEPT_LINE not in sent
+    assert sent.startswith("[engine:refused]") and sent.endswith(back)
+    assert "This script IS the recipe" not in sent and "{recipes}" not in sent
+    # ⛔ it is CONDITIONAL and names the recipe: a recipe is handed on one word of the request
+    assert "IF it is what the member asked for" in back and "only an example of what runs here" in back
     # the refused script IS the recipe (with the member's settings): it is told not to trade it for another indicator
     sent = _repair_sent(conv, model, words, _with_settings(channel["source"]))
-    assert sent.endswith(sc.RECIPE_KEPT_LINE) and sc.RECIPE_BACK_LINE not in sent
+    assert sent.endswith(kept) and "A RECIPE is above" not in sent and "{recipes}" not in sent
     # CONTROL: a request no recipe answers is told neither
     sent = _repair_sent(conv, model, TABLE_REQUEST, GOOD)
     assert pine_authoring.recipes_for(TABLE_REQUEST) == []
-    assert sc.RECIPE_BACK_LINE not in sent and sc.RECIPE_KEPT_LINE not in sent
+    assert "A RECIPE is above" not in sent and "This script IS the recipe" not in sent
     assert sent.endswith("say so (disposition unsupported).")
 
 
@@ -525,3 +522,76 @@ def test_the_recipe_still_rides_the_repair_turn(conv, clean_env, model, lane):
                    contract=conv.PATCH_CONTRACT, refused={"pine": GOOD, "errors": ["x"], "round": 1})
     first = client.calls[0]["messages"][0]["content"]
     assert "RECIPES (whole scripts this engine runs as written" in first and channel["title"] in first
+
+
+# ═══ review fixes (2026-11-19) ═══════════════════════════════════════════════════════
+
+def test_a_recipe_vouches_only_for_a_script_that_still_calls_its_functions(conv, clean_env, model, lane):
+    """A recipe is handed on one word of the request ("divergence"). The RSI-divergence recipe with its oscillator
+    swapped keeps nearly every token; the value check was of the RSI's numbers, so it is NOT vouched for."""
+    rsi = _recipe("rsi-divergence")
+    assert "ta.rsi" in pine_authoring._own_calls(rsi["source"])
+    words = "Mark bullish divergence between price and the CCI"
+    assert rsi["id"] in [h["id"] for h in pine_authoring.recipes_for(words)]
+    swapped = rsi["source"].replace("ta.rsi(", "ta.cci(")
+    assert swapped != rsi["source"] and pine_authoring.recipe_share(rsi["source"], swapped) >= pine_authoring.RECIPE_BACKED_SHARE
+    assert pine_authoring.backed_by(words, swapped) is None
+    model([writes(swapped, reply="CCI divergence.")])
+    got = sc.script_turn(words, user_id="u1", chart=CHART, cap_usd=5.0, calls=[], revision=0, contract=conv.PATCH_CONTRACT)
+    assert got["script"]["reference"] is None and pine_authoring.UNCHECKED_LINE in got["reply"]
+    # CONTROL: the recipe itself, with the member's settings, is still vouched for
+    assert pine_authoring.backed_by(words, _with_settings(rsi["source"])) == "rsi-divergence"
+    # and a function named only in a COMMENT does not count as called
+    commented = swapped + "// ta.rsi(close, 14)\n"
+    assert pine_authoring.backed_by(words, commented) is None
+
+
+def test_the_recipe_comparison_is_bounded_whatever_the_browser_sends():
+    """`recipe_share` runs on a browser-supplied refused script before any spend cap; its cost must not grow with
+    a script built to make it slow."""
+    import time
+    zig = _recipe("zigzag-percent")
+    own = len(pine_authoring._code_tokens(zig["source"]))
+    spam = '//@version=5\nindicator("x")\n' + "(" * 23900
+    assert pine_authoring.script_problem(spam) is None                      # it passes the server's first look
+    started = time.perf_counter()
+    assert pine_authoring.recipe_share(zig["source"], spam) == 0.0
+    assert pine_authoring.backed_by("Add a zigzag", spam) is None
+    # the recipe's own tokens repeated many times over: the same bound, never the long comparison
+    assert pine_authoring.recipe_share(zig["source"], zig["source"] * 8) == 0.0
+    assert time.perf_counter() - started < 1.0
+    # CONTROL: a script within the bound is compared (the recipe against itself, and with settings added)
+    assert pine_authoring.recipe_share(zig["source"], zig["source"]) == 1.0
+    assert len(pine_authoring._code_tokens(_with_settings(zig["source"]))) <= pine_authoring.RECIPE_LENGTH_FACTOR * own
+    assert pine_authoring.recipe_share(zig["source"], _with_settings(zig["source"])) >= pine_authoring.RECIPE_BACKED_SHARE
+
+
+def test_the_assistants_words_are_never_cut_mid_word_to_make_room():
+    room = pine_authoring.REPLY_MAX_CHARS - len(pine_authoring.UNCHECKED_LINE) - 1
+    sentences = "This draws a channel. " * 40
+    said = pine_authoring.said_with_disclosure(sentences, None)
+    assert len(said) <= pine_authoring.REPLY_MAX_CHARS and said.endswith(pine_authoring.UNCHECKED_LINE)
+    body = said[:-len(pine_authoring.UNCHECKED_LINE)].rstrip()
+    assert body.endswith("This draws a channel.") and len(body) <= room         # cut at the end of a sentence
+    # one long sentence with no full stop: cut at a word, and marked
+    words = ("regression " * 80).strip()
+    said = pine_authoring.said_with_disclosure(words, None)
+    body = said[:-len(pine_authoring.UNCHECKED_LINE)].rstrip()
+    assert body.endswith("regression...") and len(said) <= pine_authoring.REPLY_MAX_CHARS
+    # one unbroken run of letters: still bounded, still marked
+    said = pine_authoring.said_with_disclosure("x" * 2000, None)
+    assert len(said) <= pine_authoring.REPLY_MAX_CHARS and said.endswith(pine_authoring.UNCHECKED_LINE) and "..." in said
+    # CONTROL: a reply that fits is not touched
+    assert pine_authoring.said_with_disclosure("A table.", None) == "A table. " + pine_authoring.UNCHECKED_LINE
+    assert pine_authoring._fit("A table.", 600) == "A table."
+
+
+def test_a_script_that_requests_another_timeframe_or_symbol_waits_for_the_bar_too(conv, clean_env, model, lane):
+    """`request-other` is admitted for finished bars only, exactly as `barstate.islast` is: the FACT covers both
+    (the window says the sentence only for a script the bar-by-bar lane draws)."""
+    assert "request-other" in pine_authoring.history_only()
+    weekly = ('//@version=5\nindicator("Weekly", overlay=true)\nw = request.security(syminfo.tickerid, "W", close)\n'
+              'var label l = label.new(bar_index, high, "")\nlabel.set_xy(l, bar_index, high)\nplot(w, "Weekly close")\n')
+    assert pine_authoring.waits_for_the_bar(weekly) is True
+    model([writes(weekly, name="Weekly", reply="The weekly close.")])
+    assert ask(conv)["script"]["waits_for_the_bar"] is True

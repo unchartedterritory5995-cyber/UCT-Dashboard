@@ -165,6 +165,7 @@ export function runHarness(dirs = [VENDOR_DIR], opts = {}) {
     }
     const { verdict, ours, objectsV2 } = gradeCapture(loaded.capture, opts)
     results.push({ file: loaded.file, format: loaded.format, ...verdict, ourNotes: ours ? ours.notes : [],
+      ...(ours && (ours.door === 'host' || ours.door === 'runtime') ? { ourDoor: ours.door } : {}),
       ...(objectsV2 ? { objectsV2 } : {}) })
   }
   return { results, inventory, table: renderSummary(results), files: files.length }

@@ -118,7 +118,17 @@ describe('L6b — witnessed: same date, and a gap reads na (Q-RS2)', () => {
     setRequestWitnessRows({ ...WITNESSES.rows, [KEY]: { ...WITNESSES.rows[KEY], alignment: 'same-date' } })
     const doc = { id: 'u_seedrt2', meta: { runtimeHistory: 'listing' },
       compute: { kind: 'runtime', fn: 'runtime:u_seedrt2', outputs: { a: 0 }, source: pine([`plot(nz(${SEED}, -1))`]) } }
-    expect(() => computeRuntimeColumns(doc, CHART, CTX)).toThrow(/no bar on 2026-01-14/)
+    // ⭐ (e85, the tail-lag ruling 2026-11-19) the chart's bars after the seed's last row (2026-01-14 on, the chart's
+    // newest finished) are its newest rows not arrived: refused by THAT name (`runtime:request-lag`), not as a hole
+    let err = null
+    try { computeRuntimeColumns(doc, CHART, CTX) } catch (e) { err = e }
+    expect(err && err.guard).toBe('runtime:request-lag')
+    expect(String(err && err.message)).toMatch(/`RSRATING`'s newest bars have not arrived: the bars we hold of it end at 2026-01-13/)
+    // ⛔ CONTROL OF THE CONTROL: a gap INSIDE the rows (the seed missing 2026-01-08, with later rows) is still the hole
+    const holed = { ...CTX, secondary: new Map([...CTX.secondary].map(([k, e]) => [k, k === KEY
+      ? { ...e, bars: e.bars.filter((r) => r.t !== '2026-01-08') } : e])) }
+    expect(() => computeRuntimeColumns({ ...doc, id: 'u_seedrt3', compute: { ...doc.compute, fn: 'runtime:u_seedrt3' } }, CHART, holed))
+      .toThrow(/no bar on 2026-01-08, after its history began/)
   })
 })
 

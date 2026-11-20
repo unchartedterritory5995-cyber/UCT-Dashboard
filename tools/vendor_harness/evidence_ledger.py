@@ -159,6 +159,27 @@ def _lane_verdict(v) -> dict | None:
     if not isinstance(v, dict) or v.get("verdict") is None:
         return None
     out = {"verdict": v.get("verdict"), "reason": (str(v.get("reason") or "")[:MAX_STRING] or None)}
+    # ⭐⭐ (coordinator rulings 2026-11-19) WHAT A HELD CAPTURE DECIDES, FROM THIS ROW ALONE: the lane's first diverging
+    # item and its kind (drawn / withheld / unpositioned), the document the grade was taken on (`door`), and the
+    # NARROWEST withholds that remove exactly what differs (`held_evidence.lane_withholds`, the one classifier). Only a
+    # grader result carries the items; a lane verdict already filed keeps what it has.
+    if any(k in v for k in ("first", "withholds", "door")):
+        if isinstance(v.get("first"), dict):
+            out["first"] = {"kind": v["first"].get("kind"), "item": str(v["first"].get("item") or "")[:MAX_STRING]}
+        if v.get("door") in ("host", "runtime"):
+            out["door"] = v["door"]
+        if isinstance(v.get("withholds"), list) and v["withholds"]:
+            out["withholds"] = v["withholds"]
+    elif "plots" in v or "objects" in v or "objectsV2" in v or "paints" in v:
+        import held_evidence  # noqa: PLC0415 -- held_evidence imports this module
+        first = held_evidence.lane_first(v, MAX_STRING)
+        if first:
+            out["first"] = first
+        if v.get("ourDoor") in held_evidence.DOORS:
+            out["door"] = v["ourDoor"]
+        withholds = held_evidence.lane_withholds(v)
+        if withholds:
+            out["withholds"] = withholds
     # ⭐ L7 — the substituted inputs the grade ran with (the harness's `substituted` record), names only
     subs = v.get("substituted")
     if isinstance(subs, list) and subs:
