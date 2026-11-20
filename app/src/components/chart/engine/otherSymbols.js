@@ -776,6 +776,19 @@ export function sessionKeyedRowsOf(bars) {
 }
 /** ⭐ RS RATING L12 PR 2 — on a series of daily rows: whether its newest row is a session still in progress. */
 export const SERIES_NEWEST_FORMING = Symbol('rs:newest-forming')
+/** ⭐⭐ (e90, the e88 live capture) — on an intraday grid (`atOrBeforeGridOf`) whose held page FILLED its ask (as many
+ *  rows as the fetch asked for, `secondaryBars.js::askedBars`, so the store may hold older ones): `{from, asked}`, the
+ *  page's first row and that ask. Absent when the page holds fewer rows than it asked (the store's whole depth) or
+ *  names no ask. The run decides from it, with the chart's own row count, whether a deeper page is coming
+ *  (`runtime/requestSupply.js`); this fact alone never says so. */
+export const SERIES_PAGE_FILLED = Symbol('rs:page-filled')
+/** The `{from, asked}` of a held intraday page that filled its ask, or null (`SERIES_PAGE_FILLED`). */
+function filledPageOf(entry, held) {
+  const asked = entry ? entry.askedBars : undefined
+  if (!Number.isInteger(asked) || asked < 1 || !Array.isArray(held) || held.length < asked) return null
+  const first = held.find((b) => b && typeof b.t === 'number' && Number.isFinite(b.t))
+  return first ? Object.freeze({ from: first.t, asked }) : null
+}
 /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the chart's secondary key for THIS chart symbol's own daily rows, fetched
  *  when a run reads its own symbol at "D" above an intraday chart (`useSecondarySources`). ⛔ Not a held key's
  *  shape (`heldKeyParts` reads `<TICKER>@D`, and `SELF` is a listing): it can never be mistaken for a ticker. */
@@ -1358,6 +1371,10 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       if (read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED) {
         Object.defineProperty(symbols[ticker], SERIES_NEWEST_FORMING, { value: entry.newestBarIsForming === true, enumerable: false })
       }
+      // ⭐⭐ (e90) an intraday grid whose page filled its ask carries that page (`SERIES_PAGE_FILLED`): the chart-timeframe
+      // series, asked at the held span (`useSecondarySources.js::heldSpanFor`), never the daily rows beside it
+      const page = !landed && read.fold === WITNESS_PERIOD_READS.AT_OR_BEFORE ? filledPageOf(entry, held) : null
+      if (page) Object.defineProperty(symbols[ticker], SERIES_PAGE_FILLED, { value: page, enumerable: false })
       if (read.sample) samples[ticker] = read.sample
       served.push(ticker)
       continue
