@@ -370,7 +370,10 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     const binder = code(chart.slice(chart.indexOf('registry: engineRegistry,'), chart.indexOf('historyWindowBars:')))
     const FACTS = { sym: 'sym,', symbol: 'symbol: symbolMeta,', tf: 'tf: resolvedTf,', newestBarIsForming: 'newestBarIsForming: data?.newest_bar_is_forming ?? null,', historyFromListing: 'historyFromListing,' }
     for (const line of Object.values(FACTS)) expect(binder, `StockChart no longer hands its binder: ${line}`).toContain(line)
-    const meta = chart.slice(chart.indexOf('const symbolMeta = useMemo(() => ('), chart.indexOf('), [sym, tickerMeta])'))
+    // (2026-11-19) the memo's deps also name `_firstTradeDate`: the symbol's optional LISTING fact (a conditional spread, so
+    // not a `field:` line here). A recipe chart claims no listing, and an absent fact claims none (requestSupply refuses).
+    const meta = chart.slice(chart.indexOf('const symbolMeta = useMemo(() => ('), chart.indexOf('), [sym, tickerMeta'))
+    expect(meta.length, 'CONTROL: the memo slice ends at its deps').toBeLessThan(2000)
     const fields = [...meta.matchAll(/^\s{6}([a-zA-Z]+):/gm)].map((m) => m[1])
     expect(fields).toEqual(['ticker', 'exchange', 'industry', 'sector', 'securityType'])
     for (const kind of RECIPE_CHARTS) {

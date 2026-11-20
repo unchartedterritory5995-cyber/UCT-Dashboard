@@ -701,6 +701,32 @@ def _screener_flags(is_admin: bool = False) -> dict:
     return out
 
 
+#: The Terminal's new shell (boards in tabs, 2026-11-19). The same three-value grammar as the
+#: Screener flags above, through the same parse: unset/0 = off, 1 = every member who has the
+#: Terminal, admin = admins only. Read PER REQUEST.
+#: A `*_FLAGS` table like SCREENER_FLAGS, so the flag ledger's derivation
+#: (`feature_flag_index._table_gates`) sees the gate by name.
+TERMINAL_SHELL_FLAGS = {
+    "TERMINAL_BOARD_TABS_ENABLED": False,     # enablement: the Terminal's new shell (boards in tabs)
+}
+
+
+def _terminal_board_tabs_flag(is_admin: bool = False) -> dict:
+    """`terminal_board_tabs_enabled: True` while the new Terminal shell is on for THIS viewer.
+
+    ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): unset, off, or a value the parse does
+    not know => `{}`, so the payload is byte-identical to before and the client (`=== true`)
+    draws today's shell. `is_admin` defaults False so a caller that forgets the role fails
+    CLOSED. Parsed by `_breadth_dc_scope`, so `admin` and a typo mean here what they mean for
+    every other three-value flag."""
+    out = {}
+    for env_name, default_on in TERMINAL_SHELL_FLAGS.items():
+        scope = _breadth_dc_scope(env_name, default_on)
+        if scope == _SCOPE_ALL or (scope == _ADMIN_ONLY and bool(is_admin)):
+            out[env_name.lower()] = True
+    return out
+
+
 def _preview_payload_keys() -> frozenset:
     """TERM-039: the payload keys whose live value is a RESTRICTED rollout right now.
 
@@ -929,6 +955,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # rest.
         **_breadth_dc_flags(is_admin=is_admin),
         **_screener_flags(is_admin=is_admin),
+        **_terminal_board_tabs_flag(is_admin=is_admin),
         # ── TERM-077 — watchlist "copy or link, chosen at import" ──────────
         # Same request-time read and ENABLEMENT polarity as the gates above.
         # ⛔ THE KEY IS PRESENT ONLY WHEN ON. Its ticket's own rail is "flag
@@ -3091,6 +3118,13 @@ _PREFERENCE_KEYS = {
     # per-ticker presets, favourite functions and the keep-the-classic-calendar choice.
     # Versioned with `terminal_layout` as the TERM-021 `terminal` board.
     "terminal_boards": _PREF_OPAQUE,
+    # Boards in tabs (2026-11-19, TERMINAL_BOARD_TABS_ENABLED): the member's open board tabs and
+    # the parked working copy of each tab that is not on screen, one JSON document, at most 8 tabs
+    # (`app/src/pages/terminal/boardTabs.js`, written only through `setPrefMerged`). A NEW key:
+    # `terminal_layout` still holds the board on screen and is written exactly as before. NOT a
+    # board key: it is not in the TERM-021 `terminal` document. Added in the same change as its
+    # writer, so a tab switch never answers 400.
+    "terminal_board_tabs": _PREF_OPAQUE,
     # Daily-use leftover #1 (2026-10-06): the terminal command line's ↑ history, per member, a
     # JSON array of command lines newest first, capped at 100 (`app/src/pages/terminal/
     # commandHistory.js`). Written only through `setPrefMerged` (read-modify-write, since this

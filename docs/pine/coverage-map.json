@@ -114,16 +114,17 @@
   },
   "sampleScriptsWithACapture": 228,
   "sampleByTransferAndVerdict": {
-   "does-not-transfer:DIVERGE": 13,
+   "does-not-transfer:DIVERGE": 14,
    "does-not-transfer:INCONCLUSIVE": 144,
-   "does-not-transfer:MATCH": 10,
+   "does-not-transfer:MATCH": 9,
    "does-not-transfer:unproven (stale)": 185,
+   "transfers:DIVERGE": 1,
    "transfers:INCONCLUSIVE": 7,
-   "transfers:MATCH": 54,
+   "transfers:MATCH": 53,
    "transfers:unproven (stale)": 164
   },
-  "verifiedTransfer": 54,
-  "verifiedTransferPct": 8.0,
+  "verifiedTransfer": 53,
+  "verifiedTransferPct": 7.8,
   "note": "vendor-harness verdicts over tests/fixtures/vendor/harness (RDDT/SPY daily captures of corpus scripts and probes)",
   "ledger": {
    "fresh": 0,
@@ -11238,6 +11239,4411 @@
    "guard": "pine:function"
   }
  ],
+ "renderGaps": {
+  "schema": "uct.pine-render-gaps/v1",
+  "engine": 85,
+  "lane": "runtime-on",
+  "captures": {
+   "rows": 1653,
+   "duplicates": 748,
+   "matched": 985,
+   "unmatched": 668,
+   "status": {
+    "measured": 990,
+    "objects-failed": 20,
+    "refused": 643
+   },
+   "verdicts": {
+    "DIVERGE": 63,
+    "INCONCLUSIVE": 527,
+    "MATCH": 395
+   }
+  },
+  "scripts": {
+   "builtin:24-hour-volume__24hVolume": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:accumulationdistribution__Accumulation": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:advance-decline-line__Advance1Decl": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:advance-decline-ratio-bars__Advance_Decl": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:advance-decline-ratio__Advance1Decl": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:arnaud-legoux-moving-average__Arnaud1Legou": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:aroon-oscillator__Aroon_Oscill": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:aroon__Aroon": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:auto-fib-extension__Auto1Fib1Ext": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:auto-fib-retracement__Auto1Fib1Ret": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:auto-pitchfork__Auto1Pitchfo": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:average-daily-range__AverageDayRa": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:average-directional-index__Average1Dire": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:average-true-range__Average_True": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:awesome-oscillator__Awesome_Osci": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:balance-of-power__Balance1of1P": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:bbtrend__BBTrend": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:bollinger-bands-b__Bollinger_Ba": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:bollinger-bands__Bollinger_Ba": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:bollinger-bandwidth__Bollinger_Ba": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:bollinger-bars__Bollinger1Ba": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:bull-bear-power__BullBearPowe": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:chaikin-money-flow__Chaikin_Mone": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:chaikin-oscillator__Chaikin_Osci": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:chande-kroll-stop__Chande1Kroll": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:chande-momentum-oscillator__Chande_Momen": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:chandelier-exit__Chandelier_E": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:chop-zone__Chop1Zone": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:choppiness-index__Choppiness_I": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:commodity-channel-index__CCI": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:connors-rsi__Connors_RSI": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:coppock-curve__Coppock1Curv": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:correlation-coefficient__Correlation_": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:cumulative-volume-delta__Cumulative1V": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:cumulative-volume-index__Cumulative1V": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:detrended-price-oscillator__DPO": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:directional-movement-index__DMI": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:donchian-channels__Donchian_Cha": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:double-exponential-moving-average__DEMA": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:ease-of-movement__EOM": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:elder039s-force-index__EFI": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:envelope__ENV": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:exponential-moving-average__EMA": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:fisher-transform__Fisher_Trans": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:gaps__Gaps": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:historical-volatility__Historical_V": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:hull-moving-average__Hull1MA": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:ichimoku-cloud__Ichimoku1Clo": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:kaufman039s-adaptive-moving-average__Kaufmans_Ada": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:keltner-channels__Keltner_Chan": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:klinger-oscillator__Klinger1Osci": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:know-sure-thing__Know_Sure_Th": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:least-squares-moving-average__Least1Square": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:linear-regression-channel__Linear_Regre": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:mass-index__Mass1Index": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:mcginley-dynamic__McGinley1Dyn": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:median__Median": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:momentum__Momentum": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:money-flow-index__Money_Flow": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:moon-phases__Moon1Phases": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:moving-average-convergence-divergence__MACD": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:moving-average-crossover__MA1Cross": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:moving-average-ribbon__MARibbon": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:multi-time-period-charts__Multi-TimePe": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "builtin:negative-volume-index__Negative_Vol": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:net-volume__Net1Volume": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:on-balance-volume__On_Balance_V": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:parabolic-sar__PSAR": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:percentage-volume-oscillator__Volume1Oscil": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:performance__Performance": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:pivot-points-high-low__Pivot1Points": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:pivot-points-standard__Pivot1Points": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:positive-volume-index__Positive_Vol": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:price-momentum-oscillator__Price_Moment": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:price-oscillator__Price_Oscill": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:price-target__Price1Target": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:price-volume-trend__Price_Volume": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:pring039s-special-k__Prings_Speci": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:rank-correlation-index__Rank_Correla": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:rate-of-change__ROC": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:rci-ribbon__RCI_Ribbon": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:relative-strength-index__RSI": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:relative-vigor-index__Relative_Vig": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:relative-volatility-index__Relative_Vol": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:relative-volume-at-time__Relative1Vol": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:rob-booker-ziv-ghost-pivots__Rob1Booker1G": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:rsi-divergence-indicator__Divergence1I": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:seasonality__Seasonality": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:simple-moving-average__SMA": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:smi-ergodic-indicator__SMI_Ergodic_": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:smi-ergodic-oscillator__SMI_Ergodic_": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:smoothed-moving-average__Smoothed1Mov": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:stochastic-momentum-index__SMI": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:stochastic-rsi__Stochastic_R": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:stochastic__Stochastic": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:supertrend__Supertrend": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:technical-ratings-strategy__Technical1Ra": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:technical-ratings__Technical1Ra": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:time-weighted-average-price__Time1Weighte": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:trend-strength-index__Trend1Streng": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:triple-exponential-moving-average__TEMA": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:trix__TRIX": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:true-strength-index__True1Strengt": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:ulcer-index__Ulcer_Index": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:ultimate-oscillator__Ultimate_Osc": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:updown-volume__UP_DOWN_Volu": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:visible-average-price__Visible1Aver": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:volume-delta__Volume1Delta": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:volume-weighted-average-price__VWAP": {
+    "captures": 6,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:volume-weighted-moving-average__VWMA": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:vortex-indicator__Vortex1Indic": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:weighted-moving-average__WMA": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:williams-alligator__Williams_All": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:williams-fractal__Whilliams_Fr": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:williams-percent-range__Willams_R": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:woodies-cci__Woodies1CCI": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "builtin:zigzag__Zig_Zag": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:3-level-zigzag-semafor__3078": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:4c-nyse-market-breadth-ratio__722410befd": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ad-line-of-sp-sectors__af306a4359": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:adaptive-trend-following-suite-alpha-extract__d615e5a027": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:advanced-custom-multi-ma-signals-emasmavwmavwap__1bca3565a4": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:adx-and-di-for-v4__932": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:all-chart-patterns-theeccentrictrader__03e4633d31": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:anchored-vwap-pinch-handoff-intervals-and-signals__2174489a80": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:artemis-oscillator-pro__ea1097ca9e": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 4,
+    "gaps": {}
+   },
+   "committed:asianrange-and-killzones__ef41eb5ad6": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:atr-bands__ad60b125e6": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:atr-god-strategy-by-tradesmart__4369755a29": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:atr-stepped-pdf-ma-loxx__9b90a3f7bb": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:atr-stop-loss-indicator__LOfv1FvRhL": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:atr-support-and-resistance__3e9ddb38c4": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:coordinate-unplaced": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {
+       "label": 2
+      }
+     }
+    }
+   },
+   "committed:atr-trailing-stoploss__2JLLfrGRHg": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:atr-trend-bands-misu__a34d44410a": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:auto-harmonic-patterns-open-source__ca6022754b": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:auto-trendline-dojiemoji__c21f83602c": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:pine:object-removal-lost": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "committed:auto-trendlines-tradingfinder-support-resistance-signal-alerts__c78da9ac73": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:average-day-range-adr-pivots__38b8c996e9": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 4,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 4,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "committed:black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:blackflag-fts__GdkmXaTINI": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:bolingger-bands-inside-bar-boxes__3294017d4f": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:bollinger-band-width-percentile__03JuGF728K": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:boom-hunter-entry-point-screener-alerts__0fc5982548": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:breaks-and-retests-hg__ddba061af8": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:camarilla__jw9faob08r": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:candelacharts-equal-highslows-eqheql__4485a6c447": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:candlestick-patterns-identified-update-1-17-26__1082": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:candlestick-patterns-on-backtest__c85b9d3ec6": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cc-yata__bd898a1af0": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cdc-btc-rainbow-road__d880789793": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:chart-vwap__804099ca2f": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:contraction-box-doji-lines__1486658151": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cumulative-volume-delta__K07lTKE3tP": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cumulative-volume-delta__c772250751": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cvd-cumulative-volume-delta-candles__fb6471a4d9": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:cvd-cumulative-volume-delta-chart__84da7a14bf": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:deadband-hysteresis-filter-backquant__3fb3d09595": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:delta-imbalance-map-joat__b80f337fb3": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:delta-rsi-oscillator-strategy__z4Yj46FVTX": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:delta-volume-candles-lucf__qADnaAfCPp": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:delta-volume-v21-by-kernel-phi__uP24atP4R0": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:deviation-scaled-moving-average-w-dsl-loxx__878af32b43": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:donchian-channels__5df15aaa23": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:double-topbottom-ultimate-os__bd013ff4f5": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:pine:object-removal-lost": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "committed:elliot-wave-detector-pro__ce1cc9553e": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:elliott-wave-3-finder-v2__451cecfc9d": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ema-92150-vwap-macd-rsi-pro-v6__014bfba33d": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ema-ribbon-trend-filter-strixedge__737f5c58ad": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 2,
+    "gaps": {}
+   },
+   "committed:engulfingcandle__0df91dc775": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:extrapolated-pivot-connector__vROeQSQlNs": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fair-value-gap__1048fa103a": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fib-retracement__8XcLscnekw": {
+    "captures": 5,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fibonacci-dolphintradebot__d93b208611": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fibonacci-pivot-points-cc__p8DQ3RIR97": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fibonacci-retracement-mtflog__54a8dbfa8e": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fibonacci-retracement-statistics-by-volprofex__999c924fce": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:footprint-iq-pro-tradingiq__3b96428a77": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated__578addf606": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:count-at-cap": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "committed:fvg-trend__21e364f2ed": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:fx-market-sessions__3KZoMPYziy": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:heat-map-seasons__53acdf3223": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 2,
+    "gaps": {}
+   },
+   "committed:heikin-ashi-supertrend__2fb7267210": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:heikin-ashi-true-strength-index-and-optimized-trend-tracker-erebor__f91c76bdec": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:high-low-open-mid-ranges__5715509e0b": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:htf-candle-footprint-cartel-console__ca3ff4e904": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "committed:htf-liquidity-dashboard-tfo__ec8f8316a4": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 1,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:objects:off-listing": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "committed:ict-institutional-order-flow-fadi__25d4834579": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ict-ipda-look-back__f85b4c8956": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ict-killzone-index-version__28962c02dd": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ict-killzones-pivots-tfo__d0b8be94f1": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 6,
+      "families": {}
+     }
+    }
+   },
+   "committed:implied-volatility-suite__CdN3hioOVl": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:initial-balance-ib-and-previous-day-week-high-low-close__M0u1uaug4Q": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:inside-bar-boxes__2f747d848b": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 3,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:count-at-cap": {
+      "captures": 3,
+      "drawings": 3,
+      "families": {}
+     }
+    }
+   },
+   "committed:inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c": {
+    "captures": 6,
+    "measured": 6,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:institutional-smc-order-flow-matrix-pro__0b30cae0e6": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ipda-standard-deviations-dexterlab-x-tfo-x-toodegrees__7366c2d2c0": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:k-clustering__8e82f5aa4b": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 4,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-computable": {
+      "captures": 4,
+      "drawings": 12,
+      "families": {}
+     }
+    }
+   },
+   "committed:kalman-price-filter-backquant__47a601e4bc": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:kalman-psar-backquant__0a389f529b": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:keltner-center-of-gravity-channel__e4a81d76f6": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:keltner-channels-bands__T5FsnX45Dn": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:kernel-channel-backquant__d8c4b7f75c": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:linear-regression-channel-200__243d67c804": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:linear-regression-channel-tradingfinder-existing-trend-lines__33338cdbd6": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:liquidation-levels__pi4nVOJgbV": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:liquidity-engulfing-candles-upslidedown__0a521d089c": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:liquidity-engulfing-displacement-msf__58824c94f0": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:liquidity-heatmap-nephew-sam__7628c72c3d": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "committed:liquidity-levels-sonarlab__bba13c46c4": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:liquidity-pools__fa7b28e733": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:machine-learning-knn-based-strategy__lj1Gjlbycb": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:machine-learning-logistic-regression-v3__TDlqz0q9TN": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:machine-learning-lorentzian-classification__21f5ec5277": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:machine-learning-lorentzian-classification__5c7960db26": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:machine-learning-moving-average-backquant__4d7ff59e68": {
+    "captures": 3,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "committed:machine-learning-rsi-bullvision__50b4566edd": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:madrid-moving-average-ribbon__1025": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:makuchaku039s-trade-tools-fair-value-gaps__b951deedc8": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:market-sessions-and-volume-profile-by-leviathan__c85c28c18a": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:market-structure-break-order-block__3a1fb6197f": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:market-structure-by-leviathan__9ca1dae1ac": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:market-structure-inducements-ict-tradinfinder-choch-bos-sweeps__7569f1043e": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:market-structure-trend-targets-chartprime__d3c06abad6": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:mcclellan-indicators__29fdf0235d": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:mgi-levels-suite__285168ddfb": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:momentum-based-zigzag__38d39d2d6c": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "committed:momentum-volatility-scanner__4d1deaa855": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:moving-averages-as-support-resistance-mtf__gcBksfRvvy": {
+    "captures": 5,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:mtf-dashboard-pro-rsi-fib-sr-volume-strixedge__bad34083e8": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:mtf-key-levels-support-and-resistance__29f470a089": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:mtf-watchlist-charts-anan__3453680ea1": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:multi-timeframe-fvg-tfo__adbed9f590": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:multi-timeframe-supply-demand-zones__a98a2ab367": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:multi-timeframe-trend-indicator__fa4022ecf5": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:multicator-table__486858895c": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:pine:object-removal-lost": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "committed:multiple-mtf-moving-average-xdecow__aArjfk9ShG": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:nadaraya-watson-rational-quadratic-kernel-non-repainting__2d248c3125": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:neural-network-buy-and-sell-signals__fbbb11d0c7": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:nonlinear-regression-zero-lag-moving-average-loxx__e5075eb888": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:nubia-auto-midas-anchored-vwap-xdecow__MOpN5jQbSn": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:one-sided-gaussian-support-resistance-rate-loxx__c801e68b6c": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "committed:open-interest-suite-aggregated-by-leviathan__44b150b3df": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:opening-range-initial-balance-opening-price__4a7416ab01": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:options-max-pain-calculator-backquant__c904837c16": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:order-blocks__b324078711": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:pa-zigzag-fibonacci-fan__2001": {
+    "captures": 6,
+    "measured": 6,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:parabolic-sar__xoeoPMOWGJ": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:pivot-high-low-points__hoTsDQRY3L": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:pivot-point-supertrend__HN4w1eNW3B": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:pivot-trendlines-with-breaks-hg__f1464ad5b7": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:pmax-explorer__jN9HBNhynF": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:pine:object-ops-refused": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "committed:poor-man039s-volume-profile__ZnFTCYyvGJ": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 4,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-computable": {
+      "captures": 4,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "committed:position-size-calc__a42db1a620": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 2,
+    "gaps": {}
+   },
+   "committed:position-size-calculator__28sGm8JqI3": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:coordinate-unplaced": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {
+       "label": 2
+      }
+     }
+    }
+   },
+   "committed:previous-day-high-and-low-separators-dailyweekly__0ef3e35a9d": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:previous-n-daysweeksmonths-high-low__78f5b05522": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:price-action-as-in-book-fibonacci-supportresistant-trendline__31c2c4b9a7": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:coordinate-unplaced": {
+      "captures": 2,
+      "drawings": 14,
+      "families": {
+       "label": 14
+      }
+     }
+    }
+   },
+   "committed:pro-trading-art-double-top-bottom-with-alert__5321f25fcb": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:qqe-signals__EhBrwQPjZ1": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:rate-of-change__5efd12f955": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:relative-volume-at-time__gei8CBKbc5": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:relative-volume__LnFmPEoFXQ": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:renderingnature-smc-reversal-engine-v71__f8734584d9": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:renko-candles-overlay__d76a18d49e": {
+    "captures": 3,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:coordinate-unplaced": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {
+       "label": 2
+      }
+     }
+    }
+   },
+   "committed:rolling-vwap__043320bb57": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:rsi-horizontal-resistance-levels__a3f8454f81": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:rsi-swing-indicator__CVZdVmg7ib": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:rsi-trendlines-with-breakouts-hg__033f4cab46": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:rvol__05fcd9e160": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:screener-mean-reversion-channel__nTK2sHWDlB": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:sector-rotation__0fca060bf4": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:collector-all": {
+      "captures": 2,
+      "drawings": 4,
+      "families": {}
+     },
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "committed:session-highs-and-lows-indicator-smc-sessions-dst-safe__c0ca8cf749": {
+    "captures": 2,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:session-hilo__WM2g5GtC4h": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:sessions__2677": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smart-money-breakout-channels-algoalpha__8c2d234156": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smart-money-breakouts-chartprime__ea79c79a67": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smart-money-concept-tradingfinder-major-minor-ob-fvg-smc__3a423d6669": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smart-money-concepts-by-welotrades__0bff41a2e5": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smart-money-interest-index-algoalpha__effdd7852c": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smart-money-volume-activity-algoalpha__699c36ad31": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smart-money-volume-index-algoalpha__6663950b80": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smarter-snr__ac98ab25d5": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smc-structures-and-multi-timeframe-fvg-ma-py__fd50b245b6": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smoothed-gaussian-trend-filter-algoalpha__69de2e99a0": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 4,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-computable": {
+      "captures": 4,
+      "drawings": 8,
+      "families": {}
+     }
+    }
+   },
+   "committed:smt-divergence-ict-killzones__c932d56665": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:sonarlab-order-blocks__0df0d45ee6": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:objects:off-listing": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "committed:std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:strength-of-divergence-across-multiple-indicators__ff2ae4fdab": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:strong-start-rvol-dashboard__36140b1cbe": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:sub__1xYROVYMlX": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:supertrend-relative-volume-kernel-optimized-flux-charts__47728a39df": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:supertrend-strategy__rcRbtoBiKG": {
+    "captures": 5,
+    "measured": 5,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:supply-demand-mtf-flux-charts__7fb4bff229": {
+    "captures": 5,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:support-and-resistance-logistic-regression-flux-charts__9d844269d6": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:support-and-resistance-multi-time-frame__Ph230jpfC9": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:support-and-resistance__1505": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:support-and-resistance__UgNPprOr8h": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:support-and-resistance__c4792aabd0": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:support-resistance-mtf-flux-charts__dd04862677": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:swing-highlow-zigzag-chartprime__c53f5bc4e2": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:coordinate-unplaced": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {
+       "line": 2
+      }
+     }
+    }
+   },
+   "committed:swing-points-and-liquidity-by-leviathan__919c1fd9c6": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:take-profit-multi-timeframe__8c16588ae9": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:tehthomas-aligned-timeframe-fair-value-gaps__f843e207ca": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:trailing-take-profit-trailing-stop-loss__41jwaH1ikz": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:trend-duration-forecast-chartprime__2c5c233f31": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:trend-levels-chartprime__90a5bf4ab1": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:trend-line-harrybot__vMv5yOQxcA": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:trend-lines-supports-and-resistances__413ee2ee3b": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:pine:object-ops-refused": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "committed:trend-targets-algoalpha__92ff5628d7": {
+    "captures": 7,
+    "measured": 7,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:runtime:objects-without-run": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "committed:trendline-pivots-quantvue__3dc9be8b73": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:trendlines__43QQg9nDN0": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:trendlinesample__61d59f90bc": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:twin-range-filter__xF3L2PeXm7": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:ultimate-pivot-points__vRWbsbkQGe": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:vdubus-pattern-gen-v2-restored-refined__66dc68412e": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:unnamed": {
+      "captures": 2,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "committed:visualizing-displacement-tfo__5b861441c2": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volatility-coil-edge-bullbyte__604f0fd1c6": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 3,
+    "gaps": {}
+   },
+   "committed:volatility-stop-mtf__K5XG42uHV9": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volatility-trend-score-backquant__0794882a37": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:vold-market-breadth__9c5cde9557": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 2,
+    "gaps": {}
+   },
+   "committed:volume-delta-hapharmonic__d5748870fd": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volume-delta-oi-delta-kioseff-trading__9056fd6b37": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volume-divergence-by-mm__cvG2Djaryv": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volume-open-interest-footprint-by-leviathan__f84b8fc7c4": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volume-profile-auto-line-v2__b0e947fd20": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volume-profile-bar-magnified-order-blocks-jacobmagleby__3b3ebba156": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volume-profile__X0dKLxdLh4": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "committed:volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volume-suite-by-leviathan__48da793360": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:volumized-order-blocks-flux-charts__1675b2b8e3": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:wyckoff-accumulation-distribution__d9ae726e21": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:zero-lag-ma-trend-levels-chartprime__0ded7d1e36": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:zigzag-ma-pattern-recognition__1302": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "committed:zigzag-multi-time-frame-with-fibonacci-retracement__ppvz14qunp": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:4-colour-macd__1146": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:accdist-macd__2931": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:accumulationdistribution-volume-adv-ci8dh__OC6f7EUAOj": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:accumulationdistribution-with-markers__549": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:advance-decline-line-nyse-buschi__JFKaFMrPqZ": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:aetheredge-smart-money-flow__c22c6f1f81": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ai-moving-average-expo__cddaa37ee5": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:all-in-one-sessions-weekly-monday-previous-highslows__26254838fe": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:angled-volume-profile-feeblev3__Z9Gy9K2ptd": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:anti-volume-stop-loss__QyDEhGL8DB": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:atr-based-trendlines-jd__R4UDQ8nP1z": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:auto-chart-patterns-trendoscope__257dbd8cad": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:auto-fib-levels__01de230c0a": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:auto-fibonacci-retracament-levels__8Zm0EBCwa0": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:auto-length-moving-average-trend-signals-zeiierman__30185ad35b": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr__8b82863b79": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:auto-trendlines-trendoscope__c1dc011801": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:average-true-range-stop-loss-finder__d48234236f": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:average-true-range-trailing-stops-strategy-by-sylvain-vervoort__608": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "reference:bb-custom-indicator-tradingview-version__Vf3832aju8": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:bearish-engulfing__110": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:best-abcd-pattern-screener__ROdc6mWjx4": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:best-supertrend-cci__nngZVuIMCz": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:bill-williams-awesome-oscillator-ao__543": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:bollingers-bands-fibonacci-ratios__2778": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:breaks-and-retests-with-volatility-stop-hg__ebbd1d4440": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:bullish-engulfing__111": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:camarilla-levels-intraday__bfb5a2b8db": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:candles__1055": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cci-coded-obv__9": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:chases-buysell-indicator-advance-decline__37714ef0a5": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:check-head-and-shouldersmask-man__INWKFwOBpV": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "reference:cm-donchian-channels-modified__45": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cm-enhanced-ichimoku-cloud-v5__664": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cm-forex-sessions-highlight-v1__41": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cm-gann-swing-highlow-v2__592": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cm-rsi-2-strat-low__568": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cm-stochastic-mtf__648": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cm-ultimate-rsi-mtf__454": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cog-double-channel-lazybear__7": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:color-gradient-framework-pinecoders__9ICIDOiMbF": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:coral-trend-indicator-lazybear__836": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:crypto-correlation-matrix__0f59de2d3d": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 2,
+    "gaps": {}
+   },
+   "reference:cryptosignalscanner-rsi-overboughtoversold-divergence-indicator-new__918919b267": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 2,
+    "gaps": {}
+   },
+   "reference:ct-displacement-fvg-toolkit__1ae5bb663e": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cumulative-volume-delta-divergence__fbc538f076": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:cumulative-volume-delta__6e0c94af7a": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:delta-volume-columns-lucf__HmUxm6bIQC": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:demand-and-supply-candles-open__2XdpoRlzHB": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:divergence-screener-trendoscope__5bfc8355aa": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:divergence-stack-scanner-agpro-series__5bfe6b3a16": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:doji-signals__4178": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:dot-dynamics__Zd1PZqZcep": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:dual-supertrend-ichimoku-and-dmi-color-weighted-by-dgt__6pPzwGaxjU": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "reference:dynamic-higher-timeframe-fibonacci-pivot-points__8Hv70DXiZU": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "reference:dynamic-linear-regression-channels__17ec799bc1": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "reference:dynamic-support-and-resistance-with-trend-lines-multi-language__1928d26a07": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:edufx-amd__0ca9b3c747": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:coordinate-unplaced": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {
+       "box": 1
+      }
+     }
+    }
+   },
+   "reference:elliot-wave-oscillator-lazybear__14": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:elliott-wave-oscillator__ZESVhxLVIL": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:elliott-wave-oscillator__r4MVRjtjDc": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ema-ribbon-krypt__GOYNhZP4X9": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:engulfing-candles__JRjO56hfaw": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:engulfing-sinyal__pAgeLQw9kl": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:enhanced-mcclellan-summation-index__f2989eaa65": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fabio-style-order-flow-lvn-volumeprofile-fvgob-liquiditygrabs-dashboar__d7293b07f6": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:pine:object-removal-lost": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:fib-pivot-points-alerts__A4zY3dRcsE": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fibonacci-bollinger-bands__2835": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fibonacci-extention-retracment-pivot-points-by-dgt__smOGfR6p3n": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "reference:fibonacci-levels__RHEhVHNx6d": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fibonacci-retracement-lines__BUdXB173r5": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fikira-pivots-fibonacci-retracement-3__z6DqAomUWC": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:coordinate-unplaced": {
+      "captures": 2,
+      "drawings": 22,
+      "families": {
+       "label": 22
+      }
+     }
+    }
+   },
+   "reference:filtered-waves__qQY0b4PGLS": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fixed-percent-stop-loss-take-profit-for-study-scripts__8l8h5SVmib": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:flying-buddha-inside-bars-indicator-v1-by-justunclel__0d9CiLNXGu": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:footprint-strategy__c1753fd287": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:footprint__6848998fe8": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fourier-extrapolator-of-price-w-projection-forecast-loxx__5c7061572f": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-computable": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:fvg-instantaneous-mitigation-signals-luxalgo__4769478b4b": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fvg-order-blocks-bigbeluga__64decdabc4": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fxn-asian-session-range__jNLZBfpYDO": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:fxn-week-and-day-separator__ingZSaBNLa": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:global-liquidity-index__1b7ae64e24": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:halftrend-longshort-signal-engine-bigbeluga__07070e14d6": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:hma-kahlman-trend-trendlines__AhvnhJbO5J": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:hurst-cycle-channel-clone-lazybear__1192": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ichimoku-kinko-hyo-一目均衡表__a8a2aa1034": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ichimoku2c__68": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ict-implied-fair-value-gap-ifvg-luxalgo__0c4a257b58": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ict-killzone__fE0Mzs0mp0": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:inside-bar-setup__a1528b4d74": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:interactive-atr-stop-loss__6d419f128f": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:intraday-power-3-visual__f9b34d80bb": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:kalman-trend-levels-bigbeluga__3fb104b310": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:kaufman-adaptive-bands__sXCNphOxWh": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:kyadvance-decline-line__Y4kq1XL1p2": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:kz-boxes__zed4AoolEW": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:laguerre-rsi-v4-lk__114": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:linear-regression-channel-curve-slope-by-dgt__WvWdhArzmm": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "reference:linear-regression-channel__XiFnwmUCKS": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:liquidation-screener__jwAtEwngOd": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:liquidity-by-makuchaku-efe__8db03bf972": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:liquidity-heatmap-swiftedge__8291fe0662": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:liquidity-pools-pro-willyalgotrader__409687ce4a": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:liquidity-sniper-pro__da4b93aa0a": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "reference:liquidity-swings-luxalgo__780e612168": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 6,
+      "families": {}
+     }
+    }
+   },
+   "reference:logistic-rsi-stoch-roc-ao-by-dgt__aYY2rK1EEf": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:lorentzian-classification-advanced-trading-dashboard__0de1c85a2f": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:luxy-momentum-trend-and-breakout-indicators-with-multi-timeframe-bias-__0fa143447a": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:luxy-super-duper-supertrend-predictor-engine__582421244d": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:macd-trend-heatmap-by-chartart__1985": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:machine-learning-random-forest-strategy-gainzalgo__fab416ff3f": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "reference:machine-learning-supertrend-aslan__68a59b1fc0": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:mamona-candles__1510": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:market-structure-confluence-algoalpha__bf28f1838f": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:market-structure-with-inducements-sweeps-luxalgo__7948c21279": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "reference:market-trend-levels-detector-bigbeluga__317e91d708": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:pine:object-ops-refused": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:mcclellan-oscillator-advndecl-breadth-indicator-lazybear__FnksDSV3kq": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:mema-bb-parabolic-sar__nurAC4OTMa": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:mirage-liquidity-sweep-pro-willyalgotrader__238f0e26eb": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:money-flow-index-mtf-alerts__RkKU95fUai": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:money-flow-index__3LM5J3rc0O": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:most-screener__d7d9ae5349": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:moving-average-adx__1704": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:moving-average-colored-emasma__1581": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:mtf-order-block-finder__ce13bf1b46": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:multi-timeframe-rolling-bitmex-liquidation-levels__6luLopNPPH": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:multi-timeframe-support-and-resistance-aba-invest__7d00b883de": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:multi-timeframe-vwap-v5__Au03ORcOFj": {
+    "captures": 4,
+    "measured": 4,
+    "withGap": 1,
+    "diverge": 3,
+    "gaps": {
+     "render:drawings-withheld:runtime:objects-without-run": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:nadaraya-watson-combine__dbe3a7309e": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:nadaraya-watson-trend-quantalgo__052bdb2a18": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:non-repainting-swing-highlow-signals__ccf063295a": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:runtime:history-start": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:nylondonasian-sessions-ict-swings__14bce3660b": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:obv-accumulation-distribution-combination-v2__VQisUlaDL3": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:obv-macd-indicator__5JF4Np02Ma": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:on-balance-volume-macd-acceleratorawesome-oscillator-pivdiv-3__FIPN6o0f6y": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:onchart-wavetrend-divergence-with-pivots__2f8b996d4c": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 2,
+    "gaps": {
+     "render:drawings-withheld:pine:object-ops-refused": {
+      "captures": 2,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "reference:open-interest-stochastic-money-flow-index__kGyXZBhXgx": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:orb__xLXe22qQZC": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:order-block-detector-luxalgo__7c893384eb": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ot-mtf-trend-dashboard-10__d43fa61404": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:parabolic-sar-alerts-on-close-quantnomad__hdvUgc9je5": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:pin-bar-indicator__CclWWrUHpq": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:pivot-based-swing-highs-and-lows__b230ea4c6d": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:pivot-points-high-low-extension__Pxr8FVNWPB": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:pivot-points-high-low-hhhllhll-anan__b04lNFHeme": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:previous-day-high-and-low__j8jsD7neOj": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:price-action-doji-harami-v02-by-justunclel__4219": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:price-divergence-detector-v32-revised-by-justunclel__iWPERpdLcd": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:quantnomad-pivot-points-alerts__eJJzrMjMYe": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:range-filter-buy-and-sell-5min__65cb674338": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:range-filter-v1__T5nXpEBeCh": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:range-filter-x-hull-suite__8430e18838": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 2,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 2,
+      "drawings": 4,
+      "families": {}
+     }
+    }
+   },
+   "reference:rate-of-change-and-rsi-zones__2ff596b2f1": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:recursive-reversal-chart-patterns-trendoscope__c1da465c0a": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:relative-strength-index-divergences-libertus__g2odvjJQz8": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "reference:relative-volume-rvol-depthhouse__5INmqVXfui": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ripster-rvol-saty-atr-levels-v6-options-dashboard__fe6c658029": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-bands-lazybear__197": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-chart-bars__131": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-cyclic-smoothed__ckgSq3I4CY": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-divergence__Q55lng135i": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-entry-engine-trade-w-samet__6fa55b9515": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-kernel-optimized-flux-charts__427926d08f": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-multi-timeframe-dashboard-by-giua64__cb0cdabd5f": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:rsi-support-resistance-by-dgt__ZkkLVEb1ak": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:pine:object-removal-lost": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:rssupport-and-resistance__bcx67lT3El": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:saty-atr-levels__99165984ef": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:sessions-nephew-sam__nTgXSYRNbD": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:simple-moving-averages__kWRFasqqym": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:smart-money-concepts-probability-expo__285cd9fa6f": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:smart-money-concepts-smc-with-macd-signals__507767e966": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:smc-target-liquidity-v35-manual-distance-control__811da09c25": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:spy-moving-averages-and-signals__KSz0yeOiH2": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:squeeze-momentum-indicator-lazybear-vx-by-dgt__bjAASLSxLp": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:squeeze-momentum-indicator-lazybear__2439": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:strong-knn-classifier__852c26b11d": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:study-for-squeeze-momentum-indicator-lazybear__2BZblBj6eA": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:supertrend-cluster-zeiierman__9c3900bb94": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 1,
+    "gaps": {}
+   },
+   "reference:supertrend-ladder-atr-1909capital-trendoscope__c61e4a062a": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:supertrend-mtf-heatmap__ODcEBlvB3g": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:supertrend__VfOPXWDHDP": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:supertrend__nlyrgnVJ8Z": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:supertrendrange-by-dgt__jDAxwdo5u7": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:supply-and-demand-zones-bigbeluga__6f46de6c8a": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:supply-and-demand-zones-with-enhanced-signals-and-stop-losstake-profit__0c84641326": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:support-and-resistance-step-4__d24e4b30cf": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 2,
+      "families": {}
+     }
+    }
+   },
+   "reference:support-and-resistance-zones-feels__87b9b078c8": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:support-and-resistance__c13363a5d2": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:pine:object-ops-refused": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:support-resistance-fibonacci-retracement__06a1a2c80d": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:swing-highs-lows__pkMwWmV2Mf": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:thelark-lma-v2-laguerre__1029": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:trade-archer-on-balance-volume-moving-averages-v1__897": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:tradingviews-technical-analysis__oZFVfrvzZI": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 2,
+    "gaps": {}
+   },
+   "reference:trailing-stop-loss__MsDHHzGxlV": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:trend-channels-with-liquidity-breaks-chartprime__6cabbffddf": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 3,
+      "families": {}
+     },
+     "render:drawings-withheld:objects:not-computable": {
+      "captures": 1,
+      "drawings": 3,
+      "families": {}
+     }
+    }
+   },
+   "reference:trend-direction-helper__XQTKs6HB2y": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 1,
+    "gaps": {
+     "render:drawings-withheld:pine:object-ops-refused": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:trend-speed-analyzer-zeiierman__bd2f816c88": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:trendlines-2x__rzuOQrVQWt": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:trendlines-jd__BYXZzZURrT": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:triangular-hull-moving-average-volatility-bigbeluga__f20311448f": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:triple-moving-averages__iRcDB7kRWk": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:tutorial-rsiwings-priceswings-for-find-pyramiding-entries-with-higher-__pfm3UYqhXM": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:twiggs-money-flow-lazybear__1562": {
+    "captures": 3,
+    "measured": 3,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:uptrick-volatility-adjusted-trail__ff9f0f608f": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:runtime:history-start": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   },
+   "reference:uptrick-volatility-weighted-cloud__05e131626e": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:uptrick-volume-weighted-bands__67e98b8f2a": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ut-bot-cooldown-visual-fvg__17b93cb3b0": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ut-bot-linreg-candles-longevity-zones-sr-dashboard__26fb08b910": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:volatility-regimes-gainzalgo__31d94ea2c3": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:volume-pace-pressure-table__235d4849a0": {
+    "captures": 2,
+    "measured": 2,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:volume-profile-free-pro-by-rrb__a7xsrJkK2R": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:volume-profile-free-ultra-sli-by-rrb__TFpVVPsMEJ": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:volume-profile-heatmap__89dbe956a4": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:volume-with-market-buysell-and-neutral-volume-split-for-realtime-bars__f4cd30cd7f": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vp-period__iO1NrPRRG5": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vumanchu-b-divergences__uA35GeckoT": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vwap-mtf__2809": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vwap-stdev-bands-v2-mod__2741": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vwap-stdev-bands-v2-mod__2744": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vwap-supply-demand-zones-pro__537326bd2f": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vwap-trendfollow-strategy-wbburgin__0279619ca1": {
+    "captures": 4,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vwap__87pM0vNjII": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:vwapmvwapema-crossover__N16MOYK6AE": {
+    "captures": 2,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:wavetrend-with-crosses-lazybear__2295": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:williams-r-rsi-ema-tendance-silver-wong__sogth7qpzs": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:williams-vix-fix-bottoms-and-tops__f5d5130307": {
+    "captures": 3,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:ytc-swing-highs-lows__H94Z0NbN5P": {
+    "captures": 1,
+    "measured": 0,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:z-score-trend-following__d57d6e450b": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 0,
+    "diverge": 0,
+    "gaps": {}
+   },
+   "reference:zig-zag-channels-luxalgo__c253c72883": {
+    "captures": 1,
+    "measured": 1,
+    "withGap": 1,
+    "diverge": 0,
+    "gaps": {
+     "render:drawings-withheld:objects:not-carried": {
+      "captures": 1,
+      "drawings": 1,
+      "families": {}
+     }
+    }
+   }
+  }
+ },
  "scripts": [
   {
    "key": "builtin:24-hour-volume__24hVolume",
@@ -16691,7 +21097,7 @@
     "droppedOps": 7,
     "split": "dropped"
    },
-   "vendorVerdict": "MATCH"
+   "vendorVerdict": "DIVERGE"
   },
   {
    "key": "committed:banknifty-mcclellan-oscillator__A2qCyYWwcs",
@@ -23137,7 +27543,7 @@
     "droppedOps": 0,
     "split": "no-output-other"
    },
-   "vendorVerdict": "MATCH"
+   "vendorVerdict": "DIVERGE"
   },
   {
    "key": "committed:std-filtered-adaptive-exponential-hull-moving-average-loxx__6046c21764",

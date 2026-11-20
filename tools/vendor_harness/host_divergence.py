@@ -35,6 +35,8 @@ import subprocess
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import held_evidence  # noqa: E402 -- the one reader of licence-held evidence, and the one classifier
 VERDICTS = ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json"
 LIST = ROOT / "app" / "src" / "components" / "chart" / "engine" / "hostKnownDivergence.json"
 #: the capture-queue doc that makes each listed script's gap visible as work (one engine-gap row per script)
@@ -79,26 +81,9 @@ def _committed_pine_files() -> dict:
 
 
 def _first_diverging(r: dict) -> tuple:
-    """(kind, sentence) of the first item a DIVERGE verdict grades DIVERGE. `kind` is `drawn` when our side
-    drew something that differs, `withheld` when every diverging item is a drawing our side withholds by name
-    (TradingView holds objects, ours carries none: the grade is DIVERGE, the member reads a refusal)."""
-    for p in r.get("plots") or []:
-        if p.get("verdict") == "DIVERGE":
-            return "drawn", f"plot `{p.get('title')}`: {p.get('reason')}"
-    o2 = r.get("objectsV2") or {}
-    o1 = r.get("objects") or {}
-    if o2.get("verdict") == "DIVERGE" or o1.get("verdict") == "DIVERGE":
-        first = o2.get("first") or {}
-        if o2.get("pairedNothing") is True or (not first and "withheld by name" in str(o1.get("reason"))):
-            return "withheld", str(o1.get("reason") or o2.get("reason") or "").split(" — ")[0]
-        if first:
-            return "drawn", (f"{first.get('family')} {first.get('field')} of {first.get('where')}: "
-                             f"TradingView {json.dumps(first.get('vendor'))}, ours {json.dumps(first.get('ours'))}")
-        return "drawn", str(o1.get("reason") or o2.get("reason"))
-    for k, v in r.items():
-        if isinstance(v, dict) and v.get("verdict") == "DIVERGE":
-            return "drawn", f"{k}: {v.get('reason')}"
-    return "drawn", str(r.get("reason"))
+    """(kind, sentence) of the first item a DIVERGE verdict grades DIVERGE: the ONE classifier,
+    `held_evidence.first_diverging`, which licence-held captures' ledger rows are filed with too."""
+    return held_evidence.first_diverging(r)
 
 
 #: ⭐⭐ (coordinator ruling 2026-11-19) the grade of a DISCLOSED PARTIAL whose drawn records agree on every field the
@@ -123,9 +108,9 @@ def is_listed(entry: dict) -> bool:
     return any(c.get("kind") in ("drawn", "unpositioned") for c in (entry.get("evidence") or {}).get("diverge") or [])
 
 
-def derive(verdicts_path=VERDICTS, root=ROOT) -> dict:
+def derive(verdicts_path=VERDICTS, root=ROOT, ledger=None) -> dict:
     """{sha256: entry} for every LISTED script (`is_listed`): the committed list's derivation."""
-    return {sha: e for sha, e in derive_all(verdicts_path, root).items() if is_listed(e)}
+    return {sha: e for sha, e in derive_all(verdicts_path, root, ledger).items() if is_listed(e)}
 
 
 def _member_text(text) -> str:
@@ -133,8 +118,11 @@ def _member_text(text) -> str:
     return " ".join(str(text).replace(" — ", "; ").replace("—", "-").split())
 
 
-def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
-    """{sha256: entry} for every script with a committed production capture grading DIVERGE, listed or not."""
+def derive_all(verdicts_path=VERDICTS, root=ROOT, ledger=None) -> dict:
+    """{sha256: entry} for every script with a committed production capture grading DIVERGE, listed or not.
+    ⭐⭐ (coordinator rulings 2026-11-19) and every licence-held script the production lane's CURRENT-engine ledger rows
+    KILL (`held_evidence.held_kills`: a drawn difference no narrow withhold isolates). A held difference a narrow
+    withhold isolates is the door's (`heldWithholds.json`), never a whole-script listing here."""
     doc = json.loads(pathlib.Path(verdicts_path).read_text(encoding="utf-8"))
     if doc.get("lane") != "production":
         raise SystemExit(f"{verdicts_path}: lane {doc.get('lane')!r}, not the production lane")
@@ -162,6 +150,11 @@ def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
                 "but where they sit on the chart (x) is not in this capture, so their place is not witnessed")})
         else:
             e["other"].append(cap)
+    for sha, kill in held_evidence.held_kills("production", ledger or held_evidence.LEDGER).items():
+        e = per.setdefault(sha, {"title": None, "diverge": [], "match": [], "other": []})
+        for x in kill["evidence"]:
+            e["diverge"].append({"capture": x["captureId"], "symbol": x["symbol"], "timeframe": x["timeframe"],
+                                 "held": True, "kind": x["kind"], "firstDiverging": x["item"] or x["reason"]})
     files = _committed_pine_files()
     out: dict = {}
     for sha, e in per.items():
@@ -192,7 +185,8 @@ def derive_all(verdicts_path=VERDICTS, root=ROOT) -> dict:
             "slug": slug,
             "sha256": sha,
             "title": e["title"],
-            "source": src or (pathlib.Path(str(next(r["file"] for r in doc["results"] if r["id"] == d0["capture"]))).as_posix()),
+            "source": src or ("licence-held capture (evidence ledger)" if d0.get("held") else
+                              pathlib.Path(str(next(r["file"] for r in doc["results"] if r["id"] == d0["capture"]))).as_posix()),
             "reason": reason,
             "evidence": {
                 "diverge": e["diverge"],

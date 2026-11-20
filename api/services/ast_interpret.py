@@ -43,6 +43,7 @@ one.
 """
 from __future__ import annotations
 
+import collections
 import datetime
 import math
 import re
@@ -144,7 +145,8 @@ INF = float("inf")
 #: the evaluator arm below is its port). Only the Pine door writes it; the scan door
 #: and the alert lane refuse it by name (``scan_definition.assert_scannable``,
 #: ``alert_user_series._make_value_fn``): what they read is the newest finished bar,
-#: which the merge withholds.
+#: which the merge withholds. (Since 2026-11-19 the alert lane admits a merge read only
+#: through a literal ``x[k]``, k >= 1: ``alert_user_series.merge_newest_unproven``.)
 NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
               "str", "symtext", "textop", "ltf", "tf_merge")
 
@@ -799,6 +801,22 @@ def _window_operands(series: Sequence[float], n: int, i: int, policy: str):
     return buf, 0, n - 1
 
 
+def _rolling_skip(series: Sequence[float], n: int,
+                  reduce: Callable[[Sequence[float], int, int], float]) -> List[float]:
+    """``NA_SKIP`` in one forward pass: bar ``i`` (from ``n - 1``) reads the last ``n`` FINITE values at or before it,
+    oldest first, once ``n`` exist; before that, NaN. Each value is read once. O(N*n) whatever the gaps."""
+    out = _nan_col(len(series))
+    ring = collections.deque(maxlen=n)
+    for i in range(len(series)):
+        v = series[i]
+        if math.isfinite(v):
+            ring.append(v)
+        if i < n - 1 or len(ring) < n:
+            continue
+        out[i] = reduce(list(ring), 0, n - 1)
+    return out
+
+
 def _rolling(series: Sequence[float], n: int,
              reduce: Callable[[Sequence[float], int, int], float],
              policy: str = NA_PROPAGATE,
@@ -831,6 +849,13 @@ def _rolling(series: Sequence[float], n: int,
     # (`len` first: a series shorter than the window has no bar to reach, so nothing may read it, a None included.)
     if inner == NA_SKIP and len(series) >= n and all(map(math.isfinite, src)):
         inner = NA_PROPAGATE
+    # ⭐⭐ SKIP IS ONE FORWARD PASS (2026-11-19, measured on production e86: the backward gather per bar walked every
+    # `na` before it, ~2e8 steps on a 28k-bar series na for its first 19,864 bars; 16.1 s of a 21.9 s main-thread
+    # freeze in the JS twin). The last `n` finite values kept in a ring hand `reduce` the same operands in the same
+    # order on the same bars: byte-identical (`tests/test_ast_rolling_skip_linear.py`). The JS twin is
+    # `interpret.js::rollingSkip`.
+    if inner == NA_SKIP and isinstance(n, int) and n >= 1:
+        return _rolling_skip(series, n, reduce)
     # ⭐⭐ LANE B0 (2026-11-09) -- ``wma``'s warm-up counts FINITE OBSERVATIONS, not
     # bars (witnessed from the listing: ``trend-targets-algoalpha-rddt-1d-2026-10-02``).
     # The JS twin, ``interpret.js::rolling``, carries the measurement.

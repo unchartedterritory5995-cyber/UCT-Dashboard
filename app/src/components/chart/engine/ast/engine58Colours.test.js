@@ -238,10 +238,16 @@ describe('C3 — an unread author colour is never drawn in the sheet gold', () =
     expect(d.notes.some((n) => /pine:colour/.test(n.note))).toBe(false)
   })
 
-  it('a plotarrow: its up/down colours are not carried, withheld by name', () => {
-    const d = door('//@version=5\nindicator("t")\nplotarrow(close - open)\n')
-    expect(d.plots[0].colour).toBe(WITHHELD_COLOUR_INK)
-    expect(d.plots[0].colorWithheld.code).toBe(COLOUR_UNREAD)
+  it('a plotarrow: its up/down colours are not carried, withheld by name, and it is never drawn as a line', () => {
+    // ⭐ PLOTARROW WITHHELD (coordinator ruling 2026-11-19): TradingView draws up and down arrows; this door drew a LINE
+    // of the value. Beside a plot the arrow row is carried, not drawn (`plotarrowWithheld.test.js`), its colours still
+    // withheld by name in the neutral ink; alone, the script is refused by that name.
+    const d = door('//@version=5\nindicator("t")\nplot(close, "C")\nplotarrow(close - open, "Arr")\n')
+    expect(d.plots[1].colour).toBe(WITHHELD_COLOUR_INK)
+    expect(d.plots[1].colorWithheld.code).toBe(COLOUR_UNREAD)
+    const alone = memberPaneDefinition({ source: '//@version=5\nindicator("t")\nplotarrow(close - open)\n', id: 'u_member-pane-e58', name: 'e58' })
+    expect(alone.ok).toBe(false)
+    expect(alone.guard).toBe('pine:plotarrow-not-drawn')
   })
 
   it('a rule row\'s series colour (what a bar with no rule colour falls back to) is none, by name', () => {
@@ -335,7 +341,8 @@ describe('the harness grades a withheld colour as withheld, and a theme referenc
 describe('the rail: no document plot resolves to the sheet gold unless the author wrote it', () => {
   const SOURCES = {
     unreadGradient: '//@version=5\nindicator("t")\nplot(close, color = color.from_gradient(close, low, high, color.red, color.rgb(0, 0, close)))\n',
-    plotarrow: '//@version=5\nindicator("t")\nplotarrow(close - open)\n',
+    // beside a plot: a `plotarrow` alone is refused by name (`plotarrowWithheld.test.js`), so it has no row to read
+    plotarrow: '//@version=5\nindicator("t")\nplot(close)\nplotarrow(close - open)\n',
     chain: '//@version=5\nindicator("t")\nplot(close, color = close > open ? color.teal : close < open ? color.red : color.gray)\n',
     v3none: '//@version=3\nstudy("t")\nplot(close)\nplotshape(close > open)\n',
     shapePalette: '//@version=5\nindicator("t")\nplotshape(close > open, color = close > close[1] ? color.teal : close < close[1] ? color.red : color.gray)\n',

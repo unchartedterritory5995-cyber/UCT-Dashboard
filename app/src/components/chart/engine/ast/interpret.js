@@ -1504,6 +1504,16 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, arg = false) {
   if ((reduce === windowMean || reduce === windowSum) && policy !== NA.FFILL && allFinite(series)) {
     return rollingExactSum(series, n, reduce === windowMean)
   }
+  // ⭐⭐ SKIP IS ONE FORWARD PASS (2026-11-19, MEASURED on production e86): the last `n` FINITE values kept in a ring,
+  // never gathered by a backward scan per bar. ⚰️ The gather (`windowOperands`' SKIP branch, `for (j = i; j >= 0 && k
+  // > 0 ...)`) walked back over every `na` before it found `n` finite values, so one bar's cost was the length of the
+  // gap before it: a series that is `na` for its first 19,864 of 28,006 bars (Fred RS on RDDT 5m, the chart reaching
+  // before the SPX bars we hold) cost ~2e8 steps. That was 16.1 s of a 21.9 s main-thread freeze on a 1D -> 5m switch;
+  // the same switch without the script had 1.6 s of long tasks. The ring hands `reduce` the same operands in the same
+  // order (oldest first, a fresh dense buffer per bar, exactly what the gather built) and answers on the same bars (none
+  // before the bar holding the n-th finite value), so the output is byte-identical (`rollingSkipLinear.test.js`); a
+  // window size that is not a positive integer keeps the old path. The Python twin is `ast_interpret._rolling`.
+  if (policy === NA.SKIP && Number.isInteger(n) && n >= 1) return rollingSkip(series, n, reduce)
   const out = nan(series.length)
   // ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE. `ta.wma` replaces an `na`
   // in its lookback with the last finite value and keeps that bar's WEIGHT —
@@ -1544,6 +1554,38 @@ function rolling(series, n, reduce, policy = NA.PROPAGATE, arg = false) {
   }
   return out
 }
+
+/** ⭐⭐ `NA.SKIP` in one forward pass: bar `i` (from `n - 1`) reads the last `n` FINITE values at or before it, oldest
+ *  first, once `n` exist; before that, `na`. Each series value is read once; each answering bar copies `n` values out
+ *  of the ring (the dense buffer `reduce` always got). O(N·n) whatever the gaps. */
+function rollingSkip(series, n, reduce) {
+  const len = series.length
+  const out = nan(len)
+  const ring = new Float64Array(n)
+  let pos = 0        // the next slot written; once the ring is full, the OLDEST value's slot
+  let filled = 0
+  for (let i = 0; i < len; i++) {
+    const v = series[i]
+    if (Number.isFinite(v)) {
+      ring[pos] = v
+      pos = pos + 1 === n ? 0 : pos + 1
+      if (filled < n) filled += 1
+    }
+    if (i < n - 1 || filled < n) continue
+    const buf = new Float64Array(n)
+    for (let k = 0, at = pos; k < n; k++) {
+      buf[k] = ring[at]
+      at = at + 1 === n ? 0 : at + 1
+    }
+    out[i] = reduce(buf, 0, n - 1)
+  }
+  return out
+}
+
+/** Rails only: the rolling family, so `rollingSkipLinear.test.js` can hold the ring to the gather it replaced. */
+export const __rollingForTests = Object.freeze({
+  rolling, windowOperands, windowMean, windowSum, windowStdev, windowMedian, NA,
+})
 
 /** ⭐⭐ ENGINE HL — `NA.FINITE`: the last `n` FINITE values, FEWER while fewer exist, `na` before
  *  bar `n - 1` and before the first finite value, an answer on an `na` bar. One forward pass that
@@ -5209,8 +5251,9 @@ export function nodeCount(ast, held) {
 
 /** The node types whose child is evaluated by a FRESH `interpret` call on other
  *  bars (`tf` / `tf_live` resample, `sym` reads another ticker): a scope of its
- *  own, with its own memo. See `evaluationUnits`. */
-const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
+ *  own, with its own memo. See `evaluationUnits`. Exported for the alert lane's
+ *  `tf_merge` proof (`evaluability.js::mergeNewestUnproven`; Python `_SCOPE_TYPES`). */
+export const SCOPE_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
 
 /** ⭐⭐ C19 (2026-09-30) — WHAT THE EVALUATOR ACTUALLY COMPUTES, counted in the
  *  units it memoises. The number `budget:nodes` thresholds.
@@ -8199,7 +8242,11 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     // `api/services/indicator_compute.py::bar_close_state`, which is the ONE
     // consumer of the NYSE sets, and that function's answer is the tri-state
     // the caller now passes as `newestBarIsForming`.
-    const cols = computeClock(bars, opts ? opts.tf : undefined,
+    // ⭐ PERF (C4) — a caller may hand in `opts.clockOf`, called exactly as `computeClock` is, with THESE bars,
+    // timeframe and tri-state: the runtime lane hands `clockMemo.js::clockColumnsOf`, which computes the columns once
+    // per bars array and answers each ask with its own copy. The memo is not kept here: this module is pure.
+    const clockOf = opts && typeof opts.clockOf === 'function' ? opts.clockOf : computeClock
+    const cols = clockOf(bars, opts ? opts.tf : undefined,
       opts ? opts.newestBarIsForming : undefined)
     for (const name of Object.keys(TABLE.clock || {})) {
       const col = cols[name]

@@ -2248,12 +2248,17 @@ def test_F2_the_verdict_door_spends_from_the_members_own_budget(monkeypatch):
 
 
 def test_F2_a_verdict_run_yields_to_persisted_work(monkeypatch):
-    """A verdict run cools only the verdict door: a serve right after it may run; a second verdict may not."""
+    """A verdict run spends only the verdict door's bucket: a serve right after it may run. A second
+    verdict runs while the bucket has room (G2 re-shaped 2026-11-19: was an idle-after-every-run
+    cool-down, process-wide), and is held, `busy`, once the bucket is drained."""
     monkeypatch.setenv(rt.CAPABILITY_ADMISSION_ENV, "on")
     rt._reset_capability_cache(persisted=True)
     assert rt.runtime_admission(MEMBER_COPY + "// v1\n", member="u-a")["admitted"] is True
-    assert rt.runtime_admission(MEMBER_COPY + "// v2\n", member="u-b")["missing"] == [rt.PENDING]
+    assert rt.runtime_admission(MEMBER_COPY + "// v2\n", member="u-b")["admitted"] is True
     assert rt.capabilities_for(MEMBER_COPY + "// serve\n", budget=rt.DetectorBudget()) is not None
+    rt._VERDICT_BUCKET[:] = [0.0, time.monotonic() + 3600]          # drained, and not refilling yet
+    held = rt.runtime_admission(MEMBER_COPY + "// v3\n", member="u-c")
+    assert held["missing"] == [rt.PENDING] and held["pending_reason"] == rt.PENDING_BUSY
     rt._reset_capability_cache(persisted=True)
 
 

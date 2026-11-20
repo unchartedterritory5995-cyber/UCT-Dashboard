@@ -33,10 +33,13 @@
    "kind": "output",
    "cannot": "Up and down arrows in their own colours (plotarrow)",
    "source": "//@version=5\nindicator(\"probe\", overlay=true)\nplotarrow(close - open, \"Move\", colorup=color.green, colordown=color.red)\n",
-   "runs": true,
+   "runs": false,
    "lane": "host",
-   "state": "runs-with-notes",
-   "headline": "Runs on the chart and in alerts, with 1 note"
+   "state": "runs-elsewhere",
+   "headline": "Runs in alerts; the chart cannot draw it yet: How it is drawn",
+   "guard": "pine:plotarrow-not-drawn",
+   "family": "presentation",
+   "why": "this script is not drawn: TradingView draws a `plotarrow` as up and down arrows at its positive and negative values, which this chart does not draw yet, so it is not drawn as a line of its value"
   },
   {
    "id": "plotcandle",

@@ -210,6 +210,12 @@ export function buildAssistantRecipes({ recipes = [], verdictOf, computeOf, stop
     return {
       id: r.id, title: r.title, asks: r.asks, shows: r.shows, chart: r.chart, source: r.source,
       lane: v.lane || 'host', state: v.state || 'unknown', headline: clean(v.headline), draws, runs, served,
+      // ⭐ 2026-11-19: DECLARED in the folder's index, never worked out here. A recipe that does its work on the
+      // chart's last bar is admitted for FINISHED bars only (G6), so on a live chart it is drawn when the newest
+      // bar closes. The server's own rule is asked about every recipe and holds this flag to its answer
+      // (`tests/test_pine_authoring.py`); the window is run with the newest bar FORMING for each one
+      // (`builder/runsHere.waitsForTheBar.test.js`).
+      ...(r.finishedBarsOnly === true ? { finishedBarsOnly: true } : {}),
     }
   })
   return {

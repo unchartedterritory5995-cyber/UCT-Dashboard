@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "PLOTARROW WITHHELD (fix/pine-plotarrow-withheld): a `plotarrow` is never drawn as a line of its value (TradingView draws arrows); it is carried, not drawn, and named on both lanes, and a script whose only drawing is one is refused by that name. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "P1",
+   "mutant": "the arrow row is drawn again (as a line of its value)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  return (!!(o && o.hidden) && o.hiddenReason !== 'fill-anchor') || plotarrowWithheld(o)",
+   "to": "  return (!!(o && o.hidden) && o.hiddenReason !== 'fill-anchor')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/plotarrowWithheld.test.js",
+   "expectRed": "beside a plot"
+  },
+  {
+   "id": "P2",
+   "mutant": "a script whose only drawing is an arrow is refused as declaring nothing",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (carryable.some(plotarrowWithheld)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/plotarrowWithheld.test.js",
+   "expectRed": "alone"
+  },
+  {
+   "id": "P3",
+   "mutant": "the host lane does not name the arrow it withholds",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  for (const o of drawable.filter(plotarrowWithheld)) {",
+   "to": "  for (const o of [].filter(plotarrowWithheld)) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/plotarrowWithheld.test.js",
+   "expectRed": "untitled arrow"
+  },
+  {
+   "id": "P4",
+   "mutant": "the runtime lane drops the arrow in silence again",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  const withheld = ((t && t.outputs) || []).filter(plotarrowWithheld)",
+   "to": "  const withheld = [].filter(plotarrowWithheld)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/plotarrowWithheld.test.js",
+   "expectRed": "runtime lane"
+  }
+ ]
+}
