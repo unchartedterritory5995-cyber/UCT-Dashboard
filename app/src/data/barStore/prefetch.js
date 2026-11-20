@@ -688,9 +688,12 @@ export function createPrefetch(o = {}) {
     const nUrgent = urgent ? Math.min(URGENT_MAX_PER_CALL, syms.length) : 0
     if (urgent) {
       // Only the LATEST urgent call stays urgent: rows the member already passed are aborted
-      // (a waiting lane request never reaches the network).
+      // (a waiting lane request never reaches the network). ⛔ PER TIMEFRAME (2026-11-19): a list
+      // linked to a daily AND an hourly chart warms both on every press; aborting every other key
+      // made the second call cancel the first timeframe's next rows.
       const keep = new Set(syms.slice(0, nUrgent).map((x) => keyFor(x, tf)))
-      for (const [k, c] of urgentCtl) if (!keep.has(k)) { c.abort(); urgentCtl.delete(k) }
+      const callTf = parseKey([...keep][0] || '')?.tf
+      for (const [k, c] of urgentCtl) if (!keep.has(k) && parseKey(k)?.tf === callTf) { c.abort(); urgentCtl.delete(k) }
       for (const sym of syms.slice(0, nUrgent)) {
         const k = keyFor(sym, tf)
         if (!k) continue

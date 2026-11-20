@@ -525,6 +525,13 @@ export const FUNCTIONS = [
   // trading under it. SHELF and OFFR would each name one kind of filing; the panel reads several.
   { code: 'DILU', label: 'Dilution watch (shelf registrations, offering documents, unregistered sales)', group: 'Security',
     ticker: { panel: 'Dilution' } },
+  // ── open interest change (2026-11-19) ──
+  // OIC: one stock's open interest, contract by contract, against the recorded day before
+  // (GET /api/options-screener/oi-change/{sym}, read from UCT's own options log: the two newest
+  // recorded days, every contract that had an ask, open interest or volume). `NVDA OIC` = calls and
+  // puts, `NVDA OIC C` / `NVDA OIC P` = one side. OIC is not in the site's stock universe.
+  { code: 'OIC', label: 'Open interest change (contracts that gained or lost the most since the day before)', group: 'Options',
+    ticker: { panel: 'OiChange', args: [{ kind: 'oiSide', prop: 'side' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -814,6 +821,9 @@ const FUNCTION_WORDS = {
   DILU: { example: 'NVDA DILU', keywords: ['dilution', 'dilution watch', 'shelf registration', 'share offering', 'stock offering',
     'secondary offering', 'atm offering', 'prospectus supplement', 'share issuance'],
     note: 'From the SEC filing index only: what was filed and when, never amounts.' },
+  OIC: { example: 'NVDA OIC', keywords: ['open interest change', 'oi change', 'open interest by strike', 'change in open interest',
+    'new option positions', 'open interest'],
+    note: 'Recorded once a day after the close; never live, and never who opened or which way.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

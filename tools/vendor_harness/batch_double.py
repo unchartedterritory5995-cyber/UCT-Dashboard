@@ -183,6 +183,9 @@ class RecordingTVPage:
         # ⭐ A SLOW ATTACH (2026-11-19, htfform-c): after a fresh load the chart handle answers at once, with 0 studies,
         # and the layout's saved studies attach `attach_delay_s` (virtual) seconds later. 0: they are there at once.
         self.attach_delay_s = float(attach_delay_s)
+        # ⭐ (2026-11-20) the chart's session (the rig layout's: regular), and whether a session spec is honoured
+        self.session_id = "regular"
+        self.honours_session = True
         # ⭐ UCT's answers through the rig's browser context: `/api/ticker-ipo` per ticker as
         # production answers it (measured 2026-11-19: RDDT 2024-03-21 and ALAB 2024-03-20, both final)
         self.ipo = {"RDDT": {"first_trade_date": "2024-03-21", "first_trade_final": True},
@@ -214,6 +217,7 @@ class RecordingTVPage:
             GATE_EXPR: ("gate", self._gate), AUTH_JS: ("auth", self._auth),
             TV_CAPTURE_TEXT: ("inject", self._inject),
             bc.STATE_JS: ("STATE", self._state), bc.SET_SYMBOL_JS: ("SET_SYMBOL", self._set_symbol),
+            bc.SESSION_JS: ("SESSION", self._session),
             bc.SET_RESOLUTION_JS: ("SET_RESOLUTION", self._set_resolution),
             bc.SET_STRETCH_JS: ("SET_STRETCH", self._set_stretch),
             bc.EDITOR_PRESENT_JS: ("EDITOR_PRESENT", lambda a: self.editor_open),
@@ -314,8 +318,20 @@ class RecordingTVPage:
                 "panes": list(self.panes)}
 
     def _set_symbol(self, s):
-        self.symbol = s
+        # ⭐ (2026-11-20) a session spec (`={...}`) sets the symbol AND its session, as TradingView does; a plain symbol
+        # keeps the chart's session (so a row that named one must put it back). `honours_session` False: a chart that
+        # resolves the spec's symbol but not its session (the read-back must catch it)
+        if str(s).startswith("="):
+            spec = json.loads(str(s)[1:])
+            self.symbol = spec.get("symbol")
+            if self.honours_session and spec.get("session") in bc.ROW_SESSIONS:
+                self.session_id = spec["session"]
+        else:
+            self.symbol = s
         return {"ok": True}
+
+    def _session(self, _):
+        return {"ok": True, "session": bc.ROW_SESSIONS[self.session_id], "subsession": self.session_id}
 
     def _set_resolution(self, r):
         self.resolution = r
@@ -468,7 +484,7 @@ class RecordingTVPage:
             "tool": {"snippet": "tools/vendor_harness/tv_capture.js", "version": 1},
             "page": {"url": LAYOUT, "visibilityState": "visible", "hasFocus": True},
             "symbol": {"name": "RDDT", "full_name": "NYSE:RDDT", "pro_name": "NYSE:RDDT", "exchange": "NYSE",
-                       "listed_exchange": "NYSE", "type": "stock", "session": "0930-1600",
+                       "listed_exchange": "NYSE", "type": "stock", "session": bc.ROW_SESSIONS[self.session_id],
                        "timezone": "America/New_York", "pricescale": 100, "minmov": 1, "currency": "USD"},
             "timeframe": "D",
             "newestBarIsForming": o.get("newestBarIsForming") if isinstance(o.get("newestBarIsForming"), bool) else None,

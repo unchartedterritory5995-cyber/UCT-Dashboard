@@ -24,7 +24,9 @@ import { LazyReportMismatchDialog } from '../supportLoop/reportDoor'
 import Sheet from '../../mobile/Sheet'
 import { afterFirstChartPaint } from '../../../lib/barsPackClient'
 import { runHereWhenLanded, RUN, MIN_BARS, STOPPED_HEADLINE, CHECKING_HEADLINE, WAITING_HEADLINE, WAITING_LINE } from './runsHere'
-import { drawingLossOf, LOST_DRAWINGS_HEADLINE } from './authoring/scriptAnswer'
+import { drawingLossOf, LOST_DRAWINGS_HEADLINE, PENDING_REASON_LINES, CHECKING_IN_THE_EDITOR_LINE } from './authoring/scriptAnswer'
+// ⛔ NAMED, STATIC imports: an engine function renamed under this file fails the BUILD, by name.
+import { subscribeRuntimeLists, runtimeConsultPendingOf, runtimePendingReasonOf } from '../engine/runtimeKill'
 import { useIsTouch } from '../../../hooks/useBreakpoint'
 import styles from './PineEditorStatus.module.css'
 
@@ -81,7 +83,11 @@ function OnThisChart({ status, shown }) {
   const lost = shown.state === SHOWN_STATE.DRAWINGS_LOST ? status.lostDrawings : null
   const waiting = shown.state === SHOWN_STATE.WAITS_FOR_THE_BAR && run ? [WAITING_LINE, ...new Set(run.waiting.map((w) => w.sentence))] : []
   const notes = run && run.state === RUN.RAN ? [...waiting, ...run.notes, ...run.unchecked.map((u) => `Not checked here (${u.guard}): it is checked when the script is on the chart.`)] : []
-  if (!stops.length && !lost && !notes.length) return null
+  // (a script the server has not answered for yet: why, when the server said why, and that nothing needs fixing)
+  const reason = shown.state === PANEL_STATE.CHECKING && PENDING_REASON_LINES[status.pendingReason] ? status.pendingReason : null
+  const checkingLines = shown.state === PANEL_STATE.CHECKING && (status.admissionPending || reason)
+    ? [...(reason ? [PENDING_REASON_LINES[reason]] : []), ...(status.admissionPending ? [CHECKING_IN_THE_EDITOR_LINE] : [])] : []
+  if (!stops.length && !lost && !notes.length && !checkingLines.length) return null
   return (
     <section className={styles.body} aria-label="On this chart" data-testid="pine-status-on-this-chart" data-run={run ? run.state : ''}>
       <h5 className={styles.subhead}>On this chart</h5>
@@ -99,6 +105,11 @@ function OnThisChart({ status, shown }) {
         )}
         {notes.map((n, i) => (
           <li key={`n${i}`} className={styles.item} data-testid="pine-status-run-note">
+            <p className={styles.itemWhy}>{n}</p>
+          </li>
+        ))}
+        {checkingLines.map((n, i) => (
+          <li key={`c${i}`} className={styles.item} data-testid="pine-status-checking-line" data-reason={reason || ''}>
             <p className={styles.itemWhy}>{n}</p>
           </li>
         ))}
@@ -311,6 +322,8 @@ export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = af
 
 /**
  * What the panel LEADS with: the script's status, unless this chart says otherwise.
+ *   not answered for yet        -> "Still being checked on this chart" (the server has not said whether the chart
+ *                                  may draw it bar by bar; what the status says meanwhile is not a refusal)
  *   a run that STOPPED here     -> "It does not run on this chart"
  *   drawings the lane lost      -> "Its plots run on the chart, but its drawings are not all drawn"
  *   a run still in flight       -> "Still being checked on this chart" (only where the status said "runs")
@@ -320,6 +333,11 @@ export function shownStatus(status) {
   if (!status) return { headline: '', state: null, run: null }
   const run = status.run || null
   const says = runsStates().includes(status.state)
+  // ⛔ A STATUS MADE WHILE THE CHART DOES NOT KNOW WHETHER IT MAY DRAW THE SCRIPT IS NOT A REFUSAL (measured
+  // 2026-11-20: with the server's answer still out, every bar-by-bar script read "Not yet: Values carried from bar
+  // to bar", the fast lane's refusal of a script the chart draws a moment later; the dock had the same defect and
+  // the same rule, `authoring/scriptAnswer.js::checkScript`). Nothing is known yet: it is being checked.
+  if (status.admissionPending && !says) return { headline: CHECKING_HEADLINE, state: PANEL_STATE.CHECKING, run }
   if (says && run && run.state === RUN.STOPPED) return { headline: STOPPED_HEADLINE, state: SHOWN_STATE.STOPPED_HERE, run }
   // (a script that draws on the chart's last bar, on a chart whose newest bar is still forming: nothing is wrong
   // with it, and NOTHING of it is drawn yet, so this leads over "its drawings are not all drawn".
@@ -337,21 +355,66 @@ export function shownStatus(status) {
  * A hook so PasteBox can hand the SAME status to the panel and to the editor's
  * line marks: one computation, two renderers.
  */
-export function usePineEditorStatus({ enabled, report, inspectedSource = '', savedRow = null, computePane = paneFor, chart = null, runOnChart = undefined }) {
+/** How often the panel re-reads why a script is still being checked. The engine keeps the server's last reason
+ *  per script and does not announce it, so the panel reads it again while (and only while) the answer is out. */
+export const PENDING_REASON_REREAD_MS = 2000
+
+/**
+ * Whether THIS script's status was made with the server's admission answer still out, and why the server said
+ * it is still checking (`busy` | `starting` | `paused`, or null). `answers` changes when the answer lands, by
+ * whatever path (this window's ask, the preview's, the lists' re-read): the caller re-makes its pane on it.
+ *
+ * ⛔ Read AFTER the pane is made (`minted` is that pane): "pending" is a fact about the consult the build made.
+ */
+export function useAdmissionPending(source, minted, { subscribe = subscribeRuntimeLists, consultPending = runtimeConsultPendingOf,
+  pendingReason = runtimePendingReasonOf, rereadMs = PENDING_REASON_REREAD_MS } = {}) {
+  const [answers, setAnswers] = useState(0)
+  const [reason, setReason] = useState(null)
+  const pending = useMemo(
+    () => !!(source && minted && consultPending({ source })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- read beside the pane, on the build that made it
+    [source, minted],
+  )
+  useEffect(() => {
+    if (!pending) { setReason(null); return undefined }
+    const settle = () => {
+      if (!consultPending({ source })) setAnswers((n) => n + 1)   // the answer landed: the pane is made again
+      else setReason(pendingReason({ source }) || null)             // (the same value again re-renders nothing)
+    }
+    const off = subscribe(settle)
+    const timer = setInterval(settle, Math.max(250, rereadMs))
+    settle()   // an answer, or a reason, that landed between the build and this effect
+    return () => { off(); clearInterval(timer) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the readers are module functions (a seam for tests)
+  }, [pending, source, rereadMs])
+  return { pending, reason: pending ? reason : null, answers }
+}
+
+export function usePineEditorStatus({ enabled, report, inspectedSource = '', savedRow = null, computePane = paneFor, chart = null, runOnChart = undefined, admission = undefined }) {
   // ⭐ A Pine paste the translator threw on is the door's controlled error report,
   // stamped `formula` by the auto door; `faultDialect` is the door's own record that
   // it had read the text as Pine (`PineBox.inspectSource`), so the engine-fault
   // state can be shown for it.
   const isPine = !!(enabled && report && !report.foreign
     && (report.dialect === 'pine' || report.faultDialect === 'pine'))
+  // (`landed`: the admission answer for this script arrived after the pane was made; it is made again)
+  const [landed, setLanded] = useState(0)
   const pane = useMemo(() => (isPine ? computePane(report, inspectedSource) : null),
-    [isPine, report, inspectedSource, computePane])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- landed: re-make the pane when its admission answers
+    [isPine, report, inspectedSource, computePane, landed])
+  const asked = useAdmissionPending(isPine ? inspectedSource : '', pane, admission)
+  useEffect(() => { if (asked.answers) setLanded(asked.answers) }, [asked.answers])
   const status = useMemo(() => (isPine ? editorStatus({ report, pane, savedRow, inspectedSource }) : null),
     [isPine, report, pane, savedRow, inspectedSource])
   // ⭐ the real run, and the drawings the lane lost: beside the status, never inside it (see above)
   const run = useRunOnChart(status ? pane : null, chart, runOnChart ? { run: runOnChart } : undefined)
   const lostDrawings = useMemo(() => (status ? drawingLossOf(pane) : null), [status, pane])
-  return useMemo(() => (status && (run || lostDrawings) ? { ...status, run, lostDrawings } : status), [status, run, lostDrawings])
+  // ⭐ beside the status, like the run: whether the answer is still out for a script the pane did not take, and why
+  const admissionPending = !!(asked.pending && !(pane && pane.ok === true))
+  const pendingReason = asked.reason
+  return useMemo(() => (status && (run || lostDrawings || admissionPending || pendingReason)
+    ? { ...status, run, lostDrawings, ...(admissionPending ? { admissionPending: true } : {}), ...(pendingReason ? { pendingReason } : {}) }
+    : status), [status, run, lostDrawings, admissionPending, pendingReason])
 }
 
 /**
@@ -398,11 +461,16 @@ export default function PineEditorStatus({
     if (onGoToLine) onGoToLine(n)
   }
 
+  // (while the server's answer is out, what the status lists as withheld is the fast lane's refusal of a script
+  // the chart may draw a moment later: it is not shown as this script's)
+  const answerOut = shown.state === PANEL_STATE.CHECKING && status.admissionPending === true
   const body = checking ? null : (
     <>
       <OnThisChart status={status} shown={shown} />
-      <Body status={status} source={inspectedSource} onGoToLine={goTo}
-        onReport={() => setReportOpen(true)} reportOffered={reportOffered} />
+      {!answerOut && (
+        <Body status={status} source={inspectedSource} onGoToLine={goTo}
+          onReport={() => setReportOpen(true)} reportOffered={reportOffered} />
+      )}
     </>
   )
 

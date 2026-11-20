@@ -53,6 +53,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useMarketIndicators from '../../../hooks/useMarketIndicators'
+import { pairQuoteView, pairSourceLine, useCryptoPair, useCryptoQuote } from '../../../lib/cryptoPairs'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import { useChartTickerMeta as useTickerMeta, useChartDelisted as useDelisted } from '../restedReaders'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
@@ -245,6 +246,16 @@ function ChartPane({
       ? String(miRec.display_symbol || miRec.symbol) : sym)
   const breadthLikeName = isBreadth ? breadthRec.name
     : (_miPrefix && _miDisplay.startsWith(_miPrefix) ? _miDisplay.slice(_miPrefix.length) : _miDisplay)
+  // A CURRENCY PAIR (BTCUSD; dark behind the server switch CRYPTO_BARS_ENABLED). `pair` is null
+  // for every other symbol (no request is sent for one), while the switch is off, and for a
+  // member it does not admit: then nothing below changes. For an admitted pair the chart is
+  // daily / weekly / monthly only (the server carries no intraday for a pair), takes no live
+  // ticks (the price stream carries stocks), shows no stock-session switch, and the header
+  // carries the pair's price with its source and that source's own time for it.
+  const pair = useCryptoPair(sym)
+  const isPair = !!pair
+  const pairQuote = useCryptoQuote(sym, isPair && !compact && !mini)
+  const pairView = isPair ? pairQuoteView(pairQuote.quote) : null
   const { isEtf } = useEtfSymbols()
   // Funds/indexes/breadth have no meaningful "market cap" — the info row shows a
   // dash for them (like Next Earnings), only real stocks get a value.
@@ -252,7 +263,7 @@ function ChartPane({
   const breadthTf = DWM.includes(tf) ? tf : 'D'
   // The timeframe the CHART actually draws -- one value for StockChart, the drawing/period
   // tools and the region's accessible name, so the name can never drift from the chart.
-  const effectiveTf = (isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)
+  const effectiveTf = (isBreadthLike || isEcon || isPair) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)
   const synthDailyOnly = themeIdx.isIndex || isBreadthLike || isEcon   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
   // its header $/% change is the last bar's close vs the prior bar's close.
@@ -269,15 +280,15 @@ function ChartPane({
   // the theme name + the Uncharted Territory brand mark (it has no company ticker,
   // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
   const exhibit = identityLabel != null   // the host names the chart; `sym` is not a ticker to look up
-  const meta = useTickerMeta((synthDailyOnly || exhibit) ? null : sym)
+  const meta = useTickerMeta((synthDailyOnly || exhibit || isPair) ? null : sym)
   // DELISTED (dead company — Yahoo, Twitter, Lehman): freeze every live path. Its bars
   // still flow through /api/bars (Massive retains delisted history to ~2003), but there is
   // no live quote/stream to chase — so liveUpdates goes false, the header quote/change is
   // suppressed, the watermark uses the curated name/sector (a reused symbol's live meta is
   // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
-  const delistedInfo = useDelisted((synthDailyOnly || exhibit) ? null : sym)
+  const delistedInfo = useDelisted((synthDailyOnly || exhibit || isPair) ? null : sym)
   const isDelisted = !!delistedInfo
-  const companyName = (isDelisted && delistedInfo.name) || meta?.name || sym
+  const companyName = (isPair && pair.name) || (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
     : null
@@ -519,7 +530,7 @@ function ChartPane({
   // A breadth symbol has no intraday basis, so lock its TF bar to D/W/M (no overflow
   // escape to intraday) exactly like a host-supplied tfCodes lock. An explicit host
   // tfCodes still wins.
-  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadthLike || isEcon) ? DWM : null)
+  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadthLike || isEcon || isPair) ? DWM : null)
   // The /charts integrated header is ONE row at every width (owner 11-14).
   const oneRowMode = !!slots?.identityDragClass && !mini && showTfBar
   const visibleTfs = (() => {
@@ -1141,7 +1152,7 @@ function ChartPane({
   const integratedHeader = !!slots?.identityDragClass
   // Owner 11-14: ONE row at every width (the ladder above fits it), never a second row.
   const oneRowHeader = oneRowMode
-  const sessionCfg = (compact || isEcon) ? null : (isDWMtf
+  const sessionCfg = (compact || isEcon || isPair) ? null : (isDWMtf
     ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: integratedHeader || sessionForceAbbrev }
     : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: integratedHeader || sessionForceAbbrev })
   // The chart widget's symbol menu (▾ after the company name): leverage + holdings.
@@ -1151,7 +1162,7 @@ function ChartPane({
   const tfBarEl = showTfBar ? (
     <ChartTfBar
       rootRef={tfBarRef}
-      tf={(isBreadthLike || isEcon) ? breadthTf : tf}
+      tf={(isBreadthLike || isEcon || isPair) ? breadthTf : tf}
       visibleTfs={responsiveTfs}
       onTf={handleTf}
       /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
@@ -1260,6 +1271,12 @@ function ChartPane({
           showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
+          sourceNote={isPair ? {
+            text: pairView.kind === 'price'
+              ? `${pairView.price}${pairView.pct ? ` ${pairView.pct}` : ''} · ${pairView.source}${pairView.asOf ? `, ${pairView.asOf}` : ''}`
+              : `${pair.source || 'FMP'} daily bars`,
+            title: `${pairSourceLine(pairView)}. Daily, weekly and monthly bars only, with a bar for every day of the week. The price is read again every 30 seconds.`,
+          } : null}
           dayGainColors={{
             up: _hdrInk.dayChangeUp,
             down: _hdrInk.dayChangeDown,
@@ -1267,7 +1284,7 @@ function ChartPane({
           session={rowHideSession ? null : sessionCfg}
           middleSlot={oneRowHeader ? tfBarEl : null}
           afterNameSlot={symbolMenuEl}
-          showClock={!compact && !rowHideClock}
+          showClock={!compact && !rowHideClock && !isPair}
           rightSlot={integratedHeader
             ? (
               <>
@@ -1351,6 +1368,14 @@ function ChartPane({
             watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
             watermarkBrandMark: true,   // UCT compass mark, not a company-logo lookup
+          } : {})}
+          {...(isPair ? {
+            // CURRENCY PAIR: /api/bars serves its daily bars (one for every day of the week),
+            // so no barsOverride. No live ticks and no today-seed (both follow the stock
+            // session), and only the D/W/M warm-up (`breadthSeries`: daily-only series).
+            liveUpdates: false,
+            breadthSeries: true,
+            watermarkName: pair.name,
           } : {})}
           {...(isEcon ? {
             // ECONOMIC SERIES: StockChart owns the data path (`useEconomicPrimary`

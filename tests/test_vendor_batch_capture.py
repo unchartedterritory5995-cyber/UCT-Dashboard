@@ -747,3 +747,68 @@ def test_a_weekly_or_monthly_chart_starts_at_the_listing_by_its_period(tmp_path,
 def test_same_period_reads_the_iso_week_across_a_year():
     assert bc.same_period("2025-01-03", "2024-12-31", "W") and not bc.same_period("2025-01-10", "2024-12-31", "W")
     assert not bc.same_period("2024-12-31", "2024-12-31", "D") and not bc.same_period("x", "2024-12-31", "W")
+
+
+# ── a row names its SESSION in the symbol spec; read back, stopped by name, restored (coordinator ruling 2026-11-20) ──
+# ⛔ The layout's own session is never toggled (AUTOSAVE is account-wide): the same per-row setSymbol the batch already makes.
+def _session_batch(tmp_path, rows, honours=True):
+    manifest, beh = bd.make_manifest(tmp_path, [(slug, 'indicator("X")\nplot(close)\n', {}) for slug, _ in rows])
+    for script, (_, session) in zip(manifest["scripts"], rows):
+        script.update({"symbol": "AMEX:SPY", "tf": "60", "captureStem": "vw-bi-time-d-extended"})
+        if session is not None:
+            script["session"] = session
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    page.honours_session = honours
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    return page, rd, code
+
+
+def test_an_extended_row_captures_the_extended_session_and_puts_the_chart_back(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("ext", "extended")])
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.CAPTURED, res
+    cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-ext-2026-09-28.json").read_text(encoding="utf-8"))
+    assert cap["symbol"]["session"] == "0400-2000"                            # the capture records the session it read
+    sets = [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"]
+    assert bc.session_spec("AMEX:SPY", "extended") in [str(x) for x in sets]
+    assert page.session_id == "regular"                                       # restored after the row, read back
+
+
+def test_a_regular_row_reads_the_regular_session(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("reg", "regular")])
+    assert rd.results()["reg"]["outcome"] == bc.CAPTURED, rd.results()["reg"]
+    cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-2026-09-28.json").read_text(encoding="utf-8"))
+    assert cap["symbol"]["session"] == "0930-1600"
+    sets = [str(a) for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"]
+    assert bc.session_spec("AMEX:SPY", "regular") in sets
+
+
+def test_a_row_that_names_no_session_never_asks_for_one(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("plain", None)])
+    assert rd.results()["plain"]["outcome"] == bc.CAPTURED
+    assert not [n for k, n, _ in page.calls if k == "evaluate" and n == "SESSION"]
+    assert not [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL" and str(a).startswith("=")]
+
+
+def test_an_extended_row_whose_read_back_is_not_extended_stops_by_name(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("ext", "extended")], honours=False)
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "session read back '0930-1600', not the extended session '0400-2000'" in json.dumps(res)
+    assert not list((tmp_path / "run" / "captures").glob("*.json"))         # nothing captured
+
+
+def test_an_extended_row_and_a_regular_row_of_one_probe_are_two_captures():
+    o_ext, o_reg = bd.fast_opts(symbol="AMEX:SPY", tf="60"), bd.fast_opts(symbol="AMEX:SPY", tf="60")
+    o_ext.session = "extended"
+    s = {"slug": "x", "captureStem": "vw-bi-time-d-extended"}
+    assert bc.capture_id_for(s, o_ext) == "vw-bi-time-d-extended-spy-60-ext-2026-09-28"
+    assert bc.capture_id_for(s, o_reg) == "vw-bi-time-d-extended-spy-60-2026-09-28"
+
+
+def test_the_spec_is_tradingviews_encoding_and_the_matcher_reads_through_it():
+    assert bc.session_spec("AMEX:SPY", "extended") == '={"session":"extended","symbol":"AMEX:SPY"}'
+    assert bc.sym_match('={"session":"extended","symbol":"AMEX:SPY"}', "AMEX:SPY")
+    assert not bc.sym_match('={"session":"extended","symbol":"AMEX:QQQ"}', "AMEX:SPY")
+    with pytest.raises(bc.GateFailed):
+        bc.Opts(session="overnight")

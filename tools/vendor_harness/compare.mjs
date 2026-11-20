@@ -63,6 +63,7 @@
 //   observation states the vendor's own display precision, and nothing else".
 //   ⛔ NEVER WIDEN THESE TO MAKE A DELTA GO AWAY.
 import { isFillTarget } from './schema.mjs'
+import { startsAtBar0Holds } from './history_claim.mjs'
 
 export const REL_TOL = 1e-9
 export const ABS_TICK_FRACTION = 1e-6
@@ -900,7 +901,8 @@ export function compareCapture(capture, ours, opts = {}) {
 
   // History: a capture that provably starts at bar 0 has no pre-window state our
   // side lacks, so there is no warm-up excuse and every bar counts.
-  const bar0 = capture.history && capture.history.startsAtBar0 === true
+  // ⛔⛔ read through `history_claim.mjs`: a claim the capture's own bar_index row contradicts is FALSE
+  const bar0 = startsAtBar0Holds(capture)
 
   const map = mapPlots(roles.value, ours.plots || [])
   for (const u of map.unmappedVendor) {
