@@ -145,6 +145,7 @@ class _Keyboard:
         self.page._log("press", key, None)
         if key == "Escape":
             self.page.menu = None
+            self.page.dialog = False
         if key == bc.SAVE_SHORTCUT:
             # the layout's own Save: the persisted copy becomes the page as it is now (the guarded clean-save)
             self.page.persisted = {"studies": json.loads(json.dumps(self.page.studies)),
@@ -169,6 +170,13 @@ class RecordingTVPage:
          capture_error: str   __uctVH.capture throws this
          bind_before_add: True the binding flips to "Update on chart" right after
                                the buffer write (the in-evaluation gate must catch it)
+         input_defaults: {id: value}  the study's input defaults (what `defval` records)
+         palette: [colour]     the study's own palette colours (metaInfo defaults)
+         inputs_reject: True   setInputValues takes nothing (the read-back disagrees)
+         palette_lags: True    a moved colour never reaches the LIVE palette
+         palette_after_sets: n  the moved colour reaches it only once the inputs were set n times
+       builtins (page attribute): {data-id: [{"title", "inputs": {label: input id}}]} —
+         the Indicators dialog's list (two entries for one id: an ambiguous dialog)
        stays_bound: set of create-new ORDINALS (1-based) after which the editor
          stays bound — the measured hazard: a fresh model, and still "Update on chart".
     """
@@ -212,6 +220,11 @@ class RecordingTVPage:
         self.t = 0.0
         self.calls = []
         self.adds = []                         # (bound state, clicked) at every ADD evaluation
+        # ⭐⭐ (folded 2026-11-20) the study API's inputs, the Indicators dialog, and what was picked / set there
+        self.builtins = {}
+        self.dialog = False
+        self.picks = []
+        self.input_calls = []
         self.mouse, self.keyboard, self.context = _Mouse(self), _Keyboard(self), _Ctx(self)
         self._by_expr = {
             GATE_EXPR: ("gate", self._gate), AUTH_JS: ("auth", self._auth),
@@ -231,6 +244,10 @@ class RecordingTVPage:
             bc.ACCOUNT_JS: ("ACCOUNT", lambda a: self.account),
             bc.SAVED_TEXT_JS: ("SAVED_TEXT", lambda a: bool(getattr(self, "saved_word", False))),
             bc.FOCUS_BODY_JS: ("FOCUS_BODY", lambda a: getattr(self, "focus_leaves", True)),
+            bc.INPUTS_JS: ("INPUTS", self._inputs), bc.PALETTE_JS: ("PALETTE", self._palette),
+            bc.BUILTIN_OPEN_JS: ("BUILTIN_OPEN", self._builtin_open), bc.BUILTIN_PICK_JS: ("BUILTIN_PICK", self._builtin_pick),
+            bc.BUILTIN_CLOSED_JS: ("BUILTIN_CLOSED", lambda a: not self.dialog),
+            bc.BUILTIN_INPUT_IDS_JS: ("BUILTIN_INPUT_IDS", self._builtin_input_ids),
         }
 
     # ── recording ───────────────────────────────────────────────────────────
@@ -430,6 +447,83 @@ class RecordingTVPage:
         self.studies = [s for s in self.studies if s["id"] != sid]
         return {"ok": len(self.studies) < before, **({} if len(self.studies) < before else {"why": "no such id"})}
 
+    # ── ⭐⭐ (folded 2026-11-20) the study API's inputs and palettes, and the Indicators dialog ──────────────────────
+    def _defaults(self, s):
+        return dict(self._beh(s.get("sha")).get("input_defaults") or {})
+
+    def _inputs(self, a):
+        s = self._find(a.get("id"))
+        if not s:
+            return {"ok": False, "why": "study not found"}
+        cur = s.setdefault("inputs", self._defaults(s))
+        self.input_calls.append(dict(a["inputs"]))
+        s["input_sets"] = s.get("input_sets", 0) + 1
+        if not self._beh(s.get("sha")).get("inputs_reject"):
+            cur.update(a["inputs"])
+        if self.autosave == "tradingview":
+            # MEASURED (2026-11-16, run rsset): setting inputs marks the layout modified and its autosave keeps the study,
+            # inputs and all
+            self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
+        bad = [{"id": k, "want": v, "got": cur.get(k)} for k, v in a["inputs"].items() if cur.get(k) != v]
+        return {"ok": not bad, "bad": bad, "set": len(a["inputs"])}
+
+    def _palette_lags(self, s):
+        b = self._beh(s.get("sha"))
+        return bool(b.get("palette_lags")) or s.get("input_sets", 0) < int(b.get("palette_after_sets") or 0)
+
+    def _moved_colours(self, s):
+        pal, d = self._beh(s.get("sha")).get("palette") or [], self._defaults(s)
+        return {k: v for k, v in (s.get("inputs") or {}).items() if d.get(k) in pal and v != d.get(k)}
+
+    def _palette(self, a):
+        s = self._find(a.get("id"))
+        if not s:
+            return {"ok": False, "why": "study not found"}
+        pal = self._beh(s.get("sha")).get("palette") or []
+        if not pal:
+            return {"ok": False, "why": "no palette colours read", "meta": 0, "live": 0}
+        moved = sorted(self._moved_colours(s))
+        lag = moved if self._palette_lags(s) else []
+        return {"ok": True, "lag": lag, "moved": moved, "meta": len(pal), "live": len(pal)}
+
+    def _study_settings(self, s):
+        """What tv_capture.js records of the study's settings: its inputs (value and default), the metaInfo palette colours,
+        and the LIVE palette state (which holds a moved colour only once TradingView applied it)."""
+        b, d = self._beh(s.get("sha")), self._defaults(s)
+        cur = {**d, **(s.get("inputs") or {})}
+        pal = b.get("palette") or []
+        live = list(pal) + ([] if self._palette_lags(s) else list(self._moved_colours(s).values()))
+        colours = lambda cs: {"p0": {"colors": {str(i): {"color": c} for i, c in enumerate(cs)}}} if cs else {}
+        return {"palettes": colours(pal), "paletteState": colours(live) or None,
+                "inputs": [{"id": k, "name": k, "value": v, "defval": d.get(k)} for k, v in cur.items()]}
+
+    def _builtin_open(self, _):
+        if self.dialog:
+            return {"open": True}
+        self.dialog = True
+        return {"open": False, "clicked": True}
+
+    def _builtin_pick(self, a):
+        if not self.dialog:
+            return {"STOP": "no dialog search input"}
+        hits = self.builtins.get(a.get("id")) or []
+        if len(hits) > 1:
+            return {"STOP": f"{len(hits)} elements carry data-id {a.get('id')}"}
+        if not hits:
+            return {"STOP": f"no element with data-id {a.get('id')} after searching {json.dumps(a.get('search'))}"}
+        self.picks.append(a.get("id"))
+        self.next_id += 1
+        self.studies.append({"id": f"st{self.next_id}", "name": hits[0]["title"], "sha": f"builtin:{a['id']}",
+                             "source": None, "reads": 0, "builtin": a["id"]})
+        if self.autosave == "tradingview":
+            self.persisted = {"studies": json.loads(json.dumps(self.studies)), "symbol": self.symbol, "resolution": self.resolution}
+        return {"clicked": True, "title": hits[0]["title"]}
+
+    def _builtin_input_ids(self, sid):
+        s = self._find(sid)
+        hits = self.builtins.get((s or {}).get("builtin")) or []
+        return dict(hits[0].get("inputs") or {}) if hits else {}
+
     def _inject(self, _):
         self.injected = True
         self.globals.add("__uctVH")
@@ -498,8 +592,8 @@ class RecordingTVPage:
             "study": {"id": "Script$USER;787899e2@tv-scripting-101", "fullId": None, "title": s["name"],
                       "description": s["name"], "shortDescription": s["name"], "status": {"type": 2},
                       "plots": [{"id": "plot_0", "type": "line", "title": "Plot"}],
-                      "styles": {"plot_0": {"title": "Plot"}}, "styleState": None, "palettes": {},
-                      "paletteState": None, "inputs": []},
+                      "styles": {"plot_0": {"title": "Plot"}}, "styleState": None,
+                      **self._study_settings(s)},
             "window": {"chartBarsLoaded": BARS, "studyBarsLoaded": BARS,
                        "firstBarTime": bars[0][0], "lastBarTime": bars[-1][0]},
             "bars": {"fields": ["time", "open", "high", "low", "close", "volume"], "timeUnit": "unix-s",
@@ -611,6 +705,189 @@ def resume_run(tmp: pathlib.Path, manifest, beh, page1):
     return page2, code, rd, clock
 
 
+# ─── ⭐⭐ THE FOLDED STEPS (coordinator ruling 2026-11-20): what the retired scratchpad wrappers added, railed here ─────────
+def single_save_path_findings(source: str) -> list:
+    """Why `source` (batch_capture.py's text) is NOT a single save path, or []: no code string names TradingView's
+    `saveChartToServer` (a direct save, outside the guard), and exactly ONE `...keyboard.press(SAVE_SHORTCUT)` call, inside
+    `Driver.guarded_clean_save`. ⛔ CODE, NEVER PROSE: comments are not tokens here, and a docstring is skipped (an
+    expression statement that is only a string), so a sentence naming either never counts; a JS string is code and does."""
+    import ast
+    tree = ast.parse(source)
+    docstrings = {id(n.value) for n in ast.walk(tree)
+                  if isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str)}
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in docstrings \
+                and "saveChartTo" + "Server" in n.value:
+            out.append(f"a code string names saveChartTo{'Server'} (line {n.lineno}): a direct save outside the guard")
+    presses = []
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "press" \
+                    and any(isinstance(a, ast.Name) and a.id == "SAVE_SHORTCUT" for a in n.args):
+                presses.append((fn.name, n.lineno))
+    inner = {}
+    for fname, line in presses:           # a nested function's press is also inside its parent: keep the innermost
+        inner[line] = fname
+    sites = sorted(set(inner.items()))
+    if len(sites) != 1:
+        out.append(f"{len(sites)} SAVE_SHORTCUT presses, one wanted: {sites}")
+    elif sites[0][1] != "guarded_clean_save":
+        out.append(f"the one SAVE_SHORTCUT press is in {sites[0][1]}, not guarded_clean_save")
+    return out
+
+
+def folded_run(tmp, name, scripts, page=None, opts=None, rows=None, page_kw=None):
+    """One batch over `scripts` (make_manifest's triples) with extra row fields `rows` {slug: {...}}: (code, rd, page)."""
+    manifest, beh = make_manifest(tmp / name, scripts)
+    for r in manifest["scripts"]:
+        r.update((rows or {}).get(r["slug"]) or {})
+    if page is None:
+        page = RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, **(page_kw or {}))
+    else:
+        page.behaviours.update({sha: b for sha, b in beh.values()})
+    code, rd, _ = run(page, manifest, tmp / name / "run", opts or fast_opts())
+    return code, rd, page, manifest
+
+
+def _cap(res):
+    p = (res or {}).get("capture")
+    return json.loads(pathlib.Path(p).read_text(encoding="utf-8")) if p and pathlib.Path(p).exists() else None
+
+
+def folded_checks(tmp, check):
+    # (1) `inputs`: set on the study THIS run added, read back, recorded in the capture
+    code, rd, page, _ = folded_run(tmp, "inputs", [("india", '//@version=6\nindicator("India")\nplot(close)\n', {})],
+                                   rows={"india": {"inputs": {"in_0": 30}}})
+    res = rd.results().get("india", {})
+    cap = _cap(res)
+    check("an `inputs` row: set through the study API, read back, and the capture records the value",
+          res.get("outcome") == bc.CAPTURED and page.input_calls[:1] == [{"in_0": 30}]
+          and any(i.get("id") == "in_0" and i.get("value") == 30 for i in ((cap or {}).get("study") or {}).get("inputs") or []),
+          f"{res.get('outcome')} {page.input_calls}")
+    # (2) `inputsOnePerCall`: one call per input, in order
+    code, rd, page, _ = folded_run(tmp, "onepercall", [("juliet", '//@version=6\nindicator("Juliet")\nplot(close)\n', {})],
+                                   rows={"juliet": {"inputs": {"in_0": 1, "in_1": 2}, "inputsOnePerCall": True}})
+    check("`inputsOnePerCall`: one setInputValues per input, each its own call",
+          rd.results().get("juliet", {}).get("outcome") == bc.CAPTURED
+          and page.input_calls[:2] == [{"in_0": 1}, {"in_1": 2}], str(page.input_calls))
+    # (3) an input that does not read back: INCONCLUSIVE, nothing captured
+    code, rd, page, _ = folded_run(tmp, "reject", [("kilo", '//@version=6\nindicator("Kilo")\nplot(close)\n',
+                                                     {"inputs_reject": True})], rows={"kilo": {"inputs": {"in_0": 30}}})
+    res = rd.results().get("kilo", {})
+    check("an input TradingView does not read back -> INCONCLUSIVE, no capture file",
+          res.get("outcome") == bc.INCONCLUSIVE and "could not be set as asked" in str(res.get("reason"))
+          and not list((tmp / "reject" / "run" / "captures").glob("*.json")), str(res.get("reason")))
+    # (4) a moved colour the LIVE palette never holds: the capture is set aside, INCONCLUSIVE
+    colour = {"input_defaults": {"in_0": "#FF5252"}, "palette": ["#FF5252", "#2196F3"]}
+    code, rd, page, _ = folded_run(tmp, "lag", [("lima", '//@version=6\nindicator("Lima")\nplot(close)\n',
+                                                 {**colour, "palette_lags": True})], rows={"lima": {"inputs": {"in_0": "#4CAF50"}}})
+    res = rd.results().get("lima", {})
+    check("a moved colour the live palette does not hold -> INCONCLUSIVE, the file set aside (captures-refused/)",
+          res.get("outcome") == bc.INCONCLUSIVE and "live palette" in str(res.get("reason"))
+          and list((tmp / "lag" / "run" / "captures-refused").glob("*.json"))
+          and not list((tmp / "lag" / "run" / "captures").glob("*.json")), str(res.get("reason")))
+    code, rd, page, _ = folded_run(tmp, "synced", [("mike", '//@version=6\nindicator("Mike")\nplot(close)\n', colour)],
+                                   rows={"mike": {"inputs": {"in_0": "#4CAF50"}}})
+    check("⛔ CONTROL: the same moved colour, held by the live palette -> CAPTURED",
+          rd.results().get("mike", {}).get("outcome") == bc.CAPTURED, str(rd.results().get("mike", {}).get("reason")))
+    code, rd, page, _ = folded_run(tmp, "reset", [("mike2", '//@version=6\nindicator("Mike2")\nplot(close)\n',
+                                                   {**colour, "palette_after_sets": 2})], rows={"mike2": {"inputs": {"in_0": "#4CAF50"}}})
+    check("a live palette that takes the moved colour only on the SECOND set: the inputs are set once more, then CAPTURED",
+          rd.results().get("mike2", {}).get("outcome") == bc.CAPTURED and len(page.input_calls) == 2,
+          f"{rd.results().get('mike2', {}).get('reason')} {page.input_calls}")
+    # (5) a built-in: no editor step, the dialog's element picked by its EXACT data-id, its labelled input set
+    label = "TradingView built-in: Detrended Price Oscillator (STD;DPO), added from the Indicators dialog\n"
+    dpo = {"STD;DPO": [{"title": "Detrended Price Oscillator", "inputs": {"Centered": "in_3"}}]}
+    page = RecordingTVPage()
+    page.builtins = dpo
+    code, rd, page, _ = folded_run(tmp, "builtin", [("nov", label, {})], page=page, rows={"nov": {
+        "builtin": {"id": "STD;DPO", "search": "Detrended", "title": "Detrended Price Oscillator"},
+        "builtinInputs": {"Centered": True}}})
+    names = set(page.names())
+    check("a `builtin` row: added from the dialog by its exact data-id, no editor step, its labelled input set",
+          rd.results().get("nov", {}).get("outcome") == bc.CAPTURED and page.picks == ["STD;DPO"]
+          and not names & {"OPEN_EDITOR", "MODELS", "TITLE", "BINDING", "SET_SOURCE", "ADD"}
+          and page.input_calls == [{"in_3": True}], f"{rd.results().get('nov', {}).get('reason')} {page.picks} {sorted(names)}")
+    page = RecordingTVPage()
+    page.builtins = {"STD;DPO": dpo["STD;DPO"] * 2}
+    code, rd, page, _ = folded_run(tmp, "builtin2", [("oscar", label, {})], page=page,
+                                   rows={"oscar": {"builtin": {"id": "STD;DPO", "search": "Detrended"}}})
+    check("a built-in whose data-id names TWO elements -> GATE_FAILED, nothing clicked, no study added",
+          rd.results().get("oscar", {}).get("outcome") == bc.GATE_FAILED and page.picks == [] and not page.studies,
+          str(rd.results().get("oscar", {}).get("reason")))
+    page = RecordingTVPage()
+    page.builtins = dpo
+    code, rd, page, _ = folded_run(tmp, "builtin3", [("papa", label, {})], page=page, rows={"papa": {
+        "builtin": {"id": "STD;DPO", "search": "Detrended"}, "builtinInputs": {"No such label": 1}}})
+    check("a built-in input LABEL the study does not have -> GATE_FAILED, nothing set",
+          rd.results().get("papa", {}).get("outcome") == bc.GATE_FAILED and page.input_calls == [],
+          str(rd.results().get("papa", {}).get("reason")))
+    # (6) `sessionId` is retired: the batch stops by name before any page step; a `session` row still captures
+    code, rd, page, _ = folded_run(tmp, "retired", [("quebec", '//@version=6\nindicator("Quebec")\nplot(close)\n', {})],
+                                   rows={"quebec": {"sessionId": "regular"}})
+    led = [json.loads(ln) for ln in (tmp / "retired" / "run" / "ledger.jsonl").read_text(encoding="utf-8").splitlines()]
+    check("a row naming the retired `sessionId` stops the batch by name, before any chart step",
+          code != 0 and any("sessionId` is retired" in str(e.get("reason")) for e in led if e.get("event") == "abort")
+          and "STATE" not in page.names(), f"exit {code}")
+    code, rd, page, _ = folded_run(tmp, "session", [("romeo", '//@version=6\nindicator("Romeo")\nplot(close)\n', {})],
+                                   rows={"romeo": {"session": "regular", "symbol": "AMEX:SPY", "tf": "60"}})
+    cap = _cap(rd.results().get("romeo", {}))
+    check("⛔ CONTROL: a row naming its `session` (#2134) still captures it, read back as 0930-1600",
+          rd.results().get("romeo", {}).get("outcome") == bc.CAPTURED and ((cap or {}).get("symbol") or {}).get("session") == "0930-1600",
+          str(rd.results().get("romeo", {}).get("reason")))
+    # (7) AN INTERRUPTED INPUT ROW: its add was autosaved with the inputs, and the batch died before its repair. The NEXT
+    # batch never captures on that rig: with --clean-save, the guarded clean-save removes the manifest's OWN leftover and
+    # a fresh load must read clean first; without it, the scratch-layout gate stops, as always. A foreign study: stop.
+    src = '//@version=6\nindicator("Sierra")\nplot(close)\n'
+    dead = RecordingTVPage(autosave="tradingview")
+    try:
+        folded_run(tmp, "interrupted", [("sierra", src, {"crash_at": "vh_capture"})], page=dead,
+                   rows={"sierra": {"inputs": {"in_0": 30}}})
+    except SimulatedCrash:
+        pass
+    left = json.loads(json.dumps(dead.persisted))
+    persisted_inputs = [s.get("inputs") for s in left["studies"]]
+
+    def next_batch(name, clean_save, studies=None):
+        pg = RecordingTVPage(autosave="tradingview", persisted={**left, "studies": studies if studies is not None else left["studies"]},
+                             studies=studies if studies is not None else left["studies"], symbol=left["symbol"],
+                             resolution=left["resolution"])
+        out = folded_run(tmp, name, [("sierra", src, {})], page=pg, opts=fast_opts(clean_save=clean_save))
+        return out[0], out[1], pg
+
+    code, rd, pg = next_batch("after-interrupt", True)
+    led = [json.loads(ln) for ln in (tmp / "after-interrupt" / "run" / "ledger.jsonl").read_text(encoding="utf-8").splitlines()]
+    starts = [e for e in led if e.get("event") == "clean-save" and e.get("label") == "start-repair"]
+    check("an interrupted input row's autosaved leftover: the next batch's guarded clean-save removes it, a fresh load "
+          "reads clean, then it captures",
+          persisted_inputs == [{"in_0": 30}] and starts and starts[0].get("ok") is True
+          and rd.results().get("sierra", {}).get("outcome") == bc.CAPTURED, f"{persisted_inputs} {starts} exit {code}")
+    code, rd, pg = next_batch("after-interrupt-no-save", False)
+    check("⛔ …without --clean-save the next batch never captures on that rig (the scratch-layout gate stops), and saves nothing",
+          rd.results().get("sierra", {}).get("outcome") == bc.GATE_FAILED and bc.SAVE_SHORTCUT not in pg.names("press"),
+          str(rd.results().get("sierra", {}).get("reason")))
+    foreign = [{"id": "st900", "name": "Owner study", "sha": "x", "source": None, "reads": 0}]
+    code, rd, pg = next_batch("foreign-leftover", True, studies=foreign)
+    check("⛔ a study this manifest's probes do not declare: no start repair, the batch stops, nothing is saved",
+          rd.results().get("sierra", {}).get("outcome") == bc.GATE_FAILED and bc.SAVE_SHORTCUT not in pg.names("press")
+          and any(s.get("name") == "Owner study" for s in pg.studies), str(rd.results().get("sierra", {}).get("reason")))
+    # (8) ONE SAVE PATH, read from the source (with its own controls: the check can fail)
+    findings = single_save_path_findings(pathlib.Path(bc.__file__).read_text(encoding="utf-8"))
+    bad_direct = single_save_path_findings('def f(page):\n    page.evaluate("() => window.TradingViewApi.saveChartTo'
+                                           'Server()")\n    page.keyboard.press(SAVE_SHORTCUT)\n')
+    bad_two = single_save_path_findings('def guarded_clean_save(p):\n    p.keyboard.press(SAVE_SHORTCUT)\n'
+                                        'def other(p):\n    p.keyboard.press(SAVE_SHORTCUT)\n')
+    prose = single_save_path_findings('def guarded_clean_save(p):\n    """never saveChartTo' 'Server()"""\n'
+                                      '    # saveChartTo' 'Server\n    p.keyboard.press(SAVE_SHORTCUT)\n')
+    check("ONE SAVE PATH: batch_capture names no direct saveChartTo" "Server and presses the Save key only in the guarded "
+          "clean-save (controls: a direct save and a second press are found; prose is not)",
+          findings == [] and len(bad_direct) == 2 and len(bad_two) == 1 and prose == [],
+          f"{findings} | {bad_direct} | {bad_two} | {prose}")
+
+
 def self_check() -> int:
     checks = []
 
@@ -657,6 +934,8 @@ def self_check() -> int:
         check("the chart was put back where it was found (symbol and resolution)",
               page2.symbol == "NASDAQ:AAPL" and page2.resolution == "5" and code == 0,
               f"{page2.symbol} {page2.resolution} exit {code}")
+        # ── ⭐⭐ (folded 2026-11-20) THE STEPS THE SCRATCHPAD WRAPPERS ADDED: each case goes red without its step ──────
+        folded_checks(tmp, check)
     ok = all(c for _, c in checks)
     print(f"[self-check] {sum(c for _, c in checks)}/{len(checks)} checks passed")
     print(f"VERDICT: {'PASS' if ok else 'FAIL'}")

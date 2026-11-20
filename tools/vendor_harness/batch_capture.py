@@ -413,6 +413,162 @@ REMOVE_JS = "(id) => {" + _CHART + r"""
   try { h.c.removeEntity(id); return { ok: true } } catch (e) { return { ok: false, why: String(e) } }
 }"""
 
+# ─── ⭐⭐ FOLDED FROM THE SCRATCHPAD WRAPPERS (coordinator ruling 2026-11-20: a capture instrument with no self-check of its own
+# is not trusted, so `batch_wide.py` and `batch_builtin.py` retire). A manifest row may name `inputs` (TradingView's own input
+# ids: the k-th `input*()` of the source is `in_k`), set on the study THIS run added through the chart's study API (no
+# click, no dialog) and read back; or `builtin` (a TradingView built-in study, added from the Indicators dialog by its
+# exact `data-id`) with `builtinInputs` by the dialog's LABEL. Every one is railed in `batch_double.self_check`.
+
+#: WRITE (the study THIS run added): `setInputValues`, then the read-back; ok only when every input reads back as asked.
+INPUTS_JS = "(arg) => {" + _CHART + r"""
+  const h = chartOf(); const si = h ? tryv(() => h.c.getStudyById(arg.id)) : null;
+  if (!si) return { ok: false, why: 'study not found' };
+  if (typeof si.setInputValues !== 'function' || typeof si.getInputValues !== 'function')
+    return { ok: false, why: 'the study API has no setInputValues / getInputValues' };
+  const want = Object.entries(arg.inputs).map(([id, value]) => ({ id, value }));
+  try { si.setInputValues(want) } catch (e) { return { ok: false, why: 'setInputValues threw: ' + e } }
+  const got = tryv(() => si.getInputValues()) || [];
+  const byId = Object.fromEntries(got.map((x) => [x.id, x.value]));
+  const bad = want.filter((w) => byId[w.id] !== w.value).map((w) => ({ id: w.id, want: w.value, got: byId[w.id] }));
+  return { ok: bad.length === 0, bad, set: want.length };
+}"""
+
+#: READ: the study's metaInfo default palette colours vs its LIVE palette state, and the moved colour inputs whose default
+#: a palette holds but whose value the live palette does not (`lag`). ⛔ A reading that saw no palette colour is no
+#: reading. ⚰️ 2026-11-16 (run rssetc, ALAB): TradingView read back in_27 = #4CAF50, and its live palette still drew #FF5252.
+PALETTE_JS = "(arg) => {" + _CHART + r"""
+  const h = chartOf(); const si = h ? tryv(() => h.c.getStudyById(arg.id)) : null;
+  if (!si) return { ok: false, why: 'study not found' };
+  const seen = new Set(); let ds = null;
+  const look = (o, d) => { if (!o || typeof o !== 'object' || seen.has(o) || d > 2 || ds) return; seen.add(o);
+    if (typeof o.metaInfo === 'function' && typeof o.properties === 'function') { ds = o; return }
+    for (const k of Object.keys(o)) { const v = tryv(() => o[k]); if (v && typeof v === 'object') look(v, d + 1) } };
+  look(si, 0);
+  if (!ds) return { ok: false, why: 'no data source behind the study API' };
+  const rgba = (s) => { s = String(s || '').trim(); let m = s.match(/^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/i);
+    if (m) return [Math.round(+m[1]), Math.round(+m[2]), Math.round(+m[3]), +(m[4] === undefined ? 1 : +m[4]).toFixed(3)].join(',');
+    m = s.match(/^#([0-9a-f]{6})([0-9a-f]{2})?$/i);
+    if (m) { const x = m[1]; return [parseInt(x.slice(0, 2), 16), parseInt(x.slice(2, 4), 16), parseInt(x.slice(4, 6), 16), +(m[2] ? parseInt(m[2], 16) / 255 : 1).toFixed(3)].join(',') }
+    return null };
+  const cols = (pals) => { const out = new Set(); for (const p of Object.values(pals || {})) for (const c of Object.values((p && p.colors) || {})) { const t = rgba(c && c.color); if (t) out.add(t) } return out };
+  const mi = tryv(() => ds.metaInfo()) || {};
+  const state = tryv(() => ds.properties().state()) || {};
+  const meta = cols((mi.defaults && mi.defaults.palettes) || {}); for (const t of cols(mi.palettes)) meta.add(t);
+  const live = cols(state.palettes);
+  const inputs = tryv(() => si.getInputValues()) || [];
+  const defs = Object.fromEntries((mi.inputs || []).map((i) => [i.id, i.defval]));
+  const moved = inputs.filter((i) => { const v = rgba(i.value), d = rgba(defs[i.id]); return v && d && v !== d && meta.has(d) });
+  const lag = moved.filter((i) => !live.has(rgba(i.value))).map((i) => i.id);
+  if (!meta.size || !live.size) return { ok: false, why: 'no palette colours read', meta: meta.size, live: live.size };
+  return { ok: true, lag, moved: moved.map((i) => i.id), meta: meta.size, live: live.size };
+}"""
+
+#: A built-in row: the Indicators dialog. OPEN clicks only its own launcher (`data-name`); PICK types the row's name into
+#: the dialog's search and clicks ONLY the list element whose `data-id` is EXACTLY the row's id (none or several: nothing
+#: is clicked, STOP); CLOSED reads whether the dialog is gone. INPUT_IDS: the added built-in's input ids by their LABEL.
+BUILTIN_OPEN_JS = r"""() => { if (document.querySelector('[data-name="indicators-dialog"]')) return { open: true }
+  const b = document.querySelector('[data-name="open-indicators-dialog"]'); if (!b) return { open: false, clicked: false }
+  b.click(); return { open: false, clicked: true } }"""
+BUILTIN_PICK_JS = r"""async ({ id, search }) => {
+  const d = document.querySelector('[data-name="indicators-dialog"]'); const input = d && d.querySelector('input')
+  if (!input) return { STOP: 'no dialog search input' }
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, search)
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  for (let i = 0; i < 20; i += 1) {
+    await new Promise((r) => setTimeout(r, 300))
+    const hits = [...d.querySelectorAll('[data-id]')].filter((el) => el.getAttribute('data-id') === id)
+    if (hits.length === 1) {
+      const title = (hits[0].getAttribute('data-title') || hits[0].textContent || '').trim().slice(0, 100)
+      hits[0].click()
+      return { clicked: true, title }
+    }
+    if (hits.length > 1) return { STOP: `${hits.length} elements carry data-id ${id}` }
+  }
+  return { STOP: `no element with data-id ${id} after searching ${JSON.stringify(search)}` } }"""
+BUILTIN_CLOSED_JS = r"""() => !document.querySelector('[data-name="indicators-dialog"]')"""
+BUILTIN_INPUT_IDS_JS = "(id) => {" + _CHART + r"""
+  const h = chartOf(); const si = h ? tryv(() => h.c.getStudyById(id)) : null;
+  if (!si) return {};
+  const got = tryv(() => si.getInputsInfo && si.getInputsInfo()) || [];
+  const out = {}; for (const i of got) if (i && i.name && i.id) out[i.name] = i.id;
+  return out }"""
+
+
+def _rgba(v):
+    """A colour as (r, g, b, a) from `rgba(...)` / `rgb(...)` / `#rrggbb[aa]`, or None."""
+    t = str(v or "").strip()
+    m = re.match(r"^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$", t, re.I)
+    if m:
+        return (round(float(m[1])), round(float(m[2])), round(float(m[3])), round(float(m[4] if m[4] else 1), 3))
+    m = re.match(r"^#([0-9a-f]{6})([0-9a-f]{2})?$", t, re.I)
+    if m:
+        h = m[1]
+        return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), round(int(m[2], 16) / 255 if m[2] else 1, 3))
+    return None
+
+
+def _palette_colours(pals):
+    out = set()
+    for p in (pals or {}).values():
+        for c in ((p or {}).get("colors") or {}).values():
+            t = _rgba((c or {}).get("color"))
+            if t:
+                out.add(t)
+    return out
+
+
+def palette_lag(capture: dict) -> list:
+    """The moved colour inputs a plot draws (their DEFAULT is one of the study's own palette colours) that the capture's
+    LIVE palette does not hold: [] when the capture agrees with itself."""
+    st = capture.get("study") or {}
+    meta = _palette_colours(st.get("palettes"))
+    live = _palette_colours(st.get("paletteState"))
+    lag = []
+    for i in st.get("inputs") or []:
+        v, d = _rgba(i.get("value")), _rgba(i.get("defval"))
+        if v and d and v != d and d in meta and v not in live:
+            lag.append({"id": i.get("id"), "name": i.get("name"), "value": i.get("value"), "defval": i.get("defval")})
+    return lag
+
+
+_TITLE_RE = re.compile(r"""^\s*(?:indicator|strategy|study|library)\s*\(\s*(?:title\s*=\s*)?(["'])(.*?)\1""", re.M)
+
+
+def manifest_titles(scripts) -> set:
+    """The study titles this manifest's own probes declare (`indicator("...")` / `strategy("...")`, read from each source
+    that is on disk and matches its sha), plus a built-in row's `builtin.title`: what a leftover of THIS batch's probes
+    can be called on the chart. A source that cannot be read, or whose sha differs, names nothing."""
+    out = set()
+    for s in scripts:
+        b = s.get("builtin")
+        if isinstance(b, dict) and b.get("title"):
+            out.add(str(b["title"]))
+            continue
+        try:
+            path = pathlib.Path(s["path"])
+            raw = (path if path.is_absolute() else REPO / path).read_bytes()
+        except (OSError, KeyError, TypeError):
+            continue
+        if hashlib.sha256(raw).hexdigest() != s.get("sha256"):
+            continue
+        m = _TITLE_RE.search(raw.decode("utf-8", errors="replace"))
+        if m and m.group(2):
+            out.add(m.group(2))
+    return out
+
+
+#: (2026-11-20) the manifest key a retired wrapper read: a row naming it stops the batch BY NAME, never silently ignored
+RETIRED_ROW_KEYS = {"sessionId": "`sessionId` is retired (a scratchpad wrapper's): name the row's `session` "
+                                 "(`regular` or `extended`, #2134), which the batch sets and reads back"}
+
+
+def retired_key_refusal(scripts) -> str | None:
+    """None when no row names a retired key, else why the batch may not start (checked before any page step)."""
+    bad = [(s.get("slug"), k) for s in scripts for k in RETIRED_ROW_KEYS if k in s]
+    if not bad:
+        return None
+    return "; ".join(f"{slug}: {RETIRED_ROW_KEYS[k]}" for slug, k in bad)
+
 VH_STUDIES_JS = "() => window.__uctVH.studies()"
 VH_CAPTURE_JS = ("(o) => { try { return { ok: true, summary: window.__uctVH.capture(o) } } "
                  "catch (e) { return { ok: false, error: String((e && e.message) || e) } } }")
@@ -821,6 +977,13 @@ class Driver:
         self.injected = False
         self.menu_open = False
         self.slug = None
+        # ⭐⭐ (folded 2026-11-20) the manifest row this script runs (`run_one`): its `inputs` / `builtin` / `builtinInputs`
+        self.row = {}
+
+    def builtin(self):
+        """The row's built-in study (`{"id": "STD;...", "search": "<name typed in the dialog>"}`), or None."""
+        b = (self.row or {}).get("builtin")
+        return b if isinstance(b, dict) and b.get("id") else None
 
     def step(self, name):
         self.steps.append(name)
@@ -1020,6 +1183,9 @@ class Driver:
         return raw, raw.decode("utf-8")
 
     def open_editor(self):
+        if self.builtin():
+            self.step("open_editor:skipped (built-in)")
+            return
         r = self.ev("open_editor", OPEN_EDITOR_JS)
         if r and r.get("open"):
             return
@@ -1032,6 +1198,9 @@ class Driver:
     def create_new_indicator(self):
         """script-title chevron -> hover `Create new` -> `Indicator`, by a REAL
         pointer; its effect (a fresh Monaco model) is what is verified."""
+        if self.builtin():
+            self.step("create_new_indicator:skipped (built-in)")
+            return "builtin"
         before = self.ev("models", MODELS_JS)
         if not before or not before.get("ok"):
             raise Inconclusive(f"the Monaco handle could not be read: {before}")
@@ -1065,6 +1234,9 @@ class Driver:
         return fresh[-1]
 
     def binding_gate(self):
+        if self.builtin():
+            self.step("binding_gate:skipped (built-in)")
+            return None
         # the header re-renders after `Create new > Indicator`; wait for it, then decide as before
         self.poll("binding_gate:settle", BINDING_JS, None, lambda r: bool(r and r.get("gate")),
                   BINDING_SETTLE_S)
@@ -1075,6 +1247,10 @@ class Driver:
         return g
 
     def set_source(self, raw: bytes, uri: str, sha: str):
+        if self.builtin():
+            # a built-in has no pasted source: the row's `path` is a one-line LABEL of what was added (its `source`)
+            self.step("set_source:skipped (built-in)")
+            return {"ok": True}
         r = self.ev("set_source", SET_SOURCE_JS, {"b64": base64.b64encode(raw).decode("ascii"), "uri": uri})
         if r and r.get("STOP"):
             raise GateFailed(f"pre-write gate refused inside the write: {r}", r)
@@ -1086,6 +1262,11 @@ class Driver:
         return r
 
     def add_to_chart(self):
+        sid = self.add_builtin() if self.builtin() else self.add_from_editor()
+        self.set_row_inputs(sid)
+        return sid
+
+    def add_from_editor(self):
         r = self.ev("add", ADD_JS)
         if not r or r.get("STOP") or not r.get("clicked"):
             raise GateFailed(f"the add was refused by its own gate — nothing clicked: {r}", r)
@@ -1101,6 +1282,87 @@ class Driver:
         self.added_id = new[0]["id"]
         self.rd.note_on_claim(self.slug, addedStudyId=self.added_id)
         return self.added_id
+
+    def add_builtin(self):
+        """A TradingView BUILT-IN from the Indicators dialog (folded from batch_builtin.py, 2026-11-18): open the dialog,
+        type the row's name, click ONLY the element whose `data-id` is exactly the row's id (else nothing is clicked and
+        the row is GATE_FAILED), close the dialog; then the same one-new-study rule as the editor's add."""
+        b = self.builtin()
+        r = self.ev("builtin:open_dialog", BUILTIN_OPEN_JS)
+        if not r or not (r.get("open") or r.get("clicked")):
+            raise Inconclusive(f"the Indicators dialog could not be opened: {r}")
+        self.clock.sleep(2.5)
+        r = self.ev("builtin:pick", BUILTIN_PICK_JS, {"id": b["id"], "search": b.get("search") or ""})
+        self.log(f"[builtin] {b['id']} ({b.get('search')!r}): {json.dumps(r)}")
+        if not r or r.get("STOP") or not r.get("clicked"):
+            self.page.keyboard.press("Escape")
+            raise GateFailed(f"the built-in add was refused by its own gate (nothing clicked): {r}", r)
+        self.clock.sleep(1.5)
+        self.page.keyboard.press("Escape")
+        self.clock.sleep(0.8)
+        if not self.ev("builtin:closed", BUILTIN_CLOSED_JS):
+            self.page.keyboard.press("Escape")
+        st, _ = self.poll("state", STATE_JS, None,
+                          lambda s: bool(s and s.get("studies") is not None
+                                         and {x["id"] for x in s["studies"]} - self.baseline_ids),
+                          self.opts.add_timeout_s)
+        new = [x for x in (st or {}).get("studies") or [] if x["id"] not in self.baseline_ids]
+        if not new:
+            raise Inconclusive("the built-in was clicked and no study appeared")
+        if len(new) != 1:
+            raise GateFailed(f"one add produced {len(new)} new studies: {new}", abort=True)
+        self.added_id = new[0]["id"]
+        self.rd.note_on_claim(self.slug, addedStudyId=self.added_id)
+        return self.added_id
+
+    def set_row_inputs(self, sid):
+        """⭐⭐ THE ROW'S INPUTS (folded from batch_wide.py / batch_builtin.py, 2026-11-16..18), on the study THIS run added:
+          * `inputs` {"in_17": 30, ...}: one `setInputValues` (or one per input with `inputsOnePerCall`: ⚰️ the LAST
+            colour of a multi-input call never reached TradingView's live palette, runs rssetc2-5), each read back;
+          * `builtinInputs` {"<dialog label>": value}: resolved to the built-in's own input id, set one per call.
+        Anything not read back as asked: the row is INCONCLUSIVE (an unknown label: GATE_FAILED), nothing captured.
+        Then the study recomputes, and a moved PLOT colour must reach the live palette (`PALETTE_JS`, 20 s, set once more
+        and 20 s again); the capture's own check (`palette_lag`) stays the authority. The capture records `study.inputs`
+        itself, so the values a capture was taken at are in the capture, never only in the manifest."""
+        row = self.row or {}
+        want, labelled = row.get("inputs") or {}, row.get("builtinInputs") or {}
+        if not want and not labelled:
+            return
+        self.wait_compute(sid, "compute:before-inputs")
+        if labelled:
+            ids = self.ev("inputs:ids", BUILTIN_INPUT_IDS_JS, sid) or {}
+            for label, value in labelled.items():
+                iid = ids.get(label)
+                if not iid:
+                    raise GateFailed(f"the built-in has no input labelled {label!r} (inputs: {sorted(ids)})")
+                self._set_inputs(sid, {iid: value}, f"input-{iid}")
+        if want and row.get("inputsOnePerCall"):
+            for k, v in want.items():
+                self._set_inputs(sid, {k: v}, f"input-{k}")
+        elif want:
+            self._set_inputs(sid, want, "inputs")
+        self.clock.sleep(3)
+        self.wait_compute(sid, "compute:inputs")
+        if not want:
+            return
+        p = None
+        for attempt in (1, 2):
+            p, ok = self.poll(f"palette:{attempt}", PALETTE_JS, {"id": sid},
+                              lambda r: bool(r and r.get("ok") and not r.get("lag")), 20)
+            if ok:
+                self.log(f"[palette] {self.slug}: live palette synced (attempt {attempt})")
+                return
+            self.log(f"[palette] {self.slug}: not synced after 20 s (attempt {attempt}): {p}")
+            if attempt == 1:
+                self._set_inputs(sid, want, "inputs-reset")
+
+    def _set_inputs(self, sid, inputs, label):
+        r = self.ev(f"set:{label}", INPUTS_JS, {"id": sid, "inputs": inputs})
+        self.log(f"[inputs] {self.slug} {label}: {r}")
+        if not r or not r.get("ok"):
+            raise Inconclusive(f"{label}: the input(s) could not be set as asked: {r}", r)
+        self.wait_compute(sid, f"compute:{label}")
+        self.clock.sleep(1.5)
 
     def wait_compute(self, sid, label="compute"):
         deadline = self.clock.monotonic() + self.opts.compute_timeout_s
@@ -1291,10 +1553,20 @@ class Driver:
         if not back["ok"]:
             raise Inconclusive(f"the written capture does not re-verify (exit {back['exit']}): {back['tail']}", back)
         # ⭐⭐ A CLAIM THE CAPTURE'S OWN DATA REFUTES IS REFUSED HERE, never written as evidence (coordinator, 2026-11-19)
-        contra = starts_at_bar0_contradiction(json.loads(out.read_text(encoding="utf-8")), o.symbol)
+        written = json.loads(out.read_text(encoding="utf-8"))
+        contra = starts_at_bar0_contradiction(written, o.symbol)
         if contra:
             out.unlink()
             raise Inconclusive(f"startsAtBar0 refused at capture time: {contra}")
+        # ⭐⭐ (folded 2026-11-20) A ROW THAT MOVED A COLOUR keeps its capture only when the study's LIVE palette holds every
+        # moved colour a plot draws; otherwise the file is set aside (`captures-refused/`) and the row is INCONCLUSIVE
+        if (self.row or {}).get("inputs"):
+            lag = palette_lag(written)
+            if lag:
+                aside = self.rd.root / "captures-refused"
+                aside.mkdir(exist_ok=True)
+                out.replace(aside / out.name)
+                raise Inconclusive(f"TradingView's live palette does not hold the moved colour(s) {lag}", {"lag": lag})
         return {"capture": str(out), "captureId": capture_id, "verify": {"exit": v["exit"], "verdict": v["verdict"]},
                 "summary": {k: summary.get(k) for k in ("study", "symbol", "timeframe", "bars", "studyRows",
                                                         "plots", "objects", "warnings", "chars", "chunks")},
@@ -1414,6 +1686,7 @@ class Driver:
 
     def run_one(self, script: dict) -> dict:
         self._reset()
+        self.row = script
         self.opts = self.opts_for(script)
         self.slug = script["slug"]
         started = utcnow()
@@ -1523,6 +1796,9 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
             clash = capture_id_refusal(manifest["scripts"], drv.opts_for)
             if clash:
                 raise GateFailed(f"capture ids: {clash}", abort=True)
+            retired = retired_key_refusal(manifest["scripts"])
+            if retired:
+                raise GateFailed(f"manifest: {retired}", abort=True)
             drv.gate("batch start")
             original = drv.read_state("state_original")
             drv.provenance = batch_provenance(page, rd, opts)
@@ -1541,6 +1817,26 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
                 for sid in present:
                     r = drv.ev("orphan:remove", REMOVE_JS, sid)
                     rd.ledger("orphan-removed", id=sid, ok=bool(r and r.get("ok")))
+                original = drv.read_state("state_original")
+            # ⭐⭐ (folded 2026-11-20, coordinator ruling) A LEFTOVER OF THIS MANIFEST'S OWN PROBES, from a batch that ended
+            # before its own repair (an interrupted run whose add the layout autosaved, inputs and all): repaired ONLY
+            # through the guarded clean-save, and only with `--clean-save`. The repair may remove nothing but studies
+            # whose title one of this manifest's own probes declares; ANY other study, or a repair whose fresh load does
+            # not read clean, stops the batch, as the scratch-layout gate always has. (It replaces the scratchpad
+            # wrapper's in-memory "clear the one known leftover" stopgap, which never saved.)
+            present = original.get("studies") or []
+            names = {s.get("name") for s in present}
+            if present and getattr(opts, "clean_save", False) and names <= manifest_titles(manifest["scripts"]):
+                drv.added_titles |= names
+                rep = drv.guarded_clean_save(original, "start-repair")
+                rd.ledger("clean-save", **rep)
+                if not rep.get("ok"):
+                    raise GateFailed(f"the rig carries this manifest's own leftover(s) {sorted(names)} and the guarded "
+                                     f"clean-save did not repair it: "
+                                     f"{json.dumps({k: rep.get(k) for k in ('saved', 'refused', 'error')})}", rep,
+                                     abort=True)
+                log(f"[batch] start: the guarded clean-save removed this manifest's own leftover(s) {sorted(names)}; "
+                    "a fresh load reads clean")
                 original = drv.read_state("state_original")
         except StepOutcome as so:
             rd.ledger("abort", reason=so.reason)

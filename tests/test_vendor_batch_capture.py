@@ -827,3 +827,30 @@ def test_the_spec_is_tradingviews_encoding_and_the_matcher_reads_through_it():
     assert not bc.sym_match('={"session":"extended","symbol":"AMEX:QQQ"}', "AMEX:SPY")
     with pytest.raises(bc.GateFailed):
         bc.Opts(session="overnight")
+
+
+# ── ⭐⭐ (2026-11-20) the steps folded from the retired scratchpad wrappers (batch_wide.py, batch_builtin.py) ─────────────
+# coordinator ruling: a capture instrument with no self-check of its own is not trusted, so every step they added is railed
+# in `batch_double.folded_checks`, each case red without its step (15/15 mutants killed, recorded in the PR)
+def test_the_folded_wrapper_steps_are_each_railed_by_the_self_check(tmp_path):
+    seen = []
+    bd.folded_checks(tmp_path, lambda name, cond, detail="": seen.append((name, bool(cond), detail)))
+    assert len(seen) >= 15
+    assert [n for n, ok, _ in seen if not ok] == [], [(n, d) for n, ok, d in seen if not ok]
+
+
+def test_one_save_path_and_its_controls():
+    assert bd.single_save_path_findings(pathlib.Path(bc.__file__).read_text(encoding="utf-8")) == []
+    nl = chr(10)
+    direct = nl.join(['def f(p):', '    p.evaluate("() => window.TradingViewApi.saveChartTo' + 'Server()")', ''])
+    two = nl.join(['def guarded_clean_save(p):', '    p.keyboard.press(SAVE_SHORTCUT)',
+                   'def other(p):', '    p.keyboard.press(SAVE_SHORTCUT)', ''])
+    prose = nl.join(['def guarded_clean_save(p):', '    """saveChartTo' + 'Server"""',
+                     '    # saveChartTo' + 'Server', '    p.keyboard.press(SAVE_SHORTCUT)', ''])
+    assert bd.single_save_path_findings(direct)                  # a direct save is found
+    assert bd.single_save_path_findings(two)                     # so is a second press
+    assert bd.single_save_path_findings(prose) == []             # prose never counts
+
+
+def test_the_whole_self_check_passes():
+    assert bd.self_check() == 0
