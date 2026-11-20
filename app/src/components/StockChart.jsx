@@ -19089,6 +19089,11 @@ export default function StockChart({
       if (!ts || !bars || bars.length < 2) return false
       const cur = ts.getVisibleLogicalRange()
       const W = (cur && Number.isFinite(cur.from) && Number.isFinite(cur.to) && cur.to > cur.from) ? (cur.to - cur.from) : 200
+      // ⛔ ORIGIN IS THE MEMBER MOVING THE VIEW, as Go-to-date is (goToDateRightEdge): it ends the
+      // switch's settling guard (`pendingTfReframeRef`), which otherwise re-pins the newest bar at the
+      // right on the next commit (2026-11-20, production: TEL D and 60m left the first bar a beat after
+      // the click, GNK D did not because nothing committed after it).
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from: -W / 2, to: W / 2 })   // bar 0 at the centre
       appliedRangeRef.current = { val: 'origin', from: -W / 2, to: W / 2 }
       return true
@@ -19307,6 +19312,9 @@ export default function StockChart({
       const hist = lastIdx - from
       const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
       const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
+      // ⛔ A RANGE BUTTON IS THE MEMBER MOVING THE VIEW (the Go-to-date rule, as Origin above): without
+      // this the switch's settling guard put the outgoing zoom width back on the next commit.
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = { val, from, to }
       // PERSIST the chosen range as the active view-lock so EVERY next ticker
