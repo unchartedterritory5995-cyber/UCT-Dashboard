@@ -91,7 +91,7 @@ declare — how many operands they take and what they answer.
 | `!` | 1 | true or false |
 | `?:` | 3 | passthrough |
 
-## Functions (94)
+## Functions (95)
 
 `Needs` is how far back the function reads — the number the engine adds up to
 decide whether a formula can run at all.
@@ -108,6 +108,7 @@ decide whether a formula can run at all.
 | `alma(source, period, weightCentre, weightSpread)` | a number | whatever `period` asks for | the `period`-bar Arnaud Legoux average of `source` at offset `weightCentre` and sigma `weightSpread` |
 | `aroonDown(period)` | a number | whatever `period` asks for | the Aroon down over this bar and the `period` before it, 100 when this bar set the low and 0 when it was `period` bars ago |
 | `aroonUp(period)` | a number | whatever `period` asks for | the Aroon up over this bar and the `period` before it, 100 when this bar set the high and 0 when it was `period` bars ago |
+| `asin(source)` | a number | 0 bars | the arcsine of `source` |
 | `atan(source)` | a number | 0 bars | the arctangent of `source` |
 | `atr(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar average true range of `high`, `low` and `close` |
 | `atrPine(high, low, close, period)` | a number | whatever `period` asks for | the `period`-bar average true range of `high`, `low` and `close`, counting the first bar's range as `high` minus `low` |

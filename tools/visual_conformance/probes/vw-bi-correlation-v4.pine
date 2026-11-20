@@ -1,0 +1,24 @@
+//@version=4
+study("UCTPROBE_VW_BI_CORRELATION_V4", overlay = false)
+
+// U-BUILTIN (2026-11-19). WHAT v4's `correlation(source_a, source_b, length)` COMPUTES AT ITS EDGES.
+//
+// The reference (v5/v6 `ta.correlation`): "Correlation coefficient. Describes the degree to which two series
+// tend to deviate from their sma() values", and "na values in the source series are ignored; the function
+// calculates on the length quantity of non-na values". Unstated: the warm-up, a window with no variance (a
+// constant run divides by zero: na, 0 or 1?), and what "ignored" does to a window holding an na.
+// committed:correlation-matrix (v4) calls the bare spelling. C4-C6 separate those readings. The same rows
+// in v6 are vw-bi-correlation-v6.pine.
+//
+// CAPTURE: AMEX:SPY 1D from the listing. Inputs at defaults.
+
+holed = bar_index % 37 == 11 ? na : close
+flat = bar_index % 50 < 25 ? 1.0 : close
+
+plot(bar_index, "C0_bar_index_CONTROL")
+plot(correlation(close, open, 20), "C1_close_open_20")
+plot(correlation(close, volume, 20), "C2_close_volume_20")
+plot(correlation(close, close[1], 2), "C3_length_2")
+plot(correlation(holed, open, 20), "C4_with_na_holes")
+plot(correlation(flat, open, 10), "C5_zero_variance_runs")
+plot(correlation(close, open, 1), "C6_length_1")

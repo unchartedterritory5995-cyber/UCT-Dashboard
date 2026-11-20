@@ -155,30 +155,39 @@ describe('⭐⭐ the member door answers the session clock on the chart\'s own g
   })
 })
 
-describe('⛔ a LITERAL period answers only on a chart of that length', () => {
+describe('⭐ U-BUILTIN T-D (2026-11-19) — a LITERAL "D": its 09:30 window is the day on any chart, any other window only on a daily one', () => {
+  // ⚰️ This block said `time("D", …)` "is `na` on hourly bars — a daily question on bars that are not daily".
+  // TradingView answers it there: R2 of `vw-bt-time-1440-spy-60-2026-11-16` (`time("D", "0930-1600")`) is the
+  // 09:30 session open on every regular-hours hourly bar, and our `na` was drawn by the script's own
+  // `na(t) ? … : …` as a confident answer. A window that opens at 09:30 is now the day anchor inside it; any
+  // other window is withheld by name off a daily chart (`time-session:day-on-other-chart`).
   const SRC = '//@version=6\nindicator("literal period")\n'
     + 'plot(na(time("D", "0930-1600")) ? 0 : 1, "literal_D")\n'
     + 'plot(na(time(timeframe.period, "0930-1600")) ? 0 : 1, "own")\n'
+    + 'plot(na(time("D", "1000-1100")) ? 0 : 1, "literal_D_window")\n'
 
   const run = (cap) => {
     const door = enterMemberDoor(SRC)
     expect(door.def, door.refusal).toBeTruthy()
     const cols = registry.computeFor(door.def, toProductBars(cap), undefined,
       { tf: tfCodeOf(cap.timeframe), symbol: { ticker: 'SPY', exchange: 'AMEX' }, newestBarIsForming: null })
-    return { lit: Array.from(colFor(door.built, cols, 'literal_D')), own: Array.from(colFor(door.built, cols, 'own')) }
+    const of = (label) => Array.from(colFor(door.built, cols, label))
+    return { lit: of('literal_D'), own: of('own'), win: of('literal_D_window') }
   }
 
-  it('on daily bars `time("D", …)` is the chart\'s own clock', () => {
-    const { lit, own } = run(load(DAILY))
+  it('on daily bars `time("D", …)` is the chart’s own clock, every window', () => {
+    const { lit, own, win } = run(load(DAILY))
     expect(lit).toEqual(own)
     expect(lit.every((v) => v === 1)).toBe(true)
+    // a 09:30 daily bar is outside 10:00-11:00 (S07's reading), drawn, not withheld
+    expect(win.every((v) => v === 0)).toBe(true)
   })
 
-  it('on hourly bars `time("D", …)` is `na` — a daily question on bars that are not daily', () => {
-    const { lit, own } = run(load(RTH))
-    expect(lit.every((v) => v === 0)).toBe(true)
-    // the control: the chart's-own form is in session on hourly bars, so the
-    // literal's `na` is the gate, not a blank clock
-    expect(own.filter((v) => v === 1).length).toBeGreaterThan(200)
+  it('on hourly RTH bars the 09:30 window is in session exactly where the own form is (R2); another window is withheld', () => {
+    const { lit, own, win } = run(load(RTH))
+    expect(lit).toEqual(own)
+    expect(lit.filter((v) => v === 1).length).toBeGreaterThan(200)
+    // withheld by name on the hourly chart: blank on every bar, never a drawn 0 or 1
+    expect(win.every((v) => Number.isNaN(v))).toBe(true)
   })
 })

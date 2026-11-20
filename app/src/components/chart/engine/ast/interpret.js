@@ -2929,6 +2929,11 @@ const POINTWISE = Object.freeze({
   // and is `na` (TradingView: "or na if y is outside of range [-1, 1]");
   // `Math.acos` already answers NaN there, so the guard is the language's own.
   acos: (x) => (Number.isNaN(x) ? NaN : Math.acos(x)),
+  // ⭐ U-BUILTIN B3 (2026-11-19) — `math.asin` (v4's bare `asin`), acos's twin: the reference (v4, v5,
+  // v6), "the arcsine (in radians) ... the returned angle is in the range [-Pi/2, Pi/2], or na if y is
+  // outside of range [-1, 1]". `Math.asin` answers NaN there, so the guard is the language's own.
+  // ⚠️ The last bit is owed a capture (Q-BI-ASIN, `capture-queue-2026-11-19-builtins.md`), as acos's is.
+  asin: (x) => (Number.isNaN(x) ? NaN : Math.asin(x)),
   sinh: (x) => {
     if (Number.isNaN(x)) return NaN
     const v = Math.sinh(x)
@@ -3793,6 +3798,7 @@ export const FN = Object.freeze({
   tan: (a) => elementwise1(a, POINTWISE.tan),
   atan: (a) => elementwise1(a, POINTWISE.atan),
   acos: (a) => elementwise1(a, POINTWISE.acos),
+  asin: (a) => elementwise1(a, POINTWISE.asin),
   sinh: (a) => elementwise1(a, POINTWISE.sinh),
   pow: (a, b) => elementwise2(a, b, POINTWISE.pow),
   mod: (a, b) => elementwise2(a, b, POINTWISE.mod),
@@ -5919,6 +5925,56 @@ export function isChartSixtyTime(node) {
   return SIXTY_SHAPES.some((shape) => matchesShape(node, shape))
 }
 
+/** ⭐⭐ U-BUILTIN T-D (2026-11-19) — `time("D")`: THE OPEN OF THE BAR'S SESSION, 09:30 NEW YORK.
+ *
+ *  THE READING (`vw-bt-time-1440-spy-{1d,60}-2026-11-16`, probe `vw-bt-time-1440.pine`, AMEX:SPY 1D 8,508
+ *  bars and RTH 60m 20,861 bars): R6 `(time("D") - time) / 1000` is 0 on every daily bar and -3600 · k on
+ *  every hourly one, the 09:30 open of the bar's session. ⚰️ It was `dayopentime` (MIDNIGHT New York),
+ *  served on every chart: -34,200 s off on every bar of both captures. A script that only asks whether the
+ *  day changed got TradingView's bar on a regular-hours chart (midnight and 09:30 fall between the same two
+ *  bars there); every script that used the value got a wrong one.
+ *  The tree is the 09:30 open in vocabulary both lanes hold (`chartSixtyTimeNode`'s `sessionOpen`), and the
+ *  chart-clock mask serves it only where the reading holds (`dayAnchorServedOn`): a 1D, 1W or 1M chart of
+ *  Monday-to-Friday bars, and an intraday chart whose every bar opens 09:30-16:00 New York, Monday to Friday.
+ *  Anywhere else (a pre-market, after-hours, overnight or weekend bar; a 24-hour or FX-shaped daily chart)
+ *  a midnight anchor and a session-open anchor can put the new day on different bars and no capture says
+ *  which TradingView's is (Q-BI-TD1, `capture-queue-2026-11-19-builtins.md`), so everything a tree draws
+ *  from it is withheld there by name (`time-day:off-session`). `ms` is Pine's unit (a versioned script),
+ *  as `chartSixtyTimeNode`'s is. Python twin: `ast_interpret.day_anchor_node`. */
+export function dayAnchorNode(ms) {
+  const secs = ccOp('+', [ccLeaf('dayopentime'), ccNum(SESSION_OPEN_SECONDS)])
+  return ms ? ccOp('*', [secs, ccNum(1000)]) : secs
+}
+const DAY_ANCHOR_SHAPES = [true, false].map((ms) => dayAnchorNode(ms))
+/** Is this node the `time("D")` anchor tree above — node for node? */
+export function isDayAnchor(node) {
+  if (!node || node.type !== 'op') return false
+  return DAY_ANCHOR_SHAPES.some((shape) => matchesShape(node, shape))
+}
+
+/** ⭐⭐ U-BUILTIN T-D — `time("D", session)` READ ON A CHART THAT IS NOT DAILY.
+ *
+ *  The session clock at a literal `"D"` is measured on daily bars (`vw-time-session-spy-1d-*`, and R1-R4
+ *  of `vw-bt-time-1440-spy-1d-2026-11-16`). On an intraday chart TradingView answers it too: R2
+ *  (`time("D", "0930-1600")`) is the 09:30 session open on every regular-hours 60m bar. ⚰️ This engine
+ *  answered `na` there (the tree carried `periodseconds == 86400` inside its membership), and a script's own
+ *  `na(t) ? … : …` drew that `na` as a confident answer. Now a window that OPENS AT 09:30 (where the
+ *  window's start and the day's open are the same instant) is the day anchor above, served where it is; any
+ *  other window is gated by THIS shape, `86400 == periodseconds ? <the daily tree> : na` (literal on the
+ *  LEFT, so a member's own `periodseconds == 86400` keeps its meaning), and the mask withholds whatever a
+ *  tree draws from it by name on a chart that states another timeframe (`time-session:day-on-other-chart`):
+ *  whether its value there is the window's start or the day's open is Q-BI-TD1c. A chart that states no
+ *  timeframe (the server's daily consumers) evaluates it as it always did. */
+export function sessionDayGateNode(child) {
+  return ccOp('?:', [ccOp('==', [ccNum(CLOCK_PERIOD_SECONDS.D), ccLeaf('periodseconds')]), child, ccNa()])
+}
+const SESSION_DAY_GATE_COND = ccOp('==', [ccNum(CLOCK_PERIOD_SECONDS.D), ccLeaf('periodseconds')])
+/** Is this node the gate above (any child)? */
+export function isSessionDayGate(node) {
+  return !!node && node.type === 'op' && node.name === '?:' && Array.isArray(node.args) && node.args.length === 3
+    && matchesShape(node.args[0], SESSION_DAY_GATE_COND) && matchesShape(node.args[2], ccNa())
+}
+
 /** ⭐⭐ C36 — `time_close("W")` AND `time_close("M")` ON A DAILY CHART: the close of
  *  the period's LAST SESSION, as TradingView's calendar schedules it.
  *
@@ -6045,7 +6101,32 @@ export const RCI_LEFT_EDGE = 'rci:left-edge'
  *  the same string, and the member door shows it. */
 export const BOOL_NA_UNWITNESSED = 'pine:bool-na-unwitnessed'
 export const TIE_UNWITNESSED = 'pine:tie-unwitnessed'
+/** ⭐ U-BUILTIN T-D — the two codes the `time("D")` fix withholds by (`chartClockWhole`). */
+export const DAY_OFF_SESSION = 'time-day:off-session'
+export const DAY_SESSION_OTHER_CHART = 'time-session:day-on-other-chart'
+export const DAY_NO_TIMEFRAME = 'time-day:no-timeframe'
 export const CHART_CLOCK_WITHHELD = Object.freeze({
+  [DAY_OFF_SESSION]: (tf) => '`time("D")` is the open of the session the bar is in: 09:30 New York, measured '
+    + 'against TradingView on AMEX:SPY daily bars and regular-hours 60-minute bars (capture '
+    + `\`vw-bt-time-1440-spy-{1d,60}-2026-11-16\`). This ${tfSpelled(tf)} chart holds a bar outside 09:30-16:00 `
+    + 'New York, Monday to Friday (a pre-market, after-hours, overnight or weekend bar, or the daily bar of a '
+    + 'symbol that trades weekends), where the day may start on a different bar from the one a 09:30 open puts '
+    + 'it on, and the bar on which the day starts on TradingView there has not been measured. So everything this '
+    + 'indicator draws from it is withheld on this chart rather than drawn off the wrong day. On a daily chart, '
+    + 'or with extended hours switched off, it draws. What would settle it: capture Q-BI-TD1 '
+    + '(`vw-bi-time-d-extended.pine` on AMEX:SPY 5 and 60 with the extended session on, and BITSTAMP:BTCUSD 60).',
+  [DAY_NO_TIMEFRAME]: () => '`time("D")` and `time("D", session)` are read on a chart: the open of the '
+    + 'session a bar is in, and whether the bar falls in a window of that day. These bars state no timeframe '
+    + '(an alert or a scan reading a saved indicator), so neither has an answer here, and everything this '
+    + 'indicator draws from them is withheld rather than read as `na`. On a chart it draws. What would settle '
+    + 'it: nothing to capture; the bars need their timeframe.',
+  [DAY_SESSION_OTHER_CHART]: (tf) => '`time("D", session)` is measured on daily bars, and on intraday bars for '
+    + 'a window that opens at 09:30 New York (where the start of the window and the open of the day are the same '
+    + `instant: capture \`vw-bt-time-1440-spy-60-2026-11-16\`). This indicator asks it for another window on this `
+    + `${tfSpelled(tf)} chart, where whether TradingView answers the start of the window or the open of the day `
+    + 'has not been measured, so everything this indicator draws from it is withheld on this chart rather than '
+    + 'assumed. On a daily chart it draws. What would settle it: capture Q-BI-TD1c (`vw-bi-time-d-extended.pine` '
+    + 'row S3 on AMEX:SPY 60).',
   'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
     + 'quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the '
     + 'timeframes measured against TradingView on AMEX:SPY (captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, '
@@ -6279,7 +6360,8 @@ export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-
   'time-anchor:not-daily', 'time-anchor:weekend-bars', 'time-own:chart-unwitnessed', 'time-close:not-daily',
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
   'time-clock:weekend-session', 'running-total:window', 'var-origin:window',
-  OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE])
+  OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE, DAY_OFF_SESSION, DAY_SESSION_OTHER_CHART,
+  DAY_NO_TIMEFRAME])
 
 /** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
  *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
@@ -6309,6 +6391,9 @@ function scanChartClock(tree) {
   const folds = []
   const leaves = []
   const ranges = []
+  // ⭐ U-BUILTIN T-D — the `time("D")` anchor and the `time("D", session)` gate
+  const days = []
+  const dayGates = []
   let nested = false
   const stack = [[tree, false]]
   const seen = new Set()
@@ -6316,6 +6401,16 @@ function scanChartClock(tree) {
     const [node, under] = stack.pop()
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
+    if (isDayAnchor(node)) {
+      if (under) nested = true
+      days.push(node)
+      continue
+    }
+    if (isSessionDayGate(node)) {
+      if (under) nested = true
+      dayGates.push(node)
+      continue
+    }
     // a time-of-day leaf (`SESSION_CLOCK_LEAVES`) — read, never descended into
     if (node.type === 'series' && SESSION_CLOCK_LEAVES.includes(node.name)) {
       leaves.push(node)
@@ -6353,7 +6448,7 @@ function scanChartClock(tree) {
     const into = under || node.type === 'sym' || node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE || node.type === LTF
     if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, into])
   }
-  return { anchors, closes, owns, sixties, folds, nested, leaves, ranges }
+  return { anchors, closes, owns, sixties, folds, nested, leaves, ranges, days, dayGates }
 }
 
 /** One clock leaf (or small clock tree) over the chart's own bars, as a column. */
@@ -6447,6 +6542,7 @@ function chartClockRegimeOf(bars, inputs, budget, scalars, opts) {
 function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   const scan = scanChartClock(tree)
   const clocked = scan.anchors.length || scan.closes.length || scan.owns.length || scan.sixties.length
+    || scan.days.length || scan.dayGates.length
   const tf = opts ? opts.tf : undefined
   // ⭐ 2026-10-31 — a time-of-day leaf is asked about on a DAILY chart of DATE-KEYED
   // bars only. Daily is the one timeframe `chartClockRegime` can call FX-shaped
@@ -6503,8 +6599,41 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
     if (!PERIOD_CLOSE_WITNESSED_TF.includes(tf)) add('time-close:not-daily')
     else if (regime.kind === 'every-day' || regime.kind === 'one-weekend-day') add('time-close:weekend-bars')
   }
+  // ⭐ U-BUILTIN T-D — `time("D")` where its reading holds (`dayAnchorServedOn`), and `time("D", session)`
+  // gated to a daily chart (`sessionDayGateNode`). A chart that states no timeframe is served as before.
+  // ⭐ And bars that state no timeframe (a server lane handed a saved pane) hold no `dayopentime` and no
+  // bar length to gate on: the anchor is blank there and `ta.change(time("D"))` read a confident 0 on every
+  // bar, so it is withheld by name (`time-day:no-timeframe`), as a `time("W")` anchor is there.
+  const tfStated = typeof tf === 'string' && tf !== ''
+  if ((scan.days.length || scan.dayGates.length) && !tfStated) add(DAY_NO_TIMEFRAME)
+  if (scan.days.length && tfStated && regime.kind !== 'unreadable'
+      && !dayAnchorServedOn(tf, bars, inputs, budget, scalars, opts)) add(DAY_OFF_SESSION)
+  if (scan.dayGates.length && tfStated && tf !== 'D') add(DAY_SESSION_OTHER_CHART)
   nameChartClock(opts, why, tf)
   return { scan, why, regime, everyDay: regime.kind === 'every-day' }
+}
+
+/** ⭐⭐ U-BUILTIN T-D — IS `time("D")`, 09:30 NEW YORK, TRADINGVIEW'S ANSWER ON THESE BARS?
+ *  Yes on a 1D chart of Monday-to-Friday bars (R6, `vw-bt-time-1440-spy-1d-2026-11-16`: 0 on 8,508 bars), on
+ *  an intraday chart whose every bar opens 09:30-16:00 New York, Monday to Friday (R6 on the RTH 60m capture:
+ *  20,861 bars; the daily bar a regular-hours bar sits in does not depend on the chart's bar length), and on
+ *  a 1W or 1M chart, whose bar this engine stamps at 09:30 New York on its first session's date, so the anchor
+ *  IS the bar's own `time` there, as `time("60")` is on a 1W / 1M chart (`vw-time-tf-spy-{1w,1m}-2026-10-01`,
+ *  T06). Every other chart: no. */
+function dayAnchorServedOn(tf, bars, inputs, budget, scalars, opts) {
+  if (tf === 'W' || tf === 'M') return true
+  if (tf !== 'D' && !/^[0-9]+$/.test(String(tf))) return false
+  const pack = clockColumn(REGIME_PACK, bars, inputs, budget, scalars, opts)
+  for (let i = 0; i < pack.length; i++) {
+    const v = pack[i]
+    if (v !== v) return false
+    const dow = Math.floor(v / 10000)
+    if (dow === 1 || dow === 7) return false
+    if (tf === 'D') continue
+    const second = Math.floor((v % 10000) / 100) * 3600 + (v % 100) * 60
+    if (second < SESSION_OPEN_SECONDS || second >= SESSION_CLOSE_SECONDS) return false
+  }
+  return true
 }
 /** Does any bar carry a DATE key (`'YYYY-MM-DD'`) rather than an instant? */
 function dateKeyed(bars) {
@@ -8398,14 +8527,21 @@ function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo
  *  Pine document (`opts.varOriginAbsolute`, the door's declaration: a formula's `x[1]` means its own series), as a 0/1
  *  column (1 = withheld), or null. Off the listing (`barIndexAbsolute`, i.e. this series' bar 0 is not known to be
  *  TradingView's, and `historyFromListing !== true`) every history read of the chart's own bars counts; from the
- *  listing TradingView reads `na` there too and only another symbol's reads do (`preChartUnknown`).
+ *  listing TradingView reads `na` there too and only another symbol's reads do (`preChartUnknown`). ⭐⭐ A WEEKLY OR
+ *  MONTHLY CHART THAT STARTS AT THE LISTING (`opts.listingStart`: the fact, where the listing is not served) is from
+ *  the listing for this mask: on such a chart `close[1]` on bar 0 was withheld and named (found by the e90 train), and the
+ *  sentence ("on a chart whose bars start at the symbol's listing it draws") was false there; TradingView's `na`
+ *  stands, nothing is withheld and nothing is named (`historyBeforeChartListingStart.test.js`).
  *  ⭐ NAMED ONLY WHERE IT TAKES A DRAWN VALUE AWAY: `column` (the root's, when the caller holds it) finite on a
  *  withheld bar; a read that stays `na` (`close[1]` on bar 0) was blank already, and naming it would put the sentence
  *  on nearly every script. With no column it names whenever it withholds. ⛔ NO `try`: a refusal here must reach the
  *  caller as itself. Python twin: `ast_interpret.history_before_chart_mask`. */
 export function historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column = undefined) {
   if (!opts || opts.varOriginAbsolute !== true) return null
-  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true
+  // ⭐⭐ (coordinator ruling 2026-11-20, e90) a weekly or monthly chart whose first bar IS the symbol's listing period
+  // (`opts.listingStart`, `listingSeed.listingStartOf`, stated where the listing is not served; `barIndexAbsoluteFor`
+  // does not read it) counts as FROM the listing here: TradingView's history begins there too and reads `na` before it
+  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true && opts.listingStart !== true
   if (!off && !treeReadsSym(tree)) return null
   // the walk's column reads start from a COPY of this pass's memo (its columns are these reads' own; writes stay local)
   const memo = opts.crossMemo instanceof Map ? new Map(opts.crossMemo) : new Map()
