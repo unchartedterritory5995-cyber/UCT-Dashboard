@@ -34,7 +34,8 @@ const sessionsFrom = (from, count) => {
   for (let d = from; out.length < count; d = isoPlus(d, 1)) if (isTradingDay(d)) out.push(d)
   return out
 }
-const PRIOR = sessionsFrom('2025-11-10', 10)                 // sessions before the chart: SPX's and a deep own series'
+// the 10 sessions right BEFORE the chart, contiguous with it (11-14 .. 11-28; Thanksgiving 11-27 is not one)
+const PRIOR = sessionsFrom('2025-11-14', 10)
 const SESS = sessionsFrom('2025-12-01', 30).filter((d) => d < '2026-01-15')
 const slots = (day) => Array.from({ length: 78 }, (_, k) => ET(day, 9, 30) + k * 300)
 const bar = (t, c) => ({ t, o: c - 0.1, h: c + 0.3, l: c - 0.3, c, v: 1000 })
