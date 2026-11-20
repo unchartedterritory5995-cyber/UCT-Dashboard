@@ -9049,6 +9049,20 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
 
+        # -- Market Tide by day (terminal tide history, 2026-11-19) --
+        # Stores each finished session's tide once, after the close: 16:33, 17:33 and 20:33 ET
+        # (three tries so a late tape still lands; a thinner read never replaces a fuller one).
+        # Always registered: the job reads the tide's own switch when it RUNS and returns
+        # without reading anything while it is off.
+        try:
+            from api.services.options_analytics import tide_history as _tide_history
+            _scheduler.add_job(_tide_history.run_capture_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=33, timezone=_ET),
+                id="market_tide_history_capture", max_instances=1, coalesce=True,
+                misfire_grace_time=1800, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] market_tide_history_capture job registration error: {e}")
+
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
         # post-close trading hours; regular cadence handles mid-day; slow

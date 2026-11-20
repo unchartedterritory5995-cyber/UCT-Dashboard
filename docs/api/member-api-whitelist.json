@@ -379,7 +379,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "days=90, end, anchor=le",
+      "params": "days=90, end, anchor=le, universe=uct",
       "path": "/api/breadth-monitor",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
@@ -395,7 +395,7 @@
     {
       "limit": "600/minute",
       "method": "GET",
-      "params": "",
+      "params": "universe=uct",
       "path": "/api/breadth-monitor/dates",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
@@ -437,6 +437,14 @@
       "method": "GET",
       "params": "{metric_key}",
       "path": "/api/breadth-monitor/live/drill/{metric_key}",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "universe=uct, metric (required), date (required), value, per",
+      "path": "/api/breadth-monitor/reading",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
     },
@@ -3949,6 +3957,14 @@
       "method": "GET",
       "params": "scope=all",
       "path": "/api/options/market-tide",
+      "rate_limit_family": "market-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "scope=all, sessions=60",
+      "path": "/api/options/market-tide/history",
       "rate_limit_family": "market-analytics",
       "tier": "paid"
     },

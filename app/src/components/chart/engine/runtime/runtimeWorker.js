@@ -17,6 +17,7 @@ import { RUNTIME_OBJECTS_KEY, runtimeWarmupOf } from './runtimeObjects.js'
 // ⭐⭐ W9-T11 — the run's `strategy` record crosses beside the columns, like the drawings.
 import { runtimeStrategyOf } from './strategyRecord.js'
 import { calcBarsWindowReport } from '../calcBarsWindow.js'
+import { runtimeOvernightOf } from './overnightTail.js'
 // ⭐⭐ W9-T11 (T1 review N1a) — THE WORKER IS ITS OWN MODULE GRAPH: the member door's
 // registration (`memberPaneDefinition.js`) never runs here, so without this the worker's
 // front end would read the registry's default (off) while the main thread's probe read the
@@ -57,7 +58,9 @@ self.onmessage = (event) => {
     self.postMessage({ id, ok: true, columns, objects: columns[RUNTIME_OBJECTS_KEY] || null,
       warmup: runtimeWarmupOf(columns), strategy: runtimeStrategyOf(columns),
       // ⭐⭐ CBC-FMT — the `calc_bars_count` window record crosses beside the columns too
-      calcBars: calcBarsWindowReport(columns) })
+      calcBars: calcBarsWindowReport(columns),
+      // ⭐⭐ (2026-11-20) and the overnight tail's record (`overnightTail.js`), which the strip reads too
+      overnight: runtimeOvernightOf(columns) })
   } catch (err) {
     self.postMessage({
       id,

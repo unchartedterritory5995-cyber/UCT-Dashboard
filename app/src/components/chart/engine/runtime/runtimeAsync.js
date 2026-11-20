@@ -20,6 +20,7 @@ import { notifyColumnsLanded } from '../serverCompute.js'
 import { withRuntimeObjects, RUNTIME_WARMUP_KEY } from './runtimeObjects.js'
 import { withStrategyRecord } from './strategyRecord.js'
 import { CALC_BARS_KEY } from '../calcBarsWindow.js'
+import { RUNTIME_OVERNIGHT_KEY } from './overnightTail.js'
 import {
   runtimeColumnsFor, computeRuntimeColumns, setRuntimeRunner, onRuntimeColumnsLanded,
   RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD, RUNTIME_FAILED_GUARD,
@@ -322,7 +323,7 @@ function workerOf(factory) {
     return null
   }
   _worker.onmessage = (event) => {
-    const { id, ok, columns, error, objects, warmup, strategy, calcBars } = event.data || {}
+    const { id, ok, columns, error, objects, warmup, strategy, calcBars, overnight } = event.data || {}
     const job = _inFlight
     if (!job || job.id !== id) return
     _inFlight = null
@@ -336,6 +337,10 @@ function workerOf(factory) {
     // ⭐⭐ CBC-FMT — and its `calc_bars_count` window record (the disclosure strip reads it)
     if (landed && calcBars) {
       Object.defineProperty(landed, CALC_BARS_KEY, { value: calcBars, enumerable: false, configurable: true })
+    }
+    // ⭐⭐ (2026-11-20) and its overnight tail's record (`overnightTail.js`; the strip reads it)
+    if (landed && overnight) {
+      Object.defineProperty(landed, RUNTIME_OVERNIGHT_KEY, { value: overnight, enumerable: false, configurable: true })
     }
     settle(job, ok ? null : errorOf(error), landed)
     pump()
@@ -363,6 +368,8 @@ function messageOf(id, def, rows, ctx) {
     tf: ctx && ctx.tf,
     newestBarIsForming: ctx ? ctx.newestBarIsForming : undefined,
     historyFromListing: !!(ctx && ctx.historyFromListing === true),
+    // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M): the run's withhold says it truthfully
+    ...(ctx && ctx.listingStart === true ? { listingStart: true } : {}),
     // ⭐ UIE PHASE 2 (M4) — the member's settings (plain numbers and text)
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
@@ -372,7 +379,9 @@ function messageOf(id, def, rows, ctx) {
       // ⭐⭐ (2026-11-19, Fred RS 1h) and the symbol's FIRST TRADE day, the listing fact the own-daily read's first
       // session rests on (`requestSupply.js::aboveChartRead`); absent stays absent (no listing is claimed).
       ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol),
-        ...(typeof ctx.symbol.firstTradeDate === 'string' ? { firstTradeDate: ctx.symbol.firstTradeDate } : {}) } } : {}),
+        ...(typeof ctx.symbol.firstTradeDate === 'string' ? { firstTradeDate: ctx.symbol.firstTradeDate } : {}),
+        // ⭐⭐ (2026-11-20) and whether that answer is still in flight (the run waits on it)
+        ...(ctx.symbol.firstTradeDatePending === true ? { firstTradeDatePending: true } : {}) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
@@ -433,9 +442,13 @@ function pump() {
  *  update; while one run of the pane is in the worker, only the NEWEST waiting
  *  one is kept — an older one would compute bars nobody paints. */
 function coalesceKeyOf(def, ctx) {
-  const s = ctx && ctx.symbol && typeof ctx.symbol === 'object' ? `${ctx.symbol.ticker}@${ctx.symbol.exchange}` : '-'
+  // ⭐⭐ (2026-11-20) the listing facts too: a run asked before the date landed is not the run asked after it
+  const s = ctx && ctx.symbol && typeof ctx.symbol === 'object'
+    ? `${ctx.symbol.ticker}@${ctx.symbol.exchange}${typeof ctx.symbol.firstTradeDate === 'string' ? `^${ctx.symbol.firstTradeDate}`
+      : ctx.symbol.firstTradeDatePending === true ? '^?' : ''}` : '-'
   return `${def && def.id}|${def && def.compute && def.compute.fn}|${ctx && ctx.tf}|${s}|`
     + `${ctx ? ctx.newestBarIsForming : ''}|${!!(ctx && ctx.historyFromListing === true)}`
+    + (ctx && ctx.listingStart === true ? '|listingStart' : '')
 }
 
 /** The chart pane asking (`binder.js`: its scope and the instance), or null for a request no pane owns. */

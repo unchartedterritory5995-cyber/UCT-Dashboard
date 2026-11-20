@@ -76,6 +76,26 @@ export function heldDrawingsNote(ws, drawnFamilies = []) {
   }
 }
 
+/** The element one withhold holds, in the member's words. */
+function heldElementWords(w) {
+  if (w.scope === 'output') return `its plot \`${w.title}\``
+  if (w.scope === 'outputColour') return `the colour of its plot \`${w.title}\``
+  if (w.scope === 'paint') return `its \`${w.kind}\`${Number.isInteger(w.line) ? ` (line ${w.line})` : ''}`
+  return `its ${FAMILY_PLURAL[w.family] || w.family}`
+}
+
+/** ⭐⭐ e89 — THE REFUSAL WHEN A WITHHOLD IS WHAT KEEPS A SCRIPT OFF THE RUNTIME LANE (the member door's
+ *  `runtimeLaneDefinition`): without the withheld element this door cannot draw the rest of the script (its own drawing
+ *  build is the one the held family needs, or the held row was all it drew), so the script is refused BY NAME, naming
+ *  each element and why, never handed to another lane's document that draws the element anyway. */
+export function heldRefusalReason(ws) {
+  const parts = (ws || []).map((w) => `${heldElementWords(w)} ${w.scope === 'objectFamily' ? 'differ' : 'differs'} `
+    + `from TradingView’s on ${chartsWord(w)}`)
+  const it = parts.length === 1 && ws[0].scope !== 'objectFamily' ? 'it' : 'them'
+  return `this script is not drawn: ${listOf(parts)}, and the rest of it cannot be drawn here without ${it} yet; `
+    + 'it comes back once a new comparison against TradingView matches'
+}
+
 /** ⭐ A withhold's stable key (`<door>:<scope>:<target>`): what a minted document stamps it honoured
  *  (`meta.heldWithholds`, sorted), so the server can tell a saved copy that honours today's withholds from one minted
  *  before them (`api/services/held_withholds.py`, the same key). */
@@ -101,3 +121,11 @@ export function __ignoreHeldWithholdsForTests() { _ignored = true }
 export function __resetHeldWithholds() { _ignored = false; _entries = COMMITTED }
 /** Rails only: a synthetic document (`{scripts: [...]}`), ON. */
 export function __setHeldWithholdsForTests(doc) { _ignored = false; _entries = entriesOf(doc) }
+/** ⭐ The list's state as one comparable string, a declared part of the test grant's gate state
+ *  (`testing/runtimeGate.js::gateState`, so a hook outside any test that narrows it fails by name, GATE-BLIND):
+ *  `ignored` (the test grant), `committed` (the app's state), or a synthetic document's sources and withholds. */
+export function heldWithholdsState() {
+  if (_ignored) return 'ignored'
+  if (_entries === COMMITTED) return 'committed'
+  return `doc:${[..._entries.entries()].map(([sha, e]) => `${sha}=${heldWithholdsStamp(e.withholds).join('|')}`).sort().join(',')}`
+}

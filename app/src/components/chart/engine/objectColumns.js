@@ -28,7 +28,7 @@ import { calcBarsWindowOf } from './calcBarsWindow.js'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex, withBarIndexHeld } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask, withheldReadMask, lowerTfMask, treeReadsLowerTf, CHART_CLOCK_WITHHELD, historyBeforeFirstKnown,
+  symAlignmentMask, withheldReadMask, lowerTfMask, treeReadsLowerTf, chartClockSentence, historyBeforeFirstKnown,
 } from './ast/interpret'
 import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
@@ -422,11 +422,11 @@ const barIndexOpts = (opts) => (opts.barIndexAbsolute === true && opts.historyFr
 
 /** The ops a bar index reaches as a VALUE, held (`objectProgram.js::withBarIndexHeld`),
  *  and the reason added to the pass's named withholdings. */
-function holdBarIndexOps(program, indexClass, chartClock, tf) {
+function holdBarIndexOps(program, indexClass, chartClock, tf, opts) {
   if (!indexClass) return program
   const { program: next, held } = withBarIndexHeld(program, (node) => indexClass.get(node))
   if (held && !chartClock.has('bar-index:window')) {
-    chartClock.set('bar-index:window', CHART_CLOCK_WITHHELD['bar-index:window'](tf))
+    chartClock.set('bar-index:window', chartClockSentence('bar-index:window', tf, opts))
   }
   return next
 }
@@ -521,6 +521,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...pineCompareOptsOf(opts),
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(opts.listingStart === true && opts.historyFromListing !== true ? { listingStart: true } : {}),
         ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
         ...(opts.symbols ? { symbols: opts.symbols } : {}),
@@ -555,6 +556,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     (guard) => interpret(intern(fold(guard)), bars, opts.inputs || {}, opts.budget, undefined, {
       tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null, ...pineCompareOptsOf(opts),
       ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+      ...(opts.listingStart === true && opts.historyFromListing !== true ? { listingStart: true } : {}),
       ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
       ...(bix || {}),
       ...(opts.symbols ? { symbols: opts.symbols } : {}),
@@ -566,7 +568,7 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     return v === undefined ? NaN : v
   }
   const readUnknown = makeReadUnknown(unknown, opts.historyFromListing === true)
-  const held = holdBarIndexOps(program, indexClass, chartClock, opts.tf)
+  const held = holdBarIndexOps(program, indexClass, chartClock, opts.tf, opts)
   return { readNode, readUnknown, readUnknownOther: makeReadUnknownOther(readUnknown, otherUnknown), unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock),
     program: held, indexClass }
 }
@@ -653,6 +655,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
       cols = computeFor && computeFor(definition, bars, opts.inputs, {
         tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(opts.listingStart === true && opts.historyFromListing !== true ? { listingStart: true } : {}),
       })
     } catch { cols = null }
     const stop = runtimeErrorStopOf(cols)
@@ -708,6 +711,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
     historyFromListing: historyFromListingFor(definition, opts),
     // ⭐⭐ F1 — and the `?:` rule that rides with it (`nativeRegistry.listingOptsFor`).
     naConditionFalse: listingOptsFor(definition, opts).naConditionFalse === true,
+    // ⭐⭐ (2026-11-20) the listing FACT where it is not served (W / M), for the notes' true sentence
+    listingStart: listingOptsFor(definition, opts).listingStart === true,
     // ⭐⭐ C45 — whether this document's `barindex` is Pine's `bar_index`, by the
     // SAME declaration the plot lane reads (`nativeRegistry.barIndexAbsoluteFor`).
     barIndexAbsolute: barIndexAbsoluteFor(definition, opts),
@@ -812,6 +817,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
         ...pineCompareOptsOf(evalOpts),
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(evalOpts.listingStart === true && evalOpts.historyFromListing !== true ? { listingStart: true } : {}),
         ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
         ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
@@ -841,6 +847,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
     (guard) => interpret(intern(fold(guard)), bars, evalOpts.inputs, evalOpts.budget, undefined, {
       tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming, ...pineCompareOptsOf(evalOpts),
       ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+      ...(evalOpts.listingStart === true && evalOpts.historyFromListing !== true ? { listingStart: true } : {}),
       ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
       ...(bix || {}),
       ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
@@ -866,7 +873,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
     return v === undefined ? NaN : v
   }
   const readUnknown = makeReadUnknown(unknown, evalOpts.historyFromListing === true)
-  const held = holdBarIndexOps(bound, indexClass, chartClock, evalOpts.tf)
+  const held = holdBarIndexOps(bound, indexClass, chartClock, evalOpts.tf, evalOpts)
   return {
     program: held, readNode, readUnknown, readUnknownOther: makeReadUnknownOther(readUnknown, otherUnknown), readTime, failed, refusals, form: 'trees', otherSymbols,
     // ⭐ C45 — whether a read before the first bar is Pine's `na` (`objectRuntime.js::atCheck`).

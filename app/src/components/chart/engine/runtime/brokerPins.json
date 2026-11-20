@@ -76,6 +76,9 @@
    "w9-q-s1k-exit-levels-v6-rddt-1d-2026-11-15",
    "w9-x5-cancel-rddt-1d-2026-11-15"
   ],
+  "B-EXIT-NA": [
+   "macd-shortlong-strategy-is-rddt-1d-2026-11-18"
+  ],
   "B-FIFO": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",
    "w9-k2-commission-contract-rddt-1d-2026-11-15",
@@ -146,6 +149,9 @@
   "B-MARGIN-CALL-ALL": [
    "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
   ],
+  "B-MARGIN-ZERO": [
+   "w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17"
+  ],
   "B-MARKET": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",
    "w9-k2-commission-contract-rddt-1d-2026-11-15",
@@ -199,6 +205,9 @@
   "B-QTY-REVERSE": [
    "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15"
   ],
+  "B-QTY-REVERSE-M0": [
+   "macd-shortlong-strategy-is-rddt-1d-2026-11-18"
+  ],
   "B-REVERSE": [
    "w9-r1-risk-ddown-rddt-1d-2026-11-15"
   ],
@@ -221,6 +230,9 @@
    "w9-x3-oca-rddt-1d-2026-11-15",
    "w9-x4-order-rddt-1d-2026-11-15",
    "w9-x5-cancel-rddt-1d-2026-11-15"
+  ],
+  "B-ROUND-LEVEL": [
+   "macd-shortlong-strategy-is-rddt-1d-2026-11-18"
   ],
   "B-SIG": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",
@@ -281,7 +293,9 @@
   ],
   "B-V4-MARGIN0": [
    "w9-q-s1a-size-v4-rddt-1d-2026-11-15",
-   "w9-q-s1b-defaults-v4-rddt-1d-2026-11-15"
+   "w9-q-s1b-defaults-v4-rddt-1d-2026-11-15",
+   "w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17",
+   "w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17"
   ],
   "B-VAL": [
    "w9-k1-commission-pct-rddt-1d-2026-11-15",

@@ -22,7 +22,7 @@ import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition
 import {
   resetRuntimeSessions, resetRuntimeLedgers, runtimeColumnsFor, setRuntimeRunner, onRuntimeColumnsLanded,
 } from './runtime/runtimeColumns'
-import { runtimeRequestSupply } from './runtime/requestSupply'
+import { runtimeRequestSupply, LISTING_DATE_WAITING } from './runtime/requestSupply'
 import { buildRuntimeIr } from './ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './ast/pineRuntimeClock.js'
 import { workerRunner, resetRuntimeAsync } from './runtime/runtimeAsync'
@@ -250,5 +250,62 @@ describe('5. the listing fact reaches the WORKER (its request carries the symbol
     await runHalfOn(C, ctxOf())
     expect(requests.length, 'the worker was asked').toBeGreaterThan(0)
     for (const m of requests) expect(m.ctx && m.ctx.symbol && m.ctx.symbol.firstTradeDate).toBe(LISTING)
+  })
+})
+
+
+// ─── ⭐⭐ (coordinator ruling 2026-11-20) THE LISTING DATE IN FLIGHT: A WAIT, NEVER A REFUSAL, AND NEVER STICKY ──────────
+// ⚰️ CAPTURED on production e87 (ipocold-bgin, smoke@, /api/ticker-ipo/BGIN held 25 s with the rig's cached answer removed):
+// NASDAQ:BGIN 1h's worker requests 10-12 carried firstTradeDate null and came back REFUSED ("`this symbol's daily bars`
+// has no bar on 1761055200, after its history began"); NO run was asked after the date landed, and the pane read refused
+// for the whole minute (the run's memo key did not carry the date).
+const ctxPending = () => ({ ...ctxOf(OWN_D, null), symbol: { ...RDDT, firstTradeDatePending: true } })
+
+describe('6. the listing date in flight: the run WAITS for it, and the answer re-asks the run', () => {
+  it('the supply: PENDING, waiting for this symbol\'s listing date (never "has no bar on")', () => {
+    const { sup } = supplyOn(CHART.slice(1), ctxPending())
+    expect(sup.refusal).toBeNull()
+    expect(sup.pending).toBe(true)
+    expect(sup.waiting && sup.waiting.sentence).toBe(LISTING_DATE_WAITING)
+    expect(LISTING_DATE_WAITING).toMatch(/waiting for this symbol's listing date/)
+    expect(LISTING_DATE_WAITING).not.toMatch(/has no bar on/)
+  })
+  it('the run half is pending through the real worker, and no reply refuses', async () => {
+    const { states, refusals, said } = await runHalfOn(CHART.slice(1), ctxPending())
+    expect(states[states.length - 1], said).toMatch(/^pending/)
+    expect(refusals.filter((m) => /has no bar on/.test(m)), said).toEqual([])
+    for (const m of requests) expect(m.ctx.symbol.firstTradeDatePending).toBe(true)
+  })
+  it('⛔⛔ NEVER STICKY: refused WITHOUT the date (as captured), then the date lands: the run is asked again and SERVED', async () => {
+    const C = CHART.slice(1)
+    const cold = await runHalfOn(C, ctxOf(OWN_D, null))
+    expect(cold.states[cold.states.length - 1], cold.said).toBe('refused:runtime:request')
+    const asked = requests.length
+    const warm = await runHalfOn(C, ctxOf())
+    expect(warm.states[warm.states.length - 1], warm.said).toBe('served:null')
+    expect(requests.length, 'the worker was asked again once the date landed').toBeGreaterThan(asked)
+    expect(requests[requests.length - 1].ctx.symbol.firstTradeDate).toBe(LISTING)
+  })
+  it('pending, then the date lands: served', async () => {
+    const C = CHART.slice(1)
+    const waiting = await runHalfOn(C, ctxPending())
+    expect(waiting.states[waiting.states.length - 1], waiting.said).toMatch(/^pending/)
+    const landed = await runHalfOn(C, ctxOf())
+    expect(landed.states[landed.states.length - 1], landed.said).toBe('served:null')
+  })
+  it('⛔ ANOTHER SYMBOL\'s date never unlocks this chart (and a wrong date is no wait): refused, "has no bar on"', async () => {
+    const C = CHART.slice(1)
+    const agl = { ...ctxOf(OWN_D, '2021-04-15'), symbol: { ...RDDT, firstTradeDate: '2021-04-15', firstTradeDatePending: true } }
+    const { sup } = supplyOn(C, agl)
+    expect(sup.pending).toBe(false)
+    expect(sup.refusal && sup.refusal.message).toMatch(/has no bar on/)
+    const { states, said } = await runHalfOn(C, agl)
+    expect(states[states.length - 1], said).toBe('refused:runtime:request')
+  })
+  it('⛔ CONTROL: a chart that does not start on the own rows\' first session never waits on the date', () => {
+    const rows = CHART.filter((b) => b.t >= ET(SESS[2], 0, 0))
+    const { sup } = supplyOn(rows, ctxPending())
+    expect(sup.pending).toBe(false)
+    expect(sup.refusal && sup.refusal.message).toBeFalsy()
   })
 })

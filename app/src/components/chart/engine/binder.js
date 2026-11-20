@@ -2392,6 +2392,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
             ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+            // ⭐⭐ (2026-11-20) and the listing FACT where it is not served (W / M): the same restriction
+            ...(!frame && ctx.listingStart === true ? { listingStart: true } : {}),
             // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
             // not the series the caller described.
             ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),

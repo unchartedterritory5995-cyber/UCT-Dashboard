@@ -8,21 +8,117 @@
  "symbol": "NYSE:RDDT",
  "timeframe": "1D",
  "gradeMethod": "a",
- "verdict": "DIVERGE",
- "step": 1,
- "reason": "our run refused (runtime:strategy-unsettled) against a TradingView value",
+ "verdict": "MATCH",
+ "step": 7,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
  "first": null,
  "graded": {
-  "trades": false,
-  "fills": false,
-  "slots": 0,
-  "values": 0,
+  "trades": true,
+  "fills": true,
+  "slots": 9,
+  "values": 6,
   "texts": 0
  },
  "referenceTrades": 17,
- "rulesExercised": [],
- "ungradedSlots": [],
+ "rulesExercised": [
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-EXEC",
+  "B-EXIT-BIND",
+  "B-EXIT-LIFE",
+  "B-EXIT-NA",
+  "B-FIFO",
+  "B-FILL",
+  "B-GAP",
+  "B-MARGIN",
+  "B-MARKET",
+  "B-PATH",
+  "B-QTY",
+  "B-QTY-REVERSE-M0",
+  "B-REVERSE",
+  "B-ROUND",
+  "B-ROUND-LEVEL",
+  "B-SIG",
+  "B-VAL",
+  "B-WHEN"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
  "ungradedTexts": [],
+ "ungradedValues": [
+  {
+   "slot": "plot_1",
+   "what": "`plot` at line 73 (colorer of plot_0)"
+  },
+  {
+   "slot": "plot_3",
+   "what": "`plot` at line 74 (colorer of plot_2)"
+  },
+  {
+   "slot": "plot_5",
+   "what": "`plot` at line 75 (colorer of plot_4)"
+  },
+  {
+   "slot": "plot_7",
+   "what": "`plot` at line 78 (colorer of plot_6)"
+  },
+  {
+   "slot": "plot_9",
+   "what": "`plot` at line 79 (colorer of plot_8)"
+  },
+  {
+   "slot": "plot_11",
+   "what": "`plot` at line 80 (colorer of plot_10)"
+  }
+ ],
  "firstDifference": null,
  "prefixExact": null,
  "culprit": null,

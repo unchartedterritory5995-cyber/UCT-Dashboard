@@ -41,10 +41,17 @@ _KEY_RANK = 0            # Fed speakers + the calendar's own _KEY_TERMS win firs
 # while ADP competed for the same space. Deliberately SHORT and substring-based
 # — this is a noise filter, not a whitelist, so an unfamiliar release still
 # shows up rather than being silently swallowed.
+#
+# The weekly CFTC positioning rows joined the list on 2026-11-20: FMP rates four of
+# them Medium (S&P 500, Nasdaq 100, gold, crude oil), so on a quiet Friday they were
+# the whole day's list, and on a Monday they took four of the day's slots. They are
+# positioning tables, not releases a desk waits for; the Calendar widget's full list
+# (`fetch_us_econ_week_full`) still carries every one of them.
 _NOISE = (
     "mba ", "mortgage rate", "mortgage applications",
     "api crude", "eia crude", "eia gasoline", "eia natural gas",
     "crude oil stock", "gasoline stocks", "cushing",
+    "cftc ", "speculative net positions",
 )
 
 
@@ -149,6 +156,94 @@ def _clean(v) -> str | None:
     return str(v)
 
 
+# The provider names a figure's unit in its own field, beside the bare number. Only these
+# short suffixes are joined on ("0.4" + "%" reads "0.4%", "198" + "K" reads "198K"); any other
+# unit text (a currency, a long word) is left off, so a figure is never given a unit it may
+# not have.
+_UNIT_SUFFIXES = ("%", "K", "M", "B")
+
+
+def _figure(v, unit=None) -> str | None:
+    """One released, expected or prior figure as the calendar shows it: the provider's own
+    number with its unit joined on when the unit is one of `_UNIT_SUFFIXES`. `None` stays
+    `None` (no figure is ever made up), and a figure that already ends in its unit is not
+    given it twice."""
+    text = _clean(v)
+    if text is None:
+        return None
+    suffix = unit.strip() if isinstance(unit, str) else ""
+    if suffix not in _UNIT_SUFFIXES or text.endswith(suffix):
+        return text
+    return text + suffix
+
+
+# ── Does FMP already hold this release? ─────────────────────────────────────
+# The calendar fills a day from its backup source only with a release FMP does not
+# hold at all that day (`api/routers/calendar.py::_curate_econ_events`). The two
+# sources word the same release differently ("Unemployment Claims" / "Initial Jobless
+# Claims", "HPI m/m" / "House Price Index MoM"), so the question is answered on the
+# words that carry a release's identity, after the known differences are levelled.
+#
+# The rule leans towards "FMP has it": one shared identity word is enough. A wrongly
+# skipped fill leaves the day as FMP gave it; a wrongly added one shows a member the
+# same release twice under two names, which is the worse mistake.
+
+# (other wording, FMP's wording), both already in the normalised form `_identity_words`
+# builds (lower case, punctuation as spaces). Longer phrases first. Only pairs that
+# share NO identity word on their own belong here ("Non-Farm Employment Change" and
+# "Non Farm Payrolls" already share one), plus "unemployment claims", which must not
+# be taken for the unemployment rate.
+_SAME_RELEASE = (
+    ("unemployment claims", "jobless claims"),
+    ("federal funds rate", "interest rate decision"),
+    ("fomc statement", "interest rate decision"),
+    ("producer price index", "ppi"),
+    ("consumer price index", "cpi"),
+    ("inflation rate", "cpi"),
+    ("s p cs", "case shiller"),
+    ("hpi", "house price"),
+    ("philly", "philadelphia"),
+)
+
+# Words that say what kind of figure a row is, never which release it is.
+_NO_IDENTITY = frozenset((
+    "index", "price", "prices", "sales", "rate", "change", "mom", "yoy", "qoq",
+    "the", "and", "for", "non", "new", "net", "total", "core", "final", "prelim",
+    "preliminary", "revised", "flash", "advance", "adv", "est", "estimate", "second",
+    "third", "2nd", "3rd", "report", "monthly", "weekly", "meeting", "fed",
+    "manufacturing", "services", "consumer", "sa", "nsa",
+))
+
+
+def _identity_words(title: str) -> frozenset:
+    """The words of a release title that say WHICH release it is."""
+    t = str(title or "").lower()
+    # "(Oct)", "(Nov/14)": the period a row covers is not part of its name.
+    out, depth = [], 0
+    for ch in t:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            out.append(ch if ch.isalnum() else " ")
+    t = " " + " ".join("".join(out).split()) + " "
+    for other, ours in _SAME_RELEASE:
+        t = t.replace(f" {other} ", f" {ours} ")
+    return frozenset(w for w in t.split()
+                     if len(w) >= 3 and not w.isdigit() and w not in _NO_IDENTITY)
+
+
+def holds_release(day_titles, title: str) -> bool:
+    """True when one of `day_titles` (every US row FMP holds for one ET day) is the
+    release `title` names, by a shared identity word. A title with no identity word at
+    all counts as held: there is nothing to tell it apart by, so it is never added."""
+    want = _identity_words(title)
+    if not want:
+        return True
+    return any(want & _identity_words(t) for t in day_titles or ())
+
+
 def _fetch_econ_rows_typed(from_ds: str, to_ds: str) -> tuple[list | None, dict | None]:
     """D1-typed transport shared by both functions below (2026-09-03 A5
     modernization) — replaces the raw `requests.get` call each used to make
@@ -229,16 +324,16 @@ def fetch_us_econ_week_full(from_ds: str, to_ds: str) -> dict:
         else:
             bucket["econ"].append({
                 "time": _fmt_time(dt), "event": title,
-                "estimate": _clean(row.get("estimate")),
-                "prior": _clean(row.get("previous")),
-                "actual": _clean(row.get("actual")),
+                "estimate": _figure(row.get("estimate"), row.get("unit")),
+                "prior": _figure(row.get("previous"), row.get("unit")),
+                "actual": _figure(row.get("actual"), row.get("unit")),
                 "impact": tier,
             })
     return out
 
 
 def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict[str, list[dict]]:
-    """{YYYY-MM-DD (ET): [{time, event, estimate, prior, is_fed}]}.
+    """{YYYY-MM-DD (ET): [{time, event, estimate, prior, actual, is_fed, is_key}]}.
 
     At most `limit_per_day` events per day, chosen by IMPACT and then returned
     in TIME order — so a busy day keeps NFP and drops the crude-oil inventory
@@ -256,15 +351,27 @@ def fetch_us_econ_week_with_meta(
     than a changed signature on `fetch_us_econ_week` itself, which
     `calendar_week_poster.py`, `voice_tool_impls.py` and this module's own
     tests already depend on returning a bare dict."""
+    return _fetch_us_econ_week_impl(from_ds, to_ds, limit_per_day)[:2]
+
+
+def fetch_us_econ_week_with_cover(
+    from_ds: str, to_ds: str, limit_per_day: int = 8,
+) -> tuple[dict[str, list[dict]], dict | None, dict[str, list[str]]]:
+    """`fetch_us_econ_week_with_meta`, plus `{YYYY-MM-DD (ET): [title, ...]}`: EVERY US
+    row FMP holds for each day, whatever its impact, the noise rows and the Fed
+    speakers included. From the same single provider read as the curated rows. The
+    calendar asks `holds_release` against it before it fills a day from its backup
+    source, so a release FMP rates Low (and the curated list leaves out on purpose) is
+    never brought back under another name."""
     return _fetch_us_econ_week_impl(from_ds, to_ds, limit_per_day)
 
 
 def _fetch_us_econ_week_impl(
     from_ds: str, to_ds: str, limit_per_day: int,
-) -> tuple[dict[str, list[dict]], dict | None]:
+) -> tuple[dict[str, list[dict]], dict | None, dict[str, list[str]]]:
     rows, meta = _fetch_econ_rows_typed(from_ds, to_ds)
     if rows is None:
-        return {}, None
+        return {}, None, {}
     rows = with_symposium_keynote(rows)
     rows = with_curated_events(rows)
 
@@ -274,20 +381,13 @@ def _fetch_us_econ_week_impl(
     from api.routers.calendar import _is_fed_speaker, _is_key_event
 
     out: dict[str, list[tuple]] = {}
+    cover: dict[str, list[str]] = {}
     for row in rows:
         if (row.get("country") or "").upper() not in ("US", "USA"):
             continue
         title = (row.get("event") or "").strip()
         if not title:
             continue
-        is_fed = _is_fed_speaker(title)
-        impact = (row.get("impact") or "").lower()
-        if impact not in _KEEP_IMPACT and not is_fed:
-            continue
-        if _is_noise(title) and not is_fed:
-            continue
-        rank = (_KEY_RANK if (is_fed or _is_key_event(title))
-                else _IMPACT_RANK.get(impact, 3))
 
         raw = str(row.get("date") or "")
         try:
@@ -301,11 +401,26 @@ def _fetch_us_econ_week_impl(
         # what still lands inside the requested window.
         if ds < from_ds or ds > to_ds:
             continue
+        # Every dated US row counts as "FMP holds it", BEFORE the impact and noise
+        # filters below: a row the curated list leaves out is still a row FMP has.
+        cover.setdefault(ds, []).append(title)
+
+        is_fed = _is_fed_speaker(title)
+        impact = (row.get("impact") or "").lower()
+        if impact not in _KEEP_IMPACT and not is_fed:
+            continue
+        if _is_noise(title) and not is_fed:
+            continue
+        rank = (_KEY_RANK if (is_fed or _is_key_event(title))
+                else _IMPACT_RANK.get(impact, 3))
+
         out.setdefault(ds, []).append((
             rank, dt,
             {"time": _fmt_time(dt), "event": title,
-             "estimate": _clean(row.get("estimate")),
-             "prior": _clean(row.get("previous")),
+             "estimate": _figure(row.get("estimate"), row.get("unit")),
+             "prior": _figure(row.get("previous"), row.get("unit")),
+             # The released figure, once the provider has it; `None` before the release.
+             "actual": _figure(row.get("actual"), row.get("unit")),
              "is_fed": is_fed,
              "is_key": rank == _KEY_RANK and not is_fed},
         ))
@@ -316,4 +431,4 @@ def _fetch_us_econ_week_impl(
         keep = sorted(items, key=lambda t: (t[0], t[1]))[:max(1, limit_per_day)]
         # …then present chronologically, the way a calendar reads.
         result[ds] = [e for _, _, e in sorted(keep, key=lambda t: t[1])]
-    return result, meta
+    return result, meta, cover
