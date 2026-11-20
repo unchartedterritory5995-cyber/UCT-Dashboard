@@ -43,7 +43,7 @@ describe('the list', () => {
     expect(hostKnownDivergenceList()).not.toContain(runtimeSourceHash(CONTROL))
   })
 
-  it('is ON in the app: no source outside the rails turns it off (the seam is called by test-setup.js only)', () => {
+  it('is ON in the app: no source outside the rails turns it off (the seam is called by the test grant only)', () => {
     const SRC = path.join(REPO, 'app', 'src')
     const callers = []
     const walk = (dir) => {
@@ -55,7 +55,8 @@ describe('the list', () => {
       }
     }
     walk(SRC)
-    expect(callers.sort()).toEqual(['components/chart/engine/hostKnownDivergence.js', 'test-setup.js'])
+    // ⭐ the test grant lives in `testing/runtimeGate.js` since the GATE-BLIND rail (2026-11-19); test-setup.js calls it
+    expect(callers.sort()).toEqual(['components/chart/engine/hostKnownDivergence.js', 'test-setup.js', 'testing/runtimeGate.js'])
   })
 
   it('names the script by its source hash, the CRLF form included', () => {
