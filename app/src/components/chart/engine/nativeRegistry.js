@@ -192,7 +192,7 @@ import {
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 // ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
-import { hostLaneOffThread } from './hostLaneAsync.js'
+import { hostLaneColumns } from './hostLaneAsync.js'
 export {
   columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
@@ -3133,12 +3133,13 @@ export function computeFor(def, bars, inputs, ctx) {
   // astLaneColumns` (moved there unchanged, with the full note); the run-read colours and the run
   // half stay here (`astRunExtras`): they answer to this tab's gates.
   if (lane === COMPUTE_LANE.AST) {
-    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) of a document whose recurrences hold the
-    // main thread (#1711's estimate) is computed off it (`hostLaneAsync.js`: the same values, a
-    // pending answer with the pane's last picture until they land); every other request, and every
-    // document under the budget, is answered here exactly as before.
-    const off = hostLaneOffThread(def, bars, inputs, ctx, astRunExtras)
-    if (off) return off
+    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) is answered by ONE door
+    // (`hostLaneAsync.hostLaneColumns`): the values memoised for these bars, computed on this thread
+    // when the tab has measured them cheap here, in the worker otherwise (the same values, a pending
+    // answer with the pane's last picture until they land). Every request that is not a chart's is
+    // answered here exactly as before.
+    const pane = hostLaneColumns(def, bars, inputs, ctx, astRunExtras)
+    if (pane) return pane
     return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
