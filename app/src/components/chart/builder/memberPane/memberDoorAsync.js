@@ -51,6 +51,10 @@ export const MEMBER_DOOR_WATCHDOG_GRACE_MS = 30000
 /** The watchdog: the door's deadline plus the grace. */
 export const MEMBER_DOOR_WATCHDOG_MS = MEMBER_DOOR_BUDGET_MS + MEMBER_DOOR_WATCHDOG_GRACE_MS
 
+/** How long an idle worker nobody subscribes through is kept before it is let go (its memory), in ms. A member
+ *  typing keeps it (every keystroke subscribes again within this); a closed builder frees it. */
+export const MEMBER_DOOR_IDLE_MS = 60000
+
 /** The guard a script is refused by when the worker building it died or could not answer. */
 export const MEMBER_DOOR_WORKER_GUARD = 'pine:door-worker'
 /** The guard a script is refused by on the member pane when the door threw while building it (an engine defect;
@@ -114,6 +118,7 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
   let running = null          // { entry, id, version, timer }
   let nextId = 1
   let asked = 0
+  let idle = null
   const counts = { builds: 0, posted: 0, answered: 0, shared: 0, superseded: 0, stopped: 0, watchdog: 0, died: 0, threw: 0, spawned: 0 }
 
   function kill() {
@@ -247,6 +252,7 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
 
   function subscribe(args, onAnswer) {
     const key = memberDoorKeyOf(args)
+    if (idle !== null) { clearTimeout(idle); idle = null }
     const v = version()
     let entry = entries.get(key)
     if (!entry) {
@@ -281,10 +287,15 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
         stopRunning()
         next()
       }
+      // ⭐ nobody subscribes now: the idle worker is let go after a while (a member who pastes again respawns it)
+      if (!entries.size && !running && worker && idle === null) {
+        idle = setTimeout(() => { idle = null; if (!entries.size && !running) kill() }, MEMBER_DOOR_IDLE_MS)
+      }
     }
   }
 
   function dispose() {
+    if (idle !== null) { clearTimeout(idle); idle = null }
     stopRunning()
     entries.clear()
   }
