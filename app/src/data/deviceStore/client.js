@@ -11,6 +11,12 @@
 //                       visibility (lib/deskVisibility.isAppVisible) on every change and once a minute
 //                       while visible, so the leader's feed pauses when no tab is looked at
 //
+// ⭐ PERSISTENT STORAGE, ASKED ONCE. OPFS is best-effort storage: under disk pressure the browser may
+// evict the 70+ MB of seed files. Once a seed file is held (the worker's status, or a new generation),
+// the page asks `navigator.storage.persist()` ONCE (only a page can; a worker cannot), after checking
+// `persisted()`, never awaited by anything: Chrome decides by itself (no prompt), and a browser that
+// asks the member does so without holding any work. The answer is in `status().storage`.
+//
 // ⭐ THE SYNCHRONOUS CACHE EXPIRES (SYNC_CACHE_TTL_MS). Today's bars grow every minute, so a copy read
 // a while ago is behind (never WRONG: it holds complete buckets only, live.js); past the TTL `peekBars`
 // answers null and the next read asks the worker again. Every copy carries `through`, which the handoff
@@ -60,6 +66,7 @@ export function createDeviceClient({
   visible = isAppVisible,
   onVisibilityChange = _onVisibilityChange,
   setIntervalFn = (fn, ms) => setInterval(fn, ms),
+  storage = (typeof navigator !== 'undefined' && navigator.storage) || null,
 } = {}) {
   let worker = null
   let dead = false
@@ -69,6 +76,22 @@ export function createDeviceClient({
   const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
   const reads = new Map()        // `${tf}|${SYM}` → in-flight read
   let status = null
+  /** navigator.storage persistence: asked at most once per page. */
+  const persist = { asked: false, persisted: null, granted: null, error: null }
+  function _maybePersist() {
+    if (persist.asked || !storage) return
+    persist.asked = true
+    Promise.resolve()
+      .then(() => (typeof storage.persisted === 'function' ? storage.persisted() : null))
+      .then((already) => {
+        persist.persisted = already === true
+        if (already === true || typeof storage.persist !== 'function') return already === true
+        return storage.persist()
+      })
+      .then((granted) => { persist.granted = granted === true; if (granted === true) persist.persisted = true })
+      .catch((e) => { persist.error = String(e?.message || e).slice(0, 120) })
+  }
+  const _holdsSeed = (info) => !!info?.tfs && Object.keys(info.tfs).length > 0
 
   const keyOf = (sym, tf) => `${tf}|${String(sym).toUpperCase()}`
 
@@ -88,9 +111,10 @@ export function createDeviceClient({
         const r = pending.get(m.id)
         if (r) { pending.delete(m.id); r(m.ok ? (m.res ?? null) : null) }
       } else if (m.type === 'event') {
-        if (m.event?.type === 'gen') _drop(String(m.event.tf))
+        if (m.event?.type === 'gen') { _drop(String(m.event.tf)); _maybePersist() }
       } else if (m.type === 'status') {
         status = m
+        if (_holdsSeed(m.info)) _maybePersist()
       }
     }
     worker.onerror = () => {
@@ -172,7 +196,7 @@ export function createDeviceClient({
       return n
     },
     info() { return _call({ op: 'info' }) },
-    status: () => status,
+    status: () => ({ ...(status || {}), storage: { ...persist } }),
     cacheSize: () => cache.size,
     dispose() {
       for (const r of pending.values()) r(null)

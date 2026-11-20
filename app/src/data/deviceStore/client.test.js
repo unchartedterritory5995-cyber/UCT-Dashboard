@@ -134,4 +134,29 @@ describe('device client', () => {
     vis = true; ticks.forEach((fn) => fn())
     expect(live()).toEqual([true, false, true])
   })
+  it('persistent storage is asked ONCE, only once a seed file is held, and the answer is in status()', async () => {
+    const w = workerOver(await disk())
+    const storage = { persisted: vi.fn(async () => false), persist: vi.fn(async () => true) }
+    const c = createDeviceClient({ makeWorker: () => w, afterPaint: () => {}, storage })
+    c.start()
+    w.onmessage({ data: { type: 'status', role: 'leader', supported: true, info: { tfs: {} } } })   // no seed yet
+    await Promise.resolve(); await Promise.resolve()
+    expect(storage.persisted).not.toHaveBeenCalled()
+    w.onmessage({ data: { type: 'status', role: 'leader', supported: true, info: { tfs: { D: { build: 'b' } } } } })
+    w.onmessage({ data: { type: 'event', event: { type: 'gen', tf: '5', build: 'b' } } })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(storage.persist).toHaveBeenCalledTimes(1)
+    expect(c.status().storage).toEqual({ asked: true, persisted: true, granted: true, error: null })
+    const already = { persisted: vi.fn(async () => true), persist: vi.fn(async () => true) }
+    const c2 = createDeviceClient({ makeWorker: () => workerOver(new Map()), afterPaint: () => {}, storage: already })
+    c2.start()
+    c2.dispose()
+    const w2 = workerOver(await disk())
+    const c3 = createDeviceClient({ makeWorker: () => w2, afterPaint: () => {}, storage: already })
+    c3.start()
+    w2.onmessage({ data: { type: 'event', event: { type: 'gen', tf: 'D', build: 'b' } } })
+    await new Promise((r) => setTimeout(r, 0))
+    expect(already.persist).not.toHaveBeenCalled()                        // already persistent: nothing asked
+    expect(c3.status().storage.persisted).toBe(true)
+  })
 })
