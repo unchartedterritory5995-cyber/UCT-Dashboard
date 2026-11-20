@@ -61,6 +61,7 @@ import {
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
 import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../lib/marketClock/tradingViewSession.js'
+import { holidayOn } from '../../../../lib/marketClock/nyseCalendar.js'
 import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
@@ -486,10 +487,42 @@ export function isoDay(t) {
     }
   }
   if (n > 0 && n < 4102444800) {
-    const [y, m, d] = civilFromDays(Math.floor(n / 86400))
+    // ⭐⭐ RULING 2 — THE EXCHANGE'S DAY, NEVER THE UTC ONE (`newYorkOffsetSeconds`)
+    const [y, m, d] = civilFromDays(Math.floor((n + newYorkOffsetSeconds(n)) / 86400))
     return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   }
   return null
+}
+
+/** ⭐⭐ RULING 2 (coordinator, 2026-11-20) — A RESAMPLER KEYS A BAR'S WEEK OR MONTH BY THE EXCHANGE'S LOCAL SESSION
+ *  DATE, NEVER ITS UTC DATE. An intraday bar's `t` is unix seconds; read as a UTC day, New York's extended-hours bars
+ *  after 19:00 in winter (20:00 in summer) landed on the NEXT day: a Friday evening bar on a Saturday (the Python
+ *  resampler, whose week is its sessions, then left it out of the week: the merged high and close of 96 winter weeks
+ *  of SPY's 60-minute history differed between the lanes), a month's last evening bar in the next month (both lanes).
+ *  MEASURED: capture `vw-bi-time-d-extended-spy-60-2026-11-19` (SPY 60 minutes, 04:00-20:00, 23,615 bars): on every one
+ *  of its 96 Friday 19:00 bars in winter TradingView's `time("D")` is 54,000 s before the bar (Friday 04:00 New York)
+ *  and the day offset is 0: TradingView keys the bar to its local Friday. New York's UTC offset, in seconds, at unix
+ *  second `t` (−4 h in daylight time, −5 h otherwise), from the United States rule in force that year (from 2007 the
+ *  second Sunday of March to the first Sunday of November; 1987-2006 the first Sunday of April to the last of October;
+ *  before, the last Sunday of April to the last of October), the change at 02:00 local. Integer arithmetic only (this
+ *  module holds no `Date`); held to the IANA zone over 1990-2035 by `htfExchangeDay.test.js`. The engine's calendar is
+ *  New York's (its sessions, its closures: `htfClosesOnNextBar`); another exchange's zone is not this function's. Python
+ *  twin: `ast_interpret._new_york_offset_seconds`. */
+export function newYorkOffsetSeconds(t) {
+  const y = civilFromDays(Math.floor(t / 86400))[0]
+  // the day number of the n-th Sunday of a month (n = -1: the last); 1970-01-01 was a Thursday
+  const sunday = (m, k) => {
+    if (k > 0) {
+      const first = daysFromCivil(y, m, 1)
+      const dow = (((first + 4) % 7) + 7) % 7
+      return first + ((7 - dow) % 7) + 7 * (k - 1)
+    }
+    const last = daysFromCivil(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1, 1) - 1
+    return last - ((((last + 4) % 7) + 7) % 7)
+  }
+  const [on, off] = y >= 2007 ? [sunday(3, 2), sunday(11, 1)]
+    : y >= 1987 ? [sunday(4, 1), sunday(10, -1)] : [sunday(4, -1), sunday(10, -1)]
+  return t >= on * 86400 + 7 * 3600 && t < off * 86400 + 6 * 3600 ? -4 * 3600 : -5 * 3600
 }
 
 /** Days since 1970-01-01 \u2192 (year, month, day), and back. Howard Hinnant's civil
@@ -6064,6 +6097,9 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   // ⭐⭐ PERIOD −1 (2026-11-19) — a read of the bar, week or month before the chart's first (`historyBeforeChartMask`).
   // ⛔ Literal key: `HISTORY_BEFORE_CHART_CODE` is declared further down.
   'history:before-chart': () => HISTORY_BEFORE_CHART_SENTENCE,
+  // ⭐⭐ RULING 2 (2026-11-20) — a week or month holding a session the exchange never held (`tfClosureSessionMask`).
+  // ⛔ Literal key: `TF_CLOSURE_SESSION_CODE` is declared further down.
+  'request:htf-closure-session': () => TF_CLOSURE_SESSION_SENTENCE,
   // ⭐⭐ ENGINE 55 — the newest bar of a `tf_merge` read (see `tfMergeMask`).
   'request:htf-newest-unconfirmed': () => 'This indicator reads a weekly or monthly value with '
     + '`request.security` (look-ahead off). TradingView shows that value on the bar that completes the '
@@ -7170,6 +7206,8 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, colu
     tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     // ⭐⭐ HTF-LIVE-FIRST-PERIOD — a look-ahead read of a period built from part of it
     tfLiveMask(tree, bars, opts, inputs, budget, scalars),
+    // ⭐⭐ RULING 2 — a week or month holding a session the exchange never held
+    tfClosureSessionMask(tree, bars, opts, inputs, budget, scalars),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
@@ -7752,6 +7790,110 @@ export function tfLiveMask(tree, bars, opts, inputs = {}, budget = undefined, sc
   const mask = tfLiveFirstPeriodReadMask(tree, bars, opts, inputs, budget, scalars)
   if (!mask) return null
   nameChartClock(opts, [TF_LIVE_FIRST_CODE], opts && opts.tf)
+  return mask
+}
+
+/** ⭐⭐ RULING 2 (coordinator, 2026-11-20) — A WEEK OR MONTH THAT HOLDS A SESSION THE EXCHANGE NEVER HELD: the code
+ *  and the sentence (`CHART_CLOCK_WITHHELD`; Python twin `ast_interpret.TF_CLOSURE_SESSION_CODE`). */
+export const TF_CLOSURE_SESSION_CODE = 'request:htf-closure-session'
+export const TF_CLOSURE_SESSION_SENTENCE = 'This indicator reads a weekly or monthly value (`request.security`), and '
+  + 'this chart holds a bar dated on a day the New York exchange held no session (a weekend or an exchange holiday) '
+  + 'inside that week or month. Whether TradingView builds the week or month from such a bar has not been captured '
+  + 'for a symbol that trades on those days, so the bars that show that period\'s value, and what is drawn from it, '
+  + 'are withheld rather than drawn from a guess; every other period is drawn. What would settle it: a capture of a '
+  + 'weekly read on a symbol trading on an exchange holiday.'
+/** Is `iso` (the exchange's day, `isoDay`) a day the New York exchange held no session: a Saturday, a Sunday, or a
+ *  full closure of the session calendar (`holidayOn`, `market_calendar.json`, the Python lane's
+ *  `NYSE_HOLIDAYS_YYYYMMDD`; a year it does not cover is read for weekends alone, in both lanes). */
+export function closedSessionDay(iso) {
+  if (typeof iso !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false
+  const dow = (((daysFromCivil(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)), Number(iso.slice(8, 10))) + 4) % 7) + 7) % 7
+  return dow === 0 || dow === 6 || holidayOn(iso) !== null
+}
+/** ⭐⭐ RULING 2 — THE ROOT BARS THAT SHOW, OR DRAW FROM, A WEEK OR MONTH HOLDING A SESSION THE EXCHANGE NEVER HELD,
+ *  as a 0/1 column (1 = withheld), or null when none does.
+ *  The two lanes disagreed on such a period: the Python resampler (`bars_fetch`, "a week is its sessions") left the
+ *  bar out of the aggregate, this lane's `resampleTo` kept it (a 2024-03-29 Good Friday bar: weekly high 10.5 here,
+ *  9.5 there). No capture holds such a bar under a weekly read (the captures of symbols that trade on those days, FX,
+ *  futures and crypto, ask only the clock), so neither aggregate is TradingView's by measurement: both lanes now keep
+ *  every bar the series holds (one aggregate), and every chart bar that reads such a period is withheld by name.
+ *  For the stored daily series of a listing the platform serves this never fires (the store drops a daily row on a
+ *  day without a session, `date_bar_keys`); it guards a series that holds one.
+ *  Sites are the `tf` / `tf_live` / `tf_merge` reads (W, M, 3M) of this chart's bars whose resampled periods hold such
+ *  a session; the child is walked on the higher-timeframe bars with every bar field unknown on those periods (a child
+ *  holding another request or a recurrence binding: those periods themselves), and mapped by the evaluator's pick
+ *  (`tfMergeReads`, `tfLiveReads`, bucket `b - 1`). Which root bars read them is engine 56's walk, exact, with a
+ *  running value drawn only where two starts agree (`walkTwoStarts`). Python twin:
+ *  `ast_interpret._tf_closure_session_read_mask`. */
+function tfClosureSessionReadMask(tree, bars, opts, inputs, budget, scalars) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!n) return null
+  const isos = bars.map((b) => isoDay(b && b.t))
+  if (!isos.some((d) => d && closedSessionDay(d))) return null
+  const readsBarField = (nd) => readsPartialField(nd) || (nd && nd.type === 'series' && nd.name === 'close')
+  const quietOf = (code) => ({ ...(opts || {}), tf: code, chartClockSink: undefined, withheldBarsSink: undefined })
+  const closureOwn = (node) => {
+    const code = String(node.value)
+    if (!TF_LIVE_RESAMPLABLE.includes(code)) return null
+    const { htf, at } = resampleTo(bars, isos, code)
+    const held = new Float64Array(htf.length)
+    let any = false
+    for (let i = 0; i < n; i++) {
+      if (isos[i] && closedSessionDay(isos[i])) { held[at.get(tfBucket(isos[i], code))] = 1; any = true }
+    }
+    if (!any) return null
+    const child = node.args && node.args[0]
+    let u = held
+    if (!holdsRequestOrBinding(child)) {
+      const sites = new Map()
+      const stack = [child]
+      const seen = new Set()
+      while (stack.length) {
+        const nd = stack.pop()
+        if (!nd || typeof nd !== 'object' || seen.has(nd)) continue
+        seen.add(nd)
+        if (readsBarField(nd)) sites.set(nd, Float64Array.from(held))
+        if (Array.isArray(nd.args)) for (const a of nd.args) stack.push(a)
+      }
+      u = sites.size ? walkTwoStarts(child, htf, inputs, budget, scalars, quietOf(code), readsBarField,
+        () => Float64Array.from(held), TF_CLOSURE_SESSION_CODE, { exact: true }, sites) : null
+    }
+    if (!u) return null
+    const reads = node.type === 'tf_live' ? tfLiveReads(isos, code, at) : node.type === TF_MERGE ? tfMergeReads(isos, code, at) : null
+    let m = null
+    for (let i = 0; i < n; i++) {
+      if (!isos[i]) continue
+      const r = reads ? reads[i] : at.get(tfBucket(isos[i], code)) - 1
+      if (r >= 0 && u[r]) { if (!m) m = new Float64Array(n); m[i] = 1 }
+    }
+    return m
+  }
+  const own = new Map()
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE) {
+      const m = closureOwn(node)
+      if (m) own.set(node, m)
+      continue
+    }
+    if (SCOPE_TYPES.has(node.type)) continue
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!own.size) return null
+  const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
+  return walkTwoStarts(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
+    (nd) => Float64Array.from(own.get(nd)), TF_CLOSURE_SESSION_CODE, { exact: true }, own)
+}
+/** ⭐⭐ RULING 2 — `tfClosureSessionReadMask`, named `TF_CLOSURE_SESSION_CODE` when it withholds a bar. ⛔ NO `try`.
+ *  Python twin: `ast_interpret.tf_closure_session_mask`. */
+export function tfClosureSessionMask(tree, bars, opts, inputs = {}, budget = undefined, scalars = undefined) {
+  const mask = tfClosureSessionReadMask(tree, bars, opts, inputs, budget, scalars)
+  if (!mask) return null
+  nameChartClock(opts, [TF_CLOSURE_SESSION_CODE], opts && opts.tf)
   return mask
 }
 
