@@ -29,7 +29,10 @@ const SRC = path.resolve(here, '../../../../..') // app/src
 // Engine 68 train (#1548 with #1547 and #1539: B-MARGIN-CALL, B-FUNDS-SHORT, B-QTY-REVERSE, B-FUNDS-REVERSE,
 // B-MARGIN-CALL-ALL, B-ENTRY-ORDER, B-PYR, B-V3 and, by #1552, B-V4-MARGIN0 pinned): the lock appends 68, so this is
 // the digest of the older entries 17, 60 and 66 (brokerPinsLock.js::olderEntriesDigest over the committed lock).
-const COMMITTED_OLDER_DIGEST = 'dc23d7fa765cb3856a13950db532c60bfd6e55dd6738dc3875cbbf8f691be6f8'
+// Engine 89 train (#2147, the strategy unit: B-V4-MARGIN0 extended, B-MARGIN-ZERO, B-QTY-REVERSE-M0, B-ROUND-LEVEL,
+// the ledger 42 -> 46 rules): the lock appends 89, so this is the digest of the older entries 17, 60, 66, 68 and 80
+// (brokerPinsLock.js::olderEntriesDigest over the committed lock).
+const COMMITTED_OLDER_DIGEST = '810f4850c9a1cf9f74b0c1d56ce1f5a4b3f545b3686c1885e6856c72b8da27fa'
 
 const ledgerA = canonicalJson({ schema: 'uct.broker-pins.resolved/v1', rules: {} })
 const ledgerB = canonicalJson({ schema: 'uct.broker-pins.resolved/v1', rules: { 'B-PATH': ['fx-1'] } })

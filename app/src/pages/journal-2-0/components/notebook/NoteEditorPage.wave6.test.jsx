@@ -2,6 +2,11 @@ import { render, screen, waitFor, act, fireEvent, cleanup } from '@testing-libra
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { TextSelection } from '@tiptap/pm/state'
+import { preloadLazyChunks, NOTE_EDITOR_CHUNKS } from '../../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTE_EDITOR_CHUNKS)
 
 // Wave 6 (editor lane D) — the new editor content as the member reaches it,
 // through the REAL NoteEditorPage (real editor mount; the wave-5 file's

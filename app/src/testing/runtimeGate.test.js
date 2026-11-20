@@ -8,6 +8,7 @@ import { gateNarrowedOutsideTest, gateState, grantRuntimeGate, asMember, GATE_NA
 import * as runtimeKill from '../components/chart/engine/runtimeKill'
 import * as paneGate from '../components/chart/engine/runtimePaneGate'
 import * as hkd from '../components/chart/engine/hostKnownDivergence'
+import * as held from '../components/chart/engine/heldWithholds'
 
 const G = 'granted'
 describe('gateNarrowedOutsideTest: the decision (pure)', () => {
@@ -29,7 +30,7 @@ describe('gateNarrowedOutsideTest: the decision (pure)', () => {
 })
 
 describe('gateState: every door the grant opens moves it', () => {
-  it('the allowlist, the pane permission, the host-known-divergence list and admission each change the state', () => {
+  it('the allowlist, the pane permission, the host-known-divergence list, admission and the held withholds each change the state', () => {
     grantRuntimeGate()
     const granted = gateState()
     const moves = [
@@ -37,6 +38,8 @@ describe('gateState: every door the grant opens moves it', () => {
       [() => paneGate.__resetRuntimePanePermission(), () => paneGate.__permitRuntimePaneForTests()],
       [() => hkd.__resetHostKnownDivergence(), () => hkd.__ignoreHostKnownDivergenceForTests()],
       [() => runtimeKill.setRuntimeCapabilityAdmission(true), () => runtimeKill.__resetRuntimeAdmission()],
+      [() => held.__resetHeldWithholds(), () => held.__ignoreHeldWithholdsForTests()],
+      [() => held.__setHeldWithholdsForTests({ scripts: [] }), () => held.__ignoreHeldWithholdsForTests()],
     ]
     for (const [narrow, restore] of moves) {
       narrow()
@@ -46,7 +49,7 @@ describe('gateState: every door the grant opens moves it', () => {
     }
   })
   it('the narrowing list names only real exports of the gate modules', () => {
-    const exported = new Set([...Object.keys(runtimeKill), ...Object.keys(paneGate), ...Object.keys(hkd)])
+    const exported = new Set([...Object.keys(runtimeKill), ...Object.keys(paneGate), ...Object.keys(hkd), ...Object.keys(held)])
     for (const name of GATE_NARROWINGS) expect(exported.has(name), name).toBe(true)
   })
 })
@@ -59,6 +62,36 @@ describe('wired: a test that narrows is re-granted before the next one', () => {
   })
   it('the next test starts under the grant, and was not refused', () => {
     expect(runtimeKill.runtimeAllowList()).toEqual(['*'])
+  })
+})
+
+describe('wired: a test that applies the held withholds is re-granted before the next one', () => {
+  it('applies the committed list and leaves it applied', () => {
+    held.__resetHeldWithholds()
+    expect(held.heldWithholdsState()).toBe('committed')
+  })
+  it('the next test starts with the list ignored (the grant), and was not refused', () => {
+    expect(held.heldWithholdsState()).toBe('ignored')
+  })
+})
+
+describe('wired: asMember({ held }) applies the held withholds in beforeEach, for every test in its scope', () => {
+  asMember({ allow: false, hkd: false, held: true })
+  it('first test: the committed list applied, the other doors left granted', () => {
+    expect(held.heldWithholdsState()).toBe('committed')
+    expect(runtimeKill.runtimeAllowList()).toEqual(['*'])
+    expect(hkd.hostKnownDivergenceActive()).toBe(false)
+  })
+  it('second test: applied again (the root re-grant ran first, and was not refused)', () => {
+    expect(held.heldWithholdsState()).toBe('committed')
+  })
+})
+
+describe('wired: asMember({ held: doc }) applies that document', () => {
+  const doc = { scripts: [{ sha256: 'a'.repeat(64), withholds: [{ door: 'runtime', scope: 'output', title: 'X' }] }] }
+  asMember({ allow: false, hkd: false, held: doc })
+  it('the synthetic document, by its source and withhold', () => {
+    expect(held.heldWithholdsState()).toBe(`doc:${'a'.repeat(64)}=runtime:output:X`)
   })
 })
 
@@ -98,5 +131,14 @@ describe('wired: a beforeAll narrowing fails the next test (GATE-BLIND), never r
   beforeAll(() => { runtimeKill.__resetRuntimeAllowList() })
   it.fails('BLIND would be: the grant silently re-applied over the beforeAll narrowing', () => {
     expect(runtimeKill.runtimeAllowList()).toEqual(['*'])
+  })
+})
+
+// ⛔ The same refusal for the held withholds: before the e89 follow-up they were ignored by a SEPARATE hook in
+// test-setup.js, outside `gateState`, so a beforeAll that applied them was silently undone (GATE-BLIND, unseen).
+describe('wired: a beforeAll that applies the held withholds fails the next test (GATE-BLIND)', () => {
+  beforeAll(() => { held.__resetHeldWithholds() })
+  it.fails('BLIND would be: the held list silently re-ignored over the beforeAll', () => {
+    expect(held.heldWithholdsState()).toBe('ignored')
   })
 })

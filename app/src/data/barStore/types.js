@@ -47,6 +47,7 @@ export const ACTION = Object.freeze({
   SEED_FROM_PACK: 'seed-from-pack',
   IDB_HIT: 'idb-hit',
   LAKE_HIT: 'lake-hit',       // newest history-lake bars painted before the server's first answer (network.lakeSeed)
+  DEVICE_HIT: 'device-hit',   // the on-device bar store's copy (data/deviceStore; persist.hydrate, switch-gated)
   MEM_HIT: 'mem-hit',
   REST_FULL: 'rest-full',
   REST_DELTA: 'rest-delta',
@@ -129,7 +130,7 @@ export const DEV_SRC = Object.freeze({ SERVER: 'server', PUSH: 'push', TICK: 'ti
  * @property {number} baseRev   +1 whenever bars / completeThrough / verifiedThrough change
  * @property {number} devRev    +1 whenever developing changes
  * @property {number} depth     bars.length
- * @property {'pack'|'idb'|'mem'|'rest'|null} source  the newest source that changed base
+ * @property {'pack'|'idb'|'mem'|'lake'|'device'|'rest'|null} source  the newest source that changed base
  * @property {boolean} restSeen   a server answer has been applied since the last invalidate
  * @property {boolean} needsFull  the next request must be a FULL read (delta refused)
  * @property {string|null} error

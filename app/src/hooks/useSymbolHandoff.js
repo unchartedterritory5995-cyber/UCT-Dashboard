@@ -47,7 +47,7 @@ export const COLUMNS_WAIT_MS = 300
 const P = BARSTORE ? storePrefetch : legacyPrefetch
 /** Does the chart's source already hold a D/W/M set for (sym, tf)? */
 function holdsDailySet(sym, tf) {
-  if (BARSTORE && storePrefetch.peekBars(sym, tf)?.length) return true
+  if (BARSTORE && storePrefetch.holdsBars(sym, tf)) return true   // count only: no legacy array per switch
   return !!memPeek(sym, viewCacheTf(tf))?.length
 }
 

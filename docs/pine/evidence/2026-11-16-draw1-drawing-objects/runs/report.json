@@ -3,17 +3,17 @@
   "capture": {
    "scripts": 955,
    "admitted": 777,
-   "runtimeLane": 217,
+   "runtimeLane": 219,
    "hostLane": 302,
-   "refused": 258,
+   "refused": 256,
    "coreOnly": 45
   },
   "committed": {
    "scripts": 266,
    "admitted": 196,
-   "runtimeLane": 47,
+   "runtimeLane": 48,
    "hostLane": 62,
-   "refused": 87,
+   "refused": 86,
    "coreOnly": 4
   },
   "reference": {
@@ -932,8 +932,8 @@
   },
   {
    "capture": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "conditional-ta",
@@ -950,8 +950,8 @@
   },
   {
    "capture": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "conditional-ta",
@@ -18854,7 +18854,7 @@
   },
   {
    "key": "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
-   "lane": null,
+   "lane": "runtime",
    "caps": [
     "conditional-ta",
     "core",
