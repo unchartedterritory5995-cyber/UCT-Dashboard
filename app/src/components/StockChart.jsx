@@ -61,7 +61,7 @@ import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
-import { historyFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
+import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
@@ -9642,7 +9642,8 @@ export default function StockChart({
   // never the IPO badge's five-day tolerance above, which only labels a candle.
   // ⭐ The reference date is `listingReferenceDate` (the corroborated first session
   // when the server sends one, else `list_date`) — NOT the IPO badge's `list_date`.
-  const historyFromListing = useMemo(() => historyFromListingOf({
+  // ⭐⭐ (2026-11-20) and a WEEKLY chart from its listing week, served on capture evidence (`servedFromListingOf`)
+  const historyFromListing = useMemo(() => servedFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
   // ⭐⭐ (coordinator ruling 2026-11-20) — THE LISTING FACT ON A WEEKLY / MONTHLY CHART, stated where it holds and is NOT

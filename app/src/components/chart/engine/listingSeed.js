@@ -96,8 +96,9 @@ export function listingReferenceDate(ipo) {
 // grades it (`LISTING_SERVED_TFS`); where the fact holds and the run is still withheld, the door says so truthfully
 // (`runtime:listing-unverified`), never "the bars don't start at the first trading day".
 
-/** The timeframes where the listing statement also SERVES a run from bar 0. Daily only: W / M join on capture evidence. */
-export const LISTING_SERVED_TFS = Object.freeze(['D'])
+/** The timeframes where the listing statement also SERVES a run from bar 0. W joined on capture evidence (Fred RS on
+ *  NASDAQ:BGIN 1W from the listing, run fred-bgin-w-2026-11-20, graded MATCH); M joins only on its own. */
+export const LISTING_SERVED_TFS = Object.freeze(['D', 'W'])
 
 const DAY_MS = 86400000
 const isoWeekStart = (iso) => {
@@ -123,4 +124,15 @@ export function listingStartOf({ bars, tf, listDate } = {}) {
   if (tf === 'M') return first.slice(0, 7) === day.slice(0, 7)
   const a = isoWeekStart(first)
   return Number.isFinite(a) && a === isoWeekStart(day)
+}
+
+/**
+ * ⭐⭐ THE SERVING SWITCH (`historyFromListing`): a daily chart whose first bar is the listing day (`historyFromListingOf`,
+ * exact), or a chart of a timeframe the listing statement SERVES (`LISTING_SERVED_TFS`) whose first bar holds the listing
+ * (`listingStartOf`). Everything else answers `false`: the bounded window, exactly as before.
+ * @param {{bars: Array<{t: string|number}>, tf: string, listDate: string|null|undefined}} args
+ */
+export function servedFromListingOf({ bars, tf, listDate } = {}) {
+  if (tf === 'D') return historyFromListingOf({ bars, tf, listDate })
+  return LISTING_SERVED_TFS.includes(tf) && listingStartOf({ bars, tf, listDate })
 }

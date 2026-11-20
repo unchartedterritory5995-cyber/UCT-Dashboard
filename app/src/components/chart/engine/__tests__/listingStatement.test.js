@@ -14,7 +14,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../nativeRegistry'
-import { listingStartOf, historyFromListingOf, LISTING_SERVED_TFS } from '../listingSeed'
+import { listingStartOf, historyFromListingOf, servedFromListingOf, LISTING_SERVED_TFS } from '../listingSeed'
 import { listingOptsFor, chartClockReport } from '../astColumns'
 import {
   computeRuntimeColumns, RUNTIME_LISTING_UNVERIFIED_GUARD, RUNTIME_WARMUP_GUARD,
@@ -64,10 +64,15 @@ describe('(a) the FACT: does the chart\'s first bar hold the symbol\'s first tra
 })
 
 describe('(c) THE FACT IS NOT THE PERMISSION: serving from the listing stays daily-only', () => {
-  it('`LISTING_SERVED_TFS` is daily alone, and the serving switch answers false on the listing week', () => {
-    expect(LISTING_SERVED_TFS).toEqual(['D'])
+  it('weekly is SERVED on its capture evidence (BGIN 1W MATCH); monthly is not yet', () => {
+    expect(LISTING_SERVED_TFS).toEqual(['D', 'W'])
+    expect(servedFromListingOf({ bars: [{ t: W_FIRST }], tf: 'W', listDate: LISTED })).toBe(true)
+    expect(servedFromListingOf({ bars: [{ t: '2025-10-31' }], tf: 'W', listDate: LISTED })).toBe(false)   // a week after
+    expect(servedFromListingOf({ bars: [{ t: M_FIRST }], tf: 'M', listDate: LISTED })).toBe(false)        // ⛔ M: not yet
+    expect(servedFromListingOf({ bars: [{ t: LISTED }], tf: 'D', listDate: LISTED })).toBe(true)
+    expect(servedFromListingOf({ bars: [{ t: '2025-10-22' }], tf: 'D', listDate: LISTED })).toBe(false)   // daily stays exact
+    // the daily switch itself is unchanged
     expect(historyFromListingOf({ bars: [{ t: W_FIRST }], tf: 'W', listDate: LISTED })).toBe(false)
-    expect(historyFromListingOf({ bars: [{ t: M_FIRST }], tf: 'M', listDate: LISTED })).toBe(false)
   })
 })
 
