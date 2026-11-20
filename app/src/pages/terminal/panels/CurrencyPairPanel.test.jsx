@@ -151,7 +151,8 @@ describe('BTCUSD GP: the chart', () => {
 
   it('the header gets the source and the newest bar\'s own day, and no day when there is no bar', async () => {
     expect(pairNewestBarUrl('BTCUSD')).toBe(BARS_URL)
-    // the daily chart's own address: no background-warm mark, no session, nothing of the panel's own
+    // the daily chart's own address, whichever of the two chart loaders draws it: no background-warm
+    // mark, no session, nothing of the panel's own
     expect(pairNewestBarUrl('BTCUSD')).toBe(chartBarsUrl('BTCUSD', 'D', false))
     expect(newestBarDay(BARS)).toBe('2026-11-14')
     for (const none of [null, {}, { bars: [] }, { bars: 'x' }, { bars: [{ t: 1794657600 }] }, { bars: [{ t: '11/14/2026' }] }, { bars: [null] }]) {
