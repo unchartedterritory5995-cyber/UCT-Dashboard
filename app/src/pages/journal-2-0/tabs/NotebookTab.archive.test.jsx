@@ -60,6 +60,11 @@ vi.mock('../lib/offline/useDurableNote', async (importOriginal) => ({
 import NotebookTab from './NotebookTab'
 import { recordLandedRevision } from '../lib/offline/useDurableNote'
 import { setCurrentAccountId } from '../lib/offline/currentAccount'
+import { preloadLazyChunks, NOTEBOOK_TAB_CHUNKS } from '../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTEBOOK_TAB_CHUNKS)
 
 let batchCalls = []
 let patchCalls = []

@@ -91,6 +91,11 @@ import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import { MQ } from '../../../styles/breakpoints'
 import { chooseView } from './__tests__/toolbarDoors'
+import { preloadLazyChunks, NOTEBOOK_TAB_CHUNKS } from '../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTEBOOK_TAB_CHUNKS)
 
 /** Turn the offline wave on with a store holding unsent work for `queued`;
  *  a note in `unreadable` fails its own read (R1-S1: it cannot be checked). */
