@@ -28,7 +28,7 @@
 // (getLastResume) and changes nothing else.
 
 import { registerRecoveryStream } from './recoveryRegistry'
-import { newRebuildClock, rebuildDelayFor, noteRebuilt } from './streamRebuildDelay'
+import { REBUILD_GATHER_MS } from './streamRebuildDelay'
 import * as realtimeCandle from './realtimeCandle'
 import {
   STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS, LIVE_UI_CADENCE_MS,
@@ -45,7 +45,8 @@ let _lastResume = null          // the newest `event: resume` declaration, with 
 let _streamPrices = {}
 let _staleSymbols = new Set()
 let _rebuildTimer = null
-let _rebuildClock = newRebuildClock()   // when this pool last changed / reconnected (streamRebuildDelay.js)
+let _lastActivityAt = -Infinity   // the last subscription change or reconnect (streamRebuildDelay.js)
+let _gathering = false            // the pending reconnect is a quiet pool's REBUILD_GATHER_MS wait
 let _watchdogTimer = null
 let _snapshot = { prices: {}, staleSymbols: new Set(), connected: false }
 
@@ -113,14 +114,18 @@ function _union() {
 }
 
 function _scheduleRebuild() {
-  const pending = !!_rebuildTimer
+  const t = Date.now()
+  // gather while a gather is pending, or on a quiet pool; otherwise the full debounce from this change
+  _gathering = (!!_rebuildTimer && _gathering) || t - _lastActivityAt >= REBUILD_DEBOUNCE_MS
+  _lastActivityAt = t
   if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, rebuildDelayFor(_rebuildClock, Date.now(), REBUILD_DEBOUNCE_MS, pending))
+  _rebuildTimer = setTimeout(_rebuild, _gathering ? REBUILD_GATHER_MS : REBUILD_DEBOUNCE_MS)
 }
 
 function _rebuild() {
   _rebuildTimer = null
-  noteRebuilt(_rebuildClock, Date.now())
+  _lastActivityAt = Date.now()
+  _gathering = false
   const union = _union()
   const chunks = []
   for (let i = 0; i < union.length; i += MAX_SSE_TICKERS) {
@@ -343,7 +348,8 @@ registerRecoveryStream({ name: 'prices', reconnectNow, isConnected })
 
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
-  _rebuildClock = newRebuildClock()
+  _lastActivityAt = -Infinity
+  _gathering = false
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
   if (_throttleTimer) { clearTimeout(_throttleTimer); _throttleTimer = null }
   _pendingPublish = false

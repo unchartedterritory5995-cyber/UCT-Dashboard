@@ -5,7 +5,8 @@
 // pool reconnected, so the new symbol's live candle could not arrive before ~400 ms + connect + first frame (measured
 // on production: the stream itself answered 45 ms after it opened).
 //
-// The rule, per pool (one `clock`):
+// The rule, per pool (barsStreamManager / priceStreamManager _scheduleRebuild; two module variables, kept tiny:
+// both pools ride the notebook's first-open bytes budget, tools/notebook_perf_budgets.py):
 //   - a change on a QUIET pool (no change and no reconnect within `debounceMs`) gathers for REBUILD_GATHER_MS — long
 //     enough for every subscriber of one switch (the chart's writer, the legend, the header price) to share one
 //     reconnect — and connects;
@@ -14,37 +15,3 @@
 //     charts over a few hundred ms) waits the full debounce from THIS change, exactly as before: a scan reconnects
 //     once, after it stops, never per row. "Busy" counts the last change as well as the last reconnect.
 export const REBUILD_GATHER_MS = 30
-
-/** A pool's reconnect clock. */
-export function newRebuildClock() {
-  return { lastRebuildAt: -Infinity, lastChangeAt: -Infinity, gathering: false }
-}
-
-/**
- * The wait before the pool reconnects, for a subscription change at `now`. Records the change.
- * @param {{lastRebuildAt:number, lastChangeAt:number, gathering:boolean}} clock
- * @param {number} now           Date.now()
- * @param {number} debounceMs    the pool's debounce (REBUILD_DEBOUNCE_MS)
- * @param {boolean} timerPending a reconnect is already scheduled
- * @returns {number} ms
- */
-export function rebuildDelayFor(clock, now, debounceMs, timerPending) {
-  let wait
-  if (timerPending && clock.gathering) {
-    wait = REBUILD_GATHER_MS
-  } else if (now - Math.max(clock.lastRebuildAt, clock.lastChangeAt) >= debounceMs) {
-    wait = REBUILD_GATHER_MS
-    clock.gathering = true
-  } else {
-    wait = debounceMs
-    clock.gathering = false
-  }
-  clock.lastChangeAt = now
-  return wait
-}
-
-/** The pool reconnected at `now`. */
-export function noteRebuilt(clock, now) {
-  clock.lastRebuildAt = now
-  clock.gathering = false
-}

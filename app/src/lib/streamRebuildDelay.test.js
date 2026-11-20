@@ -1,7 +1,7 @@
 // A single symbol switch reconnects the live pools at once; a keyboard scan still waits the debounce
 // (owner 2026-11-20: a typed 1m switch showed the live candle ~1 s late; the pool waited a flat 400 ms).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { newRebuildClock, rebuildDelayFor, noteRebuilt, REBUILD_GATHER_MS } from './streamRebuildDelay'
+import { REBUILD_GATHER_MS } from './streamRebuildDelay'
 import * as bars from './barsStreamManager'
 import * as prices from './priceStreamManager'
 
@@ -11,20 +11,6 @@ class MockES {
   addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn) }
   close() { this.closed = true }
 }
-
-describe('rebuildDelayFor', () => {
-  it('quiet → gather; within the gather → gather; busy (a recent change or reconnect) → the full debounce', () => {
-    const c = newRebuildClock()
-    expect(rebuildDelayFor(c, 1000, 400, false)).toBe(REBUILD_GATHER_MS)   // quiet pool
-    expect(rebuildDelayFor(c, 1010, 400, true)).toBe(REBUILD_GATHER_MS)    // same switch, gather pending
-    noteRebuilt(c, 1040)
-    expect(rebuildDelayFor(c, 1300, 400, false)).toBe(400)                 // just reconnected
-    expect(rebuildDelayFor(c, 1500, 400, true)).toBe(400)                  // a scan: busy from the last change
-    expect(rebuildDelayFor(c, 1800, 400, true)).toBe(400)                  // 760 ms after the reconnect, still busy
-    expect(rebuildDelayFor(c, 2300, 400, false)).toBe(REBUILD_GATHER_MS)   // rested 500 ms: quiet again
-    expect(REBUILD_GATHER_MS).toBeLessThan(50)
-  })
-})
 
 describe.each([
   ['barsStreamManager', bars, (sym) => bars.subscribe(sym, '1', {})],

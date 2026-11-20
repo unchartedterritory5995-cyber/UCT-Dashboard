@@ -28,7 +28,7 @@
 // onReconnect gap-backfill is unchanged.
 
 import { registerRecoveryStream } from './recoveryRegistry'
-import { newRebuildClock, rebuildDelayFor, noteRebuilt } from './streamRebuildDelay'
+import { REBUILD_GATHER_MS } from './streamRebuildDelay'
 import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
@@ -62,7 +62,8 @@ let _buckets = []               // [{ key, pairs:Set<string>, es, connected, ret
 const _keyState = new Map()     // 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number }
 let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _rebuildTimer = null
-let _rebuildClock = newRebuildClock()   // when this pool last changed / reconnected (streamRebuildDelay.js)
+let _lastActivityAt = -Infinity   // the last subscription change or reconnect (streamRebuildDelay.js)
+let _gathering = false            // the pending reconnect is a quiet pool's REBUILD_GATHER_MS wait
 let _watchdogTimer = null
 // ⭐ KEEP THE EDGE ENTITLEMENT FRESH WHILE A LIVE CHART IS OPEN (2026-11-17, stream-edge).
 // `/api/stream/bars` may be served by stream-edge, which admits a member by the signed
@@ -208,14 +209,18 @@ function _union() {
 }
 
 function _scheduleRebuild() {
-  const pending = !!_rebuildTimer
+  const t = Date.now()
+  // gather while a gather is pending, or on a quiet pool; otherwise the full debounce from this change
+  _gathering = (!!_rebuildTimer && _gathering) || t - _lastActivityAt >= REBUILD_DEBOUNCE_MS
+  _lastActivityAt = t
   if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, rebuildDelayFor(_rebuildClock, Date.now(), REBUILD_DEBOUNCE_MS, pending))
+  _rebuildTimer = setTimeout(_rebuild, _gathering ? REBUILD_GATHER_MS : REBUILD_DEBOUNCE_MS)
 }
 
 function _rebuild() {
   _rebuildTimer = null
-  noteRebuilt(_rebuildClock, Date.now())
+  _lastActivityAt = Date.now()
+  _gathering = false
   const union = _union()
   const chunks = []
   for (const sess of ['rth', 'eth']) {
@@ -442,7 +447,8 @@ registerRecoveryStream({ name: 'bars', reconnectNow, isConnected })
 
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
-  _rebuildClock = newRebuildClock()
+  _lastActivityAt = -Infinity
+  _gathering = false
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
   if (_edgeRefreshTimer) { clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null }
   if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }
