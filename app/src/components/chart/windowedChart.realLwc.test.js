@@ -195,3 +195,14 @@ describe('time lookups and markers respect the window', () => {
     expect(typeof createSeriesMarkers).toBe('function')
   })
 })
+
+describe('every way the app adds a series takes the window', () => {
+  it('a custom series (the thin volume style) is cut like the others', async () => {
+    const { ThinVolumeSeries } = await import('./thinVolumeSeries')
+    const b = board()
+    const thin = b.chart.addCustomSeries(new ThinVolumeSeries(), {})
+    load(b)
+    thin.setData(VOL)
+    expect(rawOf(thin).data()[0].time).toBeGreaterThanOrEqual(b.chart.window.windowStartTime())
+  })
+})

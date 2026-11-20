@@ -411,6 +411,8 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
           const w = wrapSeries(raw, false)
           return w
         }
+        // a custom series (the thin volume style) holds times too: it takes the window like any other
+        case 'addCustomSeries': return (view, options, paneIndex) => wrapSeries(target.addCustomSeries(view, options, paneIndex), false)
         case 'removeSeries': return (w) => {
           const raw = rawOf(w)
           series.delete(w)
