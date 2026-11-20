@@ -162,6 +162,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
 import { HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence'
+import { HELD_DIVERGENCE_STAMP } from './heldWithholds'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
@@ -3683,6 +3684,16 @@ export function validateAstLane(def) {
   return errors
 }
 
+/** ⭐⭐ HELD WITHHOLDS (`engine/heldWithholds.js`) — a served row stamped `meta.heldDivergence` is refused with the
+ *  server's sentence and kept (killedIds: the installed copy leaves this tab, the stored row is untouched). */
+function heldDivergenceRefused(def, errors, killedIds) {
+  const why = def.meta && def.meta[HELD_DIVERGENCE_STAMP]
+  if (typeof why !== 'string' || !why) return false
+  errors.push(`${def.id}: ${why} — the saved definition is kept, unchanged.`)
+  killedIds.push(def.id)
+  return true
+}
+
 /**
  * VALIDATE definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
  *
@@ -3746,6 +3757,10 @@ export function validateUserDefinitions(rawDefs) {
       // `meta.runtimeKilled`, or latched from the auth payload) is not drawn —
       // refused with the reason, and left in the store untouched.
       const meta = def.meta || {}
+      // ⭐⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a saved copy minted before its script's narrow
+      // withholds is served stamped `meta.heldDivergence` (`runtime_definitions.stamp_served`): not drawn, refused
+      // with the server's sentence, by name, and kept in the store untouched.
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a runtime copy
       // ⭐ GT (D6) — a stored row whose script is not on the server's starter
       // allowlist is served stamped `meta.runtimeNotGraded` and refused the same
       // way: kept in the store, drawn again once the script is listed. The server
@@ -3789,6 +3804,8 @@ export function validateUserDefinitions(rawDefs) {
         killedIds.push(def.id)
         continue
       }
+      // ⭐⭐ HELD WITHHOLDS — a saved host copy minted before its script's narrow withholds, the same way
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a host copy
       const laneErrors = validateAstLane(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
