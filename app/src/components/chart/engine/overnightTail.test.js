@@ -199,6 +199,8 @@ describe('the run: cut at the overnight tail, everything before drawn exactly as
   // ⭐⭐ (e91) A STRATEGY'S WINDOW: the cut its window run finds is in the WINDOW's indices. ⚰️ `computeStrategyWindow`
   // moved only `err.bar` into the chart's, so #2135's cut (e89) landed `shift` bars early on a strategy over a window
   it("⛔ a strategy run over a window (`historyWindowBars`) is cut at the CHART's first overnight bar, not the window's index", () => {
+    // the broker emulator is on (a strategy document whose program holds no broker is refused, `pine:strategy-call`)
+    vi.stubEnv('VITE_PINE_STRATEGY_BROKER_ENABLED', '1')
     const rows = chartOf(5)
     const cut = indexAt(rows, ET(DAY, ...TF[5].nightFrom))
     const shift = 30
