@@ -61,8 +61,8 @@
    "id": "P8",
    "mutant": "a fetched window does not record the depth it asked",
    "file": "app/src/components/chart/engine/secondaryBars.js",
-   "from": "      const entry = _read(payload, bars)\r\n      _cache.set(url, entry)",
-   "to": "      const entry = _read(payload)\r\n      _cache.set(url, entry)",
+   "from": "      const entry = _read(payload, bars)\n      _cache.set(url, entry)",
+   "to": "      const entry = _read(payload)\n      _cache.set(url, entry)",
    "rail": "cd app && npx vitest run src/components/chart/engine/requestPageEdge.test.js"
   },
   {
