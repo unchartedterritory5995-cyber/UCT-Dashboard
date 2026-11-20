@@ -148,9 +148,8 @@ const noSymbol = (label, what) => refusal({
  *  reaches before about 2007 is one (5,000 daily bars), and the trigger is the run's own rule, never a date guessed
  *  here. */
 export const DEEP_HISTORY_RULE = 'B-START-DEEP'
-export const DATA_SOURCE_SENTENCE = "this backtest runs on UCT's own price history, which agrees with TradingView's on "
-  + 'almost every day but not all (mostly before 1991, and a few single bad prints), so its trades and totals can '
-  + "differ slightly from TradingView's Strategy Tester"
+export const DATA_SOURCE_SENTENCE = "This backtest runs on UCT's own price history, which agrees with TradingView's on "
+  + "almost every day but not all, so its trades and totals can differ slightly from TradingView's Strategy Tester."
 
 /** D2: the start date and sentence are READ from the record (one authority), never recomputed. The data-source
  *  sentence rides beside it on a deep-window run only (`DATA_SOURCE_SENTENCE`), read from the record's own rules. */

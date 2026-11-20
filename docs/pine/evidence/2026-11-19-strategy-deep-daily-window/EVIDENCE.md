@@ -167,8 +167,11 @@ with Yahoo on 57 of SPY's 73 and 1,700 of AAPL's 1,731 differing days). The per-
 member's own chart bars, and so is this backtest. Every deep-window report (its run asked [B-START-DEEP]; any report that
 reaches before about 2007 is one) carries, beside its start sentence:
 
-> This backtest runs on UCT's own price history, which agrees with TradingView's on almost every day but not all (mostly
-> before 1991, and a few single bad prints), so its trades and totals can differ slightly from TradingView's Strategy Tester.
+> This backtest runs on UCT's own price history, which agrees with TradingView's on almost every day but not all, so its
+> trades and totals can differ slightly from TradingView's Strategy Tester.
+>
+> (2026-11-20, corrected: the first wording added "mostly before 1991, and a few single bad prints", which is false for
+> SPY: its differing trades run 1994-2011, and SPY has no bar before 1993.)
 
 `brokerReport.js::DATA_SOURCE_SENTENCE` (the report's `window.dataSentence`, read from the record's own rules; no other
 report carries the key) and `StrategyReportPanel` (verbatim, `role="note"`, on every tab, the refused report included).

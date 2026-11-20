@@ -305,8 +305,10 @@ describe('W9-T13a window and run-wide refusals', () => {
   it('a deep-window run (its record used [B-START-DEEP]) says it runs on UCT own price history; control: no other run does', () => {
     expect(DEEP_HISTORY_RULE).toBe('B-START-DEEP')
     expect(BROKER_RULE_IDS).toContain(DEEP_HISTORY_RULE)
-    expect(DATA_SOURCE_SENTENCE).toMatch(/^this backtest runs on UCT's own price history/)
-    expect(DATA_SOURCE_SENTENCE).toMatch(/TradingView's Strategy Tester$/)
+    // the coordinator's wording, verbatim (2026-11-20): no claim about WHEN the histories differ (SPY's differing
+    // trades run 1994-2011 and SPY has no bar before 1993)
+    expect(DATA_SOURCE_SENTENCE).toBe("This backtest runs on UCT's own price history, which agrees with TradingView's on "
+      + "almost every day but not all, so its trades and totals can differ slightly from TradingView's Strategy Tester.")
     const deep = { ...A, rulesUsed: [...A.rulesUsed, DEEP_HISTORY_RULE] }
     expect(strategyRecordShapeErrors(deep)).toEqual([])
     const rep = strategyReportOf(deep, { isPinned: ALL })
