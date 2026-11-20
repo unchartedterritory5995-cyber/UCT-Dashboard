@@ -204,7 +204,8 @@ describe('the run: cut at the overnight tail, everything before drawn exactly as
     const rows = chartOf(5)
     const cut = indexAt(rows, ET(DAY, ...TF[5].nightFrom))
     const shift = 30
-    const src = ['//@version=5', 'strategy("night-s", overlay = false)', 'plot(request.security("SP:SPX", timeframe.period, close))'].join(LF)
+    const src = ['//@version=5', 'strategy("night-s", overlay = false)', 'if bar_index == 3', '    strategy.entry("L", strategy.long)',
+      'plot(request.security("SP:SPX", timeframe.period, close))'].join(LF)
     const def = { id: 'night-s', meta: { runtimeHistory: STRATEGY_WINDOW_HISTORY },
       compute: { kind: 'runtime', fn: 'runtime:night-s', outputs: { a: 0 }, source: src } }
     const r = run(def, rows, ctxOf(5, secondaryOf(spxOf(5)), { historyWindowBars: rows.length - shift }))
