@@ -11717,9 +11717,9 @@ export default function StockChart({
         hoveredSeriesOnTop: false,
       }))
       chartRef.current = chart
-      if (plotWindowRef.current?.rw) { plotWindowRef.current.rw.applied = false; applyRenderWindow(chart, plotWindowRef.current.rw) }
       // The library's layout <table> is not a data table (utils/chartLayoutTable.js).
       markChartLayoutPresentational(chart)
+      if (plotWindowRef.current?.rw) { plotWindowRef.current.rw.applied = false; applyRenderWindow(chart, plotWindowRef.current.rw) }
       // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
       // the mobile pinch gate needs the visible logical range and every
       // pixel/UI side-channel for it proved unreliable (gridlines light every
