@@ -65,9 +65,9 @@
   border-right: 1px solid var(--dr-line);
 }
 .idTop { display: flex; align-items: center; gap: 8px; }
-/* Mark day / Replay from this day: two small chips under the date (the identity column is
-   three rows in the same 100px band). */
-.dayTools { display: flex; align-items: center; gap: 4px; margin-left: -6px; }
+/* Mark day / Replay from this day: two small chips under the view tabs, right-aligned with
+   them (the close button's 28px + 10px gap sits to their right). */
+.dayTools { display: flex; align-items: center; gap: 4px; margin-right: 38px; }
 .dayChip {
   display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
   border: 0; border-radius: 6px; background: transparent; cursor: pointer; white-space: nowrap;
@@ -165,7 +165,8 @@ span.metric:hover { background-color: transparent; }
 .viewBtn[aria-pressed='true'] { color: var(--dr-bright); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ut-gold); }
 .viewBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
-.headEnd { display: flex; align-items: center; gap: 10px; padding: 0 8px 0 16px; margin-left: auto; flex-shrink: 0; }
+.headEnd { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 8px; padding: 0 8px 0 16px; margin-left: auto; flex-shrink: 0; }
+.headEndTop { display: flex; align-items: center; gap: 10px; }
 .closeBtn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px;
@@ -359,5 +360,7 @@ span.metric:hover { background-color: transparent; }
   .tile { order: 3; flex-basis: 100%; padding: 0; border-right: 0; }
   .tileLbl { display: none; }
   .headEnd { padding: 0; gap: 6px; }
+  .headEndTop { gap: 6px; }
+  .dayTools { margin-right: 0; }
   .closeBtn { width: var(--tap-min); height: var(--tap-min); }
 }

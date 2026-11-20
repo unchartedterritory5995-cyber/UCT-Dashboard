@@ -34,7 +34,6 @@ export function ScanHeader({
           {badge && <span className={styles.badge}>{badge}</span>}
         </div>
         {dateNav && <div className={styles.dateWrap}>{dateNav}</div>}
-        {dayTools}
       </div>
 
       <CountHistory count={count} ctx={ctx} onWantDays={onWantDays} {...(tile || {})} />
@@ -45,7 +44,10 @@ export function ScanHeader({
 
       <RankLine reading={reading} loading={readingLoading} onHistory={onHistory} histOpen={histOpen} />
 
+      {/* View tabs + close on top; Mark day / Replay under the tabs (owner 2026-11-19: both are
+          about how the charts below look, and the right side had the room). */}
       <div className={styles.headEnd}>
+        <div className={styles.headEndTop}>
         {children}
         {modes?.length > 0 && (
           <div className={styles.viewTabs} role="group" aria-label="View">
@@ -63,6 +65,8 @@ export function ScanHeader({
             <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
           </svg>
         </button>
+        </div>
+        {dayTools}
       </div>
     </div>
   )
