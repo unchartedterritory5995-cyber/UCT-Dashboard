@@ -591,8 +591,6 @@ function computeStrategyWindow(def, rows, ctx, opts) {
     cols = computeRuntimeColumnsOnce(def, rows.slice(cut), { ...(ctx || {}), historyFromListing: false }, opts)
   } catch (err) {
     if (err && Number.isInteger(err.bar)) err.bar += cut
-    // ⭐ (e91) and a cut found in the window (an overnight tail, a tail lag) is the chart's bar too
-    if (err && Number.isInteger(err.cutAt)) err.cutAt += cut
     throw err
   }
   // the record is keyed by bar TIME, so it rides the widened columns unchanged
