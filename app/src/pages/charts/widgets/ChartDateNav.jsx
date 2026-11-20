@@ -189,7 +189,8 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
     let alive = true, timer = 0
     const tick = () => {
       if (!alive) return
-      const m = paneRef?.current?.getDateMeta?.() || null
+      // lite: the five fields this field shows, not the Agent's full read-back (4×/s for the page's life)
+      const m = paneRef?.current?.getDateMeta?.({ lite: true }) || null
       const sig = m ? `${m.rightMs}|${m.firstYear}|${m.lastYear}|${m.fullyLoaded}|${m.loading}` : 'null'
       if (sig !== sigRef.current) { sigRef.current = sig; setMeta(m) }
       timer = setTimeout(tick, 250)

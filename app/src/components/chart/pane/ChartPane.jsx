@@ -1096,7 +1096,7 @@ function ChartPane({
     goToYear: (y) => dateNavApiRef.current?.goToYear?.(y),
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
-    getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
+    getDateMeta: (opts) => (dateNavApiRef.current?.getDateMeta?.(opts) || null),
     // ⭐ UCT Agent: the range bar (and its Undo), Reset view, hide-all-indicators, the ◀ / ▶ step, Auto-scale and the + / - zoom, read back through getDateMeta. A VIEW; nothing saved here.
     viewDo: (op, arg) => {
       const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'].includes(op) ? dateNavApiRef.current?.[op]
