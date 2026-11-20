@@ -6006,7 +6006,7 @@ export function chartDayRegime(tf, pack) {
     const weekday = dow >= 2 && dow <= 6
     if (weekday && second >= SESSION_OPEN_SECONDS && second < SESSION_CLOSE_SECONDS) continue
     if (weekday && second >= EXTENDED_OPEN_SECONDS && second < EXTENDED_CLOSE_SECONDS) { ext = true; continue }
-    if (!overnight) overnight = new Uint8Array(n)
+    if (!overnight) overnight = new Float64Array(n)
     overnight[i] = 1
   }
   if (daily) return { kind: sat && sun ? 'around-the-clock' : (sat || sun ? 'off-session' : 'daily'), overnight: null }
