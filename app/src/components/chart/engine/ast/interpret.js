@@ -5903,6 +5903,155 @@ export function isSessionDayGate(node) {
     && matchesShape(node.args[0], SESSION_DAY_GATE_COND) && matchesShape(node.args[2], ccNa())
 }
 
+/** ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — `time("D", session)` FOR A WINDOW OF ONE DAY IN THE EXCHANGE'S ZONE:
+ *  the gated daily tree (`sessionDayGateNode`) `pine.js::sessionClockOf` writes for a window that does not wrap
+ *  past midnight and names no fixed zone, built HERE so the translation and the recogniser below
+ *  (`sessionDayWindowOf`) are one builder. Inside the window the value is the window's START on the bar's day:
+ *  `time − (minute of day − start) · 60` (the daily grid, `86400`). That is what TradingView answered on every
+ *  bar of `vw-bi-time-d-extended-spy-60-2026-11-19` (S1 "0930-1600", S2 "0400-2000", S3 "1000-1100", S4
+ *  "1600-2000": the start of the window, also where the bar opens after it), and on a daily chart it is the
+ *  daily tree the 1D captures measured. `days` is the sorted day list (Pine's 1-7) or null for every day. */
+export function sessionDayWindowNode(start, end, days, ms) {
+  const minuteOfDay = () => ccOp('+', [ccOp('*', [ccLeaf('hour'), ccNum(60)]), ccLeaf('minute')])
+  let inside = ccOp('&&', [ccOp('>=', [minuteOfDay(), ccNum(start)]), ccOp('<', [minuteOfDay(), ccNum(end)])])
+  if (days) {
+    inside = ccOp('&&', [inside, days.map((k) => ccOp('==', [ccLeaf('dayofweek'), ccNum(k)]))
+      .reduce((acc, t) => (acc ? ccOp('||', [acc, t]) : t), null)])
+  }
+  const secs = ccOp('-', [ccLeaf('time'),
+    ccCall('mod', [ccOp('*', [ccOp('-', [minuteOfDay(), ccNum(start)]), ccNum(60)]), ccNum(CLOCK_PERIOD_SECONDS.D)])])
+  return sessionDayGateNode(ccOp('?:', [inside, ms ? ccOp('*', [secs, ccNum(1000)]) : secs, ccNa()]))
+}
+/** The window of a `sessionDayWindowNode` gate — `{start, end, days, ms}` — or null for any other gate (a window
+ *  that wraps past midnight, one in a fixed zone, a membership-only read). Read from the tree and then REBUILT and
+ *  compared node for node, so a near miss is never taken for the shape. */
+export function sessionDayWindowOf(gate) {
+  if (!isSessionDayGate(gate)) return null
+  const child = gate.args[1]
+  if (!child || child.type !== 'op' || child.name !== '?:' || !Array.isArray(child.args) || child.args.length !== 3) return null
+  let inside = child.args[0]
+  let days = null
+  const range = (n) => n && n.type === 'op' && n.name === '&&' && Array.isArray(n.args) && n.args.length === 2
+    && n.args[0] && n.args[0].type === 'op' && n.args[0].name === '>='
+  if (!range(inside) && inside && inside.type === 'op' && inside.name === '&&' && Array.isArray(inside.args)) {
+    days = []
+    const stack = [inside.args[1]]
+    while (stack.length) {
+      const t = stack.pop()
+      if (t && t.type === 'op' && t.name === '||' && Array.isArray(t.args)) { stack.push(...t.args); continue }
+      const k = t && t.type === 'op' && t.name === '==' && Array.isArray(t.args) && t.args[1] ? t.args[1].value : undefined
+      if (typeof k !== 'number') return null
+      days.push(k)
+    }
+    days.sort((a, b) => a - b)
+    inside = inside.args[0]
+  }
+  if (!range(inside)) return null
+  const start = inside.args[0].args && inside.args[0].args[1] ? inside.args[0].args[1].value : undefined
+  const endNode = inside.args[1] && inside.args[1].args ? inside.args[1].args[1] : undefined
+  const end = endNode ? endNode.value : undefined
+  if (typeof start !== 'number' || typeof end !== 'number') return null
+  for (const ms of [true, false]) {
+    if (matchesShape(gate, sessionDayWindowNode(start, end, days, ms))) return { start, end, days, ms }
+  }
+  return null
+}
+
+/** ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — WHICH DAY A CHART'S BARS KEEP, for `time("D")` and `time("D", session)`.
+ *  ONE decision, read by the evaluator (`interpretOnce`'s `chartClockValue`) and by the mask (`chartClockWhole`,
+ *  `overnightDayMask`), from the chart's own clock (`pack`: `dayofweek * 10000 + hour * 100 + minute`, New York):
+ *    `period`           a 1W / 1M chart: the anchor is the bar's own 09:30 stamp (T06 of `vw-time-tf-spy-{1w,1m}`).
+ *    `daily`            a 1D chart of Monday-to-Friday bars: 09:30 (R6, `vw-bt-time-1440-spy-1d-2026-11-16`).
+ *    `regular`          an intraday chart whose every bar opens 09:30-16:00, Monday to Friday: 09:30 (R6 on the
+ *                       regular-hours 60m capture).
+ *    `extended`         an intraday chart with a pre-market or after-hours bar (04:00-09:30 or 16:00-20:00,
+ *                       Monday to Friday): 04:00, the start of the session those bars belong to (A1 / A2 / A4 /
+ *                       A5 of `vw-bi-time-d-extended-spy-60-2026-11-19`, AMEX:SPY session "0400-2000", every bar).
+ *                       An OVERNIGHT bar there (20:00-04:00, or a closed day) is in no session TradingView's chart
+ *                       of the symbol shows; `overnight` marks each one, and `overnightDayMask` withholds them.
+ *    `around-the-clock` a chart that trades through the weekend: a 1D chart with a Saturday AND a Sunday bar, or an
+ *                       intraday one with a bar on Saturday, on Sunday before 20:00 or on Friday from 20:00 (hours
+ *                       no US equity session, the overnight one included, covers). TradingView starts the day at
+ *                       00:00 in the EXCHANGE's zone there (`vw-bi-time-d-extended-btcusd-60-2026-11-19`, Etc/UTC),
+ *                       and this engine reads every clock in New York: withheld by name (`time-day:exchange-zone`).
+ *                       ⛔ A 24-hour window that holds no weekend cannot be told from an equity chart by its bars;
+ *                       the product charts no 24-hour symbol intraday (its currency pairs are D / W / M).
+ *    `off-session`      anything else (a 1D chart with ONE weekend day; regular-hours bars beside overnight bars with
+ *                       no pre-market or after-hours bar): unmeasured, withheld by name (`time-day:off-session`).
+ *    `unreadable`       a bar with no readable clock.   `unwitnessed`: no timeframe this decision reads. */
+export const EXTENDED_OPEN_SECONDS = 4 * 3600
+const EXTENDED_CLOSE_SECONDS = 20 * 3600
+/** The two open times `time("D")`'s tree can be read at: the tree holds 09:30 (`dayAnchorNode`), an extended chart
+ *  reads it this many seconds earlier. */
+export const EXTENDED_ANCHOR_SHIFT = SESSION_OPEN_SECONDS - EXTENDED_OPEN_SECONDS
+export function chartDayRegime(tf, pack) {
+  if (tf === 'W' || tf === 'M') return { kind: 'period', overnight: null }
+  const daily = tf === 'D'
+  if (!daily && !/^[0-9]+$/.test(String(tf))) return { kind: 'unwitnessed', overnight: null }
+  const n = pack ? pack.length : 0
+  let sat = false
+  let sun = false
+  let weekend = false
+  let ext = false
+  let overnight = null
+  for (let i = 0; i < n; i++) {
+    const v = pack[i]
+    if (v !== v) return { kind: 'unreadable', overnight: null }
+    const dow = Math.floor(v / 10000)
+    if (dow === 7) sat = true
+    else if (dow === 1) sun = true
+    if (daily) continue
+    const second = Math.floor((v % 10000) / 100) * 3600 + (v % 100) * 60
+    if (dow === 7 || (dow === 1 && second < EXTENDED_CLOSE_SECONDS) || (dow === 6 && second >= EXTENDED_CLOSE_SECONDS)) weekend = true
+    const weekday = dow >= 2 && dow <= 6
+    if (weekday && second >= SESSION_OPEN_SECONDS && second < SESSION_CLOSE_SECONDS) continue
+    if (weekday && second >= EXTENDED_OPEN_SECONDS && second < EXTENDED_CLOSE_SECONDS) { ext = true; continue }
+    if (!overnight) overnight = new Uint8Array(n)
+    overnight[i] = 1
+  }
+  if (daily) return { kind: sat && sun ? 'around-the-clock' : (sat || sun ? 'off-session' : 'daily'), overnight: null }
+  if (weekend) return { kind: 'around-the-clock', overnight: null }
+  if (ext) return { kind: 'extended', overnight }
+  return { kind: overnight ? 'off-session' : 'regular', overnight: null }
+}
+/** The kinds whose `time("D")` anchor is served (on `extended` per bar, and only for a Pine evaluation:
+ *  `dayRegimeServes`). */
+const DAY_SERVED_KINDS = Object.freeze(['period', 'daily', 'regular', 'extended'])
+/** Does this evaluation serve the anchor on a chart of this kind? `extended` is read only by a PINE evaluation
+ *  (`pineCompareOn`: the member door's Pine documents, the runtime lane, the server lanes' `lane_opts_for`), which
+ *  is where the evaluator answers 04:00 for it; any other evaluation of the shape reads it as it always did, so it
+ *  is withheld there exactly as before (`time-day:off-session`), never drawn at 09:30 under `time("D")`'s name. */
+function dayRegimeServes(kind, opts) {
+  return DAY_SERVED_KINDS.includes(kind) && (kind !== 'extended' || pineCompareOn(opts))
+}
+/** ⭐⭐ U-BUILTIN T-D EXT — is this `time("D", session)` gate answered (its daily tree read through the gate) on a
+ *  chart of this kind, below a daily one? `extended`: a window of one day in the exchange's zone that STARTS inside
+ *  the chart's session, 04:00-20:00 (S1-S4 measured four of them, starts 04:00, 09:30, 10:00, 16:00);
+ *  `regular` and `period`: a window that starts at 09:30 (R2; on 1W / 1M the bar's own 09:30 stamp, as the anchor).
+ *  Anything else is withheld by name (`time-session:day-on-other-chart`). Unlike the anchor this asks no Pine
+ *  evaluation: the value read through the gate is the gated tree's own, the same formula whoever evaluates it. */
+function sessionDayGateServed(gate, kind) {
+  const w = sessionDayWindowOf(gate)
+  if (!w) return false
+  if (kind === 'extended') return w.start * 60 >= EXTENDED_OPEN_SECONDS && w.start * 60 < EXTENDED_CLOSE_SECONDS
+  if (kind === 'regular' || kind === 'period') return w.start * 60 === SESSION_OPEN_SECONDS
+  return false
+}
+/** On an extended chart, each OVERNIGHT bar carries the value of the last bar before it that is not one (`NaN`
+ *  before the first). Those bars are withheld (`overnightDayMask`); the carry is what makes the bar AFTER them
+ *  exact: TradingView's previous bar is that last in-session bar, so a read one bar back (`ta.change(time("D"))`
+ *  on the 04:00 bar, which starts the new day) reads what TradingView reads. */
+function carryOverOvernight(col, overnight, n) {
+  const out = Float64Array.from(toColumn(col, n))
+  if (!overnight) return out
+  let held = NaN
+  for (let i = 0; i < n; i++) {
+    if (overnight[i]) out[i] = held
+    else held = out[i]
+  }
+  return out
+}
+
 /** ⭐⭐ C36 — `time_close("W")` AND `time_close("M")` ON A DAILY CHART: the close of
  *  the period's LAST SESSION, as TradingView's calendar schedules it.
  *
@@ -6029,32 +6178,52 @@ export const RCI_LEFT_EDGE = 'rci:left-edge'
  *  the same string, and the member door shows it. */
 export const BOOL_NA_UNWITNESSED = 'pine:bool-na-unwitnessed'
 export const TIE_UNWITNESSED = 'pine:tie-unwitnessed'
-/** ⭐ U-BUILTIN T-D — the two codes the `time("D")` fix withholds by (`chartClockWhole`). */
+/** ⭐ U-BUILTIN T-D — the codes the `time("D")` fix withholds by (`chartClockWhole`, `overnightDayMask`). */
 export const DAY_OFF_SESSION = 'time-day:off-session'
 export const DAY_SESSION_OTHER_CHART = 'time-session:day-on-other-chart'
 export const DAY_NO_TIMEFRAME = 'time-day:no-timeframe'
+/** ⭐ U-BUILTIN T-D EXT (2026-11-20) — a chart that trades around the clock (withheld whole), and an overnight bar
+ *  of an extended-hours chart (withheld per bar). `chartDayRegime` says which chart is which. */
+export const DAY_EXCHANGE_ZONE = 'time-day:exchange-zone'
+export const DAY_OVERNIGHT = 'time-day:overnight'
 export const CHART_CLOCK_WITHHELD = Object.freeze({
-  [DAY_OFF_SESSION]: (tf) => '`time("D")` is the open of the session the bar is in: 09:30 New York, measured '
-    + 'against TradingView on AMEX:SPY daily bars and regular-hours 60-minute bars (capture '
-    + `\`vw-bt-time-1440-spy-{1d,60}-2026-11-16\`). This ${tfSpelled(tf)} chart holds a bar outside 09:30-16:00 `
-    + 'New York, Monday to Friday (a pre-market, after-hours, overnight or weekend bar, or the daily bar of a '
-    + 'symbol that trades weekends), where the day may start on a different bar from the one a 09:30 open puts '
-    + 'it on, and the bar on which the day starts on TradingView there has not been measured. So everything this '
-    + 'indicator draws from it is withheld on this chart rather than drawn off the wrong day. On a daily chart, '
-    + 'or with extended hours switched off, it draws. What would settle it: capture Q-BI-TD1 '
-    + '(`vw-bi-time-d-extended.pine` on AMEX:SPY 5 and 60 with the extended session on, and BITSTAMP:BTCUSD 60).',
+  [DAY_OFF_SESSION]: (tf) => '`time("D")` is the open of the session the bar is in: 09:30 New York on daily bars '
+    + 'and on a chart of regular-hours bars, 04:00 on a chart with pre-market and after-hours bars, measured '
+    + 'against TradingView on AMEX:SPY (captures `vw-bt-time-1440-spy-{1d,60}-2026-11-16` and '
+    + `\`vw-bi-time-d-extended-spy-60-2026-11-19\`). This ${tfSpelled(tf)} chart's bars are neither shape (the daily `
+    + 'bars of a symbol that trades on one weekend day, or regular-hours bars beside overnight bars with no '
+    + 'pre-market or after-hours bar), and the bar on which the day starts on TradingView there has not been '
+    + 'measured. So everything this indicator draws from it is withheld on this chart rather than drawn off the '
+    + 'wrong day. On a daily chart, a regular-hours chart or an extended-hours one, it draws. What would settle it: '
+    + 'a capture of `vw-bi-time-d-extended.pine` on a chart of this shape.',
+  [DAY_EXCHANGE_ZONE]: (tf) => 'On a chart that trades around the clock, TradingView starts the day at 00:00 in the '
+    + 'exchange\'s own time zone (measured on BITSTAMP:BTCUSD 60, whose zone is UTC: capture '
+    + '`vw-bi-time-d-extended-btcusd-60-2026-11-19`, every bar). This engine reads every clock in New York time and '
+    + `is not told the exchange's zone, so on this ${tfSpelled(tf)} chart \`time("D")\` would start the day on the `
+    + 'wrong bar. Everything this indicator draws from `time("D")` or `time("D", session)` is withheld here rather '
+    + 'than drawn off the wrong day; on a US equity chart it draws. What would settle it: clocks read in the '
+    + 'exchange\'s own zone (an engine change, not a capture).',
+  [DAY_OVERNIGHT]: (tf) => '`time("D")` on a chart with pre-market and after-hours bars is the 04:00 New York open '
+    + 'of the session the bar is in, and the 04:00 bar starts the new day (capture '
+    + '`vw-bi-time-d-extended-spy-60-2026-11-19`, AMEX:SPY session 0400-2000, every bar). TradingView\'s chart of '
+    + `the symbol shows no bar between 20:00 and 04:00 or on a closed day, so on those bars of this ${tfSpelled(tf)} `
+    + 'chart there is no answer to copy: what this indicator draws from `time("D")` is withheld on them (and, for a '
+    + 'value read further back, on the bars that read them), and every other bar draws. What would settle it: '
+    + 'nothing to capture; TradingView shows no such bar.',
   [DAY_NO_TIMEFRAME]: () => '`time("D")` and `time("D", session)` are read on a chart: the open of the '
     + 'session a bar is in, and whether the bar falls in a window of that day. These bars state no timeframe '
     + '(an alert or a scan reading a saved indicator), so neither has an answer here, and everything this '
     + 'indicator draws from them is withheld rather than read as `na`. On a chart it draws. What would settle '
     + 'it: nothing to capture; the bars need their timeframe.',
-  [DAY_SESSION_OTHER_CHART]: (tf) => '`time("D", session)` is measured on daily bars, and on intraday bars for '
-    + 'a window that opens at 09:30 New York (where the start of the window and the open of the day are the same '
-    + `instant: capture \`vw-bt-time-1440-spy-60-2026-11-16\`). This indicator asks it for another window on this `
-    + `${tfSpelled(tf)} chart, where whether TradingView answers the start of the window or the open of the day `
-    + 'has not been measured, so everything this indicator draws from it is withheld on this chart rather than '
-    + 'assumed. On a daily chart it draws. What would settle it: capture Q-BI-TD1c (`vw-bi-time-d-extended.pine` '
-    + 'row S3 on AMEX:SPY 60).',
+  [DAY_SESSION_OTHER_CHART]: (tf) => '`time("D", session)` is the start of the window on the bar\'s day, measured '
+    + 'on daily bars, on regular-hours intraday bars for a window that opens at 09:30 New York (capture '
+    + '`vw-bt-time-1440-spy-60-2026-11-16`), and on a chart with pre-market and after-hours bars for windows that '
+    + 'start between 04:00 and 20:00 (`vw-bi-time-d-extended-spy-60-2026-11-19`, rows S1-S4). This indicator asks it '
+    + `on this ${tfSpelled(tf)} chart for a window none of those measured (one that starts at another time on a `
+    + 'regular-hours or weekly chart, starts outside 04:00-20:00, runs past midnight, or names a fixed zone), so '
+    + 'everything this indicator draws from it is withheld on this chart rather than assumed. On a daily chart it '
+    + 'draws. What would settle it: capture Q-BI-TD1c (`vw-bi-time-d-extended.pine` row S3 on AMEX:SPY 60 with the '
+    + 'extended session off) for a regular-hours chart; a capture of the window itself otherwise.',
   'time-anchor:not-daily': (tf) => `${ANCHOR_SPELLED} — the opening time of the bar's week, month, `
     + 'quarter or year — are read here on 5-minute, 15-minute, 60-minute, 1D, 1W and 1M charts, the '
     + 'timeframes measured against TradingView on AMEX:SPY (captures `vw-time-tf-spy-{5,15,1d-full,1w,1m}-2026-10-01`, '
@@ -6289,7 +6458,7 @@ export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
   'time-clock:weekend-session', 'running-total:window', 'var-origin:window',
   OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE, DAY_OFF_SESSION, DAY_SESSION_OTHER_CHART,
-  DAY_NO_TIMEFRAME])
+  DAY_NO_TIMEFRAME, DAY_EXCHANGE_ZONE])
 
 /** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
  *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
@@ -6532,36 +6701,91 @@ function chartClockWhole(tree, bars, inputs, budget, scalars, opts) {
   // ⭐ And bars that state no timeframe (a server lane handed a saved pane) hold no `dayopentime` and no
   // bar length to gate on: the anchor is blank there and `ta.change(time("D"))` read a confident 0 on every
   // bar, so it is withheld by name (`time-day:no-timeframe`), as a `time("W")` anchor is there.
+  // ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — where each is served is `chartDayRegime`'s one decision: a chart that
+  // trades around the clock withholds both by `time-day:exchange-zone`; an extended-hours chart serves the anchor
+  // (at 04:00, its overnight bars withheld per bar by `overnightDayMask`) and the windows `sessionDayGateServed`
+  // names.
   const tfStated = typeof tf === 'string' && tf !== ''
   if ((scan.days.length || scan.dayGates.length) && !tfStated) add(DAY_NO_TIMEFRAME)
-  if (scan.days.length && tfStated && regime.kind !== 'unreadable'
-      && !dayAnchorServedOn(tf, bars, inputs, budget, scalars, opts)) add(DAY_OFF_SESSION)
-  if (scan.dayGates.length && tfStated && tf !== 'D') add(DAY_SESSION_OTHER_CHART)
+  const day = tfStated && regime.kind !== 'unreadable' && (scan.days.length || (scan.dayGates.length && tf !== 'D'))
+    ? chartDayRegimeOf(tf, bars, inputs, budget, scalars, opts) : null
+  if (day && day.kind === 'around-the-clock') add(DAY_EXCHANGE_ZONE)
+  else if (day) {
+    if (scan.days.length && !dayRegimeServes(day.kind, opts)) add(DAY_OFF_SESSION)
+    if (scan.dayGates.length && tf !== 'D' && !scan.dayGates.every((g) => sessionDayGateServed(g, day.kind))) {
+      add(DAY_SESSION_OTHER_CHART)
+    }
+  }
   nameChartClock(opts, why, tf)
   return { scan, why, regime, everyDay: regime.kind === 'every-day' }
 }
 
-/** ⭐⭐ U-BUILTIN T-D — IS `time("D")`, 09:30 NEW YORK, TRADINGVIEW'S ANSWER ON THESE BARS?
- *  Yes on a 1D chart of Monday-to-Friday bars (R6, `vw-bt-time-1440-spy-1d-2026-11-16`: 0 on 8,508 bars), on
- *  an intraday chart whose every bar opens 09:30-16:00 New York, Monday to Friday (R6 on the RTH 60m capture:
- *  20,861 bars; the daily bar a regular-hours bar sits in does not depend on the chart's bar length), and on
- *  a 1W or 1M chart, whose bar this engine stamps at 09:30 New York on its first session's date, so the anchor
- *  IS the bar's own `time` there, as `time("60")` is on a 1W / 1M chart (`vw-time-tf-spy-{1w,1m}-2026-10-01`,
- *  T06). Every other chart: no. */
-function dayAnchorServedOn(tf, bars, inputs, budget, scalars, opts) {
-  if (tf === 'W' || tf === 'M') return true
-  if (tf !== 'D' && !/^[0-9]+$/.test(String(tf))) return false
-  const pack = clockColumn(REGIME_PACK, bars, inputs, budget, scalars, opts)
-  for (let i = 0; i < pack.length; i++) {
-    const v = pack[i]
-    if (v !== v) return false
-    const dow = Math.floor(v / 10000)
-    if (dow === 1 || dow === 7) return false
-    if (tf === 'D') continue
-    const second = Math.floor((v % 10000) / 100) * 3600 + (v % 100) * 60
-    if (second < SESSION_OPEN_SECONDS || second >= SESSION_CLOSE_SECONDS) return false
+/** `chartDayRegime` over these bars' own clock. */
+function chartDayRegimeOf(tf, bars, inputs, budget, scalars, opts) {
+  if (tf === 'W' || tf === 'M' || (tf !== 'D' && !/^[0-9]+$/.test(String(tf)))) return chartDayRegime(tf, null)
+  return chartDayRegime(tf, clockColumn(REGIME_PACK, bars, inputs, budget, scalars, opts))
+}
+
+/** ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — THE OVERNIGHT BARS OF AN EXTENDED-HOURS CHART, for a tree that reads
+ *  `time("D")` or a served `time("D", session)` window, as a 0/1 column (1 = withheld), or null.
+ *
+ *  TradingView's chart of an equity with the extended session on holds bars 04:00-20:00 New York and nothing
+ *  between (`vw-bi-time-d-extended-spy-60-2026-11-19`); a bar this chart holds at 20:00-04:00 or on a closed day
+ *  (`chartDayRegime`'s `overnight`) has no answer to copy, so it is withheld by name (`time-day:overnight`). The
+ *  evaluator carries the last in-session value across such bars (`carryOverOvernight`), and that makes a read
+ *  that reaches EXACTLY back to the nearest one TradingView's own: the root bar `r` bars after it reads the bars
+ *  between as the same in-session bars TradingView holds, and the carried value at distance `r` is the value of
+ *  the in-session bar before them, which is TradingView's bar `r` back. So the bars withheld are the overnight
+ *  ones and every root bar within `r − 1` of one, where `r` is the tree's reach above the read (`maxLookback`, a
+ *  tree sum: the C30 / C38 argument); `ta.change(time("D")) != 0` withholds the overnight bars alone and draws
+ *  the 04:00 bar after them, where the new day starts. A read under a function whose memory is unbounded
+ *  (`lookback: "series"`) or a recurrence sums over bars TradingView does not hold: from the first overnight bar
+ *  on, every bar is withheld (`historyReadMask`'s rule). (A tree whose anchor an evaluation does not serve here is
+ *  withheld whole before this is asked: `dayRegimeServes`.) */
+function overnightDayMask(tree, scan, bars, inputs, budget, scalars, opts) {
+  if (!scan.days.length && !scan.dayGates.length) return null
+  const tf = opts ? opts.tf : undefined
+  if (typeof tf !== 'string' || tf === '' || tf === 'D' || tf === 'W' || tf === 'M') return null
+  const day = chartDayRegimeOf(tf, bars, inputs, budget, scalars, opts)
+  if (day.kind !== 'extended' || !day.overnight) return null
+  const targets = new Set([...scan.days, ...scan.dayGates])
+  const reads = []
+  const stack = [[tree, false]]
+  const seen = new Map()
+  while (stack.length) {
+    const [node, unbounded] = stack.pop()
+    if (!node || typeof node !== 'object') continue
+    const key = unbounded ? 1 : 0
+    let marks = seen.get(node)
+    if (marks === undefined) { marks = 0; seen.set(node, 0) }
+    if (marks & (1 << key)) continue
+    seen.set(node, marks | (1 << key))
+    if (targets.has(node)) { reads.push({ node, unbounded }); continue }
+    const spec = node.type === 'call' && own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
+    const open = unbounded || !!(spec && (spec.lookback === SERIES_LOOKBACK || isStatefulCall(node)))
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, open])
   }
-  return true
+  const n = Array.isArray(bars) ? bars.length : 0
+  const mask = new Float64Array(n)
+  const rootReach = maxLookback(tree)
+  for (const { node, unbounded } of reads) {
+    const reach = Math.max(0, rootReach - maxLookback(node) - 1)
+    let last = -Infinity
+    for (let i = 0; i < n; i++) {
+      if (day.overnight[i]) last = unbounded && last !== -Infinity ? last : i
+      if (last !== -Infinity && (unbounded || i - last <= reach)) mask[i] = 1
+    }
+  }
+  nameChartClock(opts, [DAY_OVERNIGHT], tf)
+  // the bars themselves, by name, where the caller collects them (`witnessMask`'s sink: the member's strip and the
+  // vendor harness read which bars were withheld and why)
+  const sink = opts && opts.withheldBarsSink
+  if (sink && typeof sink.set === 'function') {
+    const had = sink.get(DAY_OVERNIGHT)
+    if (had && had.length === n) for (let i = 0; i < n; i++) had[i] = had[i] || mask[i]
+    else sink.set(DAY_OVERNIGHT, Float64Array.from(mask))
+  }
+  return mask
 }
 /** Does any bar carry a DATE key (`'YYYY-MM-DD'`) rather than an instant? */
 function dateKeyed(bars) {
@@ -6658,7 +6882,10 @@ export function periodAnchorMask(tree, bars, inputs, budget, scalars, opts) {
   const mask = new Float64Array(n)
   if (whole.why.length) { mask.fill(1); return mask }
   const { anchors, closes } = whole.scan
-  if (!anchors.length && !closes.length) return null
+  // ⭐ U-BUILTIN T-D EXT — the overnight bars of an extended-hours chart (`overnightDayMask`), one channel with these
+  const night = overnightDayMask(tree, whole.scan, bars, inputs, budget, scalars, opts)
+  if (!anchors.length && !closes.length) return night
+  if (night) mask.set(night)
   const tf = opts ? opts.tf : undefined
   const partial = new Set()
   const rootReach = maxLookback(tree)
@@ -9536,7 +9763,59 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
     if (periodCalendar === undefined) periodCalendar = computePeriodCalendar(bars, opts.tf)
     return periodCalendar
   }
+  // ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — `time("D")` (a PINE evaluation only: `dayRegimeServes`) and a served
+  // `time("D", session)` window on a chart below daily: the node objects `scanChartClock` names in THIS tree (never a `dayopentime + 34200`
+  // inside another clock tree, `time("60")`'s bucket), answered by `chartDayRegime`'s decision for these bars. On an
+  // extended-hours chart the anchor is 04:00 (the tree's 09:30 less `EXTENDED_ANCHOR_SHIFT`), a served window's
+  // gate reads its daily tree, and each overnight bar carries the last in-session value (`carryOverOvernight`,
+  // withheld by `overnightDayMask`). On a regular-hours or weekly / monthly chart a served window's gate reads its
+  // daily tree; the anchor there is the tree as written. Anywhere else: `undefined`, the tree as written, and the
+  // mask withholds what it must (`chartClockWhole`).
+  let dayClock
+  const dayClockOf = () => {
+    if (dayClock === undefined) {
+      const tf = opts ? opts.tf : undefined
+      dayClock = null
+      if (typeof tf === 'string' && tf !== '' && tf !== 'D') {
+        const scan = scanChartClock(ast)
+        if (scan.days.length || scan.dayGates.length) {
+          // the chart's own clock, packed as `REGIME_PACK` packs it (the columns `computeClock` seeded `scope` with)
+          let pack = null
+          if (tf !== 'W' && tf !== 'M') {
+            const dow = toColumn(scope.dayofweek, length)
+            const hour = toColumn(scope.hour, length)
+            const minute = toColumn(scope.minute, length)
+            pack = new Float64Array(length)
+            for (let i = 0; i < length; i++) pack[i] = dow[i] * 10000 + hour[i] * 100 + minute[i]
+          }
+          dayClock = { regime: chartDayRegime(tf, pack), days: new Set(scan.days), gates: new Set(scan.dayGates) }
+        }
+      }
+    }
+    return dayClock
+  }
+  const dayClockValue = (n) => {
+    if (n.type !== 'op' || (n.name !== '?:' && n.name !== '+' && n.name !== '*')) return undefined
+    const day = dayClockOf()
+    if (!day) return undefined
+    const { kind, overnight } = day.regime
+    if (day.days.has(n)) {
+      if (!pineFn || kind !== 'extended') return undefined
+      // the 09:30 tree read raw (its own `+` is the non-ms shape and must not be shifted twice), then 04:00
+      const ms = n.name === '*'
+      const open = toColumn(evalNodeRaw(ms ? n.args[0] : n), length)
+      const out = new Float64Array(length)
+      for (let i = 0; i < length; i++) out[i] = (open[i] - EXTENDED_ANCHOR_SHIFT) * (ms ? 1000 : 1)
+      return carryOverOvernight(out, overnight, length)
+    }
+    if (day.gates.has(n) && sessionDayGateServed(n, kind)) {
+      return carryOverOvernight(evalNode(n.args[1]), kind === 'extended' ? overnight : null, length)
+    }
+    return undefined
+  }
   const chartClockValue = (n) => {
+    const daily = dayClockValue(n)
+    if (daily !== undefined) return daily
     if (n.type === 'call') {
       if (n.name !== 'valuewhenOccurrence') return undefined
       const period = periodAnchorPeriod(n)

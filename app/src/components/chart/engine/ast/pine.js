@@ -101,7 +101,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
@@ -697,8 +697,6 @@ const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OP
  *  the capture). ⛔ NOT a `PINE_TF_SPELLING` entry: that map also feeds `request.security` and the
  *  `timeframe.*` family, and no capture asked a request at `"1440"`. */
 const CLOCK_TF_ALIASES = Object.freeze({ 1440: 'D' })
-/** 09:30, the regular session's open, in minutes of the New York day (`sessionClockOf`, U-BUILTIN T-D). */
-const SESSION_OPEN_MINUTE = 9 * 60 + 30
 const clockTfCodeOf = (lit) => {
   const key = String(lit).trim().toUpperCase()
   return PINE_TF_SPELLING[key] || (Object.prototype.hasOwnProperty.call(CLOCK_TF_ALIASES, key) ? CLOCK_TF_ALIASES[key] : null)
@@ -14002,19 +14000,21 @@ export class Resolver {
     // ⚰️ `onItsOwnChart` (`periodseconds == 86400`) sat inside the membership, so on an intraday chart
     // `time("D", sess)` was `na` on every bar, and a script's own `na(t) ? … : …` drew that as an answer:
     // capture `vw-bt-time-1440-spy-60-2026-11-16` R2 reads `time("D", "0930-1600")` as the 09:30 session
-    // open on every regular-hours hourly bar. Two shapes now:
-    //   · a window that OPENS AT 09:30 New York (the exchange's zone), not wrapping: the start of the window
-    //     and the open of the day are one instant, so the value is the `time("D")` anchor itself
-    //     (`interpret.js::dayAnchorNode`), on a daily chart (where it is the bar's own 09:30 `time`, the
-    //     tree's answer before) and on an intraday one alike, withheld where the anchor is
-    //     (`time-day:off-session`);
-    //   · any other window keeps the daily tree, gated `86400 == periodseconds ? … : na`
-    //     (`sessionDayGateNode`), which the chart-clock mask withholds by name on a chart that states
-    //     another timeframe (`time-session:day-on-other-chart`): the window's start or the day's open there
-    //     is Q-BI-TD1c. A chart that states no timeframe reads it as before (`na` off a daily bar length).
+    // open on every regular-hours hourly bar.
+    // ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — AND THE VALUE IS THE START OF THE WINDOW, NOT THE OPEN OF THE DAY.
+    // On a chart with pre-market and after-hours bars TradingView answers every window as its own start on the
+    // bar's day (`vw-bi-time-d-extended-spy-60-2026-11-19` S1-S4: "0930-1600" reads 09:30 there while
+    // `time("D")` reads 04:00). ⚰️ A 09:30 window was written as the `time("D")` anchor (`dayAnchorNode`), the
+    // same instant on a regular-hours chart and 5.5 hours apart on an extended one. So EVERY window of one day
+    // in the exchange's zone is now the one gated daily tree (`interpret.js::sessionDayWindowNode`, built there
+    // so its recogniser is the same builder): read through its gate where `sessionDayGateServed` says it is
+    // measured (an extended-hours chart, and a 09:30 window on a regular-hours, 1W or 1M chart), withheld by
+    // name on any other chart below daily (`time-session:day-on-other-chart`). A window that wraps past
+    // midnight or names a fixed zone keeps the gated tree below and is withheld off a daily chart. A chart
+    // that states no timeframe reads every one as before (`na` off a daily bar length).
     const dayLiteral = !isOwnTf && code === 'D'
-    if (dayLiteral && !wraps && start === SESSION_OPEN_MINUTE && offset === null) {
-      return cOp('?:', [inside, dayAnchorNode(this.pineVersion !== null), cOp('/', [cNum(0), cNum(0)])])
+    if (dayLiteral && !wraps && offset === null) {
+      return sessionDayWindowNode(start, end, days, this.pineVersion !== null)
     }
     const gated = (tree) => (dayLiteral ? sessionDayGateNode(tree) : tree)
     if (onItsOwnChart && !dayLiteral) inside = cOp('&&', [inside, onItsOwnChart])
