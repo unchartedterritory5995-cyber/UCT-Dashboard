@@ -52,6 +52,19 @@ describe('stream connect burst · finals that restate held rows', () => {
     expect(after.baseRev).toBe(s.baseRev)
   })
 
+  it('the restating final\'s rev still counts: a late older frame for that minute cannot overwrite it', () => {
+    const { rows, s } = answered()
+    const r = rows[rows.length - 2]
+    const kept = reduce(s, frame(r, 2000), ctx)
+    expect(kept).toBe(s)
+    // a stale forming-phase frame (rev between the answer's and the restating final's) arrives late
+    const stale = reduce(kept, frame({ ...r, h: r.h - 0.5, c: r.c - 0.5, v: r.v - 4 }, 1500, false), ctx)
+    expect(stale).toBe(s)
+    // a genuinely newer correction still lands
+    const fixed = reduce(stale, frame({ ...r, v: r.v + 1 }, 2500), ctx)
+    expect(fixed.bars.find((b) => b.t === r.t).v).toBe(r.v + 1)
+  })
+
   it('a final whose values differ is a correction and still replaces the row', () => {
     const { rows, s } = answered()
     const r = rows[rows.length - 2]

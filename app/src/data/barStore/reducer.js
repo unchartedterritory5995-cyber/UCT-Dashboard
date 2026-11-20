@@ -289,7 +289,7 @@ function _wins(inc, held, state) {
   if (inc.src === 'rest' && held.src === 'local') return true
   if (_isSealed(state, held)) return false
   if (inc._sealed) return true
-  const ri = revOf(inc.rev), rh = revOf(held.rev)
+  const ri = revOf(inc.rev), rh = Math.max(revOf(held.rev), revOf(_restatedRev.get(held)))
   if (ri !== rh) return ri > rh
   return RANK[inc.src] >= RANK[held.src]
 }
@@ -318,7 +318,10 @@ function mergeRows(state, rows, span = null) {
       if (r.src !== 'rest' && _inSpans(state, r.t)) { j++; continue }
       out.push(strip(r)); changed = true; j++
     } else {
-      if (_wins(r, h, state) && !_sameBar(r, h) && !_restates(r, h)) { out.push(strip(r)); changed = true } else out.push(h)
+      if (_wins(r, h, state) && !_sameBar(r, h)) {
+        if (_restates(r, h)) { _restatedRev.set(h, Math.max(revOf(_restatedRev.get(h)), revOf(r.rev))); out.push(h) }
+        else { out.push(strip(r)); changed = true }
+      } else out.push(h)
       i++; j++
     }
   }
@@ -333,7 +336,13 @@ function mergeRows(state, rows, span = null) {
  * "won" on rev, re-sourced its row and bumped baseRev: ~15 full chart rebuilds (~30 ms each,
  * measured on production) queued in front of the live candle. A server or final row with the
  * same t/o/h/l/c/v is kept as it is; a correction (any value differs) still replaces it.
+ *
+ * The restating frame's rev is still OWED to the row (review of #2241): an older frame for the same
+ * minute (rev between the two) must keep losing, as it did when the row carried the newer rev. It is
+ * remembered beside the frozen row in `_restatedRev` (keyed by the row object, so it lives exactly as
+ * long as the row) and `_wins` reads the larger of the two — the row and baseRev stay untouched.
  */
+const _restatedRev = new WeakMap()
 function _restates(inc, held) {
   return inc.src !== 'rest' && (held.src === 'rest' || held.src === 'final') &&
     inc.o === held.o && inc.h === held.h && inc.l === held.l && inc.c === held.c && inc.v === held.v
