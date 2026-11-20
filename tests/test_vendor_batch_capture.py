@@ -664,3 +664,64 @@ def test_the_capture_path_refuses_a_refuted_claim_before_it_returns_the_capture(
     fn = next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == "capture")
     names = [c.func.id for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)]
     assert "starts_at_bar0_contradiction" in names
+
+
+# ── the listing date is READ from UCT's /api/ticker-ipo, never typed (coordinator ruling 2026-11-20) ─────────────────
+# ⚰️ Q-FRED-NHDOT's NASDAQ:BGIN capture (listed 2025-10-21, first_trade_final true) carried no startsAtBar0 because BGIN was
+# not in the hand-typed KNOWN_LISTING; the harness graded it as a chart reaching before its history.
+DEPTH_AT_FIRST = {"ok": True, "stable": True, "first": bd.FIRST_BAR, "tz": "America/New_York", "count": 600, "rounds": 3}
+
+
+def _listing_driver(tmp_path, page=None, **opts):
+    page = page or bd.RecordingTVPage()
+    return page, bc.Driver(page, bd.FakeClock(page), bd.fast_opts(**opts), bc.RunDir(tmp_path / "run", "t"), None,
+                           log=lambda *_: None)
+
+
+def test_the_api_answer_asserts_bar0_for_a_symbol_the_table_never_named(tmp_path):
+    page, drv = _listing_driver(tmp_path, symbol="NASDAQ:BGIN")
+    page.ipo["BGIN"] = {"first_trade_date": "2024-03-21", "first_trade_final": True}   # the double's first loaded day
+    assert "NASDAQ:BGIN" not in bc.KNOWN_LISTING
+    drv.opts.listing_date = drv.listing_for("NASDAQ:BGIN", None)
+    starts, why = drv.history_assertion(DEPTH_AT_FIRST)
+    assert drv.opts.listing_date == "2024-03-21" and starts is True and "NASDAQ:BGIN listed 2024-03-21" in why
+
+
+def test_the_table_alone_never_asserts(tmp_path):
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    page.ipo.pop("RDDT")                                     # production gives no answer for it
+    drv.opts.listing_date = drv.listing_for("NYSE:RDDT", bc.KNOWN_LISTING["NYSE:RDDT"])
+    starts, why = drv.history_assertion(DEPTH_AT_FIRST)
+    assert drv.opts.listing_date is None and starts is False and "/api/ticker-ipo/RDDT answered 404" in why
+    # an answer that is not FINAL is no answer either
+    page2, drv2 = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    page2.ipo["RDDT"] = {"first_trade_date": "2024-03-21", "first_trade_final": False}
+    assert drv2.listing_for("NYSE:RDDT", None) is None and "no FINAL first trade date" in drv2.listing_why
+
+
+def test_a_disagreement_stops_the_batch_by_name(tmp_path):
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    page.ipo["RDDT"] = {"first_trade_date": "2024-03-22", "first_trade_final": True}
+    with pytest.raises(bc.GateFailed) as e:
+        drv.listing_for("NYSE:RDDT", None)                    # KNOWN_LISTING says 2024-03-21
+    assert e.value.abort is True and "KNOWN_LISTING says 2024-03-21" in e.value.reason and "2024-03-22" in e.value.reason
+    page2, drv2 = _listing_driver(tmp_path, symbol="NASDAQ:BGIN")
+    page2.ipo["BGIN"] = {"first_trade_date": "2025-10-21", "first_trade_final": True}
+    with pytest.raises(bc.GateFailed) as e2:
+        drv2.listing_for("NASDAQ:BGIN", "2025-10-20")         # a manifest row that disagrees
+    assert "the manifest row's listingDate says 2025-10-20" in e2.value.reason
+    # CONTROL: agreement passes, and the answer is the API's
+    page3, drv3 = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    assert drv3.listing_for("NYSE:RDDT", "2024-03-21") == "2024-03-21"
+
+
+def test_another_account_is_not_read(tmp_path):
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    page.uct_account = "someone@example.com"
+    assert drv.listing_for("NYSE:RDDT", None) is None and "not signed in to UCT as the automation account" in drv.listing_why
+    # the lookup is GETs only, through the rig's own context
+    assert [n for k, n, _ in page.calls if k == "request"] and all(n in ("uct_api", "layout_access") for k, n, _ in page.calls if k == "request")
+
+
+def test_our_store_ticker_of_a_tradingview_symbol():
+    assert bc.uct_ticker_of("NASDAQ:BGIN") == "BGIN" and bc.uct_ticker_of("NYSE:BRK.B") == "BRK-B" and bc.uct_ticker_of("SPY") == "SPY"

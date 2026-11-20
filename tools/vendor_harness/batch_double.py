@@ -103,6 +103,20 @@ class _Request:
         self.page = page
 
     def get(self, url):
+        # ⭐ (2026-11-20) UCT's own API through the rig's browser context: the automation account's session and the
+        # listing answers production gives (`batch_capture.uct_first_trade_date`); `page.uct_account` / `page.ipo` steer it
+        if url.startswith(bc.UCT_ORIGIN + "/api/"):
+            self.page._log("request", "uct_api", url)
+            path = url[len(bc.UCT_ORIGIN):]
+            if path == "/api/auth/me":
+                return _Resp(200, json.dumps({"user": {"email": self.page.uct_account}}), url)
+            if path.startswith("/api/ticker-ipo/"):
+                t = path.rsplit("/", 1)[-1]
+                row = self.page.ipo.get(t)
+                if row is None:
+                    return _Resp(404, json.dumps({"detail": "not found"}), url)
+                return _Resp(200, json.dumps({"symbol": t, **row}), url)
+            return _Resp(404, "{}", url)
         self.page._log("request", "layout_access", url)
         if self.page.signed_in:
             return _Resp(200, "<html><title>UCT CAPTURE RIG</title></html>", url)
@@ -171,6 +185,11 @@ class RecordingTVPage:
         # ⭐ A SLOW ATTACH (2026-11-19, htfform-c): after a fresh load the chart handle answers at once, with 0 studies,
         # and the layout's saved studies attach `attach_delay_s` (virtual) seconds later. 0: they are there at once.
         self.attach_delay_s = float(attach_delay_s)
+        # ⭐ UCT's answers through the rig's browser context: the session's account, and `/api/ticker-ipo` per ticker as
+        # production answers it (measured 2026-11-19: RDDT 2024-03-21 and ALAB 2024-03-20, both final)
+        self.uct_account = bc.UCT_AUTOMATION_ACCOUNT
+        self.ipo = {"RDDT": {"first_trade_date": "2024-03-21", "first_trade_final": True},
+                    "ALAB": {"first_trade_date": "2024-03-20", "first_trade_final": True}}
         self.attach_at = None
         self.behaviours = behaviours or {}
         self.stays_bound = set(stays_bound)

@@ -155,6 +155,50 @@ def starts_at_bar0_contradiction(capture: dict, symbol: str):
     return None
 
 
+#: ⭐⭐ The listing date's SOURCE (coordinator ruling 2026-11-20): UCT production's own answer, read as the automation account
+#: through the rig's browser context (`Driver.listing_for`). The table below is a CROSS-CHECK that must agree.
+UCT_ORIGIN = "https://uctintelligence.com"
+UCT_AUTOMATION_ACCOUNT = "smoke@uctintelligence.internal"
+_ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def uct_ticker_of(symbol) -> str:
+    """Our store's ticker for a TradingView symbol: the part after the exchange, a class share's dot as a hyphen
+    (`NYSE:BRK.B` -> `BRK-B`, the bars route's own spelling)."""
+    return str(symbol or "").split(":")[-1].strip().upper().replace(".", "-")
+
+
+def _json_of(resp):
+    try:
+        return json.loads(resp.text())
+    except Exception:  # noqa: BLE001 -- an unreadable body is no answer
+        return None
+
+
+def uct_first_trade_date(page, symbol):
+    """(date | None, why): `/api/ticker-ipo/<T>`'s `first_trade_date` when `first_trade_final` is true, read through the
+    page's own browser context (the rig profile's UCT session) after checking that session is the automation account.
+    GETs only. Never raises: a lookup that cannot answer is no listing date, with the reason."""
+    try:
+        req = page.context.request
+        me = _json_of(req.get(f"{UCT_ORIGIN}/api/auth/me"))
+        user = (me or {}).get("user") if isinstance((me or {}).get("user"), dict) else (me or {})
+        email = str((user or {}).get("email") or "").lower()
+        if email != UCT_AUTOMATION_ACCOUNT:
+            return None, "the rig is not signed in to UCT as the automation account, so the listing date was not read"
+        t = uct_ticker_of(symbol)
+        r = req.get(f"{UCT_ORIGIN}/api/ticker-ipo/{t}")
+        body = _json_of(r) if getattr(r, "status", 200) == 200 else None
+        if not isinstance(body, dict):
+            return None, f"/api/ticker-ipo/{t} answered {getattr(r, 'status', '?')}"
+        day = body.get("first_trade_date")
+        if body.get("first_trade_final") is not True or not isinstance(day, str) or not _ISO_DAY.match(day):
+            return None, f"/api/ticker-ipo/{t} holds no FINAL first trade date ({body.get('first_trade_final')!r}, {day!r})"
+        return day, f"/api/ticker-ipo/{t}: first trade {day} (final)"
+    except Exception as exc:  # noqa: BLE001
+        return None, f"the listing date could not be read ({type(exc).__name__}: {exc})"
+
+
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
 #: SYMBOL"): the flag is asserted ONLY when the loaded history stopped growing AND
@@ -1006,6 +1050,28 @@ class Driver:
             last = r.get("count")
         return {"ok": True, "stable": False, "rounds": rounds, **(r or {})}
 
+    def listing_for(self, symbol, stated=None):
+        """⭐⭐ THE LISTING DATE IS READ, NOT TYPED (coordinator ruling 2026-11-20). The symbol's first session as UCT's
+        production answers it (`/api/ticker-ipo/<T>`: `first_trade_date`, only when `first_trade_final` is true), read
+        through the rig's own browser context, signed in as the automation account (checked first). `KNOWN_LISTING` and a
+        manifest row's `listingDate` (`stated`) are CROSS-CHECKS: each one present must AGREE, and a disagreement STOPS the
+        batch by name (GateFailed, abort) -- never a silent override either way. No final answer: no listing date, so
+        `startsAtBar0` is not asserted (the safe direction), and the reason says why.
+        ⚰️ 2026-11-19: Q-FRED-NHDOT's NASDAQ:BGIN capture (listed 2025-10-21, first_trade_final true) carried no
+        startsAtBar0, because BGIN was not in the hand-typed table; the harness then graded it as a chart reaching before
+        its history (its run half refused `runtime:history-start`) where a member's daily chart draws it."""
+        key = str(symbol or "").upper()
+        cache = self.__dict__.setdefault("_listings", {})
+        if key not in cache:
+            cache[key] = uct_first_trade_date(self.page, symbol)
+        fetched, why = cache[key]
+        self.listing_why = why
+        for name, other in (("KNOWN_LISTING", KNOWN_LISTING.get(key)), ("the manifest row's listingDate", stated)):
+            if other and fetched and other != fetched:
+                raise GateFailed(f"{symbol}: {name} says {other}, and UCT's /api/ticker-ipo says {fetched} (first_trade_final) "
+                                 "-- the listing date is not settled; fix the table or the row before capturing", abort=True)
+        return fetched
+
     def history_assertion(self, depth):
         o = self.opts
         if not depth.get("ok"):
@@ -1014,7 +1080,8 @@ class Driver:
             return False, f"history was still growing after {depth.get('rounds')} requestMoreData rounds — not asserted"
         first_day = iso_date_in(depth.get("first"), depth.get("tz") or "Etc/UTC") if depth.get("first") else None
         if not o.listing_date:
-            return False, f"no listing date is known for {o.symbol} — not asserted (first bar {first_day})"
+            return False, (f"no listing date is known for {o.symbol} ({getattr(self, 'listing_why', 'not read')}) — not asserted "
+                           f"(first bar {first_day})")
         if first_day != o.listing_date:
             return False, f"first loaded bar {first_day} is not the listing day {o.listing_date} — not asserted"
         # ⭐ the claim names the symbol it was derived FOR; `starts_at_bar0_contradiction` refuses a capture whose own
@@ -1049,6 +1116,7 @@ class Driver:
         self.wait_compute(sid)
         depth = self.force_depth()
         rows = self.wait_compute(sid, "compute:settle")
+        self.opts.listing_date = self.listing_for(self.opts.symbol, self.opts.listing_date)
         starts, why = self.history_assertion(depth)
         lw = script.get("largestWindow")
         window = {"bars_loaded": rows, "largest_declared_window": lw,
