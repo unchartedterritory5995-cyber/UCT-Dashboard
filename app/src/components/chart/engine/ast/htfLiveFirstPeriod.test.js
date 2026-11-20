@@ -99,21 +99,22 @@ const SHAPES = [
     expect: [n, n, n, 14.5, 14.5, 14.5, 14.5, 24.5, 24.5, 24.5, 24.5, 24.5, 34.5] },
   { name: 'live(high)[1] (a history outside: bars 1-3 read week 0)', tree: () => off(1, live()), window: W13,
     expect: [n, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
-  { name: 'nz(live(high)[1], 0) (bar 0 reads no earlier bar: Pine\'s 0)', tree: () => call('nz', off(1, live()), num(0)),
-    window: W13, expect: [0, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
+  // ⭐ PERIOD −1 (2026-11-19): bar 0 reads the bar before the chart, which it does not hold: withheld by name
+  { name: 'nz(live(high)[1], 0) (bar 0 reads the bar before the chart: withheld, PERIOD −1)', tree: () => call('nz', off(1, live()), num(0)),
+    window: W13, expect: [n, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
   { name: 'live(high[1]) (a history inside: week 1 reads the partial week\'s high)', tree: () => live(off(1, HIGH)),
     window: W13, expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5] },
   { name: 'live(sma(high, 2)) (a window inside: week 1 reads week 0)', tree: () => live(call('sma', HIGH, num(2))),
     window: W13, expect: [n, n, n, n, n, n, n, 10, 10, 10, 10, 10, 15] },
   { name: 'live(hlc3[1]) (the served cpr script\'s weekly pivot)', tree: () => live(off(1, hlc3())), window: W13,
     expect: [n, n, n, n, n, n, n, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 10.5] },
-  // ⛔ A RUNNING VALUE: withheld where its argument is (week 0) and NOT after; ema(high, 3) on the weekly bars warms up
-  // through weeks 0-1, so bars 0-6 are blank, and week 2 on is drawn from a seed holding the partial week (item 4's
-  // open question): only the blank / withheld bars are written
-  { name: 'live(ema(high, 3)) (a running value: withheld where high is, blank through its warm-up)',
-    tree: () => live(call('ema', HIGH, num(3))), window: W13, held: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'ema(live(high), 3) (a running value over the read: withheld where the read is, not after)',
-    tree: () => call('ema', live(), num(3)), window: W13, held: [0, 1, 2] },
+  // ⭐⭐ ITEM 4 (2026-11-19): A RUNNING VALUE is drawn only where two starts agree (`walkTwoStarts`, `htfTwoStarts.test.js`
+  // holds the acceptance measure): its partial-week start and a later one do not agree, bit for bit, before ~50 bars of its
+  // own timeframe, so this window is withheld whole (it drew from week 2 on, from a seed holding the partial week)
+  { name: 'live(ema(high, 3)) (a running value: withheld until its two starts agree, ITEM 4)',
+    tree: () => live(call('ema', HIGH, num(3))), window: W13, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+  { name: 'ema(live(high), 3) (a running value over the read: withheld until its two starts agree, ITEM 4)',
+    tree: () => call('ema', live(), num(3)), window: W13, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
   // the monthly read: September (bars 0-19) is partial, October is bars 20-41 (h of bar 41: 42.5)
   { name: "live(high, 'M') (September, bars 0-19, withheld)", tree: () => live(HIGH, 'M'), window: [17, 23],
     expect: [n, n, n, 42.5, 42.5, 42.5] },
@@ -143,7 +144,7 @@ const SHAPES = [
     expect: [n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5, 17.5] },
   { name: 'the Pine door: nz(w[1]) of w = request.security(…, "W", high, lookahead = barmerge.lookahead_on)',
     tree: () => pineTree(`w = ${LIVE_HIGH}\nplot(nz(w[1]))`), window: W13,
-    expect: [0, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
+    expect: [n, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
   { name: 'the Pine door (v4, the cpr shape): security(syminfo.tickerid, "W", hlc3[1], gaps_off, lookahead_on)',
     tree: () => pineTree('plot(security(syminfo.tickerid, "W", hlc3[1], barmerge.gaps_off, barmerge.lookahead_on))', 4),
     window: W13, expect: [n, n, n, n, n, n, n, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 10.5] },
@@ -167,7 +168,9 @@ const definitionOf = (tree, i) => {
     compute: { kind: 'ast', fn: id, source: id, ast: tree }, meta: { recurrenceOrigin: 'pine' } }
 }
 const asNulls = (col) => Array.from(col || []).map((v) => (Number.isFinite(v) ? v : null))
-const chartOf = (c) => ({ ...CHART, ...(c.opts || {}),
+// ⭐ PERIOD −1 — a Pine document's lane facts, what `computeFor` hands it (`astColumns.js::barIndexAbsoluteFor` /
+// `varOriginAbsoluteFor`), so the evaluator's column below is the chart's
+const chartOf = (c) => ({ ...CHART, barIndexAbsolute: true, varOriginAbsolute: true, ...(c.opts || {}),
   ...(c.symbols ? { symbols: { SPY: barsOn(DAYS[c.set || 'wednesday']) } } : {}) })
 const served = (tree, i, c) => asNulls(registry.computeFor(definitionOf(tree, i), barsOn(DAYS[c.set || 'wednesday']), {},
   chartOf(c)).value)

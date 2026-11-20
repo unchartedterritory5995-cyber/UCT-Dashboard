@@ -197,7 +197,7 @@ describe('time(timeframe) and time(timeframe, session) are different questions',
     // Added 2026-09-23 in the merge: one lineage had the bare-name reconciliation,
     // the other had `time(<tf>)` on the SECONDS-valued `dayopentime` leaf, and
     // together `time - time("D")` came out as `time * 1000 - dayopentime`.
-    expect(anchorOk.outputs[anchorOk.selected].formula).toBe('dayopentime * 1000')
+    expect(anchorOk.outputs[anchorOk.selected].formula).toBe('(dayopentime + 34200) * 1000') // ⭐ U-BUILTIN T-D (2026-11-19): the anchor is the session's 09:30 open (`interpret.js::dayAnchorNode`, R6 of `vw-bt-time-1440-spy-{1d,60}-2026-11-16`), not midnight
 
     // A period this engine does NOT have a node for still refuses, with the
     // anchor sentence (not the session one) and a name to go read instead.

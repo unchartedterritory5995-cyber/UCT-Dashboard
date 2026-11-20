@@ -11,6 +11,9 @@ import { createDeviceEngine } from './engine'
 import { memoryIO } from './io'
 import { seedPackOf, synthBars } from './testing/fixtures'
 
+/** 18:00 ET on the packs' as-of day (seedPackOf's default, 2026-11-18): the seed's own basis holds. */
+const AT_ASOF = () => Date.UTC(2026, 10, 18, 23, 0)
+
 function fakeLocks() {
   const queues = new Map()
   const held = new Set()
@@ -68,7 +71,7 @@ const ROWS = { AAA: synthBars(1000, { step: 300, seed: 3 }), BBB: synthBars(600,
 async function seededDisk() {
   const pack = seedPackOf(ROWS, { tf: '5', build: 'b1' })
   const disk = new Map()
-  const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: async () => new Response(pack) })
+  const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: async () => new Response(pack) })
   await eng.ingest({ tf: '5', url: 'u', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: 'b1' })
   eng.close()
   return disk
@@ -79,7 +82,7 @@ function tab(id, env, extra = {}) {
   const makeIO = vi.fn(async () => memoryIO(env.disk))
   const core = createWorkerCore({
     tabId: id, locks: env.locks, makeChannel: env.bus, makeIO, fetchFn: extra.fetchFn ?? vi.fn(),
-    post: (m) => posted.push(m), timeoutMs: 200,
+    post: (m) => posted.push(m), timeoutMs: 200, liveOpts: extra.liveOpts, engineOpts: { now: AT_ASOF },
   })
   const ask = async (msg) => {
     const id2 = Math.random()
@@ -90,6 +93,17 @@ function tab(id, env, extra = {}) {
 }
 
 describe('device store across tabs', () => {
+  it("diagnostics: 'why' reaches the leader's engine from any tab", async () => {
+    const env = { disk: await seededDisk(), locks: fakeLocks(), bus: fakeBus() }
+    const A = tab('A', env)
+    const B = tab('B', env)
+    await settle()
+    expect((await B.ask({ op: 'why', sym: 'AAA', tf: '5' })).res).toBe('seed-only:no-overlay')
+    expect((await B.ask({ op: 'why', sym: 'ZZZ', tf: '5' })).res).toBe('missing')
+    expect((await A.ask({ op: 'why', sym: 'AAA', tf: '60' })).res).toBe('no-file')
+    A.core.close(); B.core.close()
+  })
+
   it('ONE leader opens the files; a follower reads EXACT columns through it and never opens a file', async () => {
     const env = { disk: await seededDisk(), locks: fakeLocks(), bus: fakeBus() }
     const A = tab('A', env)
@@ -186,5 +200,74 @@ describe('device store across tabs', () => {
     const got = await B.ask({ op: 'read', sym: 'AAA', tf: '5' })
     expect(got.res.t.length).toBe(1000)
     A.core.close(); B.core.close()
+  })
+  it('TODAY: a live ask from any tab starts ONE minute feed, in the leader, attached to its engine', async () => {
+    const env = { disk: await seededDisk(), locks: fakeLocks(), bus: fakeBus() }
+    const made = []
+    const load = vi.fn(async () => ({ createMinuteFrameConsumer: (opts) => { const c = { opts, start: vi.fn(), stop: vi.fn(), syncNow: vi.fn(async () => ({})), status: () => ({ day: null }) }; made.push(c); return c } }))
+    const A = tab('A', env, { liveOpts: { load } })
+    const B = tab('B', env, { liveOpts: { load } })
+    await settle()
+    const r = await B.ask({ op: 'live', visible: true })
+    expect(r.ok).toBe(true)
+    await A.ask({ op: 'live', visible: true })
+    await settle()
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(made).toHaveLength(1)
+    expect(A.core.feed()).not.toBeNull()
+    expect(B.core.feed()).toBeNull()
+    // the overlay keeps the seed's symbols only: the feed's sink upserts into the leader's engine
+    const t = Date.UTC(2026, 10, 18, 15, 0) / 1000                     // 10:00 ET
+    made[0].opts.sink.reset({ day: '2026-11-18' })
+    made[0].opts.sink.upsert('NOT_IN_SEED', '5', { t, o: 1, h: 1, l: 1, c: 1, v: 1 }, true)
+    made[0].opts.sink.upsert('AAA', '5', { t, o: 1, h: 1, l: 1, c: 1, v: 1 }, true)
+    const info = await B.ask({ op: 'info' })
+    expect(info.res.live.running).toBe(true)
+    expect(info.res.live.visible).toBe(true)
+    expect(info.res.live.overlay.series).toBe(1)
+    A.core.close(); B.core.close()
+  })
+  it("TODAY: the feed starts only after the seed's ingest in flight, and a new seed re-syncs it", async () => {
+    const env = { disk: new Map(), locks: fakeLocks(), bus: fakeBus() }
+    const pack = seedPackOf(ROWS, { tf: '5', build: 'b8' })
+    const manifest = { v: 1, kind: 'ffseed', build: 'b8', tfs: { '5': { url: '5.pack', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex') } } }
+    let releaseManifest
+    const fetchFn = vi.fn((url) => (String(url).endsWith('manifest.json')
+      ? new Promise((r) => { releaseManifest = () => r(new Response(JSON.stringify(manifest))) })
+      : Promise.resolve(new Response(pack))))
+    const made = []
+    const load = vi.fn(async () => ({ createMinuteFrameConsumer: (opts) => { const c = { opts, start: vi.fn(), stop: vi.fn(), syncNow: vi.fn(async () => ({})), status: () => ({}) }; made.push(c); return c } }))
+    const A = tab('A', env, { fetchFn, liveOpts: { load } })
+    await settle()
+    await A.ask({ op: 'ingest', manifestUrl: 'https://x.test/seed/manifest.json' })
+    await A.ask({ op: 'live', visible: true })
+    await settle()
+    expect(load).not.toHaveBeenCalled()                                  // the overlay would not know the symbols yet
+    releaseManifest()
+    await settle()
+    expect(made.length).toBeGreaterThanOrEqual(1)
+    expect(A.core.engine().seedName('AAA')).toBe('AAA')
+    // a later seed with new data while the feed runs: today is replayed into a clean overlay
+    const before = made.length
+    const pack2 = seedPackOf({ ...ROWS, ZZZ: ROWS.AAA }, { tf: '5', build: 'b9' })
+    const manifest2 = { v: 1, kind: 'ffseed', build: 'b9', tfs: { '5': { url: '5b.pack', bytes: pack2.length, sha256: createHash('sha256').update(pack2).digest('hex') } } }
+    fetchFn.mockImplementation((url) => Promise.resolve(String(url).endsWith('manifest.json') ? new Response(JSON.stringify(manifest2)) : new Response(pack2)))
+    await A.ask({ op: 'ingest', manifestUrl: 'https://x.test/seed/manifest.json' })
+    await A.core.ingesting()
+    await settle()
+    expect(made.length).toBe(before + 1)
+    expect(made[before - 1].stop).toHaveBeenCalled()
+    A.core.close()
+  })
+  it('TODAY: no feed while no seed file is held (a private window, a first visit before the ingest)', async () => {
+    const env = { disk: new Map(), locks: fakeLocks(), bus: fakeBus() }
+    const load = vi.fn(async () => ({ createMinuteFrameConsumer: () => ({ start: vi.fn(), stop: vi.fn(), syncNow: vi.fn(async () => ({})), status: () => ({}) }) }))
+    const A = tab('A', env, { liveOpts: { load } })
+    await settle()
+    const r = await A.ask({ op: 'live', visible: true })
+    await settle()
+    expect(r.res).toEqual({ status: 'no-seed' })
+    expect(load).not.toHaveBeenCalled()
+    A.core.close()
   })
 })

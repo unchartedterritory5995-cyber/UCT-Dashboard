@@ -59,13 +59,55 @@ newest builds are kept.
  "tfs":{"5":{"bars":1085400,"bytes":5839102,"depth":300,"key":"ffseed/20261119T0131Z/5.ffs",
              "sha256":"9f2c...","short":12,"symbols":3618,"tunit":300,
              "skipped":{"error":0,"inexact":0,"no_bars":9,"old_grid":0,"stale":12},
-             "url":"/api/seed/v1/20261119T0131Z/5.ffs"}, "...": {}}}
+             "url":"/api/seed/v1/20261119T0131Z/5.ffs"}, "...": {}},
+ "splits":{"session":"2026-11-19","symbols":{"BRK-B":2.0,"ZZREV":0.1}}}
 ```
 
 (Numbers in this example are illustrative; section 7 has measured sizes.) A client compares
 `build` with what it holds, downloads each changed `url`, checks `bytes` and `sha256`
 (`crypto.subtle.digest('SHA-256', ...)`), and only then swaps the file in. A pack that fails the
 check is discarded whole.
+
+### `splits`: the next session's basis changes (the device's split guard)
+
+The packs are split-adjusted AS OF `asof`. On the next session the server's answer for a symbol
+that splits that day is on a new basis (every older bar rescaled), so a device copy of that symbol
+must not be joined to it. `splits` tells the device which symbols those are:
+
+```json
+"splits": {"session": "2026-11-19", "symbols": {"BRK-B": 2.0, "ZZREV": 0.1, "ZZODD": null}}
+```
+
+| key       | meaning                                                                          |
+|-----------|----------------------------------------------------------------------------------|
+| `session` | the first NYSE trading day after `asof` (`nextSessionISO(asof)` on the device)   |
+| `symbols` | an OBJECT: seed symbol (seed spelling, `BRK-B`) -> ratio, shares after per share before (`2.0` a 2-for-1, `0.1` a 1-for-10 reverse), `null` when the vendor gave no usable ratio. Every seed symbol with a split executing on `session`. |
+
+* `symbols` is an object, not an array, because the device reads `Object.keys(splits.symbols)`
+  (`app/src/data/deviceStore/engine.js` `_splitsOf`): an array there would yield the keys `"0"`,
+  `"1"`, ... and name nobody, i.e. fail OPEN.
+* **Field present** = the source answered completely for `session`. `{}` therefore means "no seed
+  symbol splits next session", never "could not ask". **Field absent** = the source could not
+  answer (no key, an error on any page, a truncated answer): the device keeps its guard closed and
+  uses no copy past `asof`. A build never fails for want of this list; it publishes without it.
+* **Source.** The store's bars are Massive aggregates fetched `adjusted=true`, which adjust for
+  splits only (forward and reverse; never dividends or spin-offs), and the serve path heals a split
+  factor the store missed from FMP's split list (`bars_sanitize._fetch_meta`). So a split is the
+  only corporate action that rebases a served series. The list is:
+  1. Massive `/v3/reference/splits` with `execution_date` = `session`, one paginated read for the
+     whole market (`reference_corp_actions.fetch_confirmed_splits_strict`, the D5 confirmed
+     source). Announced splits carry their future execution date, so this can answer at build time
+     (20:15 ET on `asof`). It is the only source whose answer can produce the field.
+  2. plus any seed symbol whose split list in the serve path's FMP cache dates a split on `session`
+     (cache only: the build never calls the vendor). It can add a name, never remove one, and its
+     silence proves nothing (the cache can be cold or a week old), which is why it cannot be the
+     source of the field on its own.
+* **What it cannot know.** A split announced after the build (after 20:15 ET on `asof`) and executed
+  the next morning, or one Massive has not recorded by then. Exchanges require notice well ahead of
+  a split's execution date, so this is the residual case, not the common one; the server's own
+  answer still reaches the chart and repaints it.
+* Only the session after `asof` is covered. A device whose seed is older than that (no build for a
+  session) has no list for today and keeps its guard closed.
 
 ## 3. Pack layout
 
@@ -258,7 +300,8 @@ split-adjusts intraday), not by enough to move these sizes.
   know and falls back to the network. Adding a trailer key is not a version change (readers ignore
   unknown keys); changing `fields` is.
 * The manifest's `v` versions the manifest; `build` changes every build and is the only cache key a
-  client needs.
+  client needs. `splits` was added to manifest v1 on 2026-11-20 (a new key: older readers ignore it,
+  and a reader that needs it treats its absence as "unknown").
 
 ## 9. Freshness: the nightly build and a daily delta (design)
 
@@ -268,6 +311,35 @@ makes zero provider calls to build. Once per closed session, after 20:15 ET (the
 has ended and the regular-session bars' repair window has had hours to land), it builds every
 timeframe, uploading each pack as soon as it is built (one pack in memory at a time) and the
 manifest last. Worker deploys are manual (`docs/runbooks/worker-deploys.md`).
+
+**1m for the whole universe** (`api/services/ffseed_onemin.py`). The worker's prewarm keeps 1m current only
+for its ACTIVE intraday set (watchlists, breadth drill lists, UCT20, candidates, theme holdings;
+`PREWARM_1M_CAP`), so the first builds seeded 1m for 1,270 symbols against ~3,545 elsewhere. Each nightly
+build (`ffseed.nightly`) therefore runs, in order:
+
+1. **the 1m pass** (it also runs on its own as soon as the session has closed: from 16:20 ET,
+   `FFSEED_1M_AFTER_MIN`, and on the first builder tick after a worker boot past that point, recorded in
+   `<DATA_DIR>/.last_ffseed_1m_pass` once it completed; the run inside the build then costs nothing for
+   the symbols it already brought current, and the build never starts before it): every cap_universe
+   symbol whose stored 1m does not reach the as-of session's last
+   regular minute gets that session's 1m (plus the session before when the store lacks it too) from the
+   provider's split-adjusted range read, written the way the serve path's range repairs write
+   (`provider_check` + `put_bars`). Symbols the prewarm keeps current cost no call. 2 threads
+   (`FFSEED_1M_WORKERS`), at most 45 min (`FFSEED_1M_DEADLINE_S`, past it the build goes ahead with what
+   it has); `FFSEED_1M_BACKFILL=0` turns it off;
+2. the build and publish (unchanged), then the marker;
+3. **the 1m retention**: every cap_universe symbol OUTSIDE the active set keeps its newest 5 sessions of
+   1m (`FFSEED_1M_KEEP_SESSIONS`, 0 = off; `bars_sqlite.prune_before`, a prefix trim that bumps the
+   series' history revision). The active set's 1m is never trimmed, and nothing is trimmed while the
+   active set is unknown (no prewarm pass in this process yet). Neither 1 nor 3 can stop a publish.
+
+**Forcing a rebuild of a session already built** (e.g. to rebuild 2026-11-20 with full 1m over the weekend):
+set `FFSEED_FORCE_ASOF=2026-11-20` on the worker (a variable change needs the worker to restart to be read:
+deploy it as usual). On its next tick (at most 30 min after boot plus `FFSEED_BOOT_DELAY`) the builder runs
+the whole nightly sequence for that session once and records it in `<DATA_DIR>/.last_ffseed_forced`, so
+the variable may stay set; unset it at your convenience. It is refused (logged, nothing built) unless the
+session IS the newest closed session: publishing an older build after a newer one would roll every device
+back. `status()` reports `forced_session`.
 
 **Daily delta (not built).** A returning device holds yesterday's packs. The new session adds, per
 symbol, at most 390 / 78 / 26 / 13 / 7 / 1 bars (1 / 5 / 15 / 30 / 60 / D) and drops as many old

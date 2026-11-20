@@ -1,0 +1,51 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_PIVOT_POINT_LEVELS_A", overlay = true)
+
+// U-BUILTIN (2026-11-19). WHAT `ta.pivot_point_levels(type, anchor, developing)` RETURNS, LEVEL BY LEVEL.
+//
+// The reference names the eleven levels [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5] and the six types and
+// gives no formula for any of them, nor the value on the bars before the first anchor.
+// committed:previous-day-high-and-low-separators-dailyweekly calls
+// `ta.pivot_point_levels("Traditional", timeframe.change(tfAuto))`. This half reads Traditional, Fibonacci, Woodie on a weekly
+// anchor, developing = false. P is plotted per type; a level the type does not compute reads na.
+//
+// CAPTURE: AMEX:SPY 1D from the listing and NYSE:RDDT 1D from the listing. Inputs at defaults.
+
+anchor = timeframe.change("W")
+plot(bar_index, "P0_bar_index_CONTROL")
+lv1 = ta.pivot_point_levels("Traditional", anchor)
+plot(array.get(lv1, 0), "Traditional_0")
+plot(array.get(lv1, 1), "Traditional_1")
+plot(array.get(lv1, 2), "Traditional_2")
+plot(array.get(lv1, 3), "Traditional_3")
+plot(array.get(lv1, 4), "Traditional_4")
+plot(array.get(lv1, 5), "Traditional_5")
+plot(array.get(lv1, 6), "Traditional_6")
+plot(array.get(lv1, 7), "Traditional_7")
+plot(array.get(lv1, 8), "Traditional_8")
+plot(array.get(lv1, 9), "Traditional_9")
+plot(array.get(lv1, 10), "Traditional_10")
+lv2 = ta.pivot_point_levels("Fibonacci", anchor)
+plot(array.get(lv2, 0), "Fibonacci_0")
+plot(array.get(lv2, 1), "Fibonacci_1")
+plot(array.get(lv2, 2), "Fibonacci_2")
+plot(array.get(lv2, 3), "Fibonacci_3")
+plot(array.get(lv2, 4), "Fibonacci_4")
+plot(array.get(lv2, 5), "Fibonacci_5")
+plot(array.get(lv2, 6), "Fibonacci_6")
+plot(array.get(lv2, 7), "Fibonacci_7")
+plot(array.get(lv2, 8), "Fibonacci_8")
+plot(array.get(lv2, 9), "Fibonacci_9")
+plot(array.get(lv2, 10), "Fibonacci_10")
+lv3 = ta.pivot_point_levels("Woodie", anchor)
+plot(array.get(lv3, 0), "Woodie_0")
+plot(array.get(lv3, 1), "Woodie_1")
+plot(array.get(lv3, 2), "Woodie_2")
+plot(array.get(lv3, 3), "Woodie_3")
+plot(array.get(lv3, 4), "Woodie_4")
+plot(array.get(lv3, 5), "Woodie_5")
+plot(array.get(lv3, 6), "Woodie_6")
+plot(array.get(lv3, 7), "Woodie_7")
+plot(array.get(lv3, 8), "Woodie_8")
+plot(array.get(lv3, 9), "Woodie_9")
+plot(array.get(lv3, 10), "Woodie_10")

@@ -1857,16 +1857,13 @@ def get_drill_list(date_str: str, metric_key: str,
         raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
     # The stored lists carry RVOL, not shares: fill the Vol column from that day's bars.
     items = svc.fill_drill_volumes(date_str, items)
-    # Fire-and-forget: warm Daily bars for the first 30 tickers in the list.
-    # By the time the user navigates to any of them (usually >5 s away), the
-    # Massive API call will have completed and the chart loads instantly.
-    try:
-        from api.routers.bars import warm_bars_async
-        tickers = [i["t"] for i in items if isinstance(i, dict) and i.get("t")]
-        if tickers:
-            warm_bars_async(tickers, tf="D", bars=8000)
-    except Exception:
-        pass
+    # ⚰️ NO SERVER-SIDE BAR WARM HERE (2026-11-20). This route used to `warm_bars_async` EVERY name
+    # on the list (8,000 daily bars each) — on every open AND every hover prefetch of a cell. With a
+    # 200+ name list that is minutes of warm-pool work per request, and it starved the web process:
+    # measured on production, a list-only fetch made unrelated requests take 0.6-1.3 s for ~10 s,
+    # and a drill open stalled every request (the list, the reading, preferences) for 6-12 s. The
+    # browser already warms the list's names itself (BarStore `prefetchListDeep`, plus the edge
+    # history), and the collector's snapshot push still warms each new day's names after the close.
     return {"date": date_str, "metric": metric_key, "items": items}
 
 

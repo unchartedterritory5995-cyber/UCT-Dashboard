@@ -235,7 +235,14 @@ def test_the_COOKIE_PATH_does_not_reach_the_historical_cache_surfaces():
     for other in ("/api/stream/prices", "/api/stream/bars-v3", "/api/stream", "/api/stream/status",
                   "/api/bars/AAPL", "/api/auth/me"):
         assert not rfc6265_sends(st, other), other
-    assert cet.COOKIE_PATHS == (cet.COOKIE_PATH, cet.HIST_COOKIE_PATH, cet.STREAM_COOKIE_PATH)
+    # The first-frame seed's cookie path reaches the seed route and nothing else.
+    sd = cet.SEED_COOKIE_PATH
+    assert rfc6265_sends(sd, "/api/seed/v1/latest.json")
+    assert rfc6265_sends(sd, "/api/seed/v1/20261120T1430Z/60.ffs")
+    for other in ("/api/seed-other", "/api/seeds", "/api/bars/AAPL", "/api/hist/v1/index/AAPL.json",
+                  "/api/auth/me", "/api/bars-today-pack"):
+        assert not rfc6265_sends(sd, other), other
+    assert cet.COOKIE_PATHS == (cet.COOKIE_PATH, cet.HIST_COOKIE_PATH, cet.STREAM_COOKIE_PATH, cet.SEED_COOKIE_PATH)
 
 
 def test_the_HISTORY_cookie_path_IS_the_worker_route_prefix():
@@ -314,3 +321,15 @@ def test_an_EXPIRED_service_token_is_EXPIRED():
 def test_NO_SECRET_mints_no_service_token(monkeypatch):
     monkeypatch.delenv("CHART_EDGE_SECRET", raising=False)
     assert cet.mint_service() is None
+
+
+def test_the_SEED_cookie_path_IS_the_worker_route_prefix():
+    """⛔ ONE FACT IN TWO FILES, READ FROM BOTH (the history lake's rule, for the seed route). The Worker
+    answers `/api/seed/...` (seed.js `SEED_PREFIX_PATH`); the cookie must be scoped to exactly that prefix,
+    or members get 401 there (the 2026-11-20 production finding) or the token travels wider than the route."""
+    import pathlib
+    import re
+    src = (pathlib.Path(__file__).resolve().parents[1] / "edge" / "bars-edge-router" / "seed.js").read_text(encoding="utf-8")
+    m = re.search(r'export const SEED_PREFIX_PATH = "([^"]+)";', src)
+    assert m, "SEED_PREFIX_PATH not found in seed.js"
+    assert m.group(1) == cet.SEED_COOKIE_PATH + "/", (m.group(1), cet.SEED_COOKIE_PATH)

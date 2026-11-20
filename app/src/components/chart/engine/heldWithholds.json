@@ -82,26 +82,6 @@
      "engine": 86
     }
    ]
-  },
-  {
-   "sha256": "8c4cd2e2969aec5fc4299925aedc2054b1767db9506dc6047e0971d28844f5f6",
-   "scriptKey": "relative-strength-index-divergences-libertus",
-   "withholds": [
-    {
-     "door": "host",
-     "scope": "objectFamily",
-     "family": "label",
-     "why": "label family: 1 object family differs field by field (first: labels y of label #1 — vendor 77.67147902008467, ours 51.84328467361033); x: 0 graded (0 differ), 39 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 2 object families differ (count or text); colours agree o",
-     "lanes": [
-      "production",
-      "runtime-on"
-     ],
-     "evidence": [
-      "relative-strength-index-divergences-libertus-rddt-1d-2026-11-15"
-     ],
-     "engine": 86
-    }
-   ]
   }
  ]
 }

@@ -27,6 +27,27 @@
 // with that step's `data-fold`. A table with no `data-fold` (it fits a 461px panel, or it has no
 // sample rows to measure) folds only in a narrow panel.
 //
+// 2026-11-20: a sweep of all 120 commands at 340px and at 360px (the small Android phones and the
+// folding phones' cover screens; the first sweep stopped at 390px). Eight tables were wider than a
+// 340px screen (MOST 48px, UPDG 36, FLWL 20, EXMV 18, CONFL 15, ERNS 15, RSS 11, CEOS 5) and two
+// still at 360px (MOST 28, UPDG 16). No column was taken away for it. Where a table folds its cells
+// sit 4px a side in place of 8 and the two outer cells give up their outer padding; in MOST the
+// words "by size" sit under "% Chg" and the gapper tag starts at the row's left edge; the UPDG
+// rating and the EXMV actual move give back their 6rem floor. After it all eight fit 340px.
+//
+// 2026-11-20, part 2: the 49 commands that sweep could not measure (no sample answers), at 340, 360
+// and 390px. Five tables were wider than a 340px screen: RRG (295px over; 245 at 390px), ALRT (277;
+// 227), BRKO (73; 23), SENT (37 and 235; 185) and PEER (26). The two stylesheets those sweeps never
+// reached (myNamesPanel, comparePanels) got the fold rules marketPanels already had (4px cells, no
+// outer padding, `phoneWrap`). ALRT wraps its rule and its "Triggered" time; SENT wraps a series name
+// and an economy print's period. Two tables lose columns, because wrapping alone left them wider than
+// a 340px screen. RRG wraps the sector's name under its symbol and two headers, and folds RS-Ratio
+// and RS-Momentum: the graph above the table already draws those two numbers as each sector's place.
+// BRKO wraps "To pivot", its setup gives back its floor, and Tightness folds (it was still 38px over
+// with "Plan" cut off; every listed name already passed the tightness test). Two pickers ran past the
+// panel's right edge (SCAT's universe by 229px, IMOV's theme by 64px): a picker now shrinks to its
+// toolbar. After it all of them fit 340px.
+//
 // jsdom computes no layout, so this reads SOURCE (like panelPhoneLayout.rail.test.js): it holds the
 // mechanism, the helpers' rules and each panel's use of them. The tiers themselves are tested in
 // panelFit.test.js, and the rendered widths are measured by the sweep.
@@ -97,7 +118,7 @@ const ruleFor = (sh, selector) => (sh.rules.find((r) => r.selectors.includes(sel
 
 const PANEL_SHEETS = fs.readdirSync(PANELS).filter((f) => f.endsWith('.module.css'))
 /** The classes whose rules make a table fit: they may only ever be keyed on the panel's own mark. */
-const FIT_CLASSES = ['phoneHide', 'phoneWrap', 'phoneTight', 'snugWrap', 'snugTight', 'mediumWrap', 'mediumTight', 'whyCell', 'asideTag', 'symCol', 'resultCell']
+const FIT_CLASSES = ['phoneHide', 'phoneWrap', 'phoneTight', 'snugWrap', 'snugTight', 'mediumWrap', 'mediumTight', 'whyCell', 'asideTag', 'bySize', 'symCol', 'resultCell']
 
 describe('the one mechanism: the shell marks each panel body, the stylesheets key on the mark', () => {
   const shell = readAbs(path.join(TERMINAL, 'TerminalShell.jsx'))
@@ -136,7 +157,7 @@ describe('the one mechanism: the shell marks each panel body, the stylesheets ke
       const outside = css.replace(/:where\((?:[^()]|\([^()]*\))*\)/g, '')
       expect([path.basename(f), /data-fit|data-fold/.test(outside)]).toEqual([path.basename(f), false])
     }
-    expect(seen).toBe(20 * (FOLD_STEPS.length + 1) + 10)
+    expect(seen).toBe(48 * (FOLD_STEPS.length + 1) + 10)
   })
 
   it('no fit rule is left on the SCREEN, and there is no second mechanism (one rule serves a phone and a narrow panel)', () => {
@@ -196,7 +217,7 @@ const FITS_THE_BOTTOM = [
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder. */
 const NOT_MEASURED = ['AlertsPanel.jsx', 'BreakoutPanel.jsx', 'CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', 'EtfPanel.jsx',
   'GroupDrillPanel.jsx', 'InsiderPanel.jsx', 'PeerPanel.jsx', 'SentimentPanel.jsx', 'ThemeBoardPanel.jsx', 'WatchlistPanel.jsx']
-const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css']
+const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 
 describe('the fold ladder: a table folds only from its own step down', () => {
@@ -211,7 +232,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
         }
       }
     }
-    expect(rules).toBe(20)
+    expect(rules).toBe(48)
   })
 
   it('a step word never stands alone: it folds only the table that names that step (no table folds by default above the bottom)', () => {
@@ -302,6 +323,34 @@ describe('the shared helpers (marketPanels.module.css)', () => {
     expect(ruleFor(sh, `${FOLD} .table td.wrapCell`)).toMatch(/min-width:\s*6rem/)
   })
 
+  it('where a table folds its cells sit closer (4px a side) and the two outer cells give up their outer padding', () => {
+    const cells = ruleFor(sh, `${FOLD} .table td`)
+    expect(cells).toBe('padding-inline: var(--space-xs);')
+    expect(ruleFor(sh, `${FOLD} .table th`)).toBe(cells)
+    for (const cell of ['th', 'td']) {
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:first-child`)]).toEqual([cell, 'padding-left: 0;'])
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:last-child`)]).toEqual([cell, 'padding-right: 0;'])
+    }
+  })
+
+  it('a wide panel keeps its 8px: the closer cells are fold rules only, declared after the base cell rule', () => {
+    expect(ruleFor(sh, '.table td')).toMatch(/padding:[^;]*var\(--space-sm\)/)
+    const base = css.indexOf('.table th,\n.table td {')
+    expect(base).toBeGreaterThan(-1)
+    expect(css.indexOf(`${FOLD} .table td {`)).toBeGreaterThan(base)
+    expect(css.indexOf(`${FOLD} .table td:first-child`)).toBeGreaterThan(css.indexOf(`${FOLD} .table td {`))
+    let seen = 0
+    for (const r of sh.rules) {
+      if (!/padding-(inline|left|right):\s*(0|var\(--space-xs\))/.test(r.body)) continue
+      for (const sel of r.selectors) {
+        if (!/\.table t[hd](:(first|last)-child)?$/.test(sel)) continue
+        seen += 1
+        expect([sel, sel.startsWith(`${FOLD} `)]).toEqual([sel, true])
+      }
+    }
+    expect(seen).toBe(6)
+  })
+
   it('phoneWrap lets a cell, or one span in a cell, take a second line, breaking between words', () => {
     const rule = ruleFor(sh, `${FOLD} .table td.phoneWrap`)
     expect(rule).toMatch(/white-space:\s*normal/)
@@ -371,6 +420,8 @@ describe('each fitted panel still opts in', () => {
     ['ConfluencePanel.jsx', { phoneTight: 2, phoneWrap: 4 }],
     ['RepeatContractsPanel.jsx', { phoneTight: 2, phoneWrap: 2 }],
     ['CallThemesPanel.jsx', { phoneTight: 4, phoneWrap: 2 }],
+    ['UpgradesPanel.jsx', { phoneTight: 1, phoneWrap: 0 }],        // UPDG: the rating (340 and 360px, 2026-11-20)
+    ['ExpectedMovePanel.jsx', { phoneTight: 2, phoneWrap: 0 }],    // EXMV: the actual move, header and cell (340px)
   ])('fold: %s', (file, want) => {
     const src = read(file)
     for (const [cls, n] of Object.entries(want)) expect([file, cls, uses(src, cls)]).toEqual([file, cls, n])
@@ -444,14 +495,128 @@ describe('MOST where it folds (moversPanel.module.css)', () => {
     expect(ruleFor(sh, `${FOLD} .asideTag`)).toMatch(/display:\s*block/)
     expect(ruleFor(sh, `${FOLD} .table td`)).toMatch(/padding-inline:\s*var\(--space-xs\)/)
     expect(jsx).toContain('styles.asideTag')
+  })
+
+  it('small phones: "by size" sits under "% Chg", the tag starts at the row edge and the outer cells give up their outer padding', () => {
+    expect(ruleFor(sh, `${FOLD} .bySize`)).toBe('display: block;')
+    expect(jsx).toContain('className={`${styles.muted} ${styles.bySize}`} data-testid="terminal-movers-by-size"')
+    expect(ruleFor(sh, `${FOLD} .asideTag`)).toMatch(/padding-left:\s*0;/)
+    for (const cell of ['th', 'td']) {
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:first-child`)]).toEqual([cell, 'padding-left: 0;'])
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:last-child`)]).toEqual([cell, 'padding-right: 0;'])
+    }
+    // the base rule that left-aligns the first and the last column is still there, and is no fold rule
+    expect(ruleFor(sh, '.table td:last-child')).toBe('text-align: left;')
     expect((jsx.match(/styles\.whyCell/g) || []).length).toBe(2)
   })
 
   it('none of it applies to a wide panel', () => {
     for (const r of sh.rules) {
       for (const s of r.selectors) {
-        if (/\.(phoneHide|whyCell|asideTag)\b/.test(s)) expect([s, s.startsWith(`${FOLD} `)]).toEqual([s, true])
+        if (/\.(phoneHide|whyCell|asideTag|bySize)\b/.test(s)) expect([s, s.startsWith(`${FOLD} `)]).toEqual([s, true])
       }
     }
+  })
+})
+
+describe('small phones, part 2: the tables the first sweeps could not measure', () => {
+  const uses = (src, cls) => (src.match(new RegExp(`styles\\.${cls}\\b`, 'g')) || []).length
+  const market = sheet(read('marketPanels.module.css'))
+
+  it.each(['myNamesPanel.module.css', 'comparePanels.module.css'])('%s: a folded table sits 4px a side, its outer cells give up their outer padding and a phoneWrap cell may wrap', (f) => {
+    const css = read(f)
+    const sh = sheet(css)
+    const cells = ruleFor(sh, `${FOLD} .table td`)
+    expect(cells).toBe('padding-inline: var(--space-xs);')
+    expect(ruleFor(sh, `${FOLD} .table th`)).toBe(cells)
+    for (const cell of ['th', 'td']) {
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:first-child`)]).toEqual([cell, 'padding-left: 0;'])
+      expect([cell, ruleFor(sh, `${FOLD} .table ${cell}:last-child`)]).toEqual([cell, 'padding-right: 0;'])
+    }
+    // the same wrap as marketPanels: between words, never inside one
+    const wrap = ruleFor(sh, `${FOLD} .table td.phoneWrap`)
+    expect(wrap).toBe('white-space: normal; overflow-wrap: break-word;')
+    expect(wrap).toBe(ruleFor(market, `${FOLD} .table td.phoneWrap`))
+    expect(ruleFor(sh, `${FOLD} .table th.phoneWrap`)).toBe(wrap)
+    expect(ruleFor(sh, `${FOLD} .phoneHide`)).toBe('display: none;')
+    // a wide panel keeps its 8px: the base rule is still there, and the fold rules come after it
+    expect(ruleFor(sh, '.table td')).toMatch(/padding:[^;]*var\(--space-sm\)/)
+    const base = css.indexOf('.table th,\n.table td {')
+    expect(base).toBeGreaterThan(-1)
+    expect(css.indexOf(`${FOLD} .table td {`)).toBeGreaterThan(base)
+    // and nothing here touches a wide panel: every helper and every closer cell is a fold rule
+    let seen = 0
+    for (const r of sh.rules) {
+      for (const s of r.selectors) {
+        const closer = /\.table t[hd](:(first|last)-child)?$/.test(s) && /padding-(inline|left|right):/.test(r.body)
+        if (!closer && !/\.phone(Hide|Wrap|Tight)\b/.test(s)) continue
+        seen += 1
+        expect([f, s.slice(s.lastIndexOf(')') + 1), s.startsWith(`${FOLD} `)]).toEqual([f, s.slice(s.lastIndexOf(')') + 1), true])
+      }
+    }
+    expect([f, seen]).toEqual([f, 9])
+  })
+
+  it('ALRT: the alert rule and its status may take a second line (the table ran 277px past a 340px screen)', () => {
+    const src = read('AlertsPanel.jsx')
+    expect([uses(src, 'phoneWrap'), uses(src, 'phoneHide')]).toEqual([2, 2])
+    expect(src).toMatch(/<td className=\{styles\.phoneWrap\}>\s*\{r\.direction === 'above' \? 'Above' : 'Below'\}/)
+    expect(src).toMatch(/<td className=\{styles\.phoneWrap\}>\s*\{r\.active \? 'Active'/)
+  })
+
+  it('RRG: the name wraps under its symbol, two headers wrap, and the two numbers the graph already draws fold away, header and cell together', () => {
+    const src = read('RrgPanel.jsx')
+    expect([uses(src, 'phoneWrap'), uses(src, 'phoneHide')]).toEqual([3, 4])
+    expect(src).toContain('<th scope="col" className={styles.phoneHide}>RS-Ratio</th><th scope="col" className={styles.phoneHide}>RS-Momentum</th>')
+    expect(src).toContain('<td className={styles.phoneHide}>{formatNumber(r.ratio, { decimals: 2 })}</td>')
+    expect(src).toContain('<td className={styles.phoneHide}>{formatNumber(r.momentum, { decimals: 2 })}</td>')
+    expect(src).toMatch(/<td className=\{styles\.phoneWrap\}>\s*<button type="button" className=\{styles\.rowBtn\}/)
+    expect(src).toContain("<th scope=\"col\" className={styles.phoneWrap}>{unit === 'week' ? 'Weeks' : 'Sessions'} in it</th>")
+    expect(src).toContain('<th scope="col" className={styles.phoneWrap}>vs {RRG_BENCHMARK}, last {RRG_METHOD.tail} {unit}s</th>')
+    // the quadrant, the time in it and the return against the benchmark never fold
+    expect(src).toContain('<th scope="col">Symbol</th><th scope="col">Quadrant</th>')
+    // the graph that draws the two folded numbers is still drawn above the table
+    expect(src.indexOf('<RrgGraph')).toBeGreaterThan(-1)
+    expect(src.indexOf('<RrgGraph')).toBeLessThan(src.indexOf('RS-Ratio</th>'))
+  })
+
+  it('BRKO: the setup gives back its floor, the distance to the pivot may wrap, and Tightness folds, header and cell', () => {
+    const src = read('BreakoutPanel.jsx')
+    expect([uses(src, 'phoneWrap'), uses(src, 'phoneTight'), uses(src, 'phoneHide')]).toEqual([2, 1, 4])
+    expect(src).toMatch(/key: 'tight', label: 'Tightness', phoneHide: true/)
+    expect(src).toContain("<td className={styles.phoneHide}>{formatPercent(x.tight, { decimals: 1, absent: 'n/a' })}</td>")
+    // what a phone keeps: the symbol, the setup, the distance to the pivot, the RS rank and the Plan link
+    for (const key of ['order', 'sym', 'setup', 'near', 'rs']) {
+      expect([key, new RegExp(`key: '${key}'[^}]*phoneHide`).test(src)]).toEqual([key, false])
+    }
+    expect(src).toMatch(/<td><PanelCommand cmd=\{planCmd\(x\)\}/)
+    expect(src).toContain('<td className={`${styles.wrapCell} ${styles.phoneTight}`}>{x.setup}</td>')
+    expect(src).toContain('<td className={styles.phoneWrap}>{pivotText(x.dist)}</td>')
+    expect(src).toMatch(/key: 'near', label: 'To pivot', phoneWrap: true/)
+    expect(src).toContain('className={c.phoneHide ? styles.phoneHide : c.phoneWrap ? styles.phoneWrap : undefined}')
+    expect(ruleFor(market, `${FOLD} .table td.phoneTight`)).toMatch(/min-width:\s*0/)
+  })
+
+  it('SENT: a series name and an economy print\'s period may take a second line', () => {
+    const src = read('SentimentPanel.jsx')
+    expect(uses(src, 'phoneWrap')).toBe(3)
+    expect(src).toContain('<td className={styles.phoneWrap}>{r.label} <span className={styles.muted}>{r.cadence}</span></td>')
+    expect(src).toContain('<td className={styles.phoneWrap}>{name}</td>')
+    expect(src).toContain('<td className={styles.phoneWrap}>{out.period}{out.released ?')
+  })
+
+  it('SCAT and IMOV: a labelled picker is never wider than its toolbar, in any panel (no fold rule: a picker can be too wide anywhere)', () => {
+    expect(ruleFor(market, '.pick')).toBe('min-width: 0; max-width: 100%;')
+    expect(ruleFor(market, '.pick select')).toBe('min-width: 0; max-width: 100%;')
+    expect(ruleFor(market, '.toolbar')).toMatch(/flex-wrap:\s*wrap/)
+    const scat = read('ScatterPanel.jsx')
+    expect(uses(scat, 'pick')).toBe(2)
+    expect((scat.match(/<label className=\{`\$\{styles\.muted\} \$\{styles\.pick\}`\}>/g) || []).length).toBe(2)
+    expect(scat).not.toContain('<label className={styles.muted}>')
+    const imov = sheet(read('imovPanel.module.css'))
+    expect(ruleFor(imov, '.filter')).toMatch(/min-width:\s*0;\s*max-width:\s*100%;/)
+    expect(ruleFor(imov, '.filter select')).toMatch(/min-width:\s*0;/)
+    expect(ruleFor(imov, '.filter select')).toMatch(/max-width:\s*22em;/)
+    expect(ruleFor(imov, '.toolbar')).toMatch(/flex-wrap:\s*wrap/)
   })
 })

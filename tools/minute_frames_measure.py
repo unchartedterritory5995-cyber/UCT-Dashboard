@@ -27,6 +27,7 @@ from array import array
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (every *_DB_PATH -> a sandbox)
 from api.services import minute_frames as mf  # noqa: E402
 
 

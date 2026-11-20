@@ -3,9 +3,9 @@
 import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint } from './chart/paintLog'
-import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, keepRthBars, etDateLabel } from './chart/barTime'
+import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, etDateLabel } from './chart/barTime'
 import { lastCandlePos, pinNewestRange } from './chart/rightMargin'
-import { foldOffGridBars } from './chart/offGridBars'
+// (`foldOffGridBars` / `keepRthBars`: the session filter is `chart/chartDerived.sessionBarsOf`)
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
 import { markChartLayoutPresentational } from '../utils/chartLayoutTable'
 import { Fragment, useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo, useId, useSyncExternalStore } from 'react'
@@ -1725,6 +1725,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { setSeriesVisible } from './chart/seriesVisible'
 import { useRuntimeLists } from './chart/engine/useRuntimeLists'
 import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -1744,11 +1745,20 @@ import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
+import { onVisibleLogicalRange } from './chart/visibleRangeSubscription'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
 import { useRestedSWR } from '../lib/symbolPace'
 import { useLegacyChartBars } from './chart/useLegacyChartBars'
 import { useBarSnapshotBars } from './chart/useBarSnapshotBars'
+// ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `localStorage['uct.neighborframes']`): the per-bar arrays below are pure
+// functions (`chart/chartDerived.js`), and with the switch on they are filed under the array they came from,
+// so the rows a member is about to reach are derived in idle time and found on the switch.
+import { sessionBarsOf, ohlcBaseOf, closeDataOf, volDataOf, volMaDataOf, computeHVC } from './chart/chartDerived'
+import { neighborFramesOn, stableSig, identitySig } from './chart/neighborFrames'
+import {
+  useNeighborFrames, deriveSession, deriveDisplay, deriveHvc, deriveOhlcBase, deriveClose, deriveVol, deriveVolMa,
+} from './chart/useNeighborFrames'
 import { BARSTORE } from './chart/barStoreSwitch'
 import {
   LEGACY_LIVE, devOnScreenSource, liveAfterSetData, liveAfterVolumeSetData,
@@ -2092,6 +2102,10 @@ function chartTickMarkFormatter(time, tickMarkType, _locale, h24 = false) {
   if (typeof time === 'number') {
     const d = new Date(time * 1000)
     if (tickMarkType >= 3) return h24 ? _fmt24(d) : _fmt12(d)    // time tick → 12-hour (24-hour when the member picks it)
+    // A zoomed-out intraday axis names the year and month marks as a daily chart does ("2026", "Feb"), not by
+    // their first session ("Jan 2", "Feb 2"), as TradingView does (owner's 1h axis, 2026-11-20).
+    if (tickMarkType === 0) return String(d.getUTCFullYear())
+    if (tickMarkType === 1) return _MO[d.getUTCMonth()]
     return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`           // intraday day-boundary
   }
   const d = _dayDate(time)
@@ -2164,7 +2178,9 @@ export function timeAxisFormattersFor(h24, zoneId, study = false) {
     const base = study ? studyTickMarkFormatter : chartTickMarkFormatter
     const z = (time) => (typeof time === 'number' ? chartTimeInZone(time, tz) : time)
     f = {
-      tick: (time, tickMarkType, locale) => base(z(time), tickMarkType, locale, !!h24),
+      // Year and month marks are placed on the exchange clock, so they are NAMED on it: a zone far west of New
+      // York could read a month's pre-market first bar on the previous day ("Feb" at the March mark).
+      tick: (time, tickMarkType, locale) => base(tickMarkType <= 1 ? time : z(time), tickMarkType, locale, !!h24),
       crosshair: (time) => chartCrosshairTimeFormatter(z(time), !!h24),
     }
     _zonedTimeFormatters.set(key, f)
@@ -2350,33 +2366,7 @@ export function sanitizeOverlayPeriods(next, prev) {
   return changed ? { ...next, overlays } : next
 }
 
-// O(n) HVC detection via monotonic deque — replaces O(n × lookback) slice+spread
-function computeHVC(bars) {
-  const hvcSet = new Set()
-  const lb = Math.min(252, bars.length - 1)
-  const startIdx = Math.max(20, lb)
-  if (startIdx >= bars.length) return hvcSet
-  // Monotonic decreasing deque: front holds index of max volume in window
-  const deque = [] // [{idx, vol}]
-  // Pre-fill deque with bars before the check window
-  for (let i = 0; i < startIdx; i++) {
-    const vol = bars[i].v || 0
-    while (deque.length && deque[deque.length - 1].vol <= vol) deque.pop()
-    deque.push({ idx: i, vol })
-  }
-  for (let i = startIdx; i < bars.length; i++) {
-    const windowStart = Math.max(0, i - lb)
-    // Expire elements outside the lookback window
-    while (deque.length && deque[0].idx < windowStart) deque.shift()
-    const vol = bars[i].v || 0
-    // Front of deque = max of [windowStart .. i-1] (prior bars only)
-    if (deque.length && vol > deque[0].vol) hvcSet.add(bars[i].t)
-    // Maintain decreasing invariant
-    while (deque.length && deque[deque.length - 1].vol <= vol) deque.pop()
-    deque.push({ idx: i, vol })
-  }
-  return hvcSet
-}
+// O(n) HVC detection via monotonic deque: `computeHVC`, now in `chart/chartDerived.js` (imported above).
 
 
 // ─── ET timezone offset for intraday charts ─────────────────────────────────
@@ -9124,6 +9114,10 @@ export default function StockChart({
     if (!bars || !bars.length) return
     if (!Number.isFinite(c)) return
     const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
+    // ⭐⭐ (switch smoothness) THE ENGINE'S SERIES HOLD WHAT THE LAST PASS HANDED THEM before a tick extends them:
+    // data a heavy pass queued (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`) is applied first, so the tick's `update`
+    // lands on the same points it would have with no queue.
+    try { engineRef.current?.binder?.flushPendingData?.() } catch { /* binder disposed */ }
     // ⚠️ THE LEGACY LOOP IS NOW USUALLY EMPTY — every `cs.overlays` average is an
     // instance (`maAdoption.js`); only a host passing its own `overlays` prop (the
     // intraday popup) still has one. It used to be the early-return guard for the
@@ -9223,18 +9217,18 @@ export default function StockChart({
     }
   }, [adjustTime, averageBindings])
 
-  // Filter bars to regular session only when extended hours hidden
-  const sessionBars = useMemo(() => {
-    if (!bars || !_intradayLike) return bars
-    // An off-grid bar (trade-time stamped, e.g. 16:35:50 beside 16:35:00) is never its
-    // own candle — folded into its bucket. Same array when the series is clean.
-    const gridBars = isIntraday ? foldOffGridBars(bars, resolvedTf, { showExtended }) : bars
-    if (showExtended) return gridBars
+  // ⭐⭐ NEIGHBOR FRAMES — read once per page load; `_nfRecipes` (below) is how this chart's per-bar arrays
+  // are asked for, by the chart's memos AND by the preparer of the rows around it (`useNeighborFrames`).
+  const _nfOn = neighborFramesOn()
+  const _nfSessionP = { intradayLike: _intradayLike, isIntraday, showExtended, tf: resolvedTf }
+  const _nfSession = _nfOn ? { p: _nfSessionP, sig: stableSig(_nfSessionP) } : null
 
-    // Regular session = 09:30 to the day's close (13:00 on an NYSE half-day): barTime.isRthBar.
-    // The same array when every bar already is (the server's rth answer): no 45,000-row copy.
-    return keepRthBars(gridBars)
-  }, [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
+  // Filter bars to regular session only when extended hours hidden (`chartDerived.sessionBarsOf`:
+  // off-grid bars folded into their bucket, then 09:30 to the day's close; the same array when clean)
+  const sessionBars = useMemo(
+    () => (_nfOn ? deriveSession(bars, { session: _nfSession }) : sessionBarsOf(bars, _nfSessionP)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `_nfSession(P)` are these same deps, named
+    [bars, _intradayLike, isIntraday, showExtended, resolvedTf])
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
@@ -10166,8 +10160,9 @@ export default function StockChart({
 
   const displayBars = useMemo(() => {
     if (!sessionAppliedBars?.length) return sessionAppliedBars
+    if (_nfOn) return deriveDisplay(sessionAppliedBars, { heikinAshi: !!cs.heikinAshi })
     return cs.heikinAshi ? toHeikinAshi(sessionAppliedBars) : sessionAppliedBars
-  }, [sessionAppliedBars, cs.heikinAshi])
+  }, [sessionAppliedBars, cs.heikinAshi])  // eslint-disable-line react-hooks/exhaustive-deps
   barCountRef.current = displayBars?.length || 0
   // ⛔ The drawing overlay maps BY INDEX (future points `bars.length-1+futureBars`,
   // the nearestIndex→logicalToCoordinate fallback, toChart's logical→bar), so it must
@@ -10302,24 +10297,33 @@ export default function StockChart({
   const _bigRef = useRef(null)
   if (_bigRef.current === null) _bigRef.current = {}
   const _big = _bigRef.current
+  // ⭐⭐ NEIGHBOR FRAMES — HOW THIS CHART DERIVES ITS PER-BAR ARRAYS, as plain values and their signatures.
+  // The chart's memos below and the preparer (`useNeighborFrames`) both call `chart/useNeighborFrames`'s
+  // `derive*` with THIS object, so a row prepared in idle time is filed under exactly the question this
+  // chart asks when the member arrives. ⛔ Every value a derivation reads is in its `p` (or named in its sig).
+  const _nfAtSig = _nfOn ? identitySig(adjustTime) : ''
+  const _nfCloseP = {
+    plain: !(cs.chartType === 'line' || cs.chartType === 'area') || (cs.candleColorMode || 'netchange') === 'onecolor' || !!breadthLineColor,
+    mode: cs.candleColorMode || 'netchange', up: mbUp, down: mbDown,
+  }
+  const _nfRecipes = _nfOn ? {
+    adjustTime,
+    session: _nfSession,
+    heikinAshi: !!cs.heikinAshi,
+    hvcOn: !!(cs.volume.hvcEnabled && !disableHvc),
+    ohlc: { sunrise: canvasTheme === 'sunrise', sig: `${canvasTheme === 'sunrise' ? 'sunrise' : 'plain'}|at${_nfAtSig}` },
+    close: { p: _nfCloseP, sig: `${stableSig(_nfCloseP)}|at${_nfAtSig}` },
+    vol: null,      // filled beside `volData` (its inputs are read there)
+    volMa: null,    // filled beside `volMaData`
+    plain: false,   // filled before `useNeighborFrames`
+  } : null
   const ohlcData = useMemo(
     () => {
       if (!displayBars) return []
-      const arr = displayBars.map(b => ({ time: adjustTime(b.t), open: b.o, high: b.h, low: b.l, close: b.c }))
-      // Sunrise: an INSIDE BAR (its whole high–low sits within the PREVIOUS bar's
-      // high–low, wicks included) is painted solid black regardless of direction.
-      // Data-level (uses displayBars directly) so it's deterministic for every bar,
-      // including today's developing bar. The net-change paint wrapper preserves an
-      // explicit color, so this black survives.
-      if (canvasTheme === 'sunrise') {
-        for (let i = 1; i < arr.length; i++) {
-          const cur = arr[i], prev = arr[i - 1]
-          if (cur.high != null && cur.low != null && prev.high != null && prev.low != null
-              && cur.high <= prev.high && cur.low >= prev.low) {
-            arr[i] = { ...cur, color: '#000000', borderColor: '#000000', wickColor: '#000000' }
-          }
-        }
-      }
+      // ⭐ the per-bar candles (`chartDerived.ohlcBaseOf`; filed per array with the switch on) — and the
+      // tail below writes into a COPY, so a filed base is never changed under its other readers.
+      const arr = _nfRecipes ? deriveOhlcBase(displayBars, _nfRecipes).slice()
+        : ohlcBaseOf(displayBars, canvasTheme === 'sunrise', adjustTime)
       // Paint the pre-market preview candle (the appended last bar) in the user's
       // chosen up/down candle color (owner ask — was a muted white). "Up" = the
       // pre-market price sits above the prior RTH close (net-change basis, what a
@@ -10609,31 +10613,22 @@ export default function StockChart({
   const closeData = useMemo(
     () => {
       if (!displayBars) return []
-      const isLineArea = cs.chartType === 'line' || cs.chartType === 'area'
-      const mode = cs.candleColorMode || 'netchange'
       // Per-segment green/red for line & area in net-change / open-close modes. One
       // color (and every non-line/area type) stays a plain value series. A breadth
       // line forces plain too — per-point colors would override its single ink.
-      if (!isLineArea || mode === 'onecolor' || breadthLineColor) {
-        return displayBars.map(b => ({ time: adjustTime(b.t), value: b.c }))
-      }
-      let prevClose = null
-      return displayBars.map(b => {
-        let up
-        if (mode === 'netchange') up = prevClose == null ? true : b.c >= prevClose
-        else up = (b.o != null) ? b.c >= b.o : true
-        prevClose = b.c
-        const col = up ? mbUp : mbDown
-        // `color` is read by LineSeries, `lineColor` by AreaSeries — set both.
-        return { time: adjustTime(b.t), value: b.c, color: col, lineColor: col }
-      })
+      // (`chartDerived.closeDataOf`; filed per array with the switch on)
+      return _nfRecipes ? deriveClose(displayBars, _nfRecipes) : closeDataOf(displayBars, _nfCloseP, adjustTime)
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `_nfCloseP` / `_nfRecipes` are these deps, named
     [displayBars, adjustTime, cs.chartType, cs.candleColorMode, mbUp, mbDown, breadthLineColor],
   )
   _big.closeData = closeData
   const hvcSet = useMemo(
-    () => cs.volume.hvcEnabled && !disableHvc && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
-    [filteredBars, cs.volume.hvcEnabled, disableHvc]
+    // with the switch on: filed per array, and ONE shared empty set when off (a fresh `new Set()` would
+    // make every volume array keyed on it a miss)
+    () => (_nfOn ? deriveHvc(filteredBars, { hvcOn: !!(cs.volume.hvcEnabled && !disableHvc) })
+      : cs.volume.hvcEnabled && !disableHvc && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set()),
+    [filteredBars, cs.volume.hvcEnabled, disableHvc]  // eslint-disable-line react-hooks/exhaustive-deps
   )
   // Highest-Volume-Ever bar (across all loaded bars). Coloured gold, no label —
   // only highlighted when it falls within the visible year.
@@ -10651,48 +10646,26 @@ export default function StockChart({
   // The live DAY volume overlay on the D/W/M developing bar — a legacy live-writer input. Under
   // BARSTORE the forming bar's volume is snapshot.developing's (the store folds the 1m stream).
   const liveVolForSym = LEGACY_LIVE ? Number(livePrices?.[sym]?.volume) : NaN
+  // Volume bars track the candle palette EXACTLY so the red/green of the
+  // volume pane matches the red/green of the candles above it (a dimmed alpha
+  // composites darker over the near-black canvas and reads as a mismatched hue).
+  // (`chartDerived.volDataOf` holds the per-bar rule: net change or open-close, the live DAY volume on the
+  // D/W/M developing bar only, the gold HVE / HVC bars.)
+  const _nfVolP = {
+    blank: !!blankVolume,
+    upC: userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor,
+    downC: userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor,
+    netChange: !!colorByNetChange,
+    dwm: ['D', 'W', 'M'].includes(resolvedTf),
+    liveVol: liveVolForSym,
+    bold: !!boldCandles,
+  }
+  if (_nfRecipes) _nfRecipes.vol = { on: !markVolumeExtremes, p: _nfVolP, sig: `${stableSig(_nfVolP)}|at${_nfAtSig}` }
   const volData = useMemo(() => {
     if (!sessionAppliedBars?.length) return []
-    // blankVolume (breadth): feed the series WHITESPACE (time-only points). Nothing
-    // draws, and a scale with no values renders no axis labels — so no flat 0-line and
-    // no "0" tag, while the pane itself is still reserved. See the blankVolume prop.
-    if (blankVolume) return sessionAppliedBars.map(b => ({ time: adjustTime(b.t) }))
-    // Volume bars track the candle palette EXACTLY so the red/green of the
-    // volume pane matches the red/green of the candles above it (a dimmed alpha
-    // composites darker over the near-black canvas and reads as a mismatched hue).
-    const upC = userCandleColors ? (cs.volume.upColor || mbVolUp) : boldCandles ? mbVolUp : modelBookLook ? BOLD_UP : cs.volume.upColor
-    const downC = userCandleColors ? (cs.volume.downColor || mbVolDown) : boldCandles ? mbVolDown : modelBookLook ? BOLD_DOWN : cs.volume.downColor
-    const gold = '#e6b800'
-    const lastIdx = sessionAppliedBars.length - 1
-    return sessionAppliedBars.map((b, i) => {
-      // Up/down follows the SAME rule as the candles: net change (close vs the
-      // PREVIOUS close) when colorByNetChange is on, else close-vs-open. This is
-      // why a gap-up-then-fade day (AEHR +22% on the day but red open→close) shows
-      // a GREEN volume bar — it's up on net change. First bar has no prior close.
-      const prevC = i > 0 ? sessionAppliedBars[i - 1].c : b.o
-      const isUp = colorByNetChange ? (b.c >= prevC) : (b.c >= b.o)
-      // Developing (last) bar: prefer the live feed volume when it's ahead of the
-      // fetched value (intraday volume only grows), so the pane tracks the
-      // watchlist in real time. Historical bars keep their own volume.
-      // Overlay the live DAY volume ONLY on D/W/M (where the developing bar spans
-      // the whole day). On intraday the day total is NOT the bucket's volume —
-      // overlaying it painted the day's ~30M onto the developing 5m/1m bar (the
-      // phantom volume spike). Intraday per-bar live volume rides the push feed
-      // (Writer B writes data.bar.v; Writer D re-tops from liveBarRef.volume).
-      const useLiveDayVol = ['D', 'W', 'M'].includes(resolvedTf) &&
-        Number.isFinite(liveVolForSym) && liveVolForSym > (b.v || 0)
-      const value = (i === lastIdx && useLiveDayVol) ? liveVolForSym : b.v
-      return {
-        time: adjustTime(b.t),
-        value,
-        color: volExtremes?.goldTimes.has(b.t)        // HVE / HV1 bars → gold
-          ? gold
-          : (!boldCandles && hvcSet.has(b.t))         // legacy HVC highlight
-            ? 'rgba(201,168,76,0.9)'
-            : isUp ? upC : downC,
-      }
-    })
-  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf, blankVolume])
+    return _nfRecipes ? deriveVol(sessionAppliedBars, hvcSet, volExtremes, _nfRecipes)
+      : volDataOf(sessionAppliedBars, _nfVolP, hvcSet, volExtremes, adjustTime)
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf, blankVolume])  // eslint-disable-line react-hooks/exhaustive-deps
   _big.volData = volData
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
@@ -10705,20 +10678,20 @@ export default function StockChart({
   }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
   _big.fadedVolData = fadedVolData
   // Smooth N-SMA line for the volume pane (subtle, white).
+  if (_nfRecipes) _nfRecipes.volMa = { on: !blankVolume && volMaPeriodEff >= 2, period: volMaPeriodEff, sig: `p${stableSig(volMaPeriodEff)}|at${_nfAtSig}` }
   const volMaData = useMemo(() => {
     if (blankVolume) return []  // no volume ⇒ no volume MA line in the empty pane
     if (!volMaPeriodEff || volMaPeriodEff < 2 || !sessionAppliedBars?.length) return []
-    const out = []
-    const q = []
-    let sum = 0
-    for (const b of sessionAppliedBars) {
-      const v = b.v || 0
-      q.push(v); sum += v
-      if (q.length > volMaPeriodEff) sum -= q.shift()
-      if (q.length === volMaPeriodEff) out.push({ time: adjustTime(b.t), value: sum / volMaPeriodEff })
-    }
-    return out
-  }, [sessionAppliedBars, volMaPeriodEff, adjustTime, blankVolume])
+    return _nfRecipes ? deriveVolMa(sessionAppliedBars, _nfRecipes) : volMaDataOf(sessionAppliedBars, volMaPeriodEff, adjustTime)
+  }, [sessionAppliedBars, volMaPeriodEff, adjustTime, blankVolume])  // eslint-disable-line react-hooks/exhaustive-deps
+  // ⭐⭐ NEIGHBOR FRAMES — the rows a linked list names around this symbol, prepared after each paint. Only
+  // on the plain path (no replay, override, custom timeframe, framed range or session candle), where the
+  // chain above is bars → session → the very arrays the binder and the series are handed.
+  if (_nfRecipes) {
+    _nfRecipes.plain = !_hasOverride && !_isCustomTf && !replayMode && replayIndex == null && !replayCutoff
+      && !exactDateRange && !sessionCandleActive && filteredBars === sessionBars && sessionAppliedBars === filteredBars
+  }
+  useNeighborFrames({ on: _nfOn, sym, tf: resolvedTf, showExtended, engineRef, recipes: _nfRecipes })
   const overlayData = useMemo(() => {
     if (!sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -13647,6 +13620,11 @@ export default function StockChart({
           },
         }),
         plan: { noop: _noop, incr: _incr, fresh: _freshChart },
+        // ⭐⭐ (switch smoothness, 2026-11-20) a heavy pass may hand the indicator series it already drew their data
+        // over several tasks (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`): only while the candles are built from the
+        // very bars the indicators are (no session-preview candle, no Heikin-Ashi), so every point an indicator holds
+        // meanwhile is on the candles' own time scale and the framing below reads the same index space either way.
+        deferSeriesData: displayBars === filteredBars,
         // The declutter toggle. `visible` is part of the option set the binder
         // re-asserts on every bind, so without this a hidden engine series would
         // reappear on the next paint. Read from a ref, not a dependency — see the
@@ -15829,7 +15807,10 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady) return
     const vis = !hideBase
-    const setVis = (s) => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
+    // ⭐⭐ (switch smoothness, 2026-11-20) A SERIES ALREADY SHOWING `vis` IS LEFT ALONE (`seriesVisible.js`): this
+    // effect re-runs on every bars update, and each `applyOptions` made lightweight-charts recompute the chart
+    // (measured: 10-19 ms per run in the 1D -> 5m switch with Fred RS, one call per series).
+    const setVis = (s) => setSeriesVisible(s, vis)
     setVis(candleSeriesRef.current)                                   // base candles
     setVis(volumeSeriesRef.current)                                   // volume (also source-gated via showVolume)
     for (const s of (overlaySeriesRefs.current || [])) setVis(s)      // legacy MA overlays
@@ -17905,6 +17886,9 @@ export default function StockChart({
       if (!b) { hide(); return }
       let last = endLabelLastRef.current.get(b)
       if (last === undefined) {
+        // ⭐⭐ (switch smoothness) read what the series holds once the data a heavy pass queued for it is applied
+        // (`binder.flushPendingData`): the tag is cached per binding, so it must never read the picture before it
+        try { eng.binder.flushPendingData?.(b.series) } catch { /* binder disposed */ }
         let points = null
         try { points = typeof b.series.data === 'function' ? b.series.data() : null } catch { points = null }
         last = lastFinitePoint(points)
@@ -18802,7 +18786,8 @@ export default function StockChart({
 
     const redraw = () => drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg)
     redraw()
-    const unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(redraw)
+    // ⛔ The library's subscribe returns nothing: this returns the real unsubscribe (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, redraw)
     let ro = null
     if (container && typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(() => {
@@ -18814,7 +18799,7 @@ export default function StockChart({
     }
     return () => {
       try { ro?.disconnect() } catch { /* noop */ }
-      try { unsub() } catch {}
+      unsub()
       const ctx = canvas.getContext('2d')
       ctx?.clearRect(0, 0, canvas.width, canvas.height)
     }
@@ -18855,10 +18840,11 @@ export default function StockChart({
         }
       })
     }
-    let unsub = null
-    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    // ⛔⛔ The library's subscribe returns NOTHING: keeping its return value as the unsubscribe left one live
+    // handler per symbol switch, each holding the outgoing symbol's whole render (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, onRange)
     return () => {
-      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      unsub()
       if (raf != null) cancelAnimationFrame(raf)
     }
   }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, _histPrependOn])
@@ -18923,10 +18909,11 @@ export default function StockChart({
         if (wantsOlder({ fromIndex: range.from, toIndex: range.to, loadedCount: lastBarCountRef.current })) _loadOlder(false)
       })
     }
-    let unsub = null
-    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    // ⛔⛔ The library's subscribe returns NOTHING: keeping its return value as the unsubscribe left one live
+    // handler per symbol switch, each holding the outgoing symbol's whole render (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, onRange)
     return () => {
-      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      unsub()
       if (raf != null) cancelAnimationFrame(raf)
     }
   }, [_histPrependOn, sym, resolvedTf, _loadOlder, chartReady])
@@ -19115,6 +19102,11 @@ export default function StockChart({
       if (!ts || !bars || bars.length < 2) return false
       const cur = ts.getVisibleLogicalRange()
       const W = (cur && Number.isFinite(cur.from) && Number.isFinite(cur.to) && cur.to > cur.from) ? (cur.to - cur.from) : 200
+      // ⛔ ORIGIN IS THE MEMBER MOVING THE VIEW, as Go-to-date is (goToDateRightEdge): it ends the
+      // switch's settling guard (`pendingTfReframeRef`), which otherwise re-pins the newest bar at the
+      // right on the next commit (2026-11-20, production: TEL D and 60m left the first bar a beat after
+      // the click, GNK D did not because nothing committed after it).
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from: -W / 2, to: W / 2 })   // bar 0 at the centre
       appliedRangeRef.current = { val: 'origin', from: -W / 2, to: W / 2 }
       return true
@@ -19333,6 +19325,9 @@ export default function StockChart({
       const hist = lastIdx - from
       const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
       const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
+      // ⛔ A RANGE BUTTON IS THE MEMBER MOVING THE VIEW (the Go-to-date rule, as Origin above): without
+      // this the switch's settling guard put the outgoing zoom width back on the next commit.
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = { val, from, to }
       // PERSIST the chosen range as the active view-lock so EVERY next ticker
@@ -19462,11 +19457,28 @@ export default function StockChart({
     if (barCount === _fullTarget) return
     if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
   }
-  const getDateMeta = () => {
+  // `{ lite: true }`: only the date navigator's fields (right-edge date, bounds, load state). The navigator polls
+  // 4×/s for the life of the page; the full answer (default view geometry, zoom limits, price scale, replay) is
+  // for the UCT Agent's read-backs and stays the default.
+  const getDateMeta = (opts) => {
     const bars = filteredBarsRef.current
     if (!bars || !bars.length) return null
     const firstMs = _dateToMs(bars[0].t)
     const lastMs = _dateToMs(bars[bars.length - 1].t)
+    if (opts?.lite) {
+      let rightMs = lastMs
+      try {
+        const cur = chartRef.current?.timeScale()?.getVisibleLogicalRange()
+        if (cur && Number.isFinite(cur.to)) rightMs = _dateToMs(bars[Math.max(0, Math.min(bars.length - 1, Math.floor(cur.to)))].t)
+      } catch { /* noop */ }
+      return {
+        firstMs, lastMs, rightMs,
+        firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
+        lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
+        fullyLoaded: barCount === _fullTarget,
+        loading: originLoading,
+      }
+    }
     let rightMs = lastMs
     let activeRange = null
     let atDefaultView = false
