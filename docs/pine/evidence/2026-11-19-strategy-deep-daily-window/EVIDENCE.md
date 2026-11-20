@@ -133,3 +133,51 @@ Served on SPY 1D: supertrend-strategy (73 trades), stop-loss-and-take-profit-in-
 buy-monday-exit-tuesday and the 1-minute scalping strategy (0 trades each). The next walls on SPY 1D: [B-ROUND-MARK]
 unpinned (7 rows: SPY's closes are off the tick grid, RDDT's are not), `runtime:strategy-unsettled` at the run (11),
 Q-S1b at the report (3), and the door refusals every chart shares.
+
+## 6. On the member's own bars: the supply-attributed comparison and the data-source note (2026-11-20)
+
+Q-SU-7 / Q-SU-8 graded our broker on TradingView's bars. Members run on OURS: production `/api/bars/{SPY,AAPL}?tf=D&bars=12500`,
+fetched anonymously 2026-11-20T07:23:51Z (SPY 8,511 rows, sha256 `6402a0ac...`; AAPL 11,578 rows, `61648a76...`). The
+payloads stay out of git (vendor price data). Against the captures' bars:
+
+| chart | dates | days with an open, high, low or close more than 0.2% off TradingView's |
+|---|---|---|
+| SPY 1D | identical | 73 (bad single prints; 4-decimal consolidated highs and lows from 2015); 9 on or after 2018: 2018-03-19, 2019-08-14, 2019-09-05, 2019-12-16, 2020-02-24, 2020-04-15, 2020-05-14, 2020-05-26, 2020-10-28 |
+| AAPL 1D | ours +7 (1981-08-10 zero-volume filler; 1983-09-23, 1989-01-17, 1989-01-27, 1989-02-14, 1989-12-12, 1990-10-19), TradingView +1 (1985-09-27) | 1,719 of the shared days, almost all 1980-1991 (our 4-decimal adjusted prices against TradingView's 6); none from 2018 |
+
+Our broker through the member door, the same window (12,500 over a served depth of 5,000), once on OUR bars and once on
+TradingView's: every difference below is the bars', never the broker's.
+
+| chart | strategy | trades (ours / TradingView's bars) | differing trades | differing report slots |
+|---|---|---|---|---|
+| SPY | supertrend-strategy (Q-SU-7) | 75 / 75 | 0 | 0; and on OUR bars it grades equal to TradingView's own trade list, fills and 9 slots |
+| SPY | stop-loss-and-take-profit-in-example | 301 / 301 | 17 | 5: netProfit -50.91 / -54.13, grossProfit 985.16 / 984.06, grossLoss 1036.07 / 1038.19, netProfitPercent, profitFactor |
+| SPY | golden-cross-sma-200 | 15 / 15 | 0 | 0 |
+| SPY | buy-monday-exit-tuesday, scalping (1 minute) | 0 / 0 | 0 | 0 |
+| AAPL | supertrend-strategy (Q-SU-8) | 60 / 60 | 0 | 0; on OUR bars equal to TradingView's own trade list, fills and 9 slots |
+| AAPL | stop-loss-and-take-profit-in-example | 420 / 418 | 367 (from 1981-08-12, beside our 1981-08-10 filler) | all 9 (netProfit 43.33 / 43.37) |
+| AAPL | golden-cross-sma-200 | 30 / 30 | 4 (1984-1990) | 4 (netProfit 114.69 / 114.74) |
+| AAPL | buy-monday-exit-tuesday, scalping (1 minute) | 0 / 0 | 0 | 0 |
+
+The engine is proven (the pinned strategy is identical on either history and equal to TradingView's own report); the
+differences are DATA, and on most differing days TradingView's source is the outlier (the coordinator's audit: ours agrees
+with Yahoo on 57 of SPY's 73 and 1,700 of AAPL's 1,731 differing days). The per-trade list of the differing trades is kept outside the repository, for the record.
+
+**Ruling (coordinator, 2026-11-20): serve it, with a data-source disclosure.** Every picture we draw is computed on the
+member's own chart bars, and so is this backtest. Every deep-window report (its run asked [B-START-DEEP]; any report that
+reaches before about 2007 is one) carries, beside its start sentence:
+
+> This backtest runs on UCT's own price history, which agrees with TradingView's on almost every day but not all (mostly
+> before 1991, and a few single bad prints), so its trades and totals can differ slightly from TradingView's Strategy Tester.
+
+`brokerReport.js::DATA_SOURCE_SENTENCE` (the report's `window.dataSentence`, read from the record's own rules; no other
+report carries the key) and `StrategyReportPanel` (verbatim, `role="note"`, on every tab, the refused report included).
+Rails: `w9T13aBrokerReport` (a deep record carries it, the same record without the rule carries none, a refused deep run
+keeps it), `strategyReportPanel` (verbatim on every tab as a note; control: none), `strategyLane` SL9 (both deep captures
+through the member door carry it) with SL7 (RDDT within the shared window) as the control.
+
+| mutant | what it breaks | result |
+|---|---|---|
+| D12 `brokerReport.js`: no `dataSentence` on a deep run | a deep report says nothing about its history | the CI mutant job, `ci/mutants/strategy-deep-data-note.json` (result on PR #2160) |
+| D13 `StrategyReportPanel.jsx`: the note is not rendered | the member never reads it | the same |
+| D14 `brokerReport.js`: every report carries it | a shallow run (RDDT) is told its history differs | the same |
