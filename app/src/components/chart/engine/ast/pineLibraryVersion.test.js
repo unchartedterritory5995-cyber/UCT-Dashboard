@@ -25,8 +25,14 @@ import { runtimeClockOpts } from './pineRuntimeClock.js'
 import { lowerIrProgram } from '../runtime/lowerIr.js'
 import { execute } from '../runtime/vm.js'
 import { lexPine, blockStatements } from './pine.js'
-import { crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION } from './pineLibraryVersion.js'
+import {
+  crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION, versionAt, stampLibraryVersion,
+} from './pineLibraryVersion.js'
+import { linkLibraries } from './pineLibraries.js'
 import COMMITTED_ADMISSION from './pineLibraryCrossVersion.json'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const N = 60
 const BARS = Array.from({ length: N }, (_, i) => ({
@@ -82,8 +88,15 @@ const CASES = [
   ['history of a literal', '    x + 5[1]', /history of a literal or of a field/],
   ['a negative literal index', '    a = array.from(1.0, 2.0)\n    array.get(a, -1) + x', /negative index/],
 ]
+// a clean v5 library whose one export the runtime lane refuses inside the library's own code
+const ISLAND_REFUSES = `${MPL}
+//@version=5
+library("islandrefuses")
+export g(float x) => nosuchfn(x)
+`
 const LIBS = fixtureLibraries({
   'tester/cleanlib/1': { path: 'tester/cleanlib/1', source: CLEAN, licence: 'MPL-2.0', attribution: 'cleanlib (test fixture)' },
+  'tester/islandrefuses/1': { path: 'tester/islandrefuses/1', source: ISLAND_REFUSES, licence: 'MPL-2.0', attribution: 'islandrefuses (test fixture)' },
   ...Object.fromEntries(CASES.map(([, body], k) => [`tester/changed/${k + 1}`, {
     path: `tester/changed/${k + 1}`, source: changed(body), licence: 'MPL-2.0', attribution: 'changed (test fixture)',
   }])),
@@ -239,5 +252,73 @@ describe('⛔ each construct the v6 migration guide changed is refused BY NAME, 
     const f = stmts.find((s) => s.header.some((t) => t.value === 'f'))
     expect(crossVersionDifference([{ stmt: f, kind: 'fn', name: 'f' }], lexed.indents).what).toBe('`timeframe.period`')
     expect(crossVersionDifference([], lexed.indents)).toBe(null)
+  })
+})
+
+// ─── ⭐⭐ THE VERSION ISLAND, STEP 1 (coordinator ruling 2026-11-19): the carrier and its one reader ───────────────
+// A spliced token of a library in another Pine version carries that version; `versionAt` is the only reader; a
+// refusal inside the island names the version it was judged under. Nothing reads the version yet, so nothing a
+// member is served moves (the committed admission table links no version across versions).
+describe('⭐⭐ the version island: every spliced token carries its library\'s version, and one reader answers it', () => {
+  const link = (src) => linkLibraries(lexPine(src), { libraries: LIBS, libraryCrossVersion: ADMIT }, { lexPine, blockStatements })
+
+  it('a v5 library in a v6 script: each of its tokens is judged under v5, each of the script\'s under v6', () => {
+    const l = link(`${V6}${USES}`)
+    const lib = l.tokens.filter((t) => t.lib)
+    const own = l.tokens.filter((t) => !t.lib)
+    expect(lib.length).toBeGreaterThan(20)
+    expect(own.length).toBeGreaterThan(20)
+    expect(lib.filter((t) => versionAt(t, 6) !== 5)).toEqual([])
+    expect(own.filter((t) => versionAt(t, 6) !== 6)).toEqual([])
+    expect(l.libraryLink.libraries.map((x) => [x.path, x.pineVersion])).toEqual([['tester/cleanlib/1', 5]])
+  })
+
+  it('the same library in a v5 script is no island: its tokens and its entry carry nothing new', () => {
+    const l = link(`${V5}${USES}`)
+    const lib = l.tokens.filter((t) => t.lib)
+    expect(lib.length).toBeGreaterThan(20)
+    expect(lib.filter((t) => versionAt(t, 5) !== 5)).toEqual([])
+    expect(lib.every((t) => !Object.prototype.hasOwnProperty.call(t, 'libPineVersion'))).toBe(true)
+    expect(l.libraryLink.libraries.every((x) => !Object.prototype.hasOwnProperty.call(x, 'pineVersion'))).toBe(true)
+  })
+
+  it('versionAt answers the program version for anything not stamped, and the stamp only when versions differ', () => {
+    expect(versionAt(null, 6)).toBe(6)
+    expect(versionAt(undefined, 6)).toBe(6)
+    expect(versionAt({ kind: 'ident' }, 6)).toBe(6)
+    expect(versionAt(stampLibraryVersion({ kind: 'ident' }, 5, 6), 6)).toBe(5)
+    expect(Object.keys(stampLibraryVersion({ kind: 'ident' }, 6, 6))).toEqual(['kind'])
+    expect(Object.keys(stampLibraryVersion({ kind: 'ident' }, undefined, 6))).toEqual(['kind'])
+  })
+
+  it('a refusal inside the island names the library line with the version it was judged under', () => {
+    const at = (head) => buildRuntimeIr(`${head}import tester/islandrefuses/1 as r\nplot(r.g(close))\n`,
+      { ...runtimeClockOpts(false), inputs: {}, libraries: LIBS, libraryCrossVersion: ADMIT })
+    const b = at(V6)
+    expect(b.ok).toBe(false)
+    expect(b.refusal.line).toBe(3)
+    expect(b.refusal.message).toMatch(/in the imported library `tester\/islandrefuses\/1` \(Pine v5\), line 4/)
+    // CONTROL: the same library in a v5 script is no island, and names no version
+    const b5 = at(V5)
+    expect(b5.ok).toBe(false)
+    expect(b5.refusal.message).toMatch(/in the imported library `tester\/islandrefuses\/1`, line 4/)
+    expect(b5.refusal.message).not.toMatch(/Pine v5\)/)
+  })
+
+  it('the island has one reader: no engine source but pineLibraryVersion.js names the stamp', () => {
+    const engine = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+    const sources = []
+    const walk = (dir) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name)
+        if (e.isDirectory()) { if (e.name !== '__tests__' && e.name !== 'node_modules') walk(p) } else if (/\.(m?js|jsx)$/.test(e.name) && !/\.test\.(m?js|jsx)$/.test(e.name)) sources.push(p)
+      }
+    }
+    walk(engine)
+    const naming = sources.filter((p) => fs.readFileSync(p, 'utf8').includes('libPineVersion'))
+      .map((p) => path.relative(engine, p).split(path.sep).join('/'))
+    // non-vacuous: the walk reads the engine, and finds the one file that holds the stamp
+    expect(sources.length).toBeGreaterThan(100)
+    expect(naming).toEqual(['ast/pineLibraryVersion.js'])
   })
 })

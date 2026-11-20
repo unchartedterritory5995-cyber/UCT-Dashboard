@@ -74,6 +74,35 @@ export function crossVersionAdmitted(path, table = ADMITTED) {
   return !!table && table.has(String(path))
 }
 
+// ─── ⭐⭐ THE VERSION ISLAND, STEP 1: THE CARRIER AND ITS ONE READER (coordinator ruling 2026-11-19) ─────────────
+//
+// TradingView runs a v5 library under v5 rules inside a v6 script. The linker stamps every spliced token of a
+// library whose `//@version` differs from the program's with that version (`stampLibraryVersion`), and ONE reader
+// answers the version a construct at a token is judged under (`versionAt`). A token of the program's own version
+// carries nothing, so every same-version script links token for token as before.
+// ⛔ THE ONE READER. No engine source but this one names the stamp (`ISLAND_KEY`): the rail
+// (`pineLibraryVersion.test.js`, "the island has one reader") greps every engine source for its literal. A rule that
+// decides by version asks `versionAt(node.tok, programVersion)`, never the token. (Named apart from `pineVersion`,
+// which `pine.js` reads 73 times as its Resolver's program version, so the grep is exact.)
+// An island is whole statements: the linker splices whole definitions, so every token of a library body shares one
+// version and a node is never half v5, half v6. Nothing reads the version yet (step 2 moves the rules whose meaning
+// changed between v5 and v6 onto `versionAt`), and the cross-version gate above still decides what links.
+const ISLAND_KEY = 'libPineVersion'
+
+/** `tok`, stamped with `libVersion` when that differs from `programVersion`; else unchanged (no key at all). The
+ *  linker's `emit` calls it on its own fresh copy of each spliced token. */
+export function stampLibraryVersion(tok, libVersion, programVersion) {
+  if (!tok || typeof tok !== 'object' || !Number.isFinite(libVersion) || libVersion === programVersion) return tok
+  tok[ISLAND_KEY] = libVersion
+  return tok
+}
+
+/** The Pine version a construct at `tok` is judged under: its library's inside an island, else `programVersion`. */
+export function versionAt(tok, programVersion) {
+  const v = tok && typeof tok === 'object' ? tok[ISLAND_KEY] : undefined
+  return Number.isFinite(v) ? v : programVersion
+}
+
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v
 const isWord = (t, v) => !!t && t.kind === 'ident' && !t.member && t.value === v
 const OPENERS = new Set(['(', '['])

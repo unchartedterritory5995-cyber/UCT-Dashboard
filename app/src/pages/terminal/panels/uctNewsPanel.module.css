@@ -1,0 +1,109 @@
+/* UNEWS: UCT News, the live news wire. App tokens only (the terminal wears the member's theme);
+   gaps and type size follow the board density through --panel-*. The shared pieces (toolbar,
+   chips, notes, the headline list) are marketPanels.module.css and panelForm.module.css; this
+   file holds only what a live list adds. */
+
+/* The connection in words. The dot repeats the words for the eye; it is never the only signal. */
+.status {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-xs);
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--text-muted);
+  transform: translateY(-1px);
+}
+
+.dot[data-tone='live'] {
+  background: var(--success-ink);
+}
+
+.dot[data-tone='warn'] {
+  background: var(--warn);
+}
+
+/* The day stepper: earlier, the day's name, later. The name never wraps mid-word. */
+.day {
+  color: var(--text-bright);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* "N new headlines". It rides at the top of the scrolling panel body and takes NO room in the
+   flow (a zero-height sticky anchor), so showing it never moves the row being read. */
+.newAnchor {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.newBtn {
+  position: absolute;
+  top: var(--space-xs);
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  color: var(--text-bright);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.newBtn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* One headline: its text, then its receipt time and type on the line below. */
+.text {
+  color: var(--text-bright);
+  overflow-wrap: break-word;
+  line-height: var(--lh-normal);
+}
+
+.time {
+  white-space: nowrap;
+}
+
+/* The letters a text filter matched: weight and an underline, never a color of their own. */
+.hit {
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.listBusy {
+  opacity: 0.6;
+}
+
+.end {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}
+
+/* PHONE and touch: the pill is a full tap target and stays inside a 340px panel. */
+@media (max-width: 1024px) {
+  .newBtn {
+    min-height: var(--tap-min);
+    max-width: calc(100% - 2 * var(--space-sm));
+  }
+}
