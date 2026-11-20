@@ -114,7 +114,7 @@ function mainRouteAnswers(def, set) {
   resetHostLaneAsync()
   setHostLaneWorkerFactory(null)
   __setHostLaneCostClockForTests(() => 0)
-  const ctx = { ...set.ctx, hostPane: `parity-main${set.name}` }
+  const ctx = { ...set.ctx, hostPane: `parity-main\u0001${set.name}` }
   const at = hostLaneStats()
   const one = (n) => { try { return { cols: registry.computeFor(def, set.bars, undefined, ctx) } } catch (e) { return { err: e, n } } }
   const first = one(1)
