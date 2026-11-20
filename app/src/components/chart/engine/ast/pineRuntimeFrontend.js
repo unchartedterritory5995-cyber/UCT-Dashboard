@@ -4354,7 +4354,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⭐⭐ W4-T8 — A WINDOW WHOSE v6 `series int` LENGTH THE FOLD CANNOT SETTLE IS A RUNTIME CALL.
     // Left to the columnar lane it refuses `pine:window` ("a Pine length has to reach the engine as a
     // plain whole number"), so `ta.highest(high, bar_index % 7 + 1)` never reached the window path.
-    if (node.type === 'call' && Array.isArray(node.args) && seriesLengthFn(node.name)
+    if (node.type === 'call' && Array.isArray(node.args) && seriesLengthFn(node.name, node)
         && windowTarget(node.name) && !node.args.some((a) => a && a.name)) {
       const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
       const lenNode = given.length === 2 ? given[1] : (given.length === 1 ? given[0] : null)
@@ -8536,16 +8536,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  never in a request's value (it has its own series), and ⛔ never at the live OBJECT door:
    *  that door keeps master's answer until a TradingView capture settles the shape (W4-S1).
    *  https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma */
-  const seriesLengthFn = (pineName) => {
-    if (atObjectDoor || inRequestValue || pineVersion === null) return false
+  const seriesLengthFn = (pineName, at) => {
+    // ⭐⭐ the version island: the call is judged at the version of the code that writes it (`versionAt`)
+    const version = versionAt(at && at.tok, pineVersion)
+    if (atObjectDoor || inRequestValue || version === null) return false
     // ⭐ W4-T8 r1 - the table of the script own version: v6 from the v6 reference, v5 from the v5 reference
     // (both generated). ⭐ W34-I6c - v4 from the v4 reference (generated: its `length (series[integer])`
     // is written `series int`, its bare `integer` is kept as `integer` and serves nothing). v3 and below
     // have no section, so they serve nothing.
     //   https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars
-    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length
-      : pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length
-        : pineVersion === 4 ? LENGTH_QUALIFIERS.v4Length : null
+    const table = version >= 6 ? LENGTH_QUALIFIERS.length
+      : version === 5 ? LENGTH_QUALIFIERS.v5Length
+        : version === 4 ? LENGTH_QUALIFIERS.v4Length : null
     if (!table) return false
     const name = String(pineName)
     // `pine.js` rewrites `ta.highestbars(x, n)` to `-highestbars(x, n)` BEFORE this lane sees it: the
@@ -10766,7 +10768,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             }
             // ⛔ and a length only known while the bar runs over that source says
             // so — never "a mutable GLOBAL" about a price series.
-            if (!len && !seriesLengthFn(node.name)) {
+            if (!len && !seriesLengthFn(node.name, node)) {
               note('runtime:history-dynamic-offset')
               throw new RuntimeRefusal('runtime:history-dynamic-offset',
                 `the length of \`${node.name}\` is only known while the bar is running, `
@@ -10875,7 +10877,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
               + 'so the ring it needs cannot be sized before bar 0', scope)
           } catch (err) {
             if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset'
-              || typeof err.frameName === 'string' || !seriesLengthFn(node.name)) throw err
+              || typeof err.frameName === 'string' || !seriesLengthFn(node.name, node)) throw err
             // a length that FOLDS to a number which is no whole length (2.5, -3) is a mistake, not a per-bar
             // length: it keeps the build refusal
             const folded = constValueOf(given[1], scope)

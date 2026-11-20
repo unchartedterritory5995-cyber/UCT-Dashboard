@@ -31,6 +31,7 @@ import {
 } from './pineLibraryVersion.js'
 import { linkLibraries } from './pineLibraries.js'
 import COMMITTED_ADMISSION from './pineLibraryCrossVersion.json'
+import LENGTH_QUALIFIERS from './windowLengthQualifiers.json'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -419,6 +420,19 @@ describe('⭐⭐ the version island, family by family: a v5 library in a v6 scri
     expect(RUNTIME_ISLAND_FAMILIES.length).toBeGreaterThan(0)
     for (const f of RUNTIME_ISLAND_FAMILIES) expect(Object.values(ISLAND_FAMILY)).toContain(f)
     expect(Object.keys(ISLAND).sort()).toEqual([...RUNTIME_ISLAND_FAMILIES].sort())
+  })
+
+  it('length qualifiers: the v5 and v6 references give a `series int` length to the same windows, so the per-token read changes no answer', () => {
+    // The runtime lane reads a window's length qualifier at the version of the code that writes the call
+    // (`seriesLengthFn`, `versionAt`). No fixture can tell the island from the program version while the two
+    // references agree; this rail fails the day a regenerated table makes them differ, and that family then needs
+    // its own fixture here.
+    const series = (table, name) => !!table && table[name] === 'series int'
+    const names = new Set([...Object.keys(LENGTH_QUALIFIERS.length), ...Object.keys(LENGTH_QUALIFIERS.v5Length)])
+    expect(names.size).toBeGreaterThan(20)
+    const differ = [...names].filter((n) => series(LENGTH_QUALIFIERS.length, n) !== series(LENGTH_QUALIFIERS.v5Length, n))
+    expect(differ).toEqual([])
+    expect([...names].filter((n) => series(LENGTH_QUALIFIERS.length, n)).length).toBeGreaterThan(5)
   })
 
   for (const family of Object.keys(ISLAND)) {
