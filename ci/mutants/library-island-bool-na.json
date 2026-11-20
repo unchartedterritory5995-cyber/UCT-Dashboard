@@ -1,0 +1,177 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "The version island, PR 2 (feat/pine-library-island-bool-na, NUMBER PENDING, stacked on #2106): a v5 library's bools are v5 bools inside the island (bool-na and implicit-cast judged per token on the runtime lane: the run's ==/not, na() and unmatched-block rules, the columnar resolver's condition, binary operators and na()), a v5 na bool never reaches v6 code through a collection or record (handed back, an element or field of one, one the script shares; LV6), the island's bool map answers na as a v5 script's does, and the link check reads a declared type and a ?:'s arms, never its condition. Every per-token read, each family's membership, each boundary exit and each link-check reading, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "W1",
+   "mutant": "the run's `==` / `not` bool-na rule reads the program version",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    const atVersion = versionAt(tok, pineVersion)",
+   "to": "    const atVersion = pineVersion",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "`== false` over a bool that can be `na`"
+  },
+  {
+   "id": "W2",
+   "mutant": "the run's `na()` read reads the program version",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          const naVersion = versionAt(node.tok, pineVersion)",
+   "to": "          const naVersion = pineVersion",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "`na()` of a bool that can be `na`"
+  },
+  {
+   "id": "W3",
+   "mutant": "an unmatched bool block is judged at the program version (v6 refuses it)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    const blockVersion = versionAt(tok, pineVersion)",
+   "to": "    const blockVersion = pineVersion",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "bool-na: the runtime lane computes"
+  },
+  {
+   "id": "W4",
+   "mutant": "the columnar resolver's condition (cast, na arms) reads the program version",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const version = versionAt(tok, this.pineVersion)",
+   "to": "    const version = this.pineVersion",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a number read as a condition over island tokens"
+  },
+  {
+   "id": "W5",
+   "mutant": "the columnar resolver's binary operators read the program version for bool na",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        const opVersion = versionAt(node.tok, this.pineVersion)",
+   "to": "        const opVersion = this.pineVersion",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "`== false` drawn as a value"
+  },
+  {
+   "id": "W6",
+   "mutant": "the columnar resolver's na() reads the program version",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "boolNaFlagOf(x, versionAt(node.tok, this.pineVersion))",
+   "to": "boolNaFlagOf(x, this.pineVersion)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "`na()` of a comparison"
+  },
+  {
+   "id": "W7",
+   "mutant": "the runtime lane does not hand the linker the bool-na family",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "  ISLAND_FAMILY.BOOL_NA,",
+   "to": "  // (W7: bool-na dropped)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "every family the runtime lane judges per token"
+  },
+  {
+   "id": "W8",
+   "mutant": "the runtime lane does not hand the linker the implicit-cast family",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "  ISLAND_FAMILY.IMPLICIT_CAST,",
+   "to": "  // (W8: implicit-cast dropped)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "every family the runtime lane judges per token"
+  },
+  {
+   "id": "W9",
+   "mutant": "the boundary lets an element of a bool collection cross",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        return holds ? 'a value read from a collection that can hold a `bool`' : null",
+   "to": "        return holds ? null : null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "an element of a `bool` array"
+  },
+  {
+   "id": "W10",
+   "mutant": "the boundary lets a record's bool field cross",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        const f = recordFieldOf(e)",
+   "to": "        return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a record's `bool` field"
+  },
+  {
+   "id": "W11",
+   "mutant": "the boundary lets a bool collection handed back cross",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (isRefTy(slotTy(e.slot))) return slotHoldsBool(e.slot) ? 'a collection or record that can hold a `bool`' : null",
+   "to": "        if (isRefTy(slotTy(e.slot))) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a `bool` array handed back"
+  },
+  {
+   "id": "W12",
+   "mutant": "the boundary ignores a bool collection the script shares with the island",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            const shared = slots.findIndex((sl) => !!sl && sl.owner === fnIndex && Number.isInteger(sl.index)",
+   "to": "            const shared = -1 && slots.findIndex((sl) => !!sl && sl.owner === fnIndex && Number.isInteger(sl.index)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a `bool` array the script shares with it"
+  },
+  {
+   "id": "W13",
+   "mutant": "an untyped binding's collection element type is not read off its creating call",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (isCollectionTy(ty) && !elemTy(ty)) { const w = createdElemWordOf(slot); return w ? typeWordsHoldBool(w, null) : false }",
+   "to": "    if (isCollectionTy(ty) && !elemTy(ty)) { return false }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a bool map's missing key"
+  },
+  {
+   "id": "W14",
+   "mutant": "the island's bool map still stops by its own name (step 2's stop)",
+   "file": "app/src/components/chart/engine/runtime/maps.js",
+   "from": "  || (Number.isFinite(ruleVersion(budget)) && ruleVersion(budget) < 6))",
+   "to": "  || (Number.isFinite(ruleVersion(budget)) && ruleVersion(budget) < 6 && budget.opVersion === undefined))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a bool map's missing key"
+  },
+  {
+   "id": "W15",
+   "mutant": "a declared type does not answer for a binding (the right side alone decides)",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "      const typed = lt[eqAt].value === ':='",
+   "to": "      const typed = false; const unusedTyped = lt[eqAt].value === ':='",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "declared types and `?:` arms are never bool operands"
+  },
+  {
+   "id": "W16",
+   "mutant": "a `:=` of a name declared non-bool is read by its right side",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "        ? declaredNotBool.has(name)",
+   "to": "        ? false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "its declaration answers"
+  },
+  {
+   "id": "W17",
+   "mutant": "a binding's `?:` is read by evidentlyBool (its condition decides, the over-refusal)",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "  if (!arms) return evidentlyBool(s, boolNames)",
+   "to": "  return evidentlyBool(s, boolNames)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "the conservative side stays held"
+  },
+  {
+   "id": "W18",
+   "mutant": "a `?:` read as a condition is a bool by the comparison in its condition (the under-refusal)",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "  if (arms) return arms.every((a) => evidentlyBool(a, boolNames))",
+   "to": "  if (false) return arms.every((a) => evidentlyBool(a, boolNames))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "read as a condition (an implicit cast)"
+  },
+  {
+   "id": "W19",
+   "mutant": "no `?:` arm is ever shown to be no bool",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "function shownNotBool(span, numNames) {",
+   "to": "function shownNotBool(span, numNames) { return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "declared types and `?:` arms are never bool operands"
+  }
+ ]
+}

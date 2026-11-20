@@ -11422,18 +11422,21 @@ export class Resolver {
    *  reads there. See `implicitBoolCast` for the rule and its evidence status.
    *  `site` names the context (`and`/`or`/`not`/`ternary`) for the observer. */
   condition(tree, site, tok) {
+    // ⭐⭐ the version island (bool na, implicit cast): a condition a v5 library writes inside a v6 script is read
+    // under v5 (`versionAt` at its token): its `na` bool reads false, a number is cast to a bool
+    const version = versionAt(tok, this.pineVersion)
     // ⭐ ENGINE 56 (A3) — a v1-v5 `bool` VALUE that is `na` (`boolNaValue`) reads false here
-    if (this.pineVersion === null || this.pineVersion === undefined || Number(this.pineVersion) <= 5) {
+    if (version === null || version === undefined || Number(version) <= 5) {
       tree = naArmsReadFalse(tree)
     }
-    const cast = implicitBoolCast(tree, this.pineVersion, this.table)
+    const cast = implicitBoolCast(tree, version, this.table)
     // ⭐ ENGINE 56 (S1, s18) — a Pine script with no `//@version` is v1, and v1-v3 read an `na`
     // operand of `and` / `or` / `not` as false like v4 / v5 (`naConditionIsFalse`)
-    const out = naOperandReadAsFalse(cast, site, this.pineScript && this.pineVersion === null ? 1 : this.pineVersion)
+    const out = naOperandReadAsFalse(cast, site, this.pineScript && version === null ? 1 : version)
     if (this.onCondition) {
       const at = locate(tok)
       this.onCondition({
-        site, kind: out.kind, cast: out.cast, version: this.pineVersion,
+        site, kind: out.kind, cast: out.cast, version,
         line: at && at.line, column: at && at.column, tree,
       })
     }
@@ -11646,6 +11649,9 @@ export class Resolver {
           if (q !== null) return cNum(q)
         }
         const mapped = PINE_OP_TO_TABLE[node.op]
+        // ⭐⭐ the version island (bool na): an operator a v5 library writes inside a v6 script holds its `na` bool as
+        // a v5 script's does (`versionAt` at its token; `boolNaOperator` below, on every path)
+        const opVersion = versionAt(node.tok, this.pineVersion)
         if (!mapped || !own(this.table.operators, mapped)) {
           throw new PineRefusal('pine:operator',
             `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
@@ -11694,7 +11700,7 @@ export class Resolver {
             const out = foldLogicalIdentity(mapped, decidedBy, rightCast, this.table)
             // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
             this.stampLogicRight(out, node, decidedBy, mapped)
-            return boolNaOperator(mapped, decidedBy, rightCast, this.pineVersion, out, node.left, node.right)
+            return boolNaOperator(mapped, decidedBy, rightCast, opVersion, out, node.left, node.right)
           }
           let right
           try {
@@ -11707,7 +11713,7 @@ export class Resolver {
           // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
           // same way (`deadLowerTfRead`): the left has decided every bar.
           if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
-          return boolNaOperator(mapped, decidedBy, right, this.pineVersion,
+          return boolNaOperator(mapped, decidedBy, right, opVersion,
             foldLogicalIdentity(mapped, decidedBy, right, this.table), node.left, node.right)
         }
         if (probed) {
@@ -11716,7 +11722,7 @@ export class Resolver {
           // ⭐⭐ engine 78 (#1858) — the v1-v4 constant fold, on this path too (`constCompareOf`)
           const constFoldP = this.constCompareOf(mapped, node, pl, pr)
           if (constFoldP !== null) return cNum(constFoldP)
-          return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
+          return boolNaOperator(mapped, pl, pr, opVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
         const rl = this.resolve(node.left)
         const rr = this.resolve(node.right)
@@ -11724,7 +11730,7 @@ export class Resolver {
         // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
         const constFold = this.constCompareOf(mapped, node, rl, rr)
         if (constFold !== null) return cNum(constFold)
-        return boolNaOperator(mapped, rl, rr, this.pineVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
+        return boolNaOperator(mapped, rl, rr, opVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
       }
       case 'ternary': {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
@@ -12854,7 +12860,8 @@ export class Resolver {
         // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
         // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
         // the identity fold may have reduced it to its operand, so it is read off the source
-        const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, this.pineVersion)
+        // ⭐⭐ the version island: `na()` a v5 library writes inside a v6 script reads the v5 `bool`'s `na`
+        const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, versionAt(node.tok, this.pineVersion))
         return flag ? cOp('||', [cCall('na', [x]), flag]) : cCall('na', [x])
       }
       if (name === 'nz' && (arity === 1 || arity === 2)) {
