@@ -69,7 +69,7 @@ import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
-import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
+import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
@@ -4930,6 +4930,11 @@ export default function StockChart({
   // classification field: `bindSymbolOf` ignores it and the run cache keys do not carry it.
   const _firstTradeDate = ipoInfo && ipoInfo.first_trade_final === true && typeof ipoInfo.first_trade_date === 'string'
     ? ipoInfo.first_trade_date : null
+  // ⭐⭐ (coordinator ruling 2026-11-20, captured: BGIN 1h refused its listing-day bar while the lookup was out, and stayed
+  // refused after it landed) — the lookup STILL IN FLIGHT for this symbol (`useTickerIpo`'s `PENDING_IPO`): a run whose
+  // first bars rest on the listing waits for it rather than refusing them. useTickerIpo keys on `sym`, so another
+  // symbol's late answer is never this one's.
+  const _firstTradeDatePending = !_firstTradeDate && !!(ipoInfo && ipoInfo.pending === true)
   const symbolMeta = useMemo(() => (
     sym ? {
       ticker: sym,
@@ -4938,8 +4943,9 @@ export default function StockChart({
       sector: (tickerMeta && tickerMeta.sector) || null,
       securityType: (tickerMeta && tickerMeta.security_type) || null,
       ...(_firstTradeDate ? { firstTradeDate: _firstTradeDate } : {}),
+      ...(_firstTradeDatePending ? { firstTradeDatePending: true } : {}),
     } : null
-  ), [sym, tickerMeta, _firstTradeDate])
+  ), [sym, tickerMeta, _firstTradeDate, _firstTradeDatePending])
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
@@ -9650,14 +9656,22 @@ export default function StockChart({
   // never the IPO badge's five-day tolerance above, which only labels a candle.
   // ⭐ The reference date is `listingReferenceDate` (the corroborated first session
   // when the server sends one, else `list_date`) — NOT the IPO badge's `list_date`.
-  const historyFromListing = useMemo(() => historyFromListingOf({
+  // ⭐⭐ (2026-11-20) and a WEEKLY chart from its listing week, served on capture evidence (`servedFromListingOf`)
+  const historyFromListing = useMemo(() => servedFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐⭐ (coordinator ruling 2026-11-20) — THE LISTING FACT ON A WEEKLY / MONTHLY CHART, stated where it holds and is NOT
+  // served (`listingSeed.listingStartOf`, `LISTING_SERVED_TFS`): a run still withheld there says why TRUTHFULLY
+  // (`runtime:listing-unverified`). Absent everywhere else, so every other chart's context is unchanged.
+  const listingUnserved = useMemo(() => !historyFromListing && listingStartOf({
+    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
+  }), [historyFromListing, filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
   // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
-  // (`chart/builder/runsHere.js`): the bars the binder computes on and the five facts of the compute
-  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`).
+  // (`chart/builder/runsHere.js`): the bars the binder computes on and the six facts of the compute
+  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`, and
+  // the listing fact where it is not served, `listingStart`).
   // A script judged on anything else would be judged on a chart the member is not looking at.
-  // `engineChart.test.js` holds these five to the binder's own, expression for expression.
+  // `engineChart.test.js` holds these six to the binder's own, expression for expression.
   const engineChart = useMemo(() => ({
     bars: filteredBars,
     ctx: {
@@ -9666,8 +9680,9 @@ export default function StockChart({
       tf: resolvedTf,
       newestBarIsForming: data?.newest_bar_is_forming ?? null,
       historyFromListing,
+      ...(listingUnserved ? { listingStart: true } : {}),
     },
-  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing])
+  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -13513,6 +13528,8 @@ export default function StockChart({
         // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
         // another translator keeps its bounded window whatever this says.
         historyFromListing,
+        // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M), for a true sentence
+        ...(listingUnserved ? { listingStart: true } : {}),
         // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
         // to strategy documents only; every other document's ctx is unchanged.
         historyWindowBars: strategyHistoryWindow,

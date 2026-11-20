@@ -1,0 +1,24 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "e89, part b of ci/mutants/held-withhold-lanes.json (the 30-minute mutant job holds five sweeps): the W9 armed route decides from the narrowed broker document, and the held refusal names no element.",
+ "mutants": [
+  {
+   "id": "L6",
+   "mutant": "the W9 armed route decides from the narrowed broker document (a held row is its takesAway)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    const viaBroker = heldFull || asked",
+   "to": "    const viaBroker = asked",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholdLanes.test.js",
+   "expectRed": "the list changes nothing"
+  },
+  {
+   "id": "L7",
+   "mutant": "the held refusal does not name the element",
+   "file": "app/src/components/chart/engine/heldWithholds.js",
+   "from": "  if (w.scope === 'output') return `its plot \\`${w.title}\\``",
+   "to": "  if (w.scope === 'output') return 'one of its plots'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholdLanes.test.js",
+   "expectRed": "every case stays on the runtime lane with the element withheld"
+  }
+ ]
+}

@@ -92,8 +92,10 @@ export function unpackRows(pack) {
  *  on whichever thread runs it: carried for the same reason, never needed. ⭐ RS RATING L12 PR 2 — `chartBars`
  *  (the seed's intraday landing, `otherSymbols.js::utcMidnightAtOrAfterOf`) is derived by the same
  *  `withChartNewestDay` from the same rows: likewise carried, never needed (a chart's context never holds it). */
+// ⭐⭐ (2026-11-20) `listingStart`: the listing FACT on a weekly / monthly chart where it is not served (`listingSeed.
+// listingStartOf`), read by the host lane's notes (`astColumns.listingOptsFor`, `interpret.chartClockSentence`)
 export const HOST_CTX_FIELDS = Object.freeze(['tf', 'newestBarIsForming', 'historyFromListing', 'barIndexFromFirstBar', 'framed',
-  'requestCode', 'below', 'chartNewestDay', 'chartBars'])
+  'requestCode', 'below', 'chartNewestDay', 'chartBars', 'listingStart'])
 /** The context fields that cross by their own rule (not plain). `workSink` is the headless export's
  *  counter and never on a chart's context. */
 export const HOST_CTX_CARRIED = Object.freeze(['symbol', 'secondary', 'exchangeOf', 'lowerTf', 'workSink'])

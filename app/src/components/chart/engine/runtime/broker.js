@@ -201,11 +201,13 @@ export function makeBroker(cfg, data) {
   // v4 captures have, `strategy(title, overlay)`, the margins are the 0 TradingView read back (`ast/strategyBroker.js`
   // sets them, `v4MarginReadBack`), served behind B-V4-MARGIN0; both captures grade MATCH at it. Every other v4 shape
   // that states no margin still stops here, as D12 rules.
+  // ⭐ (2026-11-19, D12b point 4) two more shapes settled by their own captures (`ast/strategyBroker.js` V4_MARGIN0_SHAPES)
   if (cfg.version === 4 && defaulted.margin === true) {
     if (cfg.v4MarginReadBack !== true) {
       throw new BrokerRefusal('this Pine v4 strategy states no `margin_long` / `margin_short`, and the v4 default is not '
-        + 'settled for its declaration: the v4 reference reads 100, and TradingView read 0 back only for a declaration of '
-        + 'exactly a title and `overlay` (the two v4 captures taken); state both margins in strategy() to run it', 'Q-S1b',
+        + 'settled for its declaration: the v4 reference reads 100, and TradingView read 0 back only for the declarations '
+        + 'the v4 captures took (a title and `overlay`; the same with a `shorttitle`; and one with a commission, a default '
+        + 'size and a capital); state both margins in strategy() to run it', 'Q-S1b',
       V4_MARGIN_DEFAULT_SETTING)
     }
     rule('B-V4-MARGIN0')
@@ -613,6 +615,15 @@ export function makeBroker(cfg, data) {
     const equity = costOn ? cfg.initialCapital + moneyOfClosed() + openPl * pointvalue - openFees()
       : cfg.initialCapital + (net + openPl) * pointvalue
     const mvs = size * price * pointvalue
+    // ⭐⭐ [B-MARGIN-ZERO] (2026-11-19, the strategy unit) — AT A MARGIN OF 0 NOTHING IS CALLED: Available Funds is the
+    // equity itself, and an equity below zero is carried as it is, no margin call, no refusal. Witnessed by
+    // w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17 (v4, margins read back 0, capital 1,000, 20,000 shares a trade): its equity
+    // falls to -201,004.80, the report lists 0 margin calls, and all 40 trades run on (MATCH, every fill and value). The
+    // manual's own algorithm divides by the margin ratio, which is 0 here, so no text states it: only the capture.
+    if (ratio === 0 && equity < 0) {
+      rule('B-MARGIN-ZERO')
+      return
+    }
     // [B-MARGIN] Available Funds = Equity - MVS * Margin Ratio; below zero the emulator liquidates (a margin call)
     // or refuses funds. Served only on the witnessed shapes ([B-MARGIN-CALL] `marginTick`, [B-FUNDS] /
     // [B-FUNDS-SHORT] `fundsShort`); here, every other shape stops by name.
@@ -855,6 +866,11 @@ export function makeBroker(cfg, data) {
     // any other fill needs it, and which equity sizes it is not stated (Q-S1a)
     if (o.lazySize && !(o.kind === 'entry' && allow === null && open.length >= maxEntries && open[0].dir === o.dir)) {
       throw new BrokerRefusal(o.lazySize, 'Q-S1a')
+    }
+    // [B-QTY-REVERSE-M0] the same rule for a reversal sized at margin 0: the trades it was sized against still open
+    if (finite(o.reverseEquity) && !(open.length && open.every((t) => t.dir !== o.dir))) {
+      throw new BrokerRefusal(`the entry \`${o.id}\` was sized as a reversal of the open trades, which are not open against it `
+        + 'at its fill, and what TradingView fills then is not witnessed', 'Q-S1a')
     }
     // a reversal's size taken against trades that are no longer open the other way at its fill: not witnessed
     if (finite(o.sizeEquity) && !(open.length && open.every((t) => t.dir !== o.dir))) {
@@ -1120,6 +1136,38 @@ export function makeBroker(cfg, data) {
   }
   /** Is this order's level already reached with the market at `p`? */
   const reachedAt = (lo, p) => (lo.up ? p >= lo.level : p <= lo.level)
+  /**
+   * ⭐⭐ [B-ROUND-LEVEL] (2026-11-19, the strategy unit) — THE PRICE A SHORT'S EXIT FILLS AT WHEN ITS LEVEL IS OFF THE TICK
+   * GRID AND THE BAR'S PATH REACHES IT: the first tick at or past the level in the direction the price travels to it, its
+   * stop-loss (a buy stop, reached on a rise) the tick above, its take-profit (a buy limit, reached on a fall) the tick
+   * below. WITNESSED, never read from a text, by macd-shortlong-strategy-is-rddt-1d-2026-11-18 (community,
+   * corpus/committed, MPL-2.0; MATCH on every trade, fill and value), the short's exits:
+   *     stop 115.9543 -> 115.96, 175.7283 -> 175.73, 203.6309 -> 203.64 (the nearest tick would be 115.95, 203.63);
+   *     limit 50.376 -> 50.37, 138.672 -> 138.67 (the nearest tick would be 50.38).
+   * (w9-q-s1a-size-stop-v6's four off-grid LONG stop entries fill the same way, 116.3872 -> 116.39, 221.7642 -> 221.77,
+   * 234.7128 -> 234.72, 183.645 -> 183.65, but that capture does not MATCH (a cent on one trade's profit), so a stop
+   * ENTRY is not served by this rule.)
+   * ⛔ ONLY THE WITNESSED KINDS: a short's stop-loss and take-profit (`strategy.exit`). A long's exits (sell levels), an
+   * entry's level, a trailing stop and a stop-limit's trigger keep the fill they had at the raw level, off the grid, and
+   * every read of that trade refuses by name (Q-S1l), as before. A tick the bar's path does not reach (`segEnd`: the
+   * vertex the price travels to) is not witnessed either: refused by name.
+   * @returns {{px: number, exact: boolean}}
+   */
+  const levelFill = (lo, level, segEnd) => {
+    if (onTick(level)) return { px: level, exact: true }
+    const shortExit = lo.kind === 'exit' && lo.t.dir < 0 && (lo.leg === 'sl' || lo.leg === 'tp')
+    if (!shortExit) return { px: level, exact: false }
+    const dec = tickDecimals(mintick)
+    const k = level / mintick
+    const px = Number(((lo.up ? Math.ceil(k - 1e-6) : Math.floor(k + 1e-6)) * mintick).toFixed(dec))
+    if (lo.up ? px > segEnd : px < segEnd) {
+      throw new BrokerRefusal(`the ${lo.leg === 'tp' ? 'take-profit' : 'stop-loss'} of exit \`${lo.x.id}\` has its level `
+        + `${level} off the tick grid of ${mintick}, and the tick it would fill at, ${px}, is past the bar's `
+        + `${lo.up ? 'high' : 'low'} ${segEnd}: what TradingView fills then is not witnessed`, 'Q-S1l')
+    }
+    rule('B-ROUND-LEVEL')
+    return { px, exact: true }
+  }
   const fire = (lo, price, bar, exact) => {
     if (lo.maybe) {
       throw new BrokerRefusal(`exit \`${lo.x.id}\` (no \`from_entry\`) would fill on the trade a reversal opened, and `
@@ -1364,7 +1412,11 @@ export function makeBroker(cfg, data) {
         }
         let made = null
         costTick = 'path'
-        for (const x of hit) made = fire(x, best, bar, onTick(best)) || made
+        // [B-ROUND-LEVEL] a witnessed buy level off the grid fills on the grid (`levelFill`); every other fill as before
+        for (const x of hit) {
+          const lf = levelFill(x, best, target)
+          made = fire(x, lf.px, bar, lf.exact) || made
+        }
         riskTick(best) // W9-T8: a fill level on the path (a reversal there is an equity extreme no vertex holds)
         checkActivation(best, made)
         if (coof) {
@@ -1558,7 +1610,9 @@ export function makeBroker(cfg, data) {
     // `lazySize`: the stop a same-side default size takes if the order fills; `sizeEquity`: the equity a reversal's
     // size was taken from ([B-QTY-REVERSE], read by [B-FUNDS-REVERSE]), NaN otherwise
     const o = { id, kind, dir, qty, type, level, limit: type === 'stoplimit' ? limV : NaN, placedBar: bar, immediate, oca,
-      byDefault: !finite(qtyV), lazySize: sized.lazy || null, sizeEquity: finite(sized.sizeEquity) ? sized.sizeEquity : NaN }
+      byDefault: !finite(qtyV), lazySize: sized.lazy || null, sizeEquity: finite(sized.sizeEquity) ? sized.sizeEquity : NaN,
+      // [B-QTY-REVERSE-M0] the equity a reversal at margin 0 was sized from (no funds check reads it)
+      reverseEquity: finite(sized.reverseEquity) ? sized.reverseEquity : NaN }
     // [B-MODIFY] an unfilled order with the same id is modified, not duplicated
     const prev = entries.find((e) => e.id === id)
     if (prev) {
@@ -2055,6 +2109,11 @@ export function makeBroker(cfg, data) {
       throw new BrokerRefusal(`the entry \`${id}\` takes a ${unit} default size in an extra execution at ${tickPx} `
         + "(`calc_on_order_fills`), and whether that tick or the bar's close sizes it is not stated", 'Q-S1a')
     }
+    // ⛔ (2026-11-19, the strategy unit) a percent-of-equity STOP entry stays refused here although w9-q-s1a-size-stop-v6
+    // witnesses its sizing (floor(equity / its level) on all 14 fills; the signal close refuted on all 14; bar 274's gap
+    // rejected for funds): sized that way, the run reproduces every fill and size and still DIVERGEs, TradingView listing
+    // trade 4 (1,636 x (170.09 - 60.68) = 178,994.76) at 178,994.77, a cent no reading of ours explains. Served only once
+    // a capture accounts for that cent (capture-queue-2026-11-19-strategy-unit.md, Q-SU-STOP).
     if (type !== 'market') {
       throw new BrokerRefusal(`the ${type} entry \`${id}\` takes a ${unit} default size, and whether its level or `
         + 'the signal bar\'s close sizes it is not stated', 'Q-S1a')
@@ -2095,6 +2154,18 @@ export function makeBroker(cfg, data) {
           const eq = equityAt(bar, '`strategy.entry` sized as a percent of equity')
           if (out) out.sizeEquity = eq
           money = eq * v / 100
+        } else if (!sameSide && open.every((t) => t.dir !== dir) && kind === 'entry' && type === 'market' && v === 100
+          && cfg.marginLong === 0 && cfg.marginShort === 0 && allow === null && out) {
+          // ⭐⭐ Q-S1a [B-QTY-REVERSE-M0] (2026-11-19, the strategy unit) — the same reversal at MARGINS 0 (the v5 default).
+          // Witnessed by macd-shortlong-strategy-is-rddt-1d-2026-11-18 (community, corpus/committed, MPL-2.0; v5, percent
+          // of equity 100, capital 1,000, margins read back 0, report ok): each of its 9 reversals fills the open size
+          // plus floor(strategy.equity at the signal close, the open trade's profit included, / that close) (bar 88:
+          // 19 + floor(1,211.28 / 62.36) = 38), and NONE is rejected for funds: bar 385's new 27 x 212.02 = 5,724.54 is
+          // past the 5,497.18 it was sized from, and TradingView fills it. So no [B-FUNDS-REVERSE] check at margin 0.
+          rule('B-QTY-REVERSE-M0')
+          const eq = equityAt(bar, '`strategy.entry` sized as a percent of equity')
+          out.reverseEquity = eq
+          money = eq
         } else if (sameSide && kind === 'entry' && type === 'market' && out) {
           // ⭐ (2026-11-17) the SAME side: the size is taken only if the order fills. At the pyramiding limit it does
           // not ([B-PYR]: rejected at its fill without a size), which is what w9-q-s1b-defaults-v6 witnesses for its
