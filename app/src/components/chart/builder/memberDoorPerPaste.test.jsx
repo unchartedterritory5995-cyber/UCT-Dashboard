@@ -11,7 +11,7 @@
 // `memberPaneDefinition` is counted, by where it ran. A paste makes exactly ONE, in the worker, and NONE on the main
 // thread; the pane draws its answer and the status panel reads the same one.
 // ⭐ And the pane's own states: while a build runs it says so and keeps the picture it drew, and its Add waits.
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import fs from 'node:fs'
@@ -38,7 +38,6 @@ import { CHECKING_TEXT } from './PineEditorStatus'
 import { AuthContext } from '../../../context/AuthContext'
 import { createMemberDoorService, __setMemberDoorServiceForTests } from './memberPane/memberDoorAsync'
 import { memberDoorStateVersion } from './memberPane/memberDoorImage'
-import * as core from './memberPane/memberDoorWorkerCore'
 import { FakeDoorWorker } from '../../../testing/builder/memberDoor.testkit.js'
 import * as engineRegistry from '../engine/nativeRegistry'
 import { MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
@@ -55,6 +54,13 @@ class CountingWorker extends FakeDoorWorker {
     try { super.answer(job) } finally { D.inWorker = false }
   }
 }
+// ⭐ the stand-in worker runs the REAL handler in a FRESH module graph, as a real worker is its own graph: the page's
+// state reaches it only through the job's image (in this graph, applying an image would also move the page's state)
+let core = null
+beforeAll(async () => {
+  vi.resetModules()
+  core = await import('./memberPane/memberDoorWorkerCore')
+}, 120000)
 let made = []
 let svc = null
 let versions = []
@@ -140,9 +146,13 @@ describe('⭐ the pane while a build runs: it says so, keeps its picture, and it
         </SWRConfig>
       </AuthContext.Provider>
     )
+    const errors = []
+    vi.spyOn(console, 'error').mockImplementation((...a) => { errors.push(a.map((x) => String((x && x.stack) || x)).join(' ').slice(0, 400)) })
     const view = render(wrap(VOLUME2))
     await flush()
-    expect(screen.getByTestId('pine-member-pane-building').textContent).toBe(CHECKING_TEXT)
+    const building = screen.queryByTestId('pine-member-pane-building')
+    expect(building, `the first build says it is checking: ${JSON.stringify({ html: document.body.innerHTML.slice(0, 500), errors: errors.slice(0, 3), asked: JSON.parse(asked()) })}`).toBeTruthy()
+    expect(building.textContent).toBe(CHECKING_TEXT)
     expect(screen.queryByTestId('pine-member-pane')).toBe(null)
     await act(async () => { made[made.length - 1].release() })
     await flush()
