@@ -58,7 +58,7 @@ describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
     // ⭐ A1 (2026-11-20): a `series int` window (`ta.sma`) passed a per-bar value is read per bar in the copy the
     // call site compiles (`a1SeriesParamOffsets.test.js`, `simpleArgWindow.test.js`); a `simple int` one (`ta.ema`,
     // the reference) keeps this refusal, and it still names the parameter and the reason.
-    const r = refusalOf(`${head}g(src, len) =>\n    ta.ema(src, len)\nplot(g(close, bar_index % 3 + 1))\n`)
+    const r = refusalOf(`${head}var k = 0\nk := k >= 2 ? 0 : k + 1\ng(src, len) =>\n    ta.ema(src, len)\nplot(g(close, k + 1))\n`)
     expect(r.message, 'the member is still being told their script never defined it')
       .not.toContain('never given a value')
     // ⛔ IT NAMES THE NAME AND THE REASON, not just "unsupported".

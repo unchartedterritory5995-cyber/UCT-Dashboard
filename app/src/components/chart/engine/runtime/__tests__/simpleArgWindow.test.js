@@ -97,14 +97,15 @@ describe('(1) a `simple` argument sizes a window per call site', () => {
   // `series int` window (the reference's `ta.highest`) then takes the length each bar (W4-T8); a `simple int` window
   // (`ta.ema`) keeps the refusal, by name.
   it('⭐ an unqualified parameter handed a bar-varying value: the window at each bar\'s length (A1)', () => {
-    const r = column(`${head}f(src, len) =>\n    ta.highest(src, len)\nplot(f(close, bar_index % 3 + 1))\n`)
+    // a per-bar length 1, 2, 3, 1, ... (k = 1, 2, 0, 1, ...: a reassigned `var`, so nothing folds)
+    const r = column(`${head}var k = 0\nk := k >= 2 ? 0 : k + 1\nf(src, len) =>\n    ta.highest(src, len)\nplot(f(close, k + 1))\n`)
     const byLen = [1, 2, 3].map((k) => column(`${head}plot(ta.highest(close, ${k}))\n`).col)
-    same(r.col, r.col.map((_, i) => byLen[i % 3][i]))
+    same(r.col, r.col.map((_, i) => byLen[(i + 1) % 3][i]))
     expect(r.diagnostics.seriesSpecialisedCalls).toBe(1)
   })
 
   it('⛔ ...and a `simple int` window handed a bar-varying value is still refused by name', () => {
-    const r = refusalOf(`${head}f(src, len) =>\n    ta.ema(src, len)\nplot(f(close, bar_index % 3 + 1))\n`)
+    const r = refusalOf(`${head}var k = 0\nk := k >= 2 ? 0 : k + 1\nf(src, len) =>\n    ta.ema(src, len)\nplot(f(close, k + 1))\n`)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
     expect(r.message).toContain('`len` is passed a value read on every bar')
   })

@@ -16349,7 +16349,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     if (div !== null) {
       note('runtime:history-dynamic-offset')
       throw new RuntimeRefusal('runtime:history-dynamic-offset',
-        `\`${p}\` sizes a window in \`${node.name}\`, and this call passes a value built with a division (\`${div}\`): `
+        `\`${p}\` sizes a window in \`${node.name}\`, and this call passes a value built with \`${div}\`: `
         + 'whether Pine keeps a whole-number division\'s fraction there, and which whole number a fractional '
         + 'length or offset becomes, is not captured yet (DY1, capture queue Q-DYN-1)', at)
     }
@@ -16358,8 +16358,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   /** ⭐ A1 — `/` when an argument is built with a division, read through the names bound once to
    *  an expression (a frame local, `frameLocalDefs`; a main-body binding, `env`), or `null`. ⛔ Not
-   *  `%`: a remainder of whole numbers is whole in every version, and a fractional one (of a price)
-   *  stops by name in the VM (`READ_HIST_SLOT_DYN`, the W4-T8 window). */
+   *  `%`: a remainder of whole numbers is whole in every version (the frozen folds keep refusing both,
+   *  T17), a TradingView capture grades a per-bar `bar_index % 3` offset MATCH on every bar
+   *  (vw-udt-fn-global-history G04), and a fractional remainder (of a price) stops by name in the VM
+   *  (`READ_HIST_SLOT_DYN`, the W4-T8 window). */
   const divisionIn = (e, scope, d = 0) => {
     if (!e || typeof e !== 'object' || d > 32) return null
     if (Array.isArray(e)) {

@@ -126,10 +126,10 @@ describe('⭐⭐ A1 — a per-bar argument sizes the offset of the copy compiled
     }), 'h(close, c + 1)')
   })
 
-  it('⭐ the argument may be the chart\'s own `bar_index` arithmetic, and a `%` of whole numbers', () => {
-    const { outs } = run('f(src, n) => src[n]\nplot(f(close, bar_index % 5))\nplot(f(high, bar_index - (bar_index > 30 ? 30 : 0)))\n')
+  it('⭐ the argument may be the chart\'s own `bar_index` arithmetic, or a test on the bar', () => {
+    const { outs } = run('f(src, n) => src[n]\nplot(f(close, close > open ? 2 : 0))\nplot(f(high, bar_index - (bar_index > 30 ? 30 : 0)))\n')
     const H = BARS.map((b) => b.h)
-    same(outs[0], C.map((_, i) => back(C, i, i % 5)), 'f(close, bar_index % 5)')
+    same(outs[0], C.map((c, i) => back(C, i, c > BARS[i].o ? 2 : 0)), 'f(close, close > open ? 2 : 0)')
     same(outs[1], H.map((_, i) => back(H, i, i - (i > 30 ? 30 : 0))), 'f(high, bar_index - k)')
   })
 })
@@ -179,7 +179,11 @@ describe('⛔ what A1 does not serve keeps a refusal by name, or stops by name',
   it('⛔ an argument built with `/` is refused by name at the build (DY1, Q-DYN-1)', () => {
     const r = refusal(`${CYCLE}f(src, n) => src[n]\nplot(f(close, c / 2))\n`)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
-    expect(r.message).toMatch(/division.*DY1, capture queue Q-DYN-1/)
+    expect(r.message).toMatch(/built with `\/`.*DY1, capture queue Q-DYN-1/)
+    // ⭐ CONTROL: a `%` of whole numbers is no division (whole in every version; G04 of the vw-udt-fn-global-history
+    // witness, `bar_index % 3`, equals TradingView on every bar): read per bar
+    const { outs } = run(`f(src, n) => src[n]\nplot(f(close, bar_index % 5))\n`)
+    same(outs[0], C.map((_, i) => back(C, i, i % 5)), 'f(close, bar_index % 5)')
     // through a name bound to a division (the fibonacci-extention `i_depth / 2` shape)
     const r2 = refusal(`len = input.int(11) / 2\n${CYCLE}f(src, n) => src[n]\nplot(f(close, len + c))\n`)
     expect(r2.message).toMatch(/DY1/)
