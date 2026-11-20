@@ -31,6 +31,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (every *_DB_PATH -> a sandbox; --bars-db stays explicit)
+
 LAKE_PERIODS = {"1": ["2026-10", "2026-11"], "5": ["2026Q3", "2026Q4"], "15": ["2026"],
                 "30": ["2026"], "60": ["2025", "2026"]}
 TAIL_ROWS = {"1": 3000, "5": 2400, "15": 2400, "30": 2400, "60": 6000}
