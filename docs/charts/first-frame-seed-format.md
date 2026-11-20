@@ -269,6 +269,31 @@ has ended and the regular-session bars' repair window has had hours to land), it
 timeframe, uploading each pack as soon as it is built (one pack in memory at a time) and the
 manifest last. Worker deploys are manual (`docs/runbooks/worker-deploys.md`).
 
+**1m for the whole universe** (`api/services/ffseed_onemin.py`). The worker's prewarm keeps 1m current only
+for its ACTIVE intraday set (watchlists, breadth drill lists, UCT20, candidates, theme holdings;
+`PREWARM_1M_CAP`), so the first builds seeded 1m for 1,270 symbols against ~3,545 elsewhere. Each nightly
+build (`ffseed.nightly`) therefore runs, in order:
+
+1. **the 1m pass**: every cap_universe symbol whose stored 1m does not reach the as-of session's last
+   regular minute gets that session's 1m (plus the session before when the store lacks it too) from the
+   provider's split-adjusted range read, written the way the serve path's range repairs write
+   (`provider_check` + `put_bars`). Symbols the prewarm keeps current cost no call. 2 threads
+   (`FFSEED_1M_WORKERS`), at most 45 min (`FFSEED_1M_DEADLINE_S`, past it the build goes ahead with what
+   it has); `FFSEED_1M_BACKFILL=0` turns it off;
+2. the build and publish (unchanged), then the marker;
+3. **the 1m retention**: every cap_universe symbol OUTSIDE the active set keeps its newest 5 sessions of
+   1m (`FFSEED_1M_KEEP_SESSIONS`, 0 = off; `bars_sqlite.prune_before`, a prefix trim that bumps the
+   series' history revision). The active set's 1m is never trimmed, and nothing is trimmed while the
+   active set is unknown (no prewarm pass in this process yet). Neither 1 nor 3 can stop a publish.
+
+**Forcing a rebuild of a session already built** (e.g. to rebuild 2026-11-20 with full 1m over the weekend):
+set `FFSEED_FORCE_ASOF=2026-11-20` on the worker (a variable change needs the worker to restart to be read:
+deploy it as usual). On its next tick (at most 30 min after boot plus `FFSEED_BOOT_DELAY`) the builder runs
+the whole nightly sequence for that session once and records it in `<DATA_DIR>/.last_ffseed_forced`, so
+the variable may stay set; unset it at your convenience. It is refused (logged, nothing built) unless the
+session IS the newest closed session: publishing an older build after a newer one would roll every device
+back. `status()` reports `forced_session`.
+
 **Daily delta (not built).** A returning device holds yesterday's packs. The new session adds, per
 symbol, at most 390 / 78 / 26 / 13 / 7 / 1 bars (1 / 5 / 15 / 30 / 60 / D) and drops as many old
 ones. A delta pack per timeframe, same format, `ffseed/<build>/<tf>.delta-<base build>.ffs`, would
