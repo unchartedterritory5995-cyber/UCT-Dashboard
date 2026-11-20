@@ -803,6 +803,19 @@ def unit_problems(doc: dict, *, path: Optional[pathlib.Path] = None) -> list[str
         steps = w.get("steps") or []
         if not 2 <= len(steps) <= 4:
             out.append(f"walkthrough {w.get('key')}: needs 2 to 4 steps")
+        # REVIEW_LEARNINGS rule 32 (the owner, 2026-11-17: "WHY DO I NOT SEE THE CHART of any of these"): a walkthrough
+        # that narrates a real trade carries that chart, daily, ending on the buy day; the title already names the
+        # ticker, so the chart may show it
+        wc = w.get("chart")
+        if wc is not None:
+            if not re.fullmatch(r"[A-Z][A-Z0-9.^-]{0,9}", str(wc.get("sym") or "")):
+                out.append(f"walkthrough {w.get('key')}: chart.sym must be an upper-case ticker")
+            if str(wc.get("tf") or "D") != "D":
+                out.append(f"walkthrough {w.get('key')}: a walkthrough chart is daily (chart.tf D)")
+            if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(wc.get("asof") or "")):
+                out.append(f"walkthrough {w.get('key')}: chart.asof must be YYYY-MM-DD (the last visible day)")
+            if not 20 <= int(wc.get("window", 120)) <= 400 or not 0 <= int(wc.get("forward", 0)) <= 250:
+                out.append(f"walkthrough {w.get('key')}: chart.window must be 20-400 bars and chart.forward 0-250")
         for f in w.get("facts") or []:
             if f not in facts:
                 out.append(f"walkthrough {w.get('key')}: unknown fact {f!r}")
@@ -943,6 +956,17 @@ def build_items(doc: dict, *, only_passed: bool = True) -> list[dict]:
             "lesson_text": steps[-1] if steps else None, "lesson_origin": "session", "review_status": "draft",
             "_key": w.get("key"),
         }
+        wc = w.get("chart") or None
+        if wc:
+            # the trade the steps narrate, on its real chart (REVIEW_LEARNINGS rule 32): daily, the same warm-up history as
+            # a question's chart so the 50 and 200-day draw from the first candle; the title names the ticker already
+            win = int(wc.get("window", 120))
+            csym = str(wc["sym"]).upper()
+            it["prompt_json"]["chart"] = {"window_bars": win + WARMUP_BARS, "visible_bars": win, "tf": "D",
+                                          "forward_bars": int(wc.get("forward", 0)), "hide_ticker": False}
+            it.update(sym=csym, asof=wc["asof"], adjustment_basis="split-adjusted",
+                      bars={"sym": csym, "tf": "D", "asof": wc["asof"], "window": win + WARMUP_BARS,
+                            "forward": int(wc.get("forward", 0))})
         items.append(it)
     for q in doc.get("questions") or []:
         key = q.get("key")

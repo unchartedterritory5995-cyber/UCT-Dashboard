@@ -1027,7 +1027,7 @@
    "steps": [
     "GE in January 2024, a leader in an uptrend. It drifts back four days to its rising 20 EMA on light volume.",
     "January 4 the low kisses the line to the cent and closes above it. It's over the 50-day and 200-day too.",
-    "Next day it trades a cent over the hold day's high. Buy at market, 100.39. Stop just under its low, 99.07.",
+    "January 5 it trades a cent over the hold day's high. Buy at market, 100.39. Stop just under the hold low, 99.07.",
     "A slice back through the line that takes the low says it's wrong. Instead, 3R in 5 sessions. Sell some into it."
    ],
    "facts": [
@@ -1042,14 +1042,20 @@
     "h05",
     "h10",
     "c01"
-   ]
+   ],
+   "chart": {
+    "sym": "GE",
+    "asof": "2024-01-05",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "NVDA, May 2023: the textbook leader, out before the report",
    "steps": [
     "NVDA in May 2023, the textbook leader. Its 20 EMA is rising, and it rests four days on light volume.",
-    "The hold day closes above the line. Buy at market a cent over its high, 28.79. Stop under its low, 28.02.",
+    "May 12 holds the line and closes above it. May 15 it clears that high. Buy at market, 28.79. Stop 28.02.",
     "3R in 3 sessions, a fair spot for a first sell. The day before the report it's up 3.9R.",
     "Hold through a report only if you're up 5R. At 3.9R you sell before it, even on a chart this good."
    ],
@@ -1063,7 +1069,13 @@
     "h05",
     "h08",
     "c06"
-   ]
+   ],
+   "chart": {
+    "sym": "NVDA",
+    "asof": "2023-05-15",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1071,7 +1083,7 @@
    "steps": [
     "Watch the line on CRM, June 2020. A four-day pullback on light volume, then the low dips just under the 20 EMA.",
     "Same session, it closes back above the line. That's a shakeout, not a lost line. The hold is in.",
-    "Next day it trades a cent over the hold day's high. Buy at market, 183.72. Stop just under its low, 179.97.",
+    "June 30 it trades a cent over the hold day's high. Buy at market, 183.72. Stop just under the hold low, 179.97.",
     "A second close under the line before the trigger would kill it. Instead, 3R in 2 sessions, and you hold."
    ],
    "facts": [
@@ -1084,7 +1096,13 @@
     "h22",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "CRM",
+    "asof": "2020-06-30",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1098,11 +1116,11 @@
    "choices": [
     "A leader resting on its rising 20 EMA",
     "A stock sliding under a falling 20 EMA",
-    "A tight box under a flat ceiling",
+    "A tight range under a flat ceiling",
     "A sharp V-bottom off the 200-day"
    ],
    "answer": "A leader resting on its rising 20 EMA",
-   "why": "That's a 20 EMA pullback. A leader ran, then drifted back to a line that's still rising, and a session held it. The trend never broke. Price just came back to meet the average. That's where I want to get involved, because the line gives me something to risk against. Your stop goes a few cents under that session's low, so the risk stays small. A falling line, or a stock living under it, is a different story.",
+   "why": "That's a 20 EMA pullback. A leader ran, then drifted back to a line that's still rising, and a session held it. The trend never broke. Price just came back to meet the average. Now look at the last candle. A hammer and an inside day, sitting right on the line. That's a good look. The buy comes when a later session trades over its high. Your stop goes a few cents under that session's low, so the risk stays small. A falling line, or a stock living under it, is a different story.",
    "lesson_line": "A leader pulls in, the line's still rising, a session holds it. That's the setup.",
    "facts": [
     "c30",
@@ -1115,9 +1133,9 @@
     "e03"
    ],
    "wrong": {
-    "A tight box under a flat ceiling": "That's a flat base. Price rests under a level there. Here it dips to a moving line.",
     "A sharp V-bottom off the 200-day": "A V off the 200-day is a reversal. This stock never broke its trend, it just pulled in.",
-    "A stock sliding under a falling 20 EMA": "That's a downtrend. We want a leader, and a line that's still pointing up."
+    "A stock sliding under a falling 20 EMA": "That's a downtrend. We want a leader, and a line that's still pointing up.",
+    "A tight range under a flat ceiling": "That's a flat base. Price rests under a level there. Here it dips to a moving line."
    },
    "house": true,
    "simple": "It's a strong stock resting on a rising 20 EMA. That line gives us a spot to buy with a small stop.",
@@ -1133,7 +1151,7 @@
      "several facts agree"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "Here's the chart. Check the trend, the last few bars, and the lines they're sitting on.",
    "chart": {
     "sym": "EL",
@@ -1268,7 +1286,7 @@
     "A close back over the 9 EMA"
    ],
    "answer": "A cent over the hold candle's high",
-   "why": "A cent over the hold candle's high. Set an alert there tonight. When price trades through it on a later session, you buy at market. Here's the logic. The hold only tells you the line held. Trading over that high tells you buyers are pushing past it. That's your confirmation. Buying the close is buying before anything has happened. A limit order on the line buys before anything has held at all.",
+   "why": "A cent over 259.85, the hold candle's high. Set an alert there tonight. When price trades through it on a later session, you buy at market. Your stop goes a few cents under 255.35, the hold low. Look at that candle too. An inside day on light volume, just above the line. Quiet, the look I want. The hold only tells you the line held. Trading over that high tells you buyers are pushing past it. Buying the close is buying before anything has happened.",
    "lesson_line": "The hold candle sets the trigger. Over its high, you're in.",
    "facts": [
     "c09",
@@ -1284,7 +1302,7 @@
     "A close back over the 9 EMA": "Getting back over the 9 EMA is a nice sign. It raises the grade. It's not the trigger."
    },
    "house": true,
-   "simple": "A cent over the hold candle's high, because that's when buyers prove they're pushing it up.",
+   "simple": "A cent over 259.85, the hold candle's high, because that's when buyers prove they're pushing it up.",
    "deeper": {
     "trap": "Buying the touch before any session has held is a named mistake. Kell says to always wait for confirmation that buyers are stepping in. The hold candle's high is where you set the alert, and the buy happens only when it trades."
    },
@@ -1295,8 +1313,8 @@
      "the cent-over-the-high buy is the proposed fallback trigger, held under D-003"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "This leader pulled back to its rising 20 EMA. The last bar is the session that held the line and closed above it.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "This leader pulled back to its rising 20 EMA. The last bar held the line and closed above it. Its high is 259.85, its low 255.35.",
    "chart": {
     "sym": "TEAM",
     "asof": "2021-07-01",
@@ -1942,7 +1960,7 @@
     "Still in, stops count on closes"
    ],
    "answer": "Stopped out, the loss is booked",
-   "why": "You're out. Your stop was a real order at 59.17, and the low at 58.57 traded right through it. The close back at 59.21 doesn't undo that. And that's fine. You knew this loss before you bought, because you sized for the distance from 60.50 down to 59.17. A loss at the stop is the system working. GILD shook out and ran without us. It happens. You buy it back only if it sets up and triggers again, as a new trade.",
+   "why": "You're out. Your stop was a real order at 59.17, and the low at 58.57 traded right through it. The close back at 59.21 doesn't undo that. Look at your buy day on the chart. It closed right at its low, a hair over your stop. That was the warning. The loss itself is fine. You knew it before you bought, because you sized for the distance from 60.50 down to 59.17. A loss at the stop is the system working. GILD shook out and ran without us. You buy it back only if it sets up and triggers again, as a new trade.",
    "lesson_line": "A loss at the stop is the system working, not a mistake.",
    "facts": [
     "h02",
@@ -1968,7 +1986,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "GILD",
     "asof": "2013-08-08",
@@ -2277,7 +2295,7 @@
     "Buy now, stop on the 20 EMA"
    ],
    "answer": "Buy now, stop under the hold low",
-   "why": "Buy it right there, at market. That's your trigger. Price just pushed past the session that held the line, which tells you buyers are stepping in. Your stop goes a few cents under the hold candle's low, or under today's low if it dipped lower first. Today it didn't, so it's the hold low. Wait for the close and you'll likely pay more for the same stop. Set the alert at the hold high the night before so you're ready.",
+   "why": "Buy it right there, at market. That's your trigger. Price just pushed past the session that held the line, so buyers are stepping in. Your stop goes a few cents under 134.21, the hold low, or under today's low if it dipped lower first. Today it didn't. And that hold candle was a doji on light volume, just above the line. Quiet, a good look. Wait for the close and you'll likely pay more for the same stop. Set the alert at 137.19 the night before so you're ready.",
    "lesson_line": "Alert at the hold high. When it trades, you buy. You don't wait for the bell.",
    "facts": [
     "c09",
@@ -2292,8 +2310,8 @@
     "Buy now, stop on the 20 EMA": "Right on the line is where price tags and turns, so noise takes you out. The stop goes a few cents under the hold low."
    },
    "house": true,
-   "story": "The last bar held the rising 20 EMA. Next morning it opens flat, stays above that session's low, then trades a cent over its high.",
-   "simple": "Buy now. The trade over the hold high is the signal, and waiting just costs you a worse price.",
+   "story": "The last bar held the rising 20 EMA, with a high of 137.19 and a low of 134.21. Next morning it opens flat, stays above 134.21, then trades a cent over 137.19.",
+   "simple": "Buy now. The trade over 137.19 is the signal, and waiting just costs you a worse price.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -2302,7 +2320,7 @@
      "fixed before by the checker"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "SCCO",
     "asof": "2025-12-18",
@@ -3599,7 +3617,7 @@
     "Buy 100.38, stop 99.10, all out at 5R"
    ],
    "answer": "Buy 100.39, stop 99.07, sell day 3+",
-   "why": "Buy at market at 100.39, a cent over the 100.38 high. Stop at 99.07, a few cents under the 99.10 low. That's about 1.3% of risk, tight and clean. The first sell is a judgment, and I'd rarely take it before day 3, because the money comes from a push over several days. This was GE. It reached 3R in 5 sessions. Write the plan the night before, set your alert at 100.38, and just execute it.",
+   "why": "Buy at market at 100.39, a cent over the 100.38 high. Stop at 99.07, a few cents under the 99.10 low. That's about 1.3% of risk, tight and clean. The hold candle isn't perfect. It has a long upper wick, so sellers leaned on it into the close. That's why you buy the trade over 100.38, not the close. The first sell is a judgment, and I'd rarely take it before day 3, because the money comes from a push over several days. This was GE. It reached 3R in 5 sessions. Write the plan the night before, set your alert at 100.38, and just execute it.",
    "lesson_line": "Entry, stop, first sell, trail. Write it the night before, then just execute it.",
    "facts": [
     "d01",
@@ -3631,7 +3649,7 @@
      "one worked example"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "GE",
     "asof": "2024-01-04",
@@ -3744,7 +3762,7 @@
     "Take it, it held the 50-day"
    ],
    "answer": "Take it, the low hit the 20 EMA",
-   "why": "Take it. That's the picture you want. The low kissed the rising 20 EMA to the cent, and the session closed above it. The 50-day sits underneath, untouched. And the line's pointed up. It was a four-day drift on 0.78x volume, quiet the whole way. Your stop under that low was only 1.3% away. This was GE. It triggered the next day and hit 3R in 5 sessions.",
+   "why": "Take it. The low kissed the rising 20 EMA to the cent, and the session closed above it. The 50-day sits underneath, untouched. And the line's pointed up. It was a four-day drift on 0.78x volume, quiet the whole way. The candle has a long upper wick, so it's not perfect. That's fine, because you only buy if it trades over that high. Your stop under that low was only 1.3% away. This was GE. It triggered the next day and hit 3R in 5 sessions.",
    "lesson_line": "Low on the line, close above it, 50-day below. That's the picture.",
    "facts": [
     "c02",
@@ -3778,7 +3796,7 @@
      "one worked example"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q66",
@@ -4171,13 +4189,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Leading: the story named the answer ('pulled back to its 20 EMA ... a session holds that line') before asking what setup it is. The story now shows the chart without naming it."
+   "notes": "fix: called the hold candle 'a possible buy day', but our buy is a later session trading over the hold high, never the hold session; and a wrong choice said 'box', a drawing the chart doesn't draw (rule 35), now 'range'"
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recall stem, but it rides on a real chart and the why gives the reason (rest vs bounce). D-009 stated right: a hard no for stocks; the old parabolic-long exception is gone."
+   "notes": "pass: 200-day concept, chart shows price over a rising 200"
   },
   "q03": {
    "status": "pass",
@@ -4195,7 +4213,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Fallback trigger taught as the drawn buy (conflicts note). Alert, market order, and why the high confirms. Kell in deeper only."
+   "notes": "pass: rule 34 met, hold high 259.85 and low 255.35 given; inside day on light volume read right"
   },
   "q06": {
    "status": "cut",
@@ -4224,8 +4242,8 @@
   "q10": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leading stem: 'What makes this one grade well?' told the member it grades well. Now asks what the chart is telling you, and the stem no longer presumes the answer."
+   "fixed": false,
+   "notes": "pass: quiet drift read right"
   },
   "q11": {
    "status": "cut",
@@ -4261,7 +4279,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "False alarm for MA-50-200: 20 EMA over a rising 50-day; Keller's order is a quoted research line, no plus/must claim. Voice 4."
+   "notes": "pass: 20 EMA over a rising 50-day as shown"
   },
   "q17": {
    "status": "pass",
@@ -4303,7 +4321,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "'sized for the gap between' used 'gap' for a stop distance, in a lesson where a gap means a price gap. Reworded."
+   "notes": "fix: 'That was the warning. And that's fine.' read as if the warning were fine; the buy day closing at its low just over the stop is read right"
   },
   "q24": {
    "status": "pass",
@@ -4326,8 +4344,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Detail (rules 3, 29): the math skipped the step it names. Now shows 2.05 a share (given in the story) and the round-down. The stem no longer repeats the story's numbers. 200/2.05 = 97.56 -> 97; 975 = 10x; 2 = 200/95.90; 200 = dollars read as shares."
+   "fixed": false,
+   "notes": "pass: sizing math"
   },
   "q28": {
    "status": "pass",
@@ -4338,8 +4356,8 @@
   "q29": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the wrong note 'A line isn't a stop' clashes with D-008 (a line minus a cushion is acceptable). The mistake is a stop right ON the line; reworded. 'just means paying more' was stated as certain; now 'likely'."
+   "fixed": false,
+   "notes": "pass: doji hold candle on light volume read right; spot in dollars"
   },
   "q30": {
    "status": "cut",
@@ -4363,7 +4381,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CRM 183.72/179.97, 3R in 2 sessions (d06). Breakeven as a 2R-5R window and a call, as ruled."
+   "notes": "pass: breakeven"
   },
   "q34": {
    "status": "pass",
@@ -4488,8 +4506,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: the grade-definition sentence was stamped word for word from q10. Now says what the grade does here, in his words. INTC 2.3x (d18) checks."
+   "fixed": false,
+   "notes": "pass: distribution day as a grade cue"
   },
   "q55": {
    "status": "cut",
@@ -4501,13 +4519,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "558.32-540.97 = 17.35 = 3.11%. Inside 5%, past the 1-3% preferred: 'a bit wider than I like' fits D-005. 3R = 610.37, so 'runs to 610' matches d13."
+   "notes": "pass: judging a stop-out by the plan"
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: 'Here's the logic.' template cut; the NVDA line now says plainly what happened. B22 and d04 (3.9R, out before the report) check."
+   "fixed": false,
+   "notes": "pass: earnings hold rule"
   },
   "q58": {
    "status": "cut",
@@ -4536,8 +4554,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the wrong note said 'The 50-day isn't a stop'; D-008 allows a line minus a cushion. The mistake is a stop far wider than the hold low. GE numbers check: 100.38+0.01, 99.10-0.03, 1.32/100.39 = 1.3%."
+   "fixed": false,
+   "notes": "pass: the long upper wick on the hold candle now said, and why you buy over the high"
   },
   "q63": {
    "status": "pass",
@@ -4549,13 +4567,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Shallow same-session reclaim, depth as judgment (r51). CRM 3R in 2 sessions (d06)."
+   "notes": "pass: shakeout under the line and close back above read right"
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GE d01/d02: 1.3% stop, 0.78x, 3R in 5 sessions. 50-day below the low."
+   "notes": "pass: kiss of the rising 20 EMA, 50-day untouched, upper wick named"
   },
   "q66": {
    "status": "cut",

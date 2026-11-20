@@ -1630,7 +1630,7 @@
     "window": 120,
     "forward": 15
    },
-   "why": "Stopped out. The next day it ran to $483.00. That's $135.49 over the $347.51 close, about 39%, straight through a stop 20% above. Then it fell more than 86% by the end of the first week of February. Right on direction, still lost. That's GameStop, January 2021. And it isn't a short we'd take. We short as price trades down through a trigger, never on the close. A 20% stop is far wider than anything we'd risk.",
+   "why": "Stopped out. The next day it ran to $483.00. That's $135.49 over the $347.51 close, about 39%, straight through a stop 20% above. Then it fell more than 86% by the end of the first week of February. Right on direction, still lost. That's GameStop, January 2021. The chart shows split-adjusted prices, so its scale sits below the $347.51 and $483.00 it traded at then. And it isn't a short we'd take. We short as price trades down through a trigger, never on the close. A 20% stop is far wider than anything we'd risk.",
    "lesson_line": "Right on direction, still stopped out. A crowded short has to roll over before I touch it.",
    "facts": [
     "f14",
@@ -1657,7 +1657,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q22",
@@ -2061,7 +2061,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth catch confirmed fixed: a third-party trader takes the close short, why states our entry through a trigger never on the close (SHORT-ENTRY ruling) and that 20% is far past our 5%. 483.00 - 347.51 = 135.49, /347.51 = 39%; stop at 417.01 hit. Deeper no longer offers a wider stop as the fix."
+   "notes": "GME 2021-01-27: the chart is split-adjusted (86.88 = 347.51 / 4); the writer's note is right and needed. The doji is not material to 'what happened next'. Numbers grounded."
   },
   "q22": {
    "status": "pass",

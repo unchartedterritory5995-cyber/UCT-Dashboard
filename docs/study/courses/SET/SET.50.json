@@ -919,9 +919,9 @@
    "key": "w1",
    "title": "GIS, October 2001: the clean one-bar spring",
    "steps": [
-    "GIS, October 2001. A flat 12-week shelf from 21.30 to 23.30, above a rising 200-day. Four touches of the floor.",
+    "GIS, October 2001. A flat 12-week shelf, 21.30 to 23.30, its floor right on a rising 200-day. Four floor touches.",
     "October 15 it dips just under the floor and closes back inside the same day. That's the spring.",
-    "Buy at market, 21.43. Stop a few cents under the spring low, 21.22. That's 0.96% of risk.",
+    "Next morning, buy at the open, 21.43. Stop a few cents under the spring low, 21.22. That's 0.96% of risk.",
     "3R came in 7 days, then a straight run through the ceiling. Sell some into the push, trail the rest."
    ],
    "facts": [
@@ -929,7 +929,13 @@
     "d02",
     "d03",
     "c17"
-   ]
+   ],
+   "chart": {
+    "sym": "GIS",
+    "asof": "2001-10-16",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -937,7 +943,7 @@
    "steps": [
     "HWM, August 2025. After a 31% run it goes sideways, 170.34 to 193.26. A stepping stone, three touches of the floor.",
     "August 20 it pokes just under the floor on light volume, 0.84x, and closes back inside. A quiet shakeout.",
-    "Buy at market, 171.85. Stop a few cents under the spring low, 169.42, 1.41% away.",
+    "Next morning, buy at the open, 171.85. Stop a few cents under the spring low, 169.42, 1.41% away.",
     "3R took 10 days. The range top is the first resistance. Selling some into a push up there is your call."
    ],
    "facts": [
@@ -946,7 +952,13 @@
     "d06",
     "c17",
     "c22"
-   ]
+   ],
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-08-21",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -961,7 +973,13 @@
     "d07",
     "d08",
     "d09"
-   ]
+   ],
+   "chart": {
+    "sym": "MSFT",
+    "asof": "2023-08-09",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1777,12 +1795,13 @@
    ],
    "story": "January 2021. The floor is 359.50. The dip goes 1.34 ATR under it and closes under for a day, then closes back inside the next day.",
    "answer": "A shakeout, grade it lower",
-   "why": "A shakeout, and I'd grade it lower. It came back, so it's not a breakdown. But 1.34 ATR is a real drop, and it closed under the floor for a day before it got back in. Sellers had control for a full session. That's sloppier than a quick scratch. You can still trade it, just smaller. COST was bought at 361.30 with the stop at 352.41, 2.46% away. It made 0.52R and got stopped.",
+   "why": "A shakeout, and I'd grade it lower. It came back, so it's not a breakdown. But 1.34 ATR is a real drop, and it closed under the floor for a day before it got back in. Sellers had control for a full session. That's sloppier than a quick scratch. And look at the 50-day, pointed down right overhead. One more reason it grades lower. You can still trade it, just smaller. COST was bought at 361.30 with the stop at 352.41, 2.46% away. It made 0.52R and got stopped.",
    "lesson_line": "The deeper and slower the dip, the lower the grade.",
    "facts": [
     "c10",
     "d15",
-    "d16"
+    "d16",
+    "c12"
    ],
    "house": true,
    "wrong": {
@@ -1801,7 +1820,7 @@
      "rests on a proposed card criterion awaiting the owner's review (1 and 2 ATR bands)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "COST",
     "asof": "2021-01-20",
@@ -1978,7 +1997,7 @@
    ],
    "story": "A leader springs off its range floor. QQQ sprang the same day. Before you buy, QQQ closes back under its own spring low.",
    "answer": "The market turn hasn't come",
-   "why": "The turn hasn't come. QQQ's own spring just failed when it closed back under its low. Wyckoff's step is to time your buy with a turn in the market index. When the index can't hold its spring, the leader's spring is fighting the whole market. That's what happened here. AAPL and QQQ sprang the same day, and both failed. I want the index behind me before I put money in.",
+   "why": "The turn hasn't come. QQQ's own spring just failed when it closed back under its low. Wyckoff's step is to time your buy with a turn in the market index. The leader's candle looks great, a hammer closing near its high. Doesn't matter. When the index can't hold its spring, the leader's spring is fighting the whole market. AAPL and QQQ sprang the same day, and both failed. I want the index behind me before I put money in.",
    "lesson_line": "Check the index before you buy a leader's spring.",
    "facts": [
     "t06",
@@ -2002,7 +2021,7 @@
      "rests on a proposed card criterion awaiting the owner's review (spr.index_sprung)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AAPL",
     "asof": "2021-10-01",
@@ -3017,7 +3036,7 @@
     "Take it, the volume was heavy"
    ],
    "answer": "Take it, flat floor, modest dip",
-   "why": "I'd take it. Five taps of the floor make it a real level. The probe went three-quarters of an ATR under, a bit deeper than a scratch, and it still closed right back inside. Volume was 0.96x, about normal, so nobody was dumping it. Taking it means it's worth a plan: buy the reclaim, stop a few cents under the low.",
+   "why": "I'd take it. Five taps of the floor make it a real level. The probe went three-quarters of an ATR under, a bit deeper than a scratch. Then it closed right back inside, a hammer. That's buyers stepping in at the floor, a good look. Volume was 0.96x, about normal, so nobody was dumping it. Taking it means it's worth a plan: buy the reclaim, stop a few cents under the low.",
    "lesson_line": "Judge the snap back, not the drama of the dip.",
    "facts": [
     "d19",
@@ -3037,7 +3056,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it, because the floor is real and the 0.75 ATR dip still closed back inside.",
+   "simple": "Take it. The floor is real, and the 0.75 ATR dip closed back inside as a hammer.",
    "deeper": {
     "trap": "The trap is the deeper probe. After five taps, three-quarters of an ATR under can look like a break. It closed back in on normal volume, and that's a spring."
    },
@@ -3049,7 +3068,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "October 2021. A flat range 7.2% tall, floor tapped five times. Today it probes 0.75 ATR under the floor, then closes back inside on 0.96x volume."
   },
   {
@@ -4011,8 +4030,8 @@
   "q15": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice 3: the story ('The day this stock closes back inside...') is a fragment and never says why you'd care. Story now sets up the buy; the why ties the room to R and to where sellers show up."
+   "fixed": false,
+   "notes": "Range-height calc."
   },
   "q16": {
    "status": "pass",
@@ -4030,7 +4049,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Names the spring; it sits just 0.2% over the 200-day, but that doesn't change the name."
   },
   "q22": {
    "status": "pass",
@@ -4047,20 +4066,20 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice 3 and a weak reason: 'You pay for it in the stop' then cites a 2.46% stop, which is inside our preferred 1-3%. Rewritten so the reason is the full session under the floor, with the grade setting the size."
+   "fixed": false,
+   "notes": "Writer's edit checked: falling 50-day 3.3% overhead; inside day closing at 93%; true."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Stop-percent calc."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Writer's edit checked: AAPL's candle is a hammer at 93% of range; the index answer stands."
   },
   "q31": {
    "status": "pass",
@@ -4149,8 +4168,8 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story named 'the 60 sessions before it', the proposed prior-advance window. Trimmed; the idea (a pause after a run) is unchanged."
+   "fixed": false,
+   "notes": "Prior run helps; reads right."
   },
   "q04": {
    "status": "pass",
@@ -4173,8 +4192,8 @@
   "q25": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'That's room for nothing' and 'inside the dip's own noise' are odd phrasing. Plain words now."
+   "fixed": false,
+   "notes": "Stop under the spring low; reads right."
   },
   "q27": {
    "status": "pass",
@@ -4215,26 +4234,26 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Deeper named 'the 60 sessions before it', the proposed prior-advance window. Trimmed to the run itself."
+   "fixed": false,
+   "notes": "Stop-out; 10% under the 50 after a 73% run; the why reads it."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Plan from the given levels; doji spring day; reads right."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "Writer's edit checked: hammer (red, 73% of range) on the probe day; true."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "One swing low is a 2B; reads right."
   },
   "q02": {
    "status": "cut",
@@ -4372,7 +4391,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+   "notes": "2R calc."
   },
   "q74": {
    "status": "pass",

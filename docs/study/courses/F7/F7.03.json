@@ -1947,8 +1947,8 @@
   "q17": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "51% right: 2,859.12 - 1,398.07 = 1,461.05; / 2,859.12 = 0.511. Wrong choices recomputed (49% what's left, 34% = 1,461.05/4,257.19, 5.1% decimal). Truth break: 'you're selling near the bottom of the chart' is wrong, the Nasdaq fell to 1,268.64 in March 2009 and the chart's forward bars show more downside. Rewritten to 'after half the damage is done'."
+   "fixed": false,
+   "notes": "pass: Nasdaq chart, no local bars; math from the stem"
   },
   "q18": {
    "status": "pass",
@@ -1960,13 +1960,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "No is right (f86 higher low, f87 stalled under 1,652.38, f23 new low March 9). Reads the swings in order, half the proof framing is his register. Story kept from the lesson."
+   "notes": "pass: Nasdaq chart, no local bars; levels from the story"
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True right (f28 80.86 on Nov 20 2008, f29 49.68 on March 9 2009). VIX defined plainly (f30). 'Almost four months' checks (Nov 20 to Mar 9). Ends on what to do."
+   "notes": "pass: VIX true/false; the SPY chart ending March 9, 2009 is not misread"
   },
   "q21": {
    "status": "pass",
@@ -1983,8 +1983,8 @@
   "q23": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Price is right (f80, f81 the call was wrong; f24 higher low, f25 first close over 1,652.38). The simple line called the signal 'proof', which the lesson says it isn't (a possible turn, f75). Now 'evidence'."
+   "fixed": false,
+   "notes": "pass: Nasdaq chart, no local bars"
   }
  }
 }

@@ -771,10 +771,10 @@
   },
   {
    "key": "w2",
-   "title": "VIAV, February 2026: the second-candle turn (hourly bars)",
+   "title": "VIAV, February 2026: the second-candle turn",
    "steps": [
-    "A leader pulling back to its short-term averages: VIAV, February 2026. Yesterday's close, 26.33, is the line.",
-    "February 19, candle one opens lower and stays under 26.33. Candle two closes green back above it. That still counts.",
+    "VIAV, February 2026. A leader, way above its 50-day but sitting right on its 9 EMA. Yesterday's close, 26.33, is the line.",
+    "February 19 it opens under 26.33. The first hourly candle stays under. The second closes green back above it. Still counts.",
     "Buy as it gets back through 26.33. Stop 25.66, a few cents under the session low. Still inside 3%.",
     "No follow-through and the stop takes it. Instead 3R came in 3 days, and it ran to 44.2R."
    ],
@@ -784,20 +784,27 @@
     "d05",
     "g04",
     "g08",
+    "g12",
     "h24",
     "h04",
     "h21",
     "r09"
-   ]
+   ],
+   "chart": {
+    "sym": "VIAV",
+    "asof": "2026-02-19",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
-   "title": "TSLA, May 2025: a planned loss (hourly bars)",
+   "title": "TSLA, May 2025: a planned loss",
    "steps": [
-    "Not every turn holds. TSLA ran 26% in five days, then on May 30, 2025 dipped under the 358.43 close, to 353.82.",
-    "Buy the move back through 358.43, stop 353.79 under the low. The first hourly candle closes green.",
-    "The third candle slips back under the prior close. The fourth falls through the stop, and you're out.",
-    "The turn was real, but it was gone by the 12:30 candle. The stop is the exit. A planned loss."
+    "Not every turn holds. TSLA ran 26% in five days. Its 50-day still sat under the 200.",
+    "May 30, 2025 it dips under the 358.43 close, to 353.82. The first hourly candle closes green, back over.",
+    "Buy as it trades back through 358.43, stop 353.79 under the low. Then the third candle slips back under 358.43.",
+    "The fourth candle, 12:30, falls through the stop. The day closed 346.46, near its low. The stop is the exit."
    ],
    "facts": [
     "d08",
@@ -806,8 +813,15 @@
     "g08",
     "g22",
     "h24",
-    "r09"
-   ]
+    "r09",
+    "r31"
+   ],
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2025-05-30",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -2507,7 +2521,7 @@
     "Yes, but wait for candle three"
    ],
    "answer": "Yes, candle two is in time",
-   "why": "Yes. The reclaim has to come by the end of the second hourly candle, and candle two closed green back over the line. That counts. Candle one doesn't have to do it. This is VIAV on 2026-02-19. It hit 3R in 3 days and ran to 44.2R. One trade proves nothing on its own, but the second-candle version is a real Go Signal. If the close back over had come on candle three, it'd be a pivot.",
+   "why": "Yes. The reclaim has to come by the end of the second hourly candle, and candle two closed green back over the line. That counts. Candle one doesn't have to do it. This is VIAV, February 19, 2026. It hit 3R in 3 days and ran to 44.2R. One trade proves nothing on its own, but the second-candle version is a real Go Signal. If the close back over had come on candle three, it'd be a pivot.",
    "lesson_line": "First or second candle, both count.",
    "facts": [
     "d03",
@@ -2758,7 +2772,7 @@
     "Proof the setup stopped working"
    ],
    "answer": "A planned loss, risk was set",
-   "why": "A planned loss. The turn was real, and you sized from the stop before you bought. Then the stock gave the reclaim back within hours, and the stop did its job. That's 2.23% on the position, exactly the risk you signed up for. This was TSLA on 2025-05-30, right after a 26% five-day move. That's the cost of being there for the ones that work.",
+   "why": "A planned loss. The turn was real, and you sized from the stop before you bought. Then the stock gave the reclaim back within hours, and the stop did its job. That's 2.23% on the position, exactly the risk you signed up for. This was TSLA on May 30, 2025, right after a 26% five-day move. That's the cost of being there for the ones that work.",
    "lesson_line": "The turn was real. The stock gave it back. The stop paid.",
    "facts": [
     "d08",
@@ -3949,7 +3963,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "false alarm; 0.95 over 168.84 is 0.56%, about 0.6%. Voice 4."
+   "notes": "Intraday (no local bars); a chase-percent calc, right."
   },
   "q24": {
    "status": "pass",
@@ -4026,7 +4040,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4.96% inside the 5% accepted; D-005 wording right (1-3% preferred, 3.5% good, up to 5%)."
+   "notes": "Intraday (no local bars); size down on a 4.96% stop, right."
   },
   "q37": {
    "status": "pass",
@@ -4068,7 +4082,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.77, 2.31, 3.0R; 4.0R from the stop, 8.7 = percent gain, 0.3 inverted. All rechecked."
+   "notes": "Intraday (no local bars); an R calc, right."
   },
   "q44": {
    "status": "cut",
@@ -4091,8 +4105,8 @@
   "q47": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "voice in register, numbers and facts check out, stem gives the screen and does not lead."
+   "fixed": true,
+   "notes": "Voice: an ISO date 'on 2026-02-19' in member text; said the way a person says it. Intraday chart read left alone."
   },
   "q48": {
    "status": "pass",
@@ -4127,8 +4141,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "voice in register, numbers and facts check out, stem gives the screen and does not lead."
+   "fixed": true,
+   "notes": "Voice: an ISO date 'on 2025-05-30' in member text; said the way a person says it. Intraday chart read left alone."
   },
   "q54": {
    "status": "cut",

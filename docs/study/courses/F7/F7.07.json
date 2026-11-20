@@ -1859,13 +1859,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. -0.1 expected vs +0.1 headline; 0.6 vs 0.3 core = double (f63); 10.6% gas f37; 4.3% and June 2020 f60/f64."
+   "notes": "SPY 2022-09-12, the day before CPI; no chart read in the text."
   },
   "q20": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Nasdaq 5.2%, S&P 4.3%, Dow 3.9% all in f66/f60 quotes; uses percents only per the conflict note."
+   "notes": "IXIC, no local bars."
   },
   "q21": {
    "status": "pass",
@@ -1888,8 +1888,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "TRUTH: the writer turned the stem into 'Why are stock futures still falling?' and the why into 'so the profit worry won'. That claims the report's profit signal caused that morning's futures drop. The lesson's conflict note forbids exactly this: CNBC says futures 'fell further', so they were already lower before 8:30 on other news, and the question keys why weak jobs news CAN hit stocks, never what caused the day. Stem and why rewritten to the safe claim; key, choices and wrong notes unchanged."
+   "fixed": false,
+   "notes": "SPY 2025-07-31, the day before payrolls (red outside day); the text makes no chart read."
   }
  }
 }

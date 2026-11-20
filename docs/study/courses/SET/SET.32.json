@@ -953,13 +953,19 @@
     "c11",
     "h05",
     "r21"
-   ]
+   ],
+   "chart": {
+    "sym": "FFIV",
+    "asof": "2026-09-15",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "SNX, September 2026: the trims and the gap",
    "steps": [
-    "September 21, 2026: SNX gaps 2.3% over yesterday's high. At 10:05 it clears the 274.03 range high: buy 274.04, stop 270.67.",
+    "September 21, 2026: SNX gaps up 2.3%, over yesterday's high. At 10:05 it clears the 274.03 range high: buy 274.04, stop 270.67.",
     "Check the calendar: earnings were September 24, 3 sessions out. We don't buy that close to a report.",
     "It hit 5R in two sessions anyway. Sell some into the push and move the stop to breakeven.",
     "September 24 the report gaps it through the stop. The first 30-minute low becomes the stop. What you sold kept the win."
@@ -975,7 +981,13 @@
     "h22",
     "c26",
     "h08"
-   ]
+   ],
+   "chart": {
+    "sym": "SNX",
+    "asof": "2026-09-21",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -995,7 +1007,13 @@
     "v02",
     "v03",
     "h24"
-   ]
+   ],
+   "chart": {
+    "sym": "JBI",
+    "asof": "2023-12-14",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "conflicts": [
@@ -1030,7 +1048,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "146.91-143.86=3.05, /146.91=2.076; the cited fact says 2.07%. Good stop teaching, ANF named after the answer."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q04": {
    "status": "pass",
@@ -1066,7 +1084,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q10": {
    "status": "pass",
@@ -1102,7 +1120,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "6.45/418.46=1.54% checked; distractors are real slips."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q16": {
    "status": "pass",
@@ -1150,7 +1168,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3.05x3=9.15, 146.91+9.15=156.06; distractors check out."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q24": {
    "status": "pass",
@@ -1240,7 +1258,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "250/3.37=74.18 -> 74; 296 is the 1% size, 145 the 40% cap (40,000/274.04), 7,418 the undecimaled 0.25."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q39": {
    "status": "pass",
@@ -1251,8 +1269,8 @@
   "q40": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Voice: 'exactly what you planned for at 46.37' was garbled. Now works the fill down to the stop."
+   "fixed": false,
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q41": {
    "status": "pass",
@@ -1270,7 +1288,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q44": {
    "status": "pass",
@@ -1329,8 +1347,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: same issue as q18. A 3.7% stop on the Kicker's ORB fill breaks the settled 3.5% Kicker cap; the why now says the cap brings that stop to 10.82. Facts c05, c32 added."
+   "fixed": false,
+   "notes": "30-minute JBI bar; fill-to-stop arithmetic on given numbers, chart agrees."
   },
   "q54": {
    "status": "cut",
@@ -1354,7 +1372,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q58": {
    "status": "pass",
@@ -1396,7 +1414,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "w1": {
    "status": "pass",

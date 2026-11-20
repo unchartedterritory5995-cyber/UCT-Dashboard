@@ -131,6 +131,27 @@ note each; read together with everything before them, they say more:
     heck SIBN is. I want it in good spots on good stocks"; "it is a lame regional bank"; "Liquid and sizable". His own
     picks are the anchors where they fit: SHOP 9/28 (Oops), AMD and RBRK (Kicker), MSTR (Launchpad), NAVN (HVE).
 
+32. **A walkthrough that talks about a chart shows that chart.** "WHY DO I NOT SEE THE CHART of any of these. I
+    couldnt even give proper answers." (localhost review, 2026-11-17, SET.07 w1). A setup walkthrough names a real
+    trade (NUS, September 2013), so it carries that chart, ending on the buy day, the same way a question does.
+33. **Read the actual chart, honestly, the way he does.** "Need to give it a better answer. I mean technically the
+    200SMA is alittle bit down there and price is a tad extended." (SET.07 q66: NUS sat about 9% over its 50-day and
+    about 57% over its 200-day, and the explanation said "everything's pointed the right way"). An explanation reads
+    what is on the screen: how far price sits from the 9 EMA, the 20 EMA, the 50 and the 200, which way each line is
+    pointed, what the latest candle is. A checklist answer that ignores a flaw he can see is wrong even when the right
+    choice is right. Say the flaw, then say why it is still a yes (or why it isn't).
+34. **Every entry trades against a spot on a buy day.** "This was a very confusing question. I always want to be
+    trading AGAINST a spot on a BUY DAY." (SET.07 q05). An entry question shows the buy day (or the day before it) and
+    asks what you trade against: the level you buy through and the low you stop under, on that day. Timing in the
+    abstract ("when exactly do you buy it?") confuses; a spot on a day does not.
+35. **Never name a drawing that isn't on the chart; name the price.** "I dont see a box but clearly its right around
+    $60 give or take." (SET.07 q02). No "box", "marked", "the line drawn", "shaded" unless the chart draws it. Say
+    the level in dollars, about where he'd say it ("right around $60"). And read the latest candle as he does: "That
+    most recent hammer on the most recent candle is a very good look and a possible buy day imo."
+36. **The chart's marks are a production.** "This one was very good. I think the arrow and the text/font could look
+    much better and be a lot more of a cool production." (SET.07 q44, kept). The arrows and labels drawn on a drill
+    chart are part of the product's look, not debug marks.
+
 ### How his feedback is applied, every time (the loop)
 
 Each failure behind this loop happened; the fixes say why each step exists.

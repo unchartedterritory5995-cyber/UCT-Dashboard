@@ -1979,7 +1979,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per f25, f90, f26, f27; first hike in March (f21). 'Price leads the news' is his register. SPY chart window ends 2022-03-15, after the January top, so the fall is on screen."
+   "notes": "SPY about 4% under a falling 50 and under its 200: 'stocks were already falling' reads the chart right"
   },
   "q16": {
    "status": "pass",
@@ -2033,7 +2033,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "True per the Fed's March 2023 report (f29); Fed hiked to 4.25-4.5% in December (f22). SPY chart window to 2023-02-28 shows the rise. 'Rising rates don't automatically mean falling stocks' backed by f65."
+   "notes": "SPY just over a flat 200, 50 rising after a net rise from June 2022: matches the why"
   }
  }
 }

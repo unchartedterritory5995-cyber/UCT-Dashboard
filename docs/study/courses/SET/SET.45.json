@@ -1214,7 +1214,13 @@
     "hF62",
     "a31b",
     "hE57"
-   ]
+   ],
+   "chart": {
+    "sym": "CRSP",
+    "asof": "2019-11-12",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1234,7 +1240,13 @@
     "hA13",
     "hF62",
     "a31b"
-   ]
+   ],
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-05-15",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1253,7 +1265,13 @@
     "a14",
     "a23",
     "hF62"
-   ]
+   ],
+   "chart": {
+    "sym": "CPRI",
+    "asof": "2020-12-03",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -2534,14 +2552,15 @@
     "Tight enough to size up big"
    ],
    "answer": "Good, tight and inside its ADR",
-   "why": "That's a good one. 1.7% is right in the 1-3% I like. And the stock moves 5.6% on an average day, so 1.7% is well inside its normal swing. Kullamagi caps his stop at the ADR, and this clears it easily. A tight stop means more shares for the same risk. It's not the whole grade, but it's a real plus.",
+   "why": "That's a good one. 1.7% is right in the 1-3% I like. And the stock moves 5.6% on an average day, so 1.7% is well inside its normal swing. Kullamagi caps his stop at the ADR, and this clears it easily. One thing I don't love on this chart: it's stretched. It sits way over its 50-day, and the 200-day is miles down there. That's the run you're buying, not a flaw in the stop.",
    "lesson_line": "A tight stop under the LOD is a real plus.",
    "facts": [
     "g3",
     "dCPRI",
     "hA13",
     "hE50",
-    "r01"
+    "r01",
+    "r21"
    ],
    "wrong": {
     "Too tight, it'll get shaken out": "It's under the low of the day, where the break is wrong. That's not noise, that's the level.",
@@ -2558,7 +2577,7 @@
      "rests on the owner's rulebook (A13, E50)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "CPRI",
     "asof": "2020-12-03",
@@ -2663,7 +2682,7 @@
     "Only if volume is huge"
    ],
    "answer": "Yes, short but it counts",
-   "why": "Yes. 10 sessions is two weeks, the short end of Kullamagi's 2 weeks to 2 months. A stock that just ran 47% and only gives back 14% while it rests is acting strong. Sellers had their chance and didn't do much. CRSP broke out on 3.1x volume, and 3R came in 1 day. Short rests in strong stocks can be the best ones.",
+   "why": "Yes. 10 sessions is two weeks, the short end of Kullamagi's 2 weeks to 2 months. A stock that just ran 47% and only gives back 14% while it rests is acting strong. Sellers had their chance and didn't do much. Look at the last candle too. A quiet inside day, closing up near its high. That's a good look the day before. CRSP broke out on 3.1x volume, and 3R came in 1 day. Short rests in strong stocks can be the best ones.",
    "lesson_line": "A short, calm rest after a big run still counts.",
    "facts": [
     "dCRSPw",
@@ -2693,7 +2712,7 @@
      "Session and depth limits are the card's proposed numbers"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "CRSP",
     "asof": "2019-11-11",
@@ -2933,7 +2952,7 @@
     "Hold, the dip was just a wick"
    ],
    "answer": "Out. Next trigger is a new trade",
-   "why": "You're out. The low hit 59.83, under your 59.88 stop, so the broker order sold it. The base was valid and it failed anyway, for no reason you could see. That happens, and it's what the stop is for. If it sets up and triggers again, that's a new trade with its own stop and size. Don't buy it back just because you got stopped.",
+   "why": "You're out. The low hit 59.83, under your 59.88 stop, so the broker order sold it. The base was valid and it failed anyway. Nothing in it broke a rule. The one thing I'd flag on this chart: it was stretched, way over its 50-day and 200-day after that 62% run, and the buy day closed mid-range. Good bases still fail, and that's what the stop is for. If it sets up and triggers again, that's a new trade with its own stop and size. Don't buy it back just because you got stopped.",
    "lesson_line": "Valid bases still fail. The stop pays for that.",
    "facts": [
     "dOXY",
@@ -2942,7 +2961,8 @@
     "hA4",
     "hD41",
     "dBase2",
-    "dOXYr"
+    "dOXYr",
+    "r21"
    ],
    "wrong": {
     "Lower the stop, the base is fine": "The stop only moves up. A good-looking base doesn't change that.",
@@ -2962,7 +2982,7 @@
      "rests on the owner's rulebook (A4, B21, D41)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "OXY",
     "asof": "2022-04-18",
@@ -2988,7 +3008,7 @@
     "Buy now, inside the rest"
    ],
    "answer": "Same way, through the high",
-   "why": "Same way you'd trade any of these. Eight sessions is under two weeks, short of Kullamagi's usual 2 weeks to 2 months. Call it a flag if you like. Honestly, a flag is a flag. What matters is the trigger and the stop. Set the alert at the high and buy at market as it trades through. Stop goes a few cents under the low of the day. A short, tight rest after a 39% run is strength, not a problem.",
+   "why": "Same way you'd trade any of these. Eight sessions is under two weeks, short of Kullamagi's usual 2 weeks to 2 months. Call it a flag if you like. Honestly, a flag is a flag. What matters is the trigger and the stop. Look at the last candle: a hammer and an inside day, closing on its high. That's a good look going into the break. Set the alert at 92.40 and buy at market as it trades through. Stop goes a few cents under the low of the day. A short, tight rest after a 39% run is strength, not a problem.",
    "lesson_line": "A short rest is fine. Same trigger, same stop.",
    "facts": [
     "dNVDAn",
@@ -3007,8 +3027,8 @@
     "Buy now, inside the rest": "That's guessing. Kullamagi finds anticipating less effective. Wait for it to trade through the high."
    },
    "house": true,
-   "story": "The day before the break. A 39% run, then the stock rests only 8 sessions sideways before it breaks out.",
-   "simple": "Same as any breakout. Buy as it trades through the high, stop under the low of the day.",
+   "story": "The day before the break. A 39% run, then the stock rests only 8 sessions sideways, with the top of the rest at about 92.40.",
+   "simple": "Same as any breakout. Buy as it trades through 92.40, stop under the low of the day.",
    "deeper": {
     "trap": "Eight sessions feels close to his range, and that's fine. Don't get stuck on the label. A flag and a short base buy the same way: through the high at market, stop a few cents under the low of the day."
    },
@@ -3020,7 +3040,7 @@
      "a rule number that may change"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NVDA",
     "asof": "2024-03-20",
@@ -3184,12 +3204,12 @@
    "choices": [
     "Pass, it made a lower low",
     "Buy, it ran hard first",
-    "Pass, the box is too short",
+    "Pass, the base is too short",
     "Buy, the dip is a shakeout"
    ],
    "answer": "Pass, it made a lower low",
-   "why": "Pass. Look at the lows inside the box. The last stretch dipped to 34.89, under the 36.52 low from early in the base. That's a lower low. I want every dip to stop higher, and this one slipped. However strong the run was before it, a box making lower lows is sellers getting their way. Wait for it to fix itself.",
-   "lesson_line": "A lower low inside the box means pass, however strong the run.",
+   "why": "Pass. Look at the lows inside the base. The last stretch dipped to 34.89, under the 36.52 low from early in the base. That's a lower low. I want every dip to stop higher, and this one slipped. However strong the run was before it, a base making lower lows is sellers getting their way. Wait for it to fix itself.",
+   "lesson_line": "A lower low inside the base means pass, however strong the run.",
    "facts": [
     "dBIDUw",
     "dBIDU",
@@ -3200,8 +3220,8 @@
    ],
    "wrong": {
     "Buy, it ran hard first": "A strong run doesn't rescue a base with a lower low.",
-    "Pass, the box is too short": "The length was fine. The lows are the problem.",
-    "Buy, the dip is a shakeout": "A lower low inside the base isn't a buy signal. Wait for a higher low and a new trigger."
+    "Buy, the dip is a shakeout": "A lower low inside the base isn't a buy signal. Wait for a higher low and a new trigger.",
+    "Pass, the base is too short": "The length was fine. The lows are the problem."
    },
    "house": true,
    "chart": {
@@ -3210,7 +3230,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Pass. The lows slipped lower inside the box, so sellers are winning there.",
+   "simple": "Pass. The lows slipped lower inside the base, so sellers are winning there.",
    "deeper": {
     "trap": "A strong run doesn't rescue a base. One clear failing tell is enough to pass."
    },
@@ -3222,7 +3242,7 @@
      "a chart read from the dossier"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q58",
@@ -5830,7 +5850,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "pass: read right against the chart facts"
   },
   "q02": {
    "status": "pass",
@@ -5908,7 +5928,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3R: 161.59-158.95=2.64, x3=7.92, 169.51; wrongs 166.87 (from stop), 164.23 (1R), 172.15 (4R) all check. Yardstick, not a sell: D-013 kept."
+   "notes": "pass: read right against the chart facts"
   },
   "q16": {
    "status": "pass",
@@ -6033,8 +6053,8 @@
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "38.01 to 37.37 is 1.7%, inside 1-3%. ADR named as Kullamagi's cap, ours is distance. Good."
+   "fixed": true,
+   "notes": "fix: the stretched read (about 52% over the 50-day) stays; the closing line gave 'a tight stop never licenses a big size' a reason he never gave (his reason is the gap), so it's cut"
   },
   "q39": {
    "status": "pass",
@@ -6052,43 +6072,43 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "pass: read right against the chart facts"
   },
   "q44": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "15.98 to 15.20 is 4.9%. Depth taught as judgment against the run; the 15% choice is a named wrong, not ours."
+   "notes": "pass: read right against the chart facts"
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "144.43 to 141.91 is 1.7%. No sell at 2R (D-013). Late base attributed to Kell via dNVDAw."
+   "notes": "pass: read right against the chart facts"
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "notes": "pass: read right against the chart facts"
   },
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Add text agrees with the ruling, but the kept why said 'You can sell on that close, or let the stop decide. Either is fine.' That breaks 'The stop is the exit. A close back inside the base is a warning, not a sell by itself.' Now: the close is a warning, the stop is still the exit, matching the answer 'the stop decides'. QCOM 179.41 through 183.06 unchanged. Voice 4."
+   "fixed": false,
+   "notes": "pass: read right against the chart facts"
   },
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Truth ok: numbers recomputed, answer right, no proposal stated as ours. Voice reads like a trade review."
+   "fixed": true,
+   "notes": "fix: after the new stretched-chart sentence, 'That happens' pointed at the wrong thing; the read itself (way over the 50 and 200, buy day closed mid-range) is right"
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "TRUTH: the keyed answer 'bull flag' vs the wrong 'Qullamaggie base, early' rested on the card's proposed 10-session cutoff (dNVDAn: 'the rule is 10 to 40, under 10 it is a flag') and drilled a label split D-002 says not to test ('a flag is a flag'). Rewritten to test what he trades: same trigger, same stop, no count."
+   "notes": "fix: the hammer's high is about 90.41 and the trigger is 92.40, so that candle can't be a buy day; now 'a good look going into the break'"
   },
   "q54": {
    "status": "cut",
@@ -6100,19 +6120,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "58% is the example's own number; the proposed 80% line is not stated. OK."
+   "notes": "pass: read right against the chart facts"
   },
   "q56": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: deeper said '17% deep, on the deeper side, so not a top grade', which carries the card's proposed 15% A+ depth as ours. Removed."
+   "fixed": false,
+   "notes": "pass: read right against the chart facts"
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "BIDU 34.89 under 36.52, a lower low. Kept; q54 was the same chart and numbers."
+   "notes": "pass: read right against the chart facts"
   },
   "q58": {
    "status": "pass",
@@ -6382,7 +6402,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "52.35-51.21=1.14, x5=5.70, 58.05; 56.91, 55.77 (3R), 46.65 check."
+   "notes": "pass: read right against the chart facts"
   },
   "q105": {
    "status": "pass",

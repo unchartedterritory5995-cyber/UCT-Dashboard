@@ -920,7 +920,7 @@
     "TVTX, March 2015. Quiet uptrend, 25% over its 200-day. Then record volume, up 37%, closing near the high.",
     "That close, 20.17, is the HVC, the high volume close. Mark a ray there and an AVWAP from that day.",
     "Day 2, March 19, dips under 20.17 and trades back over. Buy a cent over it, stop 19.89 under the day-2 low.",
-    "Close back under the fill and we're out. Didn't happen. It stair-stepped to +70% by day 54, never back to 20.17."
+    "A close back under the fill is the warning. Never came. It stair-stepped to +70% by day 54, never back to 20.17."
    ],
    "facts": [
     "d01",
@@ -931,7 +931,13 @@
     "c04",
     "h22",
     "c05"
-   ]
+   ],
+   "chart": {
+    "sym": "TVTX",
+    "asof": "2015-03-19",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -952,7 +958,13 @@
     "c04",
     "h22",
     "c05"
-   ]
+   ],
+   "chart": {
+    "sym": "DOCU",
+    "asof": "2019-09-09",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -973,7 +985,13 @@
     "h05",
     "h20",
     "c05"
-   ]
+   ],
+   "chart": {
+    "sym": "INOD",
+    "asof": "2026-05-11",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1056,15 +1074,15 @@
    "rung": 1,
    "format": "scenario",
    "criterion": "hve.day2_window",
-   "q": "Great day. When do you look to get involved?",
+   "q": "Great day. Where do you look to get involved?",
    "choices": [
-    "Day 2, the next session",
-    "Right now, at the close",
-    "Day 3, if day 2 holds",
-    "Pre-market tomorrow"
+    "Day 2, a cent over 20.17 on a reclaim",
+    "Now, at the close, stop at its low",
+    "Day 3, if day 2 holds over 20.17",
+    "Pre-market tomorrow, over 20.17"
    ],
-   "answer": "Day 2, the next session",
-   "why": "Day 2. I want the next session to dip under 20.17 and trade back over it. That gives me a trigger, and a stop a few cents under day 2's low. TVTX did exactly that: buy a cent over, stop 19.89, 1.4% of risk. Buy the record close instead and your stop sits under the record day's low. That's often a 20% stop. A tight 3% stop at the close got hit 88% of the time.",
+   "answer": "Day 2, a cent over 20.17 on a reclaim",
+   "why": "Day 2, a cent over 20.17. I want the next session to dip under 20.17 and trade back over it. That's your buy, at market as it goes through. Day 2's low is what you risk against, with the stop a few cents under it. TVTX did exactly that: buy a cent over, stop 19.89, 1.4% of risk. Buy the record close instead and your stop sits under the record day's low. That's often a 20% stop. A tight 3% stop at the close got hit 88% of the time.",
    "lesson_line": "The record day marks the level. Day 2 gives you the trade.",
    "facts": [
     "c12",
@@ -1078,12 +1096,12 @@
     "c17"
    ],
    "wrong": {
-    "Day 3, if day 2 holds": "Our trigger is day 2, the very next session. After that you wait for one of our own setups at the level.",
-    "Right now, at the close": "That's the line, not the buy. A stop under the record day's low is often a 20% stop.",
-    "Pre-market tomorrow": "We don't buy outside regular hours. Pre-market is thin and the fills are bad."
+    "Now, at the close, stop at its low": "That's the line, not the buy. A stop under the record day's low is often a 20% stop.",
+    "Day 3, if day 2 holds over 20.17": "Our trigger is day 2, the very next session. After that you wait for one of our own setups at the level.",
+    "Pre-market tomorrow, over 20.17": "We don't buy outside regular hours. Pre-market is thin and the fills are bad."
    },
    "house": true,
-   "simple": "Day 2, because its dip and reclaim give you a trigger and a tight stop. The record close needs a huge stop.",
+   "simple": "Day 2, a cent over 20.17 after it dips under. Day 2's low makes a tight stop, the record close a huge one.",
    "tier": "core",
    "risk": {
     "score": 2,
@@ -1091,7 +1109,7 @@
      "+2 rests on the card's day-2 trigger and the held D-005 (whether a close entry is taught at all)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The last bar is a record-volume day, up 37%, closing near its high at 20.17.",
    "chart": {
     "sym": "TVTX",
@@ -1227,8 +1245,8 @@
      "+2 rests on the owner's rulebook (E57, entries are market orders) and the card's trigger"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "The last bar is the record day: a huge gap on the most shares it has ever traded.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "The last bar is the record day: a huge gap on the most shares it has ever traded, closing at 234.83.",
    "chart": {
     "sym": "MDGL",
     "asof": "2022-12-19",
@@ -1985,7 +2003,7 @@
     },
     "round": 2
    },
-   "why": "5.0R. Your risk, 1R, is 84.90 minus 83.38, which is 1.52 a share. The gain is 92.50 minus 84.90, 7.6 a share. 7.6 over 1.52 is 5.0R. That's five times what you risked. It's the zone where I start thinking about a first sell. But that's judgment, day 3 or later, into a 3, 5 or 7 day push. INOD got there within two sessions.",
+   "why": "5.0R. Your risk, 1R, is 84.90 minus 83.38, which is 1.52 a share. The gain is 92.50 minus 84.90, 7.6 a share. 7.6 over 1.52 is 5.0R. That's five times what you risked. It's the zone where I start thinking about a first sell. But that's judgment, day 3 or later, into a 3, 5 or 7 day push. INOD got there on day 2 itself. Too early to sell, so the stop goes to breakeven.",
    "lesson_line": "Count the gain in R. That's how you know what the trade has paid.",
    "facts": [
     "d07",
@@ -2017,7 +2035,7 @@
     "6.0R": "You measured the gain from the stop, not from the buy.",
     "7.6R": "That's the gain in dollars a share. Divide it by the 1.52 risk."
    },
-   "story": "You buy the day-2 reclaim at 84.90 with the stop at 83.38. Later it trades 92.50.",
+   "story": "You buy the day-2 reclaim at 84.90 with the stop at 83.38. Later that same day it trades 92.50.",
    "chart": {
     "sym": "INOD",
     "asof": "2026-05-11",
@@ -2330,14 +2348,15 @@
     "No, only an ETF gets that pass"
    ],
    "answer": "Yes, the fill is over the 200",
-   "why": "Yes. Below the 200-day we don't buy stocks, and that's a hard line. But we check it on the trade, at your fill. DOCU sat 7% under the line going in. Then a 22% day on earnings lifted it back over, and your day-2 fill is above it. Where it sat last week doesn't matter. The record day is often exactly what lifts these back over.",
+   "why": "Yes. Below the 200-day we don't buy stocks, and that's a hard line. But we check it at your fill. DOCU sat 7% under the line going in. Then a 22% day on earnings lifted it back over, and your day-2 fill is above it. Where it sat last week doesn't matter. Be honest about the rest, though. The 50-day still sits a hair under the 200 and points down. We want the 50 over the 200. That's mostly a must, not always, so here it's a judgment call. The 200-day is the hard line, and your fill clears it.",
    "lesson_line": "Judge the 200-day at your fill, not the week before.",
    "facts": [
     "c06",
     "x07",
     "c01",
     "d04",
-    "d05"
+    "d05",
+    "mw1"
    ],
    "wrong": {
     "No, it was under the line before": "Where it sat before doesn't decide it. The check is at your entry.",
@@ -2553,7 +2572,7 @@
    "format": "scenario",
    "criterion": "hve.later_entries",
    "q": "It's back over the line. Do you get back in?",
-   "story": "You got stopped the day after your day-2 buy. Now the stock has ground back up, well over the HVC.",
+   "story": "You bought day 2 at 80.07, a cent over the HVC, and got stopped the next day. Now it has ground back up to 88.84.",
    "choices": [
     "Only on a new trigger",
     "Yes, it's back over the HVC",
@@ -2561,14 +2580,16 @@
     "Never, the stock failed you"
    ],
    "answer": "Only on a new trigger",
-   "why": "Only on a new trigger. The stop-out ended that trade. A new one needs its own setup, its own stop and every rule. Being back over the HVC isn't a trigger. Buy here and you've got no stop to size from, just a feeling. SE ran to 88.84 after its stop-out, then fell all the way to 56.05.",
+   "why": "Only on a new trigger. The stop-out ended that trade. A new one needs its own setup, its own stop and every rule. Being back over the HVC isn't a trigger. And look where it sits. It's way over its 50-day and its 20 EMA, a tad extended. Buy here and you've got no stop to size from, just a feeling. SE topped at 88.84, then fell all the way to 56.05.",
    "lesson_line": "Stopped out: the next trade needs its own trigger.",
    "facts": [
     "h28",
     "c17",
     "c18",
     "d17",
-    "h36"
+    "h36",
+    "d16",
+    "mw1"
    ],
    "wrong": {
     "Yes, it's back over the HVC": "Being over the line isn't a trigger. You'd have no stop to size from.",
@@ -2588,7 +2609,7 @@
      "+1 fixed before (a wrong note was edited)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "SE",
     "asof": "2023-04-04",
@@ -2988,7 +3009,7 @@
     "Skipping the day-2 trigger"
    ],
    "answer": "Stop to breakeven at 2R",
-   "why": "The breakeven move. We allow it anywhere from 2R to 5R, as a judgment. Once a trade has paid you 2R, it shouldn't turn into a loss. NKTR hit 2.3R, then four sessions after the buy the 322.50 low took the 323.98 stop. With the stop at breakeven, that's a scratch instead of a loss. It made 373.20 two days later. That's the cost of tight stops.",
+   "why": "The breakeven move. We allow it anywhere from 2R to 5R, as a judgment. Look at the buy day's candle first. It ran hard, then closed back under your fill, a doji. That's a warning, not an exit, and the stop still decides. Once a trade has paid you 2R, it shouldn't turn into a loss. NKTR hit 2.3R, then four sessions after the buy the 322.50 low took the 323.98 stop. With the stop at breakeven, that's a scratch instead of a loss. It made 373.20 two days later.",
    "lesson_line": "A 2R gain given back is a scratch, once the stop sits at breakeven.",
    "facts": [
     "h05",
@@ -3017,7 +3038,7 @@
      "rests on the owner's rulebook (B19); the card gives two timings for the breakeven move"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NKTR",
     "asof": "2017-03-21",
@@ -3869,7 +3890,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "VRTX +55% day and 58.12 HVC match the dossier row; ray and AVWAP explained plainly."
+   "notes": "Record day closes near the high at 58.12 on 13.7x; the why names the close. Fine."
   },
   "q02": {
    "status": "pass",
@@ -3881,7 +3902,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TVTX +37%, 20.17 HVC, 19.89 stop (1.4%) check out; 88% and the ~20% close-entry stop are the dossier's measured mistakes. Duncan/EP moved to deeper."
+   "notes": "Rebuilt around the day-2 spot (a cent over 20.17, stop under day 2's low), rule 34 met. The record day's long lower wick is left unnamed; on a +37% gap day calling it a hammer would mislead."
   },
   "q04": {
    "status": "pass",
@@ -3905,7 +3926,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "notes": "Story now gives 234.83 so the level has a price (rule 35). Chart matches."
   },
   "q08": {
    "status": "pass",
@@ -3929,7 +3950,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NRG 2.1%/1.7% kept; 'No;' choices gone."
+   "notes": "NRG record day closes at its high; the day-2 read is about the next session. Fine."
   },
   "q12": {
    "status": "pass",
@@ -4013,7 +4034,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.59/58.13 = 1.0%; wrong notes recomputed."
+   "notes": "Day-2 bar opens at its 57.56 low; fill and stop arithmetic match."
   },
   "q26": {
    "status": "pass",
@@ -4024,8 +4045,8 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "1.52 risk, 7.6 gain, 5.0R; 6.0R distractor = (92.50-83.38)/1.52."
+   "fixed": true,
+   "notes": "The chart ends on day 2, a bar that runs to 114.77 and closes 103.83, yet the story said 'Later it trades 92.50' and the why 'within two sessions'. 92.50 printed on day 2 itself; story and why now say so (and match w3: too early to sell, stop to breakeven)."
   },
   "q28": {
    "status": "cut",
@@ -4037,7 +4058,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ROKU $773M a day, +28.1%, one-year record: a PEG."
+   "notes": "PEG vs HVE on given numbers; chart agrees."
   },
   "q30": {
    "status": "cut",
@@ -4073,7 +4094,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "UNIVERSE: the chart was FCNCA, a regional bank. His standing verdict (owner_verdicts, FITB): 'lame regional bank', regional banks are out even when the structure is right (rule 31). Swapped to DOCU 2019-09-06, a name he'd trade, whose real numbers fit the same idea: 7% under the 200-day before (d05), +22% on earnings (d04), fill over the 200-day at entry (c06, walkthrough w2). Right answer and idea unchanged."
+   "notes": "Answer is right (the 200-day is judged at the fill), but the chart shows the 50-day a hair under the 200 and pointed down, a flaw the old why ignored. mw1: mostly a must, not always. Now said, and why the trade still stands."
   },
   "q36": {
    "status": "pass",
@@ -4091,19 +4112,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "notes": "Day-2 bar matches the story; the question is about weeks later."
   },
   "q39": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "notes": "Day-2 bar matches; a stop question."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "notes": "SE 22% over its 50-day and 8.8% over the 20 EMA; 'way over ... a tad extended' is honest."
   },
   "q41": {
    "status": "pass",
@@ -4127,7 +4148,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "notes": "HVE vs PEG on given numbers. Fine."
   },
   "q45": {
    "status": "pass",
@@ -4139,7 +4160,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.5% of 40,000 = $200; 0.29 a share; 689.66 -> 689. Distractors 68/344/9 recomputed."
+   "notes": "Share arithmetic on given numbers."
   },
   "q47": {
    "status": "pass",
@@ -4157,19 +4178,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NKTR 2.3R, 322.50 low through 323.98, 373.20 two days later: dossier failures table. Breakeven framed as 2R-5R judgment."
+   "notes": "NKTR buy day is a doji that closed under the 331.66 fill; the edit says it and keeps the stop as the exit."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'Which of these is the mistake?' had two candidates: fewer shares off a 7.5% stop is also off-plan (past 5% we mostly wait). Stem now asks for the move that is NEVER OK, which only pulling the stop in is (D-005: never move the stop to fit). Answer unchanged."
+   "fixed": false,
+   "notes": "Record day closes at 13.11 as stated; no 200-day yet (new listing), nothing claimed about it."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice in his register; numbers and claims checked against the lesson facts; answer and idea unchanged."
+   "notes": "Management question; chart agrees."
   },
   "q52": {
    "status": "pass",
@@ -4192,8 +4213,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Why mentioned MBX's 7.4% stop with no comment, as if a 7.4% stop were a normal buy. Now says it was past the 5% we accept, a second reason to pass (x03 added)."
+   "fixed": false,
+   "notes": "Close at 0.26 of the range, as the why reads."
   },
   "q56": {
    "status": "pass",
@@ -4205,7 +4226,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "YELP 0.82/48.34 = 1.7%."
+   "notes": "Day-2 bar matches (low 47.54); stop question."
   },
   "q58": {
    "status": "cut",
@@ -4241,7 +4262,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GRPN 13.98 HVC, 13.42 low -> 13.40; 14.60 is 4.4% over 13.98, past 4%."
+   "notes": "Day-2 bar dips to 13.42 and closes near its high; the buy-day spot and stop are in the choices (rule 34)."
   },
   "q64": {
    "status": "pass",
@@ -4253,13 +4274,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "INSM 16% under, 126% gap, 18x, +68% by day 59: dossier row 8."
+   "notes": "Six flat months then the record gap; the 200-day judged at the fill. Fine."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GPCR 72.5% run, +102.5%, 18.2x, 3% under HVC on day 2, 0.0R."
+   "notes": "Record day after a 72.5% run; the pass reads it right."
   },
   "q67": {
    "status": "pass",

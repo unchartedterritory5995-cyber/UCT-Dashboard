@@ -73,8 +73,9 @@ export function markerGapBars(frameBars, plotPx) {
  *  after BOUGHT, the red square on the BOUGHT text). A later mark within `near` bars of an earlier one on the same side
  *  moves to the other side of its bar when that side is clear there; when neither side is, it keeps its shape and drops
  *  its word (the chart key names it). Marks on the SAME bar stack, which the chart does itself. Earlier marks never move,
- *  so a mark holds still as the replay lands the ones after it. */
-function spreadMarks(marks, idx, near) {
+ *  so a mark holds still as the replay lands the ones after it. `keepWords`: a chart that stacks its marks' labels clear
+ *  of each other (the drill's label layer, StockChart `markerLook`) keeps the word instead of dropping it. */
+function spreadMarks(marks, idx, near, keepWords = false) {
   if (!(near > 0)) return marks
   const placed = []
   for (const m of marks) {
@@ -83,7 +84,7 @@ function spreadMarks(marks, idx, near) {
     if (clash(m.position)) {
       const other = m.position === 'aboveBar' ? 'belowBar' : 'aboveBar'
       if (!clash(other)) m.position = other
-      else m.text = ''
+      else if (!keepWords) m.text = ''
     }
     placed.push({ i, position: m.position, m })
   }
@@ -93,8 +94,9 @@ function spreadMarks(marks, idx, near) {
 /** The trade's action items as the chart's bar markers, on the bars the chart shows so far: BOUGHT (or SHORTED) at the
  *  signal, 3R and 5R where they traded, STOPPED where the plan's stop was hit; a signal-only trade marks where it broke
  *  its line. `n` = the bars before the run-on (the signal is bar n - 1). `near` (markerGapBars) spreads marks whose words
- *  would overlap at the chart's scale; without it they sit as before. */
-export function tradeMarkers(trade, all, n, { near = 0 } = {}) {
+ *  would overlap at the chart's scale; without it they sit as before. `keepWords` (with `near`): a crowded mark keeps its
+ *  word, for a chart whose label layer stacks the words clear (StockChart `markerLook`). */
+export function tradeMarkers(trade, all, n, { near = 0, keepWords = false } = {}) {
   if (!trade || !all?.length || !(n >= 1)) return null
   const GOLD = '#dcbb5e', RED = '#ef5350', GREEN = '#2faf68'
   const out = []
@@ -112,5 +114,5 @@ export function tradeMarkers(trade, all, n, { near = 0 } = {}) {
     put(trade.broke, { position: trade.short ? 'aboveBar' : 'belowBar', shape: 'square', color: RED, text: trade.short ? 'CLOSED OVER' : 'CLOSED UNDER' })
   }
   // the chart wants them in time order; 3R and 5R on the signal day itself (t1At 0) are said by the key
-  return out.length ? spreadMarks(out.sort((a, b) => String(a.time).localeCompare(String(b.time))), idx, near) : null
+  return out.length ? spreadMarks(out.sort((a, b) => String(a.time).localeCompare(String(b.time))), idx, near, keepWords) : null
 }

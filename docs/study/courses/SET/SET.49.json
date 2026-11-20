@@ -1184,7 +1184,13 @@
     "d02",
     "d03",
     "c05"
-   ]
+   ],
+   "chart": {
+    "sym": "ALB",
+    "asof": "2010-05-07",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1201,7 +1207,13 @@
     "d09",
     "c31",
     "c05"
-   ]
+   ],
+   "chart": {
+    "sym": "OKTA",
+    "asof": "2025-04-07",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1216,7 +1228,13 @@
     "d10",
     "d11",
     "d12"
-   ]
+   ],
+   "chart": {
+    "sym": "BN",
+    "asof": "2020-03-10",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1616,8 +1634,8 @@
      "the daily trigger and its 3-session window are pending D-003"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "The last bar is the flush day. A leader just fell 21% in two sessions, down to the top of its old base and its rising 50-day.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "The last bar is the flush day. A leader just fell 21% in two sessions, down to the top of its old base, just over its rising 50-day.",
    "chart": {
     "sym": "HIMS",
     "asof": "2024-10-30",
@@ -1994,13 +2012,14 @@
    ],
    "story": "The last bar is the flush day. Three lower closes in a row, and today closes right on its low. Everyone on your feed is calling the bottom.",
    "answer": "Wait for the undercut and reclaim",
-   "why": "Wait. A close right on the low means sellers were still hitting it into the bell. That's the panic, not the end of it. Nearly half of flush closes get undercut the next day. So I let the next session show me. If it trades under this low and climbs back over it, that's my buy. The stop goes a few cents under the new low. This one did exactly that: the next session undercut it and closed 6% higher.",
+   "why": "Wait. A close right on the low means sellers were still hitting it into the bell. That's the panic, not the end of it. Nearly half of flush closes get undercut the next day. So I let the next session show me. If it trades under this low and climbs back over it, that's the buy. The stop goes a few cents under the new low. One more thing the chart shows: this close sits just under the 200-day. Below the 200-day is a hard no for stocks, so for us this one's a pass anyway. It did undercut and close 6% higher the next session. The lesson is the method: never the close, only the reclaim.",
    "lesson_line": "Buy the turn, not the knife.",
    "facts": [
     "c12",
     "c33",
     "v01",
-    "h24"
+    "h24",
+    "r01"
    ],
    "house": true,
    "wrong": {
@@ -2019,7 +2038,7 @@
      "keys the daily trigger, pending D-003"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "SBUX",
     "asof": "2011-08-08",
@@ -2259,7 +2278,7 @@
    ],
    "story": "The last bar is the day before the reclaim. If it triggers tomorrow, the company reports earnings two sessions later.",
    "answer": "No, the report is 2 sessions away",
-   "why": "No. We take no new buys in the 3 days before an earnings report, and 2 sessions away is inside that. A clean trigger doesn't override it, and half size doesn't either. Here's the reason. A bounce trade lives on a tight stop under the low. A report can gap the stock right through that stop overnight, and a small planned loss turns into a big one. Now it's a bet on the news, not a read of the chart. Pass, and take a fresh look after the report.",
+   "why": "No. We take no new buys in the 3 days before an earnings report, and 2 sessions away is inside that. A clean trigger doesn't override it, and half size doesn't either. The chart even looks good: the last bar is a hammer and an inside day. Doesn't matter. A bounce trade lives on a tight stop under the low. A report can gap the stock right through that stop overnight, and a small planned loss turns into a big one. Now it's a bet on the news, not a read of the chart. Pass, and take a fresh look after the report.",
    "lesson_line": "A clean trigger still waits out the report.",
    "facts": [
     "c16",
@@ -2280,7 +2299,7 @@
      "rests on the owner's rulebook (B22)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "WDC",
     "asof": "2024-07-26",
@@ -3920,7 +3939,7 @@
     "Watch it, a flush into the 50-day"
    ],
    "answer": "Pass, only a pullback in a leader",
-   "why": "Pass, as a capitulation. AMZN is a leader, and it just ran into its rising 50-day. The day was wide, 2.95 ATR, and 2.23 times volume is heavy. But 12.9% off the high, onto a rising 50-day, is a leader pulling back hard. The trend is still up, so holders have no reason to give up. A capitulation is a straight-down fall that breaks people. If you want AMZN here, trade it as a pullback off the 50-day. That's a different plan, with the stop under the low of the day.",
+   "why": "Pass, as a capitulation. AMZN is a leader, and it just fell into its rising 50-day. It undercut the line and closed just under it, with a long lower wick. The day was wide, 2.95 ATR, and 2.23 times volume is heavy. But 12.9% off the high, at a rising 50-day, is a leader pulling back hard. The trend is still up, so holders have no reason to give up. A capitulation is a straight-down fall that breaks people. If you want AMZN here, that's a pullback trade at the 50-day. It's a different plan, with the stop under the low of the day.",
    "lesson_line": "A leader resting on its 50-day is a pullback, not a panic.",
    "facts": [
     "d22",
@@ -3953,7 +3972,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q66",
@@ -4558,7 +4577,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "HIMS flush low 18.63 sits ~4% over the rising 50 (~17.93): 'just over its rising 50-day' right."
   },
   "q13": {
    "status": "pass",
@@ -4570,7 +4589,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Same LYV chart as q64; a distinct skill (which level), acceptable."
+   "notes": "LYV low 99.86 into 100 and the 200-day (~99.1). Right."
   },
   "q15": {
    "status": "cut",
@@ -4605,32 +4624,32 @@
   "q22": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "fixed": true,
+   "notes": "The writer's 'the reclaim has to get it back over that line too, or I pass' invents a gate he never gave: the reclaim trigger is the flush low 17.02, under the 200-day (~17.31), so the fill itself is under the 200-day, a hard no for a stock (D-009). Now says it's a pass for us; the answer 'wait' is still right."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "ROKU entry mechanics; right."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fix. 0.6% is not 'way inside' the 1-3% band, it is tighter than it. Math 0.23/38.49 = 0.6% checked."
+   "fixed": false,
+   "notes": "ALB stop math; above the 200."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "ALB 5R math."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "WDC hammer and inside day named right; the report window decides."
   },
   "q29": {
    "status": "pass",
@@ -4642,13 +4661,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "COP day 2: open up, close in the lower tenth (9%). Right."
   },
   "q31": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "MS no burst; right."
   },
   "q32": {
    "status": "pass",
@@ -4666,7 +4685,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "UBER 16.5% under a falling 200; hard no said."
   },
   "q36": {
    "status": "cut",
@@ -4690,13 +4709,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: never add into an overnight gap far past 5R on a bounce trade; first sell a judgment. 22.13 + 5 x 0.41 = 24.18 checks. Voice 4."
+   "notes": "MP gap-sell judgment; right."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "ALGM first-sell judgment; right."
   },
   "q43": {
    "status": "pass",
@@ -4714,7 +4733,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "HIMS 9 EMA trail; right."
   },
   "q46": {
    "status": "cut",
@@ -4756,13 +4775,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "BN index new low; BN sat 3.9% over its 200 that day."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "VOYA whipsaw; right."
   },
   "q59": {
    "status": "pass",
@@ -4773,8 +4792,8 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Fix, small. 'Bracco has seen plenty of those' overstated u13; now names the Monday turn he describes. OKTA numbers checked against d08."
+   "fixed": false,
+   "notes": "OKTA Friday flush; right."
   },
   "q01": {
    "status": "pass",
@@ -4810,7 +4829,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "ICE naming; right."
   },
   "q50": {
    "status": "pass",
@@ -4840,19 +4859,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "OKTA order; open, low and close match the bars."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "LYV flush into 100 and the 200; right."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Fix. The why claimed 'nothing here is a straight-down panic after a burst', which the stem never shows, and the verdict leaned on 12.9% sitting under the card's proposed 15% stretch. Now names AMZN (d22, d23), works the screen's own numbers and teaches it by eye: a leader pulling back hard onto a rising 50-day, trend intact."
+   "notes": "Writer said it 'poked under the line, then left a hammer': the close itself sits 2.4% under the 50-day (low 5.5% under). Now says it closed just under it; 'trade it as a pullback off the 50-day' became 'a pullback trade at the 50-day', since price is under it."
   },
   "q10": {
    "status": "cut",
@@ -4935,7 +4954,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads as a mentor reviewing the trade; numbers recomputed and match the facts; answer right, wrongs clearly wrong; no working words or proposed numbers as ours."
+   "notes": "COP buy day (doji), stop is the exit, gap rule only on an open under the stop; right."
   },
   "q74": {
    "status": "cut",

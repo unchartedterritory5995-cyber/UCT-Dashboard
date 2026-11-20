@@ -1116,7 +1116,13 @@
     "h24",
     "c03",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "TGT",
+    "asof": "2021-03-19",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1136,7 +1142,13 @@
     "c03",
     "h05",
     "c43"
-   ]
+   ],
+   "chart": {
+    "sym": "RCL",
+    "asof": "2009-07-15",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1158,7 +1170,13 @@
     "h05",
     "h20",
     "c01"
-   ]
+   ],
+   "chart": {
+    "sym": "STLD",
+    "asof": "2026-03-31",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1355,27 +1373,30 @@
    "criterion": "wp.pivot",
    "q": "Where's the pivot on this base?",
    "choices": [
-    "The high of the tight base",
-    "The low of the fall before it",
-    "The 200-day moving average",
-    "Wherever it closes today"
+    "Right around $104.80",
+    "Down near $100",
+    "Up near $108, the 200-day",
+    "Wherever it closes tomorrow"
    ],
-   "answer": "The high of the tight base",
-   "why": "The high of the base. That's the top of the rest, where sellers turned DHI back. When price trades through that high, those sellers are used up, and that's your buy. Mark the level the night before and set an alert there. Then you buy the break as it happens, not after it's run.",
+   "answer": "Right around $104.80",
+   "why": "Right around $104.80, the top of those five tight days. The last bar tagged it and closed just under. That's where the sellers sit. Here's my problem. That pivot sits under the 200-day, up near $108, with a falling 50-day right there too. Under the 200 we don't buy stocks. So a trade through 104.80 isn't my buy. I want it back over the 200 first. The pop day did get there, closing 0.8% over it.",
    "lesson_line": "Mark the base's high the night before. Set the alert. Buy the break.",
    "facts": [
     "c08",
     "p02",
     "c27",
-    "c10"
+    "c10",
+    "d11",
+    "c26",
+    "r53"
    ],
    "wrong": {
-    "The 200-day moving average": "The 200-day tells you if we can buy at all. It isn't the buy point.",
-    "The low of the fall before it": "That low marks the bottom of the fall. The pivot is the top of the base that formed after it.",
-    "Wherever it closes today": "The close comes after the buy. You mark the pivot before the day even opens."
+    "Down near $100": "That's the bottom of the base. You buy the break of the top, not the low.",
+    "Up near $108, the 200-day": "The 200-day tells you if we can buy at all. It isn't the buy point.",
+    "Wherever it closes tomorrow": "The close comes after the buy. You mark the pivot before the day even opens."
    },
    "house": true,
-   "simple": "The top of the base, where sellers kept turning it back. Price through it is your buy.",
+   "simple": "Right around $104.80, the top of the base. It sits under the 200-day though, so no buy until it's back over.",
    "tier": "core",
    "risk": {
     "score": 0,
@@ -1383,8 +1404,8 @@
      "a stable definition with three agreeing facts"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "The chart ends the day before the move. Look at the last few tight days under the averages.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "The chart ends the day before the move. Look at the last five days. Tight, and right around the short averages.",
    "chart": {
     "sym": "DHI",
     "asof": "2023-10-31",
@@ -1563,7 +1584,7 @@
     "Nothing, gaps are just noise"
    ],
    "answer": "Strength, buyers want it now",
-   "why": "Strength. Buyers wanted it so badly they paid up before the bell. A gap through the pivot and both averages is the best kind of pop, and it pushes the grade toward A+. And 13.18 is only 1.8% over 12.95, inside our 4% line, so it's still a buy. We went back over years of pops. The ones that gapped open 1% or more did better, not worse.",
+   "why": "Strength. Buyers wanted it so badly they paid up before the bell. Look at the last candle, a tight doji right under 12.95. Today it opens through that and both short averages. That's the best kind of pop. And 13.18 is only 1.8% over 12.95, inside our 4% line, so it's still a buy. Honest read: the 200-day still points down and the 50-day sits overhead. It's early in the 2009 turn. Price is over the 200, and that's the line that counts.",
    "lesson_line": "A gap through the averages is strength. Inside 4%, I'm a buyer.",
    "facts": [
     "k11",
@@ -1572,12 +1593,13 @@
     "c13",
     "h11",
     "d03",
-    "d04"
+    "d04",
+    "c26"
    ],
    "wrong": {
     "Weakness, the gap will fill": "Waiting on a gap fill is a guess. Over years of pops, gap opens of 1% or more did better.",
     "Strength, but it's too late": "At 1.8% over the pivot it's inside our 4% line. Not late at all.",
-    "Nothing, gaps are just noise": "A gap through the pivot and both averages is the strongest pop there is. It counts."
+    "Nothing, gaps are just noise": "A gap through the pivot and both short averages is the strongest pop there is. It counts."
    },
    "house": true,
    "simple": "It's strength. Buyers paid up before the open, and it's still close enough to the pivot to buy.",
@@ -1589,8 +1611,8 @@
      "the gap row is on the proposed card"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "The chart ends the day before. The base's high, the pivot, is 12.95. This morning it opens at 13.18, above both averages. That's 1.8% over the pivot.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "The chart ends the day before. The base's high, the pivot, is 12.95. This morning it opens at 13.18, above both short averages. That's 1.8% over the pivot.",
    "chart": {
     "sym": "RCL",
     "asof": "2009-07-14",
@@ -2287,7 +2309,7 @@
     "Half now, half on a dip"
    ],
    "answer": "Buy the open at market",
-   "why": "Buy the open at market. 13.18 is a small gap over the 12.95 pivot, inside our 4% line, so it's not a chase. A gap through the pivot and both averages is what the best pops look like. Your stop goes a few cents under the day's low. Here that put it at 12.97, still above the pivot, so the risk was tiny. RCL went on to make 56R.",
+   "why": "Buy the open at market. 13.18 is a small gap over the 12.95 pivot, inside our 4% line, so it's not a chase. A gap through the pivot and both short averages is what the best pops look like. Your stop goes a few cents under the day's low. Here that put it at 12.97, still above the pivot, so the risk was tiny. RCL went on to make 56R.",
    "lesson_line": "A gap through the pivot inside 4% is a pop to buy at the open.",
    "facts": [
     "c11",
@@ -2300,11 +2322,11 @@
    ],
    "wrong": {
     "Wait for a dip back to 12.95": "On a gap inside 4% the dip often never comes. Buying a morning flush is for a gap past 4%.",
-    "Pass, gaps like this fill": "Strong pops often start with gaps. This one's through the pivot and both averages, the best kind.",
+    "Pass, gaps like this fill": "Strong pops often start with gaps. This one's through the pivot and both short averages, the best kind.",
     "Half now, half on a dip": "We buy the full size at one price with one stop. No starter half, and no buying more on a dip."
    },
    "house": true,
-   "story": "The chart ends the day before. The base's high, the pivot, is 12.95. On the pop day the stock opens at 13.18, above both averages.",
+   "story": "The chart ends the day before. The base's high, the pivot, is 12.95. On the pop day the stock opens at 13.18, above both short averages.",
    "simple": "Buy the open. It's a small gap over the pivot, inside 4%, and a gap like that is strength.",
    "deeper": {
     "example": "RCL, 2009-07-15: it gapped open over the 12.95 pivot, under the 4% line. Buy the open at 13.18. The stop went a few cents under the day's low, at 12.97, above the pivot. Kell says most Wedge Pops that start powerful new trends start with gaps."
@@ -2549,23 +2571,24 @@
     "A pop, and a top-grade A+"
    ],
    "answer": "A pop, but a lower grade",
-   "why": "It's still a pop, just a weaker one. The base is tight, it traded through the pivot and closed above both averages. That's the setup. Volume at 0.88 times the base days is light, and that lowers the grade. Volume raises the grade when it's there. It isn't a must. A lower grade isn't a pass. If it still grades A or B, it's normal size. B- or lower goes on smaller.",
+   "why": "It's still a pop, just a weaker one. The base is tight, it traded through the pivot and closed above both short averages. That's the setup. Now the flaws. Volume was light, 0.88 times the base days. The candle's a red hammer: buyers took the dip, but it closed under its open. And price is still a bit under the 50-day. Each of those holds the grade back. A lower grade isn't a pass, though. If it still grades A or B, it's normal size. B- or lower goes on smaller.",
    "lesson_line": "Volume raises the grade. A pop on light volume is weaker, not ruled out.",
    "facts": [
     "c05",
     "k12",
     "r55",
     "d16",
-    "d17"
+    "d17",
+    "c26"
    ],
    "wrong": {
     "Not a pop, volume kills it": "Volume doesn't decide if it counts. It raises or lowers the grade.",
-    "Not a pop, it closed too high": "Closing above both averages is part of a pop, not a flaw.",
-    "A pop, and a top-grade A+": "The best pops come on clearly more volume than the base. This light volume holds the grade back."
+    "Not a pop, it closed too high": "Closing above both short averages is part of a pop, not a flaw.",
+    "A pop, and a top-grade A+": "The best pops come on clearly more volume than the base and close strong. This one came on light volume and closed under its open."
    },
    "house": true,
-   "story": "An 18% decline, then a 6-day tight base. On the last day it trades through the pivot and closes above both averages, with weak volume: 0.88 times the base days'.",
-   "simple": "It's still a pop. Light volume lowers the grade, it doesn't kill the setup.",
+   "story": "An 18% decline, then a 6-day tight base. On the last day it trades through the pivot and closes above both short averages, with weak volume: 0.88 times the base days'.",
+   "simple": "It's still a pop. Light volume and a red close lower the grade, they don't kill the setup.",
    "tier": "extended",
    "risk": {
     "score": 4,
@@ -2574,7 +2597,7 @@
      "volume rules are a held decision (D-006)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "CSCO",
     "asof": "2026-07-27",
@@ -2801,7 +2824,7 @@
     "Pop B, more bases behind it"
    ],
    "answer": "Pop A, early in the cycle",
-   "why": "Pop A. Three sessions after the index's own low, the whole new advance is still in front of it. Early leaders have the most room. Pop B is the fourth base of an old trend. That's late. There's less left, and more can go wrong. I grade a late base lower. DHI popped three sessions after SPY's 2023 low and hit 3R the next day.",
+   "why": "Pop A. Three sessions after the index's own low, the whole new advance is still in front of it. Early leaders have the most room. Pop B is the fourth base of an old trend. That's late. There's less left, and more can go wrong. I grade a late base lower.",
    "lesson_line": "Early pops in a new cycle are the best ones. Late bases in old trends are tired.",
    "facts": [
     "c24",
@@ -3036,14 +3059,15 @@
     "Proof the setup doesn't work"
    ],
    "answer": "A planned loss, the plan working",
-   "why": "A planned loss. The stop was 4.7% away, wider than the 3.5% I'd call good but inside the 5% we accept. So you took it smaller, which is exactly right. Then it failed on day 2, and the stop did what it's there for. The pop closed near its high on 1.24 times the base's volume. Nothing on that candle said it would fail. You pay these to be in the ones that run.",
+   "why": "A planned loss. The stop was 4.7% away, wider than the 3.5% I'd call good but inside the 5% we accept. So you took it smaller, which is exactly right. The pop closed near its high on 1.24 times the base's volume. Nothing on that candle said it would fail. The chart did have one flaw: a falling 50-day not far overhead. That's supply sitting above you, and we grade it down. Then it failed on day 2, and the stop did its job. You pay these to be in the ones that run.",
    "lesson_line": "A wide stop means a small size. Then the loss stays small too.",
    "facts": [
     "d20",
     "d21",
     "d26",
     "h02",
-    "r56"
+    "r56",
+    "c26"
    ],
    "wrong": {
     "A mistake, the stop was too wide": "Up to 5% is fine, and you took it smaller. A wide stop isn't banned.",
@@ -3064,7 +3088,7 @@
      "the cold check held it as a fix on D-006"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "COIN",
     "asof": "2024-08-23",
@@ -3090,14 +3114,13 @@
     "Stay away from it for a month"
    ],
    "answer": "Take it, wait for a new trigger",
-   "why": "Take the loss and wait for a new trigger. This was a good pop. Strong close, nice volume, and it still failed the next day. That happens. The stop kept it to the size you planned. Buying it straight back is hope, not a setup. If it sets up and triggers again, that's a new trade with its own stop. One stock gets up to 3 tries a week.",
+   "why": "Take the loss and wait for a new trigger. This was a decent pop. It gapped through the pivot on good volume and closed in the upper half of its range. Not the strongest close, but nothing that says skip. It still failed the next day. That happens. The stop kept it to the size you planned. Buying it straight back is hope, not a setup. If it sets up and triggers again, that's a new trade with its own stop. One stock gets up to 3 tries a week.",
    "lesson_line": "Some good pops fail. The stop keeps it small, and the next trigger is a new trade.",
    "facts": [
     "d22",
     "d23",
     "h28",
     "h02",
-    "d26",
     "h29"
    ],
    "wrong": {
@@ -3106,7 +3129,7 @@
     "Stay away from it for a month": "There's no ban. A new trigger is a new trade, up to 3 tries a week and 6 a month."
    },
    "house": true,
-   "story": "A 29% decline, an 11-day base, then a gap open at 184.95 on 1.86x the base days' volume, closing high in its range. You bought the open with the stop at 182.70. The next session's low takes it.",
+   "story": "A 29% decline, an 11-day base, then a gap open at 184.95 on 1.86x the base days' volume, closing in the upper half of its range. You bought the open with the stop at 182.70. The next session's low takes it.",
    "simple": "Take the loss and wait. Buying right back is hope, and a new trigger is a new trade.",
    "deeper": {
     "example": "PLTR, 2025-12-10: buy 184.95, stop 182.70. The next session's low of 180.21 took the stop. All four failed pops we studied closed strong, so the candle gave no warning. The loss was the size we planned."
@@ -3119,7 +3142,7 @@
      "the stop default is held (D-008)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "PLTR",
     "asof": "2025-12-10",
@@ -3309,7 +3332,7 @@
     "Sell the whole position"
    ],
    "answer": "Judge it, 3R isn't a sell order",
-   "why": "Judge it. Hitting 3R on day 2 is a reason to look, not a sell order. We very rarely sell this early. I'm waiting for day 3 or later and a real 3, 5 or 7 day push. Up 3R in two days says it's strong, not done. NET went on to 55R. Sell too early and you lose the move that pays for all the small losses.",
+   "why": "Judge it. Hitting 3R on day 2 is a reason to look, not a sell order. Look at your buy day on the chart. A hammer that closed near its high, buyers soaking up the dip. Up 3R in two days says it's strong, not done. We very rarely sell this early. I'm waiting for day 3 or later and a real 3, 5 or 7 day push. NET went on to 55R. Sell too early and you lose the move that pays for all the small losses.",
    "lesson_line": "Trading through 3R isn't a sell order. Judge the first sell.",
    "facts": [
     "r57",
@@ -3335,7 +3358,7 @@
      "rests on the owner's ruling D-013 (the first sell is a judgment)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NET",
     "asof": "2020-09-18",
@@ -3434,7 +3457,7 @@
     "A limit order resting at 30.24"
    ],
    "answer": "As it traded through 30.24",
-   "why": "As it traded through 30.24. That's the trigger, and we buy at market the moment it goes. By the close it was 31.72, 4.9% over the pivot. That's past our 4% line, so a buy at the close is a chase. One wide bar can run that far before you blink. That's why you set the alert at the pivot the night before. SLB filled at 30.25 and went on to 50R.",
+   "why": "As it traded through 30.24. That's the trigger, and we buy at market the moment it goes. Look where it sat first, a hair under its 200-day. The trade through 30.24 takes it back over, so it's a stock we can buy. By the close it was 31.72, 4.9% over the pivot. That's past our 4% line, so a buy at the close is a chase. One wide bar can run that far before you blink. That's why you set the alert at the pivot the night before. SLB filled at 30.25 and went on to 50R.",
    "lesson_line": "Alert at the pivot. The buy is the trade through, not the close.",
    "facts": [
     "d09",
@@ -3442,7 +3465,8 @@
     "h11",
     "h22",
     "c12",
-    "c10"
+    "c10",
+    "h10"
    ],
    "wrong": {
     "At the close, 31.72": "31.72 is 4.9% over the pivot, past our 4% line. That's a chase.",
@@ -4221,8 +4245,8 @@
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Agrees: no starter half, no buying more on a dip; 13.18 over 12.95 is about 1.8%, inside 4%; 12.97 unchanged. Voice 4."
+   "fixed": true,
+   "notes": "Rule 33: 'opens at 13.18, above both averages' and 'through the pivot and both averages' while the 50-day sits about 11% overhead on this chart (the open is under it). q12 on the same RCL chart was already fixed to 'both short averages'; q28 made consistent."
   },
   "q31": {
    "status": "pass",
@@ -4264,7 +4288,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Writer's edit checked: falling 50-day 4.5% overhead, close at 96% of range; true."
   },
   "q49": {
    "status": "cut",
@@ -4294,7 +4318,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Wedge Drop: closes 2.3% under the 9 EMA and 2.0% under the 20, still just over a rising 50; reads right."
   },
   "q64": {
    "status": "pass",
@@ -4336,13 +4360,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Stop-percent calculation; no chart read."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Pass. Shares recomputed: 200,000 x 0.25% = 500; 181.80 - 179.58 = 2.22; 500 / 2.22 = 225.2, round down 225. Distractors check out (2,252 at ten times the risk; 1,100 = account / price; 409 = risk / stop percent). The intermediate 500 and 2.22 cannot be shown: the grounding gate rejects numbers not in the question, a quote or the calc."
+   "notes": "Share-count calculation; no chart read."
   },
   "q30": {
    "status": "pass",
@@ -4354,7 +4378,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Size-not-stop; no chart misread."
   },
   "q43": {
    "status": "pass",
@@ -4372,7 +4396,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Writer's edit checked: close at 68% of range, 'upper half, not the strongest' true. 5.2% over the 9 EMA at the close, but the fill was the open (about 3.6% over); the question is the stop-out."
   },
   "q47": {
    "status": "pass",
@@ -4390,7 +4414,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Writer's edit checked: buy day is a hammer closing at 95% of its range; true."
   },
   "q53": {
    "status": "cut",
@@ -4401,32 +4425,32 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "fixed": true,
+   "notes": "Rule 33: the last visible bar closes about 0.7% UNDER the (flat) 200-day, a flaw a member sees and the why ignored. The trade through 30.24 takes it back over the 200 (about 30.18 that day), so the answer stands; now said."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "At and under the averages (0.2% over the 9, 0.6% under the 20, 3.6% under the 50); tight bars; reads right."
   },
   "q66": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "20-day range 24.5% deep, loose; under a falling 50; reads right."
   },
   "q33": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth/voice: 'index-magnifying ETFs' is not a trader's word and blurs D-009, which names indexes and leveraged ETFs. Now says levered ETFs (the word 'leveraged' trips the banned-phrase gate)."
+   "fixed": false,
+   "notes": "Pop closed 7.3% under the 200-day; the chart shows 11.8% under the day before; the no stands."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Truth: 'A lower grade means a smaller size' contradicts D38 (A and B are normal size; only B- or lower is sized down), and the lesson's own STLD walkthrough calls a light-volume B pop normal size. Now: lower grade, not a pass, and the size follows where the grade lands."
+   "notes": "Wrong note for the A+ choice said the pop did neither; it closed at about 69% of its range (a hammer), just under its open. Said precisely."
   },
   "q39": {
    "status": "pass",
@@ -4461,14 +4485,14 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leading: the story said 'inside an uptrend the stock already rides', which is the right answer's own words. Story now gives the screen (the dip, the base, look at the 20 EMA) and lets the chart decide."
+   "fixed": false,
+   "notes": "Pullback in an uptrend: 22% over a rising 200, never lived under the 20 EMA; the 50 has rolled over but the why never calls it rising."
   },
   "q01": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Pop day: 3.6% over the 9 EMA, 0.7% over a rising 50, 50 over a rising 200; 'closes back above the averages' is right."
   },
   "q02": {
    "status": "pass",
@@ -4498,7 +4522,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Truth: 'DHI kept pushing up into the same spot' claims repeated tests of the high that the facts do not show (a five-day base). Now says only what a base's high is."
+   "notes": "Rule 33 + the hard 200-day line: the writer's why said 'Mark 104.80 tonight, set the alert, buy the break' while the 200-day sits up near $108, so the fill would be about 3% UNDER the 200-day, a hard no for a stock; and 'the pop has to close back over the 200' can't be known when you buy intraday. The pivot stays the answer; the 200-day is now the reason it isn't a buy at the pivot. Story 'under the short averages' was half true (the last bar closed over both)."
   },
   "q07": {
    "status": "pass",
@@ -4534,7 +4558,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Writer's edit checked: doji right under 12.95 (high 12.94), 200-day points down, 50 overhead (10.8% above), open 13.18 over the 20 EMA (about 13.11); all true."
   },
   "q13": {
    "status": "pass",
@@ -4551,8 +4575,8 @@
   "q19": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the stem's sell would be on the session after the buy (day 2), but the why and the wrong note called it day 1. Reworded so the day count is right and the reason (winners pay for the planned losses) stays."
+   "fixed": false,
+   "notes": "First-sell timing; the why reads no averages. The 50 under a falling 200 doesn't bear on the sell decision."
   },
   "q21": {
    "status": "pass",
@@ -4569,14 +4593,14 @@
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'That's what happened here' right after 'no stop catches a gap' claimed MU gapped through the stop; the fact (d19) only says the next day's low went through it. Reworded to what the fact supports."
+   "fixed": false,
+   "notes": "Earnings answer; nothing misread (it sits under a falling 50, but the report is the decision)."
   },
   "q29": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Cold re-read: answer right, wrong choices clearly wrong, numbers recomputed, claims match the cited facts and rulings; in his register (verdict first, reason, the how), no working words."
+   "notes": "Stop under the day's low; 200-day 33% away so 'way too far' is right."
   },
   "q42": {
    "status": "pass",

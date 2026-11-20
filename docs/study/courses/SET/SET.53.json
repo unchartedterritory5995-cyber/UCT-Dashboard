@@ -833,16 +833,22 @@
     "h22",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "CEG",
+    "asof": "2025-10-01",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "TWLO, November 2024: a post-earnings flag at the 9-day EMA",
    "steps": [
-    "TWLO, November 2024. A post-earnings runner pulls back four days to its 9 EMA. The report's already behind it.",
+    "TWLO, November 2024. A post-earnings runner, way over its 50-day, pulls back four days to its 9 EMA. The report's behind it.",
     "November 20 it opens red, 95.38 against a 96.35 close, and dips to 94.70. Now watch 96.35.",
     "First hour it trades a cent over. Buy at market, 96.36. Stop a few cents under the dip low, 94.67.",
-    "A 1.8% stop. A close back under 96.35 and you're out. Instead it closes green on 1.1x volume; 3R next day."
+    "A 1.8% stop. Lose the dip low and you're out. Instead it closes green on 1.1x volume; 3R next day."
    ],
    "facts": [
     "dTW",
@@ -853,14 +859,20 @@
     "cStop",
     "h22",
     "h24"
-   ]
+   ],
+   "chart": {
+    "sym": "TWLO",
+    "asof": "2024-11-20",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "HOOD, November 2024: a flag at the rising 50-day",
    "steps": [
     "This works off the 50-day too. HOOD, November 2024: a leader flags five days down to its rising 50-day.",
-    "November 4 it opens red, 23.75 against a 23.97 close, and tags the line at 23.54.",
+    "November 4 it opens red, 23.75 against a 23.97 close, and tags the 50-day at 23.54.",
     "First hour it trades a cent over 23.97. Buy at market, 23.98. Stop a few cents under the dip low, 23.51.",
     "A 2.0% stop, inside the 3% we like. It closes in the top quarter, and 3R comes in 2 days."
    ],
@@ -873,7 +885,13 @@
     "h22",
     "h24",
     "h04"
-   ]
+   ],
+   "chart": {
+    "sym": "HOOD",
+    "asof": "2024-11-04",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -3148,7 +3166,7 @@
     "Watch it, buy the open if it gaps"
    ],
    "answer": "Watch it, the 20-day is rising",
-   "why": "Watch it. Two weeks of drift down into a rising 20-day EMA, and price is above the 200-day. That's a leader resting, the picture I want before a red to green. Now set the plan. Check RS and the report date, mark yesterday's close, and set an alert a cent over it. The next morning CEG gapped down onto the 20-day and crossed in the first hour.",
+   "why": "Watch it. Two weeks of drift down into a rising 20-day EMA, and price is above the 200-day. And the last bar is an inside day, quiet, sitting right on the line. That's a leader resting, the picture I want before a red to green. Now set the plan. Check RS and the report date, mark yesterday's close, and set an alert a cent over it. The next morning CEG gapped down onto the 20-day and crossed in the first hour.",
    "lesson_line": "Find the setup the night before. Let the cross pick the moment.",
    "facts": [
     "dCE",
@@ -3183,7 +3201,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The daily chart, the night before. You can see price and the averages. RS and the hourly come later."
   },
   {
@@ -3200,7 +3218,7 @@
     "Pass, it's too far over the 200"
    ],
    "answer": "Pass, the 20-day is rolling over",
-   "why": "Pass. Look at the 20-day EMA first. It's rolled over, 612.33 now against 624.73 a few sessions back. Price is over the 200-day and the rest looks fine, sure. But a falling 20-day means the trend has turned. A cross here is a bounce in a correction, not a pullback in a trend. That's a B- at best, and not where I want my money. The slope is the tell.",
+   "why": "Pass. Look at the 20-day EMA first. It's rolled over, 612.33 now against 624.73 a few sessions back. Price is still way over the 200-day, sure. But it's well off its high, in a real pullback. A falling 20-day means the trend has turned. A cross here is a bounce in a correction, not a pullback in a trend. That's a B- at best, and not where I want my money. The slope is the tell.",
    "lesson_line": "Check the slope of the 20-day first.",
    "facts": [
     "dAP",
@@ -3236,7 +3254,7 @@
      "fixed before (+1)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "Another daily chart, the night before. Price and the averages only, no RS or hourly yet."
   },
   {
@@ -4050,7 +4068,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Hourly, no local bars; % math."
   },
   "q15": {
    "status": "pass",
@@ -4062,7 +4080,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Hourly, no local bars; 3R math."
   },
   "q17": {
    "status": "pass",
@@ -4080,7 +4098,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "5-minute, no local bars."
   },
   "q20": {
    "status": "pass",
@@ -4104,7 +4122,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "5-minute, no local bars."
   },
   "q24": {
    "status": "pass",
@@ -4211,7 +4229,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Hourly, no local bars."
   },
   "q42": {
    "status": "cut",
@@ -4259,7 +4277,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+   "notes": "PLTR hourly: the dip floats 2.9% over the nearest level; reads right."
   },
   "q50": {
    "status": "pass",
@@ -4283,19 +4301,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Hourly, no local bars."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Hourly, no local bars."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 5. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "5-minute, no local bars."
   },
   "q56": {
    "status": "pass",
@@ -4313,13 +4331,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "CEG 9/30: inside day, close 0.8% over a rising 20 EMA, low just above it, over the 200: the writer's read is fair."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: same as q56. A falling 20-day is graded B-, not a failed gate; the wrong note said it 'fails' a box. Reworded to judgment and added fact gE."
+   "fixed": false,
+   "notes": "APP: the 20 EMA rolled over, 23% off the high, 54% over the 200: said plainly; pass right."
   },
   "q60": {
    "status": "cut",
@@ -4396,8 +4414,8 @@
   "q69": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'this winner can't turn into a loser' overclaims; a gap can jump a breakeven stop. Added the caveat."
+   "fixed": false,
+   "notes": "Hourly, no local bars; breakeven at the first sell right."
   },
   "q70": {
    "status": "pass",
@@ -4409,7 +4427,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4. Numbers recomputed and facts checked; answer right, wrong choices clearly wrong; no working words."
+   "notes": "Hourly, no local bars; 5R math."
   },
   "q72": {
    "status": "pass",

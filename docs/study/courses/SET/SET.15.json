@@ -1102,7 +1102,13 @@
     "h22",
     "h24",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "UAA",
+    "asof": "2015-06-16",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1121,7 +1127,13 @@
     "h03",
     "h05",
     "h04"
-   ]
+   ],
+   "chart": {
+    "sym": "CLS",
+    "asof": "2024-10-03",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1139,7 +1151,13 @@
     "d25",
     "h01",
     "h28"
-   ]
+   ],
+   "chart": {
+    "sym": "MU",
+    "asof": "2025-08-19",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1338,7 +1356,7 @@
    "criterion": "xbk.inv_cross",
    "q": "On this chart the 9 EMA has rolled under the 20. That alone says there's no reason to be long it.",
    "answer": "True",
-   "why": "True. A crossback needs the 9 riding above the 20. Here the 9 has rolled under it, so the short-term trend points down. This is AAPL in March 2022. It stopped out a crossback buy in February, and on 03-10 it closed at 158.52, 5.93 under the 20 EMA. Buying here means betting against the trend you can see. Let the 9 get back over the 20 first.",
+   "why": "True. A crossback needs the 9 riding above the 20. Here the 9 has rolled under it, so the short-term trend points down. This is AAPL in March 2022. It stopped out a crossback buy in February, and on this last bar it closed at 158.52, 5.93 under the 20 EMA. Yes, that last candle is a hammer. But a hammer sitting under the 9 and the 20, with the 50-day rolling over too, is a bounce, not a buy day. Let the 9 get back over the 20 first.",
    "lesson_line": "9 under the 20 means the short trend is down. No reason to be long.",
    "facts": [
     "x10",
@@ -1346,7 +1364,8 @@
     "x01",
     "d41",
     "d42",
-    "d17"
+    "d17",
+    "r62"
    ],
    "house": true,
    "simple": "True. With the 9 under the 20, the short trend is down, and we don't buy a trend that's pointed down.",
@@ -1357,7 +1376,7 @@
      "the 9 and 20 pair is our house text while Kell uses 10 and 20 (D-021)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AAPL",
     "asof": "2022-03-10",
@@ -1459,13 +1478,13 @@
    "criterion": "xbk.hold_day",
    "q": "What makes this last bar a hold day?",
    "choices": [
-    "It dips to the 20 and closes strong",
+    "It dips to the averages, closes strong",
     "It's the first close under the 20 EMA",
     "It's the big up day of the pop",
     "It touches the averages, that's it"
    ],
-   "answer": "It dips to the 20 and closes strong",
-   "why": "It dips to the 20 and closes strong. The low proves the stock came back to the averages. The close proves buyers met it there and took it back up. You want that close at or above the 20, in the top half of the day's range. CROX did exactly this in April 2007 after 4 quiet days of drift. It traded over the high next day at 26.99, stop 25.86. That's 4.2%, wider than I like, but under 5% I'll take it with fewer shares.",
+   "answer": "It dips to the averages, closes strong",
+   "why": "It dips to the averages and closes strong. The low pushed through the 9 EMA and stopped just over the 20. Then buyers took it right back, and it closed near the high. That's a hammer, and an outside day too. A very good look. You want that close at or above the 20, in the top half of the range. CROX did this in April 2007 after 4 quiet days of drift. It traded over the high next day at 26.99, stop 25.86. That's 4.2%, wider than I like, but under 5% I'll take it with fewer shares.",
    "lesson_line": "A hold day dips to the averages and closes strong. The close is the proof.",
    "facts": [
     "x03",
@@ -1483,7 +1502,7 @@
     "It touches the averages, that's it": "Touching is half of it. The close has to be strong too, or buyers never showed."
    },
    "house": true,
-   "simple": "The low reaches the 20 and the close is strong. That strong close shows buyers stepped in at the line.",
+   "simple": "The low reaches the averages and the close is strong. That strong close shows buyers stepped in there.",
    "deeper": {
     "trap": "Touching the zone is only half of it. GE on the last day of 2025 reached the zone with its low, then closed in the bottom of its range. The close gave the day back, so it wasn't a hold day."
    },
@@ -1495,8 +1514,8 @@
      "the hold day is a proposed criterion (xbk.hold_day)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "The pop came on 1.3x volume. Then 4 quiet days of drift brought the stock back to its 20 EMA. Look at the last bar.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "The pop came on 1.3x volume. Then 4 quiet days of drift brought the stock back down to its 9 and 20 EMA. Look at the last bar.",
    "chart": {
     "sym": "CROX",
     "asof": "2007-04-20",
@@ -2096,7 +2115,7 @@
     "Exhaustion Extension, a climax"
    ],
    "answer": "Base n' Break, a later rest",
-   "why": "Base n' Break. Count the rests. It already came back to the averages once since the pop, so this one's the second. The crossback is only the first. Kell calls a later rest the Base n' Break. I grade it lower, because in our own test the first crossback in a leg did better than the second. This is AMZN in November 2023. It worked, but it wasn't a crossback entry.",
+   "why": "Base n' Break. Count the rests. It already came back to the averages once since the pop, so this one's the second. The crossback is only the first. Kell calls a later rest the Base n' Break. I grade it lower, because in our own test the first crossback in a leg did better than the second. This is AMZN in November 2023. The candle itself is a good one, a doji with a long lower wick that closed right at the high. It worked, but it wasn't a crossback entry.",
    "lesson_line": "The crossback is the first rest after the pop. The second one is a Base n' Break.",
    "facts": [
     "e09",
@@ -2127,7 +2146,7 @@
    "depends_on": [
     "D-026"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AMZN",
     "asof": "2023-11-21",
@@ -2998,7 +3017,7 @@
     "Yes, even a close under is fine"
    ],
    "answer": "Yes, a small dip that closed back",
-   "why": "Yes. The low poked 0.6% under the 20, and the close came right back over it, in the top half of the range. That's a nice tell. Sellers pushed it under the line and buyers took it back the same day. How deep is too deep is a judgment call, not a fixed number. A small undercut like this that closes back over is fine. This was CLS in October 2024, the best run in our set.",
+   "why": "Yes. The low poked 0.6% under the 20, and the close came right back over it, in the top half of the range. That's a nice tell. Sellers pushed it under the line and buyers took it back the same day. How deep is too deep is a judgment call, not a fixed number. A small undercut like this that closes back over is fine. You'll also see the 50-day still pointed down from the correction. That's normal this early in a new leg, and price is back over it. This was CLS in October 2024, the best run in our set.",
    "lesson_line": "A small dip under the 20 that closes back over is still a hold.",
    "facts": [
     "d03",
@@ -3007,7 +3026,8 @@
     "d20",
     "d21",
     "h03",
-    "r53"
+    "r53",
+    "r62"
    ],
    "wrong": {
     "No, any low under the 20 EMA fails": "A small undercut that closes back over still holds. Depth is a judgment call.",
@@ -3029,7 +3049,7 @@
      "fixed before (the old why leaned on size down past 3%)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "CLS",
     "asof": "2024-10-02",
@@ -3291,7 +3311,7 @@
     "Buy it, but at half size"
    ],
    "answer": "Buy it, it's inside the 4% limit",
-   "why": "Buy it. 429.33 over a 424.70 trigger is 1.1%. We don't buy more than 4% over the buy point, and this is well inside that. A gap isn't a chase by itself. The real cost of chasing is size. Your stop stays under the hold day's low, so a higher fill means fewer shares. At 1.1% that cost is tiny. This was ASML in November 2020, and the gap kicked off a 5-week run.",
+   "why": "Buy it. 429.33 over a 424.70 trigger is 1.1%. We don't buy more than 4% over the buy point, and this is well inside that. A gap isn't a chase by itself. The real cost of chasing is size. Your stop stays under the hold day's low, so a higher fill means fewer shares. At 1.1% that cost is tiny. One honest flaw: it's a tad extended from the 50-day. But the hold day's low sat right on the 9 EMA, so the stop is still close. This was ASML in November 2020, and the gap kicked off a 5-week run.",
    "lesson_line": "Never more than 4% over the buy point. Chasing costs you shares.",
    "facts": [
     "x15",
@@ -3324,7 +3344,7 @@
      "fixed before (the old why mixed Kell's distance from the averages with the trigger)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "ASML",
     "asof": "2020-11-25",
@@ -3631,7 +3651,7 @@
     "Pass, the gap makes it too risky"
    ],
    "answer": "Take it, the hold day is strong",
-   "why": "Take it. Look at the last bar. It came back to the 20 and closed near its high. That strong close is buyers taking the averages back. The pop was an earnings gap on 3.6x volume, which raises the grade. Now set it up right. You buy only when it trades over this bar's high, at market, with the stop under its low. NET did that the next session at 63.34 and ran past 3R the same day.",
+   "why": "Take it. Look at the last bar. It came back into the 9 and 20 EMA and closed near its high. That strong close is buyers taking the averages back. The pop was an earnings gap on 3.6x volume, which raises the grade. One thing you'll notice: the 50-day is still pointed down a bit. Price is back over it and the 200-day is rising, so this early in a new leg I'm fine with it. Now set it up right. You buy only when it trades over this bar's high, at market, with the stop under its low. NET did that the next session at 63.34 and ran past 3R the same day.",
    "lesson_line": "A hold day that closes strong at the averages gets a trigger over its high.",
    "facts": [
     "d26",
@@ -3639,7 +3659,8 @@
     "x06",
     "x41",
     "d24",
-    "d40"
+    "d40",
+    "r62"
    ],
    "wrong": {
     "Take it, buy at today's close": "We don't buy closes. The buy is the trade over the high.",
@@ -3653,7 +3674,7 @@
     "window": 120,
     "forward": 20
    },
-   "simple": "Take it. The hold day closed strong at the 20 EMA, which shows buyers took the averages back.",
+   "simple": "Take it. The hold day dipped into the 9 and 20 EMA and closed strong, so buyers took the averages back.",
    "deeper": {
     "trap": "The trap is hindsight. This one ran past 3R on the trigger day. But in our scan only 28.9% of crossbacks reached 3R before the stop. Judge the hold day before the trigger, not by the result."
    },
@@ -3665,8 +3686,8 @@
      "the chart's bars were not re-checked in this pass"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "This stock gapped up on earnings and popped. It drifted 3 days back to its 20 EMA. The last bar is the possible hold day."
+   "batch": "chart-reads-2026-11-18",
+   "story": "This stock gapped up on earnings and popped. It drifted 3 days back into its 9 and 20 EMA. The last bar is the possible hold day."
   },
   {
    "key": "q63",
@@ -4634,7 +4655,7 @@
     "You tighten it so you fit more shares": "Never. The stop comes first, the size comes from it.",
     "The stock has run, so risk is low": "A run doesn't make it safer. The low being close does."
    },
-   "why": "Because the averages are right under price. At a crossback, the hold day's low sits at the 9 and 20, and your buy is just over the high. So the gap between them is small, and that's the edge of this setup. Here it was 123.70 with a stop at 120.63, 2.5% away. Same dollar risk, more shares. And if the low breaks, you find out you're wrong cheaply.",
+   "why": "Because the averages are right under price. At a crossback, the hold day's low sits at the averages. Here it tagged the 9 EMA, and your buy is just over the high. So the gap between them is small, and that's the edge of this setup. Here it was 123.70 with a stop at 120.63, 2.5% away. Same dollar risk, more shares. And if the low breaks, you find out you're wrong cheaply.",
    "lesson_line": "The averages are right under price, so the stop is close. That's the edge.",
    "facts": [
     "n01",
@@ -4658,7 +4679,7 @@
     "window": 150,
     "forward": 20
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "deeper": {
     "example": "Kell buys off support the same way. He buys against the 10 or 20 EMA and uses that low as his stop."
    }
@@ -4803,7 +4824,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LW Oct 2018 matches d30/d31 (buy 73.21, stop 72.06, 3R in 3 sessions, 3.4x pop, 3-day drift). Heavy pullback volume as a lower grade in deeper fits HEAVY-DOWN. Stem not leading."
+   "notes": "LW: low dips through the 9 EMA, 9 over 20, the flat 50 is not called rising; 6.1% over the 50. Fine."
   },
   "q02": {
    "status": "cut",
@@ -4827,13 +4848,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "UAA 40.82/40.17 = 1.6%, matches d01. Reads like the VOICE.md stop model."
+   "notes": "UAA hold day: low through the 9 EMA, close in the upper range; stop question reads right."
   },
   "q06": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem opened 'Look at the averages on this chart', a banned opener. Rewritten as a plain claim about the chart. Why kept: AAPL d41/d42 numbers check."
+   "fixed": false,
+   "notes": "AAPL: hammer named right (facts: hammer); 9 under 20 and a falling 50, said. 158.52 and 5.93 under the 20 EMA check out."
   },
   "q07": {
    "status": "cut",
@@ -4857,7 +4878,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CROX 26.99/25.86 = 4.2% (1.13/26.99), d32/d33; 'under 5% I'll take it with fewer shares' is D-005 exactly."
+   "notes": "CROX: low 25.89 through the 9 (~26.34), just over the 20 (~25.64); hammer and outside day named right; 7.4% over the 50, under the extended line. 4.2% stop math right."
   },
   "q11": {
    "status": "cut",
@@ -4893,13 +4914,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4.16/116.55 = 3.57% -> 3.6%; wrong notes match their math (4.2 = dollar gap, 96.4 = 112.39/116.55). HOOD 3R in 6 days per d05."
+   "notes": "HOOD stop-% math; 10% over the 50 but the decision is arithmetic, not a buy call."
   },
   "q17": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "540/4.16 = 129.8 -> 129; 151 = 540/3.57, 772 = 90,000/116.55, 1,298 = 5,400/4.16. Correct."
+   "notes": "Share-count math; no chart read."
   },
   "q18": {
    "status": "cut",
@@ -4929,19 +4950,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SNPS d38/d39: pop 05-20 on 1.7x, nine sessions to the 06-03 hold day, 252.62/247.84."
+   "notes": "SNPS: first retest; low just over the 20 EMA, close at 58% of range (upper half). Fine."
   },
   "q23": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Wedge Pop stage; SNPS 05-20 to 06-03 is nine sessions. Kell to deeper."
+   "notes": "SNPS reclaim day on 1.7x; the 50 is down and nothing calls it rising."
   },
   "q24": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Kell kept for his own stage name (rule 13). AMZN second rest per d18/d19; 'graded lower' rests on n20."
+   "notes": "AMZN: doji with a long lower wick closing at the high (94%) named right."
   },
   "q25": {
    "status": "cut",
@@ -5031,13 +5052,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "half now, half on a dip is buying in pieces, no starter piece; 50.64 to 48.94 is 3.4%. Voice 4."
+   "notes": "CLS buy-day sizing; 3.4% stop, fewer shares. Right."
   },
   "q40": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MU 123.70/120.63; 3R 132.91 and 5R 139.05 = 123.70 + 3x/5x 3.07. B21 and E56 right."
+   "notes": "MU stop-out management; right."
   },
   "q41": {
    "status": "cut",
@@ -5073,31 +5094,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "half now is a starter piece, which the ruling keeps a no. 63.34 to 61.31 is 3.2%. Voice 4."
+   "notes": "NET trigger tactic; low between the 9 and 20 EMA; reads right."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CLS 0.6% undercut, 'best run in the set' per d04; depth as judgment (D-036)."
+   "notes": "CLS: 0.6% undercut of the 20 EMA checks out (20 EMA ~49.27, low 48.97); falling 50 now said."
   },
   "q48": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ALGN 2.34/96.51 = 2.4% per d06/d07."
+   "notes": "ALGN: low 94.20 sits on the 20 EMA (~94.19). Right."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Lateness a grade warning only, not a gate; LLY d12/d13 next-day stop. Kell to deeper."
+   "notes": "LLY late-in-run warning; 7.6% over the 50, not past the extended line."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story 'The day before a crossback buy. The report came...' was the old garbled text, left unrewritten; it needs a second read (rule 5). Rewritten as the screen at the buy. Why kept: NFLX d14/d15, B22."
+   "fixed": false,
+   "notes": "NFLX earnings-window question; no chart read needed."
   },
   "q51": {
    "status": "cut",
@@ -5121,7 +5142,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4.63/424.70 = 1.09% -> 1.1%; C28 4% limit; chasing costs shares. ASML d36/d37."
+   "notes": "ASML: 9.2% over the 50 said as 'a tad extended'; the hold-day low 420.75 sits on the 9 EMA (~420.95). Good."
   },
   "q55": {
    "status": "pass",
@@ -5168,14 +5189,14 @@
   "q62": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "NET hold day closing near its high; 3.6x earnings pop raises the grade; buy only through the high."
+   "fixed": true,
+   "notes": "Writer's 50-day note is right (50 down, 200 up). Story said 'back to its 20 EMA' and simple said 'closed strong at the 20 EMA': the low 61.34 stopped between the 9 (~61.90) and the 20 (~61.01) and the close sits 3.4% over the 20. Same fix the writer made on q86 and q10."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GE 12-31 hold day closed in the lower 3% of its range (d22/d23); hindsight trap in deeper."
+   "notes": "GE: red outside day closing at its low (3%), read honestly."
   },
   "q64": {
    "status": "pass",
@@ -5205,7 +5226,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NOC 1.38/136.18 = 1.0% stop; Kell and TraderLion in deeper."
+   "notes": "NOC: sideways drift onto the 9 EMA, a doji; right."
   },
   "q69": {
    "status": "cut",
@@ -5265,7 +5286,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "2R = 40.82 + 2 x 0.65 = 42.12; 41.47 = 1R; 39.52 = minus 2R. Breakeven as a 2R-5R judgment."
+   "notes": "UAA breakeven math; breakeven taught as a 2R-5R judgment."
   },
   "q79": {
    "status": "cut",
@@ -5313,7 +5334,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MU 3.07/123.70 = 2.5% per d25; 'same dollar risk, more shares' is the edge."
+   "notes": "MU hold-day low 120.66 tags the 9 EMA (~120.77); the writer's fix is right."
   },
   "q87": {
    "status": "pass",

@@ -2088,13 +2088,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 6,144.15 - 4,982.77 = 1,161.38; /6,144.15 = 18.9%. 1.57% day move is f39's own number. April 7 intraday per f40."
+   "notes": "pass: index chart, no local bars; closing-price math from the story"
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Jan 3 per f20, f27, f33, f34. Ends on stops doing the protecting, which is practical and his."
+   "notes": "pass: SPY under a falling 50 and 200 on June 13, 2022; nothing on the chart is misread"
   },
   "q22": {
    "status": "pass",
@@ -2106,7 +2106,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Russell 2000 first (f44, f45), Nasdaq before S&P (f41), S&P never closed 20% down and set a record by June (f43, f91)."
+   "notes": "pass: each index against its own peak; nothing misread"
   },
   "q24": {
    "status": "pass",

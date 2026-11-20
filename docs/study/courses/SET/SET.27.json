@@ -972,14 +972,20 @@
     "c27",
     "h05",
     "r01"
-   ]
+   ],
+   "chart": {
+    "sym": "UTHR",
+    "asof": "2025-09-18",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "RELY, November 2024: the earnings-gap Slingshot",
    "steps": [
     "Earnings on October 31, 2024 gap RELY up 24.4%, and it closes up 17.8%. That's the drive.",
-    "Then a four-day rest: four closes under the line, 7.5% deep. The drive day is never the trigger.",
+    "Then four closes under the line, 7.5% deep. The 50-day's just under the 200 but climbing fast, a judgment call.",
     "November 20 it pushes back over the line. Buy as it goes through. Stop 19.96, under the day's low.",
     "A weak next day through the stop says no. Instead it climbed steadily along its rising short-term averages, to 13.7R."
    ],
@@ -993,8 +999,16 @@
     "c07",
     "h24",
     "c27",
-    "r01"
-   ]
+    "r01",
+    "hwm",
+    "c12"
+   ],
+   "chart": {
+    "sym": "RELY",
+    "asof": "2024-11-20",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1016,7 +1030,13 @@
     "h21",
     "c27",
     "r01"
-   ]
+   ],
+   "chart": {
+    "sym": "URI",
+    "asof": "2016-11-21",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -2773,14 +2793,15 @@
     "Yes, but only at half size"
    ],
    "answer": "Yes, a new trigger, its own stop",
-   "why": "Yes. A re-entry is fine when the stock builds a brand-new Slingshot. That means a fresh run of at least 3 closes under the line. Then a trade back over it, with its own stop. PLTR did that. Still, carry the warning. A first failure says the pullback wasn't as orderly as it looked. This try reached 0.31R, then gapped under the stop on day 4. Allowed isn't the same as A+.",
+   "why": "Yes. A re-entry is fine when the stock builds a brand-new Slingshot. That means a fresh run of at least 3 closes under the line, then a trade back over it with its own stop. PLTR did that. Still, carry the warnings. A first failure says the pullback wasn't as orderly as it looked. And look at the averages. The 50-day is still under a falling 200-day. For a long that's mostly a must, so this one grades low. It reached 0.31R, then gapped under the stop on day 4. Allowed isn't the same as A+.",
    "lesson_line": "A second try is a new trade with every rule. Carry the first failure as a warning.",
    "facts": [
     "c11",
     "h28",
     "d18",
     "d19",
-    "h30"
+    "h30",
+    "hwm"
    ],
    "wrong": {
     "No, it's one try per drive, period": "There's no one-try cap per drive. The test is a new Slingshot with its own stop.",
@@ -2798,7 +2819,7 @@
      "example numbers come from our own bars dossier"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "PLTR",
     "asof": "2026-08-27",
@@ -3146,14 +3167,15 @@
     "Take it, a gap this big is the buy"
    ],
    "answer": "Take it, the rest is done",
-   "why": "Take it. The news gap was the drive. Then three quiet closes just under the line, tight and orderly. Now price trades back through it. That's your buy, at market as it goes, with the stop a few cents under the low of the day. In our study, filled at the close, UTHR's stop was 1.8% and it hit 3R in 3 sessions.",
+   "why": "Take it. The news gap was the drive. Then three quiet closes just under the line, tight and orderly. Now price trades back through it. That's your buy, at market as it goes, with the stop a few cents under the low of the day. Two things to be honest about. It's way over its 50-day. That comes with a big drive, and the tight rest still keeps your stop close. And the 50 sits a hair under the 200. For a long that's mostly a must, not always. Here the 50's turning up hard, so I'd make the call and take it. In our study, filled at the close, UTHR's stop was 1.8% and it hit 3R in 3 sessions.",
    "lesson_line": "Drive, a quiet rest under the line, then the break back over it.",
    "facts": [
     "c02",
     "d01",
     "d02",
     "r01",
-    "h24"
+    "h24",
+    "hwm"
    ],
    "wrong": {
     "Pass, the gap day was the trigger": "The gap day is the drive, never the trigger. The trigger is the trade back over the line after the rest.",
@@ -3179,7 +3201,7 @@
      "asks 'take the close' (D-003)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "A big news gap came first. Then three quiet closes just under the 4-day line."
   },
   {
@@ -4029,7 +4051,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Scot1and in the stem is the subject (rule 13); ok."
+   "notes": "Day before the trigger; three tight days under the line as stated. Asks Scot1and's principle (rule 13). Fine."
   },
   "q14": {
    "status": "pass",
@@ -4065,7 +4087,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "93.86-91.69=2.17; 2.17/93.86=2.31% checked."
+   "notes": "Arithmetic; trigger bar matches (low 91.72, stop 91.69)."
   },
   "q20": {
    "status": "pass",
@@ -4077,7 +4099,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "Four closes under the line, close 4.7% over the 20 EMA so no tag. Fine."
   },
   "q22": {
    "status": "pass",
@@ -4107,19 +4129,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.50 x3 =1.50; 21.96 checked; wrongs 21.46/20.96/18.96 checked."
+   "notes": "3R arithmetic on given numbers."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: the add is to a trade wobbling back under the line. Voice 4."
+   "notes": "Management question; trigger bar low 259.12, stop 259.09."
   },
   "q28": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: 'don't add a share' is about a weak trigger, not winners in general. Voice 4."
+   "notes": "Outside day closing at 0.54 of its range, as the why reads."
   },
   "q29": {
    "status": "pass",
@@ -4143,7 +4165,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "Already a no for the report; the 45% stretch over the 50 only adds to it."
   },
   "q33": {
    "status": "pass",
@@ -4160,8 +4182,8 @@
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "voice: the last line ('here it didn't when it should have') was clumsy and half-claimed SRPT's drive never restarted, though it printed 3R later; now the mentor's read of a loss at plan."
+   "fixed": false,
+   "notes": "Stop-out question; the trigger bar is a hammer closing near its high, as the story says."
   },
   "q36": {
    "status": "pass",
@@ -4179,7 +4201,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: 'For a long we want the 50 over the 200. It's mostly a must, not always.' cites hwm; 8.8%, 12.6%, 24.90 unchanged. Voice 4."
+   "notes": "LOW: 50-day under a falling 200 on the trigger day; the why names it. Fine."
   },
   "q39": {
    "status": "cut",
@@ -4191,7 +4213,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.75% of 40,000=300; 10.64; 28.2 -> 28 checked."
+   "notes": "Share arithmetic."
   },
   "q41": {
    "status": "pass",
@@ -4220,8 +4242,8 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "voice: 'allowed by our rules' leans on the rulebook; plain trader question."
+   "fixed": false,
+   "notes": "PLTR 50-day under a falling 200 on the re-entry; the edit says it and grades it low. Fine."
   },
   "q46": {
    "status": "pass",
@@ -4257,13 +4279,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "First red day of the dip, as the chart shows."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "Trail question; nothing on the bar changes it."
   },
   "q53": {
    "status": "pass",
@@ -4274,8 +4296,8 @@
   "q54": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "fixed": true,
+   "notes": "The edit named the stretch over the 50-day (24%) but never said why it's still a take (rule 33: say the flaw, then why it's still a yes). Added the reason."
   },
   "q55": {
    "status": "cut",
@@ -4298,8 +4320,8 @@
   "q59": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "truth/teaching: the story said 'Bought at the trigger close', which teaches the wrong entry (we buy as price trades through); now the story describes the chart from d11."
+   "fixed": false,
+   "notes": "R arithmetic."
   },
   "q60": {
    "status": "cut",
@@ -4322,8 +4344,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "truth: the why and a wrong note said 'we like the whole dip inside about 1.6 ATR', the card's proposal (status proposed), stated as our picture. Now the pass is judgment on how the dip looks; 1.85 ATR stays as the story's number, explained."
+   "fixed": false,
+   "notes": "Choppy 1.85 ATR dip; the why reads it."
   },
   "q62": {
    "status": "pass",
@@ -4334,14 +4356,14 @@
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "voice: the why opened on a definition, not the verdict; now verdict first, LOD taught once, the plan in order."
+   "fixed": false,
+   "notes": "Day before the trigger; plan question; chart matches."
   },
   "q64": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "voice and facts ok; numbers rechecked"
+   "notes": "No drive on the chart, as stated."
   },
   "q65": {
    "status": "pass",

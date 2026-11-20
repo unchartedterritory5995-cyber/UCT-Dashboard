@@ -740,7 +740,13 @@
     "h24",
     "h05",
     "h20"
-   ]
+   ],
+   "chart": {
+    "sym": "MELI",
+    "asof": "2017-02-06",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -749,7 +755,7 @@
     "Explosion first. SWKS, January 17, 2014: an earnings gap, up 10.2% at the open on 5x volume.",
     "Then the pause. February 6, a wick day, 64% of its range above the body, resting on its rising short-term averages.",
     "Day 2 holds inside the wick on lighter volume. February 10 it clears day 2's high. Buy at market, 30.70.",
-    "Stop 30.32, a few cents under day 2's low. 3R in two days, 5R by day 7. Sell into a push."
+    "Stop 30.32, under day 2's low. The buy day left a long upper wick, not pretty. Still, 3R in two days."
    ],
    "facts": [
     "dSW",
@@ -761,7 +767,13 @@
     "h24",
     "h05",
     "h20"
-   ]
+   ],
+   "chart": {
+    "sym": "SWKS",
+    "asof": "2014-02-10",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -781,7 +793,13 @@
     "h24",
     "h04",
     "h01"
-   ]
+   ],
+   "chart": {
+    "sym": "TTMI",
+    "asof": "2025-06-09",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -935,7 +953,7 @@
     "A close over the prior high"
    ],
    "answer": "A break of the prior day's high",
-   "why": "The break of the prior day's high. This is WB in June 2016. It held the wick, so the setup's there. Now it has to prove it. Tomorrow the buy goes in as price trades through today's high, a market order right as it crosses. You don't wait for a close above it. By the close the move can be done, and your stop's further away. Set an alert at the level the night before so you're not chasing it.",
+   "why": "The break of the prior day's high. This is WB in June 2016. Look at today's candle, a tight little doji sitting in the wick. That's a good look. It's a tad extended off its 50-day, but it's sitting right on its 9 EMA, so I'm fine with it. Now it has to prove it. Tomorrow the buy goes in as price trades through today's high, a market order right as it crosses. You don't wait for a close. Set an alert at the level tonight so you're not chasing it.",
    "lesson_line": "The trigger's the prior day's high. Buy it as it breaks.",
    "facts": [
     "cTrig",
@@ -960,7 +978,7 @@
      "the trigger rests on the strict versus same-day form held in D-115 (the key holds under every option)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The day before the trigger.",
    "chart": {
     "sym": "WB",
@@ -1829,13 +1847,15 @@
     "Yes, the open is what counts"
    ],
    "answer": "Yes, the low stayed above the body",
-   "why": "It held. Day 1 closed green at 75.89, so that's the body top. Day 2 opened up at 80.99, right in the wick. The low, 78.60, never got near 75.89. That's what you want: buyers holding it up where sellers tried to knock it down. The open only gets you started. It's the low that tells you the hold was real. This was APPS in March 2021.",
+   "why": "It held. Day 1 closed green at 75.89, so that's the body top. Day 2 opened up at 80.99, right in the wick. The low, 78.60, never got near 75.89. That's the hold. But look where day 2 closed: right at its high, a hair over 10% above its 9 EMA. The 200-day is way down there. That's too stretched to buy. The hold is real, but I'd let it rest before I buy a break. This was APPS in March 2021.",
    "lesson_line": "Open in the wick, stay out of the body.",
    "facts": [
     "dAP1",
     "dAP2",
     "tp3",
-    "tp2"
+    "tp2",
+    "h13",
+    "r04"
    ],
    "wrong": {
     "No, it opened too high": "80.99 is under the 83.30 high, so it opened inside the wick. That's exactly where you want it.",
@@ -1844,7 +1864,7 @@
    },
    "story": "Day 2 has just closed.",
    "house": true,
-   "simple": "Yes. Day 2's low of 78.60 stayed well above the 75.89 body top, so it held in the wick.",
+   "simple": "Yes, the low stayed above the 75.89 body top. But day 2 closed too stretched to buy, so let it rest first.",
    "tier": "extended",
    "risk": {
     "score": 2,
@@ -1852,7 +1872,7 @@
      "the body-touch tolerance is held in D-116 (78.60 is above the body under every option)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "APPS",
     "asof": "2021-03-11",
@@ -2127,13 +2147,14 @@
     "Yes, but cut the size in half"
    ],
    "answer": "No, the stop's too wide",
-   "why": "No. 8.12% is way past what I'll risk on a stock. We like stops in the 1-3% range and take them up to 5%. Past 5%, we mostly wait for a tighter trigger. And you don't fix it by pulling the stop in. The honest stop is where the chart says you're wrong. Move it up and normal noise takes you out. This was REGN. Pass, and wait for a setup with a low close by.",
+   "why": "No. 8.12% is way past what I'll risk on a stock. We like stops in the 1-3% range and take them up to 5%. Past 5%, we mostly wait for a tighter trigger. And you don't fix it by pulling the stop in. The honest stop is where the chart says you're wrong. Move it up and normal noise takes you out. It's stretched too, more than 10% over its 9 EMA at the close. This was REGN. Pass, and wait for a setup with a low close by.",
    "lesson_line": "Past 5%, wait for a tighter trigger.",
    "facts": [
     "dRG",
     "rD5",
     "h01",
-    "dTT2"
+    "dTT2",
+    "h13"
    ],
    "wrong": {
     "Yes, the pattern looks perfect": "The pattern doesn't shrink the stop. 8.12% is too far.",
@@ -2153,7 +2174,7 @@
      "rests on the owner's rulebook (A3, A13)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "REGN",
     "asof": "2013-05-02",
@@ -2618,14 +2639,15 @@
     "No, but the setup failed you"
    ],
    "answer": "No, it was a planned loss",
-   "why": "No. You took a good-looking setup, risked 1.1%, and it didn't work. That's the plan doing its job. This was AMZN, and it never got over 102.53 in the next 20 sessions. The run was over. Your stop got you out for a small loss instead of sitting in a dead name. Don't judge a trade by how it ended. Judge it by whether you followed the plan.",
+   "why": "No. You took a good-looking setup, risked 1.1%, and it didn't work. That's the plan doing its job. It was a tad extended off its 50-day, at the end of a run. But it was only a few percent over its 9 EMA, so it was a fair buy. This was AMZN, and it never got over 102.53 in the next 20 sessions. The run was over. Your stop got you out for a small loss instead of sitting in a dead name. Judge it by whether you followed the plan.",
    "lesson_line": "A stop-out under the plan is a planned loss.",
    "facts": [
     "dAZ",
     "dAZ3",
     "dAZ2",
     "dAZ4",
-    "h02"
+    "h02",
+    "r04"
    ],
    "wrong": {
     "Yes, the stop was too tight": "The stop did its job. The stock never got going again.",
@@ -2645,7 +2667,7 @@
      "rests on the owner's rulebook (A4, B21)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AMZN",
     "asof": "2018-09-04",
@@ -2671,12 +2693,13 @@
     "A stop under day 1's low instead"
    ],
    "answer": "A fresh burst of strength first",
-   "why": "A fresh burst of strength. This was V, and there was no big gap or volume run in the weeks before. It was a quiet pullback with a wick on it, and the 0.75% stop sat right in the noise. The best ones come right after the stock explodes. Then the wick play is the rest before the next leg. Without that, it's a weaker setup. Not a broken rule, just a lower grade.",
+   "why": "A fresh burst of strength. This was V, and there was no big gap or volume run in the weeks before. It was a quiet pullback with a wick on it, and the 50-day was still pointed down. The 0.75% stop sat right in the noise. The best ones come right after the stock explodes. Then the wick play is the rest before the next leg. Without that, it's a weaker setup. Not a broken rule, just a lower grade.",
    "lesson_line": "The burst first, then the hold. That's the stronger case.",
    "facts": [
     "dVV2",
     "cExp",
-    "mStop"
+    "mStop",
+    "r04"
    ],
    "wrong": {
     "A bigger upper wick on day 1": "91% of the range is about as big as a wick gets.",
@@ -2696,7 +2719,7 @@
      "fixed before (grade labels, 2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "V",
     "asof": "2019-10-15",
@@ -2918,7 +2941,7 @@
     "Yes, buy it now at today's close"
    ],
    "answer": "Yes, it held inside the wick",
-   "why": "Yes. Day 1 closed way off its high, a 70% upper wick. Day 2 sat right up in it, its low of 189.04 over the 188.62 body top. That's the picture you want. This was MELI in 2017. The buy is tomorrow, a market order as price breaks day 2's high. The stop goes a few cents under 189.04. Not at today's close, though. The break has to happen first.",
+   "why": "Yes. Day 1 closed way off its high, a 70% upper wick. Day 2 sat right up in it, a tight little doji, its low of 189.04 over the 188.62 body top. That's the picture you want. This was MELI in 2017. The buy is tomorrow, a market order as price breaks day 2's high. The stop goes a few cents under 189.04. Not at today's close, though. The break has to happen first.",
    "lesson_line": "Inside the wick, over the body. Get ready for the break.",
    "facts": [
     "dME",
@@ -2950,7 +2973,7 @@
      "fixed before (2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q53",
@@ -2966,7 +2989,7 @@
     "No, the close is under the 50-day"
    ],
    "answer": "No, it closed under the 200-day",
-   "why": "No. This was TSLA, and the close sat 2.2% under the 200-day. We don't buy stocks under the 200-day. That's a hard line. The 50-day was 10.2% under the 200-day too, so the whole trend pointed the wrong way. The two candles look fine, and that's the trap. Check the averages before you even look at the pattern.",
+   "why": "No. This was TSLA, and it closed under the 200-day. We don't buy stocks under the 200-day. That's a hard line. The 50-day sat well under the 200 too, and both were pointed down. And today's bar is a shooting star that closed near its low. The two-day shape passes, and that's the trap. Check the averages before you even look at the pattern.",
    "lesson_line": "Averages first, candles second.",
    "facts": [
     "h10",
@@ -2997,7 +3020,7 @@
      "fixed before (day-2 averages, 2026-11-10)"
     ]
    },
-   "batch": "voice-8-2026-11-17"
+   "batch": "chart-reads-2026-11-18"
   },
   {
    "key": "q54",
@@ -3083,14 +3106,15 @@
     "Yes, it broke day 1's high"
    ],
    "answer": "Yes, day 2 sits inside the wick",
-   "why": "Yes. On a red day the body top is the open, 32.46. Day 2's low, 32.57, stayed above it. Its high, 33.36, stayed under 34.00. The whole bar's in the wick. A red wick day works fine. What matters is that day 2 holds over the body. This was TTMI in June 2025, and it pushed hard on day 3.",
+   "why": "Yes. On a red day the body top is the open, 32.46. Day 2's low, 32.57, stayed above it. Its high, 33.36, stayed under 34.00. The whole bar's in the wick. A red wick day works fine. What matters is that day 2 holds over the body. It's a tad extended, a bit over its 9 EMA and way above its 50-day. That's what comes right after an explosion. This was TTMI in June 2025, and it pushed hard on day 3.",
    "lesson_line": "Red day, the open is the line.",
    "facts": [
     "dv1",
     "dv2",
     "dTT",
     "dTT1",
-    "tIn"
+    "tIn",
+    "r04"
    ],
    "wrong": {
     "No, a red day cannot set it up": "A red day works. Its body top is just the open instead of the close.",
@@ -3105,7 +3129,7 @@
     "score": 0,
     "reasons": []
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "TTMI",
     "asof": "2025-06-06",
@@ -3598,7 +3622,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Body top on a red doji wick day; definitional, no buy decision."
   },
   "q04": {
    "status": "cut",
@@ -3610,7 +3634,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Writer's edit checked: doji inside day, 1.0% over the 9 EMA, 8.8% over the 50; true."
   },
   "q06": {
    "status": "cut",
@@ -3688,7 +3712,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Body top on a green wick day; definitional."
   },
   "q19": {
    "status": "pass",
@@ -3700,13 +3724,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "13.09 minus 0.03 is 13.06; each wrong price checked (13.16 is 3 cents under the 13.19 high)."
+   "notes": "Stop-price calc."
   },
   "q21": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1R 0.38, 3R 31.84; 31.08 is 1R, 32.22 is 4R, 32.98 is 6R. Says 3R is a ruler, not a sell (D-013)."
+   "notes": "3R calc; the trigger day's shooting star isn't part of the decision."
   },
   "q22": {
    "status": "pass",
@@ -3724,25 +3748,25 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Day-2-low stop, true/false."
   },
   "q25": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.70 / 190.71 = 0.89%; 99.11% = 189.01/190.71; band 1-3%, up to 5% matches D-005."
+   "notes": "Stop-percent calc."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "454 recomputed (500/1.10 = 454.55). Fix: \"well under 40%\" was loose (454 x 33.64 is about 31% of 50,000); now just \"under 40%\"."
+   "fixed": false,
+   "notes": "Share-count calc."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "fixed": true,
+   "notes": "Rule 33 + his rule: day 2 closed 10.3% over its 9 EMA. Our own line (h13, cited) says more than 10% over the 9 EMA is too stretched to buy; the writer's 'I'd be careful chasing the break' softened a skip into a caution. Now said plainly; a 24-word sentence split."
   },
   "q28": {
    "status": "pass",
@@ -3778,19 +3802,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "13.60 / 2.51 = 5.42R; 4.42R from the stop (11.09/2.51); 1.23 = 13.60/11.09; 0.18 inverted. B20 2R ceiling stated right."
+   "notes": "Gap R calc."
   },
   "q34": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the wrong note said \"Past 5% we don't take it at any size\", harder than D-005 (\"mostly wait for a tighter trigger\"). Softened to his ruling."
+   "fixed": false,
+   "notes": "Writer's edit checked: 10.9% over the 9 EMA at the close; true."
   },
   "q35": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: on LHX the fixed-stop walk gave it all back (dLH), so \"What kept the gain?\" implied a gain was kept. Stem now asks what would have kept it, matching the why."
+   "fixed": false,
+   "notes": "Sell some and trail; no chart read."
   },
   "q36": {
    "status": "pass",
@@ -3826,7 +3850,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AMZN 2020-08: 57% wick, 163.35 under 165.51 (1.3%) confirmed in the dossier; the dip allowance kept as judgment."
+   "notes": "Day 2 dipped into the body; reads right."
   },
   "q42": {
    "status": "pass",
@@ -3849,20 +3873,20 @@
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "fixed": true,
+   "notes": "Rule 33: 'it sat tight on its 9 EMA' on a buy day 3.4% over the 9 EMA at the close (about 2.7% at the fill) overstates it. Said as it is."
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "V 2019-10-15: 91% wick and 0.75% stop confirmed in the dossier; the burst is taught as a grade plus in words, no 15-session window."
+   "notes": "Writer's edit checked: 50-day pointing down; true."
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Stop-out handling; the why reads no averages."
   },
   "q48": {
    "status": "cut",
@@ -3892,13 +3916,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Writer's edit checked: doji inside day in the wick; true."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TSLA close 2.2% under the 200-day, 50-day 10.2% under it, so the close is over the 50-day: the wrong note is right."
+   "notes": "Writer's edit checked: under a falling 200, 50 under the 200, shooting star at 7% of range; true."
   },
   "q54": {
    "status": "pass",
@@ -3916,13 +3940,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Writer's edit checked: 6.1% over the 9 EMA, 37% over the 50; 'a tad extended' fair."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "Breakeven after the first sell."
   },
   "q58": {
    "status": "pass",
@@ -3999,13 +4023,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "First-sell timing."
   },
   "q98": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice reads like a mentor at the screen: verdict first, numbers worked, the reason, the how. Facts and key checked against the lesson facts and the rulings; numbers recomputed."
+   "notes": "9 EMA trail; no chart misread."
   }
  }
 }

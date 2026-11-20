@@ -1232,7 +1232,13 @@
     "h24",
     "c38",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "FFIV",
+    "asof": "2014-01-13",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1253,7 +1259,13 @@
     "h24",
     "c38",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "MCO",
+    "asof": "2012-09-06",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1276,7 +1288,13 @@
     "h21",
     "c38",
     "r02"
-   ]
+   ],
+   "chart": {
+    "sym": "AX",
+    "asof": "2026-01-05",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1566,20 +1584,20 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "ch.trigger",
-   "q": "When do you actually pull the trigger?",
+   "q": "Tomorrow could be the buy day. Where's your buy, and where's your stop?",
    "choices": [
-    "When it trades through the pivot",
-    "On a close above the pivot",
-    "Premarket, if it's already over",
-    "At the handle low, ahead of it"
+    "Over 111.60, stop under the day's low",
+    "On a close over 111.60, same stop",
+    "Premarket over 111.60, same stop",
+    "Now at 109.27, stop under 104.75"
    ],
    "wrong": {
-    "On a close above the pivot": "That's a later entry. By the close you've often paid up, and with the same stop that means fewer shares.",
-    "Premarket, if it's already over": "We don't buy outside regular hours. Let it open and trade through the pivot.",
-    "At the handle low, ahead of it": "That's guessing the turn before the stock proves anything. The buy is the trade through the handle's high."
+    "On a close over 111.60, same stop": "By the close you've often paid up. Same stop under you means fewer shares for the same risk.",
+    "Premarket over 111.60, same stop": "We don't buy outside regular hours. Let it open and trade through 111.60.",
+    "Now at 109.27, stop under 104.75": "That's buying before it proves anything, with a much wider stop. The buy is the trade through 111.60."
    },
-   "answer": "When it trades through the pivot",
-   "why": "When it trades through the pivot. Regular hours, market order, the moment price goes through the handle's high. That trade-through is the breakout. Buying right there keeps your fill close to the pivot and your stop close to your fill. Wait for the close and you're often paying up with the same stop under you, so fewer shares for the same risk. Premarket is out too. We don't buy outside regular hours.",
+   "answer": "Over 111.60, stop under the day's low",
+   "why": "Over 111.60, stop under the day's low. That's the spot you trade against. Tomorrow, the moment it trades through 111.60 in regular hours, you buy at market. Your stop goes a few cents under that day's low. And look at today's candle. It undercut yesterday's low, then closed right at its high. That's a good look going into a buy day. Wait for the close and you've often paid up with the same stop under you. Premarket is out. We don't buy outside regular hours.",
    "lesson_line": "The trigger is the trade through the handle's high. Market order, regular hours, no waiting for the close.",
    "facts": [
     "c03",
@@ -1590,7 +1608,7 @@
     "z06"
    ],
    "house": true,
-   "simple": "We buy the moment it trades through the pivot in regular hours. Waiting for the close means paying more.",
+   "simple": "Buy the moment it trades through the handle's high in regular hours. Your stop goes a few cents under that day's low.",
    "deeper": {
     "counter": "Two published entries differ. Bulkowski buys when price closes above the right cup rim. Zanger buys as it emerges into new highs at the top of the handle, not at the old high point. We use the second kind of entry: the trade through the handle high, at market, in regular hours."
    },
@@ -1602,8 +1620,8 @@
      "+1 fixed before (variety rewrite)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "A 52% run, a 7.6-week cup, and a 6-day handle with volume drying up. The handle's high is your pivot. The open is minutes away.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "A 52% run, a 7.6-week cup, and a 6-day handle with volume drying up. The handle's high is right around 111.60. Today it closed at 109.27.",
    "chart": {
     "sym": "WPM",
     "asof": "2025-12-09",
@@ -1959,7 +1977,7 @@
      "the stem says hard rule because the owner's practice is to wait longer"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "choices": [
     "$38.79",
     "$42.44",
@@ -1971,7 +1989,7 @@
     "$42.44": "That's three R added to the stop, not the fill. Measure up from 40.98.",
     "$41.71": "That's one R above the fill. You need three."
    },
-   "story": "You bought the breakout at 40.98. Your stop sits a few cents under the low of the day, at 40.25. Now you mark your levels.",
+   "story": "You bought the breakout at 40.98. The low of the day is 40.54, and yesterday's low is 40.30. Your stop goes a few cents under the lower one, at 40.25.",
    "chart": {
     "sym": "EFX",
     "asof": "2007-05-04",
@@ -3485,7 +3503,7 @@
    "format": "scenario",
    "criterion": "ch.no_chase",
    "q": "Did you break a rule?",
-   "story": "The pivot is 72.58. It gaps open and you fill at 74.57. It never trades above your fill, and the next day takes the 73.36 stop.",
+   "story": "The pivot is 72.58. It gaps open and you fill at 74.57. It runs to 76.23 that day, then the next day takes the 73.36 stop.",
    "choices": [
     "Yes, never buy a gap open",
     "No, the fill was inside 4%",
@@ -3498,7 +3516,7 @@
     "No, anything under 10% is fine": "The chase line is 4% over the pivot. The 10% line is about the 9 EMA, a different check."
    },
    "answer": "No, the fill was inside 4%",
-   "why": "No. The pivot was 72.58 and you filled at 74.57, 2.7% over it. That's inside our 4% chase line, so it's allowed. The stop at 73.36 did its job, and the loss was the plan. The tell was the gap that couldn't build. It never traded above your fill, and the next day it went through the stop. A gap that can't add to its open is a warning, not a broken rule.",
+   "why": "No rule broken on the fill. The pivot was 72.58 and you filled at 74.57, 2.7% over it. That's inside our 4% chase line. The stop at 73.36 sat just under the low of the day, and it did its job. But be honest about the chart. It gapped way up over its 50-day, extended, and the 50-day was still under the 200-day. We mostly want the 50 over the 200, so I'd pass on most of these. It ran to 76.23 that day and gave it all back the next. That's a warning, not a broken rule.",
    "lesson_line": "A fill inside 4% is allowed. A gap that can't build is the warning.",
    "facts": [
     "h11",
@@ -3510,7 +3528,7 @@
     "r05"
    ],
    "house": true,
-   "simple": "No rule was broken. The fill was inside 4%, and the stop kept the loss small, as planned.",
+   "simple": "No rule broke, the fill was inside 4%. But it was stretched and the 50-day sat under the 200-day, a weak spot.",
    "deeper": {
     "trap": "SCHW gapped over the 72.58 pivot at the open and filled 2.7% above it. It closed near its high, then fell through the stop the next day without ever trading above the fill. The fill was inside the 4% line and the stop was honored, so the loss was the plan."
    },
@@ -3525,7 +3543,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "SCHW",
     "asof": "2024-11-06",
@@ -3696,7 +3714,7 @@
     "Yes, heavy volume shows demand": "A handle should dry up, and this one did, at 0.74x. Heavy handle volume is a warning."
    },
    "answer": "Yes, it's high and volume dried up",
-   "why": "Yes, that's one I'd want. The handle sits right under the old high and its lows drift down instead of climbing. Volume dried up to 0.74x the cup's. Buyers held it near the highs while the sellers ran out. That's the picture. The next day it cleared the handle's high on 2.71x volume. A great picture still isn't a promise, so the stop under the low of the day stays in.",
+   "why": "Yes, that's one I'd want. The handle sits right under the old high and its lows drift down instead of climbing. Volume dried up to 0.74x the cup's. And look at the last candle. It's a hammer and an inside day, closing near its high. That's a very good look the day before a buy day. The next day it cleared the handle's high on 2.71x volume. A great picture still isn't a promise, so the stop under the low of the day stays in.",
    "lesson_line": "High in the base, lows drifting down, volume dried up. That's the picture. The stop still decides.",
    "facts": [
     "c10",
@@ -3728,7 +3746,7 @@
    "depends_on": [
     "D-007"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "A 40% run, a rounded cup, and a 7-day handle sitting just under the old high. Tomorrow it could trigger."
   },
   {
@@ -5349,13 +5367,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GWW numbers match d10 (31%, 10.4 wk, 14.6%, 7 d, 0.66x). Good chart narration; IBD to deeper."
+   "notes": "Shape read matches; the 50 points slightly down but the text never calls it rising. Voice 4."
   },
   "q02": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "EFX plan; pivot = handle high, at market in regular hours (c03). Good how."
+   "notes": "Plan names the handle's high, no drawing; last bar a full green bar 0.4% under the 20-day high. Voice 4."
   },
   "q03": {
    "status": "pass",
@@ -5379,19 +5397,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "RRC handle 4.6% under the old high, midpoint above the cup's (c10, i15, i16)."
+   "notes": "Handle position read is right; the doji closes off its high but doesn't bear on where the handle sits. Voice 4."
   },
   "q07": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MCO 19 d at 0.77x (d04); 'raises the grade', not a must (D-006). Reads like him."
+   "notes": "Volume statement matches the handle. Voice 4."
   },
   "q08": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trade-through in regular hours (c03); no close entry (D-003)."
+   "notes": "Writer's rule-34 rebuild is right: 111.60 is the 20-day high, 109.27 the close, today an outside day that undercut and closed at its high (99%). Buy day spot and stop are concrete. Voice 4."
   },
   "q09": {
    "status": "cut",
@@ -5451,7 +5469,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "40.98 + 3 x 0.73 = 43.17; distractors 38.79, 42.44, 41.71 recomputed. 3R is a mark, first sell a judgment (D-013)."
+   "notes": "Story now honest: day low 40.54, prior low 40.30, stop 40.25 under the lower. 3R math 43.17 checks. Entry inside the day's range. Voice 4."
   },
   "q19": {
    "status": "cut",
@@ -5511,7 +5529,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.34 / 56.61 = 2.37%; 55.27 / 56.61 = 97.63%. 3% line is A13."
+   "notes": "Stop 55.27 a few cents under the 55.32 low; 2.37% checks. Voice 4."
   },
   "q29": {
    "status": "pass",
@@ -5547,7 +5565,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "40,000 x 0.75% = 300; 300 / 1.03 = 291.3, round down 291; 582, 2,912, 981 recomputed."
+   "notes": "Stop 39.73 under the 39.78 low; 291 shares checks. Voice 4."
   },
   "q35": {
    "status": "cut",
@@ -5565,13 +5583,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PEP 6.6% shelf is a flat base, not a cup."
+   "notes": "Shelf read right. Voice 4."
   },
   "q38": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth fine (META d31, best 0.79R). Last line 'topped out at a best of 0.79R' read stiff; reworded."
+   "fixed": false,
+   "notes": "V read right; answer already a pass. Voice 4."
   },
   "q39": {
    "status": "cut",
@@ -5625,7 +5643,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AX d06 numbers (72%, 20.2%, 16.6 wk, 4.9%, 5 d)."
+   "notes": "Label read right. Voice 4."
   },
   "q48": {
    "status": "cut",
@@ -5642,14 +5660,14 @@
   "q50": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Leading story: 'You followed every rule' handed over the answer to 'Was that loss a mistake?' (rule 28). Removed; the trade's facts now speak. Math checked: 3.21 / 260.96 = 1.23%."
+   "fixed": false,
+   "notes": "Mid-range close matches (49%); stop under the 257.80 low; 1.23% checks. Voice 4."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "breakeven at 2.37R inside 2R-5R stays right; the add choice now reads rare, a feel call, never the plan. Voice 4."
+   "notes": "Stop 52.49 under the 52.54 low; 1.2% checks. The story's 4.9x volume vs the chart's 4.5x over its 50-day average is a different baseline, left. Voice 4."
   },
   "q52": {
    "status": "cut",
@@ -5660,8 +5678,8 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "74.57 / 72.58 = +2.7%, inside 4%; a gap that can't build is a warning (d27, d33)."
+   "fixed": true,
+   "notes": "The writer's flaw read is right (13.3% over the 50, the 50 under the 200), but the story and why said it 'never traded above your fill'. The bars disagree: SCHW opened 74.57 and traded to 76.23 that day (close 75.75), then 72.90 the next day took the stop. Story and why now say so; 'a tad extended' at 13% over the 50 is now 'extended'. Voice 4."
   },
   "q54": {
    "status": "pass",
@@ -5672,8 +5690,8 @@
   "q55": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth fine (20 EMA, not the dossier's 21-day). The last line 'then rolled over below the pivot' read as if the trade gave it all back; it now says the trail got you out first, which is the point."
+   "fixed": false,
+   "notes": "Trail read right. Voice 4."
   },
   "q56": {
    "status": "pass",
@@ -5685,13 +5703,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "FFIV handle 0.74x, lows drift down, 2.71x next session (d01, d02)."
+   "notes": "Hammer plus inside day at 98% of the range, named right the day before the buy day. Voice 4."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth fine (AAPL d30). 'stopped out at a best of 0.0R' was stiff; reworded."
+   "fixed": false,
+   "notes": "Wedge read right. Voice 4."
   },
   "q59": {
    "status": "pass",
@@ -5715,7 +5733,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "First sell into a 3, 5 or 7 day push, trail 9/20 EMA (D-013, D-021); IBD 20-25% as a named mistake."
+   "notes": "Profit plan; 10% over the 50 doesn't bear on how you sell. Voice 4."
   },
   "q63": {
    "status": "cut",
@@ -5841,7 +5859,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Real stop order with the broker (h40). Natural and direct."
+   "notes": "Stop-order discipline, no chart read. Voice 4."
   },
   "q84": {
    "status": "pass",
@@ -5919,7 +5937,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MCO 19 d, 0.77x, 3R in 4 sessions (d04, d05); no two-week cap."
+   "notes": "Handle behaviour read right. Voice 4."
   },
   "q97": {
    "status": "pass",

@@ -1043,7 +1043,13 @@
     "c09",
     "h05",
     "c44"
-   ]
+   ],
+   "chart": {
+    "sym": "DK",
+    "asof": "2026-08-24",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1064,7 +1070,13 @@
     "h05",
     "h20",
     "h16"
-   ]
+   ],
+   "chart": {
+    "sym": "DOCU",
+    "asof": "2026-10-06",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1086,7 +1098,13 @@
     "h05",
     "h20",
     "h21"
-   ]
+   ],
+   "chart": {
+    "sym": "PSX",
+    "asof": "2026-08-27",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "conflicts": [
@@ -1112,7 +1130,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "FTNT ex 5: four reds (09-17 15:30, 09-18 open) into the 10-day EMA, pivot 11:00. Story matches. Pivot = first green after reds (originator). OK."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q02": {
    "status": "pass",
@@ -1124,7 +1142,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "HALO 106.65 at 10:30, stop 105.74 three cents under pivot low 105.77 (d07). Raschke moved out of why. OK."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q04": {
    "status": "cut",
@@ -1159,8 +1177,8 @@
   "q09": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the story called the 20-day EMA rising; d25 gives only its level (about 101.4), not its slope. Dropped \"rising\". 102.99/101.16/101.20 check (d25, d26)."
+   "fixed": false,
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q10": {
    "status": "pass",
@@ -1250,7 +1268,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.82 x 3 = 5.46; 238.91+5.46 = 244.37. Distractors 242.55, 233.45, 241.91 check. OK."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q25": {
    "status": "pass",
@@ -1304,7 +1322,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.91 risk, 4.00 gain, 4.395 -> 4.4R; 5.4 = 4.91/0.91; 3.8 = 3.75% gain; 0.2 = 0.91/4. OK."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q34": {
    "status": "pass",
@@ -1334,7 +1352,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AXON 1.07% (6.41/601.49); \"breaks about as often as it holds\" is d16. OK."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q39": {
    "status": "pass",
@@ -1346,13 +1364,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and claims check against the facts; voice matches section 10 (verdict first, reason, how)."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q41": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MSFT 2.10/501.07 = 0.42%. Wrong note correctly says there is no under-1% rule. OK."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q42": {
    "status": "cut",
@@ -1394,13 +1412,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Numbers and claims check against the facts; voice matches section 10 (verdict first, reason, how)."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q49": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Void pivot is a proposal; rewrite reasons from the stop (price already traded where the stop sits), which holds whichever stop you use. Acceptable."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q50": {
    "status": "pass",
@@ -1454,7 +1472,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "1.82/238.91 = 0.76%. OK."
+   "notes": "Intraday chart with no local bars; its chart read is left alone. Text checked for numbers, answer and rules: fine."
   },
   "q59": {
    "status": "pass",

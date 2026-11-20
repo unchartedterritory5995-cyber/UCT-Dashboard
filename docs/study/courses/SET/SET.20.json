@@ -974,7 +974,7 @@
    "steps": [
     "ULTA reported March 10, 2016. Next day it gapped up 14.2% on 4.8 times normal volume and closed near the high.",
     "A big gap out of a correction. Then four quiet days, only 2.8% deep, and it never lost the gap-day low.",
-    "Day 6 it takes out the prior day's high, 190.69. We buy at market, stop just under the pullback low, 186.55.",
+    "After an inside day, day 6 takes out its high: buy at market, 190.69. Stop just under the pullback low, 186.55.",
     "A close under the gap-day low says we're wrong. Never happened. It ran to 12.1R: sell into a push, trail the rest."
    ],
    "facts": [
@@ -989,15 +989,21 @@
     "h21",
     "h22",
     "h24"
-   ]
+   ],
+   "chart": {
+    "sym": "ULTA",
+    "asof": "2016-03-18",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "TWLO, February 2018: a gap through the 200-day",
    "steps": [
     "TWLO spent 3 months bottoming. Then its February 13, 2018 report gapped it 10.0% the next day, on 8.3 times volume.",
-    "That gap goes straight through the 200-day. Then a 6-session pullback that holds the gap-day low.",
-    "Day 8 it trades over the prior day's high. Buy at market, 33.55. Stop under the pullback low, 32.59, 2.9% away.",
+    "That gap goes straight through the 200-day. Then a 6-session pullback that holds the gap-day low. The 50-day's still under the 200.",
+    "After an inside day, day 8 trades over its high. Buy at market, 33.55. Stop 32.59, under the inside day's low.",
     "Close under the gap-day low and it's wrong. Instead, 3R in 4 sessions, and 24.1R at its best."
    ],
    "facts": [
@@ -1010,8 +1016,15 @@
     "h05",
     "h21",
     "h22",
-    "h24"
-   ]
+    "h24",
+    "r06"
+   ],
+   "chart": {
+    "sym": "TWLO",
+    "asof": "2018-02-26",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1019,7 +1032,7 @@
    "steps": [
     "October 18, 2024, the day after its report, NFLX gaps 7.3% to new highs on 5.6 times volume. Closes near the top.",
     "It came out of a tight base. Then a 4-session pullback, only 2.9% deep, holding the gap-day low.",
-    "Day 6 it takes out the prior day's high. Buy at market, 75.62, stop under the pullback low, 74.38. Only 1.6% risk.",
+    "After an inside-day hammer, day 6 takes out its high. Buy at market, 75.62. Stop under the pullback low, 74.38.",
     "A red first day or a filled gap would've said no. Instead, a two-month run. Sell into a push, trail the rest."
    ],
    "facts": [
@@ -1034,7 +1047,13 @@
     "h21",
     "h22",
     "h24"
-   ]
+   ],
+   "chart": {
+    "sym": "NFLX",
+    "asof": "2024-10-25",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1802,8 +1821,8 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "ng.entry_pullback",
-   "q": "What's the play?",
-   "story": "October 2024. A 7.3% earnings gap on 5.6x volume closed at 92% of its range. Four days of pullback, 2.9% deep, held the gap-day low. This morning it trades over yesterday's high.",
+   "q": "This morning it trades through 75.58. What's the play?",
+   "story": "October 2024. A 7.3% earnings gap on 5.6x volume closed at 92% of its range. Four days of pullback, 2.9% deep, held the gap-day low. The last bar is a hammer and an inside day, high 75.58.",
    "choices": [
     "Market buy, stop under the pullback low",
     "Pass, day one was the only entry",
@@ -1811,7 +1830,7 @@
     "Limit buy down at the gap-day low"
    ],
    "answer": "Market buy, stop under the pullback low",
-   "why": "Buy it at market. Everything lined up. The gap was strong, 7.3% on 5.6x volume with a close at 92% of the range. The pullback was small and quiet, 2.9% over four days, and it held the gap-day low. Now it's trading over yesterday's high, so the buyers are back. That's the trigger, and we buy it as it happens. Your stop goes a few cents under the pullback low, about 1.6% away here. Tight, and right where I like it. NFLX went on to a two-month run from there.",
+   "why": "Buy it at market, right as it goes through 75.58. Look at that last candle first. A hammer, and an inside day too. That's a very good look, and today's the buy day. The gap was strong, 7.3% on 5.6x volume with a close at 92% of the range. The pullback was small and quiet, 2.9% over four days, and it held the gap-day low. Your stop goes a few cents under the pullback low, 74.38, about 1.6% away. Tight, and right where I like it. NFLX went on to a two-month run from there.",
    "lesson_line": "Pullback holds, price clears yesterday's high, you buy.",
    "facts": [
     "c12",
@@ -1826,7 +1845,7 @@
     "Limit buy down at the gap-day low": "That waits for weakness under the market. We buy strength, as it clears yesterday's high."
    },
    "house": true,
-   "simple": "Buy at market as it clears yesterday's high. The pullback held, buyers are back, and the stop is tight.",
+   "simple": "Buy at market as it clears the hammer's high. The pullback held, buyers are back, and the stop is tight.",
    "tier": "core",
    "risk": {
     "score": 3,
@@ -1835,7 +1854,7 @@
      "fixed before"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NFLX",
     "asof": "2024-10-24",
@@ -2792,7 +2811,7 @@
     "A rule break, stop too tight"
    ],
    "answer": "A planned loss, the stop did its job",
-   "why": "A planned loss, and that's fine. You knew what it would cost before you bought it, and that's exactly what it cost. The gap was a great one, 15.3% on 15.8x volume. But a big gap doesn't protect the pullback buy. Only about three in ten of these reach 3R, so plenty go straight to the stop. Take it, journal it, and move to the next one. A loss at your stop is the system working.",
+   "why": "A planned loss, and that's fine. You knew what it would cost before you bought it, and that's exactly what it cost. The gap was a great one, 15.3% on 15.8x volume. But a big gap doesn't protect the pullback buy. And look at this pullback. It gave back the whole run after the gap day, a lot looser than the quiet ones I like. Only about three in ten of these reach 3R, so plenty go straight to the stop. Take it, journal it, and move to the next one. A loss at your stop is the system working.",
    "lesson_line": "A loss at your stop is the system working.",
    "facts": [
     "d14",
@@ -2820,7 +2839,7 @@
      "keyed on the stop rule, not on when the reclaim came"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "AVAV",
     "asof": "2024-03-13",
@@ -3374,7 +3393,7 @@
     "Pass, the gap already filled"
    ],
    "answer": "Yes, the gap-day low held",
-   "why": "Yes, take it. The gap was about as good as they come. Then the pullback was four quiet days, only 2.8% deep, and every close held the gap-day low. Sellers had their chance and couldn't take the gap back. When price trades over yesterday's high, the buyers are back, and you buy it at market. Stop a few cents under the pullback low. ULTA's was about 2.2% away.",
+   "why": "Yes, take it. The gap was about as good as they come. Then the pullback was four quiet days, only 2.8% deep, and every close held the gap-day low. The last bar is an inside day, tight right under the trigger. Two things I see. It's a tad extended from the 50-day, and that line is still pointing down. That's a gap out of a correction, and price is back over a rising 200-day. Neither one stops me. When price trades over yesterday's high, buy it at market. Stop a few cents under the pullback low. ULTA's was about 2.2% away.",
    "lesson_line": "Held gap-day low, clean reclaim. That's the buy.",
    "facts": [
     "d01",
@@ -3382,7 +3401,8 @@
     "d03",
     "c12",
     "c11",
-    "c15"
+    "c15",
+    "r06"
    ],
    "wrong": {
     "Pass, the gap-day low gave way": "No close in the pullback got under the gap-day low.",
@@ -3396,7 +3416,7 @@
     "window": 120,
     "forward": 60
    },
-   "simple": "Yes. The pullback held the gap-day low, so sellers couldn't take the gap back, and you buy it through yesterday's high.",
+   "simple": "Yes. The pullback held the gap-day low and tightened into an inside day, so you buy it through yesterday's high.",
    "deeper": {
     "example": "March 2016: report on 2016-03-10, gap day 2016-03-11, up 14.2% on 4.8x volume, close at 94% of its range. Day 6: a buy over 190.69 with the stop at 186.55, 2.2% away. It reached 12.1R at best. One example is not a promise, but it shows what a held gap-day low and a clean reclaim can do."
    },
@@ -3407,7 +3427,7 @@
      "one example from our own scan, single source, not yet owner reviewed"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "March 2016, the day before the reclaim. A 14.2% report gap on 4.8x volume closed at 94% of its range. Then a 4-day pullback, 2.8% deep."
   },
   {
@@ -4166,7 +4186,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GE news gap, not a report day; a quarter of big gaps are not earnings (fact)."
+   "notes": "Earnings vs news."
   },
   "q01": {
    "status": "pass",
@@ -4183,8 +4203,8 @@
   "q03": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story told the member what to compare (leading), and the why said buyers 'were still in control', a textbook tell. Facts unchanged (CCJ 6.2%, 98% close)."
+   "fixed": false,
+   "notes": "Gap day low 55.11 over the prior high, close at 98% of range; reads right."
   },
   "q05": {
    "status": "pass",
@@ -4225,8 +4245,8 @@
   "q16": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Steps were fine; the why now says where 3R is counted from (the fill, not the stop), the 108.93 trap. Arith in-between numbers are not grounded, so the steps are named without them."
+   "fixed": false,
+   "notes": "R arithmetic."
   },
   "q17": {
    "status": "cut",
@@ -4255,8 +4275,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Story handed the member the test ('Compare the day's low to the prior day's high'), which gives the answer away. Now neutral."
+   "fixed": false,
+   "notes": "True gap read right."
   },
   "q23": {
    "status": "cut",
@@ -4267,8 +4287,8 @@
   "q24": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: 'a real low, the low of the day or the pullback low' muddled the stop on a pullback buy (it goes under the pullback low; the LOD is the day-one stop). Also worked the story numbers in and named NFLX with its fact."
+   "fixed": false,
+   "notes": "Writer edit checked: Oct 24 is an inside day and a hammer, high 75.58; Oct 25 traded through it (L75.35 H76.85) and the stop under the 74.43 pullback low fits."
   },
   "q25": {
    "status": "pass",
@@ -4352,7 +4372,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.5% x 40,000 = 200; 105.11 - 103.20 = 1.91; 200 / 1.91 = 104.71 -> 104. Distractors 10 (tenth), 209 (double), 382 (200 x 1.91) all check. Steps shown."
+   "notes": "Sizing arithmetic."
   },
   "q41": {
    "status": "pass",
@@ -4363,8 +4383,8 @@
   "q43": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the wrong note called '2% under the pullback low' Morales and Kacher's undercut, but theirs is an undercut of the gap-up low. Now says plainly why extra room is a mistake."
+   "fixed": false,
+   "notes": "Stop question; the pullback low 186.60 is the real low."
   },
   "q44": {
    "status": "pass",
@@ -4381,8 +4401,8 @@
   "q46": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Now names the divisor (the fill, not the stop), the 97.1% trap. In-between 0.96 is not grounded for an arith calc, so left out."
+   "fixed": false,
+   "notes": "Stop-width arithmetic."
   },
   "q47": {
    "status": "pass",
@@ -4394,31 +4414,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AVAV numbers match facts; planned loss; base rate 29.5% = three in ten."
+   "notes": "Writer edit checked: the pullback ran from 184.61 down to 158.48, under the 167.15 gap-day close; said in words."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+   "notes": "Time stop."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Volume raises the grade, not a must (D-006); 1.7x vs 3x; Kullamagi in deeper."
+   "notes": "Volume and grade."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "NFLX 2018: low 35.65 > prior close 34.64, green close, 35% close = lower half = B-. Correct."
+   "notes": "News Failure read right."
   },
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: story said 'Late October 2023' but the chart ends 2023-11-03, five sessions after the 10-27 gap. Story also told the member what to look at. Fixed both."
+   "fixed": false,
+   "notes": "Shallow five-session pause read right; the reclaim comes after the chart ends."
   },
   "q58": {
    "status": "pass",
@@ -4448,13 +4468,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ULTA numbers match (14.2%, 4.8x, 94%, 2.8% pullback, 190.69/186.55 = 2.2%). Market buy over the prior high."
+   "notes": "Writer edit checked: 10.2% over a 50-day pointing down, over a rising 200-day, inside day; said plainly with why it is still a yes."
   },
   "q63": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem 'Check the three months before it' pointed at the answer. Now neutral, same chart."
+   "fixed": false,
+   "notes": "Late gap pass; extension is the point."
   },
   "q64": {
    "status": "pass",
@@ -4466,7 +4486,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "B21 new trigger as a new trade; E56 3/week 6/month; SEDG fact matches."
+   "notes": "Re-entry question."
   },
   "q67": {
    "status": "pass",
@@ -4484,7 +4504,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "PANW 6-month range, 13.7% on 11.6x. Correct."
+   "notes": "Quiet range read right."
   },
   "q70": {
    "status": "pass",

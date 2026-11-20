@@ -1680,7 +1680,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice 4 (final 4). Story narrates the day; why names the rotation (f81, f79, f80, f82, f83). Chart claim checked on RUT daily bars: July 11, 2024 closed 2,125.04 (+3.57%), just over the March 28 close of 2,124.55, the top of a range held since January, so 'one big candle, up to the top of a range it had chopped in for months' is true. Owner: good."
+   "notes": "RUT has no local bars; the read (a big up day to the top of its range) matches the July 11, 2024 rotation and names no drawing."
   },
   "q14": {
    "status": "cut",

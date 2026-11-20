@@ -876,7 +876,7 @@
    "key": "w1",
    "title": "AAOI, April 2026: a shakeout bought back",
    "steps": [
-    "AAOI, April 2026. A leader's run, then a 33% shakeout. News gaps it down 5.5% on 2.1x volume, under the 50-day.",
+    "AAOI, April 2026. A leader's run, then a 33% shakeout. News gaps it down 5.5% on 2.1x volume, still above its 50-day.",
     "Then buyers take it all back: a close 20.3% over the prior close, near the high. That's a news failure.",
     "The trigger is back over the prior close, 86.36. The honest stop goes a few cents under the news day's low, 81.48.",
     "That's 5.7%, past our 5%. We mostly wait for a tighter trigger here. It ran anyway: 3R in 1 day."
@@ -892,14 +892,21 @@
     "hA3",
     "n18",
     "r03",
-    "r04"
-   ]
+    "r04",
+    "r21"
+   ],
+   "chart": {
+    "sym": "AAOI",
+    "asof": "2026-04-02",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
    "title": "SEDG, November 2025: an earnings gap reversed",
    "steps": [
-    "SEDG, November 2025. A 24% fall into the 50-day, then earnings gap it down another 4.1% on 3.8x volume.",
+    "SEDG, November 2025. A 24% fall takes it under the 50-day, then earnings gap it down another 4.1% on 3.8x volume.",
     "By the close it's up 28.9% from the prior close, in the top 5% of the day's range. Bad news, bought hard.",
     "Buy at market as it trades back over the prior close, 31.83. Stop a few cents under the news day's low, 30.23.",
     "A 5.0% stop, right at our limit, so the size comes from it. No new low: 3R came the next day."
@@ -915,7 +922,13 @@
     "hA3",
     "n18",
     "r03"
-   ]
+   ],
+   "chart": {
+    "sym": "SEDG",
+    "asof": "2025-11-05",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -939,7 +952,13 @@
     "hB26",
     "r02",
     "r04"
-   ]
+   ],
+   "chart": {
+    "sym": "SKIN",
+    "asof": "2022-08-09",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1243,30 +1262,32 @@
    "rung": 2,
    "format": "scenario",
    "criterion": "nf.entry_short",
-   "q": "Say you trade shorts. How do you get in on this one?",
+   "q": "Say you trade shorts. Where do you get in, and where's the stop?",
    "choices": [
-    "Market, over the prior day's high",
-    "Market, back under the prior close",
-    "A limit order at the day's high",
-    "Market, at the open into the gap up"
+    "Market under 76.46, stop over 81.50",
+    "Market at the open, stop over 81.50",
+    "Limit at 81.50, stop over the high",
+    "Market over 81.50, stop under 76.46"
    ],
-   "answer": "Market, back under the prior close",
-   "why": "Market order as it trades back under the prior close. That's green to red, the moment the good news actually fails. Shorting the open bets against the news before it's failed. The market hasn't shown you anything yet. A limit at the high waits for a price that may never come back. Your stop goes a few cents over the news day's high. And shorting is only for traders who've already made $1 million.",
+   "answer": "Market under 76.46, stop over 81.50",
+   "why": "Market order as it trades back under 76.46, the prior close, with the stop a few cents over 81.50. That's green to red, the moment the good news actually fails. Shorting the open bets against the news before it's failed. A limit up at 81.50 waits for a price that may never come back. Over the news day's high, the good news won after all, so that's your stop. Now measure it. From 76.46 that's past 5%, so I'd mostly wait for a tighter spot. And shorting is only for traders who've already made $1 million.",
    "lesson_line": "Short it green to red, through the prior close. Never into the open gap.",
    "facts": [
     "n7",
     "hE57",
     "r01",
     "r02",
-    "n10"
+    "n10",
+    "hA3",
+    "r04"
    ],
    "wrong": {
-    "Market, over the prior day's high": "That's a breakout trigger for a long. The short's trigger is the prior close.",
-    "A limit order at the day's high": "We use market orders when the trigger trades. A limit at the high may never fill.",
-    "Market, at the open into the gap up": "That shorts the good news before it's failed. Wait for the trade back under the prior close."
+    "Market at the open, stop over 81.50": "That shorts the good news before it's failed. Wait for the trade back under 76.46.",
+    "Limit at 81.50, stop over the high": "We use market orders when the trigger trades. A limit up at the high may never fill.",
+    "Market over 81.50, stop under 76.46": "That's a long breakout, the other side. The short triggers back under 76.46."
    },
    "house": true,
-   "simple": "Market order as it trades back under the prior close. That's the moment the good news fails.",
+   "simple": "Short at market as it trades back under the prior close. The stop goes a few cents over the news day's high.",
    "deeper": {
     "trap": "Shorting the open into good news bets against it before it has failed. The market has shown you nothing yet. Wait for the failure itself: price trading back under the prior close, green to red. Until then there's no trade."
    },
@@ -1277,8 +1298,8 @@
      "the short entry is a proposed card line; traded shorts wait on D-001"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "Good news gapped this stock up at the open. Then it sold off all day.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "Good news gapped this stock up at the open, off a 76.46 close. The day's high is 81.50. Then it sold off all day, down to 71.00.",
    "chart": {
     "sym": "OKLO",
     "asof": "2026-04-24",
@@ -2655,7 +2676,7 @@
     "Over the news day's high"
    ],
    "answer": "Back over the prior close",
-   "why": "Back over the prior close, with a market order as it crosses. That's red to green on the news day, the moment the bad news fails. This is SEDG, and it crossed at 31.83. The stop went a few cents under the news day's low, at 30.23, a 5.0% stop. That's right at the most I'll take. It hit 3R the next day. Wait for tomorrow and you're buying something up 28.9%, way past 4% over the trigger. That's a chase.",
+   "why": "Back over the prior close, with a market order as it crosses. That's red to green on the news day, the moment the bad news fails. This is SEDG, and it crossed at 31.83. The stop went a few cents under the news day's low, at 30.23, a 5.0% stop. That's right at the most I'll take. And look where it closed: back over its 50-day. That's buyers meaning it. It hit 3R the next day. Wait for tomorrow and you're buying something up 28.9%, way past 4% over the trigger. That's a chase.",
    "lesson_line": "The buy is the trade back over the prior close, on the news day.",
    "facts": [
     "dSEDGb",
@@ -2673,7 +2694,7 @@
     "Over the news day's high": "The trigger is the prior close. By the high it's way more than 4% past it."
    },
    "house": true,
-   "story": "Earnings gap this stock down 4.1%, right into the 50-day. Buyers step in, and by the close it's up 28.9% on the day.",
+   "story": "Earnings gap this stock down 4.1%, well under its 50-day. Buyers step in, and by the close it's up 28.9% on the day, back over the 50-day.",
    "simple": "Buy at market as it trades back over the prior close. That's the moment the bad news fails.",
    "deeper": {
     "example": "SEDG's scan trade: a buy at 31.83 as it crossed the prior close. The stop sat at 30.23, under the news day's low, a 5.0% stop. It reached 3R the next day and 10.5R at best."
@@ -2689,7 +2710,7 @@
    "depends_on": [
     "D-087"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "SEDG",
     "asof": "2025-11-05",
@@ -2844,7 +2865,7 @@
     "The setup just doesn't work"
    ],
    "answer": "A thin idea, no crowd behind it",
-   "why": "A thin idea. MRVL had only pulled back 7% before the news. Nobody was trapped short and nobody had given up on it, so there was no crowd to squeeze. The shape looked great, and that's the trap. The stop did its job. Holding through it would've been the real mistake. One more thing: an 8% stop is past the 5% I'll take. I'd have passed on that alone.",
+   "why": "A thin idea. MRVL had only pulled back 7% before the news. And look at the chart. It had just run straight up, way over its 50-day. Nobody was trapped short and nobody had given up on it, so there was no crowd to squeeze. The shape looked great, and that's the trap. The stop did its job. Holding through it would've been the real mistake. One more thing: an 8% stop is past the 5% I'll take. I'd have passed on that alone.",
    "lesson_line": "A perfect shape with no crowd behind it is a thin idea.",
    "facts": [
     "dMRVL",
@@ -2854,7 +2875,8 @@
     "n20",
     "n10",
     "dBase2",
-    "r03"
+    "r03",
+    "r21"
    ],
    "wrong": {
     "You should have held through": "The stop is the exit. Holding through it turns a planned loss into a big one.",
@@ -2878,7 +2900,7 @@
    "depends_on": [
     "D-088"
    ],
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "MRVL",
     "asof": "2026-06-04",
@@ -3751,8 +3773,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Stem \"What did this stock do that makes it a News Failure long?\" named the answer in the question (leading). Why said \"Everyone who sold that gap is now stuck\": sellers who sold are out; it is the shorts who are trapped. Fixed both."
+   "fixed": false,
+   "notes": "News-day shape matches (gap down, outside day closing at 94%). Voice 4."
   },
   "q02": {
    "status": "pass",
@@ -3770,7 +3792,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop under the news day low per n10/F62; 5% line per r04. Good mentor tone."
+   "notes": "Stop question; under the 50 doesn't bear on it. Voice 4."
   },
   "q05": {
    "status": "pass",
@@ -3788,7 +3810,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Short read; $1M line per D-001. Wrong notes name the lookalikes."
+   "notes": "Short-side naming; closed at the low under the 200. Voice 4."
   },
   "q08": {
    "status": "pass",
@@ -3800,7 +3822,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Short entry green to red through prior close, market order (n7, E57), stop over the high. Correct."
+   "notes": "The writer's rule-34 rebuild is right: prior close 76.46 confirmed, high 81.50, close 71.00, under the 200; the past-5% stop is said. Voice 4."
   },
   "q10": {
    "status": "pass",
@@ -3842,7 +3864,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 4.88/86.36 = 5.65 -> 5.7%; 4.88/81.48 = 5.99 -> 6.0; distractors are real mistakes. 5% line and 1-3% per r03/r04."
+   "notes": "5.7% checks; stop under the 81.51 low. Voice 4."
   },
   "q17": {
    "status": "pass",
@@ -3944,7 +3966,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "UNH 2026-10-13: +5.0% gap on 2.7x and close 377.76 vs 200-day 358.04 all match the dossier near-miss row. Shorts only below the 200-day; above it the read is for selling longs. Correct."
+   "notes": "Over the 200, answer already no. Voice 4."
   },
   "q34": {
    "status": "cut",
@@ -3980,7 +4002,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ZS -4.3% gap, 6.5x, +1.0%, top 2% (dZS). Any close over the prior close counts. Correct."
+   "notes": "Top-2% close in an uptrend matches. Voice 4."
   },
   "q40": {
    "status": "pass",
@@ -3992,13 +4014,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "HIMS 8.9% stop past 5%: mostly wait for a tighter trigger (r03/r04/r05). Model mentor answer."
+   "notes": "Answer already a wait. Voice 4."
   },
   "q42": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 3.71 x 3 = 11.13; /41.89 = 26.57 -> 26.6; /38.18 = 29.15 -> 29.2; 4R 14.84/41.89 = 35.4; 1R 8.9. Framed as the scan buy, so the member is not put in a past-5% trade. 33.4% from dBase."
+   "notes": "3R distance math. Voice 4."
   },
   "q43": {
    "status": "cut",
@@ -4010,7 +4032,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: adding to a loser. Voice 4."
+   "notes": "Stop-out read. Voice 4."
   },
   "q45": {
    "status": "cut",
@@ -4028,7 +4050,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SEDG 31.83 / 30.23 = 5.0%, 3R next day (dSEDGb). Buy in the day as it crosses, never at the close (D-003). Correct."
+   "notes": "The writer's fix confirmed: opened 14.6% under the 50-day, closed 14.8% over it. Voice 4."
   },
   "q48": {
    "status": "cut",
@@ -4039,26 +4061,26 @@
   "q49": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Wrong note \"Without crowding it's not a full A+\" stated the card's grading cue as our rule (crowding is still pending). Reworded as the read, not a grade rule."
+   "fixed": false,
+   "notes": "'Above all its averages' matches. Voice 4."
   },
   "q50": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "SKIN close at the low, under the 200-day (dSKINw); 5.2% stop called a touch past 5%. $1M line present."
+   "notes": "Close at the low under the 200 matches. Voice 4."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MRVL 7% pullback, 8% stop hit day 1 (dMRVL, dMRVLb). Two losses per 3R winner (dBase2). Strong."
+   "notes": "The writer's note is right (95% over the 50); it is also 26% over its 9 EMA, which 'ran straight up' covers. Voice 4."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "ZTS 0.9R then through the high (dZTS). Entry 151.80 / stop 160.08 from the chart trade. Correct."
+   "notes": "Short under the 200. Voice 4."
   },
   "q53": {
    "status": "cut",
@@ -4070,13 +4092,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "UAL Green market, +6.2% / 2.2x / -1.9% (dUALg). Correct."
+   "notes": "Market-reading review. Voice 4."
   },
   "q55": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Same April 8 cluster as q10 from the scenario side; 56 names, AMAT and DAL stopped. Fine as a second shape."
+   "notes": "Cluster read. Voice 4."
   },
   "q56": {
    "status": "pass",
@@ -4087,14 +4109,14 @@
   "q57": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Choice \"No, the close stayed under it\" had no clear antecedent (rule 5), and \"was there a valid long\" clashed with the why's \"I'd mostly have waited\" on a 5.7% stop. Stem now asks whether the long triggered; choices name the prior close."
+   "fixed": false,
+   "notes": "Trigger timing read right. Voice 4."
   },
   "q58": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TSLA 282.76 under 288.05 (dTSLAn). Hard no for stocks. Correct."
+   "notes": "Under the 200, answer already a pass. Voice 4."
   },
   "q59": {
    "status": "pass",
@@ -4112,7 +4134,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Short stop over the high (n10). False correct."
+   "notes": "Short stop side. Voice 4."
   },
   "q62": {
    "status": "cut",
@@ -4160,13 +4182,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop to breakeven at the first sell past 2R (n23). Not stated as fixed at 2R. Correct."
+   "notes": "Breakeven move. Voice 4."
   },
   "q67": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 9.35 x 5 = 46.75; 238.67; 229.32 = stop + 5R; 219.97 = 3R; 201.27 = 1R. Mark, not a sell order."
+   "notes": "5R math; stop under the 182.60 low. Voice 4."
   },
   "q68": {
    "status": "pass",

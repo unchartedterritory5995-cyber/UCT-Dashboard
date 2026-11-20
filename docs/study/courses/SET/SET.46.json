@@ -911,7 +911,13 @@
     "h22",
     "c15",
     "h05"
-   ]
+   ],
+   "chart": {
+    "sym": "EPC",
+    "asof": "2006-12-28",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -950,7 +956,13 @@
     "c15",
     "h05",
     "h20"
-   ]
+   ],
+   "chart": {
+    "sym": "MAS",
+    "asof": "2024-07-15",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1473,12 +1485,13 @@
     "A breakout over a flat level"
    ],
    "answer": "An anchored VWAP reclaim",
-   "why": "An AVWAP reclaim. A line that starts on one named day and moves with price and volume is an anchored VWAP. A moving average has no anchor, and a flat level doesn't move. MAS sat under this one for 70 closes after its March high, then closed back over in July 2024. That's the picture you want: weeks under, the line going flat, then a clean close back over it.",
+   "why": "An AVWAP reclaim. A line that starts on one named day and moves with price and volume is an anchored VWAP. A moving average has no anchor, and a flat level doesn't move. Anchor a VWAP to the March high on your own chart and you'll find it right around $70. MAS sat under it for 70 closes, then closed back over in July 2024. That's the picture you want: weeks under, the line going flat, then a clean close back over it.",
    "lesson_line": "Name the line first. An anchor day and volume make it an AVWAP.",
    "facts": [
     "c23",
     "c08",
-    "d05"
+    "d05",
+    "d06"
    ],
    "wrong": {
     "A Remount of a moving average": "A moving average has no anchor day. This line starts on the March high.",
@@ -1497,8 +1510,8 @@
    "depends_on": [
     "D-082"
    ],
-   "batch": "voice-8-2026-11-17",
-   "story": "The reclaim day, after weeks of closes under that line.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "The reclaim day. That line has gone flat right around $70, after weeks of closes under it.",
    "chart": {
     "sym": "MAS",
     "asof": "2024-07-12",
@@ -1539,7 +1552,7 @@
    "criterion": "av.trim_1",
    "q": "You bought the reclaim at 17.70 with the stop at 17.50. Where's 3R?",
    "answer": "$18.30",
-   "why": "18.30. Your R is the fill minus the stop: 17.70 minus 17.50 is 0.20. Three of those is 0.60. Add that to the fill and 3R sits at 18.30. Know that number before the open. It's a mark, not an order to sell. Our first sell is a judgment, often into a 3, 5 or 7 day push. NOW hit 3R in five sessions in April 2017 and kept going.",
+   "why": "18.30. Your R is the fill minus the stop: 17.70 minus 17.50 is 0.20. Three of those is 0.60. Add that to the fill and 3R sits at 18.30. Know that number before the open. It's a mark, not an order to sell. Our first sell is a judgment, often into a 3, 5 or 7 day push.",
    "lesson_line": "Know where 3R sits before the open. It's a mark, not a sell order.",
    "facts": [
     "r10",
@@ -2306,7 +2319,7 @@
     "Proved the setup was bad"
    ],
    "answer": "Its job, a planned 1R loss",
-   "why": "Its job. Everything on that chart was right: a big fall, 47 closes under the line, the line flat. The reclaim just failed, and the stop said so. 262.81 to 255.97 is a 2.6% stop, and you lost 1R. Weeks later AMZN's low was 12.7% under your buy. Holding would have cost about five times as much. Good setups fail too. That's what the stop is for.",
+   "why": "Its job. Everything going in was right: a big fall, 47 closes under the line, the line flat. Look at the last bar, though. It closed down near its low, under your fill. That's a warning, not a sell. The stop decides, and on day 2 it said the reclaim failed. 262.81 to 255.97 is a 2.6% stop, and you lost 1R. Weeks later AMZN's low was 12.7% under your buy. Holding would have cost about five times as much. Good setups fail too. That's what the stop is for.",
    "lesson_line": "A loss taken at plan is the system working.",
    "facts": [
     "d10",
@@ -2675,7 +2688,7 @@
     "No, it must fall 10% first"
    ],
    "answer": "No, that's a dip, not a real fall",
-   "why": "No. A one-month high isn't the kind of high the whole market remembers. The pullback off it was a dip, not a real fall. Not enough people got trapped up there. We want a big high everyone saw and a real drop off it. Then a reclaim means those buyers are finally winning again. ADC did run after this one. Fine. Passing on a so-so picture that works isn't a mistake.",
+   "why": "No. The candle's fine, a hammer that closed right at its high. The problem is the high behind it. A one-month high isn't the kind of high the whole market remembers. The pullback off it was a dip, not a real fall. Not enough people got trapped up there. We want a big high everyone saw and a real drop off it. Then a reclaim means those buyers are finally winning again. ADC did run after this one. Fine. Passing on a so-so picture that works isn't a mistake.",
    "lesson_line": "Anchor to a high that mattered, and a fall that trapped people.",
    "facts": [
     "d18",
@@ -2699,7 +2712,7 @@
      "rests on a proposed card line, av.real_fall (+2)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "ADC",
     "asof": "2019-01-08",
@@ -3417,29 +3430,31 @@
    "format": "scenario",
    "criterion": "av.stop",
    "q": "It's the reclaim day. Write tomorrow's plan: how do you get in, and where's the stop?",
-   "story": "Above a rising 200-day, it closed back over its AVWAP after weeks under a flat line. Tomorrow it may trade over today's high.",
+   "story": "Above a rising 200-day, it closed back over its AVWAP after weeks under a flat line. Today's high is 17.68 and the low is 17.53.",
    "choices": [
-    "Market over high, stop under low",
-    "Market over high, stop on the low",
-    "Market at close, stop at the line",
-    "Limit under high, stop under low"
+    "Market through 17.68, stop under 17.53",
+    "Market through 17.68, stop at 17.53",
+    "At the close, stop at the AVWAP",
+    "Limit at 17.60, stop under 17.53"
    ],
-   "answer": "Market over high, stop under low",
-   "why": "Buy at market as it trades over today's high, with the stop a few cents under today's low. We use market orders, so you're in when it goes, not waiting on a fill that never comes. The stop goes under the low, not on it. Write both down tonight and set the alert. The size follows from the stop. Your first sell is a judgment for later, not part of this order.",
+   "answer": "Market through 17.68, stop under 17.53",
+   "why": "Buy at market as it trades through 17.68, today's high, with the stop a few cents under the 17.53 low. NOW did exactly that the next morning: in at 17.70, stop 17.50. That's a 1.1% stop, nice and tight. Market orders put you in when it goes, not waiting on a fill that never comes. Write both down tonight and set the alert. The size follows from the stop.",
    "lesson_line": "Entry and stop first. Write them down before the open.",
    "facts": [
     "h22",
     "h24",
     "c15",
-    "r14"
+    "r14",
+    "d03",
+    "d04"
    ],
    "wrong": {
-    "Market over high, stop on the low": "A few cents under the low, not right on it.",
-    "Market at close, stop at the line": "We buy as it trades through the trigger, never at the close. And the line isn't the stop.",
-    "Limit under high, stop under low": "We use market orders. A limit under the high may never fill."
+    "Market through 17.68, stop at 17.53": "A few cents under the low, not right on it. A tag of the exact low shouldn't take you out.",
+    "At the close, stop at the AVWAP": "We buy as it trades through the trigger, never at the close. And the line isn't the stop.",
+    "Limit at 17.60, stop under 17.53": "We use market orders through the trigger. A limit down there buys before it's proven, or never fills."
    },
    "house": true,
-   "simple": "Buy at market over today's high, and put the stop a few cents under today's low.",
+   "simple": "Buy at market as it trades through today's high, with the stop a few cents under today's low.",
    "deeper": {
     "trap": "The near-miss is a stop right on the low. Ours goes a few cents under it. The other trap is a limit under the trigger, which may never fill."
    },
@@ -3451,7 +3466,7 @@
      "fixed before (cold check)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "NOW",
     "asof": "2017-04-19",
@@ -3629,13 +3644,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MAS facts check (70 closes, March 2024 high, July reclaim, d05)."
+   "notes": "writer's edit good: the chart draws no AVWAP, so the story gives the level in dollars, right around $70, and says how to pull it up"
   },
   "q28": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "writer voice 4. Truth: 248 x 120.84 is about 30% of the account, so 'nowhere near' the 40% cap overstated it. Now 'stays under it'."
+   "fixed": false,
+   "notes": "sizing calc"
   },
   "q29": {
    "status": "cut",
@@ -3652,8 +3667,8 @@
   "q36": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "262.81 to 255.97 = 2.6%; 12.7% / 2.6% about 5x (d11, d12). Good review tone."
+   "fixed": true,
+   "notes": "the chart ends on AMZN's buy day, and that bar closed red near its low (6% of range), under the 262.81 fill; the why said 'everything on that chart was right'. Now reads the weak close as a warning, not a sell, with the stop as the exit"
   },
   "q43": {
    "status": "cut",
@@ -3664,14 +3679,14 @@
   "q44": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "writer voice 4. Stem nudged the answer ('but look at the line'). Now it states the screen plainly and asks."
+   "fixed": false,
+   "notes": "falling line given in the text"
   },
   "q45": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "writer voice 4. Stem gave the answer away ('a modest pullback'). Now it states the screen; the chart shows the shallow dip."
+   "fixed": false,
+   "notes": "writer's edit good: the hammer closing at its high is named, the anchor high is the problem"
   },
   "q55": {
    "status": "cut",
@@ -3683,13 +3698,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Trail on the 9/20 EMA close; O 2020 from c29."
+   "notes": "trailing question"
   },
   "q57": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.68 risk, 3.40 gain, 5.0R. Wrongs recomputed: 3.4R, 1.7R, 0.8R (3.40/4.08) right."
+   "notes": "R calc"
   },
   "q63": {
    "status": "cut",
@@ -3701,7 +3716,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market order through today's high, stop a few cents under the low (E57, F62, D-003)."
+   "notes": "writer's rule-34/35 rebuild good: trade through 17.68, stop under 17.53, real levels from the reclaim day's bar"
   },
   "q67": {
    "status": "cut",
@@ -3713,7 +3728,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "17.70-17.50=0.20, x3=0.60, 18.30. Wrongs recomputed: 18.10, 17.90, 18.50 all right. 3R framed as a mark, not a sell (D-013)."
+   "notes": "3R calc; DOUBT: on these bars the buy-day low 17.49 sits one cent under the 17.50 stop (writer noted it); kept, the dossier has the trade working"
   },
   "q25": {
    "status": "cut",
@@ -3731,7 +3746,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Stop 22.68, 0.25 a share, 1.09%. Wrongs recomputed: 2.27% (30c), 14.04% ($3), 25.00% (no divide) all right."
+   "notes": "stop-percent calc"
   },
   "q30": {
    "status": "pass",
@@ -3767,7 +3782,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "CDW two sessions before the reaction day; 5R hold vs new buy explained."
+   "notes": "earnings window question"
   },
   "q60": {
    "status": "pass",
@@ -3796,8 +3811,8 @@
   "q58": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "writer voice 3. Garbled sentence ('MAS bought at 71.15 with a stop at 69.53 hit 3R') and a second unnamed source line stacked on Shannon. Cleaned up."
+   "fixed": false,
+   "notes": "50-day about 3% under price, right at the line near 70"
   },
   "q61": {
    "status": "pass",
@@ -3821,19 +3836,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Reads the 200-day on the reclaim-day close; rising 200 called a plus, not a must."
+   "notes": "close back over the 200, as said"
   },
   "q46": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "0.23 ATR from d21/d22 as the situation, no 0.3 band. CAG 2.7R right."
+   "notes": "barely over the line, given in the text"
   },
   "q47": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AGCO 0.91 ATR open, 3.1R (d24). No 0.5 cutoff."
+   "notes": "gap over the line, given in the text"
   },
   "q50": {
    "status": "pass",
@@ -3995,7 +4010,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "LIN facts check (d15, d16); 3 a week / 6 a month (E56)."
+   "notes": "re-entry question; the shooting-star buy day isn't the point here"
   },
   "q39": {
    "status": "pass",
@@ -4013,7 +4028,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "4.1% under 5%, keep the stop, fewer shares (D-005). Matches the VOICE.md model."
+   "notes": "stop-width question reads right"
   },
   "q49": {
    "status": "pass",

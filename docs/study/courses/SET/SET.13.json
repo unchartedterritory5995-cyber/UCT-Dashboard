@@ -1156,7 +1156,7 @@
    "title": "SRPT, June 2015: the textbook pole and flag",
    "steps": [
     "SRPT reported in May 2015, then had a 60% day. That topped a near-vertical run, up 129% in 14 sessions.",
-    "Then a 14-day sideways flag, 15.0% deep, on lighter volume, riding its rising averages. The pattern high is the line.",
+    "Then a 14-day sideways flag, 15.0% deep, on lighter volume, riding its rising averages. The top of that flag is the trigger.",
     "June 10 it trades through that high. Buy at market, 27.50. Stop just under the day's low, 26.59.",
     "A breakout nobody buys gets stopped the next session. This one: 3R on day 5. Sell into a push, trail the rest."
    ],
@@ -1170,7 +1170,13 @@
     "c21",
     "h05",
     "h21"
-   ]
+   ],
+   "chart": {
+    "sym": "SRPT",
+    "asof": "2015-06-10",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1190,14 +1196,20 @@
     "h24",
     "h04",
     "c27"
-   ]
+   ],
+   "chart": {
+    "sym": "SOFI",
+    "asof": "2024-11-20",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
    "title": "BIDU, February 2021: the push, then the trail",
    "steps": [
     "BIDU, a big-cap, doubled in 36 sessions in early 2021. Then a 12-day flag, 13.2% deep, on lighter volume.",
-    "February 5 it clears the high. Buy at market, 264.95. Stop just under the day's low, 255.06.",
+    "February 5 it clears the high. Buy at market, 264.95. Stop just under the low of the last two days, 255.06.",
     "3R on day 2, and you hold. It runs to about 354 in three weeks. That's a push to sell into.",
     "Then it unwinds as fast as it rose, under the flag low by late March. The 9 EMA trail gets you out."
    ],
@@ -1210,7 +1222,13 @@
     "h20",
     "h21",
     "b15"
-   ]
+   ],
+   "chart": {
+    "sym": "BIDU",
+    "asof": "2021-02-05",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -3353,7 +3371,7 @@
    "format": "scenario",
    "criterion": "htf.no_chase",
    "q": "Next morning it takes your stop. Was buying the gap a mistake?",
-   "story": "A high tight flag that checks every box gaps open at 125.50, over the 121.91 buy point, on 1.47x volume. You're filled, stop 120.92. It closes at 121.75, the low of its day.",
+   "story": "A high tight flag that checks every box gaps open at 125.50, over the 121.91 buy point, on 1.47x volume. You're filled, stop 120.92. It closes at 121.75, near the low of its day.",
    "choices": [
     "No, a planned loss at the stop",
     "Yes, skip gaps next time",
@@ -3361,7 +3379,7 @@
     "Yes, volume was too quiet"
    ],
    "answer": "No, a planned loss at the stop",
-   "why": "No. A gap over the buy point that stays inside 4% gets bought at the open, and 125.50 was inside that line. The stop is the exit, and you sized the trade so a stop-out costs only what you planned. FSLR in August 2022 traded down to 118.13 the next session and took the stop. Closing at the low of the day was a weak sign. The buy was still right. A loss at the stop is the system working.",
+   "why": "No. A gap over the buy point that stays inside 4% gets bought at the open, and 125.50 was inside that line. The stop is the exit, and you sized the trade so a stop-out costs only what you planned. FSLR in August 2022 traded down to 118.13 the next session and took the stop. Closing near the low of the day was a weak sign. The buy was still right. A loss at the stop is the system working.",
    "lesson_line": "A loss at the stop is the cost of being there for the ones that work.",
    "facts": [
     "d11",
@@ -3473,7 +3491,7 @@
     "The pole was too small"
    ],
    "answer": "A valid flag simply failed",
-   "why": "A valid flag that simply failed. Everything checked out. The pole more than doubled and the flag was tight. MDB in June 2023 got to 1.66R, stalled, and hit the stop on day 7. Many of these fail. That's why the stop and the size do the real work. You sized from the stop, so the loss was the risk you picked. Take it, log it, and go find the next one.",
+   "why": "A valid flag that simply failed. The pole more than doubled and the flag was tight. Be honest about the buy day, though. It closed back under your fill, well off the high, with a long upper wick. That's a warning, not a broken setup. MDB in June 2023 got to 1.66R, stalled, and hit the stop on day 7. Many of these fail. That's why the stop and the size do the real work. You sized from the stop, so the loss was the risk you picked.",
    "lesson_line": "Not every good setup works. The stop is what makes that fine.",
    "facts": [
     "d13",
@@ -3993,7 +4011,7 @@
     "Pass, the flag is far too deep"
    ],
    "answer": "Take it, the pole doubled",
-   "why": "Take it. SRPT ran 129% in 14 sessions, a real double in about three weeks. Then it rested 14 days, sideways, 15.0% off the high. Volume in the rest dried up to 0.66x the pole's, so the holders weren't selling. The run, the rest and the volume all line up. Buy it as it trades through the high, with the stop a few cents under the low of the day.",
+   "why": "Take it. SRPT ran 129% in 14 sessions, a real double in about three weeks. Then it rested 14 days, sideways, 15.0% off the high. Volume in the rest dried up to 0.66x the pole's, so the holders weren't selling. Yes, it's a long way over its moving averages. After a double, that's what a high tight flag looks like. Now look at the last candle. An inside day, closing near its high, right under the high of the flag. That's a good look the day before a buy day. Buy it as it trades through the high, stop a few cents under the low of the day.",
    "lesson_line": "Count the pole first. A real double, then a quiet shelf, that's the setup.",
    "facts": [
     "d01",
@@ -4027,7 +4045,7 @@
      "+2 the figures are read off our own daily bars and can change"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "story": "The day before the breakout. Look at the run before this rest, how the rest sits under the high, and the volume."
   },
   {
@@ -4573,22 +4591,22 @@
    "rung": 4,
    "format": "scenario",
    "criterion": "htf.market_order",
-   "q": "What do you do?",
-   "story": "The day before the breakout. Next morning, in regular hours, your alert fires: it's trading through the pattern high. The flag checks out.",
+   "q": "The flag checks out. What do you do?",
+   "story": "The day before the breakout. The flag's high is 94.92, and today is a quiet inside day a few points under it. Next morning, in regular hours, it trades through 94.92.",
    "choices": [
-    "Buy at market, stop in at once",
-    "Wait for a close over the high",
-    "Bid under the high for a dip",
-    "Buy now, set the stop after close"
+    "Buy at market, stop under the day's low",
+    "Wait for a close over 94.92",
+    "Bid under 94.92 for a dip",
+    "Buy now, set the stop after the close"
    ],
-   "answer": "Buy at market, stop in at once",
-   "why": "Buy at market right now, and put the real stop in at once. The trigger is the buy. We buy as price trades through the high, during the day, never at the close. A limit order can miss a fast breakout. Wait for the close and you pay more, with the stop sitting farther away, which means fewer shares. Set the alert at the high the night before, so you're ready when it goes.",
+   "answer": "Buy at market, stop under the day's low",
+   "why": "Buy at market as it goes through 94.92. Put the real stop in at once, a few cents under the low of the day. That's the spot you trade against. Today's inside day helps. A quiet day inside yesterday's range, near the high, is a good look before a buy day. We buy as price trades through, during the day, never at the close. Wait for the close and you pay more, with the stop farther away, so fewer shares. A bid under the high may never fill. Set the alert at 94.92 the night before.",
    "lesson_line": "Buy as it trades through the top. The stop goes in with the buy.",
-   "simple": "Buy at market as it trades through the high, stop in at once. Waiting costs you a worse price.",
+   "simple": "Buy at market as it trades through the flag's high, and put the stop in at once, under the day's low.",
    "wrong": {
-    "Buy now, set the stop after close": "The stop goes in with the buy. Until it's in, the position has no exit.",
-    "Wait for a close over the high": "We buy through the trigger during the day, never at the close.",
-    "Bid under the high for a dip": "A bid under the trigger may never fill. It's already going."
+    "Wait for a close over 94.92": "We buy through the trigger during the day, never at the close. By then you've paid up.",
+    "Bid under 94.92 for a dip": "A bid under the trigger may never fill. It's already going.",
+    "Buy now, set the stop after the close": "The stop goes in with the buy. Until it's in, the position has no exit."
    },
    "facts": [
     "c05",
@@ -4599,7 +4617,7 @@
    ],
    "house": true,
    "tier": "core",
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "CRNC",
     "asof": "2020-12-15",
@@ -4768,8 +4786,8 @@
   "q01": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "'the strongest kind of flag there is' is not in any fact; cut it. IOVA +129% in 27 sessions (dossier) supports 'more than doubled in about five weeks'."
+   "fixed": false,
+   "notes": "High tight flag ID; the extension is the nature of the pattern, and q65 says it. Voice 4."
   },
   "q02": {
    "status": "cut",
@@ -4787,7 +4805,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "MRNA 7-day rest, 0.33x the pole's match d25; raises the grade, not a must (D-006). Volume dries up used."
+   "notes": "Volume statement matches. Voice 4."
   },
   "q05": {
    "status": "pass",
@@ -4799,7 +4817,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Pause sits 0.7% under the high. Voice 4."
   },
   "q07": {
    "status": "pass",
@@ -4823,7 +4841,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "What tight means; the chart doesn't contradict it. Voice 4."
   },
   "q11": {
    "status": "pass",
@@ -4889,7 +4907,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Cause-of-run question; price is over the 200, and the 50 under it doesn't bear on the cause. Voice 4."
   },
   "q22": {
    "status": "pass",
@@ -4913,19 +4931,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "(14.65-14.24)/14.65 = 2.80%; distractors 28.0, 0.4 (0.41 read as %), 97.2 (14.24/14.65) all check."
+   "notes": "Stop 14.24 under the 14.29 low; 2.8% checks. Voice 4."
   },
   "q26": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Risk 9.89, gain 49.45 = 5.0R; hold-through-report only at 5R (h08). Strong reason (gap past the stop)."
+   "notes": "5R earnings math checks. Voice 4."
   },
   "q27": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "500/4.87 = 102.7, rounded down 102; 300 = 40% cap (40,000/132.97 = 300.8). All check."
+   "notes": "Entry inside the day, stop 128.10 under 128.29; 102 shares checks. Voice 4."
   },
   "q28": {
    "status": "pass",
@@ -5063,31 +5081,31 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Agrees: adding to a loser. Voice 4."
+   "notes": "Shooting-star breakout on 0.1x volume matches 'a tenth of normal'. Voice 4."
   },
   "q51": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "125.50 is 2.9% over 121.91, inside 4%; FSLR low 118.13 and 1.47x match d11/d12."
+   "fixed": true,
+   "notes": "Story and why said it closed at 121.75, 'the low of its day'. The low was 120.97; it closed near the low (15% of the range). Now 'near the low'. Next-day low 118.13 confirmed. Voice 4."
   },
   "q52": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Breakeven sentence read 'allowed anywhere from 2R to 5R, ideally' (garbled and drops 'or at the first sell'). Ruling: 2R to 5R, or at the first sell, as judgment. Fixed in why and deeper."
+   "fixed": false,
+   "notes": "Stop under the 168.91 low; the review reads right. Voice 4."
   },
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "fixed": true,
+   "notes": "The why said 'Everything checked out', but the buy day on the chart is a long upper wick (60%) closing at 40% of its range, back under the 398.90 fill (398.02). A trader sees that. Now said as a warning, and why it's still a valid flag that failed. Voice 4."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Volume read right; the weak doji before the trigger fits 'never got going'. Voice 4."
   },
   "q55": {
    "status": "cut",
@@ -5123,7 +5141,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Trail question. Voice 4."
   },
   "q61": {
    "status": "cut",
@@ -5153,7 +5171,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "The writer's honest note (55.7% over the 50, the nature of the pattern) and the inside day at 93% are read right. Voice 4."
   },
   "q66": {
    "status": "cut",
@@ -5225,7 +5243,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "94.93-91.15 = 3.78; 3.78/94.93 = 0.04; 94.93+3.78 = 98.71. Checks."
+   "notes": "1R math; stop 91.15 under the 91.20 low. Voice 4."
   },
   "q78": {
    "status": "cut",
@@ -5237,19 +5255,19 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Breakeven 2R to 5R or at the first sell, as a choice (h05). Names the cost of moving it too. Good mentor judgment."
+   "notes": "Breakeven window. Voice 4."
   },
   "q80": {
    "status": "pass",
    "by": "checker",
-   "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "fixed": true,
+   "notes": "The writer's rule-34 rebuild is right, but the story and why put today's inside day 'right under' 94.92. It closed 91.02, about 4% under. Now 'a few points under' and 'near the high'; the 25-word first sentence is split. Inside day confirmed against the prior bar (92.13/88.81 inside 93.75/87.77). Voice 4."
   },
   "q81": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Voice and truth checked: stem gives the situation and is not leading, answer right, wrong choices named mistakes, numbers match the cited facts, no working words, no misstated rulings."
+   "notes": "Run read right. Voice 4."
   },
   "q82": {
    "status": "pass",

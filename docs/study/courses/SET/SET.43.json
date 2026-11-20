@@ -1054,7 +1054,13 @@
     "fm",
     "hE57",
     "hE52"
-   ]
+   ],
+   "chart": {
+    "sym": "YELP",
+    "asof": "2013-06-26",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w2",
@@ -1062,8 +1068,8 @@
    "steps": [
     "Mega caps do it too, just slower. CAT, September 2025: after a 4-month run, its first pullback to the rising 50-day.",
     "Six days down on quiet volume, 5.7% off the high. A tight hold right on the line.",
-    "September 3 it trades over the hold day's high. Buy at market, 418.13. Stop a few cents under the low, 410.47.",
-    "A 1.8% stop, right where we like it. If the line gives way, you're out. Instead, a two-week grind to 3R."
+    "September 3 it opens over the hold day's high. Buy at market, 418.13. Stop under the hold day's low, 410.47.",
+    "That's a 1.8% stop. It closes under your buy that day, a warning. The line holds: 3R in two weeks."
    ],
    "facts": [
     "dCAT",
@@ -1074,7 +1080,13 @@
     "hF62",
     "fm",
     "hE57"
-   ]
+   ],
+   "chart": {
+    "sym": "CAT",
+    "asof": "2025-09-03",
+    "window": 120,
+    "forward": 0
+   }
   },
   {
    "key": "w3",
@@ -1094,7 +1106,13 @@
     "fm",
     "hE57",
     "hE52"
-   ]
+   ],
+   "chart": {
+    "sym": "MOH",
+    "asof": "2018-06-08",
+    "window": 120,
+    "forward": 0
+   }
   }
  ],
  "questions": [
@@ -1236,8 +1254,8 @@
      "the buy trigger itself is held as D-003 and is not graded"
     ]
    },
-   "batch": "voice-8-2026-11-17",
-   "story": "This is the day before. The pullback held its line, and the hold day just closed. Tomorrow price may trade over its high.",
+   "batch": "chart-reads-2026-11-18",
+   "story": "This is the day before. The pullback held its line, and the hold day just closed. Tomorrow price may trade over its 249.05 high.",
    "chart": {
     "sym": "WING",
     "asof": "2024-01-08",
@@ -3052,7 +3070,7 @@
     "No, any touch of the line works"
    ],
    "answer": "No, shallow and quiet is strength",
-   "why": "No. A shallow dip in a strong stock is strength. Six days sideways, volume the lightest on the chart, and it barely gave anything back. Sellers just aren't there. 1.01 ATR is about one normal day's range, so it's shallow, but the rest is clean. This one triggered and hit 3R in one session. That's what tight looks like.",
+   "why": "No. A shallow dip in a strong stock is strength. Six days sideways, volume the lightest on the chart, and it barely gave anything back. Sellers just aren't there. Look at the last candle too, a doji sitting right on the line. That's a tight hold. 1.01 ATR is about one normal day's range, so it's shallow, but the rest is clean. This one triggered and hit 3R in one session. That's what tight looks like.",
    "lesson_line": "Shallow and quiet in a leader is strength, not a flaw.",
    "facts": [
     "dMOHd",
@@ -3080,7 +3098,7 @@
      "the 1 ATR minimum is a proposed card number (map.depth)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "MOH",
     "asof": "2018-06-07",
@@ -3145,7 +3163,7 @@
     "Buy, but with a wider stop"
    ],
    "answer": "Pass, it's slicing the line",
-   "why": "Pass. In an 8-session pullback it closed under the line three times. That line isn't holding anything. A real pullback respects its line on the close. When a stock slices back and forth through it, there's no clean low to risk against. There's no sign buyers are defending it either. It hasn't sat under long enough to be a Remount. Nothing to buy, move on.",
+   "why": "Pass. Today's an inside day closing near its high, right on the line. On its own that looks like a buy day. Not here. In an 8-session pullback it closed under the line three times. That line isn't holding anything. A real pullback respects its line on the close. When a stock slices back and forth through it, there's no clean low to risk against. It hasn't sat under long enough to be a Remount either. Nothing to buy, move on.",
    "lesson_line": "A line sliced back and forth isn't a line held. Move on.",
    "facts": [
     "dADI",
@@ -3173,7 +3191,7 @@
      "fixed before: the story no longer names the 20 EMA"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "ADI",
     "asof": "2023-04-17",
@@ -3195,7 +3213,7 @@
     "Wait for a dip to the 50-day"
    ],
    "answer": "Judge it as a 20 EMA pullback",
-   "why": "Judge it as a 20 EMA pullback. Ten sessions is a slower drift than the quick rest we buy on the 9 EMA. That doesn't make it a bad chart. On a rising 20 EMA a slower drift is normal, and that setup has its own plan. So name the line it's sitting on and run that plan: the trigger, the stop under the low, the size. Don't throw away a good name because it missed one setup.",
+   "why": "Judge it as a 20 EMA pullback. Ten sessions is a slower drift than the quick rest we buy on the 9 EMA. That doesn't make it a bad chart. On a rising 20 EMA a slower drift is normal, and that setup has its own plan. And look at today's candle. A hammer just over the 20 EMA, a long lower wick and a close up off the lows. That's a good look and a possible buy day. It's still a tad extended from the 50-day, but the 20 EMA is the line it's resting on. So run that plan: the trigger over today's high, the stop under the low, the size.",
    "lesson_line": "A slow drift isn't a bad stock. Judge it on the right setup.",
    "facts": [
     "dMETA",
@@ -3222,7 +3240,7 @@
      "+2 rests on a proposed card number (2 to 8 sessions) and an unreviewed scan example"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "META",
     "asof": "2026-10-08",
@@ -3288,14 +3306,15 @@
     "Nothing, volume is noise"
    ],
    "answer": "Warning, it lowers the grade",
-   "why": "Warning, it lowers the grade. A close under the 50-day on 4.5 times normal volume is a distribution day. Big money sold. I'd be mindful of it, but it doesn't void the setup. There's a more basic problem anyway: it closed under the line, so there's no hold yet. Wait for a close back on the line before you think about a trigger.",
+   "why": "Warning, it lowers the grade. A close under the 50-day on 4.5 times normal volume is a distribution day. Big money sold. I'd be mindful of it, but it doesn't void the setup. Now look at today. It's back just over the 50-day on a doji, still under its 9 and 20 EMA. It hasn't proven anything yet. I want a clean hold on the line, then a trigger, and I'd size it down for that heavy day.",
    "lesson_line": "Heavy selling into the line lowers the grade. It doesn't void the setup.",
    "facts": [
     "hv1",
     "hv2",
     "c28n",
     "l2",
-    "dTSM"
+    "dTSM",
+    "hE52"
    ],
    "wrong": {
     "It kills the setup, no trade": "Heavy selling is a warning and a lower grade. It doesn't void the setup on its own.",
@@ -3303,7 +3322,7 @@
     "Nothing, volume is noise": "Heavy selling into the line is worth noticing. It lowers the grade."
    },
    "house": true,
-   "story": "The day before the would-be buy. A stock sits on its 50-day, then closes under it on 4.5 times its 50-day volume.",
+   "story": "The day before the would-be buy. Last week this stock gapped down through its 50-day and closed under it, on 4.5 times its 50-day volume. Today it sits back on the line.",
    "simple": "It's a distribution day. Be mindful and lower the grade, but it doesn't kill the setup.",
    "deeper": {
     "trap": "Heavy volume feels like a veto. It isn't. What still needs fixing is the close under the line, not the volume."
@@ -3316,7 +3335,7 @@
      "the TSM example comes from the scan's not-charted list, owner to confirm"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "TSM",
     "asof": "2025-02-04",
@@ -3381,7 +3400,7 @@
     "Never buy the 50-day again"
    ],
    "answer": "A normal cost of the setup",
-   "why": "A normal cost of the setup. Everything checked out, you bought the trigger, and the stop sat under the low. Then the line gave way. That's how this setup fails, and the stop did its job. It never got near 3R. In our test only about one in four reached 3R before the stop, so losses at the stop are part of it. Judge the process, not one outcome.",
+   "why": "A normal cost of the setup. Everything checked out, you bought the trigger, and the stop sat under the low. Look at the buy day though. It closed near its low, on heavier volume. That was a warning, not an exit. Next day the line gave way. That's how this setup fails, and the stop did its job. It never got near 3R. In our test only about one in four reached 3R before the stop, so losses at the stop are part of it. Judge the process, not one outcome.",
    "lesson_line": "A stop-out with every rule followed is a normal cost.",
    "facts": [
     "dGILD",
@@ -3410,7 +3429,7 @@
      "+2 rests on the owner's rulebook (settled) (A4, the stop is the exit)"
     ]
    },
-   "batch": "voice-8-2026-11-17",
+   "batch": "chart-reads-2026-11-18",
    "chart": {
     "sym": "GILD",
     "asof": "2014-11-10",
@@ -4583,7 +4602,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Market order through the trigger (E57, D-003). WING 3R in two days is in the fact. Practical alert tip."
+   "notes": "Story now names 249.05, the level you buy through (rules 34-35). Hold day on the 20 EMA, 7% over the 50. Fine."
   },
   "q05": {
    "status": "pass",
@@ -4601,7 +4620,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Matches the VOICE.md volume model; 'dries up' and 'raises the grade', not a must (D-006). TRGP half volume is in the fact."
+   "notes": "Four small bars on about half volume (0.52x) into a rising line. Fine."
   },
   "q08": {
    "status": "pass",
@@ -4655,7 +4674,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed: 1.11 x 3 = 3.33, 86.93 + 3.33 = 90.26; distractors 89.15 / 88.04 / 91.37 check. 3R as yardstick, not a sell (D-013). MOH 3R next session per fact."
+   "notes": "3R arithmetic; buy-day bar matches."
   },
   "q17": {
    "status": "cut",
@@ -4667,7 +4686,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 0.83 / 23.62 = 3.51% -> 3.5; 0.83 / 22.79 = 3.6. Stop band per D-005. Strong."
+   "notes": "Stop arithmetic; QCOM's buy day is a hammer 11.5% over its 50 and 91.6% over its 200 (1999), but the question is only the stop width."
   },
   "q19": {
    "status": "pass",
@@ -4684,8 +4703,8 @@
   "q21": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: the story is the session after the buy (CME 09-17 buy, 3R 09-20), so it is the second day, not day 1; the why now says so while keeping D-013."
+   "fixed": false,
+   "notes": "Management question; buy-day bar matches."
   },
   "q22": {
    "status": "pass",
@@ -4853,7 +4872,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "3.6% inside 5%: fewer shares, same risk. Fine."
+   "notes": "Stop-width question; 31.80 inside the buy day, stop under the hold-day low."
   },
   "q49": {
    "status": "cut",
@@ -4865,7 +4884,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Keyed No (shallow and quiet is strength), not the 1 ATR proposal. MOH 3R in one session per fact; BFAM, CAT, YELP all reached 5R per the dossier's table, so the deeper line holds."
+   "notes": "Hold day is a doji with a long lower wick on 0.4x; the edit names it. Fine."
   },
   "q51": {
    "status": "cut",
@@ -4876,14 +4895,14 @@
   "q53": {
    "status": "pass",
    "by": "checker",
-   "fixed": true,
-   "notes": "Truth: deeper made 'three closes' the cutoff, the proposed third-close invalidation. Now the idea only. Why and key were fine."
+   "fixed": false,
+   "notes": "Inside day near its high on the line, still a pass for the slicing; the edit says why. Fine."
   },
   "q54": {
    "status": "pass",
    "by": "checker",
    "fixed": true,
-   "notes": "Truth: 'The drift ran long' keyed the proposed 2-8 session window (map.length, 'my proposal') as the fault, and the stem led ('Everything else looks right' + one number). The dossier's own verdict on META is 'judge it on the 20 EMA Pullback'; that is now the key, with no length number taught as ours."
+   "notes": "The hammer read is right, but its low sits about 0.5% over the 20 EMA ('right at' overstated), and META sits about 13% over its 50-day, a tad extended, unsaid. Both now honest."
   },
   "q55": {
    "status": "cut",
@@ -4895,7 +4914,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "HEAVY-DOWN ruling applied exactly: warning, lower grade, not void. Strong."
+   "notes": "Story and why now match the screen: a doji just over the 50-day, still under the 9 and 20 EMA. Fine."
   },
   "q57": {
    "status": "cut",
@@ -4907,13 +4926,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "GILD stop-out as normal cost; one-in-four edge from the dossier. Fine."
+   "notes": "Buy day closed near its low on 1.4x; the edit names it as a warning, the stop as the exit. Fine."
   },
   "q59": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "E56 caps and B21 new trade. Fine."
+   "notes": "Try-cap question; the stretch over the 50 doesn't change the answer."
   },
   "q60": {
    "status": "pass",
@@ -4925,7 +4944,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "TSLA flat 50, 200 rising into it (dossier 901-903), 3.6 ATR. Correction. Fine."
+   "notes": "Flat 50, rising 200 under it, 20.6% off the high; the why reads it right."
   },
   "q62": {
    "status": "cut",
@@ -4943,13 +4962,13 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "YELP: 10 EMA since February, 1.42 ATR, 0.60x is the touch-day column. 3R next day per fact. Fine."
+   "notes": "Just over a rising 9 and 20 EMA, quiet 0.6x; 'take it' is honest."
   },
   "q65": {
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "AMD 32.7% off 34.14, judged as a recovery by eye, no 25% line. Fine."
+   "notes": "Pass on distance from the 52-week high; the inside day doesn't change it."
   },
   "q66": {
    "status": "pass",
@@ -5057,7 +5076,7 @@
    "status": "pass",
    "by": "checker",
    "fixed": false,
-   "notes": "Recomputed 7.66 x 2 = 15.32, 418.13 + 15.32 = 433.45; 425.79, 402.81, 410.47 check. Breakeven 2R-5R or at the first sell (B19 with D-013)."
+   "notes": "2R arithmetic on given numbers."
   },
   "q84": {
    "status": "cut",

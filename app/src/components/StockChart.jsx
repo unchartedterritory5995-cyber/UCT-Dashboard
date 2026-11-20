@@ -92,6 +92,7 @@ import { toHeikinAshi, heikinAshiNext } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
+import ChartMarkOverlay from './chart/ChartMarkOverlay'
 import ChartVLineOverlay from './chart/ChartVLineOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { applySessionCandle, computeSessionTagLines } from './chart/sessionPreview'
@@ -3531,6 +3532,7 @@ export default function StockChart({
   // ── Per-setup annotations (Model Book) — additive, default-off ──
   callouts = null,              // array of {time, text} leader-line labels (Model Book catalysts) — placed in blank space with a diagonal line to the candle
   calloutLook = null,           // Study (round 21): how the callouts are drawn (a pill, a ring, an arrowhead; ChartCalloutOverlay `look`); null = the Model Book's plain labels
+  markerLook = null,            // Study drill (owner 2026-11-17, "a lot more of a cool production"): 'wide' | 'phone' — the `markers` prop is drawn as HTML labels (a pointer on the bar, a pill with the word: ChartMarkOverlay) instead of the library's arrows. null = the library's markers, byte-identical
   setupMoves = null,            // sorted array of {date, anchor} per setup (Model Book) — draws a "+X%" advance label at the start of each setup's lines vs the previous one
   annotations = null,           // array of chart drawings to render for the focused setup (null = layer off)
   annotationsVisible = false,   // fade the annotation layer in/out (tied to the focus zoom)
@@ -4684,7 +4686,8 @@ export default function StockChart({
 
   const mergedMarkers = useMemo(
     () => {
-      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...deskMarkers, ...flowMarkers]
+      // with a `markerLook` the host's own markers are the HTML label layer's (ChartMarkOverlay below), not the library's
+      const all = [...((markerLook ? null : markers) || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...deskMarkers, ...flowMarkers]
       // Lightweight Charts requires markers sorted ascending by time. Daily/weekly
       // use date strings (sortable lexicographically), intraday uses unix seconds.
       return all.sort((a, b) => {
@@ -4697,7 +4700,7 @@ export default function StockChart({
         return String(ta).localeCompare(String(tb))
       })
     },
-    [markers, j2.markers, chartEventMarkers, newsMarkers, deskMarkers, flowMarkers],
+    [markers, markerLook, j2.markers, chartEventMarkers, newsMarkers, deskMarkers, flowMarkers],
   )
   // The team's reference lines for the archive setup a clicked pattern detection belongs to
   // (PatternArchiveStats -> GET /api/wisdom/archive/pattern/{id}?ticker=, `lines`, flag-gated
@@ -22466,6 +22469,12 @@ export default function StockChart({
             look={calloutLook}
             bottomFrac={overlayBounds ? 0.96 : 0.82}
           />
+        </div>
+      )}
+      {/* The host's markers as HTML labels (Study drill, `markerLook`): a pointer on the bar and a pill with the word. */}
+      {markerLook && markers != null && markers.length > 0 && bars?.length > 0 && (!indexPaneSymbol || overlayBounds) && (
+        <div style={overlayWrapStyle({ zIndex: 4, pointerEvents: 'none' })}>
+          <ChartMarkOverlay chartRef={chartRef} seriesRef={candleSeriesRef} markers={markers} look={markerLook} />
         </div>
       )}
       {/* Setup-to-setup % advance labels (Model Book): "+X%" above each setup

@@ -51,6 +51,7 @@ import { drillScreen } from './screenFeedbackHelpers'
 import { comboFeedback, feedbackPrefs, tapFeedback } from './studyFeedback'
 import { rayAt } from '../../lab/pointers'
 import { calloutLook, hardCallouts } from './ui/callout'
+import { studyMarkLook, studyMarks } from './ui/chartMarks'
 import ChartKey from './ui/ChartKey'
 import { SymbolBadge } from './ui/StudyChart'
 import brandMark from '../../components/intro/assets/compass-mark.webp'
@@ -357,7 +358,8 @@ export default function DrillPlayer({
     const rs = chartVisible ? rsMarkMarkers(item, chartBars) : null
     const upTo = chartBars ? chartBars.slice(0, landed) : null
     const scored = phase === 'reveal' && !!result
-    const trade = scored && keyTrade ? (tradeMarkers(keyTrade, upTo, baseLen, { near: markGap }) || []) : []
+    // the chart's label layer (markerLook) stacks crowded words clear of each other, so a crowded mark keeps its word
+    const trade = scored && keyTrade ? (tradeMarkers(keyTrade, upTo, baseLen, { near: markGap, keepWords: true }) || []) : []
     // a course chart with no trade still says where the question stood once the bars after it play: the decision day
     // (a decision BAR on an intraday chart: the opening-range and pivot lessons decide inside the day, 2026-11-15)
     const decided = scored && !keyTrade && item?.type !== 'spot' && chartVisible && forwardCount > 0 && baseLen >= 1
@@ -370,9 +372,13 @@ export default function DrillPlayer({
     const intradayChart = String(chartTf).toUpperCase() !== 'D'
     const own = intradayChart ? [...trade, ...decided].map((m) => ({ ...m, time: toChartTime(m.time, chartTf) })) : [...trade, ...decided]
     const all = [...(openMarkers || []), ...(rs || []), ...own]
-    if (intradayChart) return all.length ? all.sort((a, b) => Number(a.time) - Number(b.time)) : null
-    return all.length ? all.sort((a, b) => String(a.time).localeCompare(String(b.time))) : null
+    // each mark carries its kind and sign for the chart's label layer (markerLook below; ui/chartMarks)
+    if (intradayChart) return all.length ? studyMarks(all.sort((a, b) => Number(a.time) - Number(b.time))) : null
+    return all.length ? studyMarks(all.sort((a, b) => String(a.time).localeCompare(String(b.time)))) : null
   }, [chartVisible, item, chartBars, openMarkers, phase, result, keyTrade, baseLen, landed, forwardCount, markGap, chartTf])
+  // the owner, 2026-11-17 ("the arrow and the text/font could look much better and be a lot more of a cool production"):
+  // the marks are drawn as labels with a pointer on the bar, not the library's arrows; a phone's a size smaller
+  const markLook = useMemo(() => studyMarkLook(phone), [phone])
   const modAnnotations = useMemo(
     () => (chartVisible && mod.annotationsFor ? mod.annotationsFor(state, item, reveal, chartBars) : null),
     [chartVisible, mod, state, item, reveal, chartBars],
@@ -603,6 +609,7 @@ export default function DrillPlayer({
               annotationsVisible={!!annotations}
               annotationsTextVisible={!!annotations}
               markers={chartMarkers}
+              markerLook={markLook}
               onCrosshairMove={onCrosshairMove}
               onChartTap={onChartTapLib}
             />
