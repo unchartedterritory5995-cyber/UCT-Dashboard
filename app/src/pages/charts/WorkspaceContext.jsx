@@ -12,6 +12,9 @@ const FALLBACK = {
   // stored copy would fight it). Seeded 'D' to match ChartWidget's own default.
   groupTfs: { A: 'D', B: 'D', C: 'D', D: 'D' },
   setGroupTf: () => {},
+  // every chart's timeframe per colour group (registerGroupTf), for lists that warm ALL of them
+  groupTfSets: {},
+  registerGroupTf: () => () => {},
   // COV-10 — may a list widget subscribe to its group's scan? The board derives it from
   // the auth payload; every other host (and the fallback) says no.
   chartsTheme: 'default',   // workspace-wide chart theme ('default' | 'sunrise')
