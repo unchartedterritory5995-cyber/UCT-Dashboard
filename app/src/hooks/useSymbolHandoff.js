@@ -34,6 +34,9 @@ import { viewCacheTf } from '../utils/viewSession'
 import { isCurrentEnoughForPaint } from '../utils/marketSession'
 import { isNativeTf, fetchTf } from '../components/chart/timeframes'
 import { columnsReadyFor, whenColumnsReady, warmColumnsFor } from '../components/chart/engine/serverCompute'
+import { deviceStoreEnabled } from '../data/deviceStore/switch'
+import { deviceSource } from '../data/deviceStore/source'
+import { noteDeviceSwitch, exposeDeviceDiag } from '../data/deviceStore/diag'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 /** The longest a switch waits for its panes' server columns before it commits anyway. */
@@ -45,6 +48,14 @@ export const COLUMNS_WAIT_MS = 300
 // its peek is the store's status, and the held-set test reads the store (`peekBars`) instead of
 // the mem cache alone.
 const P = BARSTORE ? storePrefetch : legacyPrefetch
+// ⭐ The on-device store (data/deviceStore, per-browser switch 'uct.deviceStore', read once like the
+// store's own): a CURRENT device copy paints at once (storePrefetch.devicePaints), not after the deep
+// joins the switch otherwise waits for.
+const DEVICE = BARSTORE && deviceStoreEnabled()
+const devicePaints = (sym, tf, opts) => DEVICE && storePrefetch.devicePaints(sym, tf, opts)
+// the worker's rule for a switch the device did not paint (diag.js); the source loads nothing new
+const deviceWhy = (sym, tf) => { const src = deviceSource(); return src ? src.why(sym, tf) : Promise.resolve('no-client') }
+if (DEVICE) exposeDeviceDiag()
 /** Does the chart's source already hold a D/W/M set for (sym, tf)? */
 function holdsDailySet(sym, tf) {
   if (BARSTORE && storePrefetch.holdsBars(sym, tf)) return true   // count only: no legacy array per switch
@@ -118,8 +129,26 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // ⭐ ONE PAINT, PANES INCLUDED (2026-11-17): every path below commits through here, and B is
     // shown only once the server columns its panes draw have landed (serverCompute.columnsReadyFor),
     // waiting at most COLUMNS_WAIT_MS. Landed (or stored in this browser) commits in the same tick.
+    const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
+    const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
+    // ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame
+    // is built from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js).
+    // Read by no decision; a failure here never costs the switch.
+    let noted = false
+    const noteDevice = () => {
+      if (!DEVICE || noted) return
+      noted = true
+      try {
+        const intraday = INTRADAY.has(String(tf))
+        const vtf = intraday ? fetchTf(tf) : tf
+        const v = storePrefetch.deviceVerdict(requestedSym, vtf, intraday ? sess : {})
+        const rec = noteDeviceSwitch({ sym: requestedSym, tf: String(tf), at: performance.now(), outcome: lastOutcomeRef.current, painted: v.held, reason: v.reason, why: null })
+        if (v.held !== 'device') deviceWhy(requestedSym, vtf).then((w) => { rec.why = w }, () => { rec.why = 'error' })
+      } catch { /* diagnostics only */ }
+    }
     const commit = () => {
       if (genRef.current !== gen) return
+      noteDevice()
       if (columnsReadyFor(requestedSym, tf)) { setDisplayedSym(requestedSym); return }
       whenColumnsReady(requestedSym, tf, COLUMNS_WAIT_MS).then(commitNow, commitNow)
     }
@@ -154,7 +183,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // same bounded prepare, which waits for the join, so the first frame is the whole chart.
     if (isNativeTf(tf) && !INTRADAY.has(String(tf))
         && /^[A-Z0-9.^-]{1,12}$/i.test(String(requestedSym))
-        && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf)))) {
+        && (!holdsDailySet(requestedSym, tf) || (BARSTORE && storePrefetch.deepPending(requestedSym, tf) && !devicePaints(requestedSym, tf)))) {
       let live = true
       const land = (outcome) => {
         if (!live || genRef.current !== gen) return
@@ -165,17 +194,20 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const ctl = new AbortController()
       P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
       const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
-      return () => { live = false; clearTimeout(bound); ctl.abort() }
+      // the device's copy lands in ~1 ms (one worker read): paint it the moment it does
+      let devTimer = null
+      const devPoll = () => { devTimer = null; if (!live) return; if (devicePaints(requestedSym, tf)) { land('device'); return } devTimer = setTimeout(devPoll, POLL_MS) }
+      if (DEVICE) devTimer = setTimeout(devPoll, 0)
+      return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
     }
 
-    const _ext = (showExtended && typeof showExtended === 'object') ? showExtended.current : showExtended
-    const sess = { showExtended: typeof _ext === 'boolean' ? _ext : undefined }
     // ⭐ ONE PAINT, THE WHOLE CHART (2026-11-17, owner: "a good chunk, then the rest a quick blink
     // later"). A held key paints at once only when the lake's whole depth is not still due for it;
     // otherwise the prepare below waits for that join (bounded, prefetch LAKE_JOIN_WAIT_MS) and the
     // chart's first frame holds it. The warms join it before Enter, so this is the rare case.
     const paintsWhole = () => peekDisplayable(requestedSym, tf, sess)
-      && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess))
+      && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess)
+        && !devicePaints(requestedSym, fetchTf(tf), sess))
     if (paintsWhole()) { commit(); return undefined }
 
     // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch

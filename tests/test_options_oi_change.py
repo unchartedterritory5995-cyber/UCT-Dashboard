@@ -16,6 +16,7 @@ import os
 import shutil
 import sys
 import threading
+import time
 
 import pytest
 from fastapi import FastAPI
@@ -376,3 +377,71 @@ def test_an_unreadable_log_is_a_503_in_words_never_an_empty_list(client, monkeyp
     r = client.get(URL + "AAA")
     oic.reset()
     assert r.status_code == 503 and r.json()["detail"] == "The options log is unavailable: RuntimeError"
+
+
+# ── held_change(): the read-only accessor (the UCT Agent's read; it never starts the build) ──
+
+def _no_threads(monkeypatch):
+    started = []
+    monkeypatch.setattr(threading.Thread, "start", lambda self: started.append(self.name))
+    return started
+
+
+def test_held_change_with_no_pair_held_says_so_and_starts_nothing(seed, monkeypatch):
+    two_days(seed)                                              # the files exist; nothing has prepared the pair
+    started = _no_threads(monkeypatch)
+    assert oic.held_change("AAA") == (None, "not_held")
+    assert oic.builds_started == 0 and started == [] and oic._held is None
+    assert oic.oi_change("AAA", wait_s=0)["status"] == "computing"     # the route, in the same state, DOES start one
+    assert oic.builds_started == 1 and started == ["options-oi-change"]
+
+
+def test_held_change_is_the_routes_own_answer_from_the_held_pair_and_changes_no_state(seed, monkeypatch):
+    two_days(seed)
+    assert read("BBB")["status"] == "ok"                        # the route prepared the pair (and kept BBB's answer)
+    kept = list(oic._answers)
+    oic._held_at = time.monotonic() - oic.RECHECK_S - 5         # past the re-check age: the route would list again
+    started = _no_threads(monkeypatch)
+    got, how = oic.held_change("aaa", "put")
+    assert how == "held" and got["status"] == "ok" and (got["session"], got["prior_session"]) == (WED, TUE)
+    assert [(r["type"], r["change"]) for r in got["rows"]] == [("put", -500)] and got["matched"] == got["shown"] == 1
+    assert oic.builds_started == 1 and started == [] and list(oic._answers) == kept     # nothing started, nothing kept
+    monkeypatch.undo()
+    monkeypatch.setattr(osc, "_store_override", seed.store)
+    assert got == read("AAA", "put")                            # the same answer the route gives
+    assert oic.held_change("ZZZ")[0]["known"] is False          # a stock in neither record: said, not an error
+
+
+def test_held_change_reports_a_failed_build_and_does_not_retry_it(seed, monkeypatch):
+    class Broken(osc.LocalStore):
+        def screen_sessions(self):
+            raise RuntimeError("no storage")
+    assert oic.oi_change("AAA", store=Broken("x"), wait_s=10)["status"] == "unavailable"
+    monkeypatch.setattr(oic, "ERROR_HOLD_S", 0.0)               # the route would try again now
+    started = _no_threads(monkeypatch)
+    got, how = oic.held_change("AAA")
+    assert how == "failed" and (got["status"], got["error"]) == ("unavailable", "RuntimeError")
+    assert oic.builds_started == 1 and started == []
+
+
+def test_held_change_says_one_session_or_none_when_that_is_what_is_held(seed):
+    seed.day(WED, [c("AAA", "call", 100, NEAR)])
+    assert read("AAA")["status"] == "one_session"
+    got, how = oic.held_change("AAA")
+    assert how == "held" and (got["status"], got["session"]) == ("one_session", WED) and "rows" not in got
+
+
+def test_held_change_with_a_held_file_gone_says_so_and_keeps_the_pair(seed):
+    two_days(seed)
+    assert read("BBB")["status"] == "ok"
+    with oic._lock:
+        oic._held = {**oic._held, "path": os.path.join(seed.root, "gone.screen.sqlite")}
+    pair = oic._held
+    assert oic.held_change("AAA") == (None, "file_gone")
+    assert oic._held is pair and oic.builds_started == 1        # not dropped, no build: the route does that
+
+
+def test_held_change_refuses_what_is_not_a_symbol_or_a_side(seed):
+    for sym, side in (("A B", None), ("", None), ("AAA", "both")):
+        with pytest.raises(oic.BadQuery):
+            oic.held_change(sym, side)

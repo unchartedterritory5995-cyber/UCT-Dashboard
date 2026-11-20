@@ -67,6 +67,7 @@ import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView } from '../../utils/marketSession'
+import { deviceCopyFresh } from '../deviceStore/fresh'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -282,6 +283,8 @@ export function createPrefetch(o = {}) {
   function _hydrate(key) {
     const st = S()
     const s = st.peek(key)
+    // a held DEVICE copy (no server answer) is brought forward to the device's newest first
+    if (_deviceHeld(s)) return Promise.resolve(st.persist.refreshDevice?.(key)).catch(() => false).then(() => st.peek(key))
     if (s && (s.depth || s.restSeen || s.developing)) return Promise.resolve(s)
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
@@ -401,15 +404,31 @@ export function createPrefetch(o = {}) {
     if (!key) return true
     const held = S().peek(key)
     if (!held) _hydrate(key)   // the mem half lands synchronously
+    // A held DEVICE copy is brought forward (its synchronous half lands now; a worker read, the poll sees)
+    else if (_deviceHeld(held)) { try { S().persist.refreshDevice?.(key) } catch { /* optional */ } }
     // An entry that holds no rows is looked up in mem again, SYNCHRONOUSLY and with no new IDB
     // read: the first peek made the entry, and a warmer may have promoted the key since (the
     // handoff's 25 ms poll exists to see exactly that).
     else if (!(held.depth || held.restSeen || held.developing)) { try { S().persist.hydrateMem(key) } catch { /* derived */ } }
     const s = S().peek(key)
+    if (_deviceRthOnly(s, showExtended)) return false
     // (A status in HANDOFF_PAINTS already means rows are held: status.deriveStatus answers
     // empty / unavailable for an entry with none. No second rows test here: it could not be
     // proved by a test, 2026-11-16 mutation run.)
     return !!s && HANDOFF_PAINTS.includes(s.status)
+  }
+
+  /** Does the entry hold the device's copy alone (no server answer yet)? */
+  function _deviceHeld(s) { return !!s && s.source === 'device' && !s.restSeen }
+  /**
+   * ⛔ A DEVICE COPY IS THE REGULAR-SESSION VIEW (review of #2189): on a key both sessions share
+   * (1/5/15/30) an EXTENDED view never paints it, by any rule: the store derives a shared key's status
+   * with the 'rth' session, and the server's answer would add the pre/post-market bars after the paint.
+   */
+  function _deviceRthOnly(s, showExtended) {
+    if (!_deviceHeld(s)) return false
+    const p = parseKey(s.key)
+    return !!p && isIntradayTf(p.tf) && p.session == null && extOf(showExtended)
   }
 
   /**
@@ -476,6 +495,7 @@ export function createPrefetch(o = {}) {
   /** Legacy `_paintCurrent`: would the chart paint this LOCAL copy as current for the view? */
   function _localPaints(s, tf, showExtended) {
     if (!s || s.restSeen || !isIntradayTf(normTf(tf))) return false
+    if (_deviceRthOnly(s, showExtended)) return false
     const rows = s.developing ? [...s.bars, s.developing] : s.bars
     const lastT = rows.length ? rows[rows.length - 1].t : null
     return isCacheCurrentForView(rows, lastT, normTf(tf), { session: extOf(showExtended) ? 'extended' : 'rth', nowMs: now() })
@@ -594,6 +614,51 @@ export function createPrefetch(o = {}) {
     S().deepPrime?.(key, { priority })
     const s = await ensure(key, { until: DAILY_PREPARED, depth: fullBarsFor(p.tf) || 0, priority, local: false })
     return s?.restSeen && !s.error ? !!(await S().deepJoined?.(key, ms)) : false
+  }
+
+  /**
+   * ⭐ A CURRENT DEVICE COPY IS A WHOLE FIRST PAINT (data/deviceStore, behind 'uct.deviceStore'). The
+   * seed holds each timeframe's newest window (1m 600, 5m-30m 300, 60m 1000, D 350 bars) and its live
+   * overlay carries today to the last closed minute: more than the chart's default view and an
+   * indicator's warm-up. So when the key holds the device's copy (no server answer yet) and the
+   * store's status says it is current enough to paint (HANDOFF_PAINTS), the switch paints it at once
+   * instead of waiting for the lake's or the daily history's deep join; the depth joins behind the
+   * view, and the server's answer joins or replaces the rows under the reducer's rules.
+   * ⛔ Not on an EXTENDED view of a key both sessions share (1/5/15/30): the seed is the regular-session
+   * view, and the server's answer would add the pre/post-market bars after the paint (a visible change).
+   * ⛔ ONLY WHILE RECENT, for every tf (review of #2189): the copy must be complete through the last
+   * 2 minutes during the session, or through the end of the last closed session outside it
+   * (deviceStore/fresh.deviceCopyFresh, on the copy's `through`). The store's status alone cannot say
+   * it: W and M are never "behind" by status, and a copy warmed hours ago would read current.
+   */
+  function devicePaints(sym, tf, opts = {}) { return deviceVerdict(sym, tf, opts).paints }
+
+  /**
+   * The device rule's whole answer, the ONE decision devicePaints returns the first half of:
+   *   paints  true when the switch paints the device copy at once
+   *   reason  'paints', or the rule that refused: 'no-key' | 'none' (nothing held) | 'held:<source>' (another
+   *           copy holds the key: the device is not consulted) | 'server-answered' | 'ext-hours' (an extended
+   *           view of a shared key) | 'status:<status>' (not current enough by the store's status) | 'stale'
+   *           (not complete through the last 2 minutes / the last closed session, deviceStore/fresh.js)
+   *   held    what the store holds for the key right now: 'device' | 'server' (the device copy joined by an
+   *           answer) | another source | 'none'. What a chart committed now paints first.
+   */
+  function deviceVerdict(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const p = key ? parseKey(key) : null
+    if (!p) return { paints: false, reason: 'no-key', held: 'none' }
+    // a held copy that is not fresh is brought forward first (its synchronous half lands now)
+    if (_deviceHeld(S().peek(key)) && !deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) {
+      try { S().persist.refreshDevice?.(key) } catch { /* optional */ }
+    }
+    const s = S().peek(key)
+    const held = !s ? 'none' : s.source === 'device' ? (s.restSeen ? 'server' : 'device') : String(s.source || 'unknown')
+    if (!s) return { paints: false, reason: 'none', held }
+    if (!_deviceHeld(s)) return { paints: false, reason: s.source === 'device' ? 'server-answered' : `held:${held}`, held }
+    if (_deviceRthOnly(s, showExtended)) return { paints: false, reason: 'ext-hours', held }
+    if (!HANDOFF_PAINTS.includes(s.status)) return { paints: false, reason: `status:${s.status}`, held }
+    if (!deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) return { paints: false, reason: 'stale', held }
+    return { paints: true, reason: 'paints', held }
   }
 
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
@@ -1086,7 +1151,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1109,6 +1174,8 @@ export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, o
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
+export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
+export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

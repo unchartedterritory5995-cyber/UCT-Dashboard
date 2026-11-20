@@ -12,6 +12,8 @@ const packOf = (syms, o = {}) => seedPackOf(syms, { build: 'b1', ...o })
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '../../utils/resampleBars'
 
 const sha = (b) => createHash('sha256').update(b).digest('hex')
+/** 18:00 ET on the packs' as-of day (seedPackOf's default, 2026-11-18): the seed's own basis holds. */
+const AT_ASOF = () => Date.UTC(2026, 10, 18, 23, 0)
 const DAY = 86400
 const D0 = Date.UTC(2025, 0, 6) / 1000          // a Monday
 /** n weekday sessions from D0, t = 00:00 UTC of the session date (the store's D rule). */
@@ -57,7 +59,7 @@ describe('device engine: index + reads', () => {
   it('reads every symbol back with EXACT values after an ingest; unknown symbol / tf → null', async () => {
     const pack = packOf(UNIVERSE, { tf: 'D' })
     const io = memoryIO()
-    const eng = createDeviceEngine({ io, fetchFn: fakeEdge({ '/seed/D-b1.pack': pack }) })
+    const eng = createDeviceEngine({ now: AT_ASOF, io, fetchFn: fakeEdge({ '/seed/D-b1.pack': pack }) })
     await eng.open()
     expect(await eng.ingest(entryOf('D', '/seed/D-b1.pack', pack))).toMatchObject({ tf: 'D', status: 'ingested', count: 3 })
     for (const [sym, rows] of Object.entries(UNIVERSE)) {
@@ -73,14 +75,14 @@ describe('device engine: index + reads', () => {
 
   it('finds a class share under either spelling (file "BRK.B", app "BRK-B")', async () => {
     const pack = packOf({ 'BRK.B': dailyRows(30, 9) })
-    const eng = createDeviceEngine({ io: memoryIO(), fetchFn: fakeEdge({ u: pack }) })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(), fetchFn: fakeEdge({ u: pack }) })
     await eng.ingest(entryOf('D', 'u', pack))
     expect(eng.read('BRK-B', 'D')?.t.length).toBe(30)
   })
 
   it('W and M are derived from D with the app\'s resampler, the oldest (partial) bucket dropped', async () => {
     const pack = packOf(UNIVERSE)
-    const eng = createDeviceEngine({ io: memoryIO(), fetchFn: fakeEdge({ u: pack }) })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(), fetchFn: fakeEdge({ u: pack }) })
     await eng.ingest(entryOf('D', 'u', pack))
     const rows = UNIVERSE.AAPL.map((r) => ({ ...r, t: new Date(r.t * 1000).toISOString().slice(0, 10) }))
     for (const [tf, fn] of [['W', resampleDailyToWeekly], ['M', resampleDailyToMonthly]]) {
@@ -97,7 +99,7 @@ describe('device engine: index + reads', () => {
   it('a corrupt record reads null (counted), never throws', async () => {
     const pack = packOf({ AAA: dailyRows(40, 4) })
     const io = memoryIO()
-    const eng = createDeviceEngine({ io, fetchFn: fakeEdge({ u: pack }) })
+    const eng = createDeviceEngine({ now: AT_ASOF, io, fetchFn: fakeEdge({ u: pack }) })
     await eng.ingest(entryOf('D', 'u', pack))
     const f = [...io.files.entries()].find(([n]) => n.endsWith('.pack'))[1]
     f.buf[20] ^= 0xff                                          // inside AAA's header
@@ -110,12 +112,12 @@ describe('device engine: ingest', () => {
   it('commits atomically and survives a reopen (a new engine over the same disk reads the same values)', async () => {
     const pack = packOf(UNIVERSE)
     const disk = new Map()
-    const a = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }) })
+    const a = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }) })
     await a.ingest(entryOf('D', 'u', pack))
     a.close()
     const names = [...disk.keys()].sort()
     expect(names).toEqual(['D.1.ok', 'D.1.pack'])            // no .prog left; marker beside the file
-    const b = createDeviceEngine({ io: memoryIO(disk), fetchFn: vi.fn() })
+    const b = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: vi.fn() })
     await b.open()
     expect(Array.from(b.read('MSFT', 'D').c)).toEqual(UNIVERSE.MSFT.map((r) => r.c))
   })
@@ -124,7 +126,7 @@ describe('device engine: ingest', () => {
     const good = packOf(UNIVERSE, { build: 'b1' })
     const next = packOf({ AAPL: dailyRows(350, 77) }, { build: 'b2' })
     const disk = new Map()
-    const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u1: good, u2: next }) })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: fakeEdge({ u1: good, u2: next }) })
     await eng.ingest(entryOf('D', 'u1', good))
     const before = Array.from(eng.read('AAPL', 'D').c)
     const wrong = { ...entryOf('D', 'u2', next, 'b2'), sha256: sha(good) }   // a lying manifest
@@ -138,9 +140,9 @@ describe('device engine: ingest', () => {
     const one = packOf(UNIVERSE)
     const two = packOf({ AAPL: dailyRows(350, 42) }, { build: 'b2' })
     const disk = new Map()
-    const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u1: one, u2: two }) })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: fakeEdge({ u1: one, u2: two }) })
     const events = []
-    const e2 = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u1: one, u2: two }), onEvent: (e) => events.push(e) })
+    const e2 = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: fakeEdge({ u1: one, u2: two }), onEvent: (e) => events.push(e) })
     await eng.ingest(entryOf('D', 'u1', one))
     eng.close()
     await e2.open()
@@ -156,13 +158,13 @@ describe('device engine: ingest', () => {
     const pack = packOf(UNIVERSE)
     const disk = new Map()
     const edge = fakeEdge({ u: pack }, { cutAt: 5000 })
-    const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: edge })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: edge })
     await expect(eng.ingest(entryOf('D', 'u', pack))).rejects.toThrow()
     expect(disk.get('D.1.pack').size).toBe(5000)            // the partial stays
     expect(disk.has('D.1.ok')).toBe(false)                  // ...uncommitted
     expect(eng.read('AAPL', 'D')).toBeNull()
     // the page reloads: a NEW engine over the same disk resumes the same build
-    const again = createDeviceEngine({ io: memoryIO(disk), fetchFn: edge })
+    const again = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: edge })
     expect(await again.ingest(entryOf('D', 'u', pack))).toMatchObject({ status: 'ingested' })
     expect(edge.calls.map((c) => c.range)).toEqual([null, 'bytes=5000-'])
     expect(Array.from(again.read('AAPL', 'D').h)).toEqual(UNIVERSE.AAPL.map((r) => r.h))
@@ -171,10 +173,10 @@ describe('device engine: ingest', () => {
   it('a server that ignores the Range (200) restarts the file from zero, still verified', async () => {
     const pack = packOf(UNIVERSE)
     const disk = new Map()
-    const first = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }, { cutAt: 3000 }) })
+    const first = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }, { cutAt: 3000 }) })
     await expect(first.ingest(entryOf('D', 'u', pack))).rejects.toThrow()
     const edge = fakeEdge({ u: pack }, { ignoreRange: true })
-    const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: edge })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: edge })
     await eng.ingest(entryOf('D', 'u', pack))
     expect(eng.read('MSFT', 'D').t.length).toBe(120)
   })
@@ -185,7 +187,7 @@ describe('device engine: ingest', () => {
     const edge = fakeEdge({ 'https://x.test/seed/D.pack': d, 'https://x.test/seed/5.pack': m5 })
     let inFlight = 0, peak = 0
     const counting = vi.fn(async (...a) => { inFlight++; peak = Math.max(peak, inFlight); try { return await edge(...a) } finally { inFlight-- } })
-    const eng = createDeviceEngine({ io: memoryIO(), fetchFn: counting })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(), fetchFn: counting })
     const out = await eng.ingestAll({ v: 1, build: 'b9', tfs: {
       '5': { url: '5.pack', bytes: m5.length, sha256: sha(m5) },
       D: { url: 'D.pack', bytes: d.length, sha256: sha(d) },
@@ -200,7 +202,7 @@ describe('device engine: ingest', () => {
   it('a file holding another build than the manifest names is never committed (a stale edge copy)', async () => {
     const pack = packOf(UNIVERSE, { build: '20261118T0131Z' })
     const disk = new Map()
-    const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }) })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }) })
     await expect(eng.ingest(entryOf('D', 'u', pack, '20261119T0131Z'))).rejects.toThrow(/build/)
     expect(eng.read('AAPL', 'D')).toBeNull()
     expect([...disk.keys()]).toEqual([])                     // discarded whole: nothing to resume into a loop
@@ -208,7 +210,7 @@ describe('device engine: ingest', () => {
 
   it('refuses a malformed manifest entry before touching the disk', async () => {
     const disk = new Map()
-    const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: vi.fn() })
+    const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: vi.fn() })
     await expect(eng.ingest({ tf: 'D', url: 'u', bytes: 100, sha256: 'x', build: 'b' })).rejects.toThrow(/manifest/)
     await expect(eng.ingest({ tf: '60e', url: 'u', bytes: 100, sha256: 'a'.repeat(64), build: 'b' })).rejects.toThrow(/manifest/)
     expect(disk.size).toBe(0)

@@ -175,14 +175,31 @@ export function createPersist({
   const DEV = device === undefined ? _defaultDeviceSource() : device
   // (which cache-tfs it holds is the source's own answer: deviceStore/tfs.SERVED_TFS)
   const _devKey = (p) => !!DEV && !p.window
-  /** Nothing held: no rows, no forming bar, no server answer (a device copy only ever seeds). */
-  const _holdsNothing = (s) => !s || (!s.bars.length && !s.developing && !s.restSeen)
-  /** Dispatch a device copy; true when it changed the entry. */
+  /** May a device copy land on this entry? Nothing held, or only a device copy (no server answer):
+   *  a device copy seeds an entry, or moves its own copy FORWARD (review of #2189: a copy warmed at
+   *  09:35 must not paint its 09:35 bars at 15:55, so the switch re-reads it, refreshDevice). */
+  const _deviceMay = (s) => !s || (!s.restSeen && ((!s.bars.length && !s.developing) || s.source === 'device'))
+  /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
+   *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
+  const devThrough = new Map()
+  const _noteDev = (key, through) => {
+    devThrough.delete(key)
+    devThrough.set(key, Number.isFinite(through) ? through : null)
+    if (devThrough.size > 1000) devThrough.delete(devThrough.keys().next().value)
+  }
+  /** Dispatch a device copy; true when it changed the entry. Its saved time is the moment it is complete
+   *  up to (`savedAt`, from `through`): what every local-copy age rule reads, the daily gate included. */
   function _deviceHit(key, p, gen, got) {
     if (!got?.rows?.length) return false
     const before = registry.peek(key)
+    if (!_deviceMay(before)) return false
+    const held = devThrough.get(key)
+    if (before?.source === 'device' && held != null && !(got.through > held)) return false   // not newer
     registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null } })
-    return registry.peek(key) !== before
+    const after = registry.peek(key)
+    if (after === before) return false
+    if (after?.source === 'device') { _noteDev(key, got.through ?? null); _noteSaved(key, got.savedAt ?? null) }
+    return true
   }
   /** key → {first, last} of the deep-history segment last written / read (bounded). */
   const hist = new Map()
@@ -293,8 +310,24 @@ export function createPersist({
       if (!p || p.window || watched.has(key) || !s || !s.restSeen || !s.bars.length) return Promise.resolve(false)
       return _put(key, s, startedAt ?? now()).then(() => true, () => false)
     },
-    /** savedAt of the cache record the last hydrate of `key` read (mem, else IDB), or null. */
+    /** savedAt of the cache record the last hydrate of `key` read (mem, else IDB; the device copy's
+     *  `through` for a device hit), or null. */
     savedAtOf(key) { return savedAt.get(key) ?? null },
+    /** `through` (unix s) of the device copy `key` holds, or null. */
+    deviceThroughOf(key) { return devThrough.get(key) ?? null },
+    /**
+     * Bring a held DEVICE copy (no server answer yet) forward to the device's newest: synchronously
+     * from the device's recent-read cache, else one worker read. The switch calls it on every peek of
+     * such an entry (prefetch), so a copy warmed long ago is re-read before it is shown. Resolves true
+     * when the entry moved.
+     */
+    refreshDevice(key) {
+      const p = parseKey(key)
+      if (!p || p.window || !_devKey(p) || !_deviceMay(registry.peek(key))) return Promise.resolve(false)
+      const gen = registry.getSnapshot(key).gen
+      try { if (_deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf))) return Promise.resolve(true) } catch { /* optional */ }
+      return Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+    },
     /** Write every pending key now (page hide / tests). */
     async flush() {
       const keys = [...watched.keys()]
@@ -322,7 +355,7 @@ export function createPersist({
         const repair = isIntradayTf(p.tf) ? _intradayGapStart(m.bars, p.cacheTf) : null
         registry.dispatch(key, { type: ACTION.MEM_HIT, key, gen, payload: { ...decodeEntry(key, m), saved_at: m.savedAt ?? null, repair_from: repair } })
         _noteSaved(key, m.savedAt)
-      } else if (_devKey(p) && _holdsNothing(registry.peek(key))) {
+      } else if (_devKey(p) && _deviceMay(registry.peek(key))) {
         try { _deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf)) } catch { /* a device copy is optional */ }
       }
       return m?.bars?.length ? m : null
@@ -334,8 +367,8 @@ export function createPersist({
       const m = this.hydrateMem(key)
       // The on-device read leaves NOW, beside the IndexedDB read below, and lands when it lands (a
       // busy IndexedDB can take hundreds of ms; the device answers in ~1). Only for an entry that
-      // still holds nothing (no mem record, no device copy from the synchronous cache, no answer).
-      const dev = !m?.bars?.length && _devKey(p) && _holdsNothing(registry.peek(key))
+      // holds no server answer and nothing but (at most) an older device copy.
+      const dev = !m?.bars?.length && _devKey(p) && _deviceMay(registry.peek(key))
         ? Promise.resolve().then(() => DEV.read(p.sym, p.cacheTf)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
         : null
       let e = null

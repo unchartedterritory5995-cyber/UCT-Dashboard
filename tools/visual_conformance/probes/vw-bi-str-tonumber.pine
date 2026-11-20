@@ -1,0 +1,36 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_STR_TONUMBER", overlay = false)
+
+// U-BUILTIN (2026-11-19). WHAT `str.tonumber` ACCEPTS.
+//
+// The reference: "Converts a value represented in string to its 'float' equivalent", "A value containing
+// the 'float' equivalent of `string`, or na if the conversion fails". Which strings convert is not stated:
+// surrounding spaces, a leading '+', an exponent, a thousands separator, a bare '.5' or '5.', hex,
+// 'NaN' / 'inf' spellings, the empty string. Each row is one literal; na reads -999.
+//
+// CAPTURE: AMEX:SPY 1D (>= 50 bars). Inputs at defaults.
+
+v(s) => na(str.tonumber(s)) ? -999.0 : str.tonumber(s)
+
+plot(bar_index, "N00_bar_index_CONTROL")
+plot(v("12"), "N01_12")
+plot(v("1.5"), "N02_1p5")
+plot(v("-2"), "N03_minus_2")
+plot(v("+2"), "N04_plus_2")
+plot(v(" 3"), "N05_lead_space")
+plot(v("3 "), "N06_trail_space")
+plot(v("1e3"), "N07_exponent")
+plot(v("1E-2"), "N08_exponent_neg")
+plot(v("1,000"), "N09_thousands_comma")
+plot(v(".5"), "N10_lead_dot")
+plot(v("5."), "N11_trail_dot")
+plot(v("0x10"), "N12_hex")
+plot(v("NaN"), "N13_NaN")
+plot(v("inf"), "N14_inf")
+plot(v(""), "N15_empty")
+plot(v("abc"), "N16_letters")
+plot(v("12abc"), "N17_number_then_letters")
+plot(v("007"), "N18_leading_zeros")
+plot(v("1_000"), "N19_underscore")
+plot(v(str.tostring(close)), "N20_tostring_close_roundtrip")
+plot(close, "N21_close_CONTROL")

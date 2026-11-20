@@ -8,6 +8,9 @@
 // usually starts mid-period: that bucket's open (and maybe its high / low) would be wrong. Every other
 // bucket is whole. (A week starting on a holiday Monday makes the dropped one whole too: one bar of a
 // 70-week chart is the price of never drawing a wrong one.)
+// ⛔ AND SO IS A NEWEST BUCKET WHOSE PERIOD HAS NOT ENDED by `through` (the unix second the D copy is
+// complete up to): mid-week, the week's bar from the days so far is not the bar the server sends, and
+// painted it would be rewritten. Week: ends after its label Friday; month: after its last day.
 
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '../../utils/resampleBars'
 import { etDateLabel } from '../../components/chart/barTime'
@@ -20,8 +23,16 @@ export function dayLabelOf(t) {
 
 const unixOfLabel = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 1000
 
-/** D columns → W ('W') or M ('M') columns, labels as unix s at 00:00 UTC. Null when nothing whole. */
-export function deriveFromDaily(cols, tf) {
+/** The exclusive end (unix s, 00:00 UTC) of the W / M period labelled `t` (00:00 UTC of its label). */
+export function periodEndOf(t, tf) {
+  if (tf === 'W') return t + 86400
+  const d = new Date(t * 1000)
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / 1000
+}
+
+/** D columns → W ('W') or M ('M') columns, labels as unix s at 00:00 UTC. Null when nothing whole.
+ *  `through`: drop a newest bucket whose period has not ended by then (see the header). */
+export function deriveFromDaily(cols, tf, { through = null } = {}) {
   if (!cols || !cols.t?.length || (tf !== 'W' && tf !== 'M')) return null
   const n = cols.t.length
   const rows = new Array(n)
@@ -29,6 +40,7 @@ export function deriveFromDaily(cols, tf) {
     rows[i] = { t: dayLabelOf(cols.t[i]), o: cols.o[i], h: cols.h[i], l: cols.l[i], c: cols.c[i], v: cols.v[i] }
   }
   const out = (tf === 'W' ? resampleDailyToWeekly(rows) : resampleDailyToMonthly(rows)).slice(1)
+  if (through != null && out.length && periodEndOf(unixOfLabel(out[out.length - 1].t), tf) > through) out.pop()
   if (!out.length) return null
   const m = out.length
   const res = { t: new Float64Array(m), o: new Float64Array(m), h: new Float64Array(m), l: new Float64Array(m),

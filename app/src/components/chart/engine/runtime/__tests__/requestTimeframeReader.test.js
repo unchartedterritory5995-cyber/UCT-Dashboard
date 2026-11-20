@@ -95,7 +95,8 @@ describe('TF-FOLD: a timeframe settled through a chain deeper than the plot lane
 })
 
 // ── the confinement, over the corpus: every committed script that reads `security(`, translated on the plot lane
-// with the runtime lane's reach handed to every reader and without it. They must be the same bytes. ──────────────
+// with the runtime lane's readers in the code and without them (the reach, and (request unit PR 2) the settled call,
+// the settled name and the extended-session own ticker, each stubbed out). They must be the same bytes. ───────────
 const CORPUS = path.join(REPO, 'corpus', 'committed')
 const requestScripts = () => fs.readdirSync(CORPUS).filter((f) => f.endsWith('.pine')).sort()
   .map((f) => ({ f, source: fs.readFileSync(path.join(CORPUS, f), 'utf8') }))
@@ -112,10 +113,19 @@ describe('⛔ TF-FOLD is the runtime lane\'s alone: the plot lane is byte-identi
     const scripts = requestScripts()
     expect(scripts.length).toBeGreaterThan(40)
     const withReach = scripts.map((s) => digest(s.source))
-    const orig = Resolver.prototype.requestTimeframeReach
-    Resolver.prototype.requestTimeframeReach = function () { return undefined }
+    const P = Resolver.prototype
+    const orig = { reach: P.requestTimeframeReach, call: P.throughSettledCall, alias: P.settledAliasOf, ext: P.extendedOwnTickerOf }
+    P.requestTimeframeReach = function () { return undefined }
+    P.throughSettledCall = function () { return null }
+    P.settledAliasOf = function () { return null }
+    P.extendedOwnTickerOf = function () { return false }
     let without
-    try { without = scripts.map((s) => digest(s.source)) } finally { Resolver.prototype.requestTimeframeReach = orig }
+    try { without = scripts.map((s) => digest(s.source)) } finally {
+      P.requestTimeframeReach = orig.reach
+      P.throughSettledCall = orig.call
+      P.settledAliasOf = orig.alias
+      P.extendedOwnTickerOf = orig.ext
+    }
     const moved = scripts.filter((s, i) => withReach[i] !== without[i]).map((s) => s.f)
     expect(moved, `plot-lane translation moved for ${moved.join(', ')}`).toEqual([])
   }, 600000)

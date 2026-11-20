@@ -33,6 +33,11 @@
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-md); font-variant-numeric: tabular-nums; }
 .table th { text-align: left; font-size: var(--text-sm); color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--ls-label); padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); }
 .table td { padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--border); color: var(--text); }
+/* Phone: the positions table ran 45px past a 340px screen (25px at 360px) and scrolled sideways, its
+   stop cut off at the right edge. Its cells sit 4px a side in place of 12 (2026-11-20). */
+@media (max-width: 640px) {
+  .table th, .table td { padding-inline: var(--space-xs); }
+}
 .sym { font-weight: 700; color: var(--text-bright); font-family: var(--font-mono); }
 .placeholderBadge { font-size: var(--text-sm); color: var(--danger-ink); background: var(--loss-bg); border: 1px solid var(--loss-border); border-radius: var(--radius-md); padding: 2px var(--space-sm); }
 

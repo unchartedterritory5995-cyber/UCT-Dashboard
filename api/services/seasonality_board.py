@@ -199,6 +199,15 @@ def reset() -> None:
     _held = None
 
 
+def held(today: date | None = None) -> dict | None:
+    """READ ONLY: the board this module holds when `reusable` says it may still be served, else
+    None. It never builds, never reads a fund and never takes the build lock, so it can say
+    "nothing held": nothing was read on this pod today, or the last board had a fund pending or
+    failed and is older than INCOMPLETE_REUSE_S (the route would rebuild it; this does not).
+    The answer is the held object itself: a caller reads it and changes nothing in it."""
+    return reusable(_held, today or _now_et().date(), _clock())
+
+
 def serve(today: date | None = None) -> dict:
     """The board for the route: the held answer while it may be reused, else one build."""
     global _held

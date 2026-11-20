@@ -161,7 +161,7 @@ function SentimentTable({ read }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.key} data-testid={`terminal-sent-row-${r.key}`}>
-              <td>{r.label} <span className={styles.muted}>{r.cadence}</span></td>
+              <td className={styles.phoneWrap}>{r.label} <span className={styles.muted}>{r.cadence}</span></td>
               {r.last ? (
                 <>
                   <td>
@@ -212,7 +212,7 @@ function EconRow({ sym, meta, start }) {
     body = (
       <>
         <td>{out.value}</td>
-        <td>{out.period}{out.released ? <span className={styles.muted}> {out.released}</span> : null}</td>
+        <td className={styles.phoneWrap}>{out.period}{out.released ? <span className={styles.muted}> {out.released}</span> : null}</td>
         <td>{out.change ? out.change.replace('−', '-') : 'n/a'}</td>
         <td className={styles.phoneHide}><Spark values={valued.slice(-13).map((p) => p.v)} label={`${name}, recent prints`} /></td>
       </>
@@ -220,7 +220,7 @@ function EconRow({ sym, meta, start }) {
   }
   return (
     <tr data-testid={`terminal-sent-econ-${sym}`}>
-      <td>{name}</td>
+      <td className={styles.phoneWrap}>{name}</td>
       {body}
     </tr>
   )

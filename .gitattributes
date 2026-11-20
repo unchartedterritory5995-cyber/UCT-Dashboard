@@ -209,3 +209,8 @@ tools/restore_drill_weekly.cmd text eol=crlf
 # serverBundle.rail / hostNeutralClosure.rail); with core.autocrlf=true its shebang line checks out
 # with a CR and vite's loader fails with "Invalid or unexpected token". Keep it LF.
 tools/pine_runtime_closure.mjs text eol=lf
+
+# ⛔ Universe minute frames: binary fixtures under tests/fixtures/, which the rule above makes
+# TEXT with eol=lf. A frame can contain 0x0D 0x0A anywhere, and a normalised one fails its CRC.
+# This line must stay BELOW `tests/fixtures/** text eol=lf` (the later rule wins).
+tests/fixtures/minute_frames/*.bin binary

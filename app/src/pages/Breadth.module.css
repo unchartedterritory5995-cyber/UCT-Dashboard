@@ -1134,7 +1134,11 @@ tbody tr { cursor: pointer; }
 .ftdExt {
   position: absolute;
   top: 0;
-  bottom: 1px;
+  /* Down THROUGH the row's hairline (-1px: the cell's bottom border sits outside the padding box
+     this is placed in), drawing the hairline itself. Stopping 1px short let the neighbour's
+     shading show as a green strip under the pill (owner 2026-11-20). */
+  bottom: -1px;
+  box-shadow: inset 0 -1px 0 var(--br-row, color-mix(in srgb, var(--border) 72%, transparent));
   left: calc(100% - 8px);
   width: 36px;
   display: flex;

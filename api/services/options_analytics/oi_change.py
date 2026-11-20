@@ -343,6 +343,11 @@ def oi_change(sym: str, side: Optional[str] = None, *, store=None, wait_s: Optio
             _answers[key] = got
             while len(_answers) > ANSWERS_KEPT:
                 _answers.popitem(last=False)
+    return _answer(base, pair, got, sd)
+
+
+def _answer(base: dict, pair: dict, got: dict, sd: str) -> dict:
+    """The `ok` answer for one side, from the held pair and one stock's computed record."""
     rows = got["rows"][sd]
     return {**base, "status": "ok", "session": pair["session"], "prior_session": pair["prior_session"],
             "skipped_sessions": pair["skipped_sessions"], "known": got["known"],
@@ -351,3 +356,37 @@ def oi_change(sym: str, side: Optional[str] = None, *, store=None, wait_s: Optio
             "summary": got["summary"], "new": got["new"], "gone": got["gone"],
             "not_reported": got["not_reported"], "volume_present": got["volume_present"],
             "volume_session": pair["prior_session"], "built_at": got["built_at"]}
+
+
+def held_change(sym: str, side: Optional[str] = None) -> tuple:
+    """READ ONLY: `(answer, how)` from the pair this module ALREADY holds. It never starts the
+    background build, never waits on one, never lists or downloads a file, never drops the held
+    pair and changes no module state (it does not even keep the answer it computes). The held
+    pair answers whatever its age: this never looks for a newer session.
+
+    how: 'held'      the answer `oi_change` would give from the held pair (status 'ok',
+                     'no_sessions' or 'one_session')
+         'not_held'  no pair is held (no request has prepared one on this pod); answer None
+         'failed'    no pair is held and the last build failed; the answer is the `unavailable`
+                     one, with the exception's class name
+         'file_gone' a pair is held but one of its two files could not be read; answer None
+    Raises BadQuery for a symbol or a side that is not one."""
+    s, sd = normalize(sym, side)
+    base = {"symbol": s, "side": sd, "source": SOURCE, "coverage": COVERAGE, "max_rows": MAX_ROWS}
+    with _lock:
+        pair, failed = _held, _failed
+        got = None
+        if pair is not None and pair.get("status") == "ok":
+            got = _answers.get((pair["session"], pair["prior_session"], s))
+    if pair is None:
+        if failed is not None:
+            return {**base, "status": "unavailable", "error": failed[1]}, "failed"
+        return None, "not_held"
+    if pair.get("status") != "ok":
+        return {**base, **{k: v for k, v in pair.items() if k in ("status", "session", "error")}}, "held"
+    if got is None:
+        try:
+            got = compute(s, pair)
+        except (sqlite3.Error, OSError):
+            return None, "file_gone"
+    return _answer(base, pair, got, sd), "held"

@@ -159,6 +159,42 @@ def on_am(sym: str, bar: dict) -> None:
             resync()
 
 
+def universe_am_handler():
+    """The callable bar_stream hands every universe AM event to. With minute frames OFF
+    (`MINUTE_FRAMES_ENABLED` unset, the default) it is `on_am` ITSELF, the same object as
+    before, so the universe feed is unchanged. On, it is `on_am` followed by the minute-frame
+    publisher's (api/services/minute_frame_publisher.py), each guarded so neither can break
+    the other."""
+    from api.services import minute_frame_publisher as mfp
+    if not mfp.enabled():
+        return on_am
+    pub_on_am = mfp.on_am
+
+    def both(sym: str, bar: dict) -> None:
+        try:
+            on_am(sym, bar)
+        finally:
+            try:
+                pub_on_am(sym, bar)
+            except Exception:  # noqa: BLE001 - frames must never cost the forwarder an event
+                pass
+
+    return both
+
+
+def note_gap_connect() -> None:
+    """A socket connected while none was live: tell the minute-frame publisher (no-op off)."""
+    from api.services import minute_frame_publisher as mfp
+    if mfp.enabled():
+        mfp.note_connected()
+
+
+def start_minute_frames(loop: asyncio.AbstractEventLoop) -> bool:
+    """Start the minute-frame publisher next to the flusher (no-op while its flag is off)."""
+    from api.services import minute_frame_publisher as mfp
+    return mfp.start(loop)
+
+
 def bucket_row(sym: str, bucket: int) -> Optional[list]:
     mins = (_minutes.get(sym) or {}).get(bucket)
     if not mins:
@@ -307,6 +343,9 @@ def status() -> dict:
     }
     if enabled_1m():
         out.update(m1_enabled=True, **_m1_stats)
+    from api.services import minute_frame_publisher as mfp
+    if mfp.enabled():          # off: the status is exactly what it was
+        out["minute_frames"] = mfp.status()
     return out
 
 

@@ -2700,12 +2700,34 @@ registerObjectRuntimeValues(runtimeObjectValues)
  *  run then decides, and refuses by name if it must. Only a build that SUCCEEDS and names no own daily read
  *  above the chart answers no. */
 const _ownDailyMemo = new Map()
-export function runtimeReadsOwnDaily(source, tf, symbol = null) {
+/** ⭐⭐ (switch smoothness, 2026-11-20) THE QUESTION `runtimeReadsOwnDaily` ANSWERS, as its memo names it:
+ *  `{key, tf, symbol}` (the timeframe as a string, the chart's symbol as the run binds it), or null where the
+ *  answer is NO without a build (not an intraday timeframe, no source). One function, so the chart's thread and
+ *  the worker that answers it off that thread (`ownDailyAsync.js`) key one memo the same way. */
+export function runtimeOwnDailyQuestion(source, tf, symbol = null) {
   const t = tf == null ? '' : String(tf)
-  if (!isIntradayTf(t) || typeof source !== 'string' || !source) return false
+  if (!isIntradayTf(t) || typeof source !== 'string' || !source) return null
   const sym = symbolOf({ symbol })
-  const k = `${t}|${symbolKey(sym)}|${source}`
-  if (_ownDailyMemo.has(k)) return _ownDailyMemo.get(k)
+  return { key: `${t}|${symbolKey(sym)}|${source}`, tf: t, symbol: sym || null }
+}
+/** The memoised answer for a question's key, or undefined when it has not been answered in this tab. */
+export function runtimeOwnDailyKnown(key) {
+  return _ownDailyMemo.has(key) ? _ownDailyMemo.get(key) : undefined
+}
+/** Test seam: forget every answer (a rail comparing two threads must not read one thread's memo for the other). */
+export function __resetOwnDailyMemoForTests() { _ownDailyMemo.clear() }
+/** Remember an answer (the worker's, computed by this very function there: `ownDailyProbe.js`). */
+export function rememberRuntimeOwnDaily(key, yes) {
+  if (_ownDailyMemo.size >= 64) _ownDailyMemo.clear()
+  _ownDailyMemo.set(key, yes === true)
+}
+export function runtimeReadsOwnDaily(source, tf, symbol = null) {
+  const q = runtimeOwnDailyQuestion(source, tf, symbol)
+  if (!q) return false
+  const known = runtimeOwnDailyKnown(q.key)
+  if (known !== undefined) return known
+  const t = q.tf
+  const sym = q.symbol
   let yes = true
   try {
     const built = buildRuntimeIr(source, {
@@ -2720,7 +2742,6 @@ export function runtimeReadsOwnDaily(source, tf, symbol = null) {
   } catch (err) {
     yes = true
   }
-  if (_ownDailyMemo.size >= 64) _ownDailyMemo.clear()
-  _ownDailyMemo.set(k, yes)
+  rememberRuntimeOwnDaily(q.key, yes)
   return yes
 }

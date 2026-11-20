@@ -868,6 +868,10 @@ def _access_payload(user: dict, plan: str) -> dict:
         "study_enabled": os.environ.get(
             "STUDY_ENABLED", "1"
         ).strip().lower() not in ("0", "false", "no", "off"),
+        # ── Chart SPEED kill switch (2026-11-20): the readout. The browser does not read this
+        # key; it reads the `uct_chart_speed` cookie every auth response sets beside it
+        # (_set_chart_speed_cookie, same reader), so the kill costs first open nothing.
+        "chart_speed_enabled": _chart_speed_enabled(),
         # ── Research "Technical" tab (Chart/Technical Intelligence Convergence) ──
         # Same request-time mechanism as the hub flag above: read HERE, per
         # request, never captured at module import. That is what lets the flag be
@@ -1166,6 +1170,7 @@ def signup(request: Request, req: SignupRequest, response: Response):
     token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     _set_chart_edge_cookie(response, user, "free")
+    _set_chart_speed_cookie(response)
     user["email_verified"] = False
     return {"user": user, "plan": "free", **_access_payload(user, "free")}
 
@@ -1202,6 +1207,7 @@ def login(request: Request, req: LoginRequest, response: Response):
     _set_session_cookie(response, token)
     plan = get_user_plan(user["id"])
     _set_chart_edge_cookie(response, user, plan)
+    _set_chart_speed_cookie(response)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -1237,6 +1243,7 @@ def login_totp_verify(request: Request, req: TotpLoginRequest, response: Respons
     token = create_session(uid, user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(uid)
+    _set_chart_speed_cookie(response)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -1259,6 +1266,7 @@ def me(response: Response, user: dict = Depends(get_current_user)):
     # and (lib/barsStreamManager) every EDGE_REFRESH_MS while a live chart stream is open,
     # so the chart edge token is re-minted (or revoked) before it expires.
     _set_chart_edge_cookie(response, user, plan)
+    _set_chart_speed_cookie(response)
     sub = get_subscription(user["id"])
     return {
         "user": user,
@@ -1664,6 +1672,7 @@ def smoke_login(request: Request, req: SmokeLoginRequest, response: Response):
     token = create_session(user_id, user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(user_id)
+    _set_chart_speed_cookie(response)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -3701,3 +3710,55 @@ def _set_chart_edge_cookie(response: Response, user: dict, plan: str):
             path=path,              # one Worker route each, nothing wider — see the module docstring
             max_age=chart_edge_token.ttl_seconds(),
         )
+
+
+# ── THE CHART SPEED KILL SWITCH (2026-11-20) ────────────────────────────────────────────────────
+# One server setting that turns BOTH chart speed switches off for every browser
+# (`uct.neighborframes`, default ON since #2202, and `uct.deviceStore`), over a member's own
+# local '1', from the next page load, with no code deploy: CHART_SPEED_ENABLED on web, KILL
+# polarity, read per request (the hub flag's shape: unset or any other value = not killed; only
+# 0/false/no/off kills). Flip and verify: docs/feature_flags.json CHART_SPEED_ENABLED.
+#
+# ⭐ THE BROWSER'S COPY IS A COOKIE THIS SERVER WRITES, NOT A VALUE THE CLIENT STORES. The
+# switches are read once per page load, possibly before that load's /me answers, so the last kill
+# seen has to persist in the browser. A client-side writer would sit in AuthContext, on the
+# Notebook's first-open closure: measured 135 B against a 97 B headroom. A cookie costs first open
+# nothing (only the lazy chart and device-store code reads it, app/src/lib/chartSpeed.js) and keeps
+# exactly the semantics asked for:
+#   • present before the next load's /me answers (it is in the jar);
+#   • FAIL OPEN: a failed /me (5xx, network, a pod down) or a 401 sends no Set-Cookie, so it
+#     cannot turn speed off by itself, and a kill once seen stays until an auth response says
+#     otherwise (CHART_SPEED_COOKIE_MAX_AGE is the outer bound: 400 days, the browsers' own cap);
+#   • set beside every auth payload (/me, login, the TOTP second factor, signup, smoke-login):
+#     tests/test_chart_speed_kill.py derives that list from this file's AST.
+# Not HttpOnly on purpose (page scripts must read it) and it carries no secret: "0" or absent.
+CHART_SPEED_COOKIE = "uct_chart_speed"
+CHART_SPEED_COOKIE_MAX_AGE = 400 * 86400
+
+
+def _chart_speed_enabled() -> bool:
+    """CHART_SPEED_ENABLED, read PER REQUEST. KILL polarity: only 0/false/no/off kills."""
+    return os.environ.get(
+        "CHART_SPEED_ENABLED", "1"
+    ).strip().lower() not in ("0", "false", "no", "off")
+
+
+def _set_chart_speed_cookie(response: Response) -> None:
+    """Write the browser's copy of the kill: `uct_chart_speed=0` while killed, cleared otherwise.
+
+    ⛔ NEVER RAISES: it rides every sign-in, and a kill switch must never cost a login."""
+    try:
+        if _chart_speed_enabled():
+            response.delete_cookie(CHART_SPEED_COOKIE, path="/")
+            return
+        response.set_cookie(
+            key=CHART_SPEED_COOKIE,
+            value="0",
+            httponly=False,         # app/src/lib/chartSpeed.js reads it from document.cookie
+            secure=COOKIE_SECURE,
+            samesite="lax",
+            path="/",               # every page: the chart code runs under many routes
+            max_age=CHART_SPEED_COOKIE_MAX_AGE,
+        )
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a kill switch
+        pass
