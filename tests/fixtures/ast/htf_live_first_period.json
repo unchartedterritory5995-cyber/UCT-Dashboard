@@ -1988,23 +1988,33 @@
    ]
   },
   {
-   "name": "sym('SPY', live(high)) (under another request: the first period's bars, field-unaware)",
+   "name": "nz(sym('SPY', live(high))) (under another request: the first period's bars, field-unaware)",
    "set": "wednesday",
    "opts": {},
    "symbols": true,
    "tree": {
-    "type": "sym",
-    "value": "SPY",
+    "type": "call",
+    "name": "nz",
     "args": [
      {
-      "type": "tf_live",
-      "value": "W",
+      "type": "sym",
+      "value": "SPY",
       "args": [
        {
-        "type": "series",
-        "name": "high"
+        "type": "tf_live",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         }
+        ]
        }
       ]
+     },
+     {
+      "type": "num",
+      "value": 0
      }
     ]
    },
