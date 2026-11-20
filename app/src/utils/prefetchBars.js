@@ -882,9 +882,13 @@ export function prefetchBars(tickers, tf = 'D', { priority = false, urgent = fal
   if (urgent) {
     // Only the LATEST urgent call stays urgent: a fast walk must not leave a trail
     // of stale urgent fetches for rows the user already passed.
+    // ⛔ PER TIMEFRAME (2026-11-19): a list linked to a daily AND an hourly chart warms both on every
+    // press; only this call's timeframe drops its passed rows.
     const keep = new Set(syms.slice(0, nUrgent).map(x => _url(x, tf, false)))
+    const tfOf = (u) => (/[?&]tf=([^&]+)/.exec(u) || [])[1]
+    const callTf = tfOf([...keep][0] || '')
     for (const u of [..._urgent.keys()]) {
-      if (keep.has(u)) continue
+      if (keep.has(u) || tfOf(u) !== callTf) continue
       _urgent.delete(u)
       const qi = _queue.indexOf(u)
       if (qi >= 0) { _queue.splice(qi, 1); _seen.delete(u) }

@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (775)
+## Member session reads (776)
 
 ### Limits
 
@@ -614,6 +614,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/options-screener/more-strategies` | paid | options-analytics |  |
 | GET | `/api/options-screener/more/{name}` | paid | options-analytics | {name}, underlyings, limit=50 |
 | GET | `/api/options-screener/multi-leg` | paid | options-analytics | underlyings, limit=50 |
+| GET | `/api/options-screener/oi-change/{sym}` | paid | options-analytics | {sym}, side=any |
 | GET | `/api/options-screener/screen` | paid | options-analytics |  |
 | GET | `/api/options-screener/sizzle` | paid | options-analytics |  |
 | GET | `/api/options-screener/strategies` | paid | options-analytics |  |
