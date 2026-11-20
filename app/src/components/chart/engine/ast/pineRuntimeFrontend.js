@@ -48,6 +48,7 @@ import { clockColumnsOf } from '../clockMemo.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { versionAt, RUNTIME_ISLAND_FAMILIES, LIBRARY_VERSION } from './pineLibraryVersion.js'
+import { versionObjectDefaults } from '../objectDefaults.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { barConstantTree } from './barConstant.js'
 import { roundToMintickTree } from './tickRound.js'
@@ -5117,6 +5118,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // a comma line stay as master had them. Rails: `p3WsaDarkGate.test.js`.
   let objectOpsLowered = 0
   const RUN_DRAW_CALL = /^(line|label|box|table|linefill)\.([a-z_0-9]+)$/
+  /** ⭐⭐ the version island (object defaults): the calls whose unset colour slots a v5 library draws in v5's
+   *  witnessed defaults (`objectDefaults.js` VERSION_DEFAULTS), and the family each one's defaults are read under. */
+  const ISLAND_DEFAULT_FAMILIES = Object.freeze({ 'label.new': 'label', 'box.new': 'box', 'table.cell': 'cell' })
   const refuseObject = (what, why, tok) => {
     note('runtime:object-op')
     throw new RuntimeRefusal('runtime:object-op', `\`${what}\` — ${why}`, locate(tok))
@@ -5276,6 +5280,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
         refuseObject(fn, 'a `chart.point` coordinate is not one this lane carries', tok)
       }
       slotsOf[at] = lowerExpr(v, scope)
+    }
+    // ⭐⭐ the version island (object defaults, island PR 3): a `label.new` / `box.new` / `table.cell` a v5 library
+    // writes inside a v6 script draws v5's default colour for a slot it leaves unset (`objectDefaults.js`
+    // VERSION_DEFAULTS, each from a v5 capture), as the same library in a v5 script does. The run's objects are
+    // drawn at the PROGRAM's version (`objectRenderState.js::objectDefaultsFor`), so the call carries the island's
+    // default itself, as if the library had written it. Every other call keeps its exact shape.
+    const objectVersion = versionAt(tok, pineVersion)
+    const islandFamily = ISLAND_DEFAULT_FAMILIES[fn]
+    if (islandFamily && objectVersion !== pineVersion && Number.isFinite(objectVersion)) {
+      const mine = versionObjectDefaults(objectVersion)[islandFamily] || {}
+      const theirs = versionObjectDefaults(pineVersion)[islandFamily] || {}
+      params.forEach((p, k) => {
+        if (slotsOf[k] !== null || mine[p] === undefined || mine[p] === theirs[p]) return
+        const packed = objectHexToPacked(mine[p])
+        if (packed === null) refuseObject(fn, `its Pine v${objectVersion} default \`${p}\` is not a colour this lane can carry`, tok)
+        slotsOf[k] = num(packed)
+      })
     }
     objectOpsLowered += 1
     // ⭐⭐ ENGINE 54 — a call that MAKES a drawing (`.new`, `.copy`) carries its source call
