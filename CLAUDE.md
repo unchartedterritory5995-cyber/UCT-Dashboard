@@ -1551,7 +1551,7 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 ### Architecture
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
 - **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
-- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
+- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. ⭐ On /charts `groupSyms` is a store the board owns (`groupSymsStore.js`, 2026-11-20), not board state: a symbol switch re-renders only the components whose render READS `groupSyms` (useWorkspace subscribes them), never the board, the grid or the widget hosts. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
 - **Widget types — ⭐ measure it, don't quote it:** the authoritative list is
   `WIDGET_REGISTRY` in `app/src/widgets/registry.js` (metadata + menu membership
   + journal-embed params), with the /charts component bindings in
@@ -1700,7 +1700,7 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - TradingView-style overlay at top-left of chart, appears on hover
 - Shows: date/time, O, H, L, C, V (formatted K/M), change + change%, MA overlay values with colors
 - Developing bar: falls back to REST session volume + last computed MA values
-- Uses `chart.subscribeCrosshairMove()` API, state in `crosshairData`
+- Uses `chart.subscribeCrosshairMove()` API. The payload (`crosshairData`) is NOT StockChart state (2026-11-20): it lives in a per-chart store (`chart/readoutStore.js`) printed by `ReadoutIsland`s, so a hover frame or a switch's readout re-renders the legend rows, never the whole chart. Read it inside an island's render function, never at StockChart's top level
 - Works on all chart surfaces (TickerPopup, Breadth, ThemeTracker, Watchlists, CustomScan)
 
 ### Chart Performance Architecture
