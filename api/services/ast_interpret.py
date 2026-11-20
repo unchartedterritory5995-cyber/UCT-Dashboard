@@ -4901,6 +4901,11 @@ def interpret(ast: Any, bars: List[dict],
         lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
         if lived is not None:
             column = [math.nan if lived[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ PERIOD -1 -- ...and a read of the bar, week or month before the first one the series holds
+        # (``interpret.js::historyBeforeChartMask``), named where it takes a drawn value away
+        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, column)
+        if before is not None:
+            column = [math.nan if before[i] else v for i, v in enumerate(column)]
     if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
@@ -5359,6 +5364,128 @@ def tf_live_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] 
     return mask
 
 
+#: ⭐⭐ PERIOD -1 (HTF-PRE-CHART, coordinator ruling 2026-11-19) -- ``interpret.js::HISTORY_BEFORE_CHART_CODE``: a read
+#: of the bar, or the week or month, before the first one the series holds (``history_before_chart_mask``; the
+#: sentence is the JS lane's, ``HISTORY_BEFORE_CHART_SENTENCE``).
+HISTORY_BEFORE_CHART_CODE = "history:before-chart"
+
+
+def _pre_chart_unknown(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
+                       off: bool) -> Optional[List[int]]:
+    """⭐⭐ PERIOD -1 -- the port of ``interpret.js::preChartUnknown`` (its docstring carries the rule and the
+    measurement): the bars of a tree that read a bar (or a higher-timeframe period) before the first one its series
+    holds, as a 0/1 list (1 = unknown), or ``None``. ``off``: this series' bar 0 is not TradingView's. Off, the
+    series' own history reads are sites (``_witness_mask``'s ``before_first``); a read on other bars is a site of its
+    own (``_request_before_first``). Which root bars read them is engine 56's walk, exact."""
+    n = len(bars or [])
+    if not n:
+        return None
+    own: Dict[int, List[int]] = {}
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") in _SCOPE_TYPES:
+            m = _request_before_first(node, bars, inputs, budget, scalars, opts, off)
+            if m is not None:
+                own[id(node)] = m
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    if not own and not off:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    sites = own
+    return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=True,
+                         request_sites=True, before_first=off is True)
+
+
+def _request_before_first(node: Mapping[str, Any], bars: List[dict], inputs, budget, scalars, opts,
+                          off: bool) -> Optional[List[int]]:
+    """⭐⭐ PERIOD -1 -- the port of ``interpret.js::requestBeforeFirst``: the bars on which a read on other bars answers
+    from a bar before its series' first, or ``None``. ``tf`` / ``tf_live`` / ``tf_merge``: the child on this symbol's
+    higher-timeframe bars (``_htf_resampled``), ``off`` unchanged, mapped by the arm's own pick; a merge's (or a formula
+    ``tf``'s) first-period bar before the close reads the period before the first: unknown, off. ``sym``: the supplied
+    series aligned on ``t``, always off (C26). ``ltf``: nothing here (``lower_tf_mask``'s)."""
+    n = len(bars)
+    args = node.get("args") if isinstance(node.get("args"), list) else []
+    child = args[0] if args else None
+    kind = node.get("type")
+    if kind == "ltf":
+        return None
+    m: Optional[List[int]] = None
+    if kind == "sym":
+        series = ((opts or {}).get("symbols") or {}).get(str(node.get("value")).strip().upper())
+        if not series:
+            return None
+        u = _pre_chart_unknown(child, series, inputs, budget, scalars,
+                               dict(opts or {}, historyFromListing=None), True)
+        if u is None:
+            return None
+        at: Dict[Any, int] = {}
+        for j, b in enumerate(series):
+            key = b.get("t") if isinstance(b, dict) else None
+            if key is not None and not isinstance(key, bool) and key not in at:
+                at[key] = j
+        for i, b in enumerate(bars):
+            key = b.get("t") if isinstance(b, dict) else None
+            if key is None or isinstance(key, bool):
+                continue
+            j = at.get(key)
+            if j is not None and u[j]:
+                m = m or [0] * n
+                m[i] = 1
+        return m
+    code = str(node.get("value"))
+    iso, keys, at, _order, htf = _htf_resampled(bars, code)
+    u = _pre_chart_unknown(child, htf, inputs, budget, scalars, dict(opts or {}, tf=code), off) if htf else None
+    reads = _tf_merge_reads(iso, keys, at, code) if kind == "tf_merge" else None
+    for i, k in enumerate(keys):
+        if k is None:
+            continue
+        b = at[k]
+        r = b if kind == "tf_live" else reads[i] if reads is not None else b - 1
+        if r >= 0:
+            if u is not None and u[r]:
+                m = m or [0] * n
+                m[i] = 1
+        elif off and b == 0:
+            m = m or [0] * n
+            m[i] = 1
+    return m
+
+
+def history_before_chart_mask(tree: Any, bars: List[dict], inputs: Any = None, budget: Any = None,
+                              scalars: Any = None, opts: Optional[Mapping[str, Any]] = None,
+                              column: Optional[List[Any]] = None) -> Optional[List[int]]:
+    """⭐⭐ PERIOD -1 (coordinator ruling 2026-11-19) -- the port of ``interpret.js::historyBeforeChartMask``: in a Pine
+    document (``opts["varOriginAbsolute"]``) the root bars that draw from a read before the first bar held (1 =
+    withheld), or ``None``. Off the listing (``barIndexAbsolute`` and not ``historyFromListing``) every history read of
+    the chart's own bars counts; from the listing only another symbol's do. Named ``HISTORY_BEFORE_CHART_CODE`` only
+    where it takes a drawn value of ``column`` away (with no column, whenever it withholds)."""
+    o = opts or {}
+    if o.get("varOriginAbsolute") is not True:
+        return None
+    off = o.get("barIndexAbsolute") is True and o.get("historyFromListing") is not True
+    if not off and not _tree_reads_sym(tree):
+        return None
+    mask = _pre_chart_unknown(tree, bars, inputs, budget, scalars, opts, off)
+    if not mask or not any(mask):
+        return None
+    drawn = column is None or any(
+        m and v is not None and not (isinstance(v, float) and math.isnan(v)) for m, v in zip(mask, column))
+    if drawn:
+        _name_chart_clock(opts, [HISTORY_BEFORE_CHART_CODE])
+    return mask
+
+
 def _newest_closes_every_merge_period(bars: List[dict], found: list,
                                        opts: Optional[Mapping[str, Any]]) -> bool:
     """⭐ REVIEW L3 -- the port of ``interpret.js::newestClosesEveryMergePeriod``: a daily
@@ -5623,7 +5750,8 @@ _WITNESS_FINITE = ("sma", "wma", "stdev", "sum", "dev", "median", "highest", "lo
 def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                   is_site: Callable[[dict], bool],
                   flagged: Callable[[dict], Optional[List[int]]],
-                  exact: bool = False) -> Optional[List[int]]:
+                  exact: bool = False, request_sites: bool = False,
+                  before_first: bool = False) -> Optional[List[int]]:
     """ENGINE 56 -- the root bars that depend on a withheld bar of a witness site, by one 0/1
     "unknown" column per node, bottom-up. The twin of ``interpret.js::witnessMask`` (its
     docstring states each node kind's rule: nested reads every bar, offsets shift, operators and
@@ -5634,9 +5762,24 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
     source bar, instead of over its whole buffer; ``c ? a : b`` where ``c`` is, else where the arm a known ``c``
     takes is (non-zero takes ``a``), and where either arm is on a bar whose ``c`` is ``na``; a finite window
     (``_WITNESS_FINITE``, every span ``n``) over the bar and ``n - 1`` before it, not its declared lookback; and a
-    running value only on its argument's own unknown bars (its memory is not followed: the JS twin's note)."""
+    running value only on its argument's own unknown bars (its memory is not followed: the JS twin's note).
+    ``request_sites`` / ``before_first`` (PERIOD -1, ``history_before_chart_mask`` only): ``walk.requestSites`` /
+    ``walk.beforeFirst`` -- a read on other bars is a site or known, never walked into, and a site's own bars are its
+    column alone; a history read that lands before the first bar held (``x[k]`` on its first ``k`` bars, a ``barsAgo``
+    readable count reaching before bar 0) is a site of its own, unknown there."""
     n = len(bars)
     has_memo: Dict[int, bool] = {}
+
+    def reads_before_first(node: Any) -> bool:
+        # PERIOD -1 -- a history read of this series that can land before its first bar (``walk.beforeFirst``)
+        args = node.get("args")
+        if not before_first or not isinstance(args, list):
+            return False
+        if node.get("type") == "offset":
+            v = node.get("value")
+            return (len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 1
+                    and not _reads_recurrence_binding(args[0]))
+        return node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3
 
     def has_site(node: Any) -> bool:
         if not isinstance(node, dict):
@@ -5646,7 +5789,9 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
             return has_memo[key]
         has_memo[key] = False
         args = node.get("args")
-        r = is_site(node) or (isinstance(args, list) and any(has_site(a) for a in args))
+        r = (is_site(node) or reads_before_first(node)
+             or (not (request_sites and node.get("type") in _WITNESS_NESTED)
+                 and isinstance(args, list) and any(has_site(a) for a in args)))
         has_memo[key] = r
         return r
 
@@ -5706,17 +5851,23 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         elif is_site(node):
             own = flagged(node)
             out = ALL if own is None else own
-            for a in args:
-                out = or_into(out, unk(a))
+            if not request_sites:
+                for a in args:
+                    out = or_into(out, unk(a))
         elif kind == "offset":
             u = unk(args[0])
-            if u is None or u == ALL:
+            k = int(node.get("value") or 0)
+            # PERIOD -1 -- ``x[k]`` on its first ``k`` bars reads before the first bar held (``before_first``)
+            before = min(k, n) if reads_before_first(node) else 0
+            if u == ALL or (u is None and before == 0):
                 out = u
             else:
-                k = int(node.get("value") or 0)
                 out = [0] * n
-                for i in range(k, n):
-                    out[i] = u[i - k]
+                for i in range(before):
+                    out[i] = 1
+                if u is not None:
+                    for i in range(k, n):
+                        out[i] = u[i - k]
         elif (exact and kind == "op" and name == "?:" and len(args) == 3
               and not _reads_recurrence_binding(args[0])):
             uc = unk(args[0])
@@ -5743,7 +5894,8 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
             if spec is not None and is_pointwise(spec) and not stateful:
                 for a in args:
                     out = or_into(out, unk(a))
-            elif name == "barssince" and not has_site(args[1]):
+            elif (name == "barssince" and not has_site(args[1])
+                  and not (request_sites and _reads_recurrence_binding(args[0]))):
                 u = unk(args[0])
                 if u is None or u == ALL:
                     out = u
@@ -5758,7 +5910,8 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                             tainted = False
                         out[i] = 1 if tainted else 0
             elif (name in ("valuewhen", "valuewhenOccurrence") and len(args) == 3
-                  and isinstance(args[2], dict) and args[2].get("type") == "num"):
+                  and isinstance(args[2], dict) and args[2].get("type") == "num"
+                  and not (request_sites and _reads_recurrence_binding(args[0]))):
                 uc, us = unk(args[0]), unk(args[1])
                 if uc == ALL or us == ALL:
                     out = ALL
@@ -5798,12 +5951,19 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                     back = col_of(args[1])
                     limit = _window_literal(node, 2)
                     out = [0] * n
+                    before = reads_before_first(node)
                     for i in range(n):
                         if uk is not None and uk[i]:
                             out[i] = 1
                             continue
                         k = _history_back_of(back[i])
-                        if us is not None and _history_readable(k, limit) and i - int(k) >= 0 and us[i - int(k)]:
+                        if not _history_readable(k, limit):
+                            continue
+                        # PERIOD -1 -- a readable count that reaches before the first bar held (``before_first``)
+                        if i - int(k) < 0:
+                            if before:
+                                out[i] = 1
+                        elif us is not None and us[i - int(k)]:
                             out[i] = 1
             elif name in ("pivothigh", "pivotlow"):
                 u = None
@@ -5821,6 +5981,11 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                 # ``exact``: a finite window's own span (the bar and ``n - 1`` before it), not the declared lookback
                 reach = lb - 1 if (exact and name in _WITNESS_FINITE and not declared) else lb
                 out = windowed(u, max(0, reach))
+                # PERIOD -1 -- a ``barsAgo`` whose count this walk cannot read reaches anywhere in its buffer
+                if reads_before_first(node) and out != ALL:
+                    out = [0] * n if out is None else out
+                    for i in range(min(lb, n)):
+                        out[i] = 1
             else:
                 u = None
                 for a in args:
@@ -6649,6 +6814,8 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "request:htf-first-period-partial",
     # HTF-LIVE-FIRST-PERIOD -- the first period of a ``tf_live`` read, off the listing (``tf_live_mask``)
     "request:htf-lookahead-first-period-partial",
+    # PERIOD -1 -- a read of the bar, week or month before the chart's first (``history_before_chart_mask``)
+    "history:before-chart",
     WINDOW_EXTREME_LEFT_EDGE,
 )
 
@@ -7708,9 +7875,14 @@ def _interpret_column(ast: Any, bars: List[dict],
             if not series:
                 return _nan_col(length)
 
+            # ⛔ C26 -- ``historyFromListing`` IS A STATEMENT ABOUT THE CHART'S OWN SERIES (bar 0 is ITS listing bar),
+            # never about another symbol's: the child runs on the supplied series with the bounded warm-up, whatever
+            # the caller said of its own bars (``interpret.js``'s ``sym`` arm clears it). ⚰️ This lane kept it until the
+            # PERIOD -1 twin rail (``tests/test_pine_history_before_chart.py``): the other series' bar 0 was read as
+            # its listing here and not in the chart lane.
             child = _to_column(
                 interpret(n["args"][0], series, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {})),
+                          scalars=scalars, opts=dict(opts or {}, historyFromListing=None)),
                 len(series))
 
             # ⭐ ALIGNED ON THE BAR’S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
