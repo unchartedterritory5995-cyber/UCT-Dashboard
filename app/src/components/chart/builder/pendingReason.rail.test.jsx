@@ -28,7 +28,7 @@ vi.mock('../supportLoop/supportApi', async (importOriginal) => {
 
 import PineEditorStatus, { usePineEditorStatus, shownStatus, PENDING_REASON_REREAD_MS } from './PineEditorStatus'
 import { inspectSource } from './PineBox'
-import { PANEL_STATE } from './editorStatus'
+import { PANEL_STATE, lineMarks } from './editorStatus'
 import { CHECKING_HEADLINE } from './runsHere'
 import {
   checkScript, settleScript, scriptEntry, isChecking, PENDING_REASON_LINES, PENDING_REASONS_THAT_END_THE_WAIT,
@@ -163,9 +163,11 @@ describe('the dock: the door says why, and the script entry says it to the membe
 })
 
 // ─── the editor's status panel ───────────────────────────────────────────────────────────────
+let lastStatus = null   // the status the panel was last drawn from (what the editor's line marks are made from too)
 function Panel({ source }) {
   const report = useMemo(() => inspectSource(source, 'pine'), [source])
   const status = usePineEditorStatus({ enabled: true, report, inspectedSource: source })
+  lastStatus = status
   return <PineEditorStatus status={status} report={report} inspectedSource={source} currentText={source} />
 }
 const headline = () => screen.getByTestId('pine-status-headline')
@@ -236,5 +238,37 @@ describe('what the panel leads with', () => {
     // a script the fast lane already draws is said to run while the answer is out: it does
     const runs = { state: PANEL_STATE.RUNS, headline: 'Runs on the chart', items: [] }
     expect(shownStatus({ ...runs, admissionPending: true })).toMatchObject({ headline: 'Runs on the chart', state: PANEL_STATE.RUNS })
+  })
+})
+
+// ─── the editor's line marks ─────────────────────────────────────────────────────────────────
+describe('the editor marks no line as withheld while the script is still being checked', () => {
+  it('no marks while the answer is out; the same status WOULD mark lines; a refusal that is final marks them', async () => {
+    door = pending('busy')
+    render(<Panel source={SCRIPT} />)
+    await tick(PENDING_REASON_REREAD_MS + 100)
+    expect(lastStatus.admissionPending).toBe(true)
+    expect(lineMarks(lastStatus, SCRIPT)).toEqual({ source: SCRIPT, marks: [] })
+    // CONTROL: the fast lane's refusal is on real lines of this script, and without the "still being checked"
+    // fact those lines are marked (so the empty answer above is the rule at work, not a status with no lines)
+    const asFinal = { ...lastStatus }
+    delete asFinal.admissionPending
+    const wouldMark = lineMarks(asFinal, SCRIPT).marks
+    expect(wouldMark.length).toBeGreaterThan(0)
+    expect(wouldMark.every((m) => m.line >= 1 && typeof m.message === 'string' && m.message.length > 0)).toBe(true)
+    // the door REFUSES: nothing is being checked any more, and the lines are marked
+    door = REFUSED
+    await tick(RUNTIME_ADMISSION_PENDING_RETRY_MS + PENDING_REASON_REREAD_MS + 100)
+    expect(lastStatus.admissionPending).toBeUndefined()
+    expect(lineMarks(lastStatus, SCRIPT).marks.length).toBeGreaterThan(0)
+  }, 120_000)
+
+  it('only the literal fact switches it off', () => {
+    const src = 'a' + String.fromCharCode(10) + 'b' + String.fromCharCode(10) + 'c'
+    const item = { line: 2, severity: 'withheld', label: 'x', reason: 'y', guard: 'pine:state' }
+    for (const v of [undefined, null, false, 0, '', 'true', 1]) {
+      expect(lineMarks({ items: [item], admissionPending: v }, src).marks, String(v)).toHaveLength(1)
+    }
+    expect(lineMarks({ items: [item], admissionPending: true }, src).marks).toEqual([])
   })
 })
