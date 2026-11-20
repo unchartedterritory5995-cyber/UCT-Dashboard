@@ -134,7 +134,7 @@ export const FAMILIES = Object.freeze([
     // HOST KNOWN-DIVERGENCE (owner decision 2026-11-17): a committed TradingView capture shows this script
     // drawing something different (`engine/hostKnownDivergence.js`); the door's own sentence names the capture
     id: 'divergence',
-    exact: ['pine:known-divergence'],
+    exact: ['pine:known-divergence', 'pine:held-divergence'],
     label: 'Differs from TradingView on a captured chart',
     why: 'On a chart we captured from TradingView, this script draws something that differs from what '
       + 'TradingView draws, so it is withheld until that is fixed. The message names the capture.',

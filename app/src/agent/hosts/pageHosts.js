@@ -105,6 +105,8 @@ export function buildBreadthPageHost({ read, location, navigate }) {
           columns: Array.isArray(p.columns) ? p.columns.map(str) : [],
           live: p.live === true,
           loading: p.loading === true,
+          // The Monitor's universe (UCT / U.S. stocks / Nasdaq / NYSE); the sheet tab only.
+          universe: p.universe ? str(p.universe) : null,
         }
       },
     },

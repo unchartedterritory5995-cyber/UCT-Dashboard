@@ -59,6 +59,11 @@ function inertWorkspaceMembers() {
     onReplayPickCancel: () => {},
     startMarker: null,
     startMarkerStyle: 'line',
+    // The scan day's "Mark day": BreadthDrillModal lays the drill date and its color over these.
+    markDay: null,
+    markDayColor: null,
+    // Scanning switches symbols every second: Replay warms no intraday timeframes per ticker.
+    replayWarmIntraday: false,
 
     // The chart's right-click "Add widget ▸" submenu floats a NEW widget onto
     // the board. The drill's board is exactly two widgets by construction.

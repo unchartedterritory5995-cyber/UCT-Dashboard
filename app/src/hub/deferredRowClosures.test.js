@@ -133,34 +133,28 @@ describe('D-09 (phone sort) — CLOSED: the props are absent AND the control is 
   })
 })
 
-describe('D-06 (metric-group cycling) — CLOSED-BLOCKED: the named mechanism is inert on Default', () => {
-  it('⛔⛔ `customize.hidden` CANNOT BE WRITTEN on the default preset — measured, not read', () => {
+describe('D-06 (metric-group cycling) — CLOSED-BLOCKED: on the built-in the named mechanism is only a draft', () => {
+  it('⛔⛔ a write on the built-in (UCT Core) is only an unsaved draft — measured, not read', () => {
     // D-06's smallest enabling change is "reuse the existing reachable `customize.hidden` set as a
-    // group filter". Measured behaviourally: on the shipped default preset every writer in that
-    // hook is a no-op (`useBreadthCustomize.js`: "if (prev.activePreset === DEFAULT_PRESET) return
-    // prev  // immutable"). A hub bubble built on it would answer a deliberate gesture with silence
-    // for every member who has never made a preset — which is precisely why `breadth.sizeRule` and
-    // `breadth.snapshot` were REMOVED from this very mode's fan rather than shipped inert.
-    //
-    // ⛔⛔ THE STOP IS DOUBLED, AND ITS MUTATION PROOF IS WHAT REVEALED THAT. Removing the WRITER's
-    // guard (`setHiddenSet`'s `if (prev.activePreset === DEFAULT_PRESET) return prev`) left this
-    // case GREEN; so did removing the READER's (`hidden`'s `if (isDefaultActive) return new Set()`).
-    // Only removing BOTH turns it red. That is `lesson_a_guard_repeated_is_a_guard_unproved` in the
-    // product rather than in a rail — and it is why this case asserts the OUTCOME a member would
-    // see instead of the presence of either guard. For D-06 it makes the close STRONGER: two
-    // independent mechanisms would have to change before that write reaches a preset.
+    // group filter". Until 2026-11-19 every writer was a no-op on the built-in. The Columns menu
+    // redesign (owner 2026-11-19) made an edit to the built-in apply at once as an UNSAVED working
+    // state ("UCT Core · edited", Revert / Save as new). So a group filter on the built-in would no
+    // longer be silent — but it would mark the member's columns "edited" and leave a draft behind,
+    // which is still not a filter. This case pins that outcome: the write shows, it is flagged as
+    // an edit, the built-in itself is never written, and Revert restores it exactly.
     const { result } = renderHook(() => useBreadthCustomize())
-    expect(result.current.activePreset, 'the shipped default is no longer the immutable preset — '
+    expect(result.current.activePreset, 'the shipped default is no longer the built-in — '
       + 're-cost D-06').toBe(DEFAULT_PRESET)
 
     const someGroupFilter = BREADTH_TAB_ITEMS.map((t) => t.key)   // any non-empty key list will do
     act(() => { result.current.setHiddenSet(someGroupFilter) })
-    expect(result.current.hidden.size, 'setHiddenSet now writes on the default preset — D-06\'s '
-      + 'mechanism is live and the row is worth re-opening').toBe(0)
+    expect(result.current.isEdited, 'a write on the built-in is no longer flagged as an unsaved edit — '
+      + 're-open D-06').toBe(true)
+    expect(result.current.presets[DEFAULT_PRESET], 'the built-in was WRITTEN — it must stay code').toBeUndefined()
 
-    act(() => { result.current.toggleHidden('breadth_score') })
-    expect(result.current.hidden.size, 'toggleHidden now writes on the default preset — re-open D-06')
-      .toBe(0)
+    act(() => { result.current.revertDraft() })
+    expect(result.current.hidden.size, 'Revert no longer restores the built-in exactly').toBe(0)
+    expect(result.current.isEdited).toBe(false)
   })
 
   it('⛔ and on a NON-default preset the same write is destructive: it replaces the member\'s set', () => {
