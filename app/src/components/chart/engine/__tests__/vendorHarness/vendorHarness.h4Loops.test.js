@@ -138,7 +138,7 @@ describe('H4 (1) — a call-site length that is constant arithmetic', () => {
     expect(p.refusal.message).toMatch(/built with `\/`.*DY1/)
   })
 
-  // ⭐ A1 (feat/a1-series-param-offsets, NUMBER PENDING e90): a `%` of whole numbers is whole in every version, and the
+  // ⭐ A1 (feat/a1-series-param-offsets, engine 91): a `%` of whole numbers is whole in every version, and the
   // copy its call site compiles reads it per bar (the frozen fold still refuses it, T17, so the window is not FIXED):
   // `vl3 % 5` = 3 here, and the loop runs 3 passes on every bar. (G04 of the vw-udt-fn-global-history witness grades a
   // per-bar `bar_index % 3` MATCH against TradingView on every bar.) It was refused here.
