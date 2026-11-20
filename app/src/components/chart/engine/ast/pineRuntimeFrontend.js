@@ -5276,6 +5276,49 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     yes: Object.freeze(new Set(['label', 'line', 'box'])),
     no: Object.freeze(new Set(['label'])),
   })
+  /** The sentence a drawing made in one arm of `?:` is refused with (`lowerObjectCall`, and A6's frame form). */
+  const DRAW_IN_ARM_WHY = 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both '
+    + '(served only as `t = c ? label.new(…) : na`, `line.new` or `box.new`, or `t = c ? na : label.new(…)`, '
+    + 'the whole value of a root declaration, Q-RT5a / Q-RS5)'
+  /** ⭐ A6 — the first drawing call an arm of this `?:` makes (a call `lowerObjectCall` would refuse in an arm:
+   *  not a getter), written in the arm itself; null when neither arm makes one. Lexical, no lowering. */
+  const armMakesDrawing = (node) => {
+    const find = (n, d) => {
+      if (!n || typeof n !== 'object' || d > 64) return null
+      if (Array.isArray(n)) { for (const x of n) { const r = find(x, d + 1); if (r) return r } return null }
+      if ((n.type === 'call' || n.type === 'method') && typeof n.name === 'string'
+        && Object.prototype.hasOwnProperty.call(OBJECT_OPS, n.name) && !isArmSafeObjectOp(n.name)) return n.name
+      for (const [k, v] of Object.entries(n)) {
+        if (k === 'tok' || !v || typeof v !== 'object') continue
+        const r = find(v, d + 1)
+        if (r) return r
+      }
+      return null
+    }
+    return node && node.type === 'ternary' ? (find(node.yes, 0) || find(node.no, 0)) : null
+  }
+  /** ⭐ A6 — `fixedTestOf` inside a copy compiled for its call site (`frameConsts`): each of the frame's
+   *  parameters the call site fixed is its constant; any other frame name leaves the test unfixed (null). */
+  const fixedFrameTestOf = (test, scope) => {
+    let unfixedName = false
+    const sub = (x, d) => {
+      if (!x || typeof x !== 'object' || d > 64) return x
+      if (Array.isArray(x)) return x.map((y) => sub(y, d + 1))
+      if (x.type === 'name' && typeof x.name === 'string' && scope) {
+        const s = scope.lookup(x.name)
+        if (s !== null && slots[s] && slots[s].owner === owner) {
+          if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
+          unfixedName = true
+        }
+        return x
+      }
+      const out = {}
+      for (const [k, v] of Object.entries(x)) out[k] = k === 'tok' ? v : sub(v, d + 1)
+      return out
+    }
+    const t = sub(test, 0)
+    return unfixedName ? null : fixedTestOf(t, scope)
+  }
   const drawArmCreateFamily = (node) => {
     if (!node || node.type !== 'call') return null
     const m = /^([a-z]+)\.new$/.exec(String(node.name || ''))
@@ -5330,11 +5373,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     // RT5: this lane evaluates BOTH arms of `?:` every bar; Pine runs only the
     // taken arm. A drawing made in an arm would be made on every bar.
     // ⭐ WS-E — a GETTER makes nothing, so it may stand in an arm (`objectStore.isArmSafeObjectOp`).
-    if (armDepth > 0 && !isArmSafeObjectOp(fn)) {
-      refuseObject(fn, 'a drawing call inside one arm of `?:` — Pine makes it only when that arm is taken, this lane evaluates both '
-        + '(served only as `t = c ? label.new(…) : na`, `line.new` or `box.new`, or `t = c ? na : label.new(…)`, '
-        + 'the whole value of a root declaration, Q-RT5a / Q-RS5)', tok)
-    }
+    if (armDepth > 0 && !isArmSafeObjectOp(fn)) refuseObject(fn, DRAW_IN_ARM_WHY, tok)
     if (/^polyline\./.test(fn) || /^chart\.point/.test(fn)) {
       refuseObject(fn, 'the chart this lane draws on has no polyline, so a polyline is not drawn rather '
         + 'than drawn as something else', tok)
@@ -10126,6 +10165,33 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         {
           const fixed = fixedTestOf(node.test, scope)
           if (fixed !== null) return lowerExpr(fixed ? node.yes : node.no, scope)
+        }
+        // ⭐⭐ A6 — A DRAWING MADE IN ONE ARM OF A `?:` IN A FUNCTION BODY, ON A TEST ITS CALL SITE FIXES.
+        // fibonacci-retracement-mtflog: `f_ret(s, k, c) => … ln := s ? line.new(…) : na`, called with
+        // `s_0236 = input.bool(true, …)`. The shared frame cannot choose the arm (`s` is a slot there), and a
+        // drawing in an arm is refused (`lowerObjectCall`: Pine makes it only on the bars the arm is taken).
+        // At a call that passes a value fixed before bar 0 the arm is taken on EVERY call or on NONE, exactly
+        // as for a test on the input itself (C47 above): the copy compiled for that call site (C35,
+        // `frameConsts`) lowers only the arm the value takes, and the drawing is an ordinary drawing there.
+        // The shared frame refuses with the parameter named (`drawArmParam`), so the call site can fix it.
+        // ⛔ Only a test over the frame's parameters and constants; a per-bar test keeps the refusal (no
+        // capture says what Pine draws from an arm on a per-bar test: capture queue Q-A6-1). ⛔ Only where an
+        // arm makes a drawing (`armMakesDrawing`): every other `?:` is lowered exactly as before.
+        if (owner !== null && !atObjectDoor && !inRequestValue && armMakesDrawing(node)) {
+          const fixedHere = frameConsts ? fixedFrameTestOf(node.test, scope) : null
+          if (fixedHere !== null) return lowerExpr(fixedHere ? node.yes : node.no, scope)
+          const prevSeen = r4CulpritSeen
+          r4CulpritSeen = null
+          let culprit = null
+          try { if (!invariantTest(node.test, scope)) culprit = r4CulpritSeen } catch { culprit = null } finally { r4CulpritSeen = prevSeen }
+          if (typeof culprit === 'string') {
+            const fn = armMakesDrawing(node)
+            note('runtime:object-op')
+            const err = new RuntimeRefusal('runtime:object-op', `\`${fn}\` — ${DRAW_IN_ARM_WHY}`, locate(node.tok))
+            err.frameName = culprit
+            err.drawArmParam = true
+            throw err
+          }
         }
         // ⭐⭐ L4c — `t = c ? label.new(…) : na` at the root (`drawArmRoots`): a JUMP, so the
         // label is made only on the bars `c` is true (Q-RT5a T01/T02, Q-O1a). The THEN arm is
@@ -16465,8 +16531,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     // of its parameters (`condParam`, see `invariantTest`): a fixed argument makes
     // that branch run on every call or on none, for this call site.
     const heldCond = !!held && held.condParam === true && held.guard === 'runtime:conditional-history'
+    // ⭐⭐ A6 — and a definition held on a drawing made in one arm of a `?:` over one of its parameters
+    // (`drawArmParam`, `case 'ternary'`): a fixed argument takes that arm on every call or on none
+    const heldDrawArm = !!held && held.drawArmParam === true && held.guard === 'runtime:object-op'
     if (!held || inRequestValue) return null
-    if (!heldSwitch && !heldCond && held.guard !== 'runtime:history-dynamic-offset') return null
+    if (!heldSwitch && !heldCond && !heldDrawArm && held.guard !== 'runtime:history-dynamic-offset') return null
     const def = deferredFnDefs.get(node.name)
     const culprit = held.frameName
     if (!def || typeof culprit !== 'string') return null
@@ -16503,6 +16572,18 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       const p = err && err.frameName
       if (typeof p !== 'string' || !params.includes(p) || consts.has(p)) return err
       const q = quals.get(p)
+      if (err.drawArmParam === true) {
+        // ⭐ A6 — named after the parameter, and carried to the CALLER's call site when the argument is
+        // the caller's own parameter, as the `switch` and conditional-history forms are
+        note('runtime:object-op')
+        const dr = new RuntimeRefusal('runtime:object-op',
+          `\`${p}\` decides whether a drawing in one arm of \`?:\` in \`${node.name}\` is made, and this call passes a value `
+          + 'that is not fixed before bar 0 — Pine makes it only on the calls that arm is taken, and what TradingView draws '
+          + 'there is not captured (capture queue 2026-11-20-a6 Q-A6-1)', at)
+        dr.drawArmParam = true
+        if (blockedBy.has(p)) dr.frameName = blockedBy.get(p)
+        return dr
+      }
       if (err.condParam === true) {
         note('runtime:conditional-history')
         const cr = new RuntimeRefusal('runtime:conditional-history',
