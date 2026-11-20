@@ -239,6 +239,20 @@ def test_daily_seed_equals_the_api_bars_answer_with_the_split_applied(stored, mo
     assert abs(pre["c"] / next(b for b in seed if b["t"] == split_day.isoformat())["c"] - 1) < 0.01
 
 
+def test_a_sixty_minute_series_still_on_the_old_clock_grid_is_left_out(stored):
+    """`/api/bars` rebuilds such a series (a store write) before serving it; the seed never writes, so
+    it must not ship the old layout either."""
+    days = _trading_days(date(2026, 11, 2), 3)
+    asof = days[-1]
+    new_grid = [(b["t"], 10.0, 10.5, 9.5, 10.25, 100) for d in days for b in _sixty_session_grid_day(d)]
+    old_grid = [(_ts(d, h, 0), 10.0, 10.5, 9.5, 10.25, 100) for d in days for h in range(4, 20)]
+    stored[("ZZNEW", "60")] = new_grid
+    stored[("ZZOLD", "60")] = old_grid
+    data, st = ffseed.build_tf("60", ["ZZNEW", "ZZOLD"], asof, "B", depth=1000)
+    assert st["old_grid"] == 1 and st["symbols"] == 1
+    assert set(fmt.read_trailer(data)["symbols"]) == {"ZZNEW"}
+
+
 # ---- build bookkeeping -------------------------------------------------------------------------
 
 def _fake_read(table):

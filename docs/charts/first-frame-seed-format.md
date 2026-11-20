@@ -36,6 +36,8 @@ byte a lake piece body, so `app/src/data/historyLake/piece.js` `decodeBody` deco
   session) are included, so a build never freezes a forming bar. A symbol whose newest bar is older
   than the as-of session is LEFT OUT (its server answer would differ: the request path heals it).
 * A symbol may hold fewer than N bars (a recent listing): the server has no more either.
+* A stored 60m series still on the pre-2026-11-10 clock-hour layout is left out (`old_grid`):
+  `/api/bars` rebuilds such a series (a store write) before serving it, and the builder never writes.
 
 ## 2. Files and manifest
 
@@ -56,7 +58,7 @@ newest builds are kept.
  "comp":"gzip","grid":"rth","kind":"ffseed","v":1,"universe":{"count":3639},
  "tfs":{"5":{"bars":1085400,"bytes":5839102,"depth":300,"key":"ffseed/20261119T0131Z/5.ffs",
              "sha256":"9f2c...","short":12,"symbols":3618,"tunit":300,
-             "skipped":{"error":0,"inexact":0,"no_bars":9,"stale":12},
+             "skipped":{"error":0,"inexact":0,"no_bars":9,"old_grid":0,"stale":12},
              "url":"/api/seed/v1/20261119T0131Z/5.ffs"}, "...": {}}}
 ```
 
@@ -165,6 +167,12 @@ is below 2^53, so plain Numbers hold them.
    `v = vscale === 1 ? integer : integer / vscale`. These are the `{t,o,h,l,c,v}` rows
    `/api/bars` sends, already in the regular-session view.
 
+**Cost, measured** (Node 24 on the dev PC, real 1m/60m/D packs, per symbol, after the trailer is
+parsed once in ~0.05 ms): inflate with `DecompressionStream('gzip')` 0.25-0.37 ms, with a sync
+gunzip 0.04-0.10 ms; `decodeBody` including its column CRC 0.18-0.58 ms (60m, 1000 bars, is the
+top of the range). So ~0.5-1 ms a symbol on the async path, ~0.25-0.7 ms with a sync inflate; a
+`raw` pack (section 7: about 1.6x the bytes) skips the inflate entirely.
+
 `tests/test_ffseed_format.py` (Python reference reader `ffseed_format.read_served`) and
 `edge/bars-edge-router/seed.test.mjs` (the steps above in JavaScript, against packs built by the
 Python encoder) pin this procedure.
@@ -217,7 +225,31 @@ roughly halves a body; see section 7.
 
 ## 7. Measured sizes, cap universe
 
-Being measured; this section is filled in by the same PR.
+Measured 2026-11-20 with `tools/ffseed_measure.py` (as-of 2026-11-18, `api/data/cap_universe.json`,
+3,639 symbols; the builder's own selection and encoder). Intraday bars came from the history lake on
+this PC brought to the store's grain (4-decimal prices, whole shares), D from a copy of `bars.db`
+through the real serve formatter; the production worker's store will differ slightly (and
+split-adjusts intraday), not by enough to move these sizes.
+
+| tf | N | symbols | bars | pack (gzip blobs) | bytes/bar | raw blobs (approx.) | whole file gzipped again |
+|----|---|---------|------|-------------------|-----------|---------------------|--------------------------|
+| `1`  | 600  | 3,545 | 2,100,421 | **11.2 MB** | 5.2  | 22.3 MB | 11.0 MB |
+| `5`  | 300  | 3,545 | 1,059,160 | **7.4 MB**  | 6.7  | 12.4 MB | 7.2 MB  |
+| `15` | 300  | 3,545 | 1,062,400 | **8.7 MB**  | 7.9  | 13.4 MB | 8.4 MB  |
+| `30` | 300  | 3,545 | 1,062,037 | **9.3 MB**  | 8.5  | 13.9 MB | 9.0 MB  |
+| `60` | 1000 | 3,545 | 3,520,114 | **30.2 MB** | 8.5  | 47.0 MB | 30.0 MB |
+| `D`  | 350  | 3,545 | 1,224,231 | **12.8 MB** | 10.2 | 18.8 MB | 12.6 MB |
+| all  |      |       | 10.0 M    | **79.5 MB** |      | 127.8 MB |        |
+
+(MB = 10^6 bytes. bytes/bar excludes the trailer, ~0.28-0.29 MB per pack.)
+
+* 94 of the 3,639 symbols were left out of every timeframe: no bars, or a series that ends before
+  the as-of session (names no longer trading). 0 refused as inexact.
+* `60` at N = 1000 is 38% of the total; N = 500 would save ~15 MB.
+* Gzipping the whole file again saves ~2%: the edge serves the packs as stored.
+* `raw` blobs are ~1.6x the bytes and skip the per-symbol inflate (section 5).
+* The ~13k barspack universe (`FFSEED_UNIVERSE=barspack`) would be roughly 3x these, mostly
+  smaller names (fewer bars, smaller varints).
 
 ## 8. Versioning
 
@@ -249,5 +281,6 @@ hold per symbol either:
 
 The entry gains a `mode` and the base build id. The device applies it by decoding the base window,
 appending, keeping the newest N, and re-encoding locally (or keeping two blobs until the next full
-download). Because a 1m delta is 390 of 600 bars, the saving is largest on 5m-60m and D; measure
-the full packs first (section 7): a full nightly download may be small enough not to need it.
+download). Because a 1m delta is 390 of 600 bars, the saving is largest on 5m-60m and D: by section 7's
+numbers a nightly delta would be ~7 MB (1m) + ~2 MB (5m) + ~1.4 MB (15m, 30m and 60m together) + ~0.04 MB (D)
+plus `replace` entries, about 10-12 MB against 79.5 MB for the full set.

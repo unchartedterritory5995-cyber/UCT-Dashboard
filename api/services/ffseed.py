@@ -100,6 +100,10 @@ class SeedBuildError(Exception):
     """A build is unfit to publish."""
 
 
+class OldGridSeries(Exception):
+    """A stored 60m series still on the old clock-hour grid (the serve path rebuilds it first)."""
+
+
 def depth_for(tf: str) -> int:
     return _int_env(f"FFSEED_DEPTH_{tf}", DEFAULT_DEPTH[tf])
 
@@ -190,6 +194,10 @@ def store_read(sym: str, tf: str, count: int) -> Tuple[List[dict], int]:
     rows = bars_sqlite.get_bars(sym, tf, count)
     if not rows:
         return [], 0
+    if tf == "60" and any(bars_sqlite.is_old_grid_60m_ts(r[0]) for r in rows):
+        # `/api/bars` never serves the pre-2026-11-10 clock-hour layout: it REBUILDS the series from
+        # 15m/30m first (a store write). The seed never writes: it leaves the symbol out.
+        raise OldGridSeries(sym)
     with bars_sanitize.suppress_meta_warm():
         return bars_fetch._fmt_sqlite_bars(rows, tf, sym), len(rows)
 
@@ -234,10 +242,13 @@ def build_tf(tf: str, symbols: Iterable[str], asof: date, build: str, *, comp: s
     n = depth if depth is not None else depth_for(tf)
     asof_ymd = int(asof.strftime("%Y%m%d"))
     pb = fmt.PackBuilder(tf, asof=asof.isoformat(), build=build, depth=n, comp=comp)
-    stats = {"no_bars": 0, "stale": 0, "inexact": 0, "error": 0, "short": 0, "bars": 0}
+    stats = {"no_bars": 0, "stale": 0, "old_grid": 0, "inexact": 0, "error": 0, "short": 0, "bars": 0}
     for sym in symbols:
         try:
             bars = seed_window(sym, tf, n, asof_ymd, read=read)
+        except OldGridSeries:
+            stats["old_grid"] += 1
+            continue
         except Exception:  # noqa: BLE001 - one bad series never sinks the build
             log.exception("[ffseed] read failed %s tf=%s", sym, tf)
             stats["error"] += 1
@@ -268,7 +279,7 @@ def manifest_entry(tf: str, build: str, data: bytes, stats: dict) -> dict:
         "key": key, "url": f"{EDGE_PATH}/{build}/{tf}.ffs", "bytes": len(data),
         "sha256": hashlib.sha256(data).hexdigest(), "symbols": stats["symbols"],
         "bars": stats["bars"], "depth": stats["depth"], "tunit": fmt.T_UNIT[tf],
-        "skipped": {k: stats[k] for k in ("no_bars", "stale", "inexact", "error")},
+        "skipped": {k: stats[k] for k in ("no_bars", "stale", "old_grid", "inexact", "error")},
         "short": stats["short"],
     }
 
