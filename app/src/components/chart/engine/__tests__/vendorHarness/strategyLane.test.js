@@ -36,6 +36,7 @@ import {
   assertStrategyLaneMeasured, STRATEGY_SLOT_MAP, laneValueOutputsOf,
 } from './strategyLane.js'
 import { gradeStrategyCapture } from './strategyHarness.js'
+import { strategyReportOf, DATA_SOURCE_SENTENCE } from '../../runtime/brokerReport.js'
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { LANE_PRODUCTION, LANE_RUNTIME_ON } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
@@ -210,6 +211,9 @@ describe('SL7 a report refused whole is refused by name, never a different answe
     expect(verdict.strategy.refusedBy).toBeUndefined()
     expect(verdict.strategy.verdict).toBe('MATCH')
     expect(verdict.verdict).toBe('MATCH')
+    // CONTROL for SL9's data-source note: a run within the shared window carries none
+    const { ours } = gradeCapture(cap(ID))
+    expect('dataSentence' in strategyReportOf(ours.strategy.record).window).toBe(false)
   })
   it('a record the report cannot read (a trade time that is a date) refuses whole by name: EXPECTED-REFUSAL, no compare', () => {
     armed(true)
@@ -289,6 +293,8 @@ describe('SL9 the deep daily start, graded through the member door on the commit
       expect(verdict.strategy.verdict, verdict.strategy.reason).toBe('MATCH')
       expect(verdict.verdict).toBe('MATCH')
       expect(ours.strategy.record.rulesUsed).toContain('B-START-DEEP')
+      // the member's report says which history it runs on (`brokerReport.js::DATA_SOURCE_SENTENCE`)
+      expect(strategyReportOf(ours.strategy.record).window.dataSentence).toBe(DATA_SOURCE_SENTENCE)
       expect(ours.strategy.record.trades).toHaveLength(cap(id).provenance.report.tree.trades.length)
     })
   }
