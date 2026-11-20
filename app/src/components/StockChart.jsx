@@ -20,6 +20,13 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
+import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+/** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
+function applyRenderWindow(chart, rw) {
+  if (!rw || rw.applied || !chart?.window) return
+  rw.applied = true
+  chart.window.setWindow(rw.rows, { span: rw.span })
+}
 import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import {
@@ -11379,6 +11386,25 @@ export default function StockChart({
       else _plotStart = 0
       _pw.start = _plotStart
       _pw.fromTime = _plotFrom
+      // ⭐ THE RENDER WINDOW of every series, candles included (chart/windowedChart.js): set for each new load from
+      // the view it opens at, and off (every bar) wherever this chart frames history on purpose or a logical index
+      // is not a bar index (pinned / replay / override / compare or index overlay / the switch). A view that comes
+      // near its start extends it in place, so `_plotWindowFullKey` (the lines going whole) does not turn it off.
+      // Decided here for every pass; applied to the chart once per decision (`applyRenderWindow`), right here when
+      // the chart exists, else right after this pass creates it (the page's first chart).
+      const _rwWhole = _pinnedFull || _overlayActive || _hasOverride || replayMode
+      const _rwSig = `${_pwKey}|${_rwWhole ? 'whole' : 'win'}`
+      if (!_pw.rw || _pw.rw.sig !== _rwSig) {
+        let _span = 0
+        try {
+          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
+          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
+        } catch { /* no view yet */ }
+        const _geom = paintedGeomRef.current
+        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
+        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
+      }
+      applyRenderWindow(chartRef.current, _pw.rw)
     }
     let _cfgSig
     try {
@@ -11682,12 +11708,16 @@ export default function StockChart({
       // + comparison in pane 0, so hovering would silently restack them (and later,
       // float a band's constituent line above its own fill). Keep 5.1.0 rendering;
       // opt in deliberately if we ever want the hit-testing that comes with it.
-      chart = createChart(containerRef.current, {
+      // ⭐ THE RENDER WINDOW (2026-11-20, owner: "I NEED THEM ALL BELOW 20MS"): the library is handed only a
+      // window of bars a few screens deep (chart/windowedChart.js); everything here keeps speaking full-history
+      // indices through the facade, and a view reaching left of the window extends it before the frame paints.
+      chart = createWindowedChart(createChart(containerRef.current, {
         ...chartOpts,
         autoSize: true,
         hoveredSeriesOnTop: false,
-      })
+      }))
       chartRef.current = chart
+      if (plotWindowRef.current?.rw) { plotWindowRef.current.rw.applied = false; applyRenderWindow(chart, plotWindowRef.current.rw) }
       // The library's layout <table> is not a data table (utils/chartLayoutTable.js).
       markChartLayoutPresentational(chart)
       // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
@@ -12068,6 +12098,7 @@ export default function StockChart({
           })
       }
       candleSeriesRef.current = priceSeries
+      chart.window?.setPrimary(priceSeries)   // the candles' rows define the render window
       // Model Book studies a past year — the current (latest) price line is
       // irrelevant there, so hide the dotted last-price line for exact-range.
       // boldCandles paints solid bright green/red; hideLastValue drops the
@@ -13946,7 +13977,8 @@ export default function StockChart({
         if (markersControllerRef.current && typeof markersControllerRef.current.setMarkers === 'function') {
           markersControllerRef.current.setMarkers(allMarkers)
         } else {
-          markersControllerRef.current = createSeriesMarkers(candleSeriesRef.current, allMarkers)
+          // window-aware: only markers inside the render window reach the plugin (chart/windowedChart.js)
+          markersControllerRef.current = createWindowedMarkers(createSeriesMarkers, candleSeriesRef.current, allMarkers)
         }
       }).catch(() => {})
     }

@@ -94,6 +94,7 @@ function firstAtOrAfter(rows, t) {
 }
 
 const RAW = Symbol('raw')
+const WINDOW_CTL = Symbol('windowControl')
 /** The library object behind a facade object (or the object itself). */
 export function rawOf(x) { return (x && x[RAW]) || x }
 
@@ -131,19 +132,22 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     if (!rec || !rec.full) return
     const cut = cutFor(w, rec.full)
     rec.cutFirst = cut && cut.length ? cut[0].time : null
-    rec.raw.setData(cut)
+    rec.set(cut)
     // the live forming bar(s) after a re-set: what update() planted since the last setData
-    for (const item of rec.tail.values()) { try { rec.raw.update(item) } catch { /* an older item */ } }
+    for (const item of rec.tail.values()) { try { rec.upd(item) } catch { /* an older item */ } }
   }
   /** Place ws / wsTime on the primary's full rows: a forced start (an extension), a new load's rows, or (the
    *  same load: appended or prepended bars) the index of the start TIME, so live bars never move it. */
   function placeWindow(forcedWs = null) {
     const full = primary ? series.get(primary)?.full : null
     if (!on() || !full || !full.length) { st.ws = 0; st.wsTime = null; st.placePending = false; return }
-    let ws
-    if (forcedWs != null) ws = forcedWs
-    else if (st.placePending || st.wsTime == null) ws = renderWindowStart(full.length, st.wanted)
-    else ws = firstAtOrAfter(full, st.wsTime) ?? 0
+    if (forcedWs == null && !st.placePending && st.wsTime != null) {
+      // the same load: the start TIME is the anchor. An array that starts after it (a session-filtered copy set
+      // on the candles beside the whole one) is drawn whole, and the anchor stays for the next array.
+      st.ws = Math.max(0, Math.min(firstAtOrAfter(full, st.wsTime) ?? 0, full.length - 1))
+      return
+    }
+    const ws = forcedWs != null ? forcedWs : renderWindowStart(full.length, st.wanted)
     st.placePending = false
     st.ws = Math.max(0, Math.min(ws, full.length - 1))
     st.wsTime = st.ws > 0 ? full[st.ws].time : null
@@ -162,6 +166,9 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       }
     })
   }
+  /** Listeners of a window change (its start moved): window-aware markers re-hand their list. */
+  const changeSubs = new Set()
+  function fireChange() { for (const cb of [...changeSubs]) { try { cb() } catch { /* a listener */ } } }
   /** Move the window start left to `newWs` (full index): every series re-set, primary first. */
   function extendTo(newWs) {
     if (st.extending || !(newWs < st.ws)) return false
@@ -171,6 +178,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       if (primary) applyOne(primary)
       for (const w of series.keys()) if (w !== primary) applyOne(w)
     } finally { st.extending = false }
+    fireChange()
     return true
   }
   /** Make sure full index `from` (and a screen before it) is inside the window. */
@@ -191,8 +199,11 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     return cmpTime(full[k].time, t) === 0 ? k : null
   }
 
+  const tsOwn = Object.create(null)
   const timeScaleFacade = new Proxy({}, {
+    set(_t, prop, value) { tsOwn[prop] = value; return true },
     get(_t, prop) {
+      if (prop in tsOwn) return tsOwn[prop]
       const raw = ts()
       switch (prop) {
         case RAW: return raw
@@ -220,6 +231,19 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
           }
           return raw.setVisibleRange(r)
         }
+        case 'timeToIndex': return (t, findNearest) => {
+          const k = raw.timeToIndex(t, findNearest)
+          if (st.wsTime != null && cmpTime(t, st.wsTime) === -1) {
+            // older than the window: its full-history index (exact, or the nearest bar when asked)
+            const full = primary ? series.get(primary)?.full : null
+            if (!full) return k
+            const j = firstAtOrAfter(full, t)
+            if (j == null) return k
+            if (j < full.length && cmpTime(full[j].time, t) === 0) return j
+            return findNearest ? Math.max(0, j - 1) : null
+          }
+          return k == null ? k : k + st.ws
+        }
         case 'timeToCoordinate': return (t) => {
           const x = raw.timeToCoordinate(t)
           if (x != null || st.wsTime == null || cmpTime(t, st.wsTime) !== -1) return x
@@ -244,10 +268,26 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
 
   function wrapSeries(raw, isPrimary) {
     const rec = { raw, full: null, tail: new Map(), primary: isPrimary }
+    // ⛔ THE FACADE CALLS THE LIBRARY'S ORIGINAL METHODS, CAPTURED HERE. Code wraps series methods by assignment
+    // (barColours' `series.setData = (d) => realSet(...)`, the volume dimmer, the price-series colouring), reading
+    // the method it wraps through this facade; the assignment lands on the library series. Had the facade called
+    // `target.setData` at call time, it would call that wrapper, which calls the facade, forever (found in tests:
+    // the candles stayed empty, the RangeError swallowed by the chart's own try/catch). So the facade keeps the
+    // originals, and a read returns an installed wrapper when there is one: the chain is always
+    // wrapper(s) -> facade (the cut) -> the library's own method, whichever object the caller holds.
+    const origSetData = typeof raw.setData === 'function' ? raw.setData.bind(raw) : null
+    const origUpdate = typeof raw.update === 'function' ? raw.update.bind(raw) : null
+    const origSetDataFn = raw.setData
+    const origUpdateFn = raw.update
+    rec.set = (rows) => origSetData(rows)
+    rec.upd = (item, ...rest) => origUpdate(item, ...rest)
     const w = new Proxy(raw, {
       get(target, prop) {
+        if (prop === 'setData' && target.setData !== origSetDataFn) return target.setData       // a wrapper installed
+        if (prop === 'update' && target.update !== origUpdateFn) return target.update
         switch (prop) {
           case RAW: return target
+          case WINDOW_CTL: return control
           case 'setData': return (rows) => {
             rec.full = rows
             rec.tail.clear()
@@ -255,13 +295,13 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
             if (w === primary) placeWindow()
             const cut = cutFor(w, rows)
             rec.cutFirst = cut && cut.length ? cut[0].time : null
-            target.setData(cut)
+            rec.set(cut)
             // the window moved (a new load): the other series are normally re-set in this same pass; any that is
             // not is re-cut before the frame paints
-            if (w === primary && before !== st.wsTime) queueConsistency()
+            if (w === primary && before !== st.wsTime) { queueConsistency(); fireChange() }
           }
           case 'update': return (item, ...rest) => {
-            const r = target.update(item, ...rest)
+            const r = rec.upd(item, ...rest)
             if (item && item.time != null) {
               const full = rec.full
               const last = full && full.length ? full[full.length - 1].time : null
@@ -339,6 +379,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
         st.wanted = null
         if (st.ws > 0) extendTo(0)
         st.wsTime = null
+        fireChange()
         return
       }
       // a new load: the next primary setData places the window (the series are about to be re-set anyway)
@@ -352,10 +393,15 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     ensureFrom,
     /** The library chart. */
     raw: chart,
+    /** Call `cb` whenever the window start moves; returns the unsubscribe. */
+    onChange(cb) { changeSubs.add(cb); return () => changeSubs.delete(cb) },
   }
 
+  const chartOwn = Object.create(null)
   const facade = new Proxy(chart, {
+    set(_target, prop, value) { chartOwn[prop] = value; return true },
     get(target, prop) {
+      if (prop in chartOwn) return chartOwn[prop]
       switch (prop) {
         case RAW: return target
         case 'window': return control
@@ -389,4 +435,31 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
   /** Name the series whose rows define the window (the candles). */
   control.setPrimary = (w) => { primary = series.has(w) ? w : null }
   return facade
+}
+
+/**
+ * Series markers that respect the render window. The library's markers plugin snaps a marker older than its
+ * series' first point onto that first point, so markers left of the window would pile up at its start (visible
+ * once the member scrolls back and the window grows). This hands the plugin, on the LIBRARY series, only the
+ * markers inside the window, and re-hands the list whenever the window moves. Same API as the plugin's
+ * (setMarkers, markers, detach; anything else passes through).
+ */
+export function createWindowedMarkers(createSeriesMarkers, series, markers) {
+  const ctl = series?.[WINDOW_CTL] || null
+  let all = Array.isArray(markers) ? markers : []
+  const inWindow = () => {
+    const t0 = ctl?.windowStartTime?.()
+    return t0 == null ? all : all.filter((m) => cmpTime(m?.time, t0) !== -1)
+  }
+  const inner = createSeriesMarkers(rawOf(series), inWindow())
+  const off = ctl?.onChange ? ctl.onChange(() => { try { inner.setMarkers(inWindow()) } catch { /* detached */ } }) : null
+  return new Proxy(inner, {
+    get(target, prop) {
+      if (prop === 'setMarkers') return (m) => { all = Array.isArray(m) ? m : []; return target.setMarkers(inWindow()) }
+      if (prop === 'markers') return () => all
+      if (prop === 'detach') return () => { off?.(); return target.detach?.() }
+      const v = target[prop]
+      return typeof v === 'function' ? v.bind(target) : v
+    },
+  })
 }

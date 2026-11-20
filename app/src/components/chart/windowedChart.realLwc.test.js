@@ -157,3 +157,41 @@ describe('the render window facade', () => {
     expect(b.chart.window.windowStart()).toBe(0)
   })
 })
+
+describe('methods the app wraps by assignment', () => {
+  it('a wrapper assigned onto a series (barColours, the volume dimmer) chains through the window, no recursion', () => {
+    const b = board()
+    const realSet = b.candles.setData.bind(b.candles)
+    let seen = 0
+    b.candles.setData = (d) => { seen = d.length; return realSet(d) }   // the barColours shape
+    b.chart.window.setWindow(renderWindowRows(150, 0), { span: 150 })
+    b.candles.setData(BARS)
+    expect(seen).toBe(N)                                                // the wrapper saw the full rows
+    expect(rawOf(b.candles).data().length).toBe(N - b.chart.window.windowStart())
+  })
+})
+
+describe('time lookups and markers respect the window', () => {
+  it('timeToIndex answers full-history indices, older times included', () => {
+    const b = board(); load(b)
+    expect(b.ts.timeToIndex(T(5900), false)).toBe(5900)
+    expect(b.ts.timeToIndex(T(100), false)).toBe(100)              // older than the window: still its own index
+  })
+
+  it('markers outside the window never reach the plugin, and come back when the window grows', async () => {
+    const { createSeriesMarkers } = await import('lightweight-charts')
+    const { createWindowedMarkers } = await import('./windowedChart')
+    const b = board(); load(b)
+    let handed = null
+    const fakePlugin = (series, m) => { handed = m; return { setMarkers: (x) => { handed = x }, markers: () => handed, detach() {} } }
+    const ctl = createWindowedMarkers(fakePlugin, b.candles, [
+      { time: T(100), position: 'aboveBar', shape: 'circle', color: '#fff' },
+      { time: T(5900), position: 'aboveBar', shape: 'circle', color: '#fff' },
+    ])
+    expect(handed.map((m) => m.time)).toEqual([T(5900)])            // the old one would pile onto the window start
+    expect(ctl.markers().length).toBe(2)                            // the app still sees its whole list
+    b.ts.setVisibleLogicalRange({ from: 0, to: 150 })                // the window grows to the start
+    expect(handed.map((m) => m.time)).toEqual([T(100), T(5900)])
+    expect(typeof createSeriesMarkers).toBe('function')
+  })
+})
