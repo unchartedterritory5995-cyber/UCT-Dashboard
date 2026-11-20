@@ -19,7 +19,8 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr, v2SelfReferenceStatements } from '../../ast/pineRuntimeFrontend.js'
-import { lexPine, blockStatements } from '../../ast/pine.js'
+import { lexPine, blockStatements, colourHexByName } from '../../ast/pine.js'
+import { unpackColor } from '../../colorInt.js'
 import { probeRuntimeProgram } from '../runtimeColumns.js'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
@@ -210,19 +211,32 @@ describe('W34-I4: scope of the rewrite', () => {
       expect(v2SelfReferenceStatements(st, version)).toBe(st)
     }
   })
-  // ⛔ Measure-pair finding (`earnings-sr-levels-lazybear`, v1): a self-reference that
-  // carries a `?:` keeps master's host fold, so its below-v4 test never reaches the VM's
-  // unsettled `na` reading and the script stays drawn exactly as on master.
-  it('a self-reference with a ?: or iff is untouched and still builds with no na-test', () => {
+  // ⭐⭐ ATR-POS (2026-11-19) — a self-reference that carries a `?:` or `iff` IS rewritten now: its test's `na`
+  // reading is witnessed for v1-v3 since engine 56 (`NA_CONDITION_FALSE_FROM_VERSION` = 1), and a run from the listing
+  // counts none. ⚰️ It kept master's columnar fold (the measure-pair finding on `earnings-sr-levels-lazybear`, when
+  // that reading was unsettled), which withholds the window its seed reaches as an unnamed `na`.
+  it('a self-reference with a ?: or iff is rewritten and builds with no na-test', () => {
     for (const body of [
       ['flag = close > open ? 1 : 0', 'lvl = (nz(flag[1]) ? hl2 : nz(lvl[1]))', 'plot(lvl)'],
       ['flag = close > open ? 1 : 0', 'lvl = iff(nz(flag[1]), hl2, nz(lvl[1]))', 'plot(lvl)'],
     ]) {
       const { st, version } = stmtsOf(src(body))
-      expect(v2SelfReferenceStatements(st, version)).toBe(st)
+      const out = v2SelfReferenceStatements(st, version)
+      expect(out).not.toBe(st)
+      expect(out.find((s) => s.header[0].value === 'lvl').header.map((t) => t.value)).toEqual(['lvl', '=', 'na'])
       const p = probeRuntimeProgram(src(body))
       expect(p.ok, p.ok ? '' : `${p.refusal.guard}: ${p.refusal.message}`).toBe(true)
       expect(p.naTests).toBe(0)
+    }
+  })
+  it('the zero fill `nz(x[1], 0)` is rewritten; a non-zero fill is not', () => {
+    const zero = stmtsOf(src(['x = 0.5*close + 0.5*nz(x[1], 0)', 'plot(x)']))
+    expect(v2SelfReferenceStatements(zero.st, zero.version)).not.toBe(zero.st)
+    const zeroF = stmtsOf(src(['x = 0.5*close + 0.5*nz(x[1], 0.0)', 'plot(x)']))
+    expect(v2SelfReferenceStatements(zeroF.st, zeroF.version)).not.toBe(zeroF.st)
+    for (const fill of ['1', 'close', '0 + 1']) {
+      const { st, version } = stmtsOf(src([`x = 0.5*close + 0.5*nz(x[1], ${fill})`, 'plot(x)']))
+      expect(v2SelfReferenceStatements(st, version)).toBe(st)
     }
   })
   // ⛔ Review N1: the `?:` sits in a function the definition CALLS, out of the token
@@ -245,5 +259,106 @@ describe('W34-I4: scope of the rewrite', () => {
     const r = refusalOf(src(CASCADE), { objectDoor: true, objectTrees: [] })
     expect(r && r.guard).toBe('pine:state')
     expect(r.token).toBe('s2')
+  })
+})
+
+// ⭐⭐ ATR-POS — THE SHAPE A LICENCE-HELD CAPTURE FOUND WRONG, SYNTHETIC: a trailing stop and a persistent position
+// flag, both v1 self-references through `iff` and `nz(x[1], 0)`, the flag read only by a colour rule. Graded against
+// the hand-unrolled recurrence from bar 0 (an `na` test reads as false; `nz` replaces the history operator's `na`).
+describe('ATR-POS: a v1 persistent flag through iff and nz(x[1], 0) is the recurrence from bar 0 on every bar', () => {
+  const STOP = [
+    'n = 3.5 * atr(5)',
+    'ts = iff(close > nz(ts[1], 0) and close[1] > nz(ts[1], 0), max(nz(ts[1]), close - n),',
+    '     iff(close < nz(ts[1], 0) and close[1] < nz(ts[1], 0), min(nz(ts[1]), close + n),',
+    '         iff(close > nz(ts[1], 0), close - n, close + n)))',
+    'pos = iff(close[1] < nz(ts[1], 0) and close > nz(ts[1], 0), 1,',
+    '     iff(close[1] > nz(ts[1], 0) and close < nz(ts[1], 0), -1, nz(pos[1], 0)))',
+    'plot(ts)',
+    'plot(pos)',
+  ]
+  /** The flag by hand, from the run's own stop column (the stop's values are graded by the plot). */
+  const posByHand = (ts) => {
+    const out = []
+    for (let i = 0; i < N; i += 1) {
+      const t1 = i > 0 && Number.isFinite(ts[i - 1]) ? ts[i - 1] : 0
+      const c1 = i > 0 ? CLOSE[i - 1] : NaN
+      const p1 = i > 0 ? out[i - 1] : 0
+      out.push(c1 < t1 && CLOSE[i] > t1 ? 1 : (c1 > t1 && CLOSE[i] < t1 ? -1 : p1))
+    }
+    return out
+  }
+  it('both definitions are rewritten to slots', () => {
+    const l = lexPine(src(STOP))
+    const st = blockStatements(l.tokens, l.indents, 0)
+    const out = v2SelfReferenceStatements(st, l.version)
+    for (const name of ['ts', 'pos']) {
+      expect(out.find((s) => s.header[0].value === name && s.header[2] && s.header[2].value === 'na'), name).toBeTruthy()
+    }
+  })
+  it('from the listing the flag is the persistent recurrence on EVERY bar (never an unnamed na window)', () => {
+    const [ts, pos] = run(src(STOP), { listing: true })
+    expect(pos.filter((x) => Number.isNaN(x))).toEqual([])
+    expect(maxAbsDiff(pos, posByHand(ts))).toBe(0)
+    // the flag is set early and held: a window the run withheld would read na (master: the first ~250 bars)
+    expect(pos.slice(0, 250).some((x) => x !== 0)).toBe(true)
+  })
+})
+
+// ⭐⭐ ATR-POS, the colour half: the script colours its stop by the flag, through a variable named `color`
+// (`color = pos == -1 ? red : pos == 1 ? green : blue`, then `plot(ts, color=color)`). Once `pos` is a slot, `color`
+// reads one and is a slot too; it is bound ONCE and never reassigned, so it holds its expression on every bar, and
+// that expression is opaque (three of Pine's own opaque constants). The pane carries a per-bar colour only over an
+// opaque one (a v1 plot draws at transparency 35, engine 58), so without reading through the binding the whole row
+// would be withheld by name where the v4 spelling of the same script draws it.
+describe('ATR-POS: the stop\'s colour by the flag is carried (a once-bound colour slot is read through)', () => {
+  const STOP_LINES = [
+    'n = 3.5 * atr(5)',
+    'ts = iff(close > nz(ts[1], 0) and close[1] > nz(ts[1], 0), max(nz(ts[1]), close - n),',
+    '     iff(close < nz(ts[1], 0) and close[1] < nz(ts[1], 0), min(nz(ts[1]), close + n),',
+    '         iff(close > nz(ts[1], 0), close - n, close + n)))',
+    'pos = iff(close[1] < nz(ts[1], 0) and close > nz(ts[1], 0), 1,',
+    '     iff(close[1] > nz(ts[1], 0) and close < nz(ts[1], 0), -1, nz(pos[1], 0)))',
+  ]
+  const COLOURED = [...STOP_LINES, 'color = pos == -1 ? red : pos == 1 ? green : blue',
+    'plot(ts, color=color, title="ATR Trailing Stop")', 'plot(pos, title="POS")']
+  const v4 = (lines) => ['//@version=4', 'study("i4")', ...lines.map((l) => l
+    .replace(/^ts = iff/, 'ts = 0.0' + NL + 'ts := iff').replace(/^pos = iff/, 'pos = 0' + NL + 'pos := iff')
+    .replace(/\bred\b/g, 'color.red').replace(/\bgreen\b/g, 'color.green').replace(/\bblue\b/g, 'color.blue'))].join(NL)
+  const build4 = (source, bars) => {
+    const built = buildRuntimeIr(source, { bars, inputs: {}, objectTrees: [], pane: true, symbolAtBind: true,
+      plotColours: true, historyFromListing: true })
+    expect(built.ok, built.ok ? '' : `${built.refusal.guard}: ${built.refusal.message}`).toBe(true)
+    return built
+  }
+  it('the plot\'s colour output is opaque in v1 (a slot) exactly as in the v4 spelling', () => {
+    const v1 = build4(src(COLOURED), []).ir.outputs
+    expect(v1[0].call).toBe('plot')
+    expect(v1[0].colourOpaque).toBe(true)
+    expect(Number.isInteger(v1[0].colour && v1[0].colour.output)).toBe(true)
+    expect(build4(v4(COLOURED), []).ir.outputs[0].colourOpaque).toBe(true)
+  })
+  it('CONTROL: a colour slot that is REASSIGNED is not read through (its value is not one expression)', () => {
+    const re = [...STOP_LINES, 'c = pos == -1 ? red : blue', 'c := pos == 1 ? green : c', 'plot(ts, color=c)']
+    expect(build4(src(re), []).ir.outputs[0].colourOpaque).not.toBe(true)
+  })
+  it('the stop, the flag and the colour ARM on every bar equal the v4 spelling\'s (each in its own palette)', () => {
+    const runColoured = (source, version) => {
+      const built = build4(source, BARS)
+      const program = lowerIrProgram(built.ir, { historyFromListing: true })
+      const r = execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true, barTimes: BARS.map((b) => b.t) })
+      const outs = r.outputs.map((o) => Array.from(o))
+      const hexOf = (nm) => colourHexByName(version !== null && version >= 4 ? `color.${nm}` : nm, version).toUpperCase().slice(0, 7)
+      const arm = { [hexOf('red')]: -1, [hexOf('green')]: 1, [hexOf('blue')]: 0 }
+      const colour = outs[built.ir.outputs[0].colour.output]
+      return { ts: outs[0], pos: outs[1], arms: colour.map((c) => (Number.isFinite(c) ? arm[unpackColor(c).hex] : NaN)) }
+    }
+    const one = runColoured(src(COLOURED), null)   // no pragma: the palette of a script that declares none
+    const four = runColoured(v4(COLOURED), 4)
+    expect(maxAbsDiff(one.ts, four.ts)).toBe(0)
+    expect(one.pos).toEqual(four.pos)
+    expect(one.arms).toEqual(four.arms)
+    // and the arm is the rule over the persistent flag on every bar (never the na-window's blue)
+    expect(one.arms).toEqual(one.pos.map((p) => (p === -1 ? -1 : p === 1 ? 1 : 0)))
+    expect(one.pos.slice(0, 250).some((x) => x !== 0)).toBe(true)
   })
 })
