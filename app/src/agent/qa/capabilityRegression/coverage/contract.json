@@ -2437,6 +2437,19 @@
    ],
    "fast": false
   },
+  "stock.oiChange": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.profile": {
    "domain": "stock",
    "group": "data",
@@ -2462,6 +2475,32 @@
     "*"
    ],
    "fast": true
+  },
+  "stock.seasonality": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.seasonalityBoard": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
   },
   "stock.sectorPerformance": {
    "domain": "stock",
@@ -2541,9 +2580,35 @@
    ],
    "fast": false
   },
+  "stock.tideHistory": {
+   "domain": "stock",
+   "group": "marketRecords",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.topFlowPicks": {
    "domain": "stock",
    "group": "marketBoards",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
+  "stock.treasuryYields": {
+   "domain": "stock",
+   "group": "marketRecords",
    "target": "market",
    "risk": "local",
    "reversible": true,

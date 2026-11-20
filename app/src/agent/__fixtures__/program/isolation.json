@@ -18,8 +18,13 @@
     "leaders.longRun",
     "levels.darkpool",
     "levels.gamma",
+    "options.oiChange",
+    "options.tideHistory",
+    "rates.treasury",
     "ratings",
     "rs.leadership",
+    "seasonality.board",
+    "seasonality.stock",
     "short.interest",
     "short.list",
     "themes.rotation"
@@ -43,11 +48,16 @@
     "stock.gammaLevels",
     "stock.groupDrill",
     "stock.longRunLeaders",
+    "stock.oiChange",
+    "stock.seasonality",
+    "stock.seasonalityBoard",
     "stock.sessionHighsLows",
     "stock.shortInterest",
     "stock.shortList",
     "stock.themeRotation",
+    "stock.tideHistory",
     "stock.topFlowPicks",
+    "stock.treasuryYields",
     "stock.yearlyHighsLows"
   ]
 }
