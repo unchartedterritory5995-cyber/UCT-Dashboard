@@ -64,13 +64,20 @@ describe('2. both member-door paths carry it, on the saved document', () => {
     expect(sourceNotes(built).map((n) => n.name)).toEqual(['AMEX:SPY'])
     expect(saved(built).map((n) => n.note)).toEqual([RULED])
   })
-  it('the RUNTIME document', () => {
+  // ⚰️ THIS CASE ASKED FOR A RUNTIME DOCUMENT THAT CANNOT EXIST YET, and went red on both CI runs (44671305718,
+  // 44685438353): a document drawn bar by bar on its OWN pane is not handed another symbol's bars, so the runtime lane
+  // declines every such script BY NAME (`memberPaneDefinition.js::runtimeLaneDefinition`, RT2 `runtime:request`) and the
+  // member reads the host lane's refusal. What a member gets today is held here instead: no runtime document, the decline
+  // named, and therefore no disclosure owed on that path. The runtime document's disclosure line stays in the door for
+  // the own-pane other-symbol supply (the request unit's branch); its rail belongs with that supply, which mints one.
+  // Fred RS reads SP:SPX through the HOST document's run half, and carries the note there (section 4).
+  it('the RUNTIME path: another symbol on its own pane is declined by name, so no runtime document carries a note', () => {
     const built = runtimeLane(OTHER_RT)
-    expect(built.ok, built.reason).toBe(true)
-    expect(built.lane, 'the door did not mint a runtime document, so the runtime path is not under test').toBe('runtime')
-    expect(built.definition.compute && built.definition.compute.kind, 'the runtime lane drew it').toBe('runtime')
-    expect(sourceNotes(built).map((n) => n.name)).toEqual(['AMEX:SPY'])
-    expect(saved(built).map((n) => n.note)).toEqual([RULED])
+    expect(built.ok).toBe(false)
+    expect(built.runtimeDeclined && built.runtimeDeclined.code).toBe('runtime:request')
+    expect(built.runtimeDeclined.why).toMatch(/another symbol/)
+    expect(sourceNotes(built)).toEqual([])
+    expect(saved(built)).toEqual([])
   })
 })
 
