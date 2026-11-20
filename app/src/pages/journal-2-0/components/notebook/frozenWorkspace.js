@@ -28,6 +28,9 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
   return {
     groupSyms: { A: symbol, B: symbol, C: symbol, D: symbol },
     setGroupSym: () => {},
+    // No group-symbol store: a frozen capture's symbols never change, so `groupSyms` above is
+    // read as is (useWorkspace subscribes a render only to a live board's store).
+    groupSymsStore: null,
     // A frozen capture has no live chart to follow, so the broadcast timeframe
     // is pinned to the seed and the publisher is inert like every other write
     // above. (Enumerated, not left to the FALLBACK — that is the trap this
