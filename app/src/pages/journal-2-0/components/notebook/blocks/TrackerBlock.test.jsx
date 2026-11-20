@@ -199,7 +199,9 @@ describe('TrackerBlock', () => {
     await waitFor(() => expect(pressed('3')).toBe('false'))
     expect(srv.puts().map((c) => c.body)).toEqual([{ value: null }])
     expect(srv.st.values['2026-10-27']).toBeUndefined()
-    expect(within(dayLine()).queryByText('3')).toBeNull()
+    // ⛔ AWAITED: the button reads unpressed at once (the value on its way), but the day line changes only when the
+    // PUT answers; a synchronous query raced that answer and lost under CI load (2026-11-20)
+    await waitFor(() => expect(within(dayLine()).queryByText('3')).toBeNull())
     u.unmount()
     // yes/no: pressing the picked No again clears it too (No is stored as 0, which is still a value).
     srv = serve({ kind: 'yesno', name: 'Walked', values: { '2026-10-27': 0 } })
