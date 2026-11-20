@@ -1,0 +1,23 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_SESSION_ISFIRSTBAR", overlay = false)
+
+// U-BUILTIN (2026-11-19). WHICH BAR `session.isfirstbar` (AND ITS SIBLINGS) MARK.
+//
+// The reference: `session.isfirstbar` returns true if the current bar is the first bar of the day's
+// session, `session.isfirstbar_regular` the first regular-session bar, `session.islastbar` /
+// `session.islastbar_regular` the last. Unread: the first bar on a chart with pre-market bars (04:00 or
+// 09:30?), on a 24-hour symbol, and on 1D. Two sample scripts read `session.isfirstbar`.
+//
+// CAPTURE, inputs at defaults: AMEX:SPY 5 with EXTENDED HOURS ON (>= 2,000 bars), AMEX:SPY 5 with
+// EXTENDED HOURS OFF, AMEX:SPY 1D (>= 300 bars), BITSTAMP:BTCUSD 60 (>= 400 bars).
+
+plot(bar_index, "F0_bar_index_CONTROL")
+plot(hour, "HOUR")
+plot(minute, "MINUTE")
+plot(session.isfirstbar ? 1 : 0, "F1_isfirstbar")
+plot(session.isfirstbar_regular ? 1 : 0, "F2_isfirstbar_regular")
+plot(session.islastbar ? 1 : 0, "F3_islastbar")
+plot(session.islastbar_regular ? 1 : 0, "F4_islastbar_regular")
+plot(session.ismarket ? 1 : 0, "F5_ismarket")
+plot(session.ispremarket ? 1 : 0, "F6_ispremarket")
+plot(session.ispostmarket ? 1 : 0, "F7_ispostmarket")

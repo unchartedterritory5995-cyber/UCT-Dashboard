@@ -693,6 +693,33 @@ function _readKey(key) {
 }
 
 /**
+ * ⭐⭐ NEIGHBOR FRAMES (2026-11-20) — the envelope `serverColumnsFor` would align for (definition, RESOLVED
+ * inputs, symbol, timeframe), read WITHOUT asking and without counting as a use, or null when it would not
+ * align a landed one without asking: nothing landed, or the entry came from this browser's store
+ * (`_provisional`: the normal path re-asks for it, so a column set computed ahead from it is not offered).
+ * Its IDENTITY keys a column set computed ahead (`binder.prepKeyOf`): a newer answer is a new object.
+ */
+export function landedEnvelopeFor(def, inputs, sym, tf) {
+  if (!def || typeof sym !== 'string' || !sym) return null
+  const key = serverColumnsKey(def.id, sym, tf, pickServerInputs(def, inputs))
+  if (!key || _provisional.has(key)) return null
+  return _cache.get(key) || null
+}
+
+/**
+ * ⭐ NEIGHBOR FRAMES — what `serverColumnsFor` does besides aligning, for a landed non-provisional entry,
+ * when the chart takes a column set computed ahead instead of calling it: the ask is noted (`liveAsks`)
+ * and the entry counts as used (the bounded cache's recency). Nothing is fetched (it never would be).
+ */
+export function noteServerHit(def, inputs, sym, tf) {
+  if (!def || typeof sym !== 'string' || !sym) return
+  const sent = pickServerInputs(def, inputs)
+  _noteAsk(def.id, tf, sent)
+  const key = serverColumnsKey(def.id, sym, tf, sent)
+  if (key) _readKey(key)
+}
+
+/**
  * Is this entry already here, or already on its way? Neither asks for it nor
  * counts as a use of it: the question a warmer asks before it spends a request.
  */

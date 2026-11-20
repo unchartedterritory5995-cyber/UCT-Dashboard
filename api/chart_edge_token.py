@@ -83,8 +83,17 @@ HIST_COOKIE_PATH = "/api/hist"
 #: it with the member's session as always and the extra cookie is ignored.
 STREAM_COOKIE_PATH = "/api/stream/bars"
 
+#: ⭐ THE FIRST-FRAME SEED ROUTE (2026-11-20). `/api/seed/*` is served by the same Worker
+#: (`edge/bars-edge-router/seed.js`) and ENFORCES the same member entitlement, but none of the paths
+#: above is sent there (RFC 6265: `/api/seed` starts with none of them). Measured on production the day
+#: the route went live, exactly as the history lake was on 2026-11-17: the device store's manifest read
+#: answered 401 `not_entitled` for a signed-in member, so no member could download the seed. The same
+#: token, issued under exactly this path: it reaches `/api/seed/...` and nothing else. `SEED_PREFIX_PATH`
+#: in seed.js must stay this path + "/" (`tests/test_chart_edge_token.py` reads both).
+SEED_COOKIE_PATH = "/api/seed"
+
 #: Every path the entitlement cookie is issued AND revoked on (auth.py `_set_chart_edge_cookie`).
-COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH, STREAM_COOKIE_PATH)
+COOKIE_PATHS = (COOKIE_PATH, HIST_COOKIE_PATH, STREAM_COOKIE_PATH, SEED_COOKIE_PATH)
 
 #: Entitlement class — WHO the bearer is, not what they may read.
 #:

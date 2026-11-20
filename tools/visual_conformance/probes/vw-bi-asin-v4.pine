@@ -1,0 +1,17 @@
+//@version=4
+study("UCTPROBE_VW_BI_ASIN_V4", overlay = false)
+
+// U-BUILTIN (2026-11-19). THE SAME ROWS AS vw-bi-asin.pine, SPELLED v4 (bare `asin`, `sin`).
+// committed:screener-mean-reversion-channel (v4) writes `var pi = 2 * asin(1)`.
+//
+// CAPTURE: AMEX:SPY 1D from the listing. Inputs at defaults.
+
+y = sin(bar_index * 0.7319) * 1.0000001
+plot(bar_index, "A0_bar_index_CONTROL")
+plot(y, "Y_argument")
+plot(asin(y), "A1_asin_y")
+plot(na(asin(y)) ? 1 : 0, "A2_na_outside_unit")
+plot(asin(1), "A3_asin_1")
+plot(asin(-1), "A4_asin_minus_1")
+plot((sin(asin(y * 0.999)) - y * 0.999) * 1e18, "A5_identity_residual_1e18")
+plot(2 * asin(1), "A7_two_asin_1_the_scripts_pi")

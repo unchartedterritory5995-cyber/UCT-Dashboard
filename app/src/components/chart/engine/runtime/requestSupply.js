@@ -26,7 +26,8 @@
 
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
-  OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS } from '../otherSymbols.js'
+  OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS,
+  SERIES_PAGE_FILLED, BARS_ASK_MAX } from '../otherSymbols.js'
 import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
 import { overnightTailFrom, overnightSentence, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 
@@ -66,6 +67,29 @@ export const REQUEST_GUARD = 'runtime:request'
 export const REQUEST_LAG_GUARD = 'runtime:request-lag'
 /** How many of the chart's bar intervals another series may lag the chart's newest bar while the run waits. */
 export const TAIL_LAG_BOUND_INTERVALS = 2
+// ─── ⭐⭐ (e90, the e88 live capture, 2026-11-20) — ANOTHER SERIES' OLDER BARS STILL COMING: A WAIT, NOT A HOLE ─────────
+// ⚰️ CAPTURED (Fred RS on RDDT 30m / 5m, engine 88, the runtime worker's own messages; the same reply on e81, e85 and
+// e86): while the chart's rows grew (600 → 3,002 on 30m, → 20,008 on 5m), the run was handed SP:SPX's FIRST page, asked
+// when the chart held 600 rows and filling that ask: 600 rows beginning MID-SESSION (30m: 09-16 15:00 ET, 5m: 11-10
+// 11:30 ET; `/api/bars/SPX?tf=30&bars=600`). The intraday grid lays that session's pre-market rows from the previous
+// close (`otherSymbols.js::atOrBeforeGridOf`), so its opening bars, which the page cut off, lay AFTER the series' first
+// row and were refused as a hole: "`SPX` has no bar on <09:30>, after its history began". The deeper page (780 / 4,680
+// rows, from a session's open) drew them on the next reply.
+// THE RULE (coordinator ruling, 2026-11-20):
+//   * a bar withheld BEFORE the first row of a page that filled its ask (`SERIES_PAGE_FILLED`), on a chart holding more
+//     rows than that ask (so the chart asks deeper on its next render: `useSecondarySources.js::heldSpanFor` rounds its
+//     row count up to a deeper rung, below `BARS_ASK_MAX`), is PENDING: the run says the series' bars are still loading
+//     (the bind's own loading wait, no `waiting` name: the strip's named wait speaks of NEWEST bars), and runs again when
+//     the deeper page moves its key;
+//   * a hole AFTER that row (inside the held page) keeps its refusal, as does any gap on a page that did not fill its
+//     ask (the store's whole depth: a depth gap keeps its `knownFrom`), or on a chart that asks no deeper.
+/** The first row of `series`' held page when a deeper page is coming for a chart of `n` rows, else null (above). */
+export function pageEdgeOf(series, n) {
+  const page = series && series[SERIES_PAGE_FILLED]
+  if (!page || !Number.isInteger(page.asked) || !(n > page.asked) || !(page.asked < BARS_ASK_MAX)) return null
+  return page.from
+}
+
 /** One bar interval of an intraday chart, in seconds (a D / W / M chart counts its bars instead). */
 const INTRADAY_STEP_S = Object.freeze({ 1: 60, 5: 300, 15: 900, 30: 1800, 60: 3600 })
 
@@ -466,6 +490,8 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
   // ⭐⭐ (e85) the series whose newest bars a site waits for (a live-tail lag within the bound, below). ⛔ A wait never
   // hides a later site's refusal: every site is read, and the run waits only when none refuses.
   const waits = []
+  // ⭐⭐ (e90) whether a site waits for another series' OLDER bars (a deeper page coming, `pageEdgeOf`): the same rule
+  let olderWait = false
   // ⭐ `knownFrom` (a DEPTH gap only, below): the first chart bar from which every read of this site is known
   const refuse = (message, knownFrom) => {
     out.refusal = { guard: REQUEST_GUARD, message, ...(Number.isInteger(knownFrom) && knownFrom > 0 ? { knownFrom } : {}) }
@@ -603,9 +629,13 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     // ⭐ (e85) the chart's LIVE tail: its newest bar is forming, or not known to be finished. A gap after the series' last
     // bar on a chart whose newest bar is finished is no wait: it is refused by name, and runs again on the series' update
     const live = !(ctx && ctx.newestBarIsForming === false)
+    // ⭐⭐ (e90) the first row of a page a deeper page will extend (`pageEdgeOf`): what lies before it is still coming
+    const edge = srcBars !== rows ? pageEdgeOf(srcBars, n) : null
     const placeOf = (i) => {
       const t = rows[i] && rows[i].t
+      // (an above read's own rows: its depth class; `edge` is another series' page and never set for one)
       if (aboveDepthEnd >= 0) return i < aboveDepthEnd ? 'depth' : 'hole'
+      if (edge !== null && typeof t === typeof edge && t < edge) return 'older'
       if (firstHeld !== null && typeof t === typeof firstHeld && t < firstHeld) return 'depth'
       if (lastHeld !== null && typeof t === typeof lastHeld && t > lastHeld) return 'tail'
       return 'hole'
@@ -635,10 +665,12 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       let hole = -1
       let tail = -1
       let lastDepth = -1
+      let older = -1
       for (let i = early; i < n - 1; i += 1) {
         if (!aligned.withheld[i]) continue
         const place = placeOf(i)
         if (place === 'hole') { hole = i; break }
+        if (place === 'older') { if (older < 0) older = i; continue }
         if (place === 'tail') { if (tail < 0) tail = i } else lastDepth = i
       }
       if (hole >= 0) {
@@ -656,6 +688,12 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
           return out
         }
         waits.push(other)
+        continue
+      }
+      if (older >= 0) {
+        // ⭐⭐ (e90) THE OLDER BARS STILL COMING: every bar the series lacks before the newest lies before the first row
+        // of a page a deeper page will extend (`pageEdgeOf`). A wait (no hole, no depth sentence, no `knownFrom`)
+        olderWait = true
         continue
       }
       // ⭐⭐ (the e81 live capture, 2026-11-19) — A DEPTH GAP ONLY: every withheld bar before the newest lies BEFORE
@@ -696,6 +734,12 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     // ⭐⭐ (e85) PENDING, NOT REFUSED: nothing is supplied, and the run says which series it waits for
     out.pending = true
     out.waiting = { series: [...new Set(waits)], sentence: requestWaitingSentence(waits) }
+    return out
+  }
+  if (olderWait) {
+    // ⭐⭐ (e90) PENDING, NOT REFUSED, and unnamed: the run's own loading sentence ("…whose bars are still loading"), the
+    // one a series still in flight already says (`runtimeColumns.js`), never the named wait's "newest bars"
+    out.pending = true
     return out
   }
   out.supply = supply
