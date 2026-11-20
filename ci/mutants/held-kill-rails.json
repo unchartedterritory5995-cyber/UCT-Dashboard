@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Held-evidence kill rails (test/held-kill-rails): a kill entry on licence-held evidence is accepted only on current ledger evidence (held_evidence.held_kills at the current engine, that sha and that capture), and every held kill the ledger returns is on the committed kill list; both shown able to fail on a synthetic ledger row.",
+ "mutants": [
+  {
+   "id": "K1",
+   "mutant": "a held-evidence entry is judged as a committed-capture entry (the ledger is never asked)",
+   "file": "tests/test_pine_capability_admission.py",
+   "from": "    if ev.get(\"held\") is True:",
+   "to": "    if False:",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_capability_admission.py -k \"HK1 or HK2\"",
+   "expectRed": "HK1"
+  },
+  {
+   "id": "K2",
+   "mutant": "a held kill on evidence below the current engine is accepted",
+   "file": "tests/test_pine_capability_admission.py",
+   "from": "    if not isinstance(eng, int) or eng < floor:",
+   "to": "    if not isinstance(eng, int):",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_capability_admission.py -k \"HK1 or HK2\"",
+   "expectRed": "HK1"
+  },
+  {
+   "id": "K3",
+   "mutant": "a held kill the ledger holds is never required on the kill list",
+   "file": "tests/test_pine_capability_admission.py",
+   "from": "    return sorted(f\"{k.get('scriptKey')} ({sha[:12]})\" for sha, k in kills.items() if sha not in listed)",
+   "to": "    return []",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_capability_admission.py -k \"HK1 or HK2\"",
+   "expectRed": "HK2"
+  },
+  {
+   "id": "K4",
+   "mutant": "a held kill entry naming another capture is accepted",
+   "file": "tests/test_pine_capability_admission.py",
+   "from": "            out.append(f\"{slug}: its capture {ev.get('capture')!r} is not one of the held kill's ({sorted(rows)})\")",
+   "to": "            pass",
+   "rail": "python -m pytest -q -p no:cacheprovider tests/test_pine_capability_admission.py -k \"HK1 or HK2\"",
+   "expectRed": "HK1"
+  }
+ ]
+}
