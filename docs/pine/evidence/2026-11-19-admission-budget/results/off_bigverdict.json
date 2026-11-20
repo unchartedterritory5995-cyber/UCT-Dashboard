@@ -1,0 +1,135 @@
+{
+ "worker": "off",
+ "scenario": "bigverdict",
+ "gap": 3.0,
+ "repairs": 0,
+ "worker_ready_at_s": null,
+ "worker_stats": {
+  "starts": 0,
+  "calls": 0,
+  "ok": 0,
+  "busy": 0,
+  "unavailable": 0,
+  "quarantined": 0,
+  "timeout": 0,
+  "crashed": 0,
+  "error": 0,
+  "raised": 0,
+  "killed": 0
+ },
+ "results": [
+  {
+   "script": "table",
+   "landed_s": 0.0,
+   "converse_detector_ms": 3.93,
+   "attempts": [
+    {
+     "t": 0.19,
+     "pending": true,
+     "gate": "G? (state changed between snapshot and call)",
+     "ms": 193.3,
+     "admitted": false
+    },
+    {
+     "t": 1.7,
+     "pending": true,
+     "gate": "G2 verdict duty cool-down 1/6 (561 ms left, process-wide)",
+     "ms": 4.8,
+     "admitted": false
+    },
+    {
+     "t": 3.2,
+     "pending": true,
+     "gate": "G2 verdict duty cool-down 1/6 (765 ms left, process-wide)",
+     "ms": 5.6,
+     "admitted": false
+    },
+    {
+     "t": 4.86,
+     "pending": true,
+     "gate": "G4 detector gate held (one run per process)",
+     "ms": 150.5,
+     "admitted": false
+    },
+    {
+     "t": 6.37,
+     "pending": true,
+     "gate": "G2 verdict duty cool-down 1/6 (784 ms left, process-wide)",
+     "ms": 7.0,
+     "admitted": false
+    },
+    {
+     "t": 9.38,
+     "pending": true,
+     "gate": "G2 verdict duty cool-down 1/6 (95 ms left, process-wide)",
+     "ms": 6.0,
+     "after_giveup": true
+    },
+    {
+     "t": 15.38,
+     "pending": true,
+     "gate": "G2 verdict duty cool-down 1/6 (852 ms left, process-wide)",
+     "ms": 6.6,
+     "after_giveup": true
+    },
+    {
+     "t": 27.4,
+     "pending": false,
+     "gate": "ran",
+     "ms": 10.7,
+     "after_giveup": true
+    }
+   ],
+   "window_final": "STILL BEING CHECKED (window gave up)",
+   "verdict_at_s": 27.4
+  },
+  {
+   "script": "pivots",
+   "landed_s": 27.4,
+   "converse_detector_ms": 0.79,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 9.8,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "zones",
+   "landed_s": 30.41,
+   "converse_detector_ms": 1.22,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 10.1,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  },
+  {
+   "script": "levels",
+   "landed_s": 33.41,
+   "converse_detector_ms": 2.87,
+   "attempts": [
+    {
+     "t": 0.01,
+     "pending": false,
+     "gate": "ran",
+     "ms": 6.9,
+     "admitted": true
+    }
+   ],
+   "window_final": "admitted",
+   "verdict_at_s": 0.01
+  }
+ ]
+}

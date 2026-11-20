@@ -35,8 +35,15 @@ let _worker = null
 let _workerBroken = false
 let _starts = 0
 let _nextId = 1
-const _jobs = new Map()      // id -> job, in the order they were posted
-const _held = new Map()      // coalescing key -> the newest job not yet posted
+// ⭐⭐ (engine 86) ONE JOB IN THE WORKER AT A TIME, the rest waiting HERE, so a stale run can be stopped
+// without taking anyone else's with it (`supersede`, `cancelInFlight`). ⚰️ Every job was posted at once
+// and queued inside the worker, where nothing could reach it: a symbol or timeframe switch waited behind
+// the old symbol's whole run, and the only bound on that wait was the time budget.
+let _inFlight = null         // the job the worker is computing
+const _queue = []            // jobs not yet posted, oldest first: at most one per pane, and per key for pane-less jobs
+let _hidden = false          // the tab is hidden: nothing is posted, and the running job was stopped
+let _visibilityBound = false
+const _stats = { posted: 0, cancelled: 0, superseded: 0, hiddenStops: 0 }
 let _watchdog = null
 
 /** ⭐⭐ RF — HOW LONG THE WORKER MAY TAKE TO ANSWER THE JOB AT THE HEAD OF ITS
@@ -199,15 +206,23 @@ function disarm() {
   if (_watchdog !== null) { clearTimeout(_watchdog); _watchdog = null }
 }
 
-/** ⭐ RF — one timer, on the job at the head of the queue: the worker answers in
- *  order, so the head is the one running (or the worker is still loading). */
+/** ⭐ RF — one timer, on the job in the worker (or the worker still loading for it). */
 function arm() {
   disarm()
-  if (!_jobs.size) return
+  if (!_inFlight) return
   _watchdog = setTimeout(() => {
     _watchdog = null
     killWorker(unresponsive)
   }, RUNTIME_WORKER_WATCHDOG_MS)
+}
+
+/** A worker that will not be asked anything again: its doors closed, then terminated. */
+function stopWorker(w) {
+  if (!w) return
+  w.onmessage = null
+  w.onerror = null
+  w.onmessageerror = null
+  try { w.terminate() } catch { /* already gone */ }
 }
 
 /** ⛔ RF — A WORKER THAT HANGS OR DIES IS STOPPED, AND EVERY JOB IT HELD IS
@@ -217,14 +232,81 @@ function arm() {
  *  `RUNTIME_WORKER_MAX_STARTS` per tab. */
 function killWorker(reasonOf) {
   disarm()
-  const pending = [..._jobs.values()]
-  _jobs.clear()
-  if (_worker) { try { _worker.terminate() } catch { /* already gone */ } }
+  const failed = [...(_inFlight ? [_inFlight] : []), ..._queue.splice(0)]
+  _inFlight = null
+  stopWorker(_worker)
   _worker = null
   if (_starts >= RUNTIME_WORKER_MAX_STARTS) _workerBroken = true
-  const held = [..._held.values()]
-  _held.clear()
-  for (const job of [...pending, ...held]) settle(job, reasonOf(), null)
+  for (const job of failed) settle(job, reasonOf(), null)
+}
+
+/** A job that will never be answered: superseded before it ran, or stopped while it ran. Its memo entry is
+ *  dropped (`runtimeColumnsFor`'s `forget`), so the same bars asked again are a new run, never a pending
+ *  answer forever. Never painted, never a refusal, never counted as a stop. */
+function forgetJob(job) {
+  if (job.settled) return
+  job.settled = true
+  if (job.forget) { try { job.forget() } catch { /* a bad memo hook must not break the lane */ } }
+}
+
+/** ⭐⭐ (engine 86) — STOP THE RUN IN THE WORKER. By TERMINATING the worker: one that is computing cannot read a
+ *  message until the run ends, and a cooperative stop needs a `SharedArrayBuffer` flag, which this page has not
+ *  (it is not cross-origin isolated). The host lane stops its runs the same way (`hostLaneAsync.js`,
+ *  `cancelRunning`). The next job starts a fresh worker. ⛔ A CANCEL IS NOT A FAILURE: the stopped worker's
+ *  start is given back, so cancels never spend `RUNTIME_WORKER_MAX_STARTS`. Returns the job it stopped. */
+function cancelInFlight() {
+  const job = _inFlight
+  disarm()
+  _inFlight = null
+  stopWorker(_worker)
+  _worker = null
+  _starts = Math.max(0, _starts - 1)
+  _stats.cancelled += 1
+  return job
+}
+
+/** ⭐⭐ (engine 86) — A PANE THAT ASKS FOR ANOTHER PICTURE STOPS ITS OWN RUN. A chart pane (`ctx.hostPane`, the
+ *  binder's pane and instance) that now asks for a different document, symbol, timeframe, settings or history
+ *  fact than the run in the worker was started for will never draw that run's answer: it is stopped and
+ *  forgotten, and the newer job starts now on a fresh worker. ⛔ NOT for newer bars of the SAME picture (the
+ *  same coalescing key): that run finishes, and the newer one resumes from its session in milliseconds; stopping
+ *  it on a live chart would restart a cold run on every update and never draw. ⛔ NEVER another pane's run (a
+ *  grid of charts asks for many pictures at once), and never a job no pane owns. */
+function supersede(newer) {
+  const run = _inFlight
+  if (!run || newer.pane === null || run.pane !== newer.pane || run.coalesce === newer.coalesce) return
+  forgetJob(cancelInFlight())
+  _stats.superseded += 1
+}
+
+/** ⭐⭐ (engine 86) — A HIDDEN TAB COMPUTES NOTHING. The run in the worker is stopped (a worker cannot be paused)
+ *  and goes back to the head of the queue; nothing is posted while hidden; visible again, the queue runs. A
+ *  page that loads hidden starts its runs when it is first shown. */
+function onVisibility() {
+  const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+  if (hidden === _hidden) return
+  _hidden = hidden
+  if (hidden) {
+    if (_inFlight) {
+      const job = cancelInFlight()
+      _stats.hiddenStops += 1
+      _queue.unshift(job)
+    }
+    return
+  }
+  pump()
+}
+
+function bindVisibility() {
+  if (_visibilityBound || typeof document === 'undefined' || typeof document.addEventListener !== 'function') return
+  _visibilityBound = true
+  document.addEventListener('visibilitychange', onVisibility)
+  _hidden = document.visibilityState === 'hidden'
+}
+
+/** Test seam: what the lane did (posted, cancelled, superseded, stopped while hidden). */
+export function runtimeWorkerStats() {
+  return { ..._stats, inFlight: !!_inFlight, queued: _queue.length, hidden: _hidden }
 }
 
 function workerOf(factory) {
@@ -241,10 +323,10 @@ function workerOf(factory) {
   }
   _worker.onmessage = (event) => {
     const { id, ok, columns, error, objects, warmup, strategy, calcBars } = event.data || {}
-    const job = _jobs.get(id)
-    if (!job) return
-    _jobs.delete(id)
-    arm()
+    const job = _inFlight
+    if (!job || job.id !== id) return
+    _inFlight = null
+    disarm()
     const landed = ok ? withRuntimeObjects(columns, objects || null) : null
     if (landed && warmup) {
       Object.defineProperty(landed, RUNTIME_WARMUP_KEY, { value: warmup, enumerable: false, configurable: true })
@@ -256,7 +338,7 @@ function workerOf(factory) {
       Object.defineProperty(landed, CALC_BARS_KEY, { value: calcBars, enumerable: false, configurable: true })
     }
     settle(job, ok ? null : errorOf(error), landed)
-    postHeld(job.coalesce, factory)
+    pump()
   }
   _worker.onerror = () => killWorker(workerFailed)
   _worker.onmessageerror = () => killWorker(workerFailed)
@@ -287,7 +369,10 @@ function messageOf(id, def, rows, ctx) {
     ...(ctx && ctx.symbol && typeof ctx.symbol === 'object'
       // ⭐ RS RATING L3 — every field the fold reads (`bind.js::BIND_SYMBOL_FIELDS`), not only
       // `{ticker, exchange}`: the worker's run settles `syminfo.industry` from the same symbol.
-      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } } : {}),
+      // ⭐⭐ (2026-11-19, Fred RS 1h) and the symbol's FIRST TRADE day, the listing fact the own-daily read's first
+      // session rests on (`requestSupply.js::aboveChartRead`); absent stays absent (no listing is claimed).
+      ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol),
+        ...(typeof ctx.symbol.firstTradeDate === 'string' ? { firstTradeDate: ctx.symbol.firstTradeDate } : {}) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
@@ -314,38 +399,36 @@ function messageOf(id, def, rows, ctx) {
   return { id, def: plainDef, rows: plainRows, ctx: plainCtx }
 }
 
-function post(job, factory) {
-  const w = workerOf(factory)
+function post(job) {
+  const w = workerOf(job.factory)
   if (!w) {
     if (_starts === Infinity) { runHere(job.def, job.rows, job.ctx, (e, c) => settle(job, e, c), job); return }
     settle(job, workerFailed(), null)
     return
   }
   const id = _nextId++
+  job.id = id
   job.lane = 'worker'
   job.startedAt = clock()
-  _jobs.set(id, job)
+  _inFlight = job
+  _stats.posted += 1
   noteRuntimeRunStarted()
   try {
     w.postMessage(messageOf(id, job.def, job.rows, job.ctx))
   } catch {
-    _jobs.delete(id)
+    _inFlight = null
     settle(job, workerFailed(), null)
     return
   }
-  if (_jobs.size === 1) arm()
+  arm()
 }
 
-/** Post the newest held job for this key, once nothing for the key is in flight. */
-function postHeld(key, factory) {
-  if (!_held.has(key)) return
-  for (const j of _jobs.values()) if (j.coalesce === key) return
-  const job = _held.get(key)
-  _held.delete(key)
-  post(job, factory)
+/** Post the next waiting job while the worker is free and the tab is visible. */
+function pump() {
+  while (!_inFlight && !_hidden && _queue.length) post(_queue.shift())
 }
 
-/** ⭐ RF — WHICH JOBS ARE THE SAME PANE: one document on one chart (symbol,
+/** ⭐ RF — WHICH JOBS ARE THE SAME PICTURE: one document on one chart (symbol,
  *  timeframe, clock, listing fact). A live chart hands a new bars array per
  *  update; while one run of the pane is in the worker, only the NEWEST waiting
  *  one is kept — an older one would compute bars nobody paints. */
@@ -355,31 +438,44 @@ function coalesceKeyOf(def, ctx) {
     + `${ctx ? ctx.newestBarIsForming : ''}|${!!(ctx && ctx.historyFromListing === true)}`
 }
 
+/** The chart pane asking (`binder.js`: its scope and the instance), or null for a request no pane owns. */
+const paneOf = (ctx) => (ctx && typeof ctx.hostPane === 'string' && ctx.hostPane ? ctx.hostPane : null)
+
 /** The runner `runtimeColumns` hands a run to. Exported for its test.
+ *  `forget` (optional): called for a job that will never be answered, so its memo entry goes.
  *  @param {() => Worker} factory */
 export function workerRunner(factory) {
-  return (def, rows, ctx, done) => {
-    const job = { def, rows, ctx, done, coalesce: coalesceKeyOf(def, ctx), settled: false }
-    if ([..._jobs.values()].some((j) => j.coalesce === job.coalesce)) {
-      // ⛔ A SUPERSEDED JOB IS NEVER ANSWERED: its bars array is no longer the
-      // chart's, its memo entry stays "in flight" and goes with that array. No
-      // landing, no repaint, no notice for bars nobody draws.
-      _held.set(job.coalesce, job)
-      return
+  bindVisibility()
+  return (def, rows, ctx, done, forget) => {
+    const job = { def, rows, ctx, done, forget: typeof forget === 'function' ? forget : null, factory,
+      coalesce: coalesceKeyOf(def, ctx), pane: paneOf(ctx), settled: false }
+    supersede(job)
+    // ⛔ A SUPERSEDED WAITING JOB IS NEVER ANSWERED: its bars array is no longer the chart's (or its pane now asks
+    // for another picture). No landing, no repaint, no notice for bars nobody draws; its memo entry is dropped.
+    // A pane keeps its newest waiting job; a job no pane owns is coalesced by its key, as before.
+    for (let i = _queue.length - 1; i >= 0; i -= 1) {
+      const q = _queue[i]
+      const same = job.pane !== null ? q.pane === job.pane : (q.pane === null && q.coalesce === job.coalesce)
+      if (same) { _queue.splice(i, 1); forgetJob(q) }
     }
-    post(job, factory)
+    _queue.push(job)
+    pump()
   }
 }
 
 /** Test seam: forget the worker and the jobs. */
 export function resetRuntimeAsync() {
   disarm()
-  if (_worker) { try { _worker.terminate() } catch { /* gone */ } }
+  stopWorker(_worker)
   _worker = null
   _workerBroken = false
   _starts = 0
-  _jobs.clear()
-  _held.clear()
+  _inFlight = null
+  _queue.length = 0
+  if (_visibilityBound && typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+  _visibilityBound = false
+  _hidden = false
+  for (const k of Object.keys(_stats)) _stats[k] = 0
   _ready = false
   _beaconed.clear()
   _hashOf.clear()

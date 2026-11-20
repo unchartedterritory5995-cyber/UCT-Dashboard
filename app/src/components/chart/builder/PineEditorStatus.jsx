@@ -23,7 +23,7 @@ import useReportsConfig from '../supportLoop/useReportsConfig'
 import { LazyReportMismatchDialog } from '../supportLoop/reportDoor'
 import Sheet from '../../mobile/Sheet'
 import { afterFirstChartPaint } from '../../../lib/barsPackClient'
-import { runHereWhenLanded, RUN, MIN_BARS, STOPPED_HEADLINE, CHECKING_HEADLINE } from './runsHere'
+import { runHereWhenLanded, RUN, MIN_BARS, STOPPED_HEADLINE, CHECKING_HEADLINE, WAITING_HEADLINE, WAITING_LINE } from './runsHere'
 import { drawingLossOf, LOST_DRAWINGS_HEADLINE } from './authoring/scriptAnswer'
 import { useIsTouch } from '../../../hooks/useBreakpoint'
 import styles from './PineEditorStatus.module.css'
@@ -79,7 +79,8 @@ function OnThisChart({ status, shown }) {
   const run = shown.run
   const stops = shown.state === SHOWN_STATE.STOPPED_HERE && run ? run.stops : []
   const lost = shown.state === SHOWN_STATE.DRAWINGS_LOST ? status.lostDrawings : null
-  const notes = run && run.state === RUN.RAN ? [...run.notes, ...run.unchecked.map((u) => `Not checked here (${u.guard}): it is checked when the script is on the chart.`)] : []
+  const waiting = shown.state === SHOWN_STATE.WAITS_FOR_THE_BAR && run ? [WAITING_LINE, ...new Set(run.waiting.map((w) => w.sentence))] : []
+  const notes = run && run.state === RUN.RAN ? [...waiting, ...run.notes, ...run.unchecked.map((u) => `Not checked here (${u.guard}): it is checked when the script is on the chart.`)] : []
   if (!stops.length && !lost && !notes.length) return null
   return (
     <section className={styles.body} aria-label="On this chart" data-testid="pine-status-on-this-chart" data-run={run ? run.state : ''}>
@@ -247,7 +248,7 @@ function Body({ status, source, onGoToLine, onReport, reportOffered }) {
 // script per (symbol, timeframe, listing fact): a new bar does not re-run it.
 
 /** The display state of a script whose run stopped on this chart / whose drawings were lost. */
-export const SHOWN_STATE = Object.freeze({ STOPPED_HERE: 'stopped-here', DRAWINGS_LOST: 'drawings-lost' })
+export const SHOWN_STATE = Object.freeze({ STOPPED_HERE: 'stopped-here', DRAWINGS_LOST: 'drawings-lost', WAITS_FOR_THE_BAR: 'waits-for-the-bar' })
 
 // ⛔ READ WHEN ASKED, NEVER WHEN THIS FILE LOADS. `editorStatus.js` reaches this file through an import
 // cycle (editorStatus -> memberPaneDefinition -> BuilderSheet -> PineBox -> here), so a test or a page
@@ -276,7 +277,7 @@ export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = af
     if (!key) { setOut(null); return undefined }
     let live = true
     const asked = latest.current.pane
-    setOut({ pane: asked, result: { state: RUN.PENDING, stops: [], unchecked: [], notes: [] } })
+    setOut({ pane: asked, result: { state: RUN.PENDING, stops: [], unchecked: [], waiting: [], notes: [] } })
     latest.current.after(() => {
       if (!live) return
       Promise.resolve()
@@ -294,6 +295,7 @@ export function useRunOnChart(pane, chart, { run = runHereWhenLanded, after = af
  *   a run that STOPPED here     -> "It does not run on this chart"
  *   drawings the lane lost      -> "Its plots run on the chart, but its drawings are not all drawn"
  *   a run still in flight       -> "Still being checked on this chart" (only where the status said "runs")
+ *   a run waiting for the bar   -> "Draws once this bar has finished" (a last-bar script on a forming bar)
  */
 export function shownStatus(status) {
   if (!status) return { headline: '', state: null, run: null }
@@ -302,6 +304,11 @@ export function shownStatus(status) {
   if (says && run && run.state === RUN.STOPPED) return { headline: STOPPED_HEADLINE, state: SHOWN_STATE.STOPPED_HERE, run }
   if (says && status.lostDrawings) return { headline: LOST_DRAWINGS_HEADLINE, state: SHOWN_STATE.DRAWINGS_LOST, run }
   if (says && run && run.state === RUN.PENDING) return { headline: CHECKING_HEADLINE, state: PANEL_STATE.CHECKING, run }
+  // (a script that draws on the chart's last bar, on a chart whose newest bar is still forming: nothing is wrong
+  // with it, and it is not drawn yet. `runsHere.js::WAITS_FOR_THE_BAR`)
+  if (says && run && run.state === RUN.RAN && run.waiting && run.waiting.length) {
+    return { headline: WAITING_HEADLINE, state: SHOWN_STATE.WAITS_FOR_THE_BAR, run }
+  }
   return { headline: status.headline, state: status.state, run }
 }
 

@@ -142,6 +142,28 @@ def _request_text(message: str, chart: Any) -> str:
             "Write the script with the emit_script tool." + (f"\n\n{found}" if found else ""))
 
 
+#: ⭐ A REFUSED SCRIPT GOES BACK TO ITS RECIPE (found live 2026-11-19). Two requests that each have a proven
+#: recipe were answered, after a refusal, with something else: a ROLLING average where the session's was asked
+#: for, and a formula too long for a plot where the recipe's loop runs. The recipe rides every turn of the
+#: request (`_request_text`); what was missing is saying, at the moment of the refusal, that it is the way
+#: back. Which line is said is decided by counting (`pine_authoring.backed_by`), never by the assistant.
+RECIPE_BACK_LINE = (" A RECIPE for this request is above: it runs on this engine as written and its numbers were "
+                    "checked. Go back to it: keep its structure and change only the numbers and words the member "
+                    "asked for. Do not answer with a different indicator than the one asked for.")
+RECIPE_KEPT_LINE = (" This script IS the recipe above, which is proven on this engine, so the refusal is about the "
+                    "member's chart or a number you changed, not about the recipe. Do not rewrite it into a different "
+                    "indicator to make the refusal go away. If what the engine names can be fixed without changing what "
+                    "the script computes, fix only that; otherwise return the recipe as it was and say in `reply` what "
+                    "the engine named.")
+
+
+def _recipe_line(message: str, refused: Mapping[str, Any]) -> str:
+    """What a repair is told about the recipe handed with this request: nothing when none was."""
+    if not pine_authoring.recipes_for(message):
+        return ""
+    return RECIPE_KEPT_LINE if pine_authoring.backed_by(message, refused.get("pine")) is not None else RECIPE_BACK_LINE
+
+
 def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]]) -> List[dict]:
     out: List[dict] = [{"role": "user", "content": _request_text(message, chart)}]
     if refused:
@@ -154,7 +176,8 @@ def _messages(message: str, chart: Any, refused: Optional[Mapping[str, Any]]) ->
                 {"type": "tool_result", "tool_use_id": REFUSED_TOOL_USE_ID, "is_error": True,
                  "content": (f"[engine:refused] UCT's engine checked this script and does not run it as written: {words} "
                              "Fix exactly what the engine names and return the WHOLE corrected script. If the engine "
-                             "cannot do what was asked, say so (disposition unsupported).")}]},
+                             "cannot do what was asked, say so (disposition unsupported)."
+                             + _recipe_line(message, refused))}]},
         ]
     return out
 
@@ -248,12 +271,33 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             # (`pine_authoring.backed_by`), on THIS script: a repair is judged again.
             reference = pine_authoring.backed_by(message, pine)
             said = pine_authoring.said_with_disclosure(said, reference)
+            # ⭐ AND WHETHER IT WAITS FOR THE BAR (found live 2026-11-19): a script that reads where the chart
+            # ends is drawn only on a finished bar. The server's own detector decides, on THIS script, and
+            # UCT says it in its own words: a member is never left to find it out from an empty chart.
+            # ⭐ ONE detector run per script answer (2026-11-19): its set answers both questions below.
+            caps = pine_authoring.script_capabilities(pine)
+            waits = pine_authoring.waits_for_the_bar(pine, caps=caps)
+            said = pine_authoring.said_with_the_bar(said, waits)
             trace["script"]["chars"] = len(pine)
             trace["script"]["reference"] = reference
+            trace["script"]["waits_for_the_bar"] = waits
             logger.info("[converse:script] a script of %d characters (round %d, %d call(s), reference %s)",
                         len(pine), rnd, attempts, reference or "none")
+            script_out = {"name": name, "pine": pine, "round": rnd, "reference": reference,
+                          "waits_for_the_bar": waits}
+            # ⭐ AND ITS ADMISSION VERDICT, from that same set (`runtime_definitions.admission_verdict`, the
+            # rule the verdict door reads): the window latches it when its sha256 matches the script, so it
+            # never waits on the verdict door's shared budgets for a script this request already checked.
+            # The set goes into this process's LRU only; nothing is stored. ABSENT while capability
+            # admission is off, so that answer is byte for byte what it was.
+            from api.services import runtime_definitions
+            admission = runtime_definitions.script_answer_admission(pine, caps)
+            if admission is not None:
+                script_out["admission"] = admission
+                trace["script"]["admission"] = {"admitted": admission["admitted"],
+                                                "missing": list(admission["missing"])}
             return {"ok": True, "disposition": "answer", "turn": "script", "reply": said,
-                    "script": {"name": name, "pine": pine, "round": rnd, "reference": reference},
+                    "script": script_out,
                     "envelope": {"contract": contract, "baseRevision": revision, "ops": [], "disposition": "answer",
                                  "reply": said},
                     "answered_by": "assistant", "not_understood": [], "unavailable": [], **extra()}

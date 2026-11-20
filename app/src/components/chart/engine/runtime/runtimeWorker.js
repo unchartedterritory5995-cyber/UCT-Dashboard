@@ -43,7 +43,8 @@ self.onmessage = (event) => {
       })()
       : plainCtx
     // ⭐⭐ (coordinator ruling 2026-11-19) off the main thread the budget scales with the bars the run covers
-    // (`runtimeColumns.js::runtimePaneBudgetFor`); every main-thread door keeps 1,000 ms
+    // (`runtimeColumns.js::runtimePaneBudgetFor`); every main-thread door keeps 1,000 ms. ⭐⭐ (engine 86, A2) and
+    // here alone the VM's `WALL_TIME` follows that budget (`runLimitsOf`): every other caller keeps 5,000
     const columns = computeRuntimeColumns(def, rows || [], ctx || {}, { budgetMs: RUNTIME_PANE_TIME_BUDGET_MS, budgetScales: true })
     // ⭐ RT5 — the run's drawings are non-enumerable on the record, so a
     // structured clone would drop them; they cross beside it. ⭐ UIE PHASE 2 — the raw

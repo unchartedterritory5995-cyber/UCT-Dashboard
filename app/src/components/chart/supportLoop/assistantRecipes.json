@@ -95,7 +95,7 @@
     "point of control",
     "poc"
    ],
-   "shows": "drawn once, on the last bar: the range of the last N bars is cut into rows, each bar's volume is added to the row its close falls in, and each row is a box whose length is its share of the largest row; the point of control is PLOTTED so the script has an output besides its drawings",
+   "shows": "the range of the last N bars is cut into rows, each bar's volume is added to the row its close falls in, and each row is a box whose length is its share of the largest row; the point of control is PLOTTED so the script has an output besides its drawings. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
    "chart": "daily",
    "source": "//@version=5\nindicator(\"Volume Profile\", overlay=true, max_boxes_count=100)\nn = input.int(60, \"Bars\", minval=5, maxval=500)\nrows = input.int(24, \"Rows\", minval=4, maxval=60)\nwidth = input.int(30, \"Longest row (bars)\", minval=5, maxval=200)\nhi = ta.highest(high, n)\nlo = ta.lowest(low, n)\nvar box[] drawn = array.new_box(0)\nvar float poc = na\nif barstate.islast and hi > lo\n    while array.size(drawn) > 0\n        oldBox = array.pop(drawn)\n        box.delete(oldBox)\n    step = (hi - lo) / rows\n    vols = array.new_float(rows, 0.0)\n    for i = 0 to n - 1\n        r = math.min(rows - 1, math.floor((close[i] - lo) / step))\n        array.set(vols, r, array.get(vols, r) + volume[i])\n    top = array.max(vols)\n    for r = 0 to rows - 1\n        v = array.get(vols, r)\n        len = math.max(1, math.round(v / top * width))\n        isPoc = v == top\n        if isPoc\n            poc := lo + (r + 0.5) * step\n        array.push(drawn, box.new(bar_index - n, lo + (r + 1) * step, bar_index - n + len, lo + r * step, bgcolor=color.new(isPoc ? color.orange : color.blue, 60), border_color=color.new(color.blue, 100)))\nplot(poc, \"Point of control\", color=color.orange, style=plot.style_linebr)\n",
    "lane": "runtime",
@@ -124,7 +124,8 @@
      }
     }
    },
-   "served": true
+   "served": true,
+   "finishedBarsOnly": true
   },
   {
    "id": "vwap-deviation-bands",
@@ -333,7 +334,7 @@
     "seasonality",
     "average return by day"
    ],
-   "shows": "statistics are worked over a FIXED window of the last N bars, by a loop on the last bar only: a running total kept since the first bar depends on where the chart's history starts, and this engine does not draw that on a chart that does not reach the listing; the table is written once, and the best day's average is PLOTTED so the script has an output besides the table",
+   "shows": "statistics are worked over a FIXED window of the last N bars, by a loop: a running total kept since the first bar depends on where the chart's history starts, and this engine does not draw that on a chart that does not reach the listing; the best day's average is PLOTTED so the script has an output besides the table. ⛔ THE WORK IS DONE UNDER `if barstate.islast` ON PURPOSE: it loops over past bars, which is too slow to repeat on every bar. A script that reads where the chart ends is drawn only on a FINISHED bar, so on a live chart this one appears when the newest bar closes",
    "chart": "daily",
    "source": "//@version=5\nindicator(\"Weekday Returns\", overlay=false)\nn = input.int(500, \"Bars looked back\", minval=20, maxval=2000)\nr = close / close[1] - 1\nnames = array.from(\"Sun\", \"Mon\", \"Tue\", \"Wed\", \"Thu\", \"Fri\", \"Sat\")\nvar table t = table.new(position.top_right, 3, 8)\nfloat best = na\nif barstate.islast\n    sums = array.new_float(7, 0.0)\n    counts = array.new_int(7, 0)\n    for i = 0 to n - 1\n        if not na(r[i])\n            d = dayofweek[i] - 1\n            array.set(sums, d, array.get(sums, d) + r[i])\n            array.set(counts, d, array.get(counts, d) + 1)\n    int bestDay = na\n    for d = 0 to 6\n        if array.get(counts, d) > 0\n            avg = array.get(sums, d) / array.get(counts, d) * 100\n            if na(best) or avg > best\n                best := avg\n                bestDay := d\n    table.cell(t, 0, 0, \"Day\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 1, 0, \"Avg %\", text_color=color.white, bgcolor=color.gray)\n    table.cell(t, 2, 0, \"Days\", text_color=color.white, bgcolor=color.gray)\n    for d = 0 to 6\n        k = array.get(counts, d)\n        bg = d == bestDay ? color.new(color.green, 60) : color.new(color.gray, 85)\n        table.cell(t, 0, d + 1, array.get(names, d), bgcolor=bg)\n        table.cell(t, 1, d + 1, k > 0 ? str.tostring(array.get(sums, d) / k * 100, \"#.###\") : \"-\", bgcolor=bg)\n        table.cell(t, 2, d + 1, str.tostring(k), bgcolor=bg)\nplot(best, \"Best day's average return %\", color=color.green, style=plot.style_circles)\n",
    "lane": "runtime",
@@ -362,7 +363,8 @@
      }
     }
    },
-   "served": true
+   "served": true,
+   "finishedBarsOnly": true
   },
   {
    "id": "prior-day-levels",
@@ -463,12 +465,12 @@
     "retracement levels",
     "fibonacci levels"
    ],
-   "shows": "the last confirmed pivot high and pivot low are kept in `var` with their bars; each level's PRICE is worked out on every bar into an array, the lines and labels are redrawn from it on the last bar only (kept in arrays, deleted before they are made again), and the 61.8% level is plotted so it can be alerted on",
+   "shows": "the last confirmed pivot high and pivot low are kept in `var` with their bars; each level's PRICE is worked out on every bar into an array; the lines and labels are made ONCE (kept in arrays) and MOVED on every bar with their setters, so nothing waits for the last bar and nothing is deleted and remade; and the 61.8% level is plotted so it can be alerted on",
    "chart": "daily",
-   "source": "//@version=5\nindicator(\"Fibonacci Retracement\", overlay=true, max_lines_count=50, max_labels_count=50)\nleft = input.int(10, \"Pivot bars left\", minval=1)\nright = input.int(10, \"Pivot bars right\", minval=1)\nph = ta.pivothigh(high, left, right)\npl = ta.pivotlow(low, left, right)\nvar float swingHigh = na\nvar int highBar = na\nvar float swingLow = na\nvar int lowBar = na\nif not na(ph)\n    swingHigh := ph\n    highBar := bar_index - right\nif not na(pl)\n    swingLow := pl\n    lowBar := bar_index - right\nlevels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)\nprices = array.new_float(0)\nfloat golden = na\nif not na(swingHigh) and not na(swingLow)\n    up = highBar > lowBar\n    for lv in levels\n        array.push(prices, up ? swingHigh - (swingHigh - swingLow) * lv : swingLow + (swingHigh - swingLow) * lv)\n    golden := array.get(prices, 4)\nvar line[] ls = array.new_line(0)\nvar label[] lbs = array.new_label(0)\nif barstate.islast and array.size(prices) > 0\n    while array.size(ls) > 0\n        oldLine = array.pop(ls)\n        line.delete(oldLine)\n    while array.size(lbs) > 0\n        oldLabel = array.pop(lbs)\n        label.delete(oldLabel)\n    from = math.min(highBar, lowBar)\n    for i = 0 to array.size(prices) - 1\n        y = array.get(prices, i)\n        array.push(ls, line.new(from, y, bar_index, y, extend=extend.right, color=color.gray))\n        array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, \"#.#\") + \"%\", style=label.style_label_left, color=color.gray, textcolor=color.white, size=size.small))\nplot(swingHigh, \"Swing high\", color=color.new(color.red, 60), style=plot.style_stepline)\nplot(swingLow, \"Swing low\", color=color.new(color.green, 60), style=plot.style_stepline)\nplot(golden, \"61.8% level\", color=color.orange)\n",
+   "source": "//@version=5\nindicator(\"Fibonacci Retracement\", overlay=true, max_lines_count=50, max_labels_count=50)\nleft = input.int(10, \"Pivot bars left\", minval=1)\nright = input.int(10, \"Pivot bars right\", minval=1)\nph = ta.pivothigh(high, left, right)\npl = ta.pivotlow(low, left, right)\nvar float swingHigh = na\nvar int highBar = na\nvar float swingLow = na\nvar int lowBar = na\nif not na(ph)\n    swingHigh := ph\n    highBar := bar_index - right\nif not na(pl)\n    swingLow := pl\n    lowBar := bar_index - right\nlevels = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)\nprices = array.new_float(0)\nfloat golden = na\nif not na(swingHigh) and not na(swingLow)\n    up = highBar > lowBar\n    for lv in levels\n        array.push(prices, up ? swingHigh - (swingHigh - swingLow) * lv : swingLow + (swingHigh - swingLow) * lv)\n    golden := array.get(prices, 4)\nvar line[] ls = array.new_line(0)\nvar label[] lbs = array.new_label(0)\nif array.size(prices) > 0\n    from = math.min(highBar, lowBar)\n    for i = 0 to array.size(prices) - 1\n        y = array.get(prices, i)\n        if array.size(ls) <= i\n            array.push(ls, line.new(from, y, bar_index, y, extend=extend.right, color=color.gray))\n            array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, \"#.#\") + \"%\", style=label.style_label_left, color=color.gray, textcolor=color.white, size=size.small))\n        level = array.get(ls, i)\n        line.set_xy1(level, from, y)\n        line.set_xy2(level, bar_index, y)\n        label.set_xy(array.get(lbs, i), bar_index, y)\nplot(swingHigh, \"Swing high\", color=color.new(color.red, 60), style=plot.style_stepline)\nplot(swingLow, \"Swing low\", color=color.new(color.green, 60), style=plot.style_stepline)\nplot(golden, \"61.8% level\", color=color.orange)\n",
    "lane": "runtime",
    "state": "runs-with-notes",
-   "headline": "Runs on the chart and in alerts, with 3 notes",
+   "headline": "Runs on the chart and in alerts, with 2 notes",
    "draws": true,
    "runs": {
     "fromListing": {

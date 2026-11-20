@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "FIELD REGISTER STEP A + (b) (fix/pine-host-field-register-untraced, on #2014): a field register is untraced unless every read of it follows an unconditional write of it in the same bar (`pineObjects.js::dominatedFields`), so the 26-label shape is withheld by name and a field written then used in one bar (G's red boxes) keeps its register. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "A1",
+   "mutant": "every field register is registered again, dominated or not (a field Step B does not serve becomes a cleared local)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    } else if (d.kind === 'local' && String(name).includes('.')",
+   "to": "    } else if (false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "withheld by name"
+  },
+  {
+   "id": "A2",
+   "mutant": "every read counts as dominated (the 26-label shape keeps its cleared register)",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "              if (opaque || isDef || !w.has(f)) undominated.add(f)",
+   "to": "              if (false) undominated.add(f)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "the function form"
+  },
+  {
+   "id": "A3",
+   "mutant": "no read counts as dominated (a field written then used in one bar loses its register)",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "    for (const f of fields) if (!undominated.has(f)) out.add(f)",
+   "to": "    for (const f of fields) if (false) out.add(f)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js src/components/chart/engine/ast/methodForm.test.js",
+   "expectRed": "red"
+  }
+ ]
+}

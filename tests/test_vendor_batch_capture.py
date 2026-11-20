@@ -450,6 +450,82 @@ def test_a_study_this_batch_did_not_add_is_never_removed_or_saved_over(tmp_path)
     assert page.persisted["studies"] == [stranger]
 
 
+# ── ONE settled read of the rig (coordinator ruling, 2026-11-19: htfform-c read 0 studies on its first answer and
+#    called the layout clean; the rail's new launch then read the saved leftover) ───────────────────────────────────
+X_SAVED = {"id": "s1", "name": "X", "sha": "0" * 64, "source": "", "reads": 0}
+
+
+def _slow_page(delay, studies=(X_SAVED,), **kw):
+    return bd.RecordingTVPage(persisted={"studies": list(studies), "symbol": "NASDAQ:AAPL", "resolution": "5"},
+                              attach_delay_s=delay, **kw)
+
+
+def _drv(page, tmp_path, **kw):
+    return bc.Driver(page, bd.FakeClock(page), bd.fast_opts(**kw), bc.RunDir(tmp_path / "run", "t"), None,
+                     log=lambda *_: None)
+
+
+def test_a_study_that_attaches_after_the_handle_answers_reads_dirty(tmp_path):
+    v = _drv(_slow_page(4), tmp_path).verify_fresh_load(ORIG)
+    assert v["read"] is True and v["ok"] is False and [s["name"] for s in v["studies"]] == ["X"]
+    # the record keeps the early empty answer AND the late attach, with when each was first seen
+    ch = v["settle"]["changes"]
+    assert [c["studies"] for c in ch] == [[], ["X"]] and ch[0]["atS"] < 4 <= ch[1]["atS"]
+    assert v["settle"]["waitedS"] >= v["settle"]["lastChangeS"] + bc.RIG_SETTLE_S
+
+
+def test_control_the_first_answer_alone_reads_the_same_layout_clean(tmp_path):
+    # the instrument can fail: with no settle window the same page reads CLEAN, which is the 2026-11-19 htfform-c read
+    v = _drv(_slow_page(4), tmp_path, rig_settle_s=0).verify_fresh_load(ORIG)
+    assert v["ok"] is True and v["studies"] == []
+
+
+def test_a_clean_layout_reads_clean_only_once_it_has_held_still(tmp_path):
+    v = _drv(_slow_page(0, studies=()), tmp_path).verify_fresh_load(ORIG)
+    assert v["ok"] is True and v["read"] is True and v["settle"]["waitedS"] >= bc.RIG_SETTLE_S
+
+
+def test_a_layout_that_never_holds_still_is_not_read_and_never_clean(tmp_path, monkeypatch):
+    orig, n = bd.RecordingTVPage._state, {"i": 0}
+
+    def flapping(self, a):
+        st = orig(self, a)
+        n["i"] += 1
+        st["studies"] = [{"id": "s1", "name": "X"}] if n["i"] % 2 else []
+        return st
+    monkeypatch.setattr(bd.RecordingTVPage, "_state", flapping)     # before the page binds its handlers
+    v = _drv(_slow_page(0, studies=()), tmp_path, rig_settle_max_s=30).verify_fresh_load(ORIG)
+    assert v["read"] is False and v["ok"] is False and v["settle"]["waitedS"] >= 30
+
+
+def test_a_batch_on_a_slow_attaching_rig_still_runs_the_guarded_clean_save(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, autosave="tradingview", attach_delay_s=4)
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0
+    rd = bc.RunDir(tmp_path / "run", "selfcheck")
+    code = bc.run_batch(page, manifest, rd, bd.fast_opts(clean_save=True), bd.FakeClock(page), bc.NodeVerifier(),
+                        log=lambda *_: None)
+    (v,) = _verify_rows(tmp_path / "run")
+    assert v["ok"] is False and v["read"] is True and [s["name"] for s in v["studies"]] == ["X"]   # seen, late
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert len(rows) == 1 and rows[0]["ok"] is True and rows[0]["after"]["read"] is True and code == 0
+    assert page.persisted["studies"] == []
+
+
+def test_every_clean_check_reads_through_the_one_settled_read():
+    tree = ast.parse((REPO / "tools" / "vendor_harness" / "batch_capture.py").read_text(encoding="utf-8"))
+    fns = {f.name: f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef)}
+
+    def calls(fn):
+        return {c.func.id if isinstance(c.func, ast.Name) else getattr(c.func, "attr", None)
+                for c in ast.walk(fns[fn]) if isinstance(c, ast.Call)}
+    assert "settled_rig_read" in calls("verify_fresh_load")
+    assert "poll" not in calls("verify_fresh_load")                    # no first-answer read beside it
+    # the batch end, the repair's verify-before and the clean-save's verify-after all go through verify_fresh_load
+    assert "verify_fresh_load" in calls("guarded_clean_save") and "verify_fresh_load" in calls("run_batch")
+
+
 # ── the capture phase (coordinator, 2026-11-19): one probe, one chart, one day, two session states ──────────────────
 PROBE = '//@version=6\nindicator("One")\nplot(close)\n'
 
@@ -524,3 +600,67 @@ def test_distinct_phases_of_one_probe_on_one_chart_both_capture_under_their_own_
         assert f.name == r["captureId"] + ".json" and json.loads(f.read_text(encoding="utf-8"))["id"] == r["captureId"]
     assert sorted(p.name for p in (tmp_path / "run" / "captures").glob("*.json")) == [
         "stemx-spy-1d-2026-09-28-insession.json", "stemx-spy-1d-2026-09-28-postclose-fresh.json"]
+
+
+# ── startsAtBar0 is DERIVED and checked against the capture's own data (coordinator, 2026-11-19) ─────────────────────
+# ⚰️ 17 captures of the 2026-09-27 vocabulary wave carried history.startsAtBar0 = true with RDDT's listing as the reason,
+# on SPY / AAPL / ES1! / EURUSD / ... charts; 12 of them are refuted by their own bar_index CONTROL row (8172, 7432, ...),
+# which made two probes grade DIVERGE and land on the host-known-divergence list.
+FX = REPO / "tests" / "fixtures" / "vendor"
+REFUTED_BY_BAR_INDEX = sorted(
+    ["vw-int-cast-spy-1d-2026-09-27", "vw-nvi-pvi-spy-1d-truncated-2026-09-27"]
+    + [f"vw-mintick-{s}-1d-2026-09-27" for s in ("aapl", "aitx", "brka", "btcusdt", "es1", "eurusd", "nkla", "sndl",
+                                                 "spx", "spy")])
+BOILERPLATE = REFUTED_BY_BAR_INDEX + ["vw-alma-spy-1d-2026-09-27", "vw-clock-vwap-spy-1d-2026-09-27",
+                                      "vw-nvi-pvi-spy-1d-full-2026-09-27", "vw-time-session-spy-1d-2026-09-27",
+                                      "vw-time-tf-spy-1d-2026-09-27"]
+
+
+def _cap(name):
+    return json.loads((FX / f"{name}.json").read_text(encoding="utf-8"))
+
+
+def test_a_bar0_claim_whose_reason_names_another_symbol_is_refuted():
+    for name in BOILERPLATE:
+        c = _cap(name)
+        why = bc.starts_at_bar0_contradiction(c, c["symbol"]["pro_name"])
+        assert why and "NYSE:RDDT" in why and c["symbol"]["pro_name"] in why, (name, why)
+
+
+def test_a_bar0_claim_its_own_bar_index_control_refutes_is_refuted():
+    # the reason corrected to name the chart's own symbol: the bar_index rule alone refutes exactly these twelve
+    got = []
+    for name in BOILERPLATE:
+        c = _cap(name)
+        c["history"]["why"] = f"{c['symbol']['pro_name']} listed 1900-01-01; corrected for this rail"
+        why = bc.starts_at_bar0_contradiction(c, c["symbol"]["pro_name"])
+        if why:
+            assert "bar_index control plot" in why and "not 0" in why, (name, why)
+            got.append(name)
+    assert sorted(got) == REFUTED_BY_BAR_INDEX
+
+
+def test_control_genuine_bar0_claims_stand_and_a_request_bar_index_is_never_the_control():
+    for f in (FX / "harness" / "rs-rating-fred6724-rddt-1d-2026-11-16.json", FX / "harness" / "3-level-zigzag-semafor-spy-1d-2026-11-14.json"):
+        c = json.loads(f.read_text(encoding="utf-8"))
+        assert c["history"]["startsAtBar0"] is True
+        assert bc.starts_at_bar0_contradiction(c, c["symbol"]["pro_name"]) is None, f.name
+    # another timeframe's bar_index (Q-HTF-FORM v1's F12) reads that timeframe's index: never the chart's control
+    c = {"history": {"startsAtBar0": True, "why": "AMEX:SPY listed 1993-01-29; ..."}, "symbol": {"pro_name": "AMEX:SPY"},
+         "study": {"plots": [{"id": "plot_0", "title": "F12_W_bar_index_OFF"}, {"id": "plot_1", "title": "F00_bar_index_CONTROL"}]},
+         "plotValues": {"fields": ["time", "plot_0", "plot_1"], "rows": [[1, 1650, 0], [2, 1650, 1]]}}
+    assert bc.starts_at_bar0_contradiction(c, "AMEX:SPY") is None
+    c["plotValues"]["rows"][0][2] = 3                                # the chart's own control reading 3: refuted
+    assert "F00_bar_index_CONTROL" in bc.starts_at_bar0_contradiction(c, "AMEX:SPY")
+    # a capture asserted for one symbol on a chart of another is refuted whatever its reason says
+    c["plotValues"]["rows"][0][2] = 0
+    assert "asserted for NYSE:RDDT" in bc.starts_at_bar0_contradiction(c, "NYSE:RDDT")
+    # no claim, nothing to refute
+    assert bc.starts_at_bar0_contradiction({"history": {"startsAtBar0": False}}, "AMEX:SPY") is None
+
+
+def test_the_capture_path_refuses_a_refuted_claim_before_it_returns_the_capture():
+    tree = ast.parse((REPO / "tools" / "vendor_harness" / "batch_capture.py").read_text(encoding="utf-8"))
+    fn = next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == "capture")
+    names = [c.func.id for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)]
+    assert "starts_at_bar0_contradiction" in names

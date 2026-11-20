@@ -511,3 +511,109 @@ def test_rule_ten_follows_the_reference_not_a_list_typed_here():
     # a candidate that is not a served name is never said, whatever the list above holds
     assert "ta.supertrend" in pa.OWN_FUNCTION_CANDIDATES
     assert ("`ta.supertrend`" in pa.contract()) == ("ta.supertrend" in pa.served_names())
+
+
+# ═══ rule 5: nothing the assistant is taught waits for the last bar, except by name ══════════
+#
+# ⚰️ Found live 2026-11-19. Rule 5 said "draw on the last bar: `if barstate.islast`", three recipes and three
+# worked examples did, and every one was proven on a chart whose newest bar had FINISHED. A script that reads
+# where the chart ends is admitted for finished bars only (G6): before the open they ran, and all session long
+# a member's chart refused them. These hold the instructions, the recipes and the examples to the SERVER'S OWN
+# rule (its capability detector and its `historyOnly` list), not to a list typed here.
+
+def _rule_five(ref=None):
+    return next(line for line in pa.contract(ref).split(chr(10)) if line.startswith("5. "))
+
+
+def test_the_references_finished_bars_list_is_the_servers_own():
+    from api.services import runtime_definitions as rd
+    assert sorted(pa.history_only()) == sorted(rd.admitted_capabilities()["historyOnly"])
+    assert "realtime-state" in pa.history_only(), "nothing is admitted for finished bars only: rule 5 has changed its meaning"
+    # every one of them is either WORDED in rule 5 or not offered to the assistant at all
+    for cap in pa.history_only():
+        assert (cap in pa.HISTORY_ONLY_READS) != (cap in pa.NOT_FOR_THE_ASSISTANT), cap
+
+
+def test_every_read_rule_five_names_is_one_by_the_servers_detector():
+    from api.services import pine_capabilities as pc
+    script = lambda read: f'//@version=5\nindicator("p")\nx = {read}\nplot(close)\n'   # noqa: E731
+    for cap, words in pa.HISTORY_ONLY_READS.items():
+        named = re.findall(r"`([^`]+)`", words)
+        assert len(named) >= 3, words
+        for read in named:
+            if read == "barstate.isfirst":
+                continue
+            read = "barstate.islast" if read == "barstate.*" else read
+            assert cap in pc.capabilities_of(script(read)), f"rule 5 names `{read}` and the server does not count it as {cap}"
+    # the exception the rule makes is a real one: reading the FIRST bar is plain
+    assert "barstate.isfirst" in pa.HISTORY_ONLY_READS["realtime-state"]
+    assert "realtime-state" not in pc.capabilities_of(script("barstate.isfirst"))
+    # CONTROL: a script that reads none of them is not said to wait, one that reads any of them is
+    assert pa.waits_for_the_bar(script("ta.sma(close, 20)")) is False
+    for read in ("barstate.islast", "bar_index == last_bar_index", "time == last_bar_time", "timenow"):
+        assert pa.waits_for_the_bar(script(read)) is True, read
+    assert pa.waits_for_the_bar("") is False and pa.waits_for_the_bar(None) is False
+
+
+def test_rule_five_teaches_updating_on_every_bar_and_says_what_waiting_costs():
+    rule = _rule_five()
+    assert "UPDATED ON EVERY BAR" in rule and "Do not delete and remake it on every bar." in rule
+    assert pa.HISTORY_ONLY_READS["realtime-state"] in rule and "shows nothing all session" in rule
+    assert rule.count("`if barstate.islast`") == 1 and "The ONE exception is work that loops over past bars" in rule
+    doc = pa.document()
+    assert "{last_bar}" not in doc and "{own_functions}" not in doc
+    # every setter the rule names is one the document lists as served
+    for setter in re.findall(r"`((?:table|label|line|box)\.[a-z_0-9]+)`", rule):
+        assert f"`{setter}(" in doc, f"rule 5 names `{setter}` and the document does not list it"
+
+
+def test_rule_five_follows_the_reference(monkeypatch):
+    ref = copy.deepcopy(pa.reference())
+    ref["historyOnly"] = []
+    relaxed = _rule_five(ref)
+    # an engine that draws last-bar scripts on a forming bar: the warning goes, the heavy-work rule stays
+    assert "shows nothing all session" not in relaxed and "last_bar_index" not in relaxed
+    assert relaxed.endswith("once, under `if barstate.islast`.") and "UPDATED ON EVERY BAR" in relaxed
+    assert pa.waits_for_the_bar('//@version=5\nindicator("p")\nplot(barstate.islast ? close : na)\n', ref) is False
+    ref["historyOnly"] = ["request-other"]                                # one with no words: nothing is said for it
+    assert _rule_five(ref) == relaxed
+
+
+def test_no_script_the_assistant_is_shown_waits_for_the_bar_unless_it_says_so():
+    """THE STANDING TEST: the server's own detector, asked about every recipe and every worked example."""
+    from api.services import pine_capabilities as pc
+    hist, worded = set(pa.history_only()), set(pa.HISTORY_ONLY_READS)
+    waits = {}
+    for kind, sid, lane, source in _shown_scripts():
+        caps = set(pc.capabilities_of(source)) & hist
+        # the bar-by-bar lane is the one the engine's rule applies to. A read rule 5 WORDS is held on every
+        # lane all the same: a worked example is the idiom the assistant copies into scripts that lane draws.
+        waits[(kind, sid)] = sorted(caps if lane == "runtime" else caps & worded)
+    assert len(waits) >= 20 and {lane for _k, _i, lane, _s in _shown_scripts()} == {"host", "runtime"}
+    declared = {r["id"] for r in pa.recipes() if r.get("finishedBarsOnly") is True}
+    found = {sid for (kind, sid), caps in waits.items() if caps}
+    assert found == declared, (f"scripts shown to the assistant that are drawn only on a finished bar: {sorted(found)}; "
+                               f"declared in the recipe index: {sorted(declared)}")
+    # no WORKED EXAMPLE waits (an example is the idiom the assistant copies most), and the list may only shrink
+    assert not [sid for (kind, sid), caps in waits.items() if kind == "example" and caps]
+    assert declared <= {"volume-profile", "weekday-returns-table"}, sorted(declared)
+    # each declared one waits because of a read rule 5 words (never an unworded capability), and loops over past bars
+    by_id = {r["id"]: r for r in pa.recipes()}
+    for sid in declared:
+        assert waits[("recipe", sid)] == ["realtime-state"], (sid, waits[("recipe", sid)])
+        assert pa.waits_for_the_bar(by_id[sid]["source"]) is True
+        assert re.search(r"for \w+ = 0 to [^\n]+\n(?:[^\n]*\n){0,3}[^\n]*\[\w+\]", by_id[sid]["source"]), \
+            f"{sid} waits for the last bar and does not loop over past bars: update it on every bar instead"
+        assert pa.LAST_BAR_RECIPE_LINE in pa.recipes_text([by_id[sid]])
+    assert pa.LAST_BAR_RECIPE_LINE not in pa.recipes_text([by_id["fibonacci-swings"]])
+
+
+def test_ucts_line_about_the_bar_is_never_cut_and_never_said_twice():
+    line = pa.FINISHED_BARS_LINE
+    assert pa.said_with_the_bar("A table.", False) == "A table."
+    assert pa.said_with_the_bar("A table.", True) == "A table. " + line
+    assert pa.said_with_the_bar("A table. " + line, True) == "A table. " + line
+    long = pa.said_with_the_bar("x" * 2000, True)
+    assert len(long) <= pa.REPLY_MAX_CHARS and long.endswith(line)
+    both = pa.said_with_the_bar(pa.said_with_disclosure("x" * 2000, None), True)
+    assert len(both) <= pa.REPLY_MAX_CHARS and pa.UNCHECKED_LINE in both and both.endswith(line)
