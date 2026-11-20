@@ -14,7 +14,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 import * as registry from '../nativeRegistry'
-import { listingStartOf, historyFromListingOf, LISTING_SERVED_TFS } from '../listingSeed'
+import { listingStartOf, historyFromListingOf, servedFromListingOf, LISTING_SERVED_TFS } from '../listingSeed'
 import { listingOptsFor, chartClockReport } from '../astColumns'
 import {
   computeRuntimeColumns, RUNTIME_LISTING_UNVERIFIED_GUARD, RUNTIME_WARMUP_GUARD,
@@ -23,6 +23,9 @@ import {
   CHART_CLOCK_WITHHELD, LISTING_LATER_NOTES, LISTING_UNVERIFIED_NOTE, chartClockSentence,
 } from '../ast/interpret'
 import { runHalfRefusedSentence } from '../ast/objectLoss'
+import { substitutionNotesFor } from '../ast/symbolSubstitution'
+import fs from 'node:fs'
+import path from 'node:path'
 
 const LISTED = '2025-10-21'                     // NASDAQ:BGIN's first trade (/api/ticker-ipo/BGIN, final)
 const W_FIRST = '2025-10-24'                    // its first weekly bar as /api/bars?tf=W keys it (the week's last session)
@@ -64,10 +67,15 @@ describe('(a) the FACT: does the chart\'s first bar hold the symbol\'s first tra
 })
 
 describe('(c) THE FACT IS NOT THE PERMISSION: serving from the listing stays daily-only', () => {
-  it('`LISTING_SERVED_TFS` is daily alone, and the serving switch answers false on the listing week', () => {
-    expect(LISTING_SERVED_TFS).toEqual(['D'])
+  it('weekly is SERVED on its capture evidence (BGIN 1W MATCH); monthly is not yet', () => {
+    expect(LISTING_SERVED_TFS).toEqual(['D', 'W'])
+    expect(servedFromListingOf({ bars: [{ t: W_FIRST }], tf: 'W', listDate: LISTED })).toBe(true)
+    expect(servedFromListingOf({ bars: [{ t: '2025-10-31' }], tf: 'W', listDate: LISTED })).toBe(false)   // a week after
+    expect(servedFromListingOf({ bars: [{ t: M_FIRST }], tf: 'M', listDate: LISTED })).toBe(false)        // ⛔ M: not yet
+    expect(servedFromListingOf({ bars: [{ t: LISTED }], tf: 'D', listDate: LISTED })).toBe(true)
+    expect(servedFromListingOf({ bars: [{ t: '2025-10-22' }], tf: 'D', listDate: LISTED })).toBe(false)   // daily stays exact
+    // the daily switch itself is unchanged
     expect(historyFromListingOf({ bars: [{ t: W_FIRST }], tf: 'W', listDate: LISTED })).toBe(false)
-    expect(historyFromListingOf({ bars: [{ t: M_FIRST }], tf: 'M', listDate: LISTED })).toBe(false)
   })
 })
 
@@ -170,5 +178,20 @@ describe('(b) end to end through the door: a `var` that keeps its first value, o
     const row = rep && rep.withheld.find((r) => r.code === 'var-origin:window')
     expect(row, JSON.stringify(rep)).toBeTruthy()
     expect(row.reason).toBe(CHART_CLOCK_WITHHELD['var-origin:window']('W'))
+  })
+})
+
+// ⭐⭐ (coordinator ruling 2026-11-20, gate (c)) WEEKLY IS SERVED ON BGIN 1W FROM THE LISTING: MATCH_SUBSTITUTED (run
+// fred-bgin-w-2026-11-20, runtime-on: all 5 items agree, objects MATCH), the same evidence class as the served daily. Its one
+// substitution is `syminfo.industry` (our 'Computer Hardware' fed TradingView's 'Data Processing Services'), which the door
+// discloses on the document itself, so the weekly chart carries the same note as the daily one.
+describe('the weekly chart that is now served discloses its one substitution, as the daily does', () => {
+  it("Fred RS's document carries the `syminfo.industry` note (document-level: every timeframe, weekly included)", () => {
+    const FRED = fs.readFileSync(path.join(path.resolve(process.cwd(), '..'), 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
+    expect(substitutionNotesFor(FRED).map((n) => n.name)).toContain('syminfo.industry')
+    const built = memberPaneDefinition({ source: FRED, id: 'u_listing-stmt-fred', name: 'Fred RS' })
+    expect(built.ok, built.reason).toBe(true)
+    const notes = [...(built.notes || []), ...((built.definition && built.definition.meta && built.definition.meta.disclosures) || [])]
+    expect(notes.some((n) => n && n.name === 'syminfo.industry'), JSON.stringify(notes.map((n) => n && n.name))).toBe(true)
   })
 })
