@@ -566,6 +566,15 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     # A Pine seed is served from the web pod's `pine_seed_store`, like the above.
     if _is_pine_seed(ticker):
         return False
+    # A currency pair (BTCUSD) is the web pod's too: the tier answers one with 501 "ask
+    # web" (`bars_api_main._pair_handed_to_web`), so proxying it could only fail and fall
+    # back here. Whatever `CRYPTO_BARS_ENABLED` says.
+    try:
+        from api import crypto_bars as _crypto_bars
+        if _crypto_bars.is_pair(ticker):
+            return False
+    except Exception:
+        pass
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
     try:
@@ -632,6 +641,15 @@ async def get_bars(
         return _theme_index_refusal(ticker, tf)
     if not isinstance(session, str):    # called in-process: the Query() default object
         session = ""
+    # A currency pair (BTCUSD), dark behind CRYPTO_BARS_ENABLED: served by THIS pod from
+    # `api/crypto_bars.py` (FMP only), never the tier (it has no member identity and hands
+    # a pair back here with 501) and never the stock/index serve below. `serves` is False for
+    # every other symbol and for everyone while the switch is off, so they fall through
+    # to exactly the lines that follow.
+    from api.routers import crypto as _crypto
+    if _crypto.serves(ticker, _access):
+        from starlette.concurrency import run_in_threadpool as _pair_pool
+        return await _pair_pool(_crypto.pair_bars_response, ticker, tf, bars, since, to)
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
@@ -1722,6 +1740,11 @@ async def get_bars_history(
     See docs/superpowers/specs/2026-08-31-edge-deep-history."""
     if is_econ_symbol(ticker):
         return _econ_refusal(ticker)
+    # A currency pair (see routers/crypto.py): for an admitted caller this route answers the
+    # pair's settled bars from the web pod's own held series, uncached, and is never proxied.
+    from api.routers import crypto as _crypto
+    if _crypto.serves(ticker, _access):
+        return _crypto.pair_history_response(ticker, tf, bars)
     origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
     # ⛔⛔ MARKET INDICATORS ARE NEVER PROXIED, for exactly the reason the hot-path proxy
     # excludes them (`_bars_proxy_should_route`): their stores — `cboe_indices.db`,

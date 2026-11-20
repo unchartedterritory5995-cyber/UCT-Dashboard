@@ -1067,6 +1067,22 @@
     {
       "limit": "1200/minute",
       "method": "GET",
+      "params": "",
+      "path": "/api/crypto/pairs",
+      "rate_limit_family": "market-data",
+      "tier": "member"
+    },
+    {
+      "limit": "1200/minute",
+      "method": "GET",
+      "params": "{symbol}",
+      "path": "/api/crypto/quote/{symbol}",
+      "rate_limit_family": "market-data",
+      "tier": "member"
+    },
+    {
+      "limit": "1200/minute",
+      "method": "GET",
       "params": "days=1, all_data=False",
       "path": "/api/darkpool/aggregated",
       "rate_limit_family": "options-flow",
@@ -3877,6 +3893,14 @@
       "method": "GET",
       "params": "underlyings, limit=50",
       "path": "/api/options-screener/multi-leg",
+      "rate_limit_family": "options-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{sym}, side=any",
+      "path": "/api/options-screener/oi-change/{sym}",
       "rate_limit_family": "options-analytics",
       "tier": "paid"
     },

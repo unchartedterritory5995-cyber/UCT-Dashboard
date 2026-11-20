@@ -15,10 +15,10 @@ up. The universe id is carried explicitly, stored explicitly, and defaults to
 `uct` so every row written before universes existed keeps meaning what it meant.
 
 ⛔⛔ THE FLOORS ARE THE PRODUCT DECISION, AND THEY ARE NOT ARBITRARY. See
-`HISTORY_FLOOR` below — the reason NASDAQ and NYSE stop at 2011 is a measured
-defect in the reference data we can buy, not a rendering preference, and a future
-reader has to be able to find that out from here rather than from a commit
-message.
+`HISTORY_FLOOR` below — it is the floor of the old reference-data PIT SWEEP, which
+cannot attribute exchanges before 2011. The SERVED NYSE / Nasdaq history comes from
+the Exchange Breadth V1 authority instead, whose venue-ledger membership starts
+Nasdaq at 2008-01-02 and NYSE at 2009-06-11 (`breadth_exchange_authority.START`).
 """
 from __future__ import annotations
 
@@ -45,9 +45,19 @@ US_VENUES = frozenset(
 
 # ── Historical floors ────────────────────────────────────────────────────────
 #
-# ⛔⛔ WHY NASDAQ AND NYSE STOP AT 2011-01-01, AND WHY THAT IS NOT FIXABLE BY
-# TRYING HARDER. Measured 2026-09-14 against the provider's own reference data
-# (Breadth Library Phase 1 evidence gate):
+# ⚠️ (2026-11-19) WHAT THIS FLOOR GOVERNS — AND WHAT IT DOES NOT. These are the
+# floors of the PIT SWEEP (`sweepable_range`, used by `breadth_pit_frame` and
+# `breadth_history_recon`), which attributes exchanges from the provider's
+# reference data. They are NOT the start of the NYSE / Nasdaq history members see:
+# that is served by the Exchange Breadth V1 authority, whose membership comes from
+# a venue ledger (not the reference data measured below) and starts Nasdaq at
+# 2008-01-02 and NYSE at 2009-06-11 (`breadth_exchange_authority.START`). An older
+# version of this comment said members' NYSE / Nasdaq history stops at 2011; it
+# does not.
+#
+# ⛔⛔ WHY THE SWEEP'S NASDAQ AND NYSE FLOOR IS 2011-01-01, AND WHY THAT IS NOT
+# FIXABLE BY TRYING HARDER. Measured 2026-09-14 against the provider's own
+# reference data (Breadth Library Phase 1 evidence gate):
 #
 #   • `/v3/reference/tickers/{t}?date=D` returns NO primary_exchange at all for
 #     names that were unambiguously Nasdaq-listed (MSFT, INTC, AAPL, CSCO, AMGN)

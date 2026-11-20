@@ -155,6 +155,45 @@ def starts_at_bar0_contradiction(capture: dict, symbol: str):
     return None
 
 
+#: ⭐⭐ The listing date's SOURCE (coordinator ruling 2026-11-20): UCT production's own answer, read as the automation account
+#: through the rig's browser context (`Driver.listing_for`). The table below is a CROSS-CHECK that must agree.
+UCT_ORIGIN = "https://uctintelligence.com"
+_ISO_DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def uct_ticker_of(symbol) -> str:
+    """Our store's ticker for a TradingView symbol: the part after the exchange, a class share's dot as a hyphen
+    (`NYSE:BRK.B` -> `BRK-B`, the bars route's own spelling)."""
+    return str(symbol or "").split(":")[-1].strip().upper().replace(".", "-")
+
+
+def _json_of(resp):
+    try:
+        return json.loads(resp.text())
+    except Exception:  # noqa: BLE001 -- an unreadable body is no answer
+        return None
+
+
+def uct_first_trade_date(page, symbol):
+    """(date | None, why): `/api/ticker-ipo/<T>`'s `first_trade_date` when `first_trade_final` is true, read through the
+    page's own browser context. ONE GET of a PUBLIC endpoint (measured 2026-11-20: it answers without a session), so
+    the capture profile, which holds no UCT session, reads it without signing in as anyone. Never raises: a lookup that
+    cannot answer is no listing date, with the reason."""
+    try:
+        req = page.context.request
+        t = uct_ticker_of(symbol)
+        r = req.get(f"{UCT_ORIGIN}/api/ticker-ipo/{t}")
+        body = _json_of(r) if getattr(r, "status", 200) == 200 else None
+        if not isinstance(body, dict):
+            return None, f"/api/ticker-ipo/{t} answered {getattr(r, 'status', '?')}"
+        day = body.get("first_trade_date")
+        if body.get("first_trade_final") is not True or not isinstance(day, str) or not _ISO_DAY.match(day):
+            return None, f"/api/ticker-ipo/{t} holds no FINAL first trade date ({body.get('first_trade_final')!r}, {day!r})"
+        return day, f"/api/ticker-ipo/{t}: first trade {day} (final)"
+    except Exception as exc:  # noqa: BLE001
+        return None, f"the listing date could not be read ({type(exc).__name__}: {exc})"
+
+
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
 #: SYMBOL"): the flag is asserted ONLY when the loaded history stopped growing AND
@@ -347,6 +386,15 @@ STUDY_JS = "(id) => {" + _CHART + r"""
            status: st ? { type: st.type, error: ed ? (ed.error || JSON.stringify(ed)) : null, title: ed ? ed.title || null : null } : null };
 }"""
 
+#: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) THE CHART'S RESOLVED SESSION, read-only: what the main series resolved
+#: (`symbolInfo().session`, e.g. '0400-2000' extended / '0930-1600' regular for a US listing, and `subsession_id`).
+SESSION_JS = r"""() => {
+  const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
+  let si; try { si = col.activeChartWidget.value().model().mainSeries().symbolInfo() } catch (e) { return { ok: false, why: String(e) } }
+  if (!si) return { ok: false, why: 'no symbolInfo yet' };
+  return { ok: true, session: si.session || null, subsession: si.subsession_id || null };
+}"""
+
 #: Ask for more history (n > 0) and read the loaded depth. Read-only at n = 0.
 DEPTH_JS = r"""(n) => {
   const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
@@ -468,7 +516,31 @@ def utcnow() -> str:
     return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
 
 
+#: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) A ROW MAY NAME ITS SESSION. TradingView takes a JSON symbol spec
+#: (`={"session":"extended","symbol":"AMEX:SPY"}`), the same per-row `setSymbol` the batch already makes, so nothing new
+#: persists. The resolved session MUST read back as this (`SESSION_JS`), or the row stops by name; it is restored after.
+#: ⛔ The layout's own session is never toggled (the rig rule: AUTOSAVE is account-wide).
+ROW_SESSIONS = {"extended": "0400-2000", "regular": "0930-1600"}
+
+
+def session_spec(symbol, session) -> str:
+    """The symbol spec naming a session (`=` + JSON, keys sorted: TradingView's own encoding)."""
+    return "=" + json.dumps({"session": session, "symbol": symbol}, separators=(",", ":"), sort_keys=True)
+
+
+def spec_symbol(s):
+    """The plain symbol inside a spec (`={...}`), or `s` itself."""
+    t = str(s or "")
+    if t.startswith("="):
+        try:
+            return str((json.loads(t[1:]) or {}).get("symbol") or "")
+        except (ValueError, AttributeError):
+            return ""
+    return t
+
+
 def sym_match(have, want) -> bool:
+    have, want = spec_symbol(have), spec_symbol(want)
     if not have or not want:
         return False
     a, b = str(have).upper(), str(want).upper()
@@ -479,6 +551,20 @@ def sym_match(have, want) -> bool:
 
 def res_norm(r) -> str:
     return re.sub(r"^1(?=[DWM]$)", "", str(r or "").strip().upper())
+
+
+def same_period(day, listing, tf) -> bool:
+    """Do two ISO days fall in one weekly (ISO week) or monthly (calendar month) period? Malformed: False."""
+    import datetime as _dt
+    try:
+        d, l = _dt.date.fromisoformat(str(day)[:10]), _dt.date.fromisoformat(str(listing)[:10])
+    except (TypeError, ValueError):
+        return False
+    if tf == "W":
+        return d.isocalendar()[:2] == l.isocalendar()[:2]
+    if tf == "M":
+        return (d.year, d.month) == (l.year, l.month)
+    return False
 
 
 def slugify(s) -> str:
@@ -529,7 +615,9 @@ def capture_id_for(script: dict, o: Opts) -> str:
                          abort=True)
     sym_slug = slugify(o.symbol.split(":")[-1])
     tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
-    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
+    # ⭐ (2026-11-20) an EXTENDED-session row is its own capture (`vw-clock-vwap-spy-5-ext-2026-09-28`, the convention)
+    ext = "-ext" if getattr(o, "session", None) == "extended" else ""
+    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}{ext}-{o.date}"
     return f"{capture_id}-{phase}" if phase else capture_id
 
 
@@ -677,6 +765,10 @@ class Opts:
         self.symbol = kw.get("symbol", "NYSE:RDDT")
         self.tf = kw.get("tf", "1D")
         self.listing_date = kw.get("listing_date", KNOWN_LISTING.get(self.symbol.upper()))
+        # ⭐⭐ (2026-11-20) the row's session (`ROW_SESSIONS`), or None: the chart's own, as before
+        self.session = kw.get("session")
+        if self.session is not None and self.session not in ROW_SESSIONS:
+            raise GateFailed(f"session {self.session!r} is not one of {sorted(ROW_SESSIONS)}", abort=True)
         self.throttle_s = float(kw.get("throttle_s", 30))
         self.compute_timeout_s = float(kw.get("compute_timeout_s", 120))
         self.add_timeout_s = float(kw.get("add_timeout_s", 30))
@@ -832,8 +924,35 @@ class Driver:
             raise Inconclusive("the chart handle answered but getAllStudies() did not", st)
         return st
 
+    def read_session(self, label="session"):
+        r = self.ev(label, SESSION_JS)
+        return r if isinstance(r, dict) and r.get("ok") else None
+
+    def set_row_session(self, symbol, session, label):
+        """setSymbol with the session spec, then the read-back: the resolved session must be `ROW_SESSIONS[session]`
+        within 30 s, or the ROW stops by name (GateFailed). Returns the session read."""
+        want = ROW_SESSIONS[session]
+        r = self.ev(f"{label}:set_symbol", SET_SYMBOL_JS, session_spec(symbol, session))
+        if not r or not r.get("ok"):
+            raise GateFailed(f"setSymbol({session_spec(symbol, session)}) refused: {r} — the row stops")
+        got, ok = self.poll(f"{label}:session", SESSION_JS, None,
+                            lambda s: isinstance(s, dict) and s.get("ok") and s.get("session") == want, 30)
+        if not ok:
+            raise GateFailed(f"{symbol}: the chart's session read back {(got or {}).get('session')!r}, not the {session} "
+                             f"session {want!r} — the row stops by name, nothing captured")
+        self.clock.sleep(self.opts.settle_s)
+        return got
+
     def ensure_symbol_tf(self, st):
         o = self.opts
+        if o.session is not None:
+            # ⭐⭐ (2026-11-20) a row that names its session: what the chart had, for the restore after this row
+            before = self.read_session("session_before")
+            self.row_session_restore = {"symbol": spec_symbol(st.get("symbol")) or o.symbol,
+                                        "session": (before or {}).get("session"),
+                                        "subsession": (before or {}).get("subsession")}
+            self.set_row_session(o.symbol, o.session, "row")
+            st = self.read_state()
         if not sym_match(st.get("symbol"), o.symbol):
             r = self.ev("set_symbol", SET_SYMBOL_JS, o.symbol)
             if not r or not r.get("ok"):
@@ -854,6 +973,17 @@ class Driver:
             self.clock.sleep(o.settle_s)
             st = self.read_state()
         return st
+
+    def restore_session(self, back, label):
+        """The chart's session as it was before a row named its own (`back`: symbol, session, subsession), read back."""
+        now = self.read_session(f"{label}:session_now")
+        if not back.get("session") or (now and now.get("session") == back["session"]):
+            return {"ok": True, "changed": {}}
+        sub_id = back.get("subsession") or ("extended" if back["session"] == ROW_SESSIONS["extended"] else "regular")
+        self.ev(f"{label}:set_symbol", SET_SYMBOL_JS, session_spec(back["symbol"], sub_id))
+        _, ok = self.poll(f"{label}:session", SESSION_JS, None,
+                          lambda s: isinstance(s, dict) and s.get("ok") and s.get("session") == back["session"], 30)
+        return {"ok": bool(ok), "changed": {"session": bool(ok)}}
 
     def restore(self, target, label):
         """Put symbol, resolution and pane stretch back to `target`, asserting the read-back."""
@@ -1006,6 +1136,28 @@ class Driver:
             last = r.get("count")
         return {"ok": True, "stable": False, "rounds": rounds, **(r or {})}
 
+    def listing_for(self, symbol, stated=None):
+        """⭐⭐ THE LISTING DATE IS READ, NOT TYPED (coordinator ruling 2026-11-20). The symbol's first session as UCT's
+        production answers it (`/api/ticker-ipo/<T>`: `first_trade_date`, only when `first_trade_final` is true), read
+        through the rig's own browser context (a public GET, no session). `KNOWN_LISTING` and a
+        manifest row's `listingDate` (`stated`) are CROSS-CHECKS: each one present must AGREE, and a disagreement STOPS the
+        batch by name (GateFailed, abort) -- never a silent override either way. No final answer: no listing date, so
+        `startsAtBar0` is not asserted (the safe direction), and the reason says why.
+        ⚰️ 2026-11-19: Q-FRED-NHDOT's NASDAQ:BGIN capture (listed 2025-10-21, first_trade_final true) carried no
+        startsAtBar0, because BGIN was not in the hand-typed table; the harness then graded it as a chart reaching before
+        its history (its run half refused `runtime:history-start`) where a member's daily chart draws it."""
+        key = str(symbol or "").upper()
+        cache = self.__dict__.setdefault("_listings", {})
+        if key not in cache:
+            cache[key] = uct_first_trade_date(self.page, symbol)
+        fetched, why = cache[key]
+        self.listing_why = why
+        for name, other in (("KNOWN_LISTING", KNOWN_LISTING.get(key)), ("the manifest row's listingDate", stated)):
+            if other and fetched and other != fetched:
+                raise GateFailed(f"{symbol}: {name} says {other}, and UCT's /api/ticker-ipo says {fetched} (first_trade_final) "
+                                 "-- the listing date is not settled; fix the table or the row before capturing", abort=True)
+        return fetched
+
     def history_assertion(self, depth):
         o = self.opts
         if not depth.get("ok"):
@@ -1014,7 +1166,20 @@ class Driver:
             return False, f"history was still growing after {depth.get('rounds')} requestMoreData rounds — not asserted"
         first_day = iso_date_in(depth.get("first"), depth.get("tz") or "Etc/UTC") if depth.get("first") else None
         if not o.listing_date:
-            return False, f"no listing date is known for {o.symbol} — not asserted (first bar {first_day})"
+            return False, (f"no listing date is known for {o.symbol} ({getattr(self, 'listing_why', 'not read')}) — not asserted "
+                           f"(first bar {first_day})")
+        tf = res_norm(o.tf)
+        if tf in ("W", "M"):
+            # ⭐⭐ (coordinator ruling 2026-11-20) ON A WEEKLY / MONTHLY CHART the first bar starts at the listing when ITS
+            # PERIOD holds the first trade: the same ISO week, the same calendar month (the app's own
+            # `listingSeed.listingStartOf`). Without it Saturday's NASDAQ:BGIN 1W capture from the listing could never
+            # say so, and the W / M run half's serving gate would have no evidence to grade.
+            if not same_period(first_day, o.listing_date, tf):
+                unit = "week" if tf == "W" else "month"
+                return False, f"first loaded bar {first_day} is not in the listing {unit} of {o.listing_date} — not asserted"
+            unit = "week" if tf == "W" else "month"
+            return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar ({first_day}) is the listing {unit} after "
+                          f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
         if first_day != o.listing_date:
             return False, f"first loaded bar {first_day} is not the listing day {o.listing_date} — not asserted"
         # ⭐ the claim names the symbol it was derived FOR; `starts_at_bar0_contradiction` refuses a capture whose own
@@ -1049,6 +1214,7 @@ class Driver:
         self.wait_compute(sid)
         depth = self.force_depth()
         rows = self.wait_compute(sid, "compute:settle")
+        self.opts.listing_date = self.listing_for(self.opts.symbol, self.opts.listing_date)
         starts, why = self.history_assertion(depth)
         lw = script.get("largestWindow")
         window = {"bars_loaded": rows, "largest_declared_window": lw,
@@ -1200,6 +1366,13 @@ class Driver:
             r = sub("cleanup:restore", lambda: self.restore(self.script_state, "cleanup"))
             if r is not None and not r["ok"]:
                 problems.append(f"restore did not read back: {r}")
+        # ⭐⭐ (2026-11-20) a row that named its session puts the chart's own back, read back like every restore
+        back = getattr(self, "row_session_restore", None)
+        if back:
+            self.row_session_restore = None
+            r = sub("cleanup:session", lambda: self.restore_session(back, "cleanup"))
+            if r is not None and not r.get("ok"):
+                problems.append(f"the session restore did not read back: {r}")
         if self.injected:
             r = sub("vh_cleanup", lambda: self.page.evaluate(VH_CLEANUP_JS))
             if r is not None and r.get("globalsLeft"):
@@ -1217,9 +1390,14 @@ class Driver:
         """⭐ PER-SCRIPT CHART (evidence engine): a manifest row may name its own
         `symbol` / `tf` / `listingDate`. Absent, the batch's own options stand, exactly
         as before. A listing date is never carried over from another symbol."""
-        if not any(script.get(k) for k in ("symbol", "tf", "listingDate")):
+        if not any(script.get(k) for k in ("symbol", "tf", "listingDate", "session")):
             return self.base_opts
         o = copy.copy(self.base_opts)
+        if script.get("session") is not None:
+            if script["session"] not in ROW_SESSIONS:
+                raise GateFailed(f"{script.get('slug')}: session {script['session']!r} is not one of {sorted(ROW_SESSIONS)}",
+                                 abort=True)
+            o.session = script["session"]
         if script.get("symbol"):
             o.symbol = script["symbol"]
             o.listing_date = script.get("listingDate") or KNOWN_LISTING.get(o.symbol.upper())

@@ -82,7 +82,10 @@ function usePageTitle() {
 export default function Layout({ children }) {
   // The floating Help "?" stays off /charts (owner 11-15): it sat over the workspace's top row.
   // Every other page keeps it; on a chart, "?" (the chart toolbar's key) still opens the shortcuts.
-  const onCharts = /^\/charts(\/|$)/.test(useLocation().pathname)
+  // Breadth's top bar owns the top-right corner too, so it stays off /breadth as well.
+  const { pathname } = useLocation()
+  const onCharts = /^\/charts(\/|$)/.test(pathname)
+  const onBreadth = /^\/breadth(\/|$)/.test(pathname)
   usePageTracking()
   usePageTitle()
   const { prefs } = usePreferences()
@@ -239,7 +242,7 @@ export default function Layout({ children }) {
                 (`<GlobalVoiceGate/>`), never a descendant of `<Layout/>`.
                 Gating it would mean editing App.jsx or FloatingOrb.jsx, both
                 outside this file's scope — see the Wiring engineer's report. */}
-            {!hubActive && !onCharts && <FeedbackWidget />}
+            {!hubActive && !onCharts && !onBreadth && <FeedbackWidget />}
             {/* §3.7 — the Notebook's controller mounts HERE rather than inside its page,
                 the only section that does. Rule 12 forbids editing NotebookTab.jsx, and
                 R-18's `data-note-card-id` makes the note list readable from the DOM, so the

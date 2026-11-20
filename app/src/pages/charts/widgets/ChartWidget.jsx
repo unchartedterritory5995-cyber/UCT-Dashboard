@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
@@ -58,7 +58,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, registerGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare, markDay, markDayColor, replayWarmIntraday } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -168,9 +168,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // Replay Mode: the moment a cutoff is set, warm every intraday timeframe for THIS chart's
   // symbol at that date in the background, so switching to 5m/1m is instant (the backend
   // fetches + persists the pre-cutoff window once). Bounded/priority-queued in prefetchBars.
+  // (The breadth drill switches symbols every second while scanning, so it opts out:
+  // `replayWarmIntraday: false` — its daily chart needs no intraday warm per ticker.)
   useEffect(() => {
-    if (replayCutoff && sym) prefetchReplayTimeframes(sym, replayCutoff)
-  }, [sym, replayCutoff])
+    if (replayCutoff && sym && replayWarmIntraday !== false) prefetchReplayTimeframes(sym, replayCutoff)
+  }, [sym, replayCutoff, replayWarmIntraday])
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
@@ -248,6 +250,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // never break the chart — the list just keeps its own timeframe.
   const barsTf = fetchTf(tf)
   useEffect(() => { setGroupTf?.(activeColor, barsTf) }, [activeColor, barsTf, setGroupTf])
+  // ...and registered with every other chart's on this colour, so a linked list warms each chart's
+  // timeframe, not only the last one published (ChartsWorkspace registerGroupTf).
+  const tfRegId = useId()
+  useEffect(() => registerGroupTf?.(activeColor, tfRegId, barsTf), [activeColor, tfRegId, barsTf, registerGroupTf])
 
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
@@ -793,8 +799,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
           // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
           startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
-          highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : undefined,
-          highlightColor: startMarker && startMarkerStyle === 'candle' ? resolveThemeColor('--ut-gold', '#c9a84c') : undefined,
+          // …else the breadth drill's "Mark day" (workspace `markDay`): the scan day's candle
+          // (or session, intraday) in one high-contrast color, body + border + wick.
+          highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : (markDay || undefined),
+          highlightColor: startMarker && startMarkerStyle === 'candle' ? resolveThemeColor('--ut-gold', '#c9a84c') : (markDay ? markDayColor : undefined),
           // Gold BODY only — keep the chart's own border + wick colors on the marker candle.
           highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
         }}

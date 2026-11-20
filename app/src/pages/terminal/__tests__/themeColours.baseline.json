@@ -53,10 +53,6 @@
       "count": 2,
       "why": "The /charts workspace \"sunrise\" chart-theme variant ([data-charts-theme]), a theme of its own, not the app theme."
     },
-    "pages/breadth/breadthShare.js": {
-      "count": 5,
-      "why": "The exported Breadth share PNG is a fixed brand card, the same image whatever theme the sharer wears."
-    },
     "pages/breadth/chartMetrics.js": {
       "count": 19,
       "why": "MA-breadth extreme-line and tone data inks; BreadthChartsV2 passes them through readable() (extremeInks) per theme."

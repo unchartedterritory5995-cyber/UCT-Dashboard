@@ -68,19 +68,23 @@
   color: var(--text-muted);
 }
 .retryBtn {
-  font-family: var(--font-mono);
-  font-size: var(--text-base);
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--ut-gold) 40%, transparent);
-  color: var(--ut-gold);
-  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+  border: 0;
+  color: var(--dr-bright, var(--text-bright));
+  border-radius: 7px;
   padding: 6px 16px;
   min-height: var(--tap-min);
   cursor: pointer;
   transition: background 0.15s;
 }
-.retryBtn:hover { background: color-mix(in srgb, var(--ut-gold) 12%, transparent); }
+.retryBtn:hover { background: var(--dr-soft-hi); }
 .when { color: var(--text-muted); }
 
 /* Scan Deck: Filters + group switch where the list title used to be. */
-.deckControls { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.deckControls { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* In the list's one-row UCT header the scan controls sit flush in the title slot (the
+   watchlist's own header padding would push them off the row on a ~370px list). */
+:global(.uct-frame) :global([class*='pickHeader']):has(> .deckControls) { padding: 0; gap: 0; }

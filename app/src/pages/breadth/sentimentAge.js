@@ -67,3 +67,11 @@ export const aaiiAge = Object.freeze(Object.fromEntries(AAII_KEYS.map((k) => [
 export const dailyCarryAge = Object.freeze(Object.fromEntries(DAILY_CARRY_KEYS.map((k) => [
   k, makeSeriesAge({ valueKey: k, dateKey: asofKey(k), dataClass: 'end_of_day', labelUndated: false }),
 ])))
+
+/** The Monitor top bar's status dot: is the stored session within the end-of-day
+ *  age bound? Same TERM-006 authority as every value above, read through this
+ *  module so the page itself is not a second consumer of `freshnessAge.js`. */
+export function storedSessionFresh(asOf, now = new Date()) {
+  if (asOf == null) return false
+  return explainMustShowAge({ asOf, dataClass: 'end_of_day', now }).reason === 'within_threshold'
+}

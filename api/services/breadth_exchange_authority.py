@@ -601,6 +601,13 @@ def sync_once(store=None) -> dict:
                 res = {"ok": True, **got}
                 after = _proof_fingerprint(b, root)
                 _PROVEN.update(fp=after, res=got if after is not None else None)
+                if got.get("result") == "installed":
+                    # ⭐ A new pointer: refresh the pre-built NYSE / Nasdaq Monitor rows (background).
+                    try:
+                        from api.services import breadth_universe_monitor as _bum
+                        _bum.kick_refresh(("nasdaq", "nyse"))
+                    except Exception:
+                        pass
     except Refused as e:
         res = {"ok": False, "reason": e.reason, "detail": e.detail}
     except Exception as e:  # noqa: BLE001
