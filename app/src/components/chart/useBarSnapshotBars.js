@@ -158,7 +158,13 @@ export function useBarSnapshotBars({
   // ── the daily paint authority for a LOCAL copy ───────────────────────────────
   const _resolveDailyTodaySeed = () => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane })
   const _dailyTodaySeed = resolvedTf === 'D' ? _resolveDailyTodaySeed() : null
-  const _dailyLocalRefused = resolvedTf === 'D' && _localOnly && !!all?.length && (
+  // ⭐ REPLAY ON A PAST DAY NEEDS NO CURRENT TAIL (2026-11-20). The verdict below asks "is this
+  // copy's right edge current?", which during a session a copy from the last close never is — so
+  // a replay chart waited on its own request for bars it would cut off anyway (StockChart hides
+  // every bar after `replayCutoff`). A copy that reaches the cutoff day holds everything shown.
+  const _replayCovered = !!replayCutoff && typeof tailT === 'string'
+    && tailT.slice(0, 10) >= String(replayCutoff).slice(0, 10)
+  const _dailyLocalRefused = resolvedTf === 'D' && _localOnly && !!all?.length && !_replayCovered && (
     dailyCachePaintVerdict(tailT, savedAt, { hasSeed: !!_dailyTodaySeed, breadth: !!breadthSeries }) !== 'ok'
     || lastDailyBarInsane(all))
 

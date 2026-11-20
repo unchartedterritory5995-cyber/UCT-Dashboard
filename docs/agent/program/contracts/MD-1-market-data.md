@@ -1,8 +1,8 @@
-# MD-1 — UCT market-data contract (v1.11)
+# MD-1 — UCT market-data contract (v1.12)
 
 - **Owner:** agent-md implements the kinds. agent-lead owns `gateway.py` and `envelope.py`, the framework every consumer relies on.
 - **Consumers:** agent-sc, agent-rs, agent-qa, and later the D and G workstreams.
-- **Status:** v1.11 (v1.1–v1.11 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10 and v1.11 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10 and v1.11 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10 and v1.11 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
+- **Status:** v1.12 (v1.1–v1.12 each additive or a scope reduction; v1.1–v1.4 acked by agent-lead 2026-11-01, v1.5 agreed for Sprint 2; v1.6, v1.7, v1.8, v1.9, v1.10, v1.11 and v1.12 are additions whose new kinds are default OFF; v1.7 is written up after its kinds merged dark, v1.8, v1.9, v1.10, v1.11 and v1.12 with their kinds; v1.7 and v1.8 acked by the owner 2026-11-17 in place of agent-lead, whose session has ended; the §8.1 notices for v1.9, v1.10, v1.11 and v1.12 are owed by a person and are not acknowledged, see §9). See §9 for what changed. The envelope's wire field `contract` stays `"MD-1.0"`: no version since v1.0 adds an envelope field.
 - **Changes:** see §8.
 
 ## 1. Purpose
@@ -1552,6 +1552,233 @@ never sees what came back. Each capability registers only while the server lists
   `sym, short_interest, avg_daily_volume, days_to_cover, prev_short_interest, change_shares, change_pct, float_shares,
   pct_float`. `coverage` counts the stocks the rank covers against the rows returned.
 
+### 4.15 Terminal data wave 6: `seasonality.stock`, `seasonality.board`, `options.tideHistory`, `options.oiChange`, `rates.treasury` (v1.12, terminal-data)
+
+Five more thin kinds, the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES terminal panels: one stock by calendar
+month, the index and sector funds by calendar month, Market Tide by finished session, one stock's open interest change
+between the two newest files of UCT's options log, and US Treasury par yields by maturity. Each is an adapter over the
+service or store its member route already reads (`api/services/uct_agent/marketdata/seasonality_stock.py`,
+`seasonality_board_read.py`, `tide_history_read.py`, `oi_change_read.py`, `treasury_read.py`; registered in `kinds.py`
+with `owner="terminal-data"`). No new connection, job, database or write (§6).
+
+**Status: dark, not armed.** Like every kind, each is served only when it is listed in `UCT_AGENT_DATA_KINDS` (with
+`UCT_AGENT_DATA=1`). All five are model-isolated, so each also needs the master switch `UCT_AGENT_ISOLATED=1` and its
+own entry in `UCT_AGENT_ISOLATED_KINDS` (§4.4, ADR-005); until then it is refused for every purpose, and once armed it
+is served for purpose `answer` only. This section describes what the code does when a kind is switched on. It does not
+switch anything on. As written (2026-11-20), none of the five is in production's list.
+
+| Kind | Canonical service (member route) | Params | Declared freshness | `as_of` | `provider_calls` | Model-isolated |
+|---|---|---|---|---|---|---|
+| `seasonality.stock` | `api/services/seasonality.py` `compute`, over the completed daily bars the bar store already holds (`GET /api/research/seasonality/{sym}`) | `{symbol}` | periodic · every read historical | the close of the newest session in the record (never today) | 0 | **yes** |
+| `seasonality.board` | the board `api/services/seasonality_board.py` already holds, read through `seasonality_board.held` (`GET /api/research/seasonality-board`) | `{}` | periodic · every read historical | the newest daily bar date any fund's record covers (never today, never the time the board was built) | 0 | **yes** |
+| `options.tideHistory` | the sessions `api/services/options_analytics/tide_history.py` has stored, read through `tide_history.history` (`GET /api/options/market-tide/history`) | `{scope, rows}` | periodic · every read historical | the newest stored session (never today) | 0 | **yes** |
+| `options.oiChange` | the pair of log files `api/services/options_analytics/oi_change.py` already holds, read through `oi_change.held_change` (`GET /api/options-screener/oi-change/{sym}`) | `{symbol, side, rows}` | periodic · every read historical | the date of the newer log file (never today) | 0 | **yes** |
+| `rates.treasury` | the answer `api/services/treasury_yields.py` already holds, read through `treasury_yields.held_answer` (`GET /api/research/treasury-yields`) | `{}` | periodic · every read historical | the date of the newest figure on the curve (never today) | 0 | **yes** |
+
+**No read of this section starts a build, a fetch, a capture or a vendor request.** (§5: a turn has 20 provider
+requests and a member waiting.) Four of the five member routes can start work when the server holds nothing. A turn
+must not start any, so each adapter reads the read-only path beside its route and answers `unavailable`, with the
+reason, when nothing is held:
+
+| Kind | What the member route can start | What the adapter reads instead |
+|---|---|---|
+| `seasonality.stock` | the route reads its bars through the bar serve, which on a history it holds only in part starts the deep read of the stock's daily history and answers "still being read" | `bars_sqlite.get_bars_before`: the store's own read, as `bars.daily` uses it, up to the newest completed session, shaped by the serve's own row normaliser with its metadata warm suppressed. The route's own test `_history_is_partial` then decides: a history held only in part is `unavailable`, never a short record stated as the record. It never calls the bar serve |
+| `seasonality.board` | `serve` builds the board (one bar read per fund) when none is held for today's New York date, or when the held one is unfinished and older than its short reuse window | `seasonality_board.held` (added with this version): the board the service holds while its own `reusable` rule says it may still be served, else nothing. It never builds, never reads a fund and never takes the build lock |
+| `options.tideHistory` | nothing: the route is a read of the store. A session is stored by the service's own scheduled capture after the close | `tide_history.history`: the same store read. It captures nothing and builds no tide |
+| `options.oiChange` | `oi_change` starts the service's one background build (thread `options-oi-change`, which prepares the two newest files of the options log) when no pair is held, or when the held one is due a re-check, and waits a short time on the first one | `oi_change.held_change` (added with this version): the answer from the pair the service already holds, whatever its age. It never starts the build, never waits on one, never lists or downloads a file and changes no state of the service |
+| `rates.treasury` | `get_yields` starts the service's one background build (requests to the Treasury's website) when nothing is held, and waits a short time on it; with an answer held it starts the look for a newer figure once that look is due | `treasury_yields.held_answer`: the answer the service already holds (in memory, or its disk copy), else "not held". It starts no build and no look |
+
+Each accessor is in the service itself, so the service keeps one authority over what it holds. Rails hold each to its
+route's reader (the same answer whenever the route would not start work) and count builds, threads, downloads and
+vendor requests through the real service state: with nothing held the adapter starts none, and the route's own reader
+is shown to start one in the same state. A further rail replaces every builder, job starter, fetch and vendor reader
+the five services have with functions that fail, and runs every read of this section held and not held.
+
+**Each kind's own states, and what each read says.** No state is ever said as "no pattern", "no flow", "no change" or
+"no figure":
+
+| The service or store says | The read |
+|---|---|
+| `seasonality.stock`: no completed daily bar is held for the stock | `unavailable`, not held |
+| `seasonality.stock`: bars are held but the route's `_history_is_partial` says they are only part of the record | `unavailable`, held only in part |
+| `seasonality.stock`: less than one full calendar month is held | `unavailable`, too short |
+| `seasonality.stock`: the newest bar held is older than the newest completed session | `ok` and `stale`, with both dates |
+| `seasonality.board`: no board is held that may still be served (none read today, or the last one unfinished and too old) | `unavailable`, not held |
+| `seasonality.board`: the held board has no fund with numbers | `unavailable`, no numbers, each fund named with its reason |
+| `seasonality.board`: some funds have no numbers (`pending`, `not_held`, `unavailable`) | `partial`, each such fund listed with its reason, never as zeros |
+| `options.tideHistory`: no session is stored for the scope | `unavailable`, none stored |
+| `options.tideHistory`: a trading session between the first and the newest stored day has no row | `ok`, the session named as missing, never a row of zeros |
+| `options.tideHistory`: the newest stored session is older than the newest completed session | `ok` and `stale` |
+| `options.oiChange`: no pair is held (`not_held`) | `unavailable`, not prepared |
+| `options.oiChange`: no pair is held and the last build failed (`failed`) | `unavailable`, with the failure's class name |
+| `options.oiChange`: a pair is held and one of its files cannot be read (`file_gone`) | `unavailable`, file gone |
+| `options.oiChange`: the log holds no session, or one (`no_sessions`, `one_session`) | `unavailable`, nothing to compare |
+| `options.oiChange`: the stock is in neither file (`known` false) | `ok`, the log's own answer, said; no row |
+| `options.oiChange`: the newer file is older than the newest completed session | `ok` and `stale` |
+| `rates.treasury`: nothing is held (`not_held`; the member route's `computing`) | `unavailable`, not held |
+| `rates.treasury`: the curve is dated before the weekday before today in New York (the service's own `last_weekday_before` rule) | `ok` and `stale` |
+| `rates.treasury`: the service's last look for a newer figure did not go well (`check`) | `ok` and `stale`, with the reason in fixed words |
+| any kind: a malformed answer or a failing service | `unavailable`, read failed |
+
+**Rules all five share**
+- **A bad request is refused before any read.** Each kind's `validate` runs before admission (a `symbol` that is not
+  one US stock or fund ticker, an unknown `scope` or `side`, an out-of-range `rows`): the read is `refused` and spends
+  no budget.
+- **A value that does not exist is null, never 0.** A month or a weekday nobody counted (its average, its median and
+  its percent of years up), a fund with no numbers, a session's premium the store does not hold, a newly listed
+  contract's earlier open interest, change and percent, the traded volume of a row when the earlier file recorded
+  none, a maturity with no figure on the curve's day, and a change with no reference day near enough are each null.
+- **The as-of is the data's own date, never today** (§3). `as_of` is the newest bar of the record, the newest bar the
+  board covers, the newest stored session, the newer log file's date or the curve's date. When UCT computed, built,
+  stored or read the answer is a read time, not a data time: it rides beside it as `data.read_at` (UTC). Every read is
+  `historical`; each kind is DECLARED `periodic`, a read being allowed to be less fresh than its kind.
+- **Unknown is never claimed fresh.** A read time the service did not record is said in the as-of note as
+  `a time it did not record`, and `data.read_at` is null.
+- **The server says when it cut a list, and from which end.** `options.tideHistory` carries the newest sessions and
+  leaves out the OLD end; `options.oiChange` carries the biggest changes and leaves out the SMALL end; `rates.treasury`
+  leaves the daily history behind the spreads out and says so. Each carries the whole count beside what is shown.
+- **Every number is the service's own.** Nothing is re-derived, ranked or counted in the adapters.
+- **The member's answer is built from the read's `data` and `status`.** The browser capabilities template their text
+  from those; an envelope note is never echoed to the member as if it were data.
+
+**Why all five are model-isolated.** The licensing register
+(`docs/terminal-research/09-security-licensing-cost/licensing-register.md`) has no row that names seasonality, Market
+Tide by day, the options log or the open interest change, and no row of that register clears these figures for a
+model provider. Each kind is decided from the rows of the data it is computed from, quoted as they stand:
+- `seasonality.stock` and `seasonality.board`: both are computed from the daily bars UCT stores, the vendor's
+  end-of-day history, rows T-04 and T-09 ("Member display — D/W/M history", "Storage — `bars.db`"), both class **R**.
+  For a record that starts before 2003-09-10 the older bars are the second history source of row T-71 ("the pre-2003
+  D/W/M tail"), class **X**. The AI row, row T-14, is class **R** and its action reads "Ground on EOD + multi-symbol
+  derived facts, never on a live single-symbol quote": these are end-of-day derived facts, and `seasonality.stock` is
+  one symbol's. No row clears them, so both stay isolated.
+- `options.tideHistory`: computed from UCT's stored options flow tape, rows T-25 and T-26 ("Storage — `flow.db`
+  full-tape OPRA archive", "Derived analytics"), both class **R**; the action of T-26 reads "Keep member-gated; never
+  public".
+- `options.oiChange`: computed from UCT's options log, an end-of-day snapshot of the options chain. The register has
+  no row for that log; the nearest is row T-28 ("Member display — options chain + Greeks + IV"), class **R**.
+- `rates.treasury`: row T-95, US Treasury par yields, class **A**. The row itself says of this dataset "Nothing else
+  reads it (no AI lane, no export, no external publication)". A kind that sent these figures to a model provider
+  would be the AI lane that sentence says does not exist, so the kind is isolated and the row is left as it stands.
+  Of the five, this is the one whose source is public data.
+
+Whether an isolated value may ever reach the model is an owner decision (§4.4). On the browser the five kinds are read
+only by local-only capabilities (`stock.seasonality`, `stock.seasonalityBoard`, `stock.tideHistory`, `stock.oiChange`,
+`stock.treasuryYields` in `app/src/agent/capabilities/terminalDataWave6.js`, all in `turn.LOCAL_ONLY_ACTIONS`): the
+model plans the lookup and never sees what came back. Each capability registers only while the server lists its own
+kind.
+
+**`seasonality.stock`** (source `uct-bars`)
+- What it returns: one stock by calendar month (`data.months`, always twelve) and by weekday (`data.weekdays`), close
+  to close, from the completed daily sessions the bar store holds. Every `ok` read carries the notes
+  ``{symbol} by calendar month and by weekday, close to close, from the completed daily sessions UCT's bar store holds, {first} to {last} ({sessions} sessions): for each month the years counted, the average and the median month return, and the percent of those years the month rose. A record of the past, not a forecast``,
+  `` `as_of` is the close of the newest session in the record ({day}); it is never the time of the read. The table was computed at {at} (UCT's own time) from bars already held, and is not a live figure `` and
+  `completed sessions only: a session still trading is not in the record, and the month still running is not counted as a month`.
+- Params: `symbol` (one US stock or fund ticker, in the house form `BRK-B`).
+- **Thin and empty months.** A month with fewer years counted than the service's minimum (`data.min_years`) is flagged:
+  `` {n} of the twelve months have fewer than {min_years} years counted and are flagged `thin`: too few years to read as a pattern ``. A month nobody counted has null figures:
+  `{n} of the twelve months have no year counted: their figures are null, never 0`.
+- **Stale.** `the newest bar held is {last}; the newest completed session is {expected}. This read never fetches the missing sessions`.
+- **Before the vendor's first day.** `the record starts before 2003-09-10: the bars before that date come from yfinance history (the market-data vendor's daily archive starts 2003-09-10)` (`data.pre_vendor_floor`).
+- `unavailable`: nothing held (`no completed daily bars are held for {symbol} in UCT's bar store, and this read never fetches them. That is not the same as no pattern. Open {symbol}'s seasonality in UCT, then ask again`); held only in part
+  (`only part of {symbol}'s daily history is held in UCT's bar store ({first} to {last}, {sessions} sessions) and it is not marked as the whole record, so a table from it would state a short record as the record. This read never starts the full read. Open {symbol}'s seasonality in UCT, then ask again`); too short (`less than one full calendar month of daily bars is held for {symbol}, so there is no month to state. That is not the same as no pattern`); a failing
+  read (`the seasonality read failed; nothing is stated. That is not the same as no pattern`).
+- Data fields: `ticker`, `source`, `months`, `weekdays`, `covered_from`, `covered_to`, `full_months`, `min_years` (the
+  route's own names), `sessions`, `first_bar`, `last_bar`, `latest_completed_session`, `pre_vendor_floor`, `read_at`.
+  Month fields: `month, label, n, avg_pct, median_pct, pct_up, thin`. Weekday fields: `weekday, label, n, avg_pct,
+  median_pct, pct_up`. `coverage` counts the twelve months against those with a year counted.
+
+**`seasonality.board`** (source `uct-bars`)
+- What it returns: the board the service holds for today's New York date: the index funds and the sector funds, each
+  with its twelve months, or with the reason it has no numbers. Every `ok` or `partial` read carries the notes
+  `the seasonality board as UCT holds it: {funds} index and sector funds by calendar month, close to close, each month with the years counted, the average and the median month return and the percent of those years it rose. {answered} of {funds} funds have numbers. A record of the past, not a forecast` and
+  `` `as_of` is the newest daily bar date any fund's record covers ({day}); it is never the time of the read. The board was built at {at} (UCT's own time, New York date {et_date}) and is not rebuilt by this read ``.
+- Params: none.
+- **The board's own `as_of` is when it was BUILT.** It rides as `data.built_at` (and in UTC as `data.read_at`), so it
+  cannot be read as the data's date; the envelope's `as_of` is the board's `data_through`.
+- **A fund with no numbers** makes the read `partial`: `{n} of {funds} funds have no numbers and are listed with the reason, never as zeros: {list}`, where each fund is said by its status: `pending` is
+  `its history is still being read`, `not_held` is `the bar store does not carry it`, `unavailable` is
+  `its read failed or holds too little`.
+- **Thin months.** `` {n} month figures on the board have fewer than {min_years} years counted and are flagged `thin`: too few years to read as a pattern ``.
+- **An unfinished board** (`data.settled` false): `the board is unfinished: a fund's history was still being read, or its read failed, when it was built. The seasonality board in UCT reads it again; this read never does`.
+- The board is never marked `stale`: it is held for one New York date and its `as_of` says which bars it covers.
+- `unavailable`: nothing held (`the seasonality board has not been read on this server yet today, or its last read was unfinished and is too old to serve, and this read never builds it. That is not the same as no pattern. Open the seasonality board (SEASB) in UCT, then ask again`); no fund with numbers
+  (`the seasonality board held on this server has no fund with numbers yet ({list}), and this read never reads a fund. That is not the same as no pattern. Open the seasonality board (SEASB) in UCT, then ask again`); a failing read (`the seasonality board read failed; nothing is stated. That is not the same as no pattern`).
+- Data fields: `funds`, `this_month`, `next_month`, `et_date`, `min_years`, `source`, `data_through`, `complete`,
+  `settled` (the route's own names), `built_at`, `read_at`. Fund fields: `symbol, name, kind, status`, and for a fund
+  with numbers `months, covered_from, covered_to, full_months`, else `reason`. `coverage` counts the funds against
+  those with numbers.
+
+**`options.tideHistory`** (source `uct-flow-tape`)
+- What it returns: Market Tide by finished session, newest first, for one `scope`: `all` (`the whole tape`), `stocks`
+  (`stocks only`) or `etfs` (`funds only`), default all. `rows` 1–250 sessions (default 20, the TIDEH panel's own table).
+  Every `ok` read carries the notes
+  `Market Tide by finished session for {scope}, newest first, from UCT's own store: for each session the net call premium, the net put premium and net (call minus put), in dollars, with the prints counted. {stored} sessions are stored, the first {began}. Flow that was recorded, not a signal` and
+  `` `as_of` is the newest stored session ({day}); it is never today and never the time of the read. That session was stored at {at} (UCT's own time). Each session is stored once after its close and is not revised afterwards ``.
+- **The cut, from the old end.** `the newest {shown} of {stored} stored sessions are carried; the {left} older ones are left out (the cut is at the OLD end)`.
+- **No backfill.** `sessions before the first stored day ({began}) were never stored and cannot be recovered: the history starts there, not when the tape did`.
+- **A missing session is not a session with no flow.** `` {n} trading sessions between {began} and {latest} have no stored row and are named in `missing_sessions`: a session that was not stored is not a session with no flow ``; at most 40 are named, the newest, and
+  past that `{n} sessions have no stored row; the newest {shown} are named and the {left} older ones are counted` (`data.missing_total` is the whole count).
+- **Prints left out of a session.** `` {n} of the sessions carried left out prints that could not be read (`prints_unreadable`): their totals are of the prints that could ``.
+- **Stale.** `the newest stored session is {day}; the newest completed session is {expected}. This read never stores a session`. A session is stored some time after its close, so a read between a
+  close and that store is `stale` until the row exists.
+- `unavailable`: none stored (`no finished session is stored yet for {scope}, and this read never stores one. Each session is stored once after its close. That is not the same as no flow`); a failing read (`the Market Tide history read failed; nothing is stated. That is not the same as no flow`).
+- Data fields, by the route's own names: `scope`, `sessions`, `sessions_stored`, `sessions_asked`, `sessions_left_out`,
+  `history_began`, `latest_session`, `missing_sessions`, `missing_total`, `missing_checked_through`, `backfill`,
+  `stored_note`, `filters`, `method`, `label`, `read_at`. Row fields: `session, net_call_premium, net_put_premium,
+  net_premium, prints_counted, prints_unsigned, prints_unreadable, data_through, stored_at, source`. `coverage` counts
+  the sessions stored against those carried.
+
+**`options.oiChange`** (source `uct-options-log`)
+- What it returns: one stock's contracts whose open interest changed between the two newest files of UCT's options
+  log, and the newly listed ones, biggest first, for one `side`: `any` (`calls and puts`), `call` (`calls only`) or
+  `put` (`puts only`), default any. `rows` 1–50 (default 15, the OIC panel's own first draw). Every `ok` read carries
+  the notes
+  `{symbol} open interest by contract, {side}: the log file of {session} against the one of {prior}, from UCT's own options log. The contracts whose open interest changed and the newly listed ones, biggest first. It says how many contracts were open, not who opened or closed them or in which direction` and
+  `` `as_of` is the date of the newer log file ({session}); it is never today and never the time of the read. Open interest is published the morning after the session it counts, so the change shown is what was opened or closed during the session of {prior}. The newer file was built at {at} (UCT's own time) ``.
+- Params: `symbol` (one US stock or fund ticker); `side`; `rows`.
+- **The cut, from the small end.** `the {shown} biggest of {matched} changed or new contracts are carried; the {left} smallest are left out (the cut is at the SMALL end)`.
+- **New, gone and not reported.** `{n} contracts are newly listed (in the newer file only): they have no earlier figure, so their change and percent are null, never 0, and they are left out of the totals`;
+  `{n} contracts are in the earlier file only ({expired} of them expired): they are counted, and left out of the totals`;
+  `{n} contracts had no open interest reported on one side or the other: they are counted, never read as 0`.
+- **Files that are not consecutive sessions.** `the two files are not consecutive sessions: {list} had no log file, so the change spans more than one session`.
+- **Volume.** `` the earlier file did not record traded volume: `volume` is null on every row, never 0 ``.
+- **A stock in neither file** is an `ok` read with no row (`data.known` false):
+  `{symbol} is in neither log file ({session} and {prior}): no contract of it had an ask, open interest or volume in either. That is the log's own answer, and there is nothing to compare`.
+- **Stale.** `the newer log file held is {session}; the newest completed session is {expected}. This read never looks for a newer file: open the open-interest change panel (OIC) in UCT, then ask again`.
+- `unavailable`: not prepared (`the two log files have not been prepared on this server yet, and this read never starts that work. That is not the same as no change. Open the open-interest change panel (OIC) in UCT, then ask again`); the last build failed
+  (`the last attempt to prepare the two log files on this server failed ({error}), and this read never tries again. That is not the same as no change`, `{error}` being the failure's class name); a file gone
+  (`one of the two log files held on this server could no longer be read, and this read never fetches it again. That is not the same as no change. Open the open-interest change panel (OIC) in UCT, then ask again`); no session in the log (`UCT's options log holds no session yet, so there is nothing to compare. That is not the same as no change`); one session
+  (`UCT's options log holds one session ({session}) and a change needs two, so there is nothing to compare yet. That is not the same as no change`); a failing read (`the open-interest change read failed; nothing is stated. That is not the same as no change`).
+- Data fields, by the route's own names: `symbol`, `side`, `session`, `prior_session`, `skipped_sessions`, `known`,
+  `has_symbol`, `prior_has_symbol`, `rows`, `matched`, `shown`, `left_out`, `max_rows`, `summary` (`call` and `put`,
+  each `contracts, oi, prior_oi, change`; `contracts`, `unchanged`), `new` (`contracts, oi`), `gone` (`contracts,
+  prior_oi, expired`), `not_reported`, `volume_present`, `volume_session`, `built_at`, `source`, `coverage`, `read_at`.
+  Row fields: `contract, expiration, strike, type, oi, kind` (change · new), `prior_oi, change, change_pct, volume`.
+  The envelope's `coverage` counts the changed or new contracts against the rows carried.
+
+**`rates.treasury`** (source `us-treasury-par-curve`)
+- What it returns: the newest daily par yield curve the server holds: each maturity's yield, what it was at five
+  earlier days with the change in basis points, and the two spreads. Every `ok` read carries the notes
+  `US Treasury daily par yields by maturity, as UCT holds them: each yield in percent, what it was one day, one week, one month, three months and one year earlier with the change in basis points, and the 10-year minus 2-year and 10-year minus 3-month spreads in percentage points. End-of-day figures published by the US Treasury, not live quotes` and
+  `` `as_of` is the date of the newest figure on the curve ({day}); it is never today and never the time of the read. UCT read the figures from the Treasury's website at {at} (UCT's own time) ``.
+- Params: none.
+- **The horizons** (`d1, w1, m1, m3, y1`): `one day`, `one week`, `one month`, `three months`, `one year`. A horizon
+  with no figure near enough has a null reference date and null changes: `no figure was found near enough to {list} earlier, so those changes are null, never 0`.
+- **A maturity with no figure.** `{n} maturities have no figure on {day} and are null, never 0: {list}`.
+- **The history is left out.** `the {points} days of daily history behind the spreads ({first} to {last}) are left out of this read: only the window and the count are carried. The Treasury yields panel (RATES) in UCT draws them`.
+- **Stale.** `the newest figure held is {day}, older than {expected}, the weekday before today in New York. This read never looks for a newer one: open the Treasury yields panel (RATES) in UCT, then ask again`; and when the service's last look for a newer figure did not go
+  well (`data.check`), `UCT's last look for a newer figure, at {at}, did not go well ({why}): the figures held are the last good ones`, where `{why}` is `the Treasury's website refused the request`,
+  `its answer could not be read as the feed`, `the Treasury's website said too many requests`,
+  `it did not answer in time`, `the Treasury's website answered with an error`, `the read failed`, or otherwise
+  `it did not go well`.
+- `unavailable`: nothing held (`no Treasury yields are held on this server yet, and this read never requests them. That is not the same as no figure. Open the Treasury yields panel (RATES) in UCT, then ask again`); a failing read, or a curve with no
+  maturity that has a figure (`the Treasury yields read failed; nothing is stated. That is not the same as no figure`).
+- Data fields, by the route's own names: `as_of` (the curve's date), `ref_dates`, `maturities` (`key, label, months,
+  yield, was, change_bp`), `spreads` (`key, label, long, short, value, state` (positive · inverted · flat),
+  `inverted, days_in_state, since, days_at_least, was, change_bp`), `history` (`from, to, points, years,
+  columns_left_out`), `rows`, `read_at`, `basis`, `units`, `source`, `check` (`state, reason, http_status, at`, or
+  null). At most 20 maturities and 4 spreads are carried. `coverage` counts the maturities against those with a figure.
+
 ## 8. Changing this contract
 
 1. Open a PR that edits this file, with a version bump (v1.1 adds; v2.0 breaks). Message agent-lead.
@@ -1561,6 +1788,7 @@ never sees what came back. Each capability registers only while the server lists
 
 ## 9. Changelog
 
+- **v1.12 addition (2026-11-20, terminal-data, data wave 6):** §4.15 documents five kinds added dark with this version: `seasonality.stock`, `seasonality.board`, `options.tideHistory`, `options.oiChange`, `rates.treasury` (one stock and the index and sector funds by calendar month, Market Tide by finished session, one stock's open interest change, and US Treasury par yields: the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES panels). All five are model-isolated (ADR-005: the licensing register has no row that names seasonality, Market Tide by day, the options log or the open interest change, and no row of it clears these figures for a model provider; §4.15 quotes the rows each kind is decided from: T-04, T-09 and T-71 for the two seasonality kinds, T-25 and T-26 for the tide, T-28 for the open interest change, T-95 for the Treasury yields, and T-14), and none starts a build, a fetch, a capture or a vendor request: each reads only what its service or store already holds (`bars_sqlite.get_bars_before`, `seasonality_board.held`, `tide_history.history`, `oi_change.held_change`, `treasury_yields.held_answer`) and is `unavailable` or `partial`, with the reason, otherwise (§5). Two read-only accessors are added to their services with this version: `seasonality_board.held` and `oi_change.held_change`. `as_of` is the data's own date (the newest bar, the newest stored session, the newer log file, the curve's date), never the day of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** all five kinds of §4.15 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.15 records an owner decision.
 - **v1.11 addition (2026-11-18, terminal-data, data wave 5):** §4.14 documents two kinds added dark with this version: `short.interest`, `short.list` (FINRA short interest and daily short volume, the Agent half of the SHINT and SHRTS panels). Both are model-isolated (ADR-005: FINRA's data, licensed to UCT through its market-data vendor for display to members, licensing register rows T-93 and T-94, and no row of that register clears it for a model provider), and neither starts a build, a check or a vendor request: each reads only what `api/services/short_data.py` already holds, through the service's read-only accessors `short_data.held_stock` and `short_data.held_market`, and is `unavailable` or `partial`, with the reason, otherwise (§5). One accessor changes with this version: `held_market` with no list held now hands back the service's standing `unavailable` / `failed` answer instead of only "not held". `as_of` is the report's settlement date, never the day of the read. Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** both kinds of §4.14 are default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.14 records an owner decision.
 - **v1.10 addition (2026-11-18, terminal-data, data wave 4):** §4.13 documents three kinds added dark with this version: `earnings.season`, `earnings.callThemes`, `group.drill`. All three are model-isolated (ADR-005: UCT's calendar with third-party results and estimates and UCT's own priced and past moves; phrases taken from third-party transcript text whose AI-processing right is unresolved; UCT's RS rank, confluence board and themes over derived changes), and none starts a build or spends a provider call: each reads only the answer its service already holds, through a read-only accessor added to that service with this version (`earnings_season.held_day`, `call_themes.held_themes`, `scan_period.period_groups_of`), and is `unavailable` or `partial`, with the reason, otherwise (§5). Two datasets of the same wave get no kind, and §4.13 says why: the UNVOL panel's unusual volume is already a `screen.run` scan (SC-1), and the MYH panel is the member's own Journal. `flow.summary` stays deferred (§4.4). Additive: no existing kind changes and no envelope field changes, so the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.13 is default OFF, and switching one on is the owner's step, not this document's. §8.1 status: the version bump and this entry are in the PR that adds the kinds. The message to agent-lead that §8.1 asks for is owed by a person: it has not been sent, and this version is not acknowledged by anyone as of this entry. Nothing in this entry or in §4.13 records an owner decision.
 - **v1.9 amendment (2026-11-17, terminal-data, Schwab retired):** §4.12's text is brought in line with the removal of Schwab from the product, by the owner's instruction (verbatim): "Move it, fix the status and remove schwab from everything." Two things were retired with it: the Schwab option chain behind `levels.gamma` (and the `GEX_CHAIN_SOURCE` switch, with its `schwab` and `shadow` values, that could select it), and the Schwab backup behind the daily contract prices of `flow.topPicks` and `flow.record`. What changed in §4.12: `data.chain_source` is always `massive` (the field stays, so the payload's shape is unchanged) and its note now reads `the option chain behind these levels is Massive's, the one chain UCT reads for them`; the two flow kinds' source notes now say the daily prices are recorded `from Massive (prices recorded before November 2026 came from Schwab and stay as recorded)`. A `flow.topPicks` row's `src` can still say `schwab`: that labels prices recorded before November 2026, which are never rewritten. No kind, param, envelope field or `data` key is added or removed, so this is an amendment of v1.9, not a new version, and the wire `contract` stays `"MD-1.0"` (§8.4). **Not armed:** every kind of §4.12 stays default OFF. The instruction quoted here is about Schwab only: it is not an acknowledgement of v1.9, and the §8.1 status recorded in the v1.9 entry below is unchanged.

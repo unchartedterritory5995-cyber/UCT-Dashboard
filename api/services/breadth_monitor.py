@@ -1679,6 +1679,18 @@ def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
     """Return a single *_list metric for a given date, or None if not found."""
     try:
         with _conn() as c:
+            if _is_list_key(metric_key):
+                # ⭐ ONE KEY, NOT THE BLOB (2026-11-20). Every snapshot carries `universe_list`
+                # (~2,900 rows); parsing the whole metrics JSON to hand back one list was the bulk
+                # of a drill open's server time. json_extract reads just this key (the context
+                # route's lookback already does). Same answers: no row / no key -> None.
+                row = c.execute(
+                    "SELECT json_extract(metrics, ?) AS v FROM breadth_snapshots WHERE date = ?",
+                    (f"$.{metric_key}", date_str),
+                ).fetchone()
+                if not row or row["v"] is None:
+                    return None
+                return json.loads(row["v"]) if isinstance(row["v"], str) else row["v"]
             row = c.execute(
                 "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
             ).fetchone()

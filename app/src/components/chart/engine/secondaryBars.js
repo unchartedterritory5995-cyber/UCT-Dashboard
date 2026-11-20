@@ -49,10 +49,24 @@ const BARS_PATH = '/api/bars/'
 export function secondaryBarsUrl(symbol, tf, bars) {
   const s = typeof symbol === 'string' ? symbol.trim().toUpperCase() : ''
   if (!s) return null
-  const count = Number.isFinite(bars) && bars > 0 ? Math.floor(bars) : 200
+  const count = askedBarsOf(bars)
   const code = tf == null || tf === '' ? 'D' : String(tf)
   return `${BARS_PATH}${encodeURIComponent(s)}?tf=${encodeURIComponent(code)}&bars=${count}`
 }
+
+/** The `bars=` a window asks for (what `secondaryBarsUrl` puts in its URL). */
+function askedBarsOf(bars) {
+  return Number.isFinite(bars) && bars > 0 ? Math.floor(bars) : 200
+}
+
+// ─── ⭐⭐ (e90, the e88 live capture, 2026-11-20) — WHAT DEPTH AN ENTRY WAS ASKED AT ───────────────────────────────────
+// Every AVAILABLE entry records the `bars=` its fetch asked (`askedBars`), a plain field, so it crosses the worker with
+// the rest of the entry (`runtimeAsync.js`, `plainFieldsOf`). An answer holding as many rows as it asked FILLED its ask:
+// the store may hold older rows, which only a deeper ask reaches. ⚰️ Fred RS on RDDT 30m / 5m: SP:SPX's first page (600
+// rows, asked when the chart held 600) began mid-session (30m: 09-16 15:00 ET; 5m: 11-10 11:30 ET), the chart had
+// grown to 3,002 / 20,008 rows, and the run refused the chart for that session's opening bars ("`SPX` has no bar on
+// <09:30>, after its history began") until the deeper page (780 / 4,680 rows, from a session open) landed. Seen on
+// e81, e85, e86 and e88. The run decides from this field whether those bars are still coming (`requestSupply.js`).
 
 // ─── The cache ──────────────────────────────────────────────────────────────
 
@@ -250,9 +264,12 @@ export function clearSecondaryBars() {
  * symbol that simply has nothing stored answers an empty list with no note. Those
  * are different facts and a member deserves to be told which one happened.
  */
-function _read(payload) {
+function _read(payload, asked) {
   const bars = payload && Array.isArray(payload.bars) ? payload.bars : []
   if (bars.length) {
+    // ⭐ (e90) the depth this window asked (`askedBars`, above), on an entry that holds rows; a tail read
+    // (`refreshSecondaryTail`) names none: its rows are merged into the held entry, which keeps its own
+    const asks = asked === undefined ? {} : { askedBars: askedBarsOf(asked) }
     // ⭐ 2026-09-28 — THE NEWEST BAR'S CLOSE STATE TRAVELS WITH THE BARS IT
     // DESCRIBES. A calculation-timeframe frame (`mtfProjection.js`) may only treat
     // its newest bar as a COMPLETED period when the server said so; dropping the
@@ -261,13 +278,14 @@ function _read(payload) {
     // Attached only when the payload carries the field at all, so an entry built
     // from a payload that predates it keeps its exact old shape.
     if (!Object.prototype.hasOwnProperty.call(payload, 'newest_bar_is_forming')) {
-      return { bars, status: SOURCE_STATUS.AVAILABLE }
+      return { bars, status: SOURCE_STATUS.AVAILABLE, ...asks }
     }
     const forming = payload.newest_bar_is_forming
     return {
       bars,
       status: SOURCE_STATUS.AVAILABLE,
       newestBarIsForming: typeof forming === 'boolean' ? forming : null,
+      ...asks,
     }
   }
   const note = payload && typeof payload.note === 'string' ? payload.note : ''
@@ -336,7 +354,7 @@ export function fetchSecondaryBars(symbol, tf, bars, fetcher) {
   const p = Promise.resolve()
     .then(() => get(url))
     .then((payload) => {
-      const entry = _read(payload)
+      const entry = _read(payload, bars)
       _cache.set(url, entry)
       // ⭐ A SUCCESS RESETS THE BACKOFF. Otherwise one bad afternoon leaves the
       // rest of the session waiting a minute for every later blip.
@@ -468,7 +486,7 @@ export function ensureAll(symbols, tf, bars, fetcher) {
 export function primeSecondaryBars(symbol, tf, bars, payload) {
   const url = secondaryBarsUrl(symbol, tf, bars)
   if (!url) return null
-  const entry = _read(payload)
+  const entry = _read(payload, bars)
   // ⛔ An empty prime does NOT overwrite a good entry: Compare's SWR hands back
   // `undefined` on its first render, and caching that would blank a series that
   // is already drawing.
@@ -602,7 +620,7 @@ export function refreshSecondaryBars(symbol, tf, bars, fetcher) {
   const p = Promise.resolve()
     .then(() => get(url))
     .then((payload) => {
-      const entry = _read(payload)
+      const entry = _read(payload, bars)
       // ⛔ AN EMPTY ANSWER DOES NOT REPLACE BARS WE HAVE — same rule as
       // `primeSecondaryBars`: a transient empty payload is not "no history".
       if (!entry.bars.length && keep && keep.bars && keep.bars.length) return keep

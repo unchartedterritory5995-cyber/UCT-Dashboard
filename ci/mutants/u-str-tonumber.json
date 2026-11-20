@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "STR-TONUMBER (feat/pine-str-tonumber, engine 90): str.tonumber drops the spaces around the text, reads only a plain decimal (no exponent), and stops by name on any other surrounding blank. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "N1",
+   "mutant": "the exponent spelling is a number again (\"1e3\" reads 1000)",
+   "file": "app/src/components/chart/engine/runtime/text.js",
+   "from": "const DECIMAL = /^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)$/",
+   "to": "const DECIMAL = /^[+-]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?$/",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/strToNumberVendor.test.js",
+   "expectRed": "N07_exponent"
+  },
+  {
+   "id": "N2",
+   "mutant": "the spaces around the text are kept (\" 3\" reads na)",
+   "file": "app/src/components/chart/engine/runtime/text.js",
+   "from": "  const t = s.replace(SURROUNDING_SPACES, '')",
+   "to": "  const t = s",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/strToNumberVendor.test.js",
+   "expectRed": "two spaces either side"
+  },
+  {
+   "id": "N3",
+   "mutant": "a surrounding tab or line break is read as na instead of stopping by name",
+   "file": "app/src/components/chart/engine/runtime/text.js",
+   "from": "  if (SURROUNDING_OTHER_BLANK.test(t)) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/strToNumberVendor.test.js",
+   "expectRed": "no-break space at either end"
+  }
+ ]
+}

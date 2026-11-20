@@ -75,8 +75,11 @@ function newAgg(t, end) {
  *        the vendor's daily bar counts), or regular-session minutes only ('rth'). 'auto' = av
  *        when present, else all.
  * @param {number} [opts.recentMinutes]     minutes of each symbol kept to settle corrections
+ * @param {(sym:string) => boolean} [opts.accept]  symbols to roll up (default: every one). A symbol it
+ *        refuses holds no state at all here, and reaches the sink not at all: the device store
+ *        keeps only the symbols its seed holds, so the other several thousand cost nothing.
  */
-export function createMinuteRollup({ sink, tfs = ROLLUP_TFS, dailyVolume = 'auto', recentMinutes = 15 } = {}) {
+export function createMinuteRollup({ sink, tfs = ROLLUP_TFS, dailyVolume = 'auto', recentMinutes = 15, accept = null } = {}) {
   if (!sink || typeof sink.upsert !== 'function') throw new Error('rollup needs a sink with upsert()')
   const higher = tfs.filter((tf) => tf !== '1')
   const emit1 = tfs.includes('1')
@@ -193,6 +196,7 @@ export function createMinuteRollup({ sink, tfs = ROLLUP_TFS, dailyVolume = 'auto
 
   /** One closed minute of one symbol. `kind` = the frame block's (codec KIND_*). */
   function applyMinute(sym, minute, o, h, l, c, v, av = null, kind = 0) {
+    if (accept && !accept(sym)) return
     const s = stateOf(sym)
     const row = [o, h, l, c, v, av]
     const old = s.recent.get(minute)

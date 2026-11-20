@@ -7,7 +7,7 @@ import { DEVICE_STORE_KEY, DEVICE_STORE_DEFAULT_ON, deviceStoreEnabled } from '.
 const fakeClient = {
   start() { return this },
   peekBars: vi.fn(() => null),
-  getBars: vi.fn(async () => ({ t: Float64Array.of(1794000000), o: Float64Array.of(1), h: Float64Array.of(2), l: Float64Array.of(0.5), c: Float64Array.of(1.5), v: Float64Array.of(10), build: null })),
+  getBars: vi.fn(async () => ({ t: Float64Array.of(1794000000), o: Float64Array.of(1), h: Float64Array.of(2), l: Float64Array.of(0.5), c: Float64Array.of(1.5), v: Float64Array.of(10), build: '20261119T0131Z', through: 1794000300 })),
 }
 const getDeviceClient = vi.fn(() => fakeClient)
 vi.mock('./client', () => ({ getDeviceClient }))
@@ -45,7 +45,7 @@ describe('the device store switch', () => {
     const key = keyOf({ sym: 'NEWB', tf: '5' })
     await store.persist.hydrate(key)
     await new Promise((r) => setTimeout(r, 20))
-    const s = store.peek(key)
+    const s = { ...store.peek(key), savedAt: store.persist.savedAtOf(key), through: store.persist.deviceThroughOf(key) }
     store.dispose()
     return s
   }
@@ -63,5 +63,7 @@ describe('the device store switch', () => {
     expect(fakeClient.getBars).toHaveBeenCalledWith('NEWB', '5')
     expect(s.source).toBe('device')
     expect(s.bars.length).toBe(1)
+    expect(s.through).toBe(1794000300)                                   // its stamp, not the build time
+    expect(s.savedAt).toBe(1794000300 * 1000)
   })
 })
