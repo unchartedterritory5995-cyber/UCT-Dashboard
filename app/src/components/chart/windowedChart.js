@@ -221,7 +221,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       // ⛔ A METHOD THE OBJECT DOES NOT HAVE, THE FACADE DOES NOT HAVE EITHER. Code feature-tests before it calls
       // (`typeof s.getPane === 'function'`); a translated stand-in for a missing method passes that test and then
       // throws (found by the time-range-sync and replay suites, whose library doubles have no panes).
-      if (typeof prop === 'string' && !(prop in raw)) return undefined
+      if (typeof prop === 'string' && raw[prop] === undefined) return undefined
       switch (prop) {
         case RAW: return raw
         case 'getVisibleLogicalRange': return () => plus(raw.getVisibleLogicalRange())
@@ -286,7 +286,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       w = new Proxy(p, {
         get(target, prop) {
           if (prop === RAW) return target
-          if (typeof prop === 'string' && !(prop in target)) return undefined
+          if (typeof prop === 'string' && target[prop] === undefined) return undefined
           if (prop === 'getSeries') return () => (target.getSeries() || []).map((s) => byRaw.get(s) || s)
           const v = target[prop]
           return typeof v === 'function' ? v.bind(target) : v
@@ -324,7 +324,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
       get(target, prop) {
         if (prop === 'setData' && target.setData !== origSetDataFn) return target.setData       // a wrapper installed
         if (prop === 'update' && target.update !== origUpdateFn) return target.update
-        if (typeof prop === 'string' && !(prop in target)) return undefined       // see the time scale's note
+        if (typeof prop === 'string' && target[prop] === undefined) return undefined       // see the time scale's note
         switch (prop) {
           case RAW: return target
           case WINDOW_CTL: return control
@@ -443,7 +443,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     set(_target, prop, value) { chartOwn[prop] = value; return true },
     get(target, prop) {
       if (prop in chartOwn) return chartOwn[prop]
-      if (typeof prop === 'string' && prop !== 'window' && !(prop in target)) return undefined   // see the time scale's note
+      if (typeof prop === 'string' && prop !== 'window' && target[prop] === undefined) return undefined   // see the time scale's note
       switch (prop) {
         case RAW: return target
         case 'window': return control
