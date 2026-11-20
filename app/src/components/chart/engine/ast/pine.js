@@ -8403,29 +8403,31 @@ function trippedDoorRefusal() {
   return door.refusal
 }
 
-/** ⭐ A door-only tick, for a walk the translator's own budgets never bounded: with no door window open it returns at
- *  once, so a translation outside the member door answers exactly as before; with one, a tripped window throws at
- *  once and the clock is read on every 4,096th tick. */
+/** ⭐ A door-only tick for a walk the translator's own budgets never bounded, charged `n` units of work: with no
+ *  door window open it returns at once, so a translation outside the member door answers exactly as before; with one,
+ *  a tripped window throws at once, and the clock is read each time the work charged crosses a 4,096 boundary. */
 let doorTicks = 0
-function tickDoorOnly() {
+function tickDoorOnly(n = 1) {
   if (!doorWindowOpen()) return
   if (doorTripped()) throw trippedDoorRefusal()
-  if (((doorTicks += 1) & BUDGET_CHECK_MASK) !== 0) return
+  const before = doorTicks
+  doorTicks += n
+  if (Math.floor(before / (BUDGET_CHECK_MASK + 1)) === Math.floor(doorTicks / (BUDGET_CHECK_MASK + 1))) return
   checkDoorClock(null)
 }
 
 /** `[...a, b, ...c]` written as `tokensTicking(a, b, c)`: every array part is spread and every other part is one
- *  token, element by element, with a door tick per element (`tickDoorOnly`). The same array, whatever the door. */
+ *  token (`Array.prototype.concat`: the same array as the spread, as one bulk copy), charged to the door by the tokens
+ *  it copies (`tickDoorOnly`) BEFORE the copy, so a fold that has run past the deadline copies nothing more.
+ *  ⚰️ An element-by-element copy with a tick per element made one public script's door call run on past the
+ *  deadline where the spread had finished, measured: the copy stays a bulk copy. */
 function tokensTicking(...parts) {
-  const out = []
-  for (const part of parts) {
-    if (Array.isArray(part)) {
-      for (let i = 0; i < part.length; i += 1) { tickDoorOnly(); out.push(part[i]) }
-    } else {
-      out.push(part)
-    }
+  if (doorWindowOpen()) {
+    let n = 0
+    for (const part of parts) n += Array.isArray(part) ? part.length : 1
+    tickDoorOnly(n)
   }
-  return out
+  return [].concat(...parts)
 }
 
 /** A checkpoint between phases (`doorDeadline.js::checkDoorDeadline`), raising the translator's own refusal. */
