@@ -243,6 +243,7 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
         request = {"system": system_blocks(), "tools": [TOOL], "messages": messages}
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
+            dc.note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = dc.model_failure_gate(exc)
             # ⭐ 2026-11-20: the script turn logged an account refusal as a WARNING "model call failed", the one

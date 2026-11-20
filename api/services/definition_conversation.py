@@ -5114,6 +5114,7 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
+            dc.note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = dc.model_failure_gate(exc)
             if gate == "model:unavailable":

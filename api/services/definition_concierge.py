@@ -1905,7 +1905,24 @@ def log_account_refusal(log: Any, door: str, exc: Optional[BaseException]) -> st
                   status or "?", kind)
     except Exception:                               # noqa: BLE001
         pass
+    # ⭐ AND A PERSON IS TOLD (2026-11-20: the first such outage was found half an hour in, by a test run).
+    # Only the KIND goes out, never `exc`: `llm_provider_alert` cannot be handed the provider's text.
+    try:
+        from api.services import llm_provider_alert
+        llm_provider_alert.refused(kind, door)
+    except Exception:                               # noqa: BLE001 -- a page is never the turn's failure
+        pass
     return kind
+
+
+def note_model_answered() -> None:
+    """A model call SUCCEEDED, at any door: if the provider had been refusing the account, the ops channel
+    is told it is back (once). One value read in the common case. Never raises."""
+    try:
+        from api.services import llm_provider_alert
+        llm_provider_alert.answered()
+    except Exception:                               # noqa: BLE001
+        pass
 
 
 def charge_unreported(exc: Optional[BaseException], user_id: Any, market_date: str, model: str,
@@ -3455,6 +3472,7 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages, kind)
+            note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = model_failure_gate(exc)
             if gate == "model:unavailable":
