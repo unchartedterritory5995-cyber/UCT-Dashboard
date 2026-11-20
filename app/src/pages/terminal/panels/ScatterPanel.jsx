@@ -246,7 +246,7 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
   }
 
   const axisSelect = (label, value, set, testId) => (
-    <label className={styles.muted}>
+    <label className={`${styles.muted} ${styles.pick}`}>
       {label}{' '}
       <Select value={value} onChange={(e) => set(e.target.value)} data-testid={testId} className={styles.chip}>
         {[...new Set(catalog.map((m) => m.group || ''))].map((g) => (
@@ -287,7 +287,7 @@ export default function ScatterPanel({ universe = null, yKey: yProp = null, xKey
   return (
     <div className={`${styles.wrap} ${inPanel ? styles.inPanel : ''}`} data-testid="terminal-scat">
       <div className={styles.toolbar}>
-        <label className={styles.muted}>
+        <label className={`${styles.muted} ${styles.pick}`}>
           Universe{' '}
           <Select value={`${pick.source}:${pick.value ?? ''}`} onChange={onUniverse} data-testid="terminal-scat-universe" className={styles.chip}>
             {groups.map((g, gi) => (
