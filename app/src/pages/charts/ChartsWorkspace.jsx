@@ -1275,8 +1275,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // panel and opens it on a `uct:compare-open` event, on desktop only (the phone
   // shell mounts no panel and ignores the event). A chart widget reads it and
   // offers a readout row's "Open the rotation map" only where it is true.
+  // `groupSyms` reads the store when it is read; `useWorkspace()` replaces it with a subscribed snapshot.
   const workspaceValue = useMemo(
-    // `groupSyms` reads the store when it is read; `useWorkspace()` replaces it with a subscribed snapshot.
     () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
     [groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )

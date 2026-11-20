@@ -4,6 +4,9 @@ export const WorkspaceContext = createContext(null)
 
 const FALLBACK = {
   groupSyms: { A: null, B: null, C: null, D: null },
+  // The /charts board's store of `groupSyms` (groupSymsStore.js), which useWorkspace() subscribes a reader
+  // to; null here and on every host that supplies a plain `groupSyms`.
+  groupSymsStore: null,
   setGroupSym: () => {},
   // The timeframe each color group's chart is CURRENTLY showing, broadcast by
   // ChartWidget so list widgets in the same group warm the cache key the chart
