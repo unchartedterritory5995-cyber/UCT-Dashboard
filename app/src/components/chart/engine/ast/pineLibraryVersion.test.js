@@ -17,7 +17,8 @@
 // third-party library source is in this repository (`pineLibraryStore.js`).
 import { describe, it, expect } from 'vitest'
 
-import { translatePine } from './pine.js'
+import { translatePine, Resolver, parseWholeExpression } from './pine.js'
+import { TABLE } from './parse.js'
 import { fixtureLibraries } from './__tests__/libraryFixture.js'
 import { interpret } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
@@ -84,6 +85,9 @@ const CASES = [
   ['label.new without textcolor', '    label.new(bar_index, x, "a")\n    x', /`label\.new` without `textcolor`/, null],
   ['a for bound that calls something', '    float t = 0.0\n    for i = 0 to math.round(x) % 3\n        t := t + 1\n    t', /`for` loop whose end bound calls `math\.round`/, F.FOR_BOUND],
   ['a for bound the loop reassigns', '    int n = 3\n    float t = 0.0\n    for i = 0 to n\n        n := n - 1\n        t := t + 1\n    t', /`for` loop whose end bound reads `n`/, F.FOR_BOUND],
+  ['box.new without bgcolor', '    b = box.new(bar_index, x, bar_index + 1, x - 1)\n    x', /`box\.new` without `bgcolor`.*opaque/, null],
+  ['box.new with bgcolor, without text_color', '    b = box.new(bar_index, x, bar_index + 1, x - 1, bgcolor = color.new(color.blue, 50))\n    x', /`box\.new` without `text_color`/, null],
+  ['table.cell without text_color', '    t = table.new(position.top_right, 1, 1)\n    table.cell(t, 0, 0, "a")\n    x', /`table\.cell` without `text_color`/, null],
   ['a const int division', '    int k = 5\n    x + k / 2', /division of two values that may be `const int`/, null],
   ['a request', '    request.security(syminfo.tickerid, "D", x)', /`request\.security`/, null],
   ['na() of a value not shown to be a number', '    b = x > 0\n    na(b) ? 1.0 : x', /`na\(\)` of a value not shown to be a number/, F.BOOL_NA],
@@ -174,7 +178,66 @@ export hits(float x) =>
 `,
     uses: 'plot(il.up(close))\nplot(il.hits(close))\n',
   },
+  // ⭐⭐ island PR 2 — a bool can be `na` at v5: an `if` used as a bool value with no `else` is `na` where it matches
+  // nothing at v5 (and `false` at v6, which this lane refuses by name, Q-A3), read here by `na()` and by `== false`
+  [F.BOOL_NA]: {
+    lib: `export unmatched(float x) =>
+    bool b = if x > 101
+        true
+    na(b) ? 1.0 : 0.0
+export unmatchedeq(float x) =>
+    bool b = if x > 101
+        true
+    b == false ? 1.0 : 0.0
+`,
+    uses: 'plot(il.unmatched(close))\nplot(il.unmatchedeq(close))\n',
+  },
 }
+// ⭐⭐ island PR 2 — the families whose per-token reading draws the SAME picture on the run's own path, so the
+// family-by-family rail below cannot tell them from the program version there; each has its own rail (the columnar
+// resolver over island tokens, where the two readings do differ).
+const SAME_PICTURE_FAMILIES = [F.IMPLICIT_CAST]
+// ⭐⭐ island PR 2 — a v5 library whose bools can be `na`: what a v5 script refuses by name the island refuses by the
+// same name; a number read as a condition; and every way a v5 `na` bool could leave the island
+const PR2 = `${MPL}
+//@version=5
+library("islandpr2")
+type Flag
+    bool on
+export eqf(float x) =>
+    up = x > ta.sma(x, 5)
+    up == false ? 1.0 : 0.0
+export nab(float x) =>
+    b = x > ta.sma(x, 5)
+    na(b) ? 1.0 : 0.0
+export cast(float x) =>
+    y = x - 100.5
+    y ? 1.0 : 0.0
+export castvar(float x) =>
+    var float n = 0.0
+    n := ta.sma(x, 5) - 100.5
+    float r = 0.0
+    if n
+        r := 1.0
+    r
+export notcast(float x, float y) => not (y - 100.5) ? 1.0 : 0.0
+export flags(float x) =>
+    array<bool> a = array.new<bool>(0)
+    array.push(a, x > 100)
+    a
+export firstflag(float x) =>
+    array<bool> a = array.from(x > 100, x < 50)
+    array.get(a, 0)
+export fill(array<bool> out, float x) =>
+    array.push(out, x > 100)
+    x
+export floats(array<float> out, float x) =>
+    array.push(out, x)
+    x
+export flagfield(float x) =>
+    Flag f = Flag.new(x > 100)
+    f.on
+`
 // the island's one boundary: what a v5 function hands v6 code (design section 2.6)
 const BOUNDARY = `${MPL}
 //@version=5
@@ -213,6 +276,10 @@ export boolkey(float x) =>
     map.put(m, "up", x > 100)
     bool v = map.get(m, bar_index < 7 ? "up" : "gone")
     v ? 1.0 : 0.0
+export boolkeyout(float x) =>
+    m = map.new<string, bool>()
+    map.put(m, "up", x > 100)
+    map.get(m, bar_index < 7 ? "up" : "gone")
 export floatkey(float x) =>
     m = map.new<string, float>()
     map.put(m, "up", x)
@@ -229,6 +296,7 @@ const LIBS = fixtureLibraries({
   }])),
   'tester/islandboundary/1': { path: 'tester/islandboundary/1', source: BOUNDARY, licence: 'MPL-2.0', attribution: 'islandboundary (test fixture)' },
   'tester/islandruntime/1': { path: 'tester/islandruntime/1', source: AT_RUN_TIME, licence: 'MPL-2.0', attribution: 'islandruntime (test fixture)' },
+  'tester/islandpr2/1': { path: 'tester/islandpr2/1', source: PR2, licence: 'MPL-2.0', attribution: 'islandpr2 (test fixture)' },
   'tester/cleanlib/1': { path: 'tester/cleanlib/1', source: CLEAN, licence: 'MPL-2.0', attribution: 'cleanlib (test fixture)' },
   'tester/islandrefuses/1': { path: 'tester/islandrefuses/1', source: ISLAND_REFUSES, licence: 'MPL-2.0', attribution: 'islandrefuses (test fixture)' },
   ...Object.fromEntries(CASES.map(([, body], k) => [`tester/changed/${k + 1}`, {
@@ -385,6 +453,56 @@ describe('⛔ each construct the v6 migration guide changed is refused BY NAME o
     })
   })
 
+  // ⭐ (libchain, 2026-11-20) what a binding HOLDS decides whether it is a bool: its declared type first, then the
+  // arms of a `?:` (never its condition). ⚰️ The pass read `int k = c ? 0 : na` and `c := x > 1 ? color.a : color.b`
+  // as bools (the comparison in the condition) and refused the import as "`na` given to the bool": an over-refusal.
+  // The conservative side stays: an arm nothing can type keeps a binding (or an `==` operand) a bool, a shadowing bool
+  // stays held, and a `?:` read as a CONDITION is a bool only when both its arms are.
+  const ask = (body) => {
+    const lexed = lexPine(changed(body))
+    const stmts = blockStatements(lexed.tokens, lexed.indents, 0)
+    const f = stmts.find((s) => s.header.some((t) => t.value === 'f'))
+    const d = crossVersionDifference([{ stmt: f, kind: 'fn', name: 'f' }], lexed.indents)
+    return d && `${d.family}: ${d.what}`
+  }
+  for (const [name, body] of [
+    ['a typed int bound to a `?:` with an `na` arm', '    int k = x > 1 ? 0 : na\n    k + x'],
+    ['a typed int whose `?:` arm nothing types (its declared type answers)', '    int k = x > 1 ? m.count : na\n    k + x'],
+    ['a colour reassigned from a `?:` of colours', '    color c = na\n    c := x > 1 ? color.green : color.blue\n    x'],
+    ['a colour reassigned from a `?:` whose arm nothing types (its declaration answers)', '    color c = na\n    c := x > 1 ? m.tint : na\n    x'],
+    ['an untyped binding of a `?:` of numbers', '    k = x > 1 ? (x > 2 ? 1 : 0) : na\n    k + x'],
+    ['a `?:` of numbers compared with `==`', '    (x > 1 ? 1 : 0) == 1 ? x : 0.0'],
+  ]) {
+    it(`declared types and \`?:\` arms are never bool operands: ${name}`, () => {
+      expect(ask(body)).toBe(null)
+    })
+  }
+  for (const [name, body, family] of [
+    ['a typed bool given `na` in a `?:`', '    bool b = x > 1 ? true : na\n    x', F.BOOL_NA],
+    ['an untyped `?:` whose arm nothing types', '    b = x > 1 ? this.flag : na\n    x', F.BOOL_NA],
+    ['a bool that shadows a typed int', '    int k = 0\n    if x > 0\n        k = x > 1\n        k := na\n    x', F.BOOL_NA],
+    ['a `?:` whose arm nothing types, compared with `==`', '    (x > 1 ? this.flag : na) == false ? x : 0.0', F.BOOL_NA],
+    ['a `?:` of numbers read as a condition (an implicit cast)', '    (x > 1 ? x : 0.0) ? 1.0 : 0.0', F.IMPLICIT_CAST],
+  ]) {
+    it(`⛔ the conservative side stays held: ${name}`, () => {
+      expect(ask(body)).toMatch(new RegExp(`^${family}: `))
+    })
+  }
+  it('end to end: a v5 library binding a typed int to a `?:` with an `na` arm links into a v6 script and equals the v5 script', () => {
+    const k = CASES.length + 1
+    const libs = fixtureLibraries({ [`tester/changed/${k}`]: { path: `tester/changed/${k}`, licence: 'MPL-2.0', attribution: 'changed (test fixture)',
+      source: changed('    int k = x > 101 ? 1 : na\n    color c = na\n    c := x > 101 ? color.green : color.blue\n    nz(k) + x') } })
+    const admit = { admit: [{ path: `tester/changed/${k}` }] }
+    const run = (head) => {
+      const t = translatePine(`${head}import tester/changed/${k} as c\nplot(c.f(close))\n`, { libraries: libs, libraryCrossVersion: admit, mode: 'host' })
+      return { t, cols: t.ok ? (t.outputs || []).filter((o) => o && o.ast).map((o) => Array.from(interpret(o.ast, BARS, {}))) : null,
+        why: t.refusal ? `${t.refusal.guard}: ${t.refusal.message}` : null }
+    }
+    const inV6 = run(V6)
+    expect(inV6.t.ok, inV6.why).toBe(true)
+    expectSameColumns(inV6, run(V5))
+  })
+
   it('the checker answers on the definitions it is handed, and nothing else', () => {
     const lexed = lexPine(changed(CASES[1][1]))
     const stmts = blockStatements(lexed.tokens, lexed.indents, 0)
@@ -471,7 +589,7 @@ describe('⭐⭐ the version island, family by family: a v5 library in a v6 scri
   it('every family the runtime lane judges per token has its rail here, and nothing else does', () => {
     expect(RUNTIME_ISLAND_FAMILIES.length).toBeGreaterThan(0)
     for (const f of RUNTIME_ISLAND_FAMILIES) expect(Object.values(ISLAND_FAMILY)).toContain(f)
-    expect(Object.keys(ISLAND).sort()).toEqual([...RUNTIME_ISLAND_FAMILIES].sort())
+    expect([...Object.keys(ISLAND), ...SAME_PICTURE_FAMILIES].sort()).toEqual([...RUNTIME_ISLAND_FAMILIES].sort())
   })
 
   it('length qualifiers: the v5 and v6 references give a `series int` length to the same windows, so the per-token read changes no answer', () => {
@@ -540,6 +658,92 @@ describe('⭐⭐ the version island\'s boundary: a v5 function handing v6 code a
 
   it('`and` / `or` crosses: never `na` at v5, so it is served and equals the v5 script', () => {
     const use = 'plot(ib.both(close, open) ? 1 : 0)\n'
+    const r = runtimeRun(`${V6}${imp}${use}`)
+    expect(r.b.ok, r.why).toBe(true)
+    expectSameColumns(r, runtimeRun(`${V5}${imp}${use}`))
+  })
+})
+
+// ─── ⭐⭐ ISLAND PR 2: A v5 LIBRARY'S BOOLS ARE v5 BOOLS (they can be `na`), AND A NUMBER IT READS AS A CONDITION IS CAST ──
+// The run's own rules (`boolNaOnThisLane`, the `na()` read, an unmatched bool block) and the columnar resolver's
+// (`condition`, `boolNaOperator`, `na()`) read the version at the token. Where a v5 script refuses a bool that can be
+// `na` by name, the island refuses it by the same name; where it draws, the island draws the same picture (the family
+// rail above). Every way such a bool could reach the v6 script is refused at the call (LV6).
+describe('⭐⭐ island PR 2: a v5 library\'s bools are judged under v5, and a v5 `na` bool never reaches v6 code', () => {
+  const imp = 'import tester/islandpr2/1 as p2\n'
+  const pasted = PR2.split('\n').slice(3).join('\n').replace(/^export /gm, '')
+  // a refusal inside a library names the library line; the island's adds the version it was judged under
+  const sameRefusal = (island, v5) => {
+    expect(v5.cols, 'CONTROL: the v5 script refuses it').toBe(null)
+    expect(island.cols, 'the island drew what the v5 script refuses').toBe(null)
+    expect(island.b.refusal.guard).toBe(v5.b.refusal.guard)
+    expect(island.b.refusal.line).toBe(v5.b.refusal.line)
+    expect(island.b.refusal.message.replace(' (Pine v5), line', ', line')).toBe(v5.b.refusal.message)
+  }
+  for (const [name, use] of [
+    ['`== false` over a bool that can be `na` (the run\'s own `==`)', 'plot(p2.eqf(close))\n'],
+    ['`na()` of a bool that can be `na` (the run\'s own `na()`)', 'plot(p2.nab(close))\n'],
+  ]) {
+    it(`${name}: refused by the v5 script's own name; pasted into the v6 script it draws`, () => {
+      sameRefusal(runtimeRun(`${V6}${imp}${use}`), runtimeRun(`${V5}${imp}${use}`))
+      const v6 = runtimeRun(`${V6}${pasted}${use.replace('p2.', '')}`)
+      expect(v6.cols, v6.why).not.toBe(null)
+    })
+  }
+
+  it('a number read as a condition: the island computes the v5 script\'s picture on the run\'s own path', () => {
+    const use = 'plot(p2.cast(close))\nplot(p2.castvar(close))\nplot(p2.notcast(close, ta.sma(close, 5)))\n'
+    const inV6 = runtimeRun(`${V6}${imp}${use}`)
+    expect(inV6.b.ok, inV6.why).toBe(true)
+    expectSameColumns(inV6, runtimeRun(`${V5}${imp}${use}`))
+  })
+
+  // the columnar resolver over a v5 library's tokens: the same expression, stamped as island tokens and read by a v6
+  // resolver, equals a v5 resolver's reading, and differs from a v6 resolver's (non-vacuous)
+  const expressionTokens = (text, island) => lexPine(`${V6}x = ${text}\n`).tokens.filter((t) => t.line === 3).slice(2)
+    .map((t) => (island ? stampLibraryVersion({ ...t }, 5, 6) : t))
+  const resolved = (text, version, island) => {
+    const seen = []
+    const r = new Resolver(new Map(), TABLE, new Map(), { pineVersion: version, pineScript: true })
+    r.onCondition = (c) => seen.push(`${c.site}:${c.cast}:${c.version}`)
+    const col = Array.from(interpret(r.resolve(parseWholeExpression(expressionTokens(text, island))), BARS, {}))
+    return { col, seen }
+  }
+  for (const [name, text, family] of [
+    ['`== false` drawn as a value', '(close > ta.sma(close, 5)) == false', F.BOOL_NA],
+    ['`== false` read as a condition', '(close > ta.sma(close, 5)) == false ? 1 : 0', F.BOOL_NA],
+    ['`na()` of a comparison', 'na(close > ta.sma(close, 5)) ? 1 : 0', F.BOOL_NA],
+    ['a number read as a condition', '(ta.sma(close, 5) - 100.5) ? 1 : 0', F.IMPLICIT_CAST],
+  ]) {
+    it(`${family}, the columnar resolver: ${name} over island tokens is read as a v5 script reads it`, () => {
+      const island = resolved(text, 6, true)
+      const v5 = resolved(text, 5, false)
+      const v6 = resolved(text, 6, false)
+      expect(same(island.col, v5.col), `island ${island.col.slice(0, 8)} v5 ${v5.col.slice(0, 8)}`).toBe(true)
+      expect(same(v6.col, v5.col), 'v5 and v6 read it alike, so this rail cannot tell them apart').toBe(false)
+      expect(island.seen).toEqual(v5.seen)
+      if (family === F.IMPLICIT_CAST) expect(island.seen).toEqual(['ternary:true:5'])
+    })
+  }
+
+  for (const [name, use, phrase] of [
+    ['a `bool` array handed back', 'a = p2.flags(close)\nplot(array.size(a))\n', /a collection or record that can hold a `bool`/],
+    ['an element of a `bool` array', 'plot(p2.firstflag(close) ? 1 : 0)\n', /a value read from a collection that can hold a `bool`/],
+    ['a `bool` array the script shares with it', 'var b = array.new<bool>(0)\nplot(p2.fill(b, close))\n', /the `out` it shares with this script, a collection or record that can hold a `bool`/],
+    ['a record\'s `bool` field', 'plot(p2.flagfield(close) ? 1 : 0)\n', /a record field that can hold a `bool`/],
+  ]) {
+    it(`⛔ the boundary: ${name} is refused at the call by name (LV6); served in a v5 script`, () => {
+      const r = runtimeRun(`${V6}${imp}${use}`)
+      expect(r.cols, 'a v5 bool that can be na reached v6 code').toBe(null)
+      expect(r.b.refusal.guard).toBe(LIBRARY_VERSION)
+      expect(r.b.refusal.message).toMatch(phrase)
+      expect(r.b.refusal.message).toMatch(/\(LV6\)/)
+      const v5 = runtimeRun(`${V5}${imp}${use}`)
+      expect(v5.b.refusal && v5.b.refusal.guard, v5.why).not.toBe(LIBRARY_VERSION)
+    })
+  }
+  it('CONTROL: a `float` array the script shares with it crosses (no bool in it) and equals the v5 script', () => {
+    const use = 'var f = array.new<float>(0)\nplot(p2.floats(f, close))\nplot(array.size(f))\n'
     const r = runtimeRun(`${V6}${imp}${use}`)
     expect(r.b.ok, r.why).toBe(true)
     expectSameColumns(r, runtimeRun(`${V5}${imp}${use}`))
@@ -616,19 +820,22 @@ describe('⭐⭐ the version island at run time: a v5 library\'s collection op i
     expect(pasted.cols[0].some((x) => x === 1)).toBe(true)
   })
 
-  it('a bool map\'s missing key: the island stops BY ITS OWN NAME (never a value); the v5 script answers `na`, v6 stops by W6-K1', () => {
+  it('a bool map\'s missing key: the island answers `na` as the v5 script does (island PR 2: bool na is judged per token); v6 stops by W6-K1', () => {
     const use = 'plot(ir.boolkey(close))\n'
     const island = runStop(`${V6}${imp}${use}`)
-    expect(island.b.ok, island.why).toBe(true)
-    expect(island.cols, 'the island handed v6 rules a v5 na bool').toBe(null)
-    expect(island.stop.name).toBe('CollectionError')
-    expect(island.stop.message).toMatch(/belongs to a Pine v5 library's `map<string, bool>`: a v5 library's true\/false value that may be empty \(`na`\), read under this Pine v6 script's rules, isn't supported yet/)
-    expect(island.stop.bar, island.stop.message).toBe(7)
-    // CONTROL: the v5 script answers `na` there and runs on (its `?:` over that `na` is not known off the listing)
     const v5 = runStop(`${V5}${imp}${use}`)
+    // the v5 script answers `na` there and runs on (its `?:` over that `na` is not known off the listing)
     expect(v5.stop, v5.why || (v5.stop && v5.stop.message)).toBe(null)
     expect(v5.cols[0].slice(0, 7).every((x) => x === 0 || x === 1), String(v5.cols[0])).toBe(true)
     expect(v5.cols[0].slice(7).every((x) => Number.isNaN(x)), String(v5.cols[0])).toBe(true)
+    // ⚰️ island step 2 stopped here by its own name until the island read its bools under v5
+    expect(island.stop, island.why || (island.stop && island.stop.message)).toBe(null)
+    expect(island.cols).toEqual(v5.cols)
+    // ⛔ the `na` never leaves the island: the bool itself handed to v6 code is refused at the call (LV6)
+    const out = runStop(`${V6}${imp}plot(ir.boolkeyout(close) ? 1 : 0)\n`)
+    expect(out.cols).toBe(null)
+    expect(out.b.refusal.guard).toBe(LIBRARY_VERSION)
+    expect(out.b.refusal.message).toMatch(/hands this v6 script a value read from a collection that can hold a `bool`.*\(LV6\)/)
     // CONTROL: v6 rules over the same code stop by W6-K1, a different sentence
     const pasted = runStop(`${V6}${pastedLib}plot(boolkey(close))\n`)
     expect(pasted.cols).toBe(null)

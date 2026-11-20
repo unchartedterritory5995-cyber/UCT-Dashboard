@@ -34,7 +34,8 @@
 //   timeframe.period [Timeframes must include a multiplier] "D" vs "1D".
 //   color.red/teal/yellow [Color changes] the values changed.
 //   label.new       [Color changes] its default text colour changed (refused
-//                   unless the call names `textcolor`).
+//                   unless the call names `textcolor`); `box.new`'s fill and
+//                   text colour and `table.cell`'s text colour likewise.
 //   for             [Dynamic for loop boundaries] refused when the end bound
 //                   calls anything but a size read of a collection the loop does
 //                   not resize, or names a variable the loop body reassigns.
@@ -113,7 +114,8 @@ export function versionAt(tok, programVersion) {
 // lane's rules for it onto `versionAt`, with its rail: a v5 library in a v6 script computes what the same library
 // computes in a v5 script (`pineLibraryVersion.test.js`, "the version island, family by family"). A construct with
 // no family (`request.*`, `strategy.*`, `transp`/`offset`/`linewidth`, a repeated argument, a negative literal
-// index, history of a literal or a field, a const-int division, `label.new` without `textcolor`) stays refused on
+// index, history of a literal or a field, a const-int division, `label.new` without `textcolor`, `box.new` without
+// `bgcolor` / `text_color`, `table.cell` without `text_color`) stays refused on
 // every lane.
 export const ISLAND_FAMILY = Object.freeze({
   BOOL_NA: 'bool-na',
@@ -131,6 +133,10 @@ export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
   ISLAND_FAMILY.TOSTRING_LITERAL,
   ISLAND_FAMILY.FOR_BOUND,
   ISLAND_FAMILY.LAZY_AND_OR,
+  // ⭐⭐ island PR 2: a v5 bool can be `na`, and a number read as a condition is cast (both judged per token, the run's
+  // rules and the columnar resolver's); a v5 `na` bool never leaves the island unrefused (`islandNaBoolResult`, LV6)
+  ISLAND_FAMILY.BOOL_NA,
+  ISLAND_FAMILY.IMPLICIT_CAST,
 ])
 
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v
@@ -298,6 +304,19 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
         }
       }
     }
+    // ⭐ (libchain, 2026-11-20) a DECLARED type is never a bool operand: `int k = c ? 0 : na` is an int whatever its
+    // right side looks like, and so is a later `k := …` of a name this definition declares `int` / `color` / ….
+    // ⚰️ The pass below read the right side alone, so `c ? 0 : na` (a comparison in its condition) made `k` a bool
+    // and the import was refused as "`na` given to the bool `k`": an over-refusal. Only this definition's own
+    // declarations count (a name is local to the function that declares it); an untyped `k = <bool>` anywhere still
+    // makes `k` a bool, so a shadowing bool stays held.
+    const declaredNotBool = new Set()
+    for (let i = 0; i + 1 < toks.length; i += 1) {
+      const t = toks[i]
+      const n = toks[i + 1]
+      if (t.kind === 'ident' && !t.member && TYPE_WORDS.has(t.value) && t.value !== 'bool'
+        && n.kind === 'ident' && !n.member && !String(n.value).includes('.')) declaredNotBool.add(String(n.value))
+    }
     // untyped bindings: the right side says what they hold
     for (const line of logicalLines(toks, indents)) {
       const lt = line.toks
@@ -308,7 +327,11 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
       if (!name || name.includes('.') || target.member) continue
       const rhs = lt.slice(eqAt + 1)
       bindings.push({ name, rhs })
-      if (evidentlyBool(rhs, boolNames)) boolNames.add(name)
+      const before = lt[eqAt - 2]
+      const typed = lt[eqAt].value === ':='
+        ? declaredNotBool.has(name)
+        : !!before && before.kind === 'ident' && !before.member && TYPE_WORDS.has(before.value) && before.value !== 'bool'
+      if (!typed && mayBeBool(rhs, boolNames, numNames)) boolNames.add(name)
       else if (evidentlyNumber(rhs, numNames)) numNames.add(name)
     }
   }
@@ -365,6 +388,22 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
         const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
         if (!args.some((a, k) => isWord(a, 'textcolor') && isPunct(args[k + 1], '='))) {
           return hit(null, { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t })
+        }
+      }
+      // ⭐ (libchain, 2026-11-20) the other object defaults a v5 script draws differently from this engine's v6 base
+      // (`objectDefaults.js` VERSION_DEFAULTS[5], each from a v5 capture): a box's unset fill is opaque `color.blue` at
+      // v5 and 80% transparent at v6 (`box.new`'s reference default), its unset text and a table cell's are
+      // `color.black` at v5. ⚰️ Phase B held `label.new` alone, so a v5 library's `box.new` without `bgcolor` would
+      // have drawn v6's fill inside a v6 script. Held when the call does not NAME the argument (a positional one is
+      // not read here, so it is held too).
+      if ((v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {
+        const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
+        const named = (w) => args.some((a, k) => isWord(a, w) && isPunct(args[k + 1], '='))
+        const missing = (v === 'box.new' ? ['bgcolor', 'text_color'] : ['text_color']).find((w) => !named(w))
+        if (missing) {
+          return hit(null, { what: `\`${v}\` without \`${missing}\``, why: missing === 'bgcolor'
+            ? 'its default fill is opaque `color.blue` in v5 and 80% transparent in v6 (Color changes)'
+            : 'its default text colour is `color.black` in v5, which this engine does not draw for v6', tok: t })
         }
       }
       if ((v === 'transp' || v === 'offset' || v === 'linewidth') && !t.member && isPunct(next, '=') && (isPunct(prev, ',') || isPunct(prev, '('))) {
@@ -500,7 +539,7 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
         const boolOperand = (span) => {
           const u = unwrap(span)
           if (u.length === 1 && u[0].kind === 'ident' && !u[0].member && typedNotBool.has(String(u[0].value))) return false
-          return evidentlyBool(span, boolNames)
+          return mayBeBool(span, boolNames, numNames)
         }
         if (boolOperand(operand(i - 1, -1)) || boolOperand(operand(i + 1, 1))) {
           const r = hit(ISLAND_FAMILY.BOOL_NA, { what: `a bool compared with \`${lt[i].value}\``, why: 'na == false is na in v5, and a v6 bool is never na (Boolean values cannot be na)', tok: lt[i] })
@@ -643,10 +682,64 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
   return null
 }
 
-/** Is this span a bool by its own shape? */
+/** The two arms of a `?:` at the top of `s` (`[yes, no]`), or null when `s` is no `?:` at its top. A nested `?:` in
+ *  an arm opens its own `:`. */
+function ternaryArms(s) {
+  const q = topIndex(s, (t) => isPunct(t, '?'))
+  if (q < 0) return null
+  let open = 0
+  let d = 0
+  for (let i = q + 1; i < s.length; i += 1) {
+    const t = s[i]
+    if (t.kind === 'punct' && OPENERS.has(t.value)) { d += 1; continue }
+    if (t.kind === 'punct' && CLOSERS.has(t.value)) { d -= 1; continue }
+    if (d !== 0) continue
+    if (isPunct(t, '?')) open += 1
+    else if (isPunct(t, ':')) {
+      if (open === 0) return [s.slice(q + 1, i), s.slice(i + 1)]
+      open -= 1
+    }
+  }
+  return null
+}
+
+/** Is this span SHOWN to be no bool: a number, a string, or a colour? */
+function shownNotBool(span, numNames) {
+  const s = unwrap(span || [])
+  if (!s.length) return false
+  if (evidentlyNumber(s, numNames || new Set())) return true
+  if (s.length === 1 && (s[0].kind === 'string' || s[0].kind === 'colour')) return true
+  if (s.length === 1 && s[0].kind === 'ident' && !s[0].member && /^color\.[a-z]+$/.test(String(s[0].value))) return true
+  if (s[0].kind === 'ident' && !s[0].member && ['color.new', 'color.rgb', 'color.from_gradient'].includes(String(s[0].value))
+    && isPunct(s[1], '(') && closeOf(s, 1) === s.length) return true
+  const arms = ternaryArms(s)
+  return !!arms && arms.every((a) => shownNotBool(a, numNames) || (unwrap(a).length === 1 && isWord(unwrap(a)[0], 'na')))
+    && arms.some((a) => shownNotBool(a, numNames))
+}
+
+/** ⭐ (libchain, 2026-11-20) May this span hold a bool? The CONSERVATIVE reading for a binding and for an operand of
+ *  `==` / `!=`, where calling it a bool holds the import: a `?:` holds what its arms hold, never its condition, so it
+ *  is a bool unless an arm is SHOWN to be no bool (`c ? 0 : na` is a number, `c ? color.red : color.blue` a colour);
+ *  an arm this cannot type keeps it a bool. ⚰️ The binding pass read `evidentlyBool`, which took the comparison in a
+ *  `?:`'s CONDITION for its value: `k = x > 1 ? 0 : na` made `k` a bool, and the import was refused as "`na` given to
+ *  the bool `k`". */
+function mayBeBool(span, boolNames, numNames) {
+  const s = unwrap(span || [])
+  const arms = ternaryArms(s)
+  if (!arms) return evidentlyBool(s, boolNames)
+  return !arms.some((a) => shownNotBool(a, numNames))
+}
+
+/** Is this span a bool by its own shape? A `?:` is one only when BOTH arms are (the reading for a condition, where
+ *  calling it a bool lets the import through). */
 function evidentlyBool(span, boolNames) {
   const s = unwrap(span || [])
   if (!s.length) return false
+  // ⭐ (libchain, 2026-11-20) a `?:` holds its arms, not its condition: `x > 1 ? x : 0` is no bool, read as a
+  // condition it is a number cast to a bool (v5) that v6 refuses. ⚰️ The scan below found the comparison in the
+  // condition and answered "a bool".
+  const arms = ternaryArms(s)
+  if (arms) return arms.every((a) => evidentlyBool(a, boolNames))
   let d = 0
   for (let i = 0; i < s.length; i += 1) {
     const t = s[i]

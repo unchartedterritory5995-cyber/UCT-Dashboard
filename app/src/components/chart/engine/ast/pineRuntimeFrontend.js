@@ -2552,6 +2552,68 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  hold `na`. A number, a string or a colour is no bool and crosses unchanged. Each element of a tuple is asked. */
   const ISLAND_BOOL_BUILTINS = new Set(['crossover', 'crossunder', 'cross', 'rising', 'falling',
     'ta.crossover', 'ta.crossunder', 'ta.cross', 'ta.rising', 'ta.falling'])
+  /** ⭐⭐ (island PR 2, bool na judged per token) do these type words hold a `bool` anywhere (the word itself, a
+   *  record's fields, transitively; a cycle through `seen` answers no for the repeat)? */
+  const typeWordsHoldBool = (name, args, seen = new Set()) => {
+    for (const part of [name, ...(Array.isArray(args) ? args : [])]) {
+      for (const w of String(part == null ? '' : part).split(/[^\w.]+/)) {
+        if (w === 'bool') return true
+        if (udtTypes.has(w) && !seen.has(w)) {
+          seen.add(w)
+          if ((udtTypes.get(w).fields || []).some((f) => typeWordsHoldBool(f.type, f.typeArgs, seen))) return true
+        }
+      }
+    }
+    return false
+  }
+  /** Can a value of this collection or record type hold a `bool` (its elements, its fields)? A record type this lane
+   *  does not know may. ⚠️ A collection whose element type this lane never inferred (`array.from(1.0, x)`) is read as
+   *  holding none: refusing those would refuse every untyped float array a library hands back. */
+  const refTyHoldsBool = (ty, d = 0) => {
+    if (!ty) return false
+    if (d > 16) return true
+    if (ty.kind === 'bool') return true
+    if (isCollectionTy(ty)) return refTyHoldsBool(elemTy(ty), d + 1)
+    const u = udtNameOf(ty)
+    return u ? (!udtTypes.has(u) || typeWordsHoldBool(u, null)) : false
+  }
+  const isRefTy = (ty) => !!ty && (isCollectionTy(ty) || !!udtNameOf(ty))
+  /** The element type word a collection slot was CREATED with (`map.new<string, bool>()`'s `bool`, `array.new<T>`,
+   *  `array.new_bool`), read off its creating statement in any function, or null. A slot bound without a written type
+   *  (`m = map.new<string, bool>()`) carries no element type of its own; its creating call does (`typeArg`). */
+  const createdElemWordOf = (slot) => {
+    let word = null
+    const visit = (n, d = 0) => {
+      if (word !== null || !n || typeof n !== 'object' || d > 64 || ArrayBuffer.isView(n)) return
+      if (Array.isArray(n)) { for (const x of n) visit(x, d + 1); return }
+      if ((n.kind === STMT.DECLARE || n.kind === STMT.ASSIGN) && n.slot === slot && n.value && n.value.kind === EXPR.ARRAY) {
+        const m = /^(array|matrix|map)\.new(?:_([a-z]+))?$/.exec(String(n.value.fn))
+        if (m) { const parts = String(n.value.typeArg || m[2] || '').split(','); word = parts[parts.length - 1].trim() || null; return }
+      }
+      for (const x of Object.values(n)) if (x && typeof x === 'object') visit(x, d + 1)
+    }
+    for (const f of functions) { visit(f && f.body); if (word !== null) break }
+    return word
+  }
+  /** Can the collection or record a slot holds hold a `bool`? */
+  const slotHoldsBool = (slot) => {
+    const ty = slotTy(slot)
+    if (isCollectionTy(ty) && !elemTy(ty)) { const w = createdElemWordOf(slot); return w ? typeWordsHoldBool(w, null) : false }
+    return refTyHoldsBool(ty)
+  }
+  /** The record type a lowered expression reads (a record slot, or a record field of one), or null. */
+  const recordTypeOf = (x, d = 0) => {
+    if (!x || d > 16) return null
+    if (x.kind === EXPR.READ) return udtNameOf(slotTy(x.slot))
+    if (x.kind === EXPR.FIELD) { const f = recordFieldOf(x, d + 1); return f && udtTypes.has(f.type) ? f.type : null }
+    return null
+  }
+  const recordFieldOf = (x, d = 0) => {
+    const u = recordTypeOf(x.of, d + 1)
+    return u && udtTypes.has(u) ? ((udtTypes.get(u).fields || []).find((f) => f.name === x.name) || null) : null
+  }
+  /** The collection calls that hand back an element or a collection of them (never a count or an index). */
+  const COLLECTION_HANDS_ELEMENTS = /\.(get|first|last|pop|shift|remove|max|min|median|mode|values|keys|copy|slice|concat|row|col|submatrix)$/
   const islandNaBoolResult = (e, d = 0, seen = new Set()) => {
     if (!e || typeof e !== 'object' || d > 64) return null
     const CMP = ['<', '>', '<=', '>=', '==', '!=']
@@ -2560,7 +2622,24 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     const boolSlot = (x) => !!x && x.kind === EXPR.READ && (slotTy(x.slot) || {}).kind === 'bool'
     switch (e.kind) {
       case EXPR.BINARY: return CMP.includes(e.op) && !(known(e.left) && known(e.right)) ? 'a comparison' : null
+      // ⭐⭐ (island PR 2) a v5 library's bool can be `na` on its own lane now (bool na is judged per token), so one
+      // held in a collection or a record crosses too: the collection or record handed back, an element read out of
+      // one, a record's `bool` field. (A count, an index or a size is no bool.)
+      case EXPR.ARRAY: {
+        if (!COLLECTION_HANDS_ELEMENTS.test(String(e.fn))) return null
+        const recv = Array.isArray(e.args) ? e.args[0] : null
+        const ty = recv && recv.kind === EXPR.READ ? slotTy(recv.slot) : null
+        const fld = recv && recv.kind === EXPR.FIELD ? recordFieldOf(recv) : null
+        // a receiver this lane cannot type at all may hold one
+        const holds = isRefTy(ty) ? slotHoldsBool(recv.slot) : fld ? typeWordsHoldBool(fld.type, fld.typeArgs) : true
+        return holds ? 'a value read from a collection that can hold a `bool`' : null
+      }
+      case EXPR.FIELD: {
+        const f = recordFieldOf(e)
+        return !f || typeWordsHoldBool(f.type, f.typeArgs) ? 'a record field that can hold a `bool`' : null
+      }
       case EXPR.READ:
+        if (isRefTy(slotTy(e.slot))) return slotHoldsBool(e.slot) ? 'a collection or record that can hold a `bool`' : null
         return boolSlot(e) && !(slots[e.slot] && neverNaBoolNames.has(slots[e.slot].name)) ? 'a `bool` variable' : null
       case EXPR.HIST: return islandNaBoolResult(e.of, d + 1, seen) || (boolSlot(e.of) ? 'the history of a `bool`' : null)
       case EXPR.TERNARY: return islandNaBoolResult(e.then, d + 1, seen) || islandNaBoolResult(e.else, d + 1, seen)
@@ -2579,8 +2658,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       default: return null
     }
   }
-  const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null) => {
-    const v = pineVersion === null ? 1 : pineVersion
+  // ⭐⭐ the version island (bool na): the operator a v5 library writes inside a v6 script is judged under v5
+  // (`versionAt` at its token, `tok`), so its `na` bool is asked as a v5 script's is
+  const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null, tok = null) => {
+    const atVersion = versionAt(tok, pineVersion)
+    const v = atVersion === null ? 1 : atVersion
     if (!(v <= 5)) return
     if (op !== '==' && op !== '!=') return
     const known = (x) => !!x && ((x.kind === EXPR.NUM && Number.isFinite(x.value))
@@ -2615,7 +2697,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       .filter(([side, other]) => !neverNaBool(side) && (mayBeNaBool(side) || pineLit(other)))
       .map(([side]) => side)
     if (!sides.length) return
-    return { sides, at, message: `\`${op}\` over a comparison that can be \`na\` (Pine v${v === 1 && pineVersion === null ? '1, no //@version' : v})` }
+    return { sides, at, message: `\`${op}\` over a comparison that can be \`na\` (Pine v${v === 1 && atVersion === null ? '1, no //@version' : v})` }
   }
   /** The `== true / false` sites `boolNaOnThisLane` deferred, each with its lowered node. */
   const boolNaDeferred = []
@@ -2637,7 +2719,6 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  discarded leaves its site behind). */
   const boolNaFaithfulness = (mainStatements) => {
     if (!boolNaDeferred.length && !boolNaReads.length) return null
-    const v = pineVersion === null ? 1 : pineVersion
     const STMT_KINDS = new Set(Object.values(STMT))
     const writes = new Map()
     const opaque = new Set()
@@ -2805,7 +2886,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       if (!reached.has(site.node)) continue
       if (boolish(site.x) && !keeps(site.x, keepsSlot, neverSlot)) {
         return new RuntimeRefusal(BOOL_NA_UNWITNESSED,
-          `\`na()\` of a \`bool\` that can be \`na\` (Pine v${v === 1 && pineVersion === null ? '1, no //@version' : v}): this lane holds its \`na\` as false`, site.at)
+          `\`na()\` of a \`bool\` that can be \`na\` (Pine v${site.version === null ? '1, no //@version' : site.version}): this lane holds its \`na\` as false`, site.at)
       }
     }
     return null
@@ -9735,7 +9816,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           const fold = a !== null && b !== null ? constCompareFold(op, a, b, pineVersion) : null
           if (fold !== null) return num(fold)
         }
-        const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right)
+        const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right, node.tok)
         const lowered = binary(op, loweredL, loweredR)
         // ⭐⭐ the version island: a v5 library's `and` / `or` inside a v6 program evaluates both sides on every bar
         // (`lowerIr.js` reads `eager`; every other node keeps its exact shape)
@@ -9747,7 +9828,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         if (node.op === '-') return unary('u-', lowerExpr(node.arg, scope))
         if (node.op === 'not') {
           const loweredArg = lowerExpr(node.arg, scope)
-          boolNaOnThisLane('not', loweredArg, null, locate(node.tok))
+          boolNaOnThisLane('not', loweredArg, null, locate(node.tok), null, null, node.tok)
           return unary('!', loweredArg)
         }
         throw new RuntimeRefusal('runtime:operator', `unary \`${node.op}\``, locate(node.tok))
@@ -10467,7 +10548,12 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           // capture row LV6 settles it (`docs/pine/capture-queue-2026-11-19-library-version-island.md`).
           const calleeVersion = islandFnVersion.get(fnIndex)
           if (calleeVersion !== undefined && versionAt(node.tok, pineVersion) !== calleeVersion) {
-            const why = islandNaBoolResult(fn.result)
+            // ⭐⭐ (island PR 2) …and a collection or record the script SHARES with it (a parameter): the v5 function
+            // can leave an `na` bool in it, which this script then reads
+            const shared = slots.findIndex((sl) => !!sl && sl.owner === fnIndex && Number.isInteger(sl.index)
+              && sl.index < fn.params && isRefTy(sl.ty) && slotHoldsBool(slots.indexOf(sl)))
+            const why = islandNaBoolResult(fn.result) || (shared >= 0
+              ? `the \`${slots[shared].name}\` it shares with this script, a collection or record that can hold a \`bool\`` : null)
             if (why) {
               note(LIBRARY_VERSION)
               throw new RuntimeRefusal(LIBRARY_VERSION, `\`${node.name}\` is a Pine v${calleeVersion} `
@@ -10790,8 +10876,10 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           // ⭐ ENGINE 56 (s18) — `na(b)` of a v1-v5 `bool` is true where `b` is `na`; the VM holds a
           // comparison over `na` as 0, so the site is asked over the whole program
           // (`boolNaFaithfulness`) and declines by name where the VM lost that `na`
-          if (pw.table === 'na' && (pineVersion === null || pineVersion <= 5)) {
-            boolNaReads.push({ node: builtNode, x: args[0], at: locate(node.tok) })
+          // ⭐⭐ the version island: `na()` a v5 library writes inside a v6 script is a v5 script's (`versionAt`)
+          const naVersion = versionAt(node.tok, pineVersion)
+          if (pw.table === 'na' && (naVersion === null || naVersion <= 5)) {
+            boolNaReads.push({ node: builtNode, x: args[0], at: locate(node.tok), version: naVersion })
           }
           return builtNode
         }
@@ -13131,8 +13219,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   }
   // ⛔⛔ Q-A3 capture gate: flip to true ONLY once the capture MATCHes (unmatched v6 bool block = false)
   const V6_BOOL_UNMATCHED_CAPTURED = false
-  const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
-    if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return false
+  // ⭐⭐ the version island (bool na): a block a v5 library writes inside a v6 script is a v5 block (`versionAt` at
+  // `tok`, its first token): unmatched, its bool is `na` there, lowered as a v5 script's is
+  const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what, tok = null) => {
+    const blockVersion = versionAt(tok, pineVersion)
+    if (!(mkArm && mkArm.valued) || blockVersion === null || blockVersion < 6) return false
     // ⭐ W34-I6b (item 1) — THE VALUE IS NEVER READ. The block is the tail of a function every
     // call site of which is a statement (`statementOnlyFn`): Pine discards the value, so `false`
     // and `na` cannot be told apart and no type is needed. Lowered as it stands (`na` seed).
@@ -13204,7 +13295,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     let falseElse = false
     if (!finalElse) {
       falseElse = refuseV6UnmatchedBool(mkArm, arms.flatMap((a) => armValueCands(a.from.sub)), locate(list[at].header[0]),
-        'an `if` with no `else`')
+        'an `if` with no `else`', list[at].header[0])
     }
     let chain = finalElse ? inR4Region(allInv, () => mkArm(finalElse.sub, finalElse.header[0]))
       : (falseElse ? mkArm.falseFallback() : [])
@@ -13440,7 +13531,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         // header off the object door (W34-I6a, `wrappedArmOf`); at the door the arm lowering
         // above refuses it first — "ends in a block")
         return rhs.length ? [rhs] : armValueCands(arm.sub)
-      }), locate(atTok), 'a `switch` with no default')) fallback = mkArm.falseFallback()
+      }), locate(atTok), 'a `switch` with no default', atTok)) fallback = mkArm.falseFallback()
     }
     let chain = fallback || []
     for (let k = cases.length - 1; k >= 0; k -= 1) {
