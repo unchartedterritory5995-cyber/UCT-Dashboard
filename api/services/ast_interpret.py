@@ -6078,14 +6078,20 @@ def _starts_disagree(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
     site, ``{id(node): (node, unknown bars)}``, read as its column with those bars NaN), bit-equal, NaN equal to NaN."""
     n = len(bars)
     base = dict(opts or {}, chartClockSink=None, withheldBarsSink=None)
-    a = _to_column(_interpret_column(tree, bars, inputs, budget, scalars, base), n)
     override: Dict[int, List[float]] = {}
+    moved = False
     for key, (node, unknown) in sites.items():
         col = list(_to_column(_interpret_column(node, bars, inputs, budget, scalars, base), n))
         for i in range(n):
             if unknown[i]:
+                if not _isnan(col[i]):
+                    moved = True
                 col[i] = math.nan
         override[key] = col
+    # a start that moves no value is start A (a bar already NaN starts nothing later): B is not run
+    if not moved:
+        return None
+    a = _to_column(_interpret_column(tree, bars, inputs, budget, scalars, base), n)
     b = _to_column(_interpret_column(tree, bars, inputs, budget, scalars, dict(base, siteOverride=override)), n)
     out = None
     for i in range(n):

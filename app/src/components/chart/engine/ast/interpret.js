@@ -8114,14 +8114,40 @@ function startsDisagree(tree, bars, inputs, budget, scalars, opts, sites, seed =
   const base = witnessOpts(opts)
   // start A reads the caller's memo for these bars when it has one (a copy: its columns are A's own)
   const memo = seed instanceof Map ? seed : new Map()
-  const a = toColumn(interpretOnce(tree, bars, inputs, budget, scalars, { ...base, crossMemo: memo }), n)
   const override = new Map()
+  let moved = false
   for (const [node, unknown] of sites) {
     const col = Float64Array.from(toColumn(interpretOnce(node, bars, inputs, budget, scalars, { ...base, crossMemo: memo }), n))
-    for (let i = 0; i < n; i++) if (unknown[i]) col[i] = NaN
+    for (let i = 0; i < n; i++) {
+      if (!unknown[i]) continue
+      if (col[i] === col[i]) moved = true
+      col[i] = NaN
+    }
     override.set(node, col)
   }
-  const b = toColumn(interpretOnce(tree, bars, inputs, budget, scalars, { ...base, siteOverride: override }), n)
+  // ⭐ a start that moves no value is start A: a bar already `NaN` starts nothing later (a read before the chart,
+  // a running value's own body), so B is not run
+  if (!moved) return null
+  const a = toColumn(interpretOnce(tree, bars, inputs, budget, scalars, { ...base, crossMemo: memo }), n)
+  // ⭐ B reads A's own column for every node that holds no overridden node (it is the same column), and evaluates the
+  // nodes above an overridden one: the running value and what reads it
+  const holds = new Map()
+  const stack = [[tree, false]]
+  while (stack.length) {
+    const [node, done] = stack.pop()
+    if (!node || typeof node !== 'object' || (holds.has(node) && !done)) continue
+    const args = Array.isArray(node.args) ? node.args : []
+    if (!done) {
+      holds.set(node, false)
+      stack.push([node, true])
+      for (const a2 of args) if (a2 && typeof a2 === 'object' && !holds.has(a2)) stack.push([a2, false])
+      continue
+    }
+    holds.set(node, override.has(node) || args.some((a2) => holds.get(a2) === true))
+  }
+  const bMemo = new Map()
+  for (const [k, v] of memo) if (!(k && typeof k === 'object' && holds.get(k) === true)) bMemo.set(k, v)
+  const b = toColumn(interpretOnce(tree, bars, inputs, budget, scalars, { ...base, siteOverride: override, crossMemo: bMemo }), n)
   let out = null
   for (let i = 0; i < n; i++) {
     if (!listingSame(a[i], b[i])) { if (!out) out = new Float64Array(n); out[i] = 1 }
