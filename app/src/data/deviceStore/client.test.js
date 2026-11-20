@@ -99,4 +99,36 @@ describe('device client', () => {
     w.onerror()                                                // ... until the worker errors
     expect(await p).toBeNull()
   })
+  it('the synchronous cache expires (today moves every minute): past the TTL the worker is asked again', async () => {
+    const w = workerOver(await disk())
+    let t = 1_000_000
+    const c = createDeviceClient({ makeWorker: () => w, afterPaint: () => {}, now: () => t, cacheTtlMs: 60_000 })
+    await c.getBars('AAA', 'D')
+    t += 59_000
+    expect(c.peekBars('AAA', 'D')).not.toBeNull()
+    t += 2_000
+    expect(c.peekBars('AAA', 'D')).toBeNull()
+    await c.getBars('AAA', 'D')
+    expect(w.posted.filter((m) => m.op === 'read')).toHaveLength(2)
+  })
+
+  it("after the first chart paint the leader is asked to follow today, and hears this page's visibility", async () => {
+    const w = workerOver(await disk())
+    let vis = true
+    let onChange = null
+    const ticks = []
+    const c = createDeviceClient({
+      makeWorker: () => w, afterPaint: (fn) => fn(), idle: (fn) => fn(), manifestUrl: () => 'https://x.test/m.json',
+      visible: () => vis, onVisibilityChange: (cb) => { onChange = cb }, setIntervalFn: (fn) => { ticks.push(fn) },
+    })
+    c.start()
+    const live = () => w.posted.filter((m) => m.op === 'live').map((m) => m.visible)
+    expect(live()).toEqual([true])
+    vis = false; onChange()
+    expect(live()).toEqual([true, false])
+    ticks.forEach((fn) => fn())                                           // hidden: the heartbeat says nothing
+    expect(live()).toEqual([true, false])
+    vis = true; ticks.forEach((fn) => fn())
+    expect(live()).toEqual([true, false, true])
+  })
 })

@@ -29,6 +29,7 @@
 import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError } from './codec'
 import { createSha256 } from './sha256'
 import { deriveFromDaily } from './resample'
+import { isoOfYmd } from './live'
 
 import { STORED_TFS, DERIVED_TFS } from './tfs'
 
@@ -61,6 +62,10 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
   if (!io) throw new Error('device engine: no io')
   /** tf → { gen, build, handle, index, bytes, scratch, bad } */
   const live = new Map()
+  /** live.js overlay of today's bars (attachLive), or null */
+  let overlay = null
+  /** every symbol any held timeframe file names (the overlay keeps only these), rebuilt lazily */
+  let names = null
   const inflight = new Map()   // tf → ingest promise
   let opening = null
 
@@ -118,6 +123,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     return parseTrailer(tb, dataEnd, { tf })
   }
   function _install(tf, entry) {
+    names = null
     const old = live.get(tf)
     live.set(tf, { ...entry, scratch: new Uint8Array(4096), bad: 0 })
     if (old && old.handle !== entry.handle) { try { old.handle.close() } catch { /* gone */ } }
@@ -127,6 +133,31 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     for (const name of [okName(tf, gen), progName(tf, gen), packName(tf, gen)]) {
       try { await io.remove(name) } catch { /* busy or gone: the next ingest retries */ }
     }
+  }
+  /** The key `sym` is held under in L ('BRK-B' or its 'BRK.B' spelling), or null. */
+  function _rowName(L, sym) {
+    const S = sym.toUpperCase()
+    if (L.index.row.has(S)) return S
+    if (S.includes('-') && L.index.row.has(S.replace(/-/g, '.'))) return S.replace(/-/g, '.')
+    if (S.includes('.') && L.index.row.has(S.replace(/\./g, '-'))) return S.replace(/\./g, '-')
+    return null
+  }
+  /** The seed's columns followed by the overlay's bars that are newer than its last one. */
+  function _append(seed, add) {
+    const last = seed.t.length ? seed.t[seed.t.length - 1] : -Infinity
+    let k = 0
+    while (k < add.t.length && add.t[k] <= last) k++
+    const m = add.t.length - k
+    if (!m) return seed
+    const n = seed.t.length
+    const out = {}
+    for (const c of ['t', 'o', 'h', 'l', 'c', 'v']) {
+      const a = new Float64Array(n + m)
+      a.set(seed[c], 0)
+      a.set(add[c].subarray(k), n)
+      out[c] = a
+    }
+    return out
   }
   function _decodeRow(L, i) {
     const len = L.index.len[i]
@@ -173,12 +204,28 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       if (from) return deriveFromDaily(api.read(sym, from), tf)
       const L = live.get(String(tf))
       if (!L || typeof sym !== 'string') return null
+      const S = _rowName(L, sym)
+      if (S == null) return null
+      const i = L.index.row.get(S)
+      let seed
+      try { seed = _decodeRow(L, i) } catch { L.bad++; return null }
+      if (!seed || !overlay) return seed
+      // TODAY, to the last closed minute (live.js): appended only where the overlay vouches for every
+      // bar and continues this symbol's window across exactly one night.
+      const add = overlay.read(S, String(tf), isoOfYmd(L.index.asof[i]))
+      return add ? _append(seed, add) : seed
+    },
+
+    /** Attach (or detach, null) today's overlay (live.js), read by every read() after this. */
+    attachLive(o) { overlay = o || null },
+    /** The name a held file uses for `sym` ('BRK-B' or 'BRK.B' spelling), or null when none holds it. */
+    seedName(sym) {
+      if (!names) { names = new Set(); for (const L of live.values()) for (const k of L.index.row.keys()) names.add(k) }
+      if (typeof sym !== 'string') return null
       const S = sym.toUpperCase()
-      let i = L.index.row.get(S)
-      if (i == null && S.includes('-')) i = L.index.row.get(S.replace(/-/g, '.'))
-      if (i == null && S.includes('.')) i = L.index.row.get(S.replace(/\./g, '-'))
-      if (i == null) return null
-      try { return _decodeRow(L, i) } catch { L.bad++; return null }
+      if (names.has(S)) return S
+      const a = S.includes('.') ? S.replace(/\./g, '-') : (S.includes('-') ? S.replace(/-/g, '.') : null)
+      return a && names.has(a) ? a : null
     },
 
     has(sym, tf) {

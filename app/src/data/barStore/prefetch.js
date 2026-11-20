@@ -596,6 +596,26 @@ export function createPrefetch(o = {}) {
     return s?.restSeen && !s.error ? !!(await S().deepJoined?.(key, ms)) : false
   }
 
+  /**
+   * ⭐ A CURRENT DEVICE COPY IS A WHOLE FIRST PAINT (data/deviceStore, behind 'uct.deviceStore'). The
+   * seed holds each timeframe's newest window (1m 600, 5m-30m 300, 60m 1000, D 350 bars) and its live
+   * overlay carries today to the last closed minute: more than the chart's default view and an
+   * indicator's warm-up. So when the key holds the device's copy (no server answer yet) and the
+   * store's status says it is current enough to paint (HANDOFF_PAINTS), the switch paints it at once
+   * instead of waiting for the lake's or the daily history's deep join; the depth joins behind the
+   * view, and the server's answer joins or replaces the rows under the reducer's rules.
+   * ⛔ Not on an EXTENDED view of a key both sessions share (1/5/15/30): the seed is the regular-session
+   * view, and the server's answer would add the pre/post-market bars after the paint (a visible change).
+   */
+  function devicePaints(sym, tf, { showExtended } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const p = key ? parseKey(key) : null
+    if (!p) return false
+    if (isIntradayTf(p.tf) && p.session == null && extOf(showExtended)) return false
+    const s = S().peek(key)
+    return !!s && s.source === 'device' && !s.restSeen && HANDOFF_PAINTS.includes(s.status)
+  }
+
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
    *  The handoff paints a held key at once only when it is not: otherwise it prepares, and the
    *  prepare waits for the join (bounded) so the first paint is the whole chart. */
@@ -1086,7 +1106,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1109,6 +1129,7 @@ export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, o
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
+export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

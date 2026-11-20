@@ -851,22 +851,12 @@ const AWAITING_A_DECISION = {
   'app/src/components/chart/engine/pineDataCatalog.js':
     'Pine data families (S4-0): read by the S4 data supply when it lands; reached today only by '
     + 'pineDataCatalog.test.js.',
-  // ── UNIVERSE MINUTE FRAMES — LAZY CONSUMER, WIRED BY THE DEVICE STORE (2026-11-20) ──────────
-  // The browser half of the universe minute frames (api/services/minute_frame_publisher.py, served
-  // by edge/bars-edge-router/live1m.js): decoder, rollup, poller and the reference sink. Its consumer
-  // is the on-device bar store (branch feat/device-bar-store), whose append API it feeds; until that
-  // lands no route reaches it, ON PURPOSE: first-open bytes stay unchanged, and `index.js` is a
-  // dynamic-import loader only. The commit that wires `loadMinuteFrames()` removes this block.
-  'app/src/lib/minuteFrames/index.js':
-    'Lazy loader for the minute-frame consumer; imported by the device store when it lands.',
-  'app/src/lib/minuteFrames/consumer.js':
-    'Minute-frame poller (catch-up, gaps); loaded by index.js on demand. Same wiring, same expiry.',
-  'app/src/lib/minuteFrames/codec.js':
-    'Minute-frame decoder (twin of api/services/minute_frames.py). Same wiring, same expiry.',
-  'app/src/lib/minuteFrames/rollup.js':
-    '1m -> 5/15/30/60/60e/D rollup on the chart bucket helpers. Same wiring, same expiry.',
+  // ── UNIVERSE MINUTE FRAMES — THE REFERENCE SINK (2026-11-20) ────────────────────────────────
+  // The consumer, decoder and rollup are WIRED (2026-11-21): the device store's leader worker loads
+  // them through `loadMinuteFrames()` (data/deviceStore/liveFeed.js), and its own sink is
+  // data/deviceStore/live.js. The in-memory reference sink stays a contract for the rollup's tests.
   'app/src/lib/minuteFrames/memorySink.js':
-    'Reference in-memory sink (the contract the device store implements). Same wiring, same expiry.',
+    'Reference in-memory sink of the rollup contract; data/deviceStore/live.js is the sink the app runs.',
   }
 
 /**
@@ -925,7 +915,7 @@ const PARKING_EXPIRES = {
   'SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17)': '2026-11-30',
   'TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17)': '2026-12-31',
   'PINE DATA CATALOG — S4-0, READ BY THE DATA SUPPLY (2026-11-19)': '2026-12-31',
-  'UNIVERSE MINUTE FRAMES — LAZY CONSUMER, WIRED BY THE DEVICE STORE (2026-11-20)': '2026-12-31',
+  'UNIVERSE MINUTE FRAMES — THE REFERENCE SINK (2026-11-20)': '2026-12-31',
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch
