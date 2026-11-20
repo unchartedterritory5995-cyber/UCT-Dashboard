@@ -577,6 +577,9 @@ def test_rule_five_follows_the_reference(monkeypatch):
     assert pa.waits_for_the_bar('//@version=5\nindicator("p")\nplot(barstate.islast ? close : na)\n', ref) is False
     ref["historyOnly"] = ["request-other"]                                # one with no words: nothing is said for it
     assert _rule_five(ref) == relaxed
+    # ... in the RULE. The FACT about a script covers every finished-bars-only capability, worded or not.
+    assert pa.waits_for_the_bar('//@version=5\nindicator("p")\nplot(request.security(syminfo.tickerid, "W", close))\n', ref) is True
+    assert pa.waits_for_the_bar('//@version=5\nindicator("p")\nplot(barstate.islast ? close : na)\n', ref) is False
 
 
 def test_no_script_the_assistant_is_shown_waits_for_the_bar_unless_it_says_so():
@@ -608,12 +611,17 @@ def test_no_script_the_assistant_is_shown_waits_for_the_bar_unless_it_says_so():
     assert pa.LAST_BAR_RECIPE_LINE not in pa.recipes_text([by_id["fibonacci-swings"]])
 
 
-def test_ucts_line_about_the_bar_is_never_cut_and_never_said_twice():
-    line = pa.FINISHED_BARS_LINE
-    assert pa.said_with_the_bar("A table.", False) == "A table."
-    assert pa.said_with_the_bar("A table.", True) == "A table. " + line
-    assert pa.said_with_the_bar("A table. " + line, True) == "A table. " + line
-    long = pa.said_with_the_bar("x" * 2000, True)
-    assert len(long) <= pa.REPLY_MAX_CHARS and long.endswith(line)
-    both = pa.said_with_the_bar(pa.said_with_disclosure("x" * 2000, None), True)
-    assert len(both) <= pa.REPLY_MAX_CHARS and pa.UNCHECKED_LINE in both and both.endswith(line)
+def test_the_sentence_about_the_bar_is_the_windows_and_word_for_word_this_one():
+    """The server sends the FACT (`script.waits_for_the_bar`); the window, which knows the lane that draws the
+    script, says the sentence. One wording, held across the two languages."""
+    here = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart" / "builder" / "authoring"
+    js = (here / "scriptAnswer.js").read_text(encoding="utf-8")
+    said = re.search(r'export const WAITS_ON_A_LIVE_CHART_LINE = "([^"]+)"', js)
+    assert said and said.group(1) == pa.FINISHED_BARS_LINE
+    assert not hasattr(pa, "said_with_the_bar"), "the server writes this sentence again: it cannot know the lane"
+    # and the window keeps the fact the server sends
+    client = (here / "converseClient.js").read_text(encoding="utf-8")
+    assert "s.waits_for_the_bar === true ? { waitsForTheBar: true }" in client
+    # with the reply whole again, the disclosure is never cut by it
+    long = pa.said_with_disclosure("x" * 2000, None)
+    assert len(long) <= pa.REPLY_MAX_CHARS and long.endswith(pa.UNCHECKED_LINE)

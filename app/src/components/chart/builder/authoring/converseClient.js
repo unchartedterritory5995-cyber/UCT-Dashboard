@@ -254,6 +254,9 @@ export function scriptOf(body) {
     pine: s.pine,
     name: typeof s.name === 'string' ? s.name.slice(0, SCRIPT_LIMITS.maxName) : '',
     round: Number.isInteger(s.round) && s.round >= 0 ? s.round : 0,
+    // (only when true: the server's detector says this script reads where the chart ends. What that means on
+    // this chart depends on the lane that draws it, which only the window knows: `scriptAnswer.scriptEntry`)
+    ...(s.waits_for_the_bar === true ? { waitsForTheBar: true } : {}),
   } }
 }
 

@@ -10,16 +10,14 @@
 // admission.py` (A8) holds the same ids to the committed runtime-on verdicts.
 
 import { describe, it, expect, vi, beforeAll } from 'vitest'
+import { asMember } from '../../../../../testing/runtimeGate'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 import { loadCapture, gradeCapture, REPO } from './harness'
 import { fixturePath, itNeedsHeld } from '../../ast/__tests__/licenceHeld'
 import { __permitRuntimePaneForTests, runtimePaneEnabled } from '../../runtimePaneGate'
-import {
-  __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission,
-  setRuntimeCapabilityAdmission, latchRuntimeAdmission, runtimeSourceHash,
-} from '../../runtimeKill'
+import { __allowEveryRuntimeScriptForTests, latchRuntimeAdmission, runtimeSourceHash } from '../../runtimeKill'
 import { memberPaneDefinition, __forceRuntimeLaneForTests } from '../../../builder/memberPane/memberPaneDefinition'
 import { strategyBrokerFlag } from './strategyLane'
 import { heldHolds, heldPinsOf, heldReading } from './storeHeld.js'
@@ -165,12 +163,14 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // (named); MATCH -> DIVERGE: none (docs/pine/evidence/2026-11-18-admit-obj-linefill/EVIDENCE.md section 7).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
-  beforeAll(() => {
-    __permitRuntimePaneForTests()
-    __resetRuntimeAllowList()
-    __resetRuntimeAdmission()
-    setRuntimeCapabilityAdmission(true)
-  })
+  // ⭐⭐ THE MEMBER'S DOOR, EXACTLY (GATE-BLIND follow-up (a), 2026-11-19): the allowlist EMPTY, capability admission
+  // ON (each script's verdict latched admitted below) and the host lane's KNOWN-DIVERGENCE LIST APPLIED, as the
+  // committed reach run is now derived (`capabilityAdmission.measure.test.js` under asMember). With the list applied,
+  // 25 rows that read `host` take the runtime lane and 3 are refused by name (`pine:known-divergence`); the runtime-on
+  // record grades those on the lane the member gets (`vendorHarness.corpus.test.js`, `memberDoorsAtCollection`).
+  // ⚰️ Until 2026-11-19 it narrowed these doors in a beforeAll, so every case ran under the test grant (every script
+  // graded, the list ignored): the admission verdicts it latched were never consulted, and 31 rows answered `host`.
+  asMember({ allow: true, hkd: true, admission: true })
 
   it('records captures, some drawn by the run (a rail over nothing passes)', () => {
     expect(report.captures.length).toBeGreaterThanOrEqual(100)

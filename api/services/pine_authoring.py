@@ -183,9 +183,13 @@ HISTORY_ONLY_READS: Dict[str, str] = {
 #: bars against the engine's one-second run budget: a profile's loops came within a fifth of it, a 500-bar
 #: statistics loop went past it).
 _LAST_BAR_WORK = "work that loops over past bars on every update (a volume profile, statistics over the last N bars)"
-#: What UCT says beside a script that waits for the bar, whatever the assistant wrote (decided by the server's
-#: own detector on THE SCRIPT, never by the assistant).
-FINISHED_BARS_LINE = "On a live chart this is drawn when the newest bar closes, not while it is forming."
+#: What UCT says beside a script that waits for the bar. ⛔ SAID BY THE WINDOW, which knows the lane that draws
+#: the script (`authoring/scriptAnswer.js::WAITS_ON_A_LIVE_CHART_LINE`, held equal to this by a test); the
+#: server sends only the fact (`script.waits_for_the_bar`, its own detector on THE SCRIPT).
+#: ⚰️ It said "drawn when the newest bar closes". On an intraday chart a new bar starts forming the moment one
+#: closes, so during the session that moment never comes: the truthful sentence names the close of the session.
+FINISHED_BARS_LINE = ("While the market is open this is not drawn: it appears once the chart's newest bar has "
+                      "finished, after the close.")
 
 
 def history_only(ref: Optional[Mapping[str, Any]] = None) -> List[str]:
@@ -221,25 +225,19 @@ def script_capabilities(script: Any) -> Optional[frozenset]:
 
 def waits_for_the_bar(script: Any, ref: Optional[Mapping[str, Any]] = None,
                       caps: Optional[frozenset] = None) -> bool:
-    """Does THIS script read where the chart ends, so that it is drawn only on a finished bar? The server's
-    own capability detector, asked about the worded history-only capabilities (`caps`: its set when the
-    caller already has it, `script_capabilities`). Fails closed to False only on an unreadable script
-    (which the engine refuses anyway)."""
-    worded = set(history_only(ref)) & set(HISTORY_ONLY_READS)
+    """Does THIS script use anything admitted for finished bars only, so that the bar-by-bar lane draws it
+    only once the chart's newest bar has finished? The server's own capability detector (`caps`: its set when
+    the caller already has it, `script_capabilities`), asked about EVERY history-only capability of the
+    reference (a script that requests another timeframe or symbol waits exactly as one that reads
+    `barstate.islast` does; review 2026-11-19). Whether that delays THIS script depends on the lane that draws
+    it, which only the window knows: the window says the sentence, this is the fact. False on an unreadable
+    script (which the engine refuses anyway)."""
+    worded = set(history_only(ref))
     if not worded or not isinstance(script, str) or not script.strip():
         return False
     if caps is None:
         caps = script_capabilities(script)
     return bool(caps is not None and set(caps) & worded)
-
-
-def said_with_the_bar(said: Any, waits: bool) -> str:
-    """The reply with UCT's own line when the script waits for the bar. Never cut, never said twice."""
-    text = str(said or "").strip()
-    if not waits or FINISHED_BARS_LINE in text:
-        return text[:REPLY_MAX_CHARS]
-    room = REPLY_MAX_CHARS - len(FINISHED_BARS_LINE) - 1
-    return (text[:room].rstrip() + " " + FINISHED_BARS_LINE).strip()
 
 
 #: Pine's own functions for well-known indicators, as candidates for rule 10's examples. ⛔ ONLY the ones
@@ -578,11 +576,26 @@ def _code_tokens(source: Any) -> List[str]:
     return _CODE_TOKEN.findall(code)
 
 
+#: ⛔ THE COMPARISON IS BOUNDED (review 2026-11-19). `script` may be a browser-supplied refusal of up to
+#: `SCRIPT_MAX_CHARS`, compared before any spend cap is asked; the matcher's cost grows with the product of the
+#: two lengths, and a script that is one token repeated twenty thousand times made it seconds of CPU. A script
+#: more than this many times the recipe's own length is not "that recipe with settings added" (the measured
+#: recipe-backed scripts are 1 to 1.5 times it), so it is not compared at all.
+RECIPE_LENGTH_FACTOR = 3
+_OWN_CALL = re.compile(r"(?<![\w.])(?:ta|request)\.[a-z_0-9]+")
+
+
+def _own_calls(source: Any) -> frozenset:
+    """The Pine functions a script's maths rests on (`ta.*`, `request.*`), comments aside."""
+    code = "\n".join(line.split("//")[0] for line in str(source or "").replace("\r\n", "\n").split("\n"))
+    return frozenset(_OWN_CALL.findall(code))
+
+
 def recipe_share(recipe_source: Any, script: Any) -> float:
     """The share of the recipe's tokens the script holds, in order (0 to 1)."""
     import difflib
     own, got = _code_tokens(recipe_source), _code_tokens(script)
-    if not own or not got:
+    if not own or not got or len(got) > RECIPE_LENGTH_FACTOR * len(own):
         return 0.0
     blocks = difflib.SequenceMatcher(None, own, got, autojunk=False).get_matching_blocks()
     return sum(b.size for b in blocks) / len(own)
@@ -591,7 +604,12 @@ def recipe_share(recipe_source: Any, script: Any) -> float:
 def backed_by(message: Any, script: Any, doc: Optional[Mapping[str, Any]] = None) -> Optional[str]:
     """The id of the value-checked recipe this script IS, or None. Only a recipe this request was
     handed (`recipes_for`) counts: a script cannot be vouched for by a recipe nobody asked about."""
+    # ⛔ AND THE SCRIPT STILL CALLS EVERY PINE FUNCTION THE RECIPE'S MATHS RESTS ON (review 2026-11-19). A recipe
+    # is handed on one word of its request ("divergence"); the RSI-divergence recipe with `ta.rsi` swapped for
+    # `ta.macd` keeps nearly every token and would be vouched for by a check that was made of the RSI's numbers.
     for r in recipes_for(message, doc=doc):
+        if not _own_calls(r["source"]) <= _own_calls(script):
+            continue
         if recipe_share(r["source"], script) >= RECIPE_BACKED_SHARE:
             return r["id"]
     return None
@@ -603,14 +621,28 @@ def said_with_disclosure(said: Any, reference: Optional[str]) -> str:
     text = str(said or "").strip()
     if reference is not None or UNCHECKED_LINE in text:
         return text[:REPLY_MAX_CHARS]
-    # (room is kept for UCT's other line too, `FINISHED_BARS_LINE`, so neither is ever cut by the other)
-    room = REPLY_MAX_CHARS - len(UNCHECKED_LINE) - len(FINISHED_BARS_LINE) - 2
-    return (text[:room].rstrip() + " " + UNCHECKED_LINE).strip()
+    room = REPLY_MAX_CHARS - len(UNCHECKED_LINE) - 1
+    return (_fit(text, room) + " " + UNCHECKED_LINE).strip()
+
+
+def _fit(text: str, room: int) -> str:
+    """`text` in at most `room` characters, never cut mid-word (review 2026-11-19: a reply of 500 characters
+    was sliced wherever the count fell): whole when it fits; else up to the end of its last sentence when that
+    keeps at least half the room; else up to its last whole word, with "..."."""
+    if len(text) <= room:
+        return text
+    cut = text[:room]
+    end = max(cut.rfind(mark) for mark in (". ", "! ", "? "))
+    if end >= room // 2:
+        return cut[:end + 1]
+    cut = text[:max(0, room - 3)]
+    space = cut.rfind(" ")
+    return (cut[:space] if space > 0 else cut).rstrip(" ,;:(") + "..."
 
 
 #: Said under a recipe that does its work on the last bar (`finishedBarsOnly` in the generated file).
-LAST_BAR_RECIPE_LINE = ("(This recipe waits for the last bar on purpose: keep its `if barstate.islast`. In `reply`, say "
-                        "that on a live chart it is drawn when the newest bar closes.)")
+LAST_BAR_RECIPE_LINE = ("(This recipe waits for the last bar on purpose: keep its `if barstate.islast`. UCT tells the "
+                        "member when it is drawn; do not describe that yourself.)")
 
 
 def recipes_text(found: List[Mapping[str, Any]]) -> str:

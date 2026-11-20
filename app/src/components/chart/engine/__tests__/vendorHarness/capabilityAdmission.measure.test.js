@@ -41,6 +41,7 @@ import {
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import { strategyBrokerFlag } from './strategyLane'
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
+import { asMember } from '../../../../../testing/runtimeGate'
 
 const IN = process.env.CAPADMIT_IN
 const OUT = process.env.CAPADMIT_OUT
@@ -69,6 +70,12 @@ function sourceOf(file) {
 }
 
 describe.skipIf(!IN)('WS-I Part 2 — the member door per script', () => {
+  // ⭐⭐ BOTH MODES ASK THE MEMBER'S DOOR WITH THE HOST LANE'S KNOWN-DIVERGENCE LIST APPLIED (coordinator ruling
+  // 2026-11-19, GATE-BLIND follow-up (a)): a listed script is refused on the host lane, so for a member it is drawn
+  // by the runtime lane or refused by name. ⚰️ Under the test grant the list was IGNORED here, so `lanes` mode
+  // missed every runtime-lane capture of a listed script and `admission` mode recorded `host` for 31 reach rows
+  // the member's door answers differently. The allowlist and admission stay this test's own (`MODE`, below).
+  asMember({ allow: false, hkd: true })
   it(`records the lane (${MODE})`, () => {
     expect(['lanes', 'admission']).toContain(MODE)
     const input = JSON.parse(fs.readFileSync(IN, 'utf8'))

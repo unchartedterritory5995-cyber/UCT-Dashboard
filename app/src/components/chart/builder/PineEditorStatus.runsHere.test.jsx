@@ -14,7 +14,7 @@ vi.mock('../supportLoop/supportApi', async (importOriginal) => {
 })
 
 import { ImportBox, PINE_DEBOUNCE_MS } from './PineBox'
-import { shownStatus, useRunOnChart, usePineEditorStatus, SHOWN_STATE } from './PineEditorStatus'
+import { shownStatus, useRunOnChart, usePineEditorStatus, SHOWN_STATE, PENDING_REASKS } from './PineEditorStatus'
 import { RUN, MIN_BARS, STOPPED_HEADLINE, CHECKING_HEADLINE } from './runsHere'
 import { LOST_DRAWINGS_HEADLINE } from './authoring/scriptAnswer'
 import { PANEL_STATE } from './editorStatus'
@@ -162,5 +162,69 @@ describe('the run is asked for after first paint, once per script per chart, and
     const { result } = renderHook(() => useRunOnChart(pane, chartOn('offListing'), { run, after: (fn) => fn() }))
     await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     await waitFor(() => expect(result.current).toBe(null))
+  })
+})
+
+// ─── review fixes (2026-11-19) ────────────────────────────────────────────────────────
+describe('a run still pending when its wait ended is asked for again', () => {
+  const pane = { ok: true, definition: { id: 'x' } }
+  const pending = { state: RUN.PENDING, stops: [], unchecked: [], waiting: [], notes: [] }
+  const ran = { state: RUN.RAN, stops: [], unchecked: [], waiting: [], notes: [] }
+
+  it('the panel does not stay on "still being checked": the run that lands is read', async () => {
+    const answers = [pending, pending, ran]
+    const run = vi.fn(async () => answers.shift())
+    const { result } = renderHook(() => useRunOnChart(pane, chartOn('offListing'), { run, after: (fn) => fn(), reaskMs: 5 }))
+    await waitFor(() => expect(result.current && result.current.state).toBe(RUN.RAN))
+    expect(run).toHaveBeenCalledTimes(3)
+    // and once it has landed it is not asked for again
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)) })
+    expect(run).toHaveBeenCalledTimes(3)
+  })
+
+  it('never more than the bound, and not at all after the panel is gone', async () => {
+    const run = vi.fn(async () => pending)
+    const { result, unmount } = renderHook(() => useRunOnChart(pane, chartOn('offListing'), { run, after: (fn) => fn(), reaskMs: 2 }))
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1 + PENDING_REASKS))
+    await act(async () => { await new Promise((r) => setTimeout(r, 40)) })
+    expect(run).toHaveBeenCalledTimes(1 + PENDING_REASKS)
+    expect(result.current.state).toBe(RUN.PENDING)
+    // a slow re-ask that would fire after the panel closed never does
+    const slow = vi.fn(async () => pending)
+    const second = renderHook(() => useRunOnChart(pane, chartOn('offListing'), { run: slow, after: (fn) => fn(), reaskMs: 300 }))
+    await waitFor(() => expect(slow).toHaveBeenCalledTimes(1))
+    second.unmount()
+    await act(async () => { await new Promise((r) => setTimeout(r, 450)) })
+    expect(slow).toHaveBeenCalledTimes(1)
+    unmount()
+  })
+
+  it('a script that waits for the bar is run again when the bar has finished', async () => {
+    const run = vi.fn(async () => ran)
+    const first = chartOn('offListing')
+    const forming = { bars: first.bars, ctx: { ...first.ctx, newestBarIsForming: true } }
+    const { rerender } = renderHook(({ c }) => useRunOnChart(pane, c, { run, after: (fn) => fn() }), { initialProps: { c: forming } })
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
+    rerender({ c: { bars: first.bars, ctx: { ...first.ctx, newestBarIsForming: false } } })
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(2))
+    expect(run.mock.calls[1][1].ctx.newestBarIsForming).toBe(false)
+    // CONTROL: the same state of the bar again does not
+    rerender({ c: { bars: [...first.bars], ctx: { ...first.ctx, newestBarIsForming: false } } })
+    await act(async () => { await Promise.resolve() })
+    expect(run).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('what leads when a run waits for the bar', () => {
+  const waiting = [{ guard: 'pane:forming-ungraded', sentence: 'the bar is forming' }]
+  it('waiting leads over "its drawings are not all drawn": nothing of it is drawn yet', () => {
+    const shown = shownStatus({ state: PANEL_STATE.RUNS, headline: 'Runs', lostDrawings: 'its drawings are lost',
+      run: { state: RUN.RAN, stops: [], unchecked: [], waiting, notes: [] } })
+    expect(shown.state).toBe(SHOWN_STATE.WAITS_FOR_THE_BAR)
+    // CONTROL: with nothing waiting, the lost drawings lead as before; and a stop leads over both
+    expect(shownStatus({ state: PANEL_STATE.RUNS, headline: 'Runs', lostDrawings: 'x', run: { state: RUN.RAN, stops: [], unchecked: [], waiting: [], notes: [] } }).state)
+      .toBe(SHOWN_STATE.DRAWINGS_LOST)
+    expect(shownStatus({ state: PANEL_STATE.RUNS, headline: 'Runs', lostDrawings: 'x', run: { state: RUN.STOPPED, stops: [{ guard: 'g', sentence: 's' }], unchecked: [], waiting, notes: [] } }).state)
+      .toBe(SHOWN_STATE.STOPPED_HERE)
   })
 })
