@@ -318,11 +318,25 @@ function mergeRows(state, rows, span = null) {
       if (r.src !== 'rest' && _inSpans(state, r.t)) { j++; continue }
       out.push(strip(r)); changed = true; j++
     } else {
-      if (_wins(r, h, state) && !_sameBar(r, h)) { out.push(strip(r)); changed = true } else out.push(h)
+      if (_wins(r, h, state) && !_sameBar(r, h) && !_restates(r, h)) { out.push(strip(r)); changed = true } else out.push(h)
       i++; j++
     }
   }
   return changed ? out : held
+}
+
+/**
+ * ⚡ A LIVE ROW THAT ONLY RESTATES A CLOSED ROW WE HOLD CHANGES NOTHING (owner 2026-11-20: typing
+ * SPY / QQQ / IWM on 1m reached the live candle 1-4 s after the chart painted). On connect the
+ * stream sends the last ~15 closed minutes (`final`, each with a `rev`) before the forming one;
+ * the /api/bars answer already holds those rows with the SAME values but no `rev`, so every frame
+ * "won" on rev, re-sourced its row and bumped baseRev: ~15 full chart rebuilds (~30 ms each,
+ * measured on production) queued in front of the live candle. A server or final row with the
+ * same t/o/h/l/c/v is kept as it is; a correction (any value differs) still replaces it.
+ */
+function _restates(inc, held) {
+  return inc.src !== 'rest' && (held.src === 'rest' || held.src === 'final') &&
+    inc.o === held.o && inc.h === held.h && inc.l === held.l && inc.c === held.c && inc.v === held.v
 }
 
 function _sameBar(a, b) {
