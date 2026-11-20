@@ -18,7 +18,9 @@ WHAT IT DOES, in order, and it stops at the first refusal:
      store in a short hold of their own and spliced in under their canonical path (`splice_held.mjs`), as every
      regeneration since 53b3a790cb has done: a machine without that store refuses rather than drop their rows.
   4. The written snapshot's `libraryStore` equals the promote rows (`store_held.snapshot_store_problems`).
-The lock is `$UCT_HEAVY_LOCK` (default: this PC's `uct-clips/tools/heavy_lock.py`), `--priority normal`.
+The lock is `$UCT_HEAVY_LOCK_PY` (default: this PC's `uct-clips/tools/heavy_lock.py`), `--priority normal`.
+(Never `$UCT_HEAVY_LOCK`: since 2026-11-18 heavy_lock sets THAT to "<label>|<lock>|<pid>" for every `run` child,
+so read as a path it broke this tool inside any heavy-lock run. Same name as uct-growth uses.)
 """
 from __future__ import annotations
 
@@ -38,7 +40,7 @@ import licence_held as LH  # noqa: E402 -- held captures: where each lives now
 import promotion_check as PC  # noqa: E402 -- the owner's exact-store check: one authority
 import store_held as SH  # noqa: E402
 
-LOCK = os.environ.get("UCT_HEAVY_LOCK", os.path.join(os.path.expanduser("~"), "uct-clips", "tools", "heavy_lock.py"))
+LOCK = os.environ.get("UCT_HEAVY_LOCK_PY") or os.path.join(os.path.expanduser("~"), "uct-clips", "tools", "heavy_lock.py")
 CORPUS_TEST = "src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js"
 LANES = {"production": "0", "runtime-on": "1"}
 SUPPLY_HELD = None   # --supply-held <dir>, set by main()

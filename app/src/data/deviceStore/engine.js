@@ -166,6 +166,36 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (S.includes('.') && L.index.row.has(S.replace(/\./g, '-'))) return S.replace(/\./g, '-')
     return null
   }
+  /** The ONE decision behind read() and why(): the columns, and the rule that decided them. */
+  function _lookup(sym, tf) {
+    const from = DERIVED_TFS[tf]
+    if (from) {
+      const r = _lookup(sym, from)
+      const w = r.out ? deriveFromDaily(r.out, tf, { through: r.out.through }) : null
+      if (w) w.through = r.out.through
+      return { out: w, why: r.why }
+    }
+    const L = live.get(String(tf))
+    if (!L || typeof sym !== 'string') return { out: null, why: 'no-file' }
+    const S = _rowName(L, sym)
+    if (S == null) return { out: null, why: 'missing' }
+    const i = L.index.row.get(S)
+    const asof = isoOfYmd(L.index.asof[i])
+    if (!_basisHolds(S, asof)) return { out: null, why: 'split' }
+    let seed
+    try { seed = _decodeRow(L, i) } catch { L.bad++; return { out: null, why: 'bad' } }
+    if (!seed) return { out: null, why: 'bad' }
+    // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
+    seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
+    if (!overlay) return { out: seed, why: 'seed-only:no-overlay' }
+    // TODAY, to the last COMPLETE minute (live.js): appended only where the overlay vouches for every
+    // bar and continues this symbol's window across exactly one night.
+    const add = overlay.read(S, String(tf), asof)
+    if (!add) return { out: seed, why: `seed-only:${overlay.why ? overlay.why(S, String(tf), asof) : 'refused'}` }
+    const out = add.cols ? _append(seed, add.cols) : seed
+    out.through = Math.max(seed.through, add.through)
+    return { out, why: 'ok' }
+  }
   /** The seed's columns followed by the overlay's bars that are newer than its last one. */
   function _append(seed, add) {
     const last = seed.t.length ? seed.t[seed.t.length - 1] : -Infinity
@@ -227,35 +257,15 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
      * SYNCHRONOUS read of (sym, tf): {t, o, h, l, c, v} Float64Arrays, or null (not held, or a record
      * that fails its checks: counted in info().bad, never thrown at the caller).
      */
-    read(sym, tf) {
-      const from = DERIVED_TFS[tf]
-      if (from) {
-        const d = api.read(sym, from)
-        const w = d ? deriveFromDaily(d, tf, { through: d.through }) : null
-        if (w) w.through = d.through
-        return w
-      }
-      const L = live.get(String(tf))
-      if (!L || typeof sym !== 'string') return null
-      const S = _rowName(L, sym)
-      if (S == null) return null
-      const i = L.index.row.get(S)
-      const asof = isoOfYmd(L.index.asof[i])
-      if (!_basisHolds(S, asof)) return null
-      let seed
-      try { seed = _decodeRow(L, i) } catch { L.bad++; return null }
-      if (!seed) return null
-      // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
-      seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
-      if (!overlay) return seed
-      // TODAY, to the last COMPLETE minute (live.js): appended only where the overlay vouches for every
-      // bar and continues this symbol's window across exactly one night.
-      const add = overlay.read(S, String(tf), asof)
-      if (!add) return seed
-      const out = add.cols ? _append(seed, add.cols) : seed
-      out.through = Math.max(seed.through, add.through)
-      return out
-    },
+    read: (sym, tf) => _lookup(sym, tf).out,
+
+    /**
+     * Diagnostics: why read(sym, tf) answers what it does. 'ok' (seed and today's overlay), 'seed-only:<rule>'
+     * (the seed alone: the overlay is absent or refused, live.js why()), or the rule that made it null:
+     * no-file (that timeframe is not held) | missing (not in the seed) | split (the split guard) | bad (the
+     * row failed its checks).
+     */
+    why: (sym, tf) => _lookup(sym, tf).why,
 
     /** The manifest's splits list (see SPLITS_FILE); kept on disk so a reload keeps the guard. */
     async setSplits(manifest) {

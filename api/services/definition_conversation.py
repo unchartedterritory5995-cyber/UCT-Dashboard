@@ -5114,11 +5114,12 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages)
+            dc.note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = dc.model_failure_gate(exc)
             if gate == "model:unavailable":
-                # ERROR, not WARNING: this does not heal by itself (O7)
-                logger.error("[converse] the provider refused the account: %s", type(exc).__name__)
+                # ERROR, not WARNING: this does not heal by itself (O7); with the kind of refusal
+                dc.log_account_refusal(logger, "converse", exc)
             else:
                 logger.warning("[converse] model call failed: %s", exc)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, _request_for(messages))

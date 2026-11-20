@@ -26,7 +26,7 @@
 //     you chose yourself will happily exercise code no user can reach — that
 //     mistake already cost one design rework (2026-07-31).
 //
-import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, lazy, Suspense, startTransition } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { useUctHeaderSlot, useUctControlsSlot, useUctRowIsSub } from './charts/uctHeaderSlot'
@@ -1728,6 +1728,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // already uses this idiom (`rowStateRef`) to keep callbacks stable. Written by an
   // effect beside that memo; read only inside the handler, which runs after render.
   const navOrderRef = useRef({ syms: [], virtualized: false })
+  // The row an arrow press asked for whose (transition) render has not committed yet, and the
+  // `selectedSym` it stepped from: a stale entry (the selection moved some other way) is ignored.
+  const navPendingRef = useRef(null)
 
   // Build a flat, deduped, top-to-bottom list of every sym currently visible
   // across expanded watchlists / flagged / color-tag auto-lists. Arrow keys
@@ -1810,7 +1813,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       if (!flat.length) flat = nav.syms.length ? nav.syms : visibleSymsFlat
       if (!flat.length) return
-      const idx = selectedSym ? flat.indexOf(selectedSym) : -1
+      // A press made while the previous one's render is still pending steps from THAT target,
+      // not from the committed `selectedSym` (see the transition below).
+      const pending = navPendingRef.current
+      const fromSym = pending && pending.base === selectedSym ? pending.sym : selectedSym
+      const idx = fromSym ? flat.indexOf(fromSym) : -1
       // If selection is set but not in THIS widget's list, don't navigate —
       // another widget (Themes, etc.) owns the selection and its own handler responds.
       if (idx < 0 && selectedSym) return
@@ -1829,8 +1836,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       }
       const nextSym = flat[next]
       if (nextSym) {
-        if (nextSym !== selectedSym) setSelectedSym(nextSym)
-        setHubSym(nextSym)   // always re-assert so this widget wins the color group
+        // ⭐ A TRANSITION, NOT A SYNC RENDER PER KEY (2026-11-20). An arrow key is a discrete
+        // event, so these two updates rendered the whole list AND the linked chart synchronously
+        // (~50 ms a press on the Breadth drill, production profile); a fast scan queued them and
+        // the chart landed ~0.5-1 s after the last key. As a transition, a press made while the
+        // previous render is still running interrupts it: the list and chart jump straight to the
+        // newest row instead of rendering every row in between.
+        navPendingRef.current = { sym: nextSym, base: selectedSym }
+        startTransition(() => {
+          if (nextSym !== selectedSym) setSelectedSym(nextSym)
+          setHubSym(nextSym)   // always re-assert so this widget wins the color group
+        })
       }
     }
     // ⛔ THIS USED TO BE GATED ON `flagged.includes(selectedSym)` AND CALL

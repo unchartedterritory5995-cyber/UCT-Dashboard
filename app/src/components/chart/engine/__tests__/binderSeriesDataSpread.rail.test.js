@@ -263,3 +263,36 @@ describe('5. not spread', () => {
     expect(onTheBars(fake, DEEP)).toBeNull()
   })
 })
+
+// 2026-11-20 — THE MOVING-AVERAGE BLIP (owner, Breadth drill fast scan; production frames). `barTimesWithin` compares
+// bar TIMES only, and two stocks' daily bars share every trading date: the previous symbol's picture passed as "built
+// from bars inside this pass", its replacement was QUEUED, and the old symbol's lines sat on the new candles until the
+// drain (a fast scan's next flip pushed the drain back again). A pass for another symbol is never spread.
+describe('⛔⛔ a switch to ANOTHER SYMBOL on the SAME dates is never spread (the moving-average blip)', () => {
+  const A = makeBars(3000)
+  const B = A.map((b) => ({ ...b, o: b.o * 3, h: b.h * 3, l: b.l * 3, c: b.c * 3 }))   // same dates, another stock
+  const withSym = (ctx, sym) => ({ ...ctx, sym })
+  it('the new symbol\'s lines are set with its candles; nothing waits for the drain', () => {
+    const at = createFakeChart()
+    const spread = createFakeChart()
+    const a = createBinder({ chart: at.chart, LWC: at.LWC })
+    const b = createBinder({ chart: spread.chart, LWC: spread.LWC })
+    a.sync(withSym(ctxFor(A, { fresh: true }, false), 'AAA'))
+    b.sync(withSym(ctxFor(A, { fresh: true }, true), 'AAA'))
+    drainAll()
+    expect(barTimesWithin(A, B), 'precondition: the old picture IS inside the new bars by time').toBe(true)
+    a.sync(withSym(ctxFor(B, {}, false), 'BBB'))
+    b.sync(withSym(ctxFor(B, {}, true), 'BBB'))
+    expect(b.pendingDataCount(), 'nothing of the switch was queued').toBe(0)
+    expect(rendererOf(spread).picture, 'the spread binder already shows BBB\'s lines').toEqual(rendererOf(at).picture)
+  })
+  it('the same symbol on the same dates still spreads (the switch-smoothness win is kept)', () => {
+    const spread = createFakeChart()
+    const b = createBinder({ chart: spread.chart, LWC: spread.LWC })
+    b.sync(withSym(ctxFor(A, { fresh: true }, true), 'AAA'))
+    drainAll()
+    const A2 = A.map((x, i) => (i === A.length - 1 ? { ...x, c: x.c + 1 } : x))
+    b.sync(withSym(ctxFor(A2, {}, true), 'AAA'))
+    expect(b.pendingDataCount()).toBeGreaterThan(0)
+  })
+})

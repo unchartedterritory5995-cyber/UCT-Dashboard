@@ -1185,21 +1185,30 @@ export function createBinder({ chart, LWC, scope = '' }) {
   const pendingData = new Map()
   /** series -> the bars array the data it HOLDS was built from (what the renderer has), set on every apply. */
   const drawnFrom = new WeakMap()
+  /** series -> the chart SYMBOL the data it holds was built for (set with `drawnFrom`).
+   *  ⛔ `barTimesWithin` compares bar TIMES only, and two stocks' daily bars share every trading date: without
+   *  this, the previous symbol's picture counted as "built from bars inside this pass", its replacement was
+   *  queued, and the old symbol's moving averages sat on the new candles until the drain (a scan's next flip
+   *  pushed the drain back again) — the "moving-average blip" between charts (owner, 2026-11-20). */
+  const drawnSym = new WeakMap()
+  /** The symbol of the pass now running (`sync` sets it first); a queued entry carries its own. */
+  let passSym = ''
   let drainArmed = false
 
-  function applySeriesData(series, points, from) {
+  function applySeriesData(series, points, from, sym = passSym) {
     pendingData.delete(series)
     attempt(() => series.setData(points))
     drawnFrom.set(series, from)
+    drawnSym.set(series, sym)
   }
   /** Apply what is queued for `series`, if anything (before a call that reads or extends what it holds). */
   function flushSeries(series) {
     const p = pendingData.get(series)
-    if (p) applySeriesData(series, p.points, p.from)
+    if (p) applySeriesData(series, p.points, p.from, p.sym)
   }
   function queueSeriesData(series, points, from) {
     pendingData.delete(series)
-    pendingData.set(series, { points, from })
+    pendingData.set(series, { points, from, sym: passSym })
     if (drainArmed) return
     drainArmed = true
     nextTask(drainSlice)
@@ -1209,7 +1218,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (!pendingData.size) return
     const t0 = _sliceClock()
     for (const [series, p] of pendingData) {
-      applySeriesData(series, p.points, p.from)
+      applySeriesData(series, p.points, p.from, p.sym)
       if (_sliceClock() - t0 >= SERIES_DATA_SLICE_MS) break
     }
     if (pendingData.size && !drainArmed) { drainArmed = true; nextTask(drainSlice) }
@@ -2135,6 +2144,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
   }
 
   function sync(ctx) {
+    // every series this pass sets (or queues) is drawn for this symbol (`drawnSym`)
+    passSym = String((ctx && ctx.sym) || '').toUpperCase()
     // The renderer has had a frame with the last layout: did it keep it?
     if (paneMode() === 'panes') verifyPendingLayout()
 
@@ -2205,6 +2216,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const drawnWithinBars = (series) => {
       const from = drawnFrom.get(series)
       if (!from) return false
+      // ⛔ ANOTHER SYMBOL'S PICTURE IS NEVER "INSIDE" THIS PASS, whatever its bar times (see `drawnSym`): its
+      // replacement is set now, with the candles, never left for the drain.
+      if (drawnSym.get(series) !== passSym) return false
       let ok = withinMemo.get(from)
       if (ok === undefined) { ok = barTimesWithin(from, bars); withinMemo.set(from, ok) }
       return ok
@@ -3369,6 +3383,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
         && !isOhlcPayload(columns.get(b.key)) && drawnWithinBars(series)
       if (holdPicture) {
         // the series is left exactly as it is (data still queued for it is the picture it holds, and stays queued)
+        // …unless that picture is ANOTHER symbol's: stale-while-revalidate holds this symbol's last values, never
+        // the previous stock's on the new candles. Empty until the worker lands.
+        const heldSym = pendingData.has(series) ? pendingData.get(series).sym : drawnSym.get(series)
+        if (heldSym !== undefined && heldSym !== passSym) applySeriesData(series, [], bars)
       } else if (firstBindNeedsSetData(b, planMode) || landedNow.has(b.instanceId)) {
         if (spread) queueSeriesData(series, drawn, bars)
         else applySeriesData(series, drawn, bars)
@@ -3382,7 +3400,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           attempt(() => ctx.applyData(series, drawn))
           // whatever the plan did (nothing, an `update` of the newest bar, a full set), what it holds is built from bars
           // all inside this pass's: the same bars, the same bars and the newest one, or these bars
-          drawnFrom.set(series, bars)
+          drawnFrom.set(series, bars); drawnSym.set(series, passSym)
         }
       } else {
         applySeriesData(series, drawn, bars)
@@ -3746,7 +3764,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  end label's `data()`): it then sees exactly what it would have seen with no queue. */
   function flushPendingData(series) {
     if (series) { flushSeries(series); return }
-    for (const [s, p] of [...pendingData]) applySeriesData(s, p.points, p.from)
+    for (const [s, p] of [...pendingData]) applySeriesData(s, p.points, p.from, p.sym)
   }
 
   /** How many series have data queued (diagnostics and rails). */
