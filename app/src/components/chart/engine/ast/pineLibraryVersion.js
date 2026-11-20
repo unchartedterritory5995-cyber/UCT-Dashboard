@@ -126,6 +126,7 @@ export const ISLAND_FAMILY = Object.freeze({
 /** The families the runtime lane judges per token (`pineRuntimeFrontend.js` hands them to the linker). */
 export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
   ISLAND_FAMILY.TIMEFRAME_PERIOD,
+  ISLAND_FAMILY.COLOURS,
 ])
 
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v

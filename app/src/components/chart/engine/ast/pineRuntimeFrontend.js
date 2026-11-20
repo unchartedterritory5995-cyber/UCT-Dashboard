@@ -4630,7 +4630,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
-      if (colourHexByName(node.name, pineVersion) !== null) return true
+      // ⭐⭐ the version island: a colour name is read at the version of the code that writes it
+      if (colourHexByName(node.name, versionAt(node.tok, pineVersion)) !== null) return true
       // ⭐ CO-2 — the chart's two theme colours are colours (a script's own binding of the name wins)
       if (THEME_NAMES.includes(node.name) && lookupReadable(node.name, scope) === null && !env.has(node.name)) return true
       const slot = lookupReadable(node.name, scope)
@@ -9428,7 +9429,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // SCRIPT'S VERSION. `color.red` is `#FF5252` at v5 and `#F23645` at v6
           // because TradingView draws them so; a second table here, or a missing
           // version, would be a second chance to carry the wrong red.
-          const hex = colourHexByName(node.name, pineVersion)
+          // ⭐⭐ the version island: inside a v5 library, the library's palette (`color.red` is `#FF5252` there)
+          const hex = colourHexByName(node.name, versionAt(node.tok, pineVersion))
           if (hex !== null && scope.lookup(node.name) === null && !env.has(node.name)) {
             return num(hexToPacked(hex, 0))
           }
@@ -11759,7 +11761,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (lookupReadable(node.name, scope) !== null) return false
       const bound = env.get(node.name)
       if (bound) return bound.kind === 'expr' && opaqueColour(bound.node, scope, depth + 1)
-      return colourHexByName(node.name, pineVersion) !== null
+      return colourHexByName(node.name, versionAt(node.tok, pineVersion)) !== null
     }
     if (node.type === 'ternary') {
       return opaqueColour(node.yes, scope, depth + 1) && opaqueColour(node.no, scope, depth + 1)

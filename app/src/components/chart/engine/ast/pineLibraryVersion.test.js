@@ -116,6 +116,19 @@ export text(float x) =>
 `,
     uses: 'plot(il.daily(close))\nplot(il.counted(close))\nplot(il.text(close))\n',
   },
+  // `color.red` / `color.teal` / `color.yellow` changed value in v6 (`#FF5252` / `#00897B` / `#FFEB3B` at v5)
+  [F.COLOURS]: {
+    lib: `export teal(float x) =>
+    var color c = color.teal
+    c := x > 100 ? color.teal : color.yellow
+    c == #00897B ? 1.0 : 0.0
+export kept(float x) =>
+    var color c = color.yellow
+    c := x > 100 ? color.red : color.yellow
+    c == #FFEB3B or c == #FF5252 ? 1.0 : 0.0
+`,
+    uses: 'plot(il.teal(close))\nplot(il.kept(close))\n',
+  },
 }
 const islandPath = (family) =>`tester/island${family.replace(/[^a-z]/gi, '')}/1`
 const islandSource = (family) => `${MPL}\n//@version=5\nlibrary("island")\n${ISLAND[family].lib}`
