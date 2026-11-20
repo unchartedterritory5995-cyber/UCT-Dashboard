@@ -549,6 +549,29 @@ def _htf_resampled(bars: List[dict], code: str):
     return iso, keys, at, order, htf
 
 
+def _tf_merge_reads(iso: List[Optional[str]], keys: List[Any], at: Dict[Any, int], code: str) -> List[int]:
+    """The port of ``interpret.js::tfMergeReads``, ONE authority (the ``tf_merge`` arm and
+    ``_first_period_partial_read_mask`` read it): for each base bar, the index of the higher-timeframe bar a merge
+    hands it, or -1. A bar that CLOSES its period (the next bar sits in another bucket) reads its own bucket ``b``,
+    every other bar ``b - 1``; a bar with no readable day, or followed by one, reads nothing. ⭐⭐ U-HTF-CALENDAR: a
+    period a later weekday of which TradingView's session never closed closes on the NEXT bar."""
+    length = len(keys)
+    out = [-1] * length
+    for i, k in enumerate(keys):
+        if k is None:
+            continue
+        b = at[k]
+        nxt = keys[i + 1] if i + 1 < length else None
+        if i + 1 < length and nxt is None:
+            continue
+        if nxt is None or nxt != k:
+            late = nxt is not None and b > 0 and htf_closes_on_next_bar(iso[i], code)
+            out[i] = b - 1 if late else b
+        elif b > 0:
+            out[i] = b - 1
+    return out
+
+
 REFUSALS: Mapping[str, str] = {
     "resolve:name": "unknown name",
     "resolve:function": "unknown function",
@@ -5094,8 +5117,27 @@ def _first_period_partial_read_mask(tree: Any, bars: List[dict], opts, inputs, b
                 stack.extend(args)
         return merges
 
+    def merge_own(node: Mapping[str, Any]) -> Optional[List[int]]:
+        """⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3) -- ``interpret.js::firstPeriodPartialReadMask``'s ``mergeOwn``."""
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        child = args[0] if args else None
+        if not _child_reads_partial_period(child):            # item 3: a merge of close alone is drawn
+            return None
+        first = _first_period_partial_mask(bars, [(False, None, node.get("value"))], opts)
+        if first is None:
+            return None
+        code = str(node.get("value"))
+        iso, keys, at, _order, htf = _htf_resampled(bars, code)
+        u = _partial_period_unknown(child, htf, code, inputs, budget, scalars, opts)
+        if _FIELD_UNAWARE == u:                               # a child holding another request: review L2
+            return first
+        if u is None:
+            return None
+        picks = _tf_merge_reads(iso, keys, at, code)
+        m = [1 if r >= 0 and u[r] else 0 for r in picks]
+        return m if any(m) else None
+
     own: Dict[int, List[int]] = {}
-    held = False
     stack = [tree]
     seen: set = set()
     while stack:
@@ -5103,18 +5145,21 @@ def _first_period_partial_read_mask(tree: Any, bars: List[dict], opts, inputs, b
         if not isinstance(node, Mapping) or id(node) in seen:
             continue
         seen.add(id(node))
+        if node.get("type") == "tf_merge":
+            m = merge_own(node)
+            if m is not None:
+                own[id(node)] = m
+            continue
         if node.get("type") in _SCOPE_TYPES:
             merges = merges_under(node)
-            if merges:
-                m = _first_period_partial_mask(bars, merges, opts)
-                if m is not None:
-                    held = True
-                own[id(node)] = list(m) if m is not None else [0] * n
+            m = _first_period_partial_mask(bars, merges, opts) if merges else None
+            if m is not None:
+                own[id(node)] = list(m)
             continue
         args = node.get("args")
         if isinstance(args, list):
             stack.extend(args)
-    if not held:
+    if not own:
         return None
     quiet = dict(opts or {})
     quiet.pop("chartClockSink", None)
@@ -7629,6 +7674,8 @@ def _interpret_column(ast: Any, bars: List[dict],
             # is withheld by ``tf_merge_mask`` (the one authority) unless known to be
             # forming. Read off the next bar, never a calendar.
             merge = (kind == "tf_merge")
+            # the merge's pick, ONE authority (``_tf_merge_reads``, read by ``_first_period_partial_read_mask`` too)
+            reads = _tf_merge_reads(iso, keys, at, code) if merge else None
             out = _nan_col(length)
             for i, k in enumerate(keys):
                 if k is None:
@@ -7637,16 +7684,8 @@ def _interpret_column(ast: Any, bars: List[dict],
                 if live:
                     out[i] = child[b]
                 elif merge:
-                    nxt = keys[i + 1] if i + 1 < length else None
-                    if i + 1 < length and nxt is None:
-                        continue
-                    if nxt is None or nxt != k:
-                        # ⭐⭐ U-HTF-CALENDAR (``interpret.js::tfMergeReads``): a period a later weekday of
-                        # which TradingView's session never closed closes on the NEXT bar.
-                        late = nxt is not None and b > 0 and htf_closes_on_next_bar(iso[i], code)
-                        out[i] = child[b - 1] if late else child[b]
-                    elif b > 0:
-                        out[i] = child[b - 1]
+                    if reads[i] >= 0:
+                        out[i] = child[reads[i]]
                 elif b > 0:
                     out[i] = child[b - 1]
             return out
