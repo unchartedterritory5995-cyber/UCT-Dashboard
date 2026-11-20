@@ -106,6 +106,29 @@ def test_the_full_roadmap_is_what_the_full_map_gives():
         "--out docs/pine/parity-roadmap-full.json")
 
 
+def test_the_full_demand_view_is_what_the_full_roadmap_gives(tmp_path):
+    out = tmp_path / "demand.json"
+    cf.main(["demand", "--population", str(POPULATION), "--roadmap", str(FULL_ROADMAP), "--out", str(out)])
+    assert json.loads(out.read_text(encoding="utf-8")) == json.loads(
+        (PINE / "demand-ranking-full.json").read_text(encoding="utf-8")), (
+        "demand-ranking-full.json is stale: python tools/pine_coverage/census_full.py demand --population "
+        "docs/pine/census-full/population.json --roadmap docs/pine/parity-roadmap-full.json "
+        "--out docs/pine/demand-ranking-full.json")
+
+
+def test_the_pages_tables_are_the_jsons(tmp_path):
+    """The page's generated tables (headline, populations, versions, units, build order, demand) are what `report`
+    derives from the committed JSON today: a re-measure that moves a number, or a hand edit, reds here."""
+    out = tmp_path / "tables.md"
+    cf.main(["report", "--full-map", str(FULL_MAP), "--full-roadmap", str(FULL_ROADMAP),
+             "--map", str(PINE / "coverage-map.json"), "--roadmap", str(PINE / "parity-roadmap.json"),
+             "--population", str(POPULATION), "--demand", str(PINE / "demand-ranking-full.json"), "--out", str(out)])
+    page = (PINE / "COVERAGE-MAP-FULL-2026-11-20.md").read_text(encoding="utf-8").replace("\r\n", "\n")
+    rows = [l for l in out.read_text(encoding="utf-8").splitlines() if l.startswith("| ") and "679 sample inside" not in l]
+    missing = [l for l in rows if l not in page]
+    assert len(rows) > 100 and not missing, "tables on the page differ from the JSON's: %s" % missing[:3]
+
+
 def test_the_679_line_is_still_the_sample():
     """ALONGSIDE, never replacing: the comparable line keeps measuring the 679-script sample."""
     m = json.loads((PINE / "coverage-map.json").read_text(encoding="utf-8"))
