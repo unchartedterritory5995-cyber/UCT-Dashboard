@@ -8175,14 +8175,21 @@ function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo
  *  Pine document (`opts.varOriginAbsolute`, the door's declaration: a formula's `x[1]` means its own series), as a 0/1
  *  column (1 = withheld), or null. Off the listing (`barIndexAbsolute`, i.e. this series' bar 0 is not known to be
  *  TradingView's, and `historyFromListing !== true`) every history read of the chart's own bars counts; from the
- *  listing TradingView reads `na` there too and only another symbol's reads do (`preChartUnknown`).
+ *  listing TradingView reads `na` there too and only another symbol's reads do (`preChartUnknown`). ⭐⭐ A WEEKLY OR
+ *  MONTHLY CHART THAT STARTS AT THE LISTING (`opts.listingStart`: the fact, where the listing is not served) is from
+ *  the listing for this mask: on such a chart `close[1]` on bar 0 was withheld and named (found by the e90 train), and the
+ *  sentence ("on a chart whose bars start at the symbol's listing it draws") was false there; TradingView's `na`
+ *  stands, nothing is withheld and nothing is named (`historyBeforeChartListingStart.test.js`).
  *  ⭐ NAMED ONLY WHERE IT TAKES A DRAWN VALUE AWAY: `column` (the root's, when the caller holds it) finite on a
  *  withheld bar; a read that stays `na` (`close[1]` on bar 0) was blank already, and naming it would put the sentence
  *  on nearly every script. With no column it names whenever it withholds. ⛔ NO `try`: a refusal here must reach the
  *  caller as itself. Python twin: `ast_interpret.history_before_chart_mask`. */
 export function historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column = undefined) {
   if (!opts || opts.varOriginAbsolute !== true) return null
-  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true
+  // ⭐⭐ (coordinator ruling 2026-11-20, e90) a weekly or monthly chart whose first bar IS the symbol's listing period
+  // (`opts.listingStart`, `listingSeed.listingStartOf`, stated where the listing is not served; `barIndexAbsoluteFor`
+  // does not read it) counts as FROM the listing here: TradingView's history begins there too and reads `na` before it
+  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true && opts.listingStart !== true
   if (!off && !treeReadsSym(tree)) return null
   // the walk's column reads start from a COPY of this pass's memo (its columns are these reads' own; writes stay local)
   const memo = opts.crossMemo instanceof Map ? new Map(opts.crossMemo) : new Map()

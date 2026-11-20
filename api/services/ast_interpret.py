@@ -5468,13 +5468,17 @@ def history_before_chart_mask(tree: Any, bars: List[dict], inputs: Any = None, b
                               column: Optional[List[Any]] = None) -> Optional[List[int]]:
     """⭐⭐ PERIOD -1 (coordinator ruling 2026-11-19) -- the port of ``interpret.js::historyBeforeChartMask``: in a Pine
     document (``opts["varOriginAbsolute"]``) the root bars that draw from a read before the first bar held (1 =
-    withheld), or ``None``. Off the listing (``barIndexAbsolute`` and not ``historyFromListing``) every history read of
-    the chart's own bars counts; from the listing only another symbol's do. Named ``HISTORY_BEFORE_CHART_CODE`` only
+    withheld), or ``None``. Off the listing (``barIndexAbsolute`` and not ``historyFromListing``, nor ``listingStart``: a
+    weekly / monthly chart starting at the listing) every history read of the chart's own bars counts; from the listing
+    only another symbol's do. Named ``HISTORY_BEFORE_CHART_CODE`` only
     where it takes a drawn value of ``column`` away (with no column, whenever it withholds)."""
     o = opts or {}
     if o.get("varOriginAbsolute") is not True:
         return None
-    off = o.get("barIndexAbsolute") is True and o.get("historyFromListing") is not True
+    # (coordinator ruling 2026-11-20, e90) a weekly / monthly chart whose first bar IS the listing period
+    # (``listingStart``, the fact where the listing is not served) counts as FROM the listing here
+    off = (o.get("barIndexAbsolute") is True and o.get("historyFromListing") is not True
+           and o.get("listingStart") is not True)
     if not off and not _tree_reads_sym(tree):
         return None
     mask = _pre_chart_unknown(tree, bars, inputs, budget, scalars, opts, off)
