@@ -3874,7 +3874,7 @@
     },
     "BARS_CORRECTIONS_SERVE": {
       "repo": "uct-dashboard",
-      "read_at": "api/services/bars_corrections.py::enabled (read per serve, sync and epoch, on web and bars-api). `0`/false/no/off turns it off: nothing is synced or applied and every D/W/M answer is exactly what it was before the ledger. Anything else or unset leaves it on, and with no manifest on the volume it does nothing",
+      "read_at": "api/services/bars_corrections.py::enabled (read per serve, sync and epoch, on web, bars-api and worker -- the daily pack). `0`/false/no/off turns it off: nothing is synced or applied and every D/W/M answer is exactly what it was before the ledger. Anything else or unset leaves it on, and with no manifest on the volume it does nothing",
       "kind": "config",
       "status": "armed",
       "default": "1",
