@@ -122,11 +122,13 @@ export const ISLAND_FAMILY = Object.freeze({
   FOR_BOUND: 'for-bound',
   COLOURS: 'colours',
   TIMEFRAME_PERIOD: 'timeframe.period',
+  TOSTRING_LITERAL: 'str.tostring-literal',
 })
 /** The families the runtime lane judges per token (`pineRuntimeFrontend.js` hands them to the linker). */
 export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
   ISLAND_FAMILY.TIMEFRAME_PERIOD,
   ISLAND_FAMILY.COLOURS,
+  ISLAND_FAMILY.TOSTRING_LITERAL,
 ])
 
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v
@@ -330,6 +332,19 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
       if (v === 'timeframe.period') {
         const r = hit(ISLAND_FAMILY.TIMEFRAME_PERIOD, { what: '`timeframe.period`', why: 'its text is "D" in Pine v5 and "1D" in v6 (Timeframes must include a multiplier)', tok: t })
         if (r) return r
+      }
+      // ⭐⭐ the version island: `str.tostring` of a numeric constant with no format prints the literal in full
+      // at v5 and to ten decimals at v6 (`pineTextFormat.js::literalTostringText`, captures S10 / S17 / s21).
+      // ⚰️ Phase B's check did not hold it, so a v5 library's `str.tostring(0.123456789012)` was linked and
+      // printed under v6 rules; it is a difference now, judged per token on the runtime lane.
+      if ((v === 'str.tostring' || v === 'tostring') && !t.member && isPunct(next, '(')) {
+        const args = splitTop(toks.slice(i + 2, closeOf(toks, i + 1) - 1), (x) => isPunct(x, ','))
+        const constant = args.length === 1 && args[0].some((x) => x.kind === 'number')
+          && args[0].every((x) => x.kind === 'number' || (x.kind === 'punct' && ['+', '-', '*', '/', '(', ')'].includes(x.value)))
+        if (constant) {
+          const r = hit(ISLAND_FAMILY.TOSTRING_LITERAL, { what: '`str.tostring` of a numeric constant with no format', why: 'TradingView prints the literal in full at v5 and to ten decimals at v6', tok: t })
+          if (r) return r
+        }
       }
       if (v && CHANGED_COLOURS[v]) {
         const r = hit(ISLAND_FAMILY.COLOURS, { what: `\`${v}\``, why: `its value changed: ${CHANGED_COLOURS[v]} (Color changes)`, tok: t })

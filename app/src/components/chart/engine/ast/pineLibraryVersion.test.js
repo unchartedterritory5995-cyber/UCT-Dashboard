@@ -90,6 +90,7 @@ const CASES = [
   ['an if value without else', '    bool b = if x > 0\n        true\n    b ? 1.0 : 0.0', /`if` used as a value without `else`/, F.BOOL_NA],
   ['history of a literal', '    x + 5[1]', /history of a literal or of a field/, null],
   ['a negative literal index', '    a = array.from(1.0, 2.0)\n    array.get(a, -1) + x', /negative index/, null],
+  ['str.tostring of a numeric constant', '    s = str.tostring(0.1234567890123)\n    str.length(s) + x', /`str\.tostring` of a numeric constant with no format/, F.TOSTRING_LITERAL],
 ]
 // a clean v5 library whose one export the runtime lane refuses inside the library's own code
 const ISLAND_REFUSES = `${MPL}
@@ -128,6 +129,16 @@ export kept(float x) =>
     c == #FFEB3B or c == #FF5252 ? 1.0 : 0.0
 `,
     uses: 'plot(il.teal(close))\nplot(il.kept(close))\n',
+  },
+  // `str.tostring` of a numeric literal: in full at v5, ten decimals at v6 (`pineTextFormat.js::literalTostringText`)
+  [F.TOSTRING_LITERAL]: {
+    lib: `export digits(float x) => str.length(str.tostring(0.1234567890123)) + x * 0
+export kept(float x) =>
+    var string s = ""
+    s := str.tostring(1.0000000000001)
+    str.length(s) + x * 0
+`,
+    uses: 'plot(il.digits(close))\nplot(il.kept(close))\n',
   },
 }
 const islandPath = (family) =>`tester/island${family.replace(/[^a-z]/gi, '')}/1`

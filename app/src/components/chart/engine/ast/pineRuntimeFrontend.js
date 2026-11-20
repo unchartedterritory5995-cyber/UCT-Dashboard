@@ -10460,7 +10460,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⭐⭐ CBC-FMT (S17, s21) — a numeric constant with no format: the version decides
           // (`pineTextFormat.js::literalTostringText`, the host lane's same question): FULL is this text as
           // a constant; an unwitnessed version or spelling is refused by that name.
-          const lit = literalTostringText(v0, { version: pineVersion })
+          // ⭐⭐ the version island: inside a v5 library, the library's version prints the literal in full
+          const lit = literalTostringText(v0, { version: versionAt(node.tok, pineVersion) })
           if (lit && lit.text !== undefined) return str(lit.text)
           if (lit) throw new RuntimeRefusal(lit.why, LITERAL_TOSTRING_SENTENCE, locate(node.tok))
           return textCall('str.tostring', [lowerExpr(v0, scope)])

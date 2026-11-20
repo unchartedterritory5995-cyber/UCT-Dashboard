@@ -22328,7 +22328,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // unwitnessed `input.timeframe` text (`UNWITNESSED_TF_TEXT`: the op runs, the property is unknown).
       if (arg0 && node.args && node.args.length === 1) {
         let version = null
-        try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
+        // ⭐⭐ the version island: inside a v5 library, the library's version (`versionAt`)
+        try { version = versionAt(node.tok, makeResolver(scopeEnv).pineVersion) } catch { version = null }
         const lit = literalTostringText(arg0, { version })
         if (lit && lit.text !== undefined) return { t: 'lit', s: lit.text }
         if (lit) {
