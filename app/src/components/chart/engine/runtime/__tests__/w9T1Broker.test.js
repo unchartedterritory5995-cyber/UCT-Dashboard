@@ -37,9 +37,9 @@ describe('W9-T1 pinned(): the committed ledger holds the rules the captures witn
     expect(PINS_SRC.rules).toEqual(RESOLVED.rules)
     expect(Object.keys(RESOLVED.rules).sort()).toEqual([
       'B-CANCEL', 'B-CLOSE', 'B-COMM-CONTRACT', 'B-COMM-ORDER', 'B-COMM-PCT', 'B-DEFAULTS', 'B-DIR', 'B-ENTRY-ORDER', 'B-EXEC', 'B-EXIT-BIND',
-      'B-EXIT-LIFE', 'B-FIFO', 'B-FILL', 'B-FUNDS', 'B-FUNDS-REVERSE', 'B-FUNDS-SHORT', 'B-GAP', 'B-MARGIN', 'B-MARGIN-CALL',
-      'B-MARGIN-CALL-ALL', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-PYR', 'B-QTY', 'B-QTY-REVERSE',
-      'B-REVERSE', 'B-RISK-ALLOW', 'B-RISK-DDOWN', 'B-ROUND', 'B-SIG', 'B-SLIPPAGE', 'B-TICK-HIST',
+      'B-EXIT-LIFE', 'B-EXIT-NA', 'B-FIFO', 'B-FILL', 'B-FUNDS', 'B-FUNDS-REVERSE', 'B-FUNDS-SHORT', 'B-GAP', 'B-MARGIN', 'B-MARGIN-CALL',
+      'B-MARGIN-CALL-ALL', 'B-MARGIN-ZERO', 'B-MARKET', 'B-OCA', 'B-ORDER', 'B-PATH', 'B-PYR', 'B-QTY', 'B-QTY-REVERSE', 'B-QTY-REVERSE-M0',
+      'B-REVERSE', 'B-RISK-ALLOW', 'B-RISK-DDOWN', 'B-ROUND', 'B-ROUND-LEVEL', 'B-SIG', 'B-SLIPPAGE', 'B-TICK-HIST',
       'B-TXT-CLOSE-ALL-ID', 'B-TXT-CLOSE-ID', 'B-TXT-ENTRY-CLOSE-ID', 'B-TXT-NO-COMMENT', 'B-V3', 'B-V4-MARGIN0', 'B-VAL', 'B-WHEN',
     ])
   })
