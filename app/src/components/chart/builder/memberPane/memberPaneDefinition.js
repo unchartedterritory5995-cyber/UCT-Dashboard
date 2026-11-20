@@ -315,7 +315,7 @@ export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on =
 // back before it was refused by name. The worker watchdogs (`hostLaneAsync.js`, `runtimeAsync.js`) start only after
 // this door has answered, so they never saw it.
 // ⭐ ONE DEADLINE BOUNDS THE WHOLE CALL (`pine.js::withDoorDeadline`): every translation, retry and Resolver below
-// shares it, and past it the script is refused BY NAME (`pine:timeout`) with `DOOR_TIMEOUT_SENTENCE`. A picture
+// shares it, and past it the script is refused BY NAME (`pine:timeout`) with `doorTimeoutSentence()`. A picture
 // built while the clock ran out is never served: a tripped call is refused whole, whatever its lanes answered.
 // ⭐ THE VALUE IS MEASURED (docs/pine/evidence/2026-11-20-door-deadline/EVIDENCE.md), AND IT IS A BACKSTOP, NOT A
 // SMOOTHNESS BAR. Scripts the door SERVES today take up to minutes in this same call on the dev PC (the slowest,
