@@ -21,6 +21,9 @@ import { shadeFor, SHADE_SPEC } from './breadth/shading'
 import { defaultsFor } from './breadth/defaultColumns'
 import { columnInfo, columnTitle } from './breadth/columnInfo'
 import { fetchDrill, peekDrill, prefetchDrill, forgetDrill } from './breadth/drillFetch'
+import { prefetchListDeep } from '../utils/barsWarm'
+// A hovered cell's first rows warmed before the click (the drill opens sorted by % change).
+const HOVER_WARM_ROWS = 4
 import LiveSessionStrip from './breadth/LiveSessionStrip'
 import BreadthDateNav from './breadth/BreadthDateNav'
 import useMonitorGrid from './breadth/useMonitorGrid'
@@ -1104,11 +1107,26 @@ export default function Breadth() {
   // in one place (drillTarget), never re-derived here.
   // Hovering a cell starts its list (and the window's code) loading, so the
   // click opens onto rows rather than "Loading…".
+  // ⭐ …AND ITS FIRST CHARTS (2026-11-20). Once the hovered list is in hand, the top rows' daily
+  // bars are warmed too (the list opens sorted by % change, so these are the first stocks shown),
+  // so the click paints its chart from memory instead of starting a read. Only for the cell the
+  // pointer is STILL on: sweeping across the sheet warms nothing.
+  const hoverUrlRef = useRef(null)
   const prefetchCell = useCallback((row, col) => {
     preloadDrillModal()
     preloadReadingModal()
     const t = drillTarget(row, col, liveBreadth)
-    if (t) prefetchDrill(t.url, { live: t.live })
+    if (!t) return
+    hoverUrlRef.current = t.url
+    fetchDrill(t.url, { live: t.live })
+      .then((d) => {
+        if (hoverUrlRef.current !== t.url) return
+        const top = [...(d?.items || [])]
+          .sort((a, b) => (Number(b?.pct) || 0) - (Number(a?.pct) || 0))
+          .slice(0, HOVER_WARM_ROWS).map((i) => String(i?.t || '').toUpperCase()).filter(Boolean)
+        if (top.length) prefetchListDeep(top, { tfs: ['D'], priority: true })
+      })
+      .catch(() => {})
   }, [liveBreadth])
   useEffect(() => {
     const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 2500))

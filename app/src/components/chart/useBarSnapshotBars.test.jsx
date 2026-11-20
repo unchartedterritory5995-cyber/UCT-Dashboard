@@ -207,6 +207,19 @@ describe('useBarSnapshotBars — keys and the daily paint authority', () => {
     act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'rest-full', key: KD, gen: st.getSnapshot(KD).gen, payload: { ticker: 'SIMD', tf: 'D', bars: [...days, { t: '2026-09-21', o: 10, h: 11, l: 9, c: 10.5, v: 1 }, { t: '2026-09-22', o: 10, h: 11, l: 9, c: 10.5, v: 1 }] } }) })
     expect(result.current.bars?.[result.current.bars.length - 1]?.t).toBe('2026-09-22')
   })
+
+  it('D replay: the SAME stale local copy paints at once when it reaches the replay day (no current tail needed)', () => {
+    const KD = keyOf({ sym: 'SIMQ', tf: 'D' })
+    const days = ['2026-09-16', '2026-09-17', '2026-09-18'].map((d) => ({ t: d, o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+    const reach = renderHook(() => useBarSnapshotBars(params({ sym: 'SIMQ', resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: '2026-09-17' })))
+    act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'idb-hit', key: KD, gen: st.getSnapshot(KD).gen, payload: { bars: days } }) })
+    expect(reach.result.current.bars?.length).toBe(days.length)
+    // a replay day the copy does not reach still waits for the server
+    const KS = keyOf({ sym: 'SIMS', tf: 'D' })
+    const short = renderHook(() => useBarSnapshotBars(params({ sym: 'SIMS', resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: '2026-09-21' })))
+    act(() => { const st = getBarStore(); st.registry.dispatch(KS, { type: 'idb-hit', key: KS, gen: st.getSnapshot(KS).gen, payload: { bars: days } }) })
+    expect(short.result.current.bars).toBeNull()
+  })
 })
 
 // P3-S1 review fix 5 — the DELAYED badge under BARSTORE: the badge's input (`_tailCatchupRef`,

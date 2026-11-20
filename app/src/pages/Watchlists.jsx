@@ -1368,9 +1368,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [scanVisibleSyms, setScanVisibleSyms] = useState([])
   // Report the visible scan window to the caller too (e.g. Custom-Period Sort warms
   // the deep chart history of what's on-screen as you scroll), then update local state.
+  // ⛔ STORED ONLY WHEN THE STREAM READS IT (2026-11-20). `allTickers` below takes the visible
+  // window only for a scan over 800 rows; a smaller scan streams every row. Storing the window
+  // anyway re-rendered the WHOLE watchlist (and re-derived `allTickers`, the price map and the
+  // sort) every time a scroll moved the window by one row — on the Breadth drill, once per arrow
+  // key, which is what made a fast scan lag (production CPU profile: 50-100 ms per scroll).
+  const scanVisibleNeededRef = useRef(false)
+  const lastScanVisibleRef = useRef([])
   const handleScanVisible = useCallback((syms) => {
     onScanVisibleSyms?.(syms)
-    setScanVisibleSyms(syms)
+    lastScanVisibleRef.current = syms
+    if (scanVisibleNeededRef.current) setScanVisibleSyms(syms)
   }, [onScanVisibleSyms])
   // Which symbols each VIRTUALIZED watchlist group currently has on screen, keyed by
   // list id so several open lists can each report their own window.
@@ -1502,6 +1510,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     tickers.push(...visibleFromVirtualized)
     return tickers
   }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms, visibleFromVirtualized, groupMode, scanGroups])
+  // Exactly the two `> 800` branches above that return `scanVisibleSyms`.
+  const scanVisibleNeeded = useMemo(() => {
+    if (!scanMode) return false
+    if (groupMode && scanGroups) {
+      let n = 0
+      for (const m of Object.values(scanGroups)) if (Array.isArray(m)) n += m.length
+      return n > 800
+    }
+    return (scanWl?.items?.length || 0) > 800
+  }, [scanMode, groupMode, scanGroups, scanWl])
+  useEffect(() => {
+    scanVisibleNeededRef.current = scanVisibleNeeded
+    // A scan that grows past the bound starts from the window already reported.
+    if (scanVisibleNeeded) setScanVisibleSyms(lastScanVisibleRef.current)
+  }, [scanVisibleNeeded])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // The whole-list SORT VECTOR — one slow pass at 15 s, matching the server's own
