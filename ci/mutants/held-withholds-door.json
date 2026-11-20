@@ -1,0 +1,78 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "HELD WITHHOLDS AT THE MEMBER DOOR (coordinator rulings 2026-11-19, part B): each narrow withhold removes exactly its element, by name, on the door that drew it; the measuring suites and the regrade see through the list. Every condition, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "D1",
+   "mutant": "the runtime door draws a row withheld by title",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (o.title && heldRunOut.has(o.title)) { withheld.push({ label, why: heldWithholdSentence(heldRunOut.get(o.title)), o }); continue }",
+   "to": "    if (o.title && heldRunOut.has(o.title) && false) { withheld.push({ label, why: heldWithholdSentence(heldRunOut.get(o.title)), o }); continue }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "a row by title is withheld"
+  },
+  {
+   "id": "D2",
+   "mutant": "the runtime door draws a withheld colour",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (o.title && heldRunColour.has(o.title)) {",
+   "to": "    if (o.title && heldRunColour.has(o.title) && false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "COLOUR is withheld"
+  },
+  {
+   "id": "D3",
+   "mutant": "the runtime door draws a withheld paint",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "        if (heldPaint) { paintWithheld.push({ p, why: heldWithholdSentence(heldPaint) }); return }",
+   "to": "        if (heldPaint && false) { paintWithheld.push({ p, why: heldWithholdSentence(heldPaint) }); return }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "a paint by kind and line"
+  },
+  {
+   "id": "D4",
+   "mutant": "the runtime door draws a withheld drawing family from its own run",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  const ownObjects = !!own.probe && !heldRunFamilies.length",
+   "to": "  const ownObjects = !!own.probe",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "a drawing family is withheld: no drawings"
+  },
+  {
+   "id": "D5",
+   "mutant": "the host door draws a withheld drawing family",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  const withholdObjects = !objectsGate.draw || heldHostFamilies.length > 0",
+   "to": "  const withholdObjects = !objectsGate.draw",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "a drawing family is withheld, named, and the plots stay"
+  },
+  {
+   "id": "D6",
+   "mutant": "the host door ignores a withhold it cannot hold back alone",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (heldHostOther.length) {",
+   "to": "  if (heldHostOther.length && false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "refuses the script by name"
+  },
+  {
+   "id": "D7",
+   "mutant": "a withhold is honoured on the door that did not draw the element",
+   "file": "app/src/components/chart/engine/heldWithholds.js",
+   "from": "  return e.withholds.filter((w) => w && w.door === door)",
+   "to": "  return e.withholds.filter((w) => w)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "the OTHER door changes nothing"
+  },
+  {
+   "id": "D8",
+   "mutant": "the regrade cannot see through the list",
+   "file": "app/src/components/chart/engine/heldWithholds.js",
+   "from": "  if (_ignored || typeof source !== 'string' || !source || !_entries.size) return []",
+   "to": "  if (typeof source !== 'string' || !source || !_entries.size) return []",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholds.door.test.js",
+   "expectRed": "the document exactly as the engine draws it"
+  }
+ ]
+}

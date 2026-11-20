@@ -1288,6 +1288,15 @@ def main():
     except Exception as e:
         log.warning(f"intradaypack builder failed to start (non-fatal): {e}")
 
+    # First-frame seed builder: every symbol's newest N bars per timeframe (1/5/15/30/60/D), exactly as
+    # /api/bars serves them, one pack per timeframe to R2 (ffseed/), served from the edge (/api/seed/).
+    # Once per closed session after 20:15 ET. Dark until FFSEED_ENABLED=1; zero provider cost.
+    try:
+        from api.services.ffseed import start_ffseed_builder
+        start_ffseed_builder()
+    except Exception as e:
+        log.warning(f"ffseed builder failed to start (non-fatal): {e}")
+
     # Boot fingerprint — one grep-able line so an operator can confirm which
     # data-integrity guards are live in this worker deploy (mirrors the web's
     # "[startup] chart-realtime-mode:" line). The R2 upload integrity gate

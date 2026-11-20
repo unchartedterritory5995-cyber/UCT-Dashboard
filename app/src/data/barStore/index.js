@@ -51,7 +51,9 @@ export function createBarStore(o = {}) {
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),
   })
-  const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}) })
+  // `o.device`: the on-device bar store (deviceStore/source); omitted = the app's, off unless switched on
+  const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}),
+    ...(o.device !== undefined ? { device: o.device } : {}) })
   const live = o.liveFeed ?? createLiveFeed({
     registry, now, onReconnect: (key) => network.kick(key), onReanchor: (key) => network.kick(key),
     ...(o.stream ? { stream: o.stream } : {}), ...(o.candle !== undefined ? { candle: o.candle } : {}),

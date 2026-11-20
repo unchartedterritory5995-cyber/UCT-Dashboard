@@ -139,6 +139,8 @@ const ARG_SAMPLE = {
   groupName: 'XLK',
   unvolSide: 'DOWN', unvolMin: '3X',
   shortRank: 'FLOAT',
+  oiSide: 'P',
+  tideScope: 'ETFS',
 }
 
 afterEach(cleanup)

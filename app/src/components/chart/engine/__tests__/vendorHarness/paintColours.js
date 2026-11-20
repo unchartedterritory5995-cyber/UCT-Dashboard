@@ -32,6 +32,7 @@
 //   notDrawn     the vendor draws it, our door carried nothing for it, and nothing
 //                the member reads names it
 import { vendorColorsFor, coloursAgree, normalizeColor, NO_COLOUR, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
+import { startsAtBar0Holds } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
 
 const PAINT_TYPES = Object.freeze({ bg_colorer: 'bgcolor', bar_colorer: 'barcolor' })
 
@@ -123,7 +124,7 @@ export const PAINT_WARMUP_FLOOR = 200
 
 /** Bars [0, W) of a capture's paint grade that are warm-up (not graded). */
 export function paintWarmupOf(capture, supply) {
-  const bar0 = !!(capture && capture.history && capture.history.startsAtBar0 === true)
+  const bar0 = startsAtBar0Holds(capture)
   if (bar0 || (supply && (supply.kind === 'warm' || supply.kind === 'bar0'))) return 0
   const declared = capture && capture.warmup && capture.warmup.bars
   return Number.isInteger(declared) && declared >= 0 ? declared : PAINT_WARMUP_FLOOR

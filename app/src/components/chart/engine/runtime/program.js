@@ -440,7 +440,13 @@ export function makeProgram({
       if (!Object.prototype.hasOwnProperty.call(ARRAY_FNS, name)) {
         throw new ProgramError(`arrayOp ${i}: no implementation for \`${name}\``)
       }
-      return Object.freeze({ fn: name, typeArg: op.typeArg || null })
+      // ⭐⭐ the version island: `version` rides only on a v5 library's call inside a v6 program (`lowerIr.js`);
+      // every other entry keeps its exact two keys
+      if (op.version === undefined) return Object.freeze({ fn: name, typeArg: op.typeArg || null })
+      if (!Number.isInteger(op.version) || op.version < 1) {
+        throw new ProgramError(`arrayOp ${i}: \`${name}\` names no Pine version (${op.version})`)
+      }
+      return Object.freeze({ fn: name, typeArg: op.typeArg || null, version: op.version })
     })),
     // ⭐⭐ ONE DESCRIPTOR PER USER TYPE — `{type, fields}` — validated here for
     // the same reason a text op's name is: a descriptor with no field list, or

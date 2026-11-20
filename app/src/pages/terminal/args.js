@@ -136,6 +136,14 @@ export const SHORT_RANK_WORDS = Object.freeze({
   DOWN: 'down', DECREASE: 'down', DECREASES: 'down', FALLING: 'down', COVERING: 'down',
   FLOAT: 'float', PCT: 'float', PERCENT: 'float',
 })
+// the open interest change panel: a copy of the panel model's words (args.oiChange.test.js pins it to its owner)
+export const OI_SIDE_WORDS = Object.freeze({
+  C: 'call', CALL: 'call', CALLS: 'call',
+  P: 'put', PUT: 'put', PUTS: 'put',
+})
+
+// Market Tide by day: a copy of the panel model's words (args.tideHistory.test.js pins it to its owner)
+export const TIDE_SCOPE_WORDS = Object.freeze({ STOCKS: 'stocks', STOCK: 'stocks', ETFS: 'etfs' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -553,6 +561,26 @@ export const ARG_KINDS = {
     },
     describe: (v) => ({ dtc: 'most days to cover first', up: 'biggest increase in short interest first',
       down: 'biggest decrease in short interest first', float: 'highest percent of float first' })[v] || v,
+  },
+  // ── open interest change (2026-11-19) ──
+  /** OIC's side (panels/oiChangeModel.js OI_SIDE_ARG_WORDS; pinned by args.oiChange.test.js). */
+  oiSide: {
+    takes: 'a side (C for calls, P for puts)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(OI_SIDE_WORDS, key) ? OI_SIDE_WORDS[key] : null
+    },
+    describe: (v) => ({ call: 'calls only', put: 'puts only' })[v] || v,
+  },
+  // ── Market Tide by day (2026-11-19) ──
+  /** TIDEH's scope (panels/tideHistoryModel.js TIDE_SCOPE_ARG_WORDS; pinned by args.tideHistory.test.js). */
+  tideScope: {
+    takes: 'STOCKS or ETFS',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(TIDE_SCOPE_WORDS, key) ? TIDE_SCOPE_WORDS[key] : null
+    },
+    describe: (v) => ({ stocks: 'stocks only', etfs: 'ETFs and indexes only' })[v] || v,
   },
 }
 

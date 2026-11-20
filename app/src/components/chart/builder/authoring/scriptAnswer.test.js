@@ -11,7 +11,7 @@ import {
   verdictFrom, refusalOf, sameRefusals, checkScript, settleScript, scriptEntry,
   MAX_REPAIR_ROUNDS, SCRIPT_REFUSAL_LIMITS, RUNS_STATES, drawingLossOf, DRAWINGS_NOTE, LOST_DRAWINGS_HEADLINE,
   PENDING_RECHECKS, PENDING_RECHECK_MS, STILL_CHECKING_LINE, isChecking, scriptNeedsFixing, WAITS_ON_A_LIVE_CHART_LINE,
-  STILL_CHECKING_HEADLINE, UNCHECKED_STATE,
+  STILL_CHECKING_HEADLINE, UNCHECKED_STATE, latchAnswerAdmission, PENDING_REASON_LINES, PENDING_REASONS_THAT_END_THE_WAIT,
 } from './scriptAnswer'
 import { RUN, STOPPED_HEADLINE, CHECKING_HEADLINE, WAITING_HEADLINE, NOT_RUN_HEADLINE, runHereWhenLanded, verdictOnChart } from '../runsHere'
 import { recipeBars, recipeContext, RUN_STOP_PROBES } from '../../supportLoop/assistantRecipes'
@@ -22,10 +22,11 @@ import { editorStatus } from '../editorStatus'
 /** The engine modules `checkScript` loads, with nothing to fetch (the lists are allowed in `beforeAll`). */
 const realEngine = async () => ({ inspectSource, memberPaneDefinition, editorStatus, prepare: async () => {}, runHereWhenLanded, verdictOnChart })
 import { DRAWING_NOTE_NAME } from '../../engine/ast/objectLoss'
-import { converseBody, converseTurn, scriptOf, scriptRefusalBlock, ACCEPTS, ACCEPTS_SCRIPT, SCRIPT_LIMITS } from './converseClient'
+import { converseBody, converseTurn, scriptOf, scriptRefusalBlock, ACCEPTS, ACCEPTS_SCRIPT, SCRIPT_LIMITS, admissionOf, ADMISSION_LIMITS } from './converseClient'
 import { modelTurn } from './authoringSession'
 import { newAuthoringState } from './index'
 import { __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
+import * as runtimeKill from '../../engine/runtimeKill'
 import { __allowEveryRuntimeScriptForTests } from '../../engine/runtimeKill'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8')
@@ -601,7 +602,7 @@ describe('stopping, and verdicts made with nothing known', () => {
 
   it('⛔ a verdict made while the chart does not know whether it may draw the script is CHECKING, never a refusal', async () => {
     // the lane declined the script for want of an admission answer: the paste check reads "does not run"
-    const pendingEngine = async () => ({ ...(await realEngine()), consultPending: () => true })
+    const pendingEngine = async () => ({ ...(await realEngine()), consultPending: () => true, pendingReason: () => null })
     const v = await checkScript(BROKEN, { load: pendingEngine })
     expect(v.runs).toBe(false)
     expect(v.checking).toBe(true)
@@ -627,5 +628,173 @@ describe('stopping, and verdicts made with nothing known', () => {
     expect(scriptNeedsFixing(entry.script)).toBe(false)
     // CONTROL: a refused one is
     expect(scriptNeedsFixing(scriptEntry({ script: { name: 'x', pine: BROKEN }, reply: '', verdict: refused('line 3: x') }).script)).toBe(true)
+  })
+})
+
+// ─── the admission verdict that comes WITH the script (2026-11-19) ─────────────────────
+//
+// The chart may draw a script bar by bar only once the server has said so. Asked afterwards, the question could
+// wait behind other members' traffic and the dock read "still being checked". The server sends the verdict in
+// the script's own answer; the window latches it exactly as it latches the door's answer, and asks nothing.
+describe('the admission verdict carried in a script answer', () => {
+  const SHA = 'a'.repeat(64)
+  const body = (admission) => ({ script: { name: 'x', pine: TABLE, round: 0, admission } })
+
+  it('is kept only when it is well formed', () => {
+    const good = { sha256: SHA.toUpperCase(), admitted: true, missing: [], historyOnly: ['realtime-state'] }
+    expect(scriptOf(body(good)).script.admission).toEqual({ sha256: SHA, admitted: true, missing: [], historyOnly: ['realtime-state'] })
+    expect(scriptOf(body({ sha256: SHA, admitted: false, missing: ['udt'] })).script.admission).toEqual({ sha256: SHA, admitted: false, missing: ['udt'] })
+    const bad = [null, 'yes', [], {}, { sha256: 'abc', admitted: true, missing: [] }, { sha256: SHA, admitted: 'true', missing: [] },
+      { sha256: SHA, admitted: true }, { sha256: SHA, admitted: true, missing: 'none' }, { sha256: SHA, admitted: true, missing: [7] },
+      { sha256: SHA, admitted: true, missing: [], historyOnly: 'realtime-state' },
+      { sha256: SHA, admitted: true, missing: Array(ADMISSION_LIMITS.maxIds + 1).fill('x') },
+      { sha256: SHA, admitted: true, missing: ['x'.repeat(ADMISSION_LIMITS.maxIdChars + 1)] }]
+    for (const raw of bad) {
+      expect('admission' in scriptOf(body(raw)).script, JSON.stringify(raw)).toBe(false)
+      expect(admissionOf(raw)).toEqual({})
+    }
+    expect('admission' in scriptOf({ script: { name: 'x', pine: TABLE, round: 0 } }).script).toBe(false)   // an older server
+  })
+
+  /** A stand-in for `engine/runtimeKill.js` that records what is latched. */
+  const fakeKill = ({ on = true } = {}) => {
+    const latched = []
+    return { latched, runtimeCapabilityAdmissionOn: () => on, runtimeSourceHash: runtimeKill.runtimeSourceHash,
+      latchRuntimeAdmission: (h, v) => latched.push([h, v]) }
+  }
+  const own = runtimeKill.runtimeSourceHash(TABLE)
+
+  it('is latched under the script\'s own hash, as the door\'s answer is', () => {
+    const kill = fakeKill()
+    expect(latchAnswerAdmission(kill, TABLE, { sha256: own, admitted: true, missing: [] })).toBe(true)
+    expect(latchAnswerAdmission(kill, TABLE, { sha256: own.toUpperCase(), admitted: true, missing: [], historyOnly: ['realtime-state'] })).toBe(true)
+    expect(latchAnswerAdmission(kill, TABLE, { sha256: own, admitted: false, missing: ['udt'] })).toBe(true)
+    expect(kill.latched).toEqual([[own, { admitted: true, historyOnly: false }], [own, { admitted: true, historyOnly: true }],
+      [own, { admitted: false, historyOnly: false }]])
+    // `historyOnly` fails closed: present and not an empty list reads as finished-bars-only
+    const closed = fakeKill()
+    latchAnswerAdmission(closed, TABLE, { sha256: own, admitted: true, missing: [], historyOnly: [] })
+    latchAnswerAdmission(closed, TABLE, { sha256: own, admitted: true, missing: [], historyOnly: 'yes' })
+    expect(closed.latched.map(([, v]) => v.historyOnly)).toEqual([false, true])
+  })
+
+  it('⛔ latches NOTHING for another script\'s verdict, a "still being checked", or with admission off', () => {
+    const kill = fakeKill()
+    expect(latchAnswerAdmission(kill, TABLE, { sha256: SHA, admitted: true, missing: [] })).toBe(false)             // not this script's
+    expect(latchAnswerAdmission(kill, TABLE, { sha256: own, admitted: false, missing: ['pending'] })).toBe(false)   // not a verdict
+    expect(latchAnswerAdmission(kill, TABLE, null)).toBe(false)
+    expect(latchAnswerAdmission(kill, TABLE, { sha256: own, admitted: 'true', missing: [] })).toBe(false)
+    expect(latchAnswerAdmission(kill, '', { sha256: own, admitted: true, missing: [] })).toBe(false)
+    expect(latchAnswerAdmission(null, TABLE, { sha256: own, admitted: true, missing: [] })).toBe(false)
+    expect(kill.latched).toEqual([])
+    const off = fakeKill({ on: false })
+    expect(latchAnswerAdmission(off, TABLE, { sha256: own, admitted: true, missing: [] })).toBe(false)
+    expect(off.latched).toEqual([])
+  })
+
+  it('each script is checked with ITS OWN verdict: the first script\'s is never used for a repair', async () => {
+    const first = { ok: true, script: { name: 'a', pine: BROKEN, round: 0, admission: { sha256: SHA, admitted: true, missing: [] } }, reply: 'First.' }
+    const fixed = { ok: true, script: { name: 'a', pine: TABLE, round: 1 }, reply: 'Fixed.' }
+    const seen = []
+    const verdicts = [refused('line 3: x'), runs]
+    await settleScript(first, async () => fixed, { check: async (pine, script) => { seen.push([pine, script && script.admission]); return verdicts.shift() }, wait: async () => {} })
+    expect(seen).toEqual([[BROKEN, first.script.admission], [TABLE, undefined]])
+  })
+
+  it('the check hands the verdict to the engine\'s own prepare step, before anything is judged', async () => {
+    const order = []
+    const load = async () => ({ ...(await realEngine()), prepare: async (pine, admission) => { order.push(['prepare', pine === TABLE, admission]) } })
+    const admission = { sha256: own, admitted: true, missing: [] }
+    const v = await checkScript(TABLE, { load, admission })
+    expect(order).toEqual([['prepare', true, admission]])
+    expect(v.runs).toBe(true)
+    // CONTROL: with none, prepare is handed none
+    order.length = 0
+    await checkScript(TABLE, { load })
+    expect(order).toEqual([['prepare', true, null]])
+  }, 120_000)
+
+  it('with the real engine: a verdict that came with the script is latched and the door is never asked', () => {
+    runtimeKill.__resetRuntimeAllowList()
+    runtimeKill.__resetRuntimeAdmission()
+    runtimeKill.latchRuntimeLists({ kill: [], allow: [], capability_admission: true })
+    try {
+      expect(runtimeKill.runtimeAdmissionOf({ source: TABLE })).toBe(null)
+      expect(latchAnswerAdmission(runtimeKill, TABLE, { sha256: own, admitted: true, missing: [], historyOnly: [] })).toBe(true)
+      const v = runtimeKill.runtimeAdmissionOf({ source: TABLE })
+      expect(v && v.admitted).toBe(true)
+      expect(v.historyOnly).toBe(false)
+      expect(runtimeKill.runtimeNotGradedOf({ source: TABLE })).toBe(null)          // the lane takes it: nothing "being checked"
+      expect(runtimeKill.runtimeConsultPendingOf({ source: TABLE })).toBe(false)
+    } finally {
+      runtimeKill.__resetRuntimeAdmission()
+      __allowEveryRuntimeScriptForTests()
+    }
+  })
+})
+
+// ─── why it is still being checked (2026-11-19) ────────────────────────────────────────
+describe('a script still being checked says why, when the server said why', () => {
+  const pendingEngine = (reason) => async () => ({ ...(await realEngine()), consultPending: () => true, pendingReason: () => reason })
+
+  it('the reason rides the checking verdict, and only a reason this window has words for', async () => {
+    for (const reason of Object.keys(PENDING_REASON_LINES)) {
+      const v = await checkScript(BROKEN, { load: pendingEngine(reason) })
+      expect(v.checking).toBe(true)
+      expect(v.pendingReason).toBe(reason)
+    }
+    for (const reason of [null, undefined, '', 'unknown', 7]) {
+      const v = await checkScript(BROKEN, { load: pendingEngine(reason) })
+      expect(v.checking).toBe(true)
+      expect('pendingReason' in v, String(reason)).toBe(false)
+    }
+    // ⛔ NO SILENT-OFF GUARD (coordinator ruling 2026-11-20): an engine without the reason reader is not quietly
+    // tolerated. The check fails loudly as "could not be checked here", which is never "runs" and never a repair.
+    const without = await checkScript(BROKEN, { load: async () => ({ ...(await realEngine()), consultPending: () => true }) })
+    expect(without.state).toBe(UNCHECKED_STATE)
+    expect(without.runs).toBe(false)
+    expect(scriptNeedsFixing(without)).toBe(false)
+    // CONTROL: a verdict that is not CHECKING never carries one: not run at all, and run on a chart
+    const runsFine = await checkScript(TABLE, { load: pendingEngine('busy') })
+    expect('pendingReason' in runsFine).toBe(false)
+    const ranOnAChart = await checkScript(OWNED_SCRIPT, { load: pendingEngine('busy'), chart: { bars: recipeBars('daily'), ctx: recipeContext('daily', 'fromListing') } })
+    expect(ranOnAChart.runs).toBe(true)
+    expect(ranOnAChart.ranHere).toBe(RUN.RAN)
+    expect('pendingReason' in ranOnAChart).toBe(false)
+    expect(Object.keys(PENDING_REASON_LINES).sort()).toEqual(['busy', 'paused', 'starting'])
+  }, 120_000)
+
+  it('the entry says it in a member\'s words, before the "nothing needs fixing" line', () => {
+    const checking = { runs: false, checking: true, attaches: true, state: 'runs', lane: 'runtime', headline: CHECKING_HEADLINE,
+      withheld: [], notes: [], errors: [] }
+    for (const reason of Object.keys(PENDING_REASON_LINES)) {
+      const lines = scriptEntry({ script: { name: 'x', pine: TABLE }, reply: '', verdict: { ...checking, pendingReason: reason } }).lines
+      expect(lines.slice(-2)).toEqual([PENDING_REASON_LINES[reason], STILL_CHECKING_LINE])
+    }
+    const plain = scriptEntry({ script: { name: 'x', pine: TABLE }, reply: '', verdict: checking }).lines
+    expect(plain.slice(-1)).toEqual([STILL_CHECKING_LINE])
+    expect(plain).toHaveLength(2)
+    // a reason on a verdict that RUNS is not said
+    expect(scriptEntry({ script: { name: 'x', pine: TABLE }, reply: '', verdict: { ...runs, pendingReason: 'busy' } }).lines).toEqual(['Runs on the chart'])
+  })
+
+  it('"paused" ends the waiting at once; "busy" and "starting" are asked again', async () => {
+    const checking = (reason) => ({ runs: false, checking: true, attaches: true, state: 'runs', lane: 'runtime', headline: CHECKING_HEADLINE,
+      withheld: [], notes: [], errors: [], pendingReason: reason })
+    for (const reason of PENDING_REASONS_THAT_END_THE_WAIT) {
+      const check = vi.fn(async () => checking(reason))
+      const wait = vi.fn(async () => {})
+      const out = await settleScript(answer(TABLE), vi.fn(), { check, wait })
+      expect(check, reason).toHaveBeenCalledTimes(1)
+      expect(wait, reason).not.toHaveBeenCalled()
+      expect(out.entry.lines).toContain(PENDING_REASON_LINES[reason])
+    }
+    for (const reason of ['busy', 'starting']) {
+      const check = vi.fn(async () => checking(reason))
+      const wait = vi.fn(async () => {})
+      await settleScript(answer(TABLE), vi.fn(), { check, wait })
+      expect(check, reason).toHaveBeenCalledTimes(1 + PENDING_RECHECKS)
+    }
+    expect(PENDING_REASONS_THAT_END_THE_WAIT.every((r) => r in PENDING_REASON_LINES)).toBe(true)
   })
 })

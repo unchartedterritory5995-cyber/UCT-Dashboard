@@ -94,7 +94,7 @@ vi.mock('../hooks/useBreakpoint', () => ({
 }))
 // The sym hub, swapped per test: `hub.tf` stands in for the linked ChartWidget's
 // live timeframe (in production it arrives via the workspace's groupTfs map).
-const hub = { sym: null, setSym: () => {}, tf: undefined }
+const hub = { sym: null, setSym: () => {}, tf: undefined, tfs: undefined }
 vi.mock('./charts/ChartsSymContext', () => ({
   ChartsSymContext: { Provider: ({ children }) => children },
   useChartsSym: () => hub,
@@ -108,6 +108,7 @@ beforeEach(() => {
   localStorage.clear()
   for (const k of Object.keys(warmCalls)) warmCalls[k] = []
   hub.tf = undefined
+  hub.tfs = undefined
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })))
 })
 afterEach(() => { vi.unstubAllGlobals() })
@@ -147,4 +148,34 @@ test('standalone: ignores the hub and uses its own visible selector', async () =
   await screen.findByText('AAPL')
   expect(warmCalls.prewarmVisibleList).toContain('D')
   expect(warmCalls.prewarmVisibleList).not.toContain('60')
+})
+
+// ⭐ EVERY LINKED CHART (2026-11-19): a daily and an hourly chart on the list's colour. `hub.tf` is only
+// the LAST chart to publish; `hub.tfs` is every chart registered on the colour (ChartsWorkspace
+// registerGroupTf). Production, S&P 500, D + 60m: the unwarmed chart waited 501 ms at every flip.
+test('embedded with two linked charts (D + 60m): the list warms BOTH timeframes', async () => {
+  hub.tf = '60'
+  hub.tfs = ['60', 'D']
+  render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findByText('AAPL')
+  expect(warmCalls.prewarmVisibleList).toContain('60')
+  expect(warmCalls.prewarmVisibleList).toContain('D')
+})
+
+test('embedded with two linked charts: row-hover intent warms BOTH timeframes', async () => {
+  const user = userEvent.setup()
+  hub.tf = 'D'
+  hub.tfs = ['15', 'D']
+  render(<Watchlists embedded pickList="user:wl1" pickName="Momentum Plays" />)
+  await user.hover(await screen.findByText('AAPL'))
+  expect(warmCalls.prefetchBarOnIntent).toContain('15')
+  expect(warmCalls.prefetchBarOnIntent).toContain('D')
+})
+
+test('standalone ignores the hub’s linked timeframes too', async () => {
+  hub.tf = '60'
+  hub.tfs = ['60', '5']
+  render(<Watchlists pickList="user:wl1" pickName="Momentum Plays" />)
+  await screen.findByText('AAPL')
+  expect(warmCalls.prewarmVisibleList).toEqual(expect.not.arrayContaining(['60', '5']))
 })

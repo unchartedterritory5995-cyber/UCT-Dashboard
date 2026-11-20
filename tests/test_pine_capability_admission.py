@@ -1128,9 +1128,25 @@ def test_RT1_the_contraction_box_kill_is_lifted_on_its_own_condition():
     assert hkd.refused(src) is None and rt.source_hash(src) not in hkd.committed()
 
 
+#: ⭐ (2026-11-20, #2117) the ONE narrower grade that still justifies a DRAW-1 kill: a disclosed partial whose drawn
+#: records agree on every graded field but whose PLACE no capture witnessed (`compare.mjs` `objects:partial-
+#: unpositioned`, #2109). It never lifts anything (the host listing keeps it: `host_divergence._unpositioned`), so
+#: a kill it holds stays justified. Held to EXACTLY that grade: an INCONCLUSIVE row for any other reason is not.
+DRAW1_UNPOSITIONED = "objects:partial-unpositioned"
+
+
+def _draw1_justifies(r: dict) -> bool:
+    """Does this committed verdict row hold a DRAW-1 kill? A DIVERGE, or an INCONCLUSIVE whose withheld families
+    name the unpositioned partial grade (and so were graded by that named rule), and nothing else."""
+    if r.get("verdict") == "DIVERGE":
+        return True
+    withheld = str((r.get("objects") or {}).get("withheld") or "").split(",")
+    return r.get("verdict") == "INCONCLUSIVE" and DRAW1_UNPOSITIONED in withheld
+
+
 def _draw1_unkilled_diverging(kills: dict) -> list:
     """Sources using obj:box / obj:table, admitted on capabilities, with a committed capture grading DIVERGE on
-    either lane, whose sha256 is not in `kills`."""
+    either lane (or the unpositioned partial grade, `_draw1_justifies`), whose sha256 is not in `kills`."""
     admitted = set(rt.admitted_capabilities()["admitted"])
     lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
              json.loads((ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json")
@@ -1138,7 +1154,7 @@ def _draw1_unkilled_diverging(kills: dict) -> list:
     out = set()
     for results in lanes:
         for r in results:
-            if r.get("verdict") != "DIVERGE":
+            if not _draw1_justifies(r):
                 continue
             at = licence_held.fixture_path(r["file"])
             try:

@@ -386,6 +386,15 @@ STUDY_JS = "(id) => {" + _CHART + r"""
            status: st ? { type: st.type, error: ed ? (ed.error || JSON.stringify(ed)) : null, title: ed ? ed.title || null : null } : null };
 }"""
 
+#: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) THE CHART'S RESOLVED SESSION, read-only: what the main series resolved
+#: (`symbolInfo().session`, e.g. '0400-2000' extended / '0930-1600' regular for a US listing, and `subsession_id`).
+SESSION_JS = r"""() => {
+  const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
+  let si; try { si = col.activeChartWidget.value().model().mainSeries().symbolInfo() } catch (e) { return { ok: false, why: String(e) } }
+  if (!si) return { ok: false, why: 'no symbolInfo yet' };
+  return { ok: true, session: si.session || null, subsession: si.subsession_id || null };
+}"""
+
 #: Ask for more history (n > 0) and read the loaded depth. Read-only at n = 0.
 DEPTH_JS = r"""(n) => {
   const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
@@ -507,7 +516,31 @@ def utcnow() -> str:
     return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
 
 
+#: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) A ROW MAY NAME ITS SESSION. TradingView takes a JSON symbol spec
+#: (`={"session":"extended","symbol":"AMEX:SPY"}`), the same per-row `setSymbol` the batch already makes, so nothing new
+#: persists. The resolved session MUST read back as this (`SESSION_JS`), or the row stops by name; it is restored after.
+#: ⛔ The layout's own session is never toggled (the rig rule: AUTOSAVE is account-wide).
+ROW_SESSIONS = {"extended": "0400-2000", "regular": "0930-1600"}
+
+
+def session_spec(symbol, session) -> str:
+    """The symbol spec naming a session (`=` + JSON, keys sorted: TradingView's own encoding)."""
+    return "=" + json.dumps({"session": session, "symbol": symbol}, separators=(",", ":"), sort_keys=True)
+
+
+def spec_symbol(s):
+    """The plain symbol inside a spec (`={...}`), or `s` itself."""
+    t = str(s or "")
+    if t.startswith("="):
+        try:
+            return str((json.loads(t[1:]) or {}).get("symbol") or "")
+        except (ValueError, AttributeError):
+            return ""
+    return t
+
+
 def sym_match(have, want) -> bool:
+    have, want = spec_symbol(have), spec_symbol(want)
     if not have or not want:
         return False
     a, b = str(have).upper(), str(want).upper()
@@ -582,7 +615,9 @@ def capture_id_for(script: dict, o: Opts) -> str:
                          abort=True)
     sym_slug = slugify(o.symbol.split(":")[-1])
     tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
-    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}-{o.date}"
+    # ⭐ (2026-11-20) an EXTENDED-session row is its own capture (`vw-clock-vwap-spy-5-ext-2026-09-28`, the convention)
+    ext = "-ext" if getattr(o, "session", None) == "extended" else ""
+    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}{ext}-{o.date}"
     return f"{capture_id}-{phase}" if phase else capture_id
 
 
@@ -730,6 +765,10 @@ class Opts:
         self.symbol = kw.get("symbol", "NYSE:RDDT")
         self.tf = kw.get("tf", "1D")
         self.listing_date = kw.get("listing_date", KNOWN_LISTING.get(self.symbol.upper()))
+        # ⭐⭐ (2026-11-20) the row's session (`ROW_SESSIONS`), or None: the chart's own, as before
+        self.session = kw.get("session")
+        if self.session is not None and self.session not in ROW_SESSIONS:
+            raise GateFailed(f"session {self.session!r} is not one of {sorted(ROW_SESSIONS)}", abort=True)
         self.throttle_s = float(kw.get("throttle_s", 30))
         self.compute_timeout_s = float(kw.get("compute_timeout_s", 120))
         self.add_timeout_s = float(kw.get("add_timeout_s", 30))
@@ -885,8 +924,35 @@ class Driver:
             raise Inconclusive("the chart handle answered but getAllStudies() did not", st)
         return st
 
+    def read_session(self, label="session"):
+        r = self.ev(label, SESSION_JS)
+        return r if isinstance(r, dict) and r.get("ok") else None
+
+    def set_row_session(self, symbol, session, label):
+        """setSymbol with the session spec, then the read-back: the resolved session must be `ROW_SESSIONS[session]`
+        within 30 s, or the ROW stops by name (GateFailed). Returns the session read."""
+        want = ROW_SESSIONS[session]
+        r = self.ev(f"{label}:set_symbol", SET_SYMBOL_JS, session_spec(symbol, session))
+        if not r or not r.get("ok"):
+            raise GateFailed(f"setSymbol({session_spec(symbol, session)}) refused: {r} — the row stops")
+        got, ok = self.poll(f"{label}:session", SESSION_JS, None,
+                            lambda s: isinstance(s, dict) and s.get("ok") and s.get("session") == want, 30)
+        if not ok:
+            raise GateFailed(f"{symbol}: the chart's session read back {(got or {}).get('session')!r}, not the {session} "
+                             f"session {want!r} — the row stops by name, nothing captured")
+        self.clock.sleep(self.opts.settle_s)
+        return got
+
     def ensure_symbol_tf(self, st):
         o = self.opts
+        if o.session is not None:
+            # ⭐⭐ (2026-11-20) a row that names its session: what the chart had, for the restore after this row
+            before = self.read_session("session_before")
+            self.row_session_restore = {"symbol": spec_symbol(st.get("symbol")) or o.symbol,
+                                        "session": (before or {}).get("session"),
+                                        "subsession": (before or {}).get("subsession")}
+            self.set_row_session(o.symbol, o.session, "row")
+            st = self.read_state()
         if not sym_match(st.get("symbol"), o.symbol):
             r = self.ev("set_symbol", SET_SYMBOL_JS, o.symbol)
             if not r or not r.get("ok"):
@@ -907,6 +973,17 @@ class Driver:
             self.clock.sleep(o.settle_s)
             st = self.read_state()
         return st
+
+    def restore_session(self, back, label):
+        """The chart's session as it was before a row named its own (`back`: symbol, session, subsession), read back."""
+        now = self.read_session(f"{label}:session_now")
+        if not back.get("session") or (now and now.get("session") == back["session"]):
+            return {"ok": True, "changed": {}}
+        sub_id = back.get("subsession") or ("extended" if back["session"] == ROW_SESSIONS["extended"] else "regular")
+        self.ev(f"{label}:set_symbol", SET_SYMBOL_JS, session_spec(back["symbol"], sub_id))
+        _, ok = self.poll(f"{label}:session", SESSION_JS, None,
+                          lambda s: isinstance(s, dict) and s.get("ok") and s.get("session") == back["session"], 30)
+        return {"ok": bool(ok), "changed": {"session": bool(ok)}}
 
     def restore(self, target, label):
         """Put symbol, resolution and pane stretch back to `target`, asserting the read-back."""
@@ -1289,6 +1366,13 @@ class Driver:
             r = sub("cleanup:restore", lambda: self.restore(self.script_state, "cleanup"))
             if r is not None and not r["ok"]:
                 problems.append(f"restore did not read back: {r}")
+        # ⭐⭐ (2026-11-20) a row that named its session puts the chart's own back, read back like every restore
+        back = getattr(self, "row_session_restore", None)
+        if back:
+            self.row_session_restore = None
+            r = sub("cleanup:session", lambda: self.restore_session(back, "cleanup"))
+            if r is not None and not r.get("ok"):
+                problems.append(f"the session restore did not read back: {r}")
         if self.injected:
             r = sub("vh_cleanup", lambda: self.page.evaluate(VH_CLEANUP_JS))
             if r is not None and r.get("globalsLeft"):
@@ -1306,9 +1390,14 @@ class Driver:
         """⭐ PER-SCRIPT CHART (evidence engine): a manifest row may name its own
         `symbol` / `tf` / `listingDate`. Absent, the batch's own options stand, exactly
         as before. A listing date is never carried over from another symbol."""
-        if not any(script.get(k) for k in ("symbol", "tf", "listingDate")):
+        if not any(script.get(k) for k in ("symbol", "tf", "listingDate", "session")):
             return self.base_opts
         o = copy.copy(self.base_opts)
+        if script.get("session") is not None:
+            if script["session"] not in ROW_SESSIONS:
+                raise GateFailed(f"{script.get('slug')}: session {script['session']!r} is not one of {sorted(ROW_SESSIONS)}",
+                                 abort=True)
+            o.session = script["session"]
         if script.get("symbol"):
             o.symbol = script["symbol"]
             o.listing_date = script.get("listingDate") or KNOWN_LISTING.get(o.symbol.upper())

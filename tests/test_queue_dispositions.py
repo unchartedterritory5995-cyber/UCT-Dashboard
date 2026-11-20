@@ -191,6 +191,9 @@ COMMITTED = {
     # 2026-11-18 (coordinator ruling, parity2 BI1'): TradingView's own `ta.sar` is graded on the built-in Parabolic SAR
     # taken from the listing; no probe file stands in for a built-in
     "capture-queue-2026-11-18-parity2": {"Q-BLT-3a": "builtin", "Q-BLT-3b": "builtin"},
+    # 2026-11-19 (the strategy unit, PR #2141): seven TradingView built-in strategies, each taken from the listing by the
+    # capture session (section D); no probe file stands in for a built-in
+    "capture-queue-2026-11-19-strategy-unit": {f"Q-SU-B{i}": "builtin" for i in range(1, 8)},
 }
 
 
