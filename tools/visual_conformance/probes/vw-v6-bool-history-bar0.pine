@@ -1,0 +1,45 @@
+//@version=6
+indicator("UCTPROBE_VW_V6_BOOL_HISTORY_BAR0", overlay = false)
+
+// PROVENANCE: written 2026-11-20 (Q-BH0, docs/pine/capture-queue-2026-11-20-v6-bool-history-bar0.md).
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── WHAT A v6 BOOL'S HISTORY HOLDS BEFORE BAR 0 ───
+//
+// A Pine v6 bool is never `na` (the "To Pine Script version 6" migration guide, "Boolean values cannot be na"),
+// so `b[1]` on bar 0 should read `false`. This engine's run holds that history as `na`, and a comparison or `not`
+// over it answers 0 on bar 0 (both lanes, measured 2026-11-20). As a CONDITION the two agree (an `na` condition
+// reads false); as `== false`, `!= true`, `not`, or compared with another bool they do not. Ten served v6 scripts
+// read a bool's history in such a form (`x and not x[1]` is the commonest). `b` is true on every bar, so only its
+// history before bar 0 is in question; `u` is an ordinary series bool; `c` is a `var` bool.
+//
+//   H00  bar_index (control)
+//   H01  b[1] == false ? 1 : 0      v6 `false` on bar 0 -> 1; `na` kept -> 0
+//   H02  b[1] ? 1 : 0               0 either way (control: the two readings agree as a condition)
+//   H03  not b[1] ? 1 : 0           `false` -> 1
+//   H04  b[1] != true ? 1 : 0       `false` -> 1
+//   H05  b != b[1] ? 1 : 0          `false` -> 1
+//   H06  b and not b[1] ? 1 : 0     `false` -> 1 (the edge idiom: does bar 0 count as an edge?)
+//   H07  c[1] == false ? 1 : 0      a `var` bool: `false` -> 1
+//   H08  not c[1] ? 1 : 0           a `var` bool: `false` -> 1
+//   H09  u[1] == false ? 1 : 0      u = close > open: `false` -> 1 on bar 0, then u's own history
+//   H10  b[2] == false ? 1 : 0      `false` -> 1 on bars 0 and 1
+//
+// CAPTURE: AMEX:SPY 1D and NYSE:RDDT 1D from the listing, inputs at defaults; keep bars 0-3 of every row.
+
+b = close > 0
+u = close > open
+var bool c = false
+c := close > 0
+
+plot(bar_index, title = "H00_bar_index_CONTROL")
+plot(b[1] == false ? 1 : 0, title = "H01_b1_eq_false")
+plot(b[1] ? 1 : 0, title = "H02_b1_as_condition")
+plot(not b[1] ? 1 : 0, title = "H03_not_b1")
+plot(b[1] != true ? 1 : 0, title = "H04_b1_ne_true")
+plot(b != b[1] ? 1 : 0, title = "H05_b_ne_b1")
+plot(b and not b[1] ? 1 : 0, title = "H06_edge_b_and_not_b1")
+plot(c[1] == false ? 1 : 0, title = "H07_var_c1_eq_false")
+plot(not c[1] ? 1 : 0, title = "H08_var_not_c1")
+plot(u[1] == false ? 1 : 0, title = "H09_u1_eq_false")
+plot(b[2] == false ? 1 : 0, title = "H10_b2_eq_false")

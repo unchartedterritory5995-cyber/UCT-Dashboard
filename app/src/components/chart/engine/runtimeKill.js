@@ -238,11 +238,18 @@ const _pendingReasons = new Map()  // hash -> 'busy' | 'starting' | 'paused'
  *  `PENDING_STARTING`, `PENDING_PAUSED`). Anything else the server sends is ignored, never kept. */
 export const RUNTIME_PENDING_REASONS = Object.freeze(['busy', 'starting', 'paused'])
 
+/** Keep the reason a pending answer gave (a malformed one keeps none) and, when that CHANGES what
+ *  `runtimePendingReasonOf` answers, tell the lists' subscribers (2026-11-19, found wiring the window: the editor
+ *  panel had to poll for it). An identical answer tells nobody. */
 function keepPendingReason(h, reason) {
+  const before = _pendingReasons.get(h) || null
+  const after = RUNTIME_PENDING_REASONS.includes(reason) ? reason : null
   _pendingReasons.delete(h)
-  if (!RUNTIME_PENDING_REASONS.includes(reason)) return
-  _pendingReasons.set(h, reason)
-  while (_pendingReasons.size > RUNTIME_ADMISSION_MAX) _pendingReasons.delete(_pendingReasons.keys().next().value)
+  if (after) {
+    _pendingReasons.set(h, after)
+    while (_pendingReasons.size > RUNTIME_ADMISSION_MAX) _pendingReasons.delete(_pendingReasons.keys().next().value)
+  }
+  if (after !== before) notifyRuntimeLists()
 }
 
 /** Latch the server's switch (`capability_admission` on the kill read). Anything but
@@ -318,6 +325,9 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
         // fail closed); asked again a few times, the in-flight slot released first
         if (Array.isArray(d.missing) && d.missing.includes('pending')) {
           keepPendingReason(h, d.pending_reason)   // ⭐ why, for the window's words (a malformed one is dropped)
+          // ⛔ "paused" is a QUARANTINE (minutes, not seconds): asking again 1.5 s later only spends the
+          // member's door calls. Stop at once; the answer stays "being checked", with its reason.
+          if (_pendingReasons.get(h) === 'paused') return null
           if (_attempt + 1 >= RUNTIME_ADMISSION_PENDING_RETRIES) return null
           return { retry: true }
         }

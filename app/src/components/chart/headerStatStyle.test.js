@@ -62,3 +62,17 @@ describe('text thickness (owner 11-17)', () => {
     expect(h.statStyle).toEqual({})
   })
 })
+
+describe('pickedBoxColor (owner 11-17: a picked box color must be visible)', () => {
+  it('a new color picked off the faint default becomes an 85% pill', async () => {
+    const { pickedBoxColor } = await import('./headerStatStyle')
+    expect(pickedBoxColor(null, '#c41f2d14')).toBe('#c41f2dd9')
+    expect(pickedBoxColor('#f8f7f314', '#3b82f614')).toBe('#3b82f6d9')
+  })
+  it('an opacity the member set is kept: slider moves, and picks from a non-faint box', async () => {
+    const { pickedBoxColor } = await import('./headerStatStyle')
+    expect(pickedBoxColor('#c41f2dd9', '#c41f2d40')).toBe('#c41f2d40')   // slider on the same color
+    expect(pickedBoxColor('#c41f2d80', '#3b82f680')).toBe('#3b82f680')   // their 50% carries to the new color
+    expect(pickedBoxColor(null, '#f8f7f340')).toBe('#f8f7f340')          // slider on the default color
+  })
+})

@@ -914,6 +914,13 @@ def sync_live_once() -> dict:
             res[d] = "fetch failed (%s)" % type(e).__name__
             continue
         res[d] = adopt_publication(blob, entry)
+    if res:
+        # ⭐ A publication moved the US source: refresh the pre-built US Monitor rows (background).
+        try:
+            from api.services import breadth_universe_monitor as _bum
+            _bum.kick_refresh(("us",))
+        except Exception:
+            pass
     return {"ok": True, "results": res}
 
 

@@ -16,6 +16,11 @@
 # comparison role (Pine's tolerant compare): a new call site anywhere in the app must run it.
 # 2026-11-19: + heldSpanFollowsChart.test.js, which reads app/src/components/StockChart.jsx (the held span it hands
 # useSecondarySources) and api/routers/bars.py (/api/bars's le=60000, the ladder's top rung): either can break it.
+# 2026-11-19 (engine 88 train, #2108's miss, coordinator ruling): + heldWithholds.savedCopies.test.js, which reads
+# tests/fixtures/held_withhold_keys.json (the held-withhold stamp keys the browser and the server both assert): a PR
+# that changes the key fixture and never touches the engine must run it.
+# 2026-11-20: + vendorHarness/historyClaim.test.js, which walks app/src and tools/vendor_harness for any grader that
+# reads `history.startsAtBar0` raw instead of through tools/vendor_harness/history_claim.mjs (one authority).
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
 src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
@@ -48,6 +53,7 @@ src/components/chart/engine/__tests__/settingsBlobMigration.test.js
 src/components/chart/engine/__tests__/singleWriterIndex.test.js
 src/components/chart/engine/__tests__/storeIntradayAgreement.test.js
 src/components/chart/engine/__tests__/suiteCoverage.test.js
+src/components/chart/engine/__tests__/vendorHarness/historyClaim.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c45BarIndex.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.l8RecordedSupply.test.js
 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js
@@ -72,6 +78,7 @@ src/components/chart/engine/ast/symbolScopeProse.test.js
 src/components/chart/engine/ast/thinkscript.test.js
 src/components/chart/engine/defSchema.test.js
 src/components/chart/engine/heldSpanFollowsChart.test.js
+src/components/chart/engine/heldWithholds.savedCopies.test.js
 src/components/chart/engine/hostKnownDivergence.test.js
 src/components/chart/engine/lineIdentity.test.js
 src/components/chart/engine/nativeRegistry.test.js

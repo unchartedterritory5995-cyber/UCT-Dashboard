@@ -49,6 +49,10 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Not drawn by this pane",
+       "note": "This script also writes a horizontal line, which a script drawn bar by bar does not draw here yet. Those are not drawn here."
       }
      ],
      "requirementTags": []
