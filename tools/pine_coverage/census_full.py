@@ -762,6 +762,39 @@ def _pct(n, d):
     return "%.1f%%" % (100.0 * n / d) if d else "-"
 
 
+def quotable(m, rd, top=5):
+    """The headline in plain numbers: served (the roadmap's member model), split by the vendor grade on the lane
+    that serves each script (a host-served script: the map's production verdict; a script only the runtime lane
+    draws: its runtime-on captures, through coverage_map.script_verdict, ANY DIVERGE DOMINATES); not served, split
+    by whether it carries a named wall; and the walls carried by the most not-served scripts."""
+    import coverage_map as cm
+    facts = rd["facts"]["scripts"]
+    served, walls = _served_by(m, rd)
+    host = {s["key"] for s in m["scripts"] if s["clean"]}
+    by_key = {s["key"]: s for s in m["scripts"]}
+    grade = {}
+    for k in served:
+        if k in host:
+            v = by_key[k].get("vendorVerdict")
+        else:
+            v = cm.script_verdict([c.get("runtimeOn") for c in (facts.get(k) or {}).get("captures", [])
+                                   if c.get("runtimeOn")])
+        grade[k] = v
+    n = len(m["scripts"])
+    not_served = [k for k in by_key if k not in served]
+    named = [k for k in not_served if walls.get(k)]
+    top_walls = sorted(rd["memberWalls"], key=lambda r: (-r["any"], -r["sole"], r["wall"]))[:top]
+    return {
+        "population": n, "served": len(served),
+        "servedMatch": sum(1 for v in grade.values() if v == cm.el.MATCH),
+        "servedMatchSubstituted": sum(1 for v in grade.values() if v == cm.el.MATCH_SUBSTITUTED),
+        "servedDiverge": sum(1 for v in grade.values() if v == cm.DIVERGE),
+        "servedUngraded": sum(1 for v in grade.values() if v not in (cm.el.MATCH, cm.el.MATCH_SUBSTITUTED, cm.DIVERGE)),
+        "refusedNamed": len(named), "refusedUnnamed": len(not_served) - len(named),
+        "topWalls": [{"wall": r["wall"], "unit": r["unit"], "any": r["any"], "sole": r["sole"]} for r in top_walls],
+    }
+
+
 def cmd_report(a):
     """Markdown tables for the full map's page: the headline beside the 679 line, populations, Pine versions,
     walls by engineering unit, the build order and the demand view. Every number is read from the JSON."""
@@ -782,6 +815,26 @@ def cmd_report(a):
             label, h["sample"], h["memberServed"], _pct(h["memberServed"], h["sample"]), h["runtimeOn"],
             _pct(h["runtimeOn"], h["sample"]), h["hostOnly"], _pct(h["hostOnly"], h["sample"]), h["notServed"])
 
+    q = quotable(fm, fr)
+    w("### The headline in plain numbers (full population)\n")
+    w("| | scripts | %% of %d |" % q["population"])
+    w("|---|---:|---:|")
+    w("| served to a member (the door attaches and draws it) | **%d** | %s |" % (q["served"], _pct(q["served"], q["population"])))
+    w("| ... and a TradingView capture of it grades MATCH on the lane that serves it | %d | %s |" % (
+        q["servedMatch"], _pct(q["servedMatch"], q["population"])))
+    w("| ... graded MATCH with substituted inputs | %d | %s |" % (q["servedMatchSubstituted"], _pct(q["servedMatchSubstituted"], q["population"])))
+    w("| ... a capture DIVERGEs (served, wrong somewhere) | %d | %s |" % (q["servedDiverge"], _pct(q["servedDiverge"], q["population"])))
+    w("| ... served on the door's verdict alone (no capture, or inconclusive / stale) | %d | %s |" % (
+        q["servedUngraded"], _pct(q["servedUngraded"], q["population"])))
+    w("| refused by name (every one of them carries at least one named wall) | **%d** | %s |" % (
+        q["refusedNamed"], _pct(q["refusedNamed"], q["population"])))
+    w("| not served with no named wall | %d | %s |" % (q["refusedUnnamed"], _pct(q["refusedUnnamed"], q["population"])))
+    w("\nThe most common refusals, by the number of not-served scripts that carry them (a script can carry several):\n")
+    w("| wall | unit | scripts carrying it | its only wall |")
+    w("|---|---|---:|---:|")
+    for r in q["topWalls"]:
+        w("| `%s` | `%s` | %d | %d |" % (r["wall"], r["unit"], r["any"], r["sole"]))
+    w("")
     w("### Headline\n")
     w("| measurement | scripts | member-served | runtime-on (census grants all) | host-only | not served |")
     w("|---|---:|---:|---:|---:|---:|")
