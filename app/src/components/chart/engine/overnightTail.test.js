@@ -42,17 +42,23 @@ const bar = (t, i) => ({ t, o: 50 + i * 0.01, h: 50.5 + i * 0.01, l: 49.5 + i * 
 const SPX_D = [{ t: utcMid('2026-11-17'), o: 1, h: 1, l: 1, c: 7416.59, v: 1 }, { t: utcMid('2026-11-18'), o: 1, h: 1, l: 1, c: 7340.53, v: 1 },
   { t: utcMid(DAY), o: 1, h: 1, l: 1, c: 7350.1, v: 1 }]
 
-// per timeframe: the chart (09:30 through its overnight newest) and our SPX (09:30 through the session's last bar, as
-// production served it: 19:55 on 5m, 19:30 on 30m, 19:00 on 60m)
+// ⭐ THE REAL GRID (`otherSymbols.atOrBeforeGridOf`): our SP:SPX intraday rows are the REGULAR session (an index), laid
+// onto the chart's own 04:00-20:00 ET clock at its timeframe. The bar at or before each instant inside the session; from
+// the close, the day's SETTLED daily close (no row until it is settled); before the open, the previous close. So with
+// the day's close settled the series reaches 19:55 / 19:30 / 19:00 (what production served), and a chart bar from
+// 20:00 has no row: the overnight tail. 60m instants are on the hour (the grid steps from 04:00).
 const TF = {
-  5: { step: 5, spxTo: [19, 55], nightFrom: [20, 0], newest: [21, 15] },
-  30: { step: 30, spxTo: [19, 30], nightFrom: [20, 0], newest: [21, 0] },
-  60: { step: 60, spxTo: [19, 0], nightFrom: [20, 0], newest: [21, 0] },
+  5: { step: 5, first: [9, 30], rthLast: [15, 55], gridEnd: [19, 55], nightFrom: [20, 0], newest: [21, 15] },
+  30: { step: 30, first: [9, 30], rthLast: [15, 30], gridEnd: [19, 30], nightFrom: [20, 0], newest: [21, 0] },
+  60: { step: 60, first: [10, 0], rthLast: [15, 30], gridEnd: [19, 0], nightFrom: [20, 0], newest: [21, 0] },
 }
-const chartOf = (tf, [hh, mm] = TF[tf].newest) => slots(ET(DAY, 9, 30), ET(DAY, hh, mm), TF[tf].step).map(bar)
-const spxOf = (tf, [hh, mm] = TF[tf].spxTo) => spx(slots(ET(DAY, 9, 30), ET(DAY, hh, mm), TF[tf].step))
-const secondaryOf = (intraday) => new Map([['SPX', { bars: intraday, status: 'available', newestBarIsForming: false }],
-  ['SPX@D', { bars: SPX_D, status: 'available', newestBarIsForming: false }]])
+const chartOf = (tf, [hh, mm] = TF[tf].newest) => slots(ET(DAY, ...TF[tf].first), ET(DAY, hh, mm), TF[tf].step).map(bar)
+/** our SPX at the chart's timeframe, its regular session from 09:30 through `[hh, mm]` (the session's last bar by default) */
+const spxOf = (tf, [hh, mm] = TF[tf].rthLast, from = [9, 30]) => spx(slots(ET(DAY, ...from), ET(DAY, hh, mm), TF[tf].step))
+/** `settled`: the day's daily row is the official close (evening), else the session is still in progress */
+const secondaryOf = (intraday, { settled = true } = {}) => new Map([
+  ['SPX', { bars: intraday, status: 'available', newestBarIsForming: !settled }],
+  ['SPX@D', { bars: SPX_D, status: 'available', newestBarIsForming: !settled }]])
 const ctxOf = (tf, secondary, over = {}) => ({ tf: String(tf), newestBarIsForming: true, historyFromListing: false,
   symbol: { ticker: 'AGL', exchange: 'NYSE', securityType: 'stock' }, secondary, exchangeOf: (t) => (t === 'SPX' ? 'SP' : null), ...over })
 const SRC = ['//@version=5', 'indicator("night", overlay = false)', 'plot(request.security("SP:SPX", timeframe.period, close))'].join('\n')
@@ -61,7 +67,10 @@ const requestsOf = (tf, rows) => {
   expect(built.ok, built.ok ? '' : built.refusal.message).toBe(true)
   return lowerIrProgram(built.ir).requests
 }
-const supplyOf = (tf, rows, intraday, over = {}) => runtimeRequestSupply(requestsOf(tf, rows), rows, ctxOf(tf, secondaryOf(intraday), over))
+const supplyOf = (tf, rows, intraday, over = {}, sec = {}) =>
+  runtimeRequestSupply(requestsOf(tf, rows), rows, ctxOf(tf, secondaryOf(intraday, sec), over))
+// the IN-SESSION live case of #2076 (its own rails' shape): a 5m chart at 13:50, the session in progress
+const midday = () => chartOf(5, [13, 50])
 const indexAt = (rows, t) => rows.findIndex((r) => r.t === t)
 const LAG = /`SPX`'s newest bars have not arrived/
 const WAIT = /whose newest bars have not arrived yet/
@@ -111,6 +120,7 @@ describe('the supply: an all-overnight tail is a CUT, named, never a wait and ne
       expect(sup.pending).toBe(false)
       expect(sup.refusal && sup.refusal.guard).toBe(REQUEST_OVERNIGHT_GUARD)
       expect(sup.refusal.cutAt).toBe(indexAt(rows, ET(DAY, ...TF[tf].nightFrom)))
+      expect(rows[sup.refusal.cutAt - 1].t, 'the cut is right after the grid\'s last instant').toBe(ET(DAY, ...TF[tf].gridEnd))
       expect(sup.refusal.series).toEqual(['SPX'])
       expect(sup.refusal.message).toBe(overnightSentence(['SPX']))
       expect(sup.refusal.message).toMatch(/overnight trading, which `SPX` doesn't have and TradingView's chart doesn't show/)
@@ -119,26 +129,26 @@ describe('the supply: an all-overnight tail is a CUT, named, never a wait and ne
     })
   }
   it('⛔ CONTROL (#2076 unchanged): an IN-SESSION lag within the wait is PENDING, never overnight', () => {
-    const rows = chartOf(5, [19, 55])
-    const sup = supplyOf(5, rows, spxOf(5, [19, 45]))
+    const sup = supplyOf(5, midday(), spxOf(5, [13, 40]), {}, { settled: false })
     expect(sup.refusal).toBeNull()
     expect(sup.pending).toBe(true)
     expect(sup.waiting.sentence).toMatch(WAIT)
   })
   it('⛔ CONTROL: an in-session lag past the wait is the LAG refusal, never overnight', () => {
-    const sup = supplyOf(5, chartOf(5, [19, 55]), spxOf(5, [19, 30]))
-    expect(sup.refusal.guard).toBe(REQUEST_LAG_GUARD)
+    const sup = supplyOf(5, midday(), spxOf(5, [13, 35]), {}, { settled: false })
+    expect(sup.refusal && sup.refusal.guard).toBe(REQUEST_LAG_GUARD)
     expect(sup.refusal.cutAt).toBeUndefined()
   })
-  it('⛔⛔ A MIXED TAIL (19:50 and 19:55 lacking, inside the session, then overnight bars) is NEVER overnight: the lag rule', () => {
-    const sup = supplyOf(5, chartOf(5), spxOf(5, [19, 45]))
+  it('⛔⛔ A MIXED TAIL is NEVER overnight: the day\'s close not settled yet, so 16:00-19:55 (inside the session) lack rows too -> the lag rule', () => {
+    const sup = supplyOf(5, chartOf(5), spxOf(5), {}, { settled: false })
     expect(sup.refusal && sup.refusal.guard).toBe(REQUEST_LAG_GUARD)
     expect(sup.refusal.cutAt).toBeUndefined()
     expect(sup.refusal.message).toMatch(LAG)
   })
   it('⛔ a HOLE before the tail keeps its own refusal on the cut run (the cut never hides it)', () => {
     const rows = chartOf(5)
-    const holed = spxOf(5).filter((b) => b.t !== ET(DAY, 11, 0))
+    // the session's opening bars missing (09:30-10:15): no row there, after the series began (its pre-market rows)
+    const holed = spxOf(5, TF[5].rthLast, [10, 20])
     const first = supplyOf(5, rows, holed)
     const cutAt = first.refusal && first.refusal.cutAt
     const second = supplyOf(5, rows.slice(0, Number.isInteger(cutAt) ? cutAt : rows.length), holed, { newestBarIsForming: false })
@@ -180,7 +190,7 @@ describe('the run: cut at the overnight tail, everything before drawn exactly as
     expect(r.err && r.err.guard).toBe(REQUEST_OVERNIGHT_GUARD)
   })
   it('⛔ an in-session lag is still the wait on the run (pending, the pane keeps its picture), never a cut', () => {
-    const r = run(DEF(), chartOf(5, [19, 55]), ctxOf(5, secondaryOf(spxOf(5, [19, 45]))))
+    const r = run(DEF(), midday(), ctxOf(5, secondaryOf(spxOf(5, [13, 40]), { settled: false })))
     expect(r.err && r.err.pending).toBe(true)
     expect(r.cols).toBeUndefined()
   })
