@@ -5,8 +5,11 @@ ACTIVE intraday set (watchlists, breadth drill lists, UCT20, candidates, theme h
 `PREWARM_1M_CAP`). The rest of cap_universe has no 1m there, so the first builds seeded 1m for 1,270
 symbols against ~3,545 on every other timeframe.
 
-THE PASS (`backfill`). Run by the nightly seed build (`ffseed.nightly`) just before it builds, after the
-extended session has ended. For every cap_universe symbol whose stored 1m does not already reach the
+THE PASS (`backfill`). Runs as soon as a session has closed (`pass_due`: from `FFSEED_1M_AFTER_MIN`, default
+16:20 ET, and on a worker boot after that when the session's pass has not completed), and again inside the
+nightly seed build (`ffseed.nightly`) just before it builds, where it costs nothing for the symbols the first
+run already brought current: the build never starts before the pass for its session has run (bounded by
+the deadline below). For every cap_universe symbol whose stored 1m does not already reach the
 as-of session's last regular minute, it fetches that session's 1m (and the session before it when the
 store does not hold that one either: the seed's 600 regular-session bars span ~1.5 sessions) with the
 same provider read and write the serve path's range repairs use (`bars_fetch._fetch_intraday_range`,
@@ -181,6 +184,59 @@ def backfill(asof: date, symbols: Optional[Iterable[str]] = None, *,
     stats["secs"] = round(clock() - t0, 1)
     log.info("[ffseed-1m] backfill %s", stats)
     return stats
+
+
+# --------------------------------------------------------------------------------------------
+# when the pass runs: right after the close (and on a boot after it), and again just before the build
+# --------------------------------------------------------------------------------------------
+
+_PASS_FILE = ".last_ffseed_1m_pass"
+
+
+def after_close_min() -> int:
+    """ET minute of the day from which a session's pass may run (default 16:20: the regular-session
+    minutes have closed and the vendor's late prints have landed)."""
+    return _int_env("FFSEED_1M_AFTER_MIN", 16 * 60 + 20)
+
+
+def _pass_path() -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), _PASS_FILE)
+
+
+def read_pass_marker() -> str:
+    try:
+        with open(_pass_path(), encoding="ascii") as f:
+            return f.read().strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _write_pass_marker(asof_iso: str) -> None:
+    try:
+        tmp = _pass_path() + ".tmp"
+        with open(tmp, "w", encoding="ascii") as f:
+            f.write(asof_iso)
+        os.replace(tmp, _pass_path())
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def pass_due(now: Optional[datetime] = None) -> Optional[date]:
+    """The session whose pass should run now: the newest session closed at least `after_close_min()`
+    into its day, when no COMPLETE pass for it is recorded. None otherwise (or when the pass is off)."""
+    if not backfill_enabled():
+        return None
+    target = ffseed.last_closed_session(now or datetime.now(ffseed.ET), after_min=after_close_min())
+    return None if read_pass_marker() == target.isoformat() else target
+
+
+def run_pass(asof: date, **kw) -> dict:
+    """`backfill(asof)`, recorded as done for `asof` only when it reached every symbol it planned
+    (a pass cut short by its deadline is finished by the next one)."""
+    st = backfill(asof, **kw)
+    if not st.get("not_reached"):
+        _write_pass_marker(asof.isoformat())
+    return st
 
 
 # --------------------------------------------------------------------------------------------

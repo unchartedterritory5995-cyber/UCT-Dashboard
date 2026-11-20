@@ -480,7 +480,7 @@ def nightly(asof: date) -> dict:
     from api.services import ffseed_onemin as onemin
     if onemin.backfill_enabled():
         try:
-            onemin.backfill(asof)
+            onemin.run_pass(asof)
         except Exception:  # noqa: BLE001
             log.exception("[ffseed] 1m backfill failed (building with what the store has)")
     m = build_and_publish(asof=asof)
@@ -508,6 +508,15 @@ def tick(now: Optional[datetime] = None) -> Optional[dict]:
         return m
     if should_build(now):
         return nightly(last_closed_session(now, after_min=BUILD_AFTER_MIN))
+    # Not build time yet: the session's long-tail 1m pass runs as soon as the session has closed (or on
+    # the first tick after a boot past that point), so the build itself finds the store current.
+    from api.services import ffseed_onemin as onemin
+    due = onemin.pass_due(now)
+    if due is not None:
+        try:
+            onemin.run_pass(due)
+        except Exception:  # noqa: BLE001
+            log.exception("[ffseed] 1m pass failed (the build's own pass retries it)")
     return None
 
 

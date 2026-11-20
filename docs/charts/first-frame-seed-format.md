@@ -274,7 +274,11 @@ for its ACTIVE intraday set (watchlists, breadth drill lists, UCT20, candidates,
 `PREWARM_1M_CAP`), so the first builds seeded 1m for 1,270 symbols against ~3,545 elsewhere. Each nightly
 build (`ffseed.nightly`) therefore runs, in order:
 
-1. **the 1m pass**: every cap_universe symbol whose stored 1m does not reach the as-of session's last
+1. **the 1m pass** (it also runs on its own as soon as the session has closed: from 16:20 ET,
+   `FFSEED_1M_AFTER_MIN`, and on the first builder tick after a worker boot past that point, recorded in
+   `<DATA_DIR>/.last_ffseed_1m_pass` once it completed; the run inside the build then costs nothing for
+   the symbols it already brought current, and the build never starts before it): every cap_universe
+   symbol whose stored 1m does not reach the as-of session's last
    regular minute gets that session's 1m (plus the session before when the store lacks it too) from the
    provider's split-adjusted range read, written the way the serve path's range repairs write
    (`provider_check` + `put_bars`). Symbols the prewarm keeps current cost no call. 2 threads

@@ -164,7 +164,7 @@ def test_prune_before_deletes_only_the_named_series_rows_older_than_the_cutoff(s
 def seq(monkeypatch, tmp_path):
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     log = []
-    monkeypatch.setattr(onemin, "backfill", lambda asof: log.append(("backfill", asof)))
+    monkeypatch.setattr(onemin, "backfill", lambda asof, **kw: log.append(("backfill", asof)) or {"not_reached": 0})
     monkeypatch.setattr(onemin, "retention", lambda asof: log.append(("retention", asof)))
 
     def bp(asof):
@@ -187,7 +187,7 @@ def test_nightly_backfills_then_publishes_then_trims(seq, monkeypatch):
 
 
 def test_a_failed_backfill_or_retention_never_stops_the_publish(seq, monkeypatch):
-    def boom(asof):
+    def boom(asof, **kw):
         raise RuntimeError("x")
     monkeypatch.setattr(onemin, "backfill", boom)
     monkeypatch.setattr(onemin, "retention", boom)
@@ -200,6 +200,7 @@ SAT = datetime(2026, 11, 21, 10, 0, tzinfo=ET)
 
 def test_forced_rebuild_of_the_newest_session_runs_once(seq, monkeypatch):
     ffseed._write_marker(20261120)                       # Friday already published
+    onemin._write_pass_marker("2026-11-20")              # and its 1m pass done
     assert ffseed.tick(SAT) is None and seq == []        # nothing due
     monkeypatch.setenv("FFSEED_FORCE_ASOF", "2026-11-20")
     assert ffseed.tick(SAT)["asof"] == "2026-11-20"
@@ -211,6 +212,55 @@ def test_forced_rebuild_of_the_newest_session_runs_once(seq, monkeypatch):
 @pytest.mark.parametrize("value", ["2026-11-19", "2026-11-23", "11/20/2026"])
 def test_forced_rebuild_is_refused_for_anything_but_the_newest_closed_session(seq, monkeypatch, value):
     ffseed._write_marker(20261120)
+    onemin._write_pass_marker("2026-11-20")
     monkeypatch.setenv("FFSEED_FORCE_ASOF", value)
     assert ffseed.forced_rebuild_due(SAT) is None
     assert ffseed.tick(SAT) is None and seq == []
+
+
+# ---- the pass right after the close, and on a boot after it ------------------------------------
+
+@pytest.mark.parametrize("now, marker, want", [
+    (datetime(2026, 11, 20, 16, 10, tzinfo=ET), "", THU),          # before 16:20: the newest closed is Thursday
+    (datetime(2026, 11, 20, 16, 10, tzinfo=ET), "2026-11-19", None),
+    (datetime(2026, 11, 20, 16, 25, tzinfo=ET), "2026-11-19", FRI),  # Friday's pass is due
+    (datetime(2026, 11, 20, 19, 5, tzinfo=ET), "2026-11-20", None),  # a boot after it ran: nothing
+    (datetime(2026, 11, 21, 10, 0, tzinfo=ET), "2026-11-19", FRI),   # a Saturday boot catches Friday up
+])
+def test_pass_due(monkeypatch, tmp_path, now, marker, want):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    if marker:
+        onemin._write_pass_marker(marker)
+    assert onemin.pass_due(now) == want
+    monkeypatch.setenv("FFSEED_1M_BACKFILL", "0")
+    assert onemin.pass_due(now) is None
+
+
+def test_run_pass_records_only_a_complete_pass(monkeypatch, tmp_path):
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(onemin, "backfill", lambda asof, **kw: {"not_reached": 3})
+    onemin.run_pass(FRI)
+    assert onemin.read_pass_marker() == ""                      # cut short by its deadline: not done
+    monkeypatch.setattr(onemin, "backfill", lambda asof, **kw: {"not_reached": 0})
+    onemin.run_pass(FRI)
+    assert onemin.read_pass_marker() == "2026-11-20"
+
+
+def test_a_boot_after_the_close_runs_the_pass_before_the_build_is_due(seq):
+    ffseed._write_marker(20261119)                       # Thursday's seed is out
+    boot = datetime(2026, 11, 20, 19, 5, tzinfo=ET)      # a worker deploy at 19:00 ET
+    assert ffseed.tick(boot) is None
+    assert seq == [("backfill", FRI)]                    # the pass, no build yet
+    assert onemin.read_pass_marker() == "2026-11-20"
+    seq.clear()
+    assert ffseed.tick(datetime(2026, 11, 20, 19, 35, tzinfo=ET)) is None and seq == []   # done once
+    m = ffseed.tick(datetime(2026, 11, 20, 20, 20, tzinfo=ET))                             # build time
+    assert m["asof"] == "2026-11-20"
+    assert seq == [("backfill", FRI), ("publish", FRI), ("retention", FRI)]               # build waits on its pass
+
+
+def test_before_the_close_no_pass_for_today_runs(seq):
+    ffseed._write_marker(20261119)
+    onemin._write_pass_marker("2026-11-19")
+    assert ffseed.tick(datetime(2026, 11, 20, 14, 0, tzinfo=ET)) is None
+    assert seq == []
