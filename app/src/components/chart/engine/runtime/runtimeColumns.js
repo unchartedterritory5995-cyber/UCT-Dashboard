@@ -517,11 +517,16 @@ export function runtimeVersionRefusal(def, programOutputs) {
 
 /** ⭐⭐ (2026-11-20) the overnight tail's cut, refusal-shaped so every caller between the supply and
  *  `computeRuntimeColumns` passes it up untouched. */
-function overnightCutError(cutAt, series) {
-  const err = refusal(REQUEST_OVERNIGHT_GUARD, 'the newest bars are overnight trading')
+function overnightCutError(cutAt, series, tail = null) {
+  const err = tail ? refusal(tail.guard, tail.message) : refusal(REQUEST_OVERNIGHT_GUARD, 'the newest bars are overnight trading')
   err.cutAt = cutAt
   err.overnightSeries = Array.isArray(series) ? series : []
+  if (tail) { err.tailWait = true; err.tailPending = tail.pending === true }
   return err
+}
+/** ⭐⭐ (e91 (2b)) the tail a supply's refusal names (a cut at another series' newest held bar), or null. */
+function tailOf(r) {
+  return r && r.tailWait === true ? { guard: r.guard, message: r.message, pending: r.tailPending === true } : null
 }
 
 /** A refusal-shaped error, as `nativeRegistry.runtimeColumnsOrReasons` reads one. */
@@ -647,17 +652,27 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   const n = Array.isArray(rows) ? rows.length : 0
   let end = n
   let series = []
+  let tail = null
   for (let pass = 0; ; pass += 1) {
     const cut = end < n
     try {
       const cols = computeRuntimeColumnsKnown(def, cut ? rows.slice(0, end) : rows,
         cut ? { ...(ctx || {}), newestBarIsForming: false } : ctx, opts)
-      return cut ? withOvernightTail(cols, n, end, series) : cols
+      if (!cut) return cols
+      if (!tail) return withOvernightTail(cols, n, end, series)
+      // ⭐⭐ (e91, coordinator ruling (2b), option A) — A TAIL CUT: the values are drawn up to the series' newest held bar
+      // and the bars past it withheld by name; the DRAWINGS never stand on the cut bar (TradingView draws a last-bar label
+      // on the chart's true newest bar): they WAIT, named, as e85's newest-tail drawings do, until the series lands
+      const widened = withOvernightTail(cols, n, end, series, { code: tail.guard, reason: tail.message })
+      if (!(def && def.compute && def.compute.objects)) return widened
+      return withRuntimeObjects(widened, { status: 'WITHHELD', live: [], guard: tail.guard, reason: tail.message,
+        ...(tail.pending ? { pending: true, waitingFor: series.join(',') } : {}) })
     } catch (err) {
       const at = err && Number.isInteger(err.cutAt) ? err.cutAt : 0
       if (_overnightCutOff || pass + 1 >= OVERNIGHT_PASSES || at < 1 || at >= end) throw err
       end = at
       series = [...new Set([...series, ...(Array.isArray(err.overnightSeries) ? err.overnightSeries : [])])]
+      if (err.tailWait === true) tail = { guard: err.guard, message: String(err.message || ''), pending: err.tailPending === true }
     }
   }
 }
@@ -679,7 +694,7 @@ function computeRuntimeColumnsKnown(def, rows, ctx, opts = {}) {
       const seen = {}
       const k = knownFromBeforeBuild(def, passRows, passCtx, opts, seen)
       // ⭐⭐ (2026-11-20) an overnight tail the probe found is cut before the run builds over it (`computeRuntimeColumns`)
-      if (Number.isInteger(seen.cutAt) && seen.cutAt > 0) throw overnightCutError(cut + seen.cutAt, seen.overnightSeries)
+      if (Number.isInteger(seen.cutAt) && seen.cutAt > 0) throw overnightCutError(cut + seen.cutAt, seen.overnightSeries, seen.tail)
       if (k > 0 && cut + k < rows.length - 1) { cut += k; continue }
       if (seen.supply) passOpts = { ...opts, probedSupply: seen.supply }
     }
@@ -786,6 +801,7 @@ export function knownFromBeforeBuild(def, rows, ctx, opts = {}, seen = null) {
     if (seen && sup && sup.refusal && Number.isInteger(sup.refusal.cutAt)) {
       seen.cutAt = sup.refusal.cutAt
       seen.overnightSeries = Array.isArray(sup.refusal.series) ? sup.refusal.series : []
+      seen.tail = tailOf(sup.refusal)
     }
     const k = sup && sup.refusal && Number.isInteger(sup.refusal.knownFrom) ? sup.refusal.knownFrom : 0
     return k > 0 ? k : 0
@@ -863,7 +879,8 @@ function computeRuntimeColumnsAll(def, rows, ctx, opts = {}) {
   } catch (err) {
     if (err && (err.name === 'runtime.error' || err.guard === RUNTIME_TIME_BUDGET_GUARD
       || err.guard === RUNTIME_HISTORY_GUARD || err.guard === RUNTIME_WARMUP_GUARD
-      || err.guard === RUNTIME_LISTING_UNVERIFIED_GUARD || err.guard === REQUEST_OVERNIGHT_GUARD)) throw err
+      || err.guard === RUNTIME_LISTING_UNVERIFIED_GUARD || err.guard === REQUEST_OVERNIGHT_GUARD
+      || (err.tailWait === true && Number.isInteger(err.cutAt)))) throw err
     const plain = { ...def, compute: { ...compute, objects: undefined } }
     let out
     // ⭐ P3 WS-F — the plain run's TIME stop is the run's answer (WS-H, B2: wyckoff on a slow
@@ -1939,6 +1956,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     if (Number.isInteger(reqSupply.refusal.cutAt)) {
       err.cutAt = reqSupply.refusal.cutAt
       err.overnightSeries = Array.isArray(reqSupply.refusal.series) ? reqSupply.refusal.series : []
+      if (reqSupply.refusal.tailWait === true) { err.tailWait = true; err.tailPending = reqSupply.refusal.tailPending === true }
     }
     throw err
   }
