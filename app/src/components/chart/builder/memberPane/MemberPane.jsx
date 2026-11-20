@@ -396,6 +396,8 @@ export default function MemberPane({
 
   return (
     <div data-testid="pine-member-pane" data-def-id={defId}>
+      {/* ⭐ THE PASTE WORKER — the picture below is the last build; a newer one of the box's text is running */}
+      {checking}
       {/* ⚰️ THE FRAME CARRIES THE HEIGHT, AND IT IS LOAD-BEARING. Unstyled, this
           pane drew at 248px and the chart's own chrome left the two panes 29px
           and 28px — four correct series, a correct quarter-height sub-pane, and
