@@ -1718,6 +1718,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { setSeriesVisible } from './chart/seriesVisible'
 import { useRuntimeLists } from './chart/engine/useRuntimeLists'
 import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -9105,6 +9106,10 @@ export default function StockChart({
     if (!bars || !bars.length) return
     if (!Number.isFinite(c)) return
     const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
+    // ⭐⭐ (switch smoothness) THE ENGINE'S SERIES HOLD WHAT THE LAST PASS HANDED THEM before a tick extends them:
+    // data a heavy pass queued (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`) is applied first, so the tick's `update`
+    // lands on the same points it would have with no queue.
+    try { engineRef.current?.binder?.flushPendingData?.() } catch { /* binder disposed */ }
     // ⚠️ THE LEGACY LOOP IS NOW USUALLY EMPTY — every `cs.overlays` average is an
     // instance (`maAdoption.js`); only a host passing its own `overlays` prop (the
     // intraday popup) still has one. It used to be the early-return guard for the
@@ -13590,6 +13595,11 @@ export default function StockChart({
           },
         }),
         plan: { noop: _noop, incr: _incr, fresh: _freshChart },
+        // ⭐⭐ (switch smoothness, 2026-11-20) a heavy pass may hand the indicator series it already drew their data
+        // over several tasks (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`): only while the candles are built from the
+        // very bars the indicators are (no session-preview candle, no Heikin-Ashi), so every point an indicator holds
+        // meanwhile is on the candles' own time scale and the framing below reads the same index space either way.
+        deferSeriesData: displayBars === filteredBars,
         // The declutter toggle. `visible` is part of the option set the binder
         // re-asserts on every bind, so without this a hidden engine series would
         // reappear on the next paint. Read from a ref, not a dependency — see the
@@ -15764,7 +15774,10 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady) return
     const vis = !hideBase
-    const setVis = (s) => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
+    // ⭐⭐ (switch smoothness, 2026-11-20) A SERIES ALREADY SHOWING `vis` IS LEFT ALONE (`seriesVisible.js`): this
+    // effect re-runs on every bars update, and each `applyOptions` made lightweight-charts recompute the chart
+    // (measured: 10-19 ms per run in the 1D -> 5m switch with Fred RS, one call per series).
+    const setVis = (s) => setSeriesVisible(s, vis)
     setVis(candleSeriesRef.current)                                   // base candles
     setVis(volumeSeriesRef.current)                                   // volume (also source-gated via showVolume)
     for (const s of (overlaySeriesRefs.current || [])) setVis(s)      // legacy MA overlays
@@ -17840,6 +17853,9 @@ export default function StockChart({
       if (!b) { hide(); return }
       let last = endLabelLastRef.current.get(b)
       if (last === undefined) {
+        // ⭐⭐ (switch smoothness) read what the series holds once the data a heavy pass queued for it is applied
+        // (`binder.flushPendingData`): the tag is cached per binding, so it must never read the picture before it
+        try { eng.binder.flushPendingData?.(b.series) } catch { /* binder disposed */ }
         let points = null
         try { points = typeof b.series.data === 'function' ? b.series.data() : null } catch { points = null }
         last = lastFinitePoint(points)

@@ -24,6 +24,8 @@ import { calcBarsWindowReport } from '../calcBarsWindow.js'
 // file is browser transport, outside the server compute closure (`pine_runtime_closure.mjs`).
 import { strategyBrokerEnabled } from '../strategyBrokerGate.js'
 import { registerStrategyBrokerGate } from '../strategyBrokerGateRegistry.js'
+// ⭐⭐ (switch smoothness, 2026-11-20) the chart's own-daily question, asked off its main thread (`ownDailyAsync.js`)
+import { OWN_DAILY_ASK, ownDailyReplyOf } from './ownDailyProbe.js'
 registerStrategyBrokerGate(strategyBrokerEnabled)
 
 // ⭐ P3 WS-H (S8) — how long the run took, IN the worker (a stop's beacon reports
@@ -31,6 +33,8 @@ registerStrategyBrokerGate(strategyBrokerEnabled)
 const clock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
 
 self.onmessage = (event) => {
+  // ⭐ a probe is answered and nothing else is done: it carries no run (`ownDailyProbe.js`)
+  if (event.data && event.data.kind === OWN_DAILY_ASK) { self.postMessage(ownDailyReplyOf(event.data)); return }
   const { id, def, rows, ctx: plainCtx } = event.data || {}
   const startedAt = clock()
   try {
