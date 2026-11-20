@@ -44,10 +44,10 @@ import { runtimeColumnsFor, resetRuntimeSessions, resetRuntimeLedgers, setRuntim
 import { workerRunner, resetRuntimeAsync } from '../runtime/runtimeAsync'
 import { runHalfOf } from '../runtime/runtimeObjects'
 import { OWN_DAILY_KEY } from '../otherSymbols'
-import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, setRuntimeKillList, runtimeSourceHash } from '../runtimeKill'
+import { __permitRuntimePaneForTests } from '../runtimePaneGate'
+import { __allowEveryRuntimeScriptForTests, setRuntimeKillList, runtimeSourceHash } from '../runtimeKill'
 import { setRunHalfObjectEvidence } from '../runHalfRailSeam'
-import { __resetHostKnownDivergence, __ignoreHostKnownDivergenceForTests } from '../hostKnownDivergence'
+import { asMember } from '../../../../testing/runtimeGate'
 
 vi.setConfig({ testTimeout: 300000 })
 
@@ -80,16 +80,13 @@ const doorDef = (slug) => {
   expect(door.def && door.def.compute && door.def.compute.kind, `${slug} is a host document`).toBe('ast')
   return door.def
 }
-const hostView = () => {
-  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
-  vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '0')
-  __resetRuntimePanePermission()
-  __resetRuntimeAllowList()
-  __resetHostKnownDivergence()
-}
+// the member door with the runtime pane off (every script here a host document): the member's doors, behind
+// the test grant, for every test (`src/testing/runtimeGate.js`); a test that needs the runtime pane opens it
+asMember({ allow: true, pane: true, hkd: true })
 
 beforeEach(() => {
-  hostView()
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '0')
   resetHostLaneAsync()
   workers = standInWorkers()
   setHostLaneWorkerFactory(workers.factory)
@@ -106,9 +103,6 @@ afterEach(() => {
   setRuntimeKillList([])
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
-  __ignoreHostKnownDivergenceForTests()
-  __permitRuntimePaneForTests()
-  __allowEveryRuntimeScriptForTests()
 })
 
 const paneCtx = (ctx, name = 'p') => ({ ...ctx, hostPane: `route\u0001${name}` })
