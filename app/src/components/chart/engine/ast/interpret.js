@@ -7852,12 +7852,51 @@ function newestClosesEveryMergePeriod(bars, found, opts) {
  *  too, as a site of its own — `x[k]` on its first `k` bars, `barsAgo` where its readable count reaches before bar 0
  *  (the evaluator answers `NaN` for both, which downstream is Pine's `na`; TradingView holds those bars); a running
  *  value's own past (`self[1]`, `accum(…)[1]`) is one too: off the listing the state before the chart is not held
- *  either (a switched recurrence refuses a lag of its own; a bounded one is blank there). And
+ *  either (a switched recurrence refuses a lag of its own; a bounded one is blank there). ⭐⭐ RULING 1: a call whose
+ *  own WINDOW reaches before the first bar held is unknown on its warm-up there (`windowEdgeLookback`'s note). And
  *  `walk.skip`: a node the walk leaves whole, known on every bar. And
  *  the walk's own column reads (`colOf`) share one memo, as a pass does: the same bars, the same options; the caller
  *  may seed it (`walk.memo`: a COPY of the pass's own memo for these bars, whose columns are these reads' own). */
 const WITNESS_NESTED = new Set(['sym', 'tf', 'tf_live', 'tf_merge', 'ltf'])
 const WITNESS_WINDOW_CALLS = new Set(['change', 'crossOver', 'crossUnder', 'percentrank', 'barsAgo'])
+
+/** ⭐⭐ RULING 1 (coordinator, 2026-11-20) — A WINDOW THAT REACHES BEFORE THE CHART'S FIRST BAR, OFF THE LISTING, IS
+ *  UNKNOWN THERE, and a drawn value depending on it is withheld by name (`history:before-chart`, the same walk:
+ *  `witnessMask`'s `walk.beforeFirst`, `preChartUnknown`). `close > sma(close, 5) ? 1 : 0` drew 0 on bars 0-3 of a
+ *  chart cut from a longer history, where the longer chart's average is a number (measured by the truth proxy: 213
+ *  wrong bars on 90 of 120 cut charts, every one on bars 0-3). The walk reads the call's own reach as the evaluator
+ *  answers it, measured per function over the whole table (`windowWarmupEdge.test.js` re-measures every one):
+ *    - the evaluator answers `na` on exactly the bars whose window it cannot fill — the WARM-UP — so the call is
+ *      unknown on the bars, among its first `L` (the declared lookback, an upper bound: `ownLookback`'s rule) from
+ *      the first bar on which every argument it reads is held, where it answers `na` (an average's first `n - 1`, a
+ *      pivot's first `left`, an RSI's first `n`; a smoother's warm-up after an argument's own: `ema(sma(x, 5), 3)` is
+ *      `na` on bars 4-5 too). A number it answers there is read from bars the chart holds;
+ *    - `WINDOW_EDGE_FINITE`: the calls the measurement found answering a NUMBER on a bar whose window reaches before
+ *      the first (a carried run's `rising` / `falling`, `false` before it has `n` steps; Pine's `mfiPine`, whose first
+ *      flow reads `hlc3[1]`): unknown on every one of those bars;
+ *    - `valuewhen` / `valuewhenOccurrence` (in their branch): by their events — with no known occurrence in reach,
+ *      the one they read may be before the first bar.
+ *  ⛔ NOT a running value's state after its warm-up (`ema`'s seed, `cum`: FINDING 2, ruled no action), nor a
+ *  `lookback: 'session'` call (its leading partial session is `barVwap`'s inherited caveat), nor an anchored total (an
+ *  `anchor` argument: `cumFrom` is `na` before its anchor on any chart), nor `barsAgo` (a history read:
+ *  `readsBeforeFirst`). 0 when the call has no such window. Python twin: `ast_interpret._window_edge_lookback`. */
+export const WINDOW_EDGE_FINITE = new Set(['rising', 'falling', 'mfiPine'])
+export function windowEdgeLookback(node) {
+  if (!node || node.type !== 'call' || node.name === 'barsAgo' || !Array.isArray(node.args)
+    || !own(TABLE.functions, node.name)) return 0
+  const spec = TABLE.functions[node.name]
+  // an ANCHORED total (`cumFrom`) answers `na` before its anchor on any chart: it reaches back to the anchor, not before
+  if (Array.isArray(spec.argRoles) && spec.argRoles.includes('anchor')) return 0
+  const lb = spec.lookback
+  if (lb === SERIES_LOOKBACK) return node.name === 'valuewhenOccurrence' ? Infinity : 0
+  if (typeof lb === 'number') return lb > 0 ? lb : 0
+  const m = typeof lb === 'string' ? LOOKBACK_RE.exec(lb) : null
+  if (!m) return 0
+  const arg = node.args[Number(m[2])]
+  // a window the evaluator would refuse is never evaluated: nothing is drawn from it
+  if (!arg || arg.type !== 'num' || !Number.isInteger(arg.value) || arg.value < 0) return 0
+  return (m[1] === undefined ? 1 : Number(m[1])) * arg.value
+}
 function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, walk = {}) {
   const n = Array.isArray(bars) ? bars.length : 0
   const opaque = walk.requestSites === true
@@ -7868,12 +7907,14 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
   const readsBeforeFirst = (node) => beforeFirst && Array.isArray(node.args)
     && ((node.type === 'offset' && node.args.length === 1 && Number(node.value) >= 1)
       || (node.type === 'call' && node.name === 'barsAgo' && node.args.length === 3))
+  // ⭐⭐ RULING 1 — a call whose own window can reach before the first bar held (see `walk.beforeFirst`)
+  const edgeReach = (node) => (beforeFirst ? windowEdgeLookback(node) : 0)
   const hasSiteMemo = new Map()
   const hasSite = (node) => {
     if (!node || typeof node !== 'object') return false
     if (hasSiteMemo.has(node)) return hasSiteMemo.get(node)
     hasSiteMemo.set(node, false)
-    const r = isSite(node) || (!(skip && skip(node)) && (readsBeforeFirst(node)
+    const r = isSite(node) || (!(skip && skip(node)) && (readsBeforeFirst(node) || edgeReach(node) > 0
       || (!(opaque && WITNESS_NESTED.has(node.type)) && Array.isArray(node.args) && node.args.some(hasSite))))
     hasSiteMemo.set(node, r)
     return r
@@ -7908,10 +7949,36 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
     }
     return out
   }
+  // ⭐⭐ RULING 1 — the bars of a call whose own window reaches before the first bar held: its warm-up, the run of
+  // `na` the evaluator answers from the first bar every argument it reads is held, within its first `L` (its declared
+  // lookback, an upper bound) there (`windowEdgeLookback`'s note); every one of those `L` bars for a call that answers
+  // a number there (`WINDOW_EDGE_FINITE`)
+  const edgeOf = (node, L) => {
+    const col = colOf(node)
+    let f = 0
+    for (const a of node.args) {
+      if (!a || typeof a !== 'object' || a.type === 'num' || readsRecurrenceBinding(a)) continue
+      const c = colOf(a)
+      let j = 0
+      while (j < n && Number.isNaN(c[j])) j++
+      if (j > f) f = j
+    }
+    const always = WINDOW_EDGE_FINITE.has(node.name)
+    let out = null
+    for (let i = f; i < Math.min(n, f + L); i++) {
+      // the warm-up is the run of `na` it opens with: a number answered is read from bars the chart holds
+      if (!always && !Number.isNaN(col[i])) break
+      if (!out) out = new Float64Array(n)
+      out[i] = 1
+    }
+    return out
+  }
   const unk = (node) => {
     if (!hasSite(node)) return null
     if (memo.has(node)) return memo.get(node)
     let out = null
+    // ⭐⭐ RULING 1 — set by a branch that answered the call's own reach before the first bar by its events
+    let eventEdge = false
     if (WITNESS_NESTED.has(node.type) && !isSite(node)) out = ALL
     else {
       const args = Array.isArray(node.args) ? node.args : []
@@ -7980,6 +8047,9 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
             out = new Float64Array(n)
             const trues = []
             let lastUnknown = -1
+            // ⭐⭐ RULING 1 — `walk.beforeFirst`: with no known occurrence to read, the one it reads may be before the
+            // first bar held (the event rule, exact: the source on a known occurrence is read as it is)
+            eventEdge = beforeFirst
             for (let i = 0; i < n; i++) {
               if (uc && uc[i]) lastUnknown = i
               else if (cond[i] === 1) trues.push(i)
@@ -7989,9 +8059,10 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
                 const start = i - k + 1
                 if (lastUnknown > lt && lastUnknown >= start) out[i] = 1
                 else if (lt >= start && us && us[lt]) out[i] = 1
+                else if (beforeFirst && start < 0 && lt < 0) out[i] = 1
               } else {
                 const need = k + 1
-                if (trues.length < need) { if (lastUnknown >= 0) out[i] = 1 }
+                if (trues.length < need) { if (lastUnknown >= 0 || beforeFirst) out[i] = 1 }
                 else {
                   const at = trues[trues.length - need]
                   if (lastUnknown > at || (us && us[at])) out[i] = 1
@@ -8051,6 +8122,13 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
         }
       } else {
         for (const a of args) out = orInto(out, unk(a))
+      }
+      // ⭐⭐ RULING 1 — a call whose own window reaches before the first bar held is unknown there, beside whatever
+      // its arguments carried in
+      const L = node.type === 'call' && !eventEdge && !isSite(node) ? edgeReach(node) : 0
+      if (L > 0 && out !== ALL) {
+        const e = edgeOf(node, L)
+        if (e) out = orInto(out === null ? null : Float64Array.from(out), e)
       }
     }
     memo.set(node, out)
@@ -8198,11 +8276,14 @@ function walkTwoStarts(tree, bars, inputs, budget, scalars, opts, isSite, flagge
  *  CHART'S FIRST: the code and the sentence (`CHART_CLOCK_WITHHELD`; Python twin `ast_interpret.HISTORY_BEFORE_CHART_CODE`). */
 export const HISTORY_BEFORE_CHART_CODE = 'history:before-chart'
 export const HISTORY_BEFORE_CHART_SENTENCE = 'This indicator reads a bar before the one it is drawn on — `close[1]`, a '
-  + 'value from a few bars back, or a weekly or monthly value of the week or month before. On the first bars this chart '
+  + 'value from a few bars back, a window over the last bars (an average such as `ta.sma(close, 20)` on its first 19 '
+  + 'bars, a pivot, the bars since a condition was last true), or a weekly or monthly value of the week or month '
+  + 'before. On the first bars this chart '
   + 'holds, that bar is one it does not hold: TradingView\'s history of the symbol begins at its listing and reads a '
   + 'value there (measured: capture `vw-mbb-auto-spy-1d-2026-09-30`, where 225 of 300 reads land before the capture\'s '
   + 'first bar and none is `na`), where this chart has only `na`. What this indicator draws from such a read — '
-  + '`nz(close[1])`, a test such as `x != x[1]` or `na(x[1])`, a colour chosen by one — is withheld on those bars rather '
+  + '`nz(close[1])`, a test such as `x != x[1]`, `na(x[1])` or `close > ta.sma(close, 20)`, a colour chosen by one — is '
+  + 'withheld on those bars rather '
   + 'than drawn from `na`; every later bar is drawn. On a chart whose bars start at the symbol\'s listing it draws: '
   + 'TradingView reads `na` there too. What would settle it: nothing to capture — bars reaching the listing.'
 

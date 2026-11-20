@@ -4892,6 +4892,11 @@ def interpret(ast: Any, bars: List[dict],
         if aligned is not None:
             column = [math.nan if aligned[i] else v for i, v in enumerate(column)]
     if not probing:
+        # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
+        # named where it takes a drawn value away): the column BEFORE every withholding mask, as the JS lane's
+        # ``withheldReadMask`` hands it (RULING 3, 2026-11-20: taken after the request masks below, a bar a first-period
+        # mask withheld too named nothing here and the code in the chart lane); the mask itself is asked LAST (below)
+        named_against = list(column)
         # ⭐ ENGINE 55 -- ...and its ``tf_merge`` half (``interpret.js::tfMergeMask``).
         merged = tf_merge_mask(ast, bars, opts, inputs, budget, scalars)
         if merged is not None:
@@ -4901,9 +4906,6 @@ def interpret(ast: Any, bars: List[dict],
         lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
         if lived is not None:
             column = [math.nan if lived[i] else v for i, v in enumerate(column)]
-        # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
-        # named where it takes a drawn value away), as it stands here; the mask itself is asked LAST (below)
-        named_against = list(column)
     if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
@@ -5770,6 +5772,40 @@ _WITNESS_NESTED = ("sym", "tf", "tf_live", "tf_merge", "ltf")
 _WITNESS_WINDOW_CALLS = ("change", "crossOver", "crossUnder", "percentrank", "barsAgo")
 _WITNESS_FINITE = ("sma", "wma", "stdev", "sum", "dev", "median", "highest", "lowest", "highestbars", "lowestbars")
 
+#: ⭐⭐ RULING 1 -- the calls the left-edge measurement found answering a NUMBER on a bar whose window reaches before the
+#: first bar held (``interpret.js::WINDOW_EDGE_FINITE``, the note on ``windowEdgeLookback``).
+WINDOW_EDGE_FINITE = frozenset({"rising", "falling", "mfiPine"})
+
+
+def _window_edge_lookback(node: Any) -> float:
+    """⭐⭐ RULING 1 -- the port of ``interpret.js::windowEdgeLookback`` (its note carries the rule and the measurement):
+    a call's declared lookback, the reach ``_witness_mask``'s ``before_first`` reads its warm-up within; 0 when it has
+    none (a pointwise call, ``barsAgo``, ``cum``, a ``session`` window), infinity for ``valuewhenOccurrence``."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") == "barsAgo":
+        return 0
+    args = node.get("args")
+    spec = TABLE[FUNCTIONS_SECTION].get(node.get("name")) if isinstance(node.get("name"), str) else None
+    if spec is None or not isinstance(args, list):
+        return 0
+    # an ANCHORED total (``cumFrom``) answers ``na`` before its anchor on any chart: it reaches back to the anchor only
+    if "anchor" in (spec.get("argRoles") or []):
+        return 0
+    lb = spec.get("lookback")
+    if lb == SERIES_LOOKBACK:
+        return math.inf if node.get("name") == "valuewhenOccurrence" else 0
+    if isinstance(lb, int) and not isinstance(lb, bool):
+        return lb if lb > 0 else 0
+    m = _LOOKBACK_RE.fullmatch(str(lb)) if isinstance(lb, str) else None
+    if m is None:
+        return 0
+    idx = int(m.group(2))
+    arg = args[idx] if idx < len(args) else None
+    v = arg.get("value") if isinstance(arg, dict) and arg.get("type") == "num" else None
+    # a window the evaluator would refuse is never evaluated: nothing is drawn from it
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v != int(v) or v < 0:
+        return 0
+    return (1 if m.group(1) is None else int(m.group(1))) * int(v)
+
 
 def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                   is_site: Callable[[dict], bool],
@@ -5810,6 +5846,10 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
             return len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 1
         return node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3
 
+    def edge_reach(node: Any) -> float:
+        # ⭐⭐ RULING 1 -- a call whose own window can reach before the first bar held (``before_first``)
+        return _window_edge_lookback(node) if before_first else 0
+
     def has_site(node: Any) -> bool:
         if not isinstance(node, dict):
             return False
@@ -5819,7 +5859,7 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         has_memo[key] = False
         args = node.get("args")
         r = (is_site(node) or (not skipped(node) and (
-            reads_before_first(node)
+            reads_before_first(node) or edge_reach(node) > 0
             or (not (request_sites and node.get("type") in _WITNESS_NESTED)
                 and isinstance(args, list) and any(has_site(a) for a in args)))))
         has_memo[key] = r
@@ -5866,6 +5906,40 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                 out[j] = 1
         return out
 
+    cols: Dict[int, List[float]] = {}
+
+    def col_memo(node: Any) -> List[float]:
+        # one walk, one set of bars and options: a node's column is read once (the JS twin's ``colMemo``)
+        key = id(node)
+        if key not in cols:
+            cols[key] = col_of(node)
+        return cols[key]
+
+    def edge_of(node: Any, reach: float):
+        # ⭐⭐ RULING 1 -- the call's warm-up: the run of ``na`` it opens with from the first bar every argument it reads
+        # is held, within its first ``reach`` there; every one of them for ``WINDOW_EDGE_FINITE``
+        col = col_memo(node)
+        f = 0
+        for a in node.get("args") or []:
+            if not isinstance(a, dict) or a.get("type") == "num" or _reads_recurrence_binding(a):
+                continue
+            c = col_memo(a)
+            j = 0
+            while j < n and math.isnan(c[j]):
+                j += 1
+            f = max(f, j)
+        always = node.get("name") in WINDOW_EDGE_FINITE
+        out = None
+        end = n if reach == math.inf else min(n, f + int(reach))
+        for i in range(f, end):
+            # the warm-up is the run of ``na`` it opens with: a number answered is read from bars the chart holds
+            if not always and not math.isnan(col[i]):
+                break
+            if out is None:
+                out = [0] * n
+            out[i] = 1
+        return out
+
     def unk(node: Any):
         if not has_site(node):
             return None
@@ -5876,6 +5950,8 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         kind = node.get("type")
         args = node.get("args") if isinstance(node.get("args"), list) else []
         name = node.get("name")
+        # ⭐⭐ RULING 1 -- set by a branch that answered the call's own reach before the first bar by its events
+        event_edge = False
         if kind in _WITNESS_NESTED and not is_site(node):
             out = ALL
         elif is_site(node):
@@ -5957,6 +6033,9 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                     out = [0] * n
                     trues: List[int] = []
                     last_unknown = -1
+                    # ⭐⭐ RULING 1 -- ``before_first``: with no known occurrence to read, the one it reads may be before
+                    # the first bar held (the event rule)
+                    event_edge = before_first
                     for i in range(n):
                         if uc is not None and uc[i]:
                             last_unknown = i
@@ -5969,10 +6048,12 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                                 out[i] = 1
                             elif lt >= start and us is not None and us[lt]:
                                 out[i] = 1
+                            elif before_first and start < 0 and lt < 0:
+                                out[i] = 1
                         else:
                             need = k + 1
                             if len(trues) < need:
-                                if last_unknown >= 0:
+                                if last_unknown >= 0 or before_first:
                                     out[i] = 1
                             else:
                                 at = trues[len(trues) - need]
@@ -6040,6 +6121,13 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         else:
             for a in args:
                 out = or_into(out, unk(a))
+        # ⭐⭐ RULING 1 -- a call whose own window reaches before the first bar held is unknown there, beside whatever its
+        # arguments carried in
+        reach = edge_reach(node) if (kind == "call" and not event_edge and not is_site(node)) else 0
+        if reach > 0 and out != ALL:
+            e = edge_of(node, reach)
+            if e is not None:
+                out = or_into(None if out is None else list(out), e)
         memo[key] = out
         return out
 
