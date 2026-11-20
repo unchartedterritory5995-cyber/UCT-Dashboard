@@ -1096,7 +1096,7 @@
    ]
   },
   {
-   "name": "nz(x[1], 0) (bars 0-2 read no earlier week: Pine's 0, as before)",
+   "name": "nz(x[1], 0) (bars 0-2 read the week before the first: withheld, PERIOD −1)",
    "set": "wednesday",
    "opts": {},
    "tree": {
@@ -1130,9 +1130,9 @@
     16
    ],
    "expect": [
-    0,
-    0,
-    0,
+    null,
+    null,
+    null,
     null,
     null,
     null,
@@ -1148,9 +1148,9 @@
     12.5
    ],
    "served": [
-    0,
-    0,
-    0,
+    null,
+    null,
+    null,
     null,
     null,
     null,
@@ -1541,7 +1541,7 @@
    ]
   },
   {
-   "name": "close > tf_merge(high, 'M')[1] (bars 20-41 withheld; 17-19 read no earlier month: Pine's false)",
+   "name": "close > tf_merge(high, 'M')[1] (bars 20-41 withheld; 17-19 read the month before the first: withheld, PERIOD −1)",
    "set": "wednesday",
    "opts": {},
    "tree": {
@@ -1575,9 +1575,9 @@
     44
    ],
    "expect": [
-    0,
-    0,
-    0,
+    null,
+    null,
+    null,
     null,
     null,
     null,
@@ -1604,26 +1604,26 @@
     1
    ],
    "served": [
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
     null,
     null,
     null,
@@ -1862,9 +1862,9 @@
     16
    ],
    "expect": [
-    0,
-    0,
-    0,
+    null,
+    null,
+    null,
     null,
     null,
     null,
@@ -1880,9 +1880,9 @@
     12.5
    ],
    "served": [
-    0,
-    0,
-    0,
+    null,
+    null,
+    null,
     null,
     null,
     null,

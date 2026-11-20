@@ -99,8 +99,9 @@ const SHAPES = [
     expect: [n, n, n, 14.5, 14.5, 14.5, 14.5, 24.5, 24.5, 24.5, 24.5, 24.5, 34.5] },
   { name: 'live(high)[1] (a history outside: bars 1-3 read week 0)', tree: () => off(1, live()), window: W13,
     expect: [n, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
-  { name: 'nz(live(high)[1], 0) (bar 0 reads no earlier bar: Pine\'s 0)', tree: () => call('nz', off(1, live()), num(0)),
-    window: W13, expect: [0, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
+  // ⭐ PERIOD −1 (2026-11-19): bar 0 reads the bar before the chart, which it does not hold: withheld by name
+  { name: 'nz(live(high)[1], 0) (bar 0 reads the bar before the chart: withheld, PERIOD −1)', tree: () => call('nz', off(1, live()), num(0)),
+    window: W13, expect: [n, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
   { name: 'live(high[1]) (a history inside: week 1 reads the partial week\'s high)', tree: () => live(off(1, HIGH)),
     window: W13, expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5] },
   { name: 'live(sma(high, 2)) (a window inside: week 1 reads week 0)', tree: () => live(call('sma', HIGH, num(2))),
@@ -143,7 +144,7 @@ const SHAPES = [
     expect: [n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5, 17.5] },
   { name: 'the Pine door: nz(w[1]) of w = request.security(…, "W", high, lookahead = barmerge.lookahead_on)',
     tree: () => pineTree(`w = ${LIVE_HIGH}\nplot(nz(w[1]))`), window: W13,
-    expect: [0, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
+    expect: [n, n, n, n, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5, 12.5] },
   { name: 'the Pine door (v4, the cpr shape): security(syminfo.tickerid, "W", hlc3[1], gaps_off, lookahead_on)',
     tree: () => pineTree('plot(security(syminfo.tickerid, "W", hlc3[1], barmerge.gaps_off, barmerge.lookahead_on))', 4),
     window: W13, expect: [n, n, n, n, n, n, n, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 10.5] },
@@ -167,7 +168,9 @@ const definitionOf = (tree, i) => {
     compute: { kind: 'ast', fn: id, source: id, ast: tree }, meta: { recurrenceOrigin: 'pine' } }
 }
 const asNulls = (col) => Array.from(col || []).map((v) => (Number.isFinite(v) ? v : null))
-const chartOf = (c) => ({ ...CHART, ...(c.opts || {}),
+// ⭐ PERIOD −1 — a Pine document's lane facts, what `computeFor` hands it (`astColumns.js::barIndexAbsoluteFor` /
+// `varOriginAbsoluteFor`), so the evaluator's column below is the chart's
+const chartOf = (c) => ({ ...CHART, barIndexAbsolute: true, varOriginAbsolute: true, ...(c.opts || {}),
   ...(c.symbols ? { symbols: { SPY: barsOn(DAYS[c.set || 'wednesday']) } } : {}) })
 const served = (tree, i, c) => asNulls(registry.computeFor(definitionOf(tree, i), barsOn(DAYS[c.set || 'wednesday']), {},
   chartOf(c)).value)

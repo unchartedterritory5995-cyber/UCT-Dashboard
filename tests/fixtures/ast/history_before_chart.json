@@ -1,0 +1,2982 @@
+{
+ "_about": "PERIOD -1 (2026-11-19). WRITTEN by app/src/components/chart/engine/ast/historyBeforeChart.test.js (HISTORY_BEFORE_CHART_WRITE=1), READ by it and by tests/test_pine_history_before_chart.py. `expect`: the hand-written answer over `window` (null = blank or withheld); `held` (a running value): the bars of `window` that are blank or withheld, every other bar drawn. `served`: the evaluator's column (interpret, `chart` + the case's `opts`; a `symbols` case supplies SPY as the same bars) on `days[set]` (ISO keys; bar i: o = i + 0.5, h = i + 1.5, l = i, c = i + 1, v = 100 + i); `named`: whether it named `history:before-chart`. The Python lane (ast_interpret.interpret, newest_bar_is_forming false) must equal both.",
+ "chart": {
+  "tf": "D",
+  "newestBarIsForming": false
+ },
+ "days": {
+  "wednesday": [
+   "2026-09-02",
+   "2026-09-03",
+   "2026-09-04",
+   "2026-09-08",
+   "2026-09-09",
+   "2026-09-10",
+   "2026-09-11",
+   "2026-09-14",
+   "2026-09-15",
+   "2026-09-16",
+   "2026-09-17",
+   "2026-09-18",
+   "2026-09-21",
+   "2026-09-22",
+   "2026-09-23",
+   "2026-09-24",
+   "2026-09-25",
+   "2026-09-28",
+   "2026-09-29",
+   "2026-09-30",
+   "2026-10-01",
+   "2026-10-02",
+   "2026-10-05",
+   "2026-10-06",
+   "2026-10-07",
+   "2026-10-08",
+   "2026-10-09",
+   "2026-10-12",
+   "2026-10-13",
+   "2026-10-14",
+   "2026-10-15",
+   "2026-10-16",
+   "2026-10-19",
+   "2026-10-20",
+   "2026-10-21",
+   "2026-10-22",
+   "2026-10-23",
+   "2026-10-26",
+   "2026-10-27",
+   "2026-10-28",
+   "2026-10-29",
+   "2026-10-30",
+   "2026-11-02",
+   "2026-11-03",
+   "2026-11-04",
+   "2026-11-05",
+   "2026-11-06",
+   "2026-11-09",
+   "2026-11-10",
+   "2026-11-11",
+   "2026-11-12",
+   "2026-11-13",
+   "2026-11-16",
+   "2026-11-17"
+  ],
+  "monday": [
+   "2026-09-14",
+   "2026-09-15",
+   "2026-09-16",
+   "2026-09-17",
+   "2026-09-18",
+   "2026-09-21",
+   "2026-09-22",
+   "2026-09-23",
+   "2026-09-24",
+   "2026-09-25",
+   "2026-09-28",
+   "2026-09-29",
+   "2026-09-30",
+   "2026-10-01",
+   "2026-10-02",
+   "2026-10-05",
+   "2026-10-06",
+   "2026-10-07",
+   "2026-10-08",
+   "2026-10-09",
+   "2026-10-12",
+   "2026-10-13",
+   "2026-10-14",
+   "2026-10-15",
+   "2026-10-16",
+   "2026-10-19",
+   "2026-10-20",
+   "2026-10-21",
+   "2026-10-22",
+   "2026-10-23",
+   "2026-10-26",
+   "2026-10-27",
+   "2026-10-28",
+   "2026-10-29",
+   "2026-10-30",
+   "2026-11-02",
+   "2026-11-03",
+   "2026-11-04",
+   "2026-11-05",
+   "2026-11-06",
+   "2026-11-09",
+   "2026-11-10",
+   "2026-11-11",
+   "2026-11-12",
+   "2026-11-13",
+   "2026-11-16",
+   "2026-11-17"
+  ]
+ },
+ "cases": [
+  {
+   "name": "nz(close[1]) (bar 0 reads the bar before the chart: withheld, never 0)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": true
+  },
+  {
+   "name": "na(close[1]) (bar 0: withheld, never a confident 1)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "na",
+    "args": [
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "served": [
+    null,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "named": true
+  },
+  {
+   "name": "close > close[2] ? 1 : 0 (bars 0-1 read before the chart)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": ">",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "offset",
+        "value": 2,
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 1
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    null,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "served": [
+    null,
+    null,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "named": true
+  },
+  {
+   "name": "the cpr daily colour: door(hlc3[1]) != door(hlc3[1])[1] ? 0 : 1 (bars 0-1)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "!=",
+      "args": [
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "!=",
+          "args": [
+           {
+            "type": "num",
+            "value": 86400
+           },
+           {
+            "type": "series",
+            "name": "periodseconds"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "num",
+            "value": 0
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "op",
+              "name": "+",
+              "args": [
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "series",
+                  "name": "low"
+                 }
+                ]
+               },
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 3
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "!=",
+            "args": [
+             {
+              "type": "num",
+              "value": 86400
+             },
+             {
+              "type": "series",
+              "name": "periodseconds"
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "num",
+              "value": 0
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "+",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "series",
+                    "name": "low"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 3
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     },
+     {
+      "type": "num",
+      "value": 1
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    null,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "served": [
+    null,
+    null,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "named": true
+  },
+  {
+   "name": "nz(barsAgo(close, 1, 400)) (a per-bar count reaching before bar 0)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "call",
+      "name": "barsAgo",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 1
+       },
+       {
+        "type": "num",
+        "value": 400
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": true
+  },
+  {
+   "name": "nz(tf_merge(W, close)) (bars 0-1 read the week before the first: withheld)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "tf_merge",
+      "value": "W",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    null,
+    3,
+    3,
+    3,
+    3,
+    7,
+    7
+   ],
+   "served": [
+    null,
+    null,
+    3,
+    3,
+    3,
+    3,
+    7,
+    7,
+    7,
+    7,
+    7,
+    12,
+    12,
+    12,
+    12,
+    12,
+    17,
+    17,
+    17,
+    17,
+    17,
+    22,
+    22,
+    22,
+    22,
+    22,
+    27,
+    27,
+    27,
+    27,
+    27,
+    32,
+    32,
+    32,
+    32,
+    32,
+    37,
+    37,
+    37,
+    37,
+    37,
+    42,
+    42,
+    42,
+    42,
+    42,
+    47,
+    47,
+    47,
+    47,
+    47,
+    52,
+    52,
+    null
+   ],
+   "named": true
+  },
+  {
+   "name": "nz(tf_merge(W, close)) on the Monday set (a whole first week still reads the week before it on bars 0-3)",
+   "set": "monday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "tf_merge",
+      "value": "W",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    7
+   ],
+   "expect": [
+    null,
+    null,
+    null,
+    null,
+    5,
+    5,
+    5
+   ],
+   "served": [
+    null,
+    null,
+    null,
+    null,
+    5,
+    5,
+    5,
+    5,
+    5,
+    10,
+    10,
+    10,
+    10,
+    10,
+    15,
+    15,
+    15,
+    15,
+    15,
+    20,
+    20,
+    20,
+    20,
+    20,
+    25,
+    25,
+    25,
+    25,
+    25,
+    30,
+    30,
+    30,
+    30,
+    30,
+    35,
+    35,
+    35,
+    35,
+    35,
+    40,
+    40,
+    40,
+    40,
+    40,
+    45,
+    45,
+    null
+   ],
+   "named": true
+  },
+  {
+   "name": "nz(tf_live(W, close[1])) (week 0 reads the week before the first: bars 0-2 withheld)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "tf_live",
+      "value": "W",
+      "args": [
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    null,
+    null,
+    3,
+    3,
+    3,
+    3,
+    7
+   ],
+   "served": [
+    null,
+    null,
+    null,
+    3,
+    3,
+    3,
+    3,
+    7,
+    7,
+    7,
+    7,
+    7,
+    12,
+    12,
+    12,
+    12,
+    12,
+    17,
+    17,
+    17,
+    17,
+    17,
+    22,
+    22,
+    22,
+    22,
+    22,
+    27,
+    27,
+    27,
+    27,
+    27,
+    32,
+    32,
+    32,
+    32,
+    32,
+    37,
+    37,
+    37,
+    37,
+    37,
+    42,
+    42,
+    42,
+    42,
+    42,
+    47,
+    47,
+    47,
+    47,
+    47,
+    52,
+    52
+   ],
+   "named": true
+  },
+  {
+   "name": "the cpr weekly colour: door(tf_live(W, hlc3[1])) moved (week 0 the week before, week 1 the partial week)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "!=",
+      "args": [
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "!=",
+          "args": [
+           {
+            "type": "num",
+            "value": 86400
+           },
+           {
+            "type": "series",
+            "name": "periodseconds"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "num",
+            "value": 0
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "tf_live",
+          "value": "W",
+          "args": [
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "+",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "series",
+                    "name": "low"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 3
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "!=",
+            "args": [
+             {
+              "type": "num",
+              "value": 86400
+             },
+             {
+              "type": "series",
+              "name": "periodseconds"
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "num",
+              "value": 0
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "tf_live",
+            "value": "W",
+            "args": [
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "op",
+                "name": "/",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "+",
+                  "args": [
+                   {
+                    "type": "op",
+                    "name": "+",
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "high"
+                     },
+                     {
+                      "type": "series",
+                      "name": "low"
+                     }
+                    ]
+                   },
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "num",
+                  "value": 3
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     },
+     {
+      "type": "num",
+      "value": 1
+     }
+    ]
+   },
+   "window": [
+    0,
+    12
+   ],
+   "expect": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    1,
+    1,
+    1,
+    1
+   ],
+   "served": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1,
+    1,
+    1,
+    1,
+    0,
+    1
+   ],
+   "named": true
+  },
+  {
+   "name": "ema(nz(close[1]), 3) (a running value: withheld where its argument is, blank through its warm-up)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "ema",
+    "args": [
+     {
+      "type": "call",
+      "name": "nz",
+      "args": [
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 3
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "held": [
+    0,
+    1
+   ],
+   "served": [
+    null,
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52
+   ],
+   "named": false
+  },
+  {
+   "name": "nz(sym('SPY', close[1])) (SPY's bar 0 reads before SPY's first bar)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": true,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "sym",
+      "value": "SPY",
+      "args": [
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": true
+  },
+  {
+   "name": "nz(sym('SPY', close[1])) from the chart's listing (SPY's history is not the chart's: still withheld)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true,
+    "historyFromListing": true
+   },
+   "symbols": true,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "sym",
+      "value": "SPY",
+      "args": [
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": true
+  },
+  {
+   "name": "FINDING-3 sym('SPY', barindex) from the chart's listing (SPY's count is not known: withheld)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true,
+    "historyFromListing": true
+   },
+   "symbols": true,
+   "tree": {
+    "type": "sym",
+    "value": "SPY",
+    "args": [
+     {
+      "type": "series",
+      "name": "barindex"
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "served": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "named": false
+  },
+  {
+   "name": "FINDING-3 CONTROL barindex from the chart's listing (the chart's own count is TradingView's)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true,
+    "historyFromListing": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "series",
+    "name": "barindex"
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": false
+  },
+  {
+   "name": "KEPT close[1] (blank on bar 0 as before, nothing named)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "offset",
+    "value": 1,
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    null,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": false
+  },
+  {
+   "name": "KEPT close - close[1] (blank on bar 0 as before, nothing named)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "-",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "served": [
+    null,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1,
+    1
+   ],
+   "named": false
+  },
+  {
+   "name": "KEPT tf_merge(W, close) (blank before the first close as before, nothing named for it)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "tf_merge",
+    "value": "W",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    null,
+    3,
+    3,
+    3,
+    3,
+    7,
+    7
+   ],
+   "served": [
+    null,
+    null,
+    3,
+    3,
+    3,
+    3,
+    7,
+    7,
+    7,
+    7,
+    7,
+    12,
+    12,
+    12,
+    12,
+    12,
+    17,
+    17,
+    17,
+    17,
+    17,
+    22,
+    22,
+    22,
+    22,
+    22,
+    27,
+    27,
+    27,
+    27,
+    27,
+    32,
+    32,
+    32,
+    32,
+    32,
+    37,
+    37,
+    37,
+    37,
+    37,
+    42,
+    42,
+    42,
+    42,
+    42,
+    47,
+    47,
+    47,
+    47,
+    47,
+    52,
+    52,
+    null
+   ],
+   "named": false
+  },
+  {
+   "name": "KEPT sma(close, 3) (no read before the chart: drawn from bar 2)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "sma",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 3
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    null,
+    null,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    null,
+    null,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": false
+  },
+  {
+   "name": "KEPT nz(sym('SPY', close[1])) with no symbol supplied (the column the caller always got)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "sym",
+      "value": "SPY",
+      "args": [
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "served": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "named": false
+  },
+  {
+   "name": "CONTROL nz(close[1]) from the listing (TradingView reads na: 0 is its answer)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true,
+    "historyFromListing": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": false
+  },
+  {
+   "name": "CONTROL the cpr daily colour from the listing",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true,
+    "historyFromListing": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "!=",
+      "args": [
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "!=",
+          "args": [
+           {
+            "type": "num",
+            "value": 86400
+           },
+           {
+            "type": "series",
+            "name": "periodseconds"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "num",
+            "value": 0
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "op",
+              "name": "+",
+              "args": [
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "series",
+                  "name": "low"
+                 }
+                ]
+               },
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 3
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "!=",
+            "args": [
+             {
+              "type": "num",
+              "value": 86400
+             },
+             {
+              "type": "series",
+              "name": "periodseconds"
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "num",
+              "value": 0
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "op",
+                  "name": "+",
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "high"
+                   },
+                   {
+                    "type": "series",
+                    "name": "low"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 3
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     },
+     {
+      "type": "num",
+      "value": 1
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "served": [
+    1,
+    1,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "named": false
+  },
+  {
+   "name": "CONTROL nz(tf_merge(W, close)) from the listing",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true,
+    "historyFromListing": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "tf_merge",
+      "value": "W",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    0,
+    0,
+    3,
+    3,
+    3,
+    3,
+    7,
+    7
+   ],
+   "served": [
+    0,
+    0,
+    3,
+    3,
+    3,
+    3,
+    7,
+    7,
+    7,
+    7,
+    7,
+    12,
+    12,
+    12,
+    12,
+    12,
+    17,
+    17,
+    17,
+    17,
+    17,
+    22,
+    22,
+    22,
+    22,
+    22,
+    27,
+    27,
+    27,
+    27,
+    27,
+    32,
+    32,
+    32,
+    32,
+    32,
+    37,
+    37,
+    37,
+    37,
+    37,
+    42,
+    42,
+    42,
+    42,
+    42,
+    47,
+    47,
+    47,
+    47,
+    47,
+    52,
+    52,
+    null
+   ],
+   "named": false
+  },
+  {
+   "name": "CONTROL nz(close[1]) when the first bar is TradingView's bar 0 (barIndexFromFirstBar: no barIndexAbsolute)",
+   "set": "wednesday",
+   "opts": {
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": false
+  },
+  {
+   "name": "CONTROL nz(close[1]) in a formula document (its `x[1]` means its own series)",
+   "set": "wednesday",
+   "opts": {},
+   "symbols": false,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "offset",
+      "value": 1,
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": false
+  }
+ ]
+}

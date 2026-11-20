@@ -270,8 +270,9 @@ describe('⭐ the served cpr script (host lane): its daily, weekly and monthly c
   const source = fs.readFileSync(CPR, 'utf8')
   const def = memberPaneDefinition({ source, id: 'u_0000hbccpr01', name: 'cpr' }).definition
   const bars = barsOn(DAYS.wednesday)
-  const sink = new Map()
-  const out = registry.computeFor(def, bars, {}, { ...CHART, chartClockSink: sink })
+  const out = registry.computeFor(def, bars, {}, CHART)
+  // the strip's report rides on the columns (`chartClockReport`): the code, its sentence, and which plots it names
+  const row = ((registry.chartClockReport(out) || {}).withheld || []).find((r) => r.code === HISTORY_BEFORE_CHART_CODE)
   const fromListing = registry.computeFor(def, bars, {}, { ...CHART, historyFromListing: true })
   it('is a Pine host-lane document', () => {
     expect(def.compute.kind).toBe('ast')
@@ -284,7 +285,12 @@ describe('⭐ the served cpr script (host lane): its daily, weekly and monthly c
       expect(col[2], `out${k}`).not.toBe(null)
       expect(asNulls(fromListing[`out${k}`]).slice(0, 2), `out${k} from the listing`).toEqual([1, 1])
     }
-    expect(sink.get(HISTORY_BEFORE_CHART_CODE)).toBe(HISTORY_BEFORE_CHART_SENTENCE)
+    expect(row.reason).toBe(HISTORY_BEFORE_CHART_SENTENCE)
+    for (let k = 30; k <= 52; k++) expect(row.plots, `out${k}`).toContain(`out${k}`)
+    // its moving averages and SuperTrend read no bar before the chart that they draw from: not named
+    for (const key of ['out24', 'out25', 'out26']) expect(row.plots, key).not.toContain(key)
+    expect(((registry.chartClockReport(fromListing) || {}).withheld || []).some((r) => r.code === HISTORY_BEFORE_CHART_CODE))
+      .toBe(false)
   })
   it('the weekly colours are withheld through the bar after week 1; the monthly through the bar after October', () => {
     for (let k = 39; k <= 45; k++) {

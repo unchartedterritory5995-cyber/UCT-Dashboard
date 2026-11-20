@@ -5777,8 +5777,7 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
             return False
         if node.get("type") == "offset":
             v = node.get("value")
-            return (len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 1
-                    and not _reads_recurrence_binding(args[0]))
+            return len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 1
         return node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3
 
     def has_site(node: Any) -> bool:
@@ -5871,13 +5870,19 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         elif (exact and kind == "op" and name == "?:" and len(args) == 3
               and not _reads_recurrence_binding(args[0])):
             uc = unk(args[0])
+            ua0 = None if uc == ALL else unk(args[1])
+            ub0 = None if uc == ALL else unk(args[2])
             if uc == ALL:
                 out = ALL
+            elif ua0 is None and ub0 is None:
+                out = [0] * n if uc is None else list(uc)
+            elif ua0 == ALL and ub0 == ALL:
+                out = [1] * n
             else:
+                # the condition is read only where it chooses between two arms that differ
                 c = col_of(args[0])
-                ua, ub = unk(args[1]), unk(args[2])
-                ua = [1] * n if ua == ALL else ua
-                ub = [1] * n if ub == ALL else ub
+                ua = [1] * n if ua0 == ALL else ua0
+                ub = [1] * n if ub0 == ALL else ub0
                 out = [0] * n
                 for i in range(n):
                     a = bool(ua is not None and ua[i])

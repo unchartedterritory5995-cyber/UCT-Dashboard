@@ -802,7 +802,7 @@
    ]
   },
   {
-   "name": "nz(live(high)[1], 0) (bar 0 reads no earlier bar: Pine's 0)",
+   "name": "nz(live(high)[1], 0) (bar 0 reads the bar before the chart: withheld, PERIOD −1)",
    "set": "wednesday",
    "opts": {},
    "symbols": false,
@@ -837,7 +837,7 @@
     13
    ],
    "expect": [
-    0,
+    null,
     null,
     null,
     null,
@@ -852,7 +852,7 @@
     12.5
    ],
    "served": [
-    0,
+    null,
     null,
     null,
     null,
@@ -2386,7 +2386,7 @@
     13
    ],
    "expect": [
-    0,
+    null,
     null,
     null,
     null,
@@ -2401,7 +2401,7 @@
     12.5
    ],
    "served": [
-    0,
+    null,
     null,
     null,
     null,

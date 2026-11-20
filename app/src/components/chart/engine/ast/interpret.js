@@ -7825,9 +7825,11 @@ function newestClosesEveryMergePeriod(bars, found, opts) {
  *  walked into (its child runs on other bars: the caller maps the child's own walk onto these bars), and a site's own
  *  bars are its column alone. `walk.beforeFirst`: a history read that lands BEFORE THE FIRST BAR held is unknown there
  *  too, as a site of its own — `x[k]` on its first `k` bars, `barsAgo` where its readable count reaches before bar 0
- *  (the evaluator answers `NaN` for both, which downstream is Pine's `na`; TradingView holds those bars). An `x[k]` of
- *  a recurrence's own binding is the recurrence's state, not a history read of this series (`varOriginMask`'s). And
- *  the walk's own column reads (`colOf`) share one memo, as a pass does: the same bars, the same options. */
+ *  (the evaluator answers `NaN` for both, which downstream is Pine's `na`; TradingView holds those bars); a running
+ *  value's own past (`self[1]`, `accum(…)[1]`) is one too: off the listing the state before the chart is not held
+ *  either (a switched recurrence refuses a lag of its own; a bounded one is blank there). And
+ *  the walk's own column reads (`colOf`) share one memo, as a pass does: the same bars, the same options; the caller
+ *  may seed it (`walk.memo`: a COPY of the pass's own memo for these bars, whose columns are these reads' own). */
 const WITNESS_NESTED = new Set(['sym', 'tf', 'tf_live', 'tf_merge', 'ltf'])
 const WITNESS_WINDOW_CALLS = new Set(['change', 'crossOver', 'crossUnder', 'percentrank', 'barsAgo'])
 function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, walk = {}) {
@@ -7836,8 +7838,7 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
   const beforeFirst = walk.beforeFirst === true
   // ⭐ PERIOD −1 — a history read of this series that can land before its first bar (see `walk.beforeFirst`)
   const readsBeforeFirst = (node) => beforeFirst && Array.isArray(node.args)
-    && ((node.type === 'offset' && node.args.length === 1 && Number(node.value) >= 1
-      && !readsRecurrenceBinding(node.args[0]))
+    && ((node.type === 'offset' && node.args.length === 1 && Number(node.value) >= 1)
       || (node.type === 'call' && node.name === 'barsAgo' && node.args.length === 3))
   const hasSiteMemo = new Map()
   const hasSite = (node) => {
@@ -7852,7 +7853,7 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
   if (!hasSite(tree)) return null
   const ALL = 'all'
   const memo = new Map()
-  const colMemo = opaque ? new Map() : undefined
+  const colMemo = opaque ? (walk.memo instanceof Map ? walk.memo : new Map()) : undefined
   const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars,
     colMemo ? { ...witnessOpts(opts), crossMemo: colMemo } : witnessOpts(opts)), n)
   const asCol = (u) => (u === ALL ? new Float64Array(n).fill(1) : u)
@@ -7904,11 +7905,16 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
       } else if (walk.exact === true && node.type === 'op' && node.name === '?:' && args.length === 3
         && !readsRecurrenceBinding(args[0])) {
         const uc = unk(args[0])
+        const ua0 = uc === ALL ? null : unk(args[1])
+        const ub0 = uc === ALL ? null : unk(args[2])
         if (uc === ALL) out = ALL
+        else if (ua0 === null && ub0 === null) out = uc === null ? new Float64Array(n) : Float64Array.from(uc)
+        else if (ua0 === ALL && ub0 === ALL) out = new Float64Array(n).fill(1)
         else {
+          // the condition is read only where it chooses between two arms that differ (each arm read whatever it is)
           const c = colOf(args[0])
-          const ua = asCol(unk(args[1]))
-          const ub = asCol(unk(args[2]))
+          const ua = asCol(ua0)
+          const ub = asCol(ub0)
           out = new Float64Array(n)
           for (let i = 0; i < n; i++) {
             const a = !!(ua && ua[i])
@@ -8060,7 +8066,7 @@ export const HISTORY_BEFORE_CHART_SENTENCE = 'This indicator reads a bar before 
  *  Which ROOT bars read them is engine 56's walk taken exactly (`x[k]` moves them k bars later, `c ? a : b` reads the
  *  arm a known `c` takes, a finite window over its own span, a running value where its argument is: its memory is
  *  item 4's question). The sinks are stripped: `historyBeforeChartMask` names the code. */
-function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off) {
+function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo = new Map()) {
   const n = Array.isArray(bars) ? bars.length : 0
   if (!n) return null
   const own = new Map()
@@ -8071,7 +8077,7 @@ function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off) {
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
     if (SCOPE_TYPES.has(node.type)) {
-      const m = requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off)
+      const m = requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo)
       if (m) own.set(node, m)
       continue
     }
@@ -8081,7 +8087,7 @@ function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off) {
   const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
   return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
     (nd) => Float64Array.from(own.get(nd)), HISTORY_BEFORE_CHART_CODE,
-    { exact: true, requestSites: true, beforeFirst: off === true })
+    { exact: true, requestSites: true, beforeFirst: off === true, memo })
 }
 
 /** ⭐⭐ PERIOD −1 — the bars of `bars` on which a read on other bars (`node`, a `SCOPE_TYPES` node) answers from a bar
@@ -8093,16 +8099,20 @@ function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off) {
  *    - `sym`: the supplied series, aligned on `t` (the `sym` arm's rule), always off (C26: another symbol's listing is
  *      not this chart's, and the evaluator clears it); unsupplied, nothing here (`symAlignmentMask` withholds it);
  *    - `ltf`: nothing here: a chart bar whose child reaches off the front of the intraday supply is `lowerTfMask`'s. */
-function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off) {
+function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo) {
   const n = bars.length
   const child = Array.isArray(node.args) ? node.args[0] : undefined
   if (node.type === LTF) return null
+  // the child's own bar set reads the pass's memo for it, as the evaluator scopes it (`scopedCrossMemo`), copied
+  const scoped = (key) => (memo instanceof Map && memo.get(key) instanceof Map ? new Map(memo.get(key)) : new Map())
   let m = null
   const set = (i) => { if (!m) m = new Float64Array(n); m[i] = 1 }
   if (node.type === 'sym') {
     const series = ((opts && opts.symbols) || {})[String(node.value).trim().toUpperCase()]
     if (!Array.isArray(series) || !series.length) return null
-    const u = preChartUnknown(child, series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined }, true)
+    const ticker = String(node.value).trim().toUpperCase()
+    const u = preChartUnknown(child, series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined }, true,
+      scoped(`sym\u0001${ticker}`))
     if (!u) return null
     const at = new Map()
     for (let j = 0; j < series.length; j++) {
@@ -8119,7 +8129,8 @@ function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off) {
   const code = String(node.value)
   const isos = bars.map((b) => isoDay(b && b.t))
   const { htf, at } = resampleTo(bars, isos, code)
-  const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, off) : null
+  const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, off,
+    scoped(`tf\u0001${code}`)) : null
   const reads = node.type === 'tf_live' ? tfLiveReads(isos, code, at) : node.type === TF_MERGE ? tfMergeReads(isos, code, at) : null
   for (let i = 0; i < n; i++) {
     if (!isos[i]) continue
@@ -8143,7 +8154,9 @@ export function historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts
   if (!opts || opts.varOriginAbsolute !== true) return null
   const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true
   if (!off && !treeReadsSym(tree)) return null
-  const mask = preChartUnknown(tree, bars, inputs, budget, scalars, opts, off)
+  // the walk's column reads start from a COPY of this pass's memo (its columns are these reads' own; writes stay local)
+  const memo = opts.crossMemo instanceof Map ? new Map(opts.crossMemo) : new Map()
+  const mask = preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo)
   if (!mask) return null
   let drawn = column === undefined || column === null
   if (!drawn) for (let i = 0; i < mask.length; i++) if (mask[i] && Number.isFinite(column[i])) { drawn = true; break }
