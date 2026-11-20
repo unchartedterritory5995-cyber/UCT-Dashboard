@@ -884,6 +884,14 @@ CONVERSE_SYSTEM_PROMPT = (
     "never the event's own length (\"bars since the last 50-bar high\" is barssince(cond, 500), not 50: "
     "at 50 the line would stop at 50 and read 50 for 51, 80 or 300 bars). Say in `assumptions` where the "
     "count stops.\n"
+    "  A RANK, or a count of the bars of a window measured against TODAY's value (\"where does today's "
+    "volume rank among the last 20 bars\", \"how many of the last 50 closes were above today's\"): inside "
+    "sum(..., N) and every other window, each series is read at ITS OWN bar, so nothing written there "
+    "means today's value, and volume > volume compares each bar with itself and is never true. Use "
+    "percentrank: percentrank(x, N) is the percent of the N bars BEFORE this one whose x is at or below "
+    "today's. So among the last N bars with this one, the bars above today's are (N - 1) - percentrank(x, "
+    "N - 1) * (N - 1) / 100, and the rank with 1 for the highest is N - percentrank(x, N - 1) * (N - 1) / "
+    "100 (the last 20 bars: 20 - percentrank(volume, 19) * 19 / 100).\n"
     "  A RUNNING VALUE reads its own previous value: an adaptive average, a stop that ratchets, a "
     "streak or a count. It is accum(seed, update, warmup): it starts at `seed` and becomes "
     "`update` on each of the last `warmup` bars, and inside `update` the series named `self` is "
@@ -892,7 +900,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "300). An adaptive average: accum(close, self + k * (close - self), 300) with k any formula "
     "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
     "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
-    "(give the inner one its own output's formula instead).\n"
+    "(give the inner one its own output's formula instead). A TOTAL THAT NEVER FORGETS (on-balance "
+    "volume, an accumulation and distribution line, any \"running total\" with no window) is not what an "
+    "accum gives: an accum over W bars is that total's CHANGE across the last W bars, a different line. "
+    "Build it, and name and label the output for what it is (\"Net volume, last 300 bars\"), never \"On "
+    "Balance Volume\" or \"cumulative\".\n"
     "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
     "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
     "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
@@ -2509,6 +2521,64 @@ def _refuse_a_stand_in_drawn_as_a_value(trees: List[Tuple[str, Any]]) -> None:
         visit(tree, False, where)
 
 
+_ORDERINGS = frozenset({"<", "<=", ">", ">="})
+
+
+def _same_bar_reading(node: Any) -> Any:
+    """`node` with every read of "0 bars back" taken away: `barsAgo(x, 0, n)` and `offset 0 of x` are `x`."""
+    if isinstance(node, list):
+        return [_same_bar_reading(child) for child in node]
+    if not isinstance(node, Mapping):
+        return node
+    args = node.get("args")
+    if isinstance(args, list) and args:
+        zero = lambda a: isinstance(a, Mapping) and a.get("type") == "num" and a.get("value") == 0  # noqa: E731
+        if node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3 and zero(args[1]):
+            return _same_bar_reading(args[0])
+        if node.get("type") == "offset" and node.get("value") == 0 and len(args) == 1:
+            return _same_bar_reading(args[0])
+    return {key: _same_bar_reading(value) for key, value in node.items()}
+
+
+def _refuse_a_reading_compared_with_itself(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- A RANK THAT IS 1 ON EVERY BAR. Found by a value check on real bars.
+
+    Asked where today's value ranks among the last N bars, the model counted `x > x` inside a window (once
+    plainly, once as `barsAgo(x, 0, N) > x`, which reads 0 bars back and is `x`). Inside a window each series
+    is read at its own bar, so that compares every bar with itself: never true, the count is 0, and the rank
+    reads 1 on every bar. Built, described confidently, and wrong on nearly every bar.
+
+    Refused: `<`, `<=`, `>`, `>=` whose two sides are the same reading on the same bar. It is never an answer
+    (`==` and `!=` are left alone: `x == x` is how a formula asks "is this a number"). The note says how a
+    window is measured against today's value.
+    """
+    def visit(node: Any, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (node.get("type") == "op" and node.get("name") in _ORDERINGS and isinstance(args, list) and len(args) == 2
+                and _same_bar_reading(args[0]) == _same_bar_reading(args[1])):
+            name = node["name"]
+            raise _Refused(
+                "envelope:reference",
+                f"{where}: `a {name} b` compares a reading with ITSELF (both sides are the same value on the same "
+                "bar), so it says nothing. Inside sum(..., N) and every other window each series is read at its "
+                "own bar: nothing written there means today's value. To measure the bars of a window against "
+                "TODAY's value use percentrank: percentrank(x, N) is the percent of the N bars before this one "
+                "whose x is at or below today's, so among the last N bars with this one the bars above today's "
+                "are (N - 1) - percentrank(x, N - 1) * (N - 1) / 100, and the rank with 1 for the highest is "
+                "N - percentrank(x, N - 1) * (N - 1) / 100.")
+        if isinstance(args, list):
+            visit(args, where)
+
+    for where, tree in trees:
+        visit(tree, where)
+
+
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
     """BY NAME, before the schema (whose ``series`` enum no longer offers them):
     defence in depth for a model that emits a nightly scalar anyway."""
@@ -3801,6 +3871,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_infinity_in_a_window(_trees_of(envelope))
     _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
+    _refuse_a_reading_compared_with_itself(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
