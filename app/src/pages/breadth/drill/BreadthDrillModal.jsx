@@ -441,7 +441,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
           readingLoading={readingLoading}
           onHistory={toggleHistory}
           histOpen={histOpen}
-          badge={import.meta.env.DEV && drill?.devSample ? 'dev sample list' : null}
+          badge={null}
           dayTools={<DayTools markDay={markOn} replay={replayOn} onToggle={setDayPref} canReplay={!drill?.live} />}
         >
           <div className={styles.paneToggle} role="group" aria-label="Show list or chart">
