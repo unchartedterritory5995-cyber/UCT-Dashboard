@@ -123,6 +123,8 @@ def test_the_fixture_is_not_vacuous():
     assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {
         "bar-index:window", "bar-index:early-bars", "bar-index:first-bar",
         "running-total:window", "running-total:early-bars", "var-origin:window", "var-origin:bars",
+        # 2026-11-20, ruling (i): from the listing a recurrence is the chart lane's (tests/test_pine_listing_recurrence_fail_closed.py)
+        "var-origin:listing-pass",
         "window-extreme:left-edge",
         "opening-range:bars-longer", "opening-range:bars-do-not-divide",
         "request:htf-lookahead-first-period-partial", "history:before-chart"}
