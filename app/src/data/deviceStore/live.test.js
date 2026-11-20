@@ -17,8 +17,8 @@ const fixture = (name) => new Uint8Array(fs.readFileSync(new URL(`../../../../te
 const DAY = JSON.parse(Buffer.from(fixture('day_regular.json')).toString('utf8'))
 const PREV = prevSessionISO(DAY.day)
 
-function replay({ nameOf = (s) => s, upto = Infinity, frames = null } = {}) {
-  const overlay = createLiveOverlay({ nameOf })
+function replay({ nameOf = (s) => s, upto = Infinity, frames = null, forming = {} } = {}) {
+  const overlay = createLiveOverlay({ nameOf, ...forming })
   const r = createMinuteRollup({ sink: overlay.sink, tfs: [...STORED_TFS] })
   overlay.sink.reset({ day: DAY.day })
   for (const f of frames ?? todayFrames(fixture('day_regular.today.bin'))) {
@@ -68,7 +68,8 @@ describe('the live overlay', () => {
   it("mid-session: only COMPLETE buckets (whose last minute has landed), each the server's; and `through`", () => {
     // frames up to the 10:11 ET minute (seq = minutes since 04:00): complete through 10:12:00
     const seq = 10 * 60 + 11 - 240
-    const { overlay } = replay({ upto: seq })
+    // the COMPLETE-bucket rule, with the forming bucket off (forming.js turns it on: forming.test.js)
+    const { overlay } = replay({ upto: seq, forming: { formingIntraday: false } })
     const sym = Object.keys(DAY.expected)[0]
     const got = overlay.read(sym, '5', PREV)
     expect(got.through).toBe(Math.floor(Date.UTC(2026, 10, 18, 15, 12) / 1000))

@@ -19,17 +19,26 @@ keeps current cost one `MAX(ts)` read and no call. Bounded: `FFSEED_1M_WORKERS` 
 `FFSEED_1M_DEADLINE_S` (default 2700 s; past it the pass stops and the build goes ahead with what it has).
 Off: `FFSEED_1M_BACKFILL=0`.
 
-THE RETENTION (`retention`). Those long-tail symbols' 1m would otherwise grow by a session a night, in
-bars.db and in every R2 delta. After each publish, every cap_universe symbol OUTSIDE the active intraday
-set keeps its newest `FFSEED_1M_KEEP_SESSIONS` (default 5) sessions of 1m; older rows are deleted
-(`bars_sqlite.prune_before`, a prefix trim). The active set's 1m is never trimmed, and NOTHING is trimmed
-while the active set is unknown (`bars_prewarm.active_intraday_set()` is None until a prewarm pass has
-run in this process). `FFSEED_1M_KEEP_SESSIONS=0` turns it off.
+THE RETENTION (`retention`). Those long-tail symbols' 1m would otherwise grow by a session a night in
+bars.db. After each publish, a symbol keeps its newest `FFSEED_1M_KEEP_SESSIONS` (default 5) sessions of
+1m (older rows deleted by `bars_sqlite.prune_before`, a prefix trim) ONLY when this pass filled it (the
+long-tail ledger, below), it is not in today's active intraday set and has not been for
+`FFSEED_1M_INACTIVE_DAYS` (default 10) days, and it holds no 1m older than the first session this pass
+ever fetched for it: rows the pass could not have written are never touched. NOTHING is trimmed while
+the active set is unknown (`bars_prewarm.active_intraday_set()` is None until a prewarm pass has run in
+this process). `FFSEED_1M_KEEP_SESSIONS=0` turns it off.
+
+HOW A TRIM REACHES OTHER PODS. Not through the R2 deltas: a serving pod (web, bars-api) merges a delta by
+INSERT only (`data_sync`: INSERT OR IGNORE / INSERT OR REPLACE into main.ohlcv), never by delete, so rows
+the worker trimmed stay on those pods until a pod installs a WHOLE snapshot (cold start, `force_resync`,
+`BARS_REINSTALL_TOKEN`), which replaces its store with the worker's and bumps its store floor. On the
+worker the trim bumps each trimmed series' revision (history changed) like every other delete.
 
 Memory: one symbol's two sessions of 1m (<= ~2,000 rows) per thread at a time.
 """
 from __future__ import annotations
 
+import json
 import logging
 import os
 import threading
@@ -101,6 +110,61 @@ def last_rth_minute_ts(d: date) -> int:
 
 
 # --------------------------------------------------------------------------------------------
+# the long-tail ledger: which symbols THIS pass filled (and from when), and when each was last active
+# --------------------------------------------------------------------------------------------
+#
+# The retention may trim only rows this pass could have written. The ledger records, per symbol the
+# pass stored 1m for, the earliest session it ever fetched from (`first`), and the newest day the
+# symbol was seen in the prewarm's active intraday set (`active`). A small JSON file
+# (<DATA_DIR>/ffseed_1m_longtail.json, ~60 bytes a symbol), written whole and atomically.
+
+_LEDGER_FILE = "ffseed_1m_longtail.json"
+
+
+def _ledger_path() -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), _LEDGER_FILE)
+
+
+def load_ledger() -> dict:
+    try:
+        with open(_ledger_path(), encoding="ascii") as f:
+            led = json.load(f)
+        if isinstance(led, dict) and led.get("v") == 1 and isinstance(led.get("symbols"), dict):
+            return led
+    except Exception:  # noqa: BLE001 - a missing or unreadable ledger is an empty one
+        pass
+    return {"v": 1, "symbols": {}}
+
+
+def save_ledger(led: dict) -> None:
+    try:
+        tmp = _ledger_path() + ".tmp"
+        with open(tmp, "w", encoding="ascii") as f:
+            json.dump(led, f, sort_keys=True, separators=(",", ":"))
+        os.replace(tmp, _ledger_path())
+    except Exception:  # noqa: BLE001
+        log.warning("[ffseed-1m] could not write the long-tail ledger")
+
+
+def note_filled(led: dict, fills: dict) -> None:
+    """`fills` = {symbol: first day fetched}. A symbol's `first` only ever moves EARLIER."""
+    for sym, frm in fills.items():
+        iso = frm.isoformat() if isinstance(frm, date) else str(frm)
+        e = led["symbols"].setdefault(str(sym).upper(), {"first": iso, "active": None})
+        if iso < e.get("first", iso):
+            e["first"] = iso
+
+
+def note_active(led: dict, active: Iterable[str], day_iso: str) -> None:
+    """Stamp every ledger symbol of the active set with `day_iso`, the newest day it was seen active."""
+    syms = led["symbols"]
+    for a in active:
+        e = syms.get(str(a).upper())
+        if e is not None and (e.get("active") or "") < day_iso:
+            e["active"] = day_iso
+
+
+# --------------------------------------------------------------------------------------------
 # the pass
 # --------------------------------------------------------------------------------------------
 
@@ -158,6 +222,7 @@ def backfill(asof: date, symbols: Optional[Iterable[str]] = None, *,
              "todo": len(todo), "fetched": 0, "rows": 0, "empty": 0, "failed": 0,
              "not_reached": 0, "secs": 0.0}
     lock = threading.Lock()
+    fills: dict = {}
 
     def one(item):
         sym, frm = item
@@ -174,6 +239,8 @@ def backfill(asof: date, symbols: Optional[Iterable[str]] = None, *,
                 stats["rows"] += int(n or 0)
                 if not rows:
                     stats["empty"] += 1
+                elif n:
+                    fills[sym] = frm
         except Exception as e:  # noqa: BLE001 - one symbol never stops the pass
             log.info("[ffseed-1m] %s failed: %s", sym, type(e).__name__)
             with lock:
@@ -181,6 +248,13 @@ def backfill(asof: date, symbols: Optional[Iterable[str]] = None, *,
 
     with ThreadPoolExecutor(max_workers=n_workers or workers(), thread_name_prefix="ffseed-1m") as ex:
         list(ex.map(one, todo))
+    led = load_ledger()
+    note_filled(led, fills)
+    act = protected_symbols()
+    if act is not None:
+        note_active(led, act, asof.isoformat())
+    save_ledger(led)
+    stats["ledger"] = len(led["symbols"])
     stats["secs"] = round(clock() - t0, 1)
     log.info("[ffseed-1m] backfill %s", stats)
     return stats
@@ -257,9 +331,25 @@ def _prune(symbols: List[str], before_ts: int) -> int:
     return bars_sqlite.prune_before(symbols, "1", before_ts)
 
 
+def inactive_days() -> int:
+    return max(0, _int_env("FFSEED_1M_INACTIVE_DAYS", 10))
+
+
+def _first_ts(sym: str) -> Optional[int]:
+    from api.services import bars_sqlite
+    return bars_sqlite.get_first_ts(sym, "1")
+
+
 def retention(asof: date, symbols: Optional[Iterable[str]] = None, *, protected=_UNKNOWN,
-              keep: Optional[int] = None, prune: Callable[[List[str], int], int] = None) -> dict:
-    """Trim every non-active universe symbol's 1m to its newest `keep` sessions (see the module doc)."""
+              keep: Optional[int] = None, prune: Callable[[List[str], int], int] = None,
+              first_ts: Callable[[str], Optional[int]] = None, ledger: Optional[dict] = None,
+              idle_days: Optional[int] = None) -> dict:
+    """Trim to its newest `keep` sessions the 1m of every universe symbol that is ALL of:
+      * in the ledger: this pass filled it;
+      * not in today's active intraday set, and not seen in it for `idle_days` (default 10) days;
+      * holding no 1m older than the first session this pass ever fetched for it (rows from before
+        that came from somewhere else, e.g. the prewarm while the symbol was active: never touched).
+    Nothing at all while the active set is unknown. Returns the counts, skips by reason included."""
     keep = keep_sessions() if keep is None else int(keep)
     if keep <= 0:
         return {"skipped": "disabled"}
@@ -267,10 +357,36 @@ def retention(asof: date, symbols: Optional[Iterable[str]] = None, *, protected=
     if active is None:
         log.info("[ffseed-1m] retention skipped: the active intraday set is not known yet")
         return {"skipped": "active set unknown"}
-    syms = list(symbols) if symbols is not None else ffseed.universe()
-    targets = sorted({s.upper() for s in syms} - {a.upper() for a in active})
+    led = load_ledger() if ledger is None else ledger
+    note_active(led, active, asof.isoformat())
+    if ledger is None:
+        save_ledger(led)
+    first_ts = first_ts or _first_ts
+    idle = inactive_days() if idle_days is None else int(idle_days)
+    horizon = (asof - timedelta(days=idle)).isoformat()
+    act = {str(a).upper() for a in active}
+    syms = sorted({str(x).upper() for x in (symbols if symbols is not None else ffseed.universe())})
+    skipped = {"not_filled": 0, "active": 0, "recently_active": 0, "older_rows": 0}
+    eligible = []
+    for sym in syms:
+        e = led["symbols"].get(sym)
+        if e is None:
+            skipped["not_filled"] += 1
+            continue
+        if sym in act:
+            skipped["active"] += 1
+            continue
+        if e.get("active") and e["active"] > horizon:
+            skipped["recently_active"] += 1
+            continue
+        ft = first_ts(sym)
+        if ft is not None and int(ft) < session_start_ts(date.fromisoformat(e["first"])):
+            skipped["older_rows"] += 1
+            continue
+        eligible.append(sym)
     cutoff = session_start_ts(sessions_back(asof, keep))
-    deleted = (prune or _prune)(targets, cutoff)
-    out = {"keep": keep, "cutoff": cutoff, "symbols": len(targets), "protected": len(active), "deleted": deleted}
+    deleted = (prune or _prune)(eligible, cutoff) if eligible else 0
+    out = {"keep": keep, "cutoff": cutoff, "eligible": len(eligible), "skipped": skipped,
+           "protected": len(act), "deleted": deleted}
     log.info("[ffseed-1m] retention %s", out)
     return out

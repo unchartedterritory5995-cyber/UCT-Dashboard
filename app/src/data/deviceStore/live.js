@@ -38,6 +38,7 @@
 import { isRthBar } from '../../components/chart/barTime'
 import { bucketOf } from '../../lib/minuteFrames/rollup'
 import { serverPrice } from './price'
+import { DEVICE_FORMING_INTRADAY, DEVICE_FORMING_DAILY } from './forming'
 import { prevSessionISO } from './sessions'
 import { STORED_TFS } from './tfs'
 
@@ -68,12 +69,16 @@ function grow(s) {
  * @param {object} [o]
  * @param {(sym:string) => string|null} [o.nameOf]  the seed's name for a feed symbol, or null when the
  *   seed does not hold it (only those are kept)
+ * @param {boolean} [o.formingIntraday]  hand out the 5/15/30/60 bucket in progress (forming.js; default its constant)
+ * @param {boolean} [o.formingDaily]     hand out today's forming D bar (forming.js; default its constant)
  */
-export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
+export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEVICE_FORMING_INTRADAY,
+  formingDaily = DEVICE_FORMING_DAILY } = {}) {
   let day = null                 // 'YYYY-MM-DD' of the bars held
   let lastMinute = null          // unix minute of the newest frame applied (its minute is complete)
   let gapRth = false             // a gap overlapping the regular session since the day began
   let gapAny = false             // any gap since the day began
+  let avAll = true               // every frame applied today carried the accumulated day volume (FLAG_AV)
   const series = new Map()       // `${tf}|${SYM}` → series
   const stats = { upserts: 0, kept: 0, gaps: 0, stale: 0, resets: 0 }
 
@@ -138,13 +143,19 @@ export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
       lastMinute = null
       gapRth = false
       gapAny = false
+      avAll = true
       series.clear()
     },
     frameDone(info) {
       if (info?.day && info.day !== day) day = info.day
       if (Number.isFinite(info?.minute) && (lastMinute == null || info.minute > lastMinute)) lastMinute = info.minute
+      // ⛔ fail closed: a frame that does not SAY it carried the day volume did not (consumer.js passes withAv)
+      if (info?.withAv !== true) avAll = false
     },
   }
+
+  // (1m never forms: its bar is complete once its minute's frame is applied, so no 1m bucket is ever in progress)
+  const formingFor = (tf) => (tf === 'D' ? formingDaily : formingIntraday)
 
   // The ONE decision behind read() and why(): the answer and, when there is none, the rule that refused.
   function _read(sym, tf, seedAsof) {
@@ -157,11 +168,20 @@ export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
     if (s?.bad) return { res: null, why: 'bad-series' }
     if (!s || !s.n) return { res: { cols: null, through }, why: 'ok' }
     let n = s.n
-    while (n > 0 && bucketEndOf(s.cols.t[n - 1], tf) > through) n--   // not finished: never handed out
-    if (!n) return { res: { cols: null, through }, why: 'ok' }
+    while (n > 0 && bucketEndOf(s.cols.t[n - 1], tf) > through) n--   // not finished: never handed out...
+    // ⭐ ...unless TODAY'S FORMING BAR is on for this timeframe (forming.js): then the ONE bucket after the last
+    // complete one, as far as today's minutes go (the rollup's bucket in progress). D only when every frame of
+    // the day carried the accumulated day volume, so its volume is the vendor's and not a sum of minutes.
+    let forming = null
+    if (n === s.n - 1 && formingFor(tf)) {
+      if (tf !== 'D') forming = 'intraday'
+      else if (avAll && s.cols.v[n] > 0) forming = 'D'
+    }
+    const m = forming ? n + 1 : n
+    if (!m) return { res: { cols: null, through }, why: 'ok' }
     const cols = {}
-    for (const k of COLS) cols[k] = s.cols[k].slice(0, n)
-    return { res: { cols, through }, why: 'ok' }
+    for (const k of COLS) cols[k] = s.cols[k].slice(0, m)
+    return { res: forming ? { cols, through, forming } : { cols, through }, why: 'ok' }
   }
 
   return {
@@ -178,7 +198,7 @@ export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
     /** The day held and the newest minute applied (unix minute), for diagnostics and freshness. */
     state: () => ({ day, lastMinute, gapRth, gapAny, series: series.size, ...stats }),
     /** Drop everything (a re-sync replays the day into a clean overlay). */
-    clear() { day = null; lastMinute = null; gapRth = false; gapAny = false; series.clear() },
+    clear() { day = null; lastMinute = null; gapRth = false; gapAny = false; avAll = true; series.clear() },
     get day() { return day },
   }
 }

@@ -193,6 +193,78 @@ describe('a device copy current to the last closed minute', () => {
     s.store.dispose()
   })
 
+  // ⭐ TODAY'S FORMING BAR IN THE DEVICE COPY (deviceStore/forming.js, off until the evidence): the store needs
+  // nothing new. The copy's last row is a bucket the clock says has not ended, so it is the entry's developing
+  // bar (a local one); the device rule paints it with the rest, and the server's answer, whose developing bar
+  // equals it, changes no bar of that first frame.
+  it('L11 a copy ending with the forming bucket: the first frame holds it, and an equal answer changes nothing', async () => {
+    const FORMING = bar(OPEN + 2 * 3600, 1, 24)                       // 11:30, the bucket in progress
+    let release
+    const request = vi.fn(() => new Promise((r) => { release = () => r(answer()) }))
+    const { store, pf, key } = boot({ device: fakeDevice([...DEVICE, FORMING]), request })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)
+    expect(pf.devicePaints('NEWB', '5', { showExtended: false })).toBe(true)
+    const s0 = store.peek(key)
+    expect(s0.source).toBe('device')
+    expect(s0.developing && [s0.developing.t, s0.developing.o, s0.developing.h, s0.developing.l, s0.developing.c, s0.developing.v])
+      .toEqual([FORMING.t, FORMING.o, FORMING.h, FORMING.l, FORMING.c, FORMING.v])
+    const off = store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(1)
+    const row = (b) => [b.t, b.o, b.h, b.l, b.c, b.v]
+    // what the chart draws: the sealed rows, then the developing bar (adapter.legacyBars)
+    const drawn = (snap) => [...snap.bars, ...(snap.developing ? [snap.developing] : [])].map(row)
+    const painted = drawn(store.getSnapshot(key))
+    expect(painted.at(-1)).toEqual(row(FORMING))                       // the first frame ends with it
+    release()
+    await vi.advanceTimersByTimeAsync(20)
+    const after = new Map(drawn(store.getSnapshot(key)).map((r) => [r[0], r]))
+    for (const r of painted) expect(after.get(r[0])).toEqual(r)        // every painted bar, the forming one too
+    off()
+    store.dispose()
+  })
+
+  it('L12 D mid-session: a copy ending with today\'s forming bar paints (without it, it does not: L6)', () => {
+    const days = (n, end) => Array.from({ length: n }, (_, i) => ({ t: end - (n - 1 - i) * DAY, o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+    const TODAY = Date.UTC(2026, 10, 18) / 1000
+    const rows = [...days(60, TODAY - DAY), { t: TODAY, o: 10.4, h: 10.9, l: 10.1, c: 10.6, v: 5e6 }]
+    const { store, pf } = boot({ device: fakeDevice(rows, { tf: 'D', through: THROUGH }) })
+    pf.peekBars('NEWB', 'D')
+    const s = store.peek(keyOf({ sym: 'NEWB', tf: 'D' }))
+    expect(s.developing && s.developing.t).toBe(TODAY)
+    expect(pf.devicePaints('NEWB', 'D')).toBe(true)
+    store.dispose()
+  })
+
+  // ⭐ THE VOLUME TOLERANCE (deviceStore/forming.js, the intraday evidence): the vendor truncates minute volumes, so the
+  // server's bucket volume may be ABOVE the rollup of its minutes by less than 1 share per minute in the bucket. Its
+  // prices equal the rollup's. So the answer may lift the painted forming bar's volume by that much, never its prices.
+  it("L13 the forming bar's volume may trail the server's by < 1 share per minute in the bucket: the answer lifts only the volume", async () => {
+    vi.setSystemTime(NOW + 2 * 60000)                                // 11:33:00: the 11:30 bucket holds 3 closed minutes
+    const MINUTES = 3
+    const FORMING = bar(OPEN + 2 * 3600, 1, 24)
+    const ans = answer()
+    ans.verified_through = Math.floor((NOW + 2 * 60000) / 1000)
+    ans.developing = { ...ans.developing, v: FORMING.v + (MINUTES - 1) }   // the server above by < 1 share a minute
+    let release
+    const request = vi.fn(() => new Promise((r) => { release = () => r(ans) }))
+    const { store, pf, key } = boot({ device: fakeDevice([...DEVICE, FORMING], { through: THROUGH + 120 }), request })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)
+    expect(pf.devicePaints('NEWB', '5', { showExtended: false })).toBe(true)
+    const off = store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(1)
+    const before = store.getSnapshot(key).developing
+    expect(before.v).toBe(FORMING.v)
+    release()
+    await vi.advanceTimersByTimeAsync(20)
+    const after = store.getSnapshot(key).developing
+    expect([after.t, after.o, after.h, after.l, after.c]).toEqual([before.t, before.o, before.h, before.l, before.c])
+    expect(after.v).toBe(ans.developing.v)                            // the server's volume wins...
+    expect(after.v - before.v).toBeGreaterThanOrEqual(0)
+    expect(after.v - before.v).toBeLessThan(MINUTES)                  // ...and it was within the tolerance
+    off()
+    store.dispose()
+  })
+
   it('L7 the same device copy seen again is not dispatched again (the switch polls every 25 ms)', () => {
     const { store, pf } = boot({ device: fakeDevice(DEVICE) })
     pf.peekDisplayable('NEWB', '5')

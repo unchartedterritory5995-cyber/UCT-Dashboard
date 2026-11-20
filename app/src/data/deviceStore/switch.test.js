@@ -44,7 +44,10 @@ describe('the device store switch', () => {
     })
     const key = keyOf({ sym: 'NEWB', tf: '5' })
     await store.persist.hydrate(key)
-    await new Promise((r) => setTimeout(r, 20))
+    // ⛔ NOT A FIXED WAIT: the device read is lazy (a dynamic import of the client, cold after resetModules), and on
+    // a loaded CI runner it outlasted a flat 20 ms (remote tests, 2026-11-20: getDeviceClient called 0 times). Wait
+    // for its copy, bounded: on, it lands well inside the bound; off, nothing may load in the whole window.
+    for (let i = 0; i < 40 && store.peek(key)?.source !== 'device'; i++) await new Promise((r) => setTimeout(r, 20))
     const s = { ...store.peek(key), savedAt: store.persist.savedAtOf(key), through: store.persist.deviceThroughOf(key) }
     store.dispose()
     return s

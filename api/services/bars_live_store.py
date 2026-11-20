@@ -1136,9 +1136,20 @@ def _daily_poll_once(last: Optional[dict] = None) -> tuple[int, set]:
     if not tickers:
         return 0, set()
     today = int(datetime.now(_ET).strftime("%Y%m%d"))
+    # ⛔ NO ROW BEFORE TODAY'S REGULAR SESSION HAS OPENED. The poll runs from 04:00, and before
+    # the open the snapshot's `day` can still hold the PRIOR session (2026-09-04, 2026-09-11:
+    # the same object stamped with today's date drew a second copy of yesterday's candle on
+    # every pre-market daily chart). The one rule for "may today's `day` be dated today" is
+    # `massive._regular_session_has_opened_today` (todays_daily_bar and the today pack ask it
+    # too); asked here rather than restated. Before the open nothing is written, so the stored
+    # series ends at the prior session, exactly what the uncovered path serves; every ticker
+    # is still reported, so daily coverage does not drop.
+    from api.services import massive
+    opened = massive._regular_session_has_opened_today()
     # Only bars that moved since the last poll: an unchanged ticker's stored row is
     # already exact, and rewriting ~13k rows every poll would crowd the write lock.
-    rows = [r for r in daily_rows_from_snapshot(tickers, today) if last.get(r[0]) != r]
+    rows = ([r for r in daily_rows_from_snapshot(tickers, today) if last.get(r[0]) != r]
+            if opened else [])
     n = _write_rows("D", rows) if rows else 0
     for r in rows:
         last[r[0]] = r

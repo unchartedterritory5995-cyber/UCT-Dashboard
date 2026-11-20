@@ -23,6 +23,23 @@
 .table { border-collapse: collapse; font-size: var(--text-base); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .table th, .table td { padding: 3px 8px; text-align: right; border-bottom: 1px solid var(--border); }
 .table th { color: var(--text-muted); font-weight: 600; }
+/* Market Tide by sector, and only that table (the other options tables keep the rules above).
+   Its five columns need about 630 px on one line each, so a phone showed the sector and one
+   money column and hid the rest behind a sideways scroll. The table's own box is measured, so
+   the same rules serve the options page and a Terminal panel, and a wide box is untouched.
+   Up to 640 px: headers and sector names may take two lines and the cells sit closer.
+   Up to 480 px: the type steps down and Prints folds, so the three money columns always show
+   (measured: all five columns need 462 px at the phone's type size, four need 274 px). */
+.sectorScroll { container: sectortide / inline-size; }
+@container sectortide (max-width: 640px) {
+  .sectorTable th { white-space: normal; }
+  .sectorTable th, .sectorTable td { padding: 3px 5px; }
+}
+@container sectortide (max-width: 480px) {
+  .sectorTable { font-size: var(--text-xs); }
+  .sectorTable th, .sectorTable td { padding: 3px 4px; }
+  .sectorTable th:nth-child(5), .sectorTable td:nth-child(5) { display: none; }
+}
 .cellPos { background: color-mix(in srgb, var(--gain) calc(var(--heat, 0) * 60%), transparent); }
 .cellNeg { background: color-mix(in srgb, var(--loss) calc(var(--heat, 0) * 60%), transparent); }
 /* lane/o-options-remainders: the 3D surface's cells (FT-018) and a clickable tide (FT-057). */
