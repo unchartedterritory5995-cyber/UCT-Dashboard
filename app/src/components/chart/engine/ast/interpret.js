@@ -7322,13 +7322,24 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, colu
     tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     // ⭐⭐ HTF-LIVE-FIRST-PERIOD — a look-ahead read of a period built from part of it
     tfLiveMask(tree, bars, opts, inputs, budget, scalars),
-    // ⭐⭐ PERIOD −1 — a read of the bar, week or month before the first one this series holds
-    historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
     argExtremeTieMask(tree, bars, inputs, budget, scalars, opts),
   ].filter(Boolean)
+  // ⭐⭐ PERIOD −1 — a read of the bar, week or month before the first one this series holds, asked LAST and only where a
+  // bar would still be drawn: it can only withhold, so a column every other mask (or its own evaluation) already leaves
+  // blank on every bar is not walked (ITEM 4: a running total withheld whole off the listing paid its two starts for
+  // nothing). The Python lane asks it last for the same reason (`ast_interpret.interpret`).
+  const n = Array.isArray(bars) ? bars.length : 0
+  let open = false
+  for (let i = 0; i < n && !open; i++) {
+    open = !masks.some((m) => m[i]) && (column === undefined || column === null || Number.isFinite(column[i]))
+  }
+  if (open) {
+    const before = historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column)
+    if (before) masks.push(before)
+  }
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
   for (let i = 0; i < out.length; i++) out[i] = masks.some((m) => m[i]) ? 1 : 0
@@ -7668,8 +7679,9 @@ function firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars) {
   }
   if (!own.size) return null
   const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
-  return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
-    (nd) => Float64Array.from(own.get(nd)), TF_MERGE_FIRST_CODE, { exact: true })
+  // ⭐⭐ ITEM 4 — a running value over a site is drawn only where two starts agree (`walkTwoStarts`)
+  return walkTwoStarts(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
+    (nd) => Float64Array.from(own.get(nd)), TF_MERGE_FIRST_CODE, { exact: true }, own)
 }
 
 /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE FIRST PERIOD OF A LOOK-AHEAD READ, OFF THE LISTING, for the
@@ -7781,8 +7793,20 @@ function partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts) {
   if (holdsRequestOrBinding(child)) return FIELD_UNAWARE
   const quiet = { ...(opts || {}), tf: code, chartClockSink: undefined, withheldBarsSink: undefined }
   const firstOnly = () => { const c = new Float64Array(htf.length); c[0] = 1; return c }
-  return witnessMask(child, htf, inputs, budget, scalars, quiet, readsPartialField, firstOnly, TF_LIVE_FIRST_CODE,
-    { exact: true })
+  // ⭐⭐ ITEM 4 — a running value inside (`ema(high, 3)`) is unknown wherever two starts of the child disagree: each
+  // partial field read as its column with the first higher-timeframe bar `NaN` (`walkTwoStarts`)
+  const sites = new Map()
+  const stack = [child]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (readsPartialField(node)) sites.set(node, firstOnly())
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  return walkTwoStarts(child, htf, inputs, budget, scalars, quiet, readsPartialField, firstOnly, TF_LIVE_FIRST_CODE,
+    { exact: true }, sites)
 }
 
 /** ⭐⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — THE ROOT BARS THAT READ A LOOK-AHEAD VALUE BUILT FROM PART OF THE FIRST
@@ -7868,8 +7892,9 @@ function tfLiveFirstPeriodReadMask(tree, bars, opts, inputs, budget, scalars) {
   }
   if (!own.size) return null
   const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
-  return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
-    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: true })
+  // ⭐⭐ ITEM 4 — a running value over a site is drawn only where two starts agree (`walkTwoStarts`)
+  return walkTwoStarts(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
+    (nd) => Float64Array.from(own.get(nd)), TF_LIVE_FIRST_CODE, { exact: true }, own)
 }
 
 /** ⭐⭐ HTF-LIVE-FIRST-PERIOD — the host column's `tf_live` withholding (`tfLiveFirstPeriodReadMask`), named
@@ -8167,8 +8192,14 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
           let u = null
           for (const a of args) u = orInto(u, unk(a))
           // `walk.exact`: a running value keeps the rule it had, unknown on its argument's own unknown bars; its
-          // memory is not followed (see the note above `WITNESS_NESTED`)
-          out = walk.exact === true ? u : forward(u)
+          // memory is not followed (see the note above `WITNESS_NESTED`) unless `walk.carryForward` (ITEM 4's bound);
+          // `walk.onCarried` hears which arguments carried an unknown into one (ITEM 4: `walkTwoStarts` starts each later)
+          if (u !== null && walk.exact === true && typeof walk.onCarried === 'function') {
+            const carried = []
+            for (const a of args) { const ua = unk(a); if (ua !== null) carried.push([a, Float64Array.from(asCol(ua))]) }
+            walk.onCarried(node, carried)
+          }
+          out = walk.exact === true && walk.carryForward !== true ? u : forward(u)
         }
       } else {
         for (const a of args) out = orInto(out, unk(a))
@@ -8195,6 +8226,125 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
 
 const witnessOpts = (opts) => ({ ...(opts || {}), crossMemo: undefined, probeBase: undefined,
   chartClockSink: undefined, withheldBarsSink: undefined })
+
+/** ⭐⭐ ITEM 4 (coordinator rulings 2026-11-19) — A RUNNING VALUE THAT CARRIES A PARTIAL FIRST PERIOD IS DRAWN ONLY WHERE
+ *  TWO STARTS AGREE (and one carrying a read before the chart).
+ *  The walks over a partial first period (`firstPeriodPartialReadMask`, `tfLiveFirstPeriodReadMask`, and the child
+ *  walk `partialPeriodUnknown`) take a running value (`ema`, `rma`, `cum`, a recurrence: engine 56's "anything else")
+ *  pointwise: withheld where its argument is unknown and drawn after, still carrying the partial period. Measured by
+ *  the truth proxy (#2071): `ema(x, 3)` over a weekly merge drew 116,772 bars on 120 cut charts, 2,533 of them unlike
+ *  the longer chart. So where an unknown reached one (`walk.onCarried`) the tree is evaluated twice:
+ *    - start A: as built (the partial period's own values);
+ *    - start B: the same tree, each running value STARTED LATER: its argument `NaN` on the bars the walk found unknown
+ *      (`opts.siteOverride`), and each site `NaN` on its own unknown bars; `NaN` is the engine's own "this series starts
+ *      later" (a smoother starts at its first finite value), what it draws for a chart whose first period is whole (the
+ *      precedent: the run's off-listing two-start proof, #1990 `computeOffListing`). For a running value over a site read
+ *      directly that is exactly the site's unknown bars; through `nz` or a test it is the running value's own input, so
+ *      a value carrying a read BEFORE THE CHART (`ema(nz(close[1]), 3)`, `historyBeforeChartMask`'s walk, whose site is
+ *      `NaN` already) starts later too;
+ *  and a bar where they are not BIT-EQUAL (`listingSame`, `NaN` equal to `NaN`; no tolerance: a tolerance would be a
+ *  new number) is withheld beside the walk's own bars, by the walk's code. A value that never forgets (`cum`) is
+ *  withheld from the first unknown bar on, now proved per bar instead of assumed.
+ *  ⚠️ BOUNDED: start B costs about what start A did, so over `MAX_RECURRENCE_STEPS` (`twoStartSteps`: the tree's
+ *  nodes and its recurrences' warm-ups, per bar) it is not run and a running value is withheld from its first unknown
+ *  bar on (`walk.carryForward`), never drawn. A running value's argument that reads its own binding (a recurrence's
+ *  body) has no column outside it and is not started later; its sites are. Python twin:
+ *  `ast_interpret._walk_two_starts`. */
+let _twoStartCeiling = MAX_RECURRENCE_STEPS
+/** Tests: the ceiling `walkTwoStarts` compares against (null restores `MAX_RECURRENCE_STEPS`). */
+export function __twoStartCeilingForTests(steps) { _twoStartCeiling = steps === null ? MAX_RECURRENCE_STEPS : steps }
+/** The work of one more evaluation of `tree` over `n` bars: each node once, and each recurrence's warm-up per bar. */
+export function twoStartSteps(tree, n) {
+  let work = 0
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    work += 1
+    const rec = node.type === 'call' ? (own(RECURRENCES, node.name) ? RECURRENCES[node.name]
+      : own(MULTI_STATES, node.name) ? MULTI_STATES[node.name] : null) : null
+    if (rec && Number.isInteger(rec.warmup)) work += windowLiteral(node, rec.warmup)
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  return work * n
+}
+/** The bars on which `tree` over `bars` answers differently from its later start (each site of `sites`, a Map of node
+ *  to its own unknown bars, read as its column with those bars `NaN`), as a 0/1 column, or null. */
+function startsDisagree(tree, bars, inputs, budget, scalars, opts, sites, seed = undefined) {
+  const n = bars.length
+  const base = witnessOpts(opts)
+  // start A reads the caller's memo for these bars when it has one (a copy: its columns are A's own)
+  const memo = seed instanceof Map ? seed : new Map()
+  const override = new Map()
+  let moved = false
+  for (const [node, unknown] of sites) {
+    const col = Float64Array.from(toColumn(interpretOnce(node, bars, inputs, budget, scalars, { ...base, crossMemo: memo }), n))
+    for (let i = 0; i < n; i++) {
+      if (!unknown[i]) continue
+      if (col[i] === col[i]) moved = true
+      col[i] = NaN
+    }
+    override.set(node, col)
+  }
+  // ⭐ a start that moves no value is start A: a bar already `NaN` starts nothing later (a read before the chart,
+  // a running value's own body), so B is not run
+  if (!moved) return null
+  const a = toColumn(interpretOnce(tree, bars, inputs, budget, scalars, { ...base, crossMemo: memo }), n)
+  // ⭐ B reads A's own column for every node that holds no overridden node (it is the same column), and evaluates the
+  // nodes above an overridden one: the running value and what reads it
+  const holds = new Map()
+  const stack = [[tree, false]]
+  while (stack.length) {
+    const [node, done] = stack.pop()
+    if (!node || typeof node !== 'object' || (holds.has(node) && !done)) continue
+    const args = Array.isArray(node.args) ? node.args : []
+    if (!done) {
+      holds.set(node, false)
+      stack.push([node, true])
+      for (const a2 of args) if (a2 && typeof a2 === 'object' && !holds.has(a2)) stack.push([a2, false])
+      continue
+    }
+    holds.set(node, override.has(node) || args.some((a2) => holds.get(a2) === true))
+  }
+  const bMemo = new Map()
+  for (const [k, v] of memo) if (!(k && typeof k === 'object' && holds.get(k) === true)) bMemo.set(k, v)
+  const b = toColumn(interpretOnce(tree, bars, inputs, budget, scalars, { ...base, siteOverride: override, crossMemo: bMemo }), n)
+  let out = null
+  for (let i = 0; i < n; i++) {
+    if (!listingSame(a[i], b[i])) { if (!out) out = new Float64Array(n); out[i] = 1 }
+  }
+  return out
+}
+/** `witnessMask` (exact) and, where an unknown reached a running value, `startsDisagree` beside it; over the bound the
+ *  walk again with the running values' memory followed (`walk.carryForward`). `sites`: node -> its own unknown bars. */
+function walkTwoStarts(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, walk, sites, memo = undefined) {
+  const starts = new Map(sites)
+  let carried = false
+  const mask = witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, { ...walk,
+    onCarried: (_node, args) => {
+      carried = true
+      for (const [a, u] of args) {
+        if (readsRecurrenceBinding(a)) continue
+        const had = starts.get(a)
+        if (!had) { starts.set(a, u); continue }
+        const m = Float64Array.from(had)
+        for (let i = 0; i < m.length; i++) if (u[i]) m[i] = 1
+        starts.set(a, m)
+      }
+    } })
+  if (!carried) return mask
+  const n = bars.length
+  if (twoStartSteps(tree, n) > _twoStartCeiling) {
+    return witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, { ...walk, carryForward: true })
+  }
+  const d = startsDisagree(tree, bars, inputs, budget, scalars, opts, starts, memo instanceof Map ? new Map(memo) : undefined)
+  if (!d) return mask
+  const out = mask ? Float64Array.from(mask) : new Float64Array(n)
+  for (let i = 0; i < n; i++) if (d[i]) out[i] = 1
+  return out
+}
 
 /** ⭐⭐ PERIOD −1 (HTF-PRE-CHART, coordinator ruling 2026-11-19) — A READ OF THE BAR, OR THE WEEK OR MONTH, BEFORE THE
  *  CHART'S FIRST: the code and the sentence (`CHART_CLOCK_WITHHELD`; Python twin `ast_interpret.HISTORY_BEFORE_CHART_CODE`). */
@@ -8244,9 +8394,10 @@ function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo = 
   }
   if (!own.size && !off) return null
   const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
-  return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
+  // ⭐⭐ ITEM 4 — a running value carrying such a read is drawn only where two starts agree (`walkTwoStarts`)
+  return walkTwoStarts(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
     (nd) => Float64Array.from(own.get(nd)), HISTORY_BEFORE_CHART_CODE,
-    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor })
+    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor }, own, memo)
 }
 
 /** ⭐⭐ PERIOD −1 — the bars of `bars` on which a read on other bars (`node`, a `SCOPE_TYPES` node) answers from a bar
@@ -9318,6 +9469,11 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
   // ⚠️ AND IT INHERITS `memo`'s SELF-FREE GATE UNCHANGED (`id !== undefined`),
   // so a subtree that reads a recurrence bind is never cached here either.
   const crossMemo = opts && opts.crossMemo instanceof Map ? opts.crossMemo : null
+  // ⭐⭐ ITEM 4 (two starts, 2026-11-19) — a column the caller hands for a NODE, read in its place (`startsDisagree`'s
+  // later start). Keyed on the node object. It cannot reach another bar set: a read on other bars that holds an
+  // overridden node is itself a site of the walk that built the map, read whole from its own override (railed:
+  // `htfTwoStarts.test.js`, one node read on the chart and inside a read).
+  const siteOverride = opts && opts.siteOverride instanceof Map ? opts.siteOverride : null
   // ⭐⭐ HEADLESS (R6) — THE EVALUATION COUNTER, ONE AT THE CHOKEPOINT (`evalNode`, below): a unit is
   // one node this pass EVALUATED into its value (a memo hit, here or in `crossMemo`, costs none). The
   // headless export (`headlessCompute.js`) hands an object here and reads `units` as the formula
@@ -9402,6 +9558,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
   }
 
   const evalNode = (n) => {
+    if (siteOverride !== null && siteOverride.has(n)) return siteOverride.get(n)
     // 🔴 SELF-FREE ONLY. A subtree that reads a recurrence bind is re-evaluated
     // per step with a different running value; caching it would freeze the
     // recurrence at step one — a wrong NUMBER, silently.

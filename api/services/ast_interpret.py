@@ -4913,11 +4913,9 @@ def interpret(ast: Any, bars: List[dict],
         lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
         if lived is not None:
             column = [math.nan if lived[i] else v for i, v in enumerate(column)]
-        # ⭐⭐ PERIOD -1 -- ...and a read of the bar, week or month before the first one the series holds
-        # (``interpret.js::historyBeforeChartMask``), named where it takes a drawn value away
-        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, column)
-        if before is not None:
-            column = [math.nan if before[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
+        # named where it takes a drawn value away), as it stands here; the mask itself is asked LAST (below)
+        named_against = list(column)
     if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
@@ -4958,6 +4956,13 @@ def interpret(ast: Any, bars: List[dict],
         anchored = period_anchor_mask(ast, bars, inputs, budget, scalars, opts)
         if anchored:
             column = [math.nan if m else v for v, m in zip(column, anchored)]
+    if not probing and any(not math.isnan(v) for v in column):
+        # ⭐⭐ PERIOD -1 -- ...and a read of the bar, week or month before the first one the series holds, asked last and
+        # only where a bar would still be drawn (``interpret.js::withheldReadMask``): it can only withhold, so a column
+        # every other mask already leaves blank is not walked (ITEM 4's two starts cost nothing there)
+        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, named_against)
+        if before is not None:
+            column = [math.nan if before[i] else v for i, v in enumerate(column)]
     # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
@@ -5181,8 +5186,9 @@ def _first_period_partial_read_mask(tree: Any, bars: List[dict], opts, inputs, b
     quiet = dict(opts or {})
     quiet.pop("chartClockSink", None)
     quiet.pop("withheldBarsSink", None)
-    return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
-                         lambda nd: id(nd) in own, lambda nd: list(own[id(nd)]), exact=True)
+    # ⭐⭐ ITEM 4 -- a running value over a site is drawn only where two starts agree (``_walk_two_starts``)
+    return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            lambda nd: id(nd) in own, lambda nd: list(own[id(nd)]), own)
 
 
 #: ⭐⭐ HTF-LIVE-FIRST-PERIOD -- ``interpret.js::TF_LIVE_FIRST_CODE``: a look-ahead (``tf_live``) read of a period built
@@ -5247,8 +5253,23 @@ def _partial_period_unknown(child: Any, htf: List[dict], code: str, inputs, budg
         col[0] = 1
         return col
 
-    return _witness_mask(child, htf, inputs if inputs is not None else {}, budget, scalars, quiet,
-                         _reads_partial_field, first_only, exact=True)
+    # ⭐⭐ ITEM 4 -- a running value inside is unknown wherever two starts of the child disagree (each partial field
+    # read as its column with the first higher-timeframe bar NaN)
+    partial: Dict[int, List[int]] = {}
+    stack = [child]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if _reads_partial_field(node):
+            partial[id(node)] = first_only(node)
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return _walk_two_starts(child, htf, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            _reads_partial_field, first_only, partial)
 
 
 def _tf_live_first_period_bars(bars: List[dict], code: Any,
@@ -5361,8 +5382,9 @@ def _tf_live_first_period_read_mask(tree: Any, bars: List[dict], opts, inputs, b
     quiet.pop("chartClockSink", None)
     quiet.pop("withheldBarsSink", None)
     sites = own
-    return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
-                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=True)
+    # ⭐⭐ ITEM 4 -- a running value over a site is drawn only where two starts agree (``_walk_two_starts``)
+    return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), sites)
 
 
 def tf_live_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] = None,
@@ -5414,10 +5436,11 @@ def _pre_chart_unknown(tree: Any, bars: List[dict], inputs, budget, scalars, opt
     quiet.pop("chartClockSink", None)
     quiet.pop("withheldBarsSink", None)
     sites = own
-    return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
-                         lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=True,
-                         request_sites=True, before_first=off is True,
-                         skip=lambda nd: period_anchor_period(nd) is not None)
+    # ⭐⭐ ITEM 4 -- a running value carrying such a read is drawn only where two starts agree (``_walk_two_starts``)
+    return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), sites,
+                            request_sites=True, before_first=off is True,
+                            skip=lambda nd: period_anchor_period(nd) is not None)
 
 
 def _request_before_first(node: Mapping[str, Any], bars: List[dict], inputs, budget, scalars, opts,
@@ -5764,7 +5787,8 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                   is_site: Callable[[dict], bool],
                   flagged: Callable[[dict], Optional[List[int]]],
                   exact: bool = False, request_sites: bool = False,
-                  before_first: bool = False,
+                  before_first: bool = False, carry_forward: bool = False,
+                  on_carried: Optional[Callable[[dict, list], None]] = None,
                   skip: Optional[Callable[[dict], bool]] = None) -> Optional[List[int]]:
     """ENGINE 56 -- the root bars that depend on a withheld bar of a witness site, by one 0/1
     "unknown" column per node, bottom-up. The twin of ``interpret.js::witnessMask`` (its
@@ -6015,8 +6039,16 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                 for a in args:
                     u = or_into(u, unk(a))
                 # ``exact``: a running value keeps the rule it had (its argument's own unknown bars); its memory
-                # is not followed (``interpret.js::witnessMask``'s note)
-                out = u if exact else forward(u)
+                # is not followed (``interpret.js::witnessMask``'s note) unless ``carry_forward`` (ITEM 4's bound);
+                # ``on_carried`` hears which arguments carried an unknown into one (ITEM 4: each starts later)
+                if u is not None and exact and on_carried is not None:
+                    carried_args = []
+                    for a in args:
+                        ua = unk(a)
+                        if ua is not None:
+                            carried_args.append((a, [1] * n if ua == ALL else list(ua)))
+                    on_carried(node, carried_args)
+                out = u if (exact and not carry_forward) else forward(u)
         else:
             for a in args:
                 out = or_into(out, unk(a))
@@ -6028,6 +6060,113 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
         return None
     mask = [1] * n if root == ALL else [1 if x else 0 for x in root]
     return mask if any(mask) else None
+
+
+#: ⭐⭐ ITEM 4 -- the ceiling ``_walk_two_starts`` compares ``two_start_steps`` against (``interpret.js``'s
+#: ``_twoStartCeiling``); tests may lower it.
+TWO_START_CEILING = [MAX_RECURRENCE_STEPS]
+
+
+def two_start_steps(tree: Any, n: int) -> int:
+    """``interpret.js::twoStartSteps``: the work of one more evaluation over ``n`` bars (each node once, each
+    recurrence's warm-up per bar)."""
+    work = 0
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        work += 1
+        name = node.get("name") if node.get("type") == "call" else None
+        rec = RECURRENCES.get(name) if name in RECURRENCES else MULTI_STATES.get(name) if name in MULTI_STATES else None
+        if rec is not None and isinstance(rec.get("warmup"), int):
+            work += _window_literal(node, rec["warmup"])
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return work * n
+
+
+def _starts_disagree(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
+                     sites: Dict[int, Any]) -> Optional[List[int]]:
+    """``interpret.js::startsDisagree``: the bars on which the tree answers differently from its later start (each
+    site, ``{id(node): (node, unknown bars)}``, read as its column with those bars NaN), bit-equal, NaN equal to NaN."""
+    n = len(bars)
+    base = dict(opts or {}, chartClockSink=None, withheldBarsSink=None)
+    override: Dict[int, List[float]] = {}
+    moved = False
+    for key, (node, unknown) in sites.items():
+        col = list(_to_column(_interpret_column(node, bars, inputs, budget, scalars, base), n))
+        for i in range(n):
+            if unknown[i]:
+                if not _isnan(col[i]):
+                    moved = True
+                col[i] = math.nan
+        override[key] = col
+    # a start that moves no value is start A (a bar already NaN starts nothing later): B is not run
+    if not moved:
+        return None
+    a = _to_column(_interpret_column(tree, bars, inputs, budget, scalars, base), n)
+    b = _to_column(_interpret_column(tree, bars, inputs, budget, scalars, dict(base, siteOverride=override)), n)
+    out = None
+    for i in range(n):
+        x, y = a[i], b[i]
+        if not (x == y or (_isnan(x) and _isnan(y))):
+            out = out or [0] * n
+            out[i] = 1
+    return out
+
+
+def _walk_two_starts(tree: Any, bars: List[dict], inputs, budget, scalars, opts, is_site, flagged,
+                     sites: Dict[int, List[int]], **walk) -> Optional[List[int]]:
+    """⭐⭐ ITEM 4 -- ``interpret.js::walkTwoStarts`` (its docstring carries the rule and the rulings): the exact walk,
+    and where an unknown reached a running value the bars two starts disagree on beside it (start B: each running
+    value's argument NaN on its unknown bars, each site NaN on its own); over the bound, the walk again with the running
+    values' memory followed. ``sites``: ``{id(node): unknown bars}``; their nodes are found in the tree by identity."""
+    starts: Dict[int, List[int]] = {k: list(v) for k, v in sites.items()}
+    nodes: Dict[int, Any] = {}
+    carried: List[bool] = []
+
+    def heard(_node, args):
+        carried.append(True)
+        for a, u in args:
+            if _reads_recurrence_binding(a):
+                continue
+            nodes[id(a)] = a
+            had = starts.get(id(a))
+            starts[id(a)] = list(u) if had is None else [1 if (x or y) else 0 for x, y in zip(had, u)]
+
+    mask = _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=True,
+                         on_carried=heard, **walk)
+    if not carried:
+        return mask
+    n = len(bars)
+    if two_start_steps(tree, n) > TWO_START_CEILING[0]:
+        return _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=True,
+                             carry_forward=True, **walk)
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if id(node) in starts and id(node) not in nodes:
+            nodes[id(node)] = node
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    d = _starts_disagree(tree, bars, inputs, budget, scalars, opts,
+                         {k: (nodes[k], v) for k, v in starts.items() if k in nodes})
+    if d is None:
+        return mask
+    out = list(mask) if mask else [0] * n
+    for i in range(n):
+        if d[i]:
+            out[i] = 1
+    return out
 
 
 def bool_na_mask(tree: Any, bars: List[dict],
@@ -7820,7 +7959,16 @@ def _interpret_column(ast: Any, bars: List[dict],
         code, ms = parts
         return [v * 1000 if ms else v for v in calendar["close"][code]]
 
+    # ⭐⭐ ITEM 4 (two starts) -- a column the caller hands for a NODE (by id), read in its place
+    # (``_starts_disagree``'s later start; ``interpret.js``'s ``opts.siteOverride``). A read on other bars holding an
+    # overridden node is itself a site, read whole from its own override (the JS twin's note).
+    _site_override = (opts or {}).get("siteOverride")
+    if not isinstance(_site_override, dict):
+        _site_override = None
+
     def eval_node(n: Any) -> Any:
+        if _site_override is not None and id(n) in _site_override:
+            return _site_override[id(n)]
         # ⚠️ ``free_of`` DECIDES, NOT THE SHAPE ALONE. A subtree reading a
         # recurrence bind (``self``) means something different on every bar of the
         # step loop, so it is never memoised — the same rule the JS lane applies,

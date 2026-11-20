@@ -103,13 +103,13 @@ const SHAPES = [
   { name: 'na(x[1]) ? x[2] : x[1] (the arm a known condition takes: bar 7 reads x[1], a whole week)',
     tree: () => op('?:', call('na', off(1, X())), off(2, X()), off(1, X())), window: W16,
     expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5] },
-  // ⛔ A RUNNING VALUE KEEPS THE RULE IT HAD: withheld where its argument is, and drawn after it. What it carries of
-  // the partial week afterwards is an open question this change does not settle, so only the WITHHELD bars are
-  // written here (`held`), never the values drawn after them.
-  { name: 'ema(x, 3) (a running value: withheld where x is, bars 2-5, as before)', tree: () => call('ema', X(), num(3)),
-    window: W16, held: [0, 1, 2, 3, 4, 5] },
-  { name: 'ema(x[1], 3) (a running value over x[1]: withheld where x[1] is, bars 3-6)',
-    tree: () => call('ema', off(1, X()), num(3)), window: W16, held: [0, 1, 2, 3, 4, 5, 6] },
+  // ⭐⭐ ITEM 4 (2026-11-19): A RUNNING VALUE is drawn only where two starts agree (`walkTwoStarts`; the acceptance measure is
+  // `htfTwoStarts.test.js`'s): it carried the partial week after its withheld bars, and its partial and later starts do not
+  // agree, bit for bit, inside this window, so only the WITHHELD bars are written (`held`): all of them
+  { name: 'ema(x, 3) (a running value: withheld until its two starts agree, ITEM 4)', tree: () => call('ema', X(), num(3)),
+    window: W16, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
+  { name: 'ema(x[1], 3) (a running value over x[1]: withheld until its two starts agree, ITEM 4)',
+    tree: () => call('ema', off(1, X()), num(3)), window: W16, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15] },
   // the monthly merge: September is partial; bar 19 (09-30) closes it, bars 20-40 show it, bar 41 (10-30) closes October
   { name: "close > tf_merge(high, 'M')[1] (bars 20-41 withheld; 17-19 read the month before the first: withheld, PERIOD −1)",
     tree: () => op('>', CLOSE, off(1, merge('M'))), window: [17, 44],
