@@ -71,8 +71,8 @@ describe('⭐⭐ A1 — a per-bar argument sizes the offset of the copy compiled
   it('⭐ `src[n]` of a parameter, `n` read per bar: the close `n` bars back, every bar', () => {
     const { outs, built, program } = run(`${CYCLE}f(src, n) => src[n]\nplot(f(close, c))\n`)
     expect(built.diagnostics.seriesSpecialisedCalls).toBe(1)
-    // `src` is passed the chart's close, a column: its read is the STRICT dynamic column read
-    expect(strictOf(program).columnReads).toBe(1)
+    // `src` is the parameter's own series (one ring per call site): Pine's 5,000, STRICT (nothing proves a smaller top)
+    expect(strictOf(program)).toEqual({ columnReads: 0, rings: [5000] })
     same(outs[0], C.map((_, i) => back(C, i, cAt(i))), 'f(close, c)')
   })
 
@@ -113,6 +113,19 @@ describe('⭐⭐ A1 — a per-bar argument sizes the offset of the copy compiled
     same(outs[0], want, 's(close, c + 1)')
   })
 
+  it('⭐ a chart series read in the same copy (`high[j]`, the calcDev shape): a STRICT column read, the real history', () => {
+    const src = `${CYCLE}h(src, len) =>\n    float s = 0.0\n    for j = 0 to len - 1\n        s += src[j] - high[j]\n    s\nplot(h(close, c + 1))\n`
+    const { outs, program } = run(src)
+    expect(strictOf(program).columnReads).toBeGreaterThan(0)
+    expect(strictOf(program).rings).toEqual([5000])
+    const H = BARS.map((b) => b.h)
+    same(outs[0], C.map((_, i) => {
+      let t = 0
+      for (let j = 0; j <= cAt(i); j += 1) t += back(C, i, j) - back(H, i, j)
+      return t
+    }), 'h(close, c + 1)')
+  })
+
   it('⭐ the argument may be the chart\'s own `bar_index` arithmetic, and a `%` of whole numbers', () => {
     const { outs } = run('f(src, n) => src[n]\nplot(f(close, bar_index % 5))\nplot(f(high, bar_index - (bar_index > 30 ? 30 : 0)))\n')
     const H = BARS.map((b) => b.h)
@@ -125,6 +138,11 @@ describe('⛔ what A1 does not serve keeps a refusal by name, or stops by name',
   it('⛔ a negative offset read on a bar STOPS the run by name (no `na` guessed for it)', () => {
     expect(() => run(`${CYCLE}f(src, n) => src[n]\nplot(f(close, c - 3))\n`))
       .toThrow(/runtime:history-dynamic-offset.*negative or not a whole number/)
+  })
+
+  it('⛔ ...and so does a negative offset into a chart series inside the copy (the strict column read, read first)', () => {
+    expect(() => run(`${CYCLE}g(src, n) => high[n] + src[n]\nplot(g(close, c - 3))\n`))
+      .toThrow(/runtime:history-dynamic-offset — \[-?\d+\]: a history offset read on this bar is negative or not a whole number/)
   })
 
   it('⛔ ...and so does a negative offset into the function\'s own series (the strict ring)', () => {

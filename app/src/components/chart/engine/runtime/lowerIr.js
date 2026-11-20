@@ -993,6 +993,8 @@ export function lowerIrProgram(ir, opts = {}) {
       // its live slot at end of bar; a site entry commits what that site last
       // HELD, which is what makes a skipped call re-commit rather than blank.
       site: h.site === undefined ? null : h.site,
+      // ⭐ A1 — a STRICT ring (a copy that reads a parameter per bar): the VM stops a negative or fractional read
+      ...(h.strict === true ? { strict: true } : {}),
     })),
     version: ir.version,
   })
