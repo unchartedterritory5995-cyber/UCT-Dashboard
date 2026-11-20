@@ -129,7 +129,7 @@ describe('(b) the held daily rows are sized from the chart\'s span of sessions, 
   })
 })
 
-describe('(b) the hook asks the held daily rows at the chart's span', () => {
+describe("(b) the hook asks the held daily rows at the chart's span", () => {
   afterEach(() => clearSecondaryBars())
   const ask = (heldSessions) => {
     const asked = []
@@ -138,7 +138,7 @@ describe('(b) the hook asks the held daily rows at the chart's span', () => {
     clearSecondaryBars()
     return asked
   }
-  it('with the span (rung 512): SPX@D and this symbol's own daily rows are asked 522 deep', () => {
+  it("with the span (rung 512): SPX@D and this symbol's own daily rows are asked 522 deep", () => {
     const asked = ask(512)
     expect(asked).toContain(secondaryBarsUrl('SPX', 'D', 522))
     expect(asked).toContain(secondaryBarsUrl('RDDT', 'D', 522))
