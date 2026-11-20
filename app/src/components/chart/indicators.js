@@ -109,10 +109,17 @@ export function toHeikinAshi(bars) {
  *  from the pre-hole state. 380 of 380 bars, and the values reconstruct to 1.3e-6
  *  with the residual decaying geometrically — seed truncation, not a model gap.
  */
-export function computeRSI(bars, period = 14) {
+/** ⭐ RMA-SEED (NUMBER PENDING) — `opts.seedMean(values, lo, n)` is how the two Wilder averages are SEEDED
+ *  from the first `period` gains and losses: Pine's `ta.rsi` passes `interpret.js::rmaSeedMean` (the exactly
+ *  rounded sum / n, TradingView's `ta.rma` seed) through `FN_PINE.rsi`. Without it (the native chart RSI, the
+ *  screener, the formula language's `rsi`) the seed is the running sum / n, byte for byte as before. */
+export function computeRSI(bars, period = 14, opts = null) {
   if (!bars || bars.length < period + 1) return []
+  const seedMean = opts && typeof opts.seedMean === 'function' ? opts.seedMean : null
   const result = blank(bars)
   let avgGain = NA, avgLoss = NA, seen = 0, sumGain = 0, sumLoss = 0
+  const gains = seedMean ? [] : null
+  const losses = seedMean ? [] : null
   for (let i = 1; i < bars.length; i++) {
     const diff = bars[i].c - bars[i - 1].c
     // ⭐ HOLD. Not a zero observation, not a reset — the state is simply not
@@ -121,9 +128,11 @@ export function computeRSI(bars, period = 14) {
     const gain = diff > 0 ? diff : 0
     const loss = diff < 0 ? -diff : 0
     if (Number.isNaN(avgGain)) {
-      sumGain += gain; sumLoss += loss; seen += 1
+      if (seedMean) { gains.push(gain); losses.push(loss) } else { sumGain += gain; sumLoss += loss }
+      seen += 1
       if (seen < period) continue
-      avgGain = sumGain / period; avgLoss = sumLoss / period
+      avgGain = seedMean ? seedMean(gains, 0, period) : sumGain / period
+      avgLoss = seedMean ? seedMean(losses, 0, period) : sumLoss / period
     } else {
       avgGain = (avgGain * (period - 1) + gain) / period
       avgLoss = (avgLoss * (period - 1) + loss) / period
