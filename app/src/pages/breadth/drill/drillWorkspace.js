@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { createGroupTfRegistry } from '../../charts/groupTfRegistry'
 
 // The breadth drill's WorkspaceContext value — "one component, three hosts".
 // /charts, the journal note (frozenWorkspace.js) and now the breadth drill all
@@ -103,6 +104,8 @@ export function drillWorkspaceValue({
   setGroupSym,
   groupTfs,
   setGroupTf,
+  groupTfSets = {},
+  registerGroupTf = () => () => {},
   chartsTheme = 'default',
   widgetCanvasByType = {},
   widgetCanvasById = {},
@@ -121,6 +124,8 @@ export function drillWorkspaceValue({
     // breadth drill-down is cold on every row (see ThemeTrackerPage's warmTf).
     groupTfs,
     setGroupTf,
+    groupTfSets,
+    registerGroupTf,
     chartsTheme,
     widgetCanvasByType,
     widgetCanvasById,
@@ -154,6 +159,11 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
     if (!color || !tf) return
     setGroupTfs(prev => (prev[color] === tf ? prev : { ...prev, [color]: tf }))
   }, [])
+  // Every chart's timeframe on a colour (charts/groupTfRegistry.js): a drill list linked to two charts
+  // warms both. LIVE, like groupTfs.
+  const [groupTfSets, setGroupTfSets] = useState({})
+  const [tfRegistry] = useState(() => createGroupTfRegistry(setGroupTfSets))
+  const registerGroupTf = useCallback((color, id, tf) => tfRegistry.register(color, id, tf), [tfRegistry])
 
   // Per-instance registries and owner refs. Per-instance matters for the same
   // reason it does in the journal host: two boards must never share a chart-api
@@ -181,6 +191,8 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
     setGroupSym,
     groupTfs,
     setGroupTf,
+    groupTfSets,
+    registerGroupTf,
     chartsTheme,
     widgetCanvasByType,
     widgetCanvasById,
@@ -188,5 +200,5 @@ export default function useDrillWorkspace({ initialSym = null, chartsTheme = 'de
     activeChartRef,
     chartApiById,
     activeWatchlistRef,
-  }), [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus, chartApiById])
+  }), [groupSyms, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus, chartApiById])
 }

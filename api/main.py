@@ -12187,6 +12187,8 @@ from api.routers import screen_promote as screen_promote_router  # noqa: E402  (
 app.include_router(screen_promote_router.router)
 from api.routers import list_alerts as list_alerts_router  # noqa: E402  (Terminal list alerts, dark)
 app.include_router(list_alerts_router.router)
+from api.routers import crypto as crypto_router  # noqa: E402  (Bitcoin BTC/USD from FMP, dark)
+app.include_router(crypto_router.router)
 from api.routers import short_data as short_data_router  # noqa: E402  (SHINT / SHRTS: FINRA short interest and short volume, paid)
 app.include_router(short_data_router.router)
 from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (DILU: share-issuance filings from SEC EDGAR, paid)

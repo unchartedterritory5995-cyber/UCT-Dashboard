@@ -3883,6 +3883,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "{sym}, side=any",
+      "path": "/api/options-screener/oi-change/{sym}",
+      "rate_limit_family": "options-analytics",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "",
       "path": "/api/options-screener/screen",
       "rate_limit_family": "options-analytics",

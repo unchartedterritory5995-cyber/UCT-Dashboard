@@ -39,7 +39,9 @@
       "reason": "its table shows one cell fewer than TradingView's (30 vs 31, RDDT and SPY daily)",
       "evidence": {
         "capture": "heat-map-seasons-spy-1d-2026-10-03",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:call-undeclared-builtin-state"
       },
       "liftWhen": "an engine fix to the missing table cell, then a runtime-on re-grade to MATCH on heat-map-seasons-rddt-1d-2026-09-28 and -spy-1d-2026-10-03",
       "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
@@ -51,7 +53,9 @@
       "reason": "a box sits at a different price than TradingView's (its top 152.67 vs 156.36 on RDDT daily, 769.64 vs 771.05 on SPY)",
       "evidence": {
         "capture": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: pine:function"
       },
       "liftWhen": "an engine fix to the box top, then a runtime-on re-grade to MATCH on htf-candle-footprint-cartel-console-rddt-1d-2026-09-28 and -spy-1d-2026-10-03",
       "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
@@ -75,7 +79,9 @@
       "reason": "a probe script: one of its plots differs from TradingView's on SPY weekly",
       "evidence": {
         "capture": "vw-object-gc-a-spy-1d-2026-09-28",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE (drawn; 5 of 5 items could not be compared)"
       },
       "liftWhen": "a runtime-on re-grade to MATCH on vw-object-gc-a-spy-1w-2026-09-28 (its file; the capture id reads 1d)",
       "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
@@ -87,7 +93,9 @@
       "reason": "a probe script: one of its plots differs from TradingView's on SPY weekly",
       "evidence": {
         "capture": "vw-object-gc-b-spy-1d-2026-09-28",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE (drawn; 4 of 4 items could not be compared)"
       },
       "liftWhen": "a runtime-on re-grade to MATCH on vw-object-gc-b-spy-1w-2026-09-28 (its file; the capture id reads 1d)",
       "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
@@ -99,7 +107,9 @@
       "reason": "a probe script: one of its plots differs from TradingView's on SPY weekly",
       "evidence": {
         "capture": "vw-object-gc-c-spy-1d-2026-09-28",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE (drawn; 5 of 5 items could not be compared)"
       },
       "liftWhen": "a runtime-on re-grade to MATCH on vw-object-gc-c-spy-1w-2026-09-28 (its file; the capture id reads 1d)",
       "addedBy": "DRAW-1 (2026-11-16, coordinator ruling): a script newly admitted by obj:box / obj:table with a committed capture grading DIVERGE"
@@ -111,7 +121,9 @@
       "reason": "a probe script: its table shows fewer cells than TradingView's (18 vs 34 on SPY daily)",
       "evidence": {
         "capture": "vw-h5-format-volume-spy-1d-2026-11-16",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:call-text-state"
       },
       "liftWhen": "an engine fix to the table's cell count, then a runtime-on re-grade to MATCH on vw-h5-format-volume-spy-1d-2026-11-16",
       "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture of a script admitted by obj:table grades DIVERGE (DRAW-1 rule)"
@@ -123,7 +135,9 @@
       "reason": "a probe script: its table shows no cells where TradingView's shows 6 (SPY daily)",
       "evidence": {
         "capture": "vw-w3-format-date-spy-1d-2026-11-16",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:call-text-state"
       },
       "liftWhen": "an engine fix to the table's cells, then a runtime-on re-grade to MATCH on vw-w3-format-date-spy-1d-2026-11-16",
       "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture of a script admitted by obj:table grades DIVERGE (DRAW-1 rule)"
@@ -147,7 +161,9 @@
       "reason": "a probe script: its table shows no cells where TradingView's shows 8 (SPY daily)",
       "evidence": {
         "capture": "vw-w3-str-repeat-length-spy-1d-2026-11-16",
-        "verdict": "DIVERGE"
+        "verdict": "INCONCLUSIVE",
+        "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:call-text-state"
       },
       "liftWhen": "an engine fix to the table's cells, then a runtime-on re-grade to MATCH on vw-w3-str-repeat-length-spy-1d-2026-11-16",
       "addedBy": "feat/pine-host-known-divergence (2026-11-17, verdicts regenerated on the engine-68 tree): a newly graded capture of a script admitted by obj:table grades DIVERGE (DRAW-1 rule)"
@@ -223,8 +239,9 @@
       "reason": "its table's text is drawn in the default font where TradingView draws it in monospace (all four captures, RDDT and SPY daily, both lanes)",
       "evidence": {
         "capture": "artemis-oscillator-pro-spy-1d-2026-11-15",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:call-windowed-state",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "the table's text font is drawn as TradingView draws it, then a runtime-on re-grade to MATCH on artemis-oscillator-pro-spy-1d-2026-11-15 and its other three captures",
@@ -237,8 +254,9 @@
       "reason": "on a long SPY daily chart its newest lines end one bar early (a line's second point at bar 8,506 where TradingView puts it at 8,507); its RDDT captures and the 2026-10-03 SPY capture agree",
       "evidence": {
         "capture": "average-day-range-adr-pivots-spy-1d-2026-11-15",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:request",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "the newest lines end where TradingView ends them, then a runtime-on re-grade to MATCH on average-day-range-adr-pivots-spy-1d-2026-11-15",
@@ -265,8 +283,9 @@
       "reason": "its table's text is drawn in the default font where TradingView draws it in monospace (RDDT and SPY daily)",
       "evidence": {
         "capture": "ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: lower-tf:store-unmeasured",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "the table's text font is drawn as TradingView draws it, then a runtime-on re-grade to MATCH on both captures",
@@ -279,8 +298,9 @@
       "reason": "its drawings are withheld by name (objects:off-listing: a chart that does not start at the listing) where TradingView holds 43 (RDDT and SPY daily)",
       "evidence": {
         "capture": "htf-liquidity-dashboard-tfo-spy-1d-2026-10-03",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: pine:request",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "its drawings are drawn on a chart that does not start at the listing, then a runtime-on re-grade to MATCH on both captures",
@@ -307,8 +327,9 @@
       "reason": "its table holds 9 cells where TradingView holds 10 (RDDT and SPY daily)",
       "evidence": {
         "capture": "position-size-calc-spy-1d-2026-10-03",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:request",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "the table holds every cell TradingView holds, then a runtime-on re-grade to MATCH on both captures",
@@ -321,8 +342,9 @@
       "reason": "a probe script: on a 5-minute chart its realtime readings (barstate.isrealtime, barstate.islast) read 0 on the newest bar where TradingView read 1",
       "evidence": {
         "capture": "request-realtime-alignment-spy-5-b-2026-10-01",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE (drawn; 8 of 9 items could not be compared)",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "the newest bar's realtime state is read as TradingView reads it, then a runtime-on re-grade to MATCH on request-realtime-alignment-spy-5-b-2026-10-01",
@@ -335,8 +357,9 @@
       "reason": "a probe script: its RS seed reads are blank on 25 bars after the close where TradingView reads them (ALAB and RDDT daily, 2026-11-16 after the close)",
       "evidence": {
         "capture": "rs-seed-rsrating-pm-alab-1d-2026-11-16",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:request",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "the seed is read on those bars as TradingView reads it, then a runtime-on re-grade to MATCH on both after-close captures",
@@ -349,8 +372,9 @@
       "reason": "its table is not drawn (no cells where TradingView holds 2) on RDDT and SPY daily",
       "evidence": {
         "capture": "vold-market-breadth-spy-1d-2026-10-03",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:input-state",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "the table is drawn as TradingView draws it, then a runtime-on re-grade to MATCH on both captures",
@@ -363,8 +387,9 @@
       "reason": "a probe script: two of its other-symbol reads (BRK.B, bare and with its exchange) are blank on every bar where TradingView reads them",
       "evidence": {
         "capture": "vw-other-symbol-rddt-1d-2026-09-30",
-        "verdict": "DIVERGE",
+        "verdict": "INCONCLUSIVE",
         "production": "DIVERGE",
+        "lanes": "host lane DIVERGE; member's runtime lane INCONCLUSIVE / cannot build: runtime:request",
         "session": "vendor harness runtime-on lane at engine 84, re-verified on this PR's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json)"
       },
       "liftWhen": "those symbols are read as TradingView reads them, then a runtime-on re-grade to MATCH on vw-other-symbol-rddt-1d-2026-09-30",

@@ -20197,8 +20197,16 @@ export default function StockChart({
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No chart data available for {sym}.</span>
           <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
-            The data provider doesn't carry this symbol. It may be delisted, an index
-            with no OHLC series, or not a tradable ticker.
+            {data?.reason === 'timeframe_not_carried' ? (
+              // A currency pair (BTCUSD): the server answers this for a timeframe it does not
+              // serve. The symbol IS carried, so the sentence below would be untrue.
+              <span data-testid="chart-tf-not-carried">
+                This symbol is charted on daily, weekly and monthly bars only. Pick D, W or M.
+              </span>
+            ) : (
+              <>The data provider doesn't carry this symbol. It may be delisted, an index
+              with no OHLC series, or not a tradable ticker.</>
+            )}
           </span>
         </div>
       )}
