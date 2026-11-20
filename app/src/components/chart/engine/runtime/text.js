@@ -71,13 +71,26 @@ function replaceNth(s, target, replacement, n) {
   return s.slice(0, at) + replacement + s.slice(at + target.length)
 }
 
-// ⭐ `str.tonumber`: a plain decimal (optional sign, digits, optional fraction,
-// optional exponent) is its value, ANYTHING else is `na` (NaN here). ⛔ Never
-// `Number(s)`: it answers `0` for "", accepts "0x10", "Infinity" and padded
-// spaces, none of which Pine reads as a number. ⚠️ NEEDS CAPTURE (W4-T11-b):
-// padded text and exponents.
-const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/
-const toNumber = (s) => (DECIMAL.test(s) ? Number(s) : NaN)
+// ⭐⭐ STR-TONUMBER (NUMBER PENDING) — `str.tonumber`, AS TRADINGVIEW READS TEXT. A plain decimal (an optional
+// sign, digits, an optional point and fraction: "12", "-2", "+2", "1.5", ".5", "5.", "007") is its value once
+// the SPACES around it are dropped (" 3" and "3 " are 3); anything else is `na` (NaN here). WITNESSED on every
+// one of the 21 rows of `vw-bi-str-tonumber-spy-1d-2026-11-19`, every bar: "1,000", "0x10", "NaN", "inf", "",
+// "abc", "12abc", "1_000" and the EXPONENT spellings "1e3" / "1E-2" are all `na`. ⚰️ This lane read "1e3" as
+// 1000 and "1E-2" as 0.01, and " 3" / "3 " as `na` (four rows DIVERGE on every bar, served wrong).
+// ⛔ Never `Number(s)`: it answers `0` for "", accepts "0x10", "Infinity", exponents and every blank.
+// ⛔ ONLY THE SPACE IS MEASURED: text that begins or ends with a tab, a line break or another blank stops the
+// run by name (`SURROUNDING_OTHER_BLANK`) rather than being read either way. Capture row Q-STN2.
+const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)$/
+const SURROUNDING_SPACES = /^ +| +$/g
+const SURROUNDING_OTHER_BLANK = /^\s|\s$/
+const toNumber = (s) => {
+  const t = s.replace(SURROUNDING_SPACES, '')
+  if (SURROUNDING_OTHER_BLANK.test(t)) {
+    throw new PineRuntimeError('`str.tonumber` of text that begins or ends with a tab, a line break or another '
+      + 'blank that is not a space: how TradingView reads that text is not measured, so no number is given for it')
+  }
+  return DECIMAL.test(t) ? Number(t) : NaN
+}
 
 // ⭐ `str.pos`: 0-based index of the FIRST occurrence, `na` when absent.
 const posOf = (s, sub) => { const i = s.indexOf(sub); return i < 0 ? NaN : i }
