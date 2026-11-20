@@ -21,7 +21,7 @@
 // network traffic for series that will never be bound.
 import { useEffect, useMemo, useState } from 'react'
 import { symbolsNeeded } from './sourceRef'
-import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY } from './otherSymbols'
+import { fetchableOtherSymbols, isPineOriginDoc, heldKeyParts, heldDepthOf, OWN_DAILY_KEY, BARS_ASK_MAX } from './otherSymbols'
 import { runtimeReadsOwnDaily } from './runtime/runtimeColumns'
 import { instanceDocumentForFetch } from './symbolInputs'
 import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondaryTail } from './secondaryBars'
@@ -40,8 +40,9 @@ import { ensureAll, ensureSecondaryBars, subscribe, cachedBars, refreshSecondary
  *  caps each answer at what our store holds (the store's depth), and `heldDepthOf` keeps its daily cap. This one
  *  number is what `ensureChartSources`, the held daily depths and `liveTailTick` all read. */
 /** ⛔ The top rung is `/api/bars`'s own ceiling (`bars: Query(le=60000)`, `api/routers/bars.py`): a deeper ask is a
- *  422, never a deeper answer. */
-export const HELD_SPAN_MAX = 60000
+ *  422, never a deeper answer. Read from `otherSymbols.js::BARS_ASK_MAX`, which the run's
+ *  "a deeper page is coming" test reads too (`runtime/requestSupply.js`). */
+export const HELD_SPAN_MAX = BARS_ASK_MAX
 export const HELD_SPAN_LADDER = Object.freeze([600, 2000, 5000, 10000, 20000, 40000, HELD_SPAN_MAX])
 export function heldSpanFor(loaded, requested) {
   const req = Number.isFinite(requested) && requested > 0 ? Math.floor(requested) : 0
