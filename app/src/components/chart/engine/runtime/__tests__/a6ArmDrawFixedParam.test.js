@@ -63,6 +63,10 @@ describe('A6 — a drawing in one arm of `?:` whose test the call site fixes', (
     expect(r && r.guard).toBe('runtime:object-op')
     expect(r.message).toMatch(/`s` decides whether a drawing in one arm of `\?:` in `f` is made/)
   })
+  it('a GETTER in an arm makes nothing: still served on a per-bar test (only a drawing that makes or changes is held)', () => {
+    expect(refusal(v6('k(s) =>\n    var line ln = line.new(bar_index, 0, bar_index, 1)\n    s ? line.get_y2(ln) : 0.0\n'
+      + 'plot(k(close > open))\n'))).toBeNull()
+  })
   it('⛔ a branch on a body LOCAL (no call site can fix it) keeps the original refusal', () => {
     const r = refusal(v6('h(y) =>\n    var line ln = na, line.delete(ln)\n    k = y > 0\n'
       + '    ln := k ? line.new(bar_index - 1, y, bar_index, y) : na\n    y\nplot(h(close))\n'))
