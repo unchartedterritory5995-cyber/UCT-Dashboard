@@ -154,7 +154,7 @@ describe('each limb asks the door (a clock that jumps past any deadline on every
   /** A door clock that leaps 10^6 ms on every read: the first check after the open finds the deadline passed. */
   const leaping = () => { let t = 0; const f = () => { f.reads += 1; t += 1e6; return t }; f.reads = 0; return f }
 
-  it('a Resolver's sampled clock check asks the door, on the door's clock (its own clock never moves)', () => {
+  it("a Resolver's sampled clock check asks the door, on the door's clock (its own clock never moves)", () => {
     const r = withDoorDeadline(1000, () => {
       new Resolver(new Map(), TABLE, new Map(), { now: () => 0 }).checkClock(null)
       return 'not stopped'
@@ -163,7 +163,7 @@ describe('each limb asks the door (a clock that jumps past any deadline on every
     expect(r.value).toBe(null)
   })
 
-  it('the round trip's hash walk ticks the door (a 16,383-node canonical tree)', () => {
+  it("the round trip's hash walk ticks the door (a 16,383-node canonical tree)", () => {
     const tree = (d) => (d === 0 ? { type: 'num', value: 1 } : { type: 'op', name: '+', args: [tree(d - 1), tree(d - 1)] })
     const big = tree(13)
     const clock = leaping()
