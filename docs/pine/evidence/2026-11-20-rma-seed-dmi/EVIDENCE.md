@@ -115,7 +115,76 @@ lanes. With equal lengths it moves off `computeADX` onto TradingView's doubles.
   - D1-D2: the ADX length and the `na` first move.
   - P1-P3: the Python twin, killed locally 3/3.
 
+## How the `ta.dmi` body is written, and why
+
+TradingView names `up`, `down` and `sum` as variables, computed on every bar. In a tuple tree, a stateful call
+written inside a `?:` arm runs in Pine only on the bars that arm is taken:
+
+- The member door refuses `ta.change` in an arm (`pine:block`, `armRunsWhy`). The first head build was refused
+  exactly there.
+- The runtime lane stops by name (`CallSiteRunsStop`) where `sum == 0` skips the `ta.rma`s inside `sum`, as a run of
+  inside bars does.
+
+So:
+
+- `ta.change(high)` is spelled `high - high[1]` (and `-ta.change(low)` as `-(low - low[1])`). That is its
+  definition, the same subtraction bit for bit.
+- The ADX's `sum == 0 ? 1 : sum` is written `sum + (sum == 0 ? 1 : 0) * (1 - sum)`. It is bit-identical:
+  - each DI is `fixnan(100 * rma(DM) / rma(TR))` with DM <= TR, so 0 <= DI <= 100, which makes `sum` finite and >= 0;
+  - where `sum == 0` (TradingView's epsilon) the expression is `sum + fl(1 - sum)`, which rounds to exactly 1, because
+    the rounding error of `1 - sum` is at most 2^-54 (ties to even);
+  - elsewhere it is `sum + 0`, which is `sum` exactly;
+  - `na` stays `na` both ways.
+- A leg reads both lengths (`resolveEveryArg` / `mintArgs`), as `dmiParts`' legs did when they compared them. So a
+  script that plots only +DI / -DI keeps its "DMI Smoothing" input: its frozen parameter ids (`paramIdLegacy.js`,
+  `volume-spikes-growing-volume-signals`) still address it, and TradingView lists it too.
+
+## Three observations map by the new paste
+
+On base vs the first head, `adx-14` / `plus-di-14` / `minus-di-14` (2026-09-06 observations) went MATCH ->
+INCONCLUSIVE on both lanes. Their plot selector is the formula text `adx(high, low, close, 14)` (and `plusDI(…)` /
+`minusDI(…)`), which a pasted `ta.dmi` no longer lowers to. Values were never compared.
+
+As with `ta.atr` -> `atrPine` (2026-09-27, `atr-14-2026-09-06`), each now declares `script.pasteLowersTo` with the
+new formula, `since: 2026-11-20` and its reason. `engine` stays on the house formula `test_vendor_parity_adx.py`
+grades. All three grade MATCH again: 80 / 130 / 130 steady-state bars, as on base.
+
 ## Capture re-check, base vs head, both lanes
 
-Pending: every committed capture graded by the vendor harness on base (`29eeb1b108`) and head, production and
-runtime-on lanes. The moves will be listed here.
+Every committed capture (969) was graded by the vendor harness (`vendorHarness.corpus.test.js`, remote runners) on
+base `29eeb1b108` and on head `163625400e`, production and runtime-on lanes. That includes 218 whose source calls
+`ta.rma` / `ta.atr` / `ta.rsi` / `ta.dmi` / `ta.supertrend` / `ta.tr`.
+
+| lane | capture-level moves | MATCH -> non-MATCH | plot-level moves |
+|---|---|---|---|
+| production | vw-bi-dmi-spy, vw-bi-dmi-rddt: INCONCLUSIVE -> MATCH | 0 | 24 plots `none -> MATCH` (the 12 rows of each) |
+| runtime-on | the same two | 0 | the same 24 |
+
+Every other capture holds its verdict on both lanes. No served value moved away from TradingView.
+
+## Rails (final)
+
+- `rmaSeedDmi.test.js` (16 tests): the witness, the longhands, the seed rule, `CARRIED.rma` and the column driver,
+  `ta.rsi`'s seeds on both lanes, all seven columns on the host lane, the runtime lane and the member door, the
+  `sum == 0` inside-bar chart on both lanes, the VM's carried kernel at the U3 seed, and the `computeADX` control.
+- `tests/test_ast_rma_seed.py`: the Python twin, plus JS against Python bit for bit.
+- Mutants `ci/mutants/u-rma-seed-dmi.json`, run locally: 13 / 13 killed, each restored byte-identical.
+  - S1-S6: the seed rule, `rsiPine`, `FN_PINE.rsi`, `computeRSI` and the column driver.
+  - D1: the ADX over the first length.
+  - D2: the `na` first move.
+  - D3: `sum == 0 ? 1 : sum` inline, red on the inside-bar chart.
+  - D4: `ta.change(high)` inlined into the arms, red at the member door.
+  - P1-P3: the Python twin.
+- hostParity HP-1 (`tools/pine_runtime_host_parity.mjs --host node --check`): exactly THREE cases move, and that
+  list is DECLARED for the e90 number step (HP-0 at the bump must show these and no others; one more or one fewer
+  is a STOP):
+
+  | case | committed | head | reason |
+  |---|---|---|---|
+  | `dmi_adx@listing` | `withheld` (`pine:function`: the runtime lane had no `ta.dmi`) | `ok` | `ta.dmi` is now served on the runtime lane (`PINE_TUPLE_BUILTINS.dmi`) |
+  | `dmi_manual@calcbars` | ok, digest `8818519e…` | ok, digest `612f70f2…` | last bit at the rma seed bar (`ta.rma`'s exactly rounded seed) |
+  | `rma_alma_hma@listing` | ok, digest `7f617fef…` | ok, digest `3ad969de…` | last bit at the rma seed bar |
+
+  Confirmed by putting the left-to-right seed back (S1) and checking again: `dmi_manual` and `rma_alma_hma` return
+  to their committed digests, and only `dmi_adx` (newly served) still moves. The digests are regenerated with
+  `--write` at the engine bump, by the tool's own rule.
