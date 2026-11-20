@@ -33,6 +33,7 @@
  */
 
 import { HIST_PREFIX, handleHistory } from "./history.js";
+import { LIVE1M_PREFIX, handleLive1m } from "./live1m.js";
 import { STREAM_BARS_PATH, handleStream } from "./stream.js";
 
 const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
@@ -306,6 +307,14 @@ export default {
     const url = new URL(request.url);
     // Deep intraday history from R2 (history.js). A separate surface from /api/bars: entitlement
     // IS enforced there, and nothing below this line changes for any other path.
+    // Universe minute frames (live1m.js). Under /api/hist/ so the member's existing edge cookie
+    // and route reach it, so it is checked FIRST: history.js would answer its paths 404.
+    if (url.pathname.startsWith(LIVE1M_PREFIX)) {
+      return handleLive1m(request, env, async (req) => {
+        const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
+        return cls === VALID || cls === SERVICE_VALID;
+      }, ctx);
+    }
     if (url.pathname.startsWith(HIST_PREFIX)) {
       return handleHistory(request, env, async (req) => {
         const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);

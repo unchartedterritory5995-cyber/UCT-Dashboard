@@ -724,6 +724,12 @@
       ],
       "note": "ARMED 2026-11-17 ~03:27Z on bars-api, web and stream-ingest (owner-run --set; read back as 1 on all three). Soak starts when minutes flow (04:00 ET); not yet verified in-process (stream-ingest is inert while STREAM_INGEST_CONNECT=0, so web forwards the minutes until the cutover). Shipped dark in #1515 (merged 2026-11-17). Live 1m coverage: the forwarder (bars_live_ingest, on whichever service holds the Massive socket: web today, stream-ingest after the cutover) adds the minutes to its pushes, and bars-api (bars_live_store) keeps a requested ticker's 1m current on demand (urgent repair, recent-minutes ring, epoch checkpoint), so a covered 1m read is served from SQLite. Needs BARS_LIVE_COVERAGE_ENABLED. Arming is an owner switch: set it on bars-api, web and stream-ingest together, in a session window, and watch 1m Server-Timing (no bars(miss)), bars-api memory and the repair queue. Rollback: 0 on bars-api."
     },
+    "MINUTE_FRAMES_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-20",
+      "where": [],
+      "note": "DARK, shipped dark on purpose (branch feat/universe-minute-frames). The universe minute frames publisher on stream-ingest (api/services/minute_frame_publisher.py): every minute, every symbol's closed 1m bar from the AM.* universe feed, packed into one gzip frame (api/services/minute_frames.py) and written to R2 as live1m/<date>/<HHMM>.bin, plus today.bin (the day so far) and head.json, served to entitled members by the bars-edge-router Worker under /api/hist/live1m/ (edge/bars-edge-router/live1m.js). Unset: bars_live_ingest.universe_am_handler() hands bar_stream the very same on_am as before and the publisher is never started (tests/test_minute_frames.py). Needs BARS_UNIVERSE_STREAM_ENABLED=1 on the same service and R2 credentials there (DATA_SYNC_*; MINUTE_FRAMES_BUCKET overrides the bucket). Arming is an owner switch, with the Worker binding LIVE1M and its deploy: docs/plans/2026-11-20-universe-minute-frames.md. Rollback: railway variables --service stream-ingest --set MINUTE_FRAMES_ENABLED=0 (a --set redeploys; a delete does not, docs/runbooks/stream-ingest-cutover.md). Merging the branch itself redeploys stream-ingest (bar_stream.py and bars_live_ingest.py are on its watch list): outside market hours."
+    },
     "BARS_UNIVERSE_STREAM_ENABLED": {
       "status": "armed",
       "since": "2026-10-14",
