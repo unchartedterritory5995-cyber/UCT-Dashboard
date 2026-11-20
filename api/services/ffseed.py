@@ -81,6 +81,20 @@ RTH_OPEN_MIN = 9 * 60 + 30
 RTH_CLOSE_MIN = 16 * 60
 RTH_EARLY_CLOSE_MIN = 13 * 60
 MIN_SYMBOLS = _int_env("FFSEED_MIN_SYMBOLS", 1500)
+#: ⭐ A FLOOR PER TIMEFRAME (2026-11-20). The worker's store holds 1-minute bars only for the symbols members
+#: and the stream have touched (1,270 of the cap universe for the 2026-11-19 session), so one floor for every
+#: timeframe refused the WHOLE first build at its first timeframe. A timeframe's floor is
+#: `FFSEED_MIN_SYMBOLS_<tf>` when set, else its entry here, else MIN_SYMBOLS: a store that lost its daily or
+#: hourly bars still never replaces a good build, and a symbol left out of a pack loads from the network.
+MIN_SYMBOLS_BY_TF = {"1": 1000}
+
+
+def floor_for(tf: str) -> int:
+    """The symbol floor of one timeframe's pack (read at build time, so a variable change needs no deploy)."""
+    tf = str(tf)
+    return _int_env(f"FFSEED_MIN_SYMBOLS_{tf}", MIN_SYMBOLS_BY_TF.get(tf, MIN_SYMBOLS))
+
+
 KEEP_BUILDS = _int_env("FFSEED_KEEP", 2)
 BUILD_AFTER_MIN = _int_env("FFSEED_BUILD_AFTER_MIN", 20 * 60 + 15)
 _SLEEP_SECONDS = _int_env("FFSEED_LOOP_SECONDS", 1800)
@@ -294,7 +308,6 @@ def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
     symbols = list(symbols) if symbols is not None else universe()
     asof = asof or last_closed_session(now.astimezone(ET) if now else None)
     bid = build_id(now)
-    floor = MIN_SYMBOLS if min_symbols is None else min_symbols
     manifest = {
         "v": fmt.FORMAT_VERSION, "kind": fmt.KIND, "build": bid, "asof": asof.isoformat(),
         "built_at": int((now or datetime.now(timezone.utc)).timestamp()), "comp": comp,
@@ -304,6 +317,7 @@ def build(*, tfs: Iterable[str] = SEED_TFS, symbols: Optional[List[str]] = None,
     for tf in tfs:
         t0 = time.time()
         data, stats = build_tf(tf, symbols, asof, bid, comp=comp, read=read)
+        floor = floor_for(tf) if min_symbols is None else min_symbols
         if stats["symbols"] < floor:
             raise SeedBuildError(f"tf {tf}: {stats['symbols']} symbols, floor {floor}: refusing to publish")
         entry = manifest["tfs"][tf] = manifest_entry(tf, bid, data, stats)

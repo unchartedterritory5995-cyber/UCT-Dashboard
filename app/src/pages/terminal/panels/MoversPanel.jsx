@@ -225,7 +225,7 @@ export default function MoversPanel({ lens: lensProp = null, mine: mineProp = fa
                       {c.label}
                       {/* The caret is decoration: the <th>'s aria-sort already says which way. */}
                       {sortCaretFor(sort, c.key) ? <span aria-hidden="true">{` ${sortCaretFor(sort, c.key)}`}</span> : null}
-                      {bySize ? <><span aria-hidden="true"> ▼</span><span className={styles.muted} data-testid="terminal-movers-by-size"> by size</span></> : null}
+                      {bySize ? <><span aria-hidden="true"> ▼</span><span className={`${styles.muted} ${styles.bySize}`} data-testid="terminal-movers-by-size"> by size</span></> : null}
                     </button>
                   </th>
                   )

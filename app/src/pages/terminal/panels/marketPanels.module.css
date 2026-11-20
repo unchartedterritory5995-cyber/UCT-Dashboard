@@ -329,6 +329,28 @@
   display: none;
 }
 
+/* SMALL PHONES (2026-11-20, a 340px and a 360px sweep of every panel on sample data): eight tables
+   were 5 to 48px wider than a 340px screen and one still 16px wider at 360px. Where a table folds its
+   cells sit closer, 4px a side in place of 8, as MOST (moversPanel.module.css) has since the first
+   sweep. A table that already fit is unchanged to the eye: it is `width: 100%`, so its columns take
+   up the room the padding gives back. A wide panel keeps its 8px. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td {
+  padding-inline: var(--space-xs);
+}
+
+/* ...and the first and the last cell give up their outer padding: the panel body already has its
+   own, so that 8px was empty room at the two edges of the table. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:first-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:first-child {
+  padding-left: 0;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:last-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:last-child {
+  padding-right: 0;
+}
+
 :where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.wrapCell,
 :where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.wrapCell {
   min-width: 6rem;

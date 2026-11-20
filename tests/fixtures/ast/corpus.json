@@ -5487,6 +5487,51 @@
       }
     },
     {
+      "id": "pine_asin_of_the_body_share_of_the_range",
+      "source": "asin((close - open) / (high - low))",
+      "why": "(2026-11-19, U-BUILTIN B3) Pine's `math.asin`, acos's twin. The argument is the candle body as a signed share of its range, which stays inside [-1, 1] and so exercises the real domain on every bar; a bar whose high equals its low divides by zero and is not computable in both lanes. Outside [-1, 1] TradingView answers `na` (the reference sentence), which Python's `math.asin` would RAISE on rather than return -- `_guarded_asin` spells the domain.",
+      "ast": {
+        "type": "call",
+        "name": "asin",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "high"
+                  },
+                  {
+                    "type": "series",
+                    "name": "low"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "pine_alma_9_085_6",
       "source": "alma(close, 9, 0.85, 6)",
       "why": "(2026-10-30, Pine coverage Phase 1) Pine's `ta.alma` at its published defaults: TradingView's own `pine_alma` -- Gaussian weights centred at offset * (length - 1) with spread length / sigma, the OLDEST bar at weight index 0 -- written once per lane (`interpret.js::almaCol`, `ast_interpret._alma_col`). Pinned to the vendor separately by `pinePhase1Builtins.test.js` against `vw-alma-spy-1d-2026-09-27`.",

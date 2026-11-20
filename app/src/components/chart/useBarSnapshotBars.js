@@ -55,8 +55,16 @@ export const DEEP_RETRIES = 3
 export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride }) {
   if (!sym || !resolvedTf || hasOverride) return null
   const custom = !isNativeTf(resolvedTf)
-  // Replay: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date).
-  const to = (replayCutoff && !custom) ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
+  // Replay, INTRADAY: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date) —
+  // an intraday set ending today holds only recent sessions, so an old cutoff needs its own window.
+  // ⭐ D/W/M READ THE PLAIN KEY (2026-11-20). Its full-depth set already holds every bar up to any
+  // cutoff, and StockChart cuts every bar after `replayCutoff`. The windowed key was a SECOND copy
+  // of the same bars that no list warm held: each Breadth drill flip in replay waited on its own
+  // 12,500-bar `to=` request (~1 s on production), and a Grid of them asked ~15 at once, which
+  // stalled the web server for 6-12 s (measured on production). Replay now scans exactly like
+  // the plain view.
+  const to = (replayCutoff && !custom && !isDateTf(resolvedTf))
+    ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
   return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : null })
 }
 
@@ -172,7 +180,6 @@ export function useBarSnapshotBars({
     const d = _dSnap ? legacyBars(_dSnap) : null
     return d?.length ? resample(d, 'D', resolvedTf) : null
   }, [_dSnap, resolvedTf])
-
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null

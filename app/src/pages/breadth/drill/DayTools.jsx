@@ -1,8 +1,7 @@
 import styles from './scan/ScanDeck.module.css'
 
 // The scan day's two options, under the date they are about (owner 2026-11-19). Signature chips:
-// the chosen one soft-filled; Replay, when on, also carries the gold underline (it is the
-// window's current mode).
+// a chip that is on is soft-filled with a gold icon (no underline, owner 2026-11-20).
 export default function DayTools({ markDay, replay, onToggle, canReplay = true }) {
   return (
     <div className={styles.dayTools} role="group" aria-label="This day on the charts">

@@ -100,6 +100,7 @@ import { subscribeChartReadouts, getChartReadout, hasFreshReadouts } from '../li
 import useTagColors from '../hooks/useTagColors'
 import { prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, warmMemFromIDB, prewarmVisibleList, prefetchBarsToIDB, createNeighborHold } from '../utils/barsWarm'
 import { scanNeighbors } from '../utils/scanNeighbors'
+import { publishScanNeighbors } from '../components/chart/neighborFrames'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import Sheet from '../components/mobile/Sheet'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../components/artifactHistory/ArtifactHistory'
@@ -1923,6 +1924,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     const dir = (prev.sym && prev.idx >= 0 && prev.idx === (idx + 1) % len) ? -1 : 1
     const tfs = warmTfs.length ? warmTfs : ['D']
     const around = scanNeighbors(flat, idx, dir, { ahead: 6, behind: 6 })
+    // ⭐⭐ NEIGHBOR FRAMES (`uct.neighborframes`): the charts on this list's colour prepare the next rows
+    // (±1, then ±2, the way the member is moving first) in idle time. A no-op with the switch off.
+    publishScanNeighbors(selectedSym, scanNeighbors(flat, idx, dir, { ahead: 2, behind: 0 }),
+      scanNeighbors(flat, idx, -dir, { ahead: 2, behind: 0 }))
     const next = scanNeighbors(flat, idx, dir, { ahead: SCAN_URGENT_NEXT, behind: 0 })
     const holds = _holdsRef.current
     for (const [htf, h] of holds) if (!tfs.includes(htf)) { h.clear(); holds.delete(htf) }

@@ -86,6 +86,10 @@
 
 .tileHeader {
   display: flex;
+  /* A narrow panel or a phone: the count and the "Board of" control drop under the title instead of
+     squeezing it to four lines and running off the card's right edge (2026-11-20). */
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-sm);
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
