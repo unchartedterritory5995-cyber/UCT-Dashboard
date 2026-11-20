@@ -2045,6 +2045,16 @@ def _guarded_acos(x: float) -> float:
     return math.acos(x)
 
 
+def _guarded_asin(x: float) -> float:
+    """``math.asin`` (U-BUILTIN B3, 2026-11-19), ``acos``'s twin: ``na``
+    outside [-1, 1] (the reference: "or na if y is outside of range [-1, 1]"),
+    where Python's ``math.asin`` would RAISE rather than return NaN -- so the
+    domain is spelled here. JS twin: ``interpret.js::POINTWISE.asin``."""
+    if _isnan(x) or x < -1.0 or x > 1.0:
+        return NAN
+    return math.asin(x)
+
+
 #: Where ``sinh`` overflows: ``sinh(x) ≈ exp(x)/2``, so it passes the largest
 #: double at ``log(2 * max)`` — DERIVED, not rounded.
 #:
@@ -2089,6 +2099,7 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "tan": _guarded_tan,
     "atan": _guarded_atan,
     "acos": _guarded_acos,
+    "asin": _guarded_asin,
     "sinh": _guarded_sinh,
 }
 
@@ -2909,6 +2920,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "tan": lambda a: [_guarded_tan(v) for v in a],
     "atan": lambda a: [_guarded_atan(v) for v in a],
     "acos": lambda a: [_guarded_acos(v) for v in a],
+    "asin": lambda a: [_guarded_asin(v) for v in a],
     "sinh": lambda a: [_guarded_sinh(v) for v in a],
     "pow": lambda a, b: _elementwise2(a, b, _guarded_pow),
     "mod": lambda a, b: _elementwise2(a, b, _guarded_mod),
@@ -6623,6 +6635,8 @@ CHART_CLOCK_WHOLE = (
     "var-origin:window",
     # 2026-11-17 -- an opening range on bars it cannot be read from (``opening_range_refusal``)
     OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE,
+    # 2026-11-19 -- U-BUILTIN T-D: ``time("D")`` off the regular session, ``time("D", session)`` off a daily chart
+    "time-day:off-session", "time-session:day-on-other-chart", "time-day:no-timeframe",
 )
 #: The opening-range calls: the two whose answer depends on the chart's bar length. Mirrors
 #: ``interpret.js::OPENING_RANGE_CALLS``.
@@ -6852,6 +6866,47 @@ def period_close_node(code: str, ms: bool) -> dict:
 
 _PERIOD_CLOSE_SHAPES = tuple(period_close_node(code, ms) for code in PERIOD_CLOSE_CODES for ms in (True, False))
 
+#: U-BUILTIN T-D (2026-11-19) -- the two codes the ``time("D")`` fix withholds by. Mirrors
+#: ``interpret.js::DAY_OFF_SESSION`` / ``DAY_SESSION_OTHER_CHART`` (the sentences are the JS lane's).
+DAY_OFF_SESSION = "time-day:off-session"
+DAY_SESSION_OTHER_CHART = "time-session:day-on-other-chart"
+DAY_NO_TIMEFRAME = "time-day:no-timeframe"
+
+
+def day_anchor_node(ms: bool) -> dict:
+    """``interpret.js::dayAnchorNode`` -- ``time("D")``: the 09:30 New York open of the bar's session
+    (``vw-bt-time-1440-spy-{1d,60}-2026-11-16`` R6), ``dayopentime + 34200``, in Pine's milliseconds for a
+    versioned script."""
+    secs = _cc_op("+", [_cc_leaf("dayopentime"), _cc_num(_SESSION_OPEN_SECONDS)])
+    return _cc_op("*", [secs, _cc_num(1000)]) if ms else secs
+
+
+_DAY_ANCHOR_SHAPES = tuple(day_anchor_node(ms) for ms in (True, False))
+
+
+def is_day_anchor(node: Any) -> bool:
+    """``interpret.js::isDayAnchor``."""
+    if not isinstance(node, dict) or node.get("type") != "op":
+        return False
+    return any(_matches_shape(node, shape) for shape in _DAY_ANCHOR_SHAPES)
+
+
+def session_day_gate_node(child: Any) -> dict:
+    """``interpret.js::sessionDayGateNode`` -- ``86400 == periodseconds ? child : na``."""
+    return _cc_op("?:", [_cc_op("==", [_cc_num(CLOCK_PERIOD_SECONDS["D"]), _cc_leaf("periodseconds")]), child, _cc_na()])
+
+
+_SESSION_DAY_GATE_COND = _cc_op("==", [_cc_num(CLOCK_PERIOD_SECONDS["D"]), _cc_leaf("periodseconds")])
+
+
+def is_session_day_gate(node: Any) -> bool:
+    """``interpret.js::isSessionDayGate`` (any child)."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return False
+    args = node.get("args")
+    return (isinstance(args, list) and len(args) == 3 and _matches_shape(args[0], _SESSION_DAY_GATE_COND)
+            and _matches_shape(args[2], _cc_na()))
+
 
 def is_period_close(node: Any) -> bool:
     """``interpret.js::isPeriodClose``."""
@@ -6964,6 +7019,9 @@ def _scan_chart_clock(tree: Any):
     folds: List[str] = []
     leaves: List[dict] = []
     ranges: List[float] = []
+    # U-BUILTIN T-D -- the ``time("D")`` anchor and the ``time("D", session)`` gate
+    days: List[dict] = []
+    day_gates: List[dict] = []
     nested = False
     stack = [(tree, False)]
     seen = set()
@@ -6972,6 +7030,14 @@ def _scan_chart_clock(tree: Any):
         if not isinstance(node, dict) or id(node) in seen:
             continue
         seen.add(id(node))
+        if is_day_anchor(node):
+            nested = nested or under
+            days.append(node)
+            continue
+        if is_session_day_gate(node):
+            nested = nested or under
+            day_gates.append(node)
+            continue
         # a time-of-day leaf (``SESSION_CLOCK_LEAVES``) -- read, never descended into
         if node.get("type") == "series" and node.get("name") in SESSION_CLOCK_LEAVES:
             leaves.append(node)
@@ -7008,7 +7074,29 @@ def _scan_chart_clock(tree: Any):
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
-    return anchors, closes, owns, sixties, folds, nested, leaves, ranges
+    return anchors, closes, owns, sixties, folds, nested, leaves, ranges, days, day_gates
+
+
+def _day_anchor_served_on(tf: Any, bars: List[dict], inputs, budget, scalars, opts) -> bool:
+    """``interpret.js::dayAnchorServedOn`` -- is ``time("D")``, 09:30 New York, TradingView's answer on
+    these bars? A 1W / 1M chart, a 1D chart of Monday-to-Friday bars, an intraday chart whose every bar
+    opens 09:30-16:00 New York, Monday to Friday."""
+    if tf in ("W", "M"):
+        return True
+    if tf != "D" and not (isinstance(tf, str) and tf.isdigit()):
+        return False
+    for v in _clock_column(_REGIME_PACK, bars, inputs, budget, scalars, opts):
+        if v is None or math.isnan(v):
+            return False
+        dow = v // 10000
+        if dow in (1, 7):
+            return False
+        if tf == "D":
+            continue
+        second = ((v % 10000) // 100) * 3600 + (v % 100) * 60
+        if second < _SESSION_OPEN_SECONDS or second >= _SESSION_CLOSE_SECONDS:
+            return False
+    return True
 
 
 def _date_keyed(bars) -> bool:
@@ -7028,8 +7116,8 @@ def _name_chart_clock(opts, codes) -> None:
 def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opts) -> Optional[dict]:
     """``interpret.js::chartClockWhole`` -- the whole-series decision, made before
     anything is evaluated: ``None`` when the tree holds no chart-clock node."""
-    anchors, closes, owns, sixties, folds, nested, leaves, ranges = _scan_chart_clock(tree)
-    clocked = bool(anchors or closes or owns or sixties)
+    anchors, closes, owns, sixties, folds, nested, leaves, ranges, days, day_gates = _scan_chart_clock(tree)
+    clocked = bool(anchors or closes or owns or sixties or days or day_gates)
     tf = (opts or {}).get("tf")
     # 2026-10-31 -- a time-of-day leaf is asked about on a DAILY chart only, the one
     # timeframe ``chart_clock_regime`` can call FX-shaped (``one-weekend-day``)
@@ -7090,6 +7178,14 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
             add("time-close:not-daily")
         elif kind in ("every-day", "one-weekend-day"):
             add("time-close:weekend-bars")
+    # U-BUILTIN T-D (``interpret.js::chartClockWhole``)
+    stated = isinstance(tf, str) and tf != ""
+    if (days or day_gates) and not stated:
+        add(DAY_NO_TIMEFRAME)
+    if days and stated and kind != "unreadable" and not _day_anchor_served_on(tf, bars, inputs, budget, scalars, opts):
+        add(DAY_OFF_SESSION)
+    if day_gates and stated and tf != "D":
+        add(DAY_SESSION_OTHER_CHART)
     _name_chart_clock(opts, why)
     return {"anchors": anchors, "closes": closes, "why": why, "regime": regime,
             "every_day": kind == "every-day"}

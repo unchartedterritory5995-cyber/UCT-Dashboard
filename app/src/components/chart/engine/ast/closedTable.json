@@ -535,6 +535,17 @@
       "yields": "num",
       "sentence": "the Aroon up over this bar and the {0} before it, 100 when this bar set the high and 0 when it was {0} bars ago"
     },
+    "asin": {
+      "args": [
+        "series"
+      ],
+      "argRoles": [
+        "source"
+      ],
+      "lookback": 0,
+      "yields": "num",
+      "sentence": "the arcsine of {0}"
+    },
     "atan": {
       "args": [
         "series"
@@ -3649,7 +3660,8 @@
       "sessionHigh",
       "sessionLow",
       "openingRangeHigh",
-      "openingRangeLow"
+      "openingRangeLow",
+      "asin"
     ]
   },
   "_functions_excluded": {

@@ -1057,6 +1057,10 @@
    "call": "math.acos(close)"
   },
   {
+   "name": "math.asin",
+   "call": "math.asin(close)"
+  },
+  {
    "name": "math.atan",
    "call": "math.atan(close)"
   },
@@ -1123,6 +1127,14 @@
   {
    "name": "math.tan",
    "call": "math.tan(close)"
+  },
+  {
+   "name": "math.todegrees",
+   "call": "math.todegrees(close)"
+  },
+  {
+   "name": "math.toradians",
+   "call": "math.toradians(close)"
   },
   {
    "name": "max",

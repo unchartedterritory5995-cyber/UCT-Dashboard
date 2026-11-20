@@ -1,0 +1,114 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "U-BUILTIN (feat/pine-builtins-unit, NUMBER PENDING): the time(\"D\") fix (T-D: the 09:30 session open, withheld by name off the regular session, off a daily chart for another window, and on bars that state no timeframe) and B2-B8 (toradians/todegrees, asin, color(na), extend.* through a binding, text_format sums, math.e). Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "T1",
+   "mutant": "the day anchor is midnight again (the served defect)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const secs = ccOp('+', [ccLeaf('dayopentime'), ccNum(SESSION_OPEN_SECONDS)])",
+   "to": "  const secs = ccOp('+', [ccLeaf('dayopentime'), ccNum(0)])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "R6_secs_D_anchor"
+  },
+  {
+   "id": "T2",
+   "mutant": "a weekend daily bar no longer withholds the anchor",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (dow === 1 || dow === 7) return false",
+   "to": "    if (false) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "every day"
+  },
+  {
+   "id": "T3",
+   "mutant": "the 09:30 window is not the day anchor (back to na off a daily chart)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    if (dayLiteral && !wraps && start === SESSION_OPEN_MINUTE && offset === null) {",
+   "to": "    if (dayLiteral && !wraps && start === -1 && offset === null) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "R2_secs_D_rth"
+  },
+  {
+   "id": "T4",
+   "mutant": "another window is drawn off a daily chart instead of withheld",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (scan.dayGates.length && tfStated && tf !== 'D') add(DAY_SESSION_OTHER_CHART)",
+   "to": "  if (false) add(DAY_SESSION_OTHER_CHART)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "withheld by name"
+  },
+  {
+   "id": "T5",
+   "mutant": "bars with no timeframe read the anchor as na instead of withholding it",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if ((scan.days.length || scan.dayGates.length) && !tfStated) add(DAY_NO_TIMEFRAME)",
+   "to": "  if (false) add(DAY_NO_TIMEFRAME)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "no tf"
+  },
+  {
+   "id": "B2",
+   "mutant": "math.toradians spelled x * (pi / 180)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  toradians: (a) => (a.length === 1 ? cOp('/', [cOp('*', [a[0], cNum(Math.PI)]), cNum(180)]) : null),",
+   "to": "  toradians: (a) => (a.length === 1 ? cOp('*', [a[0], cOp('/', [cNum(Math.PI), cNum(180)])]) : null),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "D1_minus_x_pi_over_180"
+  },
+  {
+   "id": "B3",
+   "mutant": "asin is the arccosine",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  asin: (x) => (Number.isNaN(x) ? NaN : Math.asin(x)),",
+   "to": "  asin: (x) => (Number.isNaN(x) ? NaN : Math.acos(x)),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "Math.asin"
+  },
+  {
+   "id": "B4",
+   "mutant": "color(na) is not read as na",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  const isBuiltinNa = (node, scope) => isPlainNa(node, scope) || colourNaCast(node, scope)",
+   "to": "  const isBuiltinNa = (node, scope) => isPlainNa(node, scope)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "color(na)"
+  },
+  {
+   "id": "B6",
+   "mutant": "a name bound to an extend.* choice is not read through",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      try { return containsObjectEnum(bound.node) } finally { enumNamesInFlight.delete(n.name) }",
+   "to": "      try { return false } finally { enumNamesInFlight.delete(n.name) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "extend"
+  },
+  {
+   "id": "B7",
+   "mutant": "a text_format sum is concatenated text again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (fmt) return str(canonicalTextFormat(fmt))",
+   "to": "          if (false) return str(canonicalTextFormat(fmt))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "bold_italic"
+  },
+  {
+   "id": "B8",
+   "mutant": "math.e is not a constant",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "  'math.e': () => cNum(Math.E),",
+   "to": "",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "math.e"
+  },
+  {
+   "id": "P1",
+   "mutant": "the Python twin serves the anchor on every chart",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if tf in (\"W\", \"M\"):\n        return True",
+   "to": "    if True:\n        return True",
+   "rail": "python -m pytest -q tests/test_ast_period_anchor_parity.py",
+   "expectRed": "time-day:off-session"
+  }
+ ]
+}

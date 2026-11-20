@@ -101,7 +101,7 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
 import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
@@ -684,6 +684,25 @@ const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OP
   + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
   + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
   + 'an anchor comparison is usually asking'
+/** ⭐⭐ U-BUILTIN B1 (2026-11-19) — `timeframe.in_seconds("1440")` IS `timeframe.in_seconds("D")`, AND THAT
+ *  ONE READER ONLY. Capture Q-BT2 (`vw-bt-time-1440-spy-{1d,60}-2026-11-16`, probe `vw-bt-time-1440.pine`,
+ *  AMEX:SPY 1D 8,508 bars and 60m 20,861 bars) reads R7 = 86400 on every bar of both charts, graded through
+ *  the member door (`pineBuiltinsUnit.test.js`).
+ *  ⛔ THE SAME CAPTURE SAYS `time("1440", …)` = `time("D", …)` and `time("1440")` = `time("D")` on every bar
+ *  (R1-R6), and neither is read here, because on THIS engine the `"D"` side is not TradingView's: through the
+ *  member door R5/R6 (`time("D") - time`) read -34200 s on every 1D and 60m bar where TradingView reads 0 /
+ *  the 09:30 open, and R1/R2 (`time("D", "0930-1600")` on the 60m chart) read `na` where TradingView reads
+ *  the session open. Spelling `"1440"` as `"D"` there would draw those values for a script that today
+ *  refuses by name. They stay refused, and the `"D"` findings are the time/session owner's (reported with
+ *  the capture). ⛔ NOT a `PINE_TF_SPELLING` entry: that map also feeds `request.security` and the
+ *  `timeframe.*` family, and no capture asked a request at `"1440"`. */
+const CLOCK_TF_ALIASES = Object.freeze({ 1440: 'D' })
+/** 09:30, the regular session's open, in minutes of the New York day (`sessionClockOf`, U-BUILTIN T-D). */
+const SESSION_OPEN_MINUTE = 9 * 60 + 30
+const clockTfCodeOf = (lit) => {
+  const key = String(lit).trim().toUpperCase()
+  return PINE_TF_SPELLING[key] || (Object.prototype.hasOwnProperty.call(CLOCK_TF_ALIASES, key) ? CLOCK_TF_ALIASES[key] : null)
+}
 const TIME_ANCHOR_PERIODS = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M', '3M': '3M', '12M': '12M' })
 export function timeAnchorPeriodOf(raw) {
   const key = String(raw).trim().toUpperCase()
@@ -1671,6 +1690,11 @@ const PHASE1_MODERN_SPELLING = Object.freeze({
   wad: 'ta.wad',
   cmo: 'ta.cmo',
   cog: 'ta.cog',
+  // ⭐ U-BUILTIN (2026-11-19) — v4 lists these bare; from v5 they live under `math.` (the v4→v5
+  // migration guide's `math` table), so a bare spelling in a v5/v6 script refuses by name.
+  toradians: 'math.toradians',
+  todegrees: 'math.todegrees',
+  asin: 'math.asin',
 })
 
 /** ⛔ W1 (review, 2026-11-02) — THE RUNNING TOTALS W1 SERVED ARE HELD FROM
@@ -1827,6 +1851,12 @@ function volumeIndexTree(cmp) {
  *  arithmetic we already believed. 8 sites in 1 script. */
 export const PINE_MATH_CONSTANTS = Object.freeze({
   'math.pi': () => cNum(Math.PI),
+  // ⭐ U-BUILTIN B8 (2026-11-19) — Euler's number, the reference's own sentence (v5 and v6,
+  // `math.e`): "It is equal to 2.7182818284590452." That text is read as a double here, and it is
+  // the IEEE-754 double nearest e, which is `Math.E` (railed: `Number('2.7182818284590452') ===
+  // Math.E`, `pineBuiltinsUnit.test.js`). A constant depends on nothing, so it is not strict-gated,
+  // for the reason `math.pi` gives above.
+  'math.e': () => cNum(Math.E),
 })
 
 export const BUILTIN_CONSTANT_TREE = Object.freeze({
@@ -2577,6 +2607,23 @@ export const BUILTIN_CALL_TREE = Object.freeze({
     a.slice(1).reduce((acc, x) => cOp('+', [acc, x]), a[0]),
     cNum(a.length),
   ]),
+  // ⭐⭐ U-BUILTIN B2 (2026-11-19) — `math.toradians(x)` IS `x * math.pi / 180` AND
+  // `math.todegrees(y)` IS `y * 180 / math.pi`, LEFT TO RIGHT, AND THE ORDER IS THE WHOLE
+  // MEASUREMENT. The reference says only "an approximately equivalent angle"; `x * pi / 180`,
+  // `x / 180 * pi` and `x * (pi / 180)` differ in the last bit on many inputs, and a script that
+  // feeds the angle to `math.sin` (builtin:moon-phases, over a 150-year ephemeris) carries that bit
+  // forward. Capture Q-BT3 settles it: `vw-bt-toradians-spy-1d-2026-11-16` (probe
+  // `vw-bt-toradians.pine`, AMEX:SPY 1D, 8,508 bars from the listing) reads D1 = `math.toradians(x)
+  // - x * math.pi / 180` and E1 = `math.todegrees(y) - y * 180 / math.pi` as exactly 0 on EVERY bar,
+  // where D2 / D3 / E2 / E3 (the other two spellings of each) are non-zero on 3,131 / 8,360 / 3,040 /
+  // 2,311 bars. So the tree is that spelling, and `na` is IEEE's (`na * pi` is `na`), the table's one
+  // rule (`interpret.js::toColumn`). One argument, by position: anything else declines (`null`) and is
+  // refused by name in `resolveTableCall`. ⛔ The v1–v4 bare `toradians` / `todegrees` are the same
+  // functions (the v4→v5 migration guide's `math` table renames them); from v5 the bare spelling is
+  // refused (`PHASE1_MODERN_SPELLING`). The runtime lane lowers THIS builder over runtime state
+  // (`pineRuntimeFrontend.js::callTreeExpansion`), so the two lanes are one formula.
+  toradians: (a) => (a.length === 1 ? cOp('/', [cOp('*', [a[0], cNum(Math.PI)]), cNum(180)]) : null),
+  todegrees: (a) => (a.length === 1 ? cOp('/', [cOp('*', [a[0], cNum(180)]), cNum(Math.PI)]) : null),
   // ta.cross(a, b) = they crossed in EITHER direction on this bar. The table
   // already declares both directions, so this costs zero new vocabulary — the
   // same bar `roc` and `avg` clear.
@@ -4232,6 +4279,10 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const nm = (name) => ({ type: 'name', name, tok })
       // `useTrueRange` defaults to TRUE and must be a literal to be read here;
       // Pine types it `simple bool`, and `true`/`false` parse as 1/0.
+      // ⛔ U-BUILTIN (2026-11-19): a computed flag stays refused. The reference body is
+      // `span = useTrueRange ? ta.tr : high - low`, but the flag must be a `simple bool`, and this builder
+      // cannot tell an input from a per-bar series (`f = close > open`, which TradingView refuses to
+      // compile), so writing the ternary here would accept a script the vendor rejects.
       const flag = a[3]
       const isNum = (n, v) => n && n.type === 'number' && Number(n.value) === v
       let span = null
@@ -13431,7 +13482,8 @@ export class Resolver {
       // ⭐ THE SPELLING MAP IS ASKED, NOT COPIED. `'1H'`, `'1D'` and `'4H'` are
       // Pine spellings of codes this engine already holds, and recognising them
       // here rather than only their bare forms is free.
-      code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+      // ⭐ U-BUILTIN B1 — and `"1440"` as `"D"` (Q-BT2 R7: 86400 on every bar), `clockTfCodeOf`.
+      code = lit === null ? null : clockTfCodeOf(lit)
       // ⚰️ PHASE 1 (2026-10-30) BUILT AND WITHDREW `timeframe.in_seconds("")` AS
       // THE CHART'S OWN LENGTH, and the reason is the next thing to fix, not the
       // rule. Pine reads an empty timeframe as the chart's (it is what
@@ -13769,8 +13821,12 @@ export class Resolver {
     // one lane and refused on the other.
     const isOwnTf = this.ownTimeframeOf(tfNode) !== null || this.timeframeLiteralOf(tfNode) === ''
     const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
+    // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
     const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
-    if (!isOwnTf && code !== this.basePeriod) {
+    // ⭐ U-BUILTIN T-D — a literal `"D"` is read on any base: below a daily chart its tree is the day anchor
+    // or the daily gate (step 4), each withheld by name where it is not measured, so the runtime lane (which
+    // translates on the chart's own base) answers what the member door's daily-base translation answers.
+    if (!isOwnTf && code !== this.basePeriod && code !== 'D') {
       throw no('it is read here on the chart\'s OWN timeframe (`timeframe.period`), '
         + 'which is what the vendor was measured on. A different period groups the '
         + 'session into bars this chart does not have, and nothing measured says how.')
@@ -13918,11 +13974,30 @@ export class Resolver {
       inside = cOp('&&', [cOp('>=', [minuteOfDay, cNum(start)]), cOp('<', [minuteOfDay, cNum(end)])])
       if (days) inside = cOp('&&', [inside, onDays(dow)])
     }
-    if (onItsOwnChart) inside = cOp('&&', [inside, onItsOwnChart])
+    // ⭐⭐ U-BUILTIN T-D (2026-11-19) — A LITERAL "D" IS NO LONGER `na` OFF A DAILY CHART.
+    // ⚰️ `onItsOwnChart` (`periodseconds == 86400`) sat inside the membership, so on an intraday chart
+    // `time("D", sess)` was `na` on every bar, and a script's own `na(t) ? … : …` drew that as an answer:
+    // capture `vw-bt-time-1440-spy-60-2026-11-16` R2 reads `time("D", "0930-1600")` as the 09:30 session
+    // open on every regular-hours hourly bar. Two shapes now:
+    //   · a window that OPENS AT 09:30 New York (the exchange's zone), not wrapping: the start of the window
+    //     and the open of the day are one instant, so the value is the `time("D")` anchor itself
+    //     (`interpret.js::dayAnchorNode`), on a daily chart (where it is the bar's own 09:30 `time`, the
+    //     tree's answer before) and on an intraday one alike, withheld where the anchor is
+    //     (`time-day:off-session`);
+    //   · any other window keeps the daily tree, gated `86400 == periodseconds ? … : na`
+    //     (`sessionDayGateNode`), which the chart-clock mask withholds by name on a chart that states
+    //     another timeframe (`time-session:day-on-other-chart`): the window's start or the day's open there
+    //     is Q-BI-TD1c. A chart that states no timeframe reads it as before (`na` off a daily bar length).
+    const dayLiteral = !isOwnTf && code === 'D'
+    if (dayLiteral && !wraps && start === SESSION_OPEN_MINUTE && offset === null) {
+      return cOp('?:', [inside, dayAnchorNode(this.pineVersion !== null), cOp('/', [cNum(0), cNum(0)])])
+    }
+    const gated = (tree) => (dayLiteral ? sessionDayGateNode(tree) : tree)
+    if (onItsOwnChart && !dayLiteral) inside = cOp('&&', [inside, onItsOwnChart])
     // ⭐ membership only (`na(time(…))`, see `resolveCall`): any finite value inside, `na` outside —
     // the same `na` as the value tree on every bar, without its series references.
     if (wraps && this.sessionMembershipTok === tok) {
-      return cOp('?:', [inside, cNum(1), cOp('/', [cNum(0), cNum(0)])])
+      return gated(cOp('?:', [inside, cNum(1), cOp('/', [cNum(0), cNum(0)])]))
     }
     // the minutes since the session's start: same day, or — for a wrapping session read after
     // midnight — since yesterday's start (`(m − start + 1440) mod 1440`, never negative)
@@ -13934,7 +14009,7 @@ export class Resolver {
     // Pine's `time` is milliseconds for a versioned script — the same gate the
     // bare name and `time("D")` use (`clockTransformFor`).
     const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs
-    return cOp('?:', [inside, value, cOp('/', [cNum(0), cNum(0)])])
+    return gated(cOp('?:', [inside, value, cOp('/', [cNum(0), cNum(0)])]))
   }
 
   /** A session or zone argument as TEXT, or null. `stringValueOf` plus the two
@@ -15564,6 +15639,13 @@ export class Resolver {
       }
       // ⭐ PHASE 1 — the two expansions that decline (`null`) on a shape they do
       // not take say which shape, rather than handing `null` on as a tree.
+      // ⭐ U-BUILTIN B2 — the angle conversions take one angle, by position.
+      if (bare === 'toradians' || bare === 'todegrees') {
+        const tree = BUILTIN_CALL_TREE[bare](built)
+        if (tree) return tree
+        throw new PineRefusal('pine:arity',
+          `${REFUSALS['pine:arity']} — \`${pineName}\` converts one angle, given ${built.length}`, locate(tok))
+      }
       if (bare === 'swma' || bare === 'tsi') {
         const tree = BUILTIN_CALL_TREE[bare](built)
         if (tree) return tree
@@ -15919,6 +16001,7 @@ export class Resolver {
         // `ownTimeframeOf` states (a rebound `period` is not the chart's).
         if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
         const rawTf = this.timeframeLiteralOf(argNode)
+        // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
         const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
         // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the
         // text the script wrote, not through `PINE_TF_SPELLING`: `"1H"` folds to
@@ -15944,8 +16027,13 @@ export class Resolver {
           // `clockTransformFor` applies the bare name's ×1000 only for a script that
           // declares a `//@version`, so anchoring to the same test is what keeps the
           // two spellings in step for a versionless script too.
-          const leaf = clockLeaf('dayopentime')
-          return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
+          // ⭐⭐ U-BUILTIN T-D (2026-11-19) — AND THE ANCHOR IS THE SESSION'S 09:30 OPEN, NOT MIDNIGHT.
+          // ⚰️ This was `dayopentime` (midnight New York), served on every chart: capture
+          // `vw-bt-time-1440-spy-{1d,60}-2026-11-16` R6 reads TradingView's `time("D")` as the 09:30
+          // open on every daily and regular-hours hourly bar, and the midnight anchor was 34,200 s early
+          // on every one of them. `interpret.js::dayAnchorNode` is the tree; the chart-clock mask withholds
+          // it by name on a chart whose bars leave the regular session (`time-day:off-session`).
+          return dayAnchorNode(this.pineVersion !== null)
         }
         const anchorPeriod = rawTf === null ? null : timeAnchorPeriodOf(rawTf)
         if (anchorPeriod !== null) return this.periodAnchorOf(anchorPeriod, pineName, tok)
@@ -20621,7 +20709,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
  * `text.format_none`, `text.format_bold`, `text.format_italic` and nothing else,
  * so an unknown `text.format_*` is a refusal rather than a value to pass along.
  */
-const TEXT_FORMAT_FLAGS = Object.freeze({
+export const TEXT_FORMAT_FLAGS = Object.freeze({
   'text.format_none': null,
   'text.format_bold': 'bold',
   'text.format_italic': 'italic',

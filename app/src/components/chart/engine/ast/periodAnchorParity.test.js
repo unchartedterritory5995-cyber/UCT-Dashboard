@@ -163,6 +163,11 @@ const PINE = {
   // ⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3) — the same merge of the HIGH, a field the first partial week gets wrong
   'nz(reqWh)': 'plot(nz(request.security(syminfo.tickerid, "W", high)))',
   reqOwn: 'plot(request.security(syminfo.tickerid, timeframe.period, close))',
+  // ⭐⭐ U-BUILTIN T-D (2026-11-19) — `time("D")`, the session's 09:30 open, and `time("D", session)`
+  D: 'plot(time("D"))',
+  'change(D)': 'plot(ta.change(time("D")) != 0 ? 1 : 0)',
+  'D rth': 'plot(time("D", "0930-1600"))',
+  'D window': 'plot(time("D", "1000-1100"))',
 }
 /** Trees no translation writes TODAY but a saved document still carries. */
 const BUILT = {
@@ -248,6 +253,23 @@ const CASES = [
   ...['sundays', 'saturdays'].map((set) => [`own · ${set} · D`, 'own', set, { tf: 'D' }]),
   // ⭐ a date-keyed series reaching before 1990 is READ, not blanked
   ...['W', 'closeW', 'own'].map((k) => [`${k} · 1985 sessions · D`, k, 'sessions1985', { tf: 'D' }]),
+  // ⭐⭐ U-BUILTIN T-D — served on Monday-to-Friday daily bars, regular-hours intraday bars, weekly and monthly
+  // bars and where no timeframe is stated; withheld by name off the regular session and on a daily chart that
+  // trades weekends; the daily gate withheld on any chart that states another timeframe
+  ...['D', 'change(D)', 'D rth', 'D window'].flatMap((k) => [
+    [`${k} · weekdays · D`, k, 'weekdays', { tf: 'D' }],
+    [`${k} · weekdays · no tf`, k, 'weekdays', null],
+    [`${k} · date ints · D (the scan sweep)`, k, 'dateInts', { tf: 'D' }],
+    [`${k} · rth 15m · 15`, k, 'rth15', { tf: '15' }],
+    [`${k} · rth 60m · 60`, k, 'rth60', { tf: '60' }],
+    [`${k} · rth 15m · 30 (no capture of that length)`, k, 'rth15', { tf: '30' }],
+    [`${k} · 15m with a pre-market bar · 15`, k, 'ext15', { tf: '15' }],
+    [`${k} · hourly past the close · 60`, k, 'hourly', { tf: '60' }],
+    [`${k} · every day · D`, k, 'everyDay', { tf: 'D' }],
+    [`${k} · saturdays · D`, k, 'saturdays', { tf: 'D' }],
+    [`${k} · weekly · W`, k, 'weekly', { tf: 'W' }],
+    [`${k} · monthly · M`, k, 'monthly', { tf: 'M' }],
+  ]),
 ]
 
 function evaluate(ast, bars, opts) {
