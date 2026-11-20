@@ -44,11 +44,15 @@ describe('⭐⭐ OZ — the family the run drew none of is withheld BY NAME, gra
     expect(v.verdict.objects.reason).toContain(v.ours.objects.withheldWhy)
   }, T)
 
-  it('⛔ a family still partly drawn is NOT withheld: HTF footprint keeps its 3 boxes and stays DIVERGE on them', () => {
+  // ⭐ (coordinator ruling 2026-11-19, the disclosed-partial grade) its 3 drawn boxes are graded on what they draw: they
+  // pair with TradingView's and agree on every field this capture holds, but the capture predates the x table, so their
+  // place is unwitnessed: `objects:partial-unpositioned`, INCONCLUSIVE, never MATCH, and never a lift of its listing.
+  it('⛔ a family still partly drawn is NOT withheld: HTF footprint keeps its 3 boxes, graded as an unpositioned partial', () => {
     const v = graded('htf-candle-footprint-cartel-console-rddt-1d-2026-09-28')
     expect(v.ours.objects.withheldFamilies).toEqual(['label', 'line'])
-    expect(row(v, 'boxes')).toMatchObject({ ours: 3, agree: false })
-    expect(v.verdict.objects.verdict).toBe('DIVERGE')
+    expect(row(v, 'boxes')).toMatchObject({ ours: 3, vendor: 13, agree: null, partial: true, unpositioned: true })
+    expect(v.verdict.objects.verdict).toBe('INCONCLUSIVE')
+    expect(String(v.verdict.objects.withheld).split(',')).toContain('objects:partial-unpositioned')
   }, T)
 
   it('⛔ CONTROL — fib-retracement-rddt: objects MATCH, nothing named', () => {
