@@ -2101,6 +2101,10 @@ function chartTickMarkFormatter(time, tickMarkType, _locale, h24 = false) {
   if (typeof time === 'number') {
     const d = new Date(time * 1000)
     if (tickMarkType >= 3) return h24 ? _fmt24(d) : _fmt12(d)    // time tick → 12-hour (24-hour when the member picks it)
+    // A zoomed-out intraday axis names the year and month marks as a daily chart does ("2026", "Feb"), not by
+    // their first session ("Jan 2", "Feb 2"), as TradingView does (owner's 1h axis, 2026-11-20).
+    if (tickMarkType === 0) return String(d.getUTCFullYear())
+    if (tickMarkType === 1) return _MO[d.getUTCMonth()]
     return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`           // intraday day-boundary
   }
   const d = _dayDate(time)
@@ -19430,11 +19434,28 @@ export default function StockChart({
     if (barCount === _fullTarget) return
     if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
   }
-  const getDateMeta = () => {
+  // `{ lite: true }`: only the date navigator's fields (right-edge date, bounds, load state). The navigator polls
+  // 4×/s for the life of the page; the full answer (default view geometry, zoom limits, price scale, replay) is
+  // for the UCT Agent's read-backs and stays the default.
+  const getDateMeta = (opts) => {
     const bars = filteredBarsRef.current
     if (!bars || !bars.length) return null
     const firstMs = _dateToMs(bars[0].t)
     const lastMs = _dateToMs(bars[bars.length - 1].t)
+    if (opts?.lite) {
+      let rightMs = lastMs
+      try {
+        const cur = chartRef.current?.timeScale()?.getVisibleLogicalRange()
+        if (cur && Number.isFinite(cur.to)) rightMs = _dateToMs(bars[Math.max(0, Math.min(bars.length - 1, Math.floor(cur.to)))].t)
+      } catch { /* noop */ }
+      return {
+        firstMs, lastMs, rightMs,
+        firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
+        lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
+        fullyLoaded: barCount === _fullTarget,
+        loading: originLoading,
+      }
+    }
     let rightMs = lastMs
     let activeRange = null
     let atDefaultView = false
