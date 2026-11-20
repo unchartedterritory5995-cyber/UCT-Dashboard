@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "e89: A HELD WITHHOLD NEVER PUSHES A SCRIPT ONTO A DOCUMENT THAT DRAWS THE HELD ELEMENT. The answer without the list decides the lane (the runtime door's own fallback, the cost route, the W9 armed route); the list only narrows the runtime document or refuses the script by name, pine:held-divergence. Every condition, broken once, must turn the 101-case sweep (or the armed-route rail) red.",
+ "about": "e89: A HELD WITHHOLD NEVER PUSHES A SCRIPT ONTO A DOCUMENT THAT DRAWS THE HELD ELEMENT. The answer without the list decides the lane (the runtime door's own fallback, the cost route, the W9 armed route); the list only narrows the runtime document or refuses the script by name, pine:held-divergence. Every condition, broken once, must turn the 101-case sweep (or the armed-route rail) red. Split in two manifests (L1-L5 here, L6-L7 in held-withhold-lanes-b.json): each mutant runs the 101-case sweep twice, and seven exceeded the mutant job's 30-minute limit.",
  "mutants": [
   {
    "id": "L1",
@@ -46,24 +46,6 @@
    "to": "    if (heldFull && false) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholdLanes.test.js",
    "expectRed": "with the row held it is still the broker document"
-  },
-  {
-   "id": "L6",
-   "mutant": "the W9 armed route decides from the narrowed broker document (a held row is its takesAway)",
-   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "    const viaBroker = heldFull || asked",
-   "to": "    const viaBroker = asked",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholdLanes.test.js",
-   "expectRed": "the list changes nothing"
-  },
-  {
-   "id": "L7",
-   "mutant": "the held refusal does not name the element",
-   "file": "app/src/components/chart/engine/heldWithholds.js",
-   "from": "  if (w.scope === 'output') return `its plot \\`${w.title}\\``",
-   "to": "  if (w.scope === 'output') return 'one of its plots'",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/heldWithholdLanes.test.js",
-   "expectRed": "every case stays on the runtime lane with the element withheld"
   }
  ]
 }

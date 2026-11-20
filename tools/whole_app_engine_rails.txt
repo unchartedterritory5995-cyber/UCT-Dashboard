@@ -72,6 +72,7 @@ src/components/chart/engine/ast/symbolScopeProse.test.js
 src/components/chart/engine/ast/thinkscript.test.js
 src/components/chart/engine/defSchema.test.js
 src/components/chart/engine/heldSpanFollowsChart.test.js
+src/components/chart/engine/heldWithholds.savedCopies.test.js
 src/components/chart/engine/hostKnownDivergence.test.js
 src/components/chart/engine/lineIdentity.test.js
 src/components/chart/engine/nativeRegistry.test.js
