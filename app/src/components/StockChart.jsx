@@ -4923,6 +4923,11 @@ export default function StockChart({
   // classification field: `bindSymbolOf` ignores it and the run cache keys do not carry it.
   const _firstTradeDate = ipoInfo && ipoInfo.first_trade_final === true && typeof ipoInfo.first_trade_date === 'string'
     ? ipoInfo.first_trade_date : null
+  // ⭐⭐ (coordinator ruling 2026-11-20, captured: BGIN 1h refused its listing-day bar while the lookup was out, and stayed
+  // refused after it landed) — the lookup STILL IN FLIGHT for this symbol (`useTickerIpo`'s `PENDING_IPO`): a run whose
+  // first bars rest on the listing waits for it rather than refusing them. useTickerIpo keys on `sym`, so another
+  // symbol's late answer is never this one's.
+  const _firstTradeDatePending = !_firstTradeDate && !!(ipoInfo && ipoInfo.pending === true)
   const symbolMeta = useMemo(() => (
     sym ? {
       ticker: sym,
@@ -4931,8 +4936,9 @@ export default function StockChart({
       sector: (tickerMeta && tickerMeta.sector) || null,
       securityType: (tickerMeta && tickerMeta.security_type) || null,
       ...(_firstTradeDate ? { firstTradeDate: _firstTradeDate } : {}),
+      ...(_firstTradeDatePending ? { firstTradeDatePending: true } : {}),
     } : null
-  ), [sym, tickerMeta, _firstTradeDate])
+  ), [sym, tickerMeta, _firstTradeDate, _firstTradeDatePending])
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):

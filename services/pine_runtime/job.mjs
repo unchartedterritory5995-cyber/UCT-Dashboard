@@ -84,7 +84,9 @@ export const DECLARED_DIFFERENCES = Object.freeze({
   // (2026-11-19, Fred RS 1h) and the symbol's FINAL first-trade day (`firstTradeDate`, StockChart symbolMeta from
   // /api/ticker-ipo): the listing fact requestSupply.js's own-daily first-session na rests on. This host does not state
   // it, so no listing is claimed here and that session stays unknown (refused by name), never na.
-  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType', 'firstTradeDate']),
+  // (2026-11-20) and whether that answer is still IN FLIGHT (`firstTradeDatePending`, useTickerIpo's PENDING_IPO): the run
+  // waits on it there; this host states neither, so its run keeps the refusal it gives without a date.
+  ctxSymbolBrowserOnly: Object.freeze(['industry', 'sector', 'securityType', 'firstTradeDate', 'firstTradeDatePending']),
   // RS RATING L5: the ctx facts only this host states. `otherSymbolSupply: false` tells the run it
   // will never be handed another symbol's bars, so a `request.security` of one is refused by name
   // (requestSupply.js) instead of held as "still loading", which on this lane never ends.

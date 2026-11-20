@@ -379,7 +379,9 @@ function messageOf(id, def, rows, ctx) {
       // ⭐⭐ (2026-11-19, Fred RS 1h) and the symbol's FIRST TRADE day, the listing fact the own-daily read's first
       // session rests on (`requestSupply.js::aboveChartRead`); absent stays absent (no listing is claimed).
       ? { symbol: { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol),
-        ...(typeof ctx.symbol.firstTradeDate === 'string' ? { firstTradeDate: ctx.symbol.firstTradeDate } : {}) } } : {}),
+        ...(typeof ctx.symbol.firstTradeDate === 'string' ? { firstTradeDate: ctx.symbol.firstTradeDate } : {}),
+        // ⭐⭐ (2026-11-20) and whether that answer is still in flight (the run waits on it)
+        ...(ctx.symbol.firstTradeDatePending === true ? { firstTradeDatePending: true } : {}) } } : {}),
     // ⭐ P3 WS-F — a framed instance's window slides, so the run refuses a `varip` there
     ...(ctx && ctx.framed === true ? { framed: true } : {}),
     // ⭐⭐ W9-T11 — the window a broker run takes (design 3.4), as the context holds it
@@ -440,7 +442,10 @@ function pump() {
  *  update; while one run of the pane is in the worker, only the NEWEST waiting
  *  one is kept — an older one would compute bars nobody paints. */
 function coalesceKeyOf(def, ctx) {
-  const s = ctx && ctx.symbol && typeof ctx.symbol === 'object' ? `${ctx.symbol.ticker}@${ctx.symbol.exchange}` : '-'
+  // ⭐⭐ (2026-11-20) the listing facts too: a run asked before the date landed is not the run asked after it
+  const s = ctx && ctx.symbol && typeof ctx.symbol === 'object'
+    ? `${ctx.symbol.ticker}@${ctx.symbol.exchange}${typeof ctx.symbol.firstTradeDate === 'string' ? `^${ctx.symbol.firstTradeDate}`
+      : ctx.symbol.firstTradeDatePending === true ? '^?' : ''}` : '-'
   return `${def && def.id}|${def && def.compute && def.compute.fn}|${ctx && ctx.tf}|${s}|`
     + `${ctx ? ctx.newestBarIsForming : ''}|${!!(ctx && ctx.historyFromListing === true)}`
     + (ctx && ctx.listingStart === true ? '|listingStart' : '')

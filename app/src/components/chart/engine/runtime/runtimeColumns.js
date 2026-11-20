@@ -87,13 +87,20 @@ const COMPILE_ON_A_PANE = Object.freeze({ pane: true, symbolAtBind: true })
  *  exchange, and the classification fields industry / sector / securityType). This copied
  *  `{ticker, exchange}` only, so a run refused `syminfo.industry` the host lane settled. */
 const symbolOf = (ctx) => (ctx && ctx.symbol && typeof ctx.symbol === 'object'
-  ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol) } : undefined)
+  ? { ticker: ctx.symbol.ticker, exchange: ctx.symbol.exchange, ...bindSymbolOf(ctx.symbol),
+    // ⭐⭐ (2026-11-20) the listing facts, for the run's keys (`symbolKey`); the fold reads neither
+    ...(typeof ctx.symbol.firstTradeDate === 'string' ? { firstTradeDate: ctx.symbol.firstTradeDate } : {}),
+    ...(ctx.symbol.firstTradeDatePending === true ? { firstTradeDatePending: true } : {}) } : undefined)
 /** ⛔ The run caches key on this, so a field the fold reads is in it: two charts of one ticker
  *  whose classification differs must not share a run. Unchanged for a symbol without one. */
 const symbolKey = (s) => {
   if (!s) return '-'
   const cls = ['industry', 'sector', 'securityType'].map((f) => (s[f] == null ? '' : String(s[f])))
-  return `${s.ticker}@${s.exchange}${cls.some((v) => v !== '') ? `#${cls.join('#')}` : ''}`
+  // ⭐⭐ (coordinator ruling 2026-11-20) — and the listing facts the own-daily read rests on (`requestSupply.js::
+  // aboveChartRead`): ⚰️ CAPTURED (ipocold-bgin), a run refused while the date was out was served from this key's memo
+  // after the date landed, and the chart stayed refused. Absent both, the key is unchanged byte for byte.
+  const listing = typeof s.firstTradeDate === 'string' ? `^${s.firstTradeDate}` : s.firstTradeDatePending === true ? '^?' : ''
+  return `${s.ticker}@${s.exchange}${cls.some((v) => v !== '') ? `#${cls.join('#')}` : ''}${listing}`
 }
 
 /** ⭐ RT1 — the guard a fallback document carries on a chart whose history does
