@@ -180,6 +180,11 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // listed and not a stop, and that arithmetic is served the same way with or without this change
 // (docs/pine/capture-queue-2026-11-19-builtins.md).
 
+// ⭐ A1 (feat/a1-series-param-offsets, NUMBER PENDING e90) re-pinned 1 row, lane `null` -> `runtime`:
+// vw-udt-fn-global-history-rddt-1d-2026-11-16. Its one wall (G04, `f4(int n) => g[n]` with `bar_index % 3`, a per-bar
+// offset through a parameter) is read per bar now, and every plot, G04 included, equals TradingView's value on every bar
+// (`runtime/__tests__/functionGlobalHistory.test.js`); its runtime-on row re-grades MATCH.
+
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   // ⭐⭐ THE MEMBER'S DOOR, EXACTLY (GATE-BLIND follow-up (a), 2026-11-19): the allowlist EMPTY, capability admission
   // ON (each script's verdict latched admitted below) and the host lane's KNOWN-DIVERGENCE LIST APPLIED, as the

@@ -3255,6 +3255,12 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  site by `lowerSimpleCall`). Read only by `foldConstNode`; `null` outside
    *  such a compile. */
   let frameConsts = null
+  /** ⭐⭐ A1 — slot set, for the parameters of the function body being compiled whose CALL
+   *  SITE passes a value read per bar to a parameter that sizes a history offset there
+   *  (`seriesSpecialisation`). Read by `offsetRange` (any number, `series`), `frameSubstitute`
+   *  (not a frame name a caller could fix) and `boundedSlotOffset` (a ring of Pine's 5,000
+   *  whose reads stop by name off a whole number). `null` outside such a compile. */
+  let frameSeries = null
   /** While a function body is being compiled, the scope its globals live in — so
    *  a reference to a global mutable variable is refused BY NAME rather than
    *  arriving at the columnar resolver as an undefined name. */
@@ -8216,7 +8222,13 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  ⛔ Anything else stays `null`. The range only SIZES the ring: the offset is
    *  still computed bar by bar, and the VM still stops past the ring.
    *  @returns {{lo:number, hi:number, na?:true}|null} */
-  const mayNa = (r, ...from) => (from.some((x) => x && x.na) ? { ...r, na: true } : r)
+  // ⭐ A1 — and `series`: the range rests on a value a call site passes per bar (`frameSeries`)
+  const mayNa = (r, ...from) => {
+    let out = r
+    if (from.some((x) => x && x.na)) out = { ...out, na: true }
+    if (from.some((x) => x && x.series)) out = { ...out, series: true }
+    return out
+  }
   const isChartBarIndex = (e, scope) => !!(e && e.type === 'name' && e.name === 'bar_index'
     && (!scope || scope.lookup('bar_index') === null) && !env.has('bar_index'))
   const RANGE_CMP = new Set(['<', '<=', '>', '>='])
@@ -8274,10 +8286,20 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     }
     if (e.type === 'name' && scope) {
       const s = scope.lookup(e.name)
+      // ⭐⭐ A1 — A PARAMETER ITS CALL SITE PASSES PER BAR may hold any number, or `na`: the whole
+      // line, marked `series` so only `boundedSlotOffset`'s A1 branch can size a ring on it; a
+      // frame local bound once to an expression over such parameters (`frameLocalDefs`, never
+      // reassigned) is its expression's range. ⛔ Only inside such a copy (`frameSeries`).
+      if (frameSeries && s !== null && slots[s] && slots[s].owner === owner) {
+        if (frameSeries.has(s)) return { lo: -Infinity, hi: Infinity, na: true, series: true }
+        const def = frameLocalDefs.get(s)
+        if (def !== undefined && !loopRanges.has(s)) return offsetRange(def.expr, at, def.scope, depth + 1, refine)
+      }
       if (s !== null && loopRanges.has(s)) {
         const r = loopRanges.get(s)
         if (r && r.blocked) throw r.blocked
-        return r && Number.isFinite(r.lo) ? r : null
+        // ⭐ A1 — a counter whose bound is passed per bar keeps its (unbounded) range, marked `series`
+        return r && (Number.isFinite(r.lo) || r.series) ? r : null
       }
       // a main-body slot declared once and never reassigned (`delta = ta.barssince(…)`,
       // a slot under `objectsInRun` because it keeps history): its initialiser's range,
@@ -8286,6 +8308,14 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         && slots[s].kind === SLOT.LOCAL) {
         const def = frameLocalDefs.get(s)
         if (def && def.scope === root) return offsetRange(def.expr, at, root, depth + 1, refine)
+      }
+      // ⭐ A1 — and a main-body BLOCK local bound once and never reassigned (dynamic-linear-regression-channels:
+      // `j = close > upperEndPrice or close < lowerEndPrice ? 1 : 0`, then `startPrice[j]` in the same block): it is
+      // read only inside its block, after its binding, so its value at every read is its expression's
+      if (s !== null && owner === null && slots[s] && slots[s].owner === null && slotDepth[s] > 0
+        && slots[s].kind === SLOT.LOCAL) {
+        const def = frameLocalDefs.get(s)
+        if (def && def.scope && def.scope !== root) return offsetRange(def.expr, at, def.scope, depth + 1, refine)
       }
       // a main-body expression binding, read in the main body: its expression's range
       if (s === null && owner === null) {
@@ -8572,6 +8602,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  Off at the object door: master's answer there. */
   const frameSubstitute = (e, scope) => {
     let foreign = null
+    let series = null
     const sub = (x, sc, d) => {
       if (!x || typeof x !== 'object' || d > 64) return x
       if (Array.isArray(x)) return x.map((y) => sub(y, sc, d + 1))
@@ -8579,6 +8610,13 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         const s = sc.lookup(x.name)
         if (s !== null && slots[s] && slots[s].owner === owner) {
           if (frameConsts && frameConsts.has(s)) return frameConstNode(frameConsts.get(s), x.tok)
+          // ⭐ A1 — a parameter its call site passes per bar is no name a caller can fix, and no
+          // value either: `series` (the first one met), which every reader answers "does not fold"
+          // BEFORE the resolver could read a top-level name of the same spelling (C35's trap)
+          if (frameSeries && frameSeries.has(s)) {
+            if (series === null) series = x.name
+            return x
+          }
           const def = atObjectDoor ? undefined : frameLocalDefs.get(s)
           if (def !== undefined) return sub(def.expr, def.scope, d + 1)
           if (foreign === null) foreign = x.name
@@ -8590,7 +8628,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       return out
     }
     const node = sub(e, scope, 0)
-    return { node, foreign }
+    return { node, foreign, series }
   }
 
   /** ⭐⭐ RT3 — a parse expression's value before bar 0, WITHOUT side effects (no
@@ -8605,6 +8643,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       const fs = frameSubstitute(e, scope)   // ⭐ W4-T9 — one authority for the frame's names
       n = fs.node
       if (fs.foreign !== null) return { frameName: fs.foreign }
+      // ⭐ A1 — a value its call site passes per bar folds to nothing
+      if (fs.series !== null) return null
     }
     n = simpleValueOf(n, scope)   // ⭐ W4-T2
     let canonical
@@ -8683,6 +8723,22 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       if (err instanceof RuntimeRefusal && typeof err.frameName === 'string') throw frameBoundRefusal(err.frameName, at)
       throw err
     }
+    // ⭐⭐ A1 — AN OFFSET THAT RESTS ON A VALUE THE CALL SITE PASSES PER BAR (`frameSeries`, a copy
+    // `seriesSpecialisation` compiles): TradingView reads the real history for an offset known
+    // only while the bar runs, declared buffer or none (WS-C M2 / M3 / Q-MBB, captured 2026-11-18,
+    // `docs/pine/capture-queue-2026-10-31-wsc-history.md`; M4 for a script's own series), so the
+    // ring is Pine's 5,000 unless the range proves a smaller one. Nothing proves the bottom or a
+    // whole number here, so the ring is STRICT: the VM stops by name on a negative or fractional
+    // offset (`READ_HIST_SLOT_DYN`) instead of answering `na` for it, and past 5,000 as on every
+    // dynamic read. `na` still reads the current bar (C29, measured).
+    if (r && r.series && owner !== null && frameSeries) {
+      const provedBottom = Number.isFinite(r.lo) && r.lo >= 0
+      const depth = provedBottom && Number.isFinite(r.hi) && r.hi <= MAX_DYNAMIC_HISTORY_DEPTH
+        ? Math.ceil(r.hi) : MAX_BARS_BACK_CEILING
+      if (depth === 0) return read(varSlot)
+      const h = fnHistorySlotFor(owner, varSlot, depth, at, true)
+      return mbbDyn(histSlotDyn(varSlot, h, lowerExpr(e, scope), depth))
+    }
     // ⛔ the BOTTOM must always be proved: a negative offset has no answer this lane owes
     if (!r || !Number.isFinite(r.lo) || r.lo < 0) throw refusal
     let depth = Number.isFinite(r.hi) ? Math.ceil(r.hi) : Infinity
@@ -8736,6 +8792,14 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           + 'engine can read before bar 0', at)
         err.frameName = foreign
         throw err
+      }
+      // ⭐ A1 — a parameter its call site passes per bar: the refusal every per-bar length or offset
+      // gets (no frame name, so no caller is asked to fix it); `boundedSlotOffset` and the W4-T8
+      // window read it per bar where they can
+      if (fs.series !== null) {
+        note('runtime:history-dynamic-offset')
+        throw new RuntimeRefusal('runtime:history-dynamic-offset',
+          `${what ? `${what}: ` : ''}\`${fs.series}\` is passed a value read on every bar`, at)
       }
       e = e2
     }
@@ -8861,7 +8925,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  ⛔ KEYED BY THE **DECLARATION**, never by the name. Two `x`es in sibling
    *  blocks of one function are two slots, and giving them one ring would let a
    *  branch that never ran answer for one that did. */
-  const fnHistorySlotFor = (fnIndex, varSlot, back, at) => {
+  const fnHistorySlotFor = (fnIndex, varSlot, back, at, strict = false) => {
     const fn = functions[fnIndex]
     if (!fn.historyLocals) { fn.historyLocals = []; fn.historyByVarSlot = new Map() }
     let h = fn.historyByVarSlot.get(varSlot)
@@ -8872,6 +8936,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     } else if (back > fn.historyLocals[h].depth) {
       fn.historyLocals[h].depth = back
     }
+    // ⭐ A1 — a ring an offset read per bar reads STRICTLY (`boundedSlotOffset`): rides each call
+    // site's history entry to the VM, which stops a negative or fractional read of it by name
+    if (strict) fn.historyLocals[h].strict = true
     if (fn.historyLocals.length > MAX_HISTORY_SLOTS) {
       throw new RuntimeRefusal('runtime:statement',
         `\`${fn.name}\` keeps history for more than ${MAX_HISTORY_SLOTS} values`, at)
@@ -10308,7 +10375,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             if (!objectsInRun) functions[owner].rt5Lex = true
             r4Guard('a call-owned `bar_index[…]`', offAt)
           }
-          return mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
+          const hd = mbbDyn(histDyn(column(columnOf(node.arg, offAt)), lowerExpr(offExpr, scope)))
+          // ⭐ A1 — inside a copy that reads a parameter per bar (`frameSeries`), a column's dynamic read is STRICT
+          // too (`src[n]` of a parameter passed `close`, `high[j]` in a loop to a per-bar bound): the VM stops a
+          // negative or fractional offset by name there instead of answering `na` (`READ_HIST_DYN`, operand -1)
+          return frameSeries && owner !== null ? { ...hd, strict: true } : hd
         }
         let back = Number(node.n)
         // ⭐ L4b — a NAMED constant (`n63 = 63`, `spx[n63]`) is the constant it folds to
@@ -16076,6 +16147,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     const prevOwner = owner
     const prevGuard = guardOuter
     const prevFrameConsts = frameConsts
+    const prevFrameSeries = frameSeries
     // ⭐⭐ W4-T7 — A DEFINITION IS COMPILED FROM INSIDE A ROOT STATEMENT, whose
     // hoist sink is armed. The body must not inherit it (a declare landing in
     // the ROOT list would be shared by every call site); it arms its OWN below.
@@ -16220,6 +16292,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       for (const [p, v] of spec.consts) {
         const s = fnScope.lookup(p)
         if (s !== null) frameConsts.set(s, v)
+      }
+    }
+    // ⭐ A1 — the parameters this call site passes per bar, by SLOT (`seriesSpecialisation`)
+    frameSeries = null
+    if (spec && spec.series && spec.series.size) {
+      frameSeries = new Set()
+      for (const p of spec.series) {
+        const s = fnScope.lookup(p)
+        if (s !== null) frameSeries.add(s)
       }
     }
 
@@ -16422,6 +16503,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       owner = prevOwner
       guardOuter = prevGuard
       frameConsts = prevFrameConsts
+      frameSeries = prevFrameSeries
       stmtHoistSink = prevHoistSink
       condDepth = prevCondDepth
       rt5EveryBar = prevEveryBar
@@ -16543,8 +16625,105 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       if (blockedBy.has(p)) refusal.frameName = blockedBy.get(p)
       return refusal
     }
-    if (!consts.has(culprit)) throw unfixed(held)
+    // ⭐⭐ A1 — A PARAMETER WHOSE ARGUMENT HERE IS READ PER BAR (`seriesParamOf`): the copy reads it
+    // per bar (`frameSeries`), one more parameter each time the copy names one, never past the
+    // parameter count. Anything else keeps the refusal it had.
+    const series = new Set()
+    const seriesOk = (p, err) => seriesParamOf(node, p, args[params.indexOf(p)], quals.get(p), blockedBy.get(p), err, scope, at)
+    if (!consts.has(culprit)) {
+      if (!seriesOk(culprit, held)) throw unfixed(held)
+      series.add(culprit)
+    }
+    for (let round = 0; ; round += 1) {
+      const rec = compileSpecialisation(node, def, consts, series)
+      if (!rec.error) {
+        diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
+        if (series.size) diagnostics.seriesSpecialisedCalls = (diagnostics.seriesSpecialisedCalls || 0) + 1
+        return rec.index
+      }
+      const p2 = rec.error && rec.error.frameName
+      if (round < params.length && typeof p2 === 'string' && params.includes(p2) && !consts.has(p2)
+        && !series.has(p2) && seriesOk(p2, rec.error)) {
+        series.add(p2)
+        continue
+      }
+      throw unfixed(rec.error)
+    }
+  }
+
+  /** ⭐⭐ A1 — MAY THIS CALL'S ARGUMENT FOR PARAMETER `p` BE READ PER BAR in the copy?
+   *
+   *  A history offset known only while the bar runs reads the REAL history on TradingView
+   *  (WS-C M2 / M3 / Q-MBB, captured), so a parameter that sizes one inside a function may take a
+   *  value that changes every bar: `Sma(src, p) => a = cum(src), (a - a[max(p, 0)]) / max(p, 0)`
+   *  called with `k = n - val`, or `calcSlope(source, length)` looping `source[i]` up to a
+   *  `bar_index` difference. The copy compiled for it reads `p` per bar (`frameSeries`).
+   *
+   *  ⛔ NOT when: the refusal is not the per-bar size one (a `switch` arm, conditional history);
+   *  `p` is declared `simple` / `const` (Pine does not compile a per-bar value there); the
+   *  argument reads a parameter of the calling function that its OWN call site may fix (the C35
+   *  chain stays first: a fixed window is exact and cheaper); the live object door (master's
+   *  answer there). ⛔ And an argument built with `/` is REFUSED BY NAME here (DY1): which
+   *  whole number Pine reads for a fractional length or offset, and whether a whole-number
+   *  division keeps its fraction there, is not captured (capture queue Q-DYN-1).
+   *  @returns {boolean} true = read per bar; false = the caller's refusal stands; throws the DY1 refusal */
+  const seriesParamOf = (node, p, arg, q, blocked, err, scope, at) => {
+    if (atObjectDoor || inRequestValue) return false
+    if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset') return false
+    if (err.condParam === true || err.simpleSwitch === true) return false
+    if (q === 'simple' || q === 'const') return false
+    if (typeof blocked === 'string') {
+      const bs = scope ? scope.lookup(blocked) : null
+      const blockedSeries = bs !== null && frameSeries !== null && frameSeries.has(bs)
+      const blockedParam = bs !== null && slots[bs] && slots[bs].owner === owner && Number.isInteger(slots[bs].index)
+      if (blockedParam && !blockedSeries) return false
+    }
+    const div = divisionIn(arg, scope)
+    if (div !== null) {
+      note('runtime:history-dynamic-offset')
+      throw new RuntimeRefusal('runtime:history-dynamic-offset',
+        `\`${p}\` sizes a window in \`${node.name}\`, and this call passes a value built with \`${div}\`: `
+        + 'whether Pine keeps a whole-number division\'s fraction there, and which whole number a fractional '
+        + 'length or offset becomes, is not captured yet (DY1, capture queue Q-DYN-1)', at)
+    }
+    return true
+  }
+
+  /** ⭐ A1 — `/` when an argument is built with a division, read through the names bound once to
+   *  an expression (a frame local, `frameLocalDefs`; a main-body binding, `env`), or `null`. ⛔ Not
+   *  `%`: a remainder of whole numbers is whole in every version (the frozen folds keep refusing both,
+   *  T17), a TradingView capture grades a per-bar `bar_index % 3` offset MATCH on every bar
+   *  (vw-udt-fn-global-history G04), and a fractional remainder (of a price) stops by name in the VM
+   *  (`READ_HIST_SLOT_DYN`, the W4-T8 window). */
+  const divisionIn = (e, scope, d = 0) => {
+    if (!e || typeof e !== 'object' || d > 32) return null
+    if (Array.isArray(e)) {
+      for (const x of e) { const r = divisionIn(x, scope, d + 1); if (r !== null) return r }
+      return null
+    }
+    if (e.type === 'binary' && e.op === '/') return e.op
+    if (e.type === 'name' && typeof e.name === 'string') {
+      const s = scope ? scope.lookup(e.name) : null
+      if (s !== null) {
+        const def = frameLocalDefs.get(s)
+        return def !== undefined ? divisionIn(def.expr, def.scope, d + 1) : null
+      }
+      const b = env.get(e.name)
+      return b && b.kind === 'expr' && b.node ? divisionIn(b.node, root, d + 1) : null
+    }
+    for (const [k, v] of Object.entries(e)) {
+      if (k === 'tok' || !v || typeof v !== 'object') continue
+      const r = divisionIn(v, scope, d + 1)
+      if (r !== null) return r
+    }
+    return null
+  }
+
+  /** ⭐ C35 / A1 — the copy of `def` for this call site's fixed parameters (`consts`) and the ones
+   *  it passes per bar (`series`), compiled once per distinct pair. `{index, error?}`. */
+  const compileSpecialisation = (node, def, consts, series) => {
     const key = `${node.name}|${JSON.stringify([...consts].sort((x, y) => (x[0] < y[0] ? -1 : 1)))}`
+      + (series.size ? `|series:${[...series].sort().join(',')}` : '')
     let rec = specialisations.get(key)
     if (!rec) {
       rec = { index: functions.length }
@@ -16554,7 +16733,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       stmtHoistSink = null
       loopDepth = 0
       try {
-        defineFunction(def.st, def.toks, def.arrow, { consts })
+        defineFunction(def.st, def.toks, def.arrow, series.size ? { consts, series } : { consts })
       } catch (err) {
         rec.error = err
         // ⛔ THE RECORD STAYS, VALID AND UNCALLED. Popping it would hand its index
@@ -16577,9 +16756,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         loopDepth = saved.loopDepth
       }
     }
-    if (rec.error) throw unfixed(rec.error)
-    diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
-    return rec.index
+    return rec
   }
 
   /** ⭐⭐ TC (text-colour unit) — A DEFINITION HELD AT `runtime:colour` BY AN UNTYPED
@@ -17291,7 +17468,10 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       const locals = fn.historyLocals || []
       cs.historyBase = hbase
       for (const h of locals) {
-        history.push({ name: `${fn.name}.${h.name}`, varSlot: h.varSlot, depth: h.depth, site: callSites.indexOf(cs) })
+        history.push({
+          name: `${fn.name}.${h.name}`, varSlot: h.varSlot, depth: h.depth, site: callSites.indexOf(cs),
+          ...(h.strict ? { strict: true } : {}),
+        })
       }
       hbase += locals.length
     }
