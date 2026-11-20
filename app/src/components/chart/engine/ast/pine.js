@@ -25975,8 +25975,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // false and RUNS the else. Canonical mode only: a raw parse node is the
       // runtime lane's to lower (`pineRuntimeFrontend`), and casting a node of
       // the other language here would be the hybrid the paragraph below forbids.
+      // ⭐⭐ OBJECTS C (2026-11-19) — AND AN `else` ARM IS A `not`, READ AS ONE. The cast above reaches a NUMBER
+      // (`implicitBoolCast`: `ph != 0`), never a `bool` that can be `na` (`b := c ? true : na`, a `bool(na)` latch):
+      // its guard stayed the bare series, the arm's `!` of an `na` answered `na`, and the arm NEVER drew, where Pine
+      // reads `not na` as true and runs it (S1 / s18, `naOperandReadAsFalse`). ⚰️ relative-strength-index-divergences-
+      // libertus (RDDT 1D, licence-held capture): `l = … : pivoth ? label.new(…PIVOT…) : pivotl ? label.new(…PIVOT…)
+      // : na`, `pivoth := … ? true : na`: every low PIVOT (9 of TradingView's 48 labels) was missing, and nothing was
+      // counted as dropped. So a negated guard is read at the `not` site, where an operand that can be `na` reads false.
       if (!rawTrees && ast && (g.negate || guards.length > 1)) {
-        ast = makeResolver().condition(ast, 'guard', tok || (node && node.tok))
+        ast = makeResolver().condition(ast, g.negate ? 'not' : 'guard', tok || (node && node.tok))
       }
       // ⚰️⚰️ AND FOR A LONG TIME THE TWO LINES BELOW STILL EMITTED `op`
       // UNCONDITIONALLY, directly under the paragraph that says they must not.
