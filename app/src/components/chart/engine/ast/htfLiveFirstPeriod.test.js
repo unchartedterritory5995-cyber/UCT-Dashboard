@@ -108,13 +108,13 @@ const SHAPES = [
     window: W13, expect: [n, n, n, n, n, n, n, 10, 10, 10, 10, 10, 15] },
   { name: 'live(hlc3[1]) (the served cpr script\'s weekly pivot)', tree: () => live(off(1, hlc3())), window: W13,
     expect: [n, n, n, n, n, n, n, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 17.5 / 3, 10.5] },
-  // ⛔ A RUNNING VALUE: withheld where its argument is (week 0) and NOT after; ema(high, 3) on the weekly bars warms up
-  // through weeks 0-1, so bars 0-6 are blank, and week 2 on is drawn from a seed holding the partial week (item 4's
-  // open question): only the blank / withheld bars are written
-  { name: 'live(ema(high, 3)) (a running value: withheld where high is, blank through its warm-up)',
-    tree: () => live(call('ema', HIGH, num(3))), window: W13, held: [0, 1, 2, 3, 4, 5, 6] },
-  { name: 'ema(live(high), 3) (a running value over the read: withheld where the read is, not after)',
-    tree: () => call('ema', live(), num(3)), window: W13, held: [0, 1, 2] },
+  // ⭐⭐ ITEM 4 (2026-11-19): A RUNNING VALUE is drawn only where two starts agree (`walkTwoStarts`, `htfTwoStarts.test.js`
+  // holds the acceptance measure): its partial-week start and a later one do not agree, bit for bit, before ~50 bars of its
+  // own timeframe, so this window is withheld whole (it drew from week 2 on, from a seed holding the partial week)
+  { name: 'live(ema(high, 3)) (a running value: withheld until its two starts agree, ITEM 4)',
+    tree: () => live(call('ema', HIGH, num(3))), window: W13, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+  { name: 'ema(live(high), 3) (a running value over the read: withheld until its two starts agree, ITEM 4)',
+    tree: () => call('ema', live(), num(3)), window: W13, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
   // the monthly read: September (bars 0-19) is partial, October is bars 20-41 (h of bar 41: 42.5)
   { name: "live(high, 'M') (September, bars 0-19, withheld)", tree: () => live(HIGH, 'M'), window: [17, 23],
     expect: [n, n, n, 42.5, 42.5, 42.5] },

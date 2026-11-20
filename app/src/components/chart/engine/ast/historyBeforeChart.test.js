@@ -19,8 +19,7 @@
 // (`sym`) is never the chart's listing (C26), so a read before ITS first bar is unknown even from the chart's listing.
 // ⭐ FINDING 3 (the same ruling): the Python lane's `sym` arm kept the CHART's `historyFromListing` for the other symbol,
 // where the chart lane clears it; the `sym(…, barindex)` cases below are the twin rail for it.
-// ⛔ A running value carrying such a read (`ema(nz(close[1]), 3)`) is withheld where its argument is and not after: what
-// it carries is item 4's question (two starts), not settled here.
+// ⭐ ITEM 4: a running value carrying such a read (`ema(nz(close[1]), 3)`) is drawn only where two starts agree.
 //
 // THE SHARED FIXTURE `tests/fixtures/ast/history_before_chart.json` is WRITTEN here (HISTORY_BEFORE_CHART_WRITE=1) and READ
 // by `tests/test_pine_history_before_chart.py`: every case's tree, its `opts`, the hand-written expectation (`expect`
@@ -99,9 +98,10 @@ const SHAPES = [
     tree: () => call('nz', live(off(1, CLOSE)), num(0)), window: W8, expect: [n, n, n, 3, 3, 3, 3, 7] },
   { name: 'the cpr weekly colour: door(tf_live(W, hlc3[1])) moved (week 0 the week before, week 1 the partial week)',
     tree: () => moved(door(live(off(1, hlc3())))), window: [0, 12], expect: [n, n, n, n, n, n, n, n, 1, 1, 1, 1] },
-  // ⛔ A RUNNING VALUE: withheld where its argument is (bar 0), not after (item 4's question); its warm-up is blank
-  { name: 'ema(nz(close[1]), 3) (a running value: withheld where its argument is, blank through its warm-up)',
-    tree: () => call('ema', call('nz', off(1, CLOSE), num(0)), num(3)), window: W8, held: [0, 1] },
+  // ⭐⭐ ITEM 4 (2026-11-19): a running value carrying the read is drawn only where two starts agree (`walkTwoStarts`):
+  // started from bar 0's `nz` 0 and from bar 1, its ema of these bars (a straight line) agrees bit for bit from bar 3
+  { name: 'ema(nz(close[1]), 3) (a running value: withheld until its two starts agree, ITEM 4)',
+    tree: () => call('ema', call('nz', off(1, CLOSE), num(0)), num(3)), window: W8, held: [0, 1, 2] },
   // ⭐ ANOTHER SYMBOL: its series is never the chart's listing (C26)
   { name: "nz(sym('SPY', close[1])) (SPY's bar 0 reads before SPY's first bar)", symbols: true,
     tree: () => call('nz', sym('SPY', off(1, CLOSE)), num(0)), window: W8, expect: [n, 1, 2, 3, 4, 5, 6, 7] },
