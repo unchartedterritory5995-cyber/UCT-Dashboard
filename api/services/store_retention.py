@@ -116,6 +116,11 @@ REGISTRY: tuple[Retention, ...] = (
               "headline and every delivery record is kept forever; no delete statement in the module. "
               "Originals are also permanent in the News R2 journal; nightly snapshot via store_backup",
               path="api.services.trade_exchange_news.config:db_path"),
+    Retention("market_tide_history", "market_tide_history.db", NOT_MEMBER,
+              "retained series: one row per finished session and scope (three rows a trading day), "
+              "kept indefinitely because a past session cannot be re-read from the tape; no delete "
+              "statement in the module; nightly snapshot via store_backup",
+              path="api.services.options_analytics.tide_history:_db_path"),
     # ── operational series ──────────────────────────────────────────────────────
     Retention("tweets", "tweets.db", NOT_MEMBER,
               "rolling TWEET_RETENTION_DAYS (default 7) by created_at",

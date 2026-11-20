@@ -110,6 +110,10 @@ STORES: tuple[Store, ...] = (
     # (ledger, seq order, repeat counts). trade_exchange_news/integrity.py alerts when the newest
     # snapshot is stale. Restore: docs/runbooks/trade-exchange-news-retention.md.
     Store("trade_exchange_news", CLASS_RETAINED, "api.services.trade_exchange_news.config", "db_path"),
+    # Market Tide by day (2026-11-20): one row per finished session, written once after the close.
+    # There is no backfill (a past day's whole tape cannot be re-read), so a lost file is lost
+    # history. Absent until the first capture, and reported so.
+    Store("market_tide_history", CLASS_RETAINED, "api.services.options_analytics.tide_history", "_db_path"),
 )
 
 #: Stores another rail already backs up. Never registered above.
