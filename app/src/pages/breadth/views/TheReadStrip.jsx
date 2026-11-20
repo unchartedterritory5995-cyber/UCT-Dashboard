@@ -58,7 +58,7 @@ export default function TheReadStrip({
 
   return (
     <div className={styles.strip} data-testid="the-read">
-      <span className={styles.kicker}>The Read</span>
+      <span className={styles.kicker}>The read</span>
       {read.clauses.length ? (
         <p className={styles.body}>
           {read.clauses.map(c => {

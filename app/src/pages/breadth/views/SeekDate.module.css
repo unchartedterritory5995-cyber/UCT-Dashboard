@@ -3,16 +3,16 @@
 .seek {
   background: none;
   border: none;
-  border-bottom: 1px dashed color-mix(in srgb, var(--ut-gold) 60%, transparent);
+  border-bottom: 1px dashed color-mix(in srgb, var(--text-bright) 35%, transparent);
   padding: 0;
   margin: 0;
   font: inherit;
-  color: var(--ut-gold);
+  color: var(--text-bright);
   cursor: pointer;
 }
 .seek:hover:not(:disabled) {
-  color: var(--ut-gold);
-  border-bottom-color: var(--ut-gold);
+  color: var(--text-bright);
+  border-bottom-color: var(--text-bright);
 }
 .seek:disabled {
   color: inherit;

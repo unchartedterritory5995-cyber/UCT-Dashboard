@@ -1,4 +1,5 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { lazy, memo, Suspense, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { WorkspaceContext } from '../../../charts/WorkspaceContext'
 import StockChart from '../../../../components/StockChart'
 import ErrorBoundary from '../../../../components/ErrorBoundary'
 import CompanyLogo from '../../../../components/CompanyLogo'
@@ -50,6 +51,10 @@ const chartLook = { ...PANE_LOOK, volumeSeparatePane: true }
 const ChartSettingsModal = lazy(() => import('../../../../components/chart/ChartSettingsModal'))
 
 const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false, onPersist = null }) {
+  // The scan day (Mark day / Replay), from the drill's workspace, as the Focus chart reads it.
+  const ws = useContext(WorkspaceContext)
+  const markDay = ws?.markDay || null
+  const replayCutoff = ws?.replayCutoff || null
   // A card borrows the grid's look (the Focus chart's template); an edit on a
   // card (legend chip, right-click) stays on that card for the session, never in
   // global settings. The enlarged chart's edits go to the grid's look instead
@@ -95,6 +100,10 @@ const MiniChart = memo(function MiniChart({ sym, tf, settings, big = false, onPe
         // The Focus chart's look (its template), so a card and the big chart match.
         settingsOverride={(!onPersist && edited) || settings || undefined}
         onSettingsPersist={onSettingsPersist}
+        highlightBarTime={markDay || undefined}
+        highlightColor={markDay ? ws.markDayColor : undefined}
+        replayCutoff={replayCutoff}
+        liveUpdates={replayCutoff ? false : undefined}
       />
     </ErrorBoundary>
   )

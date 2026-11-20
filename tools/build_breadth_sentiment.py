@@ -12,6 +12,8 @@ deep-history merge overlays it onto reconstructed rows.
 Sources (all free / no key), verified 2026-08-31:
   AAII   https://www.aaii.com/files/surveys/sentiment.xls        (weekly, 1987+)
   CBOE   .../equitypcarchive.csv + equitypc.csv (cdn.cboe.com)   (daily, 2003-2019; frozen)
+         + 2019-10-07 onward: the EQUITY ratio from CBOE's per-date endpoint, written into the
+         seed by tools/breadth/refill_equity_putcall.py --csv; a rebuild here KEEPS those rows.
   CNN    raw.githubusercontent.com/whit3rabbit/fear-greed-data   (daily, 2011+)
   NAAIM  https://index.naaim.org/embeddable/table                (weekly, recent ~2.5yr only;
          full 2006+ history needs a free Nasdaq Data Link key — NAAIM/NAAIM)
@@ -118,6 +120,14 @@ def parse_cboe(rows_out: list) -> int:
             except ValueError:
                 continue
             pc[iso] = ratio                          # later file (main) overwrites overlap
+    # The per-date equity rows after the frozen archive's end (refill_equity_putcall.py --csv)
+    # are not re-derivable from the archives: carry them over from the current seed.
+    last = max(pc) if pc else ""
+    if os.path.exists(OUT):
+        with open(OUT, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                if r["key"] == "cboe_putcall" and last < r["date"] < COLLECTOR_FLOOR:
+                    pc[r["date"]] = float(r["value"])
     for iso, v in pc.items():
         rows_out.append((iso, "cboe_putcall", round(v, 2)))
     return len(pc)
