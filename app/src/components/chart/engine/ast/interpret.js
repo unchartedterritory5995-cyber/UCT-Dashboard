@@ -7842,6 +7842,7 @@ function newestClosesEveryMergePeriod(bars, found, opts) {
  *  (the evaluator answers `NaN` for both, which downstream is Pine's `na`; TradingView holds those bars); a running
  *  value's own past (`self[1]`, `accum(…)[1]`) is one too: off the listing the state before the chart is not held
  *  either (a switched recurrence refuses a lag of its own; a bounded one is blank there). And
+ *  `walk.skip`: a node the walk leaves whole, known on every bar. And
  *  the walk's own column reads (`colOf`) share one memo, as a pass does: the same bars, the same options; the caller
  *  may seed it (`walk.memo`: a COPY of the pass's own memo for these bars, whose columns are these reads' own). */
 const WITNESS_NESTED = new Set(['sym', 'tf', 'tf_live', 'tf_merge', 'ltf'])
@@ -7850,6 +7851,8 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
   const n = Array.isArray(bars) ? bars.length : 0
   const opaque = walk.requestSites === true
   const beforeFirst = walk.beforeFirst === true
+  // a node the walk leaves whole (`walk.skip`): known, nothing inside it walked
+  const skip = typeof walk.skip === 'function' ? walk.skip : null
   // ⭐ PERIOD −1 — a history read of this series that can land before its first bar (see `walk.beforeFirst`)
   const readsBeforeFirst = (node) => beforeFirst && Array.isArray(node.args)
     && ((node.type === 'offset' && node.args.length === 1 && Number(node.value) >= 1)
@@ -7859,8 +7862,8 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
     if (!node || typeof node !== 'object') return false
     if (hasSiteMemo.has(node)) return hasSiteMemo.get(node)
     hasSiteMemo.set(node, false)
-    const r = isSite(node) || readsBeforeFirst(node)
-      || (!(opaque && WITNESS_NESTED.has(node.type)) && Array.isArray(node.args) && node.args.some(hasSite))
+    const r = isSite(node) || (!(skip && skip(node)) && (readsBeforeFirst(node)
+      || (!(opaque && WITNESS_NESTED.has(node.type)) && Array.isArray(node.args) && node.args.some(hasSite))))
     hasSiteMemo.set(node, r)
     return r
   }
@@ -8178,7 +8181,11 @@ export const HISTORY_BEFORE_CHART_SENTENCE = 'This indicator reads a bar before 
  *      (the first period's bars before its close) reads a period this series does not hold, off it.
  *  Which ROOT bars read them is engine 56's walk taken exactly (`x[k]` moves them k bars later, `c ? a : b` reads the
  *  arm a known `c` takes, a finite window over its own span, a running value where its argument is: its memory is
- *  item 4's question). The sinks are stripped: `historyBeforeChartMask` names the code. */
+ *  item 4's question). The sinks are stripped: `historyBeforeChartMask` names the code.
+ *  ⛔ A `time(<period>)` anchor (`isPeriodAnchor`, its `key != key[1]` reads the bar before the series) is LEFT WHOLE: on
+ *  a session chart the chart clock answers it from the calendar, bar 0 included (C49, measured), and what it withholds
+ *  — the bar before the series included — is `periodAnchorMask`'s, the one authority over the clock. Walking its
+ *  literal tree withheld `plot(time("W"))` on bar 0 of every daily chart (`noticeScope`, `chartClockNotice`). */
 function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo = new Map()) {
   const n = Array.isArray(bars) ? bars.length : 0
   if (!n) return null
@@ -8201,7 +8208,7 @@ function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo = 
   // ⭐⭐ ITEM 4 — a running value carrying such a read is drawn only where two starts agree (`walkTwoStarts`)
   return walkTwoStarts(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
     (nd) => Float64Array.from(own.get(nd)), HISTORY_BEFORE_CHART_CODE,
-    { exact: true, requestSites: true, beforeFirst: off === true, memo }, own, memo)
+    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor }, own, memo)
 }
 
 /** ⭐⭐ PERIOD −1 — the bars of `bars` on which a read on other bars (`node`, a `SCOPE_TYPES` node) answers from a bar

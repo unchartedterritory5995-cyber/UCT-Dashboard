@@ -2221,6 +2221,242 @@
    "named": false
   },
   {
+   "name": "KEPT time(\"W\") (the chart clock answers it from the calendar, bar 0 included: C49)",
+   "set": "wednesday",
+   "opts": {
+    "barIndexAbsolute": true,
+    "varOriginAbsolute": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "==",
+      "args": [
+       {
+        "type": "series",
+        "name": "periodseconds"
+       },
+       {
+        "type": "num",
+        "value": 86400
+       }
+      ]
+     },
+     {
+      "type": "call",
+      "name": "valuewhenOccurrence",
+      "args": [
+       {
+        "type": "op",
+        "name": "!=",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "call",
+            "name": "floor",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "series",
+                "name": "dayopentime"
+               },
+               {
+                "type": "num",
+                "value": 86400
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "mod",
+            "args": [
+             {
+              "type": "op",
+              "name": "+",
+              "args": [
+               {
+                "type": "series",
+                "name": "dayofweek"
+               },
+               {
+                "type": "num",
+                "value": 5
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 7
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "call",
+              "name": "floor",
+              "args": [
+               {
+                "type": "op",
+                "name": "/",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "dayopentime"
+                 },
+                 {
+                  "type": "num",
+                  "value": 86400
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "mod",
+              "args": [
+               {
+                "type": "op",
+                "name": "+",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "dayofweek"
+                 },
+                 {
+                  "type": "num",
+                  "value": 5
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 7
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "series",
+        "name": "time"
+       },
+       {
+        "type": "num",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "num",
+        "value": 0
+       },
+       {
+        "type": "num",
+        "value": 0
+       }
+      ]
+     }
+    ]
+   },
+   "window": [
+    0,
+    4
+   ],
+   "expect": [
+    1788183000,
+    1788183000,
+    1788183000,
+    1788874200
+   ],
+   "served": [
+    1788183000,
+    1788183000,
+    1788183000,
+    1788874200,
+    1788874200,
+    1788874200,
+    1788874200,
+    1789392600,
+    1789392600,
+    1789392600,
+    1789392600,
+    1789392600,
+    1789997400,
+    1789997400,
+    1789997400,
+    1789997400,
+    1789997400,
+    1790602200,
+    1790602200,
+    1790602200,
+    1790602200,
+    1790602200,
+    1791207000,
+    1791207000,
+    1791207000,
+    1791207000,
+    1791207000,
+    1791811800,
+    1791811800,
+    1791811800,
+    1791811800,
+    1791811800,
+    1792416600,
+    1792416600,
+    1792416600,
+    1792416600,
+    1792416600,
+    1793021400,
+    1793021400,
+    1793021400,
+    1793021400,
+    1793021400,
+    1793629800,
+    1793629800,
+    1793629800,
+    1793629800,
+    1793629800,
+    1794234600,
+    1794234600,
+    1794234600,
+    1794234600,
+    1794234600,
+    1794839400,
+    1794839400
+   ],
+   "named": false
+  },
+  {
    "name": "KEPT nz(sym('SPY', close[1])) with no symbol supplied (the column the caller always got)",
    "set": "wednesday",
    "opts": {
@@ -2898,6 +3134,109 @@
        {
         "type": "series",
         "name": "close"
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   "window": [
+    0,
+    8
+   ],
+   "expect": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "served": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47,
+    48,
+    49,
+    50,
+    51,
+    52,
+    53
+   ],
+   "named": false
+  },
+  {
+   "name": "CONTROL nz(sym('SPY', close[1])) in a formula document (another symbol's `x[1]` means its own series too)",
+   "set": "wednesday",
+   "opts": {},
+   "symbols": true,
+   "tree": {
+    "type": "call",
+    "name": "nz",
+    "args": [
+     {
+      "type": "sym",
+      "value": "SPY",
+      "args": [
+       {
+        "type": "offset",
+        "value": 1,
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
        }
       ]
      },

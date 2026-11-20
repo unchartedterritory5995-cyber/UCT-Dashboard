@@ -76,12 +76,12 @@
   },
   {
    "id": "H9",
-   "mutant": "JS: a formula document's x[1] judged as Pine's",
+   "mutant": "JS: a formula document's x[1] judged as Pine's (another symbol's read in a formula document reaches the walk)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
    "from": "  if (!opts || opts.varOriginAbsolute !== true) return null",
    "to": "  if (!opts) return null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
-   "expectRed": "CONTROL nz(close[1]) in a formula document"
+   "expectRed": "CONTROL nz(sym('SPY', close[1])) in a formula document"
   },
   {
    "id": "H10",
@@ -91,6 +91,15 @@
    "to": "  const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, false,",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
    "expectRed": "nz(tf_live(W, close[1]))"
+  },
+  {
+   "id": "H11",
+   "mutant": "JS: a time(<period>) anchor walked (its key != key[1] taken as a read before the chart: the clock's bar 0 withheld)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor })",
+   "to": "    { exact: true, requestSites: true, beforeFirst: off === true, memo })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "KEPT time(\"W\")"
   },
   {
    "id": "PH1",
@@ -130,12 +139,12 @@
   },
   {
    "id": "PH5",
-   "mutant": "Python: a formula document's x[1] judged as Pine's",
+   "mutant": "Python: a formula document's x[1] judged as Pine's (another symbol's read in a formula document reaches the walk)",
    "file": "api/services/ast_interpret.py",
    "from": "    if o.get(\"varOriginAbsolute\") is not True:",
    "to": "    if False:",
    "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
-   "expectRed": "CONTROL nz(close[1]) in a formula document"
+   "expectRed": "CONTROL nz(sym('SPY', close[1])) in a formula document"
   },
   {
    "id": "PH6",
@@ -163,6 +172,15 @@
    "to": "                          scalars=scalars, opts=dict(opts or {})),",
    "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
    "expectRed": "FINDING-3 sym('SPY', barindex)"
+  },
+  {
+   "id": "PH9",
+   "mutant": "Python: a time(<period>) anchor walked",
+   "file": "api/services/ast_interpret.py",
+   "from": "                         skip=lambda nd: period_anchor_period(nd) is not None)",
+   "to": "                         skip=None)",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "KEPT time(\"W\")"
   }
  ]
 }
