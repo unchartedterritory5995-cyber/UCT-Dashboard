@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "U-BUILTIN (feat/pine-builtins-unit, NUMBER PENDING): the time(\"D\") fix (T-D: the 09:30 session open, withheld by name off the regular session, off a daily chart for another window, and on bars that state no timeframe) and B2-B8 (toradians/todegrees, asin, color(na), ta.kc computed flag, extend.* through a binding, text_format sums, math.e). Every rule, broken once, must turn its rail red.",
+ "about": "U-BUILTIN (feat/pine-builtins-unit, NUMBER PENDING): the time(\"D\") fix (T-D: the 09:30 session open, withheld by name off the regular session, off a daily chart for another window, and on bars that state no timeframe) and B2-B8 (toradians/todegrees, asin, color(na), extend.* through a binding, text_format sums, math.e). Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "T1",
@@ -73,15 +73,6 @@
    "to": "  const isBuiltinNa = (node, scope) => isPlainNa(node, scope)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
    "expectRed": "color(na)"
-  },
-  {
-   "id": "B5",
-   "mutant": "a computed ta.kc flag declines again",
-   "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "      else span = { type: 'ternary', test: flag, yes: nm('ta.tr'), no: bin('-', nm('high'), nm('low')), tok }",
-   "to": "      else return null",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
-   "expectRed": "reference function"
   },
   {
    "id": "B6",

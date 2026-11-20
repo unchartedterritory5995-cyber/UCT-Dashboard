@@ -4267,21 +4267,18 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
       const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
       const nm = (name) => ({ type: 'name', name, tok })
-      // `useTrueRange` defaults to TRUE; Pine types it `simple bool`, and `true`/`false` parse as 1/0.
-      // ⭐⭐ U-BUILTIN B5 (2026-11-19) — A COMPUTED FLAG IS THE REFERENCE'S OWN TERNARY. The v5/v6
-      // reference's "the same on pine" body for `ta.kc` is
-      //     float span = (useTrueRange) ? ta.tr : (high - low)
-      // so a flag that is not a literal (`useTrueRangeS == 'On'`, squeeze-momentum-lazybear-dgt; an
-      // input) is exactly that `?:`, written over the flag the script gave. A `simple bool` is one value
-      // for the whole run, so the per-bar ternary picks the same arm on every bar: it IS the literal
-      // form for whichever value the flag holds, and the two literal spellings keep their own trees
-      // (no hash moves). Both lanes take this builder (`pineTupleBuiltinCallParts`).
+      // `useTrueRange` defaults to TRUE and must be a literal to be read here;
+      // Pine types it `simple bool`, and `true`/`false` parse as 1/0.
+      // ⛔ U-BUILTIN (2026-11-19): a computed flag stays refused. The reference body is
+      // `span = useTrueRange ? ta.tr : high - low`, but the flag must be a `simple bool`, and this builder
+      // cannot tell an input from a per-bar series (`f = close > open`, which TradingView refuses to
+      // compile), so writing the ternary here would accept a script the vendor rejects.
       const flag = a[3]
       const isNum = (n, v) => n && n.type === 'number' && Number(n.value) === v
       let span = null
       if (flag === undefined || isNum(flag, 1)) span = nm('ta.tr')
       else if (isNum(flag, 0)) span = bin('-', nm('high'), nm('low'))
-      else span = { type: 'ternary', test: flag, yes: nm('ta.tr'), no: bin('-', nm('high'), nm('low')), tok }
+      else return null
       const mid = pc('ta.ema', [a[0], a[1]])
       const band = bin('*', a[2], pc('ta.ema', [span, a[1]]))
       return [mid, bin('+', mid, band), bin('-', mid, band)]
@@ -4328,9 +4325,9 @@ function builtinTupleParts(toks, close, names, env, first) {
   const arities = Array.isArray(spec.arity) ? spec.arity : [spec.arity]
   if (!arities.includes(raw.length) || names.length !== spec.parts) return null
   const at = locate(first)
-  // ⛔ AND A BUILDER MAY DECLINE, and its `null` falls through to the ordinary refusal rather than
-  // being guessed at. (`ta.kc` no longer declines a computed flag: U-BUILTIN B5 writes the
-  // reference's own `useTrueRange ? ta.tr : high - low` over it.)
+  // ⛔ AND A BUILDER MAY DECLINE. `ta.kc`'s flag has to be a literal to be read
+  // statically; anything else falls through to the ordinary refusal rather than
+  // being guessed at.
   const built = spec.build(raw.map((a) => a.value), first)
   if (!built) return null
   return built.map((node) => exprBinding(node, new Map(env), at))

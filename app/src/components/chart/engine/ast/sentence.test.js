@@ -1389,7 +1389,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ 141 -> 148 (2026-11-17): the regular session, two clock leaves (`regularhours`, `regularfirst`) and five
     // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
-    expect(subjects.length).toBe(148)
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
+    expect(subjects.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2753,6 +2754,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'pine_percentile_linear_interpolation_between_two_ranks',
       // ⭐ PHASE 1 (2026-10-30) -- one corpus case per new function.
       'pine_acos_of_the_body_share_of_the_range',
+      // U-BUILTIN B3 (2026-11-19) -- `asin`, acos's twin.
+      'pine_asin_of_the_body_share_of_the_range',
       'pine_alma_9_085_6',
       'pine_percentile_nearest_rank_of_the_range',
       // (2026-11-14, engine 56 S1) the v4 / v5 tie mark is its operand
@@ -2856,7 +2859,8 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ + 139 -> + 140 (2026-11-14, engine 56 A3): `boolNaWithheld`.
     // ⭐ + 140 -> + 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
-    expect(sentences.length).toBe(CORPUS.cases.length + 148)
+    // U-BUILTIN B3 (2026-11-19) + 148 -> + 149: `asin`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {

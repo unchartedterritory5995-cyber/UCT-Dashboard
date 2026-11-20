@@ -13,8 +13,8 @@
 //   B3   `math.asin` (v4 bare `asin`) — REFERENCE: "the arcsine ... in the range [-Pi/2, Pi/2], or na if y is
 //        outside of range [-1, 1]", as `Math.asin`, exactly (no epsilon). The last bit owes Q-BI-ASIN.
 //   B4   `color(na)` — REFERENCE: "Casts na to color": the cast IS `na` (the program is the same program).
-//   B5   `ta.kc` with a computed flag — REFERENCE: its own "the same on pine" body,
-//        `span = (useTrueRange) ? ta.tr : (high - low)`.
+//   (B5, `ta.kc` with a computed flag, is withdrawn: its flag must be a `simple bool` and the builder cannot
+//   tell an input from a series. It stays refused by name.)
 //   B6   `extend.*` bound to a name — REFERENCE: a named constant; the binding is the inline ternary.
 //   B7   `text.format_bold + text.format_italic` — REFERENCE: `text_format` adds; one canonical value, the
 //        host object pass's own (`canonicalTextFormat`).
@@ -265,40 +265,6 @@ describe('B4 — color(na) is na ("Casts na to color"): the same program whereve
   for (const [what, [cast, plain, opts]] of Object.entries(PAIRS)) {
     it(what, () => { expect(programOf(cast, opts)).toBe(programOf(plain, opts)) })
   }
-})
-
-describe('B5 — ta.kc with a computed flag is the reference body: span = useTrueRange ? ta.tr : high - low', () => {
-  const BARS = Array.from({ length: 80 }, (_, i) => {
-    const c = 100 + Math.sin(i / 4) * 5 + i * 0.1
-    return { t: 1700000000 + i * 86400, o: c - 0.5, h: c + 1 + (i % 3), l: c - 1 - (i % 2), c, v: 1000 + i }
-  })
-  const series = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((x) => x[k])))
-  const run = (body) => {
-    const b = buildRuntimeIr(V(6, body), { bars: BARS, inputs: {} })
-    expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
-    const prog = lowerIrProgram(b.ir, { historyFromListing: true })
-    return execute(prog, { bars: BARS.length, series, columns: prog.columns, confirmed: true }).outputs.map((o) => Array.from(o))
-  }
-  const REF = ['f_kc(src, length, mult, useTrueRange) =>', '    float basis = ta.ema(src, length)',
-    '    float span = (useTrueRange) ? ta.tr : (high - low)', '    float rangeEma = ta.ema(span, length)',
-    '    [basis, basis + rangeEma * mult, basis - rangeEma * mult]'].join(NL)
-  for (const on of ['On', 'Off']) {
-    it(`the flag "${on}": the three bands are the reference function's, column for column`, () => {
-      const src = (call) => [`s = input.string("${on}", "tr", options = ["On", "Off"])`, 'a = array.new_float(1, 0.0)',
-        'array.set(a, 0, close)', 'x = array.get(a, 0)', call, 'plot(m)', 'plot(u)', 'plot(l)'].join(NL)
-      const ours = run(src('[m, u, l] = ta.kc(x, 10, 2, s == "On")'))
-      const ref = run([REF, src('[m, u, l] = f_kc(x, 10, 2, s == "On")')].join(NL))
-      expect(ours).toEqual(ref)
-      expect(ours[1].filter(Number.isFinite).length).toBeGreaterThan(60)
-    })
-  }
-  it('host lane: an input flag at its default is the literal form at that value', () => {
-    const f = (body) => { const t = translatePine(V(6, body), { strict: true }); expect(t.ok).toBe(true); return t.outputs.map((o) => o.formula) }
-    expect(f('b = input.bool(false, "tr")\n[m, u, l] = ta.kc(close, 20, 2, b)\nplot(u)'))
-      .toEqual(f('[m, u, l] = ta.kc(close, 20, 2, false)\nplot(u)'))
-    expect(f('s = input.string("On", "tr", options = ["On", "Off"])\n[m, u, l] = ta.kc(close, 20, 2, s == "On")\nplot(u)'))
-      .toEqual(f('[m, u, l] = ta.kc(close, 20, 2, true)\nplot(u)'))
-  })
 })
 
 describe('B6 — extend.* bound to a name is the inline choice (session-tpo-profile)', () => {
