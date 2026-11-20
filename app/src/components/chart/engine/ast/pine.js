@@ -7399,6 +7399,13 @@ export function constantTestValue(tree) {
  *  `Resolver.objectPass`. */
 const TF_READ_HOPS = 16
 
+/** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
+ *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops, and a call to a script function that takes no
+ *  argument. Handed to `ownTimeframeOf` / `timeframeLiteralOf` by the request readers alone
+ *  (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
+ *  the plot lane) keeps its own reach. */
+const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })
+
 /* ─── ⭐⭐ ENGINE 56 (A3) — A PINE v1-v5 `bool` CAN BE `na` ──────────────────────────────────
  *
  *  WITNESSED (S1 evidence session, 2026-11-14, `tools/visual_conformance/probes/vw-cs1-*.pine`,
@@ -8613,6 +8620,16 @@ export class Resolver {
      *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
      *  is an owner-ruled act. The object pass mints no parameters. */
     this.objectPass = opts.objectPass === true
+    /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — THE RUNTIME LANE'S READING OF A REQUEST'S TIMEFRAME. Set by
+     *  `pineRuntimeFrontend.js` on its own resolvers (`requestTimeframeReader: 'runtime'`) and by nothing else. The
+     *  timeframe argument of a `request.security` (and only that argument: `requestTimeframeReach`) is followed
+     *  through `TF_READ_HOPS` names and arms, the object pass's reach (C10), and through a call to a script function
+     *  that takes no argument, whose result is the literal its body settles before the first bar (an `if` chain
+     *  over the chart's own timeframe or an input's default: the same folds a written-out ternary already takes).
+     *  ⛔ CONFINED, and the confinement is the point: the host translator never sets it, so no plot-lane
+     *  translation moves and no parameter id is minted in a new order (the C10 reason the plot lane keeps 4;
+     *  `requestTimeframeReader.test.js` holds the plot lane byte-identical over the committed corpus). */
+    this.runtimeRequestTimeframes = opts.requestTimeframeReader === 'runtime'
     /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
      *  `pineRuntimeFrontend.js` when it builds a drawing script's values
      *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
@@ -13945,33 +13962,69 @@ export class Resolver {
    *  identifier in v2/v3 Pine and a script may reassign it; `period = "60"` means
    *  hourly, and reading it as the chart's own timeframe answers off whatever
    *  bars happen to be loaded. */
-  ownTimeframeOf(node, depth = 0) {
-    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
+  ownTimeframeOf(node, depth = 0, reach = undefined) {
+    if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
-      return taken ? this.ownTimeframeOf(taken, depth + 1) : null
+      return taken ? this.ownTimeframeOf(taken, depth + 1, reach) : null
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
       if (bound) {
-        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1) : null
+        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1, reach) : null
       }
       if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) return node.name
     }
+    if (reach && reach.calls && node.type === 'call') {
+      return this.throughSettledCall(node, (n) => this.ownTimeframeOf(n, depth + 1, reach))
+    }
     return null
   }
 
-  timeframeLiteralOf(node, depth = 0) {
-    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
+  /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — the reach a REQUEST's timeframe is read with: `REQUEST_TF_REACH` on
+   *  the runtime lane's resolvers (`runtimeRequestTimeframes`), else none (each reader's own). */
+  requestTimeframeReach() {
+    return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined
+  }
+
+  /** ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — `fn(result)` for a call to a SCRIPT function that takes no
+   *  argument (`getAlignedTimeframe()`, `timeframe_func()`), where `result` is the node its body leaves as its value,
+   *  read in the body's own scope; null for anything else (a built-in, a function with parameters, an overload, a
+   *  body that left no expression).
+   *  ⭐ Pine returns a function's LAST value, and the body fold (`foldStatements`, `declarationIsValue`) is what
+   *  already turns `x = 'D'` + an `if` chain of `x := …` into that value, as it does for any helper the plot lane
+   *  inlines. Nothing is evaluated here that a written-out ternary would not fold: the reader handed `result`
+   *  (`timeframeLiteralOf` / `ownTimeframeOf`) asks `constantBranchOf` of each arm, so a test that varies per bar
+   *  still answers null. */
+  throughSettledCall(node, fn) {
+    if (!node || node.type !== 'call' || (node.args || []).some(Boolean)) return null
+    const b = this.env && this.env.get(node.name)
+    if (!b || b.kind !== 'fn' || !Array.isArray(b.params) || b.params.length !== 0) return null
+    const v = b.value
+    if (!v || v.kind !== 'expr' || !v.node) return null
+    if (this.frames.length >= MAX_CALL_DEPTH || this.stack.has(b)) return null
+    const callerEnv = this.env
+    this.stack.add(b)
+    this.frames.push([])
+    this.env = v.env || callerEnv
+    try { return fn(v.node) } finally { this.frames.pop(); this.env = callerEnv; this.stack.delete(b) }
+  }
+
+  timeframeLiteralOf(node, depth = 0, reach = undefined) {
+    if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'string') return node.value
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
-      return taken ? this.timeframeLiteralOf(taken, depth + 1) : null
+      return taken ? this.timeframeLiteralOf(taken, depth + 1, reach) : null
+    }
+    if (reach && reach.calls && node.type === 'call') {
+      const settled = this.throughSettledCall(node, (n) => this.timeframeLiteralOf(n, depth + 1, reach))
+      if (settled !== null) return settled
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
-      if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1)
+      if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1, reach)
       // ⭐ C33 — A PARAMETER IS ITS CALLER'S ARGUMENT. `data_adr(string tf) =>
       // request.security(…, timeframe = tf, …)` called as `data_adr(i_adr_1_tf)`
       // (average-day-range-adr-pivots) asks for the timeframe the call site
@@ -13985,7 +14038,7 @@ export class Resolver {
       // the corpus with this rule on. The request is the one the member gets by
       // writing the caller's argument at the call (`c33ObjectReads`, H5 block).
       if (bound && bound.kind === 'param') {
-        return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1))
+        return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1, reach))
       }
       return null
     }
@@ -13999,7 +14052,7 @@ export class Resolver {
       for (let i = 0; i < args.length; i += 1) {
         const a = args[i]
         if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.timeframeLiteralOf(a.value, depth + 1)
+          const folded = this.timeframeLiteralOf(a.value, depth + 1, reach)
           if (folded !== null && node.tok) {
             this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
               call: node.name,
@@ -14140,8 +14193,9 @@ export class Resolver {
   /** P0 0H — does this timeframe argument name bars OTHER than the chart's own?
    *  `timeframe.period`, `''` and a literal naming the base are the identity. */
   requestIsOtherPeriod(tfNode) {
-    if (this.ownTimeframeOf(tfNode) !== null) return false
-    const raw = this.timeframeLiteralOf(tfNode)
+    const reach = this.requestTimeframeReach()
+    if (this.ownTimeframeOf(tfNode, 0, reach) !== null) return false
+    const raw = this.timeframeLiteralOf(tfNode, 0, reach)
     if (raw === null) return true
     if (String(raw).trim() === '') return false
     const code = PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
@@ -14196,8 +14250,9 @@ export class Resolver {
     //    the bars it holds. `timeframe.period` is Pine's own name for "the chart's
     //    own timeframe", which is always servable because it is the base itself.
     const tfNode = positional[1]
-    if (this.ownTimeframeOf(tfNode) === null) {
-      const raw = this.timeframeLiteralOf(tfNode)
+    const reach = this.requestTimeframeReach()
+    if (this.ownTimeframeOf(tfNode, 0, reach) === null) {
+      const raw = this.timeframeLiteralOf(tfNode, 0, reach)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
       // ⭐ C41 — a symbol built by `ticker.modify(…)` (or any other `ticker.*`
       // modifier) never reached `requestTargetOf`'s timeframe read, so below the
@@ -14858,6 +14913,8 @@ export class Resolver {
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
+    // ⭐⭐ (request unit, TF-FOLD) — the runtime lane's reach (`requestTimeframeReach`); none elsewhere
+    const reach = this.requestTimeframeReach()
     // ⭐ C28b — AN EMPTY TIMEFRAME IS THE CHART'S OWN. Pine's reference for
     // `request.security`: "To use the chart's main timeframe, use an empty
     // string or the `timeframe.period` variable." The `''` spelling (a literal,
@@ -14865,14 +14922,14 @@ export class Resolver {
     // the same request `timeframe.period` makes. ⚰️ It fell through to
     // `pine:request`, and a colour written through it drew in the pane's gold
     // where TradingView draws the script's own (donchian-channels, RDDT 1D).
-    const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
-      || String(this.timeframeLiteralOf(tfNode) ?? '?').trim() === ''
+    const sameTimeframe = this.ownTimeframeOf(tfNode, 0, reach) !== null
+      || String(this.timeframeLiteralOf(tfNode, 0, reach) ?? '?').trim() === ''
     let code = null
     // C49 — the base period a LITERAL timeframe folded to the identity on (null for
     // `timeframe.period` / `''`, which are the chart's own on every chart)
     let folded = null
     if (!sameTimeframe) {
-      const raw = this.timeframeLiteralOf(tfNode)
+      const raw = this.timeframeLiteralOf(tfNode, 0, reach)
       // ⭐ TWO QUESTIONS, ASKED SEPARATELY: what does Pine call this, and can this
       // engine serve it? The second belongs to `TF_RESAMPLABLE` and is asked, not
       // copied — so a timeframe the engine learns to resample reaches this door on
