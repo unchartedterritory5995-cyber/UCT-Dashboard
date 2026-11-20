@@ -1,0 +1,11 @@
+{
+  "about": "ONE answer for both languages: the mint-stamp key of each withhold scope. The browser door stamps heldWithholds.js::heldWithholdKey(w) on a minted document (meta.heldWithholds); the server reads it with api/services/held_withholds.py::withhold_key(w). tests/test_pine_held_withholds_saved_copies.py and app/src/components/chart/engine/heldWithholds.savedCopies.test.js both assert every row.",
+  "cases": [
+    {"withhold": {"door": "runtime", "scope": "output", "title": "Shapes"}, "key": "runtime:output:Shapes"},
+    {"withhold": {"door": "runtime", "scope": "outputColour", "title": "ATR Trailing Stop"}, "key": "runtime:outputColour:ATR Trailing Stop"},
+    {"withhold": {"door": "runtime", "scope": "paint", "title": "Background Color", "kind": "bgcolor", "line": 172}, "key": "runtime:paint:bgcolor@172"},
+    {"withhold": {"door": "runtime", "scope": "objectFamily", "family": "label"}, "key": "runtime:objectFamily:label"},
+    {"withhold": {"door": "host", "scope": "objectFamily", "family": "label"}, "key": "host:objectFamily:label"},
+    {"withhold": {"door": "host", "scope": "output", "title": "Mean"}, "key": "host:output:Mean"}
+  ]
+}

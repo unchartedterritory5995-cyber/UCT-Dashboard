@@ -419,6 +419,44 @@ def test_the_door_reads_at_least_one_drawing_request_as_a_built_ins_name(conv):
     assert conv.door_answers_by_name("draw vwap bands", CHART, frozenset()) is False
 
 
+def _held_by_kind():
+    """The names UCT holds back, by what the door does with them: refused by name, or written as a script."""
+    held = ni.held_names()
+    plain = [e for e in held if ni.built_in(e) is None and not ni.needs_script(e)]
+    scripted = [e for e in held if ni.needs_script(e)]
+    return plain, scripted
+
+
+def test_a_drawing_word_does_not_take_a_held_name_past_its_refusal(conv, clean_env, model, monkeypatch):
+    """A held name has no checked formula: it is refused BY NAME so that nothing approximates it. With the script
+    lane open for every account, a drawing word must not turn that refusal into a script written from memory."""
+    from api.services import script_conversation as sc
+    monkeypatch.setenv(sc.SCRIPT_ENABLED_ENV, "all")
+    plain, scripted = _held_by_kind()
+    assert plain, "no held name is refused by name any more: this test has nothing to hold"
+    for e in plain:
+        for words in (f"draw {e['name']} with a label on the last bar", f"{e['name']} as a table",
+                      f"plot the {e['name']} and draw a line at zero"):
+            assert sc.wants_script(words), words
+            assert conv.door_answers_by_name(words, CHART) is True, words
+            client = model([])
+            r = conv.converse(words, user_id="u1", view=empty_view(0), chart=CHART, accepts=OFFERS + ["script"])
+            assert client.calls == [], f"an assistant call was made for a held name: {words!r}"
+            assert r["ok"] is False and "script" not in r, words
+            assert r["reason"] == ni.way_forward(e), words
+        # CONTROL: the same refusal with no drawing word (the verb changes nothing)
+        client = model([])
+        plainly = conv.converse(f"show {e['name']}", user_id="u1", view=empty_view(0), chart=CHART,
+                                accepts=OFFERS + ["script"])
+        assert client.calls == [] and plainly["ok"] is False and plainly["reason"] == ni.way_forward(e)
+    # CONTROL: a held name whose published form only a script holds is NOT the door's: it is written as a script
+    assert scripted, "no held name needs a script any more: this control has nothing to hold"
+    for e in scripted:
+        assert conv.door_answers_by_name(f"draw {e['name']}", CHART) is False, e["name"]
+    # CONTROL: a drawing request that names nothing held is the script lane's, as before
+    assert conv.door_answers_by_name("draw a label on the last bar with the day's range", CHART) is False
+
+
 @pytest.mark.parametrize("words", ["vwap bands \uff12", "vwap bands \u0662", "vwap with \uff11 and \uff12 standard deviation bands"])
 def test_digits_the_reader_cannot_parse_are_not_a_vwap_bands_request(conv, words):
     """Full-width and Arabic-Indic digits matched the pattern and then could not be parsed: the door raised."""

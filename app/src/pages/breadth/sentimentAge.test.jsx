@@ -7,7 +7,7 @@
  * row collected itself, render BARE).
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 import { aaiiAge, dailyCarryAge, makeSeriesAge, AAII_KEYS, DAILY_CARRY_KEYS, asofKey } from './sentimentAge'
@@ -109,6 +109,9 @@ beforeEach(() => {
   localStorage.clear()
   localStorage.setItem('uct.breadth.dates.v1', JSON.stringify({ dates: ROWS.map(r => r.date) }))
   localStorage.setItem('uct.breadth.recent.v1', JSON.stringify(ROWS))
+  // The sentiment columns are off the core Default (2026-11-19); a member preset
+  // showing every metric puts them on screen, as the sheet showed them before.
+  localStorage.setItem('uct.breadth.customize.v1', JSON.stringify({ activePreset: 'All', presets: { All: { hidden: [] } } }))
 })
 
 const mount = () => render(<MemoryRouter initialEntries={['/breadth']}><Breadth /></MemoryRouter>)
@@ -119,28 +122,82 @@ const cellFor = (container, value) => {
   return hits[0]
 }
 
-describe('the as-of renders at the value', () => {
-  it('a 9-day-old AAII survey says so beside the number', () => {
+// Owner 2026-11-19: a carried value is still MARKED as carried — muted, with its
+// as-of in the tooltip and the accessible name — but no longer as inline text.
+describe('a carried value is marked carried, in the tooltip and aria', () => {
+  it('a 9-day-old AAII survey: the number alone, its as-of in title + aria-label', () => {
     const td = cellFor(mount().container, '33.3')
-    expect(td.textContent).toBe(`33.3weekly · as of ${shift(ROWS[1].date, -9)}`)
+    const asOf = shift(ROWS[1].date, -9)
+    expect(td.textContent).toBe('33.3')
+    fireEvent.pointerOver(td)
+    expect(screen.getByTestId('breadth-age-tip').textContent).toContain(`Weekly survey · as of ${asOf}`)
+    expect(td.getAttribute('title')).toBeNull()
+    expect(td.getAttribute('aria-label')).toBe(`AAII Bulls 33.3, weekly survey · as of ${asOf}`)
+    expect(td.className).toMatch(/carriedValue/)
   })
 
   it('a carried CBOE print says which session it came from', () => {
     const td = cellFor(mount().container, '1.17')
-    expect(td.textContent).toBe(`1.17daily · as of ${shift(ROWS[1].date, -3)}`)
-    expect(td.getAttribute('title')).toBe(`CBOE P/C: daily print dated ${shift(ROWS[1].date, -3)}`)
+    const asOf = shift(ROWS[1].date, -3)
+    expect(td.textContent).toBe('1.17')
+    fireEvent.pointerOver(td)
+    expect(screen.getByTestId('breadth-age-tip').textContent).toContain(`Daily print · as of ${asOf}`)
+    expect(td.getAttribute('title')).toBeNull()
+    expect(td.getAttribute('aria-label')).toBe(`CBOE P/C 1.17, daily print · as of ${asOf}`)
   })
 
-  it('CONTROL: same-session AAII and the row\'s own daily prints render BARE', () => {
+  it("CONTROL: same-session AAII and the row's own daily prints render BARE", () => {
     const { container } = mount()
     expect(cellFor(container, '41.2').textContent).toBe('41.2')
     expect(cellFor(container, '0.83').textContent).toBe('0.83')
     expect(cellFor(container, '47').textContent).toBe('47')
   })
 
-  it('exactly the two stale values are labelled', () => {
+  it('exactly the two stale values are marked carried (and nothing else is muted)', () => {
     const { container } = mount()
     const tags = Array.from(container.querySelectorAll('[data-value-age]')).map(e => e.getAttribute('data-value-age'))
     expect(tags.sort()).toEqual(['aaii_bulls', 'cboe_putcall'])
+    expect(container.querySelectorAll('[class*="carriedValue"]')).toHaveLength(2)
+    expect(container.querySelector('[data-testid="freshness-age"]')).toBeNull()
+  })
+})
+
+// Round 9 (2026-11-19): a column header opens the CHART's Signature menu
+// (ContextPopover `signature`): the column's name as a section label, its
+// description, then the actions; Esc closes it and focus returns to the header.
+describe('the column header menu', () => {
+  it('shows the name, the description and the actions, and Esc closes it', () => {
+    mount()
+    const btn = screen.getByRole('button', { name: 'CBOE P/C column options' })
+    fireEvent.click(btn)
+    const menu = screen.getByRole('menu')
+    expect(menu.textContent).toMatch(/^CBOE equity put\/call/)
+    expect(menu.textContent).toMatch(/Put volume divided by call volume/)
+    expect(Array.from(menu.querySelectorAll('[role="menuitem"]')).map(b => b.textContent))
+      .toEqual(['Move left', 'Move right', 'Hide column'])
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).toBeNull()
+  })
+
+  it('headers carry no native title (the card explains them)', () => {
+    const { container } = mount()
+    expect(container.querySelectorAll('thead th[title], thead button[title]')).toHaveLength(0)
+  })
+})
+
+// Owner 2026-11-19 (round 10): the click menu is a header's only popup — no hover card.
+describe('a column header has one popup', () => {
+  it('hovering a header opens nothing; its explanation is a hidden description', () => {
+    mount()
+    const btn = screen.getByRole('button', { name: 'CBOE P/C column options' })
+    const th = btn.closest('th')
+    fireEvent.pointerOver(th)
+    fireEvent.pointerEnter(th)
+    fireEvent.mouseOver(btn)
+    fireEvent.focus(btn)
+    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('tooltip')).toBeNull()
+    const desc = document.getElementById(btn.getAttribute('aria-describedby'))
+    expect(desc.textContent).toMatch(/^CBOE equity put\/call\. Put volume divided by call volume on CBOE stock options/)
   })
 })

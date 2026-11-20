@@ -16,6 +16,11 @@ import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteBacklinksSection from '../components/notebook/NoteBacklinksSection'
 import NoteGraphView from '../components/notebook/NoteGraphView'
 import AccountSelector from '../components/accounts/AccountSelector'
+import { preloadLazyChunks, NOTE_EDITOR_CHUNKS } from '../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTE_EDITOR_CHUNKS)
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {

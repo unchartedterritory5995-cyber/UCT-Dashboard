@@ -863,6 +863,15 @@ CONVERSE_SYSTEM_PROMPT = (
     "the highest volume of the last 10 days is volume > offset 1 of highest(volume, 10)). A "
     "window that includes this bar compares it with itself. Only \"is AT an N-bar high or low\" "
     "includes this bar (close >= highest(close, N)).\n"
+    "  THE EXTREME, THE SUM OR THE AVERAGE OF ONLY SOME BARS IN A WINDOW (\"the highest down-day volume of "
+    "the last 10 days\", \"the lowest close among the up days of the last 20\"): the window is still the "
+    "last N BARS. lowest, highest, an average and a sum SKIP a bar that has no value and look further back "
+    "for one, so a bar given no value (0 / 0, or any division by zero: there is no infinity here) turns "
+    "the window into the last N bars THAT QUALIFY, which is a different number. Give the bars to leave out "
+    "a number that cannot win or count: 0 inside highest and inside a sum, a number far above any real one "
+    "inside lowest (lowest(close > offset 1 of close ? volume : 1000000000000000, 10)). Only when the member "
+    "asks for the last N bars that qualify (\"the average volume of the last 10 up days\") is no value "
+    "right, written 0 / 0, and then say in `assumptions` that the window reaches back past other bars.\n"
     "  A RUNNING VALUE reads its own previous value: an adaptive average, a stop that ratchets, a "
     "streak or a count. It is accum(seed, update, warmup): it starts at `seed` and becomes "
     "`update` on each of the last `warmup` bars, and inside `update` the series named `self` is "
@@ -2333,6 +2342,90 @@ def _refuse_negative_bars_back(trees: List[Tuple[str, Any]]) -> None:
                         "with numbers of 0 or more: \"3 to 11 bars ago\" is `>= 3` and `<= 11`.")
 
 
+def _is_literal_number(node: Any) -> Optional[float]:
+    """A literal number's value (a plain one, or one behind a unary minus), else None."""
+    if not isinstance(node, Mapping):
+        return None
+    if node.get("type") == "num" and isinstance(node.get("value"), (int, float)) and not isinstance(node.get("value"), bool):
+        return float(node["value"])
+    if node.get("type") == "op" and node.get("name") == "u-" and isinstance(node.get("args"), list) and len(node["args"]) == 1:
+        inner = _is_literal_number(node["args"][0])
+        return None if inner is None else -inner
+    return None
+
+
+def _infinity_by_division(node: Any) -> bool:
+    """A NONZERO literal divided by a literal zero: written to mean "infinity". (``0 / 0`` is this engine's
+    own "no value" and is not this.)"""
+    if not (isinstance(node, Mapping) and node.get("type") == "op" and node.get("name") == "/"
+            and isinstance(node.get("args"), list) and len(node["args"]) == 2):
+        return False
+    top, bottom = _is_literal_number(node["args"][0]), _is_literal_number(node["args"][1])
+    return bottom == 0 and top is not None and top != 0
+
+
+def _windows_that_look_back() -> frozenset:
+    """The window functions that skip a bar with no value and read further back for one (the engine's own
+    table, `ast_interpret.WINDOW_NA`: the SKIP and FINITE members)."""
+    from api.services import ast_interpret
+    return frozenset(name for name, policy in ast_interpret.WINDOW_NA.items()
+                     if policy in (ast_interpret.NA_SKIP, ast_interpret.NA_FINITE))
+
+
+def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- "INFINITY" INSIDE A WINDOW IS NO VALUE, AND THE WINDOW THEN READS FURTHER BACK.
+
+    Found by a value check. For the lowest of only SOME bars in a window, a formula of the shape
+    ``lowest(close > offset 1 of close ? volume : 1 / 0, 10)`` gives every other bar "infinity", so that
+    it could never be the lowest. Here a division by zero is NO VALUE, and `lowest` skips a bar with no
+    value and looks further back for one (the engine's measured behaviour, and TradingView's). So that
+    formula reads the lowest volume of the last 10 bars THAT QUALIFY, however far back they are: a
+    different number from the one asked for wherever the qualifying bars are sparse, under a reply that
+    described a 10-bar window.
+
+    Refused: a nonzero number divided by a literal zero anywhere in the series a look-back window reads
+    (and not inside a window of its own, which answers for itself). ``0 / 0`` is not refused: it is the
+    engine's own "no value", and "the last N bars that qualify" is a real request; the instruction above
+    says when each is right.
+    """
+    windows = _windows_that_look_back()
+
+    def reads_infinity(node: Any) -> bool:
+        stack = [node]
+        while stack:
+            n = stack.pop()
+            if not isinstance(n, Mapping):
+                if isinstance(n, list):
+                    stack.extend(n)
+                continue
+            if _infinity_by_division(n):
+                return True
+            if n.get("type") == "call" and n.get("name") in windows:
+                continue                       # an inner window is judged on its own visit
+            args = n.get("args")
+            if isinstance(args, list):
+                stack.extend(args)
+        return False
+
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") not in windows:
+                continue
+            args = node.get("args")
+            if isinstance(args, list) and args and reads_infinity(args[0]):
+                name = node["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{name}` reads a number divided by zero for the bars it should leave out. "
+                    "There is no infinity here: a division by zero is NO VALUE, and "
+                    f"`{name}` skips a bar with no value and looks further BACK for one, so this reads the "
+                    "last N bars that qualify, not the qualifying bars among the last N. For the bars among "
+                    "the last N, give the others a number that cannot win or count: 0 inside highest or a "
+                    "sum, a number far above any real one inside lowest (1000000000000000). If the last N "
+                    "qualifying bars is what the member asked for, write the no value as 0 / 0 and say in "
+                    "`assumptions` that the window reaches back past other bars.")
+
+
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
     """BY NAME, before the schema (whose ``series`` enum no longer offers them):
     defence in depth for a model that emits a nightly scalar anyway."""
@@ -3623,6 +3716,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
         raise _Refused("model:no-tool", "no patch in the answer")
     _refuse_unsupported_nodes(_trees_of(envelope))
     _refuse_negative_bars_back(_trees_of(envelope))
+    _refuse_infinity_in_a_window(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
@@ -4721,16 +4815,30 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
 
 
 def door_answers_by_name(message: Any, chart: Any, can_add: Any = frozenset()) -> bool:
-    """Would the door answer this request itself, with one of UCT's own BUILT-INS and no assistant call? A request
-    that is only a built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with
-    its bands" for a browser that can add Session VWAP. Pure: no model, nothing stored. Never raises (False)."""
+    """Would the door answer this request itself, BY NAME and with no assistant call? A request that is only a
+    built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with its bands" for a
+    browser that can add Session VWAP, or one that names an indicator UCT HOLDS BACK (no checked formula yet).
+    Pure: no model, nothing stored. Never raises (False).
+
+    ⛔ A HELD NAME IS REFUSED BY NAME WHATEVER VERB ASKS FOR IT (measured 2026-11-20). "show TTM Squeeze" was
+    refused by name with the way forward, and "draw TTM Squeeze with a label" went to the script lane, where the
+    assistant would have written a TTM Squeeze from memory: the one thing a held name exists to prevent ("nothing
+    it could approximate from", `named_indicators.held_names`). The door's answer cannot depend on the verb.
+    ⭐ Two cases still go on, as they always did: a held name whose published form only a script holds
+    (`needs_script`) is written as a script, and a member who describes the rule in their own words gets exactly
+    that built (`understand_turn` refuses neither)."""
     try:
         if vwap_bands_ask(message) is not None:
             pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
             if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in (can_add or ()):
                 return True
         understood = understand_turn(message, chart)
-        return understood.get("refusal") is not None and understood.get("built_in") is not None
+        if understood.get("refusal") is None:
+            return False
+        if understood.get("built_in") is not None:
+            return True
+        held = [named_indicators.entry(i) for i in understood.get("held") or []]
+        return bool(held) and not any(named_indicators.needs_script(e) for e in held)
     except Exception:                              # noqa: BLE001 -- the ordinary turn decides
         return False
 
@@ -4770,7 +4878,8 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
         return script(refused)
     # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
     # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
-    # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator.
+    # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
+    # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
     if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()

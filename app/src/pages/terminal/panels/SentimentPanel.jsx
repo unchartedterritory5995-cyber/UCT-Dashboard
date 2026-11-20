@@ -31,7 +31,7 @@ export const SENTIMENT_SERIES = Object.freeze([
   { key: 'aaii_bears', label: 'AAII bearish', dateKey: 'aaii_survey_date', cadence: 'Weekly', unit: 'pct' },
   { key: 'aaii_spread', label: 'AAII bull-bear spread', dateKey: 'aaii_survey_date', cadence: 'Weekly', unit: 'pts' },
   { key: 'naaim', label: 'NAAIM exposure', dateKey: 'naaim_date', cadence: 'Weekly', unit: 'num1' },
-  { key: 'cboe_putcall', label: 'CBOE put/call ratio', dateKey: 'cboe_putcall_asof', cadence: 'Daily', unit: 'num2' },
+  { key: 'cboe_putcall', label: 'CBOE equity put/call', dateKey: 'cboe_putcall_asof', cadence: 'Daily', unit: 'num2' },
   { key: 'cnn_fear_greed', label: 'CNN Fear & Greed', dateKey: 'cnn_fear_greed_asof', cadence: 'Daily', unit: 'num0' },
 ])
 

@@ -128,8 +128,9 @@ describe('coverage and staleness are registry truth, recorded before V2 consumes
   })
 
   it('records the two feeds that stopped and the one that lags', () => {
-    expect(coverageOf('cboe_putcall').lastReported).toBe('2026-08-07')
-    expect(coverageOf('avg_10d_cpc').lastReported).toBe('2026-08-18')
+    // the equity P/C refill (2026-11-19) closed the gap: no 'last reported' clock
+    expect(coverageOf('cboe_putcall')?.lastReported).toBeUndefined()
+    expect(coverageOf('avg_10d_cpc')?.lastReported).toBeUndefined()
     expect(coverageOf('naaim').note).toMatch(/lag/i)
   })
 

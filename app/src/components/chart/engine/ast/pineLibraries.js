@@ -289,8 +289,11 @@ function isLocalRef(locals, name, i) {
  *  tokens spliced in, plus `libraries` (what was linked, for the member's licence
  *  notice and for location remapping); or the input unchanged when it imports
  *  nothing. Never throws: a library that cannot be linked leaves its `import` line
- *  in place with `libraryRefusal` on its first token, and the lane refuses it. */
-export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
+ *  in place with `libraryRefusal` on its first token, and the lane refuses it.
+ *  ⭐⭐ The version island: `islandFamilies` (code-only, never a member's option) names the
+ *  families of the v6 migration guide the calling lane judges per token (`versionAt`); the
+ *  cross-version check skips exactly those (`RUNTIME_ISLAND_FAMILIES`, the runtime lane's). */
+export function linkLibraries(lexed, opts, { lexPine, blockStatements, islandFamilies = [] }) {
   const { tokens, indents } = lexed
   const lines = importLinesOf(tokens, indents)
   if (!lines.length) return lexed
@@ -450,7 +453,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   const emit = (unit) => {
     const kept = unit.defs.filter((d) => unit.keep.has(d))
     if (unit.crossVersion) {
-      const diff = crossVersionDifference(kept, unit.lib.indents)
+      const diff = crossVersionDifference(kept, unit.lib.indents, { skip: islandFamilies })
       if (diff) {
         const at = diff.tok && Number.isFinite(diff.tok.line) ? `, line ${diff.tok.line}` : ''
         throw new LinkRefusal(`the library \`${unit.imp.path}\` is written in Pine v5 and this script in v6, and the code this script uses holds ${diff.what}${at}: ${diff.why}. TradingView runs a library at its own version; this engine compiles one program at one version, so it links a v5 library only where the two versions mean the same thing`, LIBRARY_VERSION)

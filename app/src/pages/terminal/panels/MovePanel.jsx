@@ -8,11 +8,21 @@
 //
 // Row <GO>: the numbered rows are commands (`NVDA CN`, `NVDA CATS` …) published to the shell
 // through `onRows`, so typing `2` + Enter opens row 2.
+//
+// "On the news wire" (2026-11-19): the newest UCT News headlines naming this stock, read by the
+// client through the one-stock read `NVDA UCN` already uses (useStockWire.js). The server route
+// above is unchanged. The section has its own states and its own read, started beside MOVE's and
+// never awaited by it: a wire that is off, slow or unreadable changes that section alone, and
+// "could not check" is never drawn as "no headlines". The last numbered row opens the full
+// history (`NVDA UCN`).
 import { useEffect, useMemo, useState } from 'react'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import HighlightThesis, { isFailedSynthesis } from '../../../utils/highlightThesis'
 import { PanelSkeleton, PanelState, usePanelFreshness } from '../../../components/terminal'
 import { formatCurrency, formatDateTimeEt, formatPercent } from '../../../lib/presentation/presentationPrimitives'
+import StockWire from './StockWire'
+import useStockWire from './useStockWire'
+import { WIRE_ROWS, wireStockCommand } from './wireInPanelsModel'
 import styles from '../TerminalShell.module.css'
 
 /** Audit 2026-10-08 (MOVE P2, point 9): a fact's `as_of` was printed in the server's raw format with
@@ -46,10 +56,13 @@ export function moveQuoteText(q) {
   return `${formatCurrency(price)} · ${move}${has ? when : ''}`
 }
 
-/** Pure: the numbered follow-up commands for a security (row <GO> targets). */
-export function moveRows(sym) {
+/** Pure: the numbered follow-up commands for a security (row <GO> targets). The LAST one opens
+ *  the stock's full news wire history (`NVDA UCN`). Being last, it never moves the rows above
+ *  it; it is left out when the wire is known to be off on this server (`wire: false`). */
+export function moveRows(sym, { wire = true } = {}) {
   if (!sym) return []
-  return [`${sym} CN`, `${sym} CATS`, `${sym} GP`, `${sym} DES`]
+  const rows = [`${sym} CN`, `${sym} CATS`, `${sym} GP`, `${sym} DES`]
+  return wire ? [...rows, wireStockCommand(sym)] : rows
 }
 
 const STATUS_TEXT = {
@@ -70,7 +83,10 @@ export default function MovePanel({ sym, onRun, onRows }) {
     return () => { live = false }
   }, [sym, attempt])
 
-  const rows = useMemo(() => moveRows(sym), [sym])
+  // The news wire for this stock: its own read, started beside MOVE's and never awaited by it.
+  const wire = useStockWire(sym, WIRE_ROWS.MOVE)
+  const wireOn = wire.phase !== 'off'
+  const rows = useMemo(() => moveRows(sym, { wire: wireOn }), [sym, wireOn])
   useEffect(() => { onRows?.(rows) }, [onRows, rows])
 
   // V8: MOVE composes the watchlist-intelligence + catalyst services fresh on every request
@@ -153,6 +169,13 @@ export default function MovePanel({ sym, onRun, onRows }) {
           </li>
         ))}
       </ul>
+
+      <h3 className={styles.helpGroup}>On the news wire</h3>
+      <StockWire sym={sym} wire={wire} testId="terminal-move-wire">
+        <p className={styles.helpRule} data-testid="terminal-move-wire-more">
+          Row {rows.indexOf(wireStockCommand(sym)) + 1} below ({wireStockCommand(sym)}) opens the full news wire history, live.
+        </p>
+      </StockWire>
 
       <h3 className={styles.helpGroup}>Next (type the row number)</h3>
       {rows.map((cmd, i) => (

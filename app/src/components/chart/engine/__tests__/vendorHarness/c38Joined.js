@@ -28,6 +28,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { validateCapture, sealCapture, sha256Hex } from '../../../../../../../tools/vendor_harness/schema.mjs'
+import { startsAtBar0Holds } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
 
 export const HARNESS = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 /** The committed capture that holds AMEX:SPY 1D from its listing. */
@@ -69,7 +70,7 @@ export function vendorColumn(cap, title) {
  */
 export function joinedFromListing(cap, { control, id = 'joined', source, keep, mutateVendor } = {}) {
   const hist = parent(SPY_FROM_LISTING)
-  if (!(hist.history && hist.history.startsAtBar0 === true)) {
+  if (!startsAtBar0Holds(hist)) {
     throw new Error(`${SPY_FROM_LISTING}: the history capture does not assert it starts at the listing`)
   }
   const same = (a, b) => String(a.pro_name || a.full_name) === String(b.pro_name || b.full_name)

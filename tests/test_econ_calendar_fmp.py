@@ -118,6 +118,71 @@ def test_integral_floats_render_without_a_trailing_zero():
     assert e["estimate"] == "79" and e["prior"] == "57"
 
 
+# ── the released figure, and the unit the provider names beside a number ─────
+#
+# Every figure below is invented.
+
+def _figure_row(**over):
+    row = _row("Some Release", "2026-08-04 14:00:00", "High", est=1.2, prev=0.3)
+    row.update(over)
+    return row
+
+
+def test_the_released_figure_rides_on_the_curated_row():
+    out = _fetch([_figure_row(actual=1.8)])
+    assert out["2026-08-04"][0]["actual"] == "1.8"
+
+
+def test_a_release_that_is_not_out_yet_has_no_figure():
+    """`None`, never the string "None" and never the expected figure in its place."""
+    for row in (_figure_row(), _figure_row(actual=None), _figure_row(actual="")):
+        e = _fetch([row])["2026-08-04"][0]
+        assert e["actual"] is None
+        assert e["estimate"] == "1.2"
+
+
+def test_a_released_zero_is_a_figure_not_a_missing_one():
+    e = _fetch([_figure_row(actual=0.0, estimate=0, previous=-0.1)])["2026-08-04"][0]
+    assert (e["actual"], e["estimate"], e["prior"]) == ("0", "0", "-0.1")
+
+
+def test_the_providers_unit_is_joined_onto_all_three_figures():
+    e = _fetch([_figure_row(actual=1.8, unit="%")])["2026-08-04"][0]
+    assert (e["estimate"], e["prior"], e["actual"]) == ("1.2%", "0.3%", "1.8%")
+    e = _fetch([_figure_row(estimate=198.0, previous=200.0, actual=205.0, unit="K")])["2026-08-04"][0]
+    assert (e["estimate"], e["prior"], e["actual"]) == ("198K", "200K", "205K")
+
+
+def test_only_the_short_known_units_are_joined_on():
+    for unit in ("%", "K", "M", "B"):
+        assert fmp._figure(2.5, unit) == "2.5" + unit
+    assert fmp._figure(2.5, " % ") == "2.5%"
+    # Anything else is left off: a figure is never given a unit it may not have.
+    for unit in (None, "", "USD", "Index", "k", "bps", "%%", 7, ["%"]):
+        assert fmp._figure(2.5, unit) == "2.5", unit
+
+
+def test_a_missing_figure_never_becomes_a_bare_unit():
+    assert fmp._figure(None, "%") is None
+    assert fmp._figure("", "K") is None
+
+
+def test_a_figure_that_already_carries_its_unit_is_not_given_it_twice():
+    assert fmp._figure("0.4%", "%") == "0.4%"
+    assert fmp._figure("198K", "K") == "198K"
+
+
+def test_the_full_list_joins_the_unit_too():
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result([_figure_row(actual=1.8, unit="%"),
+                                           _figure_row(event="Other Release", actual=None)])):
+        out = fmp.fetch_us_econ_week_full("2026-08-03", "2026-08-07")
+    rows = {e["event"]: e for e in out["2026-08-04"]["econ"]}
+    assert (rows["Some Release"]["estimate"], rows["Some Release"]["prior"],
+            rows["Some Release"]["actual"]) == ("1.2%", "0.3%", "1.8%")
+    assert (rows["Other Release"]["estimate"], rows["Other Release"]["actual"]) == ("1.2", None)
+
+
 def test_never_raises_and_returns_empty_on_failure():
     with mock.patch("api.services.fmp_client.get_economic_calendar",
                      side_effect=RuntimeError("boom")):

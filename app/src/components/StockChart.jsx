@@ -1,5 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
+import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint } from './chart/paintLog'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, keepRthBars, etDateLabel } from './chart/barTime'
@@ -20,6 +21,13 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
+import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+/** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
+function applyRenderWindow(chart, rw) {
+  if (!rw || rw.applied || !chart?.window) return
+  rw.applied = true
+  chart.window.setWindow(rw.rows, { span: rw.span })
+}
 import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import {
@@ -10474,25 +10482,8 @@ export default function StockChart({
   // paints white. Without this, weekly/monthly examples lost the highlight.
   const highlightResolved = useMemo(() => {
     if (highlightBarTime == null) return null
-    const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
-    const times = _big.ohlcData.map(d => d.time)
-    const exact = new Set(times)
-    const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
-      ? a - b
-      : (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)
-    const out = []
-    for (const raw of arr) {
-      if (raw == null) continue
-      const target = adjustTime(raw)
-      if (exact.has(target)) { out.push({ time: target, orig: raw }); continue }
-      // No exact bar: resolve to the ENCLOSING bar (largest bar time <= the date). Covers
-      // W/M period-interior days AND a daily start-marker date that lands on a weekend/holiday
-      // (exact still wins for real trading days, so Model Book setups are unaffected).
-      let best = null
-      for (const t of times) if (cmp(t, target) <= 0 && (best == null || cmp(t, best) > 0)) best = t
-      if (best != null) out.push({ time: best, orig: raw })
-    }
-    return out.length ? out : null
+    // exact bar → that session's bars (intraday + a day) → the enclosing bar (W/M, holidays)
+    return resolveHighlightTimes(_big.ohlcData.map(d => d.time), highlightBarTime, adjustTime)
   }, [highlightBarTime, adjustTime, ohlcData, resolvedTf])
   const highlightTimeSet = useMemo(
     () => highlightResolved ? new Set(highlightResolved.map(e => e.time)) : null,
@@ -11379,6 +11370,25 @@ export default function StockChart({
       else _plotStart = 0
       _pw.start = _plotStart
       _pw.fromTime = _plotFrom
+      // ⭐ THE RENDER WINDOW of every series, candles included (chart/windowedChart.js): set for each new load from
+      // the view it opens at, and off (every bar) wherever this chart frames history on purpose or a logical index
+      // is not a bar index (pinned / replay / override / compare or index overlay / the switch). A view that comes
+      // near its start extends it in place, so `_plotWindowFullKey` (the lines going whole) does not turn it off.
+      // Decided here for every pass; applied to the chart once per decision (`applyRenderWindow`), right here when
+      // the chart exists, else right after this pass creates it (the page's first chart).
+      const _rwWhole = _pinnedFull || _overlayActive || _hasOverride || replayMode
+      const _rwSig = `${_pwKey}|${_rwWhole ? 'whole' : 'win'}`
+      if (!_pw.rw || _pw.rw.sig !== _rwSig) {
+        let _span = 0
+        try {
+          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
+          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
+        } catch { /* no view yet */ }
+        const _geom = paintedGeomRef.current
+        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
+        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
+      }
+      applyRenderWindow(chartRef.current, _pw.rw)
     }
     let _cfgSig
     try {
@@ -11682,14 +11692,18 @@ export default function StockChart({
       // + comparison in pane 0, so hovering would silently restack them (and later,
       // float a band's constituent line above its own fill). Keep 5.1.0 rendering;
       // opt in deliberately if we ever want the hit-testing that comes with it.
-      chart = createChart(containerRef.current, {
+      // ⭐ THE RENDER WINDOW (2026-11-20, owner: "I NEED THEM ALL BELOW 20MS"): the library is handed only a
+      // window of bars a few screens deep (chart/windowedChart.js); everything here keeps speaking full-history
+      // indices through the facade, and a view reaching left of the window extends it before the frame paints.
+      chart = createWindowedChart(createChart(containerRef.current, {
         ...chartOpts,
         autoSize: true,
         hoveredSeriesOnTop: false,
-      })
+      }))
       chartRef.current = chart
       // The library's layout <table> is not a data table (utils/chartLayoutTable.js).
       markChartLayoutPresentational(chart)
+      if (plotWindowRef.current?.rw) { plotWindowRef.current.rw.applied = false; applyRenderWindow(chart, plotWindowRef.current.rw) }
       // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
       // the mobile pinch gate needs the visible logical range and every
       // pixel/UI side-channel for it proved unreliable (gridlines light every
@@ -12068,6 +12082,7 @@ export default function StockChart({
           })
       }
       candleSeriesRef.current = priceSeries
+      chart.window?.setPrimary(priceSeries)   // the candles' rows define the render window
       // Model Book studies a past year — the current (latest) price line is
       // irrelevant there, so hide the dotted last-price line for exact-range.
       // boldCandles paints solid bright green/red; hideLastValue drops the
@@ -13946,7 +13961,8 @@ export default function StockChart({
         if (markersControllerRef.current && typeof markersControllerRef.current.setMarkers === 'function') {
           markersControllerRef.current.setMarkers(allMarkers)
         } else {
-          markersControllerRef.current = createSeriesMarkers(candleSeriesRef.current, allMarkers)
+          // window-aware: only markers inside the render window reach the plugin (chart/windowedChart.js)
+          markersControllerRef.current = createWindowedMarkers(createSeriesMarkers, candleSeriesRef.current, allMarkers)
         }
       }).catch(() => {})
     }
@@ -14699,7 +14715,13 @@ export default function StockChart({
   }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
+  // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
+  // THIS updateChart before paint; running it again here planned 'noop' but still paid the settings
+  // serialization and an every-bar render-plan compare (production CPU profiles: two passes per switch).
+  // Skipped only when the layout effect ran this very callback (same render, same inputs).
+  const _layoutRanRef = useRef(null)
   useEffect(() => {
+    if (_layoutRanRef.current === updateChart) return
     updateChart()
   }, [updateChart])
 
@@ -14865,6 +14887,7 @@ export default function StockChart({
     if (_appliedSymTfRef.current === key) return
     _appliedSymTfRef.current = key
     updateChart()
+    _layoutRanRef.current = updateChart   // the passive effect of this same render need not run it again
     // ⭐ AND THE LEGEND CROSSES THE SAME BOUNDARY. A state write in a layout
     // effect re-renders synchronously before the browser paints, so the new
     // candles and the new readout land in ONE composited frame: A+A → B+B, never
@@ -20213,8 +20236,16 @@ export default function StockChart({
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No chart data available for {sym}.</span>
           <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
-            The data provider doesn't carry this symbol. It may be delisted, an index
-            with no OHLC series, or not a tradable ticker.
+            {data?.reason === 'timeframe_not_carried' ? (
+              // A currency pair (BTCUSD): the server answers this for a timeframe it does not
+              // serve. The symbol IS carried, so the sentence below would be untrue.
+              <span data-testid="chart-tf-not-carried">
+                This symbol is charted on daily, weekly and monthly bars only. Pick D, W or M.
+              </span>
+            ) : (
+              <>The data provider doesn't carry this symbol. It may be delisted, an index
+              with no OHLC series, or not a tradable ticker.</>
+            )}
           </span>
         </div>
       )}

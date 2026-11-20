@@ -525,6 +525,20 @@ export const FUNCTIONS = [
   // trading under it. SHELF and OFFR would each name one kind of filing; the panel reads several.
   { code: 'DILU', label: 'Dilution watch (shelf registrations, offering documents, unregistered sales)', group: 'Security',
     ticker: { panel: 'Dilution' } },
+  // ── open interest change (2026-11-19) ──
+  // OIC: one stock's open interest, contract by contract, against the recorded day before
+  // (GET /api/options-screener/oi-change/{sym}, read from UCT's own options log: the two newest
+  // recorded days, every contract that had an ask, open interest or volume). `NVDA OIC` = calls and
+  // puts, `NVDA OIC C` / `NVDA OIC P` = one side. OIC is not in the site's stock universe.
+  { code: 'OIC', label: 'Open interest change (contracts that gained or lost the most since the day before)', group: 'Options',
+    ticker: { panel: 'OiChange', args: [{ kind: 'oiSide', prop: 'side' }] } },
+  // ── Market Tide by day (2026-11-19) ──
+  // TIDEH: each finished session's net call and net put premium, as the server stored it once
+  // after that session's close (GET /api/options/market-tide/history, behind Market Tide's own
+  // switch). TIDE is today, minute by minute; TIDEH is the days. `TIDEH` = stocks and ETFs
+  // together, `TIDEH STOCKS` / `TIDEH ETFS` = one side. TIDEH is not in the site's stock universe.
+  { code: 'TIDEH', label: 'Market Tide by day (net premium, each session)', group: 'Options',
+    market: { panel: 'TideHistory', args: [{ kind: 'tideScope', prop: 'scope' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -814,6 +828,12 @@ const FUNCTION_WORDS = {
   DILU: { example: 'NVDA DILU', keywords: ['dilution', 'dilution watch', 'shelf registration', 'share offering', 'stock offering',
     'secondary offering', 'atm offering', 'prospectus supplement', 'share issuance'],
     note: 'From the SEC filing index only: what was filed and when, never amounts.' },
+  OIC: { example: 'NVDA OIC', keywords: ['open interest change', 'oi change', 'open interest by strike', 'change in open interest',
+    'new option positions', 'open interest'],
+    note: 'Recorded once a day after the close; never live, and never who opened or which way.' },
+  TIDEH: { example: 'TIDEH', keywords: ['market tide by day', 'tide history', 'daily net premium', 'net premium by day',
+    'net premium history', 'options premium by day'],
+    note: 'One row per finished session, stored once after the close; history starts at the first stored day.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

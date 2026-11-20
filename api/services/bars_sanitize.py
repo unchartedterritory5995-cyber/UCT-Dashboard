@@ -835,35 +835,14 @@ def _deepen_from_daily(ticker: str, bars: list[dict], tf: str, head: bool = True
     return out
 
 
-# ── Public entry point ──────────────────────────────────────────────────────
-def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
-    """Normalize a D/W/M bars list (list of {t,o,h,l,c,v}, ascending by t).
+# ── The stored series' repairs (steps 1, 2 and 4) ───────────────────────────
+def _repair_stored(ticker: str, bars: list[dict], tf: str) -> list[dict]:
+    """The STORED D/W/M series with the patchwork repaired: another security's bars cut, another
+    company's window replaced, an unapplied split healed, a W/M series deepened from the daily one.
+    Not run over a rebuilt history (`sanitize_daily_bars`). The wick clamp (step 3) is NOT here: it
+    is `sanitize_daily_bars`' one clamp, run on every daily series, rebuilt or stored.
 
-    Best-effort + never raises: any failure returns the input bars unchanged so a
-    bug here can never blank a chart. Intraday timeframes pass through untouched."""
-    if not _ENABLED or not bars or tf not in ("D", "W", "M"):
-        return bars
-    # ⭐ A ticker whose history was REBUILT from one checked source (bars_rebuild: the vendor's official
-    # daily files per company, one split basis, checked day by day against an independent vendor) serves
-    # it through the rebuild's last session, and its W / M from it. The steps below exist to repair the
-    # stored patchwork (another company's bars, unapplied splits, lone bad wicks); the rebuild is already
-    # all of that, so they are not run over it again. Not on the served list -> nothing changes here.
-    try:
-        from api.services import bars_rebuild as _reb
-        if _reb.active(ticker):
-            rebuilt = _reb.apply(ticker, bars, tf, head=_reaches_store_head(ticker, bars, tf))
-            if rebuilt is not None:
-                # ⛔ EXCEPT the split heal. The rebuild is on the basis of the day it was built; a split
-                # after that puts the store's newer bars on a new basis and the rebuilt ones not, and the
-                # chart would draw the cliff. The one detector finds it the same way it does in the store.
-                meta = _meta_cached(ticker)
-                if meta and meta.get("splits") and split_adjust_active():
-                    unadjusted = unadjusted_splits(rebuilt, meta["splits"])
-                    if unadjusted:
-                        rebuilt = _apply_split_adjust(rebuilt, meta["splits"], unadjusted)
-                return rebuilt
-    except Exception as e:  # noqa: BLE001 - the stored path below still serves
-        _log.warning("rebuilt history skipped for %s tf=%s: %s", ticker, tf, e)
+    Never raises: a failure returns the bars as far as they got."""
     try:
         # Read before step 1 changes the head: only a series that starts at its store's first row
         # gets older periods from the daily series (step 4).
@@ -906,9 +885,7 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
                 # healing only the response is what let DD's SMA200 read 50.19
                 # on the alert lane while the chart drew 133.89.
                 _schedule_store_repair(ticker, tf)
-        if tf == "D":
-            bars = _clamp_wicks(bars)
-        elif bars:
+        if tf in ("W", "M") and bars:
             try:
                 bars = _deepen_from_daily(ticker, bars, tf, head)
             except Exception as e:  # noqa: BLE001 - the stored depth is still a chart
@@ -917,3 +894,51 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     except Exception as e:  # noqa: BLE001
         _log.warning("sanitize_daily_bars failed for %s tf=%s: %s", ticker, tf, e)
         return bars
+
+
+# ── Public entry point ──────────────────────────────────────────────────────
+def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
+    """Normalize a D/W/M bars list (list of {t,o,h,l,c,v}, ascending by t).
+
+    Best-effort + never raises: any failure returns the input bars unchanged so a
+    bug here can never blank a chart. Intraday timeframes pass through untouched."""
+    if not _ENABLED or not bars or tf not in ("D", "W", "M"):
+        return bars
+    # ⭐ A ticker whose history was REBUILT from one checked source (bars_rebuild: the vendor's official
+    # daily files per company, one split basis, checked day by day against an independent vendor) serves
+    # it through the rebuild's last session, and its W / M from it. The stored-patchwork repairs
+    # (`_repair_stored`: another security's or another company's bars, unapplied splits) are not run over
+    # it again. Not on the served list -> nothing changes here.
+    served = None
+    try:
+        from api.services import bars_rebuild as _reb
+        if _reb.active(ticker):
+            rebuilt = _reb.apply(ticker, bars, tf, head=_reaches_store_head(ticker, bars, tf))
+            if rebuilt is not None:
+                # ⛔ EXCEPT the split heal. The rebuild is on the basis of the day it was built; a split
+                # after that puts the store's newer bars on a new basis and the rebuilt ones not, and the
+                # chart would draw the cliff. The one detector finds it the same way it does in the store.
+                meta = _meta_cached(ticker)
+                if meta and meta.get("splits") and split_adjust_active():
+                    unadjusted = unadjusted_splits(rebuilt, meta["splits"])
+                    if unadjusted:
+                        rebuilt = _apply_split_adjust(rebuilt, meta["splits"], unadjusted)
+                served = rebuilt
+    except Exception as e:  # noqa: BLE001 - the stored path below still serves
+        _log.warning("rebuilt history skipped for %s tf=%s: %s", ticker, tf, e)
+    if served is None:
+        served = _repair_stored(ticker, bars, tf)
+    # ⛔ THE ONE WICK CLAMP, for EVERY daily series, rebuilt or stored: no path returns before it.
+    # ⚰️ 2026-11-18 .. 2026-11-20: the rebuilt branch returned early, on the belief that the rebuild was
+    # "already" free of lone bad wicks. It is not: the rebuild is the vendor's official daily files, and
+    # those carry the same one-minute gross prints (one print far from a minute whose open and close sat
+    # at the day's level). 403 bars on the 551 rebuilt tickers met this clamp's own test and were served
+    # unclamped (CSCO's 2008-09-19 low at under half the day's price, in production). The rule is
+    # unchanged; what it runs on is every daily series. Rails: tests/test_bars_sanitize.py
+    # TestRebuiltSeriesGetsTheOneClamp.
+    if tf == "D":
+        try:
+            served = _clamp_wicks(served)
+        except Exception as e:  # noqa: BLE001 - never blank a chart
+            _log.warning("wick clamp failed for %s: %s", ticker, e)
+    return served

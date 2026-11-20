@@ -270,6 +270,19 @@ describe('abort on a symbol switch', () => {
     await w.server.drain()
     expect(symsOf(w.server.calls).filter((s) => s.startsWith('R')).sort()).toEqual(['R3', 'R4'])
   })
+
+  it('…per TIMEFRAME: a list linked to a daily and a 5m chart keeps the next rows of both timeframes (2026-11-19)', async () => {
+    const w = await boot()
+    w.legacy.barsLaneRequest('/api/bars/F1?tf=D&bars=1', { priority: 'urgent' }).catch(() => {})
+    w.legacy.barsLaneRequest('/api/bars/F2?tf=D&bars=1', { priority: 'urgent' }).catch(() => {})
+    await w.server.flush()
+    w.pf.prefetchBars(['R1', 'R2'], 'D', { urgent: true })     // the same press, both linked charts
+    w.pf.prefetchBars(['R1', 'R2'], '5', { urgent: true })
+    await w.server.flush(80)
+    await w.server.drain()
+    const asked = w.server.calls.map((c) => `${c.q.sym}:${c.q.tf}`).filter((x) => x.startsWith('R')).sort()
+    expect(asked).toEqual(['R1:5', 'R1:D', 'R2:5', 'R2:D'])
+  })
 })
 
 // ── the useSymbolHandoff contract ──────────────────────────────────────────

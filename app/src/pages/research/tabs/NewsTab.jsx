@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import useCompanyNews from '../hooks/useCompanyNews'
 import { useInTerminalPanel, usePanelRerun } from '../../../components/terminal/terminalPanel'
 import MineChip, { mineStyles } from '../../../components/terminal/MineChip'
@@ -96,6 +96,12 @@ function hideBrokenImage(e) {
   e.currentTarget.style.display = 'none'
 }
 
+// The news wire's headlines for the stock (UCT News, powered by Trade Exchange), as their own
+// labelled block above this tab's list. Terminal panels only, and loaded on demand there, so the
+// research page downloads none of it. A different source from the FMP list below: the two are
+// never merged, and each row keeps its own source label (terminal/panels/CompanyNewsWire.jsx).
+const CompanyNewsWire = lazy(() => import('../../terminal/panels/CompanyNewsWire'))
+
 // `mine` (terminal `NVDA CN MINE`, wave 3 lane 13): news across ALL the member's own names instead
 // of this one ticker (MyNewsList). Terminal-only; the research page never shows the chip.
 export default function NewsTab({ sym, mine: mineProp = false }) {
@@ -116,6 +122,11 @@ export default function NewsTab({ sym, mine: mineProp = false }) {
   // Wave 3 #7: NEW since this member's last CN visit for this ticker (terminal panels only).
   const shownItems = !mine && data && !error && !paywalled ? (data.items || []) : null
   const since = useSinceLastVisit('CN', s, shownItems ? shownItems.map(newsKey) : null, { enabled: !mine })
+  // Only inside the terminal, for one stock. MINE (many stocks, not one) and a CN the plan does
+  // not include both return below before this is drawn, so neither shows it or reads the wire.
+  const wireBlock = inPanel && s
+    ? <Suspense fallback={null}><CompanyNewsWire sym={s} cardClassName={styles.card} titleClassName={styles.ct} /></Suspense>
+    : null
 
   if (mine) {
     return <div className={styles.finWrap}>{mineChip}<MyNewsList whenLabel={whenLabel} /></div>
@@ -131,13 +142,15 @@ export default function NewsTab({ sym, mine: mineProp = false }) {
     return <div className={styles.fnote} data-testid="news-paywalled">Company news requires a paid plan.</div>
   }
   if (error) {
-    return (
+    const failed = (
       <div className={styles.fnote} data-testid="news-error">
         Couldn't load news for this ticker.
         {' '}
         <button type="button" className={styles.basisBtn} onClick={() => mutate()}>Retry</button>
       </div>
     )
+    // A failed company-news read does not hide the news wire: it is a different source.
+    return wireBlock ? <div className={styles.finWrap}>{wireBlock}{failed}</div> : failed
   }
 
   const e = data || {}
@@ -152,6 +165,8 @@ export default function NewsTab({ sym, mine: mineProp = false }) {
           This symbol is not yet linked to a company record, so some sources below may not match it.
         </div>
       )}
+
+      {wireBlock}
 
       {!!items.length && (
         <section className={styles.card}>

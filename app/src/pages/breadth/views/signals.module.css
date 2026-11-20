@@ -1,5 +1,5 @@
-/* Shared signal styling for Breadth Views — the gold "Signal of the Day"
-   callout and the pulsing "notable" highlight, used by the strip and views. */
+/* Shared signal styling for Breadth Views — the "Signal of the day"
+   callout (UCT Signature: a quiet card, no gold) and the pulsing "notable" highlight, used by the strip and views. */
 
 @keyframes breadthPulse {
   0%, 100% { opacity: 1; }
@@ -16,8 +16,8 @@
   padding: 8px 12px;
   margin: 0 4px 6px;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--ut-gold) 6%, transparent);
-  border: 1px solid color-mix(in srgb, var(--ut-gold) 18%, transparent);
+  background: var(--br-panel, var(--bg-surface));
+  border: 1px solid var(--br-line, var(--border));
 }
 
 .chip {
@@ -31,33 +31,31 @@
 .chipClickable:hover .chipLabel { text-decoration: underline; }
 
 .kicker {
-  font: 800 var(--text-xs) var(--font-sans);
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
+  font: 600 11px var(--font-sans);
 }
-.kickerSignal  { color: var(--accent); }
-.kickerNotable { color: var(--warn); }
+.kickerSignal  { color: var(--br-rest, var(--text-muted)); }
+.kickerNotable { color: var(--br-rest, var(--text-muted)); }
 
 .chipLabel { color: var(--text-bright); font-weight: 700; }
 .chipValue { color: var(--text-bright); font-weight: 800; }
-.chipReason { color: var(--text-muted); font-size: var(--text-xs); }
+.chipReason { color: var(--br-faint, var(--text-muted)); font-size: 11px; font-weight: 500; }
 
 /* ── Provisional intraday reading ────────────────────────────────────────────
    The date cursor is how a reader knows WHICH day the tiles describe. When the
    cursor sits on the live row there is no day yet, so it says so — a clock
-   instead of a date, in the same gold the Monitor's live row uses. */
+   instead of a date, with the same pulsing up-colour dot the Monitor's live row uses. */
 
 .liveTag {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font: 600 12px var(--font-sans);
-  letter-spacing: 0.3px;
-  color: var(--ut-gold);
-  padding: 2px 8px;
-  border: 1px solid color-mix(in srgb, var(--ut-gold) 35%, transparent);
-  border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--ut-gold) 9%, transparent);
+  color: var(--text-bright);
+  height: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright) 8%, transparent);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -66,15 +64,15 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--ut-gold);
+  background: var(--gain);
   animation: viewLiveBeat 2.4s ease-out infinite;
   flex: none;
 }
 
 @keyframes viewLiveBeat {
-  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 50%, transparent); }
-  70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--ut-gold) 0%, transparent); }
-  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ut-gold) 0%, transparent); }
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gain) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in srgb, var(--gain) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gain) 0%, transparent); }
 }
 
 @media (prefers-reduced-motion: reduce) {
