@@ -23,7 +23,8 @@ HOW TO READ IT, AND WHAT IT DOES NOT SAY:
 ⛔ THE REPO IS PUBLIC: this file holds AGGREGATES PER UNIT ONLY (script counts and boost totals). No script
 name, no source, no author, and nothing about a member. `tests/test_pine_demand_ranking.py` holds that.
 
-DERIVED, like the roadmap: a rebuilt roadmap (or a re-fetched boost count) reds the test until this is rebuilt.
+DERIVED, like the roadmap, and REBUILT WITH IT: `parity_roadmap.py build` calls `rebuild` here whenever it writes
+the committed roadmap, so one regenerate moves both files. A re-fetched boost count alone still needs `build`.
 """
 from __future__ import annotations
 
@@ -107,6 +108,20 @@ def load(path: str) -> dict:
         return json.load(f)
 
 
+def write(doc: dict, out_path: str) -> None:
+    tmp = out_path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text_of(doc))
+    os.replace(tmp, out_path)
+
+
+def rebuild(roadmap: dict, corpus_dir: str = "", out_path: str = "") -> dict:
+    """Build from a roadmap ALREADY IN HAND and write the file (the roadmap tool's own build calls this)."""
+    doc = build(roadmap, boosts_of(corpus_dir or CORPUS))
+    write(doc, out_path or OUT)
+    return doc
+
+
 def check(roadmap_path: str = ROADMAP, corpus_dir: str = CORPUS, out_path: str = OUT) -> list:
     """The sections of the committed file that are not what `build` gives ([] when it is current)."""
     want = build(load(roadmap_path), boosts_of(corpus_dir))
@@ -130,11 +145,7 @@ def main() -> int:
         bad = check(a.roadmap, a.corpus, a.out)
         print("demand-ranking.json is current" if not bad else f"demand-ranking.json is stale in: {', '.join(bad)}")
         return 1 if bad else 0
-    doc = build(load(a.roadmap), boosts_of(a.corpus))
-    tmp = a.out + ".tmp"
-    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-        f.write(text_of(doc))
-    os.replace(tmp, a.out)
+    doc = rebuild(load(a.roadmap), a.corpus, a.out)
     for r in doc["units"]:
         if r["soleScripts"]:
             print(f"{r['rankByBoosts']:>3} {r['unit']:<26} sole {r['soleScripts']:>3} ({r['soleCommunity']}+{r['soleBuiltins']})"
