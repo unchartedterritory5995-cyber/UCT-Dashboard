@@ -5404,7 +5404,8 @@ def _pre_chart_unknown(tree: Any, bars: List[dict], inputs, budget, scalars, opt
     sites = own
     return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
                          lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), exact=True,
-                         request_sites=True, before_first=off is True)
+                         request_sites=True, before_first=off is True,
+                         skip=lambda nd: period_anchor_period(nd) is not None)
 
 
 def _request_before_first(node: Mapping[str, Any], bars: List[dict], inputs, budget, scalars, opts,
@@ -5751,7 +5752,8 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                   is_site: Callable[[dict], bool],
                   flagged: Callable[[dict], Optional[List[int]]],
                   exact: bool = False, request_sites: bool = False,
-                  before_first: bool = False) -> Optional[List[int]]:
+                  before_first: bool = False,
+                  skip: Optional[Callable[[dict], bool]] = None) -> Optional[List[int]]:
     """ENGINE 56 -- the root bars that depend on a withheld bar of a witness site, by one 0/1
     "unknown" column per node, bottom-up. The twin of ``interpret.js::witnessMask`` (its
     docstring states each node kind's rule: nested reads every bar, offsets shift, operators and
@@ -5769,6 +5771,10 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
     readable count reaching before bar 0) is a site of its own, unknown there."""
     n = len(bars)
     has_memo: Dict[int, bool] = {}
+
+    def skipped(node: Any) -> bool:
+        # a node the walk leaves whole (``skip``): known, nothing inside it walked
+        return skip is not None and skip(node)
 
     def reads_before_first(node: Any) -> bool:
         # PERIOD -1 -- a history read of this series that can land before its first bar (``walk.beforeFirst``)
@@ -5788,9 +5794,10 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
             return has_memo[key]
         has_memo[key] = False
         args = node.get("args")
-        r = (is_site(node) or reads_before_first(node)
-             or (not (request_sites and node.get("type") in _WITNESS_NESTED)
-                 and isinstance(args, list) and any(has_site(a) for a in args)))
+        r = (is_site(node) or (not skipped(node) and (
+            reads_before_first(node)
+            or (not (request_sites and node.get("type") in _WITNESS_NESTED)
+                and isinstance(args, list) and any(has_site(a) for a in args)))))
         has_memo[key] = r
         return r
 

@@ -31,7 +31,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import * as registry from '../nativeRegistry'
 import { interpret, historyBeforeChartMask, HISTORY_BEFORE_CHART_CODE, HISTORY_BEFORE_CHART_SENTENCE,
-  CHART_CLOCK_WITHHELD } from './interpret'
+  CHART_CLOCK_WITHHELD, periodAnchorNode } from './interpret'
 import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
 
 const FIXTURE = path.resolve(process.cwd(), '..', 'tests', 'fixtures', 'ast', 'history_before_chart.json')
@@ -121,6 +121,12 @@ const SHAPES = [
     window: W8, expect: [n, n, 3, 3, 3, 3, 7, 7] },
   { name: 'KEPT sma(close, 3) (no read before the chart: drawn from bar 2)', tree: () => call('sma', CLOSE, num(3)),
     window: W8, expect: [n, n, 2, 3, 4, 5, 6, 7] },
+  // ⭐ the chart clock's own: `time("W")` on a session daily chart is the calendar's week open on every bar, bar 0 included
+  // (C49, measured); its literal tree's `key != key[1]` is not this walk's (`periodAnchorMask` is the clock's authority).
+  // Week 0 opens Monday 2026-08-31 09:30 New York (13:30Z); week 1's first session is Tuesday 09-08 (Labour Day)
+  { name: 'KEPT time("W") (the chart clock answers it from the calendar, bar 0 included: C49)',
+    tree: () => periodAnchorNode('W', false), window: [0, 4],
+    expect: [1, 1, 1, 9].map((d) => Date.UTC(2026, 7, 30 + d, 13, 30) / 1000) },
   // ⛔ a read on other bars is never walked into: with no other symbol supplied the caller gets the column it always
   // got (C26: `symAlignmentMask` is asked only when the caller supplies symbols), the child's history read unjudged
   { name: "KEPT nz(sym('SPY', close[1])) with no symbol supplied (the column the caller always got)",

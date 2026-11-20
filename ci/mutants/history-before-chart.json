@@ -93,6 +93,15 @@
    "expectRed": "nz(tf_live(W, close[1]))"
   },
   {
+   "id": "H11",
+   "mutant": "JS: a time(<period>) anchor walked (its key != key[1] taken as a read before the chart: the clock's bar 0 withheld)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor })",
+   "to": "    { exact: true, requestSites: true, beforeFirst: off === true, memo })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "KEPT time(\"W\")"
+  },
+  {
    "id": "PH1",
    "mutant": "Python: the chain drops the period -1 mask",
    "file": "api/services/ast_interpret.py",
@@ -163,6 +172,15 @@
    "to": "                          scalars=scalars, opts=dict(opts or {})),",
    "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
    "expectRed": "FINDING-3 sym('SPY', barindex)"
+  },
+  {
+   "id": "PH9",
+   "mutant": "Python: a time(<period>) anchor walked",
+   "file": "api/services/ast_interpret.py",
+   "from": "                         skip=lambda nd: period_anchor_period(nd) is not None)",
+   "to": "                         skip=None)",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "KEPT time(\"W\")"
   }
  ]
 }
