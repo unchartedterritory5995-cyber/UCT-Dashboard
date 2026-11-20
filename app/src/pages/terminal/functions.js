@@ -443,6 +443,20 @@ export const FUNCTIONS = [
   // 2026-11-17: the update's stock candidates are not shown to members).
   { code: 'IDAY', label: 'Intraday market update (AI-written)', group: 'Market',
     market: { panel: 'IntradayUpdate' } },
+  // UNEWS (2026-11-19): UCT News, the live news wire the /charts widget already shows, as a
+  // Terminal panel. No new route: the tab's one shared stream (lib/tradeExchangeNewsStreamManager)
+  // and the widget's by-day read (POST /api/trade-exchange-news/day). `UNEWS` is the whole wire,
+  // a day at a time; `NVDA UCN` is every archived headline that names NVDA. TWO codes over one
+  // panel, the NEWS / CN precedent: a code with a security variant follows the board's linked
+  // security, so one dual code would open `UNEWS` on whatever stock was loaded and the whole
+  // wire would be a click away at best (seen on a real screen, 2026-11-19). No `flag:`: the
+  // feed has no key on /api/auth/me, so a switched-off wire is said in the panel (TAS precedent).
+  // Short labels: a panel header and the function rail cut a long one off, and the "is
+  // market-wide" note prints UCN's label in lower case (so it carries no brand name).
+  { code: 'UNEWS', label: 'UCT News (live news wire)', group: 'Market',
+    market: { panel: 'UctNews' } },
+  { code: 'UCN', label: 'News wire history for one stock', group: 'Security',
+    ticker: { panel: 'UctNews' } },
   // TOPF: every Top Flow pick, open and expired, with how its contract has done since it was
   // picked (GET /api/top-flow/history); FREC keeps the aggregate record over the same picks.
   // `TOPF EXPIRED BEAR PEAK`.
@@ -781,6 +795,10 @@ const FUNCTION_WORDS = {
   EXMV: { example: 'NVDA EXMV', keywords: ['expected move', 'implied move', 'earnings straddle', 'priced move'] },
   TROT: { example: 'TROT IN', keywords: ['theme rotation', 'rotating in', 'rotating out', 'themes gaining rank'] },
   IDAY: { keywords: ['intraday update', 'market update', 'midday update', 'session note'] },
+  UNEWS: { keywords: ['uct news', 'news wire', 'live news', 'breaking news', 'live headlines', 'trade exchange'],
+    note: 'Says so if the news wire is switched off.' },
+  UCN: { example: 'NVDA UCN', keywords: ['uct news for a stock', 'stock news wire', 'news history', 'headlines for a stock', 'trade exchange'],
+    note: 'Says so if the news wire is switched off.' },
   TOPF: { example: 'TOPF OPEN', keywords: ['top flow picks', 'flow picks', 'pick by pick', 'how the picks did'] },
   ERNS: { example: 'ERNS TONIGHT', keywords: ['earnings season', 'who reports tonight', 'who reports tomorrow', 'earnings tonight',
     'reporting after the close', 'reporting before the open', 'priced move for earnings'] },

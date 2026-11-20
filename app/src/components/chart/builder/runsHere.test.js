@@ -23,6 +23,7 @@ import GENERATED_RECIPES from '../supportLoop/assistantRecipes.json'
 import { steadyRunClock } from '../supportLoop/testing/steadyRunClock'
 import {
   runHere, runHereWhenLanded, verdictOnChart, RUN, MIN_BARS, NEEDS_THE_CHART, STOPPED_HEADLINE, CHECKING_HEADLINE,
+  NOT_RUN_HEADLINE, sortFindings, WAITS_FOR_THE_BAR,
 } from './runsHere'
 
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8').match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
@@ -255,8 +256,13 @@ describe('the verdict a member sees, joined with the run', () => {
     expect(ran.runs).toBe(true)
     expect(ran.headline).toBe(pasted.headline)
     expect(ran.notes).toEqual(['Drawn bar by bar.', 'Its values are drawn from bar 965 on.'])
-    const none = verdictOnChart(pasted, { state: RUN.NOT_RUN, stops: [], unchecked: [], notes: [] })
-    expect(none).toEqual({ ...pasted, ranHere: RUN.NOT_RUN })
+    // ⛔ a script that was NOT run is never headlined "runs" (review 2026-11-19: the only mark was a field nobody read)
+    const none = verdictOnChart(pasted, { state: RUN.NOT_RUN, stops: [], unchecked: [], notes: [], why: 'the chart has no bars to run it on yet' })
+    expect(none).toEqual({ ...pasted, ranHere: RUN.NOT_RUN, notRun: true, headline: NOT_RUN_HEADLINE,
+      notes: ['It was not run here (the chart has no bars to run it on yet). Open it in the editor on a chart to see it run.', ...pasted.notes] })
+    expect(none.runs).toBe(true)                                     // the check passed: nothing to repair
+    expect(verdictOnChart(pasted, { state: RUN.NOT_RUN, stops: [], unchecked: [], notes: [] }).notes[0])
+      .toBe('It was not run here (there was no chart to run it on). Open it in the editor on a chart to see it run.')
   })
 
   it('⛔ a run never GIVES "runs" to a script the paste check refused', () => {
@@ -269,6 +275,76 @@ describe('the verdict a member sees, joined with the run', () => {
     }
     expect(verdictOnChart(null, { state: RUN.RAN })).toBe(null)
     expect(verdictOnChart(pasted, null)).toBe(pasted)
+  })
+})
+
+// ─── what a run found, sorted (review 2026-11-19) ─────────────────────────────────────
+describe('a forming-bar refusal is "waiting" however it arrives', () => {
+  const FORMING = WAITS_FOR_THE_BAR[0]
+
+  it('by the run\'s own guard, by the code a column carries, and by the drawings that belong to that run', () => {
+    const out = sortFindings([
+      { guard: FORMING, sentence: 'not drawn on this chart (pane:forming-ungraded): the bar is forming', code: null },
+      { guard: 'runtime:colour-not-served', sentence: 'The colours from `bgcolor` aren\'t shown on this chart.', code: FORMING },
+      { guard: 'runtime:objects-without-run', sentence: 'This script\'s drawings are not drawn: its run computed nothing.', code: FORMING },
+    ])
+    expect(out.state).toBe(RUN.RAN)
+    expect(out.stops).toEqual([])
+    expect(out.waiting.map((w) => w.guard)).toEqual([FORMING, 'runtime:colour-not-served', 'runtime:objects-without-run'])
+    expect(Object.keys(out.waiting[0]).sort()).toEqual(['guard', 'sentence'])      // the code is the sorter's, not the reader's
+  })
+
+  it('CONTROL: the same guards with no forming code are stops, and one real stop makes the run STOPPED', () => {
+    const colours = { guard: 'runtime:colour-not-served', sentence: 'not shown', code: 'runtime:time-budget' }
+    const drawings = { guard: 'runtime:objects-without-run', sentence: 'not drawn', code: null }
+    expect(sortFindings([colours]).state).toBe(RUN.STOPPED)
+    expect(sortFindings([drawings]).stops.map((s) => s.guard)).toEqual(['runtime:objects-without-run'])
+    const mixed = sortFindings([{ guard: FORMING, sentence: 'forming', code: null }, drawings])
+    expect(mixed.state).toBe(RUN.STOPPED)
+    expect(mixed.waiting).toHaveLength(1)
+    expect(mixed.stops).toHaveLength(1)
+    // what the chart has not handed the run is never "waiting" and never a stop
+    const other = sortFindings([{ guard: NEEDS_THE_CHART[0], sentence: 'needs SPY', code: FORMING }])
+    expect(other).toEqual({ state: RUN.RAN, stops: [], unchecked: [{ guard: NEEDS_THE_CHART[0], sentence: 'needs SPY' }], waiting: [] })
+    expect(sortFindings(null)).toEqual({ state: RUN.RAN, stops: [], unchecked: [], waiting: [] })
+  })
+})
+
+describe('the run itself sorts a forming-bar refusal as waiting, on each path it arrives by', () => {
+  const FORMING = WAITS_FOR_THE_BAR[0]
+  const SAID = 'this script reads the state of the bar as it forms, so it is not drawn bar by bar while the newest bar is still forming'
+  /** What the engine hands back for a run it refused: no columns, and each output's refusal beside them. */
+  const refusedCols = (errors) => Object.defineProperty({}, '__columnErrors', { value: Object.freeze(errors), enumerable: false })
+  const run = (definition, errors) => runHere({ ok: true, definition }, { ...chart('fromListing'), compute: () => refusedCols(errors) })
+
+  it('a script with a drawing program: its drawings wait with the run, they are not a second thing wrong', () => {
+    const def = { id: 'u_w1', compute: { kind: 'runtime', outputs: { value: {} } }, objects: { ops: [{ kind: 'label' }] } }
+    const out = run(def, { value: { guard: FORMING, message: SAID } })
+    expect(out.state).toBe(RUN.RAN)
+    expect(out.stops).toEqual([])
+    expect(out.waiting.map((w) => w.guard)).toEqual([FORMING, 'runtime:objects-without-run'])
+    expect(verdictOnChart({ runs: true, withheld: [], notes: [], errors: [], headline: 'Runs' }, out).waits).toBe(true)
+  })
+
+  it('CONTROL: the same script refused for another reason is STOPPED, drawings and all', () => {
+    const def = { id: 'u_w2', compute: { kind: 'runtime', outputs: { value: {} } }, objects: { ops: [{ kind: 'label' }] } }
+    const out = run(def, { value: { guard: 'runtime:time-budget', message: 'this script took more than 1000 ms' } })
+    expect(out.state).toBe(RUN.STOPPED)
+    expect(out.waiting).toEqual([])
+    expect(out.stops.map((x) => x.guard)).toEqual(['runtime:time-budget', 'runtime:objects-without-run'])
+  })
+
+  it('a column refused under its own guard with the forming bar as its CODE waits too', () => {
+    const def = { id: 'u_w3', compute: { kind: 'ast', outputs: { value: {} } } }
+    const cols = Object.defineProperty({ value: new Float64Array(BARS.length) }, '__columnErrors',
+      { value: Object.freeze({ tint: { guard: 'runtime:colour-not-served', code: FORMING, message: SAID } }), enumerable: false })
+    const out = runHere({ ok: true, definition: def }, { ...chart('fromListing'), compute: () => cols })
+    expect(out.state).toBe(RUN.RAN)
+    expect(out.waiting.map((w) => w.guard)).toEqual(['runtime:colour-not-served'])
+    // CONTROL: with any other code it is a stop
+    const other = Object.defineProperty({ value: new Float64Array(BARS.length) }, '__columnErrors',
+      { value: Object.freeze({ tint: { guard: 'runtime:colour-not-served', code: 'runtime:time-budget', message: 'x' } }), enumerable: false })
+    expect(runHere({ ok: true, definition: def }, { ...chart('fromListing'), compute: () => other }).state).toBe(RUN.STOPPED)
   })
 })
 

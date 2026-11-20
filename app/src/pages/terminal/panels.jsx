@@ -120,6 +120,8 @@ export const PANEL_IMPORTERS = {
   ThemeRotation: () => import('./panels/ThemeRotationPanel'),
   // data wave 6 (2026-11-17)
   IntradayUpdate: () => import('./panels/IntradayUpdatePanel'),
+  // UNEWS (2026-11-19): UCT News, the live news wire; shares the tab's one stream, no new route
+  UctNews: () => import('./panels/UctNewsPanel'),
   TopFlow: () => import('./panels/TopFlowPanel'),
   // UNVOL (2026-11-18): stocks far above their usual volume for the time of day, over the Screener's scan route.
   UnusualVolume: () => import('./panels/UnusualVolumePanel'),
