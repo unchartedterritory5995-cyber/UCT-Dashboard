@@ -96,8 +96,10 @@ const SHAPES = [
   { name: 'barsAgo(x, mod(close, 2) + 1, 5) (a count that moves: 2 on even bars, 1 on odd)',
     tree: () => call('barsAgo', X(), op('+', call('mod', CLOSE, num(2)), num(1)), num(5)), window: W16,
     expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5] },
-  { name: 'nz(x[1], 0) (bars 0-2 read no earlier week: Pine\'s 0, as before)', tree: () => call('nz', off(1, X()), num(0)),
-    window: W16, expect: [0, 0, 0, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5] },
+  // ⭐ PERIOD −1 (2026-11-19): bars 0-2 read the week BEFORE the first, which this chart does not hold (TradingView reads
+  // a value there): withheld by name (`history:before-chart`), no longer drawn as `nz`'s 0
+  { name: 'nz(x[1], 0) (bars 0-2 read the week before the first: withheld, PERIOD −1)', tree: () => call('nz', off(1, X()), num(0)),
+    window: W16, expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5] },
   { name: 'na(x[1]) ? x[2] : x[1] (the arm a known condition takes: bar 7 reads x[1], a whole week)',
     tree: () => op('?:', call('na', off(1, X())), off(2, X()), off(1, X())), window: W16,
     expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5] },
@@ -109,16 +111,16 @@ const SHAPES = [
   { name: 'ema(x[1], 3) (a running value over x[1]: withheld where x[1] is, bars 3-6)',
     tree: () => call('ema', off(1, X()), num(3)), window: W16, held: [0, 1, 2, 3, 4, 5, 6] },
   // the monthly merge: September is partial; bar 19 (09-30) closes it, bars 20-40 show it, bar 41 (10-30) closes October
-  { name: "close > tf_merge(high, 'M')[1] (bars 20-41 withheld; 17-19 read no earlier month: Pine's false)",
+  { name: "close > tf_merge(high, 'M')[1] (bars 20-41 withheld; 17-19 read the month before the first: withheld, PERIOD −1)",
     tree: () => op('>', CLOSE, off(1, merge('M'))), window: [17, 44],
-    expect: [0, 0, 0, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, 1, 1] },
+    expect: [n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, 1, 1] },
   // the Pine door's own trees
   { name: 'the Pine door: request.security(syminfo.tickerid, "W", high)[1]',
     tree: () => pineTree('plot(request.security(syminfo.tickerid, "W", high)[1])'), window: W16,
     expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5] },
   { name: 'the Pine door: nz(w[1]) of w = request.security(syminfo.tickerid, "W", high)',
     tree: () => pineTree('w = request.security(syminfo.tickerid, "W", high)\nplot(nz(w[1]))'), window: W16,
-    expect: [0, 0, 0, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5] },
+    expect: [n, n, n, n, n, n, n, 7.5, 7.5, 7.5, 7.5, 7.5, 12.5, 12.5, 12.5, 12.5] },
   // CONTROLS: nothing partial, nothing withheld for it
   { name: 'CONTROL x[1] on the Monday set (the first bar opens its week)', set: 'monday', tree: () => off(1, X()),
     window: [0, 12], expect: [n, n, n, n, n, 5.5, 5.5, 5.5, 5.5, 5.5, 10.5, 10.5] },
@@ -133,7 +135,9 @@ const definitionOf = (tree, i) => {
     compute: { kind: 'ast', fn: id, source: id, ast: tree }, meta: { recurrenceOrigin: 'pine' } }
 }
 const asNulls = (col) => Array.from(col || []).map((v) => (Number.isFinite(v) ? v : null))
-const chartOf = (c) => ({ ...CHART, ...(c.opts || {}) })
+// ⭐ PERIOD −1 — a Pine document's lane facts, what `computeFor` hands it (`astColumns.js::barIndexAbsoluteFor` /
+// `varOriginAbsoluteFor`), so the evaluator's column below is the chart's
+const chartOf = (c) => ({ ...CHART, barIndexAbsolute: true, varOriginAbsolute: true, ...(c.opts || {}) })
 const served = (tree, i, set, chart) => asNulls(registry.computeFor(definitionOf(tree, i), barsOn(DAYS[set]), {},
   chart).value)
 

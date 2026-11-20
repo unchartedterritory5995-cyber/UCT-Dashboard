@@ -6061,6 +6061,9 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   // ⭐⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — the first period of a `tf_live` read, off the listing (see
   // `tfLiveMask`); the run's request names the same code with the same sentence (`tfLiveFirstPeriodMask`).
   'request:htf-lookahead-first-period-partial': () => TF_LIVE_FIRST_SENTENCE,
+  // ⭐⭐ PERIOD −1 (2026-11-19) — a read of the bar, week or month before the chart's first (`historyBeforeChartMask`).
+  // ⛔ Literal key: `HISTORY_BEFORE_CHART_CODE` is declared further down.
+  'history:before-chart': () => HISTORY_BEFORE_CHART_SENTENCE,
   // ⭐⭐ ENGINE 55 — the newest bar of a `tf_merge` read (see `tfMergeMask`).
   'request:htf-newest-unconfirmed': () => 'This indicator reads a weekly or monthly value with '
     + '`request.security` (look-ahead off). TradingView shows that value on the bar that completes the '
@@ -7177,8 +7180,9 @@ export function windowHoleMask(tree, bars, inputs, budget, scalars, opts) {
  *  `periodAnchorMask` (C30), `historyReadMask` (C38), `barIndexMask` (C45),
  *  `varOriginMask` (2026-11-09), `windowHoleMask` (engine HL), `builtinWitnessMask` (engine 57:
  *  `ta.stoch` / `ta.rci` bars no capture pins), `tfMergeMask` (engine 55) or `tfLiveMask`
- *  (HTF-LIVE-FIRST-PERIOD: a look-ahead read of a period built from part of it), one channel. */
-export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
+ *  (HTF-LIVE-FIRST-PERIOD: a look-ahead read of a period built from part of it) or `historyBeforeChartMask` (PERIOD −1:
+ *  a read before the first bar held, named where it takes a value of `column` away), one channel. */
+export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, column = undefined) {
   const masks = [
     periodAnchorMask(tree, bars, inputs, budget, scalars, opts),
     historyReadMask(tree, bars, inputs, budget, scalars, opts),
@@ -7189,6 +7193,8 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts) {
     tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     // ⭐⭐ HTF-LIVE-FIRST-PERIOD — a look-ahead read of a period built from part of it
     tfLiveMask(tree, bars, opts, inputs, budget, scalars),
+    // ⭐⭐ PERIOD −1 — a read of the bar, week or month before the first one this series holds
+    historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
@@ -7837,24 +7843,45 @@ function newestClosesEveryMergePeriod(bars, found, opts) {
  *  take away pictures a smoother has long forgotten the unknown bar in (measured for the first partial period: an
  *  `ema(x, 3)` over a weekly merge, cut from a longer history at 120 starts, drew 116,772 bars of which 2,533 differ
  *  from the longer chart; the forward rule withheld about 93,000 that agree). What such a value carries forward is
- *  an open question this walk does not answer. Every other caller keeps the bounds. */
+ *  an open question this walk does not answer. Every other caller keeps the bounds.
+ *  ⭐ `walk.requestSites` (PERIOD −1, `historyBeforeChartMask` only): a read on other bars is a site or known, never
+ *  walked into (its child runs on other bars: the caller maps the child's own walk onto these bars), and a site's own
+ *  bars are its column alone. `walk.beforeFirst`: a history read that lands BEFORE THE FIRST BAR held is unknown there
+ *  too, as a site of its own — `x[k]` on its first `k` bars, `barsAgo` where its readable count reaches before bar 0
+ *  (the evaluator answers `NaN` for both, which downstream is Pine's `na`; TradingView holds those bars); a running
+ *  value's own past (`self[1]`, `accum(…)[1]`) is one too: off the listing the state before the chart is not held
+ *  either (a switched recurrence refuses a lag of its own; a bounded one is blank there). And
+ *  `walk.skip`: a node the walk leaves whole, known on every bar. And
+ *  the walk's own column reads (`colOf`) share one memo, as a pass does: the same bars, the same options; the caller
+ *  may seed it (`walk.memo`: a COPY of the pass's own memo for these bars, whose columns are these reads' own). */
 const WITNESS_NESTED = new Set(['sym', 'tf', 'tf_live', 'tf_merge', 'ltf'])
 const WITNESS_WINDOW_CALLS = new Set(['change', 'crossOver', 'crossUnder', 'percentrank', 'barsAgo'])
 function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, walk = {}) {
   const n = Array.isArray(bars) ? bars.length : 0
+  const opaque = walk.requestSites === true
+  const beforeFirst = walk.beforeFirst === true
+  // a node the walk leaves whole (`walk.skip`): known, nothing inside it walked
+  const skip = typeof walk.skip === 'function' ? walk.skip : null
+  // ⭐ PERIOD −1 — a history read of this series that can land before its first bar (see `walk.beforeFirst`)
+  const readsBeforeFirst = (node) => beforeFirst && Array.isArray(node.args)
+    && ((node.type === 'offset' && node.args.length === 1 && Number(node.value) >= 1)
+      || (node.type === 'call' && node.name === 'barsAgo' && node.args.length === 3))
   const hasSiteMemo = new Map()
   const hasSite = (node) => {
     if (!node || typeof node !== 'object') return false
     if (hasSiteMemo.has(node)) return hasSiteMemo.get(node)
     hasSiteMemo.set(node, false)
-    const r = isSite(node) || (Array.isArray(node.args) && node.args.some(hasSite))
+    const r = isSite(node) || (!(skip && skip(node)) && (readsBeforeFirst(node)
+      || (!(opaque && WITNESS_NESTED.has(node.type)) && Array.isArray(node.args) && node.args.some(hasSite))))
     hasSiteMemo.set(node, r)
     return r
   }
   if (!hasSite(tree)) return null
   const ALL = 'all'
   const memo = new Map()
-  const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars, witnessOpts(opts)), n)
+  const colMemo = opaque ? (walk.memo instanceof Map ? walk.memo : new Map()) : undefined
+  const colOf = (node) => toColumn(interpretOnce(node, bars, inputs, budget, scalars,
+    colMemo ? { ...witnessOpts(opts), crossMemo: colMemo } : witnessOpts(opts)), n)
   const asCol = (u) => (u === ALL ? new Float64Array(n).fill(1) : u)
   const orInto = (acc, u) => {
     if (u === null) return acc
@@ -7889,23 +7916,31 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
       if (isSite(node)) {
         const own = flagged(node)
         out = own === null ? ALL : own
-        for (const a of args) out = orInto(out, unk(a))
+        if (!opaque) for (const a of args) out = orInto(out, unk(a))
       } else if (node.type === 'offset') {
         const u = unk(args[0])
-        if (u === null || u === ALL) out = u
+        const k = Number(node.value) || 0
+        // ⭐ PERIOD −1 — `x[k]` on its first `k` bars reads before the first bar held (`walk.beforeFirst`)
+        const before = readsBeforeFirst(node) ? Math.min(k, n) : 0
+        if (u === ALL || (u === null && before === 0)) out = u
         else {
-          const k = Number(node.value) || 0
           out = new Float64Array(n)
-          for (let i = k; i < n; i++) out[i] = u[i - k]
+          for (let i = 0; i < before; i++) out[i] = 1
+          if (u !== null) for (let i = k; i < n; i++) out[i] = u[i - k]
         }
       } else if (walk.exact === true && node.type === 'op' && node.name === '?:' && args.length === 3
         && !readsRecurrenceBinding(args[0])) {
         const uc = unk(args[0])
+        const ua0 = uc === ALL ? null : unk(args[1])
+        const ub0 = uc === ALL ? null : unk(args[2])
         if (uc === ALL) out = ALL
+        else if (ua0 === null && ub0 === null) out = uc === null ? new Float64Array(n) : Float64Array.from(uc)
+        else if (ua0 === ALL && ub0 === ALL) out = new Float64Array(n).fill(1)
         else {
+          // the condition is read only where it chooses between two arms that differ (each arm read whatever it is)
           const c = colOf(args[0])
-          const ua = asCol(unk(args[1]))
-          const ub = asCol(unk(args[2]))
+          const ua = asCol(ua0)
+          const ub = asCol(ub0)
           out = new Float64Array(n)
           for (let i = 0; i < n; i++) {
             const a = !!(ua && ua[i])
@@ -7919,7 +7954,7 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
         const spec = own(TABLE.functions, node.name) ? TABLE.functions[node.name] : null
         if (spec && isPointwise(spec) && !isStatefulCall(node)) {
           for (const a of args) out = orInto(out, unk(a))
-        } else if (node.name === 'barssince' && !hasSite(args[1])) {
+        } else if (node.name === 'barssince' && !hasSite(args[1]) && !(opaque && readsRecurrenceBinding(args[0]))) {
           const u = unk(args[0])
           if (u === null || u === ALL) out = u
           else {
@@ -7932,7 +7967,8 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
               out[i] = tainted ? 1 : 0
             }
           }
-        } else if ((node.name === 'valuewhen' || node.name === 'valuewhenOccurrence') && args[2] && args[2].type === 'num') {
+        } else if ((node.name === 'valuewhen' || node.name === 'valuewhenOccurrence') && args[2] && args[2].type === 'num'
+          && !(opaque && readsRecurrenceBinding(args[0]))) {
           const uc = unk(args[0])
           const us = unk(args[1])
           if (uc === ALL || us === ALL) out = ALL
@@ -7970,10 +8006,13 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
             const back = colOf(args[1])
             const limit = windowLiteral(node, 2)
             out = new Float64Array(n)
+            const before = readsBeforeFirst(node)
             for (let i = 0; i < n; i++) {
               if (uk && uk[i]) { out[i] = 1; continue }
               const k = historyBackOf(back[i])
-              if (us && historyReadable(k, limit) && i - k >= 0 && us[i - k]) out[i] = 1
+              if (!historyReadable(k, limit)) continue
+              // ⭐ PERIOD −1 — a readable count that reaches before the first bar held (`walk.beforeFirst`)
+              if (i - k < 0) { if (before) out[i] = 1 } else if (us && us[i - k]) out[i] = 1
             }
           }
         } else if (node.name === 'pivothigh' || node.name === 'pivotlow') {
@@ -7990,6 +8029,11 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
           const reach = walk.exact === true && own(FINITE_WINDOW, node.name) && typeof spec.lookback !== 'number'
             ? FINITE_WINDOW[node.name].span(lb) - 1 : lb
           out = windowed(u, Math.max(0, reach))
+          // ⭐ PERIOD −1 — a `barsAgo` whose count this walk cannot read reaches anywhere in its buffer
+          if (readsBeforeFirst(node) && out !== ALL) {
+            if (out === null) out = new Float64Array(n)
+            for (let i = 0; i < Math.min(lb, n); i++) out[i] = 1
+          }
         } else {
           let u = null
           for (const a of args) u = orInto(u, unk(a))
@@ -8022,6 +8066,133 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
 
 const witnessOpts = (opts) => ({ ...(opts || {}), crossMemo: undefined, probeBase: undefined,
   chartClockSink: undefined, withheldBarsSink: undefined })
+
+/** ⭐⭐ PERIOD −1 (HTF-PRE-CHART, coordinator ruling 2026-11-19) — A READ OF THE BAR, OR THE WEEK OR MONTH, BEFORE THE
+ *  CHART'S FIRST: the code and the sentence (`CHART_CLOCK_WITHHELD`; Python twin `ast_interpret.HISTORY_BEFORE_CHART_CODE`). */
+export const HISTORY_BEFORE_CHART_CODE = 'history:before-chart'
+export const HISTORY_BEFORE_CHART_SENTENCE = 'This indicator reads a bar before the one it is drawn on — `close[1]`, a '
+  + 'value from a few bars back, or a weekly or monthly value of the week or month before. On the first bars this chart '
+  + 'holds, that bar is one it does not hold: TradingView\'s history of the symbol begins at its listing and reads a '
+  + 'value there (measured: capture `vw-mbb-auto-spy-1d-2026-09-30`, where 225 of 300 reads land before the capture\'s '
+  + 'first bar and none is `na`), where this chart has only `na`. What this indicator draws from such a read — '
+  + '`nz(close[1])`, a test such as `x != x[1]` or `na(x[1])`, a colour chosen by one — is withheld on those bars rather '
+  + 'than drawn from `na`; every later bar is drawn. On a chart whose bars start at the symbol\'s listing it draws: '
+  + 'TradingView reads `na` there too. What would settle it: nothing to capture — bars reaching the listing.'
+
+/** ⭐⭐ PERIOD −1 — THE BARS OF A TREE THAT READ A BAR (OR A HIGHER-TIMEFRAME PERIOD) BEFORE THE FIRST ONE ITS SERIES
+ *  HOLDS, as a 0/1 column over `bars` (1 = unknown), or null when none does. `off`: this series' bar 0 is not
+ *  TradingView's (the chart off its listing; another symbol's series, always: C26).
+ *    - off, the series' own history reads: `x[k]` on its first `k` bars, a `barsAgo` count that reaches before bar 0
+ *      (`witnessMask`'s `walk.beforeFirst`). The evaluator answers `NaN` there, which downstream is Pine's `na`
+ *      (`nz` → 0, `x != x[1]` → true at the `?:`): measured by the truth proxy, the served cpr script's `out30`-`out38`
+ *      drew a colour on bars 0-1 of all 120 cut charts where the longer chart draws none.
+ *    - a read on other bars is a site of its own (`requestBeforeFirst`): the child's own walk on those bars, mapped
+ *      onto these by the evaluator's pick; and a `tf_merge` / formula `tf` bar that reads the period BEFORE the first
+ *      (the first period's bars before its close) reads a period this series does not hold, off it.
+ *  Which ROOT bars read them is engine 56's walk taken exactly (`x[k]` moves them k bars later, `c ? a : b` reads the
+ *  arm a known `c` takes, a finite window over its own span, a running value where its argument is: its memory is
+ *  item 4's question). The sinks are stripped: `historyBeforeChartMask` names the code.
+ *  ⛔ A `time(<period>)` anchor (`isPeriodAnchor`, its `key != key[1]` reads the bar before the series) is LEFT WHOLE: on
+ *  a session chart the chart clock answers it from the calendar, bar 0 included (C49, measured), and what it withholds
+ *  — the bar before the series included — is `periodAnchorMask`'s, the one authority over the clock. Walking its
+ *  literal tree withheld `plot(time("W"))` on bar 0 of every daily chart (`noticeScope`, `chartClockNotice`). */
+function preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo = new Map()) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!n) return null
+  const own = new Map()
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (SCOPE_TYPES.has(node.type)) {
+      const m = requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo)
+      if (m) own.set(node, m)
+      continue
+    }
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!own.size && !off) return null
+  const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
+  return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
+    (nd) => Float64Array.from(own.get(nd)), HISTORY_BEFORE_CHART_CODE,
+    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor })
+}
+
+/** ⭐⭐ PERIOD −1 — the bars of `bars` on which a read on other bars (`node`, a `SCOPE_TYPES` node) answers from a bar
+ *  before its series' first, as a 0/1 column, or null. The child is walked on the bars the evaluator runs it on, with
+ *  the listing fact the evaluator hands it, and mapped back by the evaluator's own pick:
+ *    - `tf` / `tf_live` / `tf_merge`: this symbol's higher-timeframe bars (`resampleTo`), `off` unchanged (the
+ *      evaluator keeps `historyFromListing` there); `tfLiveReads` / `tfMergeReads` / bucket `b - 1`. A merge's (or a
+ *      formula `tf`'s) first-period bar before the close reads the period before the first: unknown, off;
+ *    - `sym`: the supplied series, aligned on `t` (the `sym` arm's rule), always off (C26: another symbol's listing is
+ *      not this chart's, and the evaluator clears it); unsupplied, nothing here (`symAlignmentMask` withholds it);
+ *    - `ltf`: nothing here: a chart bar whose child reaches off the front of the intraday supply is `lowerTfMask`'s. */
+function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo) {
+  const n = bars.length
+  const child = Array.isArray(node.args) ? node.args[0] : undefined
+  if (node.type === LTF) return null
+  // the child's own bar set reads the pass's memo for it, as the evaluator scopes it (`scopedCrossMemo`), copied
+  const scoped = (key) => (memo instanceof Map && memo.get(key) instanceof Map ? new Map(memo.get(key)) : new Map())
+  let m = null
+  const set = (i) => { if (!m) m = new Float64Array(n); m[i] = 1 }
+  if (node.type === 'sym') {
+    const series = ((opts && opts.symbols) || {})[String(node.value).trim().toUpperCase()]
+    if (!Array.isArray(series) || !series.length) return null
+    const ticker = String(node.value).trim().toUpperCase()
+    const u = preChartUnknown(child, series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined }, true,
+      scoped(`sym\u0001${ticker}`))
+    if (!u) return null
+    const at = new Map()
+    for (let j = 0; j < series.length; j++) {
+      const key = series[j] && typeof series[j] === 'object' ? series[j].t : undefined
+      if (key !== undefined && key !== null && !at.has(key)) at.set(key, j)
+    }
+    for (let i = 0; i < n; i++) {
+      const key = bars[i] && typeof bars[i] === 'object' ? bars[i].t : undefined
+      const j = key === undefined || key === null ? undefined : at.get(key)
+      if (j !== undefined && u[j]) set(i)
+    }
+    return m
+  }
+  const code = String(node.value)
+  const isos = bars.map((b) => isoDay(b && b.t))
+  const { htf, at } = resampleTo(bars, isos, code)
+  const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, off,
+    scoped(`tf\u0001${code}`)) : null
+  const reads = node.type === 'tf_live' ? tfLiveReads(isos, code, at) : node.type === TF_MERGE ? tfMergeReads(isos, code, at) : null
+  for (let i = 0; i < n; i++) {
+    if (!isos[i]) continue
+    const b = at.get(tfBucket(isos[i], code))
+    const r = reads ? reads[i] : b - 1
+    if (r >= 0) { if (u && u[r]) set(i) } else if (off && b === 0) set(i)
+  }
+  return m
+}
+
+/** ⭐⭐ PERIOD −1 (coordinator ruling 2026-11-19) — THE ROOT BARS THAT DRAW FROM A READ BEFORE THE FIRST BAR HELD, in a
+ *  Pine document (`opts.varOriginAbsolute`, the door's declaration: a formula's `x[1]` means its own series), as a 0/1
+ *  column (1 = withheld), or null. Off the listing (`barIndexAbsolute`, i.e. this series' bar 0 is not known to be
+ *  TradingView's, and `historyFromListing !== true`) every history read of the chart's own bars counts; from the
+ *  listing TradingView reads `na` there too and only another symbol's reads do (`preChartUnknown`).
+ *  ⭐ NAMED ONLY WHERE IT TAKES A DRAWN VALUE AWAY: `column` (the root's, when the caller holds it) finite on a
+ *  withheld bar; a read that stays `na` (`close[1]` on bar 0) was blank already, and naming it would put the sentence
+ *  on nearly every script. With no column it names whenever it withholds. ⛔ NO `try`: a refusal here must reach the
+ *  caller as itself. Python twin: `ast_interpret.history_before_chart_mask`. */
+export function historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column = undefined) {
+  if (!opts || opts.varOriginAbsolute !== true) return null
+  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true
+  if (!off && !treeReadsSym(tree)) return null
+  // the walk's column reads start from a COPY of this pass's memo (its columns are these reads' own; writes stay local)
+  const memo = opts.crossMemo instanceof Map ? new Map(opts.crossMemo) : new Map()
+  const mask = preChartUnknown(tree, bars, inputs, budget, scalars, opts, off, memo)
+  if (!mask) return null
+  let drawn = column === undefined || column === null
+  if (!drawn) for (let i = 0; i < mask.length; i++) if (mask[i] && Number.isFinite(column[i])) { drawn = true; break }
+  if (drawn) nameChartClock(opts, [HISTORY_BEFORE_CHART_CODE], opts.tf)
+  return mask
+}
 
 /** ⭐⭐ ENGINE 56 (A3) — THE BARS WHERE A PINE v1-v5 `bool` THAT IS `na` MEETS AN OPERATOR
  *  NO CAPTURE HAS WITNESSED FOR IT, as a 0/1 column (1 = withheld), or null.
@@ -8090,7 +8261,7 @@ export function argExtremeTieMask(tree, bars, inputs, budget, scalars, opts) {
 function withReadsWithheld(ast, bars, out, inputs, budget, scalars, opts) {
   if (opts && typeof opts.prefixProbe === 'number') return out
   if (!isColumn(out)) return out
-  const mask = withheldReadMask(ast, bars, inputs, budget, scalars, opts)
+  const mask = withheldReadMask(ast, bars, inputs, budget, scalars, opts, out)
   if (!mask) return out
   const copy = Float64Array.from(out)
   for (let i = 0; i < copy.length; i++) if (mask[i]) copy[i] = NaN
