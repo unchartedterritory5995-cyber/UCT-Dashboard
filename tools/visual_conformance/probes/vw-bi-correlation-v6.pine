@@ -1,0 +1,17 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_CORRELATION_V6", overlay = false)
+
+// U-BUILTIN (2026-11-19). THE SAME ROWS AS vw-bi-correlation-v4.pine, SPELLED `ta.correlation` (v6).
+//
+// CAPTURE: AMEX:SPY 1D from the listing. Inputs at defaults.
+
+holed = bar_index % 37 == 11 ? na : close
+flat = bar_index % 50 < 25 ? 1.0 : close
+
+plot(bar_index, "C0_bar_index_CONTROL")
+plot(ta.correlation(close, open, 20), "C1_close_open_20")
+plot(ta.correlation(close, volume, 20), "C2_close_volume_20")
+plot(ta.correlation(close, close[1], 2), "C3_length_2")
+plot(ta.correlation(holed, open, 20), "C4_with_na_holes")
+plot(ta.correlation(flat, open, 10), "C5_zero_variance_runs")
+plot(ta.correlation(close, open, 1), "C6_length_1")

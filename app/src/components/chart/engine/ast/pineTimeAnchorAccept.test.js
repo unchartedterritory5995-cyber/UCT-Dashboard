@@ -95,7 +95,7 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
     // ⭐ THIS CASE'S INTENT IS UNTOUCHED: the leaf is still the leaf, no new node
     // type was invented, and the reconciliation is the same one the bare name
     // already carried.
-    expect(t.outputs[t.selected].formula).toBe('change(dayopentime * 1000) != 0 ? 1 : 0')
+    expect(t.outputs[t.selected].formula).toBe('change((dayopentime + 34200) * 1000) != 0 ? 1 : 0') // ⭐ U-BUILTIN T-D (2026-11-19): the anchor is the session's 09:30 open (`interpret.js::dayAnchorNode`, R6 of `vw-bt-time-1440-spy-{1d,60}-2026-11-16`), not midnight
   })
 
   it('"1D" normalises to the same "D" code as "D" itself', () => {
@@ -126,7 +126,7 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
     // ⭐ THIS CASE'S INTENT IS UNTOUCHED: the leaf is still the leaf, no new node
     // type was invented, and the reconciliation is the same one the bare name
     // already carried.
-    expect(t.outputs[t.selected].formula).toBe('change(dayopentime * 1000) != 0 ? 1 : 0')
+    expect(t.outputs[t.selected].formula).toBe('change((dayopentime + 34200) * 1000) != 0 ? 1 : 0') // ⭐ U-BUILTIN T-D (2026-11-19): the anchor is the session's 09:30 open (`interpret.js::dayAnchorNode`, R6 of `vw-bt-time-1440-spy-{1d,60}-2026-11-16`), not midnight
   })
 
   // ⭐⭐ VALUE CORRECTNESS, DIRECTLY AGAINST `computeClock` — never
@@ -211,12 +211,17 @@ describe('⭐ time(<timeframe>) one-argument anchor form redirects to dayopentim
   // already handled it.
   // ⚰️ 2026-09-28: the session form now TRANSLATES on the chart pane (measured,
   // vw-time-session) — as the session clock, never as the day anchor.
-  it('⛔⛔ the 2-argument session form is the SESSION clock, never dayopentime', () => {
+  it('⛔⛔ the 2-argument session form is the SESSION clock (its membership), its value the 09:30 open of the day', () => {
+    // ⭐ U-BUILTIN T-D (2026-11-19): a window that opens at 09:30 reads the day anchor INSIDE the window
+    // (R2 of `vw-bt-time-1440-spy-60-2026-11-16`); the membership is still the session clock's own
     const t = translatePine(S('ta.change(time("D", "0930-1600")) != 0 ? 1 : 0'), { strict: true })
     expect(t.ok).toBe(true)
     const f = t.outputs[t.selected].formula
-    expect(f).not.toMatch(/dayopentime/)
     expect(f).toMatch(/hour \* 60 \+ minute >= 570/)
+    expect(f).toBe('change(hour * 60 + minute >= 570 && hour * 60 + minute < 960 ? (dayopentime + 34200) * 1000 : 0 / 0) != 0 ? 1 : 0')
+    // another window keeps the session clock's daily tree, gated to a daily chart
+    const w = translatePine(S('time("D", "1000-1100")'), { strict: true })
+    expect(w.outputs[w.selected].formula).toMatch(/^86400 == periodseconds \? /)
   })
 
   // ⛔⛔ THE HONEST CORPUS RESULT, MEASURED UNDER THE SAME `{ strict: true }`

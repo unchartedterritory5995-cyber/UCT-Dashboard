@@ -1,0 +1,51 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_PIVOT_POINT_LEVELS_B", overlay = true)
+
+// U-BUILTIN (2026-11-19). WHAT `ta.pivot_point_levels(type, anchor, developing)` RETURNS, LEVEL BY LEVEL.
+//
+// The reference names the eleven levels [P, R1, S1, R2, S2, R3, S3, R4, S4, R5, S5] and the six types and
+// gives no formula for any of them, nor the value on the bars before the first anchor.
+// committed:previous-day-high-and-low-separators-dailyweekly calls
+// `ta.pivot_point_levels("Traditional", timeframe.change(tfAuto))`. This half reads Classic, DM, Camarilla on a weekly
+// anchor, developing = false. P is plotted per type; a level the type does not compute reads na.
+//
+// CAPTURE: AMEX:SPY 1D from the listing and NYSE:RDDT 1D from the listing. Inputs at defaults.
+
+anchor = timeframe.change("W")
+plot(bar_index, "P0_bar_index_CONTROL")
+lv1 = ta.pivot_point_levels("Classic", anchor)
+plot(array.get(lv1, 0), "Classic_0")
+plot(array.get(lv1, 1), "Classic_1")
+plot(array.get(lv1, 2), "Classic_2")
+plot(array.get(lv1, 3), "Classic_3")
+plot(array.get(lv1, 4), "Classic_4")
+plot(array.get(lv1, 5), "Classic_5")
+plot(array.get(lv1, 6), "Classic_6")
+plot(array.get(lv1, 7), "Classic_7")
+plot(array.get(lv1, 8), "Classic_8")
+plot(array.get(lv1, 9), "Classic_9")
+plot(array.get(lv1, 10), "Classic_10")
+lv2 = ta.pivot_point_levels("DM", anchor)
+plot(array.get(lv2, 0), "DM_0")
+plot(array.get(lv2, 1), "DM_1")
+plot(array.get(lv2, 2), "DM_2")
+plot(array.get(lv2, 3), "DM_3")
+plot(array.get(lv2, 4), "DM_4")
+plot(array.get(lv2, 5), "DM_5")
+plot(array.get(lv2, 6), "DM_6")
+plot(array.get(lv2, 7), "DM_7")
+plot(array.get(lv2, 8), "DM_8")
+plot(array.get(lv2, 9), "DM_9")
+plot(array.get(lv2, 10), "DM_10")
+lv3 = ta.pivot_point_levels("Camarilla", anchor)
+plot(array.get(lv3, 0), "Camarilla_0")
+plot(array.get(lv3, 1), "Camarilla_1")
+plot(array.get(lv3, 2), "Camarilla_2")
+plot(array.get(lv3, 3), "Camarilla_3")
+plot(array.get(lv3, 4), "Camarilla_4")
+plot(array.get(lv3, 5), "Camarilla_5")
+plot(array.get(lv3, 6), "Camarilla_6")
+plot(array.get(lv3, 7), "Camarilla_7")
+plot(array.get(lv3, 8), "Camarilla_8")
+plot(array.get(lv3, 9), "Camarilla_9")
+plot(array.get(lv3, 10), "Camarilla_10")

@@ -1,0 +1,22 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_ASIN", overlay = false)
+
+// U-BUILTIN (2026-11-19). THE LAST BIT OF `math.asin` (THE v4 BARE `asin` IS vw-bi-asin-v4.pine).
+//
+// Served from the reference sentence ("the arcsine ... in the range [-Pi/2, Pi/2], or na if y is outside
+// of range [-1, 1]") as JavaScript's `Math.asin`, as `math.acos` is. Whether TradingView's arcsine agrees in
+// the last bit is read here, over arguments that sweep [-1, 1] and step just past it. A1 is the value itself
+// (graded against Math.asin, bar for bar, exactly); A2-A4 the domain edges; A5 the identity residual
+// sin(asin(y)) - y, scaled, which separates two arcsines that differ in the last bit.
+//
+// CAPTURE: AMEX:SPY 1D from the listing. Inputs at defaults.
+
+y = math.sin(bar_index * 0.7319) * 1.0000001
+plot(bar_index, "A0_bar_index_CONTROL")
+plot(y, "Y_argument")
+plot(math.asin(y), "A1_asin_y")
+plot(na(math.asin(y)) ? 1 : 0, "A2_na_outside_unit")
+plot(math.asin(1), "A3_asin_1")
+plot(math.asin(-1), "A4_asin_minus_1")
+plot((math.sin(math.asin(y * 0.999)) - y * 0.999) * 1e18, "A5_identity_residual_1e18")
+plot(math.asin(0.5) * 6 - math.pi, "A6_asin_half_times_6_minus_pi")
