@@ -66,13 +66,19 @@ def test_the_exchange_day_is_new_yorks_on_every_half_hour_1990_to_2035():
     ny = ZoneInfo("America/New_York")
     t = int(datetime.datetime(1990, 1, 1, tzinfo=datetime.timezone.utc).timestamp())
     end = int(datetime.datetime(2036, 1, 1, tzinfo=datetime.timezone.utc).timestamp())
-    checked = 0
+    stamps = []
     while t < end:
-        want = datetime.datetime.fromtimestamp(t, datetime.timezone.utc).astimezone(ny).strftime("%Y-%m-%d")
-        assert ast_interpret._iso_day(t) == want, t
+        stamps.append(t)
         t += 7193
-        checked += 1
-    assert checked > 200000
+    # an intraday series (two-hour spacing): each bar keyed by its New York day
+    days = ast_interpret._bar_days([{"t": x} for x in stamps])
+    for x, got in zip(stamps, days):
+        want = datetime.datetime.fromtimestamp(x, datetime.timezone.utc).astimezone(ny).strftime("%Y-%m-%d")
+        assert got == want, x
+    assert len(stamps) > 200000
+    # a single stamp is no series: its UTC day, as before (a date stamped at midnight UTC stays that date)
+    assert ast_interpret._iso_day(1613174400) == "2021-02-13"
+    assert ast_interpret._bar_days([{"t": 1613174400}]) == ["2021-02-13"]
 
 
 def test_the_resampler_keeps_every_row_when_asked_and_drops_none_by_default():

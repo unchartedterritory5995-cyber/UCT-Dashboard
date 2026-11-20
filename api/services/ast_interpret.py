@@ -473,12 +473,56 @@ def _iso_day(t: Any) -> Optional[str]:
         if 1 <= m <= 12 and 1 <= d <= 31:
             return "%04d-%02d-%02d" % (y, m, d)
     # otherwise: unix SECONDS (the intraday spelling). Not milliseconds — this
-    # platform's unit everywhere a bar carries one, as `compute_clock` states.
-    # ⭐⭐ RULING 2 (2026-11-20): the EXCHANGE's day, never the UTC one (``_new_york_offset_seconds``).
+    # platform's unit everywhere a bar carries one, as `compute_clock` states. (A series' days: ``_bar_days``.)
     if 0 < n < 4102444800:                      # < 2100-01-01
-        day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(n + _new_york_offset_seconds(n)) // 86400)
-        return day.strftime("%Y-%m-%d")
+        return (datetime.date(1970, 1, 1) + datetime.timedelta(days=n // 86400)).strftime("%Y-%m-%d")
     return None
+
+
+def _epoch_seconds_of(t: Any) -> Optional[int]:
+    """``interpret.js::epochSecondsOf``: a bar's ``t`` as unix seconds when it is one (not an ISO day, not a
+    ``YYYYMMDD`` key), else ``None``."""
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or t != t or t in (math.inf, -math.inf):
+        return None
+    n = int(t)
+    if 19000101 <= n <= 99991231:
+        md = n % 10000
+        if 1 <= md // 100 <= 12 and 1 <= md % 100 <= 31:
+            return None
+    return n if 0 < n < 4102444800 else None
+
+
+#: ``interpret.js::INTRADAY_SPACING_S``: two bars closer than this are an intraday series'.
+INTRADAY_SPACING_S = 20 * 3600
+
+
+def _bar_days(bars: List[Any]) -> List[Optional[str]]:
+    """⭐⭐ RULING 2 (coordinator, 2026-11-20) -- the port of ``interpret.js::barDays`` (its note carries the rule): the
+    day of each bar of a series as a resampler keys its week or month. An INTRADAY series' bar (unix seconds, two bars
+    less than ``INTRADAY_SPACING_S`` apart) by the exchange's local session date (``_new_york_offset_seconds``), every
+    other bar as ``_iso_day`` reads it (a daily series stamped at midnight UTC is a DATE). The series decides, not the
+    bar."""
+    stamps = [b.get("t") if isinstance(b, Mapping) else None for b in (bars or [])]
+    intraday = False
+    prev = None
+    for t in stamps:
+        e = _epoch_seconds_of(t)
+        if e is None:
+            prev = None
+            continue
+        if prev is not None and prev < e and e - prev < INTRADAY_SPACING_S:
+            intraday = True
+            break
+        prev = e
+    out: List[Optional[str]] = []
+    for t in stamps:
+        e = _epoch_seconds_of(t) if intraday else None
+        if e is None:
+            out.append(_iso_day(t))
+        else:
+            day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(e + _new_york_offset_seconds(e)) // 86400)
+            out.append(day.strftime("%Y-%m-%d"))
+    return out
 
 
 def _new_york_offset_seconds(t: int) -> int:
@@ -559,7 +603,7 @@ def _htf_resampled(bars: List[dict], code: str):
     ⭐ THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS. ``bars_fetch._resample_weekly_iso`` carries the
     stable-Friday-key rationale; a private aggregation here would be a second authority on it, which
     ``screener/candles.py`` already says in as many words."""
-    iso = [_iso_day(b.get("t")) for b in bars]
+    iso = _bar_days(bars)
     keys = [(_tf_bucket(d, code) if d else None) for d in iso]
     order: List[Any] = []
     at: Dict[Any, int] = {}
@@ -5112,7 +5156,7 @@ def _first_period_partial_mask(bars: List[dict], found: list,
     if (opts or {}).get("historyFromListing") is True:
         return None
     n = len(bars)
-    days = [_iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars]
+    days = _bar_days(bars)
     tf = (opts or {}).get("tf")
     daily = tf in ("D", "1D") and all(d and datetime.date.fromisoformat(d).weekday() <= 4 for d in days)
     out = None
@@ -5302,7 +5346,7 @@ def _tf_live_first_period_bars(bars: List[dict], code: Any,
     n = len(bars)
     if not n or not isinstance(code, str) or (opts or {}).get("historyFromListing") is True:
         return None
-    days = [_iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars]
+    days = _bar_days(bars)
     if any(not d for d in days):
         return [1] * n
     tf = (opts or {}).get("tf")
@@ -5432,7 +5476,7 @@ def _tf_closure_session_read_mask(tree: Any, bars: List[dict], opts, inputs, bud
     n = len(bars or [])
     if not n:
         return None
-    iso = [_iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars]
+    iso = _bar_days(bars)
     if not any(d and _closed_session_day(d) for d in iso):
         return None
 

@@ -1,13 +1,13 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "RULING 2 (fix/htf-exchange-day): a resampler keys an intraday bar's week or month by the exchange's local (New York) session date, never its UTC date; both lanes keep every bar the series holds in a higher-timeframe aggregate, and the bars that show or read a week or month holding a session the exchange never held (a weekend, an NYSE full closure) are withheld by name (request:htf-closure-session). Every rule, broken once, must turn its rail red.",
+ "about": "RULING 2 (fix/htf-exchange-day): a resampler keys an intraday series' bar's week or month by the exchange's local (New York) session date, never its UTC date; both lanes keep every bar the series holds in a higher-timeframe aggregate, and the bars that show or read a week or month holding a session the exchange never held (a weekend, an NYSE full closure) are withheld by name (request:htf-closure-session). Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "X1",
    "mutant": "JS: an intraday bar's day read as its UTC day again",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    const [y, m, d] = civilFromDays(Math.floor((n + newYorkOffsetSeconds(n)) / 86400))",
-   "to": "    const [y, m, d] = civilFromDays(Math.floor(n / 86400))",
+   "from": "    const [y, m, d] = civilFromDays(Math.floor((t + newYorkOffsetSeconds(t)) / 86400))",
+   "to": "    const [y, m, d] = civilFromDays(Math.floor(t / 86400))",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
    "expectRed": "tf_merge(M, close) on December 1st"
   },
@@ -57,11 +57,20 @@
    "expectRed": "the week holding the Good Friday bar is withheld"
   },
   {
+   "id": "X7",
+   "mutant": "JS: every series in unix seconds read in New York (a daily series stamped at midnight UTC moves a day)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (prev !== null && t > prev && t - prev < INTRADAY_SPACING_S) intraday = true",
+   "to": "    if (prev !== null && t > prev) intraday = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
+   "expectRed": "a daily series stamped at midnight UTC keeps its dates"
+  },
+  {
    "id": "PX1",
    "mutant": "Python: an intraday bar's day read as its UTC day again",
    "file": "api/services/ast_interpret.py",
-   "from": "        day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(n + _new_york_offset_seconds(n)) // 86400)",
-   "to": "        day = datetime.date(1970, 1, 1) + datetime.timedelta(days=n // 86400)",
+   "from": "            day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(e + _new_york_offset_seconds(e)) // 86400)",
+   "to": "            day = datetime.date(1970, 1, 1) + datetime.timedelta(days=e // 86400)",
    "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
    "expectRed": "tf_merge(M, close) on December 1st"
   },
@@ -118,6 +127,15 @@
    "to": "        closed = None",
    "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
    "expectRed": "the week holding the Good Friday bar is withheld"
+  },
+  {
+   "id": "PX8",
+   "mutant": "Python: every series in unix seconds read in New York",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if prev is not None and prev < e and e - prev < INTRADAY_SPACING_S:",
+   "to": "        if prev is not None and prev < e:",
+   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
+   "expectRed": "a daily series stamped at midnight UTC keeps its dates"
   }
  ]
 }

@@ -22,7 +22,7 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { interpret, isoDay, newYorkOffsetSeconds, closedSessionDay, TF_CLOSURE_SESSION_CODE, TF_CLOSURE_SESSION_SENTENCE,
+import { interpret, barDays, newYorkOffsetSeconds, closedSessionDay, TF_CLOSURE_SESSION_CODE, TF_CLOSURE_SESSION_SENTENCE,
   CHART_CLOCK_WITHHELD } from './interpret'
 
 const FIXTURE = path.resolve(process.cwd(), '..', 'tests', 'fixtures', 'ast', 'htf_exchange_day.json')
@@ -55,12 +55,20 @@ const NOV = rowsBetween(1638176400, 1638435600)
 const DAILY = ['2024-03-18', '2024-03-19', '2024-03-20', '2024-03-21', '2024-03-22', '2024-03-25', '2024-03-26', '2024-03-27',
   '2024-03-28', '2024-03-29', '2024-04-01', '2024-04-02', '2024-04-03', '2024-04-04', '2024-04-05', '2024-04-08']
 const dailyBars = (days) => days.map((t, i) => ({ t, o: i + 0.5, h: i + 1.5, l: i, c: i + 1, v: 100 + i }))
-const SETS = { feb: FEB, nov: NOV, goodFriday: dailyBars(DAILY), noClosure: dailyBars(DAILY.filter((d) => d !== '2024-03-29')) }
+const NO_CLOSURE = DAILY.filter((d) => d !== '2024-03-29')
+// the same daily series stamped in unix seconds at midnight UTC (a DATE, as the run's daily supply spells it): read in
+// New York it would be the day before, a Sunday for every Monday
+const atMidnightUtc = (b) => ({ ...b, t: Date.UTC(Number(b.t.slice(0, 4)), Number(b.t.slice(5, 7)) - 1, Number(b.t.slice(8, 10))) / 1000 })
+const SETS = { feb: FEB, nov: NOV, goodFriday: dailyBars(DAILY), noClosure: dailyBars(NO_CLOSURE),
+  midnight: dailyBars(NO_CLOSURE).map(atMidnightUtc) }
 const INTRADAY = { tf: '60', newestBarIsForming: false, historyFromListing: true }
 const DAY = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
 
 // index of a bar by its New York wall time, for the hand-written answers below
-const at = (set, iso, hh) => SETS[set].findIndex((b) => isoDay(b.t) === iso && ((b.t + newYorkOffsetSeconds(b.t)) % 86400) / 3600 === hh)
+const at = (set, iso, hh) => {
+  const days = barDays(SETS[set])
+  return SETS[set].findIndex((b, i) => days[i] === iso && ((b.t + newYorkOffsetSeconds(b.t)) % 86400) / 3600 === hh)
+}
 
 const CASES = [
   // ⭐ THE DEFECT: the week's close is its Friday 19:00 New York bar's (393.1), never the 18:00 bar's (393.08)
@@ -92,6 +100,9 @@ const CASES = [
   // CONTROLS
   { name: 'CONTROL nz(tf_merge(W, high)) on the same series without the Good Friday bar (Thursday closes the week; nothing withheld)',
     set: 'noClosure', opts: DAY, tree: () => call('nz', merge(HIGH), num(0)), pick: () => [4, 8, 9, 13],
+    expect: [5.5, 9.5, 9.5, 14.5] },
+  { name: 'CONTROL a daily series stamped at midnight UTC keeps its dates (a date, not an instant): the same weeks',
+    set: 'midnight', opts: DAY, tree: () => call('nz', merge(HIGH), num(0)), pick: () => [4, 8, 9, 13],
     expect: [5.5, 9.5, 9.5, 14.5] },
   { name: 'CONTROL a read of the chart\'s own bars only (close) holds no week: nothing withheld on the Good Friday series',
     set: 'goodFriday', opts: DAY, tree: () => call('nz', CLOSE, num(0)), pick: () => [9], expect: [10] },
@@ -141,22 +152,28 @@ describe('⭐ TradingView keys the bar to its exchange day (the capture, read he
         && (((Math.floor((t - 5 * 3600) / 86400) + 4) % 7) + 7) % 7 === 5
     })
     expect(fridays.length).toBe(96)
+    const days = barDays(CAP.plotValues.rows.map((r) => ({ t: r[0] })))
+    const dayOf = new Map(CAP.plotValues.rows.map((r, i) => [r[0], days[i]]))
     for (const r of fridays) {
       expect(r[A1], `t ${r[0]}`).toBe(-54000)
       expect(r[A5], `t ${r[0]}`).toBe(0)
       // ...and this engine's day for it is that Friday, not the UTC Saturday
-      expect(closedSessionDay(isoDay(r[0])), `t ${r[0]}`).toBe(false)
+      expect(closedSessionDay(dayOf.get(r[0])), `t ${r[0]}`).toBe(false)
     }
   })
   it('the New York offset is the IANA zone\'s on every half hour 1990-2035', () => {
     const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit',
       day: '2-digit' })
     let checked = 0
-    for (let t = Date.UTC(1990, 0, 1) / 1000; t < Date.UTC(2036, 0, 1) / 1000; t += 1799) {
+    const stamps = []
+    for (let t = Date.UTC(1990, 0, 1) / 1000; t < Date.UTC(2036, 0, 1) / 1000; t += 1799) stamps.push(t)
+    // an intraday series (half-hour spacing): each bar keyed by its New York day
+    const days = barDays(stamps.map((t) => ({ t })))
+    stamps.forEach((t, i) => {
       const p = Object.fromEntries(fmt.formatToParts(new Date(t * 1000)).map((x) => [x.type, x.value]))
-      if (isoDay(t) !== `${p.year}-${p.month}-${p.day}`) expect(isoDay(t), `t ${t}`).toBe(`${p.year}-${p.month}-${p.day}`)
+      if (days[i] !== `${p.year}-${p.month}-${p.day}`) expect(days[i], `t ${t}`).toBe(`${p.year}-${p.month}-${p.day}`)
       checked += 1
-    }
+    })
     expect(checked).toBeGreaterThan(800000)
   })
 })
