@@ -21,6 +21,13 @@ import useBoundDrawingAlerts from './chart/useBoundDrawingAlerts'
 import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import { touchTodayPack } from '../lib/todayPackClient'
 import useSWR, { mutate as globalMutate } from 'swr'
+import { createWindowedChart, createWindowedMarkers, renderWindowRows } from './chart/windowedChart'
+/** Apply a render-window decision (rows, or null for every bar) to a facade chart once. */
+function applyRenderWindow(chart, rw) {
+  if (!rw || rw.applied || !chart?.window) return
+  rw.applied = true
+  chart.window.setWindow(rw.rows, { span: rw.span })
+}
 import { createChart, createSeriesMarkers, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
 import {
@@ -62,7 +69,7 @@ import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
-import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
+import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
@@ -4923,6 +4930,11 @@ export default function StockChart({
   // classification field: `bindSymbolOf` ignores it and the run cache keys do not carry it.
   const _firstTradeDate = ipoInfo && ipoInfo.first_trade_final === true && typeof ipoInfo.first_trade_date === 'string'
     ? ipoInfo.first_trade_date : null
+  // ⭐⭐ (coordinator ruling 2026-11-20, captured: BGIN 1h refused its listing-day bar while the lookup was out, and stayed
+  // refused after it landed) — the lookup STILL IN FLIGHT for this symbol (`useTickerIpo`'s `PENDING_IPO`): a run whose
+  // first bars rest on the listing waits for it rather than refusing them. useTickerIpo keys on `sym`, so another
+  // symbol's late answer is never this one's.
+  const _firstTradeDatePending = !_firstTradeDate && !!(ipoInfo && ipoInfo.pending === true)
   const symbolMeta = useMemo(() => (
     sym ? {
       ticker: sym,
@@ -4931,8 +4943,9 @@ export default function StockChart({
       sector: (tickerMeta && tickerMeta.sector) || null,
       securityType: (tickerMeta && tickerMeta.security_type) || null,
       ...(_firstTradeDate ? { firstTradeDate: _firstTradeDate } : {}),
+      ...(_firstTradeDatePending ? { firstTradeDatePending: true } : {}),
     } : null
-  ), [sym, tickerMeta, _firstTradeDate])
+  ), [sym, tickerMeta, _firstTradeDate, _firstTradeDatePending])
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
@@ -9643,14 +9656,22 @@ export default function StockChart({
   // never the IPO badge's five-day tolerance above, which only labels a candle.
   // ⭐ The reference date is `listingReferenceDate` (the corroborated first session
   // when the server sends one, else `list_date`) — NOT the IPO badge's `list_date`.
-  const historyFromListing = useMemo(() => historyFromListingOf({
+  // ⭐⭐ (2026-11-20) and a WEEKLY chart from its listing week, served on capture evidence (`servedFromListingOf`)
+  const historyFromListing = useMemo(() => servedFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐⭐ (coordinator ruling 2026-11-20) — THE LISTING FACT ON A WEEKLY / MONTHLY CHART, stated where it holds and is NOT
+  // served (`listingSeed.listingStartOf`, `LISTING_SERVED_TFS`): a run still withheld there says why TRUTHFULLY
+  // (`runtime:listing-unverified`). Absent everywhere else, so every other chart's context is unchanged.
+  const listingUnserved = useMemo(() => !historyFromListing && listingStartOf({
+    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
+  }), [historyFromListing, filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
   // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
-  // (`chart/builder/runsHere.js`): the bars the binder computes on and the five facts of the compute
-  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`).
+  // (`chart/builder/runsHere.js`): the bars the binder computes on and the six facts of the compute
+  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`, and
+  // the listing fact where it is not served, `listingStart`).
   // A script judged on anything else would be judged on a chart the member is not looking at.
-  // `engineChart.test.js` holds these five to the binder's own, expression for expression.
+  // `engineChart.test.js` holds these six to the binder's own, expression for expression.
   const engineChart = useMemo(() => ({
     bars: filteredBars,
     ctx: {
@@ -9659,8 +9680,9 @@ export default function StockChart({
       tf: resolvedTf,
       newestBarIsForming: data?.newest_bar_is_forming ?? null,
       historyFromListing,
+      ...(listingUnserved ? { listingStart: true } : {}),
     },
-  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing])
+  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -11363,6 +11385,25 @@ export default function StockChart({
       else _plotStart = 0
       _pw.start = _plotStart
       _pw.fromTime = _plotFrom
+      // ⭐ THE RENDER WINDOW of every series, candles included (chart/windowedChart.js): set for each new load from
+      // the view it opens at, and off (every bar) wherever this chart frames history on purpose or a logical index
+      // is not a bar index (pinned / replay / override / compare or index overlay / the switch). A view that comes
+      // near its start extends it in place, so `_plotWindowFullKey` (the lines going whole) does not turn it off.
+      // Decided here for every pass; applied to the chart once per decision (`applyRenderWindow`), right here when
+      // the chart exists, else right after this pass creates it (the page's first chart).
+      const _rwWhole = _pinnedFull || _overlayActive || _hasOverride || replayMode
+      const _rwSig = `${_pwKey}|${_rwWhole ? 'whole' : 'win'}`
+      if (!_pw.rw || _pw.rw.sig !== _rwSig) {
+        let _span = 0
+        try {
+          const _r0 = chartRef.current?.timeScale().getVisibleLogicalRange()
+          if (_r0 && _r0.to > _r0.from) _span = _r0.to - _r0.from
+        } catch { /* no view yet */ }
+        const _geom = paintedGeomRef.current
+        const _left = _geom && Number.isFinite(_geom.width) && Number.isFinite(_geom.ro) ? _geom.width - _geom.ro : 0
+        _pw.rw = { sig: _rwSig, rows: _rwWhole ? null : renderWindowRows(_span, _left), span: _span, applied: false }
+      }
+      applyRenderWindow(chartRef.current, _pw.rw)
     }
     let _cfgSig
     try {
@@ -11666,14 +11707,18 @@ export default function StockChart({
       // + comparison in pane 0, so hovering would silently restack them (and later,
       // float a band's constituent line above its own fill). Keep 5.1.0 rendering;
       // opt in deliberately if we ever want the hit-testing that comes with it.
-      chart = createChart(containerRef.current, {
+      // ⭐ THE RENDER WINDOW (2026-11-20, owner: "I NEED THEM ALL BELOW 20MS"): the library is handed only a
+      // window of bars a few screens deep (chart/windowedChart.js); everything here keeps speaking full-history
+      // indices through the facade, and a view reaching left of the window extends it before the frame paints.
+      chart = createWindowedChart(createChart(containerRef.current, {
         ...chartOpts,
         autoSize: true,
         hoveredSeriesOnTop: false,
-      })
+      }))
       chartRef.current = chart
       // The library's layout <table> is not a data table (utils/chartLayoutTable.js).
       markChartLayoutPresentational(chart)
+      if (plotWindowRef.current?.rw) { plotWindowRef.current.rw.applied = false; applyRenderWindow(chart, plotWindowRef.current.rw) }
       // Read-only debug handle for probes/rigs (the __uctBarsPush idiom):
       // the mobile pinch gate needs the visible logical range and every
       // pixel/UI side-channel for it proved unreliable (gridlines light every
@@ -12052,6 +12097,7 @@ export default function StockChart({
           })
       }
       candleSeriesRef.current = priceSeries
+      chart.window?.setPrimary(priceSeries)   // the candles' rows define the render window
       // Model Book studies a past year — the current (latest) price line is
       // irrelevant there, so hide the dotted last-price line for exact-range.
       // boldCandles paints solid bright green/red; hideLastValue drops the
@@ -13482,6 +13528,8 @@ export default function StockChart({
         // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
         // another translator keeps its bounded window whatever this says.
         historyFromListing,
+        // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M), for a true sentence
+        ...(listingUnserved ? { listingStart: true } : {}),
         // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
         // to strategy documents only; every other document's ctx is unchanged.
         historyWindowBars: strategyHistoryWindow,
@@ -13930,7 +13978,8 @@ export default function StockChart({
         if (markersControllerRef.current && typeof markersControllerRef.current.setMarkers === 'function') {
           markersControllerRef.current.setMarkers(allMarkers)
         } else {
-          markersControllerRef.current = createSeriesMarkers(candleSeriesRef.current, allMarkers)
+          // window-aware: only markers inside the render window reach the plugin (chart/windowedChart.js)
+          markersControllerRef.current = createWindowedMarkers(createSeriesMarkers, candleSeriesRef.current, allMarkers)
         }
       }).catch(() => {})
     }
@@ -14683,7 +14732,13 @@ export default function StockChart({
   }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
+  // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
+  // THIS updateChart before paint; running it again here planned 'noop' but still paid the settings
+  // serialization and an every-bar render-plan compare (production CPU profiles: two passes per switch).
+  // Skipped only when the layout effect ran this very callback (same render, same inputs).
+  const _layoutRanRef = useRef(null)
   useEffect(() => {
+    if (_layoutRanRef.current === updateChart) return
     updateChart()
   }, [updateChart])
 
@@ -14849,6 +14904,7 @@ export default function StockChart({
     if (_appliedSymTfRef.current === key) return
     _appliedSymTfRef.current = key
     updateChart()
+    _layoutRanRef.current = updateChart   // the passive effect of this same render need not run it again
     // ⭐ AND THE LEGEND CROSSES THE SAME BOUNDARY. A state write in a layout
     // effect re-renders synchronously before the browser paints, so the new
     // candles and the new readout land in ONE composited frame: A+A → B+B, never

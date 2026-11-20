@@ -72,6 +72,30 @@ const literalText = (node) => (node && node.type === 'string' ? String(node.valu
 const nameOf = (node) => (node && node.type === 'name' ? node.name : null)
 
 /**
+ * ⭐⭐ RULING D12b — THE PINE v4 DECLARATION SHAPES WHOSE MARGIN DEFAULT A CAPTURE SETTLES (the v4 reference reads
+ * `margin_long` / `margin_short` "The default is 100"; TradingView read back Margin Long 0 and Margin Short 0 for each
+ * shape below, and every capture named graded MATCH at margins 0). A shape is the SORTED set of argument names of the
+ * `strategy()` call, a positional argument by its parameter name (`POSITIONAL`): `strategy("t", "s", overlay = true)` is
+ * `overlay,shorttitle,title`. ONE TABLE: `brokerPins.json` B-V4-MARGIN0 lists the same captures (rail
+ * `w9ValueReadbacks.test.js`, "every witnessed shape is a pinned capture").
+ *   overlay,title   w9-q-s1a-size-v4, w9-q-s1b-defaults-v4 (2026-11-17, D12b point 1)
+ *   overlay,shorttitle,title   w9-q-s1b-v4-shape-a (2026-11-19, D12b point 4)
+ *   commission_type,commission_value,default_qty_value,initial_capital,overlay,title   w9-q-s1b-v4-shape-b (2026-11-19)
+ */
+export const V4_MARGIN0_SHAPES = Object.freeze({
+  'overlay,title': Object.freeze(['w9-q-s1a-size-v4-rddt-1d-2026-11-15', 'w9-q-s1b-defaults-v4-rddt-1d-2026-11-15']),
+  'overlay,shorttitle,title': Object.freeze(['w9-q-s1b-v4-shape-a-rddt-1d-2026-11-17']),
+  'commission_type,commission_value,default_qty_value,initial_capital,overlay,title':
+    Object.freeze(['w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17']),
+})
+
+/** The witnessed v4 shape of a declaration's named arguments (`V4_MARGIN0_SHAPES` key), or null. */
+export function v4Margin0ShapeOf(named) {
+  const shape = [...named.keys()].sort().join(',')
+  return Object.prototype.hasOwnProperty.call(V4_MARGIN0_SHAPES, shape) ? shape : null
+}
+
+/**
  * Read a `strategy(...)` declaration (its parse node) into the broker's config.
  * @param {object} call  the parse node of `strategy(...)`
  * @param {number} version the script's `//@version`
@@ -180,7 +204,10 @@ export function readStrategyDeclaration(call, version) {
   // and TradingView read back Margin Long 0 and Margin Short 0, and graded MATCH run at 0. So for EXACTLY that argument
   // set (title, by name or by position, and overlay; nothing else) the v4 margins are 0, served behind the rule
   // B-V4-MARGIN0 (`runtime/broker.js`). Every other v4 shape that states no margin keeps D12's bind refusal (Q-S1b).
-  cfg.v4MarginReadBack = v === 4 && [...named.keys()].sort().join(',') === 'overlay,title'
+  // ⭐⭐ D12b point 4 (2026-11-19, the strategy unit) — "one probe per distinct shape ... its Properties read-back settles
+  // that shape": two more shapes are settled the same way, each by its own committed report capture reading back Margin
+  // Long 0 and Margin Short 0 and grading MATCH at it (V4_MARGIN0_SHAPES). Any other v4 shape keeps D12's bind refusal.
+  cfg.v4MarginReadBack = v === 4 && v4Margin0ShapeOf(named) !== null
   if (cfg.v4MarginReadBack) { cfg.marginLong = 0; cfg.marginShort = 0 }
   if (cfg.commission.value > 0 && cfg.commission.type === null) {
     throw new StrategyOptionError('`commission_type` is not one of strategy.commission.percent / cash_per_contract / '

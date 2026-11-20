@@ -310,6 +310,11 @@ const BARE_POLL_SITES = {
   'app/src/components/tiles/MorningWireIndexes.jsx': 1,
   'app/src/components/tiles/UCT20Backtest.jsx': 1,
   'app/src/hooks/useAnalystIntel.js': 1,
+  // #2125 (Terminal currency-pair GP): useCryptoQuote's quote poll is bare useSWR ON PURPOSE. It
+  // passes revalidateOnFocus: false itself, so a pair's quote refreshes only on its own tick (the
+  // app-global choice), and SWR already skips ticks while the app is hidden. useMobileSWR would turn
+  // focus revalidation back on (fact 3 in the header).
+  'app/src/lib/cryptoPairs.js': 1,
   'app/src/hooks/useCallRecap.js': 1,
   'app/src/hooks/useCatalysts.js': 1,
   'app/src/hooks/useEarningsAudio.js': 1,
