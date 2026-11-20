@@ -109,17 +109,21 @@ export counted(float x) =>
     if timeframe.period == "D"
         n := n + x
     n
+export text(float x) =>
+    var string s = ""
+    s := timeframe.period
+    s == "D" ? x : -x
 `,
-    uses: 'plot(il.daily(close))\nplot(il.counted(close))\n',
+    uses: 'plot(il.daily(close))\nplot(il.counted(close))\nplot(il.text(close))\n',
   },
 }
-const islandPath = (family) => `tester/island${family.replace(/[^a-z]/gi, '')}/1`
+const islandPath = (family) =>`tester/island${family.replace(/[^a-z]/gi, '')}/1`
 const islandSource = (family) => `${MPL}\n//@version=5\nlibrary("island")\n${ISLAND[family].lib}`
 const LIBS = fixtureLibraries({
   ...Object.fromEntries(Object.keys(ISLAND).map((f) => [islandPath(f), {
     path: islandPath(f), source: islandSource(f), licence: 'MPL-2.0', attribution: 'island (test fixture)',
   }])),
-  'tester/cleanlib/1':{ path: 'tester/cleanlib/1', source: CLEAN, licence: 'MPL-2.0', attribution: 'cleanlib (test fixture)' },
+  'tester/cleanlib/1': { path: 'tester/cleanlib/1', source: CLEAN, licence: 'MPL-2.0', attribution: 'cleanlib (test fixture)' },
   'tester/islandrefuses/1': { path: 'tester/islandrefuses/1', source: ISLAND_REFUSES, licence: 'MPL-2.0', attribution: 'islandrefuses (test fixture)' },
   ...Object.fromEntries(CASES.map(([, body], k) => [`tester/changed/${k + 1}`, {
     path: `tester/changed/${k + 1}`, source: changed(body), licence: 'MPL-2.0', attribution: 'changed (test fixture)',
@@ -383,3 +387,4 @@ describe('⭐⭐ the version island, family by family: a v5 library in a v6 scri
     })
   }
 })
+
