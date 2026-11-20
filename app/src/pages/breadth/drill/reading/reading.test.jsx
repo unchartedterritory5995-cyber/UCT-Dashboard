@@ -266,8 +266,9 @@ describe('Signature: chips stay chips, gold stays rare', () => {
     }
     expect(container.querySelectorAll('select')).toHaveLength(0)
     expect(screen.getByRole('button', { name: 'Focus' }).getAttribute('aria-pressed')).toBe('true')
-    // today's bar carries the one gold tick
-    expect(container.querySelectorAll('rect[data-tick]')).toHaveLength(1)
+    // today's bar is the one gold mark (no separate tick)
+    expect(container.querySelectorAll('rect[data-now]')).toHaveLength(1)
+    expect(container.querySelectorAll('rect[data-tick]')).toHaveLength(0)
   })
   it('the sector hues hold no gold-like hue', () => {
     expect(GROUP_HUES).not.toContain('#c9a84c')

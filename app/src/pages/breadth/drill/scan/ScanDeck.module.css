@@ -42,13 +42,13 @@
 }
 
 /* ── Masthead ───────────────────────────────────────────────────────────── */
-/* One fixed-height band (84px: the 64px strip plus the reading's two lines, owner pick B).
+/* One fixed-height band (100px, owner 2026-11-19: 84px felt crammed).
    ⛔ Fixed, never content-sized: the window must not move when the reading loads. */
 .header {
   display: flex;
   align-items: center;
   gap: 0;
-  height: 84px;
+  height: 100px;
   padding: 0 8px 0 0;
   border: 1px solid var(--dr-outline);
   border-radius: 12px;
@@ -60,13 +60,13 @@
   color: var(--dr-text);
 }
 .identity {
-  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 4px;
-  align-self: stretch; padding: 0 16px; min-width: 210px; flex-shrink: 0;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 7px;
+  align-self: stretch; padding: 0 20px; min-width: 210px; flex-shrink: 0;
   border-right: 1px solid var(--dr-line);
 }
 .idTop { display: flex; align-items: center; gap: 8px; }
 /* Mark day / Replay from this day: two small chips under the date (the identity column is
-   three rows in the same 84px band). */
+   three rows in the same 100px band). */
 .dayTools { display: flex; align-items: center; gap: 4px; margin-left: -6px; }
 .dayChip {
   display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
@@ -114,8 +114,8 @@ span.metric:hover { background-color: transparent; }
 
 /* The readouts: label on top, value (with its picture) under it. */
 .tile {
-  display: flex; flex-direction: column; justify-content: center; gap: 6px;
-  align-self: stretch; padding: 0 18px; min-width: 0; flex-shrink: 0;
+  display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  align-self: stretch; padding: 0 24px; min-width: 0; flex-shrink: 0;
   border-right: 1px solid var(--dr-line);
   white-space: nowrap;
 }
@@ -141,14 +141,13 @@ span.metric:hover { background-color: transparent; }
 .tileLbl[data-past] { color: var(--dr-bright); }
 .spark { flex: 1 1 0; width: 0; min-width: 0; height: 40px; display: block; }
 .spark rect + rect { fill: var(--dr-bar); }
-.spark rect[data-now] { fill: var(--dr-rest); }
 .spark rect[data-hover] { fill: var(--dr-bright); }
-.spark rect[data-tick] { fill: var(--ut-gold); }
-.tileMix { flex: 1 1 420px; max-width: 640px; min-width: 220px; }
+.spark rect[data-now] { fill: var(--ut-gold); }
+.tileMix { flex: 1 1 420px; max-width: 560px; min-width: 220px; }
 .headNote { flex: 1 1 220px; max-width: 360px; min-width: 0; padding: 0 18px; align-self: center; font-size: 12px; line-height: 1.45; color: var(--dr-faint); white-space: normal; }
-.mixGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; row-gap: 8px; }
+.mixGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; row-gap: 7px; }
 .mixRow { display: grid; grid-template-columns: minmax(0, auto) minmax(14px, 1fr) 24px; align-items: center; gap: 7px; font-size: 12px; cursor: default; }
-.mixName { display: flex; align-items: center; gap: 6px; color: var(--dr-rest); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+.mixName { display: flex; align-items: center; gap: 6px; color: var(--dr-rest); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
 .mixName i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .mixTrack { height: 4px; border-radius: 2px; background: var(--dr-raised); overflow: hidden; }
 .mixTrack b { display: block; height: 100%; border-radius: 2px; opacity: .85; }

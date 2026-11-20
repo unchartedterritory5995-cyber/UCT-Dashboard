@@ -154,14 +154,13 @@ function CountHistory({
           <svg className={styles.spark} viewBox={`0 0 ${vals.length * 3} 28`} preserveAspectRatio="none"
             role="img" aria-label={`${label || 'Stocks on this list'} each day, ${r.words}`} onMouseLeave={leave}>
             {vals.map((v, i) => {
-              const h = Number.isFinite(v) ? Math.max(1.5, (Math.max(0, v - lo) / span) * 24) : 0
+              const h = Number.isFinite(v) ? Math.max(1.5, (Math.max(0, v - lo) / span) * 28) : 0
               return (
                 <g key={i} onMouseEnter={() => enter(i)}>
-                  <rect x={i * 3} y={0} width={3} height={24} fill="transparent" />
-                  <rect x={i * 3 + 0.4} y={24 - h} width={2.2} height={h} rx={0.6}
+                  <rect x={i * 3} y={0} width={3} height={28} fill="transparent" />
+                  {/* The open day's bar is the one gold mark on the sparkline (owner 2026-11-19). */}
+                  <rect x={i * 3 + 0.4} y={28 - h} width={2.2} height={h} rx={0.6}
                     data-now={i === last || undefined} data-hover={i === hover || undefined} />
-                  {/* Today's tick: the one gold mark on the sparkline. */}
-                  {i === last && <rect x={i * 3} y={25.5} width={3} height={2.5} rx={0.6} data-tick="" />}
                 </g>
               )
             })}
