@@ -1203,10 +1203,6 @@ export function execute(program, ctx, limits, opts) {
         case 57 /* OP.READ_SERIES_HIST_DYN */: {
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
-          if (b < 0 && (!Number.isInteger(n) || n < 0)) {   // ⭐ A1 — strict, as READ_HIST_DYN
-            throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — [${n}]: a history offset read on this bar `
-              + 'is negative or not a whole number, and what Pine answers for one is not captured')
-          }
           if (Number.isInteger(n) && n > (b > 0 ? b : 5000)) {
             throw new VmError(`pc ${pc - 1}: a history offset of ${n} reaches past Pine's history buffer `
               + `of ${b > 0 ? b : 5000} bars (max_bars_back) — TradingView stops the script on this read`)
