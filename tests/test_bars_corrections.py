@@ -265,3 +265,21 @@ def test_the_publisher_and_the_applier_share_one_codec():
     assert doc == {"sym": "SPY", "version": 9, "entries": [SET_LOW]}
     with pytest.raises(Exception):
         K.decode_payload(gzip.compress(b'{"sym": "SPY"}'))
+
+
+def test_the_cache_is_bounded_by_entries_not_only_tickers(vol, monkeypatch):
+    """A 2-decimal re-precision ticker carries ~10,000 entries: the cache must not hold dozens of them at once."""
+    monkeypatch.setattr(K, "_CACHE_ENTRIES_MAX", 25)
+    big = [dict(SET_LOW, d=t, f={"l": [119.0, 118.99]}) for t in DAYS[:20]]
+    _publish(vol, 3, {"AAA": big, "BBB": big, "SPY": [SET_LOW]})
+    for sym in ("AAA", "BBB", "SPY"):
+        K.entries_for(sym, "D", "store")
+    assert sum(v[1] for v in K._cache.values()) <= 25
+    assert ("AAA", 3) not in K._cache and ("BBB", 3) in K._cache
+
+
+def test_malformed_and_unknown_entries_are_skipped_not_fatal(vol):
+    junk = [{"tf": "D", "src": "store", "d": BAD, "op": "set", "f": {"l": "x"}},
+            {"tf": "D", "src": "store", "d": BAD, "op": "teleport"}, "not a dict", SET_LOW]
+    _publish(vol, 3, {"SPY": junk})
+    assert K.apply("SPY", "D", _series(), "store")[20]["l"] == 119.57
