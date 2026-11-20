@@ -31,6 +31,7 @@ import { clearSecondaryBars } from './secondaryBars'
 import { STRATEGY_WINDOW_HISTORY } from './runtime/strategyRecord'
 
 vi.setConfig({ testTimeout: 300000 })
+const LF = String.fromCharCode(10)
 
 // November 2026 is EST (UTC-5)
 const ET = (day, hh, mm) => { const [y, m, d] = day.split('-').map(Number); return Date.UTC(y, m - 1, d, hh + 5, mm) / 1000 }
@@ -197,12 +198,11 @@ describe('the run: cut at the overnight tail, everything before drawn exactly as
   })
   // ⭐⭐ (e91) A STRATEGY'S WINDOW: the cut its window run finds is in the WINDOW's indices. ⚰️ `computeStrategyWindow`
   // moved only `err.bar` into the chart's, so #2135's cut (e89) landed `shift` bars early on a strategy over a window
-  it('⛔ a strategy run over a window (`historyWindowBars`) is cut at the CHART's first overnight bar, not the window's index', () => {
+  it("⛔ a strategy run over a window (`historyWindowBars`) is cut at the CHART's first overnight bar, not the window's index", () => {
     const rows = chartOf(5)
     const cut = indexAt(rows, ET(DAY, ...TF[5].nightFrom))
     const shift = 30
-    const src = ['//@version=5', 'strategy("night-s", overlay = false)', 'plot(request.security("SP:SPX", timeframe.period, close))'].join('
-')
+    const src = ['//@version=5', 'strategy("night-s", overlay = false)', 'plot(request.security("SP:SPX", timeframe.period, close))'].join(LF)
     const def = { id: 'night-s', meta: { runtimeHistory: STRATEGY_WINDOW_HISTORY },
       compute: { kind: 'runtime', fn: 'runtime:night-s', outputs: { a: 0 }, source: src } }
     const r = run(def, rows, ctxOf(5, secondaryOf(spxOf(5)), { historyWindowBars: rows.length - shift }))
