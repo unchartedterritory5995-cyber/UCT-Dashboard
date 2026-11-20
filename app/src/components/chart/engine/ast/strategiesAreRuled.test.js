@@ -181,9 +181,11 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // 40 since 2026-11-17 (Pine v2 / v3): B-V3, pinned by w9-q-s1a-size-v2 and w9-g1-v3-properties grading MATCH
     // 41 since 2026-11-17 (ruling D12b): B-V4-MARGIN0, pinned by the two v4 captures grading MATCH
     // 42 at train e80 (ruling 2026-11-18 (a)): B-EXEC, pinned by the in-session capture supertrend-strategy-is-rddt-1d-2026-11-18
-    expect(pinnedBrokerRules()).toHaveLength(42)
+    // 46 since 2026-11-19 (the strategy unit): B-EXIT-NA, B-QTY-REVERSE-M0 and B-ROUND-LEVEL, pinned by the community capture
+    // macd-shortlong-strategy-is-rddt-1d-2026-11-18 grading MATCH, and B-MARGIN-ZERO by w9-q-s1b-v4-shape-b grading MATCH
+    expect(pinnedBrokerRules()).toHaveLength(46)
     expect(strategyScorecardWording()).toBe(
-      `42 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `46 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
@@ -217,7 +219,11 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // v2 / v3 report captures (w9-q-s1a-size-v2, w9-g1-v3-properties).
     // + 1 (dated 2026-11-17, ruling D12b): B-V4-MARGIN0, the v4 margin TradingView read back (0) for exactly the
     // declaration shape of the two committed v4 captures.
-    expect(BROKER_RULE_IDS.length).toBe(60)
+    // + 3 (dated 2026-11-19, the strategy unit): B-ROUND-LEVEL (a short's off-grid exit level fills at the first tick past
+    // it), B-QTY-REVERSE-M0 (the reversal's size at margins 0, never rejected for funds), both witnessed by the community
+    // capture macd-shortlong-strategy-is-rddt-1d-2026-11-18, and B-MARGIN-ZERO (at margin 0 a negative equity is carried),
+    // witnessed by w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17.
+    expect(BROKER_RULE_IDS.length).toBe(63)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

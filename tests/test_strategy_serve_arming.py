@@ -220,15 +220,17 @@ def test_the_server_admits_exactly_the_census_list(monkeypatch):
 
 def test_CONTROL_admission_is_a_door_not_a_pin(monkeypatch):
     """CONTROL. Admission is a door, not a pin: the server admits a strategy whose backtest rests on a broker rule no
-    MATCHing capture pins (B-EXIT-NA is absent from `brokerPins.resolved.json`), and the census holds that the member
-    is refused by name at its run (`runtime:strategy-unpinned`). Here: such a strategy IS admitted (so the census
-    control is reached), and B-EXIT-NA is indeed unpinned."""
+    MATCHing capture pins (B-EXIT-QTY is absent from `brokerPins.resolved.json`), and the census holds that the member
+    is refused by name at its report (`runtime:strategy-unpinned`). Here: such a strategy IS admitted (so the census
+    control is reached), and B-EXIT-QTY is indeed unpinned.
+    ⚰️ Until 2026-11-19 (the strategy unit) the control was B-EXIT-NA on macd-shortlong and stop-loss-and-take-profit:
+    the community capture macd-shortlong-strategy-is-rddt-1d-2026-11-18 now pins it (MATCH), and both are served."""
     verdicts = _server_verdicts(monkeypatch)
     pins = json.loads((ROOT / "app" / "src" / "components" / "chart" / "engine" / "runtime" / "brokerPins.resolved.json")
                       .read_text(encoding="utf-8"))["rules"]
-    assert "B-EXIT-NA" not in pins
-    for key in ("macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99",
-                "stop-loss-and-take-profit-in-example__YlblCbts4x"):
+    assert "B-EXIT-QTY" not in pins
+    assert "B-EXIT-NA" in pins
+    for key in ("tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy",):
         assert verdicts[key][0] is True, f"{key}: {verdicts[key][1]}"
         assert key in _census_server_admits()
     # and the same detector withholds a strategy BY NAME for capabilities that have NO registry row (`enum`; a library

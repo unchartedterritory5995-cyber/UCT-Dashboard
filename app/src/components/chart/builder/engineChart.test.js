@@ -1,7 +1,7 @@
 // app/src/components/chart/builder/engineChart.test.js
 //
 // `StockChart`'s `engineChart` is "the chart as the engine sees it", handed to a check made BESIDE the
-// chart (`runsHere.js`). It is only worth anything if it is the SAME bars and the SAME five facts the
+// chart (`runsHere.js`). It is only worth anything if it is the SAME bars and the SAME six facts the
 // chart's own binder is handed: a script judged on anything else is judged on a chart the member is
 // not looking at. StockChart cannot be mounted in a unit test, so this reads its source (comments
 // removed) and holds the two to each other, expression for expression.
@@ -28,9 +28,11 @@ describe('engineChart is the binder\'s own view of the chart', () => {
   const mine = block(CHART, 'const engineChart = useMemo(() => ({', '}), [filteredBars, sym, symbolMeta')
   // the binder's context: from the registry it is handed to the listing statement
   const binder = block(CHART, 'registry: engineRegistry,', 'historyWindowBars:')
-  const FACTS = ['sym,', 'symbol: symbolMeta,', 'tf: resolvedTf,', 'newestBarIsForming: data?.newest_bar_is_forming ?? null,', 'historyFromListing,']
+  // ⭐⭐ (2026-11-20) the sixth: the listing FACT on a weekly / monthly chart where it is not served (`listingSeed.listingStartOf`)
+  const FACTS = ['sym,', 'symbol: symbolMeta,', 'tf: resolvedTf,', 'newestBarIsForming: data?.newest_bar_is_forming ?? null,', 'historyFromListing,',
+    '...(listingUnserved ? { listingStart: true } : {}),']
 
-  it('the same bars, and the same five facts, written the same way in both', () => {
+  it('the same bars, and the same six facts, written the same way in both', () => {
     expect(mine.split(LF).map((l) => l.trim())).toContain('bars: filteredBars,')
     expect(binder.split(LF).map((l) => l.trim())).toContain('bars: filteredBars,')
     const a = mine.split(LF).map((l) => l.trim()), b = binder.split(LF).map((l) => l.trim())
@@ -38,14 +40,14 @@ describe('engineChart is the binder\'s own view of the chart', () => {
       expect(a, `engineChart: ${fact}`).toContain(fact)
       expect(b, `the binder's context: ${fact}`).toContain(fact)
     }
-    // and engineChart's context holds nothing else: a sixth fact here would be one the binder is not handed
+    // and engineChart's context holds nothing else: a seventh fact here would be one the binder is not handed
     const ctx = mine.slice(mine.indexOf('ctx: {') + 'ctx: {'.length, mine.lastIndexOf('}')).split(LF).map((l) => l.trim()).filter((l) => l && l !== '},')
     expect(ctx).toEqual(FACTS)
   })
 
   it('it is memoised on exactly what it reads, so a tick that changes none of them hands the toolbar the same object', () => {
     const deps = CHART.slice(CHART.indexOf('}), [filteredBars, sym, symbolMeta'), CHART.indexOf(LF, CHART.indexOf('}), [filteredBars, sym, symbolMeta')))
-    expect(deps).toBe('}), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing])')
+    expect(deps).toBe('}), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])')
   })
 
   it('every toolbar mount is handed it, beside the bars it already had', () => {
