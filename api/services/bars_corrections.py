@@ -238,8 +238,8 @@ def keep_wicks(ticker: str, src: str) -> dict:
     out: dict = {}
     for d, es in entries_for(ticker, "D", src).items():
         for e in es:
-            if e.get("op") == "keep_wick" and e.get("field") in ("h", "l") and e.get("value") is not None:
-                out.setdefault(d, {})[e["field"]] = e["value"]
+            if e[0] == "keep":
+                out.setdefault(d, {})[e[1]] = e[2]
     return out
 
 
