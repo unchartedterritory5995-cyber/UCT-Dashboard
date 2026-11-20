@@ -6,6 +6,8 @@
 // Page → worker, correlated by `id`:
 //   {id, op:'read', sym, tf}            → {id, ok, res: {t,o,h,l,c,v, build} | null}   (columns TRANSFERRED)
 //   {id, op:'readMany', syms, tf}       → {id, ok, res: [cols | null, ...]}
+//   {id, op:'why', sym, tf}             → {id, ok, res: 'ok' | 'seed-only:<rule>' | <rule> | null}  diagnostics
+//                                         (engine.why: the rule behind what 'read' answers; null: no engine yet)
 //   {id, op:'info'}                     → {id, ok, res: {tfs: {...}} | null}
 //   {id, op:'ingest', manifestUrl}      → {id, ok, res: {status}}   (the LEADER ingests, whichever tab asked)
 //   {id, op:'live', visible}            → {id, ok, res: {status}}   TODAY's bars (liveFeed.js): the LEADER
@@ -103,6 +105,8 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
       case 'info': return { ...engine.info(), lastIngest, live: feed?.status() ?? null }
       case 'ingest': return _kickIngest(req.manifestUrl)
       case 'live': return _live(req.visible)
+      // diagnostics (data/deviceStore/diag.js): the rule behind what read() answers for (sym, tf)
+      case 'why': return engine.why(req.sym, req.tf)
       default: return null
     }
   }
@@ -130,7 +134,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
       const { id, op } = msg || {}
       if (id == null) return
       try {
-        if (op === 'read' || op === 'readMany' || op === 'info' || op === 'ingest' || op === 'live') {
+        if (op === 'read' || op === 'readMany' || op === 'info' || op === 'ingest' || op === 'live' || op === 'why') {
           const res = await xt.request({ op, sym: msg.sym, syms: msg.syms, tf: msg.tf, manifestUrl: msg.manifestUrl, visible: msg.visible })
           post({ id, ok: true, res: res ?? null }, transferablesOf(res))
         } else {
