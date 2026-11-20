@@ -136,6 +136,11 @@ const SHAPES = [
     opts: { varOriginAbsolute: true }, tree: () => call('nz', off(1, CLOSE), num(0)), window: W8, expect: [0, 1, 2, 3, 4, 5, 6, 7] },
   { name: 'CONTROL nz(close[1]) in a formula document (its `x[1]` means its own series)', opts: {},
     tree: () => call('nz', off(1, CLOSE), num(0)), window: W8, expect: [0, 1, 2, 3, 4, 5, 6, 7] },
+  // ⛔ the gate is the DOCUMENT's: a formula's `sym` read is walked by nothing here either (its `barIndexAbsolute` is unset
+  // too, so only another symbol's read could reach the walk without the Pine declaration)
+  { name: "CONTROL nz(sym('SPY', close[1])) in a formula document (another symbol's `x[1]` means its own series too)",
+    opts: {}, symbols: true, tree: () => call('nz', sym('SPY', off(1, CLOSE)), num(0)), window: W8,
+    expect: [0, 1, 2, 3, 4, 5, 6, 7] },
 ]
 
 const optsOf = (c) => ({ ...CHART, ...(c.opts === undefined ? PINE : c.opts),

@@ -76,12 +76,12 @@
   },
   {
    "id": "H9",
-   "mutant": "JS: a formula document's x[1] judged as Pine's",
+   "mutant": "JS: a formula document's x[1] judged as Pine's (another symbol's read in a formula document reaches the walk)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
    "from": "  if (!opts || opts.varOriginAbsolute !== true) return null",
    "to": "  if (!opts) return null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
-   "expectRed": "CONTROL nz(close[1]) in a formula document"
+   "expectRed": "CONTROL nz(sym('SPY', close[1])) in a formula document"
   },
   {
    "id": "H10",
@@ -130,12 +130,12 @@
   },
   {
    "id": "PH5",
-   "mutant": "Python: a formula document's x[1] judged as Pine's",
+   "mutant": "Python: a formula document's x[1] judged as Pine's (another symbol's read in a formula document reaches the walk)",
    "file": "api/services/ast_interpret.py",
    "from": "    if o.get(\"varOriginAbsolute\") is not True:",
    "to": "    if False:",
    "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
-   "expectRed": "CONTROL nz(close[1]) in a formula document"
+   "expectRed": "CONTROL nz(sym('SPY', close[1])) in a formula document"
   },
   {
    "id": "PH6",
