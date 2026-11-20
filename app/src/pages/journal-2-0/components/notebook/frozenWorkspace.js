@@ -34,6 +34,8 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     // file's build rule names.)
     groupTfs: { A: 'D', B: 'D', C: 'D', D: 'D' },
     setGroupTf: () => {},
+    groupTfSets: {},
+    registerGroupTf: () => () => {},
     chartsTheme: 'default',
     widgetCanvasByType: {},
     widgetCanvasById: {},

@@ -7313,6 +7313,11 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
  *  `request:htf-first-period-partial`, unless the first bar CERTAINLY opens its period (a
  *  daily chart with no weekend bars whose first bar follows a weekday in another period —
  *  the mirror of the L3 test). Formula `tf` keeps its own behaviour.
+ *  ⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) — THOSE BARS ARE THE MERGE'S, NOT THE ROOT'S. They were
+ *  withheld at the root's own positions, so `x[1]` drew the partial first period's value one bar after the
+ *  last withheld bar (3.5 on bar 6 of PR #2049's Tuesday fixture, where TradingView, holding the whole week,
+ *  draws another). Which root bars READ one is engine 56's walk (`firstPeriodPartialReadMask`): `x[k]` moves
+ *  them k bars later, a window or a running value over x reads them where it reads x.
  *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
 export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, scalars = undefined) {
   const n = Array.isArray(bars) ? bars.length : 0
@@ -7349,7 +7354,7 @@ export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, s
   // another request keeps the whole-tree rule (its newest bar is another series').
   if (found.some((f) => f.under)) mask[n - 1] = 1
   else if (!known && newestReadsMerge(tree, bars, opts, inputs, budget, scalars)) mask[n - 1] = 1
-  const firstMask = firstPeriodPartialMask(bars, found, opts)
+  const firstMask = firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars)
   const supplied = (opts && opts.symbols) || {}
   for (const f of found) {
     if (!f.sym) continue
@@ -7408,6 +7413,62 @@ function firstPeriodPartialMask(bars, found, opts) {
     }
   }
   return out
+}
+
+/** ⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) — THE ROOT BARS THAT READ A FIRST-PERIOD-PARTIAL VALUE, as a 0/1
+ *  column (1 = withheld), or null when none does.
+ *
+ *  A SITE is a read whose value is a merge's: a `tf_merge` under no other request, or the OUTERMOST request
+ *  (`tf` / `tf_live` / `sym` / `ltf`) that holds one. Its own bars are `firstPeriodPartialMask`'s over the merges it
+ *  holds, unchanged, so a lone `x` (and a merge under `sym` or another request) withholds exactly what it withheld.
+ *  Which ROOT bars read them is engine 56's walk (`witnessMask`), the one `newestReadsMerge` asks about the newest
+ *  bar: `x[k]` moves them k bars later; an operator or a pointwise call (`nz`, `na`, `+`) reads them on the same
+ *  bar; a window over the bars it spans; `barssince` / `valuewhen` by their own rules. The walk is taken EXACTLY
+ *  (`walk.exact`), so that a bar whose value reads only whole periods stays drawn (the walk's bounds would withhold
+ *  correct bars there, pictures that were drawn): `barsAgo` reads the bar its count lands on, not its whole buffer;
+ *  `c ? a : b` reads the arm its known condition takes, not both; a finite window (`sma`, `highest`, ...) reads its
+ *  own span, not its declared lookback (one bar wider). ⛔ A RUNNING value (`ema`, `cum`, a recurrence) is withheld
+ *  where its argument is, as before, and NOT from there on: its memory of the partial period is an open question
+ *  (`witnessMask`'s note), not settled here.
+ *  The sinks are stripped: `tfMergeMask` names `TF_MERGE_FIRST_CODE` itself, for a mask that withholds a bar. */
+function firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars) {
+  const n = bars.length
+  const mergesUnder = (top) => {
+    const merges = []
+    const stack = [top]
+    const seen = new Set()
+    while (stack.length) {
+      const node = stack.pop()
+      if (!node || typeof node !== 'object' || seen.has(node)) continue
+      seen.add(node)
+      if (node.type === TF_MERGE) merges.push({ code: node.value })
+      if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+    }
+    return merges
+  }
+  const own = new Map()
+  let any = false
+  const stack = [tree]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (SCOPE_TYPES.has(node.type)) {
+      const merges = mergesUnder(node)
+      if (merges.length) {
+        const m = firstPeriodPartialMask(bars, merges, opts)
+        if (m) any = true
+        own.set(node, m || new Float64Array(n))
+      }
+      continue
+    }
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  if (!any) return null
+  const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
+  return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
+    (nd) => Float64Array.from(own.get(nd)), TF_MERGE_FIRST_CODE, { exact: true })
 }
 
 /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE FIRST PERIOD OF A LOOK-AHEAD READ, OFF THE LISTING, for the
@@ -7534,10 +7595,21 @@ function newestClosesEveryMergePeriod(bars, found, opts) {
  *    - anything else (a recurrence, `cum`, the smoothers, a series-lookback call): every bar
  *      from the first unknown one on (it carries state it cannot forget).
  *  The result names `code` in the chart-clock channel and records the mask in
- *  `opts.withheldBarsSink` (code -> 0/1 column; the vendor harness reads it). Null when no bar is. */
+ *  `opts.withheldBarsSink` (code -> 0/1 column; the vendor harness reads it). Null when no bar is.
+ *  ⭐ `walk.exact` (HTF-PARTIAL-THROUGH-OFFSET, `firstPeriodPartialReadMask` only), three reads taken as the evaluator
+ *  takes them: `barsAgo(src, back, limit)` is unknown on a bar whose count is, or whose readable count lands on an
+ *  unknown `src` bar (`historyBackOf` / `historyReadable`, the evaluator's own rule), instead of over its whole
+ *  buffer; `c ? a : b` is unknown where `c` is, else where the arm a known `c` takes is (`TERNARY`: non-zero takes
+ *  `a`), and where either arm is on a bar whose `c` is `na`; a `FINITE_WINDOW` call over its own span (the bar and
+ *  `span - 1` before it), not its declared lookback. And a RUNNING value (the "anything else" kind) is unknown only
+ *  on its argument's own unknown bars: its memory is NOT followed, because "from the first unknown bar on" would
+ *  take away pictures a smoother has long forgotten the unknown bar in (measured for the first partial period: an
+ *  `ema(x, 3)` over a weekly merge, cut from a longer history at 120 starts, drew 116,772 bars of which 2,533 differ
+ *  from the longer chart; the forward rule withheld about 93,000 that agree). What such a value carries forward is
+ *  an open question this walk does not answer. Every other caller keeps the bounds. */
 const WITNESS_NESTED = new Set(['sym', 'tf', 'tf_live', 'tf_merge', 'ltf'])
 const WITNESS_WINDOW_CALLS = new Set(['change', 'crossOver', 'crossUnder', 'percentrank', 'barsAgo'])
-function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code) {
+function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged, code, walk = {}) {
   const n = Array.isArray(bars) ? bars.length : 0
   const hasSiteMemo = new Map()
   const hasSite = (node) => {
@@ -7595,6 +7667,21 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
           out = new Float64Array(n)
           for (let i = k; i < n; i++) out[i] = u[i - k]
         }
+      } else if (walk.exact === true && node.type === 'op' && node.name === '?:' && args.length === 3
+        && !readsRecurrenceBinding(args[0])) {
+        const uc = unk(args[0])
+        if (uc === ALL) out = ALL
+        else {
+          const c = colOf(args[0])
+          const ua = asCol(unk(args[1]))
+          const ub = asCol(unk(args[2]))
+          out = new Float64Array(n)
+          for (let i = 0; i < n; i++) {
+            const a = !!(ua && ua[i])
+            const b = !!(ub && ub[i])
+            if ((uc && uc[i]) || (Number.isNaN(c[i]) ? a || b : (c[i] !== 0 ? a : b))) out[i] = 1
+          }
+        }
       } else if (node.type === 'op') {
         for (const a of args) out = orInto(out, unk(a))
       } else if (node.type === 'call') {
@@ -7643,6 +7730,21 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
               }
             }
           }
+        } else if (walk.exact === true && node.name === 'barsAgo' && args.length === 3
+          && !readsRecurrenceBinding(args[1])) {
+          const us = unk(args[0])
+          const uk = unk(args[1])
+          if (us === ALL || uk === ALL) out = ALL
+          else {
+            const back = colOf(args[1])
+            const limit = windowLiteral(node, 2)
+            out = new Float64Array(n)
+            for (let i = 0; i < n; i++) {
+              if (uk && uk[i]) { out[i] = 1; continue }
+              const k = historyBackOf(back[i])
+              if (us && historyReadable(k, limit) && i - k >= 0 && us[i - k]) out[i] = 1
+            }
+          }
         } else if (node.name === 'pivothigh' || node.name === 'pivotlow') {
           let u = null
           for (const a of args) u = orInto(u, unk(a))
@@ -7652,11 +7754,17 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
           let u = null
           for (const a of args) u = orInto(u, unk(a))
           const lb = typeof spec.lookback === 'number' ? spec.lookback : windowLiteral(node, Number(String(spec.lookback).slice(3)))
-          out = windowed(u, Math.max(0, lb))
+          // `walk.exact`: a finite window's own span (`FINITE_WINDOW`), the bar and the `span - 1` before it, not the
+          // declared lookback (an upper bound, one bar wider)
+          const reach = walk.exact === true && own(FINITE_WINDOW, node.name) && typeof spec.lookback !== 'number'
+            ? FINITE_WINDOW[node.name].span(lb) - 1 : lb
+          out = windowed(u, Math.max(0, reach))
         } else {
           let u = null
           for (const a of args) u = orInto(u, unk(a))
-          out = forward(u)
+          // `walk.exact`: a running value keeps the rule it had, unknown on its argument's own unknown bars; its
+          // memory is not followed (see the note above `WITNESS_NESTED`)
+          out = walk.exact === true ? u : forward(u)
         }
       } else {
         for (const a of args) out = orInto(out, unk(a))

@@ -664,3 +664,151 @@ def test_the_capture_path_refuses_a_refuted_claim_before_it_returns_the_capture(
     fn = next(f for f in ast.walk(tree) if isinstance(f, ast.FunctionDef) and f.name == "capture")
     names = [c.func.id for c in ast.walk(fn) if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)]
     assert "starts_at_bar0_contradiction" in names
+
+
+# ── the listing date is READ from UCT's /api/ticker-ipo, never typed (coordinator ruling 2026-11-20) ─────────────────
+# ⚰️ Q-FRED-NHDOT's NASDAQ:BGIN capture (listed 2025-10-21, first_trade_final true) carried no startsAtBar0 because BGIN was
+# not in the hand-typed KNOWN_LISTING; the harness graded it as a chart reaching before its history.
+DEPTH_AT_FIRST = {"ok": True, "stable": True, "first": bd.FIRST_BAR, "tz": "America/New_York", "count": 600, "rounds": 3}
+
+
+def _listing_driver(tmp_path, page=None, **opts):
+    page = page or bd.RecordingTVPage()
+    return page, bc.Driver(page, bd.FakeClock(page), bd.fast_opts(**opts), bc.RunDir(tmp_path / "run", "t"), None,
+                           log=lambda *_: None)
+
+
+def test_the_api_answer_asserts_bar0_for_a_symbol_the_table_never_named(tmp_path):
+    page, drv = _listing_driver(tmp_path, symbol="NASDAQ:BGIN")
+    page.ipo["BGIN"] = {"first_trade_date": "2024-03-21", "first_trade_final": True}   # the double's first loaded day
+    assert "NASDAQ:BGIN" not in bc.KNOWN_LISTING
+    drv.opts.listing_date = drv.listing_for("NASDAQ:BGIN", None)
+    starts, why = drv.history_assertion(DEPTH_AT_FIRST)
+    assert drv.opts.listing_date == "2024-03-21" and starts is True and "NASDAQ:BGIN listed 2024-03-21" in why
+
+
+def test_the_table_alone_never_asserts(tmp_path):
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    page.ipo.pop("RDDT")                                     # production gives no answer for it
+    drv.opts.listing_date = drv.listing_for("NYSE:RDDT", bc.KNOWN_LISTING["NYSE:RDDT"])
+    starts, why = drv.history_assertion(DEPTH_AT_FIRST)
+    assert drv.opts.listing_date is None and starts is False and "/api/ticker-ipo/RDDT answered 404" in why
+    # an answer that is not FINAL is no answer either
+    page2, drv2 = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    page2.ipo["RDDT"] = {"first_trade_date": "2024-03-21", "first_trade_final": False}
+    assert drv2.listing_for("NYSE:RDDT", None) is None and "no FINAL first trade date" in drv2.listing_why
+
+
+def test_a_disagreement_stops_the_batch_by_name(tmp_path):
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    page.ipo["RDDT"] = {"first_trade_date": "2024-03-22", "first_trade_final": True}
+    with pytest.raises(bc.GateFailed) as e:
+        drv.listing_for("NYSE:RDDT", None)                    # KNOWN_LISTING says 2024-03-21
+    assert e.value.abort is True and "KNOWN_LISTING says 2024-03-21" in e.value.reason and "2024-03-22" in e.value.reason
+    page2, drv2 = _listing_driver(tmp_path, symbol="NASDAQ:BGIN")
+    page2.ipo["BGIN"] = {"first_trade_date": "2025-10-21", "first_trade_final": True}
+    with pytest.raises(bc.GateFailed) as e2:
+        drv2.listing_for("NASDAQ:BGIN", "2025-10-20")         # a manifest row that disagrees
+    assert "the manifest row's listingDate says 2025-10-20" in e2.value.reason
+    # CONTROL: agreement passes, and the answer is the API's
+    page3, drv3 = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    assert drv3.listing_for("NYSE:RDDT", "2024-03-21") == "2024-03-21"
+
+
+def test_the_lookup_is_one_public_get_per_symbol(tmp_path):
+    # /api/ticker-ipo answers without a session (measured 2026-11-20), so the capture profile signs in as no one
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT")
+    assert drv.listing_for("NYSE:RDDT", None) == "2024-03-21" and drv.listing_for("NYSE:RDDT", None) == "2024-03-21"
+    asked = [u for k, n, u in page.calls if k == "request" and n == "uct_api"]
+    assert asked == [bc.UCT_ORIGIN + "/api/ticker-ipo/RDDT"]          # once, cached; nothing but the listing endpoint
+
+
+def test_our_store_ticker_of_a_tradingview_symbol():
+    assert bc.uct_ticker_of("NASDAQ:BGIN") == "BGIN" and bc.uct_ticker_of("NYSE:BRK.B") == "BRK-B" and bc.uct_ticker_of("SPY") == "SPY"
+
+
+# ── a weekly / monthly chart starts at the listing when its first bar's PERIOD holds it (coordinator ruling 2026-11-20) ──
+# the double's first loaded bar is 2024-03-21 (a Thursday)
+@pytest.mark.parametrize("tf,listed,want", [
+    ("1W", "2024-03-21", True), ("1W", "2024-03-18", True), ("W", "2024-03-22", True),     # the same ISO week
+    ("1W", "2024-03-15", False), ("1W", "2024-03-25", False),                              # the week before / after
+    ("1M", "2024-03-01", True), ("1M", "2024-03-29", True), ("1M", "2024-02-29", False), ("1M", "2023-03-21", False),
+    ("1D", "2024-03-21", True), ("1D", "2024-03-18", False),                               # CONTROL: daily is exact
+])
+def test_a_weekly_or_monthly_chart_starts_at_the_listing_by_its_period(tmp_path, tf, listed, want):
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT", tf=tf)
+    drv.opts.listing_date = listed
+    starts, why = drv.history_assertion(DEPTH_AT_FIRST)
+    assert starts is want, why
+    if want and tf != "1D":
+        assert ("listing week" if "W" in tf else "listing month") in why and "NYSE:RDDT listed" in why
+
+
+def test_same_period_reads_the_iso_week_across_a_year():
+    assert bc.same_period("2025-01-03", "2024-12-31", "W") and not bc.same_period("2025-01-10", "2024-12-31", "W")
+    assert not bc.same_period("2024-12-31", "2024-12-31", "D") and not bc.same_period("x", "2024-12-31", "W")
+
+
+# ── a row names its SESSION in the symbol spec; read back, stopped by name, restored (coordinator ruling 2026-11-20) ──
+# ⛔ The layout's own session is never toggled (AUTOSAVE is account-wide): the same per-row setSymbol the batch already makes.
+def _session_batch(tmp_path, rows, honours=True):
+    manifest, beh = bd.make_manifest(tmp_path, [(slug, 'indicator("X")\nplot(close)\n', {}) for slug, _ in rows])
+    for script, (_, session) in zip(manifest["scripts"], rows):
+        script.update({"symbol": "AMEX:SPY", "tf": "60", "captureStem": "vw-bi-time-d-extended"})
+        if session is not None:
+            script["session"] = session
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    page.honours_session = honours
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    return page, rd, code
+
+
+def test_an_extended_row_captures_the_extended_session_and_puts_the_chart_back(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("ext", "extended")])
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.CAPTURED, res
+    cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-ext-2026-09-28.json").read_text(encoding="utf-8"))
+    assert cap["symbol"]["session"] == "0400-2000"                            # the capture records the session it read
+    sets = [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"]
+    assert bc.session_spec("AMEX:SPY", "extended") in [str(x) for x in sets]
+    assert page.session_id == "regular"                                       # restored after the row, read back
+
+
+def test_a_regular_row_reads_the_regular_session(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("reg", "regular")])
+    assert rd.results()["reg"]["outcome"] == bc.CAPTURED, rd.results()["reg"]
+    cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-2026-09-28.json").read_text(encoding="utf-8"))
+    assert cap["symbol"]["session"] == "0930-1600"
+    sets = [str(a) for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"]
+    assert bc.session_spec("AMEX:SPY", "regular") in sets
+
+
+def test_a_row_that_names_no_session_never_asks_for_one(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("plain", None)])
+    assert rd.results()["plain"]["outcome"] == bc.CAPTURED
+    assert not [n for k, n, _ in page.calls if k == "evaluate" and n == "SESSION"]
+    assert not [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL" and str(a).startswith("=")]
+
+
+def test_an_extended_row_whose_read_back_is_not_extended_stops_by_name(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("ext", "extended")], honours=False)
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "session read back '0930-1600', not the extended session '0400-2000'" in json.dumps(res)
+    assert not list((tmp_path / "run" / "captures").glob("*.json"))         # nothing captured
+
+
+def test_an_extended_row_and_a_regular_row_of_one_probe_are_two_captures():
+    o_ext, o_reg = bd.fast_opts(symbol="AMEX:SPY", tf="60"), bd.fast_opts(symbol="AMEX:SPY", tf="60")
+    o_ext.session = "extended"
+    s = {"slug": "x", "captureStem": "vw-bi-time-d-extended"}
+    assert bc.capture_id_for(s, o_ext) == "vw-bi-time-d-extended-spy-60-ext-2026-09-28"
+    assert bc.capture_id_for(s, o_reg) == "vw-bi-time-d-extended-spy-60-2026-09-28"
+
+
+def test_the_spec_is_tradingviews_encoding_and_the_matcher_reads_through_it():
+    assert bc.session_spec("AMEX:SPY", "extended") == '={"session":"extended","symbol":"AMEX:SPY"}'
+    assert bc.sym_match('={"session":"extended","symbol":"AMEX:SPY"}', "AMEX:SPY")
+    assert not bc.sym_match('={"session":"extended","symbol":"AMEX:QQQ"}', "AMEX:SPY")
+    with pytest.raises(bc.GateFailed):
+        bc.Opts(session="overnight")

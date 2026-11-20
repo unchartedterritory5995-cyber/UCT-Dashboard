@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isHiddenDeskKey } from '../deskKeyGate'
 import ChartPane from '../../../components/chart/pane/ChartPane'
@@ -58,7 +58,7 @@ const ADD_WIDGET_LABELS = labelMap('menu')
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, setGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare } = useWorkspace()
+  const { groupSyms, setGroupSym, setGroupTf, registerGroupTf, crosshairBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel, floatNewWidget, applyThemeToAllCharts, applyThemeToAllWidgets, countOtherCharts, applyAppearanceToOtherCharts, canOpenCompare } = useWorkspace()
   const navigate = useNavigate()
   // T3 integrated header: non-null only for a single chart on the /charts board grid.
   const widgetChrome = useContext(WidgetChromeContext)
@@ -248,6 +248,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // never break the chart — the list just keeps its own timeframe.
   const barsTf = fetchTf(tf)
   useEffect(() => { setGroupTf?.(activeColor, barsTf) }, [activeColor, barsTf, setGroupTf])
+  // ...and registered with every other chart's on this colour, so a linked list warms each chart's
+  // timeframe, not only the last one published (ChartsWorkspace registerGroupTf).
+  const tfRegId = useId()
+  useEffect(() => registerGroupTf?.(activeColor, tfRegId, barsTf), [activeColor, tfRegId, barsTf, registerGroupTf])
 
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return

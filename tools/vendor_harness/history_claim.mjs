@@ -20,7 +20,7 @@
 /** The bar_index control row's title (`I00_bar_index_CONTROL`, `M00_bar_index_CONTROL`, `P00_bar_index`, …). */
 export const BAR_INDEX_CONTROL = /^[A-Za-z]\d\d_bar_index(_CONTROL)?$/
 
-/** The capture's own bar_index control row, `{id, values}`, or null when it has none (or no plot values). */
+/** The capture's own bar_index control row, `{id, values, times}`, or null when it has none (or no plot values). */
 export function barIndexControlRow(capture) {
   const plots = (capture && capture.study && capture.study.plots) || []
   const control = plots.find((p) => BAR_INDEX_CONTROL.test(p.title || ''))
@@ -28,19 +28,36 @@ export function barIndexControlRow(capture) {
   if (!control || !pv || !Array.isArray(pv.fields) || !Array.isArray(pv.rows) || !pv.rows.length) return null
   const at = pv.fields.indexOf(control.id)
   if (at < 0) return null
-  return { id: control.id, values: pv.rows.map((r) => r[at]) }
+  return { id: control.id, values: pv.rows.map((r) => r[at]), times: pv.rows.map((r) => r[0]) }
 }
 
-/** Why the capture's `startsAtBar0` claim is refuted by its own bar_index row, or null (no claim, no row, or
- *  the row reads 0, 1, 2 …). */
+/** Why the capture's `startsAtBar0` claim is refuted by its own bar_index row, or null (no claim, no row, or the
+ *  row's FIRST value is its own bar's position in the capture's bars, or 0: where TradingView began counting).
+ *  ⛔ BY TIME, NOT BY ROW: a row's value is held to the POSITION of its bar (its time) in `capture.bars`. The plot
+ *  values can cover only part of the bars: a capture joined onto the listing's history (`c38Joined.js`) carries
+ *  every bar from the listing but the vendor's rows only for its own window, where the control row reads 8172 on
+ *  bar 8172, which is exactly right. (First version compared each value to its ROW number and refuted those.) */
 export function startsAtBar0Refuted(capture) {
   if (!(capture && capture.history && capture.history.startsAtBar0 === true)) return null
   const row = barIndexControlRow(capture)
   if (!row) return null
-  const at = row.values.findIndex((v, i) => v !== i)
-  if (at < 0) return null
-  return `history.startsAtBar0 is REFUTED by the capture's own bar_index control row, which reads `
-    + `${JSON.stringify(row.values[at])} on its bar ${at} (it must read ${at}): its history does not start at TradingView's bar 0`
+  const bars = (capture.bars && Array.isArray(capture.bars.rows)) ? capture.bars.rows : []
+  const position = new Map(bars.map((r, i) => [r[0], i]))
+  // ⛔ THE FIRST BAR THE ROW SPEAKS FOR, NOT EVERY BAR: where a history starts is one fact, read where the row begins.
+  // A later bar that disagrees is a wrong NUMBER, and grading it DIVERGE is the grader's job: C45's control moves one
+  // value by one bar and must read DIVERGE, never a refuted claim (`vendorHarness.c45BarIndex.test.js`).
+  for (let k = 0; k < row.values.length; k += 1) {
+    const i = position.get(row.times[k])
+    if (i === undefined) continue
+    // ⭐ 0 is TradingView's own start of counting, never evidence against the listing: a `calc_bars_count` script
+    // counts bar_index from the first bar it calculates (vw-cs1-calc-bars-rddt-1d: its 100 rows read 0, 1, 2 … on
+    // the chart's last 100 bars of a capture that does start at the listing). Only a NON-ZERO count that is not
+    // the bar's position says the history began elsewhere (vw-int-cast: 8172 on its bar 0).
+    if (row.values[k] === i || row.values[k] === 0) return null
+    return `history.startsAtBar0 is REFUTED by the capture's own bar_index control row, which reads `
+      + `${JSON.stringify(row.values[k])} on its bar ${i} (it must read ${i}): its history does not start at TradingView's bar 0`
+  }
+  return null
 }
 
 /** ⭐ The claim as every grader must read it: asserted, and not refuted by the capture's own numbers. */

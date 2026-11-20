@@ -18,7 +18,7 @@ import {
   setRuntimeKillList, __resetRuntimeAllowList, __resetRuntimeListsRecheck, setRuntimeCapabilityAdmission,
   requestRuntimeAdmission, __resetRuntimeAdmission, runtimeSourceHash, runtimePendingReasonOf,
   runtimeAdmissionOf, latchRuntimeAdmission, RUNTIME_PENDING_REASONS, RUNTIME_ADMISSION_PATH,
-  RUNTIME_KILL_PATH, RUNTIME_ADMISSION_PENDING_RETRY_MS,
+  RUNTIME_KILL_PATH, RUNTIME_ADMISSION_PENDING_RETRY_MS, RUNTIME_ADMISSION_PENDING_RETRIES, subscribeRuntimeLists,
 } from '../runtimeKill'
 
 const SRC = '//@version=5\nindicator("mine")\nplot(close)\n'
@@ -103,10 +103,10 @@ describe('the server says why a verdict is still pending', () => {
   it.each([['an unknown word', 'later'], ['the wrong type', 3], ['an object', { reason: 'busy' }],
     ['upper case', 'BUSY'], ['no reason at all (an older server)', undefined]])(
     '⛔ %s is ignored, and replaces the older reason rather than leaving it standing', async (_label, bad) => {
-      answer(pending('paused'), pending(bad))
+      answer(pending('busy'), pending(bad))
       requestRuntimeAdmission(SRC)
       await flush()
-      expect(runtimePendingReasonOf({ source: SRC })).toBe('paused')
+      expect(runtimePendingReasonOf({ source: SRC })).toBe('busy')
       await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
       await flush()
       expect(asks()).toBe(2)
@@ -125,5 +125,88 @@ describe('the server says why a verdict is still pending', () => {
   it('reads nothing for nothing', () => {
     expect(runtimePendingReasonOf()).toBeNull()
     expect(runtimePendingReasonOf({ source: '' })).toBeNull()
+  })
+})
+
+// ─── (2026-11-19) B: the window LEARNS the reason; C: "paused" is not re-asked ─────────
+describe("a reason that changes tells the lists' subscribers (no polling needed)", () => {
+  let told
+  beforeEach(() => { told = 0; subscribeRuntimeLists(() => { told += 1 }) })
+
+  it('⭐ a new reason notifies exactly once', async () => {
+    answer(pending('starting'))
+    requestRuntimeAdmission(SRC)
+    await flush()
+    expect(told).toBe(1)
+    expect(runtimePendingReasonOf({ source: SRC })).toBe('starting')
+  })
+
+  it('⛔ the same reason again notifies nobody', async () => {
+    answer(pending('busy'))
+    const p = requestRuntimeAdmission(SRC)
+    for (let i = 0; i < RUNTIME_ADMISSION_PENDING_RETRIES; i += 1) {
+      await flush()
+      await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    }
+    expect(await p).toBeNull()
+    expect(asks()).toBe(RUNTIME_ADMISSION_PENDING_RETRIES)       // asked five times, the same "busy" each time
+    expect(told).toBe(1)                                          // told once, when it first arrived
+  })
+
+  it('⭐ a reason that changes notifies again, and one that goes away notifies too', async () => {
+    answer(pending('busy'), pending('starting'), pending(undefined))
+    requestRuntimeAdmission(SRC)
+    await flush()
+    expect(told).toBe(1)
+    await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    await flush()
+    expect(runtimePendingReasonOf({ source: SRC })).toBe('starting')
+    expect(told).toBe(2)
+    await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    await flush()
+    expect(runtimePendingReasonOf({ source: SRC })).toBeNull()
+    expect(told).toBe(3)
+  })
+
+  it('⛔ a pending answer with no reason, over none, notifies nobody', async () => {
+    answer(pending(undefined))
+    requestRuntimeAdmission(SRC)
+    await flush()
+    expect(told).toBe(0)
+  })
+
+  it('⭐ the verdict that lands clears it and notifies once', async () => {
+    answer(pending('busy'), { sha256: H, admitted: true, missing: [] })
+    const p = requestRuntimeAdmission(SRC)
+    await flush()
+    expect(told).toBe(1)
+    await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    expect((await p).admitted).toBe(true)
+    expect(runtimePendingReasonOf({ source: SRC })).toBeNull()
+    expect(told).toBe(2)
+  })
+})
+
+describe('"paused" is a quarantine: it is not asked again 1.5 s later', () => {
+  it('⛔ a paused answer makes exactly ONE door call, and stays pending with its reason', async () => {
+    answer(pending('paused'), { sha256: H, admitted: true, missing: [] })
+    const p = requestRuntimeAdmission(SRC)
+    await flush()
+    await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS * (RUNTIME_ADMISSION_PENDING_RETRIES + 1))
+    expect(await p).toBeNull()
+    expect(asks()).toBe(1)
+    expect(runtimePendingReasonOf({ source: SRC })).toBe('paused')
+    expect(runtimeAdmissionOf({ hash: H })).toBeNull()
+  })
+
+  it.each(['busy', 'starting'])('⭐ a "%s" answer is still asked again until a verdict lands', async (reason) => {
+    answer(pending(reason), pending(reason), { sha256: H, admitted: true, missing: [] })
+    const p = requestRuntimeAdmission(SRC)
+    await flush()
+    await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    await flush()
+    await vi.advanceTimersByTimeAsync(RUNTIME_ADMISSION_PENDING_RETRY_MS)
+    expect((await p).admitted).toBe(true)
+    expect(asks()).toBe(3)
   })
 })

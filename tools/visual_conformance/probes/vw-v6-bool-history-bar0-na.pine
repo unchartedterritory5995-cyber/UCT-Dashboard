@@ -1,0 +1,19 @@
+//@version=6
+indicator("UCTPROBE_VW_V6_BOOL_HISTORY_BAR0_NA", overlay = false)
+
+// PROVENANCE: written 2026-11-20 (Q-BH0-c, docs/pine/capture-queue-2026-11-20-v6-bool-history-bar0.md).
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// Kept apart from vw-v6-bool-history-bar0.pine because v6 may refuse to COMPILE `na()` of a bool (the migration
+// guide, "Boolean values cannot be na"). If TradingView refuses this script, keep the compile error's text: it is
+// the answer (v6 does not let `na()` ask a bool). If it compiles, N01 says whether `b[1]` is `na` on bar 0.
+//
+//   N00  bar_index (control)
+//   N01  na(b[1]) ? -1 : 0          `na` on bar 0 -> -1; `false` -> 0
+//
+// CAPTURE: NYSE:RDDT 1D from the listing.
+
+b = close > 0
+
+plot(bar_index, title = "N00_bar_index_CONTROL")
+plot(na(b[1]) ? -1 : 0, title = "N01_na_b1")
