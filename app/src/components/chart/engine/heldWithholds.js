@@ -121,3 +121,11 @@ export function __ignoreHeldWithholdsForTests() { _ignored = true }
 export function __resetHeldWithholds() { _ignored = false; _entries = COMMITTED }
 /** Rails only: a synthetic document (`{scripts: [...]}`), ON. */
 export function __setHeldWithholdsForTests(doc) { _ignored = false; _entries = entriesOf(doc) }
+/** ⭐ The list's state as one comparable string, a declared part of the test grant's gate state
+ *  (`testing/runtimeGate.js::gateState`, so a hook outside any test that narrows it fails by name, GATE-BLIND):
+ *  `ignored` (the test grant), `committed` (the app's state), or a synthetic document's sources and withholds. */
+export function heldWithholdsState() {
+  if (_ignored) return 'ignored'
+  if (_entries === COMMITTED) return 'committed'
+  return `doc:${[..._entries.entries()].map(([sha, e]) => `${sha}=${heldWithholdsStamp(e.withholds).join('|')}`).sort().join(',')}`
+}
