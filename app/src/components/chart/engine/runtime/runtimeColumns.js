@@ -30,7 +30,9 @@ import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute, requestRegionCausal } from './vm.js'
-import { runtimeRequestSupply, requestWaitingSentence, REQUEST_LAG_GUARD, tailCutSentence, tailCutIsOff } from './requestSupply.js'
+import {
+  runtimeRequestSupply, requestWaitingSentence, REQUEST_GUARD, REQUEST_LAG_GUARD, tailCutSentence, tailCutIsOff,
+} from './requestSupply.js'
 import { withOvernightTail, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.

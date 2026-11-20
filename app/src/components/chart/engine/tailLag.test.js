@@ -504,7 +504,7 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
       expect(f.notice()).toMatch(WAITING)
     } finally { f.done() }
   })
-  it('⚰️ REPRODUCED, the cut switched off: a FRESH pane, SPX two bars behind, nothing drawn at all (the e88 blank pane)', async () => {
+  it('⚰️ REPRODUCED, the cut switched off: a FRESH pane, SPX two bars behind, the run half never answers (a whole-run wait)', async () => {
     __tailCutOffForTests(true)
     const f = await fredOnAChart()
     try {
@@ -512,7 +512,7 @@ describe('the product path: Fred RS on a live 5m chart whose SPX lags its newest
       const r = f.reply()
       expect(r.ok).toBe(false)
       expect(r.error.pending).toBe(true)
-      expect(f.drawn().points).toBe(0)
+      expect(f.log.filter((x) => x.startsWith('run:'))).toEqual([])
     } finally { f.done() }
   })
   it('⭐ two bars behind a SERVED pane: the values drawn up to SPX\'s newest, the served drawings KEPT, the strip names SPX; SPX\'s update runs it ONCE and it serves', async () => {
@@ -737,8 +737,10 @@ describe('a RUNTIME document is CUT too (e91 (2b)): drawn up to the lag, the new
   })
   it('⚰️ REPRODUCED, the cut switched off: no columns, the whole run waits (`runtimeRunWaitingOf`)', () => {
     __tailCutOffForTests(true)
-    const cols = registry.computeFor(def, SHALLOW, {}, ctx5(secondaryOf(spxThrough(13, 40))))
-    const wait = registry.runtimeRunWaitingOf(def, cols)
+    // its own document (the registry keeps the answer of the cut run above by document)
+    const off = { ...def, id: 'u_tl-rt-off', compute: { ...def.compute, fn: 'runtime:u_tl-rt-off' } }
+    const cols = registry.computeFor(off, SHALLOW, {}, ctx5(secondaryOf(spxThrough(13, 40))))
+    const wait = registry.runtimeRunWaitingOf(off, cols)
     expect(wait).toMatchObject({ waitingFor: 'SPX', what: 'values' })
     expect(wait.sentence).toBe("waiting for `SPX`'s newest bar, which has not arrived yet; this script is drawn bar by bar when it does")
   })
