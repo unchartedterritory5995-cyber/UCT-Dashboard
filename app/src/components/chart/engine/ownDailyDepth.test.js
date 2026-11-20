@@ -10,7 +10,7 @@
 //   (a) a bar reading a session BEFORE the held own-daily (or SPX@D) rows' first session is DEPTH: the run starts at
 //       `knownFrom`, the first bar every read of which is held. A row missing INSIDE the held sessions still refuses.
 //   (b) the held daily rows are sized from the chart's own span of sessions (`sessionsSpanned`, on a rung), never bars/78.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { runtimeRequestSupply } from './runtime/requestSupply'
@@ -18,6 +18,8 @@ import { buildRuntimeIr } from './ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './ast/pineRuntimeClock.js'
 import { OWN_DAILY_KEY, heldDepthOf, sessionsSpanned, heldSessionsRung, HELD_DAILY_DEPTH_CAP } from './otherSymbols'
 import { isTradingDay } from '../../../lib/marketClock/sessionCalendar.js'
+import { ensureChartSources } from './useSecondarySources'
+import { clearSecondaryBars, secondaryBarsUrl } from './secondaryBars'
 
 const RS = fs.readFileSync(path.join(path.resolve(process.cwd(), '..'), 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
 const SEED = 'SEED_FRED6725_RS_RATING:RSRATING@D'
@@ -123,5 +125,26 @@ describe('(b) the held daily rows are sized from the chart\'s span of sessions, 
     expect(heldSessionsRung(64)).toBe(64)
     expect(heldSessionsRung(65)).toBe(128)
     expect(heldSessionsRung(1e9)).toBe(HELD_DAILY_DEPTH_CAP)
+  })
+})
+
+describe('(b) the hook asks the held daily rows at the chart's span', () => {
+  afterEach(() => clearSecondaryBars())
+  const ask = (heldSessions) => {
+    const asked = []
+    const fetcher = (...a) => { asked.push(String(a[0])); return new Promise(() => {}) }
+    ensureChartSources(['SPX@D', OWN_DAILY_KEY], '5', 20000, fetcher, 'RDDT', heldSessions)
+    clearSecondaryBars()
+    return asked
+  }
+  it('with the span (rung 512): SPX@D and this symbol's own daily rows are asked 522 deep', () => {
+    const asked = ask(512)
+    expect(asked).toContain(secondaryBarsUrl('SPX', 'D', 522))
+    expect(asked).toContain(secondaryBarsUrl('RDDT', 'D', 522))
+  })
+  it('⛔ CONTROL: no span known (0): asked at the old count (267), exactly as before', () => {
+    const asked = ask(0)
+    expect(asked).toContain(secondaryBarsUrl('SPX', 'D', 267))
+    expect(asked).toContain(secondaryBarsUrl('RDDT', 'D', 267))
   })
 })
