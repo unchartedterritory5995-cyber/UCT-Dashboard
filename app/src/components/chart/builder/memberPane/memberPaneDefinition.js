@@ -42,7 +42,12 @@ import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
-import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
+import { warmRuntimeLane, runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
+/** ⭐ THE PASTE WORKER: the runtime lane's warm, and the count of asks for it, reached THROUGH this door (which
+ *  consults the runtime pane's gate before it routes). The worker counts the door's asks and the page makes the warm
+ *  (`memberDoorWorkerCore.js`, `memberDoorAsync.js`), and neither may reach the lane by a path of its own
+ *  (`engine/__tests__/memberPaneGate.test.js`). */
+export { warmRuntimeLane, runtimeLaneWarmAsks }
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
 import { runtimeFamilyLedger, FAMILY_WORDS } from './runtimeFamilyLedger'

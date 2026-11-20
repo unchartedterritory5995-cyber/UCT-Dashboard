@@ -38,11 +38,12 @@
 //   · a door that THREW is said to each consumer in its own words, as it always was.
 // ⛔ WITHOUT `Worker` (tests, a non-browser host) the build runs here, synchronously, as it always did (still
 // once per script and state).
-import { memberPaneDefinition, doorAnswer, MEMBER_DOOR_BUDGET_MS, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
+import {
+  memberPaneDefinition, doorAnswer, MEMBER_DOOR_BUDGET_MS, MEMBER_PANE_DEF_PREFIX, warmRuntimeLane,
+} from './memberPaneDefinition'
 import { memberDoorImage, memberDoorStateVersion } from './memberDoorImage'
 import { MEMBER_DOOR_JOB } from './memberDoorWorkerCore'
 import { replayRuntimeConsults, runtimeConsultPendingOf } from '../../engine/runtimeKill'
-import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
 
 /** How long past the door's own deadline a silent worker is given (its bundle load included) before the
  *  watchdog stops it. */

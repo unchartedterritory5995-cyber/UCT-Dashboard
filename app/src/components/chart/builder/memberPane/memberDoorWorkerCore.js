@@ -17,10 +17,9 @@
 // ⛔ ONE COMPUTATION, NOT A SECOND: nothing here decides anything the door decides. ⛔ A PURE HANDLER,
 // importable anywhere: the worker entry (`memberDoorWorker.js`) is the only module that touches `self`, so a
 // rail runs this exact code over a structured clone of the exact message, in a fresh module graph.
-import { memberPaneDefinition } from './memberPaneDefinition.js'
+import { memberPaneDefinition, runtimeLaneWarmAsks } from './memberPaneDefinition.js'
 import { applyMemberDoorImage } from './memberDoorImage.js'
 import { recordRuntimeConsults, runtimeConsultPendingOf } from '../../engine/runtimeKill.js'
-import { runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync.js'
 
 /** The message kind a member-door job carries. */
 export const MEMBER_DOOR_JOB = 'member-door'
