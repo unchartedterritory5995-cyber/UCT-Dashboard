@@ -7830,12 +7830,332 @@
    "script": "BB + IB Boxes",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Basis",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 647,
+      "colorWithheld": 0,
+      "colorComparable": 647,
+      "valued": 647,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Upper",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 647,
+      "colorWithheld": 0,
+      "colorComparable": 647,
+      "valued": 647,
+      "maxAbs": 1.9895196601282805e-12,
+      "maxRel": 1.0147422093423038e-14,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Lower",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 647,
+      "colorWithheld": 0,
+      "colorComparable": 647,
+      "valued": 647,
+      "maxAbs": 1.9895196601282805e-12,
+      "maxRel": 1.160055128793596e-14,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Shapes",
+     "ours": "out4",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 41,
+      "colorWithheld": 0,
+      "colorComparable": 41,
+      "valued": 41,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Shapes",
+     "ours": "out5",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "666 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 666,
+      "compared": 666,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 666,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 36,
+      "colorWithheld": 0,
+      "colorComparable": 36,
+      "valued": 36,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 666,
+       "compared": 666,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_3",
+     "title": "Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:history-dynamic-offset]: a name that is reassigned later cannot be folded into one expression — `IBStatus` — and the fold stopped before it, at line 98: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `IBStatus`",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "TradingView holds 51 drawing object(s) at the last bar and our script has no drawing program"
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_3",
+      "kind": "barcolor",
+      "state": "agree",
+      "line": 122,
+      "title": "Bar Color",
+      "differs": false
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 7 compared items diverge",
+   "verdictWithoutPaints": "DIVERGE",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "ourDoor": "runtime",
+   "objectsV2": {
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 51 drawing object(s) at the last bar and our script has no drawing program",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-17.json",
@@ -7844,12 +8164,332 @@
    "script": "BB + IB Boxes",
    "symbol": "NYSE:RDDT",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Basis",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "668 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 668,
+      "compared": 668,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 668,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 649,
+      "colorWithheld": 0,
+      "colorComparable": 649,
+      "valued": 649,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 668,
+       "compared": 668,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Upper",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "668 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 668,
+      "compared": 668,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 668,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 649,
+      "colorWithheld": 0,
+      "colorComparable": 649,
+      "valued": 649,
+      "maxAbs": 1.9895196601282805e-12,
+      "maxRel": 1.0147422093423038e-14,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 668,
+       "compared": 668,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Lower",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "668 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": 20,
+     "color": "compared",
+     "stats": {
+      "bars": 668,
+      "compared": 668,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 668,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 649,
+      "colorWithheld": 0,
+      "colorComparable": 649,
+      "valued": 649,
+      "maxAbs": 1.9895196601282805e-12,
+      "maxRel": 1.160055128793596e-14,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 668,
+       "compared": 668,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Shapes",
+     "ours": "out4",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "668 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 668,
+      "compared": 668,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 668,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 41,
+      "colorWithheld": 0,
+      "colorComparable": 41,
+      "valued": 41,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 668,
+       "compared": 668,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Shapes",
+     "ours": "out5",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "668 steady-state bars agree",
+     "warmupBars": 0,
+     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "derivedLookback": null,
+     "color": "compared",
+     "stats": {
+      "bars": 668,
+      "compared": 668,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 668,
+      "vendorRowsMissing": 0,
+      "naMismatches": 0,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 36,
+      "colorWithheld": 0,
+      "colorComparable": 36,
+      "valued": 36,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
+      "warmup": {
+       "bars": 0,
+       "compared": 0,
+       "divergent": 0,
+       "first": null
+      },
+      "steady": {
+       "bars": 668,
+       "compared": 668,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_3",
+     "title": "Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:history-dynamic-offset]: a name that is reassigned later cannot be folded into one expression — `IBStatus` — and the fold stopped before it, at line 98: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `IBStatus`",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "TradingView holds 51 drawing object(s) at the last bar and our script has no drawing program"
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_3",
+      "kind": "barcolor",
+      "state": "agree",
+      "line": 122,
+      "title": "Bar Color",
+      "differs": false
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 7 compared items diverge",
+   "verdictWithoutPaints": "DIVERGE",
+   "ourNotes": [
+    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0",
+    "paints: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+   ],
+   "ourDoor": "runtime",
+   "objectsV2": {
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 51 drawing object(s) at the last bar and our script has no drawing program",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/bolingger-bands-inside-bar-boxes-spy-1d-2026-11-17.json",
@@ -7858,12 +8498,392 @@
    "script": "BB + IB Boxes",
    "symbol": "AMEX:SPY",
    "timeframe": "1D",
-   "plots": [],
-   "notCompared": [],
+   "plots": [
+    {
+     "id": "plot_0",
+     "title": "Basis",
+     "ours": "value",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "8239 steady-state bars agree (251 warm-up bars differ, reported separately)",
+     "warmupBars": 270,
+     "warmupSource": "derived: our evaluator's maxLookback for this plot",
+     "derivedLookback": 270,
+     "color": "compared",
+     "stats": {
+      "bars": 8509,
+      "compared": 8509,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8258,
+      "vendorRowsMissing": 0,
+      "naMismatches": 251,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 8239,
+      "colorWithheld": 0,
+      "colorComparable": 8490,
+      "valued": 8490,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 730737000,
+       "kind": "na",
+       "vendor": 44.2734625,
+       "ours": null
+      },
+      "warmup": {
+       "bars": 270,
+       "compared": 270,
+       "divergent": 251,
+       "first": {
+        "bar": 19,
+        "time": 730737000,
+        "kind": "na",
+        "vendor": 44.2734625,
+        "ours": null
+       }
+      },
+      "steady": {
+       "bars": 8239,
+       "compared": 8239,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_1",
+     "title": "Upper",
+     "ours": "out2",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "8239 steady-state bars agree (251 warm-up bars differ, reported separately)",
+     "warmupBars": 270,
+     "warmupSource": "derived: our evaluator's maxLookback for this plot",
+     "derivedLookback": 270,
+     "color": "compared",
+     "stats": {
+      "bars": 8509,
+      "compared": 8509,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8258,
+      "vendorRowsMissing": 0,
+      "naMismatches": 251,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 8239,
+      "colorWithheld": 0,
+      "colorComparable": 8490,
+      "valued": 8490,
+      "maxAbs": 3.956301952712238e-11,
+      "maxRel": 1.2712359134328653e-13,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 730737000,
+       "kind": "na",
+       "vendor": 45.37525491777849,
+       "ours": null
+      },
+      "warmup": {
+       "bars": 270,
+       "compared": 270,
+       "divergent": 251,
+       "first": {
+        "bar": 19,
+        "time": 730737000,
+        "kind": "na",
+        "vendor": 45.37525491777849,
+        "ours": null
+       }
+      },
+      "steady": {
+       "bars": 8239,
+       "compared": 8239,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_2",
+     "title": "Lower",
+     "ours": "out3",
+     "rule": "M1-title",
+     "verdict": "MATCH",
+     "reason": "8239 steady-state bars agree (251 warm-up bars differ, reported separately)",
+     "warmupBars": 270,
+     "warmupSource": "derived: our evaluator's maxLookback for this plot",
+     "derivedLookback": 270,
+     "color": "compared",
+     "stats": {
+      "bars": 8509,
+      "compared": 8509,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8258,
+      "vendorRowsMissing": 0,
+      "naMismatches": 251,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 8239,
+      "colorWithheld": 0,
+      "colorComparable": 8490,
+      "valued": 8490,
+      "maxAbs": 3.956301952712238e-11,
+      "maxRel": 1.284073873630627e-13,
+      "firstDivergence": {
+       "bar": 19,
+       "time": 730737000,
+       "kind": "na",
+       "vendor": 43.17167008222151,
+       "ours": null
+      },
+      "warmup": {
+       "bars": 270,
+       "compared": 270,
+       "divergent": 251,
+       "first": {
+        "bar": 19,
+        "time": 730737000,
+        "kind": "na",
+        "vendor": 43.17167008222151,
+        "ours": null
+       }
+      },
+      "steady": {
+       "bars": 8239,
+       "compared": 8239,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_4",
+     "title": "Shapes",
+     "ours": "out4",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8239 steady-state bars agree (23 warm-up bars differ, reported separately)",
+     "warmupBars": 270,
+     "warmupSource": "derived: our evaluator's maxLookback for this plot",
+     "derivedLookback": 270,
+     "color": "compared",
+     "stats": {
+      "bars": 8509,
+      "compared": 8509,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8486,
+      "vendorRowsMissing": 0,
+      "naMismatches": 23,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 452,
+      "colorWithheld": 0,
+      "colorComparable": 475,
+      "valued": 475,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": {
+       "bar": 9,
+       "time": 729441000,
+       "kind": "na",
+       "vendor": 1,
+       "ours": null
+      },
+      "warmup": {
+       "bars": 270,
+       "compared": 270,
+       "divergent": 23,
+       "first": {
+        "bar": 9,
+        "time": 729441000,
+        "kind": "na",
+        "vendor": 1,
+        "ours": null
+       }
+      },
+      "steady": {
+       "bars": 8239,
+       "compared": 8239,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    },
+    {
+     "id": "plot_5",
+     "title": "Shapes",
+     "ours": "out5",
+     "rule": "M2-position-untitled",
+     "verdict": "MATCH",
+     "reason": "8239 steady-state bars agree (13 warm-up bars differ, reported separately)",
+     "warmupBars": 270,
+     "warmupSource": "derived: our evaluator's maxLookback for this plot",
+     "derivedLookback": 270,
+     "color": "compared",
+     "stats": {
+      "bars": 8509,
+      "compared": 8509,
+      "oursUnread": 0,
+      "withheldBars": 0,
+      "withheldVendorValued": 0,
+      "withheldWarmupVendorValued": 0,
+      "floatOrderFloorUsed": 0,
+      "matching": 8496,
+      "vendorRowsMissing": 0,
+      "naMismatches": 13,
+      "valueMismatches": 0,
+      "colorMismatches": 0,
+      "colorCompared": 366,
+      "colorWithheld": 0,
+      "colorComparable": 379,
+      "valued": 379,
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": {
+       "bar": 7,
+       "time": 729268200,
+       "kind": "na",
+       "vendor": 1,
+       "ours": null
+      },
+      "warmup": {
+       "bars": 270,
+       "compared": 270,
+       "divergent": 13,
+       "first": {
+        "bar": 7,
+        "time": 729268200,
+        "kind": "na",
+        "vendor": 1,
+        "ours": null
+       }
+      },
+      "steady": {
+       "bars": 8239,
+       "compared": 8239,
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
+      },
+      "vendorRowGapsAfterStart": 0
+     }
+    }
+   ],
+   "notCompared": [
+    {
+     "id": "plot_3",
+     "title": "Bar Color",
+     "type": "bar_colorer",
+     "why": "plot type bar_colorer is not compared by v1"
+    }
+   ],
    "notMeasured": [],
-   "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:history-dynamic-offset]: a name that is reassigned later cannot be folded into one expression — `IBStatus` — and the fold stopped before it, at line 98: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `IBStatus`",
-   "ourNotes": []
+   "tolerance": {
+    "rel": 1e-9,
+    "abs": 1e-8,
+    "absReason": "1e-6 of the tick (pricescale 100)"
+   },
+   "objects": {
+    "verdict": "DIVERGE",
+    "reason": "TradingView holds 55 drawing object(s) at the last bar and our script has no drawing program"
+   },
+   "paints": {
+    "verdict": "MATCH",
+    "reason": "1 paint agree bar for bar",
+    "agreeing": 1,
+    "differing": 0,
+    "withheld": 0,
+    "undrawn": 0,
+    "undecodable": 0,
+    "unpaired": [],
+    "rows": [
+     {
+      "id": "plot_3",
+      "kind": "barcolor",
+      "state": "agree",
+      "line": 122,
+      "title": "Bar Color",
+      "differs": false
+     }
+    ]
+   },
+   "verdict": "DIVERGE",
+   "reason": "1 of 7 compared items diverge",
+   "verdictWithoutPaints": "DIVERGE",
+   "ourNotes": [
+    "plots/objects: cold: no committed capture of SPY|D holds bars before 728317800, cold replay",
+    "paints: cold: no committed capture of SPY|D holds bars before 728317800, cold replay"
+   ],
+   "ourDoor": "runtime",
+   "objectsV2": {
+    "verdict": "DIVERGE",
+    "verdictWithoutX": "DIVERGE",
+    "v1": "DIVERGE",
+    "pairedNothing": true,
+    "x": null,
+    "reason": "no record was paired; v1: TradingView holds 55 drawing object(s) at the last bar and our script has no drawing program",
+    "families": [],
+    "ungraded": {
+     "lines": [
+      "xloc",
+      "force_overlay"
+     ],
+     "labels": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "boxes": [
+      "xloc",
+      "text_font_family",
+      "text_formatting",
+      "force_overlay"
+     ],
+     "tables": [
+      "force_overlay"
+     ],
+     "tableCells": [
+      "width",
+      "height",
+      "text_formatting",
+      "colspan",
+      "rowspan"
+     ],
+     "linefills": []
+    }
+   }
   },
   {
    "file": "tests/fixtures/vendor/harness/bollinger-band-width-percentile-rddt-1d-2026-11-14.json",
@@ -69821,7 +70841,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:block) [runtime declined: runtime:history-dynamic-offset]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)",
+   "reason": "refused on our side: member door refused (pine:block) [runtime declined: budget:lookback]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)",
    "ourNotes": []
   },
   {
@@ -69835,7 +70855,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:block) [runtime declined: runtime:history-dynamic-offset]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)",
+   "reason": "refused on our side: member door refused (pine:block) [runtime declined: budget:lookback]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)",
    "ourNotes": []
   },
   {
@@ -69849,7 +70869,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:block) [runtime declined: runtime:history-dynamic-offset]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)",
+   "reason": "refused on our side: member door refused (pine:block) [runtime declined: budget:lookback]: a Pine block spans several statements and this engine stores a single expression — `for` (reached through `getVwap`)",
    "ourNotes": []
   },
   {

@@ -134,6 +134,18 @@ describe('⭐⭐ A1 — a per-bar argument sizes the offset of the copy compiled
   })
 })
 
+describe('⭐ A1 (dynamic-linear-regression-channels\' top level): a BLOCK local bound once sizes an offset by its range', () => {
+  it('⭐ `j = x > x[1] ? 1 : 0` in a block (a slot: it reads one), `x[j]` read there: a ring of depth 1, the real history', () => {
+    const src = 'var float x = 0.0\nx := close\nfloat out = na\nif bar_index > 5\n    j = x > x[1] ? 1 : 0\n'
+      + '    out := x[j]\nplot(out)\n'
+    const { outs, program } = run(src)
+    // proved [0, 1]: an exact ring, no per-bar copy and nothing strict
+    expect(strictOf(program)).toEqual({ columnReads: 0, rings: [] })
+    expect(program.history.some((h) => h.depth === 1)).toBe(true)
+    same(outs[0], C.map((c, i) => (i > 5 ? (c > C[i - 1] ? C[i - 1] : c) : NaN)), 'x[j]')
+  })
+})
+
 describe('⛔ what A1 does not serve keeps a refusal by name, or stops by name', () => {
   it('⛔ a negative offset read on a bar STOPS the run by name (no `na` guessed for it)', () => {
     expect(() => run(`${CYCLE}f(src, n) => src[n]\nplot(f(close, c - 3))\n`))

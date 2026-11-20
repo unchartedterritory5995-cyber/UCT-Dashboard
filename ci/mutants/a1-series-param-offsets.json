@@ -91,6 +91,15 @@
    "to": "        if (frameSeries.has(s)) return { lo: 0, hi: 3, series: true }",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
    "expectRed": "the close `n` bars back, every bar"
+  },
+  {
+   "id": "A1-11",
+   "mutant": "a main-body block local bound once no longer sizes an offset by its expression's range",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (def && def.scope && def.scope !== root) return offsetRange(def.expr, at, def.scope, depth + 1, refine)",
+   "to": "        if (false) return offsetRange(def.expr, at, def.scope, depth + 1, refine)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a1SeriesParamOffsets.test.js",
+   "expectRed": "in a block (a slot: it reads one)"
   }
  ]
 }

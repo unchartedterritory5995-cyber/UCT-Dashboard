@@ -394,6 +394,20 @@
       },
       "liftWhen": "those symbols are read as TradingView reads them, then a runtime-on re-grade to MATCH on vw-other-symbol-rddt-1d-2026-09-30",
       "addedBy": "admit:request-other (coordinator ruling 2026-11-19): request-other is newly admitted, and a source it admits with a committed capture grading DIVERGE on either lane is killed by source hash (the DRAW-1 rule)"
+    },
+    {
+      "slug": "bolingger-bands-inside-bar-boxes",
+      "sha256": "14757530cf5574ddf57f04c8ad5ef950b437c816ccf09b91786e02cf790ab6eb",
+      "source": "corpus/committed/bolingger-bands-inside-bar-boxes__3294017d4f.pine",
+      "reason": "its inside-bar boxes are not drawn here (the drawing build stops at `color(...)`), where TradingView draws 51 (RDDT daily) and 55 (SPY daily); its bands, its two shape rows and its bar colour match",
+      "evidence": {
+        "capture": "bolingger-bands-inside-bar-boxes-spy-1d-2026-11-17",
+        "verdict": "DIVERGE",
+        "production": "INCONCLUSIVE",
+        "lanes": "member's runtime lane DIVERGE (drawn: Basis / Upper / Lower and both Shapes rows MATCH, barcolor MATCH; no drawing program); host lane INCONCLUSIVE (refused: pine:reassign)"
+      },
+      "liftWhen": "B4 color(): the builtins unit's `color(...)` in the drawing build, so the run draws its boxes, then a runtime-on re-grade to MATCH on bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-14, -rddt-1d-2026-11-17 and -spy-1d-2026-11-17",
+      "addedBy": "DRAW-1 (2026-11-20, coordinator ruling on A1): the per-bar offset copy (objects unit A1) lets its values build stand, so it is newly drawn by the runtime lane with a committed capture grading DIVERGE"
     }
   ]
 }

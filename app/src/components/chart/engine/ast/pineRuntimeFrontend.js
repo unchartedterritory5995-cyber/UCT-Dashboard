@@ -8000,6 +8000,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
         const def = frameLocalDefs.get(s)
         if (def && def.scope === root) return offsetRange(def.expr, at, root, depth + 1, refine)
       }
+      // ⭐ A1 — and a main-body BLOCK local bound once and never reassigned (dynamic-linear-regression-channels:
+      // `j = close > upperEndPrice or close < lowerEndPrice ? 1 : 0`, then `startPrice[j]` in the same block): it is
+      // read only inside its block, after its binding, so its value at every read is its expression's
+      if (s !== null && owner === null && slots[s] && slots[s].owner === null && slotDepth[s] > 0
+        && slots[s].kind === SLOT.LOCAL) {
+        const def = frameLocalDefs.get(s)
+        if (def && def.scope && def.scope !== root) return offsetRange(def.expr, at, def.scope, depth + 1, refine)
+      }
       // a main-body expression binding, read in the main body: its expression's range
       if (s === null && owner === null) {
         const b = env.get(e.name)
