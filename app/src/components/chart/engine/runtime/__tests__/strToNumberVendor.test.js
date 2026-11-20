@@ -71,7 +71,8 @@ describe('⛔ only the SPACE is measured: another blank around the text stops th
   it('two spaces either side are dropped as one is', () => {
     expect(run('"  5  "')).toEqual(new Array(N).fill(5))
   })
-  it('a tab or a line break at either end is not read either way', () => {
-    for (const text of ['"\\t5"', '"5\\n"']) expect(() => run(text), text).toThrow(/not measured/)
+  it('a line break or a no-break space at either end is not read either way', () => {
+    // `\n` is the one Pine escape this engine's lexer reads (`pine.js`); a no-break space is written as itself
+    for (const text of ['"5\\n"', '"\\n5"', '" 5"', '"5 "']) expect(() => run(text), text).toThrow(/not measured/)
   })
 })
