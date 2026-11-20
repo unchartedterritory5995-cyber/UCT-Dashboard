@@ -382,7 +382,7 @@ def cmd_population(a):
                      for e in exs],
         "rows": rows,
     }
-    write_json(a.out, out)
+    write_compact_map(a.out, out)   # one row per line: ~5,000 rows, diffable
     write_json(os.path.join(full, "sample_manifest.json"), {"rows": sorted(local, key=lambda r: r["key"])})
     write_json(os.path.join(full, "examples.json"), exs)
     print("POPULATION %d scripts %s; %d examples; not measurable %d -> %s" % (
@@ -655,6 +655,198 @@ def cmd_assemble(a):
         len(missing), out))
 
 
+# ── operator: the record the full map carries, and the full-population demand view ───────────────────
+def cmd_stamp(a):
+    """Add the `census` block to a map coverage_map.py wrote over the assembled full census: which population
+    file it measured (sha256), which of its scripts have no row (fetch refused, sha mismatch), the run, and the
+    679 sample's share of the measurement. Rewrites the map compactly (one script per line: the full map is
+    ~7x the sample's)."""
+    pop_text = read_text(a.population)
+    pop = json.loads(pop_text)
+    m = json.load(open(a.map, encoding="utf-8"))
+    measured = {s["key"] for s in m["scripts"]}
+    keys = {r["key"] for r in pop["rows"]}
+    if measured - keys:
+        sys.exit("the map holds scripts the population does not: %s" % sorted(measured - keys)[:5])
+    m["census"] = {
+        "population": os.path.relpath(os.path.abspath(a.population), ROOT).replace(os.sep, "/"),
+        "populationSha256": hashlib.sha256(pop_text.replace("\r\n", "\n").encode("utf-8")).hexdigest(),
+        "populationScripts": len(keys), "measured": len(measured),
+        "unmeasured": sorted(keys - measured),
+        "run": a.run, "runner": "GitHub-hosted ubuntu-latest, node 20, both lanes per shard",
+    }
+    write_compact_map(a.map, m)
+    print("STAMPED %s: %d of %d population scripts measured" % (a.map, len(measured), len(keys)))
+
+
+def write_compact_map(path, m):
+    """A map as JSON, with every list of dicts one element per line (diffable, ~half the indent=1 size)."""
+    def enc(v, depth):
+        if isinstance(v, dict):
+            if depth >= 2:
+                return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+            pad = "\n" + " " * (depth + 1)
+            return "{" + ",".join(pad + json.dumps(k, ensure_ascii=False) + ":" + enc(x, depth + 1) for k, x in v.items()) + "\n" + " " * depth + "}"
+        if isinstance(v, list) and v and all(isinstance(x, dict) for x in v):
+            pad = "\n" + " " * (depth + 1)
+            return "[" + ",".join(pad + json.dumps(x, ensure_ascii=False, separators=(",", ":")) for x in v) + "\n" + " " * depth + "]"
+        return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(enc(m, 0) + "\n")
+    os.replace(tmp, path)
+
+
+def cmd_demand(a):
+    """demand_ranking.build (one authority for the arithmetic) over the FULL roadmap, with the ecosystem
+    population counted as community scripts and every boost count read from the population file."""
+    import demand_ranking as dr
+    pop = json.load(open(a.population, encoding="utf-8"))
+    boosts = {}
+    for r in pop["rows"]:
+        if r["population"] in ("committed", "reference", ECOSYSTEM):
+            n = r.get("agreeCount")
+            boosts[r["key"].split(":", 1)[1]] = int(n) if isinstance(n, (int, float)) and n >= 0 else 0
+    saved = dr.COMMUNITY
+    dr.COMMUNITY = ("committed", "reference", ECOSYSTEM)
+    try:
+        doc = dr.build(json.load(open(a.roadmap, encoding="utf-8")), boosts)
+    finally:
+        dr.COMMUNITY = saved
+    doc["_comment"] = doc["_comment"].replace("docs/pine/parity-roadmap.json", os.path.basename(a.roadmap)) + (
+        " FULL POPULATION: the ecosystem population (census_full.py) counts as community scripts; boosts from "
+        "docs/pine/census-full/population.json.")
+    with open(a.out, "w", encoding="utf-8", newline="\n") as f:
+        f.write(dr.text_of(doc))
+    print("DEMAND (full) -> %s" % a.out)
+
+
+# ── operator: the tables of COVERAGE-MAP-FULL-<date>.md, read from the committed JSON (never retyped) ─
+def _served_by(m, rd):
+    import parity_roadmap as prm
+    served, walls, _enum, _missing = prm.member_model(m, rd["facts"]["scripts"] if "scripts" in rd["facts"] else rd["facts"])
+    return served, walls
+
+
+def _pct(n, d):
+    return "%.1f%%" % (100.0 * n / d) if d else "-"
+
+
+def cmd_report(a):
+    """Markdown tables for the full map's page: the headline beside the 679 line, populations, Pine versions,
+    walls by engineering unit, the build order and the demand view. Every number is read from the JSON."""
+    import parity_roadmap as prm
+    fm = json.load(open(a.full_map, encoding="utf-8"))
+    fr = json.load(open(a.full_roadmap, encoding="utf-8"))
+    sm = json.load(open(a.map, encoding="utf-8"))
+    sr = json.load(open(a.roadmap, encoding="utf-8"))
+    sub = (json.load(open(a.subset_map, encoding="utf-8")), json.load(open(a.subset_roadmap, encoding="utf-8"))) \
+        if a.subset_map else None
+    pop = json.load(open(a.population, encoding="utf-8"))
+    out = []
+    w = out.append
+
+    def head_row(label, m, rd):
+        h = rd["headline"]
+        return "| %s | %d | **%d** (%s) | %d (%s) | %d (%s) | %d |" % (
+            label, h["sample"], h["memberServed"], _pct(h["memberServed"], h["sample"]), h["runtimeOn"],
+            _pct(h["runtimeOn"], h["sample"]), h["hostOnly"], _pct(h["hostOnly"], h["sample"]), h["notServed"])
+
+    w("### Headline\n")
+    w("| measurement | scripts | member-served | runtime-on (census grants all) | host-only | not served |")
+    w("|---|---:|---:|---:|---:|---:|")
+    w(head_row("**full population**, engine %s (this run)" % fr.get("engine"), fm, fr))
+    if sub:
+        w(head_row("the 679 sample inside this run (same engine, same runners)", *sub))
+    w(head_row("the 679 map as committed (`coverage-map.json`, %s, engine %s)" % (sm.get("measuredOn"), sr.get("engine")),
+               sm, sr))
+    w("")
+    served, _walls = _served_by(fm, fr)
+    host = {s["key"] for s in fm["scripts"] if s["clean"]}
+    rt_on = set(host) | set(fm["runtimeOn"]["added"])
+    w("### By population (full population)\n")
+    w("| population | scripts | member-served | runtime-on | host-only |")
+    w("|---|---:|---:|---:|---:|")
+    pops = {}
+    for s in fm["scripts"]:
+        pops.setdefault(s["population"], []).append(s["key"])
+    for p in [x for x in POPULATIONS if x in pops]:
+        ks = pops[p]
+        w("| %s | %d | %d (%s) | %d (%s) | %d (%s) |" % (
+            p, len(ks), sum(1 for k in ks if k in served), _pct(sum(1 for k in ks if k in served), len(ks)),
+            sum(1 for k in ks if k in rt_on), _pct(sum(1 for k in ks if k in rt_on), len(ks)),
+            sum(1 for k in ks if k in host), _pct(sum(1 for k in ks if k in host), len(ks))))
+    w("")
+    w("### By Pine version and declaration (full population)\n")
+    w("| slice | scripts | member-served | host-only |")
+    w("|---|---:|---:|---:|")
+    slices = {}
+    for s in fm["scripts"]:
+        slices.setdefault(version_bucket(s["version"]), []).append(s["key"])
+        slices.setdefault("`%s()`" % s["declaration"], []).append(s["key"])
+    order = ["v1-v3", "v4", "v5", "v6", "`indicator()`", "`strategy()`", "`library()`"]
+    for sl in [x for x in order if x in slices] + sorted(set(slices) - set(order)):
+        ks = slices[sl]
+        w("| %s | %d | %d (%s) | %d (%s) |" % (sl, len(ks), sum(1 for k in ks if k in served),
+                                              _pct(sum(1 for k in ks if k in served), len(ks)),
+                                              sum(1 for k in ks if k in host), _pct(sum(1 for k in ks if k in host), len(ks))))
+    w("")
+    w("### Walls by engineering unit: full population beside the 679 sample\n")
+    w("Sole: the unit is the script's only wall (a fix of it alone serves the script). Any: one of its walls. "
+      "The rank is by sole, as the roadmap's section 5 ranks.\n")
+    w("| unit | kind | full: sole (enumerated) | full: any | full rank | 679: sole | 679: any | 679 rank |")
+    w("|---|---|---:|---:|---:|---:|---:|---:|")
+    su = {u["unit"]: u for u in sr["units"]}
+    rank_f = {u["unit"]: i + 1 for i, u in enumerate(sorted(fr["units"], key=lambda u: (-u["sole"], -u["any"], u["unit"])))}
+    rank_s = {u["unit"]: i + 1 for i, u in enumerate(sorted(sr["units"], key=lambda u: (-u["sole"], -u["any"], u["unit"])))}
+    for u in sorted(fr["units"], key=lambda u: rank_f[u["unit"]]):
+        s = su.get(u["unit"]) or {}
+        w("| `%s` | %s | %d (%d) | %d | %d | %s | %s | %s |" % (
+            u["unit"], u.get("kind"), u["sole"], u["soleFullyEnumerated"], u["any"], rank_f[u["unit"]],
+            s.get("sole", "-"), s.get("any", "-"), rank_s.get(u["unit"], "-")))
+    gone = sorted(set(su) - {u["unit"] for u in fr["units"]})
+    if gone:
+        w("\nUnits in the 679 roadmap with no wall in the full population: %s." % ", ".join("`%s`" % g for g in gone))
+    w("")
+    w("### Build order (greedy, scripts unlocked per unit of work): full population\n")
+    w("| step | unit | size | unlocks | unlocks (enumerated) | served after | % |")
+    w("|---:|---|---:|---:|---:|---:|---:|")
+    for i, b in enumerate(fr["buildOrder"], 1):
+        w("| %d | `%s` | %s | %d | %d | %d | %s%% |" % (i, b["unit"], b.get("size"), b["unlocks"],
+                                                      b["unlocksFullyEnumerated"], b["cumulativeServed"], b["cumulativePct"]))
+    w("")
+    w("### Never served, and data decisions (full population)\n")
+    w("| class | scripts |")
+    w("|---|---:|")
+    for c in fr["neverServe"]:
+        w("| never-serve: `%s` | %d |" % (c["class"], c["count"]))
+    for c in fr["dataDecisions"]:
+        w("| data decision: `%s` | %d |" % (c["class"], c["count"]))
+    if a.demand:
+        d = json.load(open(a.demand, encoding="utf-8"))
+        w("\n### Demand: the units ranked by the boosts of the community scripts a fix alone would serve\n")
+        w("| rank by boosts | unit | sole scripts | community | built-ins | boosts | rank by count |")
+        w("|---:|---|---:|---:|---:|---:|---:|")
+        for r in d["units"]:
+            if r["soleScripts"] == 0:
+                continue
+            w("| %d | `%s` | %d | %d | %d | %d | %d |" % (r["rankByBoosts"], r["unit"], r["soleScripts"],
+                                                         r["soleCommunity"], r["soleBuiltins"], r["soleBoosts"],
+                                                         r["rankByCount"]))
+    w("\n### The population\n")
+    w("| population | scripts | v1-v3 | v4 | v5 | v6 |")
+    w("|---|---:|---:|---:|---:|---:|")
+    for p in [x for x in POPULATIONS if x in pop["counts"]]:
+        c = pop["counts"][p]
+        w("| %s | %d | %s |" % (p, c["scripts"], " | ".join(str(c["byVersion"].get(v, 0)) for v in ("v1-v3", "v4", "v5", "v6"))))
+    w("| **all** | **%d** | %s |" % (pop["total"], " | ".join(
+        "**%d**" % sum(c["byVersion"].get(v, 0) for c in pop["counts"].values()) for v in ("v1-v3", "v4", "v5", "v6"))))
+    text = "\n".join(out) + "\n"
+    with open(a.out, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    print("REPORT tables -> %s (%d lines)" % (a.out, len(out)))
+
+
 def main(argv=None):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -717,6 +909,27 @@ def main(argv=None):
     p.add_argument("--lane", required=True, choices=("production", "runtime-on"))
     p.add_argument("--out", required=True)
     p.set_defaults(fn=cmd_assemble)
+    p = sub.add_parser("stamp")
+    p.add_argument("--population", required=True)
+    p.add_argument("--map", required=True)
+    p.add_argument("--run", required=True, help="the workflow run id (or ids) the rows came from")
+    p.set_defaults(fn=cmd_stamp)
+    p = sub.add_parser("demand")
+    p.add_argument("--population", required=True)
+    p.add_argument("--roadmap", required=True)
+    p.add_argument("--out", required=True)
+    p.set_defaults(fn=cmd_demand)
+    p = sub.add_parser("report")
+    p.add_argument("--full-map", required=True)
+    p.add_argument("--full-roadmap", required=True)
+    p.add_argument("--map", required=True, help="the committed 679 map")
+    p.add_argument("--roadmap", required=True, help="the committed 679 roadmap")
+    p.add_argument("--subset-map", default=None, help="the 679 sample's scripts inside this run")
+    p.add_argument("--subset-roadmap", default=None)
+    p.add_argument("--population", required=True)
+    p.add_argument("--demand", default=None)
+    p.add_argument("--out", required=True)
+    p.set_defaults(fn=cmd_report)
     a = ap.parse_args(argv)
     for k in ("cache", "out"):
         v = getattr(a, k, None)
