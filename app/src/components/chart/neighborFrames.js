@@ -28,10 +28,14 @@
 //
 // ⭐ ON BY DEFAULT since 2026-11-20 (measured on production, two charts D+60 on the S&P 500, interleaved
 // OFF/ON pairs: median 341->327 and 267->219 ms, p90 556->499 and 450->336). `localStorage['uct.neighborframes']
-// = '0'` turns it off in that browser ('1' or absent: on). Read once per page load. Off, nothing here is
-// scheduled or kept, and every caller takes the path it always took.
+// = '0'` turns it off in that browser ('1' or absent: on). ⭐ The SERVER's kill switch (CHART_SPEED_ENABLED,
+// lib/chartSpeed.js) turns it off in every browser, over a local '1'. Read once per page load. Off, nothing
+// here is scheduled or kept, and every caller takes the path it always took.
 //
-// ⛔ A LEAF: no import, so the binder, the bar store's adapter and StockChart can all reach it.
+// ⛔ ALMOST A LEAF: its one import is lib/chartSpeed.js, which imports nothing, so the binder, the bar
+// store's adapter and StockChart can all still reach it.
+
+import { chartSpeedKilled } from '../../lib/chartSpeed'
 
 export const NEIGHBOR_FRAMES_KEY = 'uct.neighborframes'
 
@@ -40,6 +44,7 @@ let _flag = null
 /** Is the neighbor-frames path on for this page load? */
 export function neighborFramesOn() {
   if (_flag !== null) return _flag
+  if (chartSpeedKilled()) return (_flag = false)
   try { _flag = typeof localStorage === 'undefined' || localStorage.getItem(NEIGHBOR_FRAMES_KEY) !== '0' } catch { _flag = true }
   return _flag
 }
