@@ -56,6 +56,19 @@ const devicePaints = (sym, tf, opts) => DEVICE && storePrefetch.devicePaints(sym
 // the worker's rule for a switch the device did not paint (diag.js); the source loads nothing new
 const deviceWhy = (sym, tf) => { const src = deviceSource(); return src ? src.why(sym, tf) : Promise.resolve('no-client') }
 if (DEVICE) exposeDeviceDiag()
+/**
+ * ⭐ (2026-11-20, the owner's cold path) ROWS THAT COVER THE VIEW PAINT AT ONCE. A cold switch reproduced in
+ * the owner's layout (D + 30m, four averages): every 30m handoff took the intraday prepare with the lake's
+ * depth still due, and waited median 564 ms (p90 711) for it AFTER the server's 1,120 rows had landed
+ * (~110 ms); the 30m chart showed the previous ticker that long. The daily side waited the deep join the
+ * same way. A view needs its visible bars (~200 at the default zoom) plus the longest lookback the averages
+ * use (200 bars) to draw exactly what the whole history would draw there; COVER_ROWS is that with a margin,
+ * and the chart's render window (newest >= 600 rows) holds no more. So a held key with this many rows paints
+ * now, and the depth joins behind the view (it moves no right-edge geometry; the first-paint rails hold it).
+ */
+export const COVER_ROWS = 600
+const covers = (sym, tf, opts = {}) => BARSTORE && (storePrefetch.heldRows?.(sym, tf, opts) ?? 0) >= COVER_ROWS
+
 /** Does the chart's source already hold a D/W/M set for (sym, tf)? */
 function holdsDailySet(sym, tf) {
   if (BARSTORE && storePrefetch.holdsBars(sym, tf)) return true   // count only: no legacy array per switch
@@ -194,10 +207,20 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       const ctl = new AbortController()
       P.prepareDailyForDisplay(requestedSym, tf, { signal: ctl.signal }).then(land, () => land('error'))
       const bound = setTimeout(() => land('hold-timeout'), DAILY_HOLD_MAX_MS)
-      // the device's copy lands in ~1 ms (one worker read): paint it the moment it does
+      // the device's copy lands in ~1 ms (one worker read): paint it the moment it does; and the tail ANSWER's
+      // rows the moment they cover the view (COVER_ROWS), whatever the deep join is still doing. ⛔ An answer
+      // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
+      // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
+      // loading chart instead of A.
       let devTimer = null
-      const devPoll = () => { devTimer = null; if (!live) return; if (devicePaints(requestedSym, tf)) { land('device'); return } devTimer = setTimeout(devPoll, POLL_MS) }
-      if (DEVICE) devTimer = setTimeout(devPoll, 0)
+      const devPoll = () => {
+        devTimer = null
+        if (!live) return
+        if (devicePaints(requestedSym, tf)) { land('device'); return }
+        if (covers(requestedSym, tf, { answered: true })) { land('covered'); return }
+        devTimer = setTimeout(devPoll, POLL_MS)
+      }
+      if (DEVICE || BARSTORE) devTimer = setTimeout(devPoll, 0)
       return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); ctl.abort() }
     }
 
@@ -207,7 +230,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
     // chart's first frame holds it. The warms join it before Enter, so this is the rare case.
     const paintsWhole = () => peekDisplayable(requestedSym, tf, sess)
       && !(BARSTORE && INTRADAY.has(String(tf)) && storePrefetch.lakePending(requestedSym, fetchTf(tf), sess)
-        && !devicePaints(requestedSym, fetchTf(tf), sess))
+        && !devicePaints(requestedSym, fetchTf(tf), sess) && !covers(requestedSym, fetchTf(tf), sess))
     if (paintsWhole()) { commit(); return undefined }
 
     // ⛔ THE INTRADAY PREPARE IS FOR INTRADAY ONLY. D/W/M took the bounded branch
