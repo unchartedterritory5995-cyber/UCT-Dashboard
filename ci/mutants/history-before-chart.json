@@ -159,8 +159,8 @@
    "id": "PH7",
    "mutant": "Python: a read on other bars is walked into",
    "file": "api/services/ast_interpret.py",
-   "from": "                         request_sites=True, before_first=off is True)",
-   "to": "                         request_sites=False, before_first=off is True)",
+   "from": "                         request_sites=True, before_first=off is True,",
+   "to": "                         request_sites=False, before_first=off is True,",
    "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
    "expectRed": "KEPT nz(sym('SPY', close[1])) with no symbol supplied"
   },
