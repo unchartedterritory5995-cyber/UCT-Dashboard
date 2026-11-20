@@ -37,6 +37,7 @@
   --info: #5ea8f7;
   --info-bg: #5ea8f712;
   --info-border: #5ea8f730;
+  --ink-faint: color-mix(in srgb, var(--text-muted) 72%, var(--bg));
   --link-group-1: #f472b6;
   --link-group-2: #fb923c;
   --link-group-3: #2dd4bf;

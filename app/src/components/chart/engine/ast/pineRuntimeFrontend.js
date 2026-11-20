@@ -47,6 +47,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { versionAt, RUNTIME_ISLAND_FAMILIES, LIBRARY_VERSION } from './pineLibraryVersion.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { barConstantTree } from './barConstant.js'
 import { roundToMintickTree } from './tickRound.js'
@@ -1946,7 +1947,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
 
   let lexed
   try { lexed = lexPine(source) } catch (e) { return fail(e, diagnostics) }
-  lexed = linkLibraries(lexed, opts, { lexPine, blockStatements })
+  // ⭐⭐ the version island: this lane judges these families of a v5 library per token (`versionAt`)
+  lexed = linkLibraries(lexed, opts, { lexPine, blockStatements, islandFamilies: RUNTIME_ISLAND_FAMILIES })
   holder.link = lexed.libraryLink || null
   const { tokens, indents, version } = lexed
 
@@ -2527,6 +2529,39 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** The lowered built-in `na(x)`: `irBuiltin('na', [x])`, the pointwise table function by that name. */
   const isNaBuiltin = (e) => !!e && e.kind === EXPR.BUILTIN && e.fn === 'na'
+  /** ⭐⭐ THE VERSION ISLAND'S BOUNDARY — what a v5 function's lowered result hands a v6 caller that can be `na`
+   *  at v5, as a phrase, or null. Pine v5 (S1, and F2's Q-NL captures): a comparison with an `na` operand is `na`;
+   *  `and` / `or` / `not` read an `na` operand as false and are never `na`; a `bool` variable and its history can
+   *  hold `na`. A number, a string or a colour is no bool and crosses unchanged. Each element of a tuple is asked. */
+  const ISLAND_BOOL_BUILTINS = new Set(['crossover', 'crossunder', 'cross', 'rising', 'falling',
+    'ta.crossover', 'ta.crossunder', 'ta.cross', 'ta.rising', 'ta.falling'])
+  const islandNaBoolResult = (e, d = 0, seen = new Set()) => {
+    if (!e || typeof e !== 'object' || d > 64) return null
+    const CMP = ['<', '>', '<=', '>=', '==', '!=']
+    const known = (x) => !!x && ((x.kind === EXPR.NUM && Number.isFinite(x.value))
+      || (x.kind === EXPR.SERIES && RUNTIME_BAR_PRICES.has(x.name)))
+    const boolSlot = (x) => !!x && x.kind === EXPR.READ && (slotTy(x.slot) || {}).kind === 'bool'
+    switch (e.kind) {
+      case EXPR.BINARY: return CMP.includes(e.op) && !(known(e.left) && known(e.right)) ? 'a comparison' : null
+      case EXPR.READ:
+        return boolSlot(e) && !(slots[e.slot] && neverNaBoolNames.has(slots[e.slot].name)) ? 'a `bool` variable' : null
+      case EXPR.HIST: return islandNaBoolResult(e.of, d + 1, seen) || (boolSlot(e.of) ? 'the history of a `bool`' : null)
+      case EXPR.TERNARY: return islandNaBoolResult(e.then, d + 1, seen) || islandNaBoolResult(e.else, d + 1, seen)
+      case EXPR.TUPLE:
+        for (const x of e.elements || []) { const why = islandNaBoolResult(x, d + 1, seen); if (why) return why }
+        return null
+      case EXPR.CALL:
+        if (seen.has(e.fn) || !functions[e.fn]) return null
+        seen.add(e.fn)
+        return islandNaBoolResult(functions[e.fn].result, d + 1, seen)
+      case EXPR.COLUMN: {
+        const t = columnTrees[e.index]
+        return t && t.type !== 'num' && isBoolishTree(t) && !canonNeverTree(t) ? 'a comparison' : null
+      }
+      case EXPR.BUILTIN: return ISLAND_BOOL_BUILTINS.has(e.fn) ? `\`${e.fn}\`` : null
+      default: return null
+    }
+  }
   const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null) => {
     const v = pineVersion === null ? 1 : pineVersion
     if (!(v <= 5)) return
@@ -2969,6 +3004,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const carried = []
   const functions = []
+  /** ⭐⭐ the version island: function index -> the Pine version its definition is judged under, for a
+   *  definition spliced from a library in another version (`versionAt`); every other function is absent. */
+  const islandFnVersion = new Map()
   const fnByName = new Map()
   /** name → the refusal its DEFINITION hit, re-raised at the first call site.
    *  See the deferral in the statement walk for why a definition is not fatal. */
@@ -3866,6 +3904,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
   const SHORT_CIRCUIT = new Set(['and', 'or', '&&', '||'])
+  /** ⭐⭐ the version island: is this `and` / `or` a v5 library's inside a v6 program (eager, `lowerIr.js` `eager`)? */
+  const eagerLogicAt = (node) => Number(pineVersion) >= 6 && !(versionAt(node && node.tok, pineVersion) >= 6)
   /** ⭐ HIST-S3 — the CALL a checked arm's stop names (the member reads which call it was): the first
    *  call `lexArmHistory` counts as history, in source order, as `` `name` ``; an offset over an
    *  expression is named as such. Falls back to the family sentence when none is found. */
@@ -3927,7 +3967,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const lazyArmBindings = new WeakSet()
   /** the r4 region of the arm being lowered lazily (`servedCondCall`'s arm-only set). */
   let lazyArmRegion = null
-  const lazyArmContext = () => pineVersion !== null && pineVersion >= 6 && !objectsInRun && !atObjectDoor
+  // ⭐⭐ the version island: the jump form is witnessed for a v6 `?:`; one inside a v5 library is judged as a v5
+  // script's is (`versionAt` at the `?:`), never as the program's
+  const lazyArmAt = (at) => { const v = versionAt(at && at.tok, pineVersion); return v !== null && v >= 6 }
+  const lazyArmContext = (at) => lazyArmAt(at) && !objectsInRun && !atObjectDoor
     && owner === null && loopDepth === 0 && r4Level() === 0 && !inRequestValue
   /** ⭐ HIST-S3 — `?:` nodes lowered as a jump whose arms are CHECKED to run on every bar. */
   const everyBarArmNodes = new WeakSet()
@@ -3990,7 +4033,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // for a line Pine runs on every bar)
           const readable = everyBarArmBindings.has(b)
             ? everyBarArmContext() && r4Level() === 0 && (b.owner === undefined ? null : b.owner) === owner
-            : lazyArmContext()
+            : lazyArmContext(b.node)
           if (opaque || !readable) refuseLazyArm(node, `(bound to \`${node.name}\`, read where it cannot run as written)`)
           return true
         }
@@ -4017,7 +4060,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // beside a lazy `?:` that does not), and the reference calls `iff` a function, whose
       // arguments are evaluated before the call. `runtimeRespelling` writes it as a `?:` that
       // `SELECT` evaluates on every bar, so it is served, not walked here.
-      else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && pineVersion >= 6) { arms = [node.right]; test = node.left }
+      // ⭐⭐ the version island: a v5 library's `and` / `or` evaluates both sides on every bar (`versionAt`)
+      else if (node.type === 'binary' && SHORT_CIRCUIT.has(node.op) && versionAt(node.tok, pineVersion) >= 6) { arms = [node.right]; test = node.left }
       if (!arms || !arms.some((a) => lexArmHistory(a))) return false
       let inv = false
       // the parameter this test is blocked on, if any (`invariantTest`), read
@@ -4029,7 +4073,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       r4CulpritSeen = prevSeen
       if (inv) return false
       // ⭐⭐⭐ W4 T4 — the witnessed half is SERVED: lowered as a jump (`case 'ternary'`)
-      if (node.type === 'ternary' && !opaque && lazyArmContext() && !holdsColour(node, scope)
+      if (node.type === 'ternary' && !opaque && lazyArmContext(node) && !holdsColour(node, scope)
           && armServable(node.yes) && armServable(node.no)) {
         lazyArmNodes.add(node)
         return true
@@ -4352,7 +4396,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     // ⭐⭐ W4-T8 — A WINDOW WHOSE v6 `series int` LENGTH THE FOLD CANNOT SETTLE IS A RUNTIME CALL.
     // Left to the columnar lane it refuses `pine:window` ("a Pine length has to reach the engine as a
     // plain whole number"), so `ta.highest(high, bar_index % 7 + 1)` never reached the window path.
-    if (node.type === 'call' && Array.isArray(node.args) && seriesLengthFn(node.name)
+    if (node.type === 'call' && Array.isArray(node.args) && seriesLengthFn(node.name, node)
         && windowTarget(node.name) && !node.args.some((a) => a && a.name)) {
       const given = node.args.map((a) => (a && a.value !== undefined ? a.value : a))
       const lenNode = given.length === 2 ? given[1] : (given.length === 1 ? given[0] : null)
@@ -4634,7 +4678,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   const holdsColour = (node, scope) => {
     if (!node || typeof node !== 'object') return false
     if (node.type === 'name') {
-      if (colourHexByName(node.name, pineVersion) !== null) return true
+      // ⭐⭐ the version island: a colour name is read at the version of the code that writes it
+      if (colourHexByName(node.name, versionAt(node.tok, pineVersion)) !== null) return true
       // ⭐ CO-2 — the chart's two theme colours are colours (a script's own binding of the name wins)
       if (THEME_NAMES.includes(node.name) && lookupReadable(node.name, scope) === null && !env.has(node.name)) return true
       const slot = lookupReadable(node.name, scope)
@@ -6370,11 +6415,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const typeArg = mapTypeArg(node, asStatement)
       ?? (node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null)
-    return arrayCall(
+    const call = arrayCall(
       node.name,
       given.map((x, i) => (nestedCreateHandle(node.name, i, x, scope) || lowerExpr(x, scope))),
       typeArg,
     )
+    // ⭐⭐ the version island: a collection call a v5 library writes inside a v6 program is judged under v5 AT RUN
+    // TIME too (a computed negative index stops as a v5 script's does instead of counting from the end, an `na`
+    // index stops, `runtime/collections.js` / `maps.js` read `budget.opVersion`, which `vm.js` sets around this one
+    // op). Every other call keeps its exact shape: the field is absent unless the versions differ.
+    const callVersion = versionAt(node.tok, pineVersion)
+    if (callVersion !== pineVersion && Number.isFinite(callVersion)) call.islandVersion = callVersion
+    return call
   }
 
   /** A collection call on a line of its own: a void one leaves nothing, and one
@@ -8586,16 +8638,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  never in a request's value (it has its own series), and ⛔ never at the live OBJECT door:
    *  that door keeps master's answer until a TradingView capture settles the shape (W4-S1).
    *  https://www.tradingview.com/pine-script-reference/v6/#fun_ta.sma */
-  const seriesLengthFn = (pineName) => {
-    if (atObjectDoor || inRequestValue || pineVersion === null) return false
+  const seriesLengthFn = (pineName, at) => {
+    // ⭐⭐ the version island: the call is judged at the version of the code that writes it (`versionAt`)
+    const version = versionAt(at && at.tok, pineVersion)
+    if (atObjectDoor || inRequestValue || version === null) return false
     // ⭐ W4-T8 r1 - the table of the script own version: v6 from the v6 reference, v5 from the v5 reference
     // (both generated). ⭐ W34-I6c - v4 from the v4 reference (generated: its `length (series[integer])`
     // is written `series int`, its bare `integer` is kept as `integer` and serves nothing). v3 and below
     // have no section, so they serve nothing.
     //   https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars
-    const table = pineVersion >= 6 ? LENGTH_QUALIFIERS.length
-      : pineVersion === 5 ? LENGTH_QUALIFIERS.v5Length
-        : pineVersion === 4 ? LENGTH_QUALIFIERS.v4Length : null
+    const table = version >= 6 ? LENGTH_QUALIFIERS.length
+      : version === 5 ? LENGTH_QUALIFIERS.v5Length
+        : version === 4 ? LENGTH_QUALIFIERS.v4Length : null
     if (!table) return false
     const name = String(pineName)
     // `pine.js` rewrites `ta.highestbars(x, n)` to `-highestbars(x, n)` BEFORE this lane sees it: the
@@ -9455,8 +9509,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
             && scope.lookup(node.name) === null && !env.has(node.name)) {
           // ⭐ C29 — the TEXT Pine reads, in this script's version: the one
           // `periodTextOf` the columnar resolver asks (v6 daily is `"1D"`).
-          notePeriodRead('timeframe.period', pineVersion)
-          return str(periodTextOf(lanePeriod, pineVersion))
+          // ⭐⭐ the version island: inside a v5 library, the library's version (`"D"`)
+          const atVersion = versionAt(node.tok, pineVersion)
+          notePeriodRead('timeframe.period', atVersion)
+          return str(periodTextOf(lanePeriod, atVersion))
         }
         const slot = scope.lookup(node.name)
         if (slot !== null) return read(slot)
@@ -9483,7 +9539,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // SCRIPT'S VERSION. `color.red` is `#FF5252` at v5 and `#F23645` at v6
           // because TradingView draws them so; a second table here, or a missing
           // version, would be a second chance to carry the wrong red.
-          const hex = colourHexByName(node.name, pineVersion)
+          // ⭐⭐ the version island: inside a v5 library, the library's palette (`color.red` is `#FF5252` there)
+          const hex = colourHexByName(node.name, versionAt(node.tok, pineVersion))
           if (hex !== null && scope.lookup(node.name) === null && !env.has(node.name)) {
             return num(hexToPacked(hex, 0))
           }
@@ -9722,6 +9779,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         }
         const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right)
         const lowered = binary(op, loweredL, loweredR)
+        // ⭐⭐ the version island: a v5 library's `and` / `or` inside a v6 program evaluates both sides on every bar
+        // (`lowerIr.js` reads `eager`; every other node keeps its exact shape)
+        if ((op === '&&' || op === '||') && eagerLogicAt(node)) lowered.eager = true
         if (naLate) boolNaDeferred.push({ ...naLate, node: lowered })
         return lowered
       }
@@ -9749,8 +9809,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
       case 'op': {
         const args = (node.args || []).map((a) => lowerExpr(a, scope))
         if (node.name === '!' && args.length === 1) return unary('!', args[0])
-        if (node.name === '&&' && args.length === 2) return binary('&&', args[0], args[1])
-        if (node.name === '||' && args.length === 2) return binary('||', args[0], args[1])
+        if ((node.name === '&&' || node.name === '||') && args.length === 2) {
+          const lowered = binary(node.name, args[0], args[1])
+          // ⭐⭐ the version island: as the parser's `and` / `or` above
+          if (eagerLogicAt(node)) lowered.eager = true
+          return lowered
+        }
         throw new RuntimeRefusal('runtime:operator',
           `\`${node.name}\` with ${args.length} operand${args.length === 1 ? '' : 's'}`,
           locate(node.tok))
@@ -9838,7 +9902,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // check from the start when the arm holds history, and it is never the arm-only
           // served region (`ta.change` per call site is witnessed for the v6 root arm alone)
           const checked = everyBarArmNodes.has(node)
-          if (!(checked ? everyBarArmContext() : lazyArmContext())) refuseLazyArm(node, '(read where it cannot run as written)')
+          if (!(checked ? everyBarArmContext() : lazyArmContext(node))) refuseLazyArm(node, '(read where it cannot run as written)')
           const lowerLazyArm = (arm) => inR4Region(false, () => {
             const prev = lazyArmRegion
             lazyArmRegion = checked ? null : r4Region
@@ -10443,6 +10507,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
               }
             })
           }
+          // ⭐⭐ THE VERSION ISLAND'S ONE BOUNDARY (design section 2.6): a library function judged under v5, called
+          // from v6 code, hands back a bool that can be `na` at v5. Pine v6 holds no `na` bool and no capture shows
+          // what TradingView hands the v6 caller (`false`, or the `na` kept), so the call is refused by name until
+          // capture row LV6 settles it (`docs/pine/capture-queue-2026-11-19-library-version-island.md`).
+          const calleeVersion = islandFnVersion.get(fnIndex)
+          if (calleeVersion !== undefined && versionAt(node.tok, pineVersion) !== calleeVersion) {
+            const why = islandNaBoolResult(fn.result)
+            if (why) {
+              note(LIBRARY_VERSION)
+              throw new RuntimeRefusal(LIBRARY_VERSION, `\`${node.name}\` is a Pine v${calleeVersion} `
+                + `library function that hands this v${pineVersion} script ${why}, which can be \`na\` in Pine `
+                + `v${calleeVersion}; a v${pineVersion} bool is never \`na\`, and what TradingView hands the script `
+                + 'there is not captured (LV6), so it is not drawn', locate(node.tok))
+            }
+          }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
           // ⭐ ARGUMENTS ARE LOWERED IN THE CALLER'S SCOPE, so a state-derived
@@ -10517,7 +10596,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⭐⭐ CBC-FMT (S17, s21) — a numeric constant with no format: the version decides
           // (`pineTextFormat.js::literalTostringText`, the host lane's same question): FULL is this text as
           // a constant; an unwitnessed version or spelling is refused by that name.
-          const lit = literalTostringText(v0, { version: pineVersion })
+          // ⭐⭐ the version island: inside a v5 library, the library's version prints the literal in full
+          const lit = literalTostringText(v0, { version: versionAt(node.tok, pineVersion) })
           if (lit && lit.text !== undefined) return str(lit.text)
           if (lit) throw new RuntimeRefusal(lit.why, LITERAL_TOSTRING_SENTENCE, locate(node.tok))
           return textCall('str.tostring', [lowerExpr(v0, scope)])
@@ -10809,7 +10889,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
             }
             // ⛔ and a length only known while the bar runs over that source says
             // so — never "a mutable GLOBAL" about a price series.
-            if (!len && !seriesLengthFn(node.name)) {
+            if (!len && !seriesLengthFn(node.name, node)) {
               note('runtime:history-dynamic-offset')
               throw new RuntimeRefusal('runtime:history-dynamic-offset',
                 `the length of \`${node.name}\` is only known while the bar is running, `
@@ -10918,7 +10998,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
               + 'so the ring it needs cannot be sized before bar 0', scope)
           } catch (err) {
             if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:history-dynamic-offset'
-              || typeof err.frameName === 'string' || !seriesLengthFn(node.name)) throw err
+              || typeof err.frameName === 'string' || !seriesLengthFn(node.name, node)) throw err
             // a length that FOLDS to a number which is no whole length (2.5, -3) is a mistake, not a per-bar
             // length: it keeps the build refusal
             const folded = constValueOf(given[1], scope)
@@ -11818,7 +11898,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (lookupReadable(node.name, scope) !== null) return false
       const bound = env.get(node.name)
       if (bound) return bound.kind === 'expr' && opaqueColour(bound.node, scope, depth + 1)
-      return colourHexByName(node.name, pineVersion) !== null
+      return colourHexByName(node.name, versionAt(node.tok, pineVersion)) !== null
     }
     if (node.type === 'ternary') {
       return opaqueColour(node.yes, scope, depth + 1) && opaqueColour(node.no, scope, depth + 1)
@@ -14547,7 +14627,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         } finally { loopDepth -= 1; loopRanges.delete(slot) }
         // ⭐⭐ P3 WS-A — v6 re-reads the `to` bound before every pass; this lane
         // reads it once. Served where the two cannot differ (`forBoundMovedBy`).
-        if (pineVersion !== null && pineVersion >= 6) {
+        // ⭐⭐ the version island: a loop inside a v5 library reads its bound once, as this lane does
+        const loopVersion = versionAt(first, pineVersion)
+        if (loopVersion !== null && loopVersion >= 6) {
           // ⭐ (review H2a) the `by` step rides along: whether v6 re-reads it is
           // as uncaptured as the bound (Q-A1), so a body that moves it refuses too.
           const moved = forBoundMovedBy([toIr, stepIr], body)
@@ -15713,6 +15795,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         prevSrc === undefined || (prevSrc && prevSrc.st === st) ? { st, toks, arrow, params } : false)
     }
     const fnIndex = functions.length
+    // (a specialised copy, C35, is the same definition: it keeps the island's version too)
+    if (versionAt(nameTok, pineVersion) !== pineVersion) islandFnVersion.set(fnIndex, versionAt(nameTok, pineVersion))
     const record = {
       name: nameTok.value, params: params.length, compiling: true,
       frameSize: 0, persistCount: 0, body: [], result: null,

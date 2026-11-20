@@ -1,0 +1,141 @@
+/* The reading strip (in the count tile) and the History drawer / panel. UCT Signature
+   (docs/uct-signature-style.md): quiet panels, hairlines, sentence case, tone colour only on a
+   shaded reading, and NO gold here — the window's gold is its view underline, the selected row's
+   bar, the chart's timeframe underline and today's sparkline tick. Values are the `--dr-*` names
+   ScanDeck.module.css sets for dark and light. */
+
+/* ── The reading: its own section of the top band ─────────────────────────── */
+.readingTile {
+  display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  align-self: stretch; flex: 1 1 380px; min-width: 300px; max-width: 520px;
+  padding: 0 20px; border-right: 1px solid var(--dr-line);
+  font-family: var(--font-sans); white-space: nowrap;
+}
+.rankHead { display: flex; align-items: center; gap: 10px; min-width: 0; height: 20px; }
+.rankText { font-size: 15px; font-weight: 700; color: var(--dr-bright, var(--text-bright)); overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.readingTile[data-state='typical'] .rankText,
+.readingTile[data-state='quiet'] .rankText { color: var(--dr-rest, var(--text-muted)); font-weight: 600; font-size: 14px; }
+.word { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; flex-shrink: 0; color: var(--dr-faint, var(--ink-faint)); }
+.word i { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; }
+.word[data-tone='bull'] { color: var(--success-ink); }   /* text inks; the dot keeps the up/down hue */
+.word[data-tone='bear'] { color: var(--danger-ink); }
+.word[data-tone='bull'] i { background: var(--dr-up); }
+.word[data-tone='bear'] i { background: var(--dr-down); }
+.word:not([data-tone]) i { display: none; }
+
+.rankRow { display: flex; align-items: center; gap: 14px; min-width: 0; height: 22px; }
+.track { position: relative; flex: 1 1 auto; min-width: 80px; height: 4px; border-radius: 2px; background: var(--dr-track); margin: 0 6px; }
+.trackZone { position: absolute; top: 0; bottom: 0; border-radius: 2px; background: color-mix(in srgb, var(--dr-faint) 22%, transparent); }
+.track[data-tone='bull'] .trackZone { background: color-mix(in srgb, var(--dr-up) 30%, transparent); }
+.track[data-tone='bear'] .trackZone { background: color-mix(in srgb, var(--dr-down) 30%, transparent); }
+.trackMid { position: absolute; left: 50%; top: -3px; width: 1px; height: 10px; background: var(--dr-outline); }
+.trackDot {
+  position: absolute; top: -4px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+  background: var(--dr-dim); box-shadow: 0 0 0 2px var(--dr-panel);
+}
+.track[data-tone='bull'] .trackDot { background: var(--dr-up); }
+.track[data-tone='bear'] .trackDot { background: var(--dr-down); }
+
+.histBtn {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
+  height: 22px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--dr-bright, var(--text-bright));
+  font-family: var(--font-sans); font-size: 11.5px; font-weight: 600; cursor: pointer;
+}
+.histBtn:hover { background: var(--dr-soft-hi); }
+.histBtn[aria-expanded='true'] { background: var(--dr-selected); }
+.histBtn[data-muted] { background: transparent; color: var(--dr-faint, var(--ink-faint)); font-weight: 500; }
+.histBtn[data-muted]:hover { background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--dr-text, var(--text)); }
+.histBtn[data-muted][aria-expanded='true'] { background: var(--dr-selected, color-mix(in srgb, var(--text-bright) 13%, var(--bg-surface))); color: var(--dr-text, var(--text)); }
+.histBtn svg { color: var(--dr-dim, var(--text-muted)); }
+.histBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
+
+.faint { height: 14px; font-size: 12px; line-height: 14px; color: var(--dr-faint, var(--ink-faint)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.faint b { color: var(--dr-rest, var(--text-muted)); font-weight: 500; }
+.placeholder { color: transparent; }
+.skel { display: inline-block; height: 8px; width: 46%; border-radius: 4px; background: var(--dr-soft); vertical-align: middle; }
+
+/* ── History drawer ──────────────────────────────────────────────────────── */
+.drawer {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 440px; max-width: 100%; z-index: 8;
+  display: flex; flex-direction: column;
+  background: var(--dr-panel, var(--bg-surface)); border-left: 1px solid var(--dr-outline, var(--border-accent, var(--border)));
+  box-shadow: -18px 0 40px color-mix(in srgb, var(--bg) 60%, transparent);
+  animation: drawerIn 160ms ease-out;
+  font-family: var(--font-sans); color: var(--dr-text, var(--text));
+}
+@keyframes drawerIn { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .drawer { animation: none; } }
+.drawerHead {
+  height: 50px; flex-shrink: 0; display: flex; align-items: center; gap: 10px;
+  padding: 0 10px 0 16px; border-bottom: 1px solid var(--dr-line);
+}
+.drawerTitle { display: flex; flex-direction: column; min-width: 0; }
+.drawerTitle b { font-size: 15px; font-weight: 700; color: var(--dr-bright, var(--text-bright)); }
+.drawerTitle span { font-size: 11.5px; color: var(--dr-faint, var(--ink-faint)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.iconBtn {
+  margin-left: auto; flex-shrink: 0; width: 26px; height: 26px; border: 0; border-radius: 6px;
+  background: transparent; color: var(--dr-dim, var(--text-muted)); display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.iconBtn:hover { background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--dr-text, var(--text)); }
+.iconBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
+.drawerBody { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+
+/* ── History panel (drawer body, or the reading-only window's body) ──────── */
+.panel {
+  display: grid; gap: 10px; padding: 12px; align-content: start;
+  font-family: var(--font-sans); font-size: 13px; color: var(--dr-text, var(--text));
+}
+.panel[data-layout='row'] { grid-template-columns: 1.25fr 1fr 1fr; gap: 12px; padding: 12px 16px 14px; }
+.card { background: var(--dr-card); border-radius: 9px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cardHead { display: flex; flex-direction: column; gap: 2px; }
+.cardHead b { font-size: 13.5px; font-weight: 700; color: var(--dr-bright, var(--text-bright)); }
+.cardHead span { font-size: 11.5px; color: var(--dr-faint, var(--ink-faint)); }
+
+.fwd { display: grid; grid-template-columns: 1.5fr repeat(3, minmax(0, 1fr)); font-variant-numeric: tabular-nums; }
+.fwd > span { padding: 7px 0; border-top: 1px solid var(--dr-line); text-align: right; }
+.fwd > span:nth-child(4n + 1) { text-align: left; color: var(--dr-rest, var(--text-muted)); }
+.fwd > .fwdHead { border-top: 0; padding: 0 0 6px; font-size: 11.5px; font-weight: 600; color: var(--dr-faint, var(--ink-faint)); }
+.fwd > .fwdHead:nth-child(4n + 1) { color: var(--dr-faint, var(--ink-faint)); }
+.fwdVal { font-weight: 600; color: var(--dr-bright, var(--text-bright)); }
+.fwdBase { color: var(--dr-faint, var(--ink-faint)); }
+.fwdN { color: var(--dr-faint, var(--ink-faint)); font-size: 12px; }
+.fwd[data-small] .fwdVal { color: var(--dr-faint, var(--ink-faint)); font-weight: 500; }
+.groupLbl { grid-column: 1 / -1; padding: 9px 0 2px !important; border-top: 0 !important; font-size: 11px; font-weight: 600; color: var(--dr-faint, var(--ink-faint)) !important; text-align: left !important; }
+
+.note {
+  display: flex; gap: 8px; align-items: flex-start; font-size: 12px; color: var(--dr-text, var(--text));
+  background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); border-radius: 7px; padding: 7px 10px;
+}
+.note svg { flex-shrink: 0; margin-top: 1px; color: var(--dr-dim, var(--text-muted)); }
+.foot { font-size: 11.5px; color: var(--dr-faint, var(--ink-faint)); }
+
+.sim { display: flex; flex-direction: column; }
+.simRow {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center;
+  padding: 7px 8px; margin: 0 -8px; border: 0; border-top: 1px solid var(--dr-line, var(--border)); border-radius: 6px;
+  background: transparent; color: var(--dr-text, var(--text)); font: inherit; text-align: left; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.simRow:first-child { border-top-color: transparent; }
+.simRow:hover { background: var(--dr-raised, color-mix(in srgb, var(--text-bright) 5%, var(--bg-elevated))); color: var(--dr-bright, var(--text-bright)); }
+.simRow:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: -2px; }
+.simRow b { font-weight: 600; }
+.simVal { color: var(--dr-dim, var(--text-muted)); }
+.simNext { color: var(--dr-faint, var(--ink-faint)); font-size: 12px; min-width: 96px; text-align: right; }
+.simNext em { font-style: normal; color: var(--dr-rest, var(--text-muted)); font-weight: 500; }
+
+.ctx { display: flex; flex-direction: column; }
+.ctxRow { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--dr-line); }
+.ctxRow:first-child { border-top-color: transparent; }
+.ctxRow > span:first-child { color: var(--dr-rest, var(--text-muted)); }
+.ctxRow > span:last-child { text-align: right; color: var(--dr-text, var(--text)); font-variant-numeric: tabular-nums; }
+.ctxRow b { font-weight: 600; color: var(--dr-bright, var(--text-bright)); }
+.ctxRow small { color: var(--dr-faint, var(--ink-faint)); font-size: 12px; }
+
+.status { padding: 24px 16px; color: var(--dr-faint, var(--ink-faint)); font-size: 12.5px; }
+.typicalBanner { font-size: 13px; font-weight: 600; color: var(--dr-text, var(--text)); }
+
+@media (max-width: 1760px) { .readingTile { min-width: 260px; padding: 0 14px; } }
+@media (max-width: 900px) { .panel[data-layout='row'] { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .drawer { width: 100%; } .readingTile { order: 4; flex-basis: 100%; max-width: none; padding: 0; border-right: 0; } }

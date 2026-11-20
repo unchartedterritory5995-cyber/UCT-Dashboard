@@ -355,19 +355,17 @@ export function shownStatus(status) {
  * A hook so PasteBox can hand the SAME status to the panel and to the editor's
  * line marks: one computation, two renderers.
  */
-/** How often the panel re-reads why a script is still being checked. The engine keeps the server's last reason
- *  per script and does not announce it, so the panel reads it again while (and only while) the answer is out. */
-export const PENDING_REASON_REREAD_MS = 2000
-
 /**
  * Whether THIS script's status was made with the server's admission answer still out, and why the server said
  * it is still checking (`busy` | `starting` | `paused`, or null). `answers` changes when the answer lands, by
  * whatever path (this window's ask, the preview's, the lists' re-read): the caller re-makes its pane on it.
+ * The engine tells its listeners when an answer lands AND when the reason it keeps changes or clears
+ * (`runtimeKill.js`, #2113), so this hook holds no timer: it listens, and reads when told.
  *
  * ⛔ Read AFTER the pane is made (`minted` is that pane): "pending" is a fact about the consult the build made.
  */
 export function useAdmissionPending(source, minted, { subscribe = subscribeRuntimeLists, consultPending = runtimeConsultPendingOf,
-  pendingReason = runtimePendingReasonOf, rereadMs = PENDING_REASON_REREAD_MS } = {}) {
+  pendingReason = runtimePendingReasonOf } = {}) {
   const [answers, setAnswers] = useState(0)
   const [reason, setReason] = useState(null)
   const pending = useMemo(
@@ -382,11 +380,10 @@ export function useAdmissionPending(source, minted, { subscribe = subscribeRunti
       else setReason(pendingReason({ source }) || null)             // (the same value again re-renders nothing)
     }
     const off = subscribe(settle)
-    const timer = setInterval(settle, Math.max(250, rereadMs))
     settle()   // an answer, or a reason, that landed between the build and this effect
-    return () => { off(); clearInterval(timer) }
+    return off
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the readers are module functions (a seam for tests)
-  }, [pending, source, rereadMs])
+  }, [pending, source])
   return { pending, reason: pending ? reason : null, answers }
 }
 

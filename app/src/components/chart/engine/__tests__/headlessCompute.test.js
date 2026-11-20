@@ -323,6 +323,9 @@ describe('3. a refused definition answers the engine\'s own code, never a partia
     ['a served row on the runtime kill list', () => rtDoc('u_k', RT_SOURCE, { runtimeKilled: 'definition `u_k` is on the server\'s runtime kill list' }), 'runtime:killed'],
     ['a served row not yet graded', () => rtDoc('u_g', RT_SOURCE, { runtimeNotGraded: 'this script has not been checked yet' }), 'runtime:not-yet-graded'],
     ['a served row on the host known-divergence list', () => withMeta(house('atr_extension'), { hostKnownDivergence: 'this script is not drawn: x' }), 'pine:known-divergence'],
+    // ⭐ HELD WITHHOLDS — a saved copy minted before its script's narrow withholds, served stamped, on both lanes
+    ['a served runtime row saved before its held withholds', () => rtDoc('u_hw', RT_SOURCE, { heldDivergence: 'pine:held-divergence: this saved copy is not drawn: x' }), 'pine:held-divergence'],
+    ['a served host row saved before its held withholds', () => withMeta(house('atr_extension'), { heldDivergence: 'pine:held-divergence: this saved copy is not drawn: x' }), 'pine:held-divergence'],
     ['a run past the per-bar instruction ceiling', () => one('u_pb', PER_BAR), 'runtime:limit', 'INSTRUCTIONS_PER_BAR'],
     // ⭐ the ceiling the stop names is `limits.js`'s own (`DEFAULT_LIMITS.TOTAL_INSTRUCTIONS`), in the member's words
     ['a run past the WHOLE-RUN instruction ceiling', () => one('u_wr', WHOLE_RUN), 'runtime:limit', 'TOTAL_INSTRUCTIONS',

@@ -86,6 +86,9 @@
   font-size: var(--text-lg);
 }
 .label { flex: 1 1 auto; min-width: 0; }
+/* Optional `aside`: a short muted note at the row's right edge (e.g. the Breadth universe
+   menu's "tradable stocks"), like the Columns menu's short labels. Absent = unchanged. */
+.aside { flex: 0 0 auto; padding-left: 12px; font-size: 11.5px; font-weight: 400; color: var(--signature-faint); white-space: nowrap; }
 
 .separator {
   height: 1px;

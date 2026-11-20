@@ -8401,6 +8401,11 @@ async def lifespan(app: FastAPI):
                     breadth_ma_extra.scheduled_extend()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ma-extra] extend failed: %s", _e)
+                try:   # the pre-built per-universe Monitor rows follow their overlays
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] refresh failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_nhnl_extend,
@@ -8411,6 +8416,33 @@ async def lifespan(app: FastAPI):
                 _breadth_nhnl_extend, trigger="date",
                 run_date=_dt.now(_ET) + _td(minutes=12),
                 id="breadth_nhnl_extend_boot", replace_existing=True)
+
+            # ⭐ PRE-BUILT per-universe Monitor rows (US / Nasdaq / NYSE, the universe switcher):
+            # a full rebuild every night (a historical revision can never hide in the store), and
+            # a boot refresh that builds any universe whose store is empty. Requests only read.
+            def _breadth_universe_monitor_nightly():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.nightly()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] nightly failed: %s", _e)
+
+            def _breadth_universe_monitor_boot():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] boot refresh failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_universe_monitor_nightly,
+                trigger=CronTrigger(day_of_week="mon-sat", hour=3, minute=25, timezone=_ET),
+                id="breadth_universe_monitor_nightly", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_universe_monitor_boot, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=15),
+                id="breadth_universe_monitor_boot", replace_existing=True)
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth put/call fill")
