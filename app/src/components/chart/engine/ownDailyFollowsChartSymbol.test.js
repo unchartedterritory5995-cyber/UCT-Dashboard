@@ -195,25 +195,42 @@ describe('⛔⛔ A PREDICATE THAT CANNOT ANSWER NEVER SAYS NO (the class behind 
   })
 })
 
+// ⭐⭐ (2026-11-20) A RAIL THAT ASSERTS SERVED PINS THE RUN'S CLOCK (`runtimeWorker.__runtimeWorkerClockForTests`, the
+// `opts.now` seam): a virtual clock that advances a microsecond per read, so the verdict is the run's work, never the
+// runner's speed. ⚰️ #2118's CI: "pending:runtime:in-flight > refused:runtime:time-budget" on a saturated runner.
+// `saturatedHost` stands in for that runner: the HOST clock jumps 50 ms on every read.
+const pinnedClock = () => { let v = 0; return () => (v += 0.001) }
+const saturatedHost = () => { let h = 0; vi.stubGlobal('performance', { now: () => (h += 50) }) }
+async function runHalfStates(tf, rows, map, { pin = true } = {}) {
+  setRuntimeRunner(workerRunner(await realWorkerFactory()))
+  const { __runtimeWorkerClockForTests } = await import('./runtime/runtimeWorker.js')
+  __runtimeWorkerClockForTests(pin ? pinnedClock() : null)
+  let cols = null
+  const states = []
+  try {
+    for (let pass = 0; pass < 8; pass += 1) {
+      let landed = false
+      const off = onRuntimeColumnsLanded(() => { landed = true })
+      cols = registry.computeFor(def, rows, {}, ctxOf(tf, map))
+      const rh = runHalfOf(cols)
+      states.push(rh ? `${rh.state}:${rh.code}` : 'none')
+      for (let i = 0; i < 400 && !landed; i += 1) await new Promise((r) => setTimeout(r, 0))
+      off()
+      if (!landed) break
+    }
+  } finally {
+    __runtimeWorkerClockForTests(null)
+  }
+  return { cols, states }
+}
+
 describe('the product path: the chart\'s hook assembles the entries, the REAL worker runs Fred RS\'s run half', () => {
   for (const tf of ['5', '30', '60']) {
     it(`${tf}: OWN_DAILY_KEY is handed to the worker and the run half SERVES (was: refused, not handed the daily rows)`, async () => {
       const rows = chartOf(tf)
       const map = await chartEntries(tf, rows, RDDT)
       expect([...map.keys()].sort()).toEqual([OWN_DAILY_KEY, 'SPX', 'SPX@D', SEED].sort())
-      setRuntimeRunner(workerRunner(await realWorkerFactory()))
-      let cols = null
-      const states = []
-      for (let pass = 0; pass < 8; pass += 1) {
-        let landed = false
-        const off = onRuntimeColumnsLanded(() => { landed = true })
-        cols = registry.computeFor(def, rows, {}, ctxOf(tf, map))
-        const rh = runHalfOf(cols)
-        states.push(rh ? `${rh.state}:${rh.code}` : 'none')
-        for (let i = 0; i < 400 && !landed; i += 1) await new Promise((r) => setTimeout(r, 0))
-        off()
-        if (!landed) break
-      }
+      const { cols, states } = await runHalfStates(tf, rows, map)
       expect(handed.length, 'the worker was asked').toBeGreaterThan(0)
       for (const keys of handed) expect(keys, 'every worker request carries the own daily rows').toContain(OWN_DAILY_KEY)
       expect(states[states.length - 1], states.join(' > ')).toBe('served:null')
@@ -221,6 +238,25 @@ describe('the product path: the chart\'s hook assembles the entries, the REAL wo
       expect(labels.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
     })
   }
+})
+
+describe('⛔⛔ THE VERDICT IS THE WORK, NOT THE RUNNER (2026-11-20): the budget is still enforced, and the pin is what holds', () => {
+  it('⛔ a SATURATED runner without the pin is refused by the real budget (what #2118\'s CI saw): the budget still bites', async () => {
+    const rows = chartOf('5')
+    const map = await chartEntries('5', rows, RDDT)
+    saturatedHost()
+    const { states } = await runHalfStates('5', rows, map, { pin: false })
+    expect(states[states.length - 1], states.join(' > ')).toBe('refused:runtime:time-budget')
+  })
+  it('the SAME saturated runner with the run\'s clock pinned: SERVED, the labels drawn', async () => {
+    const rows = chartOf('5')
+    const map = await chartEntries('5', rows, RDDT)
+    saturatedHost()
+    const { cols, states } = await runHalfStates('5', rows, map)
+    expect(states[states.length - 1], states.join(' > ')).toBe('served:null')
+    const labels = runtimeObjectsOf(cols).live.filter((o) => o.family === 'label' && o.createdBar === rows.length - 1)
+    expect(labels.map((o) => o.props.text)).toEqual(['                RS Rating', ''])
+  })
 })
 
 describe('DERIVATION: every `request.security` site of the document reads an entry the chart fetches', () => {
