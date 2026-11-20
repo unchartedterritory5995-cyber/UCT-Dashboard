@@ -70,6 +70,13 @@ import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../buildDefinition'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../evaluateFormula'
+// ⭐ THE PASTE WORKER (2026-11-20) — THE REGISTRATIONS A CHART PAGE MAKES ARE MADE WHEREVER THIS DOOR LOADS. A chart
+// page registers the run half's object rail (`binder.js` imports `runHalfObjectRail.js`, which brings
+// `runtimeErrorStop.js`, the host lane's `runtime.error` stop, with it), and the documents this door mints are computed
+// under them. This door's graph used to bring the whole app with it (`buildDefinition` was imported from
+// `BuilderSheet.jsx`), and these two with it; now that graph is a worker's whole graph (`memberDoorWorker.js`), so it
+// holds them itself rather than depend on a page having loaded them (the door reads neither while it builds).
+import '../../engine/runHalfObjectRail.js'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'

@@ -667,8 +667,8 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // ⭐ STUDIO R4 — the host is told the panel's sentence and the exact text it is about, so a save
   // of THAT text can put it on record for people the script is shared with. Null while the panel
   // is off, is still checking a newer buffer, or has no sentence: nothing is recorded then.
-  const headlineNow = editorStatusNow && !editorStatusNow.paneChecking && text === inspected
-    && typeof editorStatusNow.headline === 'string' ? editorStatusNow.headline : null
+  const headlineNow = editorStatusNow && text === inspected && typeof editorStatusNow.headline === 'string'
+    && !editorStatusNow.paneChecking ? editorStatusNow.headline : null
   useEffect(() => {
     if (typeof onStatusHeadline !== 'function') return
     onStatusHeadline(headlineNow ? { headline: headlineNow, source: inspected } : null)
