@@ -1867,6 +1867,64 @@ def model_failure_gate(exc: Optional[BaseException]) -> str:
     return "model:transport"
 
 
+#: WHY the provider refused the account, as a CLOSED set of words. The first whose pattern the provider's text
+#: matches is the class; a refusal by status alone is classed by the status.
+_ACCOUNT_REFUSAL_CLASSES: Tuple[Tuple[str, "re.Pattern"], ...] = (
+    ("credit balance", re.compile(r"credit balance", re.I)),
+    ("billing or payment", re.compile(r"billing|payment", re.I)),
+    ("key or sign-in", re.compile(r"api[ _-]?key|authentication", re.I)),
+)
+_ACCOUNT_REFUSAL_BY_STATUS = {401: "key or sign-in", 402: "billing or payment", 403: "permission"}
+
+
+def account_refusal_class(exc: Optional[BaseException]) -> str:
+    """Which kind of account refusal this is: "credit balance", "billing or payment", "key or sign-in",
+    "permission", or "unclassified". ⭐ 2026-11-20: the provider refused the account for half an hour and the
+    log said only `BadRequestError`, so nobody reading it could tell an empty balance from a dead key, and
+    those are fixed in two different places by a person.
+    ⛔ ONE OF THESE WORDS, NEVER THE PROVIDER'S TEXT: a provider's error text is not ours to copy into a log
+    (it can carry request ids, and nothing guarantees what else). Never raises."""
+    try:
+        text = str(exc) or ""
+        for name, pattern in _ACCOUNT_REFUSAL_CLASSES:
+            if pattern.search(text):
+                return name
+        status = int(getattr(exc, "status_code", 0) or 0)
+        return _ACCOUNT_REFUSAL_BY_STATUS.get(status, "unclassified")
+    except Exception:                               # noqa: BLE001
+        return "unclassified"
+
+
+def log_account_refusal(log: Any, door: str, exc: Optional[BaseException]) -> str:
+    """The ONE log line for a provider that refused our account, said the same at every door: ERROR (it does
+    not heal by itself, O7), with the status and the kind of refusal. Returns the kind. Never raises."""
+    kind = account_refusal_class(exc)
+    try:
+        status = int(getattr(exc, "status_code", 0) or 0)
+        log.error("[%s] the provider refused the account: %s (status %s, %s)", door, type(exc).__name__,
+                  status or "?", kind)
+    except Exception:                               # noqa: BLE001
+        pass
+    # ⭐ AND A PERSON IS TOLD (2026-11-20: the first such outage was found half an hour in, by a test run).
+    # Only the KIND goes out, never `exc`: `llm_provider_alert` cannot be handed the provider's text.
+    try:
+        from api.services import llm_provider_alert
+        llm_provider_alert.refused(kind, door)
+    except Exception:                               # noqa: BLE001 -- a page is never the turn's failure
+        pass
+    return kind
+
+
+def note_model_answered() -> None:
+    """A model call SUCCEEDED, at any door: if the provider had been refusing the account, the ops channel
+    is told it is back (once). One value read in the common case. Never raises."""
+    try:
+        from api.services import llm_provider_alert
+        llm_provider_alert.answered()
+    except Exception:                               # noqa: BLE001
+        pass
+
+
 def charge_unreported(exc: Optional[BaseException], user_id: Any, market_date: str, model: str,
                       max_tokens: int, request: Dict[str, Any]) -> float:
     """A call that reports no usage is charged its WORST CASE on the shared ledger and the member's allowance.
@@ -3414,11 +3472,12 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         attempts += 1
         try:
             msg, in_tokens, out_tokens = _call_model(messages, kind)
+            note_model_answered()
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = model_failure_gate(exc)
             if gate == "model:unavailable":
-                # ERROR, not WARNING: this does not heal by itself (O7)
-                logger.error("[concierge] the provider refused the account: %s", type(exc).__name__)
+                # ERROR, not WARNING: this does not heal by itself (O7); with the kind of refusal
+                log_account_refusal(logger, "concierge", exc)
             else:
                 logger.warning("[concierge] model call failed: %s", exc)
             charge_unreported(exc, user_id, market_date, MODEL, MAX_TOKENS, _request_for(messages, kind))
