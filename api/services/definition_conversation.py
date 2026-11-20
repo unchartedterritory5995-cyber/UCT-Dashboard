@@ -4721,16 +4721,30 @@ def understand_turn(message: str, chart: Any) -> Dict[str, Any]:
 
 
 def door_answers_by_name(message: Any, chart: Any, can_add: Any = frozenset()) -> bool:
-    """Would the door answer this request itself, with one of UCT's own BUILT-INS and no assistant call? A request
-    that is only a built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with
-    its bands" for a browser that can add Session VWAP. Pure: no model, nothing stored. Never raises (False)."""
+    """Would the door answer this request itself, BY NAME and with no assistant call? A request that is only a
+    built-in's name (offered in one tap, or pointed at in the Indicators list), or only "VWAP with its bands" for a
+    browser that can add Session VWAP, or one that names an indicator UCT HOLDS BACK (no checked formula yet).
+    Pure: no model, nothing stored. Never raises (False).
+
+    ⛔ A HELD NAME IS REFUSED BY NAME WHATEVER VERB ASKS FOR IT (measured 2026-11-20). "show TTM Squeeze" was
+    refused by name with the way forward, and "draw TTM Squeeze with a label" went to the script lane, where the
+    assistant would have written a TTM Squeeze from memory: the one thing a held name exists to prevent ("nothing
+    it could approximate from", `named_indicators.held_names`). The door's answer cannot depend on the verb.
+    ⭐ Two cases still go on, as they always did: a held name whose published form only a script holds
+    (`needs_script`) is written as a script, and a member who describes the rule in their own words gets exactly
+    that built (`understand_turn` refuses neither)."""
     try:
         if vwap_bands_ask(message) is not None:
             pointer = named_indicators.entry(VWAP_BANDS_ENTRY)
             if pointer is not None and (named_indicators.built_in(pointer) or {}).get("indicator") in (can_add or ()):
                 return True
         understood = understand_turn(message, chart)
-        return understood.get("refusal") is not None and understood.get("built_in") is not None
+        if understood.get("refusal") is None:
+            return False
+        if understood.get("built_in") is not None:
+            return True
+        held = [named_indicators.entry(i) for i in understood.get("held") or []]
+        return bool(held) and not any(named_indicators.needs_script(e) for e in held)
     except Exception:                              # noqa: BLE001 -- the ordinary turn decides
         return False
 
@@ -4770,7 +4784,8 @@ def _with_script_lane(formula_turn: Any, message: Any, *, user_id: Any, view: An
         return script(refused)
     # ⛔ A DRAWING WORD DOES NOT TAKE A BUILT-IN'S NAME AWAY FROM THE DOOR (review 2026-11-19). "draw" is a script
     # word, and it is also how members ask for anything: "draw vwap bands" went to a paid script while "show vwap
-    # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator.
+    # bands" got the one-tap offer, and "draw ATR Bands" was improvised where UCT has the indicator. The same holds
+    # for a name UCT holds back: it is refused by name below, never written from memory because the verb was "draw".
     if sc.wants_script(words) and not door_answers_by_name(words, chart, can_add):
         return script()
     result = formula_turn()
