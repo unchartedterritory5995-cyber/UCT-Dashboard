@@ -6,12 +6,27 @@
 //                       or null: a switch to a neighbour the warm already read needs no await at all
 //   warm(syms, tf)    → read many into that cache in one round trip (list neighbours)
 //   start()           → spawn the worker now and, after the page's first chart paint and at idle, ask
-//                       the leader to bring the seed files up to date (one timeframe at a time)
+//                       the leader to bring the seed files up to date (one timeframe at a time) and to
+//                       follow TODAY's minute frames (live.js / liveFeed.js), reporting this page's
+//                       visibility (lib/deskVisibility.isAppVisible) on every change and once a minute
+//                       while visible, so the leader's feed pauses when no tab is looked at
+//
+// ⭐ PERSISTENT STORAGE, ASKED ONCE. OPFS is best-effort storage: under disk pressure the browser may
+// evict the 70+ MB of seed files. Once a seed file is held (the worker's status, or a new generation),
+// the page asks `navigator.storage.persist()` ONCE (only a page can; a worker cannot), after checking
+// `persisted()`, never awaited by anything: Chrome decides by itself (no prompt), and a browser that
+// asks the member does so without holding any work. The answer is in `status().storage`.
+//
+// ⭐ THE SYNCHRONOUS CACHE EXPIRES (SYNC_CACHE_TTL_MS). Today's bars grow every minute, so a copy read
+// a while ago is behind (never WRONG: it holds complete buckets only, live.js); past the TTL `peekBars`
+// answers null and the next read asks the worker again. Every copy carries `through`, which the handoff
+// checks before painting (prefetch.devicePaints).
 //
 // Loaded only by source.js's dynamic import, and only when the switch is on; the worker is a separate
 // chunk. Nothing here is in first-open bytes. Never throws at a caller: every failure reads as null.
 
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
+import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
 import { SERVED_TFS } from './tfs'
 
 /** Where the first-frame seed's manifest lives (the edge, docs/charts/first-frame-seed-format.md section 2:
@@ -19,11 +34,19 @@ import { SERVED_TFS } from './tfs'
 export const DEVICE_SEED_MANIFEST = '/api/seed/v1/latest.json'
 export const DEVICE_SEED_MANIFEST_KEY = 'uct.deviceStore.manifest'
 export const SYNC_CACHE_MAX = 96
+export const SYNC_CACHE_TTL_MS = 20_000
+export const VISIBLE_HEARTBEAT_MS = 60_000
 const SERVED = new Set(SERVED_TFS)
 
 const _whenIdle = (fn) => {
   try { if (typeof requestIdleCallback === 'function') { requestIdleCallback(() => fn(), { timeout: 8000 }); return } } catch { /* fall through */ }
   setTimeout(fn, 3000)
+}
+
+/** document visibility + the desktop desk's hidden state, both (lib/deskVisibility). */
+function _onVisibilityChange(cb) {
+  try { if (typeof document !== 'undefined') document.addEventListener('visibilitychange', cb) } catch { /* none */ }
+  try { onDeskHiddenChange(cb) } catch { /* none */ }
 }
 
 function _manifestUrl() {
@@ -38,15 +61,37 @@ export function createDeviceClient({
   afterPaint = afterFirstChartPaint,
   idle = _whenIdle,
   cacheMax = SYNC_CACHE_MAX,
+  cacheTtlMs = SYNC_CACHE_TTL_MS,
+  now = () => Date.now(),
+  visible = isAppVisible,
+  onVisibilityChange = _onVisibilityChange,
+  setIntervalFn = (fn, ms) => setInterval(fn, ms),
+  storage = (typeof navigator !== 'undefined' && navigator.storage) || null,
 } = {}) {
   let worker = null
   let dead = false
   let nextId = 1
   let ingestAsked = false
   const pending = new Map()      // id → resolve
-  const cache = new Map()        // `${tf}|${SYM}` → cols (LRU: Map order)
+  const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
   const reads = new Map()        // `${tf}|${SYM}` → in-flight read
   let status = null
+  /** navigator.storage persistence: asked at most once per page. */
+  const persist = { asked: false, persisted: null, granted: null, error: null }
+  function _maybePersist() {
+    if (persist.asked || !storage) return
+    persist.asked = true
+    Promise.resolve()
+      .then(() => (typeof storage.persisted === 'function' ? storage.persisted() : null))
+      .then((already) => {
+        persist.persisted = already === true
+        if (already === true || typeof storage.persist !== 'function') return already === true
+        return storage.persist()
+      })
+      .then((granted) => { persist.granted = granted === true; if (granted === true) persist.persisted = true })
+      .catch((e) => { persist.error = String(e?.message || e).slice(0, 120) })
+  }
+  const _holdsSeed = (info) => !!info?.tfs && Object.keys(info.tfs).length > 0
 
   const keyOf = (sym, tf) => `${tf}|${String(sym).toUpperCase()}`
 
@@ -66,9 +111,10 @@ export function createDeviceClient({
         const r = pending.get(m.id)
         if (r) { pending.delete(m.id); r(m.ok ? (m.res ?? null) : null) }
       } else if (m.type === 'event') {
-        if (m.event?.type === 'gen') _drop(String(m.event.tf))
+        if (m.event?.type === 'gen') { _drop(String(m.event.tf)); _maybePersist() }
       } else if (m.type === 'status') {
         status = m
+        if (_holdsSeed(m.info)) _maybePersist()
       }
     }
     worker.onerror = () => {
@@ -93,16 +139,24 @@ export function createDeviceClient({
 
   function _put(k, cols) {
     cache.delete(k)
-    cache.set(k, cols)
+    cache.set(k, { cols, at: now() })
     while (cache.size > cacheMax) cache.delete(cache.keys().next().value)
   }
+
+  /** Tell the leader whether this page is looked at (it starts the live feed on the first call). */
+  const _report = () => _call({ op: 'live', visible: (() => { try { return visible() !== false } catch { return true } })() })
 
   const api = {
     start() {
       _worker()
       if (!ingestAsked) {
         ingestAsked = true
-        afterPaint(() => idle(() => { _call({ op: 'ingest', manifestUrl: manifestUrl() }) }))
+        afterPaint(() => idle(() => {
+          _call({ op: 'ingest', manifestUrl: manifestUrl() })
+          _report()
+          try { onVisibilityChange(() => { _report() }) } catch { /* no document */ }
+          try { setIntervalFn(() => { try { if (visible() !== false) _report() } catch { /* hidden */ } }, VISIBLE_HEARTBEAT_MS) } catch { /* no timers */ }
+        }))
       }
       return api
     },
@@ -111,9 +165,10 @@ export function createDeviceClient({
       const k = keyOf(sym, tf)
       const c = cache.get(k)
       if (!c) return null
+      if (now() - c.at > cacheTtlMs) { cache.delete(k); return null }
       cache.delete(k)
       cache.set(k, c)
-      return c
+      return c.cols
     },
     getBars(sym, tf) {
       tf = String(tf)
@@ -133,7 +188,7 @@ export function createDeviceClient({
     async warm(syms, tf) {
       tf = String(tf)
       if (!SERVED.has(tf)) return 0
-      const want = [...new Set((syms || []).filter(Boolean).map((s) => String(s).toUpperCase()))].filter((s) => !cache.has(keyOf(s, tf)))
+      const want = [...new Set((syms || []).filter(Boolean).map((s) => String(s).toUpperCase()))].filter((s) => !api.peekBars(s, tf))
       if (!want.length) return 0
       const res = await _call({ op: 'readMany', syms: want, tf })
       let n = 0
@@ -141,7 +196,7 @@ export function createDeviceClient({
       return n
     },
     info() { return _call({ op: 'info' }) },
-    status: () => status,
+    status: () => ({ ...(status || {}), storage: { ...persist } }),
     cacheSize: () => cache.size,
     dispose() {
       for (const r of pending.values()) r(null)
