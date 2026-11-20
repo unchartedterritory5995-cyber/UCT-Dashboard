@@ -66,7 +66,7 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
 import { deviceCopyFresh } from '../deviceStore/fresh'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -97,6 +97,8 @@ export const PREPARED = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UN
 // while keys the store judged `context` painted in ~30 ms. `provisional` (a local-only copy
 // behind the frontier) stays out: that is the legacy handoff's rule too (`seriesDisplayable`).
 export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
+/** `until` for an ensure that must ask the server whatever the held status says (no status satisfies it). */
+const ASK_AGAIN = Object.freeze([])
 /** D/W/M handoff: a held set paints (the daily paint gate decides how), so it is prepared. */
 const DAILY_PREPARED = Object.freeze([STATUS.PROVISIONAL, STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE, STATUS.UPDATING])
 
@@ -1044,8 +1046,22 @@ export function createPrefetch(o = {}) {
       if (!typed.kept) typed.ctl.abort()
       typed = null
     }
+    // ⚡ A COPY IS JUDGED ON THE CLOCK, NOT ON ITS SAVED STATUS (owner 2026-11-20: typing SPY / QQQ / IWM on
+    // a 1m chart "loads a candle or two behind"). A held key's status was derived when its answer landed and
+    // a key off screen is never polled, so a 1m answer from minutes ago still read CURRENT and Enter painted
+    // it as it was; a local copy passed on its DEVELOPING row (one bucket of tolerance). Here the question is
+    // only "ask while the member types, or not": a copy whose newest CLOSED row is a bucket or more behind
+    // the session frontier is asked again (one ~50 ms request), so Enter paints the current tail. An
+    // illiquid name that printed nothing in the newest bucket costs that one request; nothing waits on it.
+    const sess = session() === 'eth' ? 'extended' : 'rth'
+    const closedBehind = (s) => {
+      const rows = s?.bars
+      if (!rows?.length) return false
+      const n = expectedBarsBehind(rows[rows.length - 1].t, p.tf, now(), { session: sess })
+      return n != null && n >= 1
+    }
     const held = S().peek(key)
-    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status)) return null   // the flip paints it as it is
+    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !closedBehind(held)) return null   // the flip paints it as it is
     if (typed && typed.key === key) return null
     const ctl = new AbortController()
     const mine = { key, ctl, kept: false }
@@ -1074,8 +1090,10 @@ export function createPrefetch(o = {}) {
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       tellSymbolWarmers([T], tf, { priority: true })
-      if (_localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
-      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
+      const behind = closedBehind(s0)
+      if (!behind && _localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
+      // a copy behind the clock is asked even when its status says it is satisfied (ASK_AGAIN: no status is)
+      const s = await ensure(key, { until: behind ? ASK_AGAIN : DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false
       // ⭐ AND ITS WHOLE DEPTH BEFORE ENTER (2026-11-17): the handoff paints a held key at once, so a
       // key held with only the answer's ~1,150 bars painted shallow and the depth joined a blink later
