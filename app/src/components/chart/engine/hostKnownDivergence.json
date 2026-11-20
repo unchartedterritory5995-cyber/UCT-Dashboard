@@ -523,6 +523,34 @@
    "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-time-tf-bitstamp-btcusd-1d-2026-09-30 DIVERGE (MATCH, or INCONCLUSIVE by name)"
   },
   {
+   "slug": "vw-v6-bool-history-bar0",
+   "sha256": "07212c5896ff3e5cb517bb43b283d4ad27b73a3705c3bb5783d19b31b6e95040",
+   "title": "UCTPROBE_VW_V6_BOOL_HISTORY_BAR0",
+   "source": "tools/visual_conformance/probes/vw-v6-bool-history-bar0.pine",
+   "reason": "on a captured NYSE:RDDT 1D chart (capture vw-v6-bool-history-bar0-rddt-1d-2026-11-19) it draws something that differs from TradingView: plot `H01_b1_eq_false`: 1 steady-state bars disagree; first at bar 0 (value: vendor 1 vs ours 0); scattered, last at bar 0",
+   "evidence": {
+    "diverge": [
+     {
+      "capture": "vw-v6-bool-history-bar0-rddt-1d-2026-11-19",
+      "symbol": "NYSE:RDDT",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `H01_b1_eq_false`: 1 steady-state bars disagree; first at bar 0 (value: vendor 1 vs ours 0) — scattered, last at bar 0"
+     },
+     {
+      "capture": "vw-v6-bool-history-bar0-spy-1d-2026-11-19",
+      "symbol": "AMEX:SPY",
+      "timeframe": "1D",
+      "kind": "drawn",
+      "firstDiverging": "plot `H01_b1_eq_false`: 1 steady-state bars disagree; first at bar 0 (value: vendor 1 vs ours 0) — scattered, last at bar 0"
+     }
+    ],
+    "match": [],
+    "inconclusive": []
+   },
+   "liftWhen": "an engine fix to the first diverging item, then a production re-grade that leaves none of vw-v6-bool-history-bar0-rddt-1d-2026-11-19, vw-v6-bool-history-bar0-spy-1d-2026-11-19 DIVERGE (MATCH, or INCONCLUSIVE by name)"
+  },
+  {
    "slug": "vw-w3-format-date",
    "sha256": "c3b1dc12ff12ca619a2fa3e06e5192e10f92499cdbef11139ecfbe8ecbe57a02",
    "title": "vw-w3-format-date",
