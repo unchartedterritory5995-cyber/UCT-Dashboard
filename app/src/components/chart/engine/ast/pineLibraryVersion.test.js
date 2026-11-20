@@ -171,12 +171,24 @@ export hits(float x) =>
     uses: 'plot(il.up(close))\nplot(il.hits(close))\n',
   },
 }
+// the island's one boundary: what a v5 function hands v6 code (design section 2.6)
+const BOUNDARY = `${MPL}
+//@version=5
+library("islandboundary")
+export above(float x, float y) => x > y
+export both(float x, float y) => x > y and y > 0
+export kept(float x) =>
+    var bool up = false
+    up := x > 100
+    up
+`
 const islandPath = (family) =>`tester/island${family.replace(/[^a-z]/gi, '')}/1`
 const islandSource = (family) => `${MPL}\n//@version=5\nlibrary("island")\n${ISLAND[family].lib}`
 const LIBS = fixtureLibraries({
   ...Object.fromEntries(Object.keys(ISLAND).map((f) => [islandPath(f), {
     path: islandPath(f), source: islandSource(f), licence: 'MPL-2.0', attribution: 'island (test fixture)',
   }])),
+  'tester/islandboundary/1': { path: 'tester/islandboundary/1', source: BOUNDARY, licence: 'MPL-2.0', attribution: 'islandboundary (test fixture)' },
   'tester/cleanlib/1': { path: 'tester/cleanlib/1', source: CLEAN, licence: 'MPL-2.0', attribution: 'cleanlib (test fixture)' },
   'tester/islandrefuses/1': { path: 'tester/islandrefuses/1', source: ISLAND_REFUSES, licence: 'MPL-2.0', attribution: 'islandrefuses (test fixture)' },
   ...Object.fromEntries(CASES.map(([, body], k) => [`tester/changed/${k + 1}`, {
@@ -455,3 +467,41 @@ describe('⭐⭐ the version island, family by family: a v5 library in a v6 scri
   }
 })
 
+// ─── ⭐⭐ THE ISLAND'S ONE BOUNDARY (design section 2.6): a v5 function handing v6 code a bool that can be `na` ─────────
+// Pine v6 holds no `na` bool, and no capture shows what TradingView hands a v6 caller for a v5 one (`false`, or the
+// `na` kept): capture row LV6. Until it lands the call is refused BY NAME, on both lanes and on both of the runtime
+// lane's paths (the columnar resolver's inlining and the run's own call). `and` / `or` / `not` are never `na` at v5
+// (F2, Q-NL) and cross. The same calls in a v5 script are no boundary.
+describe('⭐⭐ the version island\'s boundary: a v5 function handing v6 code a bool that can be `na` is refused at the call', () => {
+  const imp = 'import tester/islandboundary/1 as ib\n'
+  const LV6 = /library function that hands this v6 script a .*can be `na` in Pine v5.*\(LV6\)/
+  for (const [name, use, hostSaysBoundary, v5Draws] of [
+    ['a comparison of its parameters (the columnar path)', 'plot(ib.above(close, ta.sma(close, 5)) ? 1 : 0)\n', true, true],
+    // in a v5 script `na()` of such a bool is refused by its own (pre-island) name, never as the boundary
+    ['a comparison read by `na()`', 'plot(na(ib.above(close, ta.sma(close, 5))) ? 1 : 0)\n', true, false],
+    // the host lane may refuse this one by another name first (a `var` in a function)
+    ['a `bool` variable (the run\'s own call)', 'plot(ib.kept(close) ? 1 : 0)\n', false, true],
+  ]) {
+    it(`${name}: refused by name in a v6 script, both lanes; served in a v5 script`, () => {
+      const r = runtimeRun(`${V6}${imp}${use}`)
+      expect(r.cols, 'the runtime lane drew a v5 na bool in v6 code').toBe(null)
+      expect(r.b.refusal.guard).toBe(LIBRARY_VERSION)
+      expect(r.b.refusal.message).toMatch(LV6)
+      expect(r.b.refusal.line).toBe(4)
+      const t = translatePine(`${V6}${imp}${use}`, { libraries: LIBS, libraryCrossVersion: ADMIT, mode: 'host' })
+      expect(t.ok).toBe(false)
+      if (hostSaysBoundary) expect(t.refusal.message).toMatch(LV6)
+      // CONTROL: in a v5 script there is no boundary
+      const v5 = runtimeRun(`${V5}${imp}${use}`)
+      if (v5Draws) expect(v5.cols, v5.why).not.toBe(null)
+      else expect(v5.b.refusal && v5.b.refusal.guard).not.toBe(LIBRARY_VERSION)
+    })
+  }
+
+  it('`and` / `or` crosses: never `na` at v5, so it is served and equals the v5 script', () => {
+    const use = 'plot(ib.both(close, open) ? 1 : 0)\n'
+    const r = runtimeRun(`${V6}${imp}${use}`)
+    expect(r.b.ok, r.why).toBe(true)
+    expectSameColumns(r, runtimeRun(`${V5}${imp}${use}`))
+  })
+})

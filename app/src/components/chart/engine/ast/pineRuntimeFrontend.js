@@ -47,7 +47,7 @@ import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
-import { versionAt, RUNTIME_ISLAND_FAMILIES } from './pineLibraryVersion.js'
+import { versionAt, RUNTIME_ISLAND_FAMILIES, LIBRARY_VERSION } from './pineLibraryVersion.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { barConstantTree } from './barConstant.js'
 import { roundToMintickTree } from './tickRound.js'
@@ -2529,6 +2529,39 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   /** The lowered built-in `na(x)`: `irBuiltin('na', [x])`, the pointwise table function by that name. */
   const isNaBuiltin = (e) => !!e && e.kind === EXPR.BUILTIN && e.fn === 'na'
+  /** ⭐⭐ THE VERSION ISLAND'S BOUNDARY — what a v5 function's lowered result hands a v6 caller that can be `na`
+   *  at v5, as a phrase, or null. Pine v5 (S1, and F2's Q-NL captures): a comparison with an `na` operand is `na`;
+   *  `and` / `or` / `not` read an `na` operand as false and are never `na`; a `bool` variable and its history can
+   *  hold `na`. A number, a string or a colour is no bool and crosses unchanged. Each element of a tuple is asked. */
+  const ISLAND_BOOL_BUILTINS = new Set(['crossover', 'crossunder', 'cross', 'rising', 'falling',
+    'ta.crossover', 'ta.crossunder', 'ta.cross', 'ta.rising', 'ta.falling'])
+  const islandNaBoolResult = (e, d = 0, seen = new Set()) => {
+    if (!e || typeof e !== 'object' || d > 64) return null
+    const CMP = ['<', '>', '<=', '>=', '==', '!=']
+    const known = (x) => !!x && ((x.kind === EXPR.NUM && Number.isFinite(x.value))
+      || (x.kind === EXPR.SERIES && RUNTIME_BAR_PRICES.has(x.name)))
+    const boolSlot = (x) => !!x && x.kind === EXPR.READ && (slotTy(x.slot) || {}).kind === 'bool'
+    switch (e.kind) {
+      case EXPR.BINARY: return CMP.includes(e.op) && !(known(e.left) && known(e.right)) ? 'a comparison' : null
+      case EXPR.READ:
+        return boolSlot(e) && !(slots[e.slot] && neverNaBoolNames.has(slots[e.slot].name)) ? 'a `bool` variable' : null
+      case EXPR.HIST: return islandNaBoolResult(e.of, d + 1, seen) || (boolSlot(e.of) ? 'the history of a `bool`' : null)
+      case EXPR.TERNARY: return islandNaBoolResult(e.then, d + 1, seen) || islandNaBoolResult(e.else, d + 1, seen)
+      case EXPR.TUPLE:
+        for (const x of e.elements || []) { const why = islandNaBoolResult(x, d + 1, seen); if (why) return why }
+        return null
+      case EXPR.CALL:
+        if (seen.has(e.fn) || !functions[e.fn]) return null
+        seen.add(e.fn)
+        return islandNaBoolResult(functions[e.fn].result, d + 1, seen)
+      case EXPR.COLUMN: {
+        const t = columnTrees[e.index]
+        return t && t.type !== 'num' && isBoolishTree(t) && !canonNeverTree(t) ? 'a comparison' : null
+      }
+      case EXPR.BUILTIN: return ISLAND_BOOL_BUILTINS.has(e.fn) ? `\`${e.fn}\`` : null
+      default: return null
+    }
+  }
   const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null) => {
     const v = pineVersion === null ? 1 : pineVersion
     if (!(v <= 5)) return
@@ -2971,6 +3004,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   const carried = []
   const functions = []
+  /** ⭐⭐ the version island: function index -> the Pine version its definition is judged under, for a
+   *  definition spliced from a library in another version (`versionAt`); every other function is absent. */
+  const islandFnVersion = new Map()
   const fnByName = new Map()
   /** name → the refusal its DEFINITION hit, re-raised at the first call site.
    *  See the deferral in the statement walk for why a definition is not fatal. */
@@ -10401,6 +10437,21 @@ function buildRuntimeIrLinked(source, opts, holder) {
               }
             })
           }
+          // ⭐⭐ THE VERSION ISLAND'S ONE BOUNDARY (design section 2.6): a library function judged under v5, called
+          // from v6 code, hands back a bool that can be `na` at v5. Pine v6 holds no `na` bool and no capture shows
+          // what TradingView hands the v6 caller (`false`, or the `na` kept), so the call is refused by name until
+          // capture row LV6 settles it (`docs/pine/capture-queue-2026-11-19-library-version-island.md`).
+          const calleeVersion = islandFnVersion.get(fnIndex)
+          if (calleeVersion !== undefined && versionAt(node.tok, pineVersion) !== calleeVersion) {
+            const why = islandNaBoolResult(fn.result)
+            if (why) {
+              note(LIBRARY_VERSION)
+              throw new RuntimeRefusal(LIBRARY_VERSION, `\`${node.name}\` is a Pine v${calleeVersion} `
+                + `library function that hands this v${pineVersion} script ${why}, which can be \`na\` in Pine `
+                + `v${calleeVersion}; a v${pineVersion} bool is never \`na\`, and what TradingView hands the script `
+                + 'there is not captured (LV6), so it is not drawn', locate(node.tok))
+            }
+          }
           const site = callSites.length
           callSites.push({ fn: fnIndex, at: locate(node.tok) })
           // ⭐ ARGUMENTS ARE LOWERED IN THE CALLER'S SCOPE, so a state-derived
@@ -15674,6 +15725,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         prevSrc === undefined || (prevSrc && prevSrc.st === st) ? { st, toks, arrow, params } : false)
     }
     const fnIndex = functions.length
+    // (a specialised copy, C35, is the same definition: it keeps the island's version too)
+    if (versionAt(nameTok, pineVersion) !== pineVersion) islandFnVersion.set(fnIndex, versionAt(nameTok, pineVersion))
     const record = {
       name: nameTok.value, params: params.length, compiling: true,
       frameSize: 0, persistCount: 0, body: [], result: null,
