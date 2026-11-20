@@ -12,6 +12,11 @@ import { installFetch, latchWave8Flags, Providers } from './fixtures'
 import { axeSurface } from './surface'
 import NotebookTab from '../tabs/NotebookTab'
 import { chooseView, currentView } from '../tabs/__tests__/toolbarDoors'
+import { preloadLazyChunks, NOTEBOOK_TAB_CHUNKS, NOTE_EDITOR_CHUNKS } from '../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTEBOOK_TAB_CHUNKS, NOTE_EDITOR_CHUNKS)
 
 const settle = () => act(async () => { await new Promise((r) => setTimeout(r, 30)) })
 
