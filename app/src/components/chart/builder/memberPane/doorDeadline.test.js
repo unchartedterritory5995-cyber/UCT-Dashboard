@@ -98,13 +98,17 @@ describe('the door deadline, on the wall clock', () => {
 })
 
 describe('the door deadline reaches the walk no translation budget bounded (a growing window fold)', () => {
-  // ⭐ a window an `unshift` fills and a `while ... pop` bounds, reduced: its fold is built by copying, and the copy
-  // doubles each slot (the running value appears in both arms), so its time grows as 2^slots with no Resolver step
-  // and no budget in it (`pine.js::tokensTicking`). Measured on a public script: most of a door call of minutes.
+  // ⭐ a window an `unshift` fills and a `while ... pop` bounds, reduced, guarding a drawing (the object pass resolves
+  // the guard): its fold is built by copying, and the copy doubles each slot (the running value appears in both
+  // arms), so its time grows as 2^slots with no Resolver step and no budget in it (`pine.js::tokensTicking`).
+  // Measured on a public script: most of a door call of minutes. Measured on a GitHub runner at 18 slots, 400 ms
+  // budget: 415 ms with the tick, 2,493 ms without it (the fold ran on, then a Resolver check stopped it); 19 slots
+  // doubles the second and leaves the first where it is.
   const WINDOW = [
-    '//@version=5', 'indicator("door deadline window rail")',
+    '//@version=5', 'indicator("door deadline window rail", overlay = true)',
     'var w = array.new_float()', 'if close > open', '    w.unshift(close - open)',
-    'while w.size() > 19', '    w.pop()', 'plot(w.avg())',
+    'while w.size() > 19', '    w.pop()', 'avg = w.avg()',
+    'if close - open > avg', '    label.new(bar_index, high, "x")',
   ].join(LF)
 
   it('a doubling window fold is stopped at the deadline, by name, within the slack', () => {
