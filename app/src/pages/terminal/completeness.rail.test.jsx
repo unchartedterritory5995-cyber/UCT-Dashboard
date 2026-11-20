@@ -141,6 +141,7 @@ const ARG_SAMPLE = {
   shortRank: 'FLOAT',
   oiSide: 'P',
   tideScope: 'ETFS',
+  seasMeasure: 'AVG',
 }
 
 afterEach(cleanup)
