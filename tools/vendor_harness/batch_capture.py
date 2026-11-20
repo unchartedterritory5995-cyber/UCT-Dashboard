@@ -520,6 +520,20 @@ def res_norm(r) -> str:
     return re.sub(r"^1(?=[DWM]$)", "", str(r or "").strip().upper())
 
 
+def same_period(day, listing, tf) -> bool:
+    """Do two ISO days fall in one weekly (ISO week) or monthly (calendar month) period? Malformed: False."""
+    import datetime as _dt
+    try:
+        d, l = _dt.date.fromisoformat(str(day)[:10]), _dt.date.fromisoformat(str(listing)[:10])
+    except (TypeError, ValueError):
+        return False
+    if tf == "W":
+        return d.isocalendar()[:2] == l.isocalendar()[:2]
+    if tf == "M":
+        return (d.year, d.month) == (l.year, l.month)
+    return False
+
+
 def slugify(s) -> str:
     return re.sub(r"[^a-z0-9]+", "-", str(s).lower()).strip("-")
 
@@ -1077,6 +1091,18 @@ class Driver:
         if not o.listing_date:
             return False, (f"no listing date is known for {o.symbol} ({getattr(self, 'listing_why', 'not read')}) — not asserted "
                            f"(first bar {first_day})")
+        tf = res_norm(o.tf)
+        if tf in ("W", "M"):
+            # ⭐⭐ (coordinator ruling 2026-11-20) ON A WEEKLY / MONTHLY CHART the first bar starts at the listing when ITS
+            # PERIOD holds the first trade: the same ISO week, the same calendar month (the app's own
+            # `listingSeed.listingStartOf`). Without it Saturday's NASDAQ:BGIN 1W capture from the listing could never
+            # say so, and the W / M run half's serving gate would have no evidence to grade.
+            if not same_period(first_day, o.listing_date, tf):
+                unit = "week" if tf == "W" else "month"
+                return False, f"first loaded bar {first_day} is not in the listing {unit} of {o.listing_date} — not asserted"
+            unit = "week" if tf == "W" else "month"
+            return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar ({first_day}) is the listing {unit} after "
+                          f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
         if first_day != o.listing_date:
             return False, f"first loaded bar {first_day} is not the listing day {o.listing_date} — not asserted"
         # ⭐ the claim names the symbol it was derived FOR; `starts_at_bar0_contradiction` refuses a capture whose own

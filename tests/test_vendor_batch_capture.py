@@ -725,3 +725,25 @@ def test_the_lookup_is_one_public_get_per_symbol(tmp_path):
 
 def test_our_store_ticker_of_a_tradingview_symbol():
     assert bc.uct_ticker_of("NASDAQ:BGIN") == "BGIN" and bc.uct_ticker_of("NYSE:BRK.B") == "BRK-B" and bc.uct_ticker_of("SPY") == "SPY"
+
+
+# ── a weekly / monthly chart starts at the listing when its first bar's PERIOD holds it (coordinator ruling 2026-11-20) ──
+# the double's first loaded bar is 2024-03-21 (a Thursday)
+@pytest.mark.parametrize("tf,listed,want", [
+    ("1W", "2024-03-21", True), ("1W", "2024-03-18", True), ("W", "2024-03-22", True),     # the same ISO week
+    ("1W", "2024-03-15", False), ("1W", "2024-03-25", False),                              # the week before / after
+    ("1M", "2024-03-01", True), ("1M", "2024-03-29", True), ("1M", "2024-02-29", False), ("1M", "2023-03-21", False),
+    ("1D", "2024-03-21", True), ("1D", "2024-03-18", False),                               # CONTROL: daily is exact
+])
+def test_a_weekly_or_monthly_chart_starts_at_the_listing_by_its_period(tmp_path, tf, listed, want):
+    page, drv = _listing_driver(tmp_path, symbol="NYSE:RDDT", tf=tf)
+    drv.opts.listing_date = listed
+    starts, why = drv.history_assertion(DEPTH_AT_FIRST)
+    assert starts is want, why
+    if want and tf != "1D":
+        assert ("listing week" if "W" in tf else "listing month") in why and "NYSE:RDDT listed" in why
+
+
+def test_same_period_reads_the_iso_week_across_a_year():
+    assert bc.same_period("2025-01-03", "2024-12-31", "W") and not bc.same_period("2025-01-10", "2024-12-31", "W")
+    assert not bc.same_period("2024-12-31", "2024-12-31", "D") and not bc.same_period("x", "2024-12-31", "W")
