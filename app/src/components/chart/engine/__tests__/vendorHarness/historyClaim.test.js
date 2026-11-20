@@ -61,6 +61,14 @@ describe('the claim as the graders read it', () => {
     cap.plotValues.rows[0][at] = 1
     expect(startsAtBar0Refuted(cap)).toMatch(/reads 1 on its bar 0/)
   })
+  it('CONTROL: a calc_bars_count capture (its rows read 0, 1, 2 … on the LAST bars) holds: 0 is where TradingView began counting', () => {
+    const cap = fixture('harness/vw-cs1-calc-bars-rddt-1d-2026-11-14')
+    const row = barIndexControlRow(cap)
+    expect(row.values.slice(0, 3)).toEqual([0, 1, 2])
+    expect(cap.bars.rows.length).toBeGreaterThan(row.values.length)  // the rows are a suffix of the bars
+    expect(startsAtBar0Refuted(cap)).toBeNull()
+    expect(startsAtBar0Holds(cap)).toBe(true)
+  })
   it('CONTROL: a row that starts at 0 and is off LATER is not refuted (that number is graded DIVERGE: C45)', () => {
     const cap = JSON.parse(JSON.stringify(fixture(NVI_FULL)))
     const at = cap.plotValues.fields.indexOf(barIndexControlRow(cap).id)

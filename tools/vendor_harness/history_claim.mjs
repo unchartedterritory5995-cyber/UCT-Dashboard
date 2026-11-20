@@ -32,7 +32,7 @@ export function barIndexControlRow(capture) {
 }
 
 /** Why the capture's `startsAtBar0` claim is refuted by its own bar_index row, or null (no claim, no row, or the
- *  row's FIRST value is its own bar's position in the capture's bars).
+ *  row's FIRST value is its own bar's position in the capture's bars, or 0: where TradingView began counting).
  *  ⛔ BY TIME, NOT BY ROW: a row's value is held to the POSITION of its bar (its time) in `capture.bars`. The plot
  *  values can cover only part of the bars: a capture joined onto the listing's history (`c38Joined.js`) carries
  *  every bar from the listing but the vendor's rows only for its own window, where the control row reads 8172 on
@@ -49,7 +49,11 @@ export function startsAtBar0Refuted(capture) {
   for (let k = 0; k < row.values.length; k += 1) {
     const i = position.get(row.times[k])
     if (i === undefined) continue
-    if (row.values[k] === i) return null
+    // ⭐ 0 is TradingView's own start of counting, never evidence against the listing: a `calc_bars_count` script
+    // counts bar_index from the first bar it calculates (vw-cs1-calc-bars-rddt-1d: its 100 rows read 0, 1, 2 … on
+    // the chart's last 100 bars of a capture that does start at the listing). Only a NON-ZERO count that is not
+    // the bar's position says the history began elsewhere (vw-int-cast: 8172 on its bar 0).
+    if (row.values[k] === i || row.values[k] === 0) return null
     return `history.startsAtBar0 is REFUTED by the capture's own bar_index control row, which reads `
       + `${JSON.stringify(row.values[k])} on its bar ${i} (it must read ${i}): its history does not start at TradingView's bar 0`
   }
