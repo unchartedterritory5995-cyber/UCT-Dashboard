@@ -3,7 +3,7 @@
 // ─── ⭐⭐ THE DOOR DEADLINE: ONE CLOCK ACROSS A WHOLE MEMBER-DOOR CALL (door-deadline unit, 2026-11-20) ─────────
 //
 // ⚰️ MEASURED (the full-population census, engine 87-89): three public scripts held a member's tab on the main
-// thread for 64 s, 166 s and 435 s before the member door refused them by name. Every bound the translator has is
+// thread for minutes before the member door refused them by name. Every bound the translator has is
 // PER TRANSLATION: `pine.js::beginTranslateBudget` opens a fresh 10 s window for each `translatePine`, and a Resolver
 // built outside a window (the runtime lane's front end) starts its own 10 s at construction. The member door
 // (`builder/memberPane/memberPaneDefinition.js`) runs many of them in a row, so one paste bought ~40 budgets back to

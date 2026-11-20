@@ -2,7 +2,7 @@
 //
 // ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; NUMBER PENDING) — ONE CLOCK FOR A WHOLE MEMBER-DOOR CALL.
 // `memberPaneDefinition` runs many translations in a row on the page's main thread, and every bound the translator
-// has was per translation: three public scripts held a member's tab for 64 s, 166 s and 435 s before they were
+// has was per translation: three public scripts held a member's tab for minutes before they were
 // refused by name (`engine/ast/doorDeadline.js`). These rails feed SYNTHETIC slow scripts (licence-held scripts are
 // never committed): a chain whose every line doubles the tree it reads (`a1 = a0 + a0[1]`, ...) is served, slowly,
 // and its cost is spread over the door's several translations.
@@ -93,6 +93,27 @@ describe('the door deadline, on the wall clock', () => {
     expect(next.ok, next.reason).toBe(true)
     expect(translatePine(FAST, { strict: true }).ok).toBe(true)
   }, 120000)
+})
+
+describe('the door deadline reaches the walk no translation budget bounded (a growing window fold)', () => {
+  // ⭐ a window an `unshift` fills and a `while ... pop` bounds, reduced: its fold is built by copying, and the copy
+  // doubles each slot (the running value appears in both arms), so its time grows as 2^slots with no Resolver step
+  // and no budget in it (`pine.js::tokensTicking`). Measured on a public script: most of a door call of minutes.
+  const WINDOW = [
+    '//@version=5', 'indicator("door deadline window rail")',
+    'var w = array.new_float()', 'if close > open', '    w.unshift(close - open)',
+    'while w.size() > 19', '    w.pop()', 'plot(w.avg())',
+  ].join(LF)
+
+  it('a doubling window fold is stopped at the deadline, by name, within the slack', () => {
+    memberView()
+    __setMemberDoorBudgetForTests(400)
+    const { value: d, ms } = timed(() => memberPaneDefinition({ source: WINDOW, id: 'u_door-window' }))
+    expect(d.ok).toBe(false)
+    expect(d.guard).toBe('pine:timeout')
+    expect(d.reason).toBe(doorTimeoutSentence(400))
+    expect(ms).toBeLessThan(400 + 1500)
+  }, 180000)
 })
 
 describe('the door deadline is ONE clock for the whole call (a clock that advances per read)', () => {

@@ -308,7 +308,7 @@ export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on =
 
 // ─── ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; NUMBER PENDING) ─────────────────────────────────────
 //
-// ⚰️ THREE PUBLIC SCRIPTS HELD A MEMBER'S TAB FOR 64 s, 166 s AND 435 s. `MemberPane.jsx` builds this door
+// ⚰️ THREE PUBLIC SCRIPTS HELD A MEMBER'S TAB FOR MINUTES. `MemberPane.jsx` builds this door
 // synchronously on the page's main thread (`useMemo`), and every bound the translator has is PER TRANSLATION: this
 // door runs many in a row (the strict host translation and its input retries, then the runtime lane's front-end
 // builds, its colour probes, its object pass), each with a fresh 10 s, so the slowest paste bought ~40 of them back to

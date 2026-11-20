@@ -8364,7 +8364,7 @@ function wholeScriptTimeout(sourcePath) {
 // A member door's call opens ONE window (`withDoorDeadline`), and every clock limb below also asks it: the sampled
 // check of every Resolver of the call (`checkClock`), the printer's tick, and the output loop's and object pass's
 // `translateBudgetExpired`; once it has tripped, every later resolution step refuses at once (`checkBudget`). Why the
-// per-translation bounds alone held a tab for 435 s, and the measurement: `doorDeadline.js`.
+// per-translation bounds alone held a tab for minutes, and the measurement: `doorDeadline.js`.
 // ⛔ Closed (no window), nothing here reads a clock and every limb answers exactly as before, byte for byte.
 
 /**
@@ -8401,6 +8401,31 @@ function trippedDoorRefusal() {
   const door = openDoor()
   if (!door.refusal) door.refusal = doorRefusal(door, null)
   return door.refusal
+}
+
+/** ⭐ A door-only tick, for a walk the translator's own budgets never bounded: with no door window open it returns at
+ *  once, so a translation outside the member door answers exactly as before; with one, a tripped window throws at
+ *  once and the clock is read on every 4,096th tick. */
+let doorTicks = 0
+function tickDoorOnly() {
+  if (!doorWindowOpen()) return
+  if (doorTripped()) throw trippedDoorRefusal()
+  if (((doorTicks += 1) & BUDGET_CHECK_MASK) !== 0) return
+  checkDoorClock(null)
+}
+
+/** `[...a, b, ...c]` written as `tokensTicking(a, b, c)`: every array part is spread and every other part is one
+ *  token, element by element, with a door tick per element (`tickDoorOnly`). The same array, whatever the door. */
+function tokensTicking(...parts) {
+  const out = []
+  for (const part of parts) {
+    if (Array.isArray(part)) {
+      for (let i = 0; i < part.length; i += 1) { tickDoorOnly(); out.push(part[i]) }
+    } else {
+      out.push(part)
+    }
+  }
+  return out
 }
 
 /** A checkpoint between phases (`doorDeadline.js::checkDoorDeadline`), raising the translator's own refusal. */
@@ -11234,21 +11259,25 @@ export class Resolver {
     } else {
       // a growing window: slots 0 … size−1 are filled, so a fold carries the
       // running value only through slots that exist (`has`).
+      // ⭐ door-deadline — THESE FOLDS ARE BUILT BY COPYING, AND THE UNSHIFT ONE DOUBLES EVERY SLOT (its running
+      // value appears in both arms), so it is the one walk of a translation no budget bounded: measured, most of a
+      // member-door call that ran for minutes on a public script. `tokensTicking` is the same concatenation, ticking the door
+      // (`tickDoorOnly`: a no-op with no door window, so the tokens and every answer are unchanged).
       const step = (acc, j) => (member === 'max' || member === 'min'
-        ? [I(`math.${member}`), P('('), ...acc, P(','), ...v(j), P(')')]
-        : [P('('), ...acc, P('+'), ...v(j), P(')')])
+        ? tokensTicking(I(`math.${member}`), P('('), acc, P(','), v(j), P(')'))
+        : tokensTicking(P('('), acc, P('+'), v(j), P(')')))
       if (w.order === 'unshift') {
         // index order j = 0, 1, …: acc_j = has(j) ? step(acc_{j-1}, j) : acc_{j-1}
         body = v(0)
         for (let j = 1; j < w.cap; j += 1) {
-          body = [P('('), ...has(j), P('=='), N(1), P('?'), ...step(body, j), P(':'), ...body, P(')')]
+          body = tokensTicking(P('('), has(j), P('=='), N(1), P('?'), step(body, j), P(':'), body, P(')'))
         }
       } else {
         // index order is oldest first — j = size−1 down to 0:
         // acc_j = has(j+1) ? step(acc_{j+1}, j) : v(j)
         body = v(w.cap - 1)
         for (let j = w.cap - 2; j >= 0; j -= 1) {
-          body = [P('('), ...has(j + 1), P('=='), N(1), P('?'), ...step(body, j), P(':'), ...v(j), P(')')]
+          body = tokensTicking(P('('), has(j + 1), P('=='), N(1), P('?'), step(body, j), P(':'), v(j), P(')'))
         }
       }
       if (member === 'avg') body = [P('('), ...body, P(')'), P('/'), ...sizeToks()]
