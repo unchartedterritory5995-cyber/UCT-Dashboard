@@ -100,7 +100,14 @@ export function boardBackground(el) {
     try { bg = getComputedStyle(n).backgroundColor || '' } catch { /* detached */ }
     if (bg && bg !== 'transparent' && !/rgba\([^)]*,\s*0\)$/.test(bg)) return bg
   }
-  return '#0e0f0d'
+  // None at all: the theme's own canvas (the graphite default when no theme can be read).
+  return themeVar('--bg', '#0e0f0d')
+}
+
+/** A theme token's value on <html>, else `fallback` (a detached document, jsdom). Inline, not
+ *  lib/theme: this module carries no static import (workspaceShot.lazy.test.js). */
+function themeVar(name, fallback) {
+  try { return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback } catch { return fallback }
 }
 
 // The CSS properties that change pixels. Everything else the library would copy (cursor,

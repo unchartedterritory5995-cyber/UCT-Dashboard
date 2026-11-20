@@ -44,6 +44,7 @@ const NA = null
 const col = (tree, opts) => Array.from(interpret(tree, BARS, {}, undefined, undefined, { tf: 'D', historyFromListing: true, ...(opts || {}) }))
   .map((v) => (Number.isFinite(v) ? v : null))
 const node = (type, code, child = { type: 'series', name: 'close' }) => ({ type, value: code, args: [child] })
+const HIGH = { type: 'series', name: 'high' }
 
 // hand-written: closes are 1..19 in date order
 const W_MERGE = [NA, NA, NA, NA, 5, 5, 5, 5, 9, 9, 9, 9, 9, 14, 14, 14, 17, 17]
@@ -176,11 +177,13 @@ describe('⭐⭐ review L2 — off the listing, the first period\'s value is nev
     return { c, codes: [...sink.keys()] }
   }
 
-  it('M, starting mid-March: March\'s closing bar and April\'s other bars are withheld by name; April\'s close is drawn', () => {
-    const r = off(node(TF_MERGE, 'M'), BARS)
+  // ⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3): these read the merge's HIGH, a field the partial period gets wrong; a merge of
+  // close alone is the period's own close and is drawn (the item 3 test below, and `htfMergeFieldAware.test.js`)
+  it('M, starting mid-March: March\'s closing bar and April\'s other bars are withheld by name; April\'s high is drawn', () => {
+    const r = off(node(TF_MERGE, 'M', HIGH), BARS)
     for (const d of ['2026-03-31', '2026-04-01', '2026-04-06', '2026-04-09']) expect(r.c[DATES.indexOf(d)], d).toBe(null)
-    expect(r.c[DATES.indexOf('2026-04-10')]).toBe(14)
-    expect(r.c[DATES.indexOf('2026-05-28')]).toBe(14)
+    expect(r.c[DATES.indexOf('2026-04-10')]).toBe(14.5)
+    expect(r.c[DATES.indexOf('2026-05-28')]).toBe(14.5)
     expect(r.codes).toContain(TF_MERGE_FIRST_CODE)
     expect(CHART_CLOCK_WITHHELD[TF_MERGE_FIRST_CODE]()).toMatch(/part of a period/)
   })
@@ -194,16 +197,25 @@ describe('⭐⭐ review L2 — off the listing, the first period\'s value is nev
   it('W, starting on a WEDNESDAY: week A\'s closing bar and week B\'s other bars are withheld; week B\'s close is drawn', () => {
     const bars = BARS.slice(DATES.indexOf('2026-03-25'))
     const days = DATES.slice(DATES.indexOf('2026-03-25'))
-    const r = off(node(TF_MERGE, 'W'), bars)
+    const r = off(node(TF_MERGE, 'W', HIGH), bars)
     for (const d of ['2026-03-27', '2026-03-30', '2026-04-01']) expect(r.c[days.indexOf(d)], d).toBe(null)
-    expect(r.c[days.indexOf('2026-04-02')]).toBe(9)
+    expect(r.c[days.indexOf('2026-04-02')]).toBe(9.5)
     expect(r.codes).toContain(TF_MERGE_FIRST_CODE)
   })
 
   it('⛔ on an intraday chart the first bar is never certainly its period\'s first: withheld even from a Monday', () => {
-    const r = off(node(TF_MERGE, 'W'), BARS, { tf: '5' })
+    const r = off(node(TF_MERGE, 'W', HIGH), BARS, { tf: '5' })
     expect(r.c[DATES.indexOf('2026-03-27')]).toBe(null)
     expect(r.codes).toContain(TF_MERGE_FIRST_CODE)
+  })
+
+  it('⭐ item 3: a merge of CLOSE draws the partial period\'s close (the period\'s own) and names nothing for it', () => {
+    const bars = BARS.slice(DATES.indexOf('2026-03-25'))
+    const days = DATES.slice(DATES.indexOf('2026-03-25'))
+    const r = off(node(TF_MERGE, 'W'), bars)
+    // week A (03-25..03-27, partial) closes at 5 on Friday 03-27, and week B's other bars read it
+    for (const d of ['2026-03-27', '2026-03-30', '2026-04-01']) expect(r.c[days.indexOf(d)], d).toBe(5)
+    expect(r.codes).not.toContain(TF_MERGE_FIRST_CODE)
   })
 
   it('formula `tf` keeps its behaviour off the listing (nothing named)', () => {

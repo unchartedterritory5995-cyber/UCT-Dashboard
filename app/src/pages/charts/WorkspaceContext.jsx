@@ -12,6 +12,9 @@ const FALLBACK = {
   // stored copy would fight it). Seeded 'D' to match ChartWidget's own default.
   groupTfs: { A: 'D', B: 'D', C: 'D', D: 'D' },
   setGroupTf: () => {},
+  // every chart's timeframe per colour group (registerGroupTf), for lists that warm ALL of them
+  groupTfSets: {},
+  registerGroupTf: () => () => {},
   // COV-10 — may a list widget subscribe to its group's scan? The board derives it from
   // the auth payload; every other host (and the fallback) says no.
   chartsTheme: 'default',   // workspace-wide chart theme ('default' | 'sunrise')
@@ -47,6 +50,9 @@ const FALLBACK = {
   onPeriodCancel: () => {},
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
   replayCutoff: null,
+  // (Breadth drill "Mark day" — `markDay` / `markDayColor` — and `replayWarmIntraday: false` are
+  // supplied only by the drill's own workspace value; absent here = no mark, normal Replay warm.
+  // Kept OUT of this default so the Notebook's frozen workspace (Rule 12) needs no change.)
   exitReplay: () => {},
   // Replay Mode "Pick on chart": arm click/drag on the active chart to choose the cutoff.
   replayArmPick: false,

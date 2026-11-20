@@ -433,7 +433,9 @@ describe('the choices', () => {
     fireEvent.click(pickerCancel())
     fireEvent.click(screen.getByRole('button', { name: 'Change account' }))
     expect(await screen.findByRole('radio', { name: 'Any account' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('radio', { name: 'Main' }))
+    // ⛔ AWAITED: "Any account" is the picker's own row, but "Main" arrives with the account vocabulary fetch; a
+    // synchronous get raced that fetch and lost under CI load ("Unable to find … radio … Main", 2026-11-20)
+    fireEvent.click(await screen.findByRole('radio', { name: 'Main' }))
     fireEvent.click(screen.getByRole('button', { name: 'Done' }))
     expect(rowText('p2')).toBe('Account: Main')
   })

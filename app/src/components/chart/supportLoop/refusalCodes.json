@@ -157,6 +157,7 @@
   "pine:fn-history-in-block",
   "pine:function",
   "pine:function-def",
+  "pine:held-divergence",
   "pine:hidden-only",
   "pine:history-ref",
   "pine:indent",

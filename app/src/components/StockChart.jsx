@@ -1,5 +1,6 @@
 // app/src/components/StockChart.jsx — TradingView Lightweight Charts v5 wrapper
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
+import { resolveHighlightTimes } from './chart/highlightBars'
 import { withoutGuardIds } from './chart/engine/ast/guardIdText'
 import { recordPaint } from './chart/paintLog'
 import { computeBarTime, toChartTime, fromChartTime, seriesCacheTf, barsSessionQuery, barsGridQuery, isRthBar, keepRthBars, etDateLabel } from './chart/barTime'
@@ -10483,25 +10484,8 @@ export default function StockChart({
   // paints white. Without this, weekly/monthly examples lost the highlight.
   const highlightResolved = useMemo(() => {
     if (highlightBarTime == null) return null
-    const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
-    const times = _big.ohlcData.map(d => d.time)
-    const exact = new Set(times)
-    const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
-      ? a - b
-      : (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)
-    const out = []
-    for (const raw of arr) {
-      if (raw == null) continue
-      const target = adjustTime(raw)
-      if (exact.has(target)) { out.push({ time: target, orig: raw }); continue }
-      // No exact bar: resolve to the ENCLOSING bar (largest bar time <= the date). Covers
-      // W/M period-interior days AND a daily start-marker date that lands on a weekend/holiday
-      // (exact still wins for real trading days, so Model Book setups are unaffected).
-      let best = null
-      for (const t of times) if (cmp(t, target) <= 0 && (best == null || cmp(t, best) > 0)) best = t
-      if (best != null) out.push({ time: best, orig: raw })
-    }
-    return out.length ? out : null
+    // exact bar → that session's bars (intraday + a day) → the enclosing bar (W/M, holidays)
+    return resolveHighlightTimes(_big.ohlcData.map(d => d.time), highlightBarTime, adjustTime)
   }, [highlightBarTime, adjustTime, ohlcData, resolvedTf])
   const highlightTimeSet = useMemo(
     () => highlightResolved ? new Set(highlightResolved.map(e => e.time)) : null,
@@ -20224,8 +20208,16 @@ export default function StockChart({
         <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No chart data available for {sym}.</span>
           <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
-            The data provider doesn't carry this symbol. It may be delisted, an index
-            with no OHLC series, or not a tradable ticker.
+            {data?.reason === 'timeframe_not_carried' ? (
+              // A currency pair (BTCUSD): the server answers this for a timeframe it does not
+              // serve. The symbol IS carried, so the sentence below would be untrue.
+              <span data-testid="chart-tf-not-carried">
+                This symbol is charted on daily, weekly and monthly bars only. Pick D, W or M.
+              </span>
+            ) : (
+              <>The data provider doesn't carry this symbol. It may be delisted, an index
+              with no OHLC series, or not a tradable ticker.</>
+            )}
           </span>
         </div>
       )}

@@ -3979,3 +3979,7 @@
 .statSize:hover { color: var(--menu-text, #ededed); background: rgba(248, 247, 243, 0.07); }
 .statSizeOn, .statSizeOn:hover { color: var(--menu-text-bright, #f8f7f3); background: rgba(248, 247, 243, 0.14); }
 .statSize:focus-visible, .statStyleReset:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+
+/* Thickness stepper (owner 11-17). */
+.statWeightName { min-width: 52px; text-align: center; align-self: center; font-size: 12px; color: var(--menu-text-bright, #f8f7f3); }
+.statSize:disabled { opacity: 0.35; cursor: default; background: none; }

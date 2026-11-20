@@ -67,6 +67,9 @@ export default function ChartIdentityRow({
   dayGain = null,
   dayGainColors = {},
   delistedDate = null,
+  // A currency pair's header readout, `{ text, title }`: its price with the source and that
+  // source's own time, in place of the stock day-change (which reads the stock price pool).
+  sourceNote = null,
   session = null,
   showClock = true,
   rightSlot = null,
@@ -99,7 +102,15 @@ export default function ChartIdentityRow({
   })()
   // The day change / after-hours readout (or the Delisted badge in its place).
   const changeEl = (
-    delistedLabel ? (
+    sourceNote ? (
+          <span className={styles.chartDayGain} data-source-note="" data-testid="chart-source-note"
+            // Longer than a day change, so unlike it this may shrink and clip on a narrow
+            // header (the text is whole for a screen reader, and the hover text has it too).
+            style={{ fontWeight: 500, opacity: 0.85, display: 'block', flexShrink: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}
+            title={sourceNote.title || sourceNote.text}>
+            {sourceNote.text}
+          </span>
+        ) : delistedLabel ? (
           // Dead ticker: a static badge in place of the (nonexistent) live day-change.
           <span
             className={styles.chartDayGain}

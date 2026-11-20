@@ -41,9 +41,7 @@ import { TableRefusal, isRefusal } from '../ast/parse'
 import { AST_SIDE_RECORDS, astSideRecordsOf, withAstSideRecords, withColumnErrors, withRuntimeErrorStop } from '../astColumns'
 import { runtimeErrorNoticeFor, resetRuntimeErrorNotices } from '../runtimeErrorNotice'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
-import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
-import { __resetHostKnownDivergence, __ignoreHostKnownDivergenceForTests } from '../hostKnownDivergence'
+import { asMember } from '../../../../testing/runtimeGate'
 import { walk, chainOf, FORBIDDEN_MODULES, FORBIDDEN_PATTERNS } from '../../../../../../tools/pine_runtime_closure.mjs'
 
 const REPO = path.resolve(process.cwd(), '..')
@@ -76,15 +74,13 @@ beforeAll(() => {
   // script here is a host document
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '0')
-  __resetRuntimePanePermission()
-  __resetRuntimeAllowList()
-  __resetHostKnownDivergence()
 })
+// ⛔ The member's doors in a beforeEach, never a beforeAll: the test grant re-opens them before every
+// test (`src/testing/runtimeGate.js`), so a beforeAll narrowing here ran every test under the grant
+// (test-grant census, 2026-11-19; it measured green with the grant off too).
+asMember({ allow: true, pane: true, hkd: true })
 afterAll(() => {
   vi.unstubAllEnvs()
-  __ignoreHostKnownDivergenceForTests()
-  __permitRuntimePaneForTests()
-  __allowEveryRuntimeScriptForTests()
 })
 beforeEach(() => {
   resetHostLaneAsync()

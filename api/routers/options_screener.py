@@ -5,9 +5,15 @@
                                                 filters (or a preset)
   GET /api/options-screener/unusual-volume   -- today's option volume / own average
   GET /api/options-screener/iv-percentile    -- today's ATM IV in its own history
+  GET /api/options-screener/oi-change/{sym}  -- one stock's open interest per contract
+                                                against the logged session before
+                                                (the Terminal's OIC panel)
 
-All three read OUR options log's prebuilt per-session files
+All four read OUR options log's prebuilt per-session files
 (`api/services/research/options_screener.py`); nothing scans the universe per request.
+`oi-change` reads the two newest screen files (`api/services/options_analytics/oi_change.py`):
+it never fetches a file on the request, it answers `computing` while one background build
+mirrors them.
 
 ⛔ DARK behind `OPTIONS_SCREENER_ENABLED` (read per request, unset = OFF). Unset, every
 route answers the FastAPI 404 body before any identity is read (`_armed` first).
@@ -23,6 +29,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
+from api.services.options_analytics import oi_change as oic
 from api.services.research import options_screener as svc
 
 router = APIRouter(prefix="/api/options-screener", tags=["options-screener"])
@@ -65,3 +72,18 @@ def options_unusual_volume(_user: dict = Depends(require_paid)):
 @router.get("/iv-percentile", dependencies=[Depends(_armed)])
 def options_iv_percentile(_user: dict = Depends(require_paid)):
     return _read(svc.cached, "iv_percentile", svc.iv_percentile)
+
+
+@router.get("/oi-change/{sym}", dependencies=[Depends(_armed)])
+def options_oi_change(sym: str, side: str = "any", _user: dict = Depends(require_paid)):
+    """One stock's open interest, contract by contract, against the logged session before.
+    `computing` (200) while the two screen files are being mirrored in the background; a log
+    that could not be read is a 503 in words, never an empty list."""
+    try:
+        out = oic.oi_change(sym, side)
+    except oic.BadQuery as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    if out.get("status") == "unavailable":
+        raise HTTPException(status_code=503,
+                            detail=f"The options log is unavailable: {out.get('error')}")
+    return out

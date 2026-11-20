@@ -934,6 +934,13 @@ def cmd_build(a):
     fd = fd.get("facts", fd) if fd.get("schema") == SCHEMA else fd
     out = build(m, fd, _sha(a.map))
     _write(a.out, out)
+    # ONE REGENERATE, BOTH DERIVED FILES (2026-11-20). docs/pine/demand-ranking.json is derived from this file's
+    # units (tools/pine_coverage/demand_ranking.py); left behind a rebuilt roadmap it reds its own rail. It is
+    # rebuilt here, and only when the roadmap just written IS the committed one (a build to another path is a trial).
+    if os.path.abspath(a.out) == os.path.abspath(ROADMAP):
+        from tools.pine_coverage import demand_ranking
+        demand_ranking.rebuild(out)
+        print("demand ranking rebuilt (docs/pine/demand-ranking.json)")
     h = out["headline"]
     print("SERVED %d/%d = %s%% (runtime-on %d, host-only %d; admission %s)" % (
         h["memberServed"], h["sample"], h["memberServedPct"], h["runtimeOn"], h["hostOnly"], h["admission"]))

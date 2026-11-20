@@ -102,10 +102,16 @@ def test_review_l3_a_finished_newest_bar_that_certainly_closes_its_period_is_ser
 def test_review_l2_off_the_listing_the_first_period_is_never_drawn_from_part_of_it():
     sink = {}
     o = {"tf": "D", "newest_bar_is_forming": False, "historyFromListing": False, "chart_clock_sink": sink}
-    m = ast_interpret.tf_merge_mask(node("tf_merge", "M"), BARS, o)
+    # HTF-MERGE-FIELD-AWARE (items 2 + 3): a merge of HIGH, a field the partial period gets wrong
+    high = {"type": "series", "name": "high"}
+    m = ast_interpret.tf_merge_mask(node("tf_merge", "M", high), BARS, o)
     for d in ("2026-03-31", "2026-04-01", "2026-04-06", "2026-04-09"):
         assert m[DATES.index(d)] == 1, d
     assert m[DATES.index("2026-04-10")] == 0 and m[DATES.index("2026-05-28")] == 0
+    # item 3: a merge of close alone reads the partial period's close, the period's own: nothing withheld for it
+    c = ast_interpret.tf_merge_mask(node("tf_merge", "M"), BARS, {"tf": "D", "newest_bar_is_forming": False,
+                                                                  "historyFromListing": False})
+    assert c is None or not any(c[:N - 1])
     # starting on a Monday, the week's first session: nothing withheld for the first period
     w = ast_interpret.tf_merge_mask(node("tf_merge", "W"), BARS, {"tf": "D", "historyFromListing": False})
     assert w[:N - 1] == [0] * (N - 1)

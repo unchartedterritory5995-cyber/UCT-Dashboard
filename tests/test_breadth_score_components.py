@@ -7,7 +7,7 @@ from api.services.breadth_monitor import _score_breakdown, _compute_breadth_scor
 
 FULL_ROW = {
     "pct_above_50sma": 65, "ratio_5day": 1.5, "magna_up": 70, "magna_down": 30,
-    "hi_ratio": 5.0, "cboe_putcall": 0.85, "aaii_spread": -30, "vix": 18,
+    "hi_ratio": 5.0, "cboe_putcall": bm._PUTCALL_BAND[1], "aaii_spread": -30, "vix": 18,
     "stage2_count": 1250, "universe_count": 5000, "adv_decline": 900,
 }
 
@@ -210,3 +210,17 @@ def test_the_route_hands_days_through_to_the_service(monkeypatch):
     )
     router.get_breadth_score_components("2026-08-28", days=180, _user={})
     assert seen == {"date": "2026-08-28", "days": 180}
+
+
+def test_putcall_band_is_the_equity_band_not_the_total_one():
+    """`cboe_putcall` is CBOE's EQUITY ratio (owner 2026-11-19). The (0.65, 0.85) band was set
+    for TOTAL; the retuned band is the equity series at the same percentiles, so it sits lower."""
+    lo, hi = bm._PUTCALL_BAND
+    assert (lo, hi) != (0.65, 0.85)
+    assert 0.2 < lo < hi < 0.85 and lo < 0.65
+
+    def pts(v):
+        row = dict(FULL_ROW, cboe_putcall=v)
+        return next(c for c in _score_breakdown(row)[1] if c["key"] == "cboe_putcall")["points"]
+    assert pts(lo) == 0 and pts(hi) == bm._SCORE_WEIGHTS["cboe_putcall"]
+    assert 0 < pts((lo + hi) / 2) < bm._SCORE_WEIGHTS["cboe_putcall"]
