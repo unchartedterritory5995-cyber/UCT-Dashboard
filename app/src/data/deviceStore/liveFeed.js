@@ -1,9 +1,12 @@
 // app/src/data/deviceStore/liveFeed.js — runs the universe minute-frame consumer for the device
 // store, in the LEADER's worker (one per browser, whatever the number of tabs), feeding live.js.
 //
-// LAZY: the consumer (lib/minuteFrames: decoder, rollup, poller) is a dynamic import through its
-// one entry, `loadMinuteFrames`, made the first time the feed starts. The worker starts it after the
-// page's first chart paint (client.js asks; workerCore.js decides), never before.
+// LAZY BY WHERE IT LIVES: the consumer (lib/minuteFrames: decoder, rollup, poller) is imported
+// STATICALLY here, so it is part of the device store's worker chunk and nothing else: the worker itself
+// is created only when the switch is on, and the feed starts after the page's first chart paint
+// (client.js asks; workerCore.js decides). ⛔ Never a dynamic import() in the worker's graph: the app
+// builds workers as IIFE (vite `worker.format`), which cannot code-split, and `vite build` refuses it
+// (CI run 44761382435). Inside the worker a second lazy step would buy nothing anyway.
 //
 // VISIBILITY (CLAUDE.md speed rule 6). A worker cannot see a page. Every tab reports whether the
 // app is visible (lib/deskVisibility.isAppVisible: hidden tab or hidden desktop desk) when it changes
@@ -17,7 +20,7 @@
 // the day file too, so re-reading cannot repair it; the overlay stays unusable until tomorrow and
 // the charts ask the server (live.js). A new seed with more symbols re-syncs too (resync('seed')).
 
-import { loadMinuteFrames } from '../../lib/minuteFrames/index'
+import { createMinuteFrameConsumer } from '../../lib/minuteFrames/consumer'
 import { etDateLabel } from '../../components/chart/barTime'
 import { STORED_TFS } from './tfs'
 
@@ -29,11 +32,13 @@ const RESYNCABLE = new Set(['not-received', 'link-mismatch'])
 /**
  * @param {object} o
  * @param {object} o.overlay                 live.js createLiveOverlay()
- * @param {Function} [o.load]                () => Promise<{createMinuteFrameConsumer}>
+ * @param {Function} [o.load]                () => {createMinuteFrameConsumer} (tests inject a fake)
  * @param {Function} [o.now]
  * @param {object} [o.consumerOpts]          extra options for createMinuteFrameConsumer (tests)
  */
-export function createLiveFeed({ overlay, load = loadMinuteFrames, now = () => Date.now(), consumerOpts = {} } = {}) {
+const _bundled = () => ({ createMinuteFrameConsumer })
+
+export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(), consumerOpts = {} } = {}) {
   let mod = null
   let consumer = null
   let starting = null

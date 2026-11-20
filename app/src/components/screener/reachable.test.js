@@ -852,11 +852,15 @@ const AWAITING_A_DECISION = {
     'Pine data families (S4-0): read by the S4 data supply when it lands; reached today only by '
     + 'pineDataCatalog.test.js.',
   // ── UNIVERSE MINUTE FRAMES — THE REFERENCE SINK (2026-11-20) ────────────────────────────────
-  // The consumer, decoder and rollup are WIRED (2026-11-21): the device store's leader worker loads
-  // them through `loadMinuteFrames()` (data/deviceStore/liveFeed.js), and its own sink is
-  // data/deviceStore/live.js. The in-memory reference sink stays a contract for the rollup's tests.
+  // The consumer, decoder and rollup are WIRED (2026-11-21): the device store's leader worker imports
+  // the consumer STATICALLY (data/deviceStore/liveFeed.js: the app builds workers as IIFE, which cannot
+  // code-split, so no dynamic import() may sit in a worker's graph), and its own sink is
+  // data/deviceStore/live.js. Left: the reference sink (a contract for the rollup's tests) and the
+  // main-thread lazy loader, which nothing on the page needs while the feed lives in the worker.
   'app/src/lib/minuteFrames/memorySink.js':
     'Reference in-memory sink of the rollup contract; data/deviceStore/live.js is the sink the app runs.',
+  'app/src/lib/minuteFrames/index.js':
+    'Main-thread lazy loader of the consumer; the device store runs the consumer in its worker instead.',
   }
 
 /**
