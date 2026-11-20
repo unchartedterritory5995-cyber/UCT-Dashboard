@@ -141,7 +141,8 @@ span.metric:hover { background-color: transparent; }
 .rangeSeg button:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .countDay { color: var(--dr-faint); }
 .tileLbl[data-past] { color: var(--dr-bright); }
-.spark { flex: 1 1 0; width: 0; min-width: 0; height: 40px; display: block; }
+/* The bars stand on the number's baseline (owner 2026-11-19), not on the bottom of its line box. */
+.spark { flex: 1 1 0; width: 0; min-width: 0; height: 34.5px; margin-bottom: 5.5px; display: block; }
 .spark rect + rect { fill: var(--dr-bar); }
 .spark rect[data-hover] { fill: var(--dr-bright); }
 .spark rect[data-now] { fill: var(--ut-gold); }
