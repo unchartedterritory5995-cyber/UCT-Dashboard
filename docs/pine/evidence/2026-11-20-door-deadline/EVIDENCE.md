@@ -153,7 +153,13 @@ anyone.
 - controls: a fast script answers byte for byte as under a deadline that never comes; with no window open no clock is
   read and no walk throws; a throw that is not the deadline propagates; a trip never leaks into the next call;
 - a saved script whose re-check ran out of time is `inconclusive`, and a real refusal stays `refused`.
+- each limb on its own, on a door clock that leaps past any deadline on every read: a Resolver's sampled check asks
+  the door (its own clock never moves); the round trip's hash walk ticks it (a 16,383-node canonical tree); a tripped
+  call is refused whole even when a lane hands back a document after the trip (`doorAnswer`). ⚰️ Added after the
+  first mutant run on the PR: D3, D4 and D5 survived, because the wall-clock rails stop at whichever limb fires first.
 
 Mutants: `ci/mutants/u-door-deadline.json`: D1 no door window, D2 the deadline per translation again, D3 a tripped call
-served, D4 the Resolver's check not asking the door, D5 the hash walk not ticking, D6 a timed-out saved script
-refused, D7 the window fold not charging the door.
+served (a document handed back after the trip), D4 the Resolver's check not asking the door, D5 no `parse.js` walk
+ticking, D6 a timed-out saved script refused, D7 the window fold not charging the door. Each was proved red on a
+GitHub runner (D1, D2, D6 and D7 by the pine heavy mutant job on the first push; D3, D4, D5 and D7 again by a remote
+run of the rail on a detached mutant commit after the limb rails).
