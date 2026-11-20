@@ -4152,6 +4152,12 @@ export default function StockChart({
   // re-subscribing on every render of updateChart (which would happen ~once
   // per real-time tick and visibly stutter the crosshair).
   const [chartReady, setChartReady] = useState(false)
+  // ⭐ (switch render cuts, 2026-11-20) WHICH chart instance: bumped each time one is created. A host's
+  // subscription to the visible range rides the chart's own time scale, so it must re-subscribe on a NEW
+  // instance (development's StrictMode removes and re-creates one inside a mount, and `chartReady` stays
+  // true across it). That re-run used to come for free from the pane's inline `onTimeRangeChange`, a new
+  // function every pane render; the pane now hands StockChart one stable function (StableStockChart.jsx).
+  const [chartGen, setChartGen] = useState(0)
 
   // ── Dark Pool overlay state ──────────────────────────────────────────────
   // Hover tooltip — fixed-position div near the cursor when hovering a bar.
@@ -11844,6 +11850,7 @@ export default function StockChart({
         () => (engineRef.current ? engineRef.current.binder.bindings() : []),
       )
       setChartReady(true)
+      setChartGen((g) => g + 1)
       // The page's first chart exists (it is created only once its bars are in): the background
       // pack ingests may start now. Once per page; see `afterFirstChartPaint` in barsPackClient.
       markFirstChartPaint()
@@ -16494,7 +16501,7 @@ export default function StockChart({
     return () => {
       try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch {}
     }
-  }, [onTimeRangeChange, chartReady])
+  }, [onTimeRangeChange, chartReady, chartGen])
 
   // ── Multi-chart sync: follow another chart's time range (Task 5 Step 4) ──
   // Off the sync bus, imperatively (see subscribeCrosshair). Compared against what

@@ -92,6 +92,7 @@ import Input from '../../components/ui/Input'
 import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
+import { createGroupSymsStore } from './groupSymsStore'
 // Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
 const LAYOUT_SWITCH_BANNER = false
 
@@ -953,7 +954,11 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   extraGroupsOnRef.current = extraGroupsOn
 
   // Color-group state — seed from prefs or empty.
-  const [groupSyms, setGroupSymsState] = useState(() => {
+  // ⭐ (switch render cuts, 2026-11-20) A STORE, NOT THIS BOARD'S STATE: a symbol switch re-renders the
+  // components that read the workspace (`useWorkspace()` subscribes), never this board, its grid or the
+  // widget hosts (groupSymsStore.js). `groupSyms` is deliberately not a name in this scope: a reader here
+  // takes `groupSymsStore.get()` when it runs.
+  const [groupSymsStore] = useState(() => createGroupSymsStore((() => {
     try {
       const raw = prefs?.charts_workspace_groups
       if (raw) {
@@ -964,7 +969,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       }
     } catch {}
     return { A: null, B: null, C: null, D: null }
-  })
+  })()))
+  const setGroupSymsState = groupSymsStore.set
 
   // The linked ticker updates INSTANTLY (state), but persisting it is debounced —
   // otherwise fast arrow-scanning fires a POST /api/auth/preferences per keypress
@@ -1007,7 +1013,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       }, wait)
       return next
     })
-  }, [writeGroups])
+  }, [writeGroups, setGroupSymsState])
   useEffect(() => {
     // Leaving the board, or the page going away, saves a pending symbol now (a scan's save
     // can be 1.5 s out; a refresh inside that must still open on the symbol left).
@@ -1068,7 +1074,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         groupsLoadedFromPrefsRef.current = true
       }
     } catch { /* malformed pref → keep current */ }
-  }, [prefs?.charts_workspace_groups])
+  }, [prefs?.charts_workspace_groups, setGroupSymsState])
 
   // Crosshair sync bus: a stable pub/sub so a hovered chart can broadcast its
   // crosshair to same-color-group siblings WITHOUT re-rendering the grid at
@@ -1270,8 +1276,9 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // shell mounts no panel and ignores the event). A chart widget reads it and
   // offers a readout row's "Open the rotation map" only where it is true.
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
-    [groupSyms, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
+    // `groupSyms` reads the store when it is read; `useWorkspace()` replaces it with a subscribed snapshot.
+    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
+    [groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
   // ── TERM-021 read-new: the Watchlist column layout rides the board document ──
@@ -1861,7 +1868,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     // else: fits in empty space → place immediately via the setLayout path below.
     setLayout(prev => {
-      const color = bornUnlinked ? 'N' : pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
+      const color = bornUnlinked ? 'N' : pickWidgetColor(prev.widgets, groupSymsStore.get(), extraGroupsOnRef.current)
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
@@ -1959,7 +1966,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       const y = at ? Math.max(56, Math.min(at.y, window.innerHeight - SPAWN_H - 8)) : null
       setFloatSpawns(prev => ({ ...prev, [newId]: { w: SPAWN_W, h: SPAWN_H, x, y } }))
     }
-  }, [scheduleSave, groupSyms, refuseIfBoardFull, setGroupSym])
+  }, [scheduleSave, groupSymsStore, refuseIfBoardFull, setGroupSym])
   // Expose the float-on-create path to the workspace context (a chart's right-click
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
   floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
@@ -2014,7 +2021,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // The ghost was offered while the board had room; something else may have filled it since.
     if (refuseIfBoardFull()) { setPendingAdd(null); return }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
+      const color = pickWidgetColor(prev.widgets, groupSymsStore.get(), extraGroupsOnRef.current)
       let widgets = prev.widgets
       if (cur.mutations && cur.mutations.length) {
         const byId = Object.fromEntries(cur.mutations.map(m => [m.id, m]))
@@ -2048,7 +2055,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       return next
     })
     setPendingAdd(null)
-  }, [groupSyms, scheduleSave, refuseIfBoardFull])
+  }, [groupSymsStore, scheduleSave, refuseIfBoardFull])
   const cancelPendingAdd = useCallback(() => setPendingAdd(null), [])
   // Ghost-mode arrows: move the pending widget one slot in a direction (recomputing
   // its place + the widgets it displaces) before the user commits with Place.
@@ -2144,7 +2151,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
-      const color = pickWidgetColor(widgets, groupSyms, extraGroupsOnRef.current)
+      const color = pickWidgetColor(widgets, groupSymsStore.get(), extraGroupsOnRef.current)
       const newWidget = {
         id,
         type: 'periodsort', color,
@@ -2156,7 +2163,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       return next
     })
     return id
-  }, [scheduleSave, groupSyms])
+  }, [scheduleSave, groupSymsStore])
   const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
@@ -2557,7 +2564,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // UCT Default hidden: the board is already blank (or holds an ?ensure= seed) — leave it.
     if (UCT_DEFAULT_OFFERED || d.fromTemplate) setLayout(d.layout)
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
-  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault])
+  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault, setGroupSymsState])
 
   // New layout → wipe to a blank workspace (no widgets) so the user can build a
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,
@@ -2594,7 +2601,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         setPref('charts_active_template', activeTemplate ? JSON.stringify(activeTemplate) : 'null')
       },
     })
-  }, [commitBoard, suppressAutoSave])
+  }, [commitBoard, suppressAutoSave, setGroupSymsState])
 
   /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
      onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
@@ -2661,7 +2668,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // copied into the open layout's saved row — that is how a stale tab contaminated a layout.
     const [boardOk, groupsOk] = await Promise.all([
       setPref('charts_workspace_layout', serializeLayout(layout)),
-      setPref('charts_workspace_groups', JSON.stringify(groupSyms)),
+      setPref('charts_workspace_groups', JSON.stringify(groupSymsStore.get())),
     ])
     // `false` is setPref's "refused / not saved"; anything else (a confirmed write) goes on.
     // The RESULT is returned for UCT Agent's layout.saveCurrent receipt; the button ignores it.
@@ -2685,7 +2692,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     }
     flashSaved()
     return { ok: named !== 'failed', named }
-  }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
+  }, [layout, groupSymsStore, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
     // Fall back BEFORE awaiting the delete: if the layout you just deleted was
@@ -2957,7 +2964,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     } else {
       showWorkspaceNotice(`Restored version ${v}. Your board now matches it.`)
     }
-  }, [showWorkspaceNotice, suppressAutoSave])
+  }, [showWorkspaceNotice, suppressAutoSave, setGroupSymsState])
   const historyAvailableForNotice = useVersionHistoryAvailable(storedLayoutUnreadable && !isMobile)
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded
@@ -3449,9 +3456,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // widget.add / its undo go through the SAME handlers the Widgets menu and a
   // widget's ✕ use — read through a ref so the host never holds a stale closure.
   const agentWidgetOpsRef = useRef(null)
-  // The link-group tickers as of this render (what a chart's symbol IS, mounted or not).
-  const agentGroupSymsRef = useRef(groupSyms)
-  agentGroupSymsRef.current = groupSyms
+  // The link-group tickers (what a chart's symbol IS, mounted or not) are read from `groupSymsStore` when asked.
   agentWidgetOpsRef.current = {
     // `init` (optional): { tf, symbol } a new chart is BORN with (unlinked, on that
     // ticker and timeframe) instead of being created on a default and then changed;
@@ -3474,7 +3479,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       if (groupsSaveTimerRef.current) { clearTimeout(groupsSaveTimerRef.current); groupsSaveTimerRef.current = null }
       const [board, groups] = await Promise.all([
         setPref('charts_workspace_layout', serializeLayout(layoutRef.current)),
-        setPref('charts_workspace_groups', JSON.stringify(agentGroupSymsRef.current)),
+        setPref('charts_workspace_groups', JSON.stringify(groupSymsStore.get())),
       ])
       if (settle.length) await whenWritesSettle(settle)
       const conflict = hasWorkspaceConflict(['charts_workspace_layout', 'charts_workspace_groups', 'charts_active_template', 'chart_settings'])
@@ -3636,7 +3641,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
       raiseBound: (sentence) => setBoardRefusal(sentence),
-      groupSyms: () => agentGroupSymsRef.current,
+      groupSyms: () => groupSymsStore.get(),
       persist: (opts) => agentWidgetOpsRef.current.persist(opts),
       grid: () => agentWidgetOpsRef.current.grid(),
       minOf: (w) => agentWidgetOpsRef.current.minOf(w),

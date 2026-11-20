@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useLayoutEffect, useMemo, useState, useSyncExternalStore } from 'react'
 
 export const WorkspaceContext = createContext(null)
 
@@ -84,8 +84,64 @@ const FALLBACK = {
   canOpenCompare: false,
 }
 
+const NO_SUBSCRIPTION = () => () => {}
+
+/**
+ * Which renders of ONE component read `groupSyms`, so only those subscribe to it.
+ *
+ * `getSnapshot` is what `useSyncExternalStore` compares: the store's value while the component's last
+ * committed render read `groupSyms`, and otherwise the value it last saw, frozen, so a symbol switch does
+ * not re-render a component that does not print one. A read is the `groupSyms` getter on the returned
+ * value (destructuring it in render is a read). Every read returns the store's CURRENT value, so a
+ * component reading it in a handler or an effect is never handed a stale one, whether it re-renders or not.
+ * Starts as a reader: a first render that reads nothing is settled by its own commit.
+ */
+function makeSymsReadTracker(store) {
+  let readThisRender = false
+  let reads = true
+  let frozen
+  return {
+    store,
+    beginRender: () => { readThisRender = false },
+    commit: () => { reads = readThisRender },
+    getSnapshot: () => { if (reads) frozen = store.get(); return frozen },
+    read: () => { readThisRender = true; return store.get() },
+  }
+}
+
+/**
+ * The workspace a widget lives in.
+ *
+ * ⭐ (switch render cuts, 2026-11-20) The /charts board keeps its colour groups' symbols in a store
+ * (`groupSymsStore.js`) and puts the STORE on the value, so the value does not change on a symbol switch
+ * and the board does not re-render for one. Here the value's `groupSyms` is a getter onto that store, and
+ * a component whose render reads it re-renders when a symbol changes, exactly as it did when the whole
+ * value changed; one that only takes `setGroupSym`, the theme or a bus (every widget host, most list
+ * widgets) does not. A host that supplies a plain `groupSyms` (the breadth drill, the screener, the
+ * Notebook's frozen workspaces) is returned as it is.
+ */
 export function useWorkspace() {
-  return useContext(WorkspaceContext) || FALLBACK
+  const value = useContext(WorkspaceContext) || FALLBACK
+  const store = value.groupSymsStore || null
+  const [tracker, setTracker] = useState(() => (store ? makeSymsReadTracker(store) : null))
+  // A host that swaps its store (a different board) gets a tracker of its own (a render-phase update).
+  const live = tracker && store && tracker.store === store ? tracker : null
+  if (store && !live) setTracker(makeSymsReadTracker(store))
+  if (live) live.beginRender()
+  useLayoutEffect(() => { if (live) live.commit() })
+  const syms = useSyncExternalStore(
+    live ? store.subscribe : NO_SUBSCRIPTION,
+    live ? live.getSnapshot : () => value.groupSyms,
+  )
+  return useMemo(() => {
+    if (!live) return value
+    const out = { ...value }
+    Object.defineProperty(out, 'groupSyms', { enumerable: true, configurable: true, get: live.read })
+    return out
+    // `syms` is read by the getter, not here: a reader still gets a NEW value object when a symbol changes,
+    // as before, so a memo or effect keyed on the whole workspace re-runs for it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, live, syms])
 }
 
 // For hosts OUTSIDE the charts workspace that need to provide one real member
