@@ -257,6 +257,30 @@ export function scriptOf(body) {
     // (only when true: the server's detector says this script reads where the chart ends. What that means on
     // this chart depends on the lane that draws it, which only the window knows: `scriptAnswer.scriptEntry`)
     ...(s.waits_for_the_bar === true ? { waitsForTheBar: true } : {}),
+    ...admissionOf(s.admission),
+  } }
+}
+
+/** The bounds of the admission verdict a script answer may carry (`POST .../runtime-admission`'s own body). */
+export const ADMISSION_LIMITS = Object.freeze({ maxIds: 32, maxIdChars: 80 })
+
+/**
+ * ⭐ THE ADMISSION VERDICT, IN THE ANSWER (2026-11-19). The chart may draw a script bar by bar only once the server
+ * has said so. Asked afterwards, that question could wait behind other members' traffic and the answer read "still
+ * being checked". The server now sends the verdict WITH the script: `{sha256, admitted, missing, historyOnly?}`,
+ * the body its own door answers. Kept only when it is well formed; what it is worth, and whether it is THIS
+ * script's, is decided where it is latched (`scriptAnswer.js`, by the script's own hash).
+ */
+export function admissionOf(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  if (typeof raw.sha256 !== 'string' || !/^[0-9a-fA-F]{64}$/.test(raw.sha256) || typeof raw.admitted !== 'boolean') return {}
+  const ids = (list) => Array.isArray(list) && list.length <= ADMISSION_LIMITS.maxIds
+    && list.every((x) => typeof x === 'string' && x.length > 0 && x.length <= ADMISSION_LIMITS.maxIdChars)
+  if (!ids(raw.missing)) return {}
+  if (raw.historyOnly !== undefined && !ids(raw.historyOnly)) return {}
+  return { admission: {
+    sha256: raw.sha256.toLowerCase(), admitted: raw.admitted, missing: [...raw.missing],
+    ...(raw.historyOnly !== undefined ? { historyOnly: [...raw.historyOnly] } : {}),
   } }
 }
 
