@@ -219,3 +219,20 @@ describe('objects the library hands back are the ones the app holds', () => {
     expect(b.candles.getPane().getSeries()).toContain(b.candles)
   })
 })
+
+describe('a method the library object lacks, the facade lacks too', () => {
+  it('a double without panes / getPane / attachPrimitive feature-tests as without them (no throwing stand-in)', () => {
+    const series = { setData() {}, update() {}, applyOptions() {}, data: () => [] }
+    const tsd = { getVisibleLogicalRange: () => null, setVisibleLogicalRange() {}, subscribeVisibleLogicalRangeChange() {}, unsubscribeVisibleLogicalRangeChange() {} }
+    const chart = createWindowedChart({ addSeries: () => ({ ...series }), removeSeries() {}, timeScale: () => tsd })
+    const s = chart.addSeries(LineSeries, {})
+    expect(typeof s.getPane).toBe('undefined')
+    expect(typeof s.attachPrimitive).toBe('undefined')
+    expect(typeof s.dataByIndex).toBe('undefined')
+    expect(typeof chart.panes).toBe('undefined')
+    expect(typeof chart.subscribeCrosshairMove).toBe('undefined')
+    expect(typeof chart.timeScale().timeToCoordinate).toBe('undefined')
+    expect(typeof chart.timeScale().getVisibleLogicalRange).toBe('function')
+    expect(typeof chart.window.setWindow).toBe('function')
+  })
+})
