@@ -42,7 +42,7 @@ import {
   selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars, neverNaBoolNamesOf, isBoolishTree,
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
-  carryShapeVersion, beginPaletteScope, endPaletteScope,
+  carryShapeVersion, beginPaletteScope, endPaletteScope, v6BoolHistoryServed,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
@@ -9410,6 +9410,22 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     return folded === null ? null : folded !== 0
   }
 
+  /** ⭐⭐ Q-BH0 (NUMBER PENDING) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false` (captures
+   *  `vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19`; the rule and why only those bars: `pine.js::v6BoolHistory`,
+   *  which the columnar lane's reads take). `h` is a WRITTEN `x[back]` (a whole `back` ≥ 1) as this lane lowered it;
+   *  a v6 `bool` (`exprTypeIn`, judged at the read's token: a v5 library keeps `na`) becomes `na(close[back]) ? 0 : h`.
+   *  The chart's own `close` stands for "a bar exists `back` bars before this one": it is `na` exactly on the first
+   *  `back` bars, and inside a request's value it is the requested bars' (`OP.READ_SERIES_HIST`). ⛔ Never by cloning
+   *  `node` (the lane's WeakMaps key on its identity): the wrap is of what was lowered. */
+  const v6BoolHistoryIr = (node, scope, h, back) => {
+    if (!v6BoolHistoryServed()) return h
+    if (!(versionAt(node.tok, pineVersion) >= 6) || !Number.isInteger(back) || back < 1) return h
+    let ty = null
+    try { ty = exprTypeIn(node.arg, scope, null) } catch { ty = null }
+    if (!ty || ty === NA_TY || ty.kind !== 'bool') return h
+    return ternary(irBuiltin('na', [hist(series('close'), back)]), num(0), h)
+  }
+
   const lowerExpr = (node, scope, opts) => {
     if (!node || typeof node !== 'object') {
       throw new RuntimeRefusal('runtime:statement', 'an expression this front end cannot read')
@@ -10227,7 +10243,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             // the PREVIOUS bar — one bar wrong in the one case nobody checks.
             if (hb === 0) return read(hoisted.slot)
             slotHistoryGuard(hoisted.slot, at)
-            return histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, at), hb)
+            // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistoryIr`), here and below
+            return v6BoolHistoryIr(node, scope, histSlot(hoisted.slot, hoistedHistorySlot(hoisted.slot, hb, at), hb), hb)
           }
           let varSlot = scope.lookup(node.arg.name)
           // ⭐⭐ U-FGS F2 — `g[k]` of a mutable global inside a function body: the history of its value AT THE CALL,
@@ -10255,8 +10272,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           // FRAME-RELATIVE, exactly like a persist slot: the runtime adds the call
           // site's `historyBase`, so one compiled body serves every site and two
           // sites can never share a ring.
-          if (owner !== null) return histSlot(varSlot, fnHistorySlotFor(owner, varSlot, back, at), back)
-          return histSlot(varSlot, historySlotFor(varSlot, back, at), back)
+          if (owner !== null) return v6BoolHistoryIr(node, scope, histSlot(varSlot, fnHistorySlotFor(owner, varSlot, back, at), back), back)
+          return v6BoolHistoryIr(node, scope, histSlot(varSlot, historySlotFor(varSlot, back, at), back), back)
         }
         // ⭐⭐ A COLUMN'S PAST IS MATERIALISED, SO ANY OFFSET IS ANSWERABLE.
         // The whole series was computed before the bar loop started, so `[n]`
@@ -10338,9 +10355,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
           const slot = scope.declare(tmp, newSlot(tmp, false))
           hoistSink.push(declare(slot, lowerExpr(node.arg, scope)))
           slotHistoryGuard(slot, at)
-          return histSlot(slot, hoistedHistorySlot(slot, back, at), back)
+          return v6BoolHistoryIr(node, scope, histSlot(slot, hoistedHistorySlot(slot, back, at), back), back)
         }
-        return hist(column(columnOf(node.arg, locate(node.tok))), back)
+        return v6BoolHistoryIr(node, scope, hist(column(columnOf(node.arg, locate(node.tok))), back), back)
       }
       case 'call': {
         // ⭐⭐ DRAW-1 — `box(na)` is `na` (the reference: "Casts na to box"); its type
