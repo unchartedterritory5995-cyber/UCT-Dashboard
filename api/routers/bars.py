@@ -535,6 +535,41 @@ def _is_breadth_derived_indicator(ticker: str) -> bool:
         return False
 
 
+#: Seconds a member's chart waits before asking again when the tier is unreachable (a deploy swap is seconds).
+TIER_DOWN_RETRY_AFTER_S = 2
+_INTRADAY_TFS = ("1", "5", "15", "30", "60")
+
+
+def _tier_down_cold_tail(ticker: str, tf: str, to: str):
+    """The warming 503 for an INTRADAY read whose tier proxy just failed and whose LOCAL tail is cold-stale
+    (missing a whole session, `bars_fetch._is_cold_stale_intraday`), else None (serve locally as before).
+
+    ⛔⛔ MEASURED ON PRODUCTION 2026-11-20, 16:52:49Z. A bars-api deploy swap left the tier unreachable; the edge
+    hedged a signed-in read to web after 1.2 s; web re-proxied it to the same tier, waited out the 2.0 s connect
+    timeout (`_proxy_bars_to_tier`), and served its LOCAL store. Nothing heals that store while every read is
+    proxied (`BARS_PROXY_PCT=100`), so RDDT 5m came back with a 13:50 ET tail from the day before, 22 hours old,
+    as a 200 that looked current. A deliberate warming 503 instead: the client keeps the rows it holds and asks
+    again after `TIER_DOWN_RETRY_AFTER_S`, by which time the tier is back.
+    ⚠️ Scope: intraday reads only, and not a replay (`to`) or an index (its store is not bars.db). A daily read
+    keeps the local fallback (its own catch-up rules apply). A tail that is merely behind within today's session
+    still falls back locally: answering 503 for every chart during a longer outage would trade a slightly old
+    chart for none. A tail we cannot read is served as before (abstain)."""
+    if to or tf not in _INTRADAY_TFS or is_index(ticker):
+        return None
+    try:
+        last_ts = _bars_fetch._sqlite.get_last_ts(ticker.upper(), tf)
+        if last_ts is None or not _bars_fetch._is_cold_stale_intraday(tf, last_ts):
+            return None
+    except Exception:  # noqa: BLE001 - abstain: the local serve decides as it always has
+        return None
+    resp = JSONResponse(status_code=503, content={
+        "ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True, "error": "tier_unreachable"})
+    resp.headers["Retry-After"] = str(TIER_DOWN_RETRY_AFTER_S)
+    resp.headers["X-Bars-Shed"] = "tier-unreachable"
+    resp.headers["Cache-Control"] = "no-store, must-revalidate"
+    return resp
+
+
 def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     """Canary gate for the hot-path proxy. Routes a real read to the tier ONLY when
     BARS_PROXY_ENABLED=1 AND a per-request draw falls under BARS_PROXY_PCT (0-100).
@@ -657,7 +692,12 @@ async def get_bars(
             _extra = (session,) if session else ()
             return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin, *_extra)
         except Exception:
-            pass  # tier unreachable/slow/error → fall through to local serve (today's path)
+            # tier unreachable/slow/error → fall through to local serve (today's path), EXCEPT an intraday
+            # read whose local tail is cold-stale: see `_tier_down_cold_tail`.
+            from starlette.concurrency import run_in_threadpool as _shed_pool
+            _shed = await _shed_pool(_tier_down_cold_tail, ticker, tf, to)
+            if _shed is not None:
+                return _shed
     # Local serve is SYNC (SQLite/provider I/O) → run it in the threadpool so it never
     # blocks the event loop (this route is async now for the proxy path). Behaviourally
     # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.

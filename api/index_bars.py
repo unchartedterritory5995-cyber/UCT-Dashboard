@@ -931,6 +931,50 @@ def _tail_ended_since_saved(series: list, tf: str, saved_at, now: float) -> bool
     return end is not None and float(saved_at) < end <= float(now)
 
 
+def _session_close_ts(t) -> Optional[float]:
+    """Unix seconds at which the regular session of the ET day holding instant `t` closes (half-day aware), or None
+    (no session that day, or an unreadable calendar: abstain)."""
+    try:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        from api.services.session_calendar import close_time
+        close = close_time(datetime.fromtimestamp(float(t), ZoneInfo("America/New_York")).date())
+        return close.timestamp() if close is not None else None
+    except Exception:  # noqa: BLE001 - abstain, never guess
+        return None
+
+
+def _missing_bar_ended_since_saved(series: list, tf: str, saved_at, now: float) -> bool:
+    """True when the bar AFTER an intraday copy's newest has ended since the copy was stored, inside the session.
+
+    ⭐ 2026-11-20, production re-probe after D8: the tier's 1m refresh at 18:36:01Z got a series whose newest
+    bar was 18:35, because the vendor had not published the new minute one second in. A signed-in probe saw the
+    same at 13:36 ET. That copy's newest bar had already ENDED when it was stored, so `_tail_ended_since_saved`
+    (correctly) does not fire, and the copy was answered "fresh" 1, then 2, bars behind until its TTL ran out.
+    The copy never held the bar that has ended since, so it is behind; once per bar it is asked again.
+
+    ⛔ NEVER OUTSIDE THE SESSION: a newest bar that ends at its session's close has no next bar to wait for
+    until the next open (TTL and the cold-stale rule cover the night)."""
+    if not series or saved_at is None or not isinstance(series[-1], dict):
+        return False
+    nxt = _intraday_bar_end(series[-1].get("t"), tf)        # the next bar opens where the newest ends
+    if nxt is None:
+        return False
+    close = _session_close_ts(nxt)
+    if close is None or nxt >= close:
+        return False
+    end = _intraday_bar_end(nxt, tf)
+    return end is not None and float(saved_at) < end <= float(now)
+
+
+def _copy_behind_since_saved(series: list, tf: str, saved_at, now: float) -> bool:
+    """A bar boundary has passed since the copy was stored, inside the session: its newest bar was forming and has
+    ended (`_tail_ended_since_saved`, which D7 also withholds), or the bar after it has ended and the copy never
+    held it (`_missing_bar_ended_since_saved`). Such a copy is refreshed in the request (`_cached_series`)."""
+    return (_tail_ended_since_saved(series, tf, saved_at, now)
+            or _missing_bar_ended_since_saved(series, tf, saved_at, now))
+
+
 def _settled_partial_withheld(series: list, tf: str, saved_at, now: float) -> list:
     """`series` without a newest bar that was still forming when the copy was stored and has ended since (see above)."""
     return series[:-1] if _tail_ended_since_saved(series, tf, saved_at, now) else series
@@ -1005,7 +1049,12 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     copy is refreshed in the request; the copy that refresh stores holds the new bar and stays fresh until THAT bar
     ends, so a read pays one vendor call per bar. A vendor that answers nothing leaves the withheld copy, answered as
     stale, and the next request asks again, one vendor read at a time like the cold-stale rule (rails D8a-D8d,
-    tests/test_index_bars_depth.py)."""
+    tests/test_index_bars_depth.py).
+
+    ⭐ AND ONE STORED WITHOUT THE BAR NOW FORMING (2026-11-20, the re-probe after D8, rails D9a-D9b): a refresh the
+    vendor answered one second into a minute, before it published that minute, is behind once that bar ends, though
+    its own newest bar had ended before it was stored (`_missing_bar_ended_since_saved`, inside the session only).
+    Both cases are one test, `_copy_behind_since_saved`."""
     from api.services.cache import cache
     ttl = _TTL.get(tf, 300)
     now = _now()
@@ -1024,7 +1073,7 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
     if mem and mem.get("series"):
         info["saved_at"] = mem.get("saved_at")
         info["repair"] = mem.get("repair")
-        ended = _tail_ended_since_saved(mem["series"], tf, mem.get("saved_at"), now)
+        ended = _copy_behind_since_saved(mem["series"], tf, mem.get("saved_at"), now)
         if now - mem.get("saved_at", 0) <= ttl and not ended:
             return mem["series"], "index-mem"
         if ended or _cold_stale(tf, mem.get("saved_at"), now):
@@ -1040,7 +1089,7 @@ def _cached_series(sym: str, tf: str, info: Optional[dict] = None):
         info["saved_at"] = disk.get("saved_at")
         info["repair"] = disk.get("repair")
         cache.set(mkey, disk, ttl=max(ttl, 60))
-        ended = _tail_ended_since_saved(disk["series"], tf, disk.get("saved_at"), now)
+        ended = _copy_behind_since_saved(disk["series"], tf, disk.get("saved_at"), now)
         if now - disk.get("saved_at", 0) <= ttl and not ended:
             return disk["series"], "index-disk"
         if ended or _cold_stale(tf, disk.get("saved_at"), now):
