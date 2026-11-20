@@ -161,8 +161,9 @@ describe('⭐⭐ the seed rule, in one place', () => {
     expect(Array.from(FN.rma(Float64Array.from([1, 2, 3]), 1e9)).every(Number.isNaN)).toBe(true)
   })
   it('Pine\'s `ta.rsi` seeds its two averages with it on both lanes; the native RSI keeps its running sum', () => {
-    // a series whose first 14 gains sum differently left to right and exactly
-    const xs = [100, 100.1, 100.3, 100.6, 101, 1e15, 101.2, 101.9, 102.5, 101, 103.3, 103.1, 104.4, 104.2, 105, 104.7, 106, 107]
+    // a series whose first 14 gains AND first 14 losses each sum differently left to right and exactly, and whose
+    // RSI at the seed bar moves with either (found by search, full-mantissa changes)
+    const xs = [1.0, 0.08513142716515376, 0.26450432796846135, -0.6968740493371657, -0.6686217707526267, 0.28467050189498866, -0.13483588426384863, 0.8136038097389895, 1.0856661535959158, 1.8536403272903765, 0.8929815813164688, 1.3642695644559, 1.3976779665468781, 1.6063691965582843, 1.3623283854693915, 2.3162751563285995, 2.6268283625639546, 3.077984480852563]
     const bars = xs.map((c, i) => ({ t: i, c }))
     const col = (pts) => xs.map((_, i) => (pts[i] && typeof pts[i].value === 'number' ? pts[i].value : NaN))
     const pine = col(computeRSI(bars, 14, { seedMean: rmaSeedMean }))

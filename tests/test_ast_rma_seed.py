@@ -119,11 +119,45 @@ def test_the_python_rma_draws_tradingviews_adx_at_every_separating_seed_and_ever
     assert 100 * (total / adx_len) != tv[title][bar]
 
 
+def _rsi_longhand(xs, n, seed):
+    """Pine's ``ta.rsi`` (two ``ta.rma``s of the gains and losses), written out here (never imported)."""
+    out = [None] * len(xs)
+    gains, losses = [], []
+    up = down = None
+    for i in range(1, len(xs)):
+        d = xs[i] - xs[i - 1]
+        g, lo = (d if d > 0 else 0.0), (-d if d < 0 else 0.0)
+        if up is None:
+            gains.append(g)
+            losses.append(lo)
+            if len(gains) < n:
+                continue
+            up, down = seed(gains) / n, seed(losses) / n
+        else:
+            up, down = (up * (n - 1) + g) / n, (down * (n - 1) + lo) / n
+        out[i] = 100.0 if down == 0 else (0.0 if up == 0 else 100 - 100 / (1 + up / down))
+    return out
+
+
+def _left_to_right(values):
+    total = 0.0
+    for v in values:
+        total += v
+    return total
+
+
+#: the first 14 gains AND the first 14 losses each sum differently left to right and exactly, and the RSI at the
+#: seed bar moves with either (found by search; full-mantissa changes)
+RSI_XS = [1.0, 0.08513142716515376, 0.26450432796846135, -0.6968740493371657, -0.6686217707526267, 0.28467050189498866, -0.13483588426384863, 0.8136038097389895, 1.0856661535959158, 1.8536403272903765, 0.8929815813164688, 1.3642695644559, 1.3976779665468781, 1.6063691965582843, 1.3623283854693915, 2.3162751563285995, 2.6268283625639546, 3.077984480852563]
+
+
 def test_pine_rsi_seeds_with_it_and_the_native_rsi_keeps_its_running_sum():
-    xs = [100, 100.1, 100.3, 100.6, 101, 1e15, 101.2, 101.9, 102.5, 101, 103.3, 103.1, 104.4, 104.2, 105, 104.7, 106, 107]
+    xs = RSI_XS
     pine = compute_rsi_raw(xs, 14, seed_mean=ast_interpret._rma_seed_mean)
     native = compute_rsi_raw(xs, 14)
-    assert pine != native  # the fixture separates the two seeds
+    assert pine == _rsi_longhand(xs, 14, math.fsum)
+    assert native == _rsi_longhand(xs, 14, _left_to_right)
+    assert pine[14] != native[14]  # the fixture separates the two seeds at the seed bar
     got = ast_interpret.FN_PINE["rsi"](xs, 14)
     assert [None if _na(v) else v for v in got] == pine
     plain = ast_interpret.FN["rsi"](xs, 14)
