@@ -98,12 +98,25 @@ const WINDOW_CTL = Symbol('windowControl')
 /** The library object behind a facade object (or the object itself). */
 export function rawOf(x) { return (x && x[RAW]) || x }
 
+function passThrough(chart) {
+  const inert = {
+    setWindow() {}, windowStart: () => 0, windowStartTime: () => null, ensureFrom() {}, raw: () => chart,
+    onChange: () => () => {}, setPrimary() {},
+  }
+  try { Object.defineProperty(chart, 'window', { value: inert, configurable: true }) } catch { /* frozen double */ }
+  return chart
+}
+
 /**
  * @param {object} chart  the library chart (createChart)
  * @param {object} [o]
  * @param {() => boolean} [o.disabled]   the per-browser switch (default: localStorage)
  */
 export function createWindowedChart(chart, { disabled = renderWindowDisabled } = {}) {
+  // ⛔ OFF MEANS OFF: switched off in this browser, the app gets the library chart ITSELF (every series, pane and
+  // callback object exactly as before), with an inert control so callers need no branch. A rollback that still
+  // wrapped would still change object identity, which is what a rollback is for ruling out.
+  if (disabled()) return passThrough(chart)
   const st = {
     ws: 0,               // the window's first full index (of the primary series)
     wsTime: null,        // its time: every other series is cut from here
@@ -258,6 +271,27 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
     },
   })
 
+  // ⛔ A PANE ANSWERS WITH THE APP'S SERIES. The library's `pane.getSeries()` returns its own series objects; the app
+  // keys its maps by the wrapped ones (paneLayout's byPane, the readout placement), so a raw answer would match
+  // nothing. One proxy per library pane, so a pane read twice is the same object.
+  const paneProxies = new WeakMap()
+  function wrapPane(p) {
+    if (!p || typeof p !== 'object') return p
+    let w = paneProxies.get(p)
+    if (!w) {
+      w = new Proxy(p, {
+        get(target, prop) {
+          if (prop === RAW) return target
+          if (prop === 'getSeries') return () => (target.getSeries() || []).map((s) => byRaw.get(s) || s)
+          const v = target[prop]
+          return typeof v === 'function' ? v.bind(target) : v
+        },
+      })
+      paneProxies.set(p, w)
+    }
+    return w
+  }
+
   function wrapPrimitive(p) {
     if (!p || typeof p.attached !== 'function' || p.__wcWrapped) return p
     const orig = p.attached.bind(p)
@@ -326,6 +360,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
             return b ? { ...b, barsBefore: b.barsBefore + st.ws } : b
           }
           case 'attachPrimitive': return (p, ...rest) => target.attachPrimitive(wrapPrimitive(p), ...rest)
+          case 'getPane': return () => wrapPane(target.getPane())
           default: {
             const v = target[prop]
             return typeof v === 'function' ? v.bind(target) : v
@@ -420,6 +455,7 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
           if (primary === w) primary = null
           return target.removeSeries(raw)
         }
+        case 'panes': return () => (target.panes() || []).map(wrapPane)
         case 'setCrosshairPosition': return (price, time, s) => target.setCrosshairPosition(price, time, rawOf(s))
         case 'subscribeCrosshairMove': return sub('crosshair', 'subscribeCrosshairMove')
         case 'unsubscribeCrosshairMove': return unsub('crosshair', 'unsubscribeCrosshairMove')

@@ -143,11 +143,13 @@ describe('the render window facade', () => {
     expect(rawOf(b.ma).data().length).toBe(N - 20)              // the library leaves out the 20 warm-up whitespace points
   })
 
-  it('switched off in this browser: a pure pass-through', () => {
+  it('switched off in this browser: a pure pass-through, the library objects themselves', () => {
     localStorage.setItem(RENDER_WINDOW_OFF_KEY, '1')
     const b = board(); load(b)
     expect(b.chart.window.windowStart()).toBe(0)
     expect(rawOf(b.candles).data().length).toBe(N)
+    expect(rawOf(b.chart)).toBe(b.chart)                         // no wrapper anywhere: identity as before
+    expect(rawOf(b.candles)).toBe(b.candles)
   })
 
   it('a short chart is never windowed (too little to save)', () => {
@@ -204,5 +206,16 @@ describe('every way the app adds a series takes the window', () => {
     load(b)
     thin.setData(VOL)
     expect(rawOf(thin).data()[0].time).toBeGreaterThanOrEqual(b.chart.window.windowStartTime())
+  })
+})
+
+describe('objects the library hands back are the ones the app holds', () => {
+  it('a pane answers with the series the app holds (and is the same pane read twice)', () => {
+    const b = board(); load(b)
+    const pane = b.chart.panes()[0]
+    expect(pane.getSeries()).toContain(b.candles)
+    expect(pane.getSeries()).toContain(b.ma)
+    expect(b.chart.panes()[0]).toBe(pane)
+    expect(b.candles.getPane().getSeries()).toContain(b.candles)
   })
 })
