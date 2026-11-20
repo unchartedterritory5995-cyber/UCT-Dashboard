@@ -1,7 +1,7 @@
 // A single symbol switch reconnects the live pools at once; a keyboard scan still waits the debounce
 // (owner 2026-11-20: a typed 1m switch showed the live candle ~1 s late; the pool waited a flat 400 ms).
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { rebuildDelay, REBUILD_GATHER_MS } from './streamRebuildDelay'
+import { newRebuildClock, rebuildDelayFor, noteRebuilt, REBUILD_GATHER_MS } from './streamRebuildDelay'
 import * as bars from './barsStreamManager'
 import * as prices from './priceStreamManager'
 
@@ -12,11 +12,16 @@ class MockES {
   close() { this.closed = true }
 }
 
-describe('rebuildDelay', () => {
-  it('idle → gather only; just reconnected → the full debounce', () => {
-    expect(rebuildDelay(-Infinity, 1000, 400)).toBe(REBUILD_GATHER_MS)
-    expect(rebuildDelay(0, 400, 400)).toBe(REBUILD_GATHER_MS)
-    expect(rebuildDelay(0, 399, 400)).toBe(400)
+describe('rebuildDelayFor', () => {
+  it('quiet → gather; within the gather → gather; busy (a recent change or reconnect) → the full debounce', () => {
+    const c = newRebuildClock()
+    expect(rebuildDelayFor(c, 1000, 400, false)).toBe(REBUILD_GATHER_MS)   // quiet pool
+    expect(rebuildDelayFor(c, 1010, 400, true)).toBe(REBUILD_GATHER_MS)    // same switch, gather pending
+    noteRebuilt(c, 1040)
+    expect(rebuildDelayFor(c, 1300, 400, false)).toBe(400)                 // just reconnected
+    expect(rebuildDelayFor(c, 1500, 400, true)).toBe(400)                  // a scan: busy from the last change
+    expect(rebuildDelayFor(c, 1800, 400, true)).toBe(400)                  // 760 ms after the reconnect, still busy
+    expect(rebuildDelayFor(c, 2300, 400, false)).toBe(REBUILD_GATHER_MS)   // rested 500 ms: quiet again
     expect(REBUILD_GATHER_MS).toBeLessThan(50)
   })
 })
@@ -57,6 +62,26 @@ describe.each([
     expect(MockES.instances.length).toBe(1)
     expect(MockES.instances[0].url).toContain('SPY')
     expect(MockES.instances[0].url).toContain('QQQ')
+  })
+
+  it('a sustained keyboard scan (a row every 200 ms) reconnects ONCE, after it stops', () => {
+    sub('AAA')
+    vi.advanceTimersByTime(REBUILD_GATHER_MS + 1)
+    expect(MockES.instances.length).toBe(1)
+    vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS + 100)   // rested: the scan starts on a quiet pool
+    const before = MockES.instances.length
+    let un = sub('R0')
+    vi.advanceTimersByTime(REBUILD_GATHER_MS + 1)            // the first row of the scan connects at once
+    expect(MockES.instances.length).toBe(before + 1)
+    for (let i = 1; i <= 12; i++) {                          // 12 more rows, 200 ms apart (2.4 s)
+      vi.advanceTimersByTime(200 - REBUILD_GATHER_MS - 1)
+      un(); un = sub('R' + i)
+      vi.advanceTimersByTime(REBUILD_GATHER_MS + 1)
+    }
+    expect(MockES.instances.length).toBe(before + 1)         // nothing during the scan
+    vi.advanceTimersByTime(mgr.REBUILD_DEBOUNCE_MS)
+    expect(MockES.instances.length).toBe(before + 2)         // one reconnect after it stops
+    expect(MockES.instances.at(-1).url).toContain('R12')
   })
 
   it('a scan (a change right after a reconnect) waits the full debounce', () => {
