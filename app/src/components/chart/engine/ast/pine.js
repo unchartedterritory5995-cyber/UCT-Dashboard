@@ -8416,20 +8416,6 @@ function tickDoorOnly(n = 1) {
   checkDoorClock(null)
 }
 
-/** `[...a, b, ...c]` written as `tokensTicking(a, b, c)`: every array part is spread and every other part is one
- *  token (`Array.prototype.concat`: the same array as the spread, as one bulk copy), charged to the door by the tokens
- *  it copies (`tickDoorOnly`) BEFORE the copy, so a fold that has run past the deadline copies nothing more.
- *  ⚰️ An element-by-element copy with a tick per element made one public script's door call run on past the
- *  deadline where the spread had finished, measured: the copy stays a bulk copy. */
-function tokensTicking(...parts) {
-  if (doorWindowOpen()) {
-    let n = 0
-    for (const part of parts) n += Array.isArray(part) ? part.length : 1
-    tickDoorOnly(n)
-  }
-  return [].concat(...parts)
-}
-
 /** A checkpoint between phases (`doorDeadline.js::checkDoorDeadline`), raising the translator's own refusal. */
 function checkDoorClock(tok) {
   if (!doorWindowOpen()) return
@@ -11263,23 +11249,31 @@ export class Resolver {
       // running value only through slots that exist (`has`).
       // ⭐ door-deadline — THESE FOLDS ARE BUILT BY COPYING, AND THE UNSHIFT ONE DOUBLES EVERY SLOT (its running
       // value appears in both arms), so it is the one walk of a translation no budget bounded: measured, most of a
-      // member-door call that ran for minutes on a public script. `tokensTicking` is the same concatenation, ticking the door
-      // (`tickDoorOnly`: a no-op with no door window, so the tokens and every answer are unchanged).
-      const step = (acc, j) => (member === 'max' || member === 'min'
-        ? tokensTicking(I(`math.${member}`), P('('), acc, P(','), v(j), P(')'))
-        : tokensTicking(P('('), acc, P('+'), v(j), P(')')))
+      // member-door call that ran for minutes on a public script. Each step of the fold is charged to the door BEFORE
+      // its copies are made, by the tokens it carries (`tickDoorOnly` in `step`, which both orders call once a slot: a
+      // no-op with no door window, so the tokens and every answer are unchanged), and the copies themselves are the
+      // spreads they always were.
+      // ⚰️ MEASURED, BOTH WAYS IT WENT WRONG: a copy token by token, ticking each, ran one public script's call on to
+      // the deadline where the spread had finished; a bulk `concat` made the worker exit at once, every time. Keep the
+      // spreads.
+      const step = (acc, j) => {
+        tickDoorOnly(acc.length)
+        return member === 'max' || member === 'min'
+          ? [I(`math.${member}`), P('('), ...acc, P(','), ...v(j), P(')')]
+          : [P('('), ...acc, P('+'), ...v(j), P(')')]
+      }
       if (w.order === 'unshift') {
         // index order j = 0, 1, …: acc_j = has(j) ? step(acc_{j-1}, j) : acc_{j-1}
         body = v(0)
         for (let j = 1; j < w.cap; j += 1) {
-          body = tokensTicking(P('('), has(j), P('=='), N(1), P('?'), step(body, j), P(':'), body, P(')'))
+          body = [P('('), ...has(j), P('=='), N(1), P('?'), ...step(body, j), P(':'), ...body, P(')')]
         }
       } else {
         // index order is oldest first — j = size−1 down to 0:
         // acc_j = has(j+1) ? step(acc_{j+1}, j) : v(j)
         body = v(w.cap - 1)
         for (let j = w.cap - 2; j >= 0; j -= 1) {
-          body = tokensTicking(P('('), has(j + 1), P('=='), N(1), P('?'), step(body, j), P(':'), v(j), P(')'))
+          body = [P('('), ...has(j + 1), P('=='), N(1), P('?'), ...step(body, j), P(':'), ...v(j), P(')')]
         }
       }
       if (member === 'avg') body = [P('('), ...body, P(')'), P('/'), ...sizeToks()]

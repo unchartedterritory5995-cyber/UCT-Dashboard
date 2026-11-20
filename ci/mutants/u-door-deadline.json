@@ -60,8 +60,8 @@
    "id": "D7",
    "mutant": "the doubling window fold no longer charges the door (it copies on, 2^slots, after the deadline)",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "    tickDoorOnly(n)",
-   "to": "    void n",
+   "from": "        tickDoorOnly(acc.length)",
+   "to": "        void acc",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorDeadline.test.js",
    "expectRed": "doubling window fold"
   }
