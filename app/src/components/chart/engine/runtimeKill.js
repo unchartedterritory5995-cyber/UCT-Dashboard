@@ -579,11 +579,19 @@ let _consultLog = null
 export function recordRuntimeConsults(log) {
   _consultLog = Array.isArray(log) ? log : null
 }
+let _noteHashOf = { source: null, hash: null }
 function noteConsult(fn, arg) {
   if (!_consultLog) return
   const a = arg && typeof arg === 'object' ? arg : {}
+  // ⭐ the script's hash rides with the consult, computed HERE (the worker), so the page's replay never hashes a script:
+  // a consult given both reads the hash and keeps the source for an ask, exactly as one given the source alone
+  let hash = typeof a.hash === 'string' && a.hash ? a.hash : null
+  if (!hash && typeof a.source === 'string') {
+    if (_noteHashOf.source !== a.source) _noteHashOf = { source: a.source, hash: runtimeSourceHash(a.source) }
+    hash = _noteHashOf.hash
+  }
   _consultLog.push({ fn, ...(typeof a.source === 'string' ? { source: a.source } : {}),
-    ...(typeof a.defId === 'string' ? { defId: a.defId } : {}), ...(typeof a.hash === 'string' ? { hash: a.hash } : {}) })
+    ...(typeof a.defId === 'string' ? { defId: a.defId } : {}), ...(hash ? { hash } : {}) })
 }
 
 /** Make, on this page, the consults a build made in the worker (`recordRuntimeConsults`), in order: the page's
