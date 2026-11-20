@@ -8477,7 +8477,24 @@ export function historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts
   if (!mask) return null
   let drawn = column === undefined || column === null
   if (!drawn) for (let i = 0; i < mask.length; i++) if (mask[i] && Number.isFinite(column[i])) { drawn = true; break }
-  if (drawn) nameChartClock(opts, [HISTORY_BEFORE_CHART_CODE], opts.tf)
+  if (drawn) {
+    nameChartClock(opts, [HISTORY_BEFORE_CHART_CODE], opts.tf)
+    // ⭐⭐ PER BAR, NOT WHOLE (coordinator ruling (A), 2026-11-20) — the bars this code takes a drawn value away from,
+    // in the per-bar channel (`opts.withheldBarsSink`, the plot's `__withheldBars`): the headless lane reports them per
+    // output (`withheld: [{code, bars}]`) and computes the script, where it refused it whole on any named chart-clock row
+    // (`headlessCompute.js::hostRefusalOf`); the vendor harness grades them "not compared". A bar already blank is not
+    // one of them.
+    const sink = opts.withheldBarsSink
+    if (sink && typeof sink.set === 'function') {
+      const taken = new Float64Array(mask.length)
+      for (let i = 0; i < mask.length; i++) {
+        taken[i] = mask[i] && (column === undefined || column === null || Number.isFinite(column[i])) ? 1 : 0
+      }
+      const had = sink.get(HISTORY_BEFORE_CHART_CODE)
+      if (had && had.length === taken.length) for (let i = 0; i < taken.length; i++) had[i] = had[i] || taken[i]
+      else sink.set(HISTORY_BEFORE_CHART_CODE, taken)
+    }
+  }
   return mask
 }
 
