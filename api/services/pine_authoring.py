@@ -205,18 +205,32 @@ def _last_bar_said(ref: Optional[Mapping[str, Any]] = None) -> str:
             "`if barstate.islast`.")
 
 
-def waits_for_the_bar(script: Any, ref: Optional[Mapping[str, Any]] = None) -> bool:
+def script_capabilities(script: Any) -> Optional[frozenset]:
+    """The server's own capability detector on THIS script, run ONCE per script answer: the set answers
+    both `waits_for_the_bar` and the admission verdict that rides the answer
+    (`runtime_definitions.script_answer_admission`). ``None`` for an unreadable script or a detector that
+    raised (the engine's verdict still stands; the window then asks the verdict door as before)."""
+    if not isinstance(script, str) or not script.strip():
+        return None
+    from api.services import pine_capabilities
+    try:
+        return frozenset(pine_capabilities.capabilities_of(script))
+    except Exception:                              # noqa: BLE001 -- the engine's verdict still stands
+        return None
+
+
+def waits_for_the_bar(script: Any, ref: Optional[Mapping[str, Any]] = None,
+                      caps: Optional[frozenset] = None) -> bool:
     """Does THIS script read where the chart ends, so that it is drawn only on a finished bar? The server's
-    own capability detector, asked about the worded history-only capabilities. Fails closed to False only on
-    an unreadable script (which the engine refuses anyway)."""
+    own capability detector, asked about the worded history-only capabilities (`caps`: its set when the
+    caller already has it, `script_capabilities`). Fails closed to False only on an unreadable script
+    (which the engine refuses anyway)."""
     worded = set(history_only(ref)) & set(HISTORY_ONLY_READS)
     if not worded or not isinstance(script, str) or not script.strip():
         return False
-    from api.services import pine_capabilities
-    try:
-        return bool(set(pine_capabilities.capabilities_of(script)) & worded)
-    except Exception:                              # noqa: BLE001 -- the engine's verdict still stands
-        return False
+    if caps is None:
+        caps = script_capabilities(script)
+    return bool(caps is not None and set(caps) & worded)
 
 
 def said_with_the_bar(said: Any, waits: bool) -> str:

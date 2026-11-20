@@ -106,7 +106,8 @@ _DIFF = ('if git rev-parse -q --verify HEAD^2 >/dev/null; then git diff --name-o
 
 def test_the_plan_job_reads_the_prs_own_diff_and_hands_count_n_and_shards_on():
     job = _job("app-src-plan")
-    assert job["outputs"] == {k: "${{ steps.plan.outputs.%s }}" % k for k in ("count", "n", "shards")}
+    want = {k: "${{ steps.plan.outputs.%s }}" % k for k in ("count", "n", "shards")}
+    assert {k: job["outputs"].get(k) for k in want} == want      # (the vitest half adds its own v* outputs)
     assert next(s for s in job["steps"] if s.get("uses") == "actions/checkout@v4")["with"]["fetch-depth"] == 2
     plan = next(s for s in job["steps"] if s.get("id") == "plan")
     assert _DIFF in plan["run"], "the diff must be the merge commit against its base, and unknown -> empty -> ALL"

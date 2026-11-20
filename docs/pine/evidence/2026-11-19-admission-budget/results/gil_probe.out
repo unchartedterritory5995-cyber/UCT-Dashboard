@@ -1,0 +1,5 @@
+spinners= 0  runs=12 pendings=0  charged ms: median 1.5 max 2.9  member spent total 0.018s (budget 3.0s)  verdict cool-down after max run 14 ms
+spinners= 4  runs=12 pendings=0  charged ms: median 1.1 max 1.9  member spent total 0.014s (budget 3.0s)  verdict cool-down after max run 9 ms
+spinners=16  runs=9 pendings=0  charged ms: median 1.0 max 1.6  member spent total 0.008s (budget 3.0s)  verdict cool-down after max run 8 ms
+spinners=48  runs=6 pendings=0  charged ms: median 0.7 max 1.1  member spent total 0.004s (budget 3.0s)  verdict cool-down after max run 6 ms
+exit 0
