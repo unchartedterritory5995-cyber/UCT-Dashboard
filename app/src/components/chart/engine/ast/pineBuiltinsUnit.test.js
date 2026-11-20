@@ -296,8 +296,8 @@ describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", s
         expect(p.withheldBars && p.withheldBars[i], `${title} at ${t}`).toBe(1)
       })
       expect(p.withheldBarsCodes, title).toContain('time-day:overnight')
-      // every in-session bar is TradingView's (the bars are the capture's own)
-      const r = grade(cap, p, title)
+      // every in-session bar is TradingView's (the bars are the capture's own; graded by time on THIS chart's rows)
+      const r = grade(synthetic, p, title)
       expect(r.bad, `${title}: first ${JSON.stringify(r.first)}`).toBe(0)
       expect(r.drawn, title).toBe(rows.length - night.size)
     }

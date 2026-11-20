@@ -6988,6 +6988,8 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     # PERIOD -1 -- a read of the bar, week or month before the chart's first (``history_before_chart_mask``)
     "history:before-chart",
     WINDOW_EXTREME_LEFT_EDGE,
+    # U-BUILTIN T-D EXT -- an overnight bar of an extended-hours chart (``_overnight_day_mask``)
+    "time-day:overnight",
 )
 
 
