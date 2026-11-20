@@ -1270,11 +1270,18 @@ def test_the_web_pod_never_proxies_a_pair_to_the_tier_whatever_the_switch_says(m
         assert barsmod._bars_proxy_should_route("BTC", 0) is True        # the fund is a stock
 
 
-def test_the_switch_is_in_the_ledger_as_dark():
+def test_the_switch_is_in_the_ledger_as_armed_and_the_licensing_fact_is_still_open():
+    """Armed on web 2026-11-20 by the owner's own command. Arming it is not the licensing fact:
+    the note must keep saying that no (fmp, crypto) row is recorded, and none may appear in the
+    licensing table without that fact (so the two cannot drift apart unseen)."""
     ledger = json.load(open(os.path.join(REPO, "docs", "feature_flags.json"), encoding="utf-8"))
     entry = ledger["flags"]["CRYPTO_BARS_ENABLED"]
-    assert entry["status"] == "dark"
-    assert "provider_licensing_class" in entry["note"] and "FMP" in entry["note"]
+    assert entry["status"] == "armed" and entry["since"] == "2026-11-20"
+    note = entry["note"]
+    assert "provider_licensing_class" in note and "FMP" in note
+    assert "STILL NOT RECORDED" in note and "arming the switch is not that statement" in note
+    src = open(os.path.join(REPO, "api", "services", "provider_licensing_class.py"), encoding="utf-8").read()
+    assert not re.search(r"""\(\s*["']fmp["']\s*,\s*["']crypto["']\s*\)""", src)
 
 
 # ── 13. the browser's copies of two server facts ────────────────────────────────────────
