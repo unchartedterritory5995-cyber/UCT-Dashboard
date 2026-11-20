@@ -211,15 +211,19 @@ function work(lib, nSeries, points) {
   setAll(A); setAll(B); setAll(A)
   const forEach = Map.prototype.forEach
   const utc = Date.UTC
+  const sort = Array.prototype.sort
   let rows = 0
   let dates = 0
+  let scales = 0
   Map.prototype.forEach = function counted(cb, thisArg) {
     return forEach.call(this, function each(v, k, m) { rows++; return cb.call(thisArg, v, k, m) })
   }
   Date.UTC = function counted(...a) { dates++; return utc.apply(Date, a) }
-  try { setAll(B) } finally { Map.prototype.forEach = forEach; Date.UTC = utc }
+  // a time scale rebuild sorts one entry per time point: count the sorts of that size
+  Array.prototype.sort = function counted(...a) { if (this.length >= points - 20) scales++; return sort.apply(this, a) }
+  try { setAll(B) } finally { Map.prototype.forEach = forEach; Date.UTC = utc; Array.prototype.sort = sort }
   done()
-  return { rows, dates }
+  return { rows, dates, scales }
 }
 
 /** The library's own converter from a time to its internal form (what the third edit changes). */
@@ -364,13 +368,47 @@ describe('the patched chart library does the work once per series, not once per 
     const no1 = work(libs.without1, S, P)
     const no2 = work(libs.without2, S, P)
     const no3 = work(libs.without3, S, P)
-    expect(no1.rows, PATCHES[0].name).toBeGreaterThan(LINEAR)
-    expect(no2.rows, PATCHES[1].name).toBeGreaterThan(LINEAR)
+    // Edit 6 leaves two time scale rebuilds per flip, so edit 1's saving is measured on those: each
+    // rebuild asks every one of the P points for its time, and unpatched each answer walks all S rows.
+    // (measured 2026-11-19: full 7,971 row visits; without edit 1 17,311; without edit 2 10,362)
+    expect(no1.rows - full.rows, PATCHES[0].name).toBeGreaterThan(2 * P * (S - 2))
+    expect(no2.rows - full.rows, PATCHES[1].name).toBeGreaterThan(4 * P)
     expect(no3.dates, PATCHES[2].name).toBeGreaterThan(0.9 * S * (P - 20))
     // and each edit removes only its own work
     expect(no3.rows).toBe(full.rows)
     expect(no1.dates).toBe(full.dates)
     expect(no2.dates).toBe(full.dates)
+  })
+
+  // Edit 6. A flip from A to B: the first series to take B adds B's own days (a change), the last
+  // to leave A empties A's own days (a change); the S - 2 series in between add and remove nothing.
+  it('patched, a flip rebuilds the time scale only when a series adds or empties a time point', () => {
+    const i6 = PATCHES.findIndex((p) => p.name.startsWith('setSeriesData rebuilds the time scale only'))
+    const full = work(libs.patched, S, P)
+    const no6 = work(libs[`without${i6 + 1}`], S, P)
+    const shipped = work(libs.shipped, S, P)
+    expect(full.scales).toBe(2)
+    expect(no6.scales, PATCHES[i6].name).toBe(S)
+    expect(shipped.scales).toBe(S)
+    // and it removes only its own work
+    expect(no6.dates).toBe(full.dates)
+    expect(no6.rows).toBeGreaterThan(full.rows)
+  })
+
+  it('patched, re-setting every series with the same data rebuilds the time scale not once', () => {
+    const A = symbol(days(P, new Set([4, 40, 201])), 100, S, 11)
+    const count = (lib) => {
+      const { setAll, done } = build(lib, S)
+      setAll(A)
+      const sort = Array.prototype.sort
+      let scales = 0
+      Array.prototype.sort = function counted(...a) { if (this.length >= P - 20) scales++; return sort.apply(this, a) }
+      try { setAll(A) } finally { Array.prototype.sort = sort }
+      done()
+      return scales
+    }
+    expect(count(libs.patched)).toBe(0)
+    expect(count(libs.shipped)).toBe(S)
   })
 })
 

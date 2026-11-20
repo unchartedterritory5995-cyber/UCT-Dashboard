@@ -32,7 +32,7 @@ describe('the edits fit the installed chart library', () => {
   })
 
   it('every edit finds its target exactly once and leaves its replacement exactly once', () => {
-    expect(PATCHES.length).toBe(5)
+    expect(PATCHES.length).toBe(6)
     const out = patchLightweightCharts(SHIPPED)
     for (const p of PATCHES) {
       expect(count(SHIPPED, p.find), p.name).toBe(1)

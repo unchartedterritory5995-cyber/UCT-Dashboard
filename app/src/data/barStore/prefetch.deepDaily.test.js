@@ -143,3 +143,146 @@ describe('the daily handoff paints the whole chart once (deep history joined bef
     } finally { localStorage.removeItem('uct.barsHistory.enabled') }
   })
 })
+
+// ⭐ THE NEXT DAILY ROWS ARRIVE WHOLE (2026-11-19, owner: "only some load instantly, then some take time.
+// Some load 400 candles or so and then load the rest a second later"). The neighbor hold deepened the
+// next rows on intraday only; a daily flip onto a row not opened before waited for its deep history at
+// the flip (production: first frame median 112 ms, a stalled tail painted 600 bars then 11,766). Now the
+// hold joins the next rows' deep history once the selection rests, so the flip sends nothing.
+describe('the neighbor hold joins the next daily rows\' deep history before the member gets there', () => {
+  async function holdBoot() {
+    const w = await boot()
+    const { DATE_NEIGHBOR_DEEP_MS } = await import('./prefetch')
+    return { ...w, DATE_NEIGHBOR_DEEP_MS }
+  }
+
+  it('after the rest, the next row is joined whole; its flip then sends NOTHING and paints the deep rows', async () => {
+    const w = await holdBoot()
+    for (const s of ['CUR', 'NXT']) await w.idb.idbPutMonotonic(s, 'D', [row('2026-11-06'), row('2026-11-09')])
+    const hold = w.pf.createNeighborHold()
+    hold.set(['CUR', 'NXT'], 'D', { deep: ['NXT'] })
+    await w.server.flush(40)
+    expect(hist(w)).toEqual([])                                   // nothing before the rest
+    await tick(w.DATE_NEIGHBOR_DEEP_MS)
+    await w.server.drain()
+    expect(hist(w).map((c) => [c.q.sym, c.q.d])).toEqual([['NXT', '2026-11-09']])
+    expect(w.pf.deepPending('NXT', 'D')).toBe(false)
+    expect(day(w.store.peek(w.k('NXT', 'D')).bars[0].t)).toBe(HISTORY_DAYS[0])
+    // the flip: the daily prepare finds it whole and asks nothing
+    const n = w.server.calls.length
+    await expect(w.pf.prepareDailyForDisplay('NXT', 'D')).resolves.toBe('current')
+    await w.server.flush(40)
+    expect(w.server.calls.length).toBe(n)
+    hold.clear()
+  })
+
+  it('a selection that moves before the rest asks no deep history for the row it left', async () => {
+    const w = await holdBoot()
+    for (const s of ['AAA', 'BBB', 'CCC']) await w.idb.idbPutMonotonic(s, 'D', [row('2026-11-06'), row('2026-11-09')])
+    const hold = w.pf.createNeighborHold()
+    hold.set(['AAA', 'BBB'], 'D', { deep: ['BBB'] })
+    await tick(w.DATE_NEIGHBOR_DEEP_MS - 20)
+    hold.set(['BBB', 'CCC'], 'D', { deep: ['CCC'] })             // a held key: it moved on
+    await tick(w.DATE_NEIGHBOR_DEEP_MS)
+    await w.server.drain()
+    expect(hist(w).map((c) => c.q.sym)).toEqual(['CCC'])
+    hold.clear()
+  })
+
+  it('a selection that moves WHILE a row is joining asks nothing for the rows after it', async () => {
+    const w = await holdBoot()
+    for (const s of ['AAA', 'B1', 'B2', 'ZZZ']) await w.idb.idbPutMonotonic(s, 'D', [row('2026-11-06'), row('2026-11-09')])
+    const hold = w.pf.createNeighborHold()
+    hold.set(['AAA', 'B1', 'B2'], 'D', { deep: ['B1', 'B2'] })
+    await tick(w.DATE_NEIGHBOR_DEEP_MS)
+    await w.server.flush(40)
+    expect(hist(w).map((c) => c.q.sym)).toEqual(['B1'])          // one row at a time
+    hold.set(['ZZZ'], 'D', {})                                    // the member moved on, B1 still in flight
+    await w.server.drain()
+    await tick(w.DATE_NEIGHBOR_DEEP_MS)
+    await w.server.drain()
+    expect(hist(w).map((c) => c.q.sym)).toEqual(['B1'])          // B2 was never asked
+    hold.clear()
+  })
+
+  it('a selection that moves while a row waits for its history asks nothing for the rows after it', async () => {
+    const w = await holdBoot()
+    for (const s of ['AAA', 'C1', 'C2', 'ZZZ']) await w.idb.idbPutMonotonic(s, 'D', [row('2026-11-06'), row('2026-11-09')])
+    const hold = w.pf.createNeighborHold()
+    hold.set(['AAA', 'C1', 'C2'], 'D', { deep: ['C1', 'C2'] })
+    await tick(w.DATE_NEIGHBOR_DEEP_MS)
+    await w.server.flush(40)
+    for (const c of w.server.open()) if (!c.q.history) c.respond()   // C1's tail lands, its history is still out
+    await w.server.flush(40)
+    hold.set(['ZZZ'], 'D', {})                                    // the member moved on
+    await w.server.drain()
+    await tick(w.DATE_NEIGHBOR_DEEP_MS)
+    await w.server.drain()
+    expect(hist(w).map((c) => c.q.sym)).toEqual(['C1'])          // C2 was never asked
+    hold.clear()
+  })
+
+  it('a row already whole (joined here, or saved whole) asks nothing', async () => {
+    const w = await holdBoot()
+    const rows = []
+    const d = new Date('2026-11-09T00:00:00Z')
+    while (rows.length < w.FIRST_PAINT_BARS + 50) {
+      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) rows.unshift(row(d.toISOString().slice(0, 10)))
+      d.setUTCDate(d.getUTCDate() - 1)
+    }
+    await w.idb.idbPutMonotonic('WHL', 'D', rows)
+    const hold = w.pf.createNeighborHold()
+    hold.set(['WHL'], 'D', { deep: ['WHL'] })
+    await tick(w.DATE_NEIGHBOR_DEEP_MS)
+    await w.server.drain()
+    expect(w.server.calls).toEqual([])
+    hold.clear()
+  })
+
+  it('switched off (uct.deepNeighbors = 0), nothing is asked', async () => {
+    localStorage.setItem('uct.deepNeighbors', '0')
+    try {
+      const w = await holdBoot()
+      await w.idb.idbPutMonotonic('OFF', 'D', [row('2026-11-06'), row('2026-11-09')])
+      const hold = w.pf.createNeighborHold()
+      hold.set(['OFF'], 'D', { deep: ['OFF'] })
+      await tick(w.DATE_NEIGHBOR_DEEP_MS)
+      await w.server.drain()
+      expect(hist(w)).toEqual([])
+      hold.clear()
+    } finally { localStorage.removeItem('uct.deepNeighbors') }
+  })
+})
+
+describe('a daily row the pointer rests on gets its deep history joined before the click', () => {
+  it('after the intent delay the deep history is joined; the click then sends nothing', async () => {
+    const w = await boot()
+    await w.idb.idbPutMonotonic('HOV', 'D', [row('2026-11-06'), row('2026-11-09')])
+    w.pf.prefetchBarOnIntent('HOV', 'D', { delay: 120 })
+    await w.server.flush(40)
+    expect(hist(w)).toEqual([])                                   // nothing while the pointer is passing
+    await tick(120)
+    await w.server.drain()
+    expect(hist(w).map((c) => [c.q.sym, c.q.d])).toEqual([['HOV', '2026-11-09']])
+    expect(w.pf.deepPending('HOV', 'D')).toBe(false)
+    const n = w.server.calls.length
+    await expect(w.pf.prepareDailyForDisplay('HOV', 'D')).resolves.toBe('current')
+    await w.server.flush(40)
+    expect(w.server.calls.length).toBe(n)
+  })
+
+  it('a row saved whole in this browser asks nothing on intent (read before deciding)', async () => {
+    const w = await boot()
+    const rows = []
+    const d = new Date('2026-11-09T00:00:00Z')
+    while (rows.length < w.FIRST_PAINT_BARS + 50) {
+      if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) rows.unshift(row(d.toISOString().slice(0, 10)))
+      d.setUTCDate(d.getUTCDate() - 1)
+    }
+    await w.idb.idbPutMonotonic('SVD', 'D', rows)
+    w.pf.prefetchBarOnIntent('SVD', 'D', { delay: 120 })
+    await tick(120)
+    await w.server.drain()
+    expect(hist(w)).toEqual([])
+  })
+})

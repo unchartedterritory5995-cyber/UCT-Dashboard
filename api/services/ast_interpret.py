@@ -4962,7 +4962,10 @@ def tf_merge_mask(tree: Any, bars: List[dict],
         mask[n - 1] = 1
     elif not known and _newest_reads_merge(tree, bars, opts, inputs, budget, scalars):
         mask[n - 1] = 1
-    first_mask = _first_period_partial_mask(bars, found, opts)
+    # ⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) -- the port of ``interpret.js::firstPeriodPartialReadMask``: the
+    # first-period-partial bars are the MERGE's, and which root bars read one is engine 56's walk (``x[k]`` moves
+    # them k bars later), never the root's own positions.
+    first_mask = _first_period_partial_read_mask(tree, bars, opts, inputs, budget, scalars)
     supplied = (opts or {}).get("symbols") or {}
     for _u, sym, _c in found:
         if not sym:
@@ -5032,6 +5035,63 @@ def _first_period_partial_mask(bars: List[dict], found: list,
                     out = [0] * n
                 out[i] = 1
     return out
+
+
+def _first_period_partial_read_mask(tree: Any, bars: List[dict], opts, inputs, budget,
+                                    scalars) -> Optional[List[int]]:
+    """⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) -- the port of ``interpret.js::firstPeriodPartialReadMask``: the
+    root bars that READ a first-period-partial value (1 = withheld), or ``None``. A site is a ``tf_merge`` under no
+    other request, or the outermost request that holds one; its own bars are ``_first_period_partial_mask``'s over
+    the merges it holds, unchanged. Which root bars read them is engine 56's walk (``_witness_mask``): ``x[k]``
+    moves them k bars later, an operator or a pointwise call reads them on the same bar, a window over the bars it
+    spans; taken exactly (``exact``): ``barsAgo`` the bar its count lands on, ``c ? a : b`` the arm its known
+    condition takes, a finite window its own span; a running value where its argument is, as before (its memory
+    of the partial period is an open question, not settled here)."""
+    n = len(bars)
+
+    def merges_under(top: Any) -> list:
+        merges = []
+        stack = [top]
+        seen: set = set()
+        while stack:
+            node = stack.pop()
+            if not isinstance(node, Mapping) or id(node) in seen:
+                continue
+            seen.add(id(node))
+            if node.get("type") == "tf_merge":
+                merges.append((False, None, node.get("value")))
+            args = node.get("args")
+            if isinstance(args, list):
+                stack.extend(args)
+        return merges
+
+    own: Dict[int, List[int]] = {}
+    held = False
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") in _SCOPE_TYPES:
+            merges = merges_under(node)
+            if merges:
+                m = _first_period_partial_mask(bars, merges, opts)
+                if m is not None:
+                    held = True
+                own[id(node)] = list(m) if m is not None else [0] * n
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    if not held:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    return _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                         lambda nd: id(nd) in own, lambda nd: list(own[id(nd)]), exact=True)
 
 
 def _newest_closes_every_merge_period(bars: List[dict], found: list,
@@ -5297,13 +5357,19 @@ _WITNESS_FINITE = ("sma", "wma", "stdev", "sum", "dev", "median", "highest", "lo
 
 def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                   is_site: Callable[[dict], bool],
-                  flagged: Callable[[dict], Optional[List[int]]]) -> Optional[List[int]]:
+                  flagged: Callable[[dict], Optional[List[int]]],
+                  exact: bool = False) -> Optional[List[int]]:
     """ENGINE 56 -- the root bars that depend on a withheld bar of a witness site, by one 0/1
     "unknown" column per node, bottom-up. The twin of ``interpret.js::witnessMask`` (its
     docstring states each node kind's rule: nested reads every bar, offsets shift, operators and
     pointwise calls OR, finite windows spread over their window, ``barssince`` until a known
     true, ``valuewhen`` until enough known occurrences, everything else from the first
-    unknown bar on)."""
+    unknown bar on). ``exact`` (HTF-PARTIAL-THROUGH-OFFSET, ``_first_period_partial_read_mask`` only,
+    ``walk.exact``): ``barsAgo`` is unknown where its count is, or where its readable count lands on an unknown
+    source bar, instead of over its whole buffer; ``c ? a : b`` where ``c`` is, else where the arm a known ``c``
+    takes is (non-zero takes ``a``), and where either arm is on a bar whose ``c`` is ``na``; a finite window
+    (``_WITNESS_FINITE``, every span ``n``) over the bar and ``n - 1`` before it, not its declared lookback; and a
+    running value only on its argument's own unknown bars (its memory is not followed: the JS twin's note)."""
     n = len(bars)
     has_memo: Dict[int, bool] = {}
 
@@ -5386,6 +5452,23 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                 out = [0] * n
                 for i in range(k, n):
                     out[i] = u[i - k]
+        elif (exact and kind == "op" and name == "?:" and len(args) == 3
+              and not _reads_recurrence_binding(args[0])):
+            uc = unk(args[0])
+            if uc == ALL:
+                out = ALL
+            else:
+                c = col_of(args[0])
+                ua, ub = unk(args[1]), unk(args[2])
+                ua = [1] * n if ua == ALL else ua
+                ub = [1] * n if ub == ALL else ub
+                out = [0] * n
+                for i in range(n):
+                    a = bool(ua is not None and ua[i])
+                    b = bool(ub is not None and ub[i])
+                    took = (a or b) if math.isnan(c[i]) else (a if c[i] != 0 else b)
+                    if (uc is not None and uc[i]) or took:
+                        out[i] = 1
         elif kind == "op":
             for a in args:
                 out = or_into(out, unk(a))
@@ -5441,6 +5524,22 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                                 at = trues[len(trues) - need]
                                 if last_unknown > at or (us is not None and us[at]):
                                     out[i] = 1
+            elif (exact and name == "barsAgo" and len(args) == 3
+                  and not _reads_recurrence_binding(args[1])):
+                us, uk = unk(args[0]), unk(args[1])
+                if us == ALL or uk == ALL:
+                    out = ALL
+                else:
+                    back = col_of(args[1])
+                    limit = _window_literal(node, 2)
+                    out = [0] * n
+                    for i in range(n):
+                        if uk is not None and uk[i]:
+                            out[i] = 1
+                            continue
+                        k = _history_back_of(back[i])
+                        if us is not None and _history_readable(k, limit) and i - int(k) >= 0 and us[i - int(k)]:
+                            out[i] = 1
             elif name in ("pivothigh", "pivotlow"):
                 u = None
                 for a in args:
@@ -5452,13 +5551,18 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
                 for a in args:
                     u = or_into(u, unk(a))
                 lb = spec.get("lookback")
-                lb = lb if isinstance(lb, int) else _window_literal(node, int(str(lb)[3:]))
-                out = windowed(u, max(0, lb))
+                declared = isinstance(lb, int)
+                lb = lb if declared else _window_literal(node, int(str(lb)[3:]))
+                # ``exact``: a finite window's own span (the bar and ``n - 1`` before it), not the declared lookback
+                reach = lb - 1 if (exact and name in _WITNESS_FINITE and not declared) else lb
+                out = windowed(u, max(0, reach))
             else:
                 u = None
                 for a in args:
                     u = or_into(u, unk(a))
-                out = forward(u)
+                # ``exact``: a running value keeps the rule it had (its argument's own unknown bars); its memory
+                # is not followed (``interpret.js::witnessMask``'s note)
+                out = u if exact else forward(u)
         else:
             for a in args:
                 out = or_into(out, unk(a))
