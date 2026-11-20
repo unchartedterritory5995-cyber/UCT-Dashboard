@@ -406,7 +406,7 @@
         "production": "INCONCLUSIVE",
         "lanes": "member's runtime lane DIVERGE (drawn: Basis / Upper / Lower and both Shapes rows MATCH, barcolor MATCH; no drawing program); host lane INCONCLUSIVE (refused: pine:reassign)"
       },
-      "liftWhen": "B4 color(): the builtins unit's `color(...)` in the drawing build, so the run draws its boxes, then a runtime-on re-grade to MATCH on bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-14, -rddt-1d-2026-11-17 and -spy-1d-2026-11-17",
+      "liftWhen": "B4 color(): the builtins unit lowers `color(x)` over a colour in the drawing build (its follow-up to #2175's `color(na)`; the stop is `border_color = color(bgColor)`, lines 140 and 145), so the run draws its boxes, then a runtime-on re-grade to MATCH on bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-14, -rddt-1d-2026-11-17 and -spy-1d-2026-11-17",
       "addedBy": "DRAW-1 (2026-11-20, coordinator ruling on A1): the per-bar offset copy (objects unit A1) lets its values build stand, so it is newly drawn by the runtime lane with a committed capture grading DIVERGE"
     }
   ]

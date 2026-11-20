@@ -8489,8 +8489,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // window read it per bar where they can
       if (fs.series !== null) {
         note('runtime:history-dynamic-offset')
-        throw new RuntimeRefusal('runtime:history-dynamic-offset', what
-          || `\`${fs.series}\` is passed a value read on every bar`, at)
+        throw new RuntimeRefusal('runtime:history-dynamic-offset',
+          `${what ? `${what}: ` : ''}\`${fs.series}\` is passed a value read on every bar`, at)
       }
       e = e2
     }

@@ -93,16 +93,26 @@ describe('(1) a `simple` argument sizes a window per call site', () => {
     expect(r.message).toContain('Pine does not compile that')
   })
 
-  it('⛔ an unqualified parameter handed a bar-varying value is refused by name', () => {
-    const r = refusalOf(`${head}f(src, len) =>\n    ta.highest(src, len)\nplot(f(close, bar_index % 3 + 1))\n`)
-    expect(r.guard).toBe('runtime:history-dynamic-offset')
-    expect(r.message).toContain('`len` sizes a window in `f`')
+  // ⭐⭐ A1 (2026-11-20): an argument read per bar is read per bar in the copy its call site compiles, and a
+  // `series int` window (the reference's `ta.highest`) then takes the length each bar (W4-T8); a `simple int` window
+  // (`ta.ema`) keeps the refusal, by name.
+  it('⭐ an unqualified parameter handed a bar-varying value: the window at each bar\'s length (A1)', () => {
+    const r = column(`${head}f(src, len) =>\n    ta.highest(src, len)\nplot(f(close, bar_index % 3 + 1))\n`)
+    const byLen = [1, 2, 3].map((k) => column(`${head}plot(ta.highest(close, ${k}))\n`).col)
+    same(r.col, r.col.map((_, i) => byLen[i % 3][i]))
+    expect(r.diagnostics.seriesSpecialisedCalls).toBe(1)
   })
 
-  it('⛔ a parameter declared `series` is a series length — refused by name, even with a literal', () => {
-    const r = refusalOf(`${head}f(src, series int len) =>\n    ta.highest(src, len)\nplot(f(close, 5))\n`)
+  it('⛔ ...and a `simple int` window handed a bar-varying value is still refused by name', () => {
+    const r = refusalOf(`${head}f(src, len) =>\n    ta.ema(src, len)\nplot(f(close, bar_index % 3 + 1))\n`)
     expect(r.guard).toBe('runtime:history-dynamic-offset')
-    expect(r.message).toContain('`len` is declared `series` in `f`')
+    expect(r.message).toContain('`len` is passed a value read on every bar')
+  })
+
+  it('⭐ a parameter declared `series` is a series length: read per bar, even with a literal (A1)', () => {
+    const r = column(`${head}f(src, series int len) =>\n    ta.highest(src, len)\nplot(f(close, 5))\n`)
+    same(r.col, column(`${head}plot(ta.highest(close, 5))\n`).col)
+    expect(r.diagnostics.seriesSpecialisedCalls).toBe(1)
   })
 
   it('reads the qualifier written in front of each parameter, and nothing else', () => {

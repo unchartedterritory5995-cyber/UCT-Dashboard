@@ -125,9 +125,14 @@ describe('⛔ still refused, by name: what the call site cannot fix', () => {
     expect(refusal(two(decl, 'periods')).guard).toBe('runtime:history-dynamic-offset')
   })
 
-  it('a call site whose length is only known while the bar runs', () => {
+  it('⭐ A1 (2026-11-20): a call site whose length is only known while the bar runs is read per bar', () => {
+    // it was refused here; the copy its call site compiles reads `length` per bar (a strict ring of 5,000), and the
+    // loop's mean is `ta.sma(close, L)` at each bar's own L
     const src = `${head}${fn('    periods = length - 1\n', 'periods')}plot(f(close, bar_index % 5 + 2))\n`
-    expect(refusal(src).guard).toBe('runtime:history-dynamic-offset')
+    const [got] = run(src)
+    const byLen = [2, 3, 4, 5, 6].map((k) => run(`${head}plot(ta.sma(close, ${k}))\n`)[0])
+    expect(same(got, got.map((_, i) => byLen[i % 5][i]))).toBe(true)
+    expect(got.filter((v) => !Number.isNaN(v)).length).toBeGreaterThan(N / 2)
   })
 
   it('the offset `src[zxLag]` with `zxLag = math.floor((len - 1) / 2)` stays refused', () => {
