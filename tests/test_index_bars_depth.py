@@ -558,3 +558,45 @@ def test_D8d_a_request_that_finds_the_refresh_running_waits_for_it(d8, monkeypat
     assert vendor_reads == [("SPX", "5")]                  # ONE vendor read served both requests
     assert results["a"]["bars"][-1]["t"] == _d8_et(9, 55)
     assert results["b"]["bars"][-1]["t"] == _d8_et(9, 55), "the second request answered the withheld tail"
+
+
+# -- D9 (2026-11-20, production re-probe): a refresh that came back WITHOUT the bar now forming -----------------------
+# After D8 shipped, the tier's 1m refresh at 18:36:01Z got a series whose newest bar was 18:35. The vendor had not
+# published the 18:36 bar one second into the minute. A signed-in probe saw the same at 13:36 ET: newest stuck at 13:35
+# from 13:36:08 to 13:37:59, 1 then 2 bars behind, until the 120 s TTL ran out.
+# That copy's newest bar had already ENDED when it was stored, so D8's rule correctly does not fire (D7c). A copy is
+# ALSO stale once the bar AFTER its newest has ended since it was stored, and only inside that bar's session.
+
+def _d9_ones(first_hm, last_hm):
+    out, t, stop = [], _d8_et(*first_hm), _d8_et(*last_hm)
+    while t <= stop:
+        out.append(_d7_row(t, 7300.0 + (t - _d8_et(9, 30)) / 60.0))
+        t += 60
+    return out
+
+
+def test_D9a_a_copy_that_never_held_a_bar_is_refreshed_once_that_bar_has_ended(d8):
+    lagged = _d9_ones((13, 20), (13, 35))                  # stored 13:36:01: the vendor had no 13:36 bar yet
+    d8.seed("1", lagged, _d8_et(13, 36, 1))
+    d8.vendor["rows"] = _d9_ones((13, 20), (13, 37))
+    d8.clock.now = _d8_et(13, 36, 8)                       # CONTROL: the 13:36 bar is still forming, nothing to ask for
+    first = d8.serve("1")
+    assert first["bars"][-1]["t"] == _d8_et(13, 35) and d8.calls == []
+    d8.clock.now = _d8_et(13, 36, 30)                      # CONTROL: still forming
+    assert d8.serve("1")["bars"][-1]["t"] == _d8_et(13, 35) and d8.calls == []
+    d8.clock.now = _d8_et(13, 37, 14)                      # the 13:36 bar ended at 13:37:00; the copy never held it
+    second = d8.serve("1")
+    assert d8.calls == [("SPX", "1")], "a copy missing a whole ended bar was answered until its TTL ran out"
+    assert second["bars"][-1]["t"] == _d8_et(13, 37)
+
+
+def test_D9b_never_outside_the_session(d8):
+    closing = _d9_ones((15, 40), (15, 59))                 # 15:59 is the session's last 1m bar
+    d8.seed("1", closing, _d8_et(16, 0, 1))
+    d8.clock.now = _d8_et(16, 1, 30)                       # no 16:00 bar exists to wait for: the session is over
+    got = d8.serve("1")
+    assert got["bars"][-1]["t"] == _d8_et(15, 59) and d8.calls == [], "a refresh was asked for a bar after the close"
+    d8.seed("5", _d8_fives((15, 55)), _d8_et(16, 0, 2))     # the 5m twin: 15:55 ends at the close
+    d8.clock.now = _d8_et(16, 4)
+    got = d8.serve("5")
+    assert got["bars"][-1]["t"] == _d8_et(15, 55) and d8.calls == []
