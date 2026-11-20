@@ -422,7 +422,10 @@ describe('C49 · 4 — AMEX:SPY 15, 5 and 60 minutes: the period opens at 09:30 
       }
       // wave 12 (C45): the probe's `bar_index` control row is withheld by name on these windows
       // (they do not start at the listing); every clock row above is still MATCH on every bar.
-      expect(noteCodes(T.ours)).toEqual(['bar-index:window'])
+      // ⭐ RULING 1 (2026-11-20): the new-period rows T07-T09 (`ta.change(time(tf)) != 0`) read `time(tf)` on the bar
+      // before bar 0, a window off the listing, so `history:before-chart` is named too. Their grades do not move (the
+      // `naMismatches: 1` asserted above held before this rule and holds now).
+      expect(noteCodes(T.ours)).toEqual(['bar-index:window', 'history:before-chart'])
     })
   }
 
