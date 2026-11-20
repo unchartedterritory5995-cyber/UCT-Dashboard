@@ -4234,6 +4234,8 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
   dmi: {
     arity: 2,
     parts: 3,
+    // both lengths are the member's inputs whichever leg is read (the ADX alone reads the second)
+    resolveEveryArg: true,
     build: (a, tok) => {
       const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
       const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
@@ -4312,6 +4314,10 @@ function builtinTupleParts(toks, close, names, env, first) {
   // being guessed at.
   const built = spec.build(raw.map((a) => a.value), first)
   if (!built) return null
+  // ⭐ RMA-SEED — an entry that names every argument has each one resolved with any part (`mintArgs`, `resolveBinding`)
+  if (spec.resolveEveryArg) {
+    return built.map((node) => Object.assign(exprBinding(node, new Map(env), at), { mintArgs: raw.map((a) => a.value) }))
+  }
   return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
@@ -9000,6 +9006,16 @@ export class Resolver {
     // and refused for being too deep HAS been read, and re-resolving it in the
     // closing pass would report the same exhaustion twice under a worse name.
     if (bound && typeof bound === 'object') bound.read = true
+    // ⭐ RMA-SEED — a part of a tuple built-in that names every argument (`PINE_TUPLE_BUILTINS.dmi`,
+    // `resolveEveryArg`): each argument is resolved first, for what resolving does to the script's inputs (an
+    // `input.int` length is minted as the member's parameter whichever leg is read). ⚰️ `dmiParts`' legs resolved
+    // both lengths to compare them, so a script reading only +DI / -DI still listed its "DMI Smoothing" input, and
+    // its frozen parameter ids (`paramIdLegacy.js`) address it; TradingView lists it too.
+    if (bound && bound.kind === 'expr' && Array.isArray(bound.mintArgs)) {
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try { for (const a of bound.mintArgs) this.resolve(a) } finally { this.env = prevEnv }
+    }
     // ⭐⭐ C31 — see `foldStatements`' conditional-call mark. Only a Resolver
     // that asks (`refuseCondCalls`, the object pass's) refuses it.
     // ⭐⭐ C42 — where the block runs exactly ONCE the fold also built what the

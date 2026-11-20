@@ -198,16 +198,15 @@ describe('a `var` may read its own previous bar inside its own update', () => {
 // `vw-bi-dmi-{spy,rddt}-1d-2026-11-19` (`rmaSeedDmi.test.js`). ⚰️ It was three legs of the house table's
 // one-period `adx` / `plusDI` / `minusDI`, which refused an unequal pair (`pine:tuple`); the ADX smooths over
 // the SECOND length, measured (W3 / W4), so an unequal pair is now served.
-describe('`ta.dmi` hands out TradingView's three legs, over `ta.rma`', () => {
+describe('`ta.dmi` hands out TradingView\'s three legs, over `ta.rma`', () => {
   const dmi = (plot, args = '14, 14') =>
-    one(`${head}[p, m, a] = ta.dmi(${args})
-plot(${plot})`)
+    one(`${head}[p, m, a] = ta.dmi(${args})\nplot(${plot})`)
 
   it('each leg is the body: +DI / -DI carried over `na` (fixnan) from `rma`s over the first length', () => {
     const p = dmi('p').formula
     const m = dmi('m').formula
-    expect(p.startsWith('valuewhenOccurrence(!na(100 * rma(na(change(high)) ? 0 / 0 : change(high) > -change(low)')).toBe(true)
-    expect(m.startsWith('valuewhenOccurrence(!na(100 * rma(na(-change(low)) ? 0 / 0 : -change(low) > change(high)')).toBe(true)
+    expect(p.startsWith('valuewhenOccurrence(!na(100 * rma(na(high - high[1]) ? 0 / 0 : high - high[1] > -(low - low[1])')).toBe(true)
+    expect(m.startsWith('valuewhenOccurrence(!na(100 * rma(na(-(low - low[1])) ? 0 / 0 : -(low - low[1]) > high - high[1]')).toBe(true)
     for (const f of [p, m]) {
       expect(f).toContain('rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14)')
       expect(f).not.toContain('DI(')
@@ -224,11 +223,8 @@ plot(${plot})`)
     expect(a20.formula).not.toContain('adx(')
   })
 
-  it('⭐ the lengths may be names: the second one is still the ADX's', () => {
-    const r = one(`${head}a1 = input.int(14)
-a2 = input.int(20)
-[p, m, a] = ta.dmi(a1, a2)
-plot(a)`)
+  it('⭐ the lengths may be names: the second one is still the ADX\'s', () => {
+    const r = one(`${head}a1 = input.int(14)\na2 = input.int(20)\n[p, m, a] = ta.dmi(a1, a2)\nplot(a)`)
     expect(r.ok, r.msg).toBe(true)
     expect(r.formula).toBe(dmi('a', '14, 20').formula)
   })
