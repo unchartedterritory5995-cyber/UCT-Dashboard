@@ -1,10 +1,14 @@
-// Test / benchmark helpers: encode bars into the device store's record codecs and packs (the seed
-// builder's half). Production never encodes; the decoders are the product.
+// Test / benchmark helpers: a JS encoder of the first-frame seed pack (`UFFSEED1`,
+// docs/charts/first-frame-seed-format.md), the server encoder's twin (api/services/ffseed_format.py),
+// pinned to it byte for byte by codec.test.js against packs the Python encoder built. Production never
+// encodes; the reader is the product.
 
+import { gzipSync } from 'fflate'
 import { crc32 } from '../../historyLake/piece'
-import { encodePack } from '../codec'
+import { SEED_FIELDS, SEED_TUNIT, SEED_MAGIC } from '../codec'
 
 const zz = (x) => (x >= 0 ? 2 * x : -2 * x - 1)
+const POW = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9]
 
 function varints(values, out) {
   for (let v of values) {
@@ -35,27 +39,30 @@ function columnsCrc(cols, n) {
   return crc
 }
 
-const exact = (x, scale, what) => {
-  const r = Math.round(x * scale)
-  if (r / scale !== x) throw new Error(`${what} ${x} is not exact at scale ${scale}`)
-  return r
+/** The smallest power of ten (<= 1e9) at which every value is an exact integer / scale. */
+export function minimalScale(values) {
+  for (const s of POW) if (values.every((x) => Math.round(x * s) / s === x)) return s
+  throw new Error('no exact scale')
 }
 
-/**
- * A 'ubh1' record (FORMAT.md §3 with a RAW body) from bars [{t,o,h,l,c,v,n?}] (t unix seconds,
- * prices / volume as doubles). Returns {bytes, bars, first, last, crc, body}.
- */
-export function encodeUbhRecord(rows, { symbol = 'X', series = 'D', tunit = 60, pscale = 10000, vscale = 1 } = {}) {
+const unixOf = (t) => (typeof t === 'string' ? Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1, +t.slice(8, 10)) / 1000 : t)
+
+/** One symbol's body (format section 4) from served rows [{t,o,h,l,c,v}] (D `t` may be 'YYYY-MM-DD'). */
+export function encodeSeedBody(rows, { tunit }) {
   const n = rows.length
   if (!n) throw new Error('no bars')
-  const t = rows.map((r) => r.t)
-  const o = rows.map((r) => exact(r.o, pscale, 'o')), h = rows.map((r) => exact(r.h, pscale, 'h'))
-  const l = rows.map((r) => exact(r.l, pscale, 'l')), c = rows.map((r) => exact(r.c, pscale, 'c'))
-  const v = rows.map((r) => exact(r.v, vscale, 'v')), nn = rows.map((r) => r.n ?? 0)
+  const t = rows.map((r) => unixOf(r.t))
+  const prices = rows.flatMap((r) => [r.o, r.h, r.l, r.c])
+  const pscale = minimalScale(prices)
+  const vscale = minimalScale(rows.map((r) => r.v))
+  const I = (x, s) => Math.round(x * s)
+  const o = rows.map((r) => I(r.o, pscale)), h = rows.map((r) => I(r.h, pscale))
+  const l = rows.map((r) => I(r.l, pscale)), c = rows.map((r) => I(r.c, pscale))
+  const v = rows.map((r) => I(r.v, vscale)), nn = rows.map(() => 0)
   const T = [], O = [], H = [], L = [], C = [], V = [], VF = []
   let pt = 0, pc = 0
   for (let i = 0; i < n; i++) {
-    if ((t[i] - pt) % tunit !== 0 || t[i] <= pt && i > 0) throw new Error('t not on tunit / increasing')
+    if ((t[i] - pt) % tunit !== 0 || (i > 0 && t[i] <= pt)) throw new Error('t not on tunit / increasing')
     T.push((t[i] - pt) / tunit)
     O.push(zz(o[i] - pc))
     H.push(zz(h[i] - Math.max(o[i], c[i])))
@@ -64,34 +71,37 @@ export function encodeUbhRecord(rows, { symbol = 'X', series = 'D', tunit = 60, 
     V.push(Math.floor(v[i] / vscale)); VF.push(v[i] % vscale)
     pt = t[i]; pc = c[i]
   }
-  const bodyArr = []
-  for (const col of [T, O, H, L, C, V, VF, nn]) varints(col, bodyArr)
-  const body = Uint8Array.from(bodyArr)
-  const crc = columnsCrc({ t, o, h, l, c, v, n: nn }, n)
-  const header = { bars: n, basis: 'raw', body: body.length, crc, first: t[0], last: t[n - 1], period: 'seed',
-    pscale, series, symbol, tunit, v: 1, vscale }
-  const hjson = new TextEncoder().encode(JSON.stringify(header))
-  const prefix = new Uint8Array(6 + hjson.length)
-  prefix.set([0x55, 0x42, 0x48, 1, hjson.length & 255, hjson.length >> 8], 0)
-  prefix.set(hjson, 6)
-  const hcrc = crc32(prefix)
-  const out = new Uint8Array(prefix.length + 4 + body.length)
-  out.set(prefix, 0)
-  new DataView(out.buffer).setUint32(prefix.length, hcrc, true)
-  out.set(body, prefix.length + 4)
-  return { bytes: out, bars: n, first: t[0], last: t[n - 1], crc, body }
+  const out = []
+  for (const col of [T, O, H, L, C, V, VF, nn]) varints(col, out)
+  return { body: Uint8Array.from(out), crc: columnsCrc({ t, o, h, l, c, v, n: nn }, n), bars: n, first: t[0], last: t[n - 1], pscale, vscale }
 }
 
-/** An 'f64' record. */
-export function encodeF64Record(rows) {
-  const n = rows.length
-  const out = new Uint8Array(12 + n * 48)
+/** A whole timeframe pack: {SYM: rows} → UFFSEED1 bytes. */
+export function seedPackOf(bySym, { tf = 'D', build = '20261119T0131Z', asof = '2026-11-18', comp = 'gzip' } = {}) {
+  const tunit = SEED_TUNIT[tf]
+  const asofN = Number(asof.replace(/-/g, ''))
+  const blobs = []
+  const symbols = {}
+  let at = 0, depth = 0
+  for (const sym of Object.keys(bySym).sort()) {
+    const b = encodeSeedBody(bySym[sym], { tunit })
+    const blob = comp === 'gzip' ? gzipSync(b.body) : b.body
+    symbols[sym] = [at, blob.length, b.bars, b.first, b.last, asofN, b.crc, b.body.length, b.pscale, b.vscale]
+    blobs.push(blob)
+    at += blob.length
+    depth = Math.max(depth, b.bars)
+  }
+  const tr = { asof, basis: 'served', build, comp, depth, fields: [...SEED_FIELDS], grid: 'rth', kind: 'ffseed', symbols, tf, tunit, v: 1 }
+  const trailer = new TextEncoder().encode(JSON.stringify(tr))
+  const out = new Uint8Array(at + trailer.length + 16)
+  let p = 0
+  for (const b of blobs) { out.set(b, p); p += b.length }
+  out.set(trailer, p)
   const dv = new DataView(out.buffer)
-  out.set([0x46, 0x36, 0x34, 0x43], 0)
-  dv.setUint32(4, n, true)
-  let at = 12
-  for (const k of ['t', 'o', 'h', 'l', 'c', 'v']) for (let i = 0; i < n; i++, at += 8) dv.setFloat64(at, rows[i][k], true)
-  return { bytes: out, bars: n, first: rows[0].t, last: rows[n - 1].t }
+  dv.setUint32(p + trailer.length, trailer.length, true)
+  dv.setUint32(p + trailer.length + 4, 0, true)
+  out.set(new TextEncoder().encode(SEED_MAGIC), p + trailer.length + 8)
+  return out
 }
 
 /** Deterministic synthetic bars: `n` bars from `t0` every `step` s, 4-decimal prices. */
@@ -109,12 +119,4 @@ export function synthBars(n, { t0 = 1_794_000_000, step = 300, seed = 1, base = 
     px = c
   }
   return rows
-}
-
-/** A whole timeframe pack: {SYM: rows} → bytes. */
-export function packOf(bySym, { codec = 'ubh1', series = 'D', tunit = 60, build = null } = {}) {
-  const recs = Object.entries(bySym).map(([sym, rows]) => ({
-    sym, ...(codec === 'f64' ? encodeF64Record(rows) : encodeUbhRecord(rows, { symbol: sym, series, tunit })),
-  }))
-  return encodePack(recs, { series, codec, build })
 }

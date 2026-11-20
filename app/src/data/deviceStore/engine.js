@@ -5,8 +5,9 @@
 // tests against memory (io.memoryIO). No DOM, no main thread.
 //
 // ⭐ FILES (one directory, io.STORE_DIR):
-//   <tf>.<gen>.pack   the timeframe file exactly as the edge serves it (codec.js container)
-//   <tf>.<gen>.ok     the COMMIT MARKER: {v, tf, gen, build, sha256, bytes, codec}. Written only after
+//   <tf>.<gen>.pack   the timeframe's first-frame seed pack exactly as the edge serves it (codec.js;
+//                     docs/charts/first-frame-seed-format.md, `UFFSEED1`)
+//   <tf>.<gen>.ok     the COMMIT MARKER: {v, tf, gen, build, sha256, bytes}. Written only after
 //                     the whole file is on disk, flushed, its sha256 matched the manifest and its
 //                     trailer parsed. A generation without one does not exist for a reader.
 //   <tf>.<gen>.prog   the download's identity ({build, sha256, bytes, url}): a reload mid-download
@@ -14,17 +15,18 @@
 // A new build is a new generation: the old one keeps serving until the new one is committed, then is
 // closed and deleted. A crash at any point leaves either the old committed generation or the new one.
 //
-// ⭐ READ: index row → ONE positioned read into a reused buffer → the codec → Float64 columns. W and M
-// are derived from D (resample.js). Symbols are keyed as the app keys them (upper case; class shares
-// with '-', e.g. BRK-B); a '.' spelling in the file is found too.
+// ⭐ READ: index row → ONE positioned read into a reused buffer → inflate + decodeBody (codec.js) →
+// Float64 columns. W and M are derived from D (resample.js). Symbols are keyed as /api/bars names them
+// (upper case; class shares with '-', e.g. BRK-B); a '.' spelling in a file is found too. A symbol the
+// file does not hold reads null: no device copy, the chart asks the network.
 //
-// ⭐ DESIGN HOOK, NOT BUILT: the daily DELTA. A delta is the same container holding only the symbols
-// whose newest-N window changed since base build B (each record the symbol's whole new window, so a
-// read never merges). It lands as `<tf>.<gen>.d<k>.pack` + marker naming B; read() looks a symbol up in
-// the newest delta first, then the base; the next full build replaces both. `applyDelta` throws until
-// the seed publishes deltas.
+// ⭐ DESIGN HOOK, NOT BUILT: the daily DELTA (format doc section 9: `<tf>.delta-<base>.ffs`, entries in
+// `append` or `replace` mode). Plan: land it as `<tf>.<gen>.d<k>.pack` + a marker naming its base
+// build; read() takes a `replace` entry from the newest delta, an `append` entry as base window +
+// appended bars (newest N kept); the next full build replaces both. `applyDelta` throws until the seed
+// publishes deltas.
 
-import { codecFor, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DEFAULT_CODEC, DeviceFormatError } from './codec'
+import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError } from './codec'
 import { createSha256 } from './sha256'
 import { deriveFromDaily } from './resample'
 
@@ -57,7 +59,7 @@ const _sleep = (ms) => new Promise((r) => setTimeout(r, ms))
  */
 export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEvent = null, flushEvery = 8 << 20 } = {}) {
   if (!io) throw new Error('device engine: no io')
-  /** tf → { gen, build, codec, decode, handle, index, bytes, scratch, bad } */
+  /** tf → { gen, build, handle, index, bytes, scratch, bad } */
   const live = new Map()
   const inflight = new Map()   // tf → ingest promise
   let opening = null
@@ -104,7 +106,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     }
     return by
   }
-  function _indexOf(h) {
+  function _indexOf(h, tf) {
     const size = h.size()
     if (size < PACK_TAIL_BYTES + 2) throw new DeviceFormatError('pack: too small')
     const tail = new Uint8Array(PACK_TAIL_BYTES)
@@ -113,7 +115,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     const tb = new Uint8Array(tlen)
     const dataEnd = size - PACK_TAIL_BYTES - tlen
     h.read(tb, dataEnd)
-    return parseTrailer(tb, dataEnd)
+    return parseTrailer(tb, dataEnd, { tf })
   }
   function _install(tf, entry) {
     const old = live.get(tf)
@@ -131,7 +133,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (L.scratch.length < len) L.scratch = new Uint8Array(Math.max(len, L.scratch.length * 2))
     const buf = L.scratch.subarray(0, len)
     if (L.handle.read(buf, L.index.off[i]) !== len) return null
-    return L.decode(buf)
+    return decodeRecord(L.index, i, buf)
   }
 
   const api = {
@@ -150,9 +152,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
               const ok = await _readJson(okName(tf, gen))
               h = await _open(packName(tf, gen))
               if (h.size() !== ok.bytes) throw new DeviceFormatError('pack: size does not match its marker')
-              const index = _indexOf(h)
-              const codec = ok.codec || index.codec || DEFAULT_CODEC
-              _install(tf, { gen, build: ok.build, codec, decode: codecFor(codec), handle: h, index, bytes: ok.bytes })
+              const index = _indexOf(h, tf)
+              _install(tf, { gen, build: ok.build, handle: h, index, bytes: ok.bytes })
               h = null
               break
             } catch { /* unreadable: the next older generation */ } finally { if (h) h.close() }
@@ -187,13 +188,13 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     buildOf(tf) { return live.get(DERIVED_TFS[tf] ?? String(tf))?.build ?? null },
     info() {
       const tfs = {}
-      for (const [tf, L] of live) tfs[tf] = { build: L.build, gen: L.gen, count: L.index.count, bytes: L.bytes, codec: L.codec, bad: L.bad }
+      for (const [tf, L] of live) tfs[tf] = { build: L.build, asof: L.index.asof, gen: L.gen, count: L.index.count, bytes: L.bytes, comp: L.index.comp, bad: L.bad }
       return { tfs }
     },
 
     /**
      * Download, verify and commit one timeframe file. `entry` = {tf, build, url, bytes, sha256,
-     * codec?, encoding?: 'identity' | 'gzip'}. Resolves {tf, status: 'current' | 'ingested', ...};
+     * encoding?: 'identity' | 'gzip'} (the manifest's per-tf entry plus its build). Resolves {tf, status: 'current' | 'ingested', ...};
      * rejects on a failure (a partial download stays on disk and resumes on the next call; a file whose
      * sha256 does not match is discarded whole). One ingest per timeframe at a time.
      */
@@ -206,7 +207,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
       return p
     },
 
-    /** Every timeframe of a manifest ({v, build, tfs: {tf: entry}}), ONE AT A TIME, in STORED_TFS order. */
+    /** Every timeframe of a manifest (`latest.json`: {v, kind, build, tfs: {tf: entry}}), ONE AT A TIME,
+     *  in STORED_TFS order. */
     async ingestAll(manifest, { signal = null, base = null } = {}) {
       const out = []
       for (const tf of STORED_TFS) {
@@ -316,14 +318,22 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
         await _removeGen(tf, gen)
         throw new IngestError(`ingest: ${tf} sha256 mismatch`)
       }
-      const index = _indexOf(h)
-      const codec = entry.codec || index.codec || DEFAULT_CODEC
-      const decode = codecFor(codec)
-      // ONE record must decode before the file is committed: a wrong codec name would otherwise ship a
-      // store that answers null for every symbol.
-      if (index.count) decode(_probe(h, index))
-      await _writeJson(okName(tf, gen), { v: 1, tf, gen, build: entry.build, sha256: entry.sha256, bytes: entry.bytes, codec })
-      _install(tf, { gen, build: entry.build, codec, decode, handle: h, index, bytes: entry.bytes })
+      // A whole, verified file that is still not USABLE is discarded whole too (never resumed): its
+      // trailer must parse for this tf, it must be the build the manifest named (a stale edge copy, a
+      // mixed-up URL), and ONE record must decode (a store that answers null for every symbol is never
+      // swapped in over a good one).
+      let index
+      try {
+        index = _indexOf(h, tf)
+        if (index.build != null && index.build !== entry.build) throw new IngestError(`ingest: ${tf} holds build ${index.build}, the manifest says ${entry.build}`)
+        if (index.count) decodeRecord(index, 0, _probe(h, index))
+      } catch (e) {
+        h.close(); h = null
+        await _removeGen(tf, gen)
+        throw e
+      }
+      await _writeJson(okName(tf, gen), { v: 1, tf, gen, build: entry.build, sha256: entry.sha256, bytes: entry.bytes })
+      _install(tf, { gen, build: entry.build, handle: h, index, bytes: entry.bytes })
       h = null
       try { await io.remove(progName(tf, gen)) } catch { /* harmless */ }
       for (const g of gens.keys()) if (g !== gen) await _removeGen(tf, g)

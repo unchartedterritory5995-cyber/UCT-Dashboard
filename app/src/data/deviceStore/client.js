@@ -14,8 +14,9 @@
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
 import { SERVED_TFS } from './tfs'
 
-/** Where the seed's manifest lives (the edge). Overridable per browser for testing. */
-export const DEVICE_SEED_MANIFEST = '/api/bars-seed/manifest.json'
+/** Where the first-frame seed's manifest lives (the edge, docs/charts/first-frame-seed-format.md section 2:
+ *  `latest.json` names the build and each timeframe's url / bytes / sha256). Overridable per browser. */
+export const DEVICE_SEED_MANIFEST = '/api/seed/v1/latest.json'
 export const DEVICE_SEED_MANIFEST_KEY = 'uct.deviceStore.manifest'
 export const SYNC_CACHE_MAX = 96
 const SERVED = new Set(SERVED_TFS)

@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto'
 import { createWorkerCore } from './workerCore'
 import { createDeviceEngine } from './engine'
 import { memoryIO } from './io'
-import { packOf, synthBars } from './testing/fixtures'
+import { seedPackOf, synthBars } from './testing/fixtures'
 
 function fakeLocks() {
   const queues = new Map()
@@ -66,7 +66,7 @@ const settle = async (n = 20) => { for (let i = 0; i < n; i++) await new Promise
 
 const ROWS = { AAA: synthBars(1000, { step: 300, seed: 3 }), BBB: synthBars(600, { step: 300, seed: 4 }) }
 async function seededDisk() {
-  const pack = packOf(ROWS, { series: '5' })
+  const pack = seedPackOf(ROWS, { tf: '5', build: 'b1' })
   const disk = new Map()
   const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: async () => new Response(pack) })
   await eng.ingest({ tf: '5', url: 'u', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: 'b1' })
@@ -167,8 +167,8 @@ describe('device store across tabs', () => {
 
   it('an ingest asked from ANY tab runs once, in the leader', async () => {
     const env = { disk: new Map(), locks: fakeLocks(), bus: fakeBus() }
-    const pack = packOf(ROWS, { series: '5' })
-    const manifest = { v: 1, build: 'b7', tfs: { '5': { url: '5.pack', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex') } } }
+    const pack = seedPackOf(ROWS, { tf: '5', build: 'b7' })
+    const manifest = { v: 1, kind: 'ffseed', build: 'b7', tfs: { '5': { url: '5.pack', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex') } } }
     const leaderFetch = vi.fn(async (url) => (String(url).endsWith('manifest.json') ? new Response(JSON.stringify(manifest)) : new Response(pack)))
     const followerFetch = vi.fn()
     const A = tab('A', env, { fetchFn: leaderFetch })

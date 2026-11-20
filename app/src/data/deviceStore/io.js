@@ -90,6 +90,9 @@ export async function opfsIO() {
       async open(name, { create = false } = {}) {
         const fh = await dir.getFileHandle(name, { create })
         const h = await fh.createSyncAccessHandle()
+        // Safari before 16.4 shipped these methods ASYNC (promises): the store's read path is synchronous
+        // by design, so there it stays off (every read null) rather than half-working.
+        if (typeof h.getSize() !== 'number') { try { h.close() } catch { /* closing */ } throw new Error('opfs: sync access handle is not synchronous here') }
         return {
           read: (u8, at = 0) => h.read(u8, { at }),
           write: (u8, at = 0) => h.write(u8, { at }),

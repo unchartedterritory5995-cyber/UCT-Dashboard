@@ -8,7 +8,7 @@ import { createDeviceClient } from './client'
 import { createWorkerCore } from './workerCore'
 import { createDeviceEngine } from './engine'
 import { memoryIO } from './io'
-import { packOf, synthBars } from './testing/fixtures'
+import { seedPackOf, synthBars } from './testing/fixtures'
 
 const DAY = 86400
 const D0 = Date.UTC(2025, 0, 6) / 1000
@@ -16,10 +16,10 @@ const daily = (n, seed) => synthBars(n, { seed }).map((r, i) => ({ ...r, t: D0 +
 const ROWS = { AAA: daily(350, 1), BBB: daily(350, 2), CCC: daily(350, 3) }
 
 async function disk() {
-  const pack = packOf(ROWS)
+  const pack = seedPackOf(ROWS, { build: '20261119T2200Z' })
   const d = new Map()
   const eng = createDeviceEngine({ io: memoryIO(d), fetchFn: async () => new Response(pack) })
-  await eng.ingest({ tf: 'D', url: 'u', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: '2026-11-19T22:00:00Z' })
+  await eng.ingest({ tf: 'D', url: 'u', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: '20261119T2200Z' })
   eng.close()
   return d
 }
@@ -44,7 +44,7 @@ describe('device client', () => {
     expect(a).toBe(b)
     expect(w.posted.filter((m) => m.op === 'read')).toHaveLength(1)
     expect(Array.from(a.c)).toEqual(ROWS.AAA.map((r) => r.c))
-    expect(a.build).toBe('2026-11-19T22:00:00Z')
+    expect(a.build).toBe('20261119T2200Z')
     expect(c.peekBars('AAA', 'D')).toBe(a)
     expect(await c.getBars('AAA', 'D')).toBe(a)               // a cache hit costs no message
     expect(w.posted.filter((m) => m.op === 'read')).toHaveLength(1)

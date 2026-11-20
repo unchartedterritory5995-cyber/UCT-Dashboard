@@ -16,6 +16,13 @@ beforeEach(() => { localStorage.removeItem(DEVICE_STORE_KEY); getDeviceClient.mo
 afterEach(() => { localStorage.removeItem(DEVICE_STORE_KEY); vi.useRealTimers() })
 
 describe('the device store switch', () => {
+  it('a seed build id is read as its UTC time (the device copy savedAt); anything else is null', async () => {
+    const { buildTimeMs } = await import('./source')
+    expect(buildTimeMs('20261119T0131Z')).toBe(Date.UTC(2026, 10, 19, 1, 31))
+    expect(buildTimeMs('2026-11-19')).toBeNull()
+    expect(buildTimeMs(null)).toBeNull()
+  })
+
   it('is OFF by default in this PR; "1" turns it on, "0" off', () => {
     expect(DEVICE_STORE_DEFAULT_ON).toBe(false)
     expect(deviceStoreEnabled()).toBe(false)

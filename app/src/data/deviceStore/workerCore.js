@@ -51,7 +51,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
       const r = await fetchFn(manifestUrl, { credentials: 'same-origin', cache: 'no-cache' })
       if (!r.ok) return [{ status: 'error', error: `manifest ${r.status}` }]
       const manifest = await r.json()
-      if (!manifest || manifest.v !== 1 || !manifest.tfs) return [{ status: 'error', error: 'manifest shape' }]
+      if (!manifest || manifest.v !== 1 || manifest.kind !== 'ffseed' || !manifest.build || !manifest.tfs) return [{ status: 'error', error: 'manifest shape' }]
       return engine.ingestAll(manifest, { base: manifestUrl })
     })().catch((e) => [{ status: 'error', error: String(e?.message || e) }])
       .then((out) => { lastIngest = out; return out })

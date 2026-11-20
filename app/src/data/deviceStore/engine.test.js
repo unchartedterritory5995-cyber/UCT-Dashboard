@@ -5,7 +5,10 @@ import { describe, it, expect, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { createDeviceEngine } from './engine'
 import { memoryIO } from './io'
-import { packOf, synthBars } from './testing/fixtures'
+import { seedPackOf, synthBars } from './testing/fixtures'
+
+/** A D pack (or `tf`) whose trailer names build `b1` unless told otherwise (the entries below say b1). */
+const packOf = (syms, o = {}) => seedPackOf(syms, { build: 'b1', ...o })
 import { resampleDailyToWeekly, resampleDailyToMonthly } from '../../utils/resampleBars'
 
 const sha = (b) => createHash('sha256').update(b).digest('hex')
@@ -52,7 +55,7 @@ const entryOf = (tf, url, bytes, build = 'b1') => ({ tf, url, bytes: bytes.lengt
 
 describe('device engine: index + reads', () => {
   it('reads every symbol back with EXACT values after an ingest; unknown symbol / tf → null', async () => {
-    const pack = packOf(UNIVERSE, { series: 'D' })
+    const pack = packOf(UNIVERSE, { tf: 'D' })
     const io = memoryIO()
     const eng = createDeviceEngine({ io, fetchFn: fakeEdge({ '/seed/D-b1.pack': pack }) })
     await eng.open()
@@ -133,7 +136,7 @@ describe('device engine: ingest', () => {
 
   it('a new build replaces the old one: new values served, old generation deleted', async () => {
     const one = packOf(UNIVERSE)
-    const two = packOf({ AAPL: dailyRows(350, 42) })
+    const two = packOf({ AAPL: dailyRows(350, 42) }, { build: 'b2' })
     const disk = new Map()
     const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u1: one, u2: two }) })
     const events = []
@@ -177,8 +180,8 @@ describe('device engine: ingest', () => {
   })
 
   it('ingestAll runs the manifest one timeframe at a time, D first, resolving URLs against the manifest', async () => {
-    const d = packOf(UNIVERSE)
-    const m5 = packOf({ AAPL: synthBars(300, { step: 300, t0: 1_794_000_000 }) }, { series: '5' })
+    const d = packOf(UNIVERSE, { build: 'b9' })
+    const m5 = packOf({ AAPL: synthBars(300, { step: 300, t0: 1_794_000_000 }) }, { tf: '5', build: 'b9' })
     const edge = fakeEdge({ 'https://x.test/seed/D.pack': d, 'https://x.test/seed/5.pack': m5 })
     let inFlight = 0, peak = 0
     const counting = vi.fn(async (...a) => { inFlight++; peak = Math.max(peak, inFlight); try { return await edge(...a) } finally { inFlight-- } })
@@ -192,6 +195,15 @@ describe('device engine: ingest', () => {
     expect(peak).toBe(1)
     expect(eng.read('AAPL', '5').t.length).toBe(300)
     expect(eng.info().tfs['5'].build).toBe('b9')
+  })
+
+  it('a file holding another build than the manifest names is never committed (a stale edge copy)', async () => {
+    const pack = packOf(UNIVERSE, { build: '20261118T0131Z' })
+    const disk = new Map()
+    const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: fakeEdge({ u: pack }) })
+    await expect(eng.ingest(entryOf('D', 'u', pack, '20261119T0131Z'))).rejects.toThrow(/build/)
+    expect(eng.read('AAPL', 'D')).toBeNull()
+    expect([...disk.keys()]).toEqual([])                     // discarded whole: nothing to resume into a loop
   })
 
   it('refuses a malformed manifest entry before touching the disk', async () => {
