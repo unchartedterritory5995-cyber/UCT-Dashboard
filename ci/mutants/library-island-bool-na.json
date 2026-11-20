@@ -106,7 +106,7 @@
    "mutant": "the boundary ignores a bool collection the script shares with the island",
    "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
    "from": "            const shared = slots.findIndex((sl) => !!sl && sl.owner === fnIndex && Number.isInteger(sl.index)",
-   "to": "            const shared = -1 && slots.findIndex((sl) => !!sl && sl.owner === fnIndex && Number.isInteger(sl.index)",
+   "to": "            const shared = -1; void slots.findIndex((sl) => !!sl && sl.owner === fnIndex && Number.isInteger(sl.index)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
    "expectRed": "a `bool` array the script shares with it"
   },

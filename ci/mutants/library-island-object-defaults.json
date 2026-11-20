@@ -1,0 +1,60 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "The version island, PR 3 (feat/pine-library-island-object-defaults, NUMBER PENDING, stacked on #2126): a v5 library's label.new / box.new / table.cell inside a v6 script draws v5's witnessed default colours for a slot it leaves unset (the call carries the island's default; the run's objects are drawn at the program's version), railed on the rendered objects; a named colour is the library's own, and the script's own calls keep v6's defaults. Every piece, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "X1",
+   "mutant": "a v5 library's object call carries no island default (drawn at the program's version)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (islandFamily && objectVersion !== pineVersion && Number.isFinite(objectVersion)) {",
+   "to": "    if (false && islandFamily && objectVersion !== pineVersion && Number.isFinite(objectVersion)) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "the island draws the v5 script's colours"
+  },
+  {
+   "id": "X2",
+   "mutant": "the island default overwrites a colour the library names",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (slotsOf[k] !== null || mine[p] === undefined || mine[p] === theirs[p]) return",
+   "to": "        if (mine[p] === undefined || mine[p] === theirs[p]) return",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a colour the library names is its own"
+  },
+  {
+   "id": "X3",
+   "mutant": "table.cell is not an island-default call",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  const ISLAND_DEFAULT_FAMILIES = Object.freeze({ 'label.new': 'label', 'box.new': 'box', 'table.cell': 'cell' })",
+   "to": "  const ISLAND_DEFAULT_FAMILIES = Object.freeze({ 'label.new': 'label', 'box.new': 'box' })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "a table cell with its text colour unset"
+  },
+  {
+   "id": "X4",
+   "mutant": "the island default is applied to the script's own calls too (every call, not the island's)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    const objectVersion = versionAt(tok, pineVersion)",
+   "to": "    const objectVersion = 5",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "the script's own label keeps v6's default"
+  },
+  {
+   "id": "X5",
+   "mutant": "the runtime lane does not hand the linker the object-defaults family",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "  ISLAND_FAMILY.OBJECT_DEFAULTS,",
+   "to": "  // (X5: object-defaults dropped)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "every family the runtime lane judges per token"
+  },
+  {
+   "id": "X6",
+   "mutant": "the link check holds label.new without textcolor as no family again (refused on every lane)",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "          const r = hit(ISLAND_FAMILY.OBJECT_DEFAULTS, { what: '`label.new` without `textcolor`',",
+   "to": "          const r = hit(null, { what: '`label.new` without `textcolor`',",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "label.new without textcolor"
+  }
+ ]
+}

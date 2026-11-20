@@ -114,8 +114,7 @@ export function versionAt(tok, programVersion) {
 // lane's rules for it onto `versionAt`, with its rail: a v5 library in a v6 script computes what the same library
 // computes in a v5 script (`pineLibraryVersion.test.js`, "the version island, family by family"). A construct with
 // no family (`request.*`, `strategy.*`, `transp`/`offset`/`linewidth`, a repeated argument, a negative literal
-// index, history of a literal or a field, a const-int division, `label.new` without `textcolor`, `box.new` without
-// `bgcolor` / `text_color`, `table.cell` without `text_color`) stays refused on
+// index, history of a literal or a field, a const-int division) stays refused on
 // every lane.
 export const ISLAND_FAMILY = Object.freeze({
   BOOL_NA: 'bool-na',
@@ -125,6 +124,8 @@ export const ISLAND_FAMILY = Object.freeze({
   COLOURS: 'colours',
   TIMEFRAME_PERIOD: 'timeframe.period',
   TOSTRING_LITERAL: 'str.tostring-literal',
+  // island PR 3: `label.new` / `box.new` / `table.cell` with a colour slot left to its version's default
+  OBJECT_DEFAULTS: 'object-defaults',
 })
 /** The families the runtime lane judges per token (`pineRuntimeFrontend.js` hands them to the linker). */
 export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
@@ -137,6 +138,8 @@ export const RUNTIME_ISLAND_FAMILIES = Object.freeze([
   // rules and the columnar resolver's); a v5 `na` bool never leaves the island unrefused (`islandNaBoolResult`, LV6)
   ISLAND_FAMILY.BOOL_NA,
   ISLAND_FAMILY.IMPLICIT_CAST,
+  // ⭐⭐ island PR 3: a v5 library's object call carries v5's default colours (`pineRuntimeFrontend.js` lowerObjectCall)
+  ISLAND_FAMILY.OBJECT_DEFAULTS,
 ])
 
 const isPunct = (t, v) => !!t && t.kind === 'punct' && t.value === v
@@ -387,7 +390,8 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
       if (v === 'label.new' && isPunct(next, '(')) {
         const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
         if (!args.some((a, k) => isWord(a, 'textcolor') && isPunct(args[k + 1], '='))) {
-          return hit(null, { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t })
+          const r = hit(ISLAND_FAMILY.OBJECT_DEFAULTS, { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t })
+          if (r) return r
         }
       }
       // ⭐ (libchain, 2026-11-20) the other object defaults a v5 script draws differently from this engine's v6 base
@@ -401,9 +405,10 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
         const named = (w) => args.some((a, k) => isWord(a, w) && isPunct(args[k + 1], '='))
         const missing = (v === 'box.new' ? ['bgcolor', 'text_color'] : ['text_color']).find((w) => !named(w))
         if (missing) {
-          return hit(null, { what: `\`${v}\` without \`${missing}\``, why: missing === 'bgcolor'
+          const r = hit(ISLAND_FAMILY.OBJECT_DEFAULTS, { what: `\`${v}\` without \`${missing}\``, why: missing === 'bgcolor'
             ? 'its default fill is opaque `color.blue` in v5 and 80% transparent in v6 (Color changes)'
             : 'its default text colour is `color.black` in v5, which this engine does not draw for v6', tok: t })
+          if (r) return r
         }
       }
       if ((v === 'transp' || v === 'offset' || v === 'linewidth') && !t.member && isPunct(next, '=') && (isPunct(prev, ',') || isPunct(prev, '('))) {

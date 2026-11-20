@@ -19,6 +19,7 @@ import { describe, it, expect } from 'vitest'
 
 import { translatePine, Resolver, parseWholeExpression } from './pine.js'
 import { TABLE } from './parse.js'
+import { toRenderState } from '../objectRenderState.js'
 import { fixtureLibraries } from './__tests__/libraryFixture.js'
 import { interpret } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
@@ -82,12 +83,12 @@ const CASES = [
   ['and/or with a call on its right', '    x > 0 and ta.rising(x, 2) ? x : 0.0', /`and` with a call on its right \(`ta\.rising`\)/, F.LAZY_AND_OR],
   ['timeframe.period', '    timeframe.period == "D" ? x : 0.0', /`timeframe\.period`/, F.TIMEFRAME_PERIOD],
   ['a changed colour constant', '    c = color.red\n    x', /`color\.red`.*#FF5252 in v5, #F23645 in v6/, F.COLOURS],
-  ['label.new without textcolor', '    label.new(bar_index, x, "a")\n    x', /`label\.new` without `textcolor`/, null],
+  ['label.new without textcolor', '    label.new(bar_index, x, "a")\n    x', /`label\.new` without `textcolor`/, F.OBJECT_DEFAULTS],
   ['a for bound that calls something', '    float t = 0.0\n    for i = 0 to math.round(x) % 3\n        t := t + 1\n    t', /`for` loop whose end bound calls `math\.round`/, F.FOR_BOUND],
   ['a for bound the loop reassigns', '    int n = 3\n    float t = 0.0\n    for i = 0 to n\n        n := n - 1\n        t := t + 1\n    t', /`for` loop whose end bound reads `n`/, F.FOR_BOUND],
-  ['box.new without bgcolor', '    b = box.new(bar_index, x, bar_index + 1, x - 1)\n    x', /`box\.new` without `bgcolor`.*opaque/, null],
-  ['box.new with bgcolor, without text_color', '    b = box.new(bar_index, x, bar_index + 1, x - 1, bgcolor = color.new(color.blue, 50))\n    x', /`box\.new` without `text_color`/, null],
-  ['table.cell without text_color', '    t = table.new(position.top_right, 1, 1)\n    table.cell(t, 0, 0, "a")\n    x', /`table\.cell` without `text_color`/, null],
+  ['box.new without bgcolor', '    b = box.new(bar_index, x, bar_index + 1, x - 1)\n    x', /`box\.new` without `bgcolor`.*opaque/, F.OBJECT_DEFAULTS],
+  ['box.new with bgcolor, without text_color', '    b = box.new(bar_index, x, bar_index + 1, x - 1, bgcolor = color.new(color.blue, 50))\n    x', /`box\.new` without `text_color`/, F.OBJECT_DEFAULTS],
+  ['table.cell without text_color', '    t = table.new(position.top_right, 1, 1)\n    table.cell(t, 0, 0, "a")\n    x', /`table\.cell` without `text_color`/, F.OBJECT_DEFAULTS],
   ['a const int division', '    int k = 5\n    x + k / 2', /division of two values that may be `const int`/, null],
   ['a request', '    request.security(syminfo.tickerid, "D", x)', /`request\.security`/, null],
   ['na() of a value not shown to be a number', '    b = x > 0\n    na(b) ? 1.0 : x', /`na\(\)` of a value not shown to be a number/, F.BOOL_NA],
@@ -197,6 +198,26 @@ export unmatchedeq(float x) =>
 // family-by-family rail below cannot tell them from the program version there; each has its own rail (the columnar
 // resolver over island tokens, where the two readings do differ).
 const SAME_PICTURE_FAMILIES = [F.IMPLICIT_CAST]
+// ⭐⭐ island PR 3 — the families whose picture is the run's OBJECTS, railed on the rendered objects (below)
+const OBJECT_PICTURE_FAMILIES = [F.OBJECT_DEFAULTS]
+// ⭐⭐ island PR 3 — a v5 library that makes a label, a box and a table cell with their colours unset (and one named)
+const ISLAND_OBJECTS = `${MPL}
+//@version=5
+library("islandobjects")
+export marks(float x) =>
+    if bar_index == 20
+        label.new(bar_index, x, "a")
+        box.new(bar_index, x + 1, bar_index + 1, x - 1, text = "b")
+    x
+export cells(float x) =>
+    var t = table.new(position.top_right, 1, 1)
+    table.cell(t, 0, 0, "c")
+    x
+export named(float x) =>
+    if bar_index == 20
+        label.new(bar_index, x, "a", textcolor = color.green)
+    x
+`
 // ⭐⭐ island PR 2 — a v5 library whose bools can be `na`: what a v5 script refuses by name the island refuses by the
 // same name; a number read as a condition; and every way a v5 `na` bool could leave the island
 const PR2 = `${MPL}
@@ -297,6 +318,7 @@ const LIBS = fixtureLibraries({
   'tester/islandboundary/1': { path: 'tester/islandboundary/1', source: BOUNDARY, licence: 'MPL-2.0', attribution: 'islandboundary (test fixture)' },
   'tester/islandruntime/1': { path: 'tester/islandruntime/1', source: AT_RUN_TIME, licence: 'MPL-2.0', attribution: 'islandruntime (test fixture)' },
   'tester/islandpr2/1': { path: 'tester/islandpr2/1', source: PR2, licence: 'MPL-2.0', attribution: 'islandpr2 (test fixture)' },
+  'tester/islandobjects/1': { path: 'tester/islandobjects/1', source: ISLAND_OBJECTS, licence: 'MPL-2.0', attribution: 'islandobjects (test fixture)' },
   'tester/cleanlib/1': { path: 'tester/cleanlib/1', source: CLEAN, licence: 'MPL-2.0', attribution: 'cleanlib (test fixture)' },
   'tester/islandrefuses/1': { path: 'tester/islandrefuses/1', source: ISLAND_REFUSES, licence: 'MPL-2.0', attribution: 'islandrefuses (test fixture)' },
   ...Object.fromEntries(CASES.map(([, body], k) => [`tester/changed/${k + 1}`, {
@@ -589,7 +611,7 @@ describe('⭐⭐ the version island, family by family: a v5 library in a v6 scri
   it('every family the runtime lane judges per token has its rail here, and nothing else does', () => {
     expect(RUNTIME_ISLAND_FAMILIES.length).toBeGreaterThan(0)
     for (const f of RUNTIME_ISLAND_FAMILIES) expect(Object.values(ISLAND_FAMILY)).toContain(f)
-    expect([...Object.keys(ISLAND), ...SAME_PICTURE_FAMILIES].sort()).toEqual([...RUNTIME_ISLAND_FAMILIES].sort())
+    expect([...Object.keys(ISLAND), ...SAME_PICTURE_FAMILIES, ...OBJECT_PICTURE_FAMILIES].sort()).toEqual([...RUNTIME_ISLAND_FAMILIES].sort())
   })
 
   it('length qualifiers: the v5 and v6 references give a `series int` length to the same windows, so the per-token read changes no answer', () => {
@@ -747,6 +769,51 @@ describe('⭐⭐ island PR 2: a v5 library\'s bools are judged under v5, and a v
     const r = runtimeRun(`${V6}${imp}${use}`)
     expect(r.b.ok, r.why).toBe(true)
     expectSameColumns(r, runtimeRun(`${V5}${imp}${use}`))
+  })
+})
+
+// ─── ⭐⭐ ISLAND PR 3: A v5 LIBRARY'S OBJECTS DRAW v5's DEFAULT COLOURS ─────────────────────────────────────────────
+// A label's unset text colour, a box's unset fill and text colour and a table cell's unset text colour are v5's
+// witnessed defaults (`objectDefaults.js` VERSION_DEFAULTS[5]) for an object a v5 library makes inside a v6 script,
+// as for the same library inside a v5 script. The run's objects are drawn at the PROGRAM's version, so the call
+// carries the island's default (`pineRuntimeFrontend.js` lowerObjectCall). Railed on the RENDERED objects.
+describe('⭐⭐ island PR 3: a v5 library\'s label, box and table cell draw v5\'s default colours inside a v6 script', () => {
+  const imp = 'import tester/islandobjects/1 as io\n'
+  const pastedObjects = ISLAND_OBJECTS.split('\n').slice(3).join('\n').replace(/^export /gm, '')
+  const rendered = (src) => {
+    const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), bars: BARS, inputs: {}, libraries: LIBS, libraryCrossVersion: ADMIT, objectsInRun: true })
+    if (!b.ok) return { why: `${b.refusal.guard}: ${b.refusal.message}` }
+    const p = lowerIrProgram(b.ir)
+    const r = execute(p, { bars: N, series: SERIES, columns: p.columns, confirmed: true })
+    const rs = toRenderState(r.objects.finish().live, { bars: BARS.map((x) => ({ time: x.t * 1000, ...x })), tf: 'D', pineVersion: b.ir.version })
+    return {
+      labels: rs.labels.map((l) => [l.text, l.textcolor, l.color]),
+      boxes: rs.boxes.map((x) => [x.bgcolor, x.text_color, x.border_color]),
+      cells: rs.tables.flatMap((t) => (t.cells || []).map((c) => [c.text, c.text_color])),
+    }
+  }
+  for (const [name, use, expectV5] of [
+    ['a label and a box with their colours unset', 'plot(io.marks(close))\n', { labels: [['a', '#363A45', '#2962FF']], boxes: [['#2962FF', '#363A45', '#2962FF']], cells: [] }],
+    ['a table cell with its text colour unset', 'plot(io.cells(close))\n', { labels: [], boxes: [], cells: [['c', '#363A45']] }],
+  ]) {
+    it(`${name}: the island draws the v5 script's colours; pasted into the v6 script, v6's`, () => {
+      const v5 = rendered(`${V5}${imp}${use}`)
+      expect(v5, v5.why).toEqual(expectV5)
+      const island = rendered(`${V6}${imp}${use}`)
+      expect(island, island.why).toEqual(v5)
+      // non-vacuous: v6 rules over the same calls draw v6's defaults
+      const pasted = rendered(`${V6}${pastedObjects}${use.replace('io.', '')}`)
+      expect(pasted.why).toBe(undefined)
+      expect(pasted).not.toEqual(v5)
+      // the host lane does not judge per token: it refuses the import by name
+      const t = translatePine(`${V6}${imp}${use}`, { libraries: LIBS, libraryCrossVersion: ADMIT, mode: 'host' })
+      expect(t.refusal && t.refusal.guard).toBe(LIBRARY_VERSION)
+    })
+  }
+  it('a colour the library names is its own, never replaced; the script\'s own label keeps v6\'s default', () => {
+    const island = rendered(`${V6}${imp}plot(io.named(close))\nif bar_index == 21\n    label.new(bar_index, close, "own")\n`)
+    expect(island.why).toBe(undefined)
+    expect(island.labels).toEqual([['a', '#4CAF50', '#2962FF'], ['own', '#FFFFFF', '#2962FF']])
   })
 })
 
