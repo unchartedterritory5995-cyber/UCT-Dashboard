@@ -3261,6 +3261,12 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  (not a frame name a caller could fix) and `boundedSlotOffset` (a ring of Pine's 5,000
    *  whose reads stop by name off a whole number). `null` outside such a compile. */
   let frameSeries = null
+  /** ⭐⭐ A4 — slot set, for the parameters of the function body being compiled whose CALL SITE
+   *  passes a value read per bar to a parameter that decides a branch holding history there
+   *  (`checkedParamOf`). Read by `invariantTest` only: such a parameter is no name a caller can
+   *  fix, so the branch takes HIST-S3's every-bar check (`everyBarRegions`) instead of the
+   *  `condParam` refusal. `null` outside such a compile. */
+  let frameChecked = null
   /** While a function body is being compiled, the scope its globals live in — so
    *  a reference to a global mutable variable is refused BY NAME rather than
    *  arriving at the columnar resolver as an undefined name. */
@@ -3620,10 +3626,12 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
             if (foreign === null) foreign = x.name
             // ⭐ HIST-S3 — only a PARAMETER is a name a call site can fix (`simpleSpecialisation`
             // reads the parameter list): a body LOCAL is never the culprit
+            // ⭐⭐ A4 — nor a parameter THIS copy's call site passes per bar (`frameChecked`): no caller
+            // can fix it, so its branch is the every-bar-checked one a body local's is
             if (foreignParam === null) {
               const fnRec = functions[owner]
               foreignParam = fnRec && Number.isInteger(fnRec.params) && Number.isInteger(slots[sl].index)
-                && slots[sl].index < fnRec.params ? x.name : false
+                && slots[sl].index < fnRec.params && !(frameChecked && frameChecked.has(sl)) ? x.name : false
             }
           }
           return x
@@ -16148,6 +16156,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     const prevGuard = guardOuter
     const prevFrameConsts = frameConsts
     const prevFrameSeries = frameSeries
+    const prevFrameChecked = frameChecked
     // ⭐⭐ W4-T7 — A DEFINITION IS COMPILED FROM INSIDE A ROOT STATEMENT, whose
     // hoist sink is armed. The body must not inherit it (a declare landing in
     // the ROOT list would be shared by every call site); it arms its OWN below.
@@ -16301,6 +16310,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       for (const p of spec.series) {
         const s = fnScope.lookup(p)
         if (s !== null) frameSeries.add(s)
+      }
+    }
+    // ⭐ A4 — the parameters this call site passes per bar to a branch's test, by SLOT (`checkedParamOf`)
+    frameChecked = null
+    if (spec && spec.checked && spec.checked.size) {
+      frameChecked = new Set()
+      for (const p of spec.checked) {
+        const s = fnScope.lookup(p)
+        if (s !== null) frameChecked.add(s)
       }
     }
 
@@ -16504,6 +16522,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       guardOuter = prevGuard
       frameConsts = prevFrameConsts
       frameSeries = prevFrameSeries
+      frameChecked = prevFrameChecked
       stmtHoistSink = prevHoistSink
       condDepth = prevCondDepth
       rt5EveryBar = prevEveryBar
@@ -16630,25 +16649,70 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     // parameter count. Anything else keeps the refusal it had.
     const series = new Set()
     const seriesOk = (p, err) => seriesParamOf(node, p, args[params.indexOf(p)], quals.get(p), blockedBy.get(p), err, scope, at)
+    // ⭐⭐ A4 — and a parameter that decides a branch holding history, whose argument here is read per
+    // bar (`checkedParamOf`): the copy draws that branch while it runs on every call and stops by
+    // name at the first call it skips (`frameChecked`, HIST-S3's check)
+    const checked = new Set()
+    const checkedOk = (p, err) => checkedParamOf(p, quals.get(p), blockedBy.get(p), err, scope)
     if (!consts.has(culprit)) {
-      if (!seriesOk(culprit, held)) throw unfixed(held)
-      series.add(culprit)
+      if (heldCond) {
+        if (!checkedOk(culprit, held)) throw unfixed(held)
+        checked.add(culprit)
+      } else {
+        if (!seriesOk(culprit, held)) throw unfixed(held)
+        series.add(culprit)
+      }
     }
     for (let round = 0; ; round += 1) {
-      const rec = compileSpecialisation(node, def, consts, series)
+      const rec = compileSpecialisation(node, def, consts, series, checked)
       if (!rec.error) {
         diagnostics.specialisedCalls = (diagnostics.specialisedCalls || 0) + 1
         if (series.size) diagnostics.seriesSpecialisedCalls = (diagnostics.seriesSpecialisedCalls || 0) + 1
+        if (checked.size) diagnostics.checkedSpecialisedCalls = (diagnostics.checkedSpecialisedCalls || 0) + 1
         return rec.index
       }
       const p2 = rec.error && rec.error.frameName
-      if (round < params.length && typeof p2 === 'string' && params.includes(p2) && !consts.has(p2)
-        && !series.has(p2) && seriesOk(p2, rec.error)) {
-        series.add(p2)
-        continue
+      // each parameter joins each set at most once, so the rounds are bounded by twice the parameter count
+      if (round < 2 * params.length && typeof p2 === 'string' && params.includes(p2) && !consts.has(p2)) {
+        if (!series.has(p2) && seriesOk(p2, rec.error)) { series.add(p2); continue }
+        if (!checked.has(p2) && checkedOk(p2, rec.error)) { checked.add(p2); continue }
       }
       throw unfixed(rec.error)
     }
+  }
+
+  /** ⭐⭐ A4 — MAY THIS CALL'S ARGUMENT FOR PARAMETER `p`, WHICH DECIDES A BRANCH HOLDING HISTORY,
+   *  BE READ PER BAR in the copy, with that branch CHECKED to run on every call?
+   *
+   *  `Variance(src, p) => p == 1 ? 0 : Sma(src * src, p) - pow(Sma(src, p), 2)` called with
+   *  `k = n - val > 0 ? n - val : 2` (support-and-resistance, v4): the test reads a value that changes
+   *  every bar, so no call site fixes the branch (C35), and the arm holds history (`Sma` keeps `cum`
+   *  and `a[p]`). Pine keeps that history per call site, over the calls the arm ran on. While the arm
+   *  has run on EVERY call and the call runs on every bar, those calls are every bar, and the every-bar
+   *  value is TradingView's whatever the version's arm rule (a lazy and an eager arm agree there:
+   *  HIST-S3, `collections.js::callSiteRuns`); the first call it skips stops the run by name. The
+   *  engine-64 queue doc names exactly this as an engine gap, not a capture question
+   *  (docs/pine/capture-queue-2026-11-16-runtime-history.md: "the body compiled per call site with the
+   *  every-bar check on that branch").
+   *
+   *  ⛔ NOT when: the refusal is not the `condParam` one; `p` is declared `simple` / `const` (Pine
+   *  does not compile a per-bar value there); the argument reads a parameter of the calling function
+   *  that its OWN call site may fix (the C35 chain stays first: a fixed branch is exact on every
+   *  chart); the call is in a loop (several calls a bar, which the check refuses as a skip); the
+   *  drawing build, the object door or a request's value (HIST-S3 runs on none of them).
+   *  @returns {boolean} true = the copy checks the branch; false = the caller's refusal stands */
+  const checkedParamOf = (p, q, blocked, err, scope) => {
+    if (atObjectDoor || inRequestValue || objectsInRun || loopDepth > 0) return false
+    if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:conditional-history' || err.condParam !== true) return false
+    if (q === 'simple' || q === 'const') return false
+    if (typeof blocked === 'string') {
+      const bs = scope ? scope.lookup(blocked) : null
+      const blockedPerBar = bs !== null && ((frameChecked !== null && frameChecked.has(bs))
+        || (frameSeries !== null && frameSeries.has(bs)))
+      const blockedParam = bs !== null && slots[bs] && slots[bs].owner === owner && Number.isInteger(slots[bs].index)
+      if (blockedParam && !blockedPerBar) return false
+    }
+    return true
   }
 
   /** ⭐⭐ A1 — MAY THIS CALL'S ARGUMENT FOR PARAMETER `p` BE READ PER BAR in the copy?
@@ -16719,11 +16783,13 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     return null
   }
 
-  /** ⭐ C35 / A1 — the copy of `def` for this call site's fixed parameters (`consts`) and the ones
-   *  it passes per bar (`series`), compiled once per distinct pair. `{index, error?}`. */
-  const compileSpecialisation = (node, def, consts, series) => {
+  /** ⭐ C35 / A1 / A4 — the copy of `def` for this call site's fixed parameters (`consts`), the ones
+   *  it passes per bar to an offset (`series`) and to a branch's test (`checked`), compiled once per
+   *  distinct triple. `{index, error?}`. */
+  const compileSpecialisation = (node, def, consts, series, checked = new Set()) => {
     const key = `${node.name}|${JSON.stringify([...consts].sort((x, y) => (x[0] < y[0] ? -1 : 1)))}`
       + (series.size ? `|series:${[...series].sort().join(',')}` : '')
+      + (checked.size ? `|checked:${[...checked].sort().join(',')}` : '')
     let rec = specialisations.get(key)
     if (!rec) {
       rec = { index: functions.length }
@@ -16733,7 +16799,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       stmtHoistSink = null
       loopDepth = 0
       try {
-        defineFunction(def.st, def.toks, def.arrow, series.size ? { consts, series } : { consts })
+        defineFunction(def.st, def.toks, def.arrow, {
+          consts, ...(series.size ? { series } : {}), ...(checked.size ? { checked } : {}),
+        })
       } catch (err) {
         rec.error = err
         // ⛔ THE RECORD STAYS, VALID AND UNCALLED. Popping it would hand its index
