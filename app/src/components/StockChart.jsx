@@ -2177,7 +2177,9 @@ export function timeAxisFormattersFor(h24, zoneId, study = false) {
     const base = study ? studyTickMarkFormatter : chartTickMarkFormatter
     const z = (time) => (typeof time === 'number' ? chartTimeInZone(time, tz) : time)
     f = {
-      tick: (time, tickMarkType, locale) => base(z(time), tickMarkType, locale, !!h24),
+      // Year and month marks are placed on the exchange clock, so they are NAMED on it: a zone far west of New
+      // York could read a month's pre-market first bar on the previous day ("Feb" at the March mark).
+      tick: (time, tickMarkType, locale) => base(tickMarkType <= 1 ? time : z(time), tickMarkType, locale, !!h24),
       crosshair: (time) => chartCrosshairTimeFormatter(z(time), !!h24),
     }
     _zonedTimeFormatters.set(key, f)
