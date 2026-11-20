@@ -386,7 +386,9 @@ describe('UNEWS filters', () => {
     expect(lastDay()).toMatchObject({ date: TODAY, categories: ['Macro'] })
     expect(macro.getAttribute('aria-pressed')).toBe('true')
     expect(screen.getByTestId('terminal-unews-type-all').getAttribute('aria-pressed')).toBe('false')
-    expect(screen.getByTestId('terminal-unews-count').textContent).toBe(`1 of 4 headlines on ${dayLabel(TODAY, TODAY)} matches the filters above.`)
+    // ⛔ AWAITED (2026-11-20): the rows narrow first; the sentence's day total arrives with the day read's answer, and
+    // a synchronous read raced it on a saturated runner ("1 headline loaded for …" where the total was still to land)
+    await waitFor(() => expect(screen.getByTestId('terminal-unews-count').textContent).toBe(`1 of 4 headlines on ${dayLabel(TODAY, TODAY)} matches the filters above.`))
     fireEvent.click(screen.getByTestId('terminal-unews-type-Earnings'))
     await waitFor(() => expect(seqs()).toEqual([8, 7]))
     expect(lastDay().categories).toEqual(['Macro', 'Earnings'])
