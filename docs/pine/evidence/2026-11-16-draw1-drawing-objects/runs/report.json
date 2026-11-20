@@ -3,9 +3,9 @@
   "capture": {
    "scripts": 955,
    "admitted": 777,
-   "runtimeLane": 219,
-   "hostLane": 302,
-   "refused": 256,
+   "runtimeLane": 221,
+   "hostLane": 303,
+   "refused": 253,
    "coreOnly": 45
   },
   "committed": {
@@ -19,9 +19,9 @@
   "reference": {
    "scripts": 271,
    "admitted": 241,
-   "runtimeLane": 41,
+   "runtimeLane": 42,
    "hostLane": 112,
-   "refused": 88,
+   "refused": 87,
    "coreOnly": 7
   },
   "builtin": {
@@ -6175,7 +6175,7 @@
   },
   {
    "capture": "screener-mean-reversion-channel-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -6194,7 +6194,7 @@
   },
   {
    "capture": "screener-mean-reversion-channel-spy-1d-2026-11-14",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8547,7 +8547,7 @@
   },
   {
    "capture": "vw-bt-toradians-spy-1d-2026-11-16",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -15817,9 +15817,9 @@
   },
   {
    "key": "reference:saty-atr-levels__99165984ef",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "fn-multi",

@@ -32,6 +32,11 @@ Terminal data wave 5 (terminal-data): `short.interest`, `short.list` — the Age
 panels (FINRA short interest and daily short volume). Both default OFF, both MODEL-ISOLATED, and neither ever starts a
 build, a check or a vendor request: each reads only what `api/services/short_data.py` already holds, through that
 service's read-only accessors (MD-1 §4.14).
+
+Terminal data wave 6 (terminal-data): `seasonality.stock`, `seasonality.board`, `options.tideHistory`,
+`options.oiChange`, `rates.treasury` — the Agent half of the SEAS / SEASB / TIDEH / OIC / RATES terminal panels. All
+five default OFF, all five MODEL-ISOLATED, and none ever starts a build, a fetch or a vendor request: each reads only
+what its service or store already holds (MD-1 §4.15).
 """
 from __future__ import annotations
 
@@ -45,6 +50,8 @@ from api.services.uct_agent.marketdata import (confluence_board, earnings_call_s
 from api.services.uct_agent.marketdata import earnings_reactions, flow_record, flow_top_picks, gamma_levels
 from api.services.uct_agent.marketdata import earnings_call_themes, earnings_season, group_drill
 from api.services.uct_agent.marketdata import short_interest, short_list
+from api.services.uct_agent.marketdata import (oi_change_read, seasonality_board_read, seasonality_stock,
+                                               tide_history_read, treasury_read)
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -405,6 +412,65 @@ def register(registry) -> None:
                     "by percent of float. Only the list the server already holds, never a vendor read or a look for a "
                     "newer report ('not held' otherwise); as_of is the settlement date, never today. Shown to the member "
                     f"only. Params: {{rank: {'|'.join(short_list.RANKS)}, limit (1-{short_list.MAX_LIMIT})}}.",
+    ))
+    # Terminal data wave 6 (owner: terminal-data): five more kinds, the Agent half of the SEAS, SEASB, TIDEH, OIC and
+    # RATES panels. Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL FIVE are model-isolated, so each also needs
+    # its own UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None starts a build, a fetch or
+    # a vendor request: where the member route can start work (the bar serve's deep fetch, the board's build, the
+    # open-interest pair's background build, the Treasury build), the adapter reads the read-only path beside it and
+    # answers `unavailable`, with the reason, when nothing is held (MD-1 §4.15).
+    registry.register(Kind(
+        name=seasonality_stock.KIND, fn=seasonality_stock.read_seasonality_stock, validate=seasonality_stock.validate,
+        # declared `periodic` (the table moves once a month); every read reports the LESS fresh `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock by calendar month and by weekday, close to close: for each month the years counted, "
+                    "the average and the median month return, the percent of years it rose and a flag when too few "
+                    "years are counted, with the window the record covers. Only the completed daily bars the server "
+                    "already holds, never a fetch; a history held only in part is 'unavailable', never a short record "
+                    "stated as the record. as_of is the newest bar in the record, never today. Shown to the member "
+                    "only. Params: {symbol}.",
+    ))
+    registry.register(Kind(
+        name=seasonality_board_read.KIND, fn=seasonality_board_read.read_seasonality_board,
+        validate=seasonality_board_read.validate,
+        # declared `periodic` (built once a New York day); every read reports the LESS fresh `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The seasonality board: the index funds and the sector funds by calendar month (years counted, "
+                    "average and median month return, percent of years up, a flag on a thin month), each fund without "
+                    "numbers listed with its reason. Only the board the server already holds today, never a build "
+                    "('not held' otherwise); as_of is the newest bar the board covers, never today. Shown to the member "
+                    "only. No params.",
+    ))
+    registry.register(Kind(
+        name=tide_history_read.KIND, fn=tide_history_read.read_tide_history, validate=tide_history_read.validate,
+        # declared `periodic` (one row a session, stored after the close); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="Market Tide by finished session, newest first: net call premium, net put premium and net for each "
+                    "stored session, for the whole options tape, stocks only or funds only, with the first stored day "
+                    "and the sessions that have no row. Only the stored sessions, never a capture or a live tide; as_of "
+                    "is the newest stored session, never today. Shown to the member only. "
+                    f"Params: {{scope: {'|'.join(tide_history_read.SCOPES)}, rows (1-{tide_history_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=oi_change_read.KIND, fn=oi_change_read.read_oi_change, validate=oi_change_read.validate,
+        # declared `periodic` (one log file a session); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's open-interest change by contract between the two newest sessions of UCT's options "
+                    "log: the changed and the newly listed contracts, biggest first, for calls, puts or both, with the "
+                    "totals by side, what expired, what was not reported and any session skipped. Only the pair of "
+                    "files the server already holds, never the background build ('not prepared' otherwise); as_of is "
+                    "the newer file's date, never today. Shown to the member only. "
+                    f"Params: {{symbol, side: {'|'.join(oi_change_read.SIDES)}, rows (1-{oi_change_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=treasury_read.KIND, fn=treasury_read.read_treasury, validate=treasury_read.validate,
+        # declared `periodic` (one curve a day, end of day); every read reports `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="US Treasury daily par yields by maturity as UCT holds them: each yield, what it was one day, one "
+                    "week, one month, three months and one year earlier with the change in basis points, and the "
+                    "10-year minus 2-year and 10-year minus 3-month spreads with their state. Only the answer the "
+                    "server already holds, never a request to the Treasury's website ('not held' otherwise); as_of is "
+                    "the curve's date, never today. Shown to the member only. No params.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from

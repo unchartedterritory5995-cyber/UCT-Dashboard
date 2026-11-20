@@ -38,9 +38,12 @@ def test_last_closed_session_tail_is_deblockable(monkeypatch):
     """Flag ON + tail on the last closed session (only today's bars missing) → serve-then-heal."""
     monkeypatch.setenv("BARS_INTRADAY_ASYNC_HEAL", "1")
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: 20260818)
-    # 15:55 ET on the last closed session, and any bar that same day.
+    # 15:55 ET, the session's final 5m bar, and 15:30, its final 60m bar.
+    # ⚰️ This also asserted the 60m 09:30 bar as deblockable ("any bar that same day"). That was the date-only
+    # check this file's own docstring rules out: a tail that stops at 09:30 does NOT carry the last closed
+    # session. See test_A0_* below (2026-11-20, a 22 h old RDDT tail served instantly by web's fallback).
     assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 8, 18, 15, 55)) is True
-    assert bars_fetch._intraday_deblockable("60", _unix_at(2026, 8, 18, 9, 30)) is True
+    assert bars_fetch._intraday_deblockable("60", _unix_at(2026, 8, 18, 15, 30)) is True
 
 
 def test_an_earlier_session_tail_stays_synchronous(monkeypatch):
@@ -49,6 +52,39 @@ def test_an_earlier_session_tail_stays_synchronous(monkeypatch):
     monkeypatch.setenv("BARS_INTRADAY_ASYNC_HEAL", "1")
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: 20260818)
     assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 8, 15, 15, 55)) is False
+
+
+def test_A0_a_tail_that_stops_mid_session_is_not_deblockable(monkeypatch):
+    """2026-11-20, production: web's fallback answered RDDT 5m with a tail ending 13:50 ET of the last closed
+    session, 22 hours old, as an instant 200. The date-only check called that tail "carries the last closed
+    session". It carries the session only when it reaches that session's FINAL bar (THE ONE tolerance rule,
+    `tail_within_one_bucket`: at it, or one bucket short for a thin name)."""
+    monkeypatch.setenv("BARS_INTRADAY_ASYNC_HEAL", "1")
+    monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: 20261119)
+    assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 11, 19, 13, 50)) is False   # the RDDT tail
+    assert bars_fetch._intraday_deblockable("60", _unix_at(2026, 11, 19, 9, 30)) is False
+    assert bars_fetch._intraday_deblockable("1", _unix_at(2026, 11, 19, 15, 50)) is False
+    assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 11, 19, 15, 45)) is False   # two buckets short
+
+
+def test_A0_CONTROL_the_final_bar_and_one_bucket_short_are_deblockable(monkeypatch):
+    monkeypatch.setenv("BARS_INTRADAY_ASYNC_HEAL", "1")
+    monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: 20261119)
+    assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 11, 19, 15, 55)) is True
+    assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 11, 19, 15, 50)) is True    # a thin name's last print
+    assert bars_fetch._intraday_deblockable("1", _unix_at(2026, 11, 19, 15, 59)) is True
+    assert bars_fetch._intraday_deblockable("15", _unix_at(2026, 11, 19, 15, 45)) is True
+    assert bars_fetch._intraday_deblockable("30", _unix_at(2026, 11, 19, 15, 30)) is True
+
+
+def test_A0_a_half_day_ends_at_its_own_close(monkeypatch):
+    """2026-11-27 closes at 13:00 ET: its final 5m bar is 12:55. A full-day threshold would refuse every half-day
+    tail and make the whole universe synchronous the morning after."""
+    monkeypatch.setenv("BARS_INTRADAY_ASYNC_HEAL", "1")
+    monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: 20261127)
+    assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 11, 27, 12, 55)) is True
+    assert bars_fetch._intraday_deblockable("60", _unix_at(2026, 11, 27, 12, 30)) is True
+    assert bars_fetch._intraday_deblockable("5", _unix_at(2026, 11, 27, 11, 50)) is False
 
 
 def test_daily_and_bad_inputs_are_not_intraday_deblockable(monkeypatch):

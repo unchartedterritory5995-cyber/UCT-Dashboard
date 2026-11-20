@@ -70,11 +70,11 @@ def test_CONTROL_what_is_not_the_mistake_passes_first_time(conv, clean_env, mode
     fine = [
         AS_ASKED,                                                         # a number that cannot win
         op("<", VOLUME, prev(call("lowest", only_up(NO_VALUE), num(10)))),    # "the last 10 up days": a real request
-        call("highest", op("?:", UP_DAY, num(0), VOLUME), num(10)),       # 0 for the bars to leave out
+        op(">", VOLUME, prev(call("highest", op("?:", UP_DAY, num(0), VOLUME), num(10)))),   # 0 for the bars to leave out
         op("?:", UP_DAY, VOLUME, INFINITY),                               # no window reads it: a blank, as drawn
         op("/", CLOSE, call("lowest", CLOSE, num(10))),                   # a real division
         # a window of its own inside another: the inner one is judged on its own, and reads no infinity
-        call("highest", call("lowest", only_up(BIG), num(5)), num(10)),
+        op("<", VOLUME, call("highest", call("lowest", only_up(BIG), num(5)), num(10))),
         call("ema", op("?:", UP_DAY, VOLUME, INFINITY), num(10)),         # not a look-back window (it carries its value)
     ]
     for tree in fine:
