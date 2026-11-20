@@ -341,3 +341,26 @@ describe('rule 3: a restored conversation offers nothing', () => {
     expect(withoutOffer(null)).toBeNull()
   })
 })
+
+// ─── already on the chart, and why the member may not see it (review 2026-11-19) ────────
+describe('an indicator that is already on the chart says why it may not be visible', () => {
+  const HV = { kind: OFFER_ADD_BUILT_IN, indicator: 'historicalVolatility' }
+  const withOne = (tf) => applyOffer(HV, { settings: mergeChartSettings({}), registry, isOffered: yes, tf }).next
+
+  it('on a timeframe it does not draw on', () => {
+    const settings = withOne('D')
+    expect(applyOffer(HV, { settings, registry, isOffered: yes, tf: '5' }).line)
+      .toBe('Historical Volatility is already on this chart. Historical Volatility does not draw on this timeframe: it will show when the chart is on one it does.')
+    // CONTROL: on a timeframe it draws on, and with no timeframe known, it says only that it is there
+    expect(applyOffer(HV, { settings, registry, isOffered: yes, tf: 'D' }).line).toBe('Historical Volatility is already on this chart.')
+    expect(applyOffer(HV, { settings, registry, isOffered: yes }).line).toBe('Historical Volatility is already on this chart.')
+  })
+
+  it('hidden on the chart', () => {
+    const settings = withOne('D')
+    const inst = instancesOf(settings, 'historicalVolatility')[0]
+    const hidden = { ...settings, indicatorInstances: settings.indicatorInstances.map((i) => (i.instanceId === inst.instanceId ? { ...i, hidden: true } : i)) }
+    const line = applyOffer(HV, { settings: hidden, registry, isOffered: yes, tf: 'D' }).line
+    expect(line).toBe('Historical Volatility is already on this chart. It is hidden on this chart: show it from the Indicators list.')
+  })
+})
