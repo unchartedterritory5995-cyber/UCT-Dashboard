@@ -30,7 +30,7 @@ import { cloneValues } from './vmState.js'
 import { SLOT } from './ir.js'
 import { lowerIrProgram, naTestsOf } from './lowerIr.js'
 import { execute, requestRegionCausal } from './vm.js'
-import { runtimeRequestSupply, requestWaitingSentence, REQUEST_LAG_GUARD } from './requestSupply.js'
+import { runtimeRequestSupply, requestWaitingSentence, REQUEST_LAG_GUARD, tailCutSentence, tailCutIsOff } from './requestSupply.js'
 import { withOvernightTail, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 import { symbolConstants, minContractOf } from '../ast/bind.js'
 // ⭐ RS RATING L3 — the symbol fields the fold reads, from the one list that names them.
@@ -589,6 +589,8 @@ function computeStrategyWindow(def, rows, ctx, opts) {
     cols = computeRuntimeColumnsOnce(def, rows.slice(cut), { ...(ctx || {}), historyFromListing: false }, opts)
   } catch (err) {
     if (err && Number.isInteger(err.bar)) err.bar += cut
+    // ⭐ (e91) and a cut found in the window (an overnight tail, a tail lag) is the chart's bar too
+    if (err && Number.isInteger(err.cutAt)) err.cutAt += cut
     throw err
   }
   // the record is keyed by bar TIME, so it rides the widened columns unchanged
@@ -653,6 +655,7 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
   let end = n
   let series = []
   let tail = null
+  let tailSeries = []
   for (let pass = 0; ; pass += 1) {
     const cut = end < n
     try {
@@ -666,13 +669,22 @@ export function computeRuntimeColumns(def, rows, ctx, opts = {}) {
       const widened = withOvernightTail(cols, n, end, series, { code: tail.guard, reason: tail.message })
       if (!(def && def.compute && def.compute.objects)) return widened
       return withRuntimeObjects(widened, { status: 'WITHHELD', live: [], guard: tail.guard, reason: tail.message,
-        ...(tail.pending ? { pending: true, waitingFor: series.join(',') } : {}) })
+        ...(tail.pending ? { pending: true, waitingFor: tailSeries.join(',') } : {}) })
     } catch (err) {
       const at = err && Number.isInteger(err.cutAt) ? err.cutAt : 0
       if (_overnightCutOff || pass + 1 >= OVERNIGHT_PASSES || at < 1 || at >= end) throw err
       end = at
       series = [...new Set([...series, ...(Array.isArray(err.overnightSeries) ? err.overnightSeries : [])])]
-      if (err.tailWait === true) tail = { guard: err.guard, message: String(err.message || ''), pending: err.tailPending === true }
+      if (err.tailWait === true) {
+        // several series' tails, one cut each: the cut names them all; a lag past the bound is the answer for all (a
+        // wait only when every one is within it), and its own sentence is kept
+        const named = Array.isArray(err.overnightSeries) ? err.overnightSeries : []
+        tailSeries = [...new Set([...tailSeries, ...named])]
+        const pending = err.tailPending === true && (!tail || tail.pending)
+        tail = pending ? { guard: err.guard, message: tailCutSentence(tailSeries), pending: true }
+          : tail && !tail.pending ? tail
+            : { guard: err.guard, message: String(err.message || ''), pending: false }
+      }
     }
   }
 }
@@ -1985,8 +1997,20 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       && reqSupply.newestTail.length && reqSupply.newestTail.length === reqSupply.newestWithheldSites.length
       && requestNewestHeldOf(program.requests, reqSupply.newestWithheldSites, outputs).keys === null) {
     const late = reqSupply.newestTail.find((t) => !t.within)
-    if (late) throw refusal(REQUEST_LAG_GUARD, late.message)
     const series = reqSupply.newestTail.map((t) => t.series)
+    // ⭐⭐ (e91, coordinator ruling (2b)) — the newest bar alone on the tail is CUT too, never the whole run waiting. ⚰️
+    // MEASURED (this file's product rail, Fred RS one bar ahead of SPX): the drawing run waited, its plain program does
+    // not stand on its own, so the WHOLE run waited and a freshly opened pane stayed blank. Cut at the newest bar: the
+    // values are drawn up to it, the drawings wait named (`computeRuntimeColumns`), and SPX's update draws them
+    if (!tailCutIsOff() && rows.length > 1) {
+      const cut = refusal(late ? REQUEST_LAG_GUARD : REQUEST_GUARD, late ? late.message : tailCutSentence(series))
+      cut.cutAt = rows.length - 1
+      cut.overnightSeries = [...new Set(series)]
+      cut.tailWait = true
+      cut.tailPending = !late
+      throw cut
+    }
+    if (late) throw refusal(REQUEST_LAG_GUARD, late.message)
     throw requestWait(requestWaitingSentence(series), series)
   }
   // ⛔ RS RATING L5 — a run that reads requested bars never resumes from a checkpoint: the

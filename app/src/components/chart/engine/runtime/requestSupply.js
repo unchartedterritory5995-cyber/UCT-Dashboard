@@ -147,6 +147,8 @@ export function tailCutSentence(series) {
 /** Tests: a tail lag waits (within the bound) or refuses (past it) the WHOLE run, as before the cut (the mutants' control). */
 let _tailCutOff = false
 export function __tailCutOffForTests(off) { _tailCutOff = !!off }
+/** Whether the tail cut is switched off (tests only), read by the run's newest-tail cut (`runtimeColumns.js`). */
+export function tailCutIsOff() { return _tailCutOff }
 
 export function requestWaitingSentence(series) {
   const names = [...new Set(series)].map((s) => `\`${s}\``)
