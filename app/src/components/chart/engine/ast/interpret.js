@@ -7170,13 +7170,24 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, colu
     tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     // ⭐⭐ HTF-LIVE-FIRST-PERIOD — a look-ahead read of a period built from part of it
     tfLiveMask(tree, bars, opts, inputs, budget, scalars),
-    // ⭐⭐ PERIOD −1 — a read of the bar, week or month before the first one this series holds
-    historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
     argExtremeTieMask(tree, bars, inputs, budget, scalars, opts),
   ].filter(Boolean)
+  // ⭐⭐ PERIOD −1 — a read of the bar, week or month before the first one this series holds, asked LAST and only where a
+  // bar would still be drawn: it can only withhold, so a column every other mask (or its own evaluation) already leaves
+  // blank on every bar is not walked (ITEM 4: a running total withheld whole off the listing paid its two starts for
+  // nothing). The Python lane asks it last for the same reason (`ast_interpret.interpret`).
+  const n = Array.isArray(bars) ? bars.length : 0
+  let open = false
+  for (let i = 0; i < n && !open; i++) {
+    open = !masks.some((m) => m[i]) && (column === undefined || column === null || Number.isFinite(column[i]))
+  }
+  if (open) {
+    const before = historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column)
+    if (before) masks.push(before)
+  }
   if (masks.length <= 1) return masks[0] || null
   const out = new Float64Array(Math.max(...masks.map((m) => m.length)))
   for (let i = 0; i < out.length; i++) out[i] = masks.some((m) => m[i]) ? 1 : 0

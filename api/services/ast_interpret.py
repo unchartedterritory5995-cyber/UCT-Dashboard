@@ -4901,11 +4901,9 @@ def interpret(ast: Any, bars: List[dict],
         lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
         if lived is not None:
             column = [math.nan if lived[i] else v for i, v in enumerate(column)]
-        # ⭐⭐ PERIOD -1 -- ...and a read of the bar, week or month before the first one the series holds
-        # (``interpret.js::historyBeforeChartMask``), named where it takes a drawn value away
-        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, column)
-        if before is not None:
-            column = [math.nan if before[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
+        # named where it takes a drawn value away), as it stands here; the mask itself is asked LAST (below)
+        named_against = list(column)
     if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
@@ -4946,6 +4944,13 @@ def interpret(ast: Any, bars: List[dict],
         anchored = period_anchor_mask(ast, bars, inputs, budget, scalars, opts)
         if anchored:
             column = [math.nan if m else v for v, m in zip(column, anchored)]
+    if not probing and any(not math.isnan(v) for v in column):
+        # ⭐⭐ PERIOD -1 -- ...and a read of the bar, week or month before the first one the series holds, asked last and
+        # only where a bar would still be drawn (``interpret.js::withheldReadMask``): it can only withhold, so a column
+        # every other mask already leaves blank is not walked (ITEM 4's two starts cost nothing there)
+        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, named_against)
+        if before is not None:
+            column = [math.nan if before[i] else v for i, v in enumerate(column)]
     # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
