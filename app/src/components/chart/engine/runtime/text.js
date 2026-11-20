@@ -71,7 +71,7 @@ function replaceNth(s, target, replacement, n) {
   return s.slice(0, at) + replacement + s.slice(at + target.length)
 }
 
-// ⭐⭐ STR-TONUMBER (NUMBER PENDING) — `str.tonumber`, AS TRADINGVIEW READS TEXT. A plain decimal (an optional
+// ⭐⭐ STR-TONUMBER (engine 90) — `str.tonumber`, AS TRADINGVIEW READS TEXT. A plain decimal (an optional
 // sign, digits, an optional point and fraction: "12", "-2", "+2", "1.5", ".5", "5.", "007") is its value once
 // the SPACES around it are dropped (" 3" and "3 " are 3); anything else is `na` (NaN here). WITNESSED on every
 // one of the 21 rows of `vw-bi-str-tonumber-spy-1d-2026-11-19`, every bar: "1,000", "0x10", "NaN", "inf", "",

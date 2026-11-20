@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/requestSettledFunctions.test.js
 //
-// ─── ⭐⭐ (request unit PR 2, NUMBER PENDING) — A REQUEST'S TIMEFRAME WRITTEN AS A CALL TO THE SCRIPT'S OWN FUNCTION ───
+// ─── ⭐⭐ (request unit PR 2, engine 90) — A REQUEST'S TIMEFRAME WRITTEN AS A CALL TO THE SCRIPT'S OWN FUNCTION ───
 //
 // The runtime lane's resolver environment holds pure expression bindings and no user function, so a timeframe written
 // as a call was unreadable there and the request refused (`runtime:request`, `lookahead`):

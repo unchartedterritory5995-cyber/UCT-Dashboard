@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "Request unit PR 2 (feat/eng-request-settled-fns, NUMBER PENDING): the runtime lane's request reader reads a timeframe written as a call to the script's own function (an expression body, or `x = '<text>'` + one `if` chain of `x := '<text>'`), through a name bound once to such a call, and the chart's own extended-session ticker at the chart's own D on a daily chart; anything else is refused by name, and the plot lane reads as before. Every rule, broken once, must turn its rail red.",
+ "about": "Request unit PR 2 (feat/eng-request-settled-fns, engine 90): the runtime lane's request reader reads a timeframe written as a call to the script's own function (an expression body, or `x = '<text>'` + one `if` chain of `x := '<text>'`), through a name bound once to such a call, and the chart's own extended-session ticker at the chart's own D on a daily chart; anything else is refused by name, and the plot lane reads as before. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "SF1",

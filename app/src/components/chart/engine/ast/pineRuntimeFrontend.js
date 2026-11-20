@@ -2956,7 +2956,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   // own build where that stands, else a decline under this refusal.
   // Absent on every other build, whose options stay byte-identical.
   const objectDoorOpts = (atObjectDoor || objectsInRun) ? { objectDoor: true } : {}
-  /** ⭐⭐ (request unit PR 2, NUMBER PENDING) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THE REQUEST-TIMEFRAME READER
+  /** ⭐⭐ (request unit PR 2, engine 90) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THE REQUEST-TIMEFRAME READER
    *  ALONE (`pine.js::Resolver.requestSettledFunctions` → `throughSettledCall`). This lane's resolver environment
    *  holds pure expression bindings and no user function, so `request.security(ticker, timeframe_func(), …)` (Saty
    *  ATR Levels) was unreadable here. Each function's own kept body (`inlineBodyByName`), read through
@@ -2987,7 +2987,7 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       // result, `settledFunctions`). ⛔ The HOST translator never sets either.
       requestTimeframeReader: 'runtime',
       requestSettledFunctions: settledFunctions,
-      // ⭐⭐ (request unit PR 2, EXT-OWN, NUMBER PENDING) — the chart's own symbol on the extended session, at the
+      // ⭐⭐ (request unit PR 2, EXT-OWN, engine 90) — the chart's own symbol on the extended session, at the
       // chart's own daily timeframe on a daily chart, is the chart's own daily bars (`pine.js::extendedOwnTickerOf`),
       // graded on Saty ATR Levels' captures. ⛔ The HOST translator never sets it.
       requestExtendedOwn: 'daily-identity',

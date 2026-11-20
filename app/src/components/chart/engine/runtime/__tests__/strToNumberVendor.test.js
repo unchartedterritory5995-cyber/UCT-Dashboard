@@ -1,6 +1,6 @@
 // app/src/components/chart/engine/runtime/__tests__/strToNumberVendor.test.js
 //
-// ─── ⭐⭐ STR-TONUMBER (NUMBER PENDING) — `str.tonumber` AS TRADINGVIEW READS TEXT, EVERY ROW, EVERY BAR ───────
+// ─── ⭐⭐ STR-TONUMBER (engine 90) — `str.tonumber` AS TRADINGVIEW READS TEXT, EVERY ROW, EVERY BAR ───────
 //
 // Witness: `vw-bi-str-tonumber-spy-1d-2026-11-19` (committed; our own probe `vw-bi-str-tonumber.pine`). Each row
 // plots `na(str.tonumber(s)) ? -999 : str.tonumber(s)` for one spelling. TradingView reads " 3" and "3 " as 3,

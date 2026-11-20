@@ -1,9 +1,9 @@
-# The `request` engine unit, PR 2: a request timeframe written as a call to the script's own function, and EXT-OWN (2026-11-20, NUMBER PENDING)
+# The `request` engine unit, PR 2: a request timeframe written as a call to the script's own function, and EXT-OWN (2026-11-20, engine 90)
 
 Coordinator: patrick-2b (PR 2 approved 2026-11-20: "hand the runtime request reader the script's function bodies
 (expression bodies and the `x = lit` + if-chain `x := lit` statement form ONLY, refuse anything else by name), then
 EXT-OWN graded on Saty's held captures + Q-REQ5 rig witness"). Branch `feat/eng-request-settled-fns`, stacked on PR 1
-(#2154, `feat/eng-request-unit` at `6ea84730bf`). Engine number: NUMBER PENDING (the next engine train numbers it).
+(#2154, `feat/eng-request-unit` at `6ea84730bf`). Engine number: engine 90 (the next engine train numbers it).
 PR 1's evidence: `docs/pine/evidence/2026-11-19-request-unit/EVIDENCE.md`.
 
 ## 1. The answer

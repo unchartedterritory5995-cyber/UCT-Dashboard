@@ -31,7 +31,7 @@ engine folds in IEEE on both lanes. Nothing is built until this grades.
 ## STN2: `str.tonumber` around and inside the number
 
 Graded: `vw-bi-str-tonumber-spy-1d-2026-11-19`, all 21 rows on every bar. " 3" and "3 " are 3, and the exponent
-spellings are `na`. STR-TONUMBER (NUMBER PENDING) serves exactly that: the spaces around the text are dropped. A tab,
+spellings are `na`. STR-TONUMBER (engine 90) serves exactly that: the spaces around the text are dropped. A tab,
 a line break or another blank at either end stops the run by name until this grades.
 
 | id | probe | chart | live | what to record | unblocks |

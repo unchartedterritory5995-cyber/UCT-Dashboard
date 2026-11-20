@@ -7461,7 +7461,7 @@ export function constantTestValue(tree) {
 const TF_READ_HOPS = 16
 
 /** ⭐⭐ (request unit, TF-FOLD, engine 89) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
- *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops, and (request unit PR 2, NUMBER PENDING) a call to
+ *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops, and (request unit PR 2, engine 90) a call to
  *  a script function the runtime lane hands over settled (`calls`: `throughSettledCall`,
  *  `settledRequestFunctionOf`). Handed to `ownTimeframeOf` / `timeframeLiteralOf` by the request readers alone
  *  (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
@@ -8692,7 +8692,7 @@ export class Resolver {
      *  translation moves and no parameter id is minted in a new order (the C10 reason the plot lane keeps 4;
      *  `requestTimeframeReader.test.js` holds the plot lane byte-identical over the committed corpus). */
     this.runtimeRequestTimeframes = opts.requestTimeframeReader === 'runtime'
-    /** ⭐⭐ (request unit PR 2, NUMBER PENDING) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THAT READER ALONE. The runtime
+    /** ⭐⭐ (request unit PR 2, engine 90) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THAT READER ALONE. The runtime
      *  lane's resolver environment holds pure expression bindings and no user function, so a timeframe written as a
      *  call (Saty ATR Levels' `timeframe_func()`, TehThomas' `getAlignedTimeframe()`) was unreadable there. The
      *  runtime lane hands its own kept bodies (`pineRuntimeFrontend.js`: `name → settledRequestFunctionOf(body)`,
@@ -8700,7 +8700,7 @@ export class Resolver {
      *  ⛔ The host translator never sets it. */
     this.requestSettledFunctions = this.runtimeRequestTimeframes && opts.requestSettledFunctions
       && typeof opts.requestSettledFunctions.get === 'function' ? opts.requestSettledFunctions : null
-    /** ⭐⭐ (request unit PR 2, EXT-OWN, NUMBER PENDING) — THE CHART'S OWN SYMBOL ON THE EXTENDED SESSION, READ AS THE
+    /** ⭐⭐ (request unit PR 2, EXT-OWN, engine 90) — THE CHART'S OWN SYMBOL ON THE EXTENDED SESSION, READ AS THE
      *  CHART'S OWN DAILY BARS ON A DAILY CHART. Set by `pineRuntimeFrontend.js` on its own resolvers
      *  (`requestExtendedOwn: 'daily-identity'`) and by nothing else: `request.security(ticker.new(syminfo.prefix,
      *  syminfo.ticker, session.extended), <the chart's own daily timeframe>, x)` is `x` (`extendedOwnTickerOf`).
@@ -14109,7 +14109,7 @@ export class Resolver {
     return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined
   }
 
-  /** ⭐⭐ (request unit PR 2, NUMBER PENDING) — `fn(result)` for a call to a SCRIPT function the runtime lane handed
+  /** ⭐⭐ (request unit PR 2, engine 90) — `fn(result)` for a call to a SCRIPT function the runtime lane handed
    *  over settled (`requestSettledFunctions`: `settledRequestFunctionOf`), where `result` is the expression its body
    *  leaves as its value, read in the body's own scope (the names the script bound before the function, the body's
    *  own bindings) with the call's arguments as its parameters (the frame `throughBinding` reads a parameter from,
@@ -14640,7 +14640,7 @@ export class Resolver {
     return this.builtinNameThrough(bound.node, depth + 1)
   }
 
-  /** ⭐⭐ (request unit PR 2, EXT-OWN, NUMBER PENDING) — is this `ticker.new(syminfo.prefix, syminfo.ticker, session =
+  /** ⭐⭐ (request unit PR 2, EXT-OWN, engine 90) — is this `ticker.new(syminfo.prefix, syminfo.ticker, session =
    *  session.extended)` (followed through plain bindings and constant ternaries, as `tickerCallIn` follows), naming
    *  nothing else (no adjustment, no back-adjustment, no settlement)? The one spelling a capture grades
    *  (`runtimeExtendedOwnDaily`). ⛔ The prefix and the ticker are the chart's own BY NAME (`syminfo.prefix`,
@@ -18106,7 +18106,7 @@ function ifBranches(stmts, i) {
   return { branches, next: j }
 }
 
-/** ⭐⭐ (request unit PR 2, NUMBER PENDING) — A SCRIPT FUNCTION'S RESULT AS ONE EXPRESSION, for the runtime lane's
+/** ⭐⭐ (request unit PR 2, engine 90) — A SCRIPT FUNCTION'S RESULT AS ONE EXPRESSION, for the runtime lane's
  *  request-timeframe reader alone (`Resolver.requestSettledFunctions` → `throughSettledCall`). `inl` is the body the
  *  runtime lane keeps for a function (`pineRuntimeFrontend.js`, `inlineBodyByName`: `{params, lines, result, body}`).
  *  TWO SHAPES, AND NOTHING ELSE:

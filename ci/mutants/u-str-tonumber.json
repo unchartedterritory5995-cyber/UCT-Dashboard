@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "STR-TONUMBER (feat/pine-str-tonumber, NUMBER PENDING): str.tonumber drops the spaces around the text, reads only a plain decimal (no exponent), and stops by name on any other surrounding blank. Every rule, broken once, must turn its rail red.",
+ "about": "STR-TONUMBER (feat/pine-str-tonumber, engine 90): str.tonumber drops the spaces around the text, reads only a plain decimal (no exponent), and stops by name on any other surrounding blank. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "N1",
