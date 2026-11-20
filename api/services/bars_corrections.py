@@ -56,10 +56,14 @@ EQ_TOL = 5e-5
 #: A `chk` field (undisputed) must agree within this: the same bar, not a replaced or re-based one.
 CHK_TOL = 0.005
 _CACHE_MAX = 64
+#: ⚡ The cache is bounded by ENTRIES too: a 2-decimal re-precision (D5) ticker carries ~10,000 entries, and 64 of those
+#: as parsed JSON dicts would hold most of a gigabyte on the bars-api pod. Entries are kept as small tuples (`_compact`)
+#: and the cache drops its oldest tickers past this many entries.
+_CACHE_ENTRIES_MAX = 200_000
 
 _lock = threading.Lock()
 _state = {"version": 0, "symbols": frozenset(), "retired": frozenset(), "loaded": False}
-_cache: dict = {}           # (sym, version) -> {(tf, src): {date: [entry, ...]}}
+_cache: dict = {}           # (sym, version) -> ({(tf, src): {date: [compact entry, ...]}}, n_entries)
 _counts: Counter = Counter()
 _thread: Optional[threading.Thread] = None
 
@@ -181,25 +185,48 @@ def _index(ticker: str) -> Optional[dict]:
     key = (sym, version)
     hit = _cache.get(key)
     if hit is not None:
-        return hit
+        return hit[0]
     try:
         doc = decode_payload((local_dir() / f"v{version}" / f"{sym}.json.gz").read_bytes())
     except Exception:  # noqa: BLE001 - not on the volume (yet): nothing is applied
         return None
     idx: dict = {}
+    n = 0
     for e in doc["entries"]:
-        if not isinstance(e, dict):
+        c = _compact(e) if isinstance(e, dict) else None
+        if c is None:
             continue
-        idx.setdefault((e.get("tf"), e.get("src")), {}).setdefault(str(e.get("d"))[:10], []).append(e)
+        idx.setdefault((str(e.get("tf")).upper(), e.get("src")), {}).setdefault(str(e.get("d"))[:10], []).append(c)
+        n += 1
     with _lock:
-        if len(_cache) >= _CACHE_MAX:
+        while _cache and (len(_cache) >= _CACHE_MAX or sum(v[1] for v in _cache.values()) + n > _CACHE_ENTRIES_MAX):
             _cache.pop(next(iter(_cache)))
-        _cache[key] = idx
+        _cache[key] = (idx, n)
     return idx
 
 
+def _compact(e: dict):
+    """An entry as a small tuple, or None when it is malformed or an op this applier does not know.
+    ("set", ((field, old, new), ...), ((chk_field, value), ...)) | ("drop", (o, h, l, c, v)) | ("keep", field, value)"""
+    try:
+        op = e.get("op")
+        if op == "set":
+            f = tuple((k, float(p[0]), float(p[1])) for k, p in (e.get("f") or {}).items()
+                      if k in ("o", "h", "l", "c") and isinstance(p, (list, tuple)) and len(p) == 2)
+            chk = tuple((k, float(v)) for k, v in (e.get("chk") or {}).items() if k in ("o", "h", "l", "c"))
+            return ("set", f, chk) if f else None
+        if op == "drop":
+            old = e.get("old") or ()
+            return ("drop", tuple(float(x or 0) for x in old)) if len(old) == 5 else None
+        if op == "keep_wick" and e.get("field") in ("h", "l") and e.get("value") is not None:
+            return ("keep", e["field"], float(e["value"]))
+    except (TypeError, ValueError, AttributeError):
+        return None
+    return None
+
+
 def entries_for(ticker: str, tf: str, src: str) -> dict:
-    """{date: [entry, ...]} for one (ticker, tf, src); {} when there are none."""
+    """{date: [compact entry, ...]} for one (ticker, tf, src); {} when there are none."""
     idx = _index(ticker)
     return (idx or {}).get((str(tf).upper(), src)) or {}
 
@@ -230,7 +257,7 @@ def _eq(a, b) -> bool:
 
 
 def _chk_ok(bar: dict, chk) -> bool:
-    for f, v in (chk or {}).items():
+    for f, v in chk:
         try:
             if abs(float(bar.get(f)) / float(v) - 1) > CHK_TOL:
                 return False
@@ -247,16 +274,13 @@ def _consistent(b: dict) -> bool:
     return h >= max(o, c) and l <= min(o, c) and l > 0
 
 
-def _set(bar: dict, e: dict) -> Optional[dict]:
+def _set(bar: dict, e: tuple) -> Optional[dict]:
     """The bar with the entry's fields applied (a new dict), or None when nothing applied."""
-    if not _chk_ok(bar, e.get("chk")):
+    if not _chk_ok(bar, e[2]):
         _counts["set_missed_chk"] += 1
         return None
     nb = None
-    for f, pair in (e.get("f") or {}).items():
-        if f not in ("o", "h", "l", "c") or not isinstance(pair, (list, tuple)) or len(pair) != 2:
-            continue
-        old, new = pair
+    for f, old, new in e[1]:
         if _eq(bar.get(f), old):
             nb = nb or dict(bar)
             nb[f] = new
@@ -268,10 +292,8 @@ def _set(bar: dict, e: dict) -> Optional[dict]:
     return nb
 
 
-def _drop(bar: dict, e: dict) -> bool:
-    old = e.get("old") or ()
-    if len(old) != 5:
-        return False
+def _drop(bar: dict, e: tuple) -> bool:
+    old = e[1]
     ok = all(_eq(bar.get(k), old[i]) for i, k in enumerate("ohlc")) and _eq(bar.get("v") or 0, old[4] or 0)
     if not ok:
         _counts["drop_missed"] += 1
@@ -295,7 +317,7 @@ def apply(ticker: str, tf: str, bars: list, src: str) -> list:
                 continue
             cur, dropped = b, False
             for e in es:
-                op = e.get("op")
+                op = e[0]
                 if op == "drop" and _drop(cur, e):
                     dropped = True
                     _counts["drop_applied"] += 1
@@ -334,4 +356,5 @@ def history_epoch(ticker: str, tf: str) -> int:
 def status() -> dict:
     return {"enabled": enabled(), "loaded": _state["loaded"], "version": _state["version"],
             "symbols": len(_state["symbols"]), "retired": len(_state["retired"]), "cached": len(_cache),
+            "cached_entries": sum(v[1] for v in _cache.values()),
             "counts": dict(_counts)}
