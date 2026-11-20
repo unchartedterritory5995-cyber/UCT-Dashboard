@@ -39,6 +39,14 @@
 //   * an EXACT decimal tie at the last kept digit (0.0625 at three decimals) —
 //     the rounding MODE is not pinned: every captured value rounds one way on
 //     its own digits, so HALF_EVEN and HALF_UP agree on all of them;
+//   * ⛔⛔ under a `{N,number,P}` PATTERN, a DECIMAL tie too (N01, 2026-11-19):
+//     a value whose shortest decimal ends one digit past the pattern's last kept
+//     digit, on a 5 (1.005, 163.265, 2.675 under `#.##`). The binary value
+//     printed here reads 1.005 as "1"; `str.tostring(x, "#.##")` is WITNESSED
+//     printing the decimal reading, "1.01" (CBC-FMT F6, T01-T07), and no capture
+//     shows which one `str.format`'s pattern draws (`decimalTieAt`, below;
+//     capture row N01 of queue Q-TF-N-a, PR #2072, settles it; lift by its grade).
+//     ⭐ NOT under a bare `{N}`: T24 pins its binary reading (1.0005 -> "1");
 //   * `na` — no capture formats one through `str.format`;
 //   * a result that would read "-0" — the sign of a rounded-away negative;
 //   * every other format element (`{N,number}`, `integer`, `currency`, `date`,
@@ -181,6 +189,30 @@ export function exactTieAt(n, d) {
   return frac[d] === '5' && /^0*$/.test(frac.slice(d + 1))
 }
 
+/** ⛔⛔ N01 (2026-11-19) — Is `n` a DECIMAL tie at `d` decimals: does its SHORTEST
+ *  round-trip decimal (the text JavaScript prints for the double, the reading
+ *  `str.tostring` rounds, F6) carry exactly `d + 1` decimals, the last a 5?
+ *
+ *  1.005 at 2 (the double is 1.00499999999999989…): its binary reading rounds DOWN
+ *  ("1") and its decimal reading rounds UP ("1.01"). 0.025 at 2 (the double is
+ *  0.02500000000000000138…): both round up ("0.03"), but a decimal HALF_EVEN would
+ *  print "0.02". So every decimal tie is a value where some reading TradingView may
+ *  use parts from the one printed here, and nothing else is: 1.0051 and 1.004 round
+ *  the same way under all of them. An exact binary tie (0.125 at 2) is one too
+ *  (`exactTieAt` names it first). */
+export function decimalTieAt(n, d) {
+  if (!Number.isFinite(n) || !Number.isInteger(d) || d < 0) return false
+  const { frac } = plainDigits(Math.abs(n))
+  return frac.length === d + 1 && frac[d] === '5'
+}
+
+/** `{N,number,#.##}` keeps at most two decimals (F12: its length is
+ *  `str.tostring(x, "#.##")`'s on 300 SPY closes). */
+const HASH_PATTERN_DECIMALS = 2
+
+/** ⛔ N01 — the name a `{N,number,P}` decimal tie is withheld under. */
+export const MESSAGE_DECIMAL_TIE = 'format:message-decimal-tie'
+
 /** Up to `max` decimals, trailing zeros and a bare point trimmed. `null` for a
  *  rendering no capture pins (see the header). */
 function trimmedFixed(n, max) {
@@ -272,10 +304,38 @@ export function formatMessageNumber(n, fmt) {
     const s = trimmedFixed(n, MESSAGE_DEFAULT_DECIMALS)
     return s !== null && Math.abs(Number(s)) >= MESSAGE_NUMBER_LIMIT ? null : s
   }
-  if (fmt === '#.##') return trimmedFixed(n, 2)
+  // ⛔⛔ N01 — a DECIMAL tie is withheld under a pattern (header; `decimalTieAt`): the binary
+  // reading below prints 1.005 as "1" where `str.tostring` is witnessed printing "1.01".
+  if (fmt === '#.##') {
+    return decimalTieAt(n, HASH_PATTERN_DECIMALS) ? null : trimmedFixed(n, HASH_PATTERN_DECIMALS)
+  }
   // ⭐ W3-S1 — the one keyword preset the published rule pins.
   if (fmt === 'percent') return percentMessageNumber(n)
   return null
+}
+
+/**
+ * ⭐ N01 — WHY `formatMessageNumber(n, fmt)` withholds `n`, BY NAME, or `null` when it prints.
+ * It NAMES, it never decides: it asks the formatter first (as `tickNumberWhy` does), so the
+ * formatter stays the one authority on WHETHER a text is drawn. The object runtime records the
+ * name in its `textsWithheldWhy` diagnostics.
+ *
+ * @returns {null|'format:message-na'|'format:message-grouping'|'format:message-exact-tie'
+ *   |'format:message-decimal-tie'|'format:message-negative-zero'|'format:message-pattern-unread'
+ *   |'percent:uncaptured'|'percent:na'|'percent:tie'|'percent:decimal-tie'|'percent:grouping'
+ *   |'percent:negative-zero'}
+ */
+export function messageNumberWhy(n, fmt) {
+  if (formatMessageNumber(n, fmt) !== null) return null
+  if (typeof n !== 'number' || !Number.isFinite(n)) return 'format:message-na'
+  if (Math.abs(n) >= MESSAGE_NUMBER_LIMIT) return 'format:message-grouping'
+  if (fmt === 'percent') return percentWithheldWhy(n)
+  if (fmt !== undefined && fmt !== '#.##') return 'format:message-pattern-unread'
+  const d = fmt === undefined ? MESSAGE_DEFAULT_DECIMALS : HASH_PATTERN_DECIMALS
+  if (exactTieAt(n, d)) return 'format:message-exact-tie'
+  if (fmt !== undefined && decimalTieAt(n, d)) return MESSAGE_DECIMAL_TIE
+  // what remains: a negative that rounds to "-0" (-0.0001), or `{N}` rounding UP to 1000 (999.9996)
+  return Number(n.toFixed(d)) === 0 ? 'format:message-negative-zero' : 'format:message-grouping'
 }
 
 // ─── ⭐⭐ F3 (2026-10-02) — `str.tostring(n, format)`: ONE GRAMMAR, ONE RENDERING ─
@@ -370,7 +430,9 @@ export const isPlainNumberPattern = (fmt) => typeof fmt === 'string' && fmt !== 
 // formatters are NOT this one, each by its own capture: `format.mintick` rounds `n / tick` in
 // BINARY (`tickNumberText`, below), and `str.format`'s `{N}` is Java's `#,##0.###` on the
 // exact binary value (952.4295 prints "952.429" there and "952.43" through `#.###` here) and
-// keeps its own (`formatMessageNumber`, F7).
+// keeps its own (`formatMessageNumber`, F7). ⛔ `{N,number,#.##}` is not proven to be either:
+// where this core's decimal reading and the binary one part (a decimal tie) it is WITHHELD
+// (`decimalTieAt`, N01), never printed through this core on the strength of the shared pattern.
 //
 // THE RULES, each read off a capture (W = witnessed; inv-fmt-1115 and capture session S10's
 // `vw-fmt-tie-readings-rddt-1d-2026-11-15`, rows T01-T30):

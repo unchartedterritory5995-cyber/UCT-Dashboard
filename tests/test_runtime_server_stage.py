@@ -524,14 +524,27 @@ def test_T12_C_a_script_LISTED_but_not_MATCH_graded_is_refused_by_name(
 
 def test_T12_C_one_MATCH_capture_is_enough_exactly_as_for_the_pane(owners, monkeypatch, tmp_path):
     """The lane asks no more and no less than the pane (R1: AT LEAST ONE MATCH capture with the
-    pane on). The committed script names two; losing one of them changes nothing."""
+    pane on, and none graded DIVERGE). The committed script names two; one of them falling to
+    INCONCLUSIVE changes nothing."""
     captures = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))["scripts"][0]["captures"]
     assert len(captures) >= 2, "this control needs a script with two captures"
     _arm(monkeypatch)
     monkeypatch.setattr(rt, "ALLOWLIST_PATH", _allowlist_copy(
-        tmp_path, lambda d: d["scripts"][0]["captures"][0].update(verdict="DIVERGE")))
+        tmp_path, lambda d: d["scripts"][0]["captures"][0].update(verdict="INCONCLUSIVE")))
     assert rt.not_graded(ADX_SOURCE) is None                          # the pane still serves it
     assert rt.server_lane_refusal(_row(ADX), lane="alert") is None    # and so does the lane
+
+
+def test_T12_C_one_DIVERGE_capture_withholds_on_the_lane_exactly_as_on_the_pane(owners, monkeypatch, tmp_path):
+    """#2085 (R1, coordinator ruling 2026-11-19): a DIVERGE on the members' lane is never
+    outweighed by a MATCH. The same record with one capture graded DIVERGE is withheld by the
+    pane AND by the lane: neither may serve a script that draws a wrong picture on one chart."""
+    _arm(monkeypatch)
+    monkeypatch.setattr(rt, "ALLOWLIST_PATH", _allowlist_copy(
+        tmp_path, lambda d: d["scripts"][0]["captures"][0].update(verdict="DIVERGE")))
+    assert rt.not_graded(ADX_SOURCE) is not None                      # the pane withholds it
+    refusal = rt.server_lane_refusal(_row(ADX), lane="alert")
+    assert refusal is not None and refusal[0] == UNGRADED             # and so does the lane
 
 
 def test_T12_C_an_EMPTY_or_missing_allowlist_serves_NOTHING(owners, monkeypatch, tmp_path):

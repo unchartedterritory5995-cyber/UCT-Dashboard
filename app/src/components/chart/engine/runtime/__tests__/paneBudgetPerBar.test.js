@@ -68,7 +68,11 @@ function fredRs(count) {
     const c = 7300 + k * 5 + Math.cos(j / 7) * 3
     return { t: ET(d, 9, 30) + j * 300, o: c, h: c + 1, l: c - 1, c, v: 1 }
   }))
-  const prev = isoPlus(sessions[0], -3)
+  // the session BEFORE the chart's first (the day its first bars read): by the fixture's own session rule. (2026-11-19:
+  // this row was `sessions[0] - 3 days`, a Tuesday before a Friday start, which only drew because the daily read then
+  // carried an older row forward; a daily read now names the session it reads, `dailyReadNoCarry.test.js`)
+  let prev = isoPlus(sessions[0], -1)
+  while ([0, 6].includes(new Date(`${prev}T12:00:00Z`).getUTCDay()) || prev === '2026-09-07') prev = isoPlus(prev, -1)
   const spxd = [prev, ...sessions].map((d, k) => ({ t: Date.parse(`${d}T00:00:00Z`) / 1000, o: 1, h: 1, l: 1, c: 7290 + k * 5, v: 1 }))
   const ownd = [prev, ...sessions].map((d, k) => ({ t: d, o: 1, h: 1, l: 1, c: 89 + k * 0.1, v: 1 }))
   const seed = []

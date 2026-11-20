@@ -128,6 +128,43 @@ def test_a_WITHHELD_ONLY_divergence_is_not_listed_and_one_drawn_difference_lists
     assert any(c["kind"] == "drawn" for c in d[sha]["evidence"]["diverge"])
 
 
+HTF = (ROOT / "corpus" / "committed" / "htf-candle-footprint-cartel-console__ca3ff4e904.pine").read_text(encoding="utf-8")
+HTF_CAPTURES = ("htf-candle-footprint-cartel-console-rddt-1d-2026-09-28", "htf-candle-footprint-cartel-console-spy-1d-2026-10-03")
+
+
+def _htf_regraded(tmp_path, partial_guard):
+    """The committed verdicts with htf's two captures graded the way the vendor harness grades them since the
+    disclosed-partial fix: INCONCLUSIVE, its lines and labels withheld whole by name, its boxes a disclosed partial."""
+    moved = json.loads(hd.VERDICTS.read_text(encoding="utf-8"))
+    for r in moved["results"]:
+        if r["id"] in HTF_CAPTURES:
+            r["verdict"] = "INCONCLUSIVE"
+            r["objects"] = {**(r.get("objects") or {}), "verdict": "INCONCLUSIVE",
+                            "withheld": f"objects:not-carried,{partial_guard}"}
+            r.pop("objectsV2", None)
+    f = tmp_path / f"verdicts-{partial_guard.replace(':', '-')}.json"
+    f.write_text(json.dumps(moved), encoding="utf-8")
+    return f
+
+
+def test_a_partial_whose_place_no_capture_witnessed_keeps_its_entry_and_x_agreeing_drops_it(tmp_path):
+    """Coordinator ruling 2026-11-19: never lift a withhold on a field no capture witnessed. htf-candle-footprint's
+    3 drawn boxes agree with TradingView's on every field its 09-28 / 10-03 captures hold, but those captures predate
+    the x table: graded `objects:partial-unpositioned`, the script STAYS listed, and only a capture with the x table
+    (graded `objects:partial`, its place agreeing) lifts it."""
+    sha = hd.source_hash(HTF)
+    assert sha in hd.derive()                                        # listed today
+    kept = hd.derive(_htf_regraded(tmp_path, hd.UNPOSITIONED))
+    assert sha in kept and hd.is_listed(kept[sha])
+    assert {c["kind"] for c in kept[sha]["evidence"]["diverge"]} == {"unpositioned"}
+    assert "x table" in kept[sha]["liftWhen"] and "where they sit" in kept[sha]["reason"]
+    row = next(x for x in hd.render_queue(hd.derive_all(_htf_regraded(tmp_path, hd.UNPOSITIONED))).splitlines()
+               if x.startswith(f"| {hd.queue_row_id('htf-candle-footprint-cartel-console')} | withheld-ledger |"))
+    assert "re-capture WITH the x table" in row
+    # CONTROL: the same captures with the place witnessed and agreeing (`objects:partial`) lift it
+    assert sha not in hd.derive(_htf_regraded(tmp_path, "objects:partial"))
+
+
 # ═══ the server doors ════════════════════════════════════════════════════════════
 
 def test_the_reader_names_a_listed_script_and_not_an_unlisted_one():
