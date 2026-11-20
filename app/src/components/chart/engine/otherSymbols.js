@@ -782,6 +782,12 @@ export const SERIES_NEWEST_FORMING = Symbol('rs:newest-forming')
  *  names no ask. The run decides from it, with the chart's own row count, whether a deeper page is coming
  *  (`runtime/requestSupply.js`); this fact alone never says so. */
 export const SERIES_PAGE_FILLED = Symbol('rs:page-filled')
+/** ⛔ The deepest window `/api/bars` answers (`bars: Query(le=60000)`, `api/routers/bars.py`): a deeper ask is a 422,
+ *  never a deeper answer. The held-span ladder's top rung (`useSecondarySources.js::HELD_SPAN_MAX`) and the run's
+ *  "a deeper page is coming" test (`runtime/requestSupply.js::pageEdgeOf`) both read it from here. ⛔ Here and not in
+ *  the bars client (`secondaryBars.js`): the run's compute closure is host-neutral (`tools/pine_runtime_closure.mjs`),
+ *  and the client's fetch, timers and wall clock may not enter it. */
+export const BARS_ASK_MAX = 60000
 /** The `{from, asked}` of a held intraday page that filled its ask, or null (`SERIES_PAGE_FILLED`). */
 function filledPageOf(entry, held) {
   const asked = entry ? entry.askedBars : undefined

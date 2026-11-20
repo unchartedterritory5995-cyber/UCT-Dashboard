@@ -27,8 +27,7 @@
 import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js'
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
   OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS,
-  SERIES_PAGE_FILLED } from '../otherSymbols.js'
-import { BARS_ASK_MAX } from '../secondaryBars.js'
+  SERIES_PAGE_FILLED, BARS_ASK_MAX } from '../otherSymbols.js'
 import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
 
 /** ⭐⭐ (2026-11-19, no carried value) The exchange session strictly before `day` ('YYYY-MM-DD') by the published

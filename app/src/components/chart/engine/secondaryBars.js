@@ -59,11 +59,6 @@ function askedBarsOf(bars) {
   return Number.isFinite(bars) && bars > 0 ? Math.floor(bars) : 200
 }
 
-/** ⛔ The deepest window `/api/bars` answers (`bars: Query(le=60000)`, `api/routers/bars.py`): a deeper ask is a 422,
- *  never a deeper answer. The held-span ladder's top rung (`useSecondarySources.js::HELD_SPAN_MAX`) and the run's
- *  "a deeper page is coming" test (`runtime/requestSupply.js`) both read it from here. */
-export const BARS_ASK_MAX = 60000
-
 // ─── ⭐⭐ (e90, the e88 live capture, 2026-11-20) — WHAT DEPTH AN ENTRY WAS ASKED AT ───────────────────────────────────
 // Every AVAILABLE entry records the `bars=` its fetch asked (`askedBars`), a plain field, so it crosses the worker with
 // the rest of the entry (`runtimeAsync.js`, `plainFieldsOf`). An answer holding as many rows as it asked FILLED its ask:

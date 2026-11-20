@@ -25,9 +25,9 @@ import { workerRunner, resetRuntimeAsync } from './runtime/runtimeAsync'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtimeKill'
 import { setRunHalfObjectEvidence } from './runHalfRailSeam'
-import { SERIES_PAGE_FILLED } from './otherSymbols'
+import { SERIES_PAGE_FILLED, BARS_ASK_MAX } from './otherSymbols'
 import {
-  BARS_ASK_MAX, cachedBars, clearSecondaryBars, fetchSecondaryBars, primeSecondaryBars, refreshSecondaryTail,
+  cachedBars, clearSecondaryBars, fetchSecondaryBars, primeSecondaryBars, refreshSecondaryTail,
 } from './secondaryBars'
 import { HELD_SPAN_MAX } from './useSecondarySources'
 import { resetRuntimeErrorNotices } from './runtimeErrorNotice'
