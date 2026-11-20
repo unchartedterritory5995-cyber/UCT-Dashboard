@@ -34,8 +34,9 @@ Probe sha256 (first 16 hex, of the file as committed): `vw-a4-v4-arm-kernels.pin
 
 ## Still refused, by name (not this queue's)
 
-- support-and-resistance (`reference:support-and-resistance__c13363a5d2`): its VALUE build stands with A1 + A4 (the
-  `Variance` branch checked, `k` never 1 at the defaults). Its drawing build keeps the refusal: HIST-S3's check runs on
-  the value lane only, so the run half (its lines) is not minted. Lifting that is a drawing-build unit of its own.
+- support-and-resistance (`reference:support-and-resistance__c13363a5d2`): on the value lane its `Variance` branch is
+  now checked (`k` is `n - val`, at least the pivot length, or 2, so never 1 at the defaults). Its DRAWING build keeps
+  the refusal: HIST-S3's check runs on the value lane only, so its run half (the lines) is not minted. Lifting that is
+  a drawing-build unit of its own.
 - a parameter declared `simple` / `const` passed a per-bar value (Pine does not compile it), a call in a loop, the object
   door and a request's value: refused as before.
