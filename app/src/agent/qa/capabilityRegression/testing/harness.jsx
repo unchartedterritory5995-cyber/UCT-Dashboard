@@ -319,6 +319,58 @@ const TERMINAL_DATA = {
       publication_estimate: '2026-10-26', read_at: '2026-11-03T15:40:00Z', held: 'held', count: 3, universe: 4, ranked: ranked.length, limit: p.limit || 25, shown: rows.length, cut: rows.length < ranked.length, rows,
       floor_shares: rank === 'up' || rank === 'down' ? 500000 : null, float: { state: 'ok', with_float: 2, withheld: 0, source: 'fixture' }, check: null, source: 'fixture' } }
   },
+  // Terminal data wave 6 (dark kinds `seasonality.stock`, `seasonality.board`, `options.tideHistory`, `options.oiChange`,
+  // `rates.treasury`; MD-1 §4.15): the same rule — each adapter's own data shape, made-up names and figures. `as_of` is the
+  // data's own date (the newest bar, session, log file or curve day; never the day of the read).
+  'seasonality.stock': (p) => ({ freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { ticker: String(p.symbol || '').toUpperCase(), source: 'fixture', months: SEASON_MONTHS(0),
+    weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((label, i) => ({ weekday: i, label, n: 500, avg_pct: (i - 2) * 0.05, median_pct: (i - 2) * 0.04, pct_up: 50 + i })),
+    covered_from: '2016-01-04', covered_to: '2026-10-30', full_months: 129, min_years: 5, sessions: 2725, first_bar: '2016-01-04', last_bar: '2026-10-30',
+    latest_completed_session: '2026-10-30', pre_vendor_floor: false, read_at: '2026-11-03T15:40:00Z' } }),
+  'seasonality.board': () => {
+    const fund = (symbol, name, kind, shift) => ({ symbol, name, kind, status: 'ok', months: SEASON_MONTHS(shift), covered_from: '2016-01-04', covered_to: '2026-10-30', full_months: 129 })
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { funds: [fund('AAA', 'Made-up index fund', 'index', 0), fund('BBB', 'Made-up sector one', 'sector', 1), fund('CCC', 'Made-up sector two', 'sector', -1),
+      { symbol: 'DDD', name: 'Made-up sector three', kind: 'sector', status: 'pending', reason: 'warming' }],
+      this_month: 11, next_month: 12, et_date: '2026-11-03', min_years: 5, source: 'fixture', data_through: '2026-10-30', complete: false, settled: false, built_at: '2026-11-03T15:30:00Z', read_at: '2026-11-03T15:40:00Z' } }
+  },
+  'options.tideHistory': (p) => {
+    const row = (session, call, put, prints) => ({ session, net_call_premium: call, net_put_premium: put, net_premium: call == null || put == null ? null : call - put, prints_counted: prints, prints_unsigned: 10, prints_unreadable: 0,
+      data_through: '16:00', stored_at: `${session}T20:30:00Z`, source: 'fixture' })
+    const all = [row('2026-10-30', 5000000, 2000000, 2000), row('2026-10-29', 1000000, 3000000, 1500), row('2026-10-28', 4000000, 1000000, 1000)]
+    const sessions = all.slice(0, p.rows || 20)
+    return { freshness: 'historical', as_of: '2026-10-30T20:00:00Z', data: { scope: p.scope || 'all', sessions, sessions_stored: 3, sessions_asked: p.rows || 20, sessions_left_out: 3 - sessions.length, history_began: '2026-10-28',
+      latest_session: '2026-10-30', missing_sessions: [], missing_total: 0, missing_checked_through: '2026-10-30', backfill: false, stored_note: 'fixture', filters: 'fixture', method: 'fixture', label: 'fixture', read_at: '2026-10-30T20:30:00Z' } }
+  },
+  'options.oiChange': (p) => {
+    const all = [{ contract: 'O:AAA261120C00150000', expiration: '2026-11-20', strike: 150, type: 'call', oi: 5000, kind: 'change', prior_oi: 4000, change: 1000, change_pct: 25, volume: 1200 },
+      { contract: 'O:AAA261120P00140000', expiration: '2026-11-20', strike: 140, type: 'put', oi: 2500, kind: 'change', prior_oi: 3000, change: -500, change_pct: -17, volume: 600 },
+      { contract: 'O:AAA261218C00160000', expiration: '2026-12-18', strike: 160, type: 'call', oi: 300, kind: 'new', prior_oi: null, change: null, change_pct: null, volume: null }]
+    const side = p.side || 'any'
+    const matched = all.filter(r => side === 'any' || r.type === side)
+    const rows = matched.slice(0, p.rows || 15)
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), side, session: '2026-10-30', prior_session: '2026-10-29', skipped_sessions: [], known: true, has_symbol: true, prior_has_symbol: true,
+      rows, matched: matched.length, shown: rows.length, left_out: matched.length - rows.length, max_rows: 50,
+      summary: { call: { contracts: 4, oi: 9000, prior_oi: 8000, change: 1000 }, put: { contracts: 3, oi: 6500, prior_oi: 7000, change: -500 }, contracts: 7, unchanged: 5 },
+      new: { contracts: 1, oi: 300 }, gone: { contracts: 0, prior_oi: null, expired: 0 }, not_reported: 0, volume_present: true, volume_session: '2026-10-29', built_at: '2026-11-03T15:30:00Z', source: 'fixture',
+      coverage: 'fixture', read_at: '2026-11-03T15:40:00Z' } }
+  },
+  'rates.treasury': () => {
+    const mat = (key, label, months, y, d1, m1) => ({ key, label, months, yield: y, was: { d1: y - d1 / 100, w1: null, m1: y - m1 / 100, m3: null, y1: null }, change_bp: { d1, w1: null, m1, m3: null, y1: null } })
+    return { freshness: 'historical', as_of: '2026-10-30T04:00:00Z', data: { as_of: '2026-10-30', ref_dates: { d1: '2026-10-29', w1: null, m1: '2026-09-30', m3: null, y1: null },
+      maturities: [mat('3m', '3-month', 3, 3.5, 1, -10), mat('2y', '2-year', 24, 3.75, -2, 5), mat('10y', '10-year', 120, 4.25, 3, 12)],
+      spreads: [{ key: '10y2y', label: '10-year minus 2-year', long: '10y', short: '2y', value: 0.5, state: 'positive', inverted: false, days_in_state: 40, since: '2026-09-03', days_at_least: false,
+        was: { d1: 0.45, w1: null, m1: 0.43, m3: null, y1: null }, change_bp: { d1: 5, w1: null, m1: 7, m3: null, y1: null } },
+      { key: '10y3m', label: '10-year minus 3-month', long: '10y', short: '3m', value: 0.75, state: 'positive', inverted: false, days_in_state: 12, since: '2026-10-14', days_at_least: false,
+        was: { d1: 0.73, w1: null, m1: 0.53, m3: null, y1: null }, change_bp: { d1: 2, w1: null, m1: 22, m3: null, y1: null } }],
+      history: { from: '2025-10-30', to: '2026-10-30', points: 250, years: 1, columns_left_out: true }, rows: 250, read_at: '2026-11-03T15:40:00Z', basis: 'fixture', units: 'fixture', source: 'fixture', check: null } }
+  },
+}
+/** Wave 6's made-up calendar months: ten years each, except a month nobody counted (February) and a thin one (March). */
+function SEASON_MONTHS(shift) {
+  return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((label, i) => {
+    if (i === 1) return { month: 2, label, n: 0, avg_pct: null, median_pct: null, pct_up: null, thin: false }
+    if (i === 2) return { month: 3, label, n: 3, avg_pct: 2, median_pct: 1.5, pct_up: 67, thin: true }
+    return { month: i + 1, label, n: 10, avg_pct: (i - 5) * 0.4 + shift, median_pct: (i - 5) * 0.5 + shift, pct_up: 30 + (i % 5) * 10, thin: false }
+  })
 }
 // SG-1: T13–T18 sit FAR below their 52-week high (the Screener's sign: a distance from a high is NEGATIVE) and meet every
 // other condition of the owner's screen — so only a correctly signed "near the high" filter leaves them out
@@ -509,7 +561,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 5 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 6 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })

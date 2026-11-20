@@ -1871,7 +1871,15 @@ def _intraday_deblockable(tf, last_ts) -> bool:
     it would pin a GAPPED first paint that the once-per-mount fetch never re-heals (the
     May-8 universe-freeze class), so it stays synchronous. `last_ts` here is UNIX
     SECONDS (intraday), so map it to its ET session date before the closed-session
-    compare. Default OFF; flip the env to roll out, unset to roll back."""
+    compare. Default OFF; flip the env to roll out, unset to roll back.
+
+    ⛔⛔ "CARRIES THE LAST CLOSED SESSION" MEANS IT REACHES THAT SESSION'S FINAL BAR, NOT ITS DATE (2026-11-20,
+    production). This compared only the date, so a tail that stopped at 13:50 ET of the last closed session passed.
+    Web runs this flag, and its fallback (tier unreachable during a deploy swap) answered RDDT 5m with that tail,
+    22 hours old, as an instant stale-while-revalidate 200. The tail must reach the final bar of that session's
+    REGULAR hours (`_session_window(.., "rth")`, half-day aware) by THE ONE tolerance rule
+    (`tail_within_one_bucket`: at it, or one bucket short, for a thin name that did not print in the last interval).
+    Rails: tests/test_intraday_async_heal.py test_A0_*."""
     if tf not in ("1", "5", "15", "30", "60") or last_ts is None:
         return False
     if _os.environ.get("BARS_INTRADAY_ASYNC_HEAL", "0") != "1":
@@ -1879,7 +1887,12 @@ def _intraday_deblockable(tf, last_ts) -> bool:
     try:
         et = _ZI("America/New_York")
         last_date = int(datetime.fromtimestamp(int(last_ts), et).strftime("%Y%m%d"))
-        return last_date >= _last_closed_session_yyyymmdd()
+        closed = _last_closed_session_yyyymmdd()
+        if last_date != closed:
+            return last_date > closed
+        day = datetime(closed // 10000, closed // 100 % 100, closed % 100, tzinfo=et)
+        final_bar = _ext_bucket_start(tf, _session_window(day, "rth")[1] - 1)
+        return tail_within_one_bucket(tf, int(last_ts), final_bar)
     except Exception:
         return False
 

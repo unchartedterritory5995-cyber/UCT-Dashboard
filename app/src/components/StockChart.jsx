@@ -1745,6 +1745,7 @@ import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
+import { onVisibleLogicalRange } from './chart/visibleRangeSubscription'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
 import { useRestedSWR } from '../lib/symbolPace'
@@ -2101,6 +2102,10 @@ function chartTickMarkFormatter(time, tickMarkType, _locale, h24 = false) {
   if (typeof time === 'number') {
     const d = new Date(time * 1000)
     if (tickMarkType >= 3) return h24 ? _fmt24(d) : _fmt12(d)    // time tick → 12-hour (24-hour when the member picks it)
+    // A zoomed-out intraday axis names the year and month marks as a daily chart does ("2026", "Feb"), not by
+    // their first session ("Jan 2", "Feb 2"), as TradingView does (owner's 1h axis, 2026-11-20).
+    if (tickMarkType === 0) return String(d.getUTCFullYear())
+    if (tickMarkType === 1) return _MO[d.getUTCMonth()]
     return `${_MO[d.getUTCMonth()]} ${d.getUTCDate()}`           // intraday day-boundary
   }
   const d = _dayDate(time)
@@ -2173,7 +2178,9 @@ export function timeAxisFormattersFor(h24, zoneId, study = false) {
     const base = study ? studyTickMarkFormatter : chartTickMarkFormatter
     const z = (time) => (typeof time === 'number' ? chartTimeInZone(time, tz) : time)
     f = {
-      tick: (time, tickMarkType, locale) => base(z(time), tickMarkType, locale, !!h24),
+      // Year and month marks are placed on the exchange clock, so they are NAMED on it: a zone far west of New
+      // York could read a month's pre-market first bar on the previous day ("Feb" at the March mark).
+      tick: (time, tickMarkType, locale) => base(tickMarkType <= 1 ? time : z(time), tickMarkType, locale, !!h24),
       crosshair: (time) => chartCrosshairTimeFormatter(z(time), !!h24),
     }
     _zonedTimeFormatters.set(key, f)
@@ -18784,7 +18791,8 @@ export default function StockChart({
 
     const redraw = () => drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg)
     redraw()
-    const unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(redraw)
+    // ⛔ The library's subscribe returns nothing: this returns the real unsubscribe (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, redraw)
     let ro = null
     if (container && typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(() => {
@@ -18796,7 +18804,7 @@ export default function StockChart({
     }
     return () => {
       try { ro?.disconnect() } catch { /* noop */ }
-      try { unsub() } catch {}
+      unsub()
       const ctx = canvas.getContext('2d')
       ctx?.clearRect(0, 0, canvas.width, canvas.height)
     }
@@ -18837,10 +18845,11 @@ export default function StockChart({
         }
       })
     }
-    let unsub = null
-    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    // ⛔⛔ The library's subscribe returns NOTHING: keeping its return value as the unsubscribe left one live
+    // handler per symbol switch, each holding the outgoing symbol's whole render (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, onRange)
     return () => {
-      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      unsub()
       if (raf != null) cancelAnimationFrame(raf)
     }
   }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, _histPrependOn])
@@ -18905,10 +18914,11 @@ export default function StockChart({
         if (wantsOlder({ fromIndex: range.from, toIndex: range.to, loadedCount: lastBarCountRef.current })) _loadOlder(false)
       })
     }
-    let unsub = null
-    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    // ⛔⛔ The library's subscribe returns NOTHING: keeping its return value as the unsubscribe left one live
+    // handler per symbol switch, each holding the outgoing symbol's whole render (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, onRange)
     return () => {
-      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      unsub()
       if (raf != null) cancelAnimationFrame(raf)
     }
   }, [_histPrependOn, sym, resolvedTf, _loadOlder, chartReady])
@@ -19097,6 +19107,11 @@ export default function StockChart({
       if (!ts || !bars || bars.length < 2) return false
       const cur = ts.getVisibleLogicalRange()
       const W = (cur && Number.isFinite(cur.from) && Number.isFinite(cur.to) && cur.to > cur.from) ? (cur.to - cur.from) : 200
+      // ⛔ ORIGIN IS THE MEMBER MOVING THE VIEW, as Go-to-date is (goToDateRightEdge): it ends the
+      // switch's settling guard (`pendingTfReframeRef`), which otherwise re-pins the newest bar at the
+      // right on the next commit (2026-11-20, production: TEL D and 60m left the first bar a beat after
+      // the click, GNK D did not because nothing committed after it).
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from: -W / 2, to: W / 2 })   // bar 0 at the centre
       appliedRangeRef.current = { val: 'origin', from: -W / 2, to: W / 2 }
       return true
@@ -19315,6 +19330,9 @@ export default function StockChart({
       const hist = lastIdx - from
       const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
       const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
+      // ⛔ A RANGE BUTTON IS THE MEMBER MOVING THE VIEW (the Go-to-date rule, as Origin above): without
+      // this the switch's settling guard put the outgoing zoom width back on the next commit.
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = { val, from, to }
       // PERSIST the chosen range as the active view-lock so EVERY next ticker
@@ -19444,11 +19462,28 @@ export default function StockChart({
     if (barCount === _fullTarget) return
     if (fetchDepth !== _fullTarget) setFetchDepth(_fullTarget)
   }
-  const getDateMeta = () => {
+  // `{ lite: true }`: only the date navigator's fields (right-edge date, bounds, load state). The navigator polls
+  // 4×/s for the life of the page; the full answer (default view geometry, zoom limits, price scale, replay) is
+  // for the UCT Agent's read-backs and stays the default.
+  const getDateMeta = (opts) => {
     const bars = filteredBarsRef.current
     if (!bars || !bars.length) return null
     const firstMs = _dateToMs(bars[0].t)
     const lastMs = _dateToMs(bars[bars.length - 1].t)
+    if (opts?.lite) {
+      let rightMs = lastMs
+      try {
+        const cur = chartRef.current?.timeScale()?.getVisibleLogicalRange()
+        if (cur && Number.isFinite(cur.to)) rightMs = _dateToMs(bars[Math.max(0, Math.min(bars.length - 1, Math.floor(cur.to)))].t)
+      } catch { /* noop */ }
+      return {
+        firstMs, lastMs, rightMs,
+        firstYear: Number.isFinite(firstMs) ? new Date(firstMs).getUTCFullYear() : null,
+        lastYear: Number.isFinite(lastMs) ? new Date(lastMs).getUTCFullYear() : null,
+        fullyLoaded: barCount === _fullTarget,
+        loading: originLoading,
+      }
+    }
     let rightMs = lastMs
     let activeRange = null
     let atDefaultView = false

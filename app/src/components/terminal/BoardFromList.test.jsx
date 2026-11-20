@@ -74,4 +74,25 @@ describe('BoardFromList is never wider than the row it sits in', () => {
     const jsx = fs.readFileSync(path.join(process.cwd(), 'src', 'pages', 'CatalystsHistory.jsx'), 'utf8')
     expect(jsx).toMatch(/className=\{styles\.tileHeader\}>[\s\S]{0,900}<BoardFromList /)
   })
+
+  // 2026-11-20, part 2. The catalysts tile (WIRE's movers, the dashboard) kept its tools on one line
+  // that could not shrink, so the control's own cap had nothing to measure against: in a Terminal
+  // panel on a 340px screen the picker ran 41px past the tile and the whole page scrolled sideways.
+  it('WIRE: on a phone the catalysts tile header wraps and its tools may shrink, so the picker stays inside the tile', () => {
+    const css = sheet('components/tiles/CatalystTable.module.css')
+    const at = css.indexOf('@media (max-width: 640px) {')
+    expect(at).toBeGreaterThan(-1)
+    const phone = css.slice(at, css.indexOf('@media', at + 1))
+    expect(phone).toMatch(/\n {2}\.header \{ flex-wrap: wrap; gap: 8px 12px; \}/)
+    expect(phone).toMatch(/\n {2}\.meta \{ flex-wrap: wrap; min-width: 0; gap: 8px 12px; \}/)
+    // a wider screen keeps its one-line header: the rules outside the phone block do not wrap
+    const base = `\n${css.slice(0, at)}`
+    expect(rule(base, '.header')).toMatch(/display:\s*flex;/)
+    expect(rule(base, '.header')).not.toMatch(/flex-wrap/)
+    expect(rule(base, '.meta')).toMatch(/display:\s*flex;/)
+    expect(rule(base, '.meta')).not.toMatch(/flex-wrap|min-width/)
+    expect(css.slice(at + 1).replace(phone.slice(1), '')).not.toMatch(/\n\s*\.(header|meta) \{/)
+    const jsx = fs.readFileSync(path.join(process.cwd(), 'src', 'components', 'tiles', 'CatalystTable.jsx'), 'utf8')
+    expect(jsx).toMatch(/className=\{styles\.header\}>[\s\S]{0,300}className=\{styles\.meta\}>[\s\S]{0,2000}<BoardFromList /)
+  })
 })

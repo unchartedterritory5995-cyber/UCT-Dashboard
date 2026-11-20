@@ -118,7 +118,8 @@ describe('the binder hands the renderer the window, and only the primary series'
     expect(write).toContain('queueSeriesData(series, data, bars) }, drawn))')
     expect(write.includes('setData(points)'), 'a write of the whole series').toBe(false)
     // and the one door to the renderer writes exactly the points it is handed
-    expect(b).toContain('function applySeriesData(series, points, from) { pendingData.delete(series) attempt(() => series.setData(points))')
+    // (2026-11-20: it also records the symbol the series was drawn for, `drawnSym` — the MA-blip fix)
+    expect(b).toContain('function applySeriesData(series, points, from, sym = passSym) { pendingData.delete(series) attempt(() => series.setData(points))')
   })
   it('what the legend reads is still the whole series', () => {
     const b = squash(binder)

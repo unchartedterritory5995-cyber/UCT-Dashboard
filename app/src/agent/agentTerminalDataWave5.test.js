@@ -439,17 +439,18 @@ describe('routing words', () => {
   beforeEach(() => { reset(); vi.restoreAllMocks() })
   afterEach(() => { reset(); globalThis.fetch = realFetch })
 
-  it('the group is words-only and never a filler, routing.js lists the two by action with no word of its own, and one group is left', () => {
+  it('the group is words-only and never a filler, routing.js lists the two by action with no word of its own, and it is the 47th group under the cap', () => {
     const g = ownGroup()
     expect(g.wordsOnly && g.fillLast).toBe(true)
     expect(g.words).toEqual([])                                      // server-armed: empty until a capability registers
     expect([...g.actions].sort()).toEqual([...ALL].sort())
     expect(g.domains).toEqual([])
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
-    // the server keeps only MAX_GROUPS groups: this wave's is the 47th of 48, so ONE is left
+    // the server keeps only MAX_GROUPS groups: this wave's is the 47th of 48 (how many are left is pinned by the wave that took
+    // the last one, agentTerminalDataWave6.test.js)
     const max = Number(/^MAX_GROUPS\s*=\s*(\d+)\s*$/m.exec(py('api/services/uct_agent/turn.py'))[1])
-    expect([GROUPS.length, max, max - GROUPS.length]).toEqual([47, 48, 1])
-    expect(GROUPS.map(x => x.id).slice(-2)).toEqual([WAVE4_GROUP, ROUTE_GROUP])
+    expect([max, GROUPS.length <= max]).toEqual([48, true])
+    expect(GROUPS.map(x => x.id).slice(45, 47)).toEqual([WAVE4_GROUP, ROUTE_GROUP])
     expect(new Set(GROUPS.map(x => x.id)).size).toBe(GROUPS.length)
   })
 
@@ -561,7 +562,7 @@ describe('routing words', () => {
     for (const n of ALL) expect(allCapabilityNames()).toContain(n)
     const after = read()
     expect(texts.length).toBeGreaterThan(500)
-    expect(texts.filter((t, i) => before[i] !== after[i])).toEqual([])
+    expect(texts.map((t, i) => (before[i] !== after[i] ? `${t}: ${before[i]} -> ${after[i]}` : null)).filter(Boolean)).toEqual([])
   })
 
   it('no OTHER capability\'s capreg corpus phrasing is named by these words (armed, the group rides with none of them)', () => {

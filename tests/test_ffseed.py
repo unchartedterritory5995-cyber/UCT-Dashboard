@@ -25,6 +25,19 @@ ET = ZoneInfo("America/New_York")
 REPO = Path(__file__).resolve().parents[1]
 
 
+@pytest.fixture(autouse=True)
+def _offline_split_sources(monkeypatch):
+    """No test here reaches a vendor: the next-session split read answers "could not ask" (the field
+    is then omitted). tests/test_ffseed_splits.py covers that list."""
+    def _offline(session_iso):
+        raise RuntimeError("offline in tests")
+    monkeypatch.setattr(ffseed, "_massive_split_rows", _offline)
+    monkeypatch.setattr(ffseed, "_fmp_cached_splits", lambda sym: [])
+    # nor R2: the published manifest (a delta's base) reads as absent unless a test says otherwise
+    from api.services import data_sync
+    monkeypatch.setattr(data_sync, "get_bytes", lambda key: None)
+
+
 def _ts(d: date, hh: int, mm: int) -> int:
     return int(datetime(d.year, d.month, d.day, hh, mm, tzinfo=ET).timestamp())
 
