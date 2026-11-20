@@ -128,6 +128,7 @@ import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSent
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 import { isRthBar } from '../barTime'
 import { windowedPoints } from './plotWindow'
+import { FIRST_PAINT_MAX } from '../../../utils/barsBackfill'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
  *  regular-session window (09:30 to the day's close, half-days included: barTime.isRthBar)
@@ -619,6 +620,67 @@ function lastPointValue(points) {
   return last ? last.value : undefined
 }
 
+// ─── ⭐⭐ A HEAVY PASS'S INDICATOR DATA, HANDED TO THE RENDERER OVER SEVERAL TASKS (switch smoothness) ───
+//
+// MEASURED (patrick-54's trace, RDDT 1D -> 5m with Fred RS, a production build of fcbb91a97f): every deep-history
+// pass applied every indicator series' data in ONE task, after the candles', and lightweight-charts rebuilds its
+// whole time scale on each `setData` of a series that already holds data (5.2.0, `DataLayer.setSeriesData`: every
+// time point's mapping is visited, then all of them re-sorted). So each Fred series cost a rebuild over the chart's
+// rows: 25-31 ms of `setData` per deep pass from the binder alone, in tasks of 198-236 ms.
+// With `ctx.deferSeriesData` (StockChart's opt-in) a pass over more rows than a first paint (`FIRST_PAINT_MAX`) does
+// not hand a series it ALREADY DREW its new data at once: it is queued, and the queue is drained one task at a time
+// (`SERIES_DATA_SLICE_MS` each, at least one series), so no task carries a whole indicator's data.
+// ⛔⛔ THE FINAL PICTURE IS IDENTICAL: each series receives exactly the calls it received before, in the same order
+// for that series; only WHEN changes. A series' queued data is applied before any later call that depends on what
+// it holds (an incremental `update`, a removal drops it, a newer full set replaces it, `flushPendingData` for a
+// writer outside the binder), and a pass never defers:
+//   · a FIRST bind, a pooled series, a gap-split line or an OHLC payload (the series would show another tenant's or
+//     another shape's picture meanwhile);
+//   · a series whose picture on screen was built from bars that are not all in this pass's bars: its old times
+//     would stay in the time scale while the chart frames the new ones. With them all inside (a deeper history of the
+//     same symbol and timeframe, a landing on the same bars) the time scale is the candles' either way, so the
+//     framing done before the queue drains is the framing done after it.
+// Railed: `binderSeriesDataSpread.rail.test.js` (the final applied data per series, deferred vs at once).
+/** A pass over more rows than this (a first paint's most, `barsBackfill.FIRST_PAINT_MAX`) may spread its data. */
+export const SERIES_DATA_DEFER_MIN_ROWS = FIRST_PAINT_MAX + 1
+/** How long one drain task may apply queued data (at least one series per task). */
+export const SERIES_DATA_SLICE_MS = 8
+
+const _sliceClock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
+
+/** One task from now (a posted message where there is one: it is not clamped or throttled like a timer). */
+let _taskChannel = null
+const _taskQueue = []
+function nextTask(fn) {
+  if (typeof MessageChannel === 'function') {
+    if (!_taskChannel) {
+      _taskChannel = new MessageChannel()
+      _taskChannel.port1.onmessage = () => { const f = _taskQueue.shift(); if (f) f() }
+      // a host that counts open ports (node) must not be held open by this one
+      try { if (_taskChannel.port1.unref) _taskChannel.port1.unref() } catch { /* not node */ }
+      try { if (_taskChannel.port2.unref) _taskChannel.port2.unref() } catch { /* not node */ }
+    }
+    _taskQueue.push(fn)
+    _taskChannel.port2.postMessage(0)
+    return
+  }
+  setTimeout(fn, 0)
+}
+
+/** Is every bar time of `inner` a bar time of `outer`? Both chronological (a chart's bars). */
+export function barTimesWithin(inner, outer) {
+  if (inner === outer) return true
+  if (!Array.isArray(inner) || !Array.isArray(outer) || inner.length > outer.length) return false
+  let j = 0
+  for (let i = 0; i < inner.length; i += 1) {
+    const t = inner[i] ? inner[i].t : undefined
+    while (j < outer.length && outer[j] && outer[j].t < t) j += 1
+    if (j >= outer.length || !outer[j] || outer[j].t !== t) return false
+    j += 1
+  }
+  return true
+}
+
 /** A binding's GAP-RUN series (`gapRuns.js`) -- the render-only series that draw
  *  the EARLIER valid runs of one fundamental line. They live and die with the
  *  binding that owns them: every path that removes `b.series` removes these. */
@@ -988,6 +1050,48 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  plan says, because the landing repaints with the SAME bars (a `noop` plan, whose `applyData`
    *  leaves a series untouched) and the series still holds the stale picture. */
   let heldLastSync = new Set()
+
+  // ─── ⭐⭐ THE QUEUED SERIES DATA (see `SERIES_DATA_DEFER_MIN_ROWS`) ───
+  /** series -> {points, from}: the newest full data a pass handed it and has not applied yet (insertion order is
+   *  the drain's order). `from` is the bars array the points were built from. */
+  const pendingData = new Map()
+  /** series -> the bars array the data it HOLDS was built from (what the renderer has), set on every apply. */
+  const drawnFrom = new WeakMap()
+  let drainArmed = false
+
+  function applySeriesData(series, points, from) {
+    pendingData.delete(series)
+    attempt(() => series.setData(points))
+    drawnFrom.set(series, from)
+  }
+  /** Apply what is queued for `series`, if anything (before a call that reads or extends what it holds). */
+  function flushSeries(series) {
+    const p = pendingData.get(series)
+    if (p) applySeriesData(series, p.points, p.from)
+  }
+  function queueSeriesData(series, points, from) {
+    pendingData.delete(series)
+    pendingData.set(series, { points, from })
+    if (drainArmed) return
+    drainArmed = true
+    nextTask(drainSlice)
+  }
+  function drainSlice() {
+    drainArmed = false
+    if (!pendingData.size) return
+    const t0 = _sliceClock()
+    for (const [series, p] of pendingData) {
+      applySeriesData(series, p.points, p.from)
+      if (_sliceClock() - t0 >= SERIES_DATA_SLICE_MS) break
+    }
+    if (pendingData.size && !drainArmed) { drainArmed = true; nextTask(drainSlice) }
+  }
+  /** A series about to be removed takes its queued data with it (never applied to a removed series). */
+  function removeSeriesNow(series) {
+    if (!series) return
+    pendingData.delete(series)
+    attempt(() => chart.removeSeries(series))
+  }
 
   // ─── THE TWO MEMOS (spec §5: "columnar→object mapping reused, never
   //     re-allocated per update") ─────────────────────────────────────────────
@@ -1773,7 +1877,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       for (const h of was.fills.values()) attempt(() => was.host.detachPrimitive(h.primitive))
     }
     priceHosted = new Map()
-    for (const b of held) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
+    for (const b of held) { removeSeriesNow(b.series); removeRunSeries(chart, b) }
+    pendingData.clear()
     // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
     // would leave its last picture frozen over the chart, which reads as "the
     // indicator is still on" — the ghost-state defect this release path exists
@@ -1927,6 +2032,17 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const plan = ctx.plan || {}
     const planMode = plan.fresh ? 'fresh' : plan.incr ? 'incr' : plan.noop ? 'noop' : 'fresh'
     const instances = Array.isArray(ctx.instances) ? ctx.instances : []
+    // ⭐⭐ (switch smoothness) may this pass queue series data (`SERIES_DATA_DEFER_MIN_ROWS`)? And is the picture a
+    // series holds built from bars all inside this pass's (asked once per bars array the pass meets)?
+    const spreadOn = ctx.deferSeriesData === true && bars.length >= SERIES_DATA_DEFER_MIN_ROWS
+    const withinMemo = new Map()
+    const drawnWithinBars = (series) => {
+      const from = drawnFrom.get(series)
+      if (!from) return false
+      let ok = withinMemo.get(from)
+      if (ok === undefined) { ok = barTimesWithin(from, bars); withinMemo.set(from, ok) }
+      return ok
+    }
 
     // ── 1. Compute every column ONCE, before any decision needs one ──
     //
@@ -2276,6 +2392,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
             ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+            // ⭐⭐ (2026-11-20) and the listing FACT where it is not served (W / M): the same restriction
+            ...(!frame && ctx.listingStart === true ? { listingStart: true } : {}),
             // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
             // not the series the caller described.
             ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
@@ -2510,7 +2628,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     //       renderer just gave back. (The planner has already guaranteed nothing
     //       released here could have been reused, so this is ordering hygiene
     //       rather than a second policy.) ──
-    for (const b of release) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
+    for (const b of release) { removeSeriesNow(b.series); removeRunSeries(chart, b) }
 
     // ── 4. Bind ──
     //
@@ -2523,7 +2641,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // `normalizeInstances` validates `placement.target`), and it fails in the
     // wrong direction for a Phase C catalog definition, so it is closed now.
     const orphan = (b) => {
-      if (b.series) attempt(() => chart.removeSeries(b.series))
+      if (b.series) removeSeriesNow(b.series)
       removeRunSeries(chart, b.from)
     }
 
@@ -3063,14 +3181,33 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // says). It is handed no data, so a poll costs the renderer one `setData` (the landing's,
       // below) and not two. ⛔ A series bound for the first time is set as always.
       const holdPicture = heldIds.has(b.instanceId) && !firstBindNeedsSetData(b, planMode)
+      // ⭐⭐ (switch smoothness) MAY THIS SERIES' NEW DATA WAIT FOR A LATER TASK? Only on a heavy pass the chart
+      // opted in, for a series this binding already drew (never a first bind, a pooled series, a gap-split line or
+      // an OHLC payload), whose picture on screen was built from bars all inside this pass's bars (see
+      // `SERIES_DATA_DEFER_MIN_ROWS`). Every other series is handed its data now, as before, after anything still
+      // queued for it.
+      // ⛔ An incremental plan is never spread: its one `update` lands on the series itself, after what is queued.
+      const spread = spreadOn && planMode !== 'incr' && b.source === 'same' && !split
+        && !isOhlcPayload(columns.get(b.key)) && drawnWithinBars(series)
       if (holdPicture) {
-        // the series is left exactly as it is
+        // the series is left exactly as it is (data still queued for it is the picture it holds, and stays queued)
       } else if (firstBindNeedsSetData(b, planMode) || landedNow.has(b.instanceId)) {
-        attempt(() => series.setData(drawn))
+        if (spread) queueSeriesData(series, drawn, bars)
+        else applySeriesData(series, drawn, bars)
       } else if (typeof ctx.applyData === 'function') {
-        attempt(() => ctx.applyData(series, drawn))
+        if (spread) {
+          // the chart's own plan decides (`StockChart._applyData`: nothing on a noop, else a full set), through a
+          // stand-in whose full set is queued
+          attempt(() => ctx.applyData({ setData: (data) => queueSeriesData(series, data, bars) }, drawn))
+        } else {
+          flushSeries(series)
+          attempt(() => ctx.applyData(series, drawn))
+          // whatever the plan did (nothing, an `update` of the newest bar, a full set), what it holds is built from bars
+          // all inside this pass's: the same bars, the same bars and the newest one, or these bars
+          drawnFrom.set(series, bars)
+        }
       } else {
-        attempt(() => series.setData(drawn))
+        applySeriesData(series, drawn, bars)
       }
 
       // Reconcile the run series: reuse what this binding (or the one it was
@@ -3303,5 +3440,16 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (unsubscribeObjectRange) { unsubscribeObjectRange(); unsubscribeObjectRange = null }
   }
 
-  return { sync, teardown, bindings, columnErrorsOf }
+  /** ⭐⭐ (switch smoothness) Apply the data still queued for `series` (or for every series, with none), now. For a
+   *  writer or reader outside the binder that extends or reads what a series HOLDS (a live writer's `update`, an
+   *  end label's `data()`): it then sees exactly what it would have seen with no queue. */
+  function flushPendingData(series) {
+    if (series) { flushSeries(series); return }
+    for (const [s, p] of [...pendingData]) applySeriesData(s, p.points, p.from)
+  }
+
+  /** How many series have data queued (diagnostics and rails). */
+  function pendingDataCount() { return pendingData.size }
+
+  return { sync, teardown, bindings, columnErrorsOf, flushPendingData, pendingDataCount }
 }

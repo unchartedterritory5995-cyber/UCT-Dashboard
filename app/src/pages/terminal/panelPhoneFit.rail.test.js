@@ -166,6 +166,7 @@ describe('the one mechanism: the shell marks each panel body, the stylesheets ke
 const MEASURED = [
   // file, code, need px, step(s) in source order
   ['MyHistoryPanel.jsx', 'MYH', [575], [590]],
+  ['SeasonalityBoardPanel.jsx', 'SEASB', [566], [590]],     // measured 2026-11-20, twelve month columns
   ['PerformancePanel.jsx', 'PERF', [571], [590]],
   ['ExpectedMovePanel.jsx', 'EXMV', [545], [550]],
   ['EarningsSeasonPanel.jsx', 'ERNS', [531], [550]],
@@ -250,7 +251,7 @@ describe('the fold ladder: a table folds only from its own step down', () => {
       expect([code, need, step, step - need >= 5]).toEqual([code, need, step, true])
       expect([code, need, step, step - need <= 30]).toEqual([code, need, step, true])
     }
-    expect(pairs.length).toBe(19)
+    expect(pairs.length).toBe(20)
   })
 
   it('RSS: each of its five screens names its own step, and a screen nobody measured names none', () => {

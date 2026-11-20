@@ -69,7 +69,7 @@ import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
-import { historyFromListingOf, listingReferenceDate } from './chart/engine/listingSeed'
+import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, commandBarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
@@ -1725,6 +1725,7 @@ import { useCalcFrames } from './chart/engine/useCalcFrames'
 import { useFundamentalSources } from './chart/engine/useFundamentalSources'
 import { useMarketCapAuthority } from './chart/engine/useMarketCapAuthority'
 import { useServerColumns } from './chart/engine/useServerColumns'
+import { setSeriesVisible } from './chart/seriesVisible'
 import { useRuntimeLists } from './chart/engine/useRuntimeLists'
 import { armServerWarm } from './chart/engine/serverWarm'
 import { loadBreadthSymbols, breadthRecord } from '../hooks/useBreadthSymbols'
@@ -4930,6 +4931,11 @@ export default function StockChart({
   // classification field: `bindSymbolOf` ignores it and the run cache keys do not carry it.
   const _firstTradeDate = ipoInfo && ipoInfo.first_trade_final === true && typeof ipoInfo.first_trade_date === 'string'
     ? ipoInfo.first_trade_date : null
+  // ⭐⭐ (coordinator ruling 2026-11-20, captured: BGIN 1h refused its listing-day bar while the lookup was out, and stayed
+  // refused after it landed) — the lookup STILL IN FLIGHT for this symbol (`useTickerIpo`'s `PENDING_IPO`): a run whose
+  // first bars rest on the listing waits for it rather than refusing them. useTickerIpo keys on `sym`, so another
+  // symbol's late answer is never this one's.
+  const _firstTradeDatePending = !_firstTradeDate && !!(ipoInfo && ipoInfo.pending === true)
   const symbolMeta = useMemo(() => (
     sym ? {
       ticker: sym,
@@ -4938,8 +4944,9 @@ export default function StockChart({
       sector: (tickerMeta && tickerMeta.sector) || null,
       securityType: (tickerMeta && tickerMeta.security_type) || null,
       ...(_firstTradeDate ? { firstTradeDate: _firstTradeDate } : {}),
+      ...(_firstTradeDatePending ? { firstTradeDatePending: true } : {}),
     } : null
-  ), [sym, tickerMeta, _firstTradeDate])
+  ), [sym, tickerMeta, _firstTradeDate, _firstTradeDatePending])
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
   // Watermark meta. Three cases (Model Book curates name/sector/industry):
@@ -9112,6 +9119,10 @@ export default function StockChart({
     if (!bars || !bars.length) return
     if (!Number.isFinite(c)) return
     const sameBucket = adjustTime(bars[bars.length - 1].t) === tSec
+    // ⭐⭐ (switch smoothness) THE ENGINE'S SERIES HOLD WHAT THE LAST PASS HANDED THEM before a tick extends them:
+    // data a heavy pass queued (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`) is applied first, so the tick's `update`
+    // lands on the same points it would have with no queue.
+    try { engineRef.current?.binder?.flushPendingData?.() } catch { /* binder disposed */ }
     // ⚠️ THE LEGACY LOOP IS NOW USUALLY EMPTY — every `cs.overlays` average is an
     // instance (`maAdoption.js`); only a host passing its own `overlays` prop (the
     // intraday popup) still has one. It used to be the early-return guard for the
@@ -9650,14 +9661,22 @@ export default function StockChart({
   // never the IPO badge's five-day tolerance above, which only labels a candle.
   // ⭐ The reference date is `listingReferenceDate` (the corroborated first session
   // when the server sends one, else `list_date`) — NOT the IPO badge's `list_date`.
-  const historyFromListing = useMemo(() => historyFromListingOf({
+  // ⭐⭐ (2026-11-20) and a WEEKLY chart from its listing week, served on capture evidence (`servedFromListingOf`)
+  const historyFromListing = useMemo(() => servedFromListingOf({
     bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
   }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  // ⭐⭐ (coordinator ruling 2026-11-20) — THE LISTING FACT ON A WEEKLY / MONTHLY CHART, stated where it holds and is NOT
+  // served (`listingSeed.listingStartOf`, `LISTING_SERVED_TFS`): a run still withheld there says why TRUTHFULLY
+  // (`runtime:listing-unverified`). Absent everywhere else, so every other chart's context is unchanged.
+  const listingUnserved = useMemo(() => !historyFromListing && listingStartOf({
+    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
+  }), [historyFromListing, filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
   // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
-  // (`chart/builder/runsHere.js`): the bars the binder computes on and the five facts of the compute
-  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`).
+  // (`chart/builder/runsHere.js`): the bars the binder computes on and the six facts of the compute
+  // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`, and
+  // the listing fact where it is not served, `listingStart`).
   // A script judged on anything else would be judged on a chart the member is not looking at.
-  // `engineChart.test.js` holds these five to the binder's own, expression for expression.
+  // `engineChart.test.js` holds these six to the binder's own, expression for expression.
   const engineChart = useMemo(() => ({
     bars: filteredBars,
     ctx: {
@@ -9666,8 +9685,9 @@ export default function StockChart({
       tf: resolvedTf,
       newestBarIsForming: data?.newest_bar_is_forming ?? null,
       historyFromListing,
+      ...(listingUnserved ? { listingStart: true } : {}),
     },
-  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing])
+  }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -13513,6 +13533,8 @@ export default function StockChart({
         // engine also asks the DOCUMENT (`historyFromListingFor`), so a script from
         // another translator keeps its bounded window whatever this says.
         historyFromListing,
+        // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M), for a true sentence
+        ...(listingUnserved ? { listingStart: true } : {}),
         // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
         // to strategy documents only; every other document's ctx is unchanged.
         historyWindowBars: strategyHistoryWindow,
@@ -13621,6 +13643,11 @@ export default function StockChart({
           },
         }),
         plan: { noop: _noop, incr: _incr, fresh: _freshChart },
+        // ⭐⭐ (switch smoothness, 2026-11-20) a heavy pass may hand the indicator series it already drew their data
+        // over several tasks (`binder.js`, `SERIES_DATA_DEFER_MIN_ROWS`): only while the candles are built from the
+        // very bars the indicators are (no session-preview candle, no Heikin-Ashi), so every point an indicator holds
+        // meanwhile is on the candles' own time scale and the framing below reads the same index space either way.
+        deferSeriesData: displayBars === filteredBars,
         // The declutter toggle. `visible` is part of the option set the binder
         // re-asserts on every bind, so without this a hidden engine series would
         // reappear on the next paint. Read from a ref, not a dependency — see the
@@ -15803,7 +15830,10 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady) return
     const vis = !hideBase
-    const setVis = (s) => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
+    // ⭐⭐ (switch smoothness, 2026-11-20) A SERIES ALREADY SHOWING `vis` IS LEFT ALONE (`seriesVisible.js`): this
+    // effect re-runs on every bars update, and each `applyOptions` made lightweight-charts recompute the chart
+    // (measured: 10-19 ms per run in the 1D -> 5m switch with Fred RS, one call per series).
+    const setVis = (s) => setSeriesVisible(s, vis)
     setVis(candleSeriesRef.current)                                   // base candles
     setVis(volumeSeriesRef.current)                                   // volume (also source-gated via showVolume)
     for (const s of (overlaySeriesRefs.current || [])) setVis(s)      // legacy MA overlays
@@ -17879,6 +17909,9 @@ export default function StockChart({
       if (!b) { hide(); return }
       let last = endLabelLastRef.current.get(b)
       if (last === undefined) {
+        // ⭐⭐ (switch smoothness) read what the series holds once the data a heavy pass queued for it is applied
+        // (`binder.flushPendingData`): the tag is cached per binding, so it must never read the picture before it
+        try { eng.binder.flushPendingData?.(b.series) } catch { /* binder disposed */ }
         let points = null
         try { points = typeof b.series.data === 'function' ? b.series.data() : null } catch { points = null }
         last = lastFinitePoint(points)

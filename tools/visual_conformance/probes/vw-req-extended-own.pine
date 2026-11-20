@@ -1,0 +1,36 @@
+//@version=5
+indicator("UCTPROBE_VW_REQ_EXTENDED_OWN", overlay = false)
+
+// ─── 2026-11-19 (request unit, EXT-OWN) — THE CHART'S OWN SYMBOL ON THE EXTENDED SESSION, AT A DAILY OR HIGHER
+//     TIMEFRAME, BESIDE THE SAME REQUEST ON THE REGULAR SESSION ───────────────────────────────────────────────────
+//
+// `request.security(ticker.new(syminfo.prefix, syminfo.ticker, session = session.extended), "D", x)` is how Saty ATR
+// Levels (and the Saty block of Ripster + RVOL) read the previous close and the ATR. The engine refuses every
+// non-regular session by name (`pine.js::tickerCallArg`): another series. TradingView's manual says only that
+// extended-hours data is not shown on "1D" and above. What this probe settles, beside the regular ticker:
+//   * the extended ticker at "D", "W", "M" on a DAILY chart (Saty's Day / Multiday / Swing modes): E01..E08;
+//   * the extended ticker at "D" on an INTRADAY chart with extended hours on (Saty's default use): E01, E02, E07,
+//     E08 on the 5-minute chart, read on pre-market, regular and post-market bars (E09 / E10 say which).
+//
+//   E01 / E02  close, "D", look-ahead off: extended / regular
+//   E03 / E04  close[1], "W", look-ahead on: extended / regular
+//   E05 / E06  close[1], "M", look-ahead on: extended / regular
+//   E07 / E08  high, "D", look-ahead on: extended / regular
+//   E09        session.ispremarket   E10  session.ispostmarket   E11  the chart's own close
+//
+// ⛔ CAPTURE (docs/pine/capture-queue-2026-11-19-request-unit.md, Q-REQ5 / Q-REQ6).
+
+ext = ticker.new(syminfo.prefix, syminfo.ticker, session = session.extended)
+reg = ticker.new(syminfo.prefix, syminfo.ticker, session = session.regular)
+
+plot(request.security(ext, "D", close), "E01")
+plot(request.security(reg, "D", close), "E02")
+plot(request.security(ext, "W", close[1], lookahead = barmerge.lookahead_on), "E03")
+plot(request.security(reg, "W", close[1], lookahead = barmerge.lookahead_on), "E04")
+plot(request.security(ext, "M", close[1], lookahead = barmerge.lookahead_on), "E05")
+plot(request.security(reg, "M", close[1], lookahead = barmerge.lookahead_on), "E06")
+plot(request.security(ext, "D", high, lookahead = barmerge.lookahead_on), "E07")
+plot(request.security(reg, "D", high, lookahead = barmerge.lookahead_on), "E08")
+plot(session.ispremarket ? 1 : 0, "E09")
+plot(session.ispostmarket ? 1 : 0, "E10")
+plot(close, "E11")

@@ -71,7 +71,7 @@ const KEY_TYPES = Object.freeze({ int: 'number', float: 'number', bool: 'number'
  *  as the case that can fail: it stops. */
 const naAnswerable = (map, budget) => (
   (map.vt !== null && map.vt !== undefined && map.vt !== 'bool')
-  || (Number.isFinite(ruleVersion(budget)) && ruleVersion(budget) < 6 && !islandOp(budget)))
+  || (Number.isFinite(ruleVersion(budget)) && ruleVersion(budget) < 6))
 
 /** ⭐⭐ THE VERSION ISLAND — the Pine version a collection rule is judged under: a v5 library's op inside a v6
  *  program carries its own (`budget.opVersion`, set by `vm.js` around that one op from the op's `version`), every
@@ -80,20 +80,11 @@ const naAnswerable = (map, budget) => (
 export const ruleVersion = (budget) => (
   budget ? (budget.opVersion !== undefined ? budget.opVersion : budget.pineVersion) : undefined)
 
-/** Is this op a library's judged under another version than the script's (an island op)? */
-export const islandOp = (budget) => !!budget && budget.opVersion !== undefined && budget.opVersion !== budget.pineVersion
-
-/** ⛔⛔ THE ISLAND DOES NOT HAND v6 CODE A v5 `na` BOOL FROM A MAP. A v5 script's bool map answers `na` for a missing
- *  key (MAN's answer stands at v5), and that `na` is then read by the v5 rules for a bool that can be `na`
- *  (`pineRuntimeFrontend.js` `boolNaOnThisLane` and kin). A v5 library inside a v6 program is lowered with the
- *  PROGRAM's bool rules until the bool-na family is judged per token (island PR 2), so the same `na` would meet
- *  v6 rules that assume a bool is never `na`: a guessed value. The run stops here by name instead. */
-const islandBoolNaSentence = (what, map, budget) => `\`${what}\` answers \`na\` for a missing key, and this key `
-  + `belongs to a Pine v${budget.opVersion} library's \`map<${map.kt}, ${map.vt || '?'}>\`: a v${budget.opVersion} `
-  + `library's true/false value that may be empty (\`na\`), read under this Pine v${budget.pineVersion} script's rules, `
-  + `isn't supported yet (a v${budget.pineVersion} true/false is never empty, and the version island does not yet judge `
-  + `a v${budget.opVersion} library's true/false values under v${budget.opVersion} rules), so the run stops here rather `
-  + 'than serving a guessed value'
+/** ⭐⭐ THE ISLAND'S BOOL MAP (island PR 2): a v5 library's op answers `na` for a missing key of its `map<_, bool>`, as a
+ *  v5 script's does (MAN's answer stands at v5), because the run now reads that `na` with v5's rules for a bool that can
+ *  be `na` (`pineRuntimeFrontend.js` `boolNaOnThisLane` and kin read `versionAt`), and the island's boundary refuses by
+ *  name any way the `na` could reach the v6 script (a result, an element or field of one, a collection or record it
+ *  shares: `islandNaBoolResult`, LV6). ⚰️ Island step 2 stopped the run here, by its own name, until then. */
 
 const W6K1 = 'the Pine reference and manual do not settle it, so the run stops here rather than '
   + 'serving a guessed convention (W6-K1)'
@@ -107,7 +98,6 @@ export function buildMapFns({ CollectionError }) {
    *  cannot hold `na` (`naAnswerable`). */
   const naAnswer = (map, budget, what) => {
     if (naAnswerable(map, budget)) return NaN
-    if (islandOp(budget) && ruleVersion(budget) < 6) throw new CollectionError(islandBoolNaSentence(what, map, budget))
     throw unpinned(`\`${what}\` answers \`na\` for a missing key, and a v6 \`map<${map.kt}, ${map.vt || '?'}>\` value `
       + 'cannot be `na` (REF: "Bool" variables can have values true or false)')
   }

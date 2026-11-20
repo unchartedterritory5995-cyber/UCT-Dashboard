@@ -51,7 +51,7 @@ import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/run
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
 import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
 import { heldWithholdsOf, heldWithholdSentence, heldDrawingsNote, objectFamiliesOf, HELD_DIVERGENCE_GUARD,
-  HELD_WITHHOLDS_STAMP, heldWithholdsStamp } from '../../engine/heldWithholds'
+  HELD_WITHHOLDS_STAMP, heldWithholdsStamp, heldRefusalReason } from '../../engine/heldWithholds'
 import { hostLaneCostOf } from '../../engine/hostLaneCost'
 import { sameDrawnSurface } from './costRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
@@ -415,9 +415,22 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // line says so too, whatever the gate (it was drawn as an indicator in silence).
   let strategyNote = null
   if (strategyBrokerEnabled() && runtimePaneEnabled() && t && t.declaration === 'strategy') {
-    const viaBroker = runtimeLaneDefinition({ source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no })
-    const d = viaBroker && viaBroker.ok ? viaBroker.definition : null
-    const brokerDoc = !!(d && d.compute && d.compute.kind === 'runtime' && d.meta && d.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+    const { heldFull, ...asked } = runtimeLaneDefinition({
+      source, id, name, t, hostReason: gate.reason, hostGuard: gate.guard, routed: false, no, keepHeldFull: true,
+    }) || {}
+    const brokerDocOf = (r) => {
+      const dd = r && r.ok ? r.definition : null
+      return !!(dd && dd.compute && dd.compute.kind === 'runtime' && dd.meta && dd.meta.runtimeHistory === STRATEGY_WINDOW_HISTORY)
+    }
+    // ⭐⭐ e89 — A HELD WITHHOLD NEVER DECIDES THE LANE. Which document the member gets is decided WITHOUT the list
+    // (`heldFull`: the run with its held withholds ignored); when that is the broker document, the list only narrows it
+    // (its held elements withheld, each named) or, where it cannot, refuses the script by name. ⚰️ A held row was the
+    // narrowed broker document's `takesAway`, so the HOST document was served, drawing the very row held.
+    if (heldFull && brokerDocOf(heldFull) && !(heldFull.takesAway || []).length) {
+      return brokerDocOf(asked) ? asked : heldRefusalOf({ source, t, no }, asked)
+    }
+    const viaBroker = heldFull || asked
+    const brokerDoc = brokerDocOf(viaBroker)
     // ⭐⭐ Engine 77 (#1833, fix/strategy-disarmed-taint) — AN ADMISSION NEVER TAKES AWAY WHAT A MEMBER SEES (owner rule,
     // coordinator ruling 2026-11-18): a broker document that would withhold a plot or paint the host document shows
     // (`takesAway`: a forward `offset`, a presentation the run does not carry) does NOT replace it; the member keeps the
@@ -1362,21 +1375,33 @@ function routeByCost({ host, source, id, name, t, no }) {
   const cost = hostLaneCostOf(host.definition)
   if (!cost.over) return host
   // ⛔ The refusal `runtimeLaneDefinition` builds on a decline is never read (the host answer stands),
-  // so it carries no guard of its own: a code nobody can be shown is not minted.
-  const run = runtimeLaneDefinition({
-    source, id, name, t, no, routed: false, hostGuard: null,
+  // so it carries no guard of its own: a code nobody can be shown is not minted. (A HELD refusal, below, is read.)
+  const { heldFull, ...run } = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostGuard: null, keepHeldFull: true,
     hostReason: `its formula lane would hold the chart for about ${cost.stepsPerBar} steps a bar`,
     drawnBecause: 'because drawn as formulas it would hold the chart for a noticeable time on every update',
-  })
+  }) || {}
+  // ⭐⭐ e89 — A HELD WITHHOLD NEVER DECIDES THE LANE. Whether the script moves is decided WITHOUT the list (`heldFull`:
+  // the run with its held withholds ignored, the picture the host document is compared with); once it moves, the list
+  // only narrows the run (each held element withheld, named) or, where the narrowed run cannot stand, refuses the
+  // script by name. ⚰️ The NARROWED run was compared: it lacked the held element, so the pictures differed and the
+  // HOST document was kept, drawing the very element held (9 of the e88 sweep's cases), and a run narrowed to nothing
+  // (`runtime:withheld-all`) kept it too (1).
+  const move = costMoveOf(host, heldFull || run)
+  if (!move.ok) return { ...host, costRoute: { moved: false, cost, code: move.code, why: move.why } }
+  if (run.ok) return { ...run, costRoute: { moved: true, cost } }
+  return { ...run, costRoute: { moved: false, cost, code: run.guard, why: run.reason } }
+}
+
+/** Does the cost route move the host document onto this runtime answer? `{ok}`, or `{ok: false, code, why}` for the
+ *  census: the run's own decline, or `costRoute.js::sameDrawnSurface`'s difference. */
+function costMoveOf(host, run) {
   const doc = run && run.ok ? run.definition : null
   if (!doc || !doc.compute || doc.compute.kind !== 'runtime') {
     const declined = run && run.runtimeDeclined
-    return { ...host, costRoute: { moved: false, cost, code: (declined && declined.code) || null,
-      why: (declined && declined.why) || null } }
+    return { ok: false, code: (declined && declined.code) || null, why: (declined && declined.why) || null }
   }
-  const same = sameDrawnSurface(host, run)
-  if (!same.ok) return { ...host, costRoute: { moved: false, cost, code: same.code, why: same.why } }
-  return { ...run, costRoute: { moved: true, cost } }
+  return sameDrawnSurface(host, run)
 }
 
 /** The guard an install refusal that is NOT a budget cap is named by: the document this door
@@ -2097,8 +2122,41 @@ function runtimeShiftContext(source, version, specs) {
  * disagreement. Both lanes emit outputs in source order, so the n-th `plotshape`
  * of the one is the n-th of the other — and when the counts differ the mapping
  * is unknown, which is a refusal, never a guess.
+ *
+ * ⭐⭐ e89 — A HELD WITHHOLD NARROWS THIS DOCUMENT OR REFUSES THE SCRIPT BY NAME; IT NEVER MOVES IT TO ANOTHER LANE.
+ * With the script's runtime-door withholds (`engine/heldWithholds.js`) the run is asked TWICE: as the member gets it
+ * (narrowed) and with the list ignored (`runtimeLaneDocument`'s `ignoreHeld`). The answer WITHOUT the list decides
+ * whether this lane draws the script at all; the list then only narrows that document (each held element withheld,
+ * named) or, when the narrowed run cannot stand (the held family was the drawing build it needed; the held row was all
+ * it drew), refuses the script by name, `pine:held-divergence` (`heldRefusalOf`). ⚰️ The narrowed run's decline was
+ * read as any other: the member got the HOST lane's unrelated refusal (`pine:no-output`, `pine:tuple`, ...; 12 of the
+ * e88 sweep's 101 cases). `keepHeldFull` hands the caller the answer without the list (`heldFull`), for the two callers
+ * that choose between this lane and the host document (`routeByCost`, the W9 armed route); every other caller returns
+ * this answer as it stands, so they never see it.
  */
-function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null }) {
+function runtimeLaneDefinition(args) {
+  const run = runtimeLaneDocument(args)
+  if (!heldWithholdsOf(args.source, 'runtime').length) return run
+  const full = runtimeLaneDocument({ ...args, ignoreHeld: true })
+  const keep = args.keepHeldFull ? { heldFull: full } : {}
+  // without the list this lane declines: the withhold is not why, and the answer is the one without it
+  if (!full || !full.ok) return { ...full, ...keep }
+  if (run && run.ok) return { ...run, ...keep }
+  return { ...heldRefusalOf(args, run), ...keep }
+}
+
+/** ⭐⭐ e89 — the member's refusal when the script's held withholds are what keep it off the runtime lane: named by
+ *  `pine:held-divergence`, each element and why (`heldRefusalReason`); the narrowed run's own decline rides beside it
+ *  for the census (`runtimeDeclined.why`). */
+function heldRefusalOf({ source, t, no }, narrowed) {
+  const declined = narrowed && narrowed.runtimeDeclined
+  return {
+    ...no(heldRefusalReason(heldWithholdsOf(source, 'runtime')), HELD_DIVERGENCE_GUARD, t),
+    runtimeDeclined: { code: HELD_DIVERGENCE_GUARD, why: (declined && (declined.why || declined.code)) || (narrowed && narrowed.reason) || null },
+  }
+}
+
+function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null, routed = true, no, drawnBecause = null, ignoreHeld = false }) {
   const decline = (code, why) => {
     const refusal = routed
       ? no(`${hostReason} — and the per-bar lane that could draw it declined: ${why}`, 'pine:state', t)
@@ -2129,8 +2187,9 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // builds WITH its drawings, the document's objects come from its own run.
   const own = runtimeOwnObjectsOf({ source, t })
   // ⭐⭐ HELD WITHHOLDS (`engine/heldWithholds.js`) on THIS door: a row by title, a row's colour, a paint, a drawing
-  // family, each the narrowest element a licence-held capture found wrong, each named.
-  const heldRun = heldWithholdsOf(source, 'runtime')
+  // family, each the narrowest element a licence-held capture found wrong, each named. (`ignoreHeld`: the answer
+  // without the list, which decides the lane, `runtimeLaneDefinition`.)
+  const heldRun = ignoreHeld ? [] : heldWithholdsOf(source, 'runtime')
   const heldRunOut = new Map(heldRun.filter((w) => w.scope === 'output').map((w) => [w.title, w]))
   const heldRunColour = new Map(heldRun.filter((w) => w.scope === 'outputColour').map((w) => [w.title, w]))
   const heldRunPaints = heldRun.filter((w) => w.scope === 'paint')
@@ -2703,7 +2762,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // ⚡ And its worker spawned NOW (`warmRuntimeLane`): its ~1.3 MB chunk loads while the preview
   // fetches its bars, not after the first run is posted. This path is reached only with the
   // runtime pane switched on for this member, so a member it is off for fetches nothing.
-  warmRuntimeLane()
+  // (Not for the answer without the held list: that one only decides the lane, it is never drawn.)
+  if (!ignoreHeld) warmRuntimeLane()
   return {
     ok: true,
     definition,

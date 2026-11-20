@@ -28,6 +28,7 @@ import { requestAlignment, TF_RESAMPLABLE, TF_LADDER } from '../ast/interpret.js
 import { resolveOtherSymbols, otherSymbolPending, periodSampleOf, belowChartSeriesOf, withChartNewestDay,
   OWN_DAILY_KEY, SERIES_NEWEST_FORMING, etSessionDayOf, sessionCloseOf, sessionKeyedRowsOf, WITNESS_PERIOD_READS } from '../otherSymbols.js'
 import { isTradingDay, covers } from '../../../../lib/marketClock/sessionCalendar.js'
+import { overnightTailFrom, overnightSentence, REQUEST_OVERNIGHT_GUARD } from './overnightTail.js'
 
 /** ⭐⭐ (2026-11-19, no carried value) The exchange session strictly before `day` ('YYYY-MM-DD') by the published
  *  calendar, or null where the calendar does not cover it: no guess. */
@@ -128,6 +129,11 @@ export function tailLagIntervals(rows, lastHeld, tf) {
   }
   return k
 }
+
+/** ⭐⭐ (coordinator ruling 2026-11-20) What a run waiting for this symbol's listing date says (`aboveChartRead`). */
+export const LISTING_DATE_WAITING = "this script is waiting for this symbol's listing date: this chart starts on the first "
+  + 'session of the daily bars it reads, and whether that is the first trading day decides its first bars; it is drawn '
+  + 'once the date arrives'
 
 /** ⭐ (e85) What a run waiting for other series' newest bars says (its pending error's message), for the series named. */
 export function requestWaitingSentence(series) {
@@ -331,6 +337,16 @@ function aboveChartRead(target, rows, ctx) {
   const firstTrade = ctx && ctx.symbol && typeof ctx.symbol.firstTradeDate === 'string' ? ctx.symbol.firstTradeDate : null
   const firstSessionNa = ownRead && firstTrade !== null && days.length > 0 && days[0] === firstTrade
     && dayOf.find(Boolean) === days[0]
+  // ⭐⭐ (coordinator ruling 2026-11-20) THE LISTING DATE IN FLIGHT. ⚰️ CAPTURED (ipocold-bgin, production e87): with
+  // `/api/ticker-ipo/BGIN` not answered yet, NASDAQ:BGIN 1h's listing-day bar read as a HOLE and the whole chart was
+  // refused ("`this symbol's daily bars` has no bar on 1761055200, after its history began"), where the answer, once in,
+  // makes it na by history. On the chart that starts on the own daily rows' first session, the date decides it: the run
+  // WAITS for it (`ctx.symbol.firstTradeDatePending`, `StockChart` / `useTickerIpo`), never refuses meanwhile. The wait
+  // ends with the lookup: a final date settles it as above, no date keeps today's rule.
+  if (ownRead && firstTrade === null && ctx && ctx.symbol && ctx.symbol.firstTradeDatePending === true
+      && days.length > 0 && dayOf.find(Boolean) === days[0]) {
+    return { pending: true, waiting: { series: [], sentence: LISTING_DATE_WAITING } }
+  }
   // ⭐⭐ (coordinator, 2026-11-19: NEVER A CARRIED VALUE) — EACH BAR READS THE ROW IT READS, OR NOTHING. `before(d)` is the
   // newest HELD row before `d`: with the previous session's row missing it is an OLDER row, a value TradingView never
   // shows on that bar (`dailyReadNoCarry.test.js`). The row a bar reads is named first, then looked up; a row that is
@@ -489,7 +505,12 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
           + 'chart, and a daily read above the chart is served only on a 1, 5, 15, 30 or 60 minute chart, so nothing is drawn bar by bar')
       }
       const read = aboveChartRead(target, rows, ctx)
-      if (read.pending) { out.pending = true; return out }
+      if (read.pending) {
+        out.pending = true
+        // ⭐⭐ (2026-11-20) a wait that names what it waits for (the listing date) says so
+        if (read.waiting) out.waiting = read.waiting
+        return out
+      }
       if (read.refusal) return refuse(read.refusal)
       aligned = { runBars: read.runBars, index: read.index, withheld: read.withheld }
       other = read.other || 'this symbol\'s daily bars'
@@ -568,6 +589,17 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
       if (firstHeld !== null && typeof t === typeof firstHeld && t < firstHeld) return 'depth'
       if (lastHeld !== null && typeof t === typeof lastHeld && t > lastHeld) return 'tail'
       return 'hole'
+    }
+    // ⭐⭐ (coordinator ruling 2026-11-20) THE OVERNIGHT TAIL (`overnightTail.js`): every chart bar past this series' last
+    // held bar is an overnight bar (outside 04:00-20:00 ET, or a closed day). Not a lag (those bars never arrive) and not
+    // a whole-run refusal: the run is CUT at the first of them (`cutAt`, `runtimeColumns.js::computeRuntimeColumns`)
+    // and they are withheld by name. ⛔ A tail holding ANY bar inside 04:00-20:00 keeps the wait / lag rule below.
+    if (INTRADAY_CODES.has(chartCode) && typeof lastHeld === 'number') {
+      const cutAt = overnightTailFrom(rows, lastHeld)
+      if (cutAt > 0) {
+        out.refusal = { guard: REQUEST_OVERNIGHT_GUARD, message: overnightSentence([other]), cutAt, series: [other] }
+        return out
+      }
     }
     let early = -1
     for (let i = 0; i < n - 1; i += 1) if (aligned.withheld[i]) { early = i; break }

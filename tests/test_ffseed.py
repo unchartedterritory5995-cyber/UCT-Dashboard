@@ -306,6 +306,29 @@ def test_build_manifest_and_floor():
         ffseed.build(tfs=["D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table), now=now, min_symbols=3)
 
 
+def test_floor_is_per_timeframe(monkeypatch):
+    """One timeframe's floor never refuses another's pack; its own variable overrides; 1m has its own default."""
+    asof = date(2026, 11, 18)
+    days = [d for d in _trading_days(date(2026, 1, 2), 240) if d <= asof]
+    table = {}
+    for s in ("AAA", "BBB"):
+        table[(s, "D")] = [{"t": d.isoformat(), "o": 10.0, "h": 11.0, "l": 9.5, "c": 10.5, "v": 7} for d in days]
+        table[(s, "60")] = [b for d in days[-160:] for b in _sixty_session_grid_day(d)]
+    now = datetime(2026, 11, 19, 1, 31, tzinfo=ZoneInfo("UTC"))
+    monkeypatch.setattr(ffseed, "MIN_SYMBOLS", 2)
+    for tf in ("1", "60", "D"):
+        monkeypatch.delenv(f"FFSEED_MIN_SYMBOLS_{tf}", raising=False)
+    built = ffseed.build(tfs=["60", "D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table), now=now)
+    assert set(built["manifest"]["tfs"]) == {"60", "D"}
+    monkeypatch.setenv("FFSEED_MIN_SYMBOLS_D", "3")                 # D's own floor, above what it holds
+    with pytest.raises(ffseed.SeedBuildError, match="tf D: 2 symbols, floor 3"):
+        ffseed.build(tfs=["60", "D"], symbols=["AAA", "BBB"], asof=asof, read=_fake_read(table), now=now)
+    assert ffseed.floor_for("60") == 2                               # untouched: the global floor
+    assert ffseed.floor_for("1") == ffseed.MIN_SYMBOLS_BY_TF["1"]    # 1m: its own default
+    monkeypatch.setenv("FFSEED_MIN_SYMBOLS_1", "5")
+    assert ffseed.floor_for("1") == 5
+
+
 def test_build_and_publish_uploads_packs_before_the_manifest(monkeypatch):
     from api.services import data_sync
     asof = date(2026, 11, 18)
