@@ -20647,8 +20647,8 @@ export default function StockChart({
           PROPS, shared by all three legend layouts. Written once because the
           three branches below have drifted from each other before — the header
           day-change colour was fixed in one of them and read as a no-op. */}
-      <ReadoutIsland store={readoutStore} afterCommit={markChipsWrapped} render={(crosshairData) => crosshairData
-        && !hideLegend && legendMode !== 'off'
+      <ReadoutIsland store={readoutStore} afterCommit={markChipsWrapped} render={(crosshairData) =>
+        crosshairData && !hideLegend && legendMode !== 'off'
         && (legendMode !== 'hold' || legendHeld) && (() => {
         // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
         // the base classes' own color; change%/overlays/indicators are intentionally
