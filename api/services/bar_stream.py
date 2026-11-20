@@ -451,7 +451,9 @@ async def _connection_loop(on_bar: OnBarCallback, policy, *, slot: int, dedup, s
                     from api.services import bars_live_ingest
                     if not hot or gap:
                         bars_live_ingest.mark_connected()
+                        bars_live_ingest.note_gap_connect()   # minute frames: no-op unless on
                     bars_live_ingest.start_flusher(asyncio.get_running_loop())
+                    bars_live_ingest.start_minute_frames(asyncio.get_running_loop())
                     await ws.send(json.dumps({"action": "subscribe", "params": "AM.*"}))
                     _logger.info("[bar_stream] universe feed: subscribed AM.*")
 
@@ -470,7 +472,7 @@ async def _connection_loop(on_bar: OnBarCallback, policy, *, slot: int, dedup, s
                 frame_ctx = ingest_core.FrameContext(
                     on_bar=on_bar, active=_active, trade_listeners=_trade_listeners,
                     universe=universe,
-                    on_universe_am=(bars_live_ingest.on_am if universe else None),
+                    on_universe_am=(bars_live_ingest.universe_am_handler() if universe else None),
                     count_event=_count_event, note_am_lag=_note_am_lag,
                     on_status=policy.note_status, logger=_logger,
                     dedup=(dedup.first if hot else None))
