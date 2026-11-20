@@ -141,7 +141,10 @@ function measure(name) {
   return r
 }
 
-const RESULTS = NAMES.map(measure)
+// ⭐ MEASURED INSIDE THE TESTS, never at collection: a call the table refuses there (mutant W7 reads an anchored total
+// as a window, and `cumFrom`'s canonical call is refused) must fail the vacuity test below by name, not the whole file
+let _results = null
+const results = () => (_results || (_results = NAMES.map(measure)))
 
 describe('⭐⭐ RULING 1 — every window in the table, measured at the left edge of a cut chart', () => {
   it('is not vacuous: every finite-window function of the table is measured', () => {
@@ -155,19 +158,20 @@ describe('⭐⭐ RULING 1 — every window in the table, measured at the left ed
       if (TABLE.functions[name]) expect(NAMES, name).not.toContain(name)
     }
   })
-  for (const r of RESULTS) {
-    it(`${r.name}: every bar that answers before the chart is withheld, and nothing past its reach`, () => {
+  for (const name of NAMES) {
+    it(`${name}: every bar that answers before the chart is withheld, and nothing past its reach`, () => {
+      const r = results().find((x) => x.name === name)
       expect(r.warm + r.edgeNumber, `${r.name} has a measured left edge`).toBeGreaterThan(0)
       expect(r.missed, `${r.name} drew a bar the longer chart does not`).toEqual([])
       expect(r.taken, `${r.name} withheld a bar the longer chart agrees with`).toEqual([])
     })
   }
   it('the finite-edge list is exactly the calls measured answering a number before the chart', () => {
-    const measured = RESULTS.filter((r) => r.edgeNumber > 0).map((r) => r.name).sort()
+    const measured = results().filter((r) => r.edgeNumber > 0).map((r) => r.name).sort()
     expect(measured).toEqual([...WINDOW_EDGE_FINITE].sort())
   })
   it('the smoothers keep their seed (FINDING 2): measured, not withheld past the warm-up', () => {
-    const seeds = RESULTS.filter((r) => r.seed).map((r) => r.name)
+    const seeds = results().filter((r) => r.seed).map((r) => r.name)
     for (const name of ['ema', 'rma', 'rsi', 'atr', 'macd']) expect(seeds, name).toContain(name)
   })
 })
@@ -198,16 +202,24 @@ function build() {
   }
 }
 
-const TEXT = `${JSON.stringify(build(), null, 1)}\n`
-if (process.env.WINDOW_WARMUP_EDGE_WRITE === '1') fs.writeFileSync(FIXTURE, TEXT)
-const COMMITTED = fs.existsSync(FIXTURE) ? fs.readFileSync(FIXTURE, 'utf8') : ''
+// built inside the tests too (the reason `results` is): written first, then read
+let _text = null
+const text = () => {
+  if (_text === null) {
+    _text = `${JSON.stringify(build(), null, 1)}\n`
+    if (process.env.WINDOW_WARMUP_EDGE_WRITE === '1') fs.writeFileSync(FIXTURE, _text)
+  }
+  return _text
+}
+const committed = () => (fs.existsSync(FIXTURE) ? fs.readFileSync(FIXTURE, 'utf8') : '')
 
 describe('the fixture both lanes read', () => {
   it('⭐ regenerates byte for byte (WINDOW_WARMUP_EDGE_WRITE=1 rewrites it)', () => {
-    expect(COMMITTED).toBe(TEXT)
+    const want = text()
+    expect(committed()).toBe(want)
   })
   it('every function withholds its warm-up by name off the listing and nothing from the listing', () => {
-    const fix = JSON.parse(COMMITTED || '{"cases": []}')
+    const fix = JSON.parse(committed() || '{"cases": []}')
     expect(fix.cases.length).toBe(NAMES.length)
     for (const c of fix.cases) {
       expect(c.named, c.name).toBe(true)
