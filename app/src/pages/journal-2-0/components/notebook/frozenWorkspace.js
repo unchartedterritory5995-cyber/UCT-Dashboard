@@ -34,6 +34,8 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     // file's build rule names.)
     groupTfs: { A: 'D', B: 'D', C: 'D', D: 'D' },
     setGroupTf: () => {},
+    groupTfSets: {},
+    registerGroupTf: () => () => {},
     chartsTheme: 'default',
     widgetCanvasByType: {},
     widgetCanvasById: {},
@@ -52,12 +54,6 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     onReplayPickCancel: () => {},
     startMarker: null,
     startMarkerStyle: 'line',
-    // The breadth drill's "Mark day" paints one candle; a frozen capture marks none.
-    markDay: null,
-    markDayColor: null,
-    // Replay never runs in an embed (replayCutoff is pinned null above); the
-    // FALLBACK's value, so nothing changes if it ever did.
-    replayWarmIntraday: true,
     // Chart-theming members (2026-08-20 "All-widgets theming"): an embed is a
     // frozen capture — floating new widgets or re-theming the workspace from
     // inside a note must be inert, like every other write above.

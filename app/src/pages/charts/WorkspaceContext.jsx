@@ -47,11 +47,9 @@ const FALLBACK = {
   onPeriodCancel: () => {},
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
   replayCutoff: null,
-  // Breadth drill "Mark day": an ISO date whose candle every chart paints `markDayColor`.
-  markDay: null,
-  markDayColor: null,
-  // false = Replay does not warm every intraday timeframe for each symbol (the breadth drill).
-  replayWarmIntraday: true,
+  // (Breadth drill "Mark day" — `markDay` / `markDayColor` — and `replayWarmIntraday: false` are
+  // supplied only by the drill's own workspace value; absent here = no mark, normal Replay warm.
+  // Kept OUT of this default so the Notebook's frozen workspace (Rule 12) needs no change.)
   exitReplay: () => {},
   // Replay Mode "Pick on chart": arm click/drag on the active chart to choose the cutoff.
   replayArmPick: false,
