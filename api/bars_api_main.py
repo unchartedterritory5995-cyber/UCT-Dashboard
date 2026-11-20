@@ -59,6 +59,23 @@ def _rss_mb():
         return None
 
 
+def _distinct_tickers_at_least(conn, n: int) -> int:
+    """How many distinct tickers `ohlcv` holds, counting up to `n`: one primary-key seek per ticker
+    (`ticker > ? ORDER BY ticker LIMIT 1`, the walk intraday_grid uses), so ~n index descents.
+
+    ⚡ It replaced `SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)`
+    (2026-11-19): GROUP BY reads EVERY row of the first 3,000 tickers, which on bars-api's cold
+    20 GB store took 70-82 s of full-store IO at every boot, while members' bar reads on that pod ran
+    p90 350-810 ms (Railway HTTP logs after the 23:02Z boot, against 10-30 ms settled)."""
+    cur, k = "", 0
+    while k < n:
+        row = conn.execute("SELECT ticker FROM ohlcv WHERE ticker > ? ORDER BY ticker LIMIT 1", (cur,)).fetchone()
+        if not row:
+            break
+        cur, k = row[0], k + 1
+    return k
+
+
 def _ensure_local_db_installed() -> None:
     """SYNCHRONOUS boot install — CALLED FROM main() BEFORE uvicorn.
 
@@ -116,12 +133,11 @@ def _ensure_local_db_installed() -> None:
         if os.path.exists(p):
             c = sqlite3.connect(p, timeout=5)
             try:
-                row = c.execute(
-                    "SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)"
-                ).fetchone()
-                n = int(row[0]) if row else 0
+                t0 = time.monotonic()
+                n = _distinct_tickers_at_least(c, 2000)
                 populated = n >= 2000
-                _log.info("[bars-api] local bars.db ~%d distinct tickers (populated=%s)", n, populated)
+                _log.info("[bars-api] local bars.db >=%d distinct tickers (populated=%s, %.1fs)",
+                          n, populated, time.monotonic() - t0)
             except Exception:
                 populated = False
             finally:
