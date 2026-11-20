@@ -77,6 +77,8 @@ describe('the door deadline, on the wall clock', () => {
   it('the sentence is member-readable and names the budget in seconds', () => {
     expect(doorTimeoutSentence(30000)).toMatch(/^this script is not drawn: checking it took longer than 30 seconds/)
     expect(doorTimeoutSentence(30000)).toMatch(/not a mistake in the script\.$/)
+    expect(doorTimeoutSentence(300000)).toMatch(/^this script is not drawn: checking it took longer than 5 minutes,/)
+    expect(doorTimeoutSentence()).toBe(doorTimeoutSentence(MEMBER_DOOR_BUDGET_MS))
     expect(Number.isInteger(MEMBER_DOOR_BUDGET_MS) && MEMBER_DOOR_BUDGET_MS >= 10000).toBe(true)
   })
 

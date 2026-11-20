@@ -317,17 +317,22 @@ export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on =
 // ⭐ ONE DEADLINE BOUNDS THE WHOLE CALL (`pine.js::withDoorDeadline`): every translation, retry and Resolver below
 // shares it, and past it the script is refused BY NAME (`pine:timeout`) with `DOOR_TIMEOUT_SENTENCE`. A picture
 // built while the clock ran out is never served: a tripped call is refused whole, whatever its lanes answered.
-// ⭐ THE VALUE IS MEASURED (docs/pine/evidence/2026-11-20-door-deadline/EVIDENCE.md): it sits above the slowest
-// door call of every script the door serves today, with headroom for a slower device, so a call that finishes under
-// it answers byte for byte as before (served -> refused: 0 in the scoped census, both lanes).
+// ⭐ THE VALUE IS MEASURED (docs/pine/evidence/2026-11-20-door-deadline/EVIDENCE.md), AND IT IS A BACKSTOP, NOT A
+// SMOOTHNESS BAR. Scripts the door SERVES today take up to minutes in this same call on the dev PC (the slowest,
+// 2.6 minutes, is drawn by the host lane), so a deadline any shorter would take a correct picture away. It sits at
+// about twice the slowest served call measured, so every call that finishes under it answers byte for byte as before
+// (served -> refused: 0 in the scoped census, both lanes), and it ends the calls that ran on for longer. ⛔ Lowering
+// it refuses served scripts by name (the evidence lists them): that is a ruling, not a tuning. The main-thread time
+// itself is the job of taking this build off the main thread (evidence, section 6).
 
 /** The member door's whole-call deadline, in ms (see the evidence above for how it was chosen). */
-export const MEMBER_DOOR_BUDGET_MS = 30000
+export const MEMBER_DOOR_BUDGET_MS = 300000
 
 /** What the member reads when the door's deadline ran out. */
 export function doorTimeoutSentence(budgetMs = MEMBER_DOOR_BUDGET_MS) {
   const s = Math.round(budgetMs / 1000)
-  return `this script is not drawn: checking it took longer than ${s} seconds, and the chart stops a check `
+  const span = s >= 120 && s % 60 === 0 ? `${s / 60} minutes` : `${s} seconds`
+  return `this script is not drawn: checking it took longer than ${span}, and the chart stops a check `
     + 'that long rather than keep the page waiting. That is a limit of this engine, not a mistake in the script.'
 }
 
