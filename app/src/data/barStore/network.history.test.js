@@ -3,7 +3,7 @@
 // per key across both, and gives a subscribed chart one window of depth as soon as it is answered.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createRegistry } from './registry'
-import { createNetwork } from './network'
+import { createNetwork, ANSWER_WINDOW_DELAY_MS } from './network'
 import { keyOf } from './types'
 import { LAKE_WINDOW_BARS } from '../../utils/historyPrepend'
 import { bucketStartUnix } from '../../components/chart/barTime'
@@ -80,7 +80,7 @@ describe('BarStore scroll-back from the history lake', () => {
     const w = world({ lake: () => ({ bars: [], exhausted: true }) })
     const key = keyOf({ sym: 'SIM', tf: '5' })
     w.net.start(key)                                   // the chart: its first answer asks the lake for depth
-    await vi.advanceTimersByTimeAsync(200)
+    await vi.advanceTimersByTimeAsync(ANSWER_WINDOW_DELAY_MS + 200)   // once the chart has kept the key
     expect(lakeAsks(w).length).toBe(1)
     expect(serverWindows(w).length).toBe(1)           // ... which had nothing, so the server window was asked
     expect(w.registry.getSnapshot(key).bars[0].t).toBe(SERVER_OLD.t)
@@ -268,16 +268,31 @@ describe('BarStore scroll-back from the history lake', () => {
     })
   })
 
-  it('a subscribed chart gets one window of depth from the lake as soon as it is answered', async () => {
+  it('a subscribed chart that KEEPS the key gets one window of depth from the lake ANSWER_WINDOW_DELAY_MS after its answer', async () => {
     const w = world({ lake: (key, beforeT) => ({ bars: lakeMeets(beforeT, 4) }) })
     const key = keyOf({ sym: 'SIM', tf: '5' })
     w.net.start(key)
     await vi.advanceTimersByTimeAsync(50)
+    expect(lakeAsks(w)).toEqual([])                    // answered, but the member may be scanning past it
+    await vi.advanceTimersByTimeAsync(ANSWER_WINDOW_DELAY_MS)
     expect(lakeAsks(w)).toEqual([`lake:${key}<${OPEN}`])
     expect(w.registry.getSnapshot(key).bars[0].t).toBe(OPEN - 1200)
     expect(serverWindows(w)).toEqual([])
     await vi.advanceTimersByTimeAsync(120_000)        // later polls do not ask again
     expect(lakeAsks(w).length).toBe(1)
+  })
+
+  it('a key the chart LEAVES before ANSWER_WINDOW_DELAY_MS (a scan passing it) never asks that window', async () => {
+    const w = world({ lake: (key, beforeT) => ({ bars: lakeMeets(beforeT, 4) }) })
+    const key = keyOf({ sym: 'SIM', tf: '5' })
+    const stop = w.net.start(key)
+    await vi.advanceTimersByTimeAsync(50)              // answered
+    const before = w.registry.getSnapshot(key).bars
+    stop()                                            // the member pressed the next key
+    await vi.advanceTimersByTimeAsync(ANSWER_WINDOW_DELAY_MS + 200)
+    expect(lakeAsks(w)).toEqual([])
+    expect(serverWindows(w)).toEqual([])
+    expect(w.registry.getSnapshot(key).bars).toBe(before)
   })
 
   it('no lake (switch off), a daily key, or a dated window: never asked, the server window as before', async () => {
@@ -306,7 +321,7 @@ describe('BarStore scroll-back from the history lake', () => {
     const w = world({ lake: (key, beforeT, opts) => { seen = opts.signal; return new Promise(() => {}) } })
     const key = keyOf({ sym: 'SIM', tf: '5' })
     const stop = w.net.start(key)
-    await vi.advanceTimersByTimeAsync(50)            // answered -> the depth request is in flight
+    await vi.advanceTimersByTimeAsync(ANSWER_WINDOW_DELAY_MS + 50)   // answered, kept -> the depth request is in flight
     expect(lakeAsks(w).length).toBe(1)
     const before = w.registry.getSnapshot(key).bars
     stop()

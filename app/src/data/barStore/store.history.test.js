@@ -3,6 +3,7 @@
 // switch off no /api/hist request is ever made.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
+import { ANSWER_WINDOW_DELAY_MS } from './network'
 import { keyOf } from './types'
 import { HISTORY_LAKE_KEY } from './historyFeed'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -27,13 +28,13 @@ const makeStore = (extra = {}) => createBarStore({
 })
 
 describe('createBarStore + history lake', () => {
-  it('an injected feed gives a subscribed chart older bars as soon as it is answered', async () => {
+  it('an injected feed gives a subscribed chart older bars once it has kept the key after its answer', async () => {
     // the lake covers the join: the rows before it and the bar AT it (historyFeed.olderBars)
     const olderBars = vi.fn(async (key, beforeT) => ({ bars: [{ t: beforeT - 120, o: 100, h: 101, l: 99, c: 100.3, v: 1 }, { t: beforeT - 60, o: 100, h: 101, l: 99, c: 100.4, v: 1 }, { t: beforeT, o: 100, h: 101, l: 99, c: 100.5, v: 1 }] }))
     const store = makeStore({ history: { olderBars } })
     const key = keyOf({ sym: 'SIM', tf: '1' })
     const off = store.subscribe(key, () => {})
-    await vi.advanceTimersByTimeAsync(100)
+    await vi.advanceTimersByTimeAsync(ANSWER_WINDOW_DELAY_MS + 100)
     // one DEPTH window, from the chart's oldest bar (the open's first-paint read, network.lakeSeed, is
     // the only other ask: from "now", before the first answer)
     const depth = olderBars.mock.calls.filter((c) => c[1] === OPEN)
@@ -112,7 +113,7 @@ describe('createBarStore + history lake', () => {
     const store = makeStore({ history: { olderBars } })
     const key = keyOf({ sym: 'SIM', tf: '1' })
     const off = store.subscribe(key, () => {})
-    await vi.advanceTimersByTimeAsync(100)
+    await vi.advanceTimersByTimeAsync(ANSWER_WINDOW_DELAY_MS + 100)
     expect(olderBars).toHaveBeenCalled()
     expect(store.lakeCarries(key)).toBe(false)
     off()
