@@ -114,7 +114,9 @@ export function createMinuteFrameConsumer({
     lastSeq = f.seq
     st.frames++
     st.lastAppliedAt = now()
-    sink.frameDone?.({ day, seq: f.seq, minute: f.minute })
+    // withAv: the frame carried the vendor's accumulated day volume (FLAG_AV); the device store's forming
+    // daily bar is painted only when every frame of the day did (deviceStore/forming.js)
+    sink.frameDone?.({ day, seq: f.seq, minute: f.minute, withAv: !!f.withAv })
     return true
   }
 

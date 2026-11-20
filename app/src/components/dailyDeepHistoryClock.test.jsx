@@ -14,7 +14,14 @@
  * RTH. The failure exists only in the after-bell window, so the clock is a first-class
  * input here — five of them — and every case asserts, none merely reports.
  *
- * What each case proves, from the series the chart actually received:
+ * ⭐ THE RENDER WINDOW (2026-11-20, #2142, chart/windowedChart.js): the chart HOLDS every row and hands the library
+ * only a WINDOW of the newest ones (at least RENDER_WINDOW_MIN_BARS), extending it leftwards in the same frame
+ * whenever a view comes near its start. So depth is asserted on what the chart HOLDS (the windowed series' full
+ * rows, through the chart's own debug handle), and the library's rows are asserted to be exactly the newest rows
+ * of it: a window at load, every row once Origin reached the first bar. Observing the library alone read every
+ * case as "stops at the 600-bar window" from the day the window shipped (14 red in the nightly record).
+ *
+ * What each case proves, from the series the chart actually holds:
  *   - the primary really was the 600-bar split tail and the deep leg really fired
  *     (otherwise the case is INVALID, not PASS — a harness that never exercised the
  *     split path would pass by drawing whatever /api/bars returned);
@@ -117,6 +124,7 @@ const CLOCKS = {
 const clock = pinWallClock(CLOCKS['RTH 13:17 Tue'])
 const Mod = await import('./StockChart')
 const StockChart = Mod.default
+const { RENDER_WINDOW_MIN_BARS } = await import('./chart/windowedChart')
 const MS = await import('../utils/marketSession')
 
 const PRIMARY_ROWS = 600
@@ -177,6 +185,14 @@ function renderedCandles() {
   }
   return arr ? arr.filter((p) => p && p.open !== undefined) : null   // whitespace is not a bar
 }
+// What the chart HOLDS: every row the windowed chart keeps for its candles (chart/windowedChart.js: the wrapped
+// series' data() is the full rows), read through the chart's own read-only debug handle. The library is handed only
+// a window of it (renderedCandles above).
+function heldCandles() {
+  const h = (window.__uctChartDebug || {}).main
+  const rows = h && typeof h.renderedTail === 'function' ? h.renderedTail(1e9) : null
+  return Array.isArray(rows) ? rows.filter((p) => p && p.open !== undefined) : null
+}
 const tick = async (ms = 40) => {
   await new Promise((r) => setTimeout(r, ms))
   await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
@@ -235,11 +251,11 @@ async function runCase({ seedIdb = false, clickOrigin = false, shape = null } = 
   let r = null
   while (Date.now() < deadline) {
     await tick(50)
-    r = renderedCandles()
+    r = heldCandles()
     if (world.primaryUrls.length && world.histUrls.length && r && r.length > PRIMARY_ROWS) break
   }
   await tick(400)
-  r = renderedCandles()
+  r = heldCandles()
   let origin = null
   if (clickOrigin) {
     const btn = screen.queryAllByText('Origin')[0]
@@ -251,7 +267,7 @@ async function runCase({ seedIdb = false, clickOrigin = false, shape = null } = 
     } else origin = { clicked: false }
   }
   const out = {
-    fx, rendered: renderedCandles(), origin,
+    fx, rendered: renderedCandles(), held: heldCandles(), origin,
     primaryUrls: world.primaryUrls.slice(), histUrls: world.histUrls.slice(),
   }
   unmount()
@@ -259,27 +275,42 @@ async function runCase({ seedIdb = false, clickOrigin = false, shape = null } = 
 }
 
 /** The contract, asserted. Returns a one-line summary for the matrix print. */
-function assertDeep(label, res) {
-  const { fx, rendered, primaryUrls, histUrls } = res
+function assertDeep(label, res, { extended = false } = {}) {
+  const { fx, rendered, held, primaryUrls, histUrls } = res
   // VALIDITY — the split path was really exercised, or the case proves nothing.
   expect(primaryUrls.length, `${label}: no /api/bars request`).toBeGreaterThan(0)
   expect(primaryUrls.every((u) => u.includes(`bars=${PRIMARY_ROWS}`)),
     `${label}: primary was not the ${PRIMARY_ROWS}-bar split tail: ${primaryUrls}`).toBe(true)
   expect(histUrls.length, `${label}: the deep /api/bars-history leg never fired`).toBeGreaterThan(0)
-  expect(rendered, `${label}: nothing rendered`).toBeTruthy()
+  expect(held, `${label}: the chart holds nothing`).toBeTruthy()
+  expect(rendered, `${label}: nothing reached the library`).toBeTruthy()
 
-  // DEPTH — more than the tail, reaching the deep origin.
-  expect(rendered.length, `${label}: rendered ${rendered.length} bars`).toBeGreaterThan(PRIMARY_ROWS)
-  expect(rendered[0].time, `${label}: oldest rendered bar`).toBe(fx.deep[0].t)
+  // DEPTH — what the chart holds: more than the tail, reaching the deep origin.
+  expect(held.length, `${label}: holds ${held.length} bars`).toBeGreaterThan(PRIMARY_ROWS)
+  expect(held[0].time, `${label}: oldest held bar`).toBe(fx.deep[0].t)
 
   // RIGHT EDGE — the server's, bar for bar, and nothing beyond it.
-  const tail = rendered.slice(-PRIMARY_ROWS)
+  const tail = held.slice(-PRIMARY_ROWS)
   expect(tail.map((p) => p.time)).toEqual(fx.primary.map((b) => b.t))
   const wrongDoor = tail.filter((p, i) => Math.abs(p.close - fx.primary[i].c) > 1e-9)
   expect(wrongDoor.length, `${label}: ${wrongDoor.length} right-edge bars not from /api/bars `
     + `(first ${wrongDoor[0] && wrongDoor[0].time})`).toBe(0)
-  expect(rendered.at(-1).time, `${label}: right edge`).toBe(fx.frontier)
-  return `n=${rendered.length} ${rendered[0].time}..${rendered.at(-1).time} primary=${primaryUrls.length}x hist=${histUrls.length}x`
+  expect(held.at(-1).time, `${label}: right edge`).toBe(fx.frontier)
+
+  // THE WINDOW — the library gets exactly the NEWEST rows of what is held (never a gap, never another copy): at load a
+  // window (fewer rows than held, at least RENDER_WINDOW_MIN_BARS); once a view reached the first bar, every row.
+  if (extended) expect(rendered.length, `${label}: the library after Origin`).toBe(held.length)
+  else {
+    expect(rendered.length, `${label}: the library got every row (no render window)`).toBeLessThan(held.length)
+    expect(rendered.length).toBeGreaterThanOrEqual(RENDER_WINDOW_MIN_BARS)
+  }
+  const offset = held.length - rendered.length
+  const bad = rendered.findIndex((p, i) => {
+    const q = held[offset + i]
+    return !q || p.time !== q.time || p.open !== q.open || p.close !== q.close
+  })
+  expect(bad, `${label}: library row ${bad} is not held row ${offset + bad}`).toBe(-1)
+  return `held=${held.length} window=${rendered.length} ${held[0].time}..${held.at(-1).time} primary=${primaryUrls.length}x hist=${histUrls.length}x`
 }
 
 const MATRIX = []
@@ -290,20 +321,20 @@ describe('DAILY deep history — every session window', () => {
 
       it('cold browser: deep origin on the left, server on the right', async () => {
         const res = await runCase()
-        MATRIX.push(`${name.padEnd(16)} cold      ${res.rendered ? `n=${res.rendered.length} first=${res.rendered[0]?.time}` : 'none'}`)
+        MATRIX.push(`${name.padEnd(16)} cold      ${res.held ? `held=${res.held.length} first=${res.held[0]?.time} window=${res.rendered?.length}` : 'none'}`)
         assertDeep(`${name} cold`, res)
       }, 30000)
 
       it('deep cache with a stale today bar: server still owns the right edge', async () => {
         const res = await runCase({ seedIdb: true })
-        MATRIX.push(`${name.padEnd(16)} deep-idb  ${res.rendered ? `n=${res.rendered.length} first=${res.rendered[0]?.time} lastC=${res.rendered.at(-1)?.close}` : 'none'}`)
+        MATRIX.push(`${name.padEnd(16)} deep-idb  ${res.held ? `held=${res.held.length} first=${res.held[0]?.time} lastC=${res.held.at(-1)?.close} window=${res.rendered?.length}` : 'none'}`)
         assertDeep(`${name} deep-idb`, res)
       }, 30000)
 
       it('Origin centres bar 0 of the deep series', async () => {
         const res = await runCase({ clickOrigin: true })
         MATRIX.push(`${name.padEnd(16)} origin    bar0=${res.origin?.bar0} frame=${JSON.stringify(res.origin?.frame)}`)
-        assertDeep(`${name} origin`, res)
+        assertDeep(`${name} origin`, res, { extended: true })
         expect(res.origin?.clicked, 'the Origin pill was not rendered').toBe(true)
         expect(res.origin.bar0).toBe(res.fx.deep[0].t)
         // centerFirstBar puts logical bar 0 in the middle of the frame.

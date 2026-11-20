@@ -1281,6 +1281,38 @@ def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     return cur.rowcount
 
 
+def prune_before(tickers, tf: str, before_ts: int, *, chunk: int = 100) -> int:
+    """Delete every `tf` row older than `before_ts` of each of `tickers`: a bounded-retention
+    trim of the OLDEST rows (the first-frame seed's long-tail 1m, `ffseed_onemin.retention`).
+    Returns rows deleted.
+
+    One short write transaction per `chunk` tickers, so the trim never holds the write lock
+    for long. The series it trims get `bump_series_revs(deleted=True)` (history changed, the
+    one-writer rule) with `deleted_from=None`: a PREFIX trim leaves nothing below the kept rows
+    to distrust, so the series may seal again from its new head; naming the oldest deleted row
+    there would demand a provider answer reaching back below rows that were removed on purpose,
+    and the series could never seal again."""
+    total = 0
+    names = sorted({str(t).upper() for t in (tickers or ()) if t})
+    for i in range(0, len(names), max(1, int(chunk))):
+        part = names[i:i + max(1, int(chunk))]
+        qs = ",".join("?" * len(part))
+        with _WRITE_LOCK:
+            c = _conn()
+            hit = [r[0] for r in c.execute(
+                f"SELECT DISTINCT ticker FROM ohlcv WHERE tf=? AND ticker IN ({qs}) AND ts < ?",
+                [str(tf), *part, int(before_ts)])]
+            if not hit:
+                continue
+            hq = ",".join("?" * len(hit))
+            cur = c.execute(f"DELETE FROM ohlcv WHERE tf=? AND ticker IN ({hq}) AND ts < ?",
+                            [str(tf), *hit, int(before_ts)])
+            bump_series_revs(c, [(t, str(tf)) for t in hit], deleted=True, deleted_from=None)
+            c.commit()
+            total += cur.rowcount
+    return total
+
+
 def iter_tickers(conn: sqlite3.Connection):
     """Yield each distinct ticker in ohlcv, in order, by seeking the primary key.
 
