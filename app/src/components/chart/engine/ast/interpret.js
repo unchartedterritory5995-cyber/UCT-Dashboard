@@ -8511,7 +8511,8 @@ function walkShapesOf(opts) {
   if (memo === null) return null
   let table = memo.get(WALK_SHAPES_KEY)
   if (!table || !(table.byShape instanceof Map)) {
-    table = { byShape: new Map(), idOf: new WeakMap(), cols: new Map() }
+    // a Map, never a WeakMap (`interpret.test.js`: no free identifier): the table lives and dies with the pass memo
+    table = { byShape: new Map(), idOf: new Map(), cols: new Map() }
     memo.set(WALK_SHAPES_KEY, table)
   }
   return table
