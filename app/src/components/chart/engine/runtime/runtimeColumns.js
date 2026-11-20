@@ -591,6 +591,10 @@ function computeStrategyWindow(def, rows, ctx, opts) {
     cols = computeRuntimeColumnsOnce(def, rows.slice(cut), { ...(ctx || {}), historyFromListing: false }, opts)
   } catch (err) {
     if (err && Number.isInteger(err.bar)) err.bar += cut
+    // ⚠️ (e91, 2026-11-20) a supply CUT (`err.cutAt`, the overnight tail or a tail lag) found by this window run would be
+    // in the WINDOW's indices and is not moved here: unreachable today, since a strategy reads no other series (broker
+    // off: refused `pine:strategy-call` before its supply; broker on: `request.security` refuses broker mode,
+    // `ast/strategyRepaint.js`). If the broker ever admits requests, move `cutAt` by `cut` here as `bar` is, with a rail.
     throw err
   }
   // the record is keyed by bar TIME, so it rides the widened columns unchanged
