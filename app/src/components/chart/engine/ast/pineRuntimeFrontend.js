@@ -6752,10 +6752,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  are this `env`'s pure bindings (a name the script reassigns never enters `env`, so a body reading one is not
    *  settled by the reader). ⛔ Every other shape answers exactly as `reachesSlotThroughEnv`. */
   const tfReachesSlot = (node, scope) => {
-    // a name this lane holds per bar, bound once to such a call (`settledAliasNamed`), is that call
+    // a name this lane holds per bar, bound once to such a call (`settledAliasNamed`), is that call: the TOP-LEVEL
+    // name only (a block or a frame here that declares the same name shadows it, and that is a slot read)
     if (node && node.type === 'name') {
       let aliased = null
       try { aliased = settledAliasNamed(node.name) } catch { aliased = null }
+      if (aliased && scope && scope.lookup(node.name) !== root.lookup(node.name)) return true
       if (aliased) node = aliased
     }
     if (node && node.type === 'call' && typeof node.name === 'string' && inlineBodyByName.has(node.name)) {
@@ -7274,11 +7276,13 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐⭐ (request unit PR 2) — WHY a request's timeframe written as a call to this script's function (directly, or
    *  through a plain name bound to that call: `alignedTF = getAlignedTimeframe()`) was not read, as a clause for the
    *  refusal the request takes; null where the timeframe is no such call. ⛔ It names; it decides nothing. */
-  const settledCallWhy = (tfNode) => {
+  const settledCallWhy = (tfNode, scope) => {
     let n = tfNode
     for (let k = 0; k < 4 && n && n.type === 'name'; k += 1) {
       const b = env.get(n.name)
-      n = b && b.kind === 'expr' ? b.node : (b ? null : settledAliasNamed(n.name))
+      // a name a block or a frame here declares again is not the top-level name (`tfReachesSlot`)
+      const shadowed = !!scope && scope.lookup(n.name) !== root.lookup(n.name)
+      n = b && b.kind === 'expr' ? b.node : (b || shadowed ? null : settledAliasNamed(n.name))
     }
     if (!n || n.type !== 'call' || !inlineBodyByName.has(n.name)) return null
     let s = null
@@ -7627,7 +7631,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     for (const a2 of node.args) {
       if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
         // ⭐⭐ (request unit PR 2) — a timeframe written as a call to the script's own function says why it was not read
-        const fnWhy = settledCallWhy(argOf(positional[1]))
+        const fnWhy = settledCallWhy(argOf(positional[1]), scope)
         throw new RuntimeRefusal('runtime:request',
           '`lookahead` — the realtime half of this alignment is not measured yet, '
           + 'and a guess here reads as a number that could have been traded on' + (fnWhy ? ` (${fnWhy})` : ''), at)
@@ -7647,7 +7651,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     let tfIr = hostTarget && !tfPlain ? null : lowerExpr(tfNode, scope)
     if (hostTarget && (!tfIr || tfIr.kind !== EXPR.STR)) tfIr = str(hostTarget.code === null ? '' : String(hostTarget.code))
     if (!tfIr || tfIr.kind !== EXPR.STR) {
-      const fnWhy = settledCallWhy(tfNode)
+      const fnWhy = settledCallWhy(tfNode, scope)
       throw new RuntimeRefusal('runtime:request',
         'the timeframe of a request has to be fixed when the script is written — '
         + 'it decides which bars must be fetched before the run' + (fnWhy ? ` (${fnWhy})` : ''), at)

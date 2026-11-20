@@ -64,6 +64,15 @@
    "to": "    this.runtimeExtendedOwnDaily = true",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestSettledFunctions.test.js",
    "expectRed": "plot lane keeps its refusal"
+  },
+  {
+   "id": "SF8",
+   "mutant": "a name a block or a frame declares again is read as the top-level name's call",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (aliased && scope && scope.lookup(node.name) !== root.lookup(node.name)) return true",
+   "to": "      if (aliased && false) return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestSettledFunctions.test.js",
+   "expectRed": "shadows it"
   }
  ]
 }

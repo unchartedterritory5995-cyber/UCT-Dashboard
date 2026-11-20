@@ -146,6 +146,14 @@ describe('a request timeframe read through a name bound once to such a call (Teh
     const p = probe(alignedSource('alignedTF', ['if close > open', '    alignedTF := "W"']))
     expect(p.ok).toBe(false)
   })
+  it('⛔ CONTROL: a frame that declares the same name shadows it (never read as the top-level call)', () => {
+    // `g(alignedTF)`'s own parameter is the caller's "W", held in the frame: never the top-level call's "M"
+    const src = alignedSource('alignedTF', ['g(alignedTF) =>', '    request.security(syminfo.tickerid, alignedTF, close[1], lookahead=barmerge.lookahead_on)', 'plot(g("W"))'])
+    const p = probe(src)
+    expect(p.ok && codes(p).filter((c) => c === 'M').length > 1).toBe(false)
+    // and its refusal does not blame the top-level call
+    if (!p.ok) expect(String(p.refusal.message)).not.toContain('getAlignedTimeframe')
+  })
   it('⛔ CONTROL: the name reader is the live path (stubbed out, `alignedTF` is refused again)', () => {
     const orig = Resolver.prototype.settledAliasOf
     Resolver.prototype.settledAliasOf = function () { return null }
