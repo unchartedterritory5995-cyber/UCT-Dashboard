@@ -4242,9 +4242,11 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const tern = (test, yes, no) => ({ type: 'ternary', test, yes, no, tok })
       const off = (arg, n) => ({ type: 'offset', arg, n, tok })
       // ⛔ NO STATEFUL CALL IN A `?:` ARM. The body names `up`, `down` and `sum` as variables, computed on every
-      // bar; written inline, a call inside an arm runs in Pine only on the bars the arm is taken (both lanes
-      // refuse that shape, `armRunsWhy`). So `ta.change(high)` is spelled `high - high[1]` (its definition, the
-      // same subtraction bit for bit) and the ADX's `sum == 0 ? 1 : sum` as `sum + (sum == 0 ? 1 : 0) * (1 - sum)`:
+      // bar; written inline, a call inside an arm runs in Pine only on the bars the arm is taken. The member door
+      // refuses `ta.change` there (`pine:block`, `armRunsWhy`), and the runtime lane stops by name on a chart
+      // where `sum == 0` skips the `ta.rma`s inside `sum` (`CallSiteRunsStop`; a run of inside bars does it). So
+      // `ta.change(high)` is spelled `high - high[1]` (its definition, the same subtraction bit for bit) and the
+      // ADX's `sum == 0 ? 1 : sum` as `sum + (sum == 0 ? 1 : 0) * (1 - sum)`:
       // where `sum == 0` (within TradingView's epsilon) that is `sum + (1 - sum)`, which rounds to exactly 1 for
       // 0 <= sum <= 1e-10 (|1 - sum - (1 - sum)rounded| <= 2^-54, so `sum + fl(1 - sum)` is 1 within half an ulp,
       // ties to even); elsewhere `sum + 0 * (1 - sum)` is `sum` exactly, and `na` stays `na`. The DIs are never

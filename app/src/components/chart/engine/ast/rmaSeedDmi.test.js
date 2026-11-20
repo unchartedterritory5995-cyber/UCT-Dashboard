@@ -22,6 +22,8 @@ import { interpret, CARRIED, FN, FN_PINE, exactSum, rmaSeedMean, carriedCellsOf 
 import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers } from '../runtime/runtimeColumns.js'
 import { computeADX, computeRSI } from '../../indicators.js'
 import { pineGt, pineEq } from '../pineCompare.js'
+import { memberPaneDefinition } from '../../builder/memberPane/memberPaneDefinition'
+import * as registry from '../nativeRegistry'
 
 const REPO = path.resolve(process.cwd(), '..')
 const CTX = { tf: 'D', newestBarIsForming: false, historyFromListing: true }
@@ -189,6 +191,64 @@ describe('⭐⭐ `ta.dmi` on both lanes draws TradingView\'s doubles, every bar,
       COLUMNS.forEach(([, title], k) => expect(offBars(got[k], cap.tv[title]), title).toEqual([]))
     })
   }
+  it('⭐ THE MEMBER DOOR draws all seven legs, TradingView\'s doubles on every bar (no stateful call in a `?:` arm)', () => {
+    // The door is where a call inside an arm is refused (`pine:block`, `armRunsWhy`): TradingView's body computes
+    // `up`, `down` and `sum` as variables on every bar, so the tuple's trees must hold no call in an arm.
+    const id = 'u_rmaseed_dmi_door'
+    const built = memberPaneDefinition({ source: SOURCE, id, name: 'rma seed dmi door' })
+    expect(built.ok, built.reason).toBe(true)
+    const { installed, errors } = registry.installUserDefinitions([built.definition])
+    try {
+      expect(installed.length, errors.join(' | ')).toBe(1)
+      for (const { bars, tv } of [SPY, RDDT]) {
+        const cols = registry.computeFor(installed[0], bars, {}, CTX)
+        expect(registry.columnErrors(cols)).toEqual({})
+        const keys = installed[0].plots.map((pl) => pl.key)
+        expect(keys).toHaveLength(COLUMNS.length)
+        COLUMNS.forEach(([, title], k) => expect(offBars(Array.from(cols[keys[k]] || []), tv[title]), title).toEqual([]))
+      }
+    } finally { registry.uninstallUserDefinition(id) }
+  })
+  it('⭐ WHERE SUM == 0: a run of inside bars (both moves 0) draws on both lanes, equal to the body written as variables', () => {
+    // TradingView names `sum` a variable, computed on every bar. Written `sum == 0 ? 1 : sum` inline, the `ta.rma`
+    // calls inside `sum` would sit in a `?:` arm that skips the bars where `sum == 0`: the runtime lane then stops
+    // the run by name (`CallSiteRunsStop`) on such a chart. The tuple's denominator holds no call in an arm, so it
+    // draws, and equals the body written with variables bit for bit, the `sum == 0` bars included.
+    const bars = []
+    let h = 200
+    let l = 100
+    for (let i = 0; i < 25; i += 1) {
+      bars.push({ t: 1600000000 + i * 86400, o: (h + l) / 2, h, l, c: (h + l) / 2 + 0.1, v: 1 })
+      h -= 1.37; l += 1.21
+    }
+    let c = 150
+    for (let i = 25; i < 120; i += 1) {
+      c += Math.sin(i * 0.7) * 2.3 + 0.4
+      bars.push({ t: 1600000000 + i * 86400, o: c - 0.5, h: c + 1.1 + (i % 3), l: c - 1.3 - (i % 2), c, v: 1 })
+    }
+    const tuple = ['//@version=6', 'indicator("dmi")', '[p, m, a] = ta.dmi(14, 14)', 'plot(p)', 'plot(m)', 'plot(a)'].join('\n')
+    const body = ['//@version=6', 'indicator("body")',
+      'up = ta.change(high)', 'down = -ta.change(low)',
+      'plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)', 'minusDM = na(down) ? na : (down > up and down > 0 ? down : 0)',
+      'truerange = ta.rma(ta.tr, 14)', 'plus = fixnan(100 * ta.rma(plusDM, 14) / truerange)',
+      'minus = fixnan(100 * ta.rma(minusDM, 14) / truerange)',
+      'sum = plus + minus', 'adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), 14)',
+      'plot(plus)', 'plot(minus)', 'plot(adx)'].join('\n')
+    const host = (src) => {
+      const t = translatePine(src, { strict: true, basePeriod: 'D' })
+      expect(t.ok, JSON.stringify(t.refusal)).toBe(true)
+      return t.outputs.map((o) => Array.from(interpret(o.ast, bars, undefined, undefined, undefined, HOST_OPTS)))
+    }
+    const want = host(body)
+    const zeroSum = want[0].map((_, i) => i).filter((i) => want[0][i] + want[1][i] === 0)
+    expect(zeroSum.length, 'the fixture must hold bars where sum == 0').toBeGreaterThan(5)
+    const gotHost = host(tuple)
+    const gotRuntime = runtimeColumns(bars, tuple, ['p', 'm', 'a'])
+    for (let k = 0; k < 3; k += 1) {
+      expect(offBars(gotHost[k], want[k]), `host leg ${k}`).toEqual([])
+      expect(offBars(gotRuntime[k], want[k]), `runtime leg ${k}`).toEqual([])
+    }
+  })
   it('the runtime lane\'s own carried kernel seeds the ADX: `ta.rma` over a value the VM steps (U3, both symbols)', () => {
     const source = [
       '//@version=6', 'indicator("dmi vm")',
