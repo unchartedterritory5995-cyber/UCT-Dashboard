@@ -3184,8 +3184,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // an OHLC payload), whose picture on screen was built from bars all inside this pass's bars (see
       // `SERIES_DATA_DEFER_MIN_ROWS`). Every other series is handed its data now, as before, after anything still
       // queued for it.
-      const spread = spreadOn && b.source === 'same' && !split && !isOhlcPayload(columns.get(b.key))
-        && drawnWithinBars(series)
+      // ⛔ An incremental plan is never spread: its one `update` lands on the series itself, after what is queued.
+      const spread = spreadOn && planMode !== 'incr' && b.source === 'same' && !split
+        && !isOhlcPayload(columns.get(b.key)) && drawnWithinBars(series)
       if (holdPicture) {
         // the series is left exactly as it is (data still queued for it is the picture it holds, and stays queued)
       } else if (firstBindNeedsSetData(b, planMode) || landedNow.has(b.instanceId)) {
@@ -3193,13 +3194,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
         else applySeriesData(series, drawn, bars)
       } else if (typeof ctx.applyData === 'function') {
         if (spread) {
-          // the chart's own plan decides (`StockChart._applyData`: nothing, an `update`, or a full set), through a
-          // stand-in whose full set is queued and whose `update` first applies what is queued
-          const via = {
-            setData: (data) => queueSeriesData(series, data, bars),
-            update: (point) => { flushSeries(series); const r = series.update(point); drawnFrom.set(series, bars); return r },
-          }
-          attempt(() => ctx.applyData(via, drawn))
+          // the chart's own plan decides (`StockChart._applyData`: nothing on a noop, else a full set), through a
+          // stand-in whose full set is queued
+          attempt(() => ctx.applyData({ setData: (data) => queueSeriesData(series, data, bars) }, drawn))
         } else {
           flushSeries(series)
           attempt(() => ctx.applyData(series, drawn))
