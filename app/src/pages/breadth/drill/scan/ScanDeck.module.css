@@ -45,6 +45,7 @@
 /* One fixed-height band (100px, owner 2026-11-19: 84px felt crammed).
    ⛔ Fixed, never content-sized: the window must not move when the reading loads. */
 .header {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0;
@@ -166,15 +167,19 @@ span.metric:hover { background-color: transparent; }
 .viewBtn[aria-pressed='true'] { color: var(--dr-bright); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ut-gold); }
 .viewBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
-.headEnd { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 0 8px 0 16px; margin-left: auto; flex-shrink: 0; }
+.headEnd { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 0 30px 0 16px; margin-left: auto; flex-shrink: 0; }
 .headEndTop { display: flex; align-items: center; gap: 10px; }
+/* The close ✕: small, pinned in the band's top-right corner (owner 2026-11-19), out of the
+   tabs' row so Focus / Grid / Table and the day chips center as one block. */
 .closeBtn {
+  position: absolute; top: 7px; right: 7px;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px;
-  border-radius: 7px;
-  background: var(--dr-soft); border: 0; color: var(--dr-dim); cursor: pointer;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  background: transparent; border: 0; color: var(--dr-faint); cursor: pointer;
 }
-.closeBtn:hover { background: var(--dr-soft-hi); color: var(--dr-text); }
+.closeBtn svg { width: 11px; height: 11px; }
+.closeBtn:hover { background: var(--dr-soft); color: var(--dr-text); }
 .closeBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
 .spacer { flex: 1; }
@@ -362,5 +367,5 @@ span.metric:hover { background-color: transparent; }
   .tileLbl { display: none; }
   .headEnd { padding: 0; gap: 6px; }
   .headEndTop { gap: 6px; }
-  .closeBtn { width: var(--tap-min); height: var(--tap-min); }
+  .closeBtn { position: static; width: var(--tap-min); height: var(--tap-min); }
 }
