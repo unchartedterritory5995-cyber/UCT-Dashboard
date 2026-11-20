@@ -7954,7 +7954,6 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
   // lookback, an upper bound) there (`windowEdgeLookback`'s note); every one of those `L` bars for a call that answers
   // a number there (`WINDOW_EDGE_FINITE`)
   const edgeOf = (node, L) => {
-    const col = colOf(node)
     let f = 0
     for (const a of node.args) {
       if (!a || typeof a !== 'object' || a.type === 'num' || readsRecurrenceBinding(a)) continue
@@ -7963,7 +7962,11 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
       while (j < n && Number.isNaN(c[j])) j++
       if (j > f) f = j
     }
+    // ⭐ RULING 1 (cost) — an argument that is never held leaves no bar to withhold, so the call's own column is not
+    // read (measured: twin-range-filter's 55 `accum` warm-ups read 26 ms each over 600 bars, every one past its end)
+    if (f >= n) return null
     const always = WINDOW_EDGE_FINITE.has(node.name)
+    const col = always ? null : colOf(node)
     let out = null
     for (let i = f; i < Math.min(n, f + L); i++) {
       // the warm-up is the run of `na` it opens with: a number answered is read from bars the chart holds

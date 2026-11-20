@@ -5918,7 +5918,6 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
     def edge_of(node: Any, reach: float):
         # ⭐⭐ RULING 1 -- the call's warm-up: the run of ``na`` it opens with from the first bar every argument it reads
         # is held, within its first ``reach`` there; every one of them for ``WINDOW_EDGE_FINITE``
-        col = col_memo(node)
         f = 0
         for a in node.get("args") or []:
             if not isinstance(a, dict) or a.get("type") == "num" or _reads_recurrence_binding(a):
@@ -5928,7 +5927,11 @@ def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
             while j < n and math.isnan(c[j]):
                 j += 1
             f = max(f, j)
+        # RULING 1 (cost) -- an argument that is never held leaves no bar to withhold: the call's own column is not read
+        if f >= n:
+            return None
         always = node.get("name") in WINDOW_EDGE_FINITE
+        col = None if always else col_memo(node)
         out = None
         end = n if reach == math.inf else min(n, f + int(reach))
         for i in range(f, end):
