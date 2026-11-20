@@ -4240,8 +4240,17 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const nm = (name) => ({ type: 'name', name, tok })
       const num = (value) => ({ type: 'number', value, tok })
       const tern = (test, yes, no) => ({ type: 'ternary', test, yes, no, tok })
-      const up = pc('ta.change', [nm('high')])
-      const down = { type: 'unary', op: '-', arg: pc('ta.change', [nm('low')]), tok }
+      const off = (arg, n) => ({ type: 'offset', arg, n, tok })
+      // ⛔ NO STATEFUL CALL IN A `?:` ARM. The body names `up`, `down` and `sum` as variables, computed on every
+      // bar; written inline, a call inside an arm runs in Pine only on the bars the arm is taken (both lanes
+      // refuse that shape, `armRunsWhy`). So `ta.change(high)` is spelled `high - high[1]` (its definition, the
+      // same subtraction bit for bit) and the ADX's `sum == 0 ? 1 : sum` as `sum + (sum == 0 ? 1 : 0) * (1 - sum)`:
+      // where `sum == 0` (within TradingView's epsilon) that is `sum + (1 - sum)`, which rounds to exactly 1 for
+      // 0 <= sum <= 1e-10 (|1 - sum - (1 - sum)rounded| <= 2^-54, so `sum + fl(1 - sum)` is 1 within half an ulp,
+      // ties to even); elsewhere `sum + 0 * (1 - sum)` is `sum` exactly, and `na` stays `na`. The DIs are never
+      // negative, so `sum` is not either. Railed bit for bit on both lanes, every bar (`rmaSeedDmi.test.js`).
+      const up = bin('-', nm('high'), off(nm('high'), 1))
+      const down = { type: 'unary', op: '-', arg: bin('-', nm('low'), off(nm('low'), 1)), tok }
       const dm = (x, y) => tern(pc('na', [x]), nm('na'),
         tern(bin('and', bin('>', x, y), bin('>', x, num(0))), x, num(0)))
       const truerange = pc('ta.rma', [nm('ta.tr'), a[0]])
@@ -4249,8 +4258,9 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const plus = di(dm(up, down))
       const minus = di(dm(down, up))
       const sum = bin('+', plus, minus)
+      const denominator = bin('+', sum, bin('*', tern(bin('==', sum, num(0)), num(1), num(0)), bin('-', num(1), sum)))
       const adx = bin('*', num(100), pc('ta.rma', [
-        bin('/', pc('math.abs', [bin('-', plus, minus)]), tern(bin('==', sum, num(0)), num(1), sum)), a[1]]))
+        bin('/', pc('math.abs', [bin('-', plus, minus)]), denominator), a[1]]))
       return [plus, minus, adx]
     },
   },
