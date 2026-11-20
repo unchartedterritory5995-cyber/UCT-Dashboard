@@ -40,7 +40,8 @@ describe('devSampleList', () => {
     expect(page.lastIndexOf('if (import.meta.env.DEV', at)).toBeGreaterThan(at - 1200)
     expect(page).not.toMatch(/^import .*devSampleList/m)
     const modal = fs.readFileSync(path.resolve(HERE, 'BreadthDrillModal.jsx'), 'utf8')
-    expect(modal).toMatch(/import\.meta\.env\.DEV && drill\?\.devSample \? 'dev sample list'/)
+    // owner 2026-11-19: no badge in the header at all (the list itself stays dev-only)
+    expect(modal).not.toMatch(/'dev sample list'/)
   })
   // The production bundle holds none of it. Runs against `app/dist`; skips when there is no build.
   const DIST = path.resolve(HERE, '../../../../dist/assets')
