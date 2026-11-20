@@ -1,0 +1,21 @@
+{
+  "suite": "pytest",
+  "collected": 3483,
+  "passed": 3449,
+  "failed": 24,
+  "errored": 0,
+  "skipped": 10,
+  "wall_s": 902.19,
+  "failed_files": [
+    "tests/test_journal_two_task_digest.py",
+    "tests/test_launch_hardening.py",
+    "tests/test_massive_guard_census.py",
+    "tests/test_massive_ws_stop.py",
+    "tests/test_mutation_check.py",
+    "tests/test_mutation_harness_anchors.py",
+    "tests/test_mutation_harness_hygiene.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "24 failed, 3449 passed, 10 skipped, 37 warnings in 902.19s (0:15:02)",
+  "ok": true
+}

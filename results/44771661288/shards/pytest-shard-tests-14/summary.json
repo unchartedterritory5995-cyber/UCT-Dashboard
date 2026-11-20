@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 3677,
+  "passed": 3673,
+  "failed": 2,
+  "errored": 0,
+  "skipped": 2,
+  "wall_s": 630.19,
+  "failed_files": [
+    "tests/test_persistence_manifest_server_keys.py",
+    "tests/test_program_doc_shas_resolve.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "2 failed, 3673 passed, 2 skipped, 1339 warnings in 630.19s (0:10:30)",
+  "ok": true
+}

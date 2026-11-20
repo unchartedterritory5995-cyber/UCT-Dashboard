@@ -1,0 +1,45 @@
+======================================================================
+ERROR collecting tests/test_canonical_address_book.py
+BUCKET: AssertionError: assert {'barIndexAbs...solute': True} == {'barIndexAbs...solute': True}
+----------------------------------------------------------------------
+tests/test_canonical_address_book.py:659: in <module>
+    @pytest.mark.parametrize("column,sqltype", _ohlcv_columns())
+tests/test_canonical_address_book.py:614: in _ohlcv_columns
+    body = _re.search(r"\((.*)\)", _ohlcv_ddl(), _re.S).group(1)
+tests/test_canonical_address_book.py:607: in _ohlcv_ddl
+    assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+E   AssertionError: expected one ohlcv DDL in CODE, found 0
+E   assert 0 == 1
+E    +  where 0 = len([])
+=================================== FAILURES ===================================
+_________ test_bar_index_is_asked_only_of_a_document_that_means_pines __________
+
+    def test_bar_index_is_asked_only_of_a_document_that_means_pines():
+        lane = ai.lane_opts_for(definition(INDEX_MOD, meta=PINE))
+        # 2026-11-09: the same declaration also says its `var` state began on the first bar
+>       assert lane == {"barIndexAbsolute": True, "varOriginAbsolute": True}
+E       AssertionError: assert {'barIndexAbs...solute': True} == {'barIndexAbs...solute': True}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'pineCompare': True}
+E         
+E         Full diff:
+E           {
+E               'barIndexAbsolute': True,
+E         +     'pineCompare': True,
+E               'varOriginAbsolute': True,
+E           }
+
+tests/test_c45_withheld_doors.py:141: AssertionError
+________ test_every_reader_outside_the_owner_calls_the_shared_assertion ________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x725266c9eb10>
+
+    def test_every_reader_outside_the_owner_calls_the_shared_assertion(capsys):
+        readers, _ = _full_census()
+        outside = {r: ok for r, ok in readers.items() if not r.startswith(OWNER + ".")}
+        owner = {r: ok for r, ok in readers.items() if r.startswith(OWNER + ".")}
+        with capsys.disabled():
+            print(f"\n[TERM-030] week-contract readers outside {OWNER}: {len(outside)}")
+

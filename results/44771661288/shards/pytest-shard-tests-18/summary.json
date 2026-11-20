@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 874,
+  "passed": 873,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 543.52,
+  "failed_files": [
+    "tests/test_spa_head_reachability.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 873 passed, 7432 warnings in 543.52s (0:09:03)",
+  "ok": true
+}

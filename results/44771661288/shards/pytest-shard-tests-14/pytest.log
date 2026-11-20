@@ -1,0 +1,266 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+.............................................................F.......... [  3%]
+.........................................................
+  -- A2.5: one definition, four surfaces --------------------
+  builder / store : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  screener        : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  chart           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  alert           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  store rows @ tree: 1   (indicator's own hash: 1)
+  hits            : ['NVDA', 'AMD'] of ['NVDA', 'AMD', 'INTC']
+....
+  -- A2.5 + W4a: one definition, five surfaces ----------------
+  store           : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  nightly sweep   : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2
+  run-now         : sha256:223ac9251e92dbf30fc96da80b13d40de61bd18e5f4169ecc5335af390e07718~s2   hits=['AMD', 'NVDA']
+  receipt moved?  : False
+........... [  5%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+....................................s................................... [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 56%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+...........................F............................................ [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+......................................s................................. [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+.....                                                                    [100%]
+=================================== FAILURES ===================================
+___________ test_every_server_preference_is_declared_in_the_manifest ___________
+
+    def test_every_server_preference_is_declared_in_the_manifest():
+        missing = sorted(_server_keys() - _declared_server_keys(_manifest()))
+>       assert not missing, f"server preference keys missing from the manifest: {missing} — {FIX}"
+E       AssertionError: server preference keys missing from the manifest: ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing', 'screener_scan_board', 'screener_scan_board_tablet'] — node tools/persistence_census.mjs --write
+E       assert not ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing', 'screener_scan_board', 'screener_scan_board_tablet']
+
+tests/test_persistence_manifest_server_keys.py:56: AssertionError
+________ test_every_sha_cited_in_every_program_doc_resolves_against_git ________
+
+tool = <module 'verify_doc_shas' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/verify_doc_shas.py'>
+
+    def test_every_sha_cited_in_every_program_doc_resolves_against_git(tool):
+        _found, bad, _phantom = tool.scan(_ROOT)
+        if bad:
+            lines = []
+            for sha, sites in bad:
+                for rel, line in sites:
+                    lines.append(f"  {sha}  ->  {rel}:{line}")
+>           pytest.fail(
+                "SHA(s) cited in program docs that git cannot resolve.\n"
+                "Resolve each one before it is written, or add it to FOREIGN_REPO "
+                "(another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a "
+                "reason, in tools/verify_doc_shas.py:\n" + "\n".join(lines))
+E           Failed: SHA(s) cited in program docs that git cannot resolve.
+E           Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+E             026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+E             043faec  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             087ee696  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+E             0accfee6  ->  docs/terminal-research/COMPLETION-LEDGER.md:147
+E             0df595b83  ->  docs/terminal-research/COMPLETION-LEDGER.md:172
+E             18a564a  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:277
+E             25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:312
+E             2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+E             2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:19
+E             2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:60
+E             2c7f8a520  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+E             2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+E             2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:52
+E             2e8cbe5f1  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             33b9148  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+E             3a15625  ->  docs/terminal-research/00-program-control/RESUME.md:313
+E             3fea34f  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             428caa2cf  ->  docs/terminal-research/COMPLETION-LEDGER.md:155
+E             47013a182  ->  docs/terminal-research/COMPLETION-LEDGER.md:267
+E             4b18a1a58  ->  docs/terminal-research/COMPLETION-LEDGER.md:138
+E             4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+E             4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+E             4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:44
+E             4fcaafc60  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             5a16a10e9  ->  docs/terminal-research/COMPLETION-LEDGER.md:152
+E             5a905e30e  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+E             5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+E             614a72e  ->  docs/terminal-research/00-program-control/RESUME.md:278
+E             6c187ca6c  ->  docs/terminal-research/COMPLETION-LEDGER.md:228
+E             6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:118
+E             74deefa87  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+E             80080e7ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+E             801fd1e  ->  docs/terminal-research/00-program-control/RESUME.md:313
+E             801fd1e  ->  docs/terminal-research/COMPLETION-LEDGER.md:190
+E             8145f55  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             89c138c  ->  docs/terminal-research/10-roadmap/backlog.md:430
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:31
+E             906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:42
+E             906c11039  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+E             92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+E             92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:25
+E             92c440478  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+E             94d46235  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:11
+E             9e099427a  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+E             a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+E             a3eecd9  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+E             ab70b21ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:170
+E             b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:117
+E             b8eb51a0  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:49
+E             bcdadacb  ->  docs/terminal-research/COMPLETION-LEDGER.md:112
+E             db45b154  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:47
+E             dd326973b  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+E             de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+E             de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:839
+E             f26cf6d4e  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+E             f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+E             fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:130
+E             fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+
+tests/test_program_doc_shas_resolve.py:84: Failed
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_perf_batch_a.py::test_insider_feed_parallel_aggregates
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_phase_e_acceptance.py::test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_scan_run.py:1347: SyntaxWarning: invalid escape sequence '\d'
+    which leaves the carriage return inside the match, so a trailing ``(\d+)$``
+
+tests/test_pine_runtime_switch_on.py::test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour
+tests/test_pine_strategy_backtest.py::test_E3_walks_the_new_route_and_it_cannot_reach_the_sweep
+tests/test_placeholder_stop_is_one_definition.py::test_only_ONE_module_defines_a_placeholder_stop_test
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_pine_tfmerge_nested_masks.py: 1332 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/ast_interpret.py:478: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_pine_capability_admission.py:1777: the other 774 admitted captures were verified equal; SKIPPED, NOT VERIFIED: 1 licence-held fixture(s) absent on this machine: supertrend-kivancozbilgic-rddt-1d-2026-10-02.json [licence NONE-IN-SOURCE; evidence ledger: supertrend-kivancozbilgic-rddt-1d-2026-10-02 production INCONCLUSIVE / runtime-on INCONCLUSIVE (engine 55, 2026-11-15)]. Not committed (docs/pine/LICENSING.md section 1, 2c; docs/pine/vendor-harness/licence-held.json). Put the file in the capture store ($UCT_VENDOR_CAPTURE_STORE) at its recorded hash to run it.
+SKIPPED [1] tests/test_public_note_headers.py:206: app/dist not built here, so the real app registers no SPA catch-all; legs (1) and (2) above carry the proof (the gate builds dist and runs this leg)
+FAILED tests/test_persistence_manifest_server_keys.py::test_every_server_preference_is_declared_in_the_manifest - AssertionError: server preference keys missing from the manifest: ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing', 'screener_scan_board', 'screener_scan_board_tablet'] — node tools/persistence_census.mjs --write
+assert not ['indicator_tours_seen', 'notebook_chart_sets', 'notebook_landing', 'screener_scan_board', 'screener_scan_board_tablet']
+FAILED tests/test_program_doc_shas_resolve.py::test_every_sha_cited_in_every_program_doc_resolves_against_git - Failed: SHA(s) cited in program docs that git cannot resolve.
+Resolve each one before it is written, or add it to FOREIGN_REPO (another repo's SHA) or QUOTED_DEAD (a tombstoned fabrication) with a reason, in tools/verify_doc_shas.py:
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:77
+  026a6693f  ->  docs/terminal-research/reports/SESSION_REPORT_2026-09-17_2.md:146
+  043faec  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  087ee696  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+  0accfee6  ->  docs/terminal-research/COMPLETION-LEDGER.md:147
+  0df595b83  ->  docs/terminal-research/COMPLETION-LEDGER.md:172
+  18a564a  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:277
+  25fade0  ->  docs/terminal-research/00-program-control/RESUME.md:312
+  2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+  2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:19
+  2c7f8a520  ->  docs/terminal-research/00-program-control/readiness-test.md:60
+  2c7f8a520  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+  2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:18
+  2e8cbe5f1  ->  docs/terminal-research/00-program-control/readiness-test.md:52
+  2e8cbe5f1  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  33b9148  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  37cba8111  ->  docs/terminal-research/00-program-control/LEDGER.md:2899
+  3a15625  ->  docs/terminal-research/00-program-control/RESUME.md:313
+  3fea34f  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  428caa2cf  ->  docs/terminal-research/COMPLETION-LEDGER.md:155
+  47013a182  ->  docs/terminal-research/COMPLETION-LEDGER.md:267
+  4b18a1a58  ->  docs/terminal-research/COMPLETION-LEDGER.md:138
+  4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+  4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:17
+  4fcaafc60  ->  docs/terminal-research/00-program-control/readiness-test.md:44
+  4fcaafc60  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  5a16a10e9  ->  docs/terminal-research/COMPLETION-LEDGER.md:152
+  5a905e30e  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+  5d1885576  ->  docs/terminal-research/00-program-control/LEDGER.md:4489
+  614a72e  ->  docs/terminal-research/00-program-control/RESUME.md:278
+  6c187ca6c  ->  docs/terminal-research/COMPLETION-LEDGER.md:228
+  6d2dfa952  ->  docs/terminal-research/RESUME-HERE.md:118
+  74deefa87  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+  80080e7ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+  801fd1e  ->  docs/terminal-research/00-program-control/RESUME.md:313
+  801fd1e  ->  docs/terminal-research/COMPLETION-LEDGER.md:190
+  8145f55  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  89c138c  ->  docs/terminal-research/10-roadmap/backlog.md:430
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:16
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:31
+  906c11039  ->  docs/terminal-research/00-program-control/readiness-test.md:42
+  906c11039  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:14
+  92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:15
+  92c440478  ->  docs/terminal-research/00-program-control/readiness-test.md:25
+  92c440478  ->  docs/terminal-research/COMPLETION-LEDGER.md:74
+  94d46235  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:11
+  9e099427a  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+  a0a7e363f  ->  docs/terminal-research/10-roadmap/evidence/2026-09-25-s7-arming-inventory/results.md:3
+  a3eecd9  ->  docs/terminal-research/COMPLETION-LEDGER.md:109
+  ab70b21ac  ->  docs/terminal-research/COMPLETION-LEDGER.md:170
+  b31109ba8  ->  docs/terminal-research/RESUME-HERE.md:117
+  b8eb51a0  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:49
+  bcdadacb  ->  docs/terminal-research/COMPLETION-LEDGER.md:112
+  db45b154  ->  docs/terminal-research/10-roadmap/evidence/2026-10-02-quiet-window/results.md:47
+  dd326973b  ->  docs/terminal-research/COMPLETION-LEDGER.md:171
+  de2726473  ->  docs/terminal-research/00-program-control/LEDGER.md:3945
+  de2726473  ->  docs/terminal-research/00-program-control/RESUME.md:839
+  f26cf6d4e  ->  docs/terminal-research/COMPLETION-LEDGER.md:123
+  f311b2992  ->  docs/terminal-research/00-program-control/MASTER_CHECKLIST.md:7
+  fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:130
+  fbe983304  ->  docs/terminal-research/COMPLETION-LEDGER.md:269
+2 failed, 3673 passed, 2 skipped, 1339 warnings in 630.19s (0:10:30)

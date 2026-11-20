@@ -1,0 +1,21 @@
+{
+  "suite": "pytest",
+  "collected": 4460,
+  "passed": 4448,
+  "failed": 7,
+  "errored": 0,
+  "skipped": 5,
+  "wall_s": 808.25,
+  "failed_files": [
+    "tests/test_s6_cp2_migration.py",
+    "tests/test_sample_never_feeds_real_numbers.py",
+    "tests/test_scan_live_sweep.py",
+    "tests/test_scan_not_computable_inputs.py",
+    "tests/test_scan_sweep_bar_close_state.py",
+    "tests/test_screener_scan_primitives.py",
+    "tests/test_secret_scrub.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 4448 passed, 5 skipped, 1 xfailed, 7298 warnings in 808.25s (0:13:28)",
+  "ok": true
+}

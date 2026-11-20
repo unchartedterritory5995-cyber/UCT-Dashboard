@@ -1,0 +1,336 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.......................................................................F [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  5%]
+............................F........................................... [  6%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+..
+[txn latency, in-process, n=200] webhook->subscriber p50=1.88ms p95=2.30ms p99=3.09ms max=3.41ms | ack incl. journal fsync p50=2.29ms p95=2.67ms | store commit last=0.55ms
+...................................................................... [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+..................................................................F..... [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+_______ test_every_tools_api_importer_pins_the_census_or_is_named_exempt _______
+
+    def test_every_tools_api_importer_pins_the_census_or_is_named_exempt():
+        """The rail. An `api.*`-importing tool not in `EXEMPT_TOOLS` must carry a correctly-ordered
+        module-level `import conftest`, by name -- never a count."""
+        problems = []
+        for path in _all_api_importing_tools():
+            if path.name in EXEMPT_TOOLS:
+                continue
+            problems.extend(_problems(path.read_text(encoding="utf-8"), path.name))
+>       assert not problems, "\n".join(problems)
+E       AssertionError: ffseed_make_js_fixture.py: no module-level `import conftest` -- the census and the tripwire never run
+E         ffseed_measure.py: no module-level `import conftest` -- the census and the tripwire never run
+E         minute_frames_measure.py: no module-level `import conftest` -- the census and the tripwire never run
+E       assert not ['ffseed_make_js_fixture.py: no module-level `import conftest` -- the census and the tripwire never run', 'ffseed_meas...ire never run', 'minute_frames_measure.py: no module-level `import conftest` -- the census and the tripwire never run']
+
+tests/test_tools_pin_the_root.py:406: AssertionError
+____ test_the_warmer_derives_the_archive_in_the_background_and_never_raises ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x716693906300>
+
+    async def test_the_warmer_derives_the_archive_in_the_background_and_never_raises(monkeypatch):
+        monkeypatch.setattr(arc, "WARM_ENABLED", True)
+        monkeypatch.setattr(arc, "WARM_PAUSE_S", 0)
+        await _fill_day(n=60)
+        await _day({"date": DAY.isoformat(), "limit": 5})
+        assert arc.warm_wait(10)
+>       assert arc.cache_stats()["derived_full"] == len({_content(i) for i in range(60)})
+E       AssertionError: assert 43 == 51
+E        +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+
+tests/test_trade_exchange_news_archive.py:404: AssertionError
+----------------------------- Captured stderr call -----------------------------
+2026-11-20 17:27:13,517 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHE via=push arrive_lag_ms=2021233517 queue_ms=0.1 tickers_ms=0.1 store_ms=1.1 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,519 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHF via=push arrive_lag_ms=2020933518 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,520 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHG via=push arrive_lag_ms=2020633519 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,521 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHH via=push arrive_lag_ms=2020333520 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,522 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHJ via=push arrive_lag_ms=2020033521 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,523 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHK via=push arrive_lag_ms=2019733522 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,524 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHM via=push arrive_lag_ms=2019433523 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,525 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHN via=push arrive_lag_ms=2019133524 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,526 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHP via=push arrive_lag_ms=2018833525 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,527 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHQ via=push arrive_lag_ms=2018533526 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,528 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHR via=push arrive_lag_ms=2018233527 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,529 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHS via=push arrive_lag_ms=2017933528 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,530 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHT via=push arrive_lag_ms=2017633529 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,531 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHV via=push arrive_lag_ms=2017333530 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,532 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHW via=push arrive_lag_ms=2017033531 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,533 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHX via=push arrive_lag_ms=2016733532 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,534 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHY via=push arrive_lag_ms=2016433533 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,535 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHZ via=push arrive_lag_ms=2016133534 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,536 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ0 via=push arrive_lag_ms=2015833535 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,537 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ1 via=push arrive_lag_ms=2015533536 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,537 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ2 via=push arrive_lag_ms=2015233537 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,538 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ3 via=push arrive_lag_ms=2014933538 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,540 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ4 via=push arrive_lag_ms=2014633539 queue_ms=0.0 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,541 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ5 via=push arrive_lag_ms=2014333540 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,542 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ6 via=push arrive_lag_ms=2014033541 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,543 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ7 via=push arrive_lag_ms=2013733542 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,543 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ8 via=push arrive_lag_ms=2013433543 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,544 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ9 via=push arrive_lag_ms=2013133544 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,545 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJA via=push arrive_lag_ms=2012833545 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,546 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJB via=push arrive_lag_ms=2012533546 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,547 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJC via=push arrive_lag_ms=2012233547 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,548 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJD via=push arrive_lag_ms=2011933548 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,549 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJE via=push arrive_lag_ms=2011633549 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,550 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJF via=push arrive_lag_ms=2011333550 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,551 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJG via=push arrive_lag_ms=2011033551 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,552 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJH via=push arrive_lag_ms=2010733552 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,553 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJJ via=push arrive_lag_ms=2010433553 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,554 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJK via=push arrive_lag_ms=2010133554 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,555 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJM via=push arrive_lag_ms=2009833555 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,556 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJN via=push arrive_lag_ms=2009533556 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,557 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJP via=push arrive_lag_ms=2009233557 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,558 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJQ via=push arrive_lag_ms=2008933558 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,559 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJR via=push arrive_lag_ms=2008633559 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,560 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJS via=push arrive_lag_ms=2008333560 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,561 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJT via=push arrive_lag_ms=2008033561 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,562 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJV via=push arrive_lag_ms=2007733562 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,563 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJW via=push arrive_lag_ms=2007433563 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,564 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJX via=push arrive_lag_ms=2007133564 queue_ms=0.1 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,566 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJY via=push arrive_lag_ms=2006833565 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,567 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJZ via=push arrive_lag_ms=2006533566 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,568 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK0 via=push arrive_lag_ms=2006233567 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,569 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK1 via=push arrive_lag_ms=2005933568 queue_ms=0.0 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,570 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK2 via=push arrive_lag_ms=2005633569 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,571 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK3 via=push arrive_lag_ms=2005333570 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,572 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK4 via=push arrive_lag_ms=2005033571 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,573 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK5 via=push arrive_lag_ms=2004733572 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,573 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK6 via=push arrive_lag_ms=2004433573 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,574 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK7 via=push arrive_lag_ms=2004133574 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+2026-11-20 17:27:13,575 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK8 via=push arrive_lag_ms=2003833575 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+2026-11-20 17:27:13,577 INFO api.services.trade_exchange_news.pipeline: [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK9 via=push arrive_lag_ms=2003533576 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+------------------------------ Captured log call -------------------------------
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHE via=push arrive_lag_ms=2021233517 queue_ms=0.1 tickers_ms=0.1 store_ms=1.1 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHF via=push arrive_lag_ms=2020933518 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHG via=push arrive_lag_ms=2020633519 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHH via=push arrive_lag_ms=2020333520 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHJ via=push arrive_lag_ms=2020033521 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHK via=push arrive_lag_ms=2019733522 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHM via=push arrive_lag_ms=2019433523 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHN via=push arrive_lag_ms=2019133524 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHP via=push arrive_lag_ms=2018833525 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHQ via=push arrive_lag_ms=2018533526 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHR via=push arrive_lag_ms=2018233527 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHS via=push arrive_lag_ms=2017933528 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHT via=push arrive_lag_ms=2017633529 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHV via=push arrive_lag_ms=2017333530 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHW via=push arrive_lag_ms=2017033531 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHX via=push arrive_lag_ms=2016733532 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHY via=push arrive_lag_ms=2016433533 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JHZ via=push arrive_lag_ms=2016133534 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ0 via=push arrive_lag_ms=2015833535 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ1 via=push arrive_lag_ms=2015533536 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ2 via=push arrive_lag_ms=2015233537 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ3 via=push arrive_lag_ms=2014933538 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ4 via=push arrive_lag_ms=2014633539 queue_ms=0.0 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ5 via=push arrive_lag_ms=2014333540 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ6 via=push arrive_lag_ms=2014033541 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ7 via=push arrive_lag_ms=2013733542 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ8 via=push arrive_lag_ms=2013433543 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJ9 via=push arrive_lag_ms=2013133544 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJA via=push arrive_lag_ms=2012833545 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJB via=push arrive_lag_ms=2012533546 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJC via=push arrive_lag_ms=2012233547 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJD via=push arrive_lag_ms=2011933548 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJE via=push arrive_lag_ms=2011633549 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJF via=push arrive_lag_ms=2011333550 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJG via=push arrive_lag_ms=2011033551 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJH via=push arrive_lag_ms=2010733552 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJJ via=push arrive_lag_ms=2010433553 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJK via=push arrive_lag_ms=2010133554 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJM via=push arrive_lag_ms=2009833555 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJN via=push arrive_lag_ms=2009533556 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJP via=push arrive_lag_ms=2009233557 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJQ via=push arrive_lag_ms=2008933558 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJR via=push arrive_lag_ms=2008633559 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJS via=push arrive_lag_ms=2008333560 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJT via=push arrive_lag_ms=2008033561 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJV via=push arrive_lag_ms=2007733562 queue_ms=0.1 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJW via=push arrive_lag_ms=2007433563 queue_ms=0.1 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJX via=push arrive_lag_ms=2007133564 queue_ms=0.1 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJY via=push arrive_lag_ms=2006833565 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JJZ via=push arrive_lag_ms=2006533566 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK0 via=push arrive_lag_ms=2006233567 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK1 via=push arrive_lag_ms=2005933568 queue_ms=0.0 tickers_ms=0.0 store_ms=0.8 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK2 via=push arrive_lag_ms=2005633569 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK3 via=push arrive_lag_ms=2005333570 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK4 via=push arrive_lag_ms=2005033571 queue_ms=0.0 tickers_ms=0.0 store_ms=0.6 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK5 via=push arrive_lag_ms=2004733572 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK6 via=push arrive_lag_ms=2004433573 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK7 via=push arrive_lag_ms=2004133574 queue_ms=0.0 tickers_ms=0.0 store_ms=0.5 to_publish_ms=0.2 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK8 via=push arrive_lag_ms=2003833575 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.1 subscribers=0
+INFO     api.services.trade_exchange_news.pipeline:pipeline.py:178 [txn] timing web id=01M6D8AXA05TSXSHR62Y3W2JK9 via=push arrive_lag_ms=2003533576 queue_ms=0.0 tickers_ms=0.0 store_ms=0.7 to_publish_ms=0.2 subscribers=0
+__________________ test_the_shipped_thresholds_have_not_moved __________________
+
+    def test_the_shipped_thresholds_have_not_moved():
+        """⭐ THE TABLE IS ONLY TRUE OF THESE VALUES. Both sides, either direction:
+        a knob added, removed or changed means the measurement describes detectors
+        that are no longer running."""
+        drift = {}
+        for key, want in MEASURED_AGAINST.items():
+            got_engine = _module_constants(
+                "api/services/pattern_engine/detectors/" + ENGINE_SOURCE[key])
+            rel, prefix = BASE_SOURCE[key]
+            got_base = _module_constants(rel, prefix)
+            if got_engine != want["engine"]:
+                drift[f"{key}/engine"] = sorted(
+                    set(got_engine.items()) ^ set(want["engine"].items()))
+            if got_base != want["base"]:
+                drift[f"{key}/base"] = sorted(
+                    set(got_base.items()) ^ set(want["base"].items()))
+>       assert not drift, (
+            "these thresholds changed since the agreement table was measured:\n"
+            + "\n".join(f"  {k}: {v}" for k, v in sorted(drift.items()))
+            + "\n\nRE-MEASURE. Update both the docstring table and "
+              "MEASURED_AGAINST — never one without the other.")
+E       AssertionError: these thresholds changed since the agreement table was measured:
+E           vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+E         
+E         RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+E       assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+
+tests/test_two_engines_do_not_agree.py:596: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_tool_create_keys.py::test_the_uuid4_key_rule_has_one_home
+tests/test_tool_create_keys.py::test_only_create_keys_assigns_the_replay_window
+tests/test_tool_create_keys.py::test_only_create_keys_holds_the_expiry_sweep
+tests/test_trader_blocks_no_note_door.py::test_the_writer_derivation_reaches_the_floor
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_tools_pin_the_root.py::test_every_tools_api_importer_pins_the_census_or_is_named_exempt
+tests/test_tools_pin_the_root.py::test_every_exempt_name_is_real_and_every_reason_is_stated
+tests/test_tools_pin_the_root.py::test_the_walk_sees_the_known_pinned_and_known_exempt_members
+  notebook_wave5_walk.py:7: SyntaxWarning: invalid escape sequence '\d'
+    (scripts/hub_sandbox_boot.py --data-dir C:\data-<name> --port 8093);
+
+tests/test_track_d_risk003_probe.py::TestClassify::test_max_as_of_matches_last_trading_day_is_healthy
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tools/track_d_risk003_probe.py:99: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = now_utc or datetime.datetime.utcnow()
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_trade_exchange_news_receiver_lifecycle.py::test_startup_is_fast_and_answers_on_both_ip_families
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_uct_agent_qa_member_refused.py: 20 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_tools_pin_the_root.py::test_every_tools_api_importer_pins_the_census_or_is_named_exempt - AssertionError: ffseed_make_js_fixture.py: no module-level `import conftest` -- the census and the tripwire never run
+  ffseed_measure.py: no module-level `import conftest` -- the census and the tripwire never run
+  minute_frames_measure.py: no module-level `import conftest` -- the census and the tripwire never run
+assert not ['ffseed_make_js_fixture.py: no module-level `import conftest` -- the census and the tripwire never run', 'ffseed_meas...ire never run', 'minute_frames_measure.py: no module-level `import conftest` -- the census and the tripwire never run']
+FAILED tests/test_trade_exchange_news_archive.py::test_the_warmer_derives_the_archive_in_the_background_and_never_raises - AssertionError: assert 43 == 51
+ +  where 51 = len({('CRYPTO', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 14', 'TXNews1'), ('SYNTHETIC AAPL REPORTS ...S THIRD QUARTER RESULTS TEST 26', 'TXNews1'), ('SYNTHETIC AAPL REPORTS THIRD QUARTER RESULTS TEST 32', 'TXNews1'), ...})
+FAILED tests/test_two_engines_do_not_agree.py::test_the_shipped_thresholds_have_not_moved - AssertionError: these thresholds changed since the agreement table was measured:
+    vcp/engine: [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]
+  
+  RE-MEASURE. Update both the docstring table and MEASURED_AGAINST — never one without the other.
+assert not {'vcp/engine': [('_TREND_TEMPLATE_SMA_LONG', 200), ('_TREND_TEMPLATE_SMA_SHORT', 150)]}
+3 failed, 6658 passed, 32 warnings in 630.80s (0:10:30)

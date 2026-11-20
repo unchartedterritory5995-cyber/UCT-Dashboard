@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 2266,
+  "passed": 2261,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 469.91,
+  "failed_files": [
+    "api/services/bars_sqlite_test.py",
+    "api/services/journal_two/note_connectors/test_connector_corpora.py",
+    "api/services/journal_two/test_note_connectors_engine_rate_limit_round2.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 2261 passed, 1 skipped, 38 warnings in 469.91s (0:07:49)",
+  "ok": true
+}

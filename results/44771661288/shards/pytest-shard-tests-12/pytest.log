@@ -1,0 +1,112 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  5%]
+........................................................................ [ 11%]
+........................................................................ [ 17%]
+....................ssssssssssssssssssssss.............................. [ 23%]
+.....................F...............................s.................. [ 28%]
+........................................................................ [ 34%]
+........................................................................ [ 40%]
+........................................................................ [ 46%]
+..ss...............................sss..ssssssss........................ [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 63%]
+........................................................................ [ 69%]
+........................................................................ [ 75%]
+........................................................................ [ 81%]
+........................................................................ [ 86%]
+........................................................................ [ 92%]
+........................................................................ [ 98%]
+..................                                                       [100%]
+=================================== FAILURES ===================================
+_____ test_the_committed_budget_file_is_complete_and_hand_edit_documented ______
+
+    def test_the_committed_budget_file_is_complete_and_hand_edit_documented():
+        budgets = json.loads(pb.DEFAULT_BUDGETS.read_text(encoding="utf-8"))
+        assert "by hand" in budgets["_"].lower()
+        nb = budgets["bytes"]["notebook_first_open"]
+        assert nb["roots"], "no route roots: the byte budget would price nothing"
+>       assert int(nb["max"]) <= int(nb["baseline"] * 1.05) + 1, "max drifted above baseline + 5% without saying so"
+E       AssertionError: max drifted above baseline + 5% without saying so
+E       assert 2260993 <= (2260793 + 1)
+E        +  where 2260993 = int(2260993)
+E        +  and   2260793 = int((2153137 * 1.05))
+
+tests/test_notebook_perf_budgets.py:187: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[False-NOTEBOOK_OFFLINE_DEFAULT_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_OFFLINE_READ_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_CONFLICT_UX_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ATTACHMENTS_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ASK_INSERT_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-J2_SHARE_LINKS_ENABLED]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_PUBLISH_ENABLED]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ONBOARDING_ENABLED]
+tests/test_notebook_plan_grading.py::test_the_table_is_not_a_named_saved_object_so_needs_no_address
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[False-NOTEBOOK_OFFLINE_DEFAULT_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_OFFLINE_READ_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_CONFLICT_UX_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ATTACHMENTS_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ASK_INSERT_ON]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-J2_SHARE_LINKS_ENABLED]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_PUBLISH_ENABLED]
+tests/test_notebook_flag_table_form.py::test_every_notebook_capability_is_visible_to_the_index[True-NOTEBOOK_ONBOARDING_ENABLED]
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_notebook_journal_styles_router.py::test_every_route_resolves_to_this_router_in_the_real_app
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_p5_walk.py:28: tools/notebook_p5_walk.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack
+SKIPPED [1] tests/test_notebook_nvda_pass.py:34: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:41: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:50: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:64: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:81: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:95: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:109: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:119: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:198: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:214: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:232: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:272: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:282: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:293: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:305: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:317: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:357: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:370: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:385: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:398: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:432: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_nvda_pass.py:439: the driver binds user32 at import
+SKIPPED [1] tests/test_notebook_perf_harness.py:563: the SIGBREAK re-raise is Windows-only
+SKIPPED [1] tests/test_notebook_proof_walk.py:179: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:197: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:661: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:680: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:718: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:774: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:806: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:831: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1030: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1048: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1116: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1170: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+SKIPPED [1] tests/test_notebook_proof_walk.py:1209: a real headless Chromium; CI installs no browser stack (remote runs 44307082879, 44308065971: every test here errored on the import)
+FAILED tests/test_notebook_perf_budgets.py::test_the_committed_budget_file_is_complete_and_hand_edit_documented - AssertionError: max drifted above baseline + 5% without saying so
+assert 2260993 <= (2260793 + 1)
+ +  where 2260993 = int(2260993)
+ +  and   2260793 = int((2153137 * 1.05))
+1 failed, 1205 passed, 37 skipped, 19 warnings in 796.70s (0:13:16)

@@ -1,0 +1,20 @@
+{
+  "suite": "pytest",
+  "collected": 5450,
+  "passed": 5411,
+  "failed": 7,
+  "errored": 1,
+  "skipped": 31,
+  "wall_s": 812.43,
+  "failed_files": [
+    "tests/test_c45_withheld_doors.py",
+    "tests/test_calendar_week_contract.py",
+    "tests/test_calendar_week_post.py",
+    "tests/test_canonical_indicator_axis.py",
+    "tests/test_chart_health_severity_vocabulary.py",
+    "tests/test_ci_agent_docs_paths.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "7 failed, 5411 passed, 31 skipped, 1 xfailed, 243 warnings, 1 error in 812.43s (0:13:32)",
+  "ok": true
+}

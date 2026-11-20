@@ -1,0 +1,18 @@
+{
+  "suite": "pytest",
+  "collected": 2234,
+  "passed": 2220,
+  "failed": 14,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 767.81,
+  "failed_files": [
+    "tests/test_upload_cap_member_doors.py",
+    "tests/test_vendor_callsite_census.py",
+    "tests/test_voice_client_request_shapes.py",
+    "tests/test_web_capture_coverage.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "14 failed, 2220 passed, 292 warnings in 767.81s (0:12:47)",
+  "ok": true
+}

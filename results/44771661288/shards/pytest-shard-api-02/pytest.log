@@ -1,0 +1,137 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 35%]
+........................................................................ [ 37%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 78%]
+........................................................................ [ 80%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+...........................................F.........................sss [ 93%]
+s....................................................................... [ 95%]
+........................................................................ [ 98%]
+..F...............................................                       [100%]
+=================================== FAILURES ===================================
+__________________ test_lock_releases_on_holder_process_exit ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_lock_releases_on_holder_p0')
+
+    @requires_posix
+    def test_lock_releases_on_holder_process_exit(tmp_path):
+        """When the lock-holding process exits, the OS releases the flock.
+        A new process can then acquire it. This is what guarantees we don't
+        leak locks across container restarts."""
+        lock_path = str(tmp_path / "sched.lock")
+        ctx = multiprocessing.get_context("spawn")
+    
+        def _short_lived_holder(p):
+            from api.services import scheduler_lock as sl
+            sl.acquire_scheduler_lock(path=p)
+            # Process exits immediately, releasing the flock
+    
+        holder = ctx.Process(target=_short_lived_holder, args=(lock_path,))
+>       holder.start()
+
+api/services/scheduler_lock_test.py:136: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/process.py:121: in start
+    self._popen = self._Popen(self)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/context.py:289: in _Popen
+    return Popen(process_obj)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_spawn_posix.py:32: in __init__
+    super().__init__(process_obj)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_fork.py:19: in __init__
+    self._launch(process_obj)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_spawn_posix.py:47: in _launch
+    reduction.dump(process_obj, fp)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <SpawnProcess name='SpawnProcess-2' parent=2568 initial>
+file = <_io.BytesIO object at 0x7108c4196610>, protocol = None
+
+    def dump(obj, file, protocol=None):
+        '''Replacement for pickle.dump() using ForkingPickler.'''
+>       ForkingPickler(file, protocol).dump(obj)
+E       AttributeError: Can't get local object 'test_lock_releases_on_holder_process_exit.<locals>._short_lived_holder'
+
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/reduction.py:60: AttributeError
+________________ test_router_breadth_row_carries_null_entity_id ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7108c6d4fe00>
+
+    def test_router_breadth_row_carries_null_entity_id(monkeypatch):
+        from api.routers import ticker_search as router_mod
+        import api.services.breadth_symbols as breadth_symbols
+    
+        monkeypatch.setattr(
+            breadth_symbols, "search",
+            lambda qq, limit: [{"ticker": "UCTA50", "name": "Above 50-day", "symbol_hit": True}],
+        )
+        resp = router_mod.ticker_search(q="UCTA50", limit=20, type="breadth")
+>       assert resp["results"]
+E       assert []
+
+api/services/test_ticker_search_entity_master_integration.py:225: AssertionError
+=============================== warnings summary ===============================
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/services/journal_two/test_note_convert_mddoc.py::test_the_invisible_character_class_is_defined_once_under_api
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+api/services/journal_two/test_obsidian_ingest.py::test_redeem_does_not_require_a_session_cookie
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+api/services/test_brain_sync.py::test_sync_installs_new_pack
+api/services/test_brain_sync.py::test_sync_skips_when_current
+api/services/test_brain_sync.py::test_sync_fires_on_install_callbacks
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/brain_sync.py:101: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tf.extractall(staging, members=members)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] api/services/test_brain_service.py:85: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:94: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:101: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:114: uct-intelligence submodule not checked out
+FAILED api/services/scheduler_lock_test.py::test_lock_releases_on_holder_process_exit - AttributeError: Can't get local object 'test_lock_releases_on_holder_process_exit.<locals>._short_lived_holder'
+FAILED api/services/test_ticker_search_entity_master_integration.py::test_router_breadth_row_carries_null_entity_id - assert []
+2 failed, 2852 passed, 4 skipped, 7 warnings in 513.91s (0:08:33)

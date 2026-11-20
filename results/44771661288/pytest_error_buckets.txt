@@ -1,0 +1,3 @@
+bucket | count | example node id
+----------------------------------------------------------------------
+1   | AssertionError: assert {'barIndexAbs...solute': True} == {'barIndexAbs...solute': True} | tests/test_canonical_address_book.py
