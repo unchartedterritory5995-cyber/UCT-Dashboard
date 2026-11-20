@@ -4,7 +4,7 @@ Directories: `tests/fixtures/vendor`
 
 Lane: **production**. LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 516) · objects-only pane ARMED · runtime drew 0, declined 0 · strategy lane: broker gate off, 77 graded on their trades, 0 broker run(s)
 
-Graded at script engine **85**.
+Graded at script engine **88**.
 
 ```
 capture                                      symbol/tf        plots  verdict           first divergence / reason
@@ -589,10 +589,10 @@ high-low-open-mid-ranges-spy-1d-2026-10-03   AMEX:SPY 1D      7      MATCH      
     objects                                  MATCH         object counts and texts agree; colours agree on 1588 paired slots; 16 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 high_engagement__23-sweep-reversal-map-plus- NYSE:RDDT 1D     0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `bearishActive` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
 high_engagement__23-sweep-reversal-map-plus- AMEX:SPY 1D      0      INCONCLUSIVE      refused on our side: member door refused (pine:state): this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability — `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs — so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today — `bearishActive` is read, before it is set, inside the update of another `var` that is itself read before it is set in this one's, so the two carry each other's previous bar and one accumulator holds only one
-htf-candle-footprint-cartel-console-rddt-1d- NYSE:RDDT 1D     0      DIVERGE           1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1
-htf-candle-footprint-cartel-console-spy-1d-2 AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
-    objects                                  DIVERGE       1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1
+htf-candle-footprint-cartel-console-rddt-1d- NYSE:RDDT 1D     0      INCONCLUSIVE      1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 13 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree
+htf-candle-footprint-cartel-console-spy-1d-2 AMEX:SPY 1D      0      INCONCLUSIVE      1 of 1 items could not be compared
+    objects                                  INCONCLUSIVE  our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 11 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree
 htf-liquidity-dashboard-tfo-rddt-1d-2026-09- NYSE:RDDT 1D     0      DIVERGE           1 of 1 compared items diverge
     objects                                  DIVERGE       2 object families differ (count or text); colours agree on 19 paired slots; 4 slots on objects neither side draws not graded; coordinates are NOT compared by v1
 htf-liquidity-dashboard-tfo-spy-1d-2026-10-0 AMEX:SPY 1D      0      DIVERGE           1 of 1 compared items diverge
@@ -4540,8 +4540,8 @@ vw-clock-vwap-spy-1d-2026-09-27              AMEX:SPY D       15     MATCH      
     V13_year_MUST_SPAN_TWO_VALUES            MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     V14_month_MUST_SPAN_SEVERAL_VALUES       MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
     objects                                  MATCH         neither side draws an object
-vw-int-cast-spy-1d-2026-09-27                AMEX:SPY D       11     DIVERGE           I00_bar_index_CONTROL: bar 0 t=1752845400 value vendor=8172 ours=0
-    I00_bar_index_CONTROL                    DIVERGE           cmp 300 ok 0 warm 0/0 steady 300/300 maxRel 1.00e+0 — 300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0) — persistent, last at bar 299
+vw-int-cast-spy-1d-2026-09-27                AMEX:SPY D       11     INCONCLUSIVE      6 of 12 items could not be compared
+    I00_bar_index_CONTROL                    MATCH             cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
     I01_int_2p7                              INCONCLUSIVE      cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     I02_int_neg2p7                           INCONCLUSIVE      cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
     I03_int_2p5                              INCONCLUSIVE      cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
@@ -4573,15 +4573,15 @@ vw-nvi-pvi-spy-1d-full-2026-09-27            AMEX:SPY D       8      MATCH      
     P06_corpus_nvi_minus_ema255              MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 2.31e-11
     P07_corpus_pvi_minus_ema255              MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 7.25e-12
     objects                                  MATCH         neither side draws an object
-vw-nvi-pvi-spy-1d-truncated-2026-09-27       AMEX:SPY D       8      DIVERGE           P00_bar_index_CONTROL: bar 0 t=1659619800 value vendor=7432 ours=0
-    P00_bar_index_CONTROL                    DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.00e+0 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039
-    P01_nvi_RAW                              DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 9.99e-1 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 1408.618771650051 vs ours 1) — persistent, last at bar 1039
-    P02_pvi_RAW                              DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.48e+2 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 0.006691829727098147 vs ours 1) — persistent, last at bar 1039
-    P03_nvi_step_resid_MUST_BE_0             DIVERGE           cmp 1040 ok 1039 warm 0/0 steady 1/1040 maxRel 1.71e+2 — 1 steady-state bars disagree; first at bar 0 (na: vendor 1.5287250632045613e-17 vs ours na) — scattered, last at bar 0
-    P04_pvi_step_resid_MUST_BE_0             DIVERGE           cmp 1040 ok 1039 warm 0/0 steady 1/1040 maxRel 1.28e+2 — 1 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 0
-    P05_first_nonNA_pvi_bar                  DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.00e+0 — 1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039
-    P06_corpus_nvi_minus_ema255              DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 9.99e-1 — 1040 steady-state bars disagree; first at bar 0 (na: vendor 245.30448032866502 vs ours na) — persistent, last at bar 1039
-    P07_corpus_pvi_minus_ema255              DIVERGE           cmp 1040 ok 0 warm 0/0 steady 1040/1040 maxRel 1.24e+3 — 1040 steady-state bars disagree; first at bar 0 (na: vendor -0.00190286212815499 vs ours na) — persistent, last at bar 1039
+vw-nvi-pvi-spy-1d-truncated-2026-09-27       AMEX:SPY D       8      MATCH             all 9 items agree
+    P00_bar_index_CONTROL                    MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 0.00e+0
+    P01_nvi_RAW                              MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 1.33e-14
+    P02_pvi_RAW                              MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 7.52e-15
+    P03_nvi_step_resid_MUST_BE_0             MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 3.41e+2
+    P04_pvi_step_resid_MUST_BE_0             MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 3.15e+2
+    P05_first_nonNA_pvi_bar                  MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 0.00e+0
+    P06_corpus_nvi_minus_ema255              MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 3.46e-14
+    P07_corpus_pvi_minus_ema255              MATCH             cmp 1040 ok 1040 warm 0/0 steady 0/1040 maxRel 1.53e-13
     objects                                  MATCH         neither side draws an object
 vw-time-session-spy-1d-2026-09-27            AMEX:SPY D       19     MATCH             all 20 items agree
     S00_bar_index_CONTROL                    MATCH             cmp 8472 ok 8472 warm 0/0 steady 0/8472 maxRel 0.00e+0
@@ -4640,10 +4640,10 @@ w2-warmup-spy-12m-2026-09-22                 SPY 12M          14     MATCH      
     W13_cum_close_FROM_BAR0                  MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
     W14_sma1_DEGENERATE_WINDOW               MATCH             cmp 34 ok 34 warm 0/0 steady 0/34 maxRel 0.00e+0
 
-TOTAL 954 captures — MATCH 219 · DIVERGE 81 · INCONCLUSIVE 654
-WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 121 captures) — MATCH 219 · DIVERGE 81 · INCONCLUSIVE 654
+TOTAL 954 captures — MATCH 220 · DIVERGE 77 · INCONCLUSIVE 657
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 119 captures) — MATCH 220 · DIVERGE 77 · INCONCLUSIVE 657
 CHANGED BY OBJECT COLOUR (0): none
-WITHOUT PAINTS (the verdict before B1; paints graded on 39 captures) — MATCH 225 · DIVERGE 81 · INCONCLUSIVE 648
+WITHOUT PAINTS (the verdict before B1; paints graded on 39 captures) — MATCH 226 · DIVERGE 77 · INCONCLUSIVE 651
 CHANGED BY PAINTS (6): supertrend-strategy-alab-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-is-rddt-1d-2026-11-18 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-10-02 MATCH → INCONCLUSIVE; supertrend-strategy-rddt-1d-2026-11-17 MATCH → INCONCLUSIVE; supertrend-strategy-spy-1d-2026-10-02 MATCH → INCONCLUSIVE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → INCONCLUSIVE
 ```
 
