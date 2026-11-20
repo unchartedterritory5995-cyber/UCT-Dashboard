@@ -36,7 +36,7 @@ describe('useTickerIpo', () => {
     expect(result.current.pending).toBeUndefined()
   })
 
-  it('⛔ ANOTHER SYMBOL's late answer is never this symbol's: it neither ends the wait nor names a date', async () => {
+  it("⛔ ANOTHER SYMBOL's late answer is never this symbol's: it neither ends the wait nor names a date", async () => {
     const resolvers = {}
     global.fetch = vi.fn((url) => new Promise((r) => { resolvers[url.split('/').pop()] = r }))
     const { result, rerender } = renderHook(({ sym }) => useTickerIpo(sym), { wrapper, initialProps: { sym: 'AGL' } })
