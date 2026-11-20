@@ -766,11 +766,17 @@ const _maxOrKeep = (held, inc) => (inc == null ? held : (held == null ? inc : Ma
 // ── local hits (pack / IDB / mem) ────────────────────────────────────────────
 
 /** A local fill, and whether the entry then holds the LAKE'S rows alone (`lakeOnly`): a lake hit onto
- *  an empty or lake-only entry keeps it; any other local fill clears it (a server answer too). */
+ *  an empty or lake-only entry keeps it; any other local fill clears it (a server answer too).
+ *  ⭐ The on-device store's copy ('device', data/deviceStore) is the same KIND of copy as the lake's: an
+ *  UNSTAMPED bulk copy of the server's rows, built elsewhere, whose price basis nothing here proves
+ *  against a saved copy. So it follows the lake's join rules exactly (`_bulk`): it counts as `lakeOnly`,
+ *  joins a held local copy only where its rows prove that copy's basis, and a saved copy landing after
+ *  it joins it only on a proven basis or replaces it. Against a SERVER answer it is any local copy. */
+const _bulk = (source) => source === 'lake' || source === 'device'
 function applyLocal(state, action, ctx, source) {
   const out = _applyLocal(state, action, ctx, source)
   if (out === state) return state
-  const lakeOnly = source === 'lake' && (!!state.lakeOnly || (!state.bars.length && !state.developing))
+  const lakeOnly = _bulk(source) && (!!state.lakeOnly || (!state.bars.length && !state.developing))
   return out.lakeOnly === lakeOnly ? out : Object.freeze({ ...out, lakeOnly })
 }
 
@@ -813,7 +819,7 @@ function _applyLocal(state, action, ctx, source) {
   // never-opened symbol often holds the universe pack's newest rows). Two local copies are joined only
   // when the lake's rows prove the held basis over the bars they share: on another basis (a split
   // between the two) or with no bar in common (they could straddle a hole) the held copy stays as it is.
-  if (source === 'lake' && !state.restSeen) {
+  if (_bulk(source) && !state.restSeen) {
     const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
     if (held.length && !heldBasisProof(held)) return state
   }
@@ -830,7 +836,7 @@ function _applyLocal(state, action, ctx, source) {
   //    its rows do not prove is refused, and the server's answer decides.
   //  - The replace keeps what the stream added (push / final rows and a live forming bar: the server's
   //    current basis, exactly what a saved copy meets on an entry with no lake) and the depth floor.
-  if (source !== 'lake' && !state.restSeen && state.lakeOnly && !p.history) {
+  if (!_bulk(source) && !state.restSeen && state.lakeOnly && !p.history) {
     const held = state.bars.length ? state.bars : (state.developing ? [state.developing] : [])
     if (held.length && basisVerdict(rows, held) !== 'same') {
       if (source === 'pack') return state
@@ -1153,6 +1159,8 @@ export function reduce(state, action, ctx = {}) {
     // never persisted (not restSeen), and the server's full answer keeps its rows only where their
     // overlap proves the same basis; with no overlap they are discarded (no hole is ever joined).
     case ACTION.LAKE_HIT: return applyLocal(state, action, ctx, 'lake')
+    // The on-device store's copy: an unstamped local copy under the lake's join rules (applyLocal).
+    case ACTION.DEVICE_HIT: return applyLocal(state, action, ctx, 'device')
     case ACTION.MEM_HIT: return applyLocal(state, action, ctx, 'mem')
     case ACTION.REST_FULL: return _notLakeOnly(state, applyRest(state, action, ctx, 'full'))
     case ACTION.REST_DELTA: return _notLakeOnly(state, applyRest(state, action, ctx, 'delta'))

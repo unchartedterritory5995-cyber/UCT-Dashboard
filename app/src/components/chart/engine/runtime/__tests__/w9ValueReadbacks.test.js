@@ -20,6 +20,8 @@ import { BROKER_RULES } from '../brokerRules.js'
 import { pinned } from '../brokerPins.js'
 import { strategyRecordOf, witnessedExitIdOf, WITNESSED_EXIT_ID_RULES, exitIdOf } from '../strategyRecord.js'
 import { strategyReportOf, REPORT_UNSTATED_GUARD } from '../brokerReport.js'
+import BROKER_PINS from '../brokerPins.json'
+import { V4_MARGIN0_SHAPES } from '../../ast/strategyBroker.js'
 
 const SYMBOL = { ticker: 'RDDT', exchange: 'NYSE' } // mintick 0.01, pointvalue 1
 const T0 = 1700000000
@@ -447,10 +449,37 @@ describe('ruling D12: a Pine v4 strategy that states no margin stops at bind, by
     expect(ok.rec.rulesUsed).toContain('B-V4-MARGIN0')
     const un = attempt(V4OV(''), { pins: (id) => id !== 'B-V4-MARGIN0' })
     expect(un.err && un.err.rule).toBe('B-V4-MARGIN0')
-    // one more argument is another shape: D12's bind refusal, unchanged
-    for (const extra of [', shorttitle = "s"', ', pyramiding = 1', ', initial_capital = 100000']) {
+    // one more argument is another shape: D12's bind refusal, unchanged (a `shorttitle` alone is the shape
+    // w9-q-s1b-v4-shape-a settles since 2026-11-19, below)
+    for (const extra of [', pyramiding = 1', ', initial_capital = 100000', ', shorttitle = "s", pyramiding = 1']) {
       expect(attempt(V4OV(extra)).err.setting, extra).toBe(V4_MARGIN_DEFAULT_SETTING)
     }
+  })
+
+  // ⭐⭐ D12b point 4 (2026-11-19, the strategy unit): two more shapes, each settled by its own committed report capture
+  // reading back Margin Long 0 and Margin Short 0 and grading MATCH at it (`ast/strategyBroker.js` V4_MARGIN0_SHAPES)
+  it('D12b point 4: the shapes of w9-q-s1b-v4-shape-a (+ shorttitle) and -b (+ commission, size, capital) run at margin 0', () => {
+    const SH = (decl) => `//@version=4\nstrategy(${decl})\nstrategy.entry("L", true, when = bar_index == 1)\nplot(strategy.position_size)\n`
+    for (const decl of ['title = "t", overlay = false, shorttitle = "s"', '"t", "s", overlay = true',
+      'title = "t", overlay = false, commission_type = strategy.commission.cash_per_contract, commission_value = 0.00003, '
+        + 'default_qty_value = 2, initial_capital = 1000']) {
+      const ok = served(SH(decl))
+      expect(ok.rec.rulesUsed, decl).toContain('B-V4-MARGIN0')
+      expect(ok.cols[0][2], decl).toBeGreaterThan(0)
+    }
+    // the shape is the ARGUMENT SET: shape b without its capital is no witnessed shape
+    expect(attempt(SH('title = "t", overlay = false, commission_type = strategy.commission.cash_per_contract, '
+      + 'commission_value = 0.00003, default_qty_value = 2')).err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
+  })
+
+  it('RAIL: every witnessed v4 shape names captures `brokerPins.json` lists for B-V4-MARGIN0, and the ledger pins it', () => {
+    const fixtures = new Set(BROKER_PINS.rules['B-V4-MARGIN0'])
+    for (const [shape, ids] of Object.entries(V4_MARGIN0_SHAPES)) {
+      expect(ids.length, shape).toBeGreaterThan(0)
+      for (const id of ids) expect(fixtures.has(id), `${shape}: ${id}`).toBe(true)
+    }
+    expect([...fixtures].sort()).toEqual(Object.values(V4_MARGIN0_SHAPES).flat().sort())
+    expect(pinned('B-V4-MARGIN0')).toBe(true)
   })
 
   it('ONE margin stated is still not both: it stops the same way', () => {

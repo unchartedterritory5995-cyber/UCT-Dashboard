@@ -160,6 +160,19 @@ describe('A. the route predicts from what this tab measured; bounded, per tab, n
     expect(computesOnMain('fred', '5', 1152)).toBe(true)
   })
 
+  // ⭐⭐ (switch smoothness, 2026-11-20) measured: Fred RS measured on 1D was predicted cheap for its first 5m paint
+  // (doubled, at or under the budget) and that paint cost 73 ms of values on the main thread
+  it('⛔ another timeframe\'s measurement, however cheap, never routes THIS timeframe to the main thread', () => {
+    learnCost('fred', 'D', 668, 10)
+    expect(predictedMs('fred', '5', 600), 'the doubled prediction is under the budget').toBeLessThanOrEqual(HOST_MAIN_BUDGET_MS)
+    expect(computesOnMain('fred', '5', 600), 'measured only on D: the worker measures 5m').toBe(false)
+    expect(computesOnMain('fred', 'D', 600), 'its own timeframe, measured cheap').toBe(true)
+    learnCost('fred', '5', 600, 20)
+    expect(computesOnMain('fred', '5', 600), 'once measured on 5m, cheap there').toBe(true)
+    // a document never measured in this tab keeps its first paint on the main thread, as before
+    expect(computesOnMain('never', '5', HOST_UNMEASURED_MAIN_ROWS)).toBe(true)
+  })
+
   it('two passes of one size keep the dearer cost per row; a size within 10% is the same size', () => {
     learnCost('d', 'D', 1000, 20)
     learnCost('d', 'D', 1050, 10)
@@ -212,6 +225,26 @@ describe('B. the route through the door', () => {
     const deep = registry.computeFor(def, barsOf(DAILY.slice(-3000)), undefined, paneCtx(CTX_D))
     expect(isHostLanePending(deep)).toBe(false)
     expect(hostLaneStats().posted).toBe(0)
+  })
+
+  it('⭐⭐ a timeframe switch: measured cheap on 1D, its first 60m paint goes to the worker, and draws the same values', () => {
+    __setHostLaneCostClockForTests(CHEAP_CLOCK)
+    const def = doorDef(CHEAP)
+    const daily = registry.computeFor(def, barsOf(DAILY.slice(-600)), undefined, paneCtx(CTX_D))
+    expect(isHostLanePending(daily)).toBe(false)
+    expect(hostLaneStats().mainComputed).toBe(1)
+    // the switch: the same pane, another timeframe, a first paint's rows
+    const hourly = barsOf(HOURLY.slice(-600))
+    const first = registry.computeFor(def, hourly, undefined, paneCtx(CTX_60))
+    expect(isHostLanePending(first), 'a timeframe this tab never measured stayed on the main thread').toBe(true)
+    expect(hostLaneStats().posted).toBe(1)
+    expect(hostLaneStats().mainComputed).toBe(1)
+    const landed = settled(def, hourly, paneCtx(CTX_60))
+    expect(firstDifference(registry.computeFor(def, hourly, undefined, { ...CTX_60 }), landed)).toBeNull()
+    // measured there (cheap), the next 60m first paint is computed on the main thread
+    const next = registry.computeFor(def, barsOf(HOURLY.slice(-601, -1)), undefined, paneCtx(CTX_60))
+    expect(isHostLanePending(next)).toBe(false)
+    expect(hostLaneStats().mainComputed).toBe(2)
   })
 
   it('a deep history this tab has not measured goes to the worker', () => {

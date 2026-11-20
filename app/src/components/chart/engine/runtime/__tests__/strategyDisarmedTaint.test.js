@@ -135,8 +135,11 @@ describe('a broker run refused by name: the stand-in run draws exactly what no b
   })
   afterEach(() => { vi.unstubAllEnvs(); __resetRuntimeAllowList(); __resetRuntimeAdmission() })
 
-  for (const [sym, guard, rule] of [['rddt', 'runtime:strategy-unpinned', 'B-EXIT-NA'], ['spy', 'runtime:strategy-unsettled', 'Q-S1n']]) {
-    it(`⭐ macd-shortlong on ${sym.toUpperCase()} daily (its ORDER logic reads the broker; refused ${rule}): its six plots are drawn, equal to what the member sees today`, () => {
+  // ⭐ (2026-11-19, the strategy unit) on RDDT its backtest is SERVED now: B-EXIT-NA, B-QTY-REVERSE-M0 and B-ROUND-LEVEL
+  // are pinned by its own in-session report capture (macd-shortlong-strategy-is-rddt-1d-2026-11-18, MATCH). The rail still
+  // holds the same six plots, equal to the host lane's, beside the served backtest; SPY keeps the refusal it tests.
+  for (const [sym, guard, rule] of [['rddt', null, null], ['spy', 'runtime:strategy-unsettled', 'Q-S1n']]) {
+    it(`⭐ macd-shortlong on ${sym.toUpperCase()} daily (its ORDER logic reads the broker; ${rule ? `refused ${rule}` : 'served'}): its six plots are drawn, equal to what the member sees today`, () => {
       const cap = MACD[sym]
       const source = cap.source.text
       const today = memberColumns(source, cap, { admitted: false })
@@ -146,8 +149,13 @@ describe('a broker run refused by name: the stand-in run draws exactly what no b
       // the backtest alone is refused, by the broker's own name
       const rec = runtimeStrategyOf(now.cols)
       expect(rec, 'no strategy record: the broker refusal took the plots with it').toBeTruthy()
-      expect(rec.refusals).toEqual([expect.objectContaining({ guard, rule })])
-      expect(rec.refusals[0].sentence).toMatch(/The script's plots are drawn\.$/)
+      if (rule) {
+        expect(rec.refusals).toEqual([expect.objectContaining({ guard, rule })])
+        expect(rec.refusals[0].sentence).toMatch(/The script's plots are drawn\.$/)
+      } else {
+        expect(rec.refusals || []).toEqual([])
+        expect(rec.trades.length).toBeGreaterThan(5)
+      }
       expect(columnErrors(now.cols)).toEqual({})
       for (const t of MACD_TITLES) {
         const k = keyOf(now.d, t)

@@ -33,21 +33,23 @@ import {
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
-  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
+  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan, settledRequestFunctionOf,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
   legacyPeriodUndeclared, legacyPeriodRefusal,
+  TEXT_FORMAT_FLAGS, canonicalTextFormat,
   selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars, neverNaBoolNamesOf, isBoolishTree,
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
-  carryShapeVersion,
+  carryShapeVersion, beginPaletteScope, endPaletteScope,
 } from './pine.js'
 import { CLOCK_REALTIME } from '../../indicators.js'
 import { clockColumnsOf } from '../clockMemo.js'
 // ⭐⭐ L1 — an imported library's exports are linked in as the script's own.
 import { importLinesOf, linkLibraries, remapLibraryLocation } from './pineLibraries.js'
 import { versionAt, RUNTIME_ISLAND_FAMILIES, LIBRARY_VERSION } from './pineLibraryVersion.js'
+import { versionObjectDefaults } from '../objectDefaults.js'
 import { TABLE, isPointwise, BIND_TIME_CLOCK } from './parse.js'
 import { barConstantTree } from './barConstant.js'
 import { roundToMintickTree } from './tickRound.js'
@@ -1758,7 +1760,22 @@ function bindConstsReporting(consts, onRead) {
   })
 }
 
+/** ⭐⭐ (finding 4, 2026-11-20) THE PALETTE SCOPE. This lane reaches `pine.js`'s colour helpers through the shared
+ *  `Resolver` (`color.r(color.red)`, `color.t(color.new(c, 30))`, a colour constant bound to a name), and a colour name
+ *  is resolved at the script's own `//@version` (`pine.js` PALETTE_VERSION: `color.red` is #FF5252 at v5, #F23645 at
+ *  v6). The translation opens that scope for the host lane; this lane opened none, so each such read threw and the
+ *  whole script stopped as `runtime:lower` (an engine defect). The scope opens once the script is lexed (its version
+ *  known) and the previous one is restored however the build ends. */
 function buildRuntimeIrLinked(source, opts, holder) {
+  const palette = { opened: false, prior: undefined }
+  try {
+    return buildRuntimeIrLinkedInScope(source, opts, holder, palette)
+  } finally {
+    if (palette.opened) endPaletteScope(palette.prior)
+  }
+}
+
+function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   const bars = opts.bars || []
   const inputs = opts.inputs || {}
   // ⭐⭐⭐ THE OBJECT DOOR GATE (Phase 3 audit, 2026-11-01). The C18 object runtime
@@ -1951,6 +1968,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
   lexed = linkLibraries(lexed, opts, { lexPine, blockStatements, islandFamilies: RUNTIME_ISLAND_FAMILIES })
   holder.link = lexed.libraryLink || null
   const { tokens, indents, version } = lexed
+  palette.prior = beginPaletteScope(version)
+  palette.opened = true
 
   /** ⭐ W4 T1 — the alias of every `import … as <alias>` the member wrote, read from
    *  the tokens as lexed (`unlinked`: the linker removes the line of a library it
@@ -1963,8 +1982,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ W4 T1 — the v1–v4 spellings of a data request (`request.*` from v5). */
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
   /** ⭐ Engine 66 (#1473) (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
-   *  the migration guide's `math` table renames `avg()` to `math.avg()`. */
-  const LEGACY_MATH_CALL_TREE = new Set(['avg'])
+   *  the migration guide's `math` table renames `avg()` to `math.avg()`, and (U-BUILTIN B2) `toradians()` /
+   *  `todegrees()` to `math.toradians()` / `math.todegrees()`. */
+  const LEGACY_MATH_CALL_TREE = new Set(['avg', 'toradians', 'todegrees'])
 
   let stmts
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
@@ -2535,6 +2555,68 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  hold `na`. A number, a string or a colour is no bool and crosses unchanged. Each element of a tuple is asked. */
   const ISLAND_BOOL_BUILTINS = new Set(['crossover', 'crossunder', 'cross', 'rising', 'falling',
     'ta.crossover', 'ta.crossunder', 'ta.cross', 'ta.rising', 'ta.falling'])
+  /** ⭐⭐ (island PR 2, bool na judged per token) do these type words hold a `bool` anywhere (the word itself, a
+   *  record's fields, transitively; a cycle through `seen` answers no for the repeat)? */
+  const typeWordsHoldBool = (name, args, seen = new Set()) => {
+    for (const part of [name, ...(Array.isArray(args) ? args : [])]) {
+      for (const w of String(part == null ? '' : part).split(/[^\w.]+/)) {
+        if (w === 'bool') return true
+        if (udtTypes.has(w) && !seen.has(w)) {
+          seen.add(w)
+          if ((udtTypes.get(w).fields || []).some((f) => typeWordsHoldBool(f.type, f.typeArgs, seen))) return true
+        }
+      }
+    }
+    return false
+  }
+  /** Can a value of this collection or record type hold a `bool` (its elements, its fields)? A record type this lane
+   *  does not know may. ⚠️ A collection whose element type this lane never inferred (`array.from(1.0, x)`) is read as
+   *  holding none: refusing those would refuse every untyped float array a library hands back. */
+  const refTyHoldsBool = (ty, d = 0) => {
+    if (!ty) return false
+    if (d > 16) return true
+    if (ty.kind === 'bool') return true
+    if (isCollectionTy(ty)) return refTyHoldsBool(elemTy(ty), d + 1)
+    const u = udtNameOf(ty)
+    return u ? (!udtTypes.has(u) || typeWordsHoldBool(u, null)) : false
+  }
+  const isRefTy = (ty) => !!ty && (isCollectionTy(ty) || !!udtNameOf(ty))
+  /** The element type word a collection slot was CREATED with (`map.new<string, bool>()`'s `bool`, `array.new<T>`,
+   *  `array.new_bool`), read off its creating statement in any function, or null. A slot bound without a written type
+   *  (`m = map.new<string, bool>()`) carries no element type of its own; its creating call does (`typeArg`). */
+  const createdElemWordOf = (slot) => {
+    let word = null
+    const visit = (n, d = 0) => {
+      if (word !== null || !n || typeof n !== 'object' || d > 64 || ArrayBuffer.isView(n)) return
+      if (Array.isArray(n)) { for (const x of n) visit(x, d + 1); return }
+      if ((n.kind === STMT.DECLARE || n.kind === STMT.ASSIGN) && n.slot === slot && n.value && n.value.kind === EXPR.ARRAY) {
+        const m = /^(array|matrix|map)\.new(?:_([a-z]+))?$/.exec(String(n.value.fn))
+        if (m) { const parts = String(n.value.typeArg || m[2] || '').split(','); word = parts[parts.length - 1].trim() || null; return }
+      }
+      for (const x of Object.values(n)) if (x && typeof x === 'object') visit(x, d + 1)
+    }
+    for (const f of functions) { visit(f && f.body); if (word !== null) break }
+    return word
+  }
+  /** Can the collection or record a slot holds hold a `bool`? */
+  const slotHoldsBool = (slot) => {
+    const ty = slotTy(slot)
+    if (isCollectionTy(ty) && !elemTy(ty)) { const w = createdElemWordOf(slot); return w ? typeWordsHoldBool(w, null) : false }
+    return refTyHoldsBool(ty)
+  }
+  /** The record type a lowered expression reads (a record slot, or a record field of one), or null. */
+  const recordTypeOf = (x, d = 0) => {
+    if (!x || d > 16) return null
+    if (x.kind === EXPR.READ) return udtNameOf(slotTy(x.slot))
+    if (x.kind === EXPR.FIELD) { const f = recordFieldOf(x, d + 1); return f && udtTypes.has(f.type) ? f.type : null }
+    return null
+  }
+  const recordFieldOf = (x, d = 0) => {
+    const u = recordTypeOf(x.of, d + 1)
+    return u && udtTypes.has(u) ? ((udtTypes.get(u).fields || []).find((f) => f.name === x.name) || null) : null
+  }
+  /** The collection calls that hand back an element or a collection of them (never a count or an index). */
+  const COLLECTION_HANDS_ELEMENTS = /\.(get|first|last|pop|shift|remove|max|min|median|mode|values|keys|copy|slice|concat|row|col|submatrix)$/
   const islandNaBoolResult = (e, d = 0, seen = new Set()) => {
     if (!e || typeof e !== 'object' || d > 64) return null
     const CMP = ['<', '>', '<=', '>=', '==', '!=']
@@ -2543,7 +2625,24 @@ function buildRuntimeIrLinked(source, opts, holder) {
     const boolSlot = (x) => !!x && x.kind === EXPR.READ && (slotTy(x.slot) || {}).kind === 'bool'
     switch (e.kind) {
       case EXPR.BINARY: return CMP.includes(e.op) && !(known(e.left) && known(e.right)) ? 'a comparison' : null
+      // ⭐⭐ (island PR 2) a v5 library's bool can be `na` on its own lane now (bool na is judged per token), so one
+      // held in a collection or a record crosses too: the collection or record handed back, an element read out of
+      // one, a record's `bool` field. (A count, an index or a size is no bool.)
+      case EXPR.ARRAY: {
+        if (!COLLECTION_HANDS_ELEMENTS.test(String(e.fn))) return null
+        const recv = Array.isArray(e.args) ? e.args[0] : null
+        const ty = recv && recv.kind === EXPR.READ ? slotTy(recv.slot) : null
+        const fld = recv && recv.kind === EXPR.FIELD ? recordFieldOf(recv) : null
+        // a receiver this lane cannot type at all may hold one
+        const holds = isRefTy(ty) ? slotHoldsBool(recv.slot) : fld ? typeWordsHoldBool(fld.type, fld.typeArgs) : true
+        return holds ? 'a value read from a collection that can hold a `bool`' : null
+      }
+      case EXPR.FIELD: {
+        const f = recordFieldOf(e)
+        return !f || typeWordsHoldBool(f.type, f.typeArgs) ? 'a record field that can hold a `bool`' : null
+      }
       case EXPR.READ:
+        if (isRefTy(slotTy(e.slot))) return slotHoldsBool(e.slot) ? 'a collection or record that can hold a `bool`' : null
         return boolSlot(e) && !(slots[e.slot] && neverNaBoolNames.has(slots[e.slot].name)) ? 'a `bool` variable' : null
       case EXPR.HIST: return islandNaBoolResult(e.of, d + 1, seen) || (boolSlot(e.of) ? 'the history of a `bool`' : null)
       case EXPR.TERNARY: return islandNaBoolResult(e.then, d + 1, seen) || islandNaBoolResult(e.else, d + 1, seen)
@@ -2562,8 +2661,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       default: return null
     }
   }
-  const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null) => {
-    const v = pineVersion === null ? 1 : pineVersion
+  // ⭐⭐ the version island (bool na): the operator a v5 library writes inside a v6 script is judged under v5
+  // (`versionAt` at its token, `tok`), so its `na` bool is asked as a v5 script's is
+  const boolNaOnThisLane = (op, l, r, at, pineL = null, pineR = null, tok = null) => {
+    const atVersion = versionAt(tok, pineVersion)
+    const v = atVersion === null ? 1 : atVersion
     if (!(v <= 5)) return
     if (op !== '==' && op !== '!=') return
     const known = (x) => !!x && ((x.kind === EXPR.NUM && Number.isFinite(x.value))
@@ -2598,7 +2700,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       .filter(([side, other]) => !neverNaBool(side) && (mayBeNaBool(side) || pineLit(other)))
       .map(([side]) => side)
     if (!sides.length) return
-    return { sides, at, message: `\`${op}\` over a comparison that can be \`na\` (Pine v${v === 1 && pineVersion === null ? '1, no //@version' : v})` }
+    return { sides, at, message: `\`${op}\` over a comparison that can be \`na\` (Pine v${v === 1 && atVersion === null ? '1, no //@version' : v})` }
   }
   /** The `== true / false` sites `boolNaOnThisLane` deferred, each with its lowered node. */
   const boolNaDeferred = []
@@ -2620,7 +2722,6 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  discarded leaves its site behind). */
   const boolNaFaithfulness = (mainStatements) => {
     if (!boolNaDeferred.length && !boolNaReads.length) return null
-    const v = pineVersion === null ? 1 : pineVersion
     const STMT_KINDS = new Set(Object.values(STMT))
     const writes = new Map()
     const opaque = new Set()
@@ -2788,7 +2889,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
       if (!reached.has(site.node)) continue
       if (boolish(site.x) && !keeps(site.x, keepsSlot, neverSlot)) {
         return new RuntimeRefusal(BOOL_NA_UNWITNESSED,
-          `\`na()\` of a \`bool\` that can be \`na\` (Pine v${v === 1 && pineVersion === null ? '1, no //@version' : v}): this lane holds its \`na\` as false`, site.at)
+          `\`na()\` of a \`bool\` that can be \`na\` (Pine v${site.version === null ? '1, no //@version' : site.version}): this lane holds its \`na\` as false`, site.at)
       }
     }
     return null
@@ -2855,6 +2956,15 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // own build where that stands, else a decline under this refusal.
   // Absent on every other build, whose options stay byte-identical.
   const objectDoorOpts = (atObjectDoor || objectsInRun) ? { objectDoor: true } : {}
+  /** ⭐⭐ (request unit PR 2, engine 90) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THE REQUEST-TIMEFRAME READER
+   *  ALONE (`pine.js::Resolver.requestSettledFunctions` → `throughSettledCall`). This lane's resolver environment
+   *  holds pure expression bindings and no user function, so `request.security(ticker, timeframe_func(), …)` (Saty
+   *  ATR Levels) was unreadable here. Each function's own kept body (`inlineBodyByName`), read through
+   *  `pine.js::settledRequestFunctionOf` (an expression body, or `x = '<text>'` + one `if` chain of `x := '<text>'`;
+   *  anything else `{refused}`, named at the request it stops: `settledCallWhy`), in the scope of the names the
+   *  script bound BEFORE the function (`settledDefEnvByName`, a snapshot taken at its definition). Memoised per name
+   *  (one object per function, so a recursion is caught by the reader's stack). */
+  const settledFunctions = { get: (name) => settledFunctionNamed(name), alias: (name) => settledAliasNamed(name) }
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
@@ -2872,8 +2982,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
       // ruling 3.5 keep their refusals there).
       aboveDailyReads: true,
       ...objectDoorOpts,
+      // ⭐⭐ (request unit, TF-FOLD, engine 89) — a request's timeframe is read with the runtime lane's reach
+      // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms, and (PR 2) a script function's settled
+      // result, `settledFunctions`). ⛔ The HOST translator never sets either.
+      requestTimeframeReader: 'runtime',
+      requestSettledFunctions: settledFunctions,
+      // ⭐⭐ (request unit PR 2, EXT-OWN, engine 90) — the chart's own symbol on the extended session, at the
+      // chart's own daily timeframe on a daily chart, is the chart's own daily bars (`pine.js::extendedOwnTickerOf`),
+      // graded on Saty ATR Levels' captures. ⛔ The HOST translator never sets it.
+      requestExtendedOwn: 'daily-identity',
     }
-    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts }
+    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime',
+      requestSettledFunctions: settledFunctions, requestExtendedOwn: 'daily-identity' }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
@@ -3576,11 +3696,54 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   // RT5: an expression that picks a drawing enum (`c ? extend.right : extend.none`)
   // is a string the drawing layer reads, never a column.
+  // ⭐ U-BUILTIN B6 (2026-11-19) — AND SO DOES A NAME BOUND TO ONE. session-tpo-profile writes
+  // `ext = extend_levels ? extend.right : extend.none` and then `line.new(…, extend = ext)`: the
+  // binding is absorbed by the `env` macro path, so the argument arrived as the bare name `ext`, this
+  // test answered "no enum", and the columnar lane was asked to resolve the ternary and refused
+  // `pine:builtin` ("the engine grammar does not hold `extend.right`") about a constant the drawing
+  // layer holds (`objectEnums.js`). The binding is read through, as `holdsColour` reads one; a name
+  // already being read answers false (its cycle guard).
+  const enumNamesInFlight = new Set()
   const containsObjectEnum = (n) => {
     if (!n || typeof n !== 'object') return false
-    if (n.type === 'name') return objectEnumValue(n.name) !== undefined && !env.has(n.name)
+    if (n.type === 'name') {
+      if (objectEnumValue(n.name) !== undefined && !env.has(n.name)) return true
+      const bound = env.get(n.name)
+      if (!bound || bound.kind !== 'expr' || enumNamesInFlight.has(n.name)) return false
+      enumNamesInFlight.add(n.name)
+      try { return containsObjectEnum(bound.node) } finally { enumNamesInFlight.delete(n.name) }
+    }
     return Object.values(n).some((v) => (Array.isArray(v) ? v.some(containsObjectEnum)
       : (v && typeof v === 'object' && v.type ? containsObjectEnum(v) : false)))
+  }
+  /** ⭐ U-BUILTIN B7 (2026-11-19) — THE FLAGS A `text_format` EXPRESSION NAMES, or `null`. Pine's one
+   *  constant family that adds (`text.format_bold + text.format_italic`; `pine.js::TEXT_FORMAT_FLAGS`
+   *  says why `+`): a constant, a sum of them, or a name bound to either, read exactly as the host
+   *  object pass reads it (`textFormatFlags`), so the two lanes write the same canonical value
+   *  (`canonicalTextFormat`: `'bold_italic'`). The runtime lane had the single constant (an object enum)
+   *  and lowered the SUM as a text concatenation, `"bolditalic"`. Anything else answers `null` and is
+   *  lowered as before. */
+  const textFormatNamesInFlight = new Set()
+  const textFormatFlagsOf = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 8) return null
+    if (n.type === 'paren' && n.expr) return textFormatFlagsOf(n.expr, depth + 1)
+    if (n.type === 'name') {
+      if (Object.hasOwn(TEXT_FORMAT_FLAGS, n.name) && !env.has(n.name)) {
+        const f = TEXT_FORMAT_FLAGS[n.name]
+        return f === null ? [] : [f]
+      }
+      const bound = env.get(n.name)
+      if (!bound || bound.kind !== 'expr' || textFormatNamesInFlight.has(n.name)) return null
+      textFormatNamesInFlight.add(n.name)
+      try { return textFormatFlagsOf(bound.node, depth + 1) } finally { textFormatNamesInFlight.delete(n.name) }
+    }
+    if (n.type === 'binary' && n.op === '+') {
+      const a = textFormatFlagsOf(n.left, depth + 1)
+      if (!a) return null
+      const b = textFormatFlagsOf(n.right, depth + 1)
+      return b ? [...a, ...b] : null
+    }
+    return null
   }
   // The host object lane's own split, one authority: a top-level comma between
   // statements with no block beneath (never a definition, never inside brackets).
@@ -4655,8 +4818,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  conditions the lowering uses one screen down before it emits `naValue()`.
    *  Two places deciding what `na` means, by different rules, is exactly
    *  `lesson_a_second_authority_over_one_value`; these agree by construction. */
-  const isBuiltinNa = (node, scope) => !!node && node.type === 'name'
+  const isPlainNa = (node, scope) => !!node && node.type === 'name'
     && node.name === 'na' && scope.lookup('na') === null && !env.has('na')
+  /** ⭐⭐ U-BUILTIN B4 (2026-11-19) — `color(na)` IS `na`. The reference (v5 and v6, `color()`): "Casts
+   *  na to color", "The value of the argument after casting to color": the cast changes the TYPE and
+   *  nothing else, exactly as DRAW-1's `box(na)` is `na` (`drawingCastFamily`). So wherever this lane
+   *  asks "is this Pine's own `na`?" it is asked of the cast too (`isBuiltinNa`, below), it is lowered
+   *  as the `na` it holds (the call arm), it is never handed to the columnar lane, which has no
+   *  `color` function and refused it `pine:function` (`holdsColourNaCast`, the route), and a name
+   *  bound to it is colour-typed as `color c = na` is (`colours.js::colourTypedNamesOf`). A plot's own
+   *  `color = color(na)` therefore meets exactly what `color = na` meets. ⛔ Only `na` itself, by
+   *  position, and only when the script defines no `color` of its own. */
+  const colourNaCast = (node, scope) => !!node && node.type === 'call' && node.name === 'color'
+    && !definedNames.has('color') && !isUserFn('color')
+    && Array.isArray(node.args) && node.args.length === 1 && !!node.args[0] && !node.args[0].name
+    && isPlainNa(node.args[0].value !== undefined ? node.args[0].value : node.args[0], scope)
+  const isBuiltinNa = (node, scope) => isPlainNa(node, scope) || colourNaCast(node, scope)
+  /** ⭐ U-BUILTIN B4 — a `color(na)` anywhere in this subtree: the route decision asks it, as it asks
+   *  `holdsDrawingCast`, so the columnar lane is never asked about the cast. */
+  const holdsColourNaCast = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (colourNaCast(node, scope)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond', 'recv', 'expr']) {
+      if (holdsColourNaCast(node[k], scope, depth + 1)) return true
+    }
+    return Array.isArray(node.args)
+      && node.args.some((a) => holdsColourNaCast(a && a.value !== undefined ? a.value : a, scope, depth + 1))
+  }
 
   /** ⭐ TC — the immutable bindings `holdsColour` is reading through right now (its cycle guard; see
    *  the name arm below). `touchesColour` and `fractionalColourIn` keep their own sets. */
@@ -5036,6 +5224,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   // a comma line stay as master had them. Rails: `p3WsaDarkGate.test.js`.
   let objectOpsLowered = 0
   const RUN_DRAW_CALL = /^(line|label|box|table|linefill)\.([a-z_0-9]+)$/
+  /** ⭐⭐ the version island (object defaults): the calls whose unset colour slots a v5 library draws in v5's
+   *  witnessed defaults (`objectDefaults.js` VERSION_DEFAULTS), and the family each one's defaults are read under. */
+  const ISLAND_DEFAULT_FAMILIES = Object.freeze({ 'label.new': 'label', 'box.new': 'box', 'table.cell': 'cell' })
   const refuseObject = (what, why, tok) => {
     note('runtime:object-op')
     throw new RuntimeRefusal('runtime:object-op', `\`${what}\` — ${why}`, locate(tok))
@@ -5195,6 +5386,23 @@ function buildRuntimeIrLinked(source, opts, holder) {
         refuseObject(fn, 'a `chart.point` coordinate is not one this lane carries', tok)
       }
       slotsOf[at] = lowerExpr(v, scope)
+    }
+    // ⭐⭐ the version island (object defaults, island PR 3): a `label.new` / `box.new` / `table.cell` a v5 library
+    // writes inside a v6 script draws v5's default colour for a slot it leaves unset (`objectDefaults.js`
+    // VERSION_DEFAULTS, each from a v5 capture), as the same library in a v5 script does. The run's objects are
+    // drawn at the PROGRAM's version (`objectRenderState.js::objectDefaultsFor`), so the call carries the island's
+    // default itself, as if the library had written it. Every other call keeps its exact shape.
+    const objectVersion = versionAt(tok, pineVersion)
+    const islandFamily = ISLAND_DEFAULT_FAMILIES[fn]
+    if (islandFamily && objectVersion !== pineVersion && Number.isFinite(objectVersion)) {
+      const mine = versionObjectDefaults(objectVersion)[islandFamily] || {}
+      const theirs = versionObjectDefaults(pineVersion)[islandFamily] || {}
+      params.forEach((p, k) => {
+        if (slotsOf[k] !== null || mine[p] === undefined || mine[p] === theirs[p]) return
+        const packed = objectHexToPacked(mine[p])
+        if (packed === null) refuseObject(fn, `its Pine v${objectVersion} default \`${p}\` is not a colour this lane can carry`, tok)
+        slotsOf[k] = num(packed)
+      })
     }
     objectOpsLowered += 1
     // ⭐⭐ ENGINE 54 — a call that MAKES a drawing (`.new`, `.copy`) carries its source call
@@ -6727,6 +6935,30 @@ function buildRuntimeIrLinked(source, opts, holder) {
     return false
   }
 
+  /** ⭐⭐ (request unit PR 2) — `reachesSlotThroughEnv` for a request's TIMEFRAME argument, where a call to the
+   *  script's own function the request reader reads settled (`settledFunctions`: not refused) is not a slot read in
+   *  itself: what it reads is its arguments (checked here, as any argument is) and the names bound before it, which
+   *  are this `env`'s pure bindings (a name the script reassigns never enters `env`, so a body reading one is not
+   *  settled by the reader). ⛔ Every other shape answers exactly as `reachesSlotThroughEnv`. */
+  const tfReachesSlot = (node, scope) => {
+    // a name this lane holds per bar, bound once to such a call (`settledAliasNamed`), is that call: the TOP-LEVEL
+    // name only (a block or a frame here that declares the same name shadows it, and that is a slot read)
+    if (node && node.type === 'name') {
+      let aliased = null
+      try { aliased = settledAliasNamed(node.name) } catch { aliased = null }
+      if (aliased && scope && scope.lookup(node.name) !== root.lookup(node.name)) return true
+      if (aliased) node = aliased
+    }
+    if (node && node.type === 'call' && typeof node.name === 'string' && inlineBodyByName.has(node.name)) {
+      let s = null
+      try { s = settledFunctionNamed(node.name) } catch { s = null }
+      if (s && !s.refused) {
+        return (node.args || []).some((a) => reachesSlotThroughEnv(a && a.value !== undefined ? a.value : a, scope))
+      }
+    }
+    return reachesSlotThroughEnv(node, scope)
+  }
+
   /** ⭐ C23 — could evaluating this argument change anything the run holds?
    *  True for a call to a user function (it may push into a global array or set
    *  a drawing) and for any call outside the VALUE builtins — a collection, map,
@@ -6975,6 +7207,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
     try {
       built = BUILTIN_CALL_TREE[bare](given.map((_, k) => ({ type: 'series', name: `${HOLE}${k}` })))
     } catch { return null }
+    // ⭐ U-BUILTIN B2 — a builder that declines this call's shape (`math.toradians(a, b)`) is refused
+    // by name here, as the host lane's `resolveTableCall` refuses it, never handed on to be called an
+    // undeclared builtin.
+    if (built === null) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${name}\` takes ${bare === 'toradians' || bare === 'todegrees' ? 'one angle' : 'other arguments'}, `
+        + `given ${given.length}`, at)
+    }
     const ARITH = new Set(['+', '-', '*', '/'])
     const toParse = (c) => {
       if (!c || typeof c !== 'object') return null
@@ -7183,6 +7423,72 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** name → a function body kept as an AST, so a call site can lower it in the
    *  CALLER's context when the shared frame will not do. */
   const inlineBodyByName = new Map()
+  /** ⭐⭐ (request unit PR 2) — name → the names the script had bound when it defined that function (`env`, copied
+   *  at the definition): the scope `settledFunctions` reads a settled body in. Pine lets a body read only names
+   *  declared before it. */
+  const settledDefEnvByName = new Map()
+  /** name → its settled record (`settledRequestFunctionOf`, with its definition's scope), memoised. */
+  const settledByName = new Map()
+  /** ⭐⭐ (request unit PR 2) — `settledFunctions.get`: null for a name this script did not define with a kept body. */
+  function settledFunctionNamed(name) {
+    if (settledByName.has(name)) return settledByName.get(name)
+    const inl = inlineBodyByName.get(name)
+    if (!inl) return null
+    const s = settledRequestFunctionOf(inl)
+    const rec = s.refused ? s : { ...s, env: settledDefEnvByName.get(name) || null }
+    settledByName.set(name, rec)
+    return rec
+  }
+  /** ⭐⭐ (request unit PR 2) — `settledFunctions.alias`: the call a top-level name is bound to, where the request
+   *  reads that name (`alignedTF = getAlignedTimeframe()`, TehThomas) and this lane holds it per bar (a call to the
+   *  script's own function is a slot here, never an `env` macro). Only a name declared ONCE, at the top level, as
+   *  `NAME = f(…)` (positional arguments, `f` a function this script defined with a kept body), never reassigned
+   *  (`mut`) and not an `env` binding: its value on every bar IS that call's, so where the call settles, the name
+   *  settles to the same text. Anything else is null and the request reads as it did. */
+  let settledAliases = null
+  function settledAliasNamed(name) {
+    if (!settledAliases) {
+      settledAliases = new Map()
+      const declaredAt = new Map()
+      for (const st of stmts) {
+        const h = st.header || []
+        if (!h.length || (st.sub && st.sub.length) || declarationPersists(h)) continue
+        if (h.some((x) => isPunct(x, ':=') || isPunct(x, '=>'))) continue
+        const eq = findTop(h, (x) => isPunct(x, '='))
+        const nt = eq >= 1 ? boundName(h, eq) : null
+        if (!nt) continue
+        declaredAt.set(nt.value, (declaredAt.get(nt.value) || 0) + 1)
+        let v = null
+        try { v = parseWholeExpression(h.slice(eq + 1)) } catch { v = null }
+        if (v && v.type === 'call' && typeof v.name === 'string' && (v.args || []).every((a) => a && !a.name)) {
+          settledAliases.set(nt.value, v)
+        }
+      }
+      for (const n of [...settledAliases.keys()]) if (declaredAt.get(n) !== 1) settledAliases.delete(n)
+    }
+    const call = settledAliases.get(name) || null
+    if (!call || mut.mutated.has(name) || env.has(name) || !inlineBodyByName.has(call.name)) return null
+    return call
+  }
+  /** ⭐⭐ (request unit PR 2) — WHY a request's timeframe written as a call to this script's function (directly, or
+   *  through a plain name bound to that call: `alignedTF = getAlignedTimeframe()`) was not read, as a clause for the
+   *  refusal the request takes; null where the timeframe is no such call. ⛔ It names; it decides nothing. */
+  const settledCallWhy = (tfNode, scope) => {
+    let n = tfNode
+    for (let k = 0; k < 4 && n && n.type === 'name'; k += 1) {
+      const b = env.get(n.name)
+      // a name a block or a frame here declares again is not the top-level name (`tfReachesSlot`)
+      const shadowed = !!scope && scope.lookup(n.name) !== root.lookup(n.name)
+      n = b && b.kind === 'expr' ? b.node : (b || shadowed ? null : settledAliasNamed(n.name))
+    }
+    if (!n || n.type !== 'call' || !inlineBodyByName.has(n.name)) return null
+    let s = null
+    try { s = settledFunctionNamed(n.name) } catch { s = null }
+    if (!s) return null
+    if (s.refused) return `the timeframe is \`${n.name}()\`, whose body is not settled here: ${s.refused}`
+    return `the timeframe is \`${n.name}()\`, whose result is not fixed before the first bar here (a test or an `
+      + 'argument it reads changes per bar, or is not a value written into the script or an input)'
+  }
 
   /** Lower a user function AT THE CALL SITE, substituting its arguments.
    *
@@ -7424,9 +7730,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
-        && !reachesSlotThroughEnv(t.positional[1], scope)) hostTarget = t
+        && !tfReachesSlot(t.positional[1], scope)) hostTarget = t
       if (!t || t.own === null || t.other !== null || t.code !== null) return null
-      return reachesSlotThroughEnv(t.positional[0], scope) || reachesSlotThroughEnv(t.positional[1], scope)
+      return reachesSlotThroughEnv(t.positional[0], scope) || tfReachesSlot(t.positional[1], scope)
         ? null : t
     })()
     // ⛔ IN THE CALLER'S SCOPE, and `inRequestValue` stays false: at this
@@ -7521,9 +7827,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
       || (hostTarget.live === true && TF_RESAMPLABLE.includes(hostTarget.code)))
     for (const a2 of node.args) {
       if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
+        // ⭐⭐ (request unit PR 2) — a timeframe written as a call to the script's own function says why it was not read
+        const fnWhy = settledCallWhy(argOf(positional[1]), scope)
         throw new RuntimeRefusal('runtime:request',
           '`lookahead` — the realtime half of this alignment is not measured yet, '
-          + 'and a guess here reads as a number that could have been traded on', at)
+          + 'and a guess here reads as a number that could have been traded on' + (fnWhy ? ` (${fnWhy})` : ''), at)
       }
     }
 
@@ -7540,9 +7848,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
     let tfIr = hostTarget && !tfPlain ? null : lowerExpr(tfNode, scope)
     if (hostTarget && (!tfIr || tfIr.kind !== EXPR.STR)) tfIr = str(hostTarget.code === null ? '' : String(hostTarget.code))
     if (!tfIr || tfIr.kind !== EXPR.STR) {
+      const fnWhy = settledCallWhy(tfNode, scope)
       throw new RuntimeRefusal('runtime:request',
         'the timeframe of a request has to be fixed when the script is written — '
-        + 'it decides which bars must be fetched before the run', at)
+        + 'it decides which bars must be fetched before the run' + (fnWhy ? ` (${fnWhy})` : ''), at)
     }
 
     // ⭐ RS RATING L5 — THIS chart's own symbol at another timeframe needs no text: the host
@@ -9185,6 +9494,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         && !readsPlotRef(node) && !holdsColour(node, scope) && !holdsObjectCall(node)
         // ⭐ DRAW-1 — nor a drawing cast (`box(na)`): the call arm below reads it as `na`
         && !holdsDrawingCast(node, scope)
+        // ⭐ U-BUILTIN B4 — nor a colour cast (`color(na)`), read the same way
+        && !holdsColourNaCast(node, scope)
         && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)
         // ⭐ RT5 — nor is a drawing family's live list (`label.all`), nor text
         // this run prints (`str.tostring`), which the columnar lane refuses.
@@ -9548,6 +9859,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:unbound', `\`${node.name}\``, locate(node.tok))
       }
       case 'binary': {
+        // ⭐ U-BUILTIN B7 — a sum of `text.format_*` constants is ONE format, the host's canonical
+        // spelling (`textFormatFlagsOf`), never the text concatenation of their names.
+        if (node.op === '+') {
+          const fmt = textFormatFlagsOf(node)
+          if (fmt) return str(canonicalTextFormat(fmt))
+        }
         // ⭐⭐ W6-T10 — `==` / `!=` OVER ENUM VALUES: both sides of ONE enum, compared as
         // members (`enumValueKey`), never by title. Anything else beside an enum refuses.
         if (enumDecls.size && (node.op === '==' || node.op === '!=')) {
@@ -9718,7 +10035,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
           const fold = a !== null && b !== null ? constCompareFold(op, a, b, pineVersion) : null
           if (fold !== null) return num(fold)
         }
-        const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right)
+        const naLate = boolNaOnThisLane(node.op, loweredL, loweredR, locate(node.tok), node.left, node.right, node.tok)
         const lowered = binary(op, loweredL, loweredR)
         // ⭐⭐ the version island: a v5 library's `and` / `or` inside a v6 program evaluates both sides on every bar
         // (`lowerIr.js` reads `eager`; every other node keeps its exact shape)
@@ -9730,7 +10047,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         if (node.op === '-') return unary('u-', lowerExpr(node.arg, scope))
         if (node.op === 'not') {
           const loweredArg = lowerExpr(node.arg, scope)
-          boolNaOnThisLane('not', loweredArg, null, locate(node.tok))
+          boolNaOnThisLane('not', loweredArg, null, locate(node.tok), null, null, node.tok)
           return unary('!', loweredArg)
         }
         throw new RuntimeRefusal('runtime:operator', `unary \`${node.op}\``, locate(node.tok))
@@ -10029,6 +10346,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐⭐ DRAW-1 — `box(na)` is `na` (the reference: "Casts na to box"); its type
         // reaches the slot through `initialiserTy` and the handle record (`noteHandle`).
         if (drawingCastFamily(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
+        // ⭐⭐ U-BUILTIN B4 — `color(na)` is `na` ("Casts na to color"), lowered as the `na` it holds.
+        if (colourNaCast(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
         // ⭐⭐ S1 — a per-trade broker function (`strategy.opentrades.entry_price(0)`).
         if (brokerMode && typeof node.name === 'string' && node.name.startsWith('strategy.')
             && !definedNames.has(node.name)) {
@@ -10450,7 +10769,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // capture row LV6 settles it (`docs/pine/capture-queue-2026-11-19-library-version-island.md`).
           const calleeVersion = islandFnVersion.get(fnIndex)
           if (calleeVersion !== undefined && versionAt(node.tok, pineVersion) !== calleeVersion) {
-            const why = islandNaBoolResult(fn.result)
+            // ⭐⭐ (island PR 2) …and a collection or record the script SHARES with it (a parameter): the v5 function
+            // can leave an `na` bool in it, which this script then reads
+            const shared = slots.findIndex((sl) => !!sl && sl.owner === fnIndex && Number.isInteger(sl.index)
+              && sl.index < fn.params && isRefTy(sl.ty) && slotHoldsBool(slots.indexOf(sl)))
+            const why = islandNaBoolResult(fn.result) || (shared >= 0
+              ? `the \`${slots[shared].name}\` it shares with this script, a collection or record that can hold a \`bool\`` : null)
             if (why) {
               note(LIBRARY_VERSION)
               throw new RuntimeRefusal(LIBRARY_VERSION, `\`${node.name}\` is a Pine v${calleeVersion} `
@@ -10773,8 +11097,10 @@ function buildRuntimeIrLinked(source, opts, holder) {
           // ⭐ ENGINE 56 (s18) — `na(b)` of a v1-v5 `bool` is true where `b` is `na`; the VM holds a
           // comparison over `na` as 0, so the site is asked over the whole program
           // (`boolNaFaithfulness`) and declines by name where the VM lost that `na`
-          if (pw.table === 'na' && (pineVersion === null || pineVersion <= 5)) {
-            boolNaReads.push({ node: builtNode, x: args[0], at: locate(node.tok) })
+          // ⭐⭐ the version island: `na()` a v5 library writes inside a v6 script is a v5 script's (`versionAt`)
+          const naVersion = versionAt(node.tok, pineVersion)
+          if (pw.table === 'na' && (naVersion === null || naVersion <= 5)) {
+            boolNaReads.push({ node: builtNode, x: args[0], at: locate(node.tok), version: naVersion })
           }
           return builtNode
         }
@@ -13114,8 +13440,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   // ⛔⛔ Q-A3 capture gate: flip to true ONLY once the capture MATCHes (unmatched v6 bool block = false)
   const V6_BOOL_UNMATCHED_CAPTURED = false
-  const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what) => {
-    if (!(mkArm && mkArm.valued) || pineVersion === null || pineVersion < 6) return false
+  // ⭐⭐ the version island (bool na): a block a v5 library writes inside a v6 script is a v5 block (`versionAt` at
+  // `tok`, its first token): unmatched, its bool is `na` there, lowered as a v5 script's is
+  const refuseV6UnmatchedBool = (mkArm, valueToksList, at, what, tok = null) => {
+    const blockVersion = versionAt(tok, pineVersion)
+    if (!(mkArm && mkArm.valued) || blockVersion === null || blockVersion < 6) return false
     // ⭐ W34-I6b (item 1) — THE VALUE IS NEVER READ. The block is the tail of a function every
     // call site of which is a statement (`statementOnlyFn`): Pine discards the value, so `false`
     // and `na` cannot be told apart and no type is needed. Lowered as it stands (`na` seed).
@@ -13187,7 +13516,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
     let falseElse = false
     if (!finalElse) {
       falseElse = refuseV6UnmatchedBool(mkArm, arms.flatMap((a) => armValueCands(a.from.sub)), locate(list[at].header[0]),
-        'an `if` with no `else`')
+        'an `if` with no `else`', list[at].header[0])
     }
     let chain = finalElse ? inR4Region(allInv, () => mkArm(finalElse.sub, finalElse.header[0]))
       : (falseElse ? mkArm.falseFallback() : [])
@@ -13423,7 +13752,7 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // header off the object door (W34-I6a, `wrappedArmOf`); at the door the arm lowering
         // above refuses it first — "ends in a block")
         return rhs.length ? [rhs] : armValueCands(arm.sub)
-      }), locate(atTok), 'a `switch` with no default')) fallback = mkArm.falseFallback()
+      }), locate(atTok), 'a `switch` with no default', atTok)) fallback = mkArm.falseFallback()
     }
     let chain = fallback || []
     for (let k = cases.length - 1; k >= 0; k -= 1) {
@@ -15878,7 +16207,11 @@ function buildRuntimeIrLinked(source, opts, holder) {
         return { params, lines: null, result: null, body: lines }
       } catch { return null }
     })()
-    if (record.inlineBody) inlineBodyByName.set(nameTok.value, record.inlineBody)
+    if (record.inlineBody) {
+      inlineBodyByName.set(nameTok.value, record.inlineBody)
+      // ⭐⭐ (request unit PR 2) — the scope a settled body is read in (`settledFunctions`)
+      settledDefEnvByName.set(nameTok.value, new Map(env))
+    }
     // ⭐ C35 — the parameters this call site fixed, by SLOT (a nested block that
     // re-declares the name is a different slot and is not touched).
     frameConsts = null

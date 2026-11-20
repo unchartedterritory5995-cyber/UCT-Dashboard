@@ -49,10 +49,14 @@ describe('the chart wires the reference date, and the IPO badge keeps list_date'
   // A source rail: StockChart is ~17k lines and does not mount in a unit test.
   // It pins the ONE call that produces the member chart's listing statement.
   const src = fs.readFileSync(path.resolve(__dirname, '../../../StockChart.jsx'), 'utf8')
-  it('⭐ historyFromListingOf is fed listingReferenceDate(ipoInfo)', () => {
-    const calls = src.match(/historyFromListingOf\(\{[\s\S]*?\}\)/g) || []
+  // ⭐⭐ (2026-11-20, weekly served from the listing) the chart's ONE producer of the serving statement is
+  // `servedFromListingOf` (daily: exactly `historyFromListingOf`; a served weekly chart: `listingStartOf`), so the rail
+  // pins that call, and that StockChart no longer calls the daily switch on its own (one producer, never two).
+  it('⭐ servedFromListingOf is fed listingReferenceDate(ipoInfo), and is the ONE producer', () => {
+    const calls = src.match(/servedFromListingOf\(\{[\s\S]*?\}\)/g) || []
     expect(calls.length, 'NON-VACUITY: the producer call was not found').toBe(1)
     expect(calls[0]).toMatch(/listDate:\s*listingReferenceDate\(ipoInfo\)/)
+    expect(src.match(/historyFromListingOf\(\{/g) || [], 'a second producer beside servedFromListingOf').toEqual([])
   })
   it('⭐ the IPO badge still reads list_date', () => {
     expect(src).toMatch(/const ld = ipoInfo\?\.list_date/)

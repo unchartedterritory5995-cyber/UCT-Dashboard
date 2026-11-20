@@ -3,25 +3,25 @@
   "capture": {
    "scripts": 955,
    "admitted": 777,
-   "runtimeLane": 217,
-   "hostLane": 302,
-   "refused": 258,
+   "runtimeLane": 221,
+   "hostLane": 303,
+   "refused": 253,
    "coreOnly": 45
   },
   "committed": {
    "scripts": 266,
    "admitted": 196,
-   "runtimeLane": 47,
+   "runtimeLane": 48,
    "hostLane": 62,
-   "refused": 87,
+   "refused": 86,
    "coreOnly": 4
   },
   "reference": {
    "scripts": 271,
    "admitted": 241,
-   "runtimeLane": 41,
+   "runtimeLane": 42,
    "hostLane": 112,
-   "refused": 88,
+   "refused": 87,
    "coreOnly": 7
   },
   "builtin": {
@@ -932,8 +932,8 @@
   },
   {
    "capture": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels-rddt-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "conditional-ta",
@@ -950,8 +950,8 @@
   },
   {
    "capture": "cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels-spy-1d-2026-11-14",
-   "lane": null,
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "conditional-ta",
@@ -6175,7 +6175,7 @@
   },
   {
    "capture": "screener-mean-reversion-channel-rddt-1d-2026-11-14",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -6194,7 +6194,7 @@
   },
   {
    "capture": "screener-mean-reversion-channel-spy-1d-2026-11-14",
-   "lane": null,
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8547,7 +8547,7 @@
   },
   {
    "capture": "vw-bt-toradians-spy-1d-2026-11-16",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -15817,9 +15817,9 @@
   },
   {
    "key": "reference:saty-atr-levels__99165984ef",
-   "lane": null,
-   "guard": "pine:request",
-   "declined": "runtime:request",
+   "lane": "runtime",
+   "guard": null,
+   "declined": null,
    "caps": [
     "core",
     "fn-multi",
@@ -18854,7 +18854,7 @@
   },
   {
    "key": "committed:cppivot-boss-floor-pivots-with-atr-dilation-and-dynamic-levels__eb13ccd13f",
-   "lane": null,
+   "lane": "runtime",
    "caps": [
     "conditional-ta",
     "core",

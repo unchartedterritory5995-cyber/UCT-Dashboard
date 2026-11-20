@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
+import { afterEach, describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, cleanup, act } from '@testing-library/react'
 import { pinWallClock } from '../testing/pinnedWallClock'
 
@@ -119,6 +119,13 @@ function serve() {
   }))
 }
 
+// ⛔ THE RENDER WINDOW IS OFF HERE (2026-11-20). This file tests the deep-history LOADER (which windows are asked,
+// the right edge, the count only growing) through a library double that hands every series ONE object and reads
+// the library's logical index as the bar index. Under the render window (chart/windowedChart.js) the library holds a
+// window and its index 5 is the window's edge, where the facade extends the window instead of asking the server; that
+// behaviour is proven on the real library in windowedChart.realLwc.test.js.
+beforeEach(() => { localStorage.setItem('uct.renderwindow.off', '1') })
+afterEach(() => { localStorage.removeItem('uct.renderwindow.off') })
 beforeEach(() => {
   cleanup(); memClear()
   draws.list.length = 0; draws.onRange = []; draws.range = null; reqs = []

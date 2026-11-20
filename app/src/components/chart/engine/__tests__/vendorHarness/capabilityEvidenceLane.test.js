@@ -119,6 +119,15 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // now drawn while the arm runs every bar; runtime-on MATCH). `momentum-based-zigzag-rddt-1d-2026-11-14`
 // left the report: the runtime lane reaches it too, its runtime-on grade is DIVERGE, so it is on the
 // committed kill list and no longer admitted (docs/pine/evidence/2026-11-16-runtime-history/EVIDENCE.md).
+// ⭐ TF-FOLD (request unit PR 1, engine 89) re-pinned the two cppivot-boss-floor-pivots rows (and its
+// `admittedGraded` row), lane `null` -> `runtime`, runtime-on MATCH (27 / 27 on RDDT and SPY 1D): the runtime lane
+// now reads its six-hop request timeframe (docs/pine/evidence/2026-11-19-request-unit/EVIDENCE.md); the
+// population block re-derived (`capability_admission.py::populations_of`).
+// ⭐ (request unit PR 2, engine 90) re-pinned one `admittedUngraded` row, lane `null` (`pine:request`) -> `runtime`:
+// `reference:saty-atr-levels__99165984ef`. The runtime lane now reads its timeframe written as a call to its own function
+// (`timeframe_func()`) and its extended-session own ticker at the chart's own "D" (EXT-OWN); asked as the reach run asks
+// it (this file's member door), the door answers `runtime`. Its captures are licence-held (MATCH 32 / 32 on RDDT and SPY
+// 1D, runtime-on: docs/pine/evidence/2026-11-20-request-unit-pr2/EVIDENCE.md); the population block re-derived.
 // ⭐ DRAW-1 (engine 66, feat/pine-coverage-drawings): the reach run is RE-DERIVED on the engine-65 train
 // tree (input, CAPADMIT_MODE=admission, report), so it carries HIST's rows above as the tool answers them.
 // ⭐ ROUTE BY COST (Engine 73 (#1711), feat/route-by-cost) re-pinned 14 rows, lane `host` -> `runtime`: the
@@ -161,6 +170,15 @@ const report = JSON.parse(fs.readFileSync(path.join(REPO,
 // captures new since the report was last derived (vw-fcmp-arrays x2, macd-shortlong-strategy-is and
 // supertrend-strategy-is on the runtime lane; vw-w4-max-bars-back-m1..m4 host, m5 runtime). Stops: vw-deadband only
 // (named); MATCH -> DIVERGE: none (docs/pine/evidence/2026-11-18-admit-obj-linefill/EVIDENCE.md section 7).
+// ⭐ U-BUILTIN (#2175, feat/pine-builtins-unit) re-pinned 3 rows, lane `null` -> drawn, and re-derived the population
+// block from the rows (`capability_admission.py::populations_of`). The rows' `runtimeOn` / `production` stay the
+// committed snapshots' (the train regrades those). screener-mean-reversion-channel RDDT and SPY 2026-11-14 -> `runtime`:
+// v4 `asin` (B3) now builds it on the runtime lane, and #2175's pine heavy run (44737767098) grades both runtime-on
+// MATCH ("all 1 items agree"), so neither is a REACH stop. vw-bt-toradians-spy-1d-2026-11-16 -> `host`:
+// `math.toradians` (B2) builds the probe on the host lane. That run grades it DIVERGE on D3 only (`x * (math.pi /
+// 180)` written by hand, 1 ulp from TradingView on 8,457 bars; D1, D2 and E1-E3 MATCH). It is a host-drawn DIVERGE,
+// listed and not a stop, and that arithmetic is served the same way with or without this change
+// (docs/pine/capture-queue-2026-11-19-builtins.md).
 
 describe('WS-I Part 2 — the reach run records the lanes the door itself answers', () => {
   // ⭐⭐ THE MEMBER'S DOOR, EXACTLY (GATE-BLIND follow-up (a), 2026-11-19): the allowlist EMPTY, capability admission

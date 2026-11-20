@@ -532,6 +532,20 @@ export const FUNCTIONS = [
   // puts, `NVDA OIC C` / `NVDA OIC P` = one side. OIC is not in the site's stock universe.
   { code: 'OIC', label: 'Open interest change (contracts that gained or lost the most since the day before)', group: 'Options',
     ticker: { panel: 'OiChange', args: [{ kind: 'oiSide', prop: 'side' }] } },
+  // ── Market Tide by day (2026-11-19) ──
+  // TIDEH: each finished session's net call and net put premium, as the server stored it once
+  // after that session's close (GET /api/options/market-tide/history, behind Market Tide's own
+  // switch). TIDE is today, minute by minute; TIDEH is the days. `TIDEH` = stocks and ETFs
+  // together, `TIDEH STOCKS` / `TIDEH ETFS` = one side. TIDEH is not in the site's stock universe.
+  { code: 'TIDEH', label: 'Market Tide by day (net premium, each session)', group: 'Options',
+    market: { panel: 'TideHistory', args: [{ kind: 'tideScope', prop: 'scope' }] } },
+  // SEASB: the seasonality board. SEAS is ONE stock's record by calendar month; this is the
+  // market's: the four index funds and the eleven sector funds, month by month, from the daily
+  // bars we hold (GET /api/research/seasonality-board, behind Seasonality's own switch, so it
+  // carries SEAS's flag). `SEASB` = the median month, `SEASB AVG` = the average month. SEASB is
+  // not in the site's stock universe.
+  { code: 'SEASB', label: 'Seasonality board (index and sector funds, month by month)', group: 'Market',
+    market: { panel: 'SeasonalityBoard', flag: 'seasonalityEnabled', args: [{ kind: 'seasMeasure', prop: 'measure' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -824,6 +838,12 @@ const FUNCTION_WORDS = {
   OIC: { example: 'NVDA OIC', keywords: ['open interest change', 'oi change', 'open interest by strike', 'change in open interest',
     'new option positions', 'open interest'],
     note: 'Recorded once a day after the close; never live, and never who opened or which way.' },
+  TIDEH: { example: 'TIDEH', keywords: ['market tide by day', 'tide history', 'daily net premium', 'net premium by day',
+    'net premium history', 'options premium by day'],
+    note: 'One row per finished session, stored once after the close; history starts at the first stored day.' },
+  SEASB: { example: 'SEASB', keywords: ['seasonality board', 'sector seasonality', 'best months', 'index seasonality',
+    'seasonality by sector', 'monthly seasonality', 'month by month'],
+    note: 'How each index and sector fund has done in each calendar month. A record, not a forecast.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
