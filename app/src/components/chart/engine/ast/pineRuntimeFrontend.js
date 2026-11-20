@@ -6409,11 +6409,18 @@ function buildRuntimeIrLinked(source, opts, holder) {
     }
     const typeArg = mapTypeArg(node, asStatement)
       ?? (node.tok && Array.isArray(node.tok.typeArgs) ? node.tok.typeArgs[0] : null)
-    return arrayCall(
+    const call = arrayCall(
       node.name,
       given.map((x, i) => (nestedCreateHandle(node.name, i, x, scope) || lowerExpr(x, scope))),
       typeArg,
     )
+    // ⭐⭐ the version island: a collection call a v5 library writes inside a v6 program is judged under v5 AT RUN
+    // TIME too (a computed negative index stops as a v5 script's does instead of counting from the end, an `na`
+    // index stops, `runtime/collections.js` / `maps.js` read `budget.opVersion`, which `vm.js` sets around this one
+    // op). Every other call keeps its exact shape: the field is absent unless the versions differ.
+    const callVersion = versionAt(node.tok, pineVersion)
+    if (callVersion !== pineVersion && Number.isFinite(callVersion)) call.islandVersion = callVersion
+    return call
   }
 
   /** A collection call on a line of its own: a void one leaves nothing, and one

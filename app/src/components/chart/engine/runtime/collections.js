@@ -24,7 +24,7 @@
 // line; it appears in neither script.
 
 // ⭐ W6-T8 — `map.*` (`maps.js`), merged into this table below
-import { buildMapFns, isMap, MAP_WRITES } from './maps.js'
+import { buildMapFns, isMap, MAP_WRITES, ruleVersion } from './maps.js'
 import { RuntimeLimitError } from './limits.js'
 import { isDrawingHandle } from './handles.js'
 import { isUdtRecord } from './records.js'
@@ -132,7 +132,7 @@ export const kindOf = (v) => {
  *  v5-or-older script, or a caller that does not say (`budget.pineVersion` unset),
  *  keeps the stop; and an index below `-size` stops in every version. */
 const at = (arr, i, what, budget) => {
-  if (Number.isInteger(i) && i < 0 && i >= -arr.length && budget && budget.pineVersion >= 6) {
+  if (Number.isInteger(i) && i < 0 && i >= -arr.length && ruleVersion(budget) >= 6) {
     return arr.length + i
   }
   if (!Number.isInteger(i) || i < 0 || i >= arr.length) {
@@ -157,7 +157,7 @@ const at = (arr, i, what, budget) => {
  *  (v5 is not witnessed), and never at the live C18 object door, which keeps master's stop (`doorKeepsMaster`). */
 const NA_INDEX_VERSIONS = Object.freeze(new Set([4, 6]))
 const naIndexReadsNa = (i, budget) => typeof i === 'number' && Number.isNaN(i) && !!budget
-  && NA_INDEX_VERSIONS.has(budget.pineVersion) && !doorKeepsMaster(budget)
+  && NA_INDEX_VERSIONS.has(ruleVersion(budget)) && !doorKeepsMaster(budget)
 
 /** The per-element default for `array.new<T>(size)` with no initial value.
  *
@@ -751,7 +751,7 @@ const orderArg = (a, i, what) => {
 
 /** v6's `every` / `some`: zero is false and every other number true (the entry's remark). */
 const truthsOf = (a, budget, what) => {
-  if (!(budget && budget.pineVersion >= 6)) throw unpinned(`${what} in a script older than v6 (it is a v6 member)`)
+  if (!(ruleVersion(budget) >= 6)) throw unpinned(`${what} in a script older than v6 (it is a v6 member)`)
   const arr = a[0]
   if (!arr.length) throw unpinned(`${what} of an empty array`)
   budget.charge('ARRAY_OPERATIONS', arr.length)

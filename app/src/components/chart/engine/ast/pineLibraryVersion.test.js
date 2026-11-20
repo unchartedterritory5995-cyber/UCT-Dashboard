@@ -24,6 +24,7 @@ import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
 import { lowerIrProgram } from '../runtime/lowerIr.js'
 import { execute } from '../runtime/vm.js'
+import { ARRAY_FNS } from '../runtime/collections.js'
 import { lexPine, blockStatements } from './pine.js'
 import {
   crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION, versionAt, stampLibraryVersion,
@@ -182,6 +183,41 @@ export kept(float x) =>
     up := x > 100
     up
 `
+// the island at RUN time: collection rules the VM decides by version (`runtime/collections.js` / `maps.js`), each
+// reached from bar 7 on, so a stop has a bar to name
+const AT_RUN_TIME = `${MPL}
+//@version=5
+library("islandruntime")
+export last(float x) =>
+    a = array.from(1.0, 2.0, x)
+    i = bar_index < 7 ? 0 : -1 * math.round(x / x)
+    array.get(a, i)
+export naindex(float x) =>
+    a = array.from(10.0, 20.0)
+    int k = 0
+    if bar_index >= 7
+        k := na
+    array.get(a, k) + x * 0
+export some(float x) =>
+    array<bool> f = array.from(x > 100, x < 50)
+    float s = 0.0
+    if bar_index >= 7
+        bool t = array.some(f)
+        s := t ? 1.0 : 0.0
+    s
+export boolkey(float x) =>
+    m = map.new<string, bool>()
+    map.put(m, "up", x > 100)
+    bool v = map.get(m, bar_index < 7 ? "up" : "gone")
+    v ? 1.0 : 0.0
+export floatkey(float x) =>
+    m = map.new<string, float>()
+    map.put(m, "up", x)
+    map.get(m, bar_index < 7 ? "up" : "gone")
+export head(float x) =>
+    a = array.from(x, 1.0)
+    array.get(a, 0)
+`
 const islandPath = (family) =>`tester/island${family.replace(/[^a-z]/gi, '')}/1`
 const islandSource = (family) => `${MPL}\n//@version=5\nlibrary("island")\n${ISLAND[family].lib}`
 const LIBS = fixtureLibraries({
@@ -189,6 +225,7 @@ const LIBS = fixtureLibraries({
     path: islandPath(f), source: islandSource(f), licence: 'MPL-2.0', attribution: 'island (test fixture)',
   }])),
   'tester/islandboundary/1': { path: 'tester/islandboundary/1', source: BOUNDARY, licence: 'MPL-2.0', attribution: 'islandboundary (test fixture)' },
+  'tester/islandruntime/1': { path: 'tester/islandruntime/1', source: AT_RUN_TIME, licence: 'MPL-2.0', attribution: 'islandruntime (test fixture)' },
   'tester/cleanlib/1': { path: 'tester/cleanlib/1', source: CLEAN, licence: 'MPL-2.0', attribution: 'cleanlib (test fixture)' },
   'tester/islandrefuses/1': { path: 'tester/islandrefuses/1', source: ISLAND_REFUSES, licence: 'MPL-2.0', attribution: 'islandrefuses (test fixture)' },
   ...Object.fromEntries(CASES.map(([, body], k) => [`tester/changed/${k + 1}`, {
@@ -503,5 +540,140 @@ describe('⭐⭐ the version island\'s boundary: a v5 function handing v6 code a
     const r = runtimeRun(`${V6}${imp}${use}`)
     expect(r.b.ok, r.why).toBe(true)
     expectSameColumns(r, runtimeRun(`${V5}${imp}${use}`))
+  })
+})
+
+// ─── ⭐⭐ THE VERSION ISLAND AT RUN TIME: a collection op a v5 library writes is judged under v5 by the VM ──────────
+// `runtime/collections.js` and `maps.js` decide four rules by version while the script runs (a negative index counts
+// from the end at v6 and stops at v5; an `na` index reads `na` at v4 / v6 and stops at v5; `array.every` / `some`
+// are v6 members; a bool map's missing key). The front end marks a v5 library's collection call inside a v6 program
+// (`islandVersion`), `lowerIr` carries it on that op alone, and the VM judges that op under v5 (`budget.opVersion`).
+// So the island raises the SAME named stop a v5 script raises, on the same bar; the same functions pasted into the
+// v6 script take v6's path (non-vacuous). The one exception is the bool map: a v5 script answers `na` there, which
+// the island cannot hand on until bool `na` is judged per token, so the island stops by its own name instead.
+describe('⭐⭐ the version island at run time: a v5 library\'s collection op is judged under v5, the script\'s under its own version', () => {
+  const imp = 'import tester/islandruntime/1 as ir\n'
+  const pastedLib = AT_RUN_TIME.split('\n').slice(3).join('\n').replace(/^export /gm, '')
+  /** Build, lower and run; a runtime stop is `{name, message, bar}` (the bar it stopped on), never thrown. */
+  function runStop(src) {
+    const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), bars: BARS, inputs: {}, libraries: LIBS, libraryCrossVersion: ADMIT })
+    if (!b.ok) return { b, p: null, cols: null, stop: null, why: `${b.refusal.guard}: ${b.refusal.message}` }
+    const p = lowerIrProgram(b.ir)
+    let done = -1
+    try {
+      const run = execute(p, { bars: N, series: SERIES, columns: p.columns, confirmed: true }, undefined, { onBar: (bar) => { done = bar } })
+      return { b, p, run, cols: run.outputs.map((o) => Array.from(o)), stop: null }
+    } catch (e) {
+      return { b, p, cols: null, stop: { name: e.name, message: e.message, bar: done + 1 } }
+    }
+  }
+  /** Every value of `key` anywhere in `o` (the IR is a plain tree of objects and arrays). */
+  const valuesOf = (o, key, out = [], seen = new WeakSet()) => {
+    if (!o || typeof o !== 'object' || seen.has(o)) return out
+    seen.add(o)
+    if (Object.prototype.hasOwnProperty.call(o, key)) out.push(o[key])
+    for (const v of Object.values(o)) valuesOf(v, key, out, seen)
+    return out
+  }
+  const expectSameStop = (island, v5, sentence) => {
+    expect(v5.b.ok, v5.why).toBe(true)
+    expect(island.b.ok, island.why).toBe(true)
+    expect(v5.stop, 'CONTROL: the v5 script stops there').not.toBe(null)
+    expect(v5.stop.name).toBe('CollectionError')
+    expect(v5.stop.message).toMatch(sentence)
+    expect(v5.stop.bar, v5.stop.message).toBe(7)
+    // ⛔ never the v6 path: the island stops, it computes no value
+    expect(island.cols, 'the island took the v6 path and drew a value').toBe(null)
+    expect(island.stop).toEqual(v5.stop)
+  }
+
+  it('a computed negative index stops as the v5 script stops (same sentence, same bar); pasted into the v6 script it counts from the end', () => {
+    const use = 'plot(ir.last(close))\n'
+    expectSameStop(runStop(`${V6}${imp}${use}`), runStop(`${V5}${imp}${use}`), /array\.get: index -1 is outside an array of 3/)
+    // non-vacuous: v6 rules over the same code count from the end (the last element is `x`)
+    const pasted = runStop(`${V6}${pastedLib}plot(last(close))\n`)
+    expect(pasted.stop, pasted.why || (pasted.stop && pasted.stop.message)).toBe(null)
+    expect(pasted.cols[0].slice(7)).toEqual(BARS.slice(7).map((b) => b.c))
+  })
+
+  it('an `na` index stops as the v5 script stops; pasted into the v6 script it reads `na`', () => {
+    const use = 'plot(ir.naindex(close))\n'
+    expectSameStop(runStop(`${V6}${imp}${use}`), runStop(`${V5}${imp}${use}`), /array\.get: index NaN is outside an array of 2/)
+    const pasted = runStop(`${V6}${pastedLib}plot(naindex(close))\n`)
+    expect(pasted.stop, pasted.why || (pasted.stop && pasted.stop.message)).toBe(null)
+    expect(pasted.cols[0].slice(0, 7).every((x) => x === 10)).toBe(true)
+    expect(pasted.cols[0].slice(7).every((x) => Number.isNaN(x))).toBe(true)
+  })
+
+  it('`array.some`, a v6 member, stops in v5 library code as in a v5 script; pasted into the v6 script it answers', () => {
+    const use = 'plot(ir.some(close))\n'
+    expectSameStop(runStop(`${V6}${imp}${use}`), runStop(`${V5}${imp}${use}`), /`?array\.some`? in a script older than v6/)
+    const pasted = runStop(`${V6}${pastedLib}plot(some(close))\n`)
+    expect(pasted.stop, pasted.why || (pasted.stop && pasted.stop.message)).toBe(null)
+    expect(pasted.cols[0].some((x) => x === 1)).toBe(true)
+  })
+
+  it('a bool map\'s missing key: the island stops BY ITS OWN NAME (never a value); the v5 script answers `na`, v6 stops by W6-K1', () => {
+    const use = 'plot(ir.boolkey(close))\n'
+    const island = runStop(`${V6}${imp}${use}`)
+    expect(island.b.ok, island.why).toBe(true)
+    expect(island.cols, 'the island handed v6 rules a v5 na bool').toBe(null)
+    expect(island.stop.name).toBe('CollectionError')
+    expect(island.stop.message).toMatch(/inside this Pine v6 script, a Pine v5 library's `map<string, bool>` value would be an `na` bool/)
+    expect(island.stop.bar, island.stop.message).toBe(7)
+    // CONTROL: the v5 script answers `na` there and runs on (its `?:` over that `na` is not known off the listing)
+    const v5 = runStop(`${V5}${imp}${use}`)
+    expect(v5.stop, v5.why || (v5.stop && v5.stop.message)).toBe(null)
+    expect(v5.cols[0].slice(0, 7).every((x) => x === 0 || x === 1), String(v5.cols[0])).toBe(true)
+    expect(v5.cols[0].slice(7).every((x) => Number.isNaN(x)), String(v5.cols[0])).toBe(true)
+    // CONTROL: v6 rules over the same code stop by W6-K1, a different sentence
+    const pasted = runStop(`${V6}${pastedLib}plot(boolkey(close))\n`)
+    expect(pasted.cols).toBe(null)
+    expect(pasted.stop.message).toMatch(/W6-K1/)
+    expect(pasted.stop.message).not.toMatch(/Pine v5 library/)
+  })
+
+  it('a float map\'s missing key answers `na` in every version: the island equals the v5 script', () => {
+    const use = 'plot(ir.floatkey(close))\n'
+    const island = runStop(`${V6}${imp}${use}`)
+    expect(island.stop, island.why || (island.stop && island.stop.message)).toBe(null)
+    const v5 = runStop(`${V5}${imp}${use}`)
+    expect(island.cols).toEqual(v5.cols)
+    expect(island.cols[0].slice(7).every((x) => Number.isNaN(x))).toBe(true)
+  })
+
+  it('the op is judged, not the run: the script\'s own computed negative index still counts from the end beside an island op', () => {
+    // the island op runs first on every bar; the VM must give the script its own version back before the next op
+    const use = 'plot(ir.head(close))\nb = array.from(1.0, 2.0, close)\nj = -1 * math.round(close / close)\nplot(array.get(b, j))\n'
+    const r = runStop(`${V6}${imp}${use}`)
+    expect(r.stop, r.why || (r.stop && r.stop.message)).toBe(null)
+    expect(r.cols[0]).toEqual(BARS.map((b) => b.c))
+    expect(r.cols[1]).toEqual(BARS.map((b) => b.c))
+    expect(r.run.budget.opVersion).toBe(undefined)
+  })
+
+  it('only a v5 library\'s collection calls carry the mark: a script with no island lowers to the bytes it lowered to before', () => {
+    const use = 'plot(ir.last(close))\nplot(ir.floatkey(close))\n'
+    const island = runStop(`${V6}${imp}${use}`)
+    const marks = valuesOf(island.b.ir, 'islandVersion')
+    expect(marks.length).toBeGreaterThan(4)
+    expect(new Set(marks)).toEqual(new Set([5]))
+    expect(island.p.arrayOps.filter((op) => op.version === 5).length).toBeGreaterThan(4)
+    // the same library in a v5 script, and its functions pasted into the v6 script: no mark, two keys per op
+    for (const other of [runStop(`${V5}${imp}${use}`), runStop(`${V6}${pastedLib}plot(last(close))\nplot(floatkey(close))\n`)]) {
+      expect(other.b.ok, other.why).toBe(true)
+      expect(valuesOf(other.b.ir, 'islandVersion')).toEqual([])
+      expect(other.p.arrayOps.length).toBeGreaterThan(4)
+      for (const op of other.p.arrayOps) expect(Object.keys(op).sort()).toEqual(['fn', 'typeArg'])
+    }
+  })
+
+  it('the collection rules read the op\'s version before the script\'s, and nothing else', () => {
+    const get = ARRAY_FNS['array.get'].fn
+    expect(get([[1, 2, 3], -1], { pineVersion: 6 })).toBe(3)
+    const v5stop = (() => { try { get([[1, 2, 3], -1], { pineVersion: 5 }) } catch (e) { return e.message } return null })()
+    expect(v5stop).toMatch(/index -1 is outside an array of 3/)
+    expect(() => get([[1, 2, 3], -1], { pineVersion: 6, opVersion: 5 })).toThrow(v5stop)
+    expect(get([[1, 2, 3], -1], { pineVersion: 5, opVersion: 6 })).toBe(3)
   })
 })
