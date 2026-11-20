@@ -904,6 +904,14 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     bug here can never blank a chart. Intraday timeframes pass through untouched."""
     if not _ENABLED or not bars or tf not in ("D", "W", "M"):
         return bars
+    # ⭐ THE PUBLISHED CORRECTIONS LEDGER (bars_corrections), FIRST: its entries were measured on the STORED rows, so
+    # they compare-and-set against the rows as stored, before any repair moves them (listing cutoff, identity, split
+    # heal) and before the clamp. A rebuilt series gets its own entries inside bars_rebuild.apply.
+    try:
+        from api.services import bars_corrections as _cor
+        bars = _cor.apply(ticker, tf, bars, "store")
+    except Exception as e:  # noqa: BLE001 - the uncorrected bars still serve
+        _log.warning("corrections skipped for %s tf=%s: %s", ticker, tf, e)
     # ⭐ A ticker whose history was REBUILT from one checked source (bars_rebuild: the vendor's official
     # daily files per company, one split basis, checked day by day against an independent vendor) serves
     # it through the rebuild's last session, and its W / M from it. The stored-patchwork repairs
