@@ -66,7 +66,7 @@ import { fullBarsFor, firstPaintBarsFor } from '../../utils/barsBackfill'
 import { PREFETCH_WINDOWS, prefetchTargetBars } from '../../utils/historyPrepend'
 import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
-import { isCacheCurrentForView } from '../../utils/marketSession'
+import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
 import { deviceCopyFresh } from '../deviceStore/fresh'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
@@ -97,6 +97,12 @@ export const PREPARED = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UN
 // while keys the store judged `context` painted in ~30 ms. `provisional` (a local-only copy
 // behind the frontier) stays out: that is the legacy handoff's rule too (`seriesDisplayable`).
 export const HANDOFF_PAINTS = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UPDATING])
+/** `until` for an ensure that must ask the server whatever the held status says (no status satisfies it). */
+const ASK_AGAIN = Object.freeze([])
+/** How long the handoff waits for the tail of a copy behind the clock before it paints the copy as it is. */
+export const BEHIND_HOLD_MAX_MS = 250
+/** An answer this recent that is still behind the clock is the name not printing: it is not asked again. */
+export const BEHIND_RECHECK_MS = 5000
 /** D/W/M handoff: a held set paints (the daily paint gate decides how), so it is prepared. */
 const DAILY_PREPARED = Object.freeze([STATUS.PROVISIONAL, STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAVAILABLE, STATUS.UPDATING])
 
@@ -396,6 +402,34 @@ export function createPrefetch(o = {}) {
     have.front = have.front || front
   }
 
+  // ⚡ A COPY IS JUDGED ON THE CLOCK, NOT ON ITS SAVED STATUS (owner 2026-11-20: typing SPY / QQQ / IWM on a 1m
+  // chart "loads a candle or two behind", then takes a second to reach the live candle). A held key's status was
+  // derived when its answer landed, and a key off screen is never polled, so a 1m answer from minutes ago still
+  // read CURRENT and Enter painted it as it was; a saved copy passed on its one-bucket tolerance. A copy whose
+  // newest CLOSED row is a bucket or more behind the session frontier is behind here: the typed warm asks it
+  // again while the member types, and the handoff waits for that answer (at most BEHIND_HOLD_MAX_MS) before it
+  // paints. An answer that landed within BEHIND_RECHECK_MS and is still behind is the name not printing (an
+  // illiquid minute, a late seal): it paints as it is and is not asked again on every keystroke.
+  // ⛔ 60m / 1h on an EXTENDED view buckets on the clock grid, which expectedBarsBehind does not measure (it
+  // walks the 09:30 session grid): those keys keep the status rule.
+  function _behindClock(key, s, showExtended) {
+    const rows = s?.bars
+    if (!rows?.length) return false
+    // a DEVICE copy is judged by its own complete-through stamp (devicePaints / deviceStore/fresh.js)
+    if (_deviceHeld(s)) return false
+    const p = parseKey(key)
+    if (!p || p.window || !isIntradayTf(p.tf)) return false
+    const ext = session(showExtended) === 'eth'
+    if (ext && Number(p.tf) >= 60) return false
+    // the DEVELOPING row counts too: at a bucket roll the just-closed bucket is still the forming row until its
+    // seal lands, and a copy holding it holds the frontier (a copy whose forming row is OLDER is still behind)
+    const tailT = Math.max(rows[rows.length - 1].t, s.developing?.t ?? -Infinity)
+    const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
+    if (n == null || n < 1) return false
+    const a = asked.get(key)
+    return !(a?.answered && now() - a.at < BEHIND_RECHECK_MS)
+  }
+
   // ── the handoff ─────────────────────────────────────────────────────────────
   function peekDisplayable(sym, tf, { showExtended } = {}) {
     if (!sym || !tf) return false
@@ -415,7 +449,8 @@ export function createPrefetch(o = {}) {
     // (A status in HANDOFF_PAINTS already means rows are held: status.deriveStatus answers
     // empty / unavailable for an entry with none. No second rows test here: it could not be
     // proved by a test, 2026-11-16 mutation run.)
-    return !!s && HANDOFF_PAINTS.includes(s.status)
+    // ...and a copy behind the clock is not painted at once: prepareForDisplay asks for the tail first
+    return !!s && HANDOFF_PAINTS.includes(s.status) && !_behindClock(key, s, showExtended)
   }
 
   /** Does the entry hold the device's copy alone (no server answer yet)? */
@@ -524,7 +559,12 @@ export function createPrefetch(o = {}) {
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (s0 === undefined) {
         const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
-        const localFirst = hyd.then((h) => (_localPaints(h, fetchTf(String(tf)), showExtended) ? LOCAL_PAINTS : new Promise(() => {})))
+        // a local copy behind the clock paints after BEHIND_HOLD_MAX_MS if the answer has not won by then
+        const localFirst = hyd.then((h) => {
+          if (!_localPaints(h, fetchTf(String(tf)), showExtended)) return new Promise(() => {})
+          if (!_behindClock(key, h, showExtended)) return LOCAL_PAINTS
+          return new Promise((resolve) => setTimer(() => resolve(LOCAL_PAINTS), BEHIND_HOLD_MAX_MS))
+        })
         const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
         if (won === LOCAL_PAINTS) { await _joined(lake); return 'current' }
         if (won === LAKE_PAINTS) return 'lake'
@@ -533,8 +573,18 @@ export function createPrefetch(o = {}) {
       // A SERVER answer is already held and the chart paints it (see HANDOFF_PAINTS): commit,
       // the chart's own request catches the tail up. A LOCAL-only copy is judged by the legacy
       // paint rule on the next line, never by this one (#2c).
-      if (s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status)) { await _joined(lake); return 'current' }
-      if (_localPaints(s0, fetchTf(String(tf)), showExtended)) { await _joined(lake); return 'current' }   // legacy: no request
+      const heldPaints = !!s0 && !date && s0.restSeen && HANDOFF_PAINTS.includes(s0.status)
+      const localPaints = !heldPaints && _localPaints(s0, fetchTf(String(tf)), showExtended)
+      if ((heldPaints || localPaints) && !date && _behindClock(key, s0, showExtended)) {
+        // A paintable copy behind the clock: ask for the tail first (one request, ~50-110 ms) and paint the
+        // answer; past BEHIND_HOLD_MAX_MS the copy paints as it is and the answer lands on the chart.
+        const req = ensure(key, { until: ASK_AGAIN, priority: 'visible', signal, warm: false, local: false, _s0: s0, session: session(showExtended) })
+        await Promise.race([req, new Promise((resolve) => setTimer(resolve, BEHIND_HOLD_MAX_MS))])
+        await _joined(lake)
+        return 'current'
+      }
+      if (heldPaints) { await _joined(lake); return 'current' }
+      if (localPaints) { await _joined(lake); return 'current' }   // legacy: no request
       // Otherwise only a SERVER answer prepares it. ⛔ NOT a `&warm=1` request and NOT in the
       // shared warm lane: this is the request for the chart the member just asked for. As a
       // warm it could be shed by the server (which committed an EMPTY chart: the blank frame
@@ -631,17 +681,34 @@ export function createPrefetch(o = {}) {
    * (deviceStore/fresh.deviceCopyFresh, on the copy's `through`). The store's status alone cannot say
    * it: W and M are never "behind" by status, and a copy warmed hours ago would read current.
    */
-  function devicePaints(sym, tf, { showExtended } = {}) {
+  function devicePaints(sym, tf, opts = {}) { return deviceVerdict(sym, tf, opts).paints }
+
+  /**
+   * The device rule's whole answer, the ONE decision devicePaints returns the first half of:
+   *   paints  true when the switch paints the device copy at once
+   *   reason  'paints', or the rule that refused: 'no-key' | 'none' (nothing held) | 'held:<source>' (another
+   *           copy holds the key: the device is not consulted) | 'server-answered' | 'ext-hours' (an extended
+   *           view of a shared key) | 'status:<status>' (not current enough by the store's status) | 'stale'
+   *           (not complete through the last 2 minutes / the last closed session, deviceStore/fresh.js)
+   *   held    what the store holds for the key right now: 'device' | 'server' (the device copy joined by an
+   *           answer) | another source | 'none'. What a chart committed now paints first.
+   */
+  function deviceVerdict(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const p = key ? parseKey(key) : null
-    if (!p) return false
+    if (!p) return { paints: false, reason: 'no-key', held: 'none' }
     // a held copy that is not fresh is brought forward first (its synchronous half lands now)
     if (_deviceHeld(S().peek(key)) && !deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) {
       try { S().persist.refreshDevice?.(key) } catch { /* optional */ }
     }
     const s = S().peek(key)
-    if (!_deviceHeld(s) || _deviceRthOnly(s, showExtended) || !HANDOFF_PAINTS.includes(s.status)) return false
-    return deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())
+    const held = !s ? 'none' : s.source === 'device' ? (s.restSeen ? 'server' : 'device') : String(s.source || 'unknown')
+    if (!s) return { paints: false, reason: 'none', held }
+    if (!_deviceHeld(s)) return { paints: false, reason: s.source === 'device' ? 'server-answered' : `held:${held}`, held }
+    if (_deviceRthOnly(s, showExtended)) return { paints: false, reason: 'ext-hours', held }
+    if (!HANDOFF_PAINTS.includes(s.status)) return { paints: false, reason: `status:${s.status}`, held }
+    if (!deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) return { paints: false, reason: 'stale', held }
+    return { paints: true, reason: 'paints', held }
   }
 
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
@@ -1044,8 +1111,11 @@ export function createPrefetch(o = {}) {
       if (!typed.kept) typed.ctl.abort()
       typed = null
     }
+    // A copy behind the clock (_behindClock, above the handoff) is asked again while the member types, so the
+    // answer is usually held by Enter.
+    const closedBehind = (s) => _behindClock(key, s)
     const held = S().peek(key)
-    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status)) return null   // the flip paints it as it is
+    if (held?.restSeen && HANDOFF_PAINTS.includes(held.status) && !closedBehind(held)) return null   // the flip paints it as it is
     if (typed && typed.key === key) return null
     const ctl = new AbortController()
     const mine = { key, ctl, kept: false }
@@ -1074,8 +1144,10 @@ export function createPrefetch(o = {}) {
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
       tellSymbolWarmers([T], tf, { priority: true })
-      if (_localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
-      const s = await ensure(key, { until: DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
+      const behind = closedBehind(s0)
+      if (!behind && _localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
+      // a copy behind the clock is asked even when its status says it is satisfied (ASK_AGAIN: no status is)
+      const s = await ensure(key, { until: behind ? ASK_AGAIN : DISPLAYABLE, priority: 'urgent', signal: ctl.signal, local: false, _s0: s0 || {} })
       if (ctl.signal.aborted && !mine.kept) return false
       // ⭐ AND ITS WHOLE DEPTH BEFORE ENTER (2026-11-17): the handoff paints a held key at once, so a
       // key held with only the answer's ~1,150 bars painted shallow and the depth joined a blink later
@@ -1134,7 +1206,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1158,6 +1230,7 @@ export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDi
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
+export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

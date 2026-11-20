@@ -37,6 +37,7 @@
 
 import { isRthBar } from '../../components/chart/barTime'
 import { bucketOf } from '../../lib/minuteFrames/rollup'
+import { serverPrice } from './price'
 import { prevSessionISO } from './sessions'
 import { STORED_TFS } from './tfs'
 
@@ -96,7 +97,10 @@ export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
       for (const k2 of COLS) s.cols[k2].copyWithin(i + 1, i, s.n)
       s.n++
     }
-    s.cols.t[i] = t; s.cols.o[i] = bar.o; s.cols.h[i] = bar.h; s.cols.l[i] = bar.l; s.cols.c[i] = bar.c; s.cols.v[i] = bar.v
+    // ⭐ Prices at the SERVER's grain (price.js: Python's round(x, 4), what /api/bars stores), so a bar painted
+    // from here is bit-identical to the server's. Rounding is monotone, so rounding the bucket's O/H/L/C equals
+    // rounding every minute first: a max stays a max, a first stays a first. Volume is stored as received.
+    s.cols.t[i] = t; s.cols.o[i] = serverPrice(bar.o); s.cols.h[i] = serverPrice(bar.h); s.cols.l[i] = serverPrice(bar.l); s.cols.c[i] = serverPrice(bar.c); s.cols.v[i] = bar.v
     if (bar.partial) s.bad = true
     stats.kept++
   }
@@ -142,6 +146,24 @@ export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
     },
   }
 
+  // The ONE decision behind read() and why(): the answer and, when there is none, the rule that refused.
+  function _read(sym, tf, seedAsof) {
+    if (!day || lastMinute == null) return { res: null, why: 'no-day' }
+    if (!_TFS.has(tf)) return { res: null, why: 'tf' }
+    if (seedAsof !== prevSessionISO(day)) return { res: null, why: 'other-session' }
+    if (gapRth || (tf === 'D' && gapAny)) return { res: null, why: 'gap' }
+    const through = (lastMinute + 1) * 60
+    const s = series.get(keyOf(sym, tf))
+    if (s?.bad) return { res: null, why: 'bad-series' }
+    if (!s || !s.n) return { res: { cols: null, through }, why: 'ok' }
+    let n = s.n
+    while (n > 0 && bucketEndOf(s.cols.t[n - 1], tf) > through) n--   // not finished: never handed out
+    if (!n) return { res: { cols: null, through }, why: 'ok' }
+    const cols = {}
+    for (const k of COLS) cols[k] = s.cols[k].slice(0, n)
+    return { res: { cols, through }, why: 'ok' }
+  }
+
   return {
     sink,
     /**
@@ -150,20 +172,9 @@ export function createLiveOverlay({ nameOf = (sym) => sym } = {}) {
      * unix second the copy is complete up to and `cols` null when the symbol has no complete bar yet
      * (pre-market, no trade). Null when the overlay cannot vouch. Columns are COPIES.
      */
-    read(sym, tf, seedAsof) {
-      if (!day || lastMinute == null || !_TFS.has(tf) || seedAsof !== prevSessionISO(day)) return null
-      if (gapRth || (tf === 'D' && gapAny)) return null
-      const through = (lastMinute + 1) * 60
-      const s = series.get(keyOf(sym, tf))
-      if (s?.bad) return null
-      if (!s || !s.n) return { cols: null, through }
-      let n = s.n
-      while (n > 0 && bucketEndOf(s.cols.t[n - 1], tf) > through) n--   // not finished: never handed out
-      if (!n) return { cols: null, through }
-      const cols = {}
-      for (const k of COLS) cols[k] = s.cols[k].slice(0, n)
-      return { cols, through }
-    },
+    read: (sym, tf, seedAsof) => _read(sym, tf, seedAsof).res,
+    /** Diagnostics: 'ok', or the rule that made read() answer null: no-day | tf | other-session | gap | bad-series. */
+    why: (sym, tf, seedAsof) => _read(sym, tf, seedAsof).why,
     /** The day held and the newest minute applied (unix minute), for diagnostics and freshness. */
     state: () => ({ day, lastMinute, gapRth, gapAny, series: series.size, ...stats }),
     /** Drop everything (a re-sync replays the day into a clean overlay). */
