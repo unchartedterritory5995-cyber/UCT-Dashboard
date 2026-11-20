@@ -521,18 +521,105 @@ def should_build(now: Optional[datetime] = None, published: Optional[int] = None
     return target > (published if published is not None else _read_marker())
 
 
+#: A forced rebuild of the newest closed session (whose marker already exists), done once:
+#: `FFSEED_FORCE_ASOF=YYYY-MM-DD` on the worker. Recorded here so the variable can stay set.
+_FORCED_FILE = ".last_ffseed_forced"
+
+
+def _forced_path() -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), _FORCED_FILE)
+
+
+def _read_forced() -> str:
+    try:
+        with open(_forced_path(), encoding="ascii") as f:
+            return f.read().strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def _write_forced(asof_iso: str) -> None:
+    try:
+        tmp = _forced_path() + ".tmp"
+        with open(tmp, "w", encoding="ascii") as f:
+            f.write(asof_iso)
+        os.replace(tmp, _forced_path())
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def forced_rebuild_due(now: Optional[datetime] = None) -> Optional[date]:
+    """The session `FFSEED_FORCE_ASOF` asks to rebuild, when that is due: it must BE the newest closed
+    session (an older build published after a newer one would roll every device back) and must not have
+    been force-built already. Anything else is ignored (logged)."""
+    raw = os.environ.get("FFSEED_FORCE_ASOF", "").strip()
+    if not raw:
+        return None
+    try:
+        want = date.fromisoformat(raw)
+    except ValueError:
+        log.warning("[ffseed] FFSEED_FORCE_ASOF=%r is not YYYY-MM-DD: ignored", raw)
+        return None
+    target = last_closed_session(now or datetime.now(ET), after_min=BUILD_AFTER_MIN)
+    if want != target:
+        log.warning("[ffseed] FFSEED_FORCE_ASOF=%s is not the newest closed session (%s): ignored", raw, target)
+        return None
+    if _read_forced() == want.isoformat():
+        return None
+    return want
+
+
+def nightly(asof: date) -> dict:
+    """One session's build: the long-tail 1m pass, the build and publish, the marker, then the 1m
+    retention. The pass and the retention never stop a publish."""
+    from api.services import ffseed_onemin as onemin
+    if onemin.backfill_enabled():
+        try:
+            onemin.run_pass(asof)
+        except Exception:  # noqa: BLE001
+            log.exception("[ffseed] 1m backfill failed (building with what the store has)")
+    m = build_and_publish(asof=asof)
+    _write_marker(max(_read_marker(), int(asof.strftime("%Y%m%d"))))
+    log.info("[ffseed] published %s as-of %s: %s", m["build"], m["asof"],
+             {tf: (e["symbols"], e["bytes"]) for tf, e in m["tfs"].items()})
+    try:
+        onemin.retention(asof)
+    except Exception:  # noqa: BLE001
+        log.exception("[ffseed] 1m retention failed (non-fatal)")
+    return m
+
+
+def tick(now: Optional[datetime] = None) -> Optional[dict]:
+    """One pass of the builder loop: a forced rebuild when one is due, else the nightly build when due.
+    Returns the published manifest, or None when nothing was built."""
+    from api.services import data_sync
+    now = now or datetime.now(ET)
+    if not data_sync.credentials_ok():
+        return None
+    forced = forced_rebuild_due(now)
+    if forced is not None:
+        m = nightly(forced)
+        _write_forced(forced.isoformat())
+        return m
+    if should_build(now):
+        return nightly(last_closed_session(now, after_min=BUILD_AFTER_MIN))
+    # Not build time yet: the session's long-tail 1m pass runs as soon as the session has closed (or on
+    # the first tick after a boot past that point), so the build itself finds the store current.
+    from api.services import ffseed_onemin as onemin
+    due = onemin.pass_due(now)
+    if due is not None:
+        try:
+            onemin.run_pass(due)
+        except Exception:  # noqa: BLE001
+            log.exception("[ffseed] 1m pass failed (the build's own pass retries it)")
+    return None
+
+
 def _loop() -> None:
     time.sleep(_BOOT_DELAY)
     while True:
         try:
-            from api.services import data_sync
-            now = datetime.now(ET)
-            if data_sync.credentials_ok() and should_build(now):
-                asof = last_closed_session(now, after_min=BUILD_AFTER_MIN)
-                m = build_and_publish(asof=asof)
-                _write_marker(int(asof.strftime("%Y%m%d")))
-                log.info("[ffseed] published %s as-of %s: %s", m["build"], m["asof"],
-                         {tf: (e["symbols"], e["bytes"]) for tf, e in m["tfs"].items()})
+            tick()
         except SeedBuildError as e:
             log.warning("[ffseed] not published: %s", e)
         except Exception:  # noqa: BLE001
@@ -552,6 +639,7 @@ def start_ffseed_builder() -> bool:
 def status() -> dict:
     return {"enabled": os.environ.get("FFSEED_ENABLED", "0") == "1",
             "published_session": _read_marker(), "should_build_now": should_build(),
+            "forced_session": _read_forced() or None,
             "depth": {tf: depth_for(tf) for tf in SEED_TFS}}
 
 
