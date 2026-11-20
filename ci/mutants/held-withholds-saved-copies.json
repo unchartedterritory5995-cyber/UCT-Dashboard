@@ -1,0 +1,195 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "HELD WITHHOLDS, SERVER HALF (coordinator ruling 2026-11-19): a saved copy minted before its script's narrow withholds is refused by name at every door (served rows, server lanes, save, share, install, headless compute), and the copy that honours them is served. Every condition, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "S1",
+   "mutant": "a copy's mint stamp is ignored: every withhold of its door is owed",
+   "file": "api/services/held_withholds.py",
+   "from": "    return [w for w in ws if withhold_key(w) not in honoured]",
+   "to": "    return ws",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "test_a_copy_is_owed_only"
+  },
+  {
+   "id": "S2",
+   "mutant": "a copy is owed the OTHER door's withholds too",
+   "file": "api/services/held_withholds.py",
+   "from": "    ws = [w for w in _withholds_of(source) if w.get(\"door\") == door]",
+   "to": "    ws = list(_withholds_of(source))",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "test_a_copy_is_owed_only"
+  },
+  {
+   "id": "S3",
+   "mutant": "the CRLF form of a script is another script",
+   "file": "api/services/held_withholds.py",
+   "from": "    if ws is None and \"\\r\\n\" in source:",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "test_a_copy_is_owed_only"
+  },
+  {
+   "id": "S4",
+   "mutant": "a host withhold the door cannot honour narrowly is told to add the script again",
+   "file": "api/services/held_withholds.py",
+   "from": "    whole = any(w.get(\"scope\") not in NARROW_SCOPES.get(door, frozenset()) for w in ws)",
+   "to": "    whole = False",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "says_the_script_is_withheld"
+  },
+  {
+   "id": "S5",
+   "mutant": "a stored row carries no held sentence",
+   "file": "api/services/user_definitions.py",
+   "from": "        **_held_divergence_of(definition, row),",
+   "to": "",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "refused_by_name_at_every_server_door"
+  },
+  {
+   "id": "S6",
+   "mutant": "the server lanes run a copy saved before its withholds",
+   "file": "api/services/user_definitions.py",
+   "from": "    if isinstance(hw, str) and hw:",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "refused_by_name_at_every_server_door"
+  },
+  {
+   "id": "S7",
+   "mutant": "the host save door stores a copy that does not honour its withholds",
+   "file": "api/services/user_definitions.py",
+   "from": "    _hw_why = _hw.refused(definition, pine_source, audience=\"save\")",
+   "to": "    _hw_why = None",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "refused_by_name_at_every_server_door"
+  },
+  {
+   "id": "S8",
+   "mutant": "the runtime save door stores a copy that does not honour its withholds",
+   "file": "api/services/user_definitions.py",
+   "from": "    _hw_why = _hw.refused(definition, audience=\"save\")",
+   "to": "    _hw_why = None",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "honouring_copy_is_served"
+  },
+  {
+   "id": "S9",
+   "mutant": "a share installs a version saved before its withholds",
+   "file": "api/services/user_definitions.py",
+   "from": "    if resolved.get(\"held_divergence\"):",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "never_installed"
+  },
+  {
+   "id": "S10",
+   "mutant": "a shared version is not judged on its author's script",
+   "file": "api/services/user_definitions.py",
+   "from": "        out[\"held_divergence\"] = held",
+   "to": "        pass",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "never_installed"
+  },
+  {
+   "id": "S11",
+   "mutant": "a served row is not stamped for the install door",
+   "file": "api/services/runtime_definitions.py",
+   "from": "        meta[hw.STAMP] = why",
+   "to": "        pass",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "refused_by_name_at_every_server_door"
+  },
+  {
+   "id": "S12",
+   "mutant": "a runtime document with no row sentence is served unjudged",
+   "file": "api/services/runtime_definitions.py",
+   "from": "    if not (isinstance(why, str) and why) and hw.door_of(definition) == \"runtime\":",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "honouring_copy_is_served"
+  },
+  {
+   "id": "S13",
+   "mutant": "a served stamp a client wrote back is kept on a row that owes nothing",
+   "file": "api/services/runtime_definitions.py",
+   "from": "    meta = {k: v for k, v in meta_in.items() if k != hw.STAMP}",
+   "to": "    meta = dict(meta_in)",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "never_stored_or_served"
+  },
+  {
+   "id": "S14",
+   "mutant": "a client-written served stamp is stored by the runtime save door",
+   "file": "api/services/runtime_definitions.py",
+   "from": "    stamps = RUN_READ_STAMPS + (hkd.STAMP, hw.STAMP)",
+   "to": "    stamps = RUN_READ_STAMPS + (hkd.STAMP,)",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "never_stored_or_served"
+  },
+  {
+   "id": "S15",
+   "mutant": "the census counts every copy as owed",
+   "file": "api/services/held_withholds.py",
+   "from": "        if owed(definition, pine_source):",
+   "to": "        if True:",
+   "rail": "python -m pytest tests/test_pine_held_withholds_saved_copies.py -q -p no:cacheprovider",
+   "expectRed": "test_the_census_counts"
+  },
+  {
+   "id": "J1",
+   "mutant": "the install door draws a runtime copy stamped heldDivergence",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "      if (heldDivergenceRefused(def, errors, killedIds)) continue // a runtime copy",
+   "to": "      // mutant: runtime branch off",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/heldWithholds.savedCopies.test.js",
+   "expectRed": "a runtime row"
+  },
+  {
+   "id": "J2",
+   "mutant": "the install door draws a host copy stamped heldDivergence",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "      if (heldDivergenceRefused(def, errors, killedIds)) continue // a host copy",
+   "to": "      // mutant: host branch off",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/heldWithholds.savedCopies.test.js",
+   "expectRed": "a host row"
+  },
+  {
+   "id": "J3",
+   "mutant": "the install door refuses a copy but does not take it off this tab",
+   "file": "app/src/components/chart/engine/nativeRegistry.js",
+   "from": "  killedIds.push(def.id)\n  return true",
+   "to": "  return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/heldWithholds.savedCopies.test.js",
+   "expectRed": "a runtime row"
+  },
+  {
+   "id": "J4",
+   "mutant": "the headless compute runs a runtime copy stamped heldDivergence",
+   "file": "app/src/components/chart/engine/headlessCompute.js",
+   "from": "  if (text(meta[HELD_DIVERGENCE_STAMP])) return refused(lane, HELD_DIVERGENCE_GUARD, meta[HELD_DIVERGENCE_STAMP])\n  let ctx",
+   "to": "  let ctx",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessCompute.test.js -t \"held withholds\"",
+   "expectRed": "a served runtime row saved before its held withholds"
+  },
+  {
+   "id": "J5",
+   "mutant": "the headless compute runs a host copy stamped heldDivergence",
+   "file": "app/src/components/chart/engine/headlessCompute.js",
+   "from": "  if (text(meta[HELD_DIVERGENCE_STAMP])) return refused(lane, HELD_DIVERGENCE_GUARD, meta[HELD_DIVERGENCE_STAMP])\n  // ⛔ the script's own",
+   "to": "  // ⛔ the script's own",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessCompute.test.js -t \"held withholds\"",
+   "expectRed": "a served host row saved before its held withholds"
+  },
+  {
+   "id": "J6",
+   "mutant": "the auto-upgrade carries the served stamp onto the new translation, so the copy that honours the withholds is refused",
+   "file": "app/src/components/chart/builder/memberPane/savedScriptUpgrade.js",
+   "from": "const CARRIED_META = Object.freeze(['name', 'semantics', 'forkedFrom'])",
+   "to": "const CARRIED_META = Object.freeze(['name', 'semantics', 'forkedFrom', 'heldDivergence'])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/heldWithholds.savedCopies.test.js",
+   "expectRed": "is re-translated, not refused"
+  }
+ ]
+}

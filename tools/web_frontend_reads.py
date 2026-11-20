@@ -58,6 +58,8 @@ DECLARED_READS = {
     "app/src/constants/setupGroups.js": "api/services/concept_vocabulary.py: firm setup names",
     "app/src/constants/quotes.json": "api/services/quote_of_the_day.py",
     "app/src/pages/modelbook/setupCatalog.js": "api/services/concept_vocabulary.py, wisdom/publish/adapters/modelbook.py",
+    "app/src/pages/breadth/shadeSpec.json": "api/services/breadth_shade_rule.py (via breadth_reading.py): the breadth shading spec",
+    "app/src/pages/breadth/shadeCutoffs.generated.json": "api/services/breadth_shade_rule.py (via breadth_reading.py): the frozen shading cutoffs",
     "app/src/pages/modelbook/setupPlaybooks.js": "api/services/wisdom/publish/adapters/modelbook.py",
     "app/src/pages/charts/boardBound.json": "api/services/board_bound.py: widgets per board",
     "app/src/components/chart/engine/runtime/runtimeRepaint.json": "api/services/runtime_repaint.py",
@@ -70,6 +72,7 @@ DECLARED_READS = {
     "app/src/components/chart/supportLoop/doorNameCoverage.json": "api/services/indicator_support_loop.py",
     "app/src/components/chart/engine/scriptEngineVersion.js": "api/services/user_definitions.py: SCRIPT_ENGINE_VERSION",
     "app/src/components/chart/engine/hostKnownDivergence.json": "api/services/host_known_divergence.py: the host lane's known-divergence list (save, served rows, server lanes)",
+    "app/src/components/chart/engine/heldWithholds.json": "api/services/held_withholds.py: the narrow held withholds a saved copy is judged against (save, share, served rows, server lanes)",
     "app/src/components/chart/engine/pineCompare.js": "api/services/pine_compare.py: PINE_EQ_EPSILON / PINE_EQ_INCLUSIVE, Pine's float comparison (unreadable = the import fails)",
 }
 

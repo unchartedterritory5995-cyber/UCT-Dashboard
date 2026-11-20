@@ -141,6 +141,9 @@ export const OI_SIDE_WORDS = Object.freeze({
   C: 'call', CALL: 'call', CALLS: 'call',
   P: 'put', PUT: 'put', PUTS: 'put',
 })
+
+// Market Tide by day: a copy of the panel model's words (args.tideHistory.test.js pins it to its owner)
+export const TIDE_SCOPE_WORDS = Object.freeze({ STOCKS: 'stocks', STOCK: 'stocks', ETFS: 'etfs' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -568,6 +571,16 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(OI_SIDE_WORDS, key) ? OI_SIDE_WORDS[key] : null
     },
     describe: (v) => ({ call: 'calls only', put: 'puts only' })[v] || v,
+  },
+  // ── Market Tide by day (2026-11-19) ──
+  /** TIDEH's scope (panels/tideHistoryModel.js TIDE_SCOPE_ARG_WORDS; pinned by args.tideHistory.test.js). */
+  tideScope: {
+    takes: 'STOCKS or ETFS',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(TIDE_SCOPE_WORDS, key) ? TIDE_SCOPE_WORDS[key] : null
+    },
+    describe: (v) => ({ stocks: 'stocks only', etfs: 'ETFs and indexes only' })[v] || v,
   },
 }
 

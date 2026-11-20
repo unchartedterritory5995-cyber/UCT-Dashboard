@@ -300,6 +300,20 @@ def token() -> str:
     return (":ma-" + v["sha"][:10]) if v and v["rows"] else ""
 
 
+def _published_start(universe: str) -> str:
+    """The first session a universe publishes ('' = no clip)."""
+    if universe in ("nyse", "nasdaq"):
+        try:
+            from api.services import breadth_exchange_authority as ea
+            return ea.START.get(universe, "")
+        except Exception:
+            return ""
+    if universe == "us":
+        from api.services import breadth_universes as bu
+        return bu.floor("us") or ""
+    return ""
+
+
 def override_history(metric: str, universe: str, hist: dict, with_source: bool = False) -> dict:
     """`breadth_daily_ohlc.history` rows for a metric the canonical authorities never stored: this
     series' value on every session it holds (a body — one close), the stored rows kept as is."""
@@ -317,8 +331,13 @@ def override_history(metric: str, universe: str, hist: dict, with_source: bool =
         return hist
     idx = METRICS[metric][0]
     out = dict(hist or {})
+    # ⛔ (2026-11-19) CLIPPED AT THE UNIVERSE'S PUBLISHED START. This series was swept from
+    # 2008 for every universe, but NYSE is only published from 2009-06-11 (the exchange
+    # authority's venue-ledger start) — so an unclipped override handed a NYSE chart (and the
+    # Monitor) 20/150-day readings for sessions that universe does not have.
+    start = _published_start(u)
     for d, r in rows.items():
-        if d in out or r[idx] is None:
+        if d in out or r[idx] is None or (start and d < start):
             continue
         out[d] = {"o": None, "h": None, "l": None, "c": r[idx]}
         if with_source:

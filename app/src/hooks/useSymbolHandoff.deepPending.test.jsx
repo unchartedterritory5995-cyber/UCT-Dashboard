@@ -12,6 +12,7 @@ const dailyMock = vi.fn(() => new Promise((r) => { resolveDaily = r }))
 vi.mock('../data/barStore/prefetch', () => ({
   peekDisplayable: () => true,
   peekBars: () => (st.held ? [{ t: 1 }, { t: 2 }] : null),
+  holdsBars: () => !!st.held,
   deepPending: vi.fn(() => st.deep),
   lakePending: () => false,
   prepareForDisplay: () => new Promise(() => {}),

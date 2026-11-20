@@ -8401,6 +8401,11 @@ async def lifespan(app: FastAPI):
                     breadth_ma_extra.scheduled_extend()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ma-extra] extend failed: %s", _e)
+                try:   # the pre-built per-universe Monitor rows follow their overlays
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] refresh failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_nhnl_extend,
@@ -8411,6 +8416,33 @@ async def lifespan(app: FastAPI):
                 _breadth_nhnl_extend, trigger="date",
                 run_date=_dt.now(_ET) + _td(minutes=12),
                 id="breadth_nhnl_extend_boot", replace_existing=True)
+
+            # ⭐ PRE-BUILT per-universe Monitor rows (US / Nasdaq / NYSE, the universe switcher):
+            # a full rebuild every night (a historical revision can never hide in the store), and
+            # a boot refresh that builds any universe whose store is empty. Requests only read.
+            def _breadth_universe_monitor_nightly():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.nightly()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] nightly failed: %s", _e)
+
+            def _breadth_universe_monitor_boot():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] boot refresh failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_universe_monitor_nightly,
+                trigger=CronTrigger(day_of_week="mon-sat", hour=3, minute=25, timezone=_ET),
+                id="breadth_universe_monitor_nightly", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_universe_monitor_boot, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=15),
+                id="breadth_universe_monitor_boot", replace_existing=True)
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth put/call fill")
@@ -9016,6 +9048,20 @@ async def lifespan(app: FastAPI):
                 print("[startup] market-tide RTH warm: on (2-min cadence)")
         except Exception as e:
             print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
+
+        # -- Market Tide by day (terminal tide history, 2026-11-19) --
+        # Stores each finished session's tide once, after the close: 16:33, 17:33 and 20:33 ET
+        # (three tries so a late tape still lands; a thinner read never replaces a fuller one).
+        # Always registered: the job reads the tide's own switch when it RUNS and returns
+        # without reading anything while it is off.
+        try:
+            from api.services.options_analytics import tide_history as _tide_history
+            _scheduler.add_job(_tide_history.run_capture_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=33, timezone=_ET),
+                id="market_tide_history_capture", max_instances=1, coalesce=True,
+                misfire_grace_time=1800, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] market_tide_history_capture job registration error: {e}")
 
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and

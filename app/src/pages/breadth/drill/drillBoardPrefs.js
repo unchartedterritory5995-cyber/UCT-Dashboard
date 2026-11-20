@@ -53,6 +53,8 @@ export function defaultBoard(seedChartOpts = {}) {
     split: DEFAULT_SPLIT,
     mode: 'focus',
     layout: '1',
+    markDay: true,
+    replay: false,
     widgets: [
       { id: LIST_WIDGET_ID, type: 'watchlist', color: DRILL_GROUP, opts: { source: 'breadthDrill' } },
       { id: CHART_WIDGET_ID, type: 'chart', color: DRILL_GROUP, opts: { ...seedChartOpts } },
@@ -85,7 +87,39 @@ export function parseBoard(raw, seedChartOpts = {}) {
   const split = Number.isFinite(parsed.split) ? clampSplit(parsed.split) : fresh.split
   const mode = SCAN_MODES.includes(parsed.mode) ? parsed.mode : (LEGACY_MODE[parsed.mode] || fresh.mode)
   const layout = SCAN_LAYOUTS.includes(parsed.layout) ? parsed.layout : fresh.layout
-  return { split, mode, layout, widgets }
+  return { split, mode, layout, widgets, ...parseDayPrefs(parsed) }
+}
+
+// ── The scan day's two options (owner 2026-11-19) ─────────────────────────────
+//   markDay  paint the drill date's candle white / black on every drill chart (ON by default)
+//   replay   open every drill chart ending on the drill date (OFF by default)
+// Per member: saved on the board (breadth_drill_board) and mirrored to localStorage under these
+// EXACT keys, so the window opens right before the pref round-trip lands.
+export const DAY_PREF_DEFAULTS = Object.freeze({ markDay: true, replay: false })
+export const DAY_PREF_LS = Object.freeze({ markDay: 'uct.breadthDrill.markDay', replay: 'uct.breadthDrill.replay' })
+
+export function parseDayPrefs(parsed) {
+  const out = { ...DAY_PREF_DEFAULTS }
+  for (const k of Object.keys(DAY_PREF_DEFAULTS)) if (typeof parsed?.[k] === 'boolean') out[k] = parsed[k]
+  return out
+}
+
+/** The localStorage mirror, or {} (never throws). */
+export function readDayPrefsLocal(ls = globalThis.localStorage) {
+  const out = {}
+  try {
+    for (const [k, key] of Object.entries(DAY_PREF_LS)) {
+      const v = ls?.getItem(key)
+      if (v === '1' || v === '0') out[k] = v === '1'
+    }
+  } catch { /* private mode */ }
+  return out
+}
+
+export function writeDayPrefsLocal(prefs, ls = globalThis.localStorage) {
+  try {
+    for (const [k, key] of Object.entries(DAY_PREF_LS)) if (typeof prefs?.[k] === 'boolean') ls?.setItem(key, prefs[k] ? '1' : '0')
+  } catch { /* private mode */ }
 }
 
 // The split's travel. Exported because the divider reports them to assistive
@@ -103,6 +137,7 @@ export function serializeBoard(board) {
     split: clampSplit(board?.split ?? DEFAULT_SPLIT),
     mode: SCAN_MODES.includes(board?.mode) ? board.mode : 'focus',
     layout: SCAN_LAYOUTS.includes(board?.layout) ? board.layout : '1',
+    ...parseDayPrefs(board),
     widgets: (board?.widgets ?? []).map(w => ({ id: w.id, opts: w.opts || {} })),
   })
 }

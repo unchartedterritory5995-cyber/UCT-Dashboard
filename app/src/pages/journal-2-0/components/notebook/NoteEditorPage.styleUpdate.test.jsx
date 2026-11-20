@@ -50,6 +50,11 @@ import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/note
 import { STYLE_EVENT } from '../../lib/journalStylesFlag'
 import { STALE_SENTENCE } from './styles/StyleUpdateSheet'
 import { contractBody } from '../../__fixtures__/contract'
+import { preloadLazyChunks, NOTE_EDITOR_CHUNKS } from '../../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTE_EDITOR_CHUNKS, 'styleSurfaces')
 
 const KINDS = [{ id: 'weekend_prep', name: 'Weekend prep', builtin: true }, { id: 'trade_plan', name: 'Trade plan', builtin: true }]
 const style = (over = {}) => ({

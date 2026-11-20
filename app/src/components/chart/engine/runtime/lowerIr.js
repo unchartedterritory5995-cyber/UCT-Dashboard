@@ -131,12 +131,18 @@ export function lowerIrProgram(ir, opts = {}) {
   // ⛔ KEYED BY NAME **AND** TYPE ARGUMENT. `array.new<float>(3)` and
   // `array.new<int>(3)` are the same NAME and different programs, so interning
   // on the name alone would give the second one the first one's element type.
-  const arrayIndex = (fn, typeArg) => {
-    const key = `${fn}<${typeArg || ''}>`
+  // ⭐⭐ the version island: AND BY THE VERSION a v5 library's call is judged under (`islandVersion`, set by the front
+  // end only where it differs from the program's): `array.get` in the library and `array.get` in the script are two
+  // entries, and only the library's carries `version` (`vm.js` sets `budget.opVersion` around it). Every other
+  // program interns exactly as before.
+  const arrayKey = (fn, typeArg, version) => `${fn}<${typeArg || ''}>${version === undefined ? '' : `@v${version}`}`
+  const arrayIndex = (fn, typeArg, islandVersion) => {
+    const version = Number.isFinite(islandVersion) ? islandVersion : undefined
+    const key = arrayKey(fn, typeArg, version)
     for (let i = 0; i < arrayOps.length; i += 1) {
-      if (`${arrayOps[i].fn}<${arrayOps[i].typeArg || ''}>` === key) return i
+      if (arrayKey(arrayOps[i].fn, arrayOps[i].typeArg, arrayOps[i].version) === key) return i
     }
-    arrayOps.push({ fn, typeArg: typeArg || null })
+    arrayOps.push(version === undefined ? { fn, typeArg: typeArg || null } : { fn, typeArg: typeArg || null, version })
     return arrayOps.length - 1
   }
   // ⭐ RT5 — KEYED BY NAME **AND** WHICH PARAMETERS WERE PASSED: two call sites
@@ -256,7 +262,7 @@ export function lowerIrProgram(ir, opts = {}) {
         return
       case EXPR.ARRAY: {
         for (const a of e.args) expr(a)
-        emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg), e.args.length)
+        emit(OP.ARRAY, arrayIndex(e.fn, e.typeArg, e.islandVersion), e.args.length)
         return
       }
       // ⭐⭐ RT5 — the PASSED arguments, in parameter order, then one instruction
@@ -390,7 +396,9 @@ export function lowerIrProgram(ir, opts = {}) {
         // bar (no `na` can reach either), and the one thing that changes is that
         // the undecided side is not run — Pine v6's rule. A v5 script, and any
         // operand that may be `na`, keeps the eager form untouched.
-        if ((e.op === '&&' || e.op === '||') && lazyLogic && isBoolIr(e.left) && isBoolIr(e.right)) {
+        // ⭐⭐ the version island: `eager` marks a v5 library's `and` / `or` inside a v6 program (the front end
+        // decides it with `versionAt`); it keeps the v5 form below
+        if ((e.op === '&&' || e.op === '||') && lazyLogic && e.eager !== true && isBoolIr(e.left) && isBoolIr(e.right)) {
           expr(e.left)
           const toFalse = here()
           emit(OP.JUMP_IF_FALSE, 0)
@@ -420,7 +428,7 @@ export function lowerIrProgram(ir, opts = {}) {
         // Pine's answer, since Pine never holds that operand as `na`.
         // ⛔ v4/v5 (`lazyLogic` false) are untouched: Pine evaluates both operands
         // there, and the eager `logical` below stands.
-        if ((e.op === '&&' || e.op === '||') && lazyLogic) {
+        if ((e.op === '&&' || e.op === '||') && lazyLogic && e.eager !== true) {
           const asBool = asCondition
           expr(e.left)
           const toFalsy = here()

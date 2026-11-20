@@ -128,12 +128,18 @@ def test_the_gate_covers_the_SPLIT_adjust_only(monkeypatch, _meta):
     only triggers on a recycled ticker's multi-year data gap, so a contiguous
     fixture no-ops and the assertion holds no matter where the gate sits. That test
     was written first and it proved nothing.
+
+    ⚰️ RE-PINNED 2026-11-20. The stored series' repairs (listing cutoff, identity,
+    split heal, W/M deepen) moved out of `sanitize_daily_bars` into `_repair_stored`,
+    unchanged, so the wick clamp could be ONE call for every daily series, rebuilt or
+    stored (it now sits in `sanitize_daily_bars`, behind no split gate). This reads
+    the function the listing cutoff and the split gate actually live in.
     """
     import ast
     import inspect
     import textwrap
 
-    tree = ast.parse(textwrap.dedent(inspect.getsource(san.sanitize_daily_bars)))
+    tree = ast.parse(textwrap.dedent(inspect.getsource(san._repair_stored)))
     fn = tree.body[0]
     guarded, unguarded = set(), set()
     for node in fn.body:

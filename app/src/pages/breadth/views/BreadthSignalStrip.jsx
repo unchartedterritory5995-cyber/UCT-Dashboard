@@ -30,7 +30,7 @@ export default function BreadthSignalStrip({
   if (!signalMetric && !notableMetric) return null
   return (
     <div className={styles.strip}>
-      <Chip kicker={<><UIcon name="star-fill" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Signal of the Day</>} kickerClass={styles.kickerSignal}
+      <Chip kicker={<><UIcon name="star-fill" size={12} gold={false} style={{ verticalAlign: '-2px', marginRight: 4 }} />Signal of the day</>} kickerClass={styles.kickerSignal}
             metric={signalMetric} currentRow={currentRow} reason={signalReason} onDrill={onDrill} />
       <Chip kicker="◆ Notable" kickerClass={styles.kickerNotable}
             metric={notableMetric} currentRow={currentRow} reason={notableReason} pulse onDrill={onDrill} />
