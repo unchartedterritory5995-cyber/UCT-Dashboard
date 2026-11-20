@@ -65,18 +65,19 @@
   border-right: 1px solid var(--dr-line);
 }
 .idTop { display: flex; align-items: center; gap: 8px; }
-/* Mark day / Replay from this day: two small chips under the view tabs, right-aligned with
-   them (the close button's 28px + 10px gap sits to their right). */
-.dayTools { display: flex; align-items: center; gap: 4px; margin-right: 38px; }
+/* Mark day / Replay: two matching chips under the view tabs, flush with the close button. */
+.dayTools { display: flex; align-items: center; gap: 6px; }
+/* Both chips share one shape: a hairline outline when off, the Selected fill when on, so the
+   pair reads as two matching toggles instead of a chip next to loose text. */
 .dayChip {
-  display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
-  border: 0; border-radius: 6px; background: transparent; cursor: pointer; white-space: nowrap;
-  font-family: var(--font-sans); font-size: 11.5px; font-weight: 500; color: var(--dr-faint);
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
+  border: 1px solid var(--dr-line); border-radius: 7px; background: transparent; cursor: pointer; white-space: nowrap;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--dr-dim);
 }
-.dayChip span { font-size: 11px; }
+.dayChip span { font-size: 11px; line-height: 1; }
 .dayChip:hover:not(:disabled) { color: var(--dr-text); background: var(--dr-soft); }
-.dayChip[aria-pressed='true'] { color: var(--dr-bright); background: var(--dr-selected); font-weight: 600; }
-.dayChip[data-mode='replay'][aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--ut-gold); border-radius: 6px 6px 0 0; }
+.dayChip[aria-pressed='true'] { color: var(--dr-bright); background: var(--dr-selected); border-color: transparent; font-weight: 600; }
+.dayChip[data-mode='replay'][aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--ut-gold); }
 .dayChip:disabled { opacity: .4; cursor: default; }
 .dayChip:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .metric {
@@ -361,6 +362,5 @@ span.metric:hover { background-color: transparent; }
   .tileLbl { display: none; }
   .headEnd { padding: 0; gap: 6px; }
   .headEndTop { gap: 6px; }
-  .dayTools { margin-right: 0; }
   .closeBtn { width: var(--tap-min); height: var(--tap-min); }
 }

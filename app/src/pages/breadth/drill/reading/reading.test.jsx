@@ -207,7 +207,7 @@ describe('the scan day chips under the date', () => {
     localStorage.removeItem('uct.breadthDrill.replay')
     render(<BreadthDrillModal drill={DRILL} onClose={() => {}} rows={[]} />)
     const mark = screen.getByRole('button', { name: /Mark day/ })
-    const replay = screen.getByRole('button', { name: /Replay from this day/ })
+    const replay = screen.getByRole('button', { name: /^Replay$/ })
     expect(mark.getAttribute('aria-pressed')).toBe('true')
     expect(replay.getAttribute('aria-pressed')).toBe('false')
     fireEvent.click(replay)
@@ -218,7 +218,7 @@ describe('the scan day chips under the date', () => {
   })
   it('the reading-only window has no day chips', () => {
     render(<BreadthReadingModal drill={{ readingOnly: true, label: '5-day up/down ratio', colKey: 'ratio_5day', date: '2026-11-09' }} onClose={() => {}} />)
-    expect(screen.queryByRole('button', { name: /Replay from this day/ })).toBeNull()
+    expect(screen.queryByRole('button', { name: /^Replay$/ })).toBeNull()
   })
 })
 

@@ -17,7 +17,7 @@ export default function DayTools({ markDay, replay, onToggle, canReplay = true }
         title={canReplay
           ? "Replay from this day: every chart here ends on this day, as if it were today. Stays on for the next drill until you turn it off"
           : 'Replay needs a past session'}>
-        <span aria-hidden="true">⏮</span>Replay from this day
+        <span aria-hidden="true">⏮</span>Replay
       </button>
     </div>
   )
