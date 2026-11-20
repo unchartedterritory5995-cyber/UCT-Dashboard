@@ -223,7 +223,9 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // it), B-QTY-REVERSE-M0 (the reversal's size at margins 0, never rejected for funds), both witnessed by the community
     // capture macd-shortlong-strategy-is-rddt-1d-2026-11-18, and B-MARGIN-ZERO (at margin 0 a negative equity is carried),
     // witnessed by w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17.
-    expect(BROKER_RULE_IDS.length).toBe(63)
+    // + 1 (dated 2026-11-19, the strategy-only daily window, coordinator ruling D9): B-START-DEEP (a run from the
+    // listing deeper than the shared window), unpinned until Q-SU-7 / Q-SU-8 grade MATCH.
+    expect(BROKER_RULE_IDS.length).toBe(64)
   })
 
   it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {

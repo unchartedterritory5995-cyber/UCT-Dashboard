@@ -66,7 +66,7 @@ import { instanceDocumentForFetch } from '../../symbolInputs.js'
 // read back off the columns (`strategyRecord.js::runtimeStrategyOf`), never re-run here.
 import { isStrategyWindowDefinition } from '../../strategyWindow'
 import { runtimeStrategyOf } from '../../runtime/strategyRecord.js'
-import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
+import { chartStrategyWindowOf } from '../../runtime/__tests__/strategyArmed.js'
 
 // ─── ⭐⭐ C26 — ANOTHER SYMBOL'S BARS, FROM COMMITTED CAPTURES ONLY ─────────────
 //
@@ -1165,6 +1165,7 @@ function drawnColours(def, bars, ctx, inputs = undefined) {
     // ⭐⭐ (2026-11-17) — a broker document's window, as StockChart hands the binder `strategyHistoryWindow`
     // (absent for every other document, whose ctx carries none)
     ...(ctx.historyWindowBars != null ? { historyWindowBars: ctx.historyWindowBars } : {}),
+    ...(ctx.listingDepthBars != null ? { listingDepthBars: ctx.listingDepthBars } : {}),
     adjustTime: (t) => t,
     applyData: (series, data) => series.setData(data),
     plan: { fresh: true },
@@ -1690,7 +1691,9 @@ function runOurSideOnTheParityClock(capture) {
     // server's `bars_window.HISTORY_WINDOW_BARS` (what `GET /api/pine/history-window` answers a member's tab);
     // every other document is handed nothing, so an indicator's ctx is unchanged.
     const strategyDoc = isStrategyWindowDefinition(def)
-    if (strategyDoc) ctx.historyWindowBars = historyWindowBarsOf(path.resolve(process.cwd(), '..'))
+    // ⭐⭐ (2026-11-19, the strategy-only daily window) as the endpoint answers it today: the strategy window, and the
+    // shared window as the depth a run from the listing is served at without [B-START-DEEP]
+    if (strategyDoc) Object.assign(ctx, chartStrategyWindowOf(path.resolve(process.cwd(), '..')))
     // ⭐ C26 — another symbol's bars, from committed captures only.
     // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
     // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)

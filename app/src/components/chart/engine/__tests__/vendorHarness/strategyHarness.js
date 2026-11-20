@@ -20,6 +20,8 @@
 // refuses anywhere outside `__tests__`. What the run REACHED is its `rulesUsed`: the rules this
 // capture exercises, and so the rules a MATCH may pin.
 
+import path from 'node:path'
+import process from 'node:process'
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { lexPine, blockStatements, parseWholeExpression, findTop, isPunct, OUTPUT_CALLS as PINE_OUTPUT_CALLS } from '../../ast/pine.js'
 import { splitCommaStatements } from '../../ast/objectFnInline.js'
@@ -29,6 +31,7 @@ import { execute } from '../../runtime/vm.js'
 import { strategyRecordOf } from '../../runtime/strategyRecord.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
 import { symbolConstants, minContractOf } from '../../ast/bind.js'
+import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { gradeStrategy, strategyFirstDifference, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { settingsAgreement, propertiesByKey, pineVersionOf, extractReportFields, isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
@@ -145,6 +148,13 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   // `bars_window.HISTORY_WINDOW_BARS`) is not what TradingView ran on (w9-r1-risk-intraday-range: 6,343 SPY 15m
   // bars), and a run cut to it would start on another bar than TradingView's
   const windowBars = Math.max(5000, bars.length)
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) A METHOD (a) CAPTURE FROM THE LISTING DEEPER THAN THE SHARED
+  // WINDOW is a deep start ([B-START-DEEP], Q-SU-7 / Q-SU-8): the run is handed the depth a member's run is served at
+  // without it (`bars_window.HISTORY_WINDOW_BARS`, read off the module), so the rule is exercised and a MATCH pins it.
+  // ⛔ Method (b) never: its time guard keeps every order inside [X, Y), so where TradingView started is not what it
+  // grades, and its run must never be evidence for (or against) the deep start.
+  const deepDepth = capture.provenance && capture.provenance.gradeMethod === 'a'
+    ? historyWindowBarsOf(path.resolve(process.cwd(), '..')) : null
   // ⭐⭐ PARITY (2026-11-16) — the symbol's minimum contract, derived exactly as the member's run derives it
   // (`runtimeColumns.js`: `minContractOf(symbolConstants(symbol))`, the witnessed `symbolScope.json::min_contract`
   // row). ⚰️ The harness passed none, so every cash / percent-of-equity size refused Q-S1a here while a member's run
@@ -153,7 +163,7 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   let res
   try {
     res = execute(program, { bars: bars.length, series, columns: program.columns, confirmed, barTimes, historyWindowBars: windowBars,
-      minContract }, undefined, { brokerPinned: pins })
+      minContract, ...(deepDepth !== null ? { listingDepthBars: deepDepth } : {}) }, undefined, { brokerPinned: pins })
   } catch (e) {
     const guard = (e && e.guard) || 'runtime:error'
     // ruling D12: a refusal about a SETTING the run would have to assume (`BrokerRefusal.setting`, raised at bind,

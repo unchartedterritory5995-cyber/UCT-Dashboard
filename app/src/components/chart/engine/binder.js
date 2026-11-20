@@ -2177,6 +2177,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // (`vm.js`, `runtime:strategy-start`), one author, never a second check here.
       const ownStrategy = !frame && isStrategyWindowDefinition(def)
       const strategyWindow = ownStrategy && ctx.historyWindowBars != null ? ctx.historyWindowBars : null
+      // ⭐⭐ (2026-11-19, the strategy-only daily window) and, with it, the depth a run from the listing is served at
+      // without the deep-start rule (`ctx.listingDepthBars`, the server's shared window): forwarded as held, the VM
+      // decides ([B-START-DEEP]); handed only beside a window, so every other document's ctx is unchanged
+      const strategyDepth = strategyWindow !== null && ctx.listingDepthBars != null ? ctx.listingDepthBars : null
       // ⭐ r1 (review N3) — THE WINDOW HAS BEEN ASKED FOR AND NOT ANSWERED YET
       // (`ctx.historyWindowPending`, `useStrategyHistoryWindow`). The run is HELD, not refused: no
       // columns, no record, no notice, so first paint never flashes `runtime:strategy-start`. When
@@ -2221,6 +2225,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         + (lowerSig ? `|ltf:${lowerSig}` : '')
         + (liveSig ? `|live:${liveSig}` : '')
         + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
+        + (strategyDepth !== null ? `|ld${strategyDepth}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
       // ⭐ (e85) the pane, without what the data moves (the other-symbol, live-tail and forming parts of `sig`): a run
@@ -2281,6 +2286,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
             ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
             // ⭐⭐ W9-T11-F1 — a strategy run's window (see `strategyWindow` above)
             ...(strategyWindow !== null ? { historyWindowBars: strategyWindow } : {}),
+            ...(strategyDepth !== null ? { listingDepthBars: strategyDepth } : {}),
             // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the

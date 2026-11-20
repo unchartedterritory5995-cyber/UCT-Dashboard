@@ -2460,6 +2460,17 @@ export function makeBroker(cfg, data) {
     rule('B-EXEC')
     nowBar = was
   }
+  // ⭐⭐ [B-START-DEEP] (2026-11-19, the strategy-only daily window, coordinator ruling D9) a run from the listing over
+  // MORE bars than the depth served without it (`data.deepFrom`, the vm's: the chart's shared window): where
+  // TradingView's backtest starts on such a chart is a question only a capture answers (rows Q-SU-7 / Q-SU-8, where
+  // the chart holds the whole history). Asked once, before the first bar, after every bind check; dated on the first
+  // bar past that depth, the first one only a deep start runs (ruling D11).
+  if (Number.isInteger(data.deepFrom) && data.deepFrom >= 0) {
+    const was = nowBar
+    nowBar = data.deepFrom
+    rule('B-START-DEEP')
+    nowBar = was
+  }
 
   return { beginBar, endBar, call, summary }
 }
