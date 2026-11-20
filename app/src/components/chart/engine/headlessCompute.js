@@ -50,7 +50,7 @@
 // ⛔⛔ NEVER A PARTIAL RESULT, SILENTLY. A definition is refused BY NAME, with the engine's own
 // refusal code, when:
 //   · the server's served row says it is not drawn (`meta.runtimeKilled`, `meta.runtimeNotGraded`,
-//     `meta.hostKnownDivergence` — the stamps the install door refuses on), or it declares its own
+//     `meta.hostKnownDivergence`, `meta.heldDivergence` — the stamps the install door refuses on), or it declares its own
 //     `runtime.error` checks, which the chart evaluates in its object lane and this host does not load;
 //   · its run stops (a limit, a build or version refusal, a request it is not handed, the script's
 //     own `runtime.error`, an engine error);
@@ -91,6 +91,7 @@ import { runtimeInputValues } from './runtime/runtimeInputs.js'
 import { fetchableOtherSymbols, heldFetchesOf } from './otherSymbols.js'
 import { instanceDocumentForFetch } from './symbolInputs.js'
 import { HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence.js'
+import { HELD_DIVERGENCE_GUARD, HELD_DIVERGENCE_STAMP } from './heldWithholds.js'
 import { plotOwnTitlesOf } from './pinePresentation.js'
 import { ENGINE_ERROR } from './ast/parse.js'
 
@@ -193,6 +194,8 @@ function runtimeLane(def, rows, opts) {
   // the install door's refusals of a served row (`nativeRegistry.validateUserDefinitions`)
   if (text(meta.runtimeKilled)) return refused(lane, KILLED, meta.runtimeKilled)
   if (text(meta.runtimeNotGraded)) return refused(lane, NOT_GRADED, meta.runtimeNotGraded)
+  // a saved copy minted before its script's narrow withholds (`heldWithholds.js`, the server's sentence)
+  if (text(meta[HELD_DIVERGENCE_STAMP])) return refused(lane, HELD_DIVERGENCE_GUARD, meta[HELD_DIVERGENCE_STAMP])
   let ctx = contextOf(def, opts)
   // the instance's settings ride the context, as `runtimeColumnsFor` hands them
   const values = runtimeInputValues(def, isObj(opts.inputs) ? opts.inputs : {})
@@ -257,6 +260,7 @@ function hostLane(def, rows, opts) {
   if (text(meta[HOST_KNOWN_DIVERGENCE_STAMP])) {
     return refused(lane, HOST_KNOWN_DIVERGENCE_GUARD, meta[HOST_KNOWN_DIVERGENCE_STAMP])
   }
+  if (text(meta[HELD_DIVERGENCE_STAMP])) return refused(lane, HELD_DIVERGENCE_GUARD, meta[HELD_DIVERGENCE_STAMP])
   // ⛔ the script's own `runtime.error` checks are evaluated by the chart's object lane
   // (`runtimeErrorStop.js`), which this host-neutral compute does not load: never the unchecked values
   const checks = meta.runtimeErrors

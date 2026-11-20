@@ -111,15 +111,19 @@ def test_the_fixture_is_not_vacuous():
     # tests/test_engine_hl_holes.py, set aside here by prefix for the same reason.
     # 2026-11-17: the two `opening-range:` codes are a native call on bars it cannot be read from,
     # not a `time(<timeframe>)` reading; tests/test_ast_session_regular.py exercises both on real bars.
+    # 2026-11-19 (HTF-LIVE-FIRST-PERIOD): the look-ahead read's first partial period
+    # (`request:htf-lookahead-first-period-partial`, ``tf_live_mask``) is a `request.security` read, not a
+    # `time(<timeframe>)` one; tests/test_pine_htf_live_first_period.py exercises it, set aside by name.
     clock = {c for c in ai.CHART_CLOCK_WITHHELD_CODES
              if not c.startswith(("bar-index:", "running-total:", "var-origin:", "window-extreme:",
-                                  "opening-range:"))}
+                                  "opening-range:", "request:htf-lookahead-"))}
     assert clock - named == {"time-anchor:other-bars"}
     assert set(ai.CHART_CLOCK_WITHHELD_CODES) - clock == {
         "bar-index:window", "bar-index:early-bars", "bar-index:first-bar",
         "running-total:window", "running-total:early-bars", "var-origin:window", "var-origin:bars",
         "window-extreme:left-edge",
-        "opening-range:bars-longer", "opening-range:bars-do-not-divide"}
+        "opening-range:bars-longer", "opening-range:bars-do-not-divide",
+        "request:htf-lookahead-first-period-partial"}
 
 
 def test_the_builders_are_the_fixtures_own_trees():
