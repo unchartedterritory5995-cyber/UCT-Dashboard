@@ -1,13 +1,19 @@
 // DURING THE SESSION a device copy current to the last closed minute (the seed's window + today's bars
 // from the minute frames, data/deviceStore/live.js) is a WHOLE first paint. Contract, through the real
 // store (registry + reducer + persist + network) and the real prefetch facade:
-//   L1 mid-session, a never-opened symbol's device copy is displayable in the same call, CONTEXT (no
-//      request), and the handoff's device rule accepts it although the lake's depth is still due
+//   L1 mid-session, a never-opened symbol's device copy (complete buckets only, complete through the
+//      last closed minute) is displayable in the same call, CONTEXT (no request), and the handoff's
+//      device rule accepts it although the lake's depth is still due
 //   L2 the server's answer then changes NONE of the bars the device copy painted (same values on every
-//      closed bar); it only adds what the device did not hold
-//   L3 an extended view of a key both sessions share is never painted from the regular-session copy
+//      bar); it only adds what the device did not hold (the forming bucket, pre-market bars)
+//   L3 an extended view of a key both sessions share is never painted from the regular-session copy,
+//      by the device rule OR by the regular status rule
 //   L4 a device copy behind the session (yesterday's seed alone) is not; nor is a saved copy (not the
 //      device's), however current
+//   L5 a device copy whose stamp is older than 2 minutes is not, until the switch re-reads the device and
+//      finds a newer one (a copy warmed long ago never paints its old bars)
+//   L6 D / W / M never paint from the device mid-session (today's daily bar is not complete); outside the
+//      session a copy complete through the last session does
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { createPrefetch } from './prefetch'
@@ -23,28 +29,34 @@ const NOW = (OPEN + 2 * 3600 + 60) * 1000                  // 11:31:00 ET: the 1
 const DAY = 86400
 const bar = (t, k, i) => { const o = Math.round((50 + ((i * 7) % 13) / 4) * 100) / 100 * k; return { t, o, h: o + 0.5 * k, l: o - 0.5 * k, c: o + 0.25 * k, v: 1000 + i } }
 const session = (open, upto, k = 1) => { const out = []; for (let i = 0; i < 78 && open + i * 300 <= upto; i++) out.push(bar(open + i * 300, k, i)); return out }
-// seed: yesterday's session; live overlay: today 09:30 ... the 11:30 bucket still forming
-const DEVICE = [...session(OPEN - DAY, Infinity), ...session(OPEN, OPEN + 2 * 3600)]
+// seed: yesterday's session; live overlay: today 09:30 ... 11:25, the last bucket COMPLETE at 11:31:00
+const DEVICE = [...session(OPEN - DAY, Infinity), ...session(OPEN, OPEN + 2 * 3600 - 300)]
+const THROUGH = OPEN + 2 * 3600 + 60                       // the end of the 11:30 minute
 const YESTERDAY = session(OPEN - DAY, Infinity)
 
 function answer() {
   // what /api/bars sends: the same regular-session bars, the pre-market ones too (the key is shared by
   // both sessions), and the forming 11:30 bucket with the trades of the minute in progress
   const pre = [{ t: OPEN - 3600, o: 49, h: 49.5, l: 48.5, c: 49.25, v: 10 }]
-  const closed = DEVICE.slice(0, -1)
-  const forming = { ...DEVICE.at(-1), c: DEVICE.at(-1).c + 0.1, h: DEVICE.at(-1).h + 0.1, v: DEVICE.at(-1).v + 50 }
+  const closed = DEVICE
+  const forming = { ...bar(OPEN + 2 * 3600, 1, 24), rev: 9001 }
   const bars = [...closed.slice(0, 78), ...pre, ...closed.slice(78)]
   return {
     ticker: 'NEWB', tf: '5', bars, contract: 1, grid: 'eth-clock', session: 'rth', cache_key: 'b1:NEWB:5:eth-clock',
     series_rev: 9000, history_rev: 1, verified_through: Math.floor(NOW / 1000), complete_through: OPEN + 2 * 3600,
-    tail_status: 'verified', developing: { ...forming, rev: 9001 },
+    tail_status: 'verified', developing: forming,
   }
 }
 
-const fakeDevice = (rows, { cached = true } = {}) => ({
-  peek: vi.fn((s, t) => (cached && s === 'NEWB' && t === '5' ? { rows, savedAt: null } : null)),
-  read: vi.fn(async (s, t) => (s === 'NEWB' && t === '5' ? { rows, savedAt: null } : null)),
-})
+/** A device source holding `rows` complete through `through` for (NEWB, tf); `swap` replaces them. */
+const fakeDevice = (rows, { cached = true, through = THROUGH, tf = '5' } = {}) => {
+  let hit = { rows, through, savedAt: through * 1000 }
+  return {
+    swap: (r, th) => { hit = { rows: r, through: th, savedAt: th * 1000 } },
+    peek: vi.fn((s, t) => (cached && s === 'NEWB' && t === tf ? hit : null)),
+    read: vi.fn(async (s, t) => (s === 'NEWB' && t === tf ? hit : null)),
+  }
+}
 
 let fakeDb
 beforeAll(() => { fakeDb = installFakeIndexedDB() })
@@ -68,7 +80,8 @@ describe('a device copy current to the last closed minute', () => {
     const s = store.peek(key)
     expect(s.source).toBe('device')
     expect(s.status).toBe(STATUS.CONTEXT)
-    expect(s.developing?.t).toBe(OPEN + 2 * 3600)                     // the 11:30 bucket, forming
+    expect(s.developing).toBeNull()                                   // no unfinished bucket from the device
+    expect(store.persist.savedAtOf(key)).toBe(THROUGH * 1000)         // its age: complete through 11:31:00
     expect(pf.lakePending('NEWB', '5')).toBe(true)
     expect(pf.devicePaints('NEWB', '5', { showExtended: false })).toBe(true)
     expect(request).not.toHaveBeenCalled()
@@ -82,7 +95,7 @@ describe('a device copy current to the last closed minute', () => {
     const off = store.subscribe(key, () => {})
     await vi.advanceTimersByTimeAsync(1)
     const painted = store.getSnapshot(key).bars.map((b) => [b.t, b.o, b.h, b.l, b.c, b.v])
-    expect(painted.length).toBe(DEVICE.length - 1)                    // every closed bar (the newest forms)
+    expect(painted.length).toBe(DEVICE.length)
     release()
     await vi.advanceTimersByTimeAsync(20)
     const s = store.getSnapshot(key)
@@ -96,8 +109,9 @@ describe('a device copy current to the last closed minute', () => {
 
   it('L3 an extended view of the shared 5m key is never painted from the regular-session copy', () => {
     const { pf } = boot({ device: fakeDevice(DEVICE) })
-    expect(pf.peekDisplayable('NEWB', '5', { showExtended: true })).toBe(true)
+    expect(pf.peekDisplayable('NEWB', '5', { showExtended: true })).toBe(false)
     expect(pf.devicePaints('NEWB', '5', { showExtended: true })).toBe(false)
+    expect(pf.peekDisplayable('NEWB', '5', { showExtended: false })).toBe(true)   // the same copy, RTH view
   })
 
   it('L4 behind the session (yesterday alone), or a saved copy however current: not the device rule', () => {
@@ -112,5 +126,66 @@ describe('a device copy current to the last closed minute', () => {
     expect(b.store.peek(b.key).status).toBe(STATUS.CONTEXT)
     expect(b.pf.devicePaints('NEWB', '5')).toBe(false)
     b.store.dispose()
+  })
+  it('L5 a copy older than 2 minutes does not paint until the switch re-reads a newer one', () => {
+    const early = DEVICE.slice(0, -1)                                    // through the 11:20 bucket
+    const dev = fakeDevice(early, { through: OPEN + 116 * 60 })          // complete through 11:26
+    const { store, pf, key } = boot({ device: dev })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)                   // current by status (one bucket)
+    expect(pf.devicePaints('NEWB', '5')).toBe(false)                     // but 5 minutes old: not by stamp
+    dev.swap(DEVICE, THROUGH)                                            // the device has moved on
+    expect(pf.devicePaints('NEWB', '5')).toBe(true)                      // re-read on the switch, in the same call
+    expect(store.peek(key).bars.length).toBe(DEVICE.length)
+    store.dispose()
+  })
+
+  it('L6 D/W/M: never from the device mid-session; outside it, a copy complete through the last session', () => {
+    const days = (n, end) => Array.from({ length: n }, (_, i) => ({ t: end - (n - 1 - i) * DAY, o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+    const D_END = Date.UTC(2026, 10, 17) / 1000                          // yesterday (Tue)
+    const mid = boot({ device: fakeDevice(days(60, D_END), { tf: 'D', through: THROUGH }) })
+    mid.pf.peekBars('NEWB', 'D')
+    expect(mid.pf.devicePaints('NEWB', 'D')).toBe(false)
+    mid.store.dispose()
+    vi.setSystemTime(Date.UTC(2026, 10, 19, 13, 0))                      // Thu 08:00 ET, before the open
+    const pre = boot({ device: fakeDevice(days(60, Date.UTC(2026, 10, 18) / 1000), { tf: 'D', through: Date.UTC(2026, 10, 19) / 1000 }) })
+    pre.pf.peekBars('NEWB', 'D')
+    expect(pre.pf.devicePaints('NEWB', 'D')).toBe(true)
+    pre.store.dispose()
+    // Wednesday's bar held (current by status) but stamped 15:00 ET Wednesday: not known complete
+    const old = boot({ device: fakeDevice(days(60, Date.UTC(2026, 10, 18) / 1000), { tf: 'D', through: Date.UTC(2026, 10, 18, 20, 0) / 1000 }) })
+    old.pf.peekBars('NEWB', 'D')
+    expect(old.store.peek(keyOf({ sym: 'NEWB', tf: 'D' })).status).toBe(STATUS.CONTEXT)
+    expect(old.pf.devicePaints('NEWB', 'D')).toBe(false)
+    old.store.dispose()
+  })
+  it('L7 the same device copy seen again is not dispatched again (the switch polls every 25 ms)', () => {
+    const { store, pf } = boot({ device: fakeDevice(DEVICE) })
+    pf.peekDisplayable('NEWB', '5')
+    const dispatch = vi.spyOn(store.registry, 'dispatch')
+    for (let i = 0; i < 5; i++) { pf.peekDisplayable('NEWB', '5'); pf.devicePaints('NEWB', '5') }
+    expect(dispatch).not.toHaveBeenCalled()
+    store.dispose()
+  })
+
+  it('L8 the prepare never reports a regular-session device copy as current for an extended view', async () => {
+    const run = async (showExtended) => {
+      const { store, pf } = boot({ device: fakeDevice(DEVICE) })
+      let outcome = 'pending'
+      pf.prepareForDisplay('NEWB', '5', { showExtended }).then((o) => { outcome = o })
+      await vi.advanceTimersByTimeAsync(1500)
+      store.dispose()
+      return outcome
+    }
+    expect(await run(false)).toBe('current')
+    expect(await run(true)).toBe('pending')                              // it waits for the server instead
+  })
+  it('L9 once a saved copy joins the device copy, the entry is no longer the device copy: the rule stops', () => {
+    const { store, pf, key } = boot({ device: fakeDevice(DEVICE) })
+    pf.peekDisplayable('NEWB', '5')
+    expect(pf.devicePaints('NEWB', '5')).toBe(true)
+    store.registry.dispatch(key, { type: ACTION.IDB_HIT, key, payload: { bars: DEVICE.slice(0, 80) } })
+    expect(store.peek(key).source).toBe('idb')
+    expect(pf.devicePaints('NEWB', '5')).toBe(false)                     // its stamp describes the device copy only
+    store.dispose()
   })
 })

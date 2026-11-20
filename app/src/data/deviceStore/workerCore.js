@@ -37,26 +37,32 @@ export function transferablesOf(res) {
  * @param {Function} [o.fetchFn]
  * @param {string} o.tabId
  * @param {object} [o.liveOpts]   extra createLiveFeed options (tests: `load`, `now`, `consumerOpts`)
+ * @param {object} [o.engineOpts] extra createDeviceEngine options (tests: `now`)
  */
-export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, tabId, timeoutMs = 300, setTimer, clearTimer, liveOpts = {} } = {}) {
+export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, tabId, timeoutMs = 300, setTimer, clearTimer, liveOpts = {}, engineOpts = {} } = {}) {
   let engine = null
   let ready = null
   let ingesting = null
   let lastIngest = null      // the last ingest's per-timeframe outcome (diagnostics: `info`)
   let feed = null            // liveFeed.js, the leader's, created on the first 'live' ask
 
-  /** The leader's live feed: created once, started after any ingest in flight (so the overlay knows
-   *  the seed's symbols), the app's visibility recorded on every ask. */
+  /** Is any seed file held? The feed is useless without one (and a browser whose storage cannot hold
+   *  one, e.g. a private window, must not poll for nothing). */
+  const _seedHeld = () => !!engine && Object.keys(engine.info().tfs).length > 0
+
+  /** The leader's live feed: created once, started only once a seed file is held, after any ingest in
+   *  flight (so the overlay knows the seed's symbols); the app's visibility recorded on every ask. */
   function _live(visible) {
     if (!engine) return { status: 'unsupported' }
     if (!feed) {
-      const overlay = createLiveOverlay({ nameOf: (sym) => engine.seedName(sym) })
+      const nameOf = (sym) => engine.seedName(sym)
+      const overlay = createLiveOverlay({ nameOf })
       engine.attachLive(overlay)
-      feed = createLiveFeed({ overlay, ...liveOpts })
+      feed = createLiveFeed({ overlay, accept: (sym) => !!nameOf(sym), ...liveOpts })
     }
     feed.visible(!!visible)
-    if (!feed.running()) Promise.resolve(ingesting).then(() => feed.start()).catch(() => {})
-    return { status: feed.running() ? 'running' : 'starting' }
+    if (!feed.running()) Promise.resolve(ingesting).then(() => { if (_seedHeld()) feed.start() }).catch(() => {})
+    return { status: feed.running() ? 'running' : (_seedHeld() || ingesting ? 'starting' : 'no-seed') }
   }
 
   function _withBuild(cols, tf) {
@@ -77,8 +83,10 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
     })().catch((e) => [{ status: 'error', error: String(e?.message || e) }])
       .then((out) => {
         lastIngest = out
-        // a new seed may name symbols the overlay dropped while it ran: replay today into it
-        if (feed?.running() && out.some((r) => r.status === 'ingested')) feed.resync('seed')
+        // a new seed may name symbols the overlay dropped while it ran: replay today into it; a feed
+        // that was waiting for its first seed starts now
+        if (feed?.running() && out.some((r) => r.status === 'ingested')) feed.resync('seed', { force: true })
+        else if (feed && !feed.running() && _seedHeld()) feed.start()
         return out
       })
       .finally(() => { ingesting = null })
@@ -106,7 +114,7 @@ export function createWorkerCore({ post, locks, makeChannel, makeIO, fetchFn, ta
         const io = await makeIO()
         if (!io) { post({ type: 'status', role: 'leader', supported: false }); return }
         engine = createDeviceEngine({
-          io, fetchFn,
+          io, fetchFn, ...engineOpts,
           onEvent: (ev) => { xt.broadcast(ev); post({ type: 'event', event: ev }) },
         })
         try { await engine.open() } catch { /* an unreadable store serves nothing until the next ingest */ }

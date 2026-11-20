@@ -10,6 +10,9 @@ import { createDeviceEngine } from './engine'
 import { memoryIO } from './io'
 import { seedPackOf, synthBars } from './testing/fixtures'
 
+/** 18:00 ET on the packs' as-of day (seedPackOf's default, 2026-11-18): the seed's own basis holds. */
+const AT_ASOF = () => Date.UTC(2026, 10, 18, 23, 0)
+
 const DAY = 86400
 const D0 = Date.UTC(2025, 0, 6) / 1000
 const daily = (n, seed) => synthBars(n, { seed }).map((r, i) => ({ ...r, t: D0 + i * DAY }))
@@ -18,7 +21,7 @@ const ROWS = { AAA: daily(350, 1), BBB: daily(350, 2), CCC: daily(350, 3) }
 async function disk() {
   const pack = seedPackOf(ROWS, { build: '20261119T2200Z' })
   const d = new Map()
-  const eng = createDeviceEngine({ io: memoryIO(d), fetchFn: async () => new Response(pack) })
+  const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(d), fetchFn: async () => new Response(pack) })
   await eng.ingest({ tf: 'D', url: 'u', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: '20261119T2200Z' })
   eng.close()
   return d
@@ -27,7 +30,7 @@ async function disk() {
 function workerOver(d) {
   const w = { onmessage: null, onerror: null, posted: [], terminate: vi.fn() }
   const core = createWorkerCore({
-    tabId: 'T', locks: null, makeChannel: null, makeIO: async () => memoryIO(d), fetchFn: vi.fn(),
+    tabId: 'T', locks: null, makeChannel: null, makeIO: async () => memoryIO(d), fetchFn: vi.fn(), engineOpts: { now: AT_ASOF },
     post: (m) => queueMicrotask(() => w.onmessage?.({ data: m })),
   })
   w.postMessage = (m) => { w.posted.push(m); core.onMessage(structuredClone(m)) }

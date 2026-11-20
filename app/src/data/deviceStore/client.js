@@ -11,8 +11,10 @@
 //                       visibility (lib/deskVisibility.isAppVisible) on every change and once a minute
 //                       while visible, so the leader's feed pauses when no tab is looked at
 //
-// ⭐ THE SYNCHRONOUS CACHE EXPIRES (SYNC_CACHE_TTL_MS). Today's bars move every minute, so a copy read
-// a while ago is behind; past the TTL `peekBars` answers null and the next read asks the worker again.
+// ⭐ THE SYNCHRONOUS CACHE EXPIRES (SYNC_CACHE_TTL_MS). Today's bars grow every minute, so a copy read
+// a while ago is behind (never WRONG: it holds complete buckets only, live.js); past the TTL `peekBars`
+// answers null and the next read asks the worker again. Every copy carries `through`, which the handoff
+// checks before painting (prefetch.devicePaints).
 //
 // Loaded only by source.js's dynamic import, and only when the switch is on; the worker is a separate
 // chunk. Nothing here is in first-open bytes. Never throws at a caller: every failure reads as null.
@@ -26,7 +28,7 @@ import { SERVED_TFS } from './tfs'
 export const DEVICE_SEED_MANIFEST = '/api/seed/v1/latest.json'
 export const DEVICE_SEED_MANIFEST_KEY = 'uct.deviceStore.manifest'
 export const SYNC_CACHE_MAX = 96
-export const SYNC_CACHE_TTL_MS = 60_000
+export const SYNC_CACHE_TTL_MS = 20_000
 export const VISIBLE_HEARTBEAT_MS = 60_000
 const SERVED = new Set(SERVED_TFS)
 

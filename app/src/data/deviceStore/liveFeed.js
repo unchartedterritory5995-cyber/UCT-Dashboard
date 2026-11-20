@@ -34,13 +34,16 @@ const RESYNCABLE = new Set(['not-received', 'link-mismatch'])
  * @param {object} o.overlay                 live.js createLiveOverlay()
  * @param {Function} [o.load]                () => {createMinuteFrameConsumer} (tests inject a fake)
  * @param {Function} [o.now]
+ * @param {(sym:string) => boolean} [o.accept]  symbols worth rolling up (the seed's): the rollup holds
+ *                                           no state for any other (the feed carries 8.5-12k symbols)
  * @param {object} [o.consumerOpts]          extra options for createMinuteFrameConsumer (tests)
  */
 const _bundled = () => ({ createMinuteFrameConsumer })
 
-export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(), consumerOpts = {} } = {}) {
+export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(), accept = null, consumerOpts = {} } = {}) {
   let mod = null
   let consumer = null
+  let generation = 0          // ⛔ a stopped consumer's catch-up still in flight writes NOTHING (see _sinkFor)
   let starting = null
   let lastVisibleAt = -Infinity
   let lastResyncAt = -Infinity
@@ -48,20 +51,28 @@ export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(
 
   const isVisible = () => now() - lastVisibleAt < VISIBLE_FRESH_MS
 
-  const sink = {
-    upsert: (...a) => overlay.sink.upsert(...a),
-    stale: (...a) => overlay.sink.stale(...a),
-    reset: (info) => overlay.sink.reset(info),
-    frameDone: (info) => overlay.sink.frameDone(info),
-    gap(info) {
-      overlay.sink.gap(info)
-      if (RESYNCABLE.has(info?.reason)) Promise.resolve().then(() => api.resync(info.reason)).catch(() => {})
-    },
+  /** The sink of ONE consumer: once that consumer is replaced (a re-sync) or stopped, everything it
+   *  still delivers (its catch-up does not stop with it) is dropped instead of landing in the overlay
+   *  the next consumer is filling. */
+  function _sinkFor(gen) {
+    const live = () => gen === generation
+    return {
+      upsert: (...a) => { if (live()) overlay.sink.upsert(...a) },
+      stale: (...a) => { if (live()) overlay.sink.stale(...a) },
+      reset: (info) => { if (live()) overlay.sink.reset(info) },
+      frameDone: (info) => { if (live()) overlay.sink.frameDone(info) },
+      gap(info) {
+        if (!live()) return
+        overlay.sink.gap(info)
+        if (RESYNCABLE.has(info?.reason)) Promise.resolve().then(() => api.resync(info.reason)).catch(() => {})
+      },
+    }
   }
 
   function _create() {
+    const gen = ++generation
     return mod.createMinuteFrameConsumer({
-      sink, isVisible, rollup: { tfs: [...STORED_TFS] }, ...consumerOpts,
+      sink: _sinkFor(gen), isVisible, rollup: { tfs: [...STORED_TFS], ...(accept ? { accept } : {}) }, ...consumerOpts,
     })
   }
 
@@ -85,13 +96,15 @@ export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(
       if (v) lastVisibleAt = now()
       if (v && !was && consumer) consumer.syncNow().catch(() => {})
     },
-    /** Start over from the day file (bounded). Returns true when a re-sync began. */
-    resync(reason = 'manual') {
+    /** Start over from the day file (bounded). Returns true when a re-sync began. `force` (a new seed):
+     *  never refused by the bound, because the overlay holds nothing for the symbols the new seed added
+     *  and would otherwise hand out a day that starts where they joined. */
+    resync(reason = 'manual', { force = false } = {}) {
       if (!consumer || !mod) return false
       const t = now()
       const d = etDateLabel(Math.floor(t / 1000))     // the ET day, not the overlay's (a clear empties that)
       if (resyncs.day !== d) { resyncs.day = d; resyncs.n = 0 }
-      if (t - lastResyncAt < RESYNC_MIN_MS || resyncs.n >= RESYNC_MAX_PER_DAY) return false
+      if (!force && (t - lastResyncAt < RESYNC_MIN_MS || resyncs.n >= RESYNC_MAX_PER_DAY)) return false
       lastResyncAt = t
       resyncs.n++
       resyncs.reasons.push(reason)
@@ -102,7 +115,7 @@ export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(
       consumer.start()
       return true
     },
-    stop() { consumer?.stop(); consumer = null; starting = null },
+    stop() { generation++; consumer?.stop(); consumer = null; starting = null },
     running: () => !!consumer,
     status: () => ({ running: !!consumer, visible: isVisible(), resyncs: { ...resyncs, reasons: [...resyncs.reasons] },
       consumer: consumer?.status?.() ?? null, overlay: overlay.state() }),

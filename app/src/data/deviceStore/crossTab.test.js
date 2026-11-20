@@ -11,6 +11,9 @@ import { createDeviceEngine } from './engine'
 import { memoryIO } from './io'
 import { seedPackOf, synthBars } from './testing/fixtures'
 
+/** 18:00 ET on the packs' as-of day (seedPackOf's default, 2026-11-18): the seed's own basis holds. */
+const AT_ASOF = () => Date.UTC(2026, 10, 18, 23, 0)
+
 function fakeLocks() {
   const queues = new Map()
   const held = new Set()
@@ -68,7 +71,7 @@ const ROWS = { AAA: synthBars(1000, { step: 300, seed: 3 }), BBB: synthBars(600,
 async function seededDisk() {
   const pack = seedPackOf(ROWS, { tf: '5', build: 'b1' })
   const disk = new Map()
-  const eng = createDeviceEngine({ io: memoryIO(disk), fetchFn: async () => new Response(pack) })
+  const eng = createDeviceEngine({ now: AT_ASOF, io: memoryIO(disk), fetchFn: async () => new Response(pack) })
   await eng.ingest({ tf: '5', url: 'u', bytes: pack.length, sha256: createHash('sha256').update(pack).digest('hex'), build: 'b1' })
   eng.close()
   return disk
@@ -79,7 +82,7 @@ function tab(id, env, extra = {}) {
   const makeIO = vi.fn(async () => memoryIO(env.disk))
   const core = createWorkerCore({
     tabId: id, locks: env.locks, makeChannel: env.bus, makeIO, fetchFn: extra.fetchFn ?? vi.fn(),
-    post: (m) => posted.push(m), timeoutMs: 200, liveOpts: extra.liveOpts,
+    post: (m) => posted.push(m), timeoutMs: 200, liveOpts: extra.liveOpts, engineOpts: { now: AT_ASOF },
   })
   const ask = async (msg) => {
     const id2 = Math.random()
@@ -243,6 +246,17 @@ describe('device store across tabs', () => {
     await settle()
     expect(made.length).toBe(before + 1)
     expect(made[before - 1].stop).toHaveBeenCalled()
+    A.core.close()
+  })
+  it('TODAY: no feed while no seed file is held (a private window, a first visit before the ingest)', async () => {
+    const env = { disk: new Map(), locks: fakeLocks(), bus: fakeBus() }
+    const load = vi.fn(async () => ({ createMinuteFrameConsumer: () => ({ start: vi.fn(), stop: vi.fn(), syncNow: vi.fn(async () => ({})), status: () => ({}) }) }))
+    const A = tab('A', env, { liveOpts: { load } })
+    await settle()
+    const r = await A.ask({ op: 'live', visible: true })
+    await settle()
+    expect(r.res).toEqual({ status: 'no-seed' })
+    expect(load).not.toHaveBeenCalled()
     A.core.close()
   })
 })
