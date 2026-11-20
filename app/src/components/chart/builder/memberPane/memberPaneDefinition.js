@@ -67,9 +67,9 @@ import {
   alertNoteForOutput, foldNotesForOutput, REQUIREMENT_NOTES,
 } from '../../engine/ast/parse'
 import { applyParamEdit } from '../paramEdit'
-import { buildDefinition } from '../BuilderSheet'
+import { buildDefinition } from '../buildDefinition'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
-import { evaluateFormula } from '../FormulaField'
+import { evaluateFormula } from '../evaluateFormula'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'

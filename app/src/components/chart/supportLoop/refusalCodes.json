@@ -149,6 +149,8 @@
   "pine:declaration",
   "pine:declaration-library",
   "pine:declaration-strategy",
+  "pine:door-failed",
+  "pine:door-worker",
   "pine:drawing",
   "pine:empty",
   "pine:enum-na",
