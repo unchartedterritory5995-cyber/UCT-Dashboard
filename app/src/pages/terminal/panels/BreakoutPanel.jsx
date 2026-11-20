@@ -153,10 +153,13 @@ const COLUMNS = [
   { key: 'order', label: '#', title: 'Closest to its pivot first' },
   { key: 'sym', label: 'Symbol', title: 'Click a symbol to open its DES' },
   { key: 'setup', label: 'Setup', title: 'The pattern engine\'s active detections (VCP and flat base first)' },
-  { key: 'near', label: 'To pivot', title: 'How far price sits from the pattern\'s entry (the pivot)' },
+  { key: 'near', label: 'To pivot', phoneWrap: true, title: 'How far price sits from the pattern\'s entry (the pivot)' },
   { key: 'pivot', label: 'Pivot', phoneHide: true, title: 'The pattern\'s entry price' },
   { key: 'rs', label: 'RS', title: 'RS rank, 1 to 99. Every row also has a rising RS line.' },
-  { key: 'tight', label: 'Tightness', title: 'How clustered the recent closes are (lower is tighter)' },
+  // Folds on a phone (2026-11-20): with the setup and "To pivot" wrapped the table was still 38px wider
+  // than a 340px screen and "Plan" was cut off. Every listed name already passed the tightness test
+  // (the note under the table gives the limit), so this is the column a phone can lose.
+  { key: 'tight', label: 'Tightness', phoneHide: true, title: 'How clustered the recent closes are (lower is tighter)' },
   { key: 'asOf', label: 'As of', phoneHide: true, title: 'The screener snapshot date for this row' },
 ]
 const valueOf = (key, r) => r[key]
@@ -233,7 +236,7 @@ export default function BreakoutPanel() {
             <tr>
               {COLUMNS.map((c) => (
                 <th scope="col" key={c.key} title={c.title} aria-sort={ariaSortFor(sort, c.key, 'none')}
-                  className={c.phoneHide ? styles.phoneHide : undefined}>
+                  className={c.phoneHide ? styles.phoneHide : c.phoneWrap ? styles.phoneWrap : undefined}>
                   <button type="button" className={styles.sortBtn} onClick={() => setSort((s) => nextSort(s, c.key, firstDirFor))}
                     data-testid={`terminal-brko-sort-${c.key}`}>
                     {c.label}
@@ -249,11 +252,11 @@ export default function BreakoutPanel() {
               <tr key={x.sym} data-testid={`terminal-brko-row-${x.sym}`}>
                 <td className={styles.rowNum}>{x.order + 1}</td>
                 <td><PanelSymbol sym={x.sym} className={styles.sym} /></td>
-                <td className={styles.wrapCell}>{x.setup}</td>
-                <td>{pivotText(x.dist)}</td>
+                <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{x.setup}</td>
+                <td className={styles.phoneWrap}>{pivotText(x.dist)}</td>
                 <td className={styles.phoneHide}>{formatCurrency(x.pivot, { absent: 'n/a' })}</td>
                 <td>{formatNumber(x.rs, { decimals: 0, absent: 'n/a' })}</td>
-                <td>{formatPercent(x.tight, { decimals: 1, absent: 'n/a' })}</td>
+                <td className={styles.phoneHide}>{formatPercent(x.tight, { decimals: 1, absent: 'n/a' })}</td>
                 <td className={styles.phoneHide}>{x.asOf || 'n/a'}</td>
                 <td><PanelCommand cmd={planCmd(x)} label={`Plan a trade in ${x.sym}`} className={styles.linkBtn}>Plan</PanelCommand></td>
               </tr>

@@ -1745,6 +1745,7 @@ import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
+import { onVisibleLogicalRange } from './chart/visibleRangeSubscription'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
 import { useRestedSWR } from '../lib/symbolPace'
@@ -18776,7 +18777,8 @@ export default function StockChart({
 
     const redraw = () => drawVolumeProfile(canvas, chart, series, filteredBars, vpCfg)
     redraw()
-    const unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(redraw)
+    // ⛔ The library's subscribe returns nothing: this returns the real unsubscribe (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, redraw)
     let ro = null
     if (container && typeof ResizeObserver !== 'undefined') {
       ro = new ResizeObserver(() => {
@@ -18788,7 +18790,7 @@ export default function StockChart({
     }
     return () => {
       try { ro?.disconnect() } catch { /* noop */ }
-      try { unsub() } catch {}
+      unsub()
       const ctx = canvas.getContext('2d')
       ctx?.clearRect(0, 0, canvas.width, canvas.height)
     }
@@ -18829,10 +18831,11 @@ export default function StockChart({
         }
       })
     }
-    let unsub = null
-    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    // ⛔⛔ The library's subscribe returns NOTHING: keeping its return value as the unsubscribe left one live
+    // handler per symbol switch, each holding the outgoing symbol's whole render (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, onRange)
     return () => {
-      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      unsub()
       if (raf != null) cancelAnimationFrame(raf)
     }
   }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, _histPrependOn])
@@ -18897,10 +18900,11 @@ export default function StockChart({
         if (wantsOlder({ fromIndex: range.from, toIndex: range.to, loadedCount: lastBarCountRef.current })) _loadOlder(false)
       })
     }
-    let unsub = null
-    try { unsub = chart.timeScale().subscribeVisibleLogicalRangeChange(onRange) } catch { /* ignore */ }
+    // ⛔⛔ The library's subscribe returns NOTHING: keeping its return value as the unsubscribe left one live
+    // handler per symbol switch, each holding the outgoing symbol's whole render (visibleRangeSubscription.js).
+    const unsub = onVisibleLogicalRange(chart, onRange)
     return () => {
-      if (unsub) { try { unsub() } catch { /* ignore */ } }
+      unsub()
       if (raf != null) cancelAnimationFrame(raf)
     }
   }, [_histPrependOn, sym, resolvedTf, _loadOlder, chartReady])
@@ -19089,6 +19093,11 @@ export default function StockChart({
       if (!ts || !bars || bars.length < 2) return false
       const cur = ts.getVisibleLogicalRange()
       const W = (cur && Number.isFinite(cur.from) && Number.isFinite(cur.to) && cur.to > cur.from) ? (cur.to - cur.from) : 200
+      // ⛔ ORIGIN IS THE MEMBER MOVING THE VIEW, as Go-to-date is (goToDateRightEdge): it ends the
+      // switch's settling guard (`pendingTfReframeRef`), which otherwise re-pins the newest bar at the
+      // right on the next commit (2026-11-20, production: TEL D and 60m left the first bar a beat after
+      // the click, GNK D did not because nothing committed after it).
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from: -W / 2, to: W / 2 })   // bar 0 at the centre
       appliedRangeRef.current = { val: 'origin', from: -W / 2, to: W / 2 }
       return true
@@ -19307,6 +19316,9 @@ export default function StockChart({
       const hist = lastIdx - from
       const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
       const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
+      // ⛔ A RANGE BUTTON IS THE MEMBER MOVING THE VIEW (the Go-to-date rule, as Origin above): without
+      // this the switch's settling guard put the outgoing zoom width back on the next commit.
+      userViewMovedRef.current = true
       ts.setVisibleLogicalRange({ from, to })
       appliedRangeRef.current = { val, from, to }
       // PERSIST the chosen range as the active view-lock so EVERY next ticker

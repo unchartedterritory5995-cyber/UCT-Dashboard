@@ -251,7 +251,6 @@ function violations(a, name) {
 // Panels outside the 2026-10-09 phone/tablet lane whose gap is real and is another lane's to close.
 const EXEMPT = {
   Help: 'outside-lane: its three key tables (TerminalShell.module.css .helpTable) sit in no overflow box; they are two narrow wrapping columns today, so nothing scrolls the page yet',
-  Rrg: 'outside-lane: the six-column quadrant table scrolls inside its .tableBox but folds no column on a phone (comparePanels.module.css)',
 }
 
 // ── the run ──────────────────────────────────────────────────────────────────────────────────

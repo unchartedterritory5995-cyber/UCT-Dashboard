@@ -113,6 +113,25 @@ describe('engine read with today', () => {
     expect(got.t.at(-1)).toBe(lastT + 86400)
   })
 
+  it('why() names the rule behind every read() answer: ok, missing, no-file, split, seed-only', async () => {
+    const { eng, overlay } = await engineWithToday()
+    expect(eng.why(SYM, '5')).toBe('ok')
+    expect(eng.why(SYM, 'W')).toBe(eng.why(SYM, 'D'))                    // a derived tf answers as its source
+    expect(eng.why('NOPE', '5')).toBe('missing')
+    expect(eng.read('NOPE', '5')).toBeNull()
+    expect(eng.why(SYM, '60')).toBe('no-file')                           // that timeframe is not held
+    const t = Math.floor(Date.UTC(2026, 10, 18, 15, 0) / 60000)
+    overlay.sink.gap({ fromMinute: t, toMinute: t })
+    expect(eng.why(SYM, '5')).toBe('seed-only:gap')                       // the seed alone: today refused
+    eng.attachLive(null)
+    expect(eng.why(SYM, '5')).toBe('seed-only:no-overlay')
+    for (const splits of [{ session: '2026-11-18', symbols: { [SYM]: 4 } }, null]) {
+      const g = await engineWithToday({ splits })
+      expect(g.eng.why(SYM, '5')).toBe('split')
+      expect(g.eng.read(SYM, '5')).toBeNull()
+    }
+  })
+
   it('detached (or no overlay): the seed alone, as before', async () => {
     const { eng, m5 } = await engineWithToday()
     eng.attachLive(null)

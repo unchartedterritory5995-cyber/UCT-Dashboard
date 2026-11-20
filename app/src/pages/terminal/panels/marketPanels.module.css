@@ -49,6 +49,19 @@
   gap: var(--space-xs) var(--space-md);
 }
 
+/* A labelled picker in a toolbar is never wider than the toolbar: a picker is as wide as its longest
+   option, and the SCAT universe picker ran 229px past a 340px screen, cut off with no way to reach
+   it (2026-11-20, part 2). The picker drops under its label and shrinks to the row. */
+.pick {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pick select {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .group {
   display: flex;
   flex-wrap: wrap;
