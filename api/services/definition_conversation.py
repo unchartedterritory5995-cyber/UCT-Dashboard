@@ -869,9 +869,21 @@ CONVERSE_SYSTEM_PROMPT = (
     "for one, so a bar given no value (0 / 0, or any division by zero: there is no infinity here) turns "
     "the window into the last N bars THAT QUALIFY, which is a different number. Give the bars to leave out "
     "a number that cannot win or count: 0 inside highest and inside a sum, a number far above any real one "
-    "inside lowest (lowest(close > offset 1 of close ? volume : 1000000000000000, 10)). Only when the member "
-    "asks for the last N bars that qualify (\"the average volume of the last 10 up days\") is no value "
-    "right, written 0 / 0, and then say in `assumptions` that the window reaches back past other bars.\n"
+    "inside lowest (lowest(close > offset 1 of close ? volume : 1000000000000000, 10)). That number is a "
+    "STAND-IN, never an answer: on a bar whose window holds no qualifying bar the stand-in itself comes "
+    "back. Where the extreme is only COMPARED (volume > offset 1 of highest(...)) that is fine. Where it is "
+    "DRAWN or used in arithmetic, make it no value on those bars: sum(cond ? 1 : 0, N) > 0 ? "
+    "lowest(cond ? low : 1000000000000000, N) : 0 / 0. An AVERAGE of only some bars of the last N has no "
+    "stand-in: write it as sum(cond ? x : 0, N) / sum(cond ? 1 : 0, N), which is no value by itself when "
+    "none qualify (an average given no value on the other bars is the average of the last N that "
+    "qualify). Only when the member asks for the last N bars that qualify (\"the average volume of the last "
+    "10 up days\") is no value right, written 0 / 0, and then say in `assumptions` that the window reaches "
+    "back past other bars.\n"
+    "  A COUNT OF BARS SINCE something, when the count itself is what the member wants to see: give "
+    "`barssince` a window far longer than the thing being measured (500 unless the member names one), "
+    "never the event's own length (\"bars since the last 50-bar high\" is barssince(cond, 500), not 50: "
+    "at 50 the line would stop at 50 and read 50 for 51, 80 or 300 bars). Say in `assumptions` where the "
+    "count stops.\n"
     "  A RUNNING VALUE reads its own previous value: an adaptive average, a stop that ratchets, a "
     "streak or a count. It is accum(seed, update, warmup): it starts at `seed` and becomes "
     "`update` on each of the last `warmup` bars, and inside `update` the series named `self` is "
@@ -2426,6 +2438,77 @@ def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
                     "`assumptions` that the window reaches back past other bars.")
 
 
+_EXTREMES_OF_A_WINDOW = frozenset({"highest", "lowest"})
+
+
+def _same_tree(a: Any, b: Any) -> bool:
+    return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+
+def _stand_in_of(arg: Any) -> Optional[float]:
+    """The stand-in number of ``cond ? value : NUMBER`` (or ``cond ? NUMBER : value``), or None. A CLAMP is
+    not a stand-in: ``x > 0 ? x : 0`` keeps a real number on every bar (the comparison is of the kept branch
+    with the very number the other branch gives)."""
+    if not (isinstance(arg, Mapping) and arg.get("type") == "op" and arg.get("name") == "?:"
+            and isinstance(arg.get("args"), list) and len(arg["args"]) == 3):
+        return None
+    cond, yes, no = arg["args"]
+    for kept, other in ((yes, no), (no, yes)):
+        number = _is_literal_number(other)
+        if number is None or _is_literal_number(kept) is not None:
+            continue
+        if (isinstance(cond, Mapping) and cond.get("type") == "op" and cond.get("name") in _COMPARISONS
+                and isinstance(cond.get("args"), list) and len(cond["args"]) == 2):
+            left, right = cond["args"]
+            for series, literal in ((left, right), (right, left)):
+                if _same_tree(series, kept) and _is_literal_number(literal) == number:
+                    return None
+        return number
+    return None
+
+
+def _refuse_a_stand_in_drawn_as_a_value(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-20 -- THE STAND-IN FOR "LEAVE THIS BAR OUT" COMES BACK AS THE ANSWER WHEN NO BAR QUALIFIES.
+
+    Found by a value check, the day the rule above it shipped. For the highest or lowest of only SOME bars of
+    a window the other bars are given a number that cannot win: 0 inside ``highest``, a huge number inside
+    ``lowest``. On a bar whose window holds NO qualifying bar that number is the answer. Compared with
+    something it is harmless. DRAWN, it is a price of 0, or a line at a million billion, on every such bar:
+    built, read back plausibly, and wrong (dozens of bars in a few hundred on real daily bars, over a short
+    window).
+
+    Refused: ``highest`` / ``lowest`` of ``cond ? value : NUMBER`` whose answer reaches the output without
+    passing through a comparison or a ``?:`` (which is how it is made no value when none qualify:
+    ``sum(cond ? 1 : 0, N) > 0 ? lowest(...) : 0 / 0``). A clamp (``x > 0 ? x : 0``) is not a stand-in.
+    """
+    def visit(node: Any, guarded: bool, where: str) -> None:
+        if isinstance(node, list):
+            for child in node:
+                visit(child, guarded, where)
+            return
+        if not isinstance(node, Mapping):
+            return
+        args = node.get("args")
+        if (not guarded and node.get("type") == "call" and node.get("name") in _EXTREMES_OF_A_WINDOW
+                and isinstance(args, list) and args):
+            stand_in = _stand_in_of(args[0])
+            if stand_in is not None:
+                name = node["name"]
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{name}` leaves bars out by giving them the number {stand_in:g}, and its answer "
+                    "is drawn (or used in arithmetic) as it is. On a bar whose window holds no qualifying bar "
+                    f"that stand-in is the answer, so {stand_in:g} would be drawn as if it were a real value. "
+                    f"Make it no value on those bars: `sum(cond ? 1 : 0, N) > 0 ? {name}(...) : 0 / 0`. "
+                    "A stand-in needs no such guard only where the answer is just compared with something.")
+        inside = guarded or (node.get("type") == "op" and (node.get("name") in _COMPARISONS or node.get("name") == "?:"))
+        if isinstance(args, list):
+            visit(args, inside, where)
+
+    for where, tree in trees:
+        visit(tree, False, where)
+
+
 def _refuse_scalars(trees: List[Tuple[str, Any]]) -> None:
     """BY NAME, before the schema (whose ``series`` enum no longer offers them):
     defence in depth for a model that emits a nightly scalar anyway."""
@@ -3717,6 +3800,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_unsupported_nodes(_trees_of(envelope))
     _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_infinity_in_a_window(_trees_of(envelope))
+    _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
     errors = _schema_errors(envelope)
     if errors:
