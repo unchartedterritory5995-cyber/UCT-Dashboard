@@ -2406,6 +2406,9 @@ const smoothStepOf = (recur, exactSeed = false) => function smoothStepWith(st, o
     st[o + 1] = seen + 1
     if (seen + 1 === n) {
       st[o] = exactSeed ? rmaSeedMean(st, o + SMOOTH_CELLS, n) : st[o + 2] / n
+      // ⭐ the seed values are spent: cleared, so the state after the seed is the recurrence's alone (two runs
+      // whose `prev` agree hold the same state, which the warm-up curtain's early stop reads, `warmupProbe.js`)
+      if (exactSeed) st.fill(0, o + SMOOTH_CELLS, o + SMOOTH_CELLS + n)
       return st[o]
     }
     return NaN
@@ -2581,6 +2584,7 @@ function rsiPineStep(st, o, v, n) {
     st[o + 1] = seen + 1
     if (seen + 1 < n) return NaN
     st[o + 4] = rmaSeedMean(st, o + RSI_PINE_CELLS, n); st[o + 5] = rmaSeedMean(st, o + RSI_PINE_CELLS + cap, n)
+    st.fill(0, o + RSI_PINE_CELLS, o + RSI_PINE_CELLS + 2 * cap)   // spent (`smoothStepOf`'s reason)
   } else {
     st[o + 4] = (st[o + 4] * (n - 1) + gain) / n
     st[o + 5] = (st[o + 5] * (n - 1) + loss) / n
