@@ -1,0 +1,87 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Request unit, TF-FOLD + EXT-OWN (feat/eng-request-unit, NUMBER PENDING): the runtime lane reads a request's timeframe through 16 names and arms and through a no-argument script function's settled result; the chart's own symbol on the extended session is the chart's own daily bars on a daily chart, at the identity only. The plot lane reads as before. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "TF1",
+   "mutant": "the plot lane is handed the runtime lane's reach (the confinement is gone)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined",
+   "to": "    return REQUEST_TF_REACH",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "plot-lane translation moved"
+  },
+  {
+   "id": "TF2",
+   "mutant": "the runtime lane's reach is back to the plot lane's 4 hops",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })",
+   "to": "const REQUEST_TF_REACH = Object.freeze({ hops: 4, calls: true })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "cppivot"
+  },
+  {
+   "id": "TF3",
+   "mutant": "a no-argument function's settled result is not read",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })",
+   "to": "const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "no-argument function"
+  },
+  {
+   "id": "TF4",
+   "mutant": "a call's arguments are not its parameters (the body reads an empty frame)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    this.frames.push(args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))",
+   "to": "    this.frames.push([])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "constant argument"
+  },
+  {
+   "id": "TF5",
+   "mutant": "the runtime lane's resolvers are not given the reach",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      requestTimeframeReader: 'runtime',\n      // ⭐⭐ (request unit, EXT-OWN",
+   "to": "      requestTimeframeReader: 'none',\n      // ⭐⭐ (request unit, EXT-OWN",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "TF-FOLD"
+  },
+  {
+   "id": "EO1",
+   "mutant": "the extended-session ticker is not read as the chart's own daily bars",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    this.runtimeExtendedOwnDaily = opts.requestExtendedOwn === 'daily-identity'",
+   "to": "    this.runtimeExtendedOwnDaily = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "EXT-OWN"
+  },
+  {
+   "id": "EO2",
+   "mutant": "the extended-session ticker is read at another timeframe than the chart's own (a weekly read on a daily chart)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (extendedOwn && code !== this.basePeriod) return null",
+   "to": "      if (false) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "at \"W\" on a daily chart"
+  },
+  {
+   "id": "EO3",
+   "mutant": "the extended-session ticker is folded onto an intraday chart's own bars",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    const extendedOwn = own === null && this.runtimeExtendedOwnDaily && this.basePeriod === 'D'",
+   "to": "    const extendedOwn = own === null && this.runtimeExtendedOwnDaily",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "intraday chart"
+  },
+  {
+   "id": "EO4",
+   "mutant": "a literal prefix (another listing) is read as the chart's own",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "    return builtin(slotOf('prefix', 0)) === 'syminfo.prefix' && builtin(slotOf('ticker', 1)) === 'syminfo.ticker'",
+   "to": "    return builtin(slotOf('ticker', 1)) === 'syminfo.ticker'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
+   "expectRed": "literal prefix"
+  }
+ ]
+}

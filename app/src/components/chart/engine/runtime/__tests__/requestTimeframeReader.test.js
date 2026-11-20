@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { computeRuntimeColumns, probeRuntimeProgram, resetRuntimeSessions, resetRuntimeLedgers } from '../runtimeColumns.js'
 import { translatePine, Resolver } from '../../ast/pine.js'
+import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 
 beforeEach(() => { resetRuntimeSessions(); resetRuntimeLedgers() })
 
@@ -168,14 +169,90 @@ describe('TF-FOLD: a no-argument function whose body settles the timeframe (Saty
     expect(p.ok).toBe(false)
     expect(p.refusal.guard).toMatch(/^runtime:request|^pine:request/)
   })
-  it('⛔ CONTROL: a function that takes an argument is not read as a settled call', () => {
-    const withArg = [
+  it('a function called with a constant argument is settled by it, as its literal written out', () => {
+    const src = (arg, tfExpr = `tf_of(${arg})`) => [
       '//@version=5', 'indicator("arg", overlay=true)',
       'tf_of(int k) =>', "    k == 1 ? 'W' : 'M'",
-      "pc = request.security(syminfo.tickerid, tf_of(1), close[1], lookahead=barmerge.lookahead_on)", 'plot(pc)',
+      `pc = request.security(syminfo.tickerid, ${tfExpr}, close[1], lookahead=barmerge.lookahead_on)`, 'plot(pc)',
     ].join(LF)
-    const p = probeRuntimeProgram(withArg)
-    expect(p.ok).toBe(false)
+    expect(run(src(1)).a).toEqual(run(src(1, "'W'")).a)
+    expect(run(src(2)).a).toEqual(run(src(2, "'M'")).a)
+    expect(run(src(1)).a).not.toEqual(run(src(2)).a)
+  })
+  it('⛔ CONTROL: a function called with a per-bar argument is not settled, and stays refused', () => {
+    const perBar = [
+      '//@version=5', 'indicator("arg", overlay=true)',
+      'tf_of(int k) =>', "    k == 1 ? 'W' : 'M'",
+      "pc = request.security(syminfo.tickerid, tf_of(bar_index % 2), close[1], lookahead=barmerge.lookahead_on)", 'plot(pc)',
+    ].join(LF)
+    expect(probeRuntimeProgram(perBar).ok).toBe(false)
+  })
+})
+
+// ── EXT-OWN: the chart's own symbol on the extended session, at the chart's own daily timeframe, on a daily chart ──
+const extSource = (tickerExpr, tf = "'D'") => [
+  '//@version=5',
+  'indicator("ext own", overlay=true)',
+  `tk = ${tickerExpr}`,
+  `pc = request.security(tk, ${tf}, close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)`,
+  `hi = request.security(tk, ${tf}, high, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)`,
+  'plot(pc)',
+  'plot(hi)',
+].join(LF)
+const EXT = 'ticker.new(syminfo.prefix, syminfo.ticker, session=session.extended)'
+
+describe('EXT-OWN: `ticker.new(syminfo.prefix, syminfo.ticker, session.extended)` at "D" on a daily chart (Saty ATR Levels)', () => {
+  it('reads the chart\'s own daily bars: exactly what `syminfo.tickerid` reads', () => {
+    const ext = run(extSource(EXT), { a: 0, b: 1 })
+    const own = run(extSource('syminfo.tickerid'), { a: 0, b: 1 })
+    expect(ext).toEqual(own)
+    for (let i = 1; i < CHART.length; i += 1) expect(ext.a[i]).toBe(CHART[i - 1].c)
+    expect(ext.b).toEqual(CHART.map((b) => b.h))
+  })
+  it('also through `timeframe.period` (the chart\'s own timeframe)', () => {
+    expect(run(extSource(EXT, 'timeframe.period'), { a: 0, b: 1 })).toEqual(run(extSource('syminfo.tickerid'), { a: 0, b: 1 }))
+  })
+  it('⛔ CONTROL: at "W" on a daily chart it stays refused (no capture reads an extended weekly series)', () => {
+    expect(probeRuntimeProgram(extSource(EXT, "'W'")).ok).toBe(false)
+    // and the regular spelling at "W" is served, so the refusal is the session's
+    expect(probeRuntimeProgram(extSource('syminfo.tickerid', "'W'")).ok).toBe(true)
+  })
+  it('⛔ CONTROL: a literal prefix, a ticker other than the chart\'s, or an extra argument is not this spelling', () => {
+    for (const t of [
+      'ticker.new("NYSE", syminfo.ticker, session=session.extended)',
+      'ticker.new(syminfo.prefix, "SPY", session=session.extended)',
+      'ticker.new(syminfo.prefix, syminfo.ticker, session=session.extended, adjustment=adjustment.none)',
+    ]) {
+      const p = probeRuntimeProgram(extSource(t))
+      const served = p.ok && (p.requestTargets || []).length === 0
+      expect(served, t).toBe(false)
+    }
+  })
+  it('⛔ CONTROL: on an intraday chart it stays refused (the extended series has bars the regular one does not)', () => {
+    // the build a 5-minute pane makes: the regular spelling is a daily read above the chart (`above`), served by the
+    // supply from the symbol's held daily rows; the extended spelling is not read at all
+    const src = (tickerExpr) => ['//@version=5', 'indicator("ext 5m", overlay=true)', `tk = ${tickerExpr}`,
+      "plot(request.security(tk, 'D', close))", "plot(request.security(tk, 'D', high))"].join(LF)
+    const targetsOn = (tickerExpr) => {
+      const built = buildRuntimeIr(src(tickerExpr), { bars: [], inputs: {}, pane: true, symbolAtBind: true, basePeriod: '5' })
+      return built.ok ? (built.ir.requests || []).map((r) => r.target || null) : null
+    }
+    const regular = targetsOn('syminfo.tickerid')
+    expect(regular && regular.map((t) => t && t.above)).toEqual([true, true])
+    const ext = targetsOn(EXT)
+    expect(ext === null || ext.some((t) => t === null || t.above !== true)).toBe(true)
+    // and at the 5-minute chart's OWN timeframe: the regular spelling is the identity (folded, no request); the
+    // extended one is another series there (pre- and post-market bars) and is not folded onto the chart's bars
+    const own5 = (tickerExpr) => buildRuntimeIr(['//@version=5', 'indicator("ext 5m own", overlay=true)', `tk = ${tickerExpr}`,
+      'plot(request.security(tk, timeframe.period, close))'].join(LF), { bars: [], inputs: {}, pane: true, symbolAtBind: true, basePeriod: '5' })
+    const reg5 = own5('syminfo.tickerid')
+    expect(reg5.ok).toBe(true)
+    expect((reg5.ir.requests || []).length).toBe(0)
+    const ext5 = own5(EXT)
+    expect(ext5.ok && (ext5.ir.requests || []).length === 0).toBe(false)
+  })
+  it('⛔ the plot lane keeps its refusal of the extended session', () => {
+    expect(refusedGuards(plotLane(extSource(EXT)))).toContain('pine:request')
   })
 })
 
