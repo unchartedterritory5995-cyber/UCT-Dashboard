@@ -763,6 +763,11 @@
 /* Phone: each row becomes a card (thesis-forward) — keep every field, none hidden. */
 @media (max-width: 640px) {
   .tile { padding: 14px 14px; }
+  /* The header's tools (updated, Listen, Board of, history) sat on one line that could not shrink:
+     in a Terminal panel on a 340px screen the "Board of" picker ran 41px past the tile and the whole
+     page scrolled sideways. The tools drop under the title and wrap (2026-11-20). */
+  .header { flex-wrap: wrap; gap: 8px 12px; }
+  .meta { flex-wrap: wrap; min-width: 0; gap: 8px 12px; }
   .tableWrap { overflow: visible; }
   .table, .table tbody, .table tr, .table td { display: block; width: auto; }
   .table thead { display: none; }

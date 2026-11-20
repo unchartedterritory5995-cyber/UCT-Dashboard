@@ -324,7 +324,7 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
   const PRIOR = seriesEndingAt(FRONTIER, 200)
     .map((b) => (_ps === 1 ? b : { ...b, o: b.o * _ps, h: b.h * _ps, l: b.l * _ps, c: b.c * _ps }))
   caught.error = null
-  const { rerender, unmount } = render(<Boundary><StockChart sym="AAA" barsOverride={PRIOR} {...PANE_PROPS} /></Boundary>)
+  const { rerender, unmount } = render(<Boundary><StockChart sym="AAA" barsOverride={PRIOR} {...PANE_PROPS} {...(opts.props || {})} /></Boundary>)
   await waitFor(() => expect(spy.setVisibleLogicalRange).toHaveBeenCalled(), { timeout: 5000 })
   await tick()
 
@@ -332,7 +332,7 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
   seriesLog.calls = []
   spy.setVisibleLogicalRange.mockClear()
   const t0 = Date.now()
-  rerender(<Boundary><StockChart sym={world.sym} {...PANE_PROPS} /></Boundary>)
+  rerender(<Boundary><StockChart sym={world.sym} {...PANE_PROPS} {...(opts.props || {})} /></Boundary>)
 
   // first target paint = the first commit that puts candle data on the series
   let firstPaint = null; let firstFrame = null; let firstAtMs = null
@@ -350,6 +350,22 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
   if (!firstPaint) { unmount(); return { name, verdict: 'INVALID', why: 'target symbol never painted candle data' } }
   if (!firstFrame) { unmount(); return { name, verdict: 'INVALID', why: 'no effective visible range observed' } }
 
+  // `click`: the member presses the chart's range button with that label (Origin, 5Y, ...) once the answer
+  // has landed, and `applied(frame)` says the frame it asks for is on screen.
+  let clicked = false; let applied = false; let clickFrame = null
+  if (opts.click) {
+    const until = Date.now() + 3000
+    while (!world.netResolvedAt && Date.now() < until) await tick(20)
+    await tick(60)
+    const btn = [...document.querySelectorAll('[data-guide="chart.range"] button')].find((b) => b.textContent.trim() === opts.click)
+    if (btn) {
+      clicked = true
+      btn.click()
+      const end = Date.now() + 7000                                  // Origin's own fallback applies at 6 s
+      while (Date.now() < end) { await tick(20); if (spy.last && opts.applied(spy.last)) { applied = true; break } }
+      clickFrame = frame()
+    }
+  }
   const marks = seriesLog.calls.length
   // `cameraKick`: the range moves with no pointer and no wheel (NOT the member).
   // `memberPan`: the member drags the chart that many bars back (see memberDrag).
@@ -431,6 +447,7 @@ async function runCase(name, expectSource, settleMs = 700, opts = {}) {
     postOps: postOps.join(',') || '-',
     netCalls: world.netCalls,
     lateMs: world.lateGate ? world.lateServedAt - movedAt : null,
+    clicked, applied, clickFrame, finalFrame,
   }
 }
 
@@ -687,5 +704,51 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
       // +1 (2026-11-17): SETTLING, the non-member half of NC-D
       expect(RESULTS.length).toBe(23)
     })
+  })
+
+  // ⛔ A RANGE BUTTON PRESSED WHILE A SWITCH SETTLES IS THE MEMBER'S FRAME (2026-11-20, production: Origin on
+  // TEL D and on 60m framed the first bar, then the switch's settling guard put the newest bar back at the
+  // right on the next commit; GNK D held because nothing committed after the click). The world: the cache
+  // holds 1,500 bars and the answer 1,600 (deeper history), so the count moves when it lands and the guard
+  // stays armed; the member clicks after that, and the symbol's late reads land after the click and re-run
+  // the framing pass. Origin and the range buttons now end the guard the way Go-to-date does.
+  describe('a range button pressed while the switch settles', () => {
+    const deepWorld = () => {
+      world.idbEntry = { bars: seriesEndingAt(FRONTIER, 1500), lastT: FRONTIER, savedAt: Date.now() }
+      world.netBars = seriesEndingAt(FRONTIER, 1600)
+      world.histBars = seriesEndingAt(FRONTIER, 1600)            // the deep leg (bars-history / the lake) holds it too
+      world.lateGate = new Promise((r) => { world.releaseLate = r })
+    }
+    const PROPS = { showRangeSelector: true }
+
+    it('ORIGIN — the first bar the member asked for is still framed after the late framing pass', async () => {
+      deepWorld()
+      const r = await runCase('ORIGIN click', 'cache', 700, { props: PROPS, click: 'Origin', applied: (f) => f.from < 0 && f.to > 0 })
+      expect(r.verdict, `${r.name}: ${r.why || ''}`).not.toBe('INVALID')
+      expect(r.clicked, 'the range bar is not on the chart').toBe(true)
+      expect(r.applied, `Origin never framed the first bar: ${JSON.stringify(r.clickFrame)}`).toBe(true)
+      expect(r.finalFrame.from, `put back after the late pass: ${JSON.stringify(r.clickFrame)} -> ${JSON.stringify(r.finalFrame)}`).toBeLessThan(0)
+      expect(r.finalFrame.to).toBeGreaterThan(0)
+    }, 30000)
+
+    it('5Y — the window the member asked for keeps its width after the late framing pass', async () => {
+      deepWorld()
+      const r = await runCase('5Y click', 'cache', 700, { props: PROPS, click: '5Y', applied: (f) => f.to - f.from > 1000 })
+      expect(r.verdict, `${r.name}: ${r.why || ''}`).not.toBe('INVALID')
+      expect(r.clicked && r.applied, `5Y never framed: ${JSON.stringify(r.clickFrame)}`).toBe(true)
+      const w = (f) => f.to - f.from
+      expect(Math.abs(w(r.finalFrame) - w(r.clickFrame)), `width put back: ${JSON.stringify(r.clickFrame)} -> ${JSON.stringify(r.finalFrame)}`).toBeLessThan(1)
+    }, 30000)
+
+    it("NEGATIVE CONTROL — no click: in the same world a camera move that is NOT the member's is still put back", async () => {
+      // The fix must end the guard for a CLICK only: with no click the late pass still re-pins the newest bar
+      // at the right over a non-member move (SETTLING's rule, in this deeper world).
+      deepWorld()
+      const r = await runCase('no click, deep world', 'cache', 700, { props: PROPS, cameraKick: 4 })
+      expect(r.verdict, `${r.name}: ${r.why || ''}`).not.toBe('INVALID')
+      expect(r.flags).not.toContain('VISIBLE_RANGE_DRIFT')
+      expect(r.finalFrame.to - r.finalFrame.from).toBeLessThan(400)        // the default window, nowhere near Origin
+      expect(r.finalFrame.from).toBeGreaterThan(0)
+    }, 30000)
   })
 })

@@ -511,3 +511,55 @@ def test_a_cold_board_is_a_200_that_says_pending_never_a_503(client, monkeypatch
     body = resp.json()
     assert body["complete"] is False and {f["status"] for f in body["funds"]} == {"pending"}
     assert all("months" not in f for f in body["funds"])
+
+
+# ── held(): the read-only accessor (the UCT Agent's read; it never builds) ────────────────────
+
+def test_held_is_none_until_the_route_has_built_and_never_builds_itself(reads, monkeypatch):
+    r = reads()
+    built = []
+    real = sb.build
+    monkeypatch.setattr(sb, "build", lambda day=None: built.append(day) or real(day))
+    assert sb.held(NOV) is None and built == [] and r.asked == []      # nothing held: said, not built, nothing read
+    board = sb.serve(NOV)
+    assert built == [NOV] and sb.held(NOV) is board                    # the very answer the route serves
+    assert built == [NOV] and len(r.asked) == 15
+
+
+def test_held_never_takes_the_build_lock(reads):
+    reads()
+    board = sb.serve(NOV)
+    assert sb._build_lock.acquire(timeout=1)                           # a build is "running"
+    try:
+        done = []
+        t = threading.Thread(target=lambda: done.append(sb.held(NOV)), daemon=True)
+        t.start()
+        t.join(2)
+        assert done == [board]                                         # answered at once, lock or no lock
+    finally:
+        sb._build_lock.release()
+
+
+def test_held_follows_the_reuse_rule_another_day_or_a_stale_unfinished_board_is_nothing_held(reads, monkeypatch):
+    r = reads(XLK=route.HistoryPending("XLK"))
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(sb, "_clock", lambda: clock["t"])
+    board = sb.serve(NOV)
+    assert board["settled"] is False and sb.held(NOV) is board
+    clock["t"] += sb.INCOMPLETE_REUSE_S + 1                            # the route would rebuild it now
+    assert sb.held(NOV) is None and len(r.asked) == 15                 # held() says nothing held, and reads nothing
+    r.by_sym.pop("XLK")
+    settled = sb.serve(NOV)
+    clock["t"] += 6 * 3600
+    assert settled["settled"] is True and sb.held(NOV) is settled      # a settled board is held all day
+    assert sb.held(NOV + dt.timedelta(days=1)) is None                 # and it is not the next day's board
+    assert len(r.asked) == 30
+
+
+def test_held_reads_the_new_york_date_when_no_day_is_given(reads, monkeypatch):
+    reads()
+    board = sb.serve(NOV)
+    monkeypatch.setattr(sb, "_now_et", lambda: dt.datetime.combine(NOV, dt.time(9, 0), tzinfo=session_calendar.ET))
+    assert sb.held() is board
+    monkeypatch.setattr(sb, "_now_et", lambda: dt.datetime.combine(NOV + dt.timedelta(days=1), dt.time(0, 5), tzinfo=session_calendar.ET))
+    assert sb.held() is None

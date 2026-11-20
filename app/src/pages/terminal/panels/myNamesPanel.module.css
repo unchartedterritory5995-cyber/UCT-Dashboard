@@ -202,6 +202,31 @@
   min-width: 6rem;
 }
 
+/* A 340px phone (2026-11-20, part 2): ALRT ran 277px past the screen and PEER 26px. As in
+   marketPanels.module.css, a folded table's cells sit 4px a side in place of 8 and the two outer
+   cells give up their outer padding (the panel body already insets them), and a cell marked
+   `phoneWrap` may wrap (the alert's rule, its "Triggered" time). A wide panel is unchanged. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td {
+  padding-inline: var(--space-xs);
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:first-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:first-child {
+  padding-left: 0;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:last-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:last-child {
+  padding-right: 0;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.phoneWrap,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.phoneWrap {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 /* TOUCH TIER (phone + tablet): finger targets, as MOST (moversPanel.module.css). */
 @media (max-width: 1024px) {
   .chip,

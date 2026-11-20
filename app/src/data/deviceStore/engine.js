@@ -29,6 +29,8 @@
 import { decodeRecord, trailerLengthOf, parseTrailer, PACK_TAIL_BYTES, DeviceFormatError } from './codec'
 import { createSha256 } from './sha256'
 import { deriveFromDaily } from './resample'
+import { isoOfYmd, nextSessionISO } from './sessions'
+import { etDateLabel } from '../../components/chart/barTime'
 
 import { STORED_TFS, DERIVED_TFS } from './tfs'
 
@@ -57,10 +59,29 @@ const _sleep = (ms) => new Promise((r) => setTimeout(r, ms))
  * @param {Function} [o.onEvent]   ({type:'gen', tf, build, gen}) after a commit
  * @param {number} [o.flushEvery]  bytes between flushes while downloading
  */
-export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEvent = null, flushEvery = 8 << 20 } = {}) {
+/** The splits list of the manifest, as the engine keeps it: {session, symbols: Set} or null. */
+export const SPLITS_FILE = 'splits.json'
+function _splitsOf(m) {
+  const sp = m?.splits
+  if (!sp || typeof sp.session !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(sp.session) || !sp.symbols || typeof sp.symbols !== 'object') return null
+  return { session: sp.session, symbols: new Set(Object.keys(sp.symbols).map((x) => x.toUpperCase().replace(/\./g, '-'))) }
+}
+
+export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEvent = null, flushEvery = 8 << 20, now = () => Date.now() } = {}) {
   if (!io) throw new Error('device engine: no io')
+  /** ⭐ THE SPLIT GUARD (review of #2189). The seed is split-adjusted AS OF its session (`asof`); a split
+   *  executing on a LATER session puts the server (and today's raw minutes) on another basis than the
+   *  seed, and a joined copy would paint a fake cliff the server's answer then resets. The manifest names
+   *  the symbols whose split executes on the session after `asof` (`splits: {session, symbols}`); a copy
+   *  is used on a later date only when that list covers the session after its `asof` and does not name
+   *  the symbol. No list, or one for another session: no device copy past `asof` (fail closed). */
+  let splits = null
   /** tf → { gen, build, handle, index, bytes, scratch, bad } */
   const live = new Map()
+  /** live.js overlay of today's bars (attachLive), or null */
+  let overlay = null
+  /** every symbol any held timeframe file names (the overlay keeps only these), rebuilt lazily */
+  let names = null
   const inflight = new Map()   // tf → ingest promise
   let opening = null
 
@@ -118,6 +139,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     return parseTrailer(tb, dataEnd, { tf })
   }
   function _install(tf, entry) {
+    names = null
     const old = live.get(tf)
     live.set(tf, { ...entry, scratch: new Uint8Array(4096), bad: 0 })
     if (old && old.handle !== entry.handle) { try { old.handle.close() } catch { /* gone */ } }
@@ -127,6 +149,69 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     for (const name of [okName(tf, gen), progName(tf, gen), packName(tf, gen)]) {
       try { await io.remove(name) } catch { /* busy or gone: the next ingest retries */ }
     }
+  }
+  /** May the seed copy of `sym` (adjusted as of `asof`) be used today? See the split guard above. */
+  function _basisHolds(sym, asof) {
+    const today = etDateLabel(Math.floor(now() / 1000))
+    if (today <= asof) return true                       // still the as-of day: the seed's own basis
+    const next = nextSessionISO(asof)
+    if (!splits || splits.session !== next || today > next) return false
+    return !splits.symbols.has(sym.replace(/\./g, '-'))
+  }
+  /** The key `sym` is held under in L ('BRK-B' or its 'BRK.B' spelling), or null. */
+  function _rowName(L, sym) {
+    const S = sym.toUpperCase()
+    if (L.index.row.has(S)) return S
+    if (S.includes('-') && L.index.row.has(S.replace(/-/g, '.'))) return S.replace(/-/g, '.')
+    if (S.includes('.') && L.index.row.has(S.replace(/\./g, '-'))) return S.replace(/\./g, '-')
+    return null
+  }
+  /** The ONE decision behind read() and why(): the columns, and the rule that decided them. */
+  function _lookup(sym, tf) {
+    const from = DERIVED_TFS[tf]
+    if (from) {
+      const r = _lookup(sym, from)
+      const w = r.out ? deriveFromDaily(r.out, tf, { through: r.out.through }) : null
+      if (w) w.through = r.out.through
+      return { out: w, why: r.why }
+    }
+    const L = live.get(String(tf))
+    if (!L || typeof sym !== 'string') return { out: null, why: 'no-file' }
+    const S = _rowName(L, sym)
+    if (S == null) return { out: null, why: 'missing' }
+    const i = L.index.row.get(S)
+    const asof = isoOfYmd(L.index.asof[i])
+    if (!_basisHolds(S, asof)) return { out: null, why: 'split' }
+    let seed
+    try { seed = _decodeRow(L, i) } catch { L.bad++; return { out: null, why: 'bad' } }
+    if (!seed) return { out: null, why: 'bad' }
+    // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
+    seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
+    if (!overlay) return { out: seed, why: 'seed-only:no-overlay' }
+    // TODAY, to the last COMPLETE minute (live.js): appended only where the overlay vouches for every
+    // bar and continues this symbol's window across exactly one night.
+    const add = overlay.read(S, String(tf), asof)
+    if (!add) return { out: seed, why: `seed-only:${overlay.why ? overlay.why(S, String(tf), asof) : 'refused'}` }
+    const out = add.cols ? _append(seed, add.cols) : seed
+    out.through = Math.max(seed.through, add.through)
+    return { out, why: 'ok' }
+  }
+  /** The seed's columns followed by the overlay's bars that are newer than its last one. */
+  function _append(seed, add) {
+    const last = seed.t.length ? seed.t[seed.t.length - 1] : -Infinity
+    let k = 0
+    while (k < add.t.length && add.t[k] <= last) k++
+    const m = add.t.length - k
+    if (!m) return seed
+    const n = seed.t.length
+    const out = {}
+    for (const c of ['t', 'o', 'h', 'l', 'c', 'v']) {
+      const a = new Float64Array(n + m)
+      a.set(seed[c], 0)
+      a.set(add[c].subarray(k), n)
+      out[c] = a
+    }
+    return out
   }
   function _decodeRow(L, i) {
     const len = L.index.len[i]
@@ -141,7 +226,11 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     open() {
       if (opening) return opening
       opening = (async () => {
-        const by = _scan(await io.list())
+        const all = await io.list()
+        if (all.includes(SPLITS_FILE)) {
+          try { const j = await _readJson(SPLITS_FILE); splits = _splitsOf({ splits: j && { session: j.session, symbols: Object.fromEntries((j.symbols || []).map((x) => [x, 1])) } }) } catch { splits = null }
+        }
+        const by = _scan(all)
         for (const tf of STORED_TFS) {
           const gens = by.get(tf)
           if (!gens) continue
@@ -168,17 +257,33 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
      * SYNCHRONOUS read of (sym, tf): {t, o, h, l, c, v} Float64Arrays, or null (not held, or a record
      * that fails its checks: counted in info().bad, never thrown at the caller).
      */
-    read(sym, tf) {
-      const from = DERIVED_TFS[tf]
-      if (from) return deriveFromDaily(api.read(sym, from), tf)
-      const L = live.get(String(tf))
-      if (!L || typeof sym !== 'string') return null
+    read: (sym, tf) => _lookup(sym, tf).out,
+
+    /**
+     * Diagnostics: why read(sym, tf) answers what it does. 'ok' (seed and today's overlay), 'seed-only:<rule>'
+     * (the seed alone: the overlay is absent or refused, live.js why()), or the rule that made it null:
+     * no-file (that timeframe is not held) | missing (not in the seed) | split (the split guard) | bad (the
+     * row failed its checks).
+     */
+    why: (sym, tf) => _lookup(sym, tf).why,
+
+    /** The manifest's splits list (see SPLITS_FILE); kept on disk so a reload keeps the guard. */
+    async setSplits(manifest) {
+      const sp = _splitsOf(manifest)
+      splits = sp
+      try { await _writeJson(SPLITS_FILE, sp ? { session: sp.session, symbols: [...sp.symbols] } : null) } catch { /* memory still holds it */ }
+    },
+
+    /** Attach (or detach, null) today's overlay (live.js), read by every read() after this. */
+    attachLive(o) { overlay = o || null },
+    /** The name a held file uses for `sym` ('BRK-B' or 'BRK.B' spelling), or null when none holds it. */
+    seedName(sym) {
+      if (!names) { names = new Set(); for (const L of live.values()) for (const k of L.index.row.keys()) names.add(k) }
+      if (typeof sym !== 'string') return null
       const S = sym.toUpperCase()
-      let i = L.index.row.get(S)
-      if (i == null && S.includes('-')) i = L.index.row.get(S.replace(/-/g, '.'))
-      if (i == null && S.includes('.')) i = L.index.row.get(S.replace(/\./g, '-'))
-      if (i == null) return null
-      try { return _decodeRow(L, i) } catch { L.bad++; return null }
+      if (names.has(S)) return S
+      const a = S.includes('.') ? S.replace(/\./g, '-') : (S.includes('-') ? S.replace(/-/g, '.') : null)
+      return a && names.has(a) ? a : null
     },
 
     has(sym, tf) {
@@ -210,6 +315,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     /** Every timeframe of a manifest (`latest.json`: {v, kind, build, tfs: {tf: entry}}), ONE AT A TIME,
      *  in STORED_TFS order. */
     async ingestAll(manifest, { signal = null, base = null } = {}) {
+      await api.open()
+      await api.setSplits(manifest)
       const out = []
       for (const tf of STORED_TFS) {
         const e = manifest?.tfs?.[tf]
