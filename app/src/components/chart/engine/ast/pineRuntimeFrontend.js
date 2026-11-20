@@ -16698,11 +16698,12 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  ⛔ NOT when: the refusal is not the `condParam` one; `p` is declared `simple` / `const` (Pine
    *  does not compile a per-bar value there); the argument reads a parameter of the calling function
    *  that its OWN call site may fix (the C35 chain stays first: a fixed branch is exact on every
-   *  chart); the call is in a loop (several calls a bar, which the check refuses as a skip); the
-   *  drawing build, the object door or a request's value (HIST-S3 runs on none of them).
+   *  chart); the drawing build, the object door or a request's value (HIST-S3 runs on none of them).
+   *  A call in a loop is refused by the loop's own rule (a function holding history, called several
+   *  times a bar: `r4Guard`), so no second copy of that guard stands here (mutant A4-5 survived it).
    *  @returns {boolean} true = the copy checks the branch; false = the caller's refusal stands */
   const checkedParamOf = (p, q, blocked, err, scope) => {
-    if (atObjectDoor || inRequestValue || objectsInRun || loopDepth > 0) return false
+    if (atObjectDoor || inRequestValue || objectsInRun) return false
     if (!(err instanceof RuntimeRefusal) || err.guard !== 'runtime:conditional-history' || err.condParam !== true) return false
     if (q === 'const' || q === 'simple') return false
     if (typeof blocked === 'string') {

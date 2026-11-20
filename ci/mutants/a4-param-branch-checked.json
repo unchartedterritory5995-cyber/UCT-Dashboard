@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "objects unit A4: a branch of a function body decided by a parameter its call site passes per bar is compiled per call site with HIST-S3's every-bar check on that branch (pineRuntimeFrontend.js::checkedParamOf, frameChecked): drawn while it runs on every call, stopped by name at the first call it skips; a simple/const parameter, a caller's own fixable parameter, a loop, the drawing build, the object door and a request's value keep the refusal.",
+ "about": "objects unit A4: a branch of a function body decided by a parameter its call site passes per bar is compiled per call site with HIST-S3's every-bar check on that branch (pineRuntimeFrontend.js::checkedParamOf, frameChecked): drawn while it runs on every call, stopped by name at the first call it skips; a simple/const parameter, a caller's own fixable parameter, a loop, the drawing build, the object door and a request's value keep the refusal. (A4-5, a loop guard in checkedParamOf, SURVIVED run 44812085285: the loop's own r4Guard refuses that call, so the duplicate guard was deleted rather than kept unproved.)",
  "mutants": [
   {
    "id": "A4-1",
@@ -33,19 +33,10 @@
    "id": "A4-4",
    "mutant": "the drawing build takes the checked copy too",
    "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
-   "from": "    if (atObjectDoor || inRequestValue || objectsInRun || loopDepth > 0) return false",
-   "to": "    if (atObjectDoor || inRequestValue || loopDepth > 0) return false",
+   "from": "    if (atObjectDoor || inRequestValue || objectsInRun) return false",
+   "to": "    if (atObjectDoor || inRequestValue) return false",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
    "expectRed": "the drawing build (HIST-S3 runs on the value lane only)"
-  },
-  {
-   "id": "A4-5",
-   "mutant": "a call in a loop takes the checked copy",
-   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
-   "from": "    if (atObjectDoor || inRequestValue || objectsInRun || loopDepth > 0) return false",
-   "to": "    if (atObjectDoor || inRequestValue || objectsInRun) return false",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a4ParamBranchChecked.test.js",
-   "expectRed": "the call in a loop"
   },
   {
    "id": "A4-6",
