@@ -71,7 +71,7 @@ import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
-import { substitutionNotesFor } from '../../engine/ast/symbolSubstitution'
+import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
 
 // ─── ⭐⭐ SERVE OR REFUSE BY NAME (owner ruling 2026-11-17, delegated): A STRATEGY DRAWN WITHOUT ITS BACKTEST ─────
 //
@@ -1159,6 +1159,13 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
   // (`syminfo.industry` / `syminfo.sector`, `bind.js::classificationWith`). The program's
   // substitution rule: disclosed at the member door, never passed off as TradingView's.
   for (const n of substitutionNotesFor(source)) {
+    seen.add(`${n.name} :: ${n.note}`)
+    notes.push(n)
+  }
+  // ⭐⭐ (2026-11-20, the SPX data gap) — AN OTHER SYMBOL'S BARS ARE UCT'S OWN, AND THAT IS SAID SO, BY NAME
+  // (`symbolSubstitution.js::otherSymbolSourceNotesFor`, the same sentence the runtime document says).
+  for (const n of otherSymbolSourceNotesFor(t.otherSymbols)) {
+    if (seen.has(`${n.name} :: ${n.note}`)) continue
     seen.add(`${n.name} :: ${n.note}`)
     notes.push(n)
   }
@@ -2690,6 +2697,8 @@ function runtimeLaneDocument({ source, id, name, t, hostReason, hostGuard = null
   }
   // ⭐⭐ RS RATING L3 — the substituted-value disclosure, the same sentence the host document says.
   notes.push(...substitutionNotesFor(source))
+  // ⭐⭐ (2026-11-20) — and an other symbol's bars are UCT's own, said by name, as the host document says it
+  notes.push(...otherSymbolSourceNotesFor(t && t.otherSymbols))
   if (drawingNote) notes.unshift(drawingNote)
   if (!ownObjects && own.hostWithheld && hostWouldDraw) {
     notes.push({

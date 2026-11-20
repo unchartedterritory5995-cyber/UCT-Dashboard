@@ -3,8 +3,8 @@
  "version": 1,
  "counts": {
   "call-unmapped": 390,
-  "name-unknown": 202,
-  "reachable": 163
+  "name-unknown": 199,
+  "reachable": 166
  },
  "names": {
   "abs": {
@@ -253,7 +253,7 @@
   },
   "asin": {
    "status": "name-unknown",
-   "guard": "pine:undefined"
+   "guard": "pine:function"
   },
   "atan": {
    "status": "reachable",
@@ -1304,8 +1304,8 @@
    "probe": "math.acos(close)"
   },
   "math.asin": {
-   "status": "name-unknown",
-   "guard": "pine:function"
+   "status": "reachable",
+   "probe": "math.asin(close)"
   },
   "math.atan": {
    "status": "reachable",
@@ -1400,12 +1400,12 @@
    "probe": "math.tan(close)"
   },
   "math.todegrees": {
-   "status": "name-unknown",
-   "guard": "pine:function"
+   "status": "reachable",
+   "probe": "math.todegrees(close)"
   },
   "math.toradians": {
-   "status": "name-unknown",
-   "guard": "pine:function"
+   "status": "reachable",
+   "probe": "math.toradians(close)"
   },
   "matrix.add_col": {
    "status": "call-unmapped",

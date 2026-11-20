@@ -1,0 +1,48 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_TIME_D_EXTENDED", overlay = false)
+
+// U-BUILTIN (2026-11-19). WHERE DOES THE DAY START FOR `time("D")` ON AN INTRADAY CHART THAT CARRIES
+// EXTENDED-HOURS (OR 24-HOUR) BARS?
+//
+// On regular-hours bars the vendor's answer is read (`vw-bt-time-1440-spy-{1d,60}-2026-11-16`, R1-R6):
+// `time("D")` is the 09:30 open of the bar's session, on 1D and on RTH 60m bars, and
+// `time("D", "0930-1600")` on RTH 60m bars is that same open inside the window. A midnight anchor and a
+// session-open anchor put the new day on the SAME bar there. On a chart with pre-market or overnight bars
+// they do not, and nothing measured says which bar TradingView's `ta.change(time("D"))` fires on, what
+// `time("D")` reads on a 04:00 pre-market bar or a 17:00 after-hours bar, or whether the value inside a
+// session window is the window's start or the daily bar's open. Every row is read relative to the bar
+// (seconds, -1 for na), so the anchor's clock time is HOUR/MINUTE plus the row.
+//
+// Grade, per bar:
+//   A1  (time("D") - time) / 1000           the anchor, read against the bar
+//   A2  ta.change(time("D")) != 0           the bar the new day starts on (1 / 0)
+//   A3  timeframe.change("D")               the same question through the other built-in (1 / 0)
+//   A4  hour(time("D")) * 100 + minute(time("D"))   the anchor's clock time, exchange zone
+//   A5  dayofmonth(time("D")) - dayofmonth  0 when the anchor is on the bar's own date, else which day
+//   S1  secs(time("D", "0930-1600"))        the regular session window
+//   S2  secs(time("D", "0400-2000"))        the extended window (pre-market start)
+//   S3  secs(time("D", "1000-1100"))        a window that starts after the open: its start or the day's open?
+//   S4  secs(time("D", "1600-2000"))        after-hours only
+//   S5  secs(time("1440"))                  the "1440" spelling of the anchor
+//
+// ⛔ CAPTURE, inputs at defaults, each across at least 10 sessions (>= 2,000 bars on 5m, >= 400 on 60m):
+//   AMEX:SPY 5  with EXTENDED HOURS ON
+//   AMEX:SPY 60 with EXTENDED HOURS ON
+//   AMEX:SPY 60 with EXTENDED HOURS OFF   (S3 on regular-hours bars)
+//   BITSTAMP:BTCUSD 60                    (a 24-hour symbol whose exchange zone is UTC)
+
+secs(t) => na(t) ? -1.0 : (t - time) / 1000.0
+
+plot(bar_index, "A0_bar_index_CONTROL")
+plot(hour, "HOUR")
+plot(minute, "MINUTE")
+plot(secs(time("D")), "A1_secs_time_D")
+plot(ta.change(time("D")) != 0 ? 1 : 0, "A2_change_time_D")
+plot(timeframe.change("D") ? 1 : 0, "A3_timeframe_change_D")
+plot(hour(time("D")) * 100 + minute(time("D")), "A4_hhmm_time_D")
+plot(dayofmonth(time("D")) - dayofmonth, "A5_day_offset_time_D")
+plot(secs(time("D", "0930-1600")), "S1_secs_D_rth")
+plot(secs(time("D", "0400-2000")), "S2_secs_D_extended")
+plot(secs(time("D", "1000-1100")), "S3_secs_D_after_open")
+plot(secs(time("D", "1600-2000")), "S4_secs_D_after_hours")
+plot(secs(time("1440")), "S5_secs_1440")
