@@ -35,6 +35,8 @@ import AttachedPineDisclosures from '../../pane/AttachedPineDisclosures'
 import { RUN_HALF_SOURCE_STAMP } from './memberPaneDefinition'
 import { setRunHalfObjectEvidence } from '../../engine/runHalfRailSeam'
 import { storedBytesOf } from './storedBytes'
+import fs from 'node:fs'
+import path from 'node:path'
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
 import { runHalfProgramDigest, RUN_HALF_PROGRAM_STAMP } from '../../engine/runHalfProgram'
 
@@ -180,6 +182,29 @@ describe('⭐⭐ the door mints a run half for a host-partial script', () => {
     expect(JSON.stringify(over.definition)).toBe(JSON.stringify(door(withPad(hi), { id, routeHostPartial: false }).definition))
     expect(over.notes).toEqual(door(withPad(hi), { id, routeHostPartial: false }).notes)
   })
+
+  // ⭐ A6 — THE DECLINE NAMES THE TRUE CAUSE. ⚰️ vdubus-pattern-gen-v2's read "with the run half the document is 4095605
+  // bytes": its HOST document alone is 4,077,043 bytes (its `objects` program) and the run half adds 18,539, so the
+  // sentence blamed the run half for a size the host document already has.
+  const committed = (slug) => fs.readFileSync(path.resolve(process.cwd(), '..', 'corpus/committed', `${slug}.pine`), 'utf8')
+  it('A6 — a host document already past the cap is named as the cause, with the run half\'s small share', () => {
+    const d = door(committed('vdubus-pattern-gen-v2-restored-refined__66dc68412e'))
+    expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('run-half:size')
+    const m = /^the document is (\d+) bytes as the store counts it WITHOUT the run half, already past its (\d+)-byte cap; the run half would add (\d+) bytes$/.exec(d.runHalfDeclined.why)
+    expect(m, d.runHalfDeclined.why).toBeTruthy()
+    expect(Number(m[1])).toBe(storedBytesOf(d.definition))
+    expect(Number(m[1])).toBeGreaterThan(Number(m[2]))
+    expect(Number(m[3])).toBeLessThan(Number(m[1]))
+  }, 240000)
+  it('A6 CONTROL — where the run half is what passes the cap (dual-view-htf), the sentence still says so', () => {
+    const d = door(committed('dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b'))
+    expect(d.runHalfDeclined && d.runHalfDeclined.code).toBe('run-half:size')
+    const m = /^with the run half the document is (\d+) bytes as the store counts it, past its (\d+)-byte cap \((\d+) without it; the run half adds (\d+)\)$/.exec(d.runHalfDeclined.why)
+    expect(m, d.runHalfDeclined.why).toBeTruthy()
+    expect(Number(m[3])).toBe(storedBytesOf(d.definition))
+    expect(Number(m[3])).toBeLessThanOrEqual(Number(m[2]))
+    expect(Number(m[1])).toBe(Number(m[3]) + Number(m[4]))
+  }, 240000)
 })
 
 describe('⛔⛔ the run half runs the document\'s OWN script (review 1)', () => {
