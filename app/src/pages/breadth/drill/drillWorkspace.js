@@ -54,6 +54,9 @@ function inertWorkspaceMembers() {
     // Replay Mode is a whole-board mode driven by the workspace's Replay panel.
     replayCutoff: null,
     exitReplay: () => {},
+    // No "Exit Replay Mode" pill in the drill (owner 2026-11-20): the header's Replay chip is the
+    // one switch. ChartWidget shows the pill unless a host sets this false.
+    showReplayExit: false,
     replayArmPick: false,
     onReplayCutoffPicked: () => {},
     onReplayPickCancel: () => {},

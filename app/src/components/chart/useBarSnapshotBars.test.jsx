@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { pinWallClock } from '../../testing/pinnedWallClock'
-import { useBarSnapshotBars, chartKeyFor } from './useBarSnapshotBars'
+import { useBarSnapshotBars, chartKeyFor, replayRowsReach } from './useBarSnapshotBars'
 import { getBarStore, _resetBarStoreForTests } from '../../data/barStore/index'
 import { keyOf } from '../../data/barStore/types'
 import { memClear } from '../../utils/barsMemCache'
@@ -187,6 +187,55 @@ describe('useBarSnapshotBars — keys and the daily paint authority', () => {
     expect(result.current.bars).toBeNull()
     act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'rest-full', key: KD, gen: st.getSnapshot(KD).gen, payload: { ticker: 'SIMD', tf: 'D', bars: [...days, { t: '2026-09-21', o: 10, h: 11, l: 9, c: 10.5, v: 1 }, { t: '2026-09-22', o: 10, h: 11, l: 9, c: 10.5, v: 1 }] } }) })
     expect(result.current.bars?.[result.current.bars.length - 1]?.t).toBe('2026-09-22')
+  })
+})
+
+// 2026-11-20 — Breadth drill Replay: a flip waited ~1 s per name on the windowed (`to=`) key while
+// the name's plain daily set was already held. The held set paints at once when it reaches the cutoff.
+describe('useBarSnapshotBars — replay paints from the held plain set', () => {
+  const day = (d) => ({ t: d, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
+  const DAYS = ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21', '2026-09-22']
+  const holdPlain = (sym, days) => act(() => {
+    const st = getBarStore()
+    const k = keyOf({ sym, tf: 'D' })
+    st.registry.dispatch(k, { type: 'rest-full', key: k, gen: st.getSnapshot(k).gen, payload: { ticker: sym, tf: 'D', bars: days.map(day) } })
+  })
+  const replayParams = (sym, cutoff) => params({ sym, resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: cutoff })
+
+  it('replayRowsReach: history before the cutoff AND a row on/after it', () => {
+    expect(replayRowsReach(DAYS.map(day), '2026-09-17')).toBe(true)
+    expect(replayRowsReach(DAYS.map(day), '2026-09-22')).toBe(true)
+    expect(replayRowsReach(DAYS.map(day), '2026-09-23')).toBe(false)   // ends short of the replay day
+    expect(replayRowsReach(DAYS.map(day), '2026-09-14')).toBe(false)   // nothing before it
+    expect(replayRowsReach([], '2026-09-17')).toBe(false)
+    expect(replayRowsReach(DAYS.map(day), null)).toBe(false)
+  })
+
+  it('the windowed key empty + the plain set held → the plain rows paint on the first frame', () => {
+    holdPlain('SIMR', DAYS)
+    const { result } = renderHook(() => useBarSnapshotBars(replayParams('SIMR', '2026-09-17')))
+    expect(result.current.bars?.length).toBe(DAYS.length)   // StockChart cuts after the cutoff
+  })
+
+  it('then the windowed answer takes over', () => {
+    holdPlain('SIMW', DAYS)
+    const { result } = renderHook(() => useBarSnapshotBars(replayParams('SIMW', '2026-09-17')))
+    const KW = chartKeyFor({ sym: 'SIMW', resolvedTf: 'D', replayCutoff: '2026-09-17' })
+    const win = DAYS.slice(0, 4).map(day)
+    act(() => { const st = getBarStore(); st.registry.dispatch(KW, { type: 'rest-full', key: KW, gen: st.getSnapshot(KW).gen, payload: { ticker: 'SIMW', tf: 'D', bars: win } }) })
+    expect(result.current.bars?.map((r) => r.t)).toEqual(win.map((r) => r.t))
+  })
+
+  it('a held set that ends before the cutoff is not used (it would stop short of the replay day)', () => {
+    holdPlain('SIMS', DAYS.slice(0, 3))
+    const { result } = renderHook(() => useBarSnapshotBars(replayParams('SIMS', '2026-09-21')))
+    expect(result.current.bars).toBeNull()
+  })
+
+  it('no replay → never reads another key', () => {
+    holdPlain('SIMN', DAYS)
+    const { result } = renderHook(() => useBarSnapshotBars(params({ sym: 'SIMO', resolvedTf: 'D', _barsTf: 'D', isIntraday: false })))
+    expect(result.current.bars).toBeNull()
   })
 })
 
