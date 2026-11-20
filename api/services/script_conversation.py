@@ -245,7 +245,12 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
             msg, in_tokens, out_tokens = _call_model(messages)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             gate = dc.model_failure_gate(exc)
-            logger.warning("[converse:script] model call failed: %s", type(exc).__name__)
+            # ⭐ 2026-11-20: the script turn logged an account refusal as a WARNING "model call failed", the one
+            # door of three that did; it says what the others say now (ERROR, with the kind of refusal)
+            if gate == "model:unavailable":
+                dc.log_account_refusal(logger, "converse:script", exc)
+            else:
+                logger.warning("[converse:script] model call failed: %s", type(exc).__name__)
             dc.charge_unreported(exc, user_id, market_date, dc.MODEL, dc.MAX_TOKENS, request)
             return _refused(gate, **extra())
         usage = getattr(msg, "usage", None)
