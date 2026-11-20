@@ -2971,8 +2971,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       // ruling 3.5 keep their refusals there).
       aboveDailyReads: true,
       ...objectDoorOpts,
+      // ⭐⭐ (request unit, TF-FOLD, NUMBER PENDING) — a request's timeframe is read with the runtime lane's reach
+      // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms). ⛔ The HOST translator never sets it.
+      requestTimeframeReader: 'runtime',
     }
-    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts }
+    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime' }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
