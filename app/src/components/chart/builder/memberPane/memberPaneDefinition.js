@@ -44,6 +44,7 @@ import { OHLC_DEF_STYLES } from '../../engine/defSchema'
 import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
+import { runtimeFamilyLedger, FAMILY_WORDS } from './runtimeFamilyLedger'
 // ⭐⭐ ENGINE 53 — ONE row pairing for both lanes (the runtime document and the run half).
 import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
@@ -1685,12 +1686,15 @@ const RUNTIME_PAINT_COLOUR_CODES = new Set(['paint:colour', 'paint:v4-default-tr
 
 /** ⭐ RT1 — what the host translation lists and a runtime document does NOT draw.
  *  Said to the member by name rather than left to look like the whole script. */
-const RUNTIME_UNDRAWN_KINDS = Object.freeze({
+export const RUNTIME_UNDRAWN_KINDS = Object.freeze({
   fill: 'a fill between two plots',
   hline: 'a horizontal line',
   bgcolor: 'a background colour',
   barcolor: 'a bar colour',
 })
+/** ⭐⭐ the member's word for a family the family ledger names: these four keep the words above, every other is the
+ *  ledger's (`runtimeFamilyLedger.js::FAMILY_WORDS`); one word per family, never two. */
+export const familyWord = (f) => RUNTIME_UNDRAWN_KINDS[f] || FAMILY_WORDS[f]
 
 /** W4-T13 - the calls a runtime document draws as a candle / bar FROM THE RUN. Each is four host
  *  outputs (open, high, low, close - `pine.js::MULTI_OUTPUT_CALLS`) and four run outputs of the
@@ -2163,6 +2167,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
   // and the settings a carried displacement pins at the author's default.
   const shiftCtx = runtimeShiftContext(source, t && t.version, runtimeInputSpecsOf(source).specs)
   const shiftPinned = new Set()
+  // the families of elements skipped as hidden BY THEIR AUTHOR (the family ledger: hidden is not "not drawn")
+  const authorSkipped = new Set()
   for (const { o, index } of ofKind) {
     const ord = seen.get(o.kind) || 0
     seen.set(o.kind, ord + 1)
@@ -2176,7 +2182,10 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // (`paneHides`): ruling 1.2 never OFFERS it, and TradingView DRAWS it unless its own `display`
     // hides it. ⚰️ supertrend-strategy's `mPlot` (Q-SD1 / Q-SD2: `display: 15`, `visible: true`) was
     // "the member pane did not carry this output" here, its value and its colour never drawn.
-    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) continue
+    if ((paneHides(o) && o.hiddenReason !== 'constant') || o._authorHidden === true) {
+      if (o._authorHidden === true || o.hiddenReason === 'author') authorSkipped.add(o.kind)
+      continue
+    }
     const label = o.title || `${o.kind} ${ord + 1}`
     // ⭐ WS-E — a leftward `offset` is carried (`runtimeRowShift`), the rest withheld.
     const shift = runtimeRowShift(o, shiftCtx)
@@ -2201,7 +2210,7 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
       // price series (`hiddenReason: 'passthrough'`, so it does not draw four lines over the chart),
       // and that is exactly the candle that RECOLOURS the chart's own bars, which TradingView draws.
       if (group.some(({ o }) => o.hiddenReason === 'author' || o._authorHidden === true)
-        || (run.ro.candle && run.ro.candle.display === 'display.none')) return
+        || (run.ro.candle && run.ro.candle.display === 'display.none')) { authorSkipped.add(kind); return }
       const label = (run.ro.candle && run.ro.candle.title) || `${kind} ${ord + 1}`
       const pres = runtimeCandlePresentation(kind, t && t.version, run.ro, !!(t.presentation && t.presentation.overlay === true))
       if (!pres.ok) { withheld.push({ label, why: pres.why, o: group[3] && group[3].o }); return }
@@ -2556,16 +2565,33 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     // and nothing said so. Every fill the run lowered — solid or gradient — is named.
     ...(probe.outputs || []).filter((ro) => ro && ro.call === 'fill' && ro.hidden !== true).map(() => 'fill'),
   ])]
-  if (undrawn.length) {
+  const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
+  // ⭐⭐ THE FAMILY LEDGER (coordinator ruling 2026-11-19, `runtimeFamilyLedger.js`) — every family the SOURCE
+  // declares is drawn, named, or hidden by its author. ⚰️ Only the branches above named anything, so a family no
+  // branch was written for left the document silently: luxalgo's market-structure drew its two plots and said
+  // nothing of its lines and labels (the run's drawing build refused, the host held no program). Named here, in the
+  // same note the undrawn kinds use; a document with nothing unnamed keeps its exact note.
+  const familyLedger = runtimeFamilyLedger({
+    source,
+    t,
+    runOutputs: probe.outputs,
+    drawn: [...drawnRows.map((r) => r.candle || (r.o && r.o.kind)), ...docPaints.map((p) => p.kind)],
+    authorSkipped,
+    named: [...withheld.map((w) => w.o && w.o.kind), ...paintWithheld.map(({ p }) => p.kind), ...undrawn],
+    objectsAccounted: drawsObjects || ownObjects || !!drawingNote || (!ownObjects && !!own.hostWithheld && hostWouldDraw),
+  })
+  const unnamedFamilies = familyLedger.unnamed.filter((f) => !undrawn.includes(f))
+  if (undrawn.length || unnamedFamilies.length) {
     notes.push({
       name: 'Not drawn by this pane',
-      note: `This script also writes ${undrawn.map((k) => RUNTIME_UNDRAWN_KINDS[k]).join(', ')}, `
-        + 'which a script drawn bar by bar does not draw here yet. Its lines are drawn; those are not.',
+      note: `This script also writes ${[...undrawn.map((k) => RUNTIME_UNDRAWN_KINDS[k]),
+        ...unnamedFamilies.map(familyWord)].join(', ')}, `
+        + 'which a script drawn bar by bar does not draw here yet. '
+        + (unnamedFamilies.length ? 'Those are not drawn here.' : 'Its lines are drawn; those are not.'),
     })
   }
   // ⭐⭐ RS RATING L3 — the substituted-value disclosure, the same sentence the host document says.
   notes.push(...substitutionNotesFor(source))
-  const drawingNote = ownObjects || own.hostWithheld ? null : objectLossNote(objectsGate.loss, { withheld: !objectsGate.draw })
   if (drawingNote) notes.unshift(drawingNote)
   if (!ownObjects && own.hostWithheld && hostWouldDraw) {
     notes.push({
@@ -2645,6 +2671,8 @@ function runtimeLaneDefinition({ source, id, name, t, hostReason, hostGuard = nu
     translation: t,
     rows,
     notes,
+    // ⭐⭐ the family ledger (`runtimeFamilyLedger.js`): declared / drawn / named / hidden / unnamed, read by its rail
+    familyLedger,
     requirementTags: [],
     lane: 'runtime',
     // ⭐ RT1 — offered as a save; the store answers (its sentence, verbatim) when
