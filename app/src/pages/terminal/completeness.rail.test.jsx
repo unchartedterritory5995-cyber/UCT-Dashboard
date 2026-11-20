@@ -140,6 +140,7 @@ const ARG_SAMPLE = {
   unvolSide: 'DOWN', unvolMin: '3X',
   shortRank: 'FLOAT',
   oiSide: 'P',
+  tideScope: 'ETFS',
 }
 
 afterEach(cleanup)
