@@ -1083,6 +1083,19 @@ def test_the_history_route_honours_the_bar_count_asked(app, as_caller, monkeypat
     assert body["count"] == 3
 
 
+def test_the_history_route_honours_the_bar_count_when_the_newest_bar_has_settled(
+        app, as_caller, monkeypatch, fmp, inline):
+    """The route reads one bar more than asked, to have a forming bar to drop. With no
+    forming bar that extra one is settled too, and must not come back."""
+    monkeypatch.setenv("CRYPTO_BARS_ENABLED", "1")
+    as_caller(MEMBER)
+    fmp.last_day = dt.date(2026, 11, 13)                 # the vendor has nothing for today yet
+    assert _get(app, "/api/bars/BTCUSD?tf=D&bars=5").json()["newest_bar_is_forming"] is False
+    body = _get(app, "/api/bars-history/BTCUSD?tf=D&bars=3").json()
+    assert [b["t"] for b in body["bars"]] == ["2026-11-11", "2026-11-12", "2026-11-13"]
+    assert body["count"] == 3 and body["last_sealed"] == "2026-11-13"
+
+
 def test_the_history_route_has_no_intraday_for_a_pair(app, as_caller, monkeypatch, fmp, inline):
     monkeypatch.setenv("CRYPTO_BARS_ENABLED", "1")
     as_caller(MEMBER)
