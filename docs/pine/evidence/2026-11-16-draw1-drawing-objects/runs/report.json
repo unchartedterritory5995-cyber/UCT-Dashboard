@@ -2,8 +2,8 @@
  "populations": {
   "capture": {
    "scripts": 975,
-   "admitted": 797,
-   "runtimeLane": 224,
+   "admitted": 794,
+   "runtimeLane": 221,
    "hostLane": 304,
    "refused": 269,
    "coreOnly": 46
@@ -8573,17 +8573,6 @@
    ]
   },
   {
-   "capture": "vw-bi-str-tonumber-spy-1d-2026-11-19",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-bi-time-close-2arg-spy-1d-2026-11-19",
    "lane": null,
    "runtimeOn": "INCONCLUSIVE",
@@ -11282,30 +11271,6 @@
    "caps": [
     "core",
     "ternary"
-   ]
-  },
-  {
-   "capture": "vw-v6-bool-history-bar0-rddt-1d-2026-11-19",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-v6-bool-history-bar0-spy-1d-2026-11-19",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "reassign",
-    "ternary",
-    "var"
    ]
   },
   {
@@ -21553,17 +21518,6 @@
  ],
  "stops": [
   {
-   "capture": "vw-bi-str-tonumber-spy-1d-2026-11-19",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "INCONCLUSIVE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ]
-  },
-  {
    "capture": "vw-deadband-ticks-brk-a-1d-2026-09-28",
    "lane": "runtime",
    "runtimeOn": "DIVERGE",
@@ -21575,30 +21529,6 @@
     "fn-multi",
     "fn-single",
     "if-block",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-v6-bool-history-bar0-rddt-1d-2026-11-19",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "reassign",
-    "ternary",
-    "var"
-   ]
-  },
-  {
-   "capture": "vw-v6-bool-history-bar0-spy-1d-2026-11-19",
-   "lane": "runtime",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
     "reassign",
     "ternary",
     "var"
