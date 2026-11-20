@@ -243,14 +243,21 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     //
     // ⭐ ITS OWN INTRADAY BARS, because the shared fixture is DAILY: every bar
     // would be its own day and "constant within the day" could not be tested.
-    const M = 8
-    const HOURLY = Array.from({ length: M }, (_, i) => ({
-      t: 1700000000 + i * 3600, o: 100, h: 101, l: 99, c: 100 + i, v: 10,
-    }))
+    // ⭐⭐ U-BUILTIN T-D (2026-11-19) — REGULAR-HOURS BARS, AND THE ANCHOR IS THE 09:30 OPEN. Two New York
+    // sessions of seven hourly bars from 09:30 (2025-01-08, -09): R6 of `vw-bt-time-1440-spy-60-2026-11-16`
+    // reads TradingView's `time("D")` as each session's 09:30 open on every such bar. ⚰️ These bars were eight
+    // hours from 17:13 New York across a midnight, where the midnight anchor this engine drew is not
+    // TradingView's and no capture says what is: those bars now refuse by name (the case below).
+    const OPEN = Date.UTC(2025, 0, 8, 14, 30) / 1000
+    const DAY = (k) => Array.from({ length: 7 }, (_, h) => OPEN + k * 86400 + h * 3600)
+    const HOURLY = [...DAY(0), ...DAY(1)].map((t, i) => ({ t, o: 100, h: 101, l: 99, c: 100 + i, v: 10 }))
+    const M = HOURLY.length
     const SERIES = ['o', 'h', 'l', 'c', 'v']
       .map((k) => Float64Array.from(HOURLY.map((b) => b[k])))
+    const buildOf = (body2, bars = HOURLY) => buildRuntimeIr(head + body2,
+      { bars, inputs: {}, basePeriod: '60', interpretOpts: { tf: '60' } })
     const seriesOf = (body2) => {
-      const built = buildRuntimeIr(head + body2, { bars: HOURLY, inputs: {}, basePeriod: '60' })
+      const built = buildOf(body2)
       expect(built.ok, built.ok ? '' : String((built.refusal || {}).guard)).toBe(true)
       const prog = lowerIrProgram(built.ir)
       const r = execute(prog, {
@@ -262,23 +269,20 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     const t = seriesOf('plot(time)')
     const d = seriesOf(`plot(time(${Q}D${Q}))`)
     expect(t.every(Number.isFinite) && d.every(Number.isFinite)).toBe(true)
-    // ⛔ THE ANCHOR IS AT OR BEFORE EVERY BAR OF ITS DAY, IN THE SAME UNIT.
-    // A ratio, never two pinned numbers: pinning either alone would pass while
-    // the other drifted, which is exactly how the defect survived being built.
+    // ⛔ THE ANCHOR IS THE SESSION'S 09:30 OPEN, IN THE SAME UNIT AS `time` (milliseconds): the first
+    // bar of each session IS 09:30, so it equals that bar's `time`, and every later bar of the day reads it.
+    for (let i = 0; i < M; i += 1) expect(d[i]).toBe(t[Math.floor(i / 7) * 7])
     for (let i = 0; i < M; i += 1) expect(d[i]).toBeLessThanOrEqual(t[i])
-    // and the same ORDER of magnitude — 1000× apart is the defect itself
     expect(t[0] / d[0]).toBeLessThan(10)
-    // ⛔ BROADCAST ACROSS THE DAY — the property that makes it an ANCHOR, and the
-    // one a fold to bare `time` would destroy. These eight hourly bars cross a
-    // New York midnight, so the honest assertion is not "one value" but "FEWER
-    // values than bars, each held for a run": a fold to `time` would give M.
-    expect(new Set(d).size).toBeGreaterThan(0)
-    expect(new Set(d).size).toBeLessThan(M)
-    // and it never goes backwards — a day open is monotonic in bar order
-    for (let i = 1; i < M; i += 1) expect(d[i]).toBeGreaterThanOrEqual(d[i - 1])
-    // ⛔ NON-VACUITY: bare `time` really does take a new value on every bar, so
-    // "fewer than M" is a fact about the anchor and not about the fixture.
+    // ⛔ BROADCAST ACROSS THE DAY: two values for two sessions, never one per bar
+    expect(new Set(d).size).toBe(2)
+    // ⛔ NON-VACUITY: bare `time` really does take a new value on every bar
     expect(new Set(t).size).toBe(M)
+    // ⛔ OFF THE REGULAR SESSION IT IS REFUSED BY NAME, never drawn off the wrong day: an hourly bar at 17:30
+    const late = buildOf(`plot(time(${Q}D${Q}))`, [...HOURLY, { t: OPEN + 86400 + 8 * 3600, o: 1, h: 1, l: 1, c: 1, v: 1 }])
+    expect(late.ok).toBe(false)
+    expect(late.refusal.guard).toBe('runtime:chart-clock')
+    expect(late.refusal.message).toMatch(/^time-day:off-session: /)
   })
 
   it('⛔ CONTROL — the probes are well-formed, so the refusals are about `time`', () => {

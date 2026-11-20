@@ -38,6 +38,7 @@ import {
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
   legacyPeriodUndeclared, legacyPeriodRefusal,
+  TEXT_FORMAT_FLAGS, canonicalTextFormat,
   selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars, neverNaBoolNamesOf, isBoolishTree,
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
@@ -1961,8 +1962,9 @@ function buildRuntimeIrLinked(source, opts, holder) {
   /** ⭐ W4 T1 — the v1–v4 spellings of a data request (`request.*` from v5). */
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
   /** ⭐ Engine 66 (#1473) (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
-   *  the migration guide's `math` table renames `avg()` to `math.avg()`. */
-  const LEGACY_MATH_CALL_TREE = new Set(['avg'])
+   *  the migration guide's `math` table renames `avg()` to `math.avg()`, and (U-BUILTIN B2) `toradians()` /
+   *  `todegrees()` to `math.toradians()` / `math.todegrees()`. */
+  const LEGACY_MATH_CALL_TREE = new Set(['avg', 'toradians', 'todegrees'])
 
   let stmts
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
@@ -3538,11 +3540,54 @@ function buildRuntimeIrLinked(source, opts, holder) {
   }
   // RT5: an expression that picks a drawing enum (`c ? extend.right : extend.none`)
   // is a string the drawing layer reads, never a column.
+  // ⭐ U-BUILTIN B6 (2026-11-19) — AND SO DOES A NAME BOUND TO ONE. session-tpo-profile writes
+  // `ext = extend_levels ? extend.right : extend.none` and then `line.new(…, extend = ext)`: the
+  // binding is absorbed by the `env` macro path, so the argument arrived as the bare name `ext`, this
+  // test answered "no enum", and the columnar lane was asked to resolve the ternary and refused
+  // `pine:builtin` ("the engine grammar does not hold `extend.right`") about a constant the drawing
+  // layer holds (`objectEnums.js`). The binding is read through, as `holdsColour` reads one; a name
+  // already being read answers false (its cycle guard).
+  const enumNamesInFlight = new Set()
   const containsObjectEnum = (n) => {
     if (!n || typeof n !== 'object') return false
-    if (n.type === 'name') return objectEnumValue(n.name) !== undefined && !env.has(n.name)
+    if (n.type === 'name') {
+      if (objectEnumValue(n.name) !== undefined && !env.has(n.name)) return true
+      const bound = env.get(n.name)
+      if (!bound || bound.kind !== 'expr' || enumNamesInFlight.has(n.name)) return false
+      enumNamesInFlight.add(n.name)
+      try { return containsObjectEnum(bound.node) } finally { enumNamesInFlight.delete(n.name) }
+    }
     return Object.values(n).some((v) => (Array.isArray(v) ? v.some(containsObjectEnum)
       : (v && typeof v === 'object' && v.type ? containsObjectEnum(v) : false)))
+  }
+  /** ⭐ U-BUILTIN B7 (2026-11-19) — THE FLAGS A `text_format` EXPRESSION NAMES, or `null`. Pine's one
+   *  constant family that adds (`text.format_bold + text.format_italic`; `pine.js::TEXT_FORMAT_FLAGS`
+   *  says why `+`): a constant, a sum of them, or a name bound to either, read exactly as the host
+   *  object pass reads it (`textFormatFlags`), so the two lanes write the same canonical value
+   *  (`canonicalTextFormat`: `'bold_italic'`). The runtime lane had the single constant (an object enum)
+   *  and lowered the SUM as a text concatenation, `"bolditalic"`. Anything else answers `null` and is
+   *  lowered as before. */
+  const textFormatNamesInFlight = new Set()
+  const textFormatFlagsOf = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 8) return null
+    if (n.type === 'paren' && n.expr) return textFormatFlagsOf(n.expr, depth + 1)
+    if (n.type === 'name') {
+      if (Object.hasOwn(TEXT_FORMAT_FLAGS, n.name) && !env.has(n.name)) {
+        const f = TEXT_FORMAT_FLAGS[n.name]
+        return f === null ? [] : [f]
+      }
+      const bound = env.get(n.name)
+      if (!bound || bound.kind !== 'expr' || textFormatNamesInFlight.has(n.name)) return null
+      textFormatNamesInFlight.add(n.name)
+      try { return textFormatFlagsOf(bound.node, depth + 1) } finally { textFormatNamesInFlight.delete(n.name) }
+    }
+    if (n.type === 'binary' && n.op === '+') {
+      const a = textFormatFlagsOf(n.left, depth + 1)
+      if (!a) return null
+      const b = textFormatFlagsOf(n.right, depth + 1)
+      return b ? [...a, ...b] : null
+    }
+    return null
   }
   // The host object lane's own split, one authority: a top-level comma between
   // statements with no block beneath (never a definition, never inside brackets).
@@ -4611,8 +4656,33 @@ function buildRuntimeIrLinked(source, opts, holder) {
    *  conditions the lowering uses one screen down before it emits `naValue()`.
    *  Two places deciding what `na` means, by different rules, is exactly
    *  `lesson_a_second_authority_over_one_value`; these agree by construction. */
-  const isBuiltinNa = (node, scope) => !!node && node.type === 'name'
+  const isPlainNa = (node, scope) => !!node && node.type === 'name'
     && node.name === 'na' && scope.lookup('na') === null && !env.has('na')
+  /** ⭐⭐ U-BUILTIN B4 (2026-11-19) — `color(na)` IS `na`. The reference (v5 and v6, `color()`): "Casts
+   *  na to color", "The value of the argument after casting to color": the cast changes the TYPE and
+   *  nothing else, exactly as DRAW-1's `box(na)` is `na` (`drawingCastFamily`). So wherever this lane
+   *  asks "is this Pine's own `na`?" it is asked of the cast too (`isBuiltinNa`, below), it is lowered
+   *  as the `na` it holds (the call arm), it is never handed to the columnar lane, which has no
+   *  `color` function and refused it `pine:function` (`holdsColourNaCast`, the route), and a name
+   *  bound to it is colour-typed as `color c = na` is (`colours.js::colourTypedNamesOf`). A plot's own
+   *  `color = color(na)` therefore meets exactly what `color = na` meets. ⛔ Only `na` itself, by
+   *  position, and only when the script defines no `color` of its own. */
+  const colourNaCast = (node, scope) => !!node && node.type === 'call' && node.name === 'color'
+    && !definedNames.has('color') && !isUserFn('color')
+    && Array.isArray(node.args) && node.args.length === 1 && !!node.args[0] && !node.args[0].name
+    && isPlainNa(node.args[0].value !== undefined ? node.args[0].value : node.args[0], scope)
+  const isBuiltinNa = (node, scope) => isPlainNa(node, scope) || colourNaCast(node, scope)
+  /** ⭐ U-BUILTIN B4 — a `color(na)` anywhere in this subtree: the route decision asks it, as it asks
+   *  `holdsDrawingCast`, so the columnar lane is never asked about the cast. */
+  const holdsColourNaCast = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (colourNaCast(node, scope)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond', 'recv', 'expr']) {
+      if (holdsColourNaCast(node[k], scope, depth + 1)) return true
+    }
+    return Array.isArray(node.args)
+      && node.args.some((a) => holdsColourNaCast(a && a.value !== undefined ? a.value : a, scope, depth + 1))
+  }
 
   /** ⭐ TC — the immutable bindings `holdsColour` is reading through right now (its cycle guard; see
    *  the name arm below). `touchesColour` and `fractionalColourIn` keep their own sets. */
@@ -6923,6 +6993,14 @@ function buildRuntimeIrLinked(source, opts, holder) {
     try {
       built = BUILTIN_CALL_TREE[bare](given.map((_, k) => ({ type: 'series', name: `${HOLE}${k}` })))
     } catch { return null }
+    // ⭐ U-BUILTIN B2 — a builder that declines this call's shape (`math.toradians(a, b)`) is refused
+    // by name here, as the host lane's `resolveTableCall` refuses it, never handed on to be called an
+    // undeclared builtin.
+    if (built === null) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${name}\` takes ${bare === 'toradians' || bare === 'todegrees' ? 'one angle' : 'other arguments'}, `
+        + `given ${given.length}`, at)
+    }
     const ARITH = new Set(['+', '-', '*', '/'])
     const toParse = (c) => {
       if (!c || typeof c !== 'object') return null
@@ -9131,6 +9209,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         && !readsPlotRef(node) && !holdsColour(node, scope) && !holdsObjectCall(node)
         // ⭐ DRAW-1 — nor a drawing cast (`box(na)`): the call arm below reads it as `na`
         && !holdsDrawingCast(node, scope)
+        // ⭐ U-BUILTIN B4 — nor a colour cast (`color(na)`), read the same way
+        && !holdsColourNaCast(node, scope)
         && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)
         // ⭐ RT5 — nor is a drawing family's live list (`label.all`), nor text
         // this run prints (`str.tostring`), which the columnar lane refuses.
@@ -9491,6 +9571,12 @@ function buildRuntimeIrLinked(source, opts, holder) {
         throw new RuntimeRefusal('runtime:unbound', `\`${node.name}\``, locate(node.tok))
       }
       case 'binary': {
+        // ⭐ U-BUILTIN B7 — a sum of `text.format_*` constants is ONE format, the host's canonical
+        // spelling (`textFormatFlagsOf`), never the text concatenation of their names.
+        if (node.op === '+') {
+          const fmt = textFormatFlagsOf(node)
+          if (fmt) return str(canonicalTextFormat(fmt))
+        }
         // ⭐⭐ W6-T10 — `==` / `!=` OVER ENUM VALUES: both sides of ONE enum, compared as
         // members (`enumValueKey`), never by title. Anything else beside an enum refuses.
         if (enumDecls.size && (node.op === '==' || node.op === '!=')) {
@@ -9965,6 +10051,8 @@ function buildRuntimeIrLinked(source, opts, holder) {
         // ⭐⭐ DRAW-1 — `box(na)` is `na` (the reference: "Casts na to box"); its type
         // reaches the slot through `initialiserTy` and the handle record (`noteHandle`).
         if (drawingCastFamily(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
+        // ⭐⭐ U-BUILTIN B4 — `color(na)` is `na` ("Casts na to color"), lowered as the `na` it holds.
+        if (colourNaCast(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
         // ⭐⭐ S1 — a per-trade broker function (`strategy.opentrades.entry_price(0)`).
         if (brokerMode && typeof node.name === 'string' && node.name.startsWith('strategy.')
             && !definedNames.has(node.name)) {

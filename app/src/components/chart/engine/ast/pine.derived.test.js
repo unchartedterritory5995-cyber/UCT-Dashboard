@@ -318,6 +318,8 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     // definition Pine publishes, and each held numerically in
     // `pinePhase1Builtins.test.js`.
     acos: 'math.acos',
+    // U-BUILTIN B3 (2026-11-19) -- acos's twin, held in `pineBuiltinsUnit.test.js` (Math.asin, exactly).
+    asin: 'math.asin',
     alma: 'ta.alma — TradingView\'s published pine_alma (source, length, offset, sigma),'
       + ' shape-mapped in that order; matched to the capture vw-alma-spy-1d-2026-09-27',
     rci: 'ta.rci — Spearman rank correlation of time (newest = 1) against price'

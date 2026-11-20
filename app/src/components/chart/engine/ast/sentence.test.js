@@ -187,6 +187,8 @@ const FORMS = [
   { kind: 'call', name: 'cos', parts: ['the cosine of ', 0] },
   { kind: 'call', name: 'tan', parts: ['the tangent of ', 0] },
   { kind: 'call', name: 'atan', parts: ['the arctangent of ', 0] },
+  // U-BUILTIN B3 (2026-11-19) -- `asin`, hand-typed from the manifest's sentence.
+  { kind: 'call', name: 'asin', parts: ['the arcsine of ', 0] },
   // ⭐ PHASE 1 (2026-10-30) -- `acos`, hand-typed from the manifest's sentence.
   { kind: 'call', name: 'acos', parts: ['the arccosine of ', 0] },
   { kind: 'call', name: 'sinh', parts: ['the hyperbolic sine of ', 0] },
@@ -1212,6 +1214,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:alma',
       'function:aroonDown',
       'function:aroonUp',
+      // U-BUILTIN B3 (2026-11-19) -- Pine's `math.asin`.
+      'function:asin',
       'function:atan',
       'function:atr',
       // ⭐ (2026-09-27) Pine's `ta.atr`, with Pine's own seed — see `atrPine` in the forms above.
@@ -1356,7 +1360,8 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's bool-na marker.
     // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
     // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
-    expect(entries.length).toBe(148)
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`, Pine's `math.asin`.
+    expect(entries.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
