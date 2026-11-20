@@ -58,6 +58,8 @@ DECLARED_READS = {
     "app/src/constants/setupGroups.js": "api/services/concept_vocabulary.py: firm setup names",
     "app/src/constants/quotes.json": "api/services/quote_of_the_day.py",
     "app/src/pages/modelbook/setupCatalog.js": "api/services/concept_vocabulary.py, wisdom/publish/adapters/modelbook.py",
+    "app/src/pages/breadth/shadeSpec.json": "api/services/breadth_shade_rule.py (via breadth_reading.py): the breadth shading spec",
+    "app/src/pages/breadth/shadeCutoffs.generated.json": "api/services/breadth_shade_rule.py (via breadth_reading.py): the frozen shading cutoffs",
     "app/src/pages/modelbook/setupPlaybooks.js": "api/services/wisdom/publish/adapters/modelbook.py",
     "app/src/pages/charts/boardBound.json": "api/services/board_bound.py: widgets per board",
     "app/src/components/chart/engine/runtime/runtimeRepaint.json": "api/services/runtime_repaint.py",
