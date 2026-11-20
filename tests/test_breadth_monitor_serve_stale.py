@@ -141,6 +141,6 @@ def test_the_slot_is_bounded():
     from api.routers import breadth_monitor as rm
     s = rm._history_stale()
     assert s.max_age == rm.HISTORY_STALE_MAX_AGE <= 5 * rm._BODY_CACHE_TTL
-    assert s.max_keys == 16
+    assert s.max_keys == 64          # four universes' windows (the Monitor universe switcher)
     assert rm._GEN_KEY.startswith("breadth_history_"), (
         "the generation must ride the prefix every writer already deletes")

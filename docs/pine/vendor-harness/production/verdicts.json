@@ -36456,9 +36456,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried,objects:partial-unpositioned",
+    "reason": "our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 13 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -36478,7 +36478,10 @@
       "family": "boxes",
       "vendor": 13,
       "ours": 3,
-      "agree": false
+      "agree": null,
+      "withheld": true,
+      "partial": true,
+      "unpositioned": true
      },
      {
       "family": "tables",
@@ -36547,37 +36550,21 @@
      "vendor": 22
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
+   "ourDoor": "host",
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: boxes top of box #2 — vendor 156.35857142857142, ours 152.67); x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 156.35857142857142,
-     "ours": 152.67,
-     "vendorId": 21,
-     "ourId": 2,
-     "where": "box #2"
-    },
-    "firstWithoutX": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 156.35857142857142,
-     "ours": 152.67,
-     "vendorId": 21,
-     "ourId": 2,
-     "where": "box #2"
-    },
+    "reason": "every paired record agrees on 47 graded fields; x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 13 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 0,
      "agreeing": 0,
@@ -36586,7 +36573,9 @@
      "missingWhy": {
       "the capture records no x table (taken before U13)": 6
      },
-     "incompleteFamilies": []
+     "incompleteFamilies": [
+      "boxes"
+     ]
     },
     "families": [
      {
@@ -36635,8 +36624,8 @@
       "unpairedVendor": 10,
       "unpairedOurs": 0,
       "graded": 24,
-      "agreeing": 12,
-      "differing": 12,
+      "agreeing": 24,
+      "differing": 0,
       "notGraded": 15,
       "undecoded": {},
       "byField": {
@@ -36646,8 +36635,8 @@
         "notGraded": 3
        },
        "top": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "right": {
@@ -36656,8 +36645,8 @@
         "notGraded": 3
        },
        "bottom": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "extend": {
@@ -36701,13 +36690,13 @@
         "notGraded": 3
        },
        "border_color": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "bgcolor": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "text_color": {
@@ -36716,24 +36705,10 @@
         "notGraded": 3
        }
       },
-      "first": {
-       "field": "top",
-       "vendor": 156.35857142857142,
-       "ours": 152.67,
-       "vendorId": 21,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "firstWithoutX": {
-       "field": "top",
-       "vendor": 156.35857142857142,
-       "ours": 152.67,
-       "vendorId": 21,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
       "x": {
        "graded": 0,
        "agreeing": 0,
@@ -36744,7 +36719,9 @@
        },
        "first": null
       },
-      "xIncomplete": false,
+      "xIncomplete": true,
+      "withheldUnpaired": 10,
+      "pairedByValue": true,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -36951,9 +36928,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried,objects:partial-unpositioned",
+    "reason": "our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 11 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -36973,7 +36950,10 @@
       "family": "boxes",
       "vendor": 11,
       "ours": 3,
-      "agree": false
+      "agree": null,
+      "withheld": true,
+      "partial": true,
+      "unpositioned": true
      },
      {
       "family": "tables",
@@ -37042,37 +37022,21 @@
      "vendor": 17
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
+   "ourDoor": "host",
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: boxes top of box #2 — vendor 771.0525250000001, ours 769.64); x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 771.0525250000001,
-     "ours": 769.64,
-     "vendorId": 16,
-     "ourId": 2,
-     "where": "box #2"
-    },
-    "firstWithoutX": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 771.0525250000001,
-     "ours": 769.64,
-     "vendorId": 16,
-     "ourId": 2,
-     "where": "box #2"
-    },
+    "reason": "every paired record agrees on 47 graded fields; x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 11 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 0,
      "agreeing": 0,
@@ -37081,7 +37045,9 @@
      "missingWhy": {
       "the capture records no x table (taken before U13)": 6
      },
-     "incompleteFamilies": []
+     "incompleteFamilies": [
+      "boxes"
+     ]
     },
     "families": [
      {
@@ -37130,8 +37096,8 @@
       "unpairedVendor": 8,
       "unpairedOurs": 0,
       "graded": 24,
-      "agreeing": 12,
-      "differing": 12,
+      "agreeing": 24,
+      "differing": 0,
       "notGraded": 15,
       "undecoded": {},
       "byField": {
@@ -37141,8 +37107,8 @@
         "notGraded": 3
        },
        "top": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "right": {
@@ -37151,8 +37117,8 @@
         "notGraded": 3
        },
        "bottom": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "extend": {
@@ -37196,13 +37162,13 @@
         "notGraded": 3
        },
        "border_color": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "bgcolor": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "text_color": {
@@ -37211,24 +37177,10 @@
         "notGraded": 3
        }
       },
-      "first": {
-       "field": "top",
-       "vendor": 771.0525250000001,
-       "ours": 769.64,
-       "vendorId": 16,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "firstWithoutX": {
-       "field": "top",
-       "vendor": 771.0525250000001,
-       "ours": 769.64,
-       "vendorId": 16,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
       "x": {
        "graded": 0,
        "agreeing": 0,
@@ -37239,7 +37191,9 @@
        },
        "first": null
       },
-      "xIncomplete": false,
+      "xIncomplete": true,
+      "withheldUnpaired": 8,
+      "pairedByValue": true,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -229180,10 +229134,10 @@
      "title": "I00_bar_index_CONTROL",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "300 steady-state bars disagree; first at bar 0 (value: vendor 8172 vs ours 0) — persistent, last at bar 299",
+     "verdict": "MATCH",
+     "reason": "300 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "compared",
      "stats": {
@@ -229194,24 +229148,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 300,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 300,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 300,
       "colorWithheld": 0,
       "colorComparable": 300,
       "valued": 300,
-      "maxAbs": 8172,
-      "maxRel": 1,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1752845400,
-       "kind": "value",
-       "vendor": 8172,
-       "ours": 0
-      },
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -229221,25 +229169,10 @@
       "steady": {
        "bars": 300,
        "compared": 300,
-       "divergent": 300,
-       "first": {
-        "bar": 0,
-        "time": 1752845400,
-        "kind": "value",
-        "vendor": 8172,
-        "ours": 0
-       },
-       "last": {
-        "bar": 299,
-        "time": 1790343000,
-        "kind": "value",
-        "vendor": 8471,
-        "ours": 299
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 299
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -229252,7 +229185,7 @@
      "verdict": "INCONCLUSIVE",
      "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "unresolvable on our side",
      "stats": {
@@ -229300,7 +229233,7 @@
      "verdict": "INCONCLUSIVE",
      "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "unresolvable on our side",
      "stats": {
@@ -229348,7 +229281,7 @@
      "verdict": "INCONCLUSIVE",
      "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "unresolvable on our side",
      "stats": {
@@ -229396,7 +229329,7 @@
      "verdict": "INCONCLUSIVE",
      "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "unresolvable on our side",
      "stats": {
@@ -229444,7 +229377,7 @@
      "verdict": "INCONCLUSIVE",
      "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "unresolvable on our side",
      "stats": {
@@ -229492,7 +229425,7 @@
      "verdict": "MATCH",
      "reason": "300 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "compared",
      "stats": {
@@ -229540,7 +229473,7 @@
      "verdict": "MATCH",
      "reason": "300 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "compared",
      "stats": {
@@ -229588,7 +229521,7 @@
      "verdict": "MATCH",
      "reason": "300 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "compared",
      "stats": {
@@ -229636,7 +229569,7 @@
      "verdict": "INCONCLUSIVE",
      "reason": "values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "unresolvable on our side",
      "stats": {
@@ -229684,7 +229617,7 @@
      "verdict": "MATCH",
      "reason": "300 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 8172 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "compared",
      "stats": {
@@ -229736,10 +229669,11 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 12 compared items diverge",
+   "verdict": "INCONCLUSIVE",
+   "reason": "6 of 12 items could not be compared",
    "ourNotes": [
-    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+    "history.startsAtBar0 is REFUTED by the capture's own bar_index control row, which reads 8172 on its bar 0 (it must read 0): its history does not start at TradingView's bar 0",
+    "plots/objects: replayed: 8172 bars of prehistory from vw-var-seed-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8472 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
    "objectsV2": {
     "verdict": "MATCH",
@@ -230381,10 +230315,10 @@
      "title": "P00_bar_index_CONTROL",
      "ours": "value",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 0",
      "derivedLookback": 0,
      "color": "compared",
      "stats": {
@@ -230395,24 +230329,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 1040,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 1040,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 7432,
-      "maxRel": 1,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "value",
-       "vendor": 7432,
-       "ours": 0
-      },
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230422,25 +230350,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1040,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "value",
-        "vendor": 7432,
-        "ours": 0
-       },
-       "last": {
-        "bar": 1039,
-        "time": 1790343000,
-        "kind": "value",
-        "vendor": 8471,
-        "ours": 1039
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 1039
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230450,10 +230363,10 @@
      "title": "P01_nvi_RAW",
      "ours": "out2",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1040 steady-state bars disagree; first at bar 0 (value: vendor 1408.618771650051 vs ours 1) — persistent, last at bar 1039",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 1",
      "derivedLookback": 1,
      "color": "compared",
      "stats": {
@@ -230464,24 +230377,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 1040,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 1040,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 4589.8657065218795,
-      "maxRel": 0.9992900847126803,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "value",
-       "vendor": 1408.618771650051,
-       "ours": 1
-      },
+      "maxAbs": 6.093614501878619e-11,
+      "maxRel": 1.3327978862417263e-14,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230491,25 +230398,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1040,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "value",
-        "vendor": 1408.618771650051,
-        "ours": 1
-       },
-       "last": {
-        "bar": 1039,
-        "time": 1790343000,
-        "kind": "value",
-        "vendor": 4593.126437196238,
-        "ours": 3.2607306743582978
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 1039
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230519,10 +230411,10 @@
      "title": "P02_pvi_RAW",
      "ours": "out3",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1040 steady-state bars disagree; first at bar 0 (value: vendor 0.006691829727098147 vs ours 1) — persistent, last at bar 1039",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 1",
      "derivedLookback": 1,
      "color": "compared",
      "stats": {
@@ -230533,24 +230425,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 1040,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 1040,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 1.0316140681455936,
-      "maxRel": 148.43596008585857,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "value",
-       "vendor": 0.006691829727098147,
-       "ours": 1
-      },
+      "maxAbs": 5.0306980803327406e-17,
+      "maxRel": 7.516814699381572e-15,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230560,25 +230446,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1040,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "value",
-        "vendor": 0.006691829727098147,
-        "ours": 1
-       },
-       "last": {
-        "bar": 1039,
-        "time": 1790343000,
-        "kind": "value",
-        "vendor": 0.0038221066281414117,
-        "ours": 0.5711601735268347
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 1039
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230588,10 +230459,10 @@
      "title": "P03_nvi_step_resid_MUST_BE_0",
      "ours": "out4",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1 steady-state bars disagree; first at bar 0 (na: vendor 1.5287250632045613e-17 vs ours na) — scattered, last at bar 0",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 2",
      "derivedLookback": 2,
      "color": "compared",
      "stats": {
@@ -230602,24 +230473,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 1039,
+      "matching": 1040,
       "vendorRowsMissing": 0,
-      "naMismatches": 1,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 1039,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 4.440892098500626e-16,
-      "maxRel": 170.66666666666666,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "na",
-       "vendor": 1.5287250632045613e-17,
-       "ours": null
-      },
+      "maxAbs": 1.1102230246251565e-15,
+      "maxRel": 341.3333333333333,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230629,25 +230494,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "na",
-        "vendor": 1.5287250632045613e-17,
-        "ours": null
-       },
-       "last": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "na",
-        "vendor": 1.5287250632045613e-17,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 0
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230657,10 +230507,10 @@
      "title": "P04_pvi_step_resid_MUST_BE_0",
      "ours": "out5",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1 steady-state bars disagree; first at bar 0 (na: vendor 0 vs ours na) — scattered, last at bar 0",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 2",
      "derivedLookback": 2,
      "color": "compared",
      "stats": {
@@ -230671,24 +230521,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 1039,
+      "matching": 1040,
       "vendorRowsMissing": 0,
-      "naMismatches": 1,
+      "naMismatches": 0,
       "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 1039,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 4.440892098500626e-16,
-      "maxRel": 128,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "na",
-       "vendor": 0,
-       "ours": null
-      },
+      "maxAbs": 8.881784197001252e-16,
+      "maxRel": 315.0769230769231,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230698,25 +230542,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "last": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "na",
-        "vendor": 0,
-        "ours": null
-       },
-       "pattern": {
-        "kind": "scattered",
-        "lastDivergentBar": 0
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230726,10 +230555,10 @@
      "title": "P05_first_nonNA_pvi_bar",
      "ours": "out6",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1040 steady-state bars disagree; first at bar 0 (value: vendor 7432 vs ours 0) — persistent, last at bar 1039",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 1",
      "derivedLookback": 1,
      "color": "compared",
      "stats": {
@@ -230740,24 +230569,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 1040,
       "vendorRowsMissing": 0,
       "naMismatches": 0,
-      "valueMismatches": 1040,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 7432,
-      "maxRel": 1,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "value",
-       "vendor": 7432,
-       "ours": 0
-      },
+      "maxAbs": 0,
+      "maxRel": 0,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230767,25 +230590,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1040,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "value",
-        "vendor": 7432,
-        "ours": 0
-       },
-       "last": {
-        "bar": 1039,
-        "time": 1790343000,
-        "kind": "value",
-        "vendor": 8471,
-        "ours": 1039
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 1039
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230795,10 +230603,10 @@
      "title": "P06_corpus_nvi_minus_ema255",
      "ours": "out7",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1040 steady-state bars disagree; first at bar 0 (na: vendor 245.30448032866502 vs ours na) — persistent, last at bar 1039",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 256",
      "derivedLookback": 256,
      "color": "compared",
      "stats": {
@@ -230809,24 +230617,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 1040,
       "vendorRowsMissing": 0,
-      "naMismatches": 254,
-      "valueMismatches": 786,
+      "naMismatches": 0,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 828.1700154187276,
-      "maxRel": 0.9993337809557238,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "na",
-       "vendor": 245.30448032866502,
-       "ours": null
-      },
+      "maxAbs": 1.6825651982799172e-11,
+      "maxRel": 3.4633725033904785e-14,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230836,25 +230638,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1040,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "na",
-        "vendor": 245.30448032866502,
-        "ours": null
-       },
-       "last": {
-        "bar": 1039,
-        "time": 1790343000,
-        "kind": "value",
-        "vendor": 716.1730841753297,
-        "ours": 0.5084057801019743
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 1039
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230864,10 +230651,10 @@
      "title": "P07_corpus_pvi_minus_ema255",
      "ours": "out8",
      "rule": "M1-title",
-     "verdict": "DIVERGE",
-     "reason": "1040 steady-state bars disagree; first at bar 0 (na: vendor -0.00190286212815499 vs ours na) — persistent, last at bar 1039",
+     "verdict": "MATCH",
+     "reason": "1040 steady-state bars agree",
      "warmupBars": 0,
-     "warmupSource": "capture starts at bar 0 — no warm-up excuse",
+     "warmupSource": "our side replayed 7432 bars of proved prehistory (vw-var-seed-spy-1d-2026-09-28.json) before the window against a maxLookback of 256",
      "derivedLookback": 256,
      "color": "compared",
      "stats": {
@@ -230878,24 +230665,18 @@
       "withheldVendorValued": 0,
       "withheldWarmupVendorValued": 0,
       "floatOrderFloorUsed": 0,
-      "matching": 0,
+      "matching": 1040,
       "vendorRowsMissing": 0,
-      "naMismatches": 254,
-      "valueMismatches": 786,
+      "naMismatches": 0,
+      "valueMismatches": 0,
       "colorMismatches": 0,
-      "colorCompared": 0,
+      "colorCompared": 1040,
       "colorWithheld": 0,
       "colorComparable": 1040,
       "valued": 1040,
-      "maxAbs": 0.17563332526639192,
-      "maxRel": 1236.5121278684192,
-      "firstDivergence": {
-       "bar": 0,
-       "time": 1659619800,
-       "kind": "na",
-       "vendor": -0.00190286212815499,
-       "ours": null
-      },
+      "maxAbs": 1.9081958235744878e-17,
+      "maxRel": 1.5300403348921047e-13,
+      "firstDivergence": null,
       "warmup": {
        "bars": 0,
        "compared": 0,
@@ -230905,25 +230686,10 @@
       "steady": {
        "bars": 1040,
        "compared": 1040,
-       "divergent": 1040,
-       "first": {
-        "bar": 0,
-        "time": 1659619800,
-        "kind": "na",
-        "vendor": -0.00190286212815499,
-        "ours": null
-       },
-       "last": {
-        "bar": 1039,
-        "time": 1790343000,
-        "kind": "value",
-        "vendor": -0.0004088712456655347,
-        "ours": -0.0609990342399912
-       },
-       "pattern": {
-        "kind": "persistent",
-        "lastDivergentBar": 1039
-       }
+       "divergent": 0,
+       "first": null,
+       "last": null,
+       "pattern": null
       },
       "vendorRowGapsAfterStart": 0
      }
@@ -230940,10 +230706,11 @@
     "verdict": "MATCH",
     "reason": "neither side draws an object"
    },
-   "verdict": "DIVERGE",
-   "reason": "8 of 9 compared items diverge",
+   "verdict": "MATCH",
+   "reason": "all 9 items agree",
    "ourNotes": [
-    "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
+    "history.startsAtBar0 is REFUTED by the capture's own bar_index control row, which reads 7432 on its bar 0 (it must read 0): its history does not start at TradingView's bar 0",
+    "plots/objects: replayed: 7432 bars of prehistory from vw-var-seed-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8472 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
    "objectsV2": {
     "verdict": "MATCH",

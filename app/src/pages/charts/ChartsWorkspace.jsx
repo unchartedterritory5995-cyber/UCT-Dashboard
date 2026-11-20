@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
@@ -1043,6 +1044,12 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
     // new object every time would re-render every workspace consumer per paint.
     setGroupTfsState(prev => (prev[color] === tf ? prev : { ...prev, [color]: tf }))
   }, [])
+  // ⭐ EVERY CHART'S TIMEFRAME, PER COLOUR GROUP (2026-11-19): a linked list warms each chart's
+  // timeframe, not only the last one published (groupTfRegistry.js). Ephemeral, like groupTfs.
+  const [groupTfSets, setGroupTfSets] = useState({})
+  const tfRegistryRef = useRef(null)
+  if (!tfRegistryRef.current) tfRegistryRef.current = createGroupTfRegistry(setGroupTfSets)
+  const registerGroupTf = useCallback((color, id, tf) => tfRegistryRef.current.register(color, id, tf), [])
 
   // If prefs arrive AFTER initial render (the SWR fetch usually resolves a beat after
   // mount), pick up the saved group syms — otherwise the useState seed above ran while
@@ -1263,8 +1270,8 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
   // shell mounts no panel and ignores the event). A chart widget reads it and
   // offers a readout row's "Open the rotation map" only where it is true.
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
-    [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
+    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
+    [groupSyms, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
   // ── TERM-021 read-new: the Watchlist column layout rides the board document ──

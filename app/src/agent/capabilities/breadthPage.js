@@ -40,12 +40,14 @@ export function describeBreadthPage(s) {
   const tab = TAB_WORD[s.tab] || `the ${s.tab} tab`
   if (s.tab !== 'breadth' && s.tab !== 'overview' && s.tab !== 'heatmap') return `You're on ${tab} of the Breadth page.`
   if (s.loading && !s.rowCount) return `You're on ${tab}; it is still loading.`
+  // The daily sheet measures one universe at a time (its switcher); say which.
+  const uni = s.tab === 'breadth' && s.universe ? ` for the ${s.universe} universe` : ''
   const window = s.days ? `the last ${s.days} days` : 'its default window'
   const top = s.topDate ? `, newest session ${s.topDate}` : ''
   const rows = s.rowCount ? ` ${s.rowCount} session row${s.rowCount === 1 ? '' : 's'} are on the sheet` : ''
   const cols = s.columns?.length ? `, columns: ${s.columns.slice(0, 12).join(', ')}${s.columns.length > 12 ? '…' : ''}` : ''
   const live = s.live ? ' Today\'s live (provisional) reading sits above the finalized rows.' : ''
-  return `You're on ${tab} showing ${window}${top}.${rows}${cols}.${live} Ask me for a reading ("how is US breadth now?") or its history ("when was it last below 20%?").`
+  return `You're on ${tab}${uni} showing ${window}${top}.${rows}${cols}.${live} Ask me for a reading ("how is US breadth now?") or its history ("when was it last below 20%?").`
 }
 
 let registered = false
@@ -58,7 +60,7 @@ export function registerBreadthPageCapabilities() {
     build: (host, refFor) => {
       const s = snap(host)
       if (!s) return undefined
-      return [{ ref: refFor('breadthPage', REF), label: 'The Breadth page (what the member is looking at; read only)', tab: s.tab, days: s.days, topDate: s.topDate, rows: s.rowCount }]
+      return [{ ref: refFor('breadthPage', REF), label: 'The Breadth page (what the member is looking at; read only)', tab: s.tab, days: s.days, topDate: s.topDate, rows: s.rowCount, ...(s.tab === 'breadth' && s.universe ? { universe: s.universe } : {}) }]
     },
   })
   registerCapability({

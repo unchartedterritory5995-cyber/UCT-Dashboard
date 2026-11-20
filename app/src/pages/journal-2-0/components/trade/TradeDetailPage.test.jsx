@@ -3,6 +3,11 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import TradeDetailPage from './TradeDetailPage'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+import { preloadLazyChunks } from '../../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks('tradeChartPane')
 
 const navigateSpy = vi.fn()
 

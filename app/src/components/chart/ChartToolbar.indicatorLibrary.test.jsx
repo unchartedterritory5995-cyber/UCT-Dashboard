@@ -8,6 +8,11 @@ import { AuthContext } from '../../context/AuthContext'
 import { ENGINE_OWNED } from './engine/flipState'
 import { isIndicatorEnabled } from './engine/instanceControls'
 import { resultRows, getResultRow, findResultRow } from './__tests__/resultRows'
+import { preloadLazyChunks } from '../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks('builderSheet')
 
 // ─── THE DOORS ONTO THE LIBRARY, AND THE ONE MOUNT SITE THAT GETS NONE ──────
 //

@@ -33,7 +33,7 @@ import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
 import { HEADER_FIELDS, SIGN_POS, SIGN_NEG } from './headerFields'
 import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats, headerStatMetaOf, statStylesFor, withHeaderStatStyle } from './headerStatCatalog'
-import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR } from './headerStatStyle'
+import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR, pickedBoxColor } from './headerStatStyle'
 import { customStatsOf, customStatKey, addCustomStatPatch, customStatAddRefusal } from './headerCustomStats'
 import { customStatLabel, customStatSigned, customStatOutputRefusal } from './engine/customStatCompute'
 import { HeaderStatList, HeaderStatPicker } from './HeaderStatPicker'
@@ -761,7 +761,9 @@ export default function ChartSettingsModal({
       const key = target.slice(5, at)
       const field = target.slice(at + 1) === 'box' ? 'boxColor' : 'labelColor'
       const h = settings?.header || {}
-      onChange?.({ ...settings, header: { ...h, statStyle: withHeaderStatStyle(h, key, { [field]: hex }) }, preset: 'custom' })
+      const prevBox = h.statStyle && h.statStyle[key] ? h.statStyle[key].boxColor : null
+      const val = field === 'boxColor' ? pickedBoxColor(prevBox, hex) : hex
+      onChange?.({ ...settings, header: { ...h, statStyle: withHeaderStatStyle(h, key, { [field]: val }) }, preset: 'custom' })
       return
     }
     if (target.startsWith('hdrf:')) {
@@ -1711,12 +1713,18 @@ export default function ChartSettingsModal({
                   </span>
                   <span className={styles.statStyleItem}>Thickness
                     <span className={styles.statSizes} role="group" aria-label={`${f.label} text thickness`}>
-                      {STAT_WEIGHTS.map((w) => (
-                        <button key={w} type="button" aria-pressed={(look.weight || 'regular') === w} aria-label={`${f.label} thickness ${STAT_WEIGHT_LABELS[w]}`}
-                          title={STAT_WEIGHT_LABELS[w]} style={{ fontWeight: STAT_WEIGHT_VALUE[w] }}
-                          className={`${styles.statSize} ${(look.weight || 'regular') === w ? styles.statSizeOn : ''}`}
-                          onClick={() => { if (w !== (look.weight || 'regular')) setLook({ weight: w }) }}>A</button>
-                      ))}
+                      {(() => {
+                        // the same thinner / thicker stepper as the header menu (owner 11-17)
+                        const wt = look.weight || 'regular'
+                        const i = STAT_WEIGHTS.indexOf(wt)
+                        return (<>
+                          <button type="button" className={styles.statSize} aria-label={`${f.label} thinner`} disabled={i <= 0}
+                            onClick={() => setLook({ weight: STAT_WEIGHTS[i - 1] })}>−</button>
+                          <span className={styles.statWeightName} style={{ fontWeight: STAT_WEIGHT_VALUE[wt] }}>{STAT_WEIGHT_LABELS[wt]}</span>
+                          <button type="button" className={styles.statSize} aria-label={`${f.label} thicker`} disabled={i >= STAT_WEIGHTS.length - 1}
+                            onClick={() => setLook({ weight: STAT_WEIGHTS[i + 1] })}>+</button>
+                        </>)
+                      })()}
                     </span>
                   </span>
                 </>)

@@ -611,6 +611,31 @@ def test_no_script_the_assistant_is_shown_waits_for_the_bar_unless_it_says_so():
     assert pa.LAST_BAR_RECIPE_LINE not in pa.recipes_text([by_id["fibonacci-swings"]])
 
 
+def test_every_recipe_the_assistant_is_shown_is_proven_as_a_member_has_it():
+    """THE GENERATED PROOF, HELD TO THE SERVER'S OWN RULE (2026-11-20). The recipe generator runs every recipe
+    behind a member's doors (no test grant, the server's admission verdict for that exact source) with the chart's
+    newest bar forming and finished, and writes what the chart did (`member`, per history). A recipe is shown to
+    the assistant only when it is drawn in both, or waits while the bar forms BECAUSE it reads where the chart
+    ends. Who waits is decided here, by the server's detector: the generated proof must say the same."""
+    shown = pa.recipes()
+    assert len(shown) >= 14
+    waiting = set()
+    for r in shown:
+        # (the forming-bar rule is the bar-by-bar lane's: a recipe the fast lane draws is drawn all session,
+        # whatever it reads, which is why the window says the sentence by lane and the server sends only the fact)
+        waits = r["lane"] == "runtime" and pa.waits_for_the_bar(r["source"])
+        assert waits is (r.get("finishedBarsOnly") is True), r["id"]
+        assert set(r["member"]) == {"fromListing", "offListing"}, (r["id"], sorted(r["member"]))
+        for history, answer in r["member"].items():
+            assert answer == {"forming": "waits" if waits else "runs", "finished": "runs"}, (r["id"], history, answer)
+        if waits:
+            waiting.add(r["id"])
+    assert waiting == {"volume-profile", "weekday-returns-table"}, sorted(waiting)
+    # CONTROL: the lane matters. A fast-lane recipe that reads another timeframe carries the fact and does not wait.
+    fast = [r for r in shown if r["lane"] == "host" and pa.waits_for_the_bar(r["source"])]
+    assert fast and all(r["member"]["fromListing"]["forming"] == "runs" for r in fast), [r["id"] for r in fast]
+
+
 def test_the_sentence_about_the_bar_is_the_windows_and_word_for_word_this_one():
     """The server sends the FACT (`script.waits_for_the_bar`); the window, which knows the lane that draws the
     script, says the sentence. One wording, held across the two languages."""

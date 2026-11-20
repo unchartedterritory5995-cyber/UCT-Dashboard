@@ -7,16 +7,16 @@
 }
 
 .btn {
-  min-width: 34px;
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
-  background: var(--bg);
-  color: var(--text-muted);
-  font: 700 11px var(--font-sans);
+  min-width: 28px;
+  height: 26px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+  color: var(--br-text, var(--text));
+  font: 600 12px var(--font-sans);
   cursor: pointer;
 }
-.btn:hover:not(:disabled) { border-color: var(--ut-gold); color: var(--text-bright); }
+.btn:hover:not(:disabled) { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); color: var(--br-bright, var(--text-bright)); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* The slider itself (track, thumb, focus ring, touch floor) is ui/Slider; this only lays it out. */
@@ -26,9 +26,8 @@
 }
 
 .ends {
-  font: 600 var(--text-xs) var(--font-sans);
-  color: var(--text-muted);
-  letter-spacing: 0.4px;
+  font: 500 11.5px var(--font-sans);
+  color: var(--br-faint, var(--text-muted));
   white-space: nowrap;
 }
 
@@ -46,12 +45,12 @@
 }
 
 .speed {
-  height: 24px;
-  border-radius: 6px;
-  border: 1px solid color-mix(in srgb, var(--text-heading) 12%, transparent);
-  background: var(--bg);
-  color: var(--text-muted);
-  font: 600 10px var(--font-sans);
+  height: 26px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+  color: var(--br-text, var(--text));
+  font: 600 11.5px var(--font-sans);
   padding: 0 4px;
 }
 .speed:disabled { opacity: 0.4; cursor: not-allowed; }

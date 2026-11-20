@@ -154,4 +154,5 @@
 .calDaySel::after, .yearBtnSel::after {
   content: ""; position: absolute; left: 32%; right: 32%; bottom: 3px; height: 2px; border-radius: 2px; background: var(--ut-gold);
 }
-.yearBtnSel::after { left: 38%; right: 38%; bottom: 2px; }
+/* The year's underline spans the whole year: four digits wide, centered (owner 11-19). */
+.yearBtnSel::after { left: 50%; right: auto; width: 4ch; transform: translateX(-50%); bottom: 2px; }

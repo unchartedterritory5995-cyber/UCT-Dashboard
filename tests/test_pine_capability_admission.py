@@ -797,11 +797,69 @@ def _x_verdict(o: dict):
 KILL_DOC = ROOT / "api" / "data" / "pine_runtime_killlist.json"
 
 
-def _kill_entry_problems(s: dict, v: dict, today: datetime.date | None = None) -> list:
-    """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
-    runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it."""
-    out = []
+#: ⭐⭐ HELD-EVIDENCE KILLS (coordinator rulings 2026-11-19): a kill whose evidence is a LICENCE-HELD capture. Its text
+#: never enters git, so the entry names no `source` and no committed capture; what CI reads is the capture's LEDGER ROW
+#: (`docs/pine/vendor-harness/evidence-ledger.jsonl`), through the one reader `held_evidence.held_kills`.
+HELD_KILL_LANE = "runtime-on"
+
+
+def _held_kill_entry_problems(s: dict, kills: dict, floor: int) -> list:
+    """Why a held-evidence kill entry (`evidence.held: true`) is not held to CURRENT ledger evidence: `kills` is
+    `held_evidence.held_kills(lane, engine_floor=floor)` (a current-engine drawn DIVERGE no narrow withhold isolates);
+    the entry's sha256 must be there with the very capture it names, graded at or above the floor. A held kill names no
+    `source` (its text is licence-held), states its lane / verdict / engine, a reason and a liftWhen."""
+    slug = s.get("slug")
     ev = s.get("evidence") or {}
+    out = []
+    if ev.get("lane") != HELD_KILL_LANE:
+        out.append(f"{slug}: a held kill names the {HELD_KILL_LANE} lane, not {ev.get('lane')!r}")
+    if ev.get("verdict") != "DIVERGE":
+        out.append(f"{slug}: a held kill's evidence is a DIVERGE, not {ev.get('verdict')!r}")
+    if "source" in s:
+        out.append(f"{slug}: a held kill names no source file (its text is licence-held)")
+    if not (s.get("reason") and s.get("liftWhen")):
+        out.append(f"{slug}: no reason or no liftWhen")
+    eng = ev.get("engine")
+    if not isinstance(eng, int) or eng < floor:
+        out.append(f"{slug}: its evidence engine {eng!r} is below the current engine {floor}: a NEW kill needs current evidence")
+    k = kills.get(s.get("sha256"))
+    if not k:
+        out.append(f"{slug}: held_evidence.held_kills holds no current-engine kill for its sha256")
+    else:
+        rows = {r.get("captureId"): r for r in k.get("evidence") or []}
+        r = rows.get(ev.get("capture"))
+        if r is None:
+            out.append(f"{slug}: its capture {ev.get('capture')!r} is not one of the held kill's ({sorted(rows)})")
+        elif r.get("engine") != eng:
+            out.append(f"{slug}: it states engine {eng!r}; the ledger row is graded at {r.get('engine')!r}")
+    return out
+
+
+def _held_kills_unlisted(kills: dict, doc: dict) -> list:
+    """Every script `held_evidence.held_kills` returns that the committed kill list does not name (by sha256, any
+    status: a `pending` entry carries its own expiry rail). A drawn DIVERGE no withhold isolates is killed, by name."""
+    listed = {s.get("sha256") for s in (doc.get("scripts") or []) if isinstance(s, dict)}
+    return sorted(f"{k.get('scriptKey')} ({sha[:12]})" for sha, k in kills.items() if sha not in listed)
+
+
+def _kill_entry_problems(s: dict, v: dict, today: datetime.date | None = None, held: tuple | None = None) -> list:
+    """Why one kill entry is not held to its graded evidence: a committed capture of THAT source whose
+    runtime-on grade is not MATCH, a reason in the member's words, and the condition that lifts it.
+    ⭐⭐ A HELD-EVIDENCE entry (`evidence.held: true`) is held to the ledger instead (`_held_kill_entry_problems`);
+    `held` = (kills, floor), read from the committed ledger at the current engine when not given."""
+    ev = s.get("evidence") or {}
+    if ev.get("held") is True:
+        if held is None:
+            import held_evidence  # noqa: E402 -- the one reader of licence-held evidence (#2096)
+            floor = held_evidence.current_engine()
+            held = (held_evidence.held_kills(HELD_KILL_LANE, engine_floor=floor), floor)
+        out = _held_kill_entry_problems(s, *held)
+        if s.get("status") == rt.KILL_PENDING:
+            out.extend(_held_kill_expiry_problems(s, today))
+        elif s.get("status") is not None:
+            out.append(f"{s.get('slug')}: status {s.get('status')!r} is not a status this list knows")
+        return out
+    out = []
     r = v.get(ev.get("capture"))
     if r is None:
         return [f"{s.get('slug')}: names no committed capture"]
@@ -880,6 +938,70 @@ def test_RT1_every_committed_kill_is_held_to_its_graded_evidence():
     assert any("past its expiry" in p for p in _kill_entry_problems(held, moved, today=datetime.date(2026, 11, 22)))
     assert any("no readable `expires`" in p for p in _kill_entry_problems(dict(held, expires=None), moved))
     assert any("not a status" in p for p in _kill_entry_problems(dict(entry, status="paused"), moved))
+
+
+def _synthetic_held_ledger(tmp_path, engine: int, *, kind: str = "drawn", withholds: list | None = None) -> tuple:
+    """A tmp evidence ledger holding ONE licence-held capture whose runtime-on grade is a DIVERGE (no source text: a
+    hash, ids, the verdict and its first diverging item, as `evidence_ledger.make_row` files them)."""
+    sha = "ab" * 32
+    row = {"licence": "held", "captureId": "synthetic-held-spy-1d-2026-11-20", "scriptKey": "synthetic-held",
+           "sourceSha256": sha, "symbol": "AMEX:SPY", "timeframe": "1D", "scriptEngineVersion": engine,
+           "graderVersion": 1, "gradedAtUTC": "2026-11-20T00:00:00Z",
+           "verdicts": {HELD_KILL_LANE: {"verdict": "DIVERGE", "reason": "SYNTHETIC: plot 1 differs",
+                                         "first": {"kind": kind, "item": "plot 1"}, "door": "runtime",
+                                         "withholds": withholds or []}}}
+    ledger = tmp_path / "evidence-ledger.jsonl"
+    ledger.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    entry = {"slug": "synthetic-held", "sha256": sha, "reason": "SYNTHETIC held kill", "liftWhen": "SYNTHETIC",
+             "addedBy": "SYNTHETIC", "evidence": {"capture": row["captureId"], "verdict": "DIVERGE", "held": True,
+                                                  "lane": HELD_KILL_LANE, "engine": engine}}
+    return ledger, sha, entry
+
+
+def test_HK1_a_held_evidence_kill_entry_is_accepted_only_on_current_ledger_evidence(tmp_path):
+    """(a) A kill entry whose evidence is a licence-held capture (`evidence.held: true`, no source, no committed
+    capture) is accepted only when `held_evidence.held_kills(lane, engine_floor=current_engine())` holds that sha256
+    with that capture. Shown both ways on a synthetic ledger row (the committed list holds no held-evidence kill)."""
+    import held_evidence  # noqa: E402
+    floor = held_evidence.current_engine()
+    ledger, sha, entry = _synthetic_held_ledger(tmp_path, floor)
+    kills = held_evidence.held_kills(HELD_KILL_LANE, ledger=ledger, engine_floor=floor)
+    assert sha in kills                                   # non-vacuous: the synthetic row IS a held kill
+    assert _kill_entry_problems(entry, {}, held=(kills, floor)) == []
+    # refused: no such kill on the ledger · another capture · a stale engine · a source named · not a DIVERGE
+    assert any("holds no current-engine kill" in p for p in _kill_entry_problems(entry, {}, held=({}, floor)))
+    other = dict(entry, evidence=dict(entry["evidence"], capture="synthetic-held-rddt-1d-2026-11-20"))
+    assert any("is not one of the held kill's" in p for p in _kill_entry_problems(other, {}, held=(kills, floor)))
+    assert any("names no source" in p for p in _kill_entry_problems(dict(entry, source="corpus/x.pine"), {}, held=(kills, floor)))
+    match = dict(entry, evidence=dict(entry["evidence"], verdict="MATCH"))
+    assert any("is a DIVERGE" in p for p in _kill_entry_problems(match, {}, held=(kills, floor)))
+    # a row graded below the current engine never CREATES a kill: it is not in the floored view
+    stale_ledger, _, stale = _synthetic_held_ledger(tmp_path, floor - 1)
+    stale_kills = held_evidence.held_kills(HELD_KILL_LANE, ledger=stale_ledger, engine_floor=floor)
+    assert sha not in stale_kills
+    probs = _kill_entry_problems(stale, {}, held=(stale_kills, floor))
+    assert any("below the current engine" in p for p in probs) and any("holds no current-engine kill" in p for p in probs)
+    # a difference a narrow withhold isolates is never a kill
+    w_ledger, _, _ = _synthetic_held_ledger(tmp_path, floor, withholds=[{"scope": "output", "title": "plot 1"}])
+    assert sha not in held_evidence.held_kills(HELD_KILL_LANE, ledger=w_ledger, engine_floor=floor)
+
+
+def test_HK2_every_held_kill_on_the_ledger_is_on_the_committed_kill_list(tmp_path):
+    """(b) Every script `held_evidence.held_kills('runtime-on')` returns (NO floor: a kill survives an engine bump until
+    a newer regrade lifts it) is named on the committed kill list. Holds today (the ledger holds no drawn DIVERGE a
+    withhold cannot isolate); (c) a synthetic held row shows the rail red while the list lacks it, green once it names it."""
+    import held_evidence  # noqa: E402
+    doc = json.loads(KILL_DOC.read_text(encoding="utf-8"))
+    assert _held_kills_unlisted(held_evidence.held_kills(HELD_KILL_LANE), doc) == []
+    ledger, sha, entry = _synthetic_held_ledger(tmp_path, held_evidence.current_engine())
+    kills = held_evidence.held_kills(HELD_KILL_LANE, ledger=ledger)
+    assert _held_kills_unlisted(kills, doc) == ["synthetic-held (" + sha[:12] + ")"]
+    named = dict(doc, scripts=list(doc.get("scripts") or []) + [entry])
+    assert _held_kills_unlisted(kills, named) == []
+    # every committed held-evidence entry passes (a) against the committed ledger (none today: the rule is on the shape)
+    held_entries = [s for s in doc.get("scripts") or [] if (s.get("evidence") or {}).get("held") is True]
+    for s in held_entries:
+        assert _kill_entry_problems(s, {}) == [], s.get("slug")
 
 
 #: The by-name rails need a killed script, and the committed kill list is empty since parabolic-sar's kill
@@ -1006,9 +1128,25 @@ def test_RT1_the_contraction_box_kill_is_lifted_on_its_own_condition():
     assert hkd.refused(src) is None and rt.source_hash(src) not in hkd.committed()
 
 
+#: ⭐ (2026-11-20, #2117) the ONE narrower grade that still justifies a DRAW-1 kill: a disclosed partial whose drawn
+#: records agree on every graded field but whose PLACE no capture witnessed (`compare.mjs` `objects:partial-
+#: unpositioned`, #2109). It never lifts anything (the host listing keeps it: `host_divergence._unpositioned`), so
+#: a kill it holds stays justified. Held to EXACTLY that grade: an INCONCLUSIVE row for any other reason is not.
+DRAW1_UNPOSITIONED = "objects:partial-unpositioned"
+
+
+def _draw1_justifies(r: dict) -> bool:
+    """Does this committed verdict row hold a DRAW-1 kill? A DIVERGE, or an INCONCLUSIVE whose withheld families
+    name the unpositioned partial grade (and so were graded by that named rule), and nothing else."""
+    if r.get("verdict") == "DIVERGE":
+        return True
+    withheld = str((r.get("objects") or {}).get("withheld") or "").split(",")
+    return r.get("verdict") == "INCONCLUSIVE" and DRAW1_UNPOSITIONED in withheld
+
+
 def _draw1_unkilled_diverging(kills: dict) -> list:
     """Sources using obj:box / obj:table, admitted on capabilities, with a committed capture grading DIVERGE on
-    either lane, whose sha256 is not in `kills`."""
+    either lane (or the unpositioned partial grade, `_draw1_justifies`), whose sha256 is not in `kills`."""
     admitted = set(rt.admitted_capabilities()["admitted"])
     lanes = [json.loads(VERDICTS_RT.read_text(encoding="utf-8"))["results"],
              json.loads((ROOT / "docs" / "pine" / "vendor-harness" / "production" / "verdicts.json")
@@ -1016,7 +1154,7 @@ def _draw1_unkilled_diverging(kills: dict) -> list:
     out = set()
     for results in lanes:
         for r in results:
-            if r.get("verdict") != "DIVERGE":
+            if not _draw1_justifies(r):
                 continue
             at = licence_held.fixture_path(r["file"])
             try:

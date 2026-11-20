@@ -25,7 +25,7 @@ import * as registry from '../nativeRegistry'
 import { runtimeObjectsOf } from '../runtime/runtimeObjects'
 import { computeRuntimeColumns } from '../runtime/runtimeColumns'
 import { __permitRuntimePaneForTests } from '../runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
+import { __allowEveryRuntimeScriptForTests } from '../runtimeKill'
 
 afterEach(() => { vi.unstubAllEnvs() })
 
@@ -99,7 +99,9 @@ describe('Step B: a field of a top-level owner takes the owner\'s `var`-ness, se
 // equal the runtime lane's: the per-bar Pine VM, which keeps the object and its fields as Pine does.
 describe('Step B parity: for every shape it serves, the host lane draws what the runtime lane draws, bar for bar', () => {
   beforeAll(() => { __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests() })
-  afterAll(() => { __forceRuntimeLaneForTests(false); __resetRuntimeAllowList() })
+  // ⛔ no allowlist reset here: a describe's afterAll that narrows the runtime gate is undone by the test grant before
+  // the next test and fails it by name (GATE-BLIND, `src/testing/runtimeGate.js`); the grant is the default already
+  afterAll(() => { __forceRuntimeLaneForTests(false) })
   const picture = (live) => live.filter((o) => o.family === 'label')
     .map((o) => JSON.stringify({ createdBar: o.createdBar, props: Object.fromEntries(Object.entries(o.props).sort()) })).sort()
   function runtimeLabels(source, bars) {

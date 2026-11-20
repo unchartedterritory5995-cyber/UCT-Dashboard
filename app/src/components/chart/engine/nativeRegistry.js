@@ -162,6 +162,7 @@ import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompu
 import { definitionHasLiveTail, liveTailSignature } from './liveTail'
 import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD } from './runtimeKill'
 import { HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence'
+import { HELD_DIVERGENCE_STAMP } from './heldWithholds'
 // ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
 import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
 import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
@@ -192,7 +193,7 @@ import {
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 // ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
-import { hostLaneOffThread } from './hostLaneAsync.js'
+import { hostLaneColumns } from './hostLaneAsync.js'
 export {
   columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
   otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
@@ -3133,12 +3134,13 @@ export function computeFor(def, bars, inputs, ctx) {
   // astLaneColumns` (moved there unchanged, with the full note); the run-read colours and the run
   // half stay here (`astRunExtras`): they answer to this tab's gates.
   if (lane === COMPUTE_LANE.AST) {
-    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) of a document whose recurrences hold the
-    // main thread (#1711's estimate) is computed off it (`hostLaneAsync.js`: the same values, a
-    // pending answer with the pane's last picture until they land); every other request, and every
-    // document under the budget, is answered here exactly as before.
-    const off = hostLaneOffThread(def, bars, inputs, ctx, astRunExtras)
-    if (off) return off
+    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) is answered by ONE door
+    // (`hostLaneAsync.hostLaneColumns`): the values memoised for these bars, computed on this thread
+    // when the tab has measured them cheap here, in the worker otherwise (the same values, a pending
+    // answer with the pane's last picture until they land). Every request that is not a chart's is
+    // answered here exactly as before.
+    const pane = hostLaneColumns(def, bars, inputs, ctx, astRunExtras)
+    if (pane) return pane
     return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
@@ -3683,6 +3685,16 @@ export function validateAstLane(def) {
   return errors
 }
 
+/** ⭐⭐ HELD WITHHOLDS (`engine/heldWithholds.js`) — a served row stamped `meta.heldDivergence` is refused with the
+ *  server's sentence and kept (killedIds: the installed copy leaves this tab, the stored row is untouched). */
+function heldDivergenceRefused(def, errors, killedIds) {
+  const why = def.meta && def.meta[HELD_DIVERGENCE_STAMP]
+  if (typeof why !== 'string' || !why) return false
+  errors.push(`${def.id}: ${why} — the saved definition is kept, unchanged.`)
+  killedIds.push(def.id)
+  return true
+}
+
 /**
  * VALIDATE definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
  *
@@ -3746,6 +3758,10 @@ export function validateUserDefinitions(rawDefs) {
       // `meta.runtimeKilled`, or latched from the auth payload) is not drawn —
       // refused with the reason, and left in the store untouched.
       const meta = def.meta || {}
+      // ⭐⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a saved copy minted before its script's narrow
+      // withholds is served stamped `meta.heldDivergence` (`runtime_definitions.stamp_served`): not drawn, refused
+      // with the server's sentence, by name, and kept in the store untouched.
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a runtime copy
       // ⭐ GT (D6) — a stored row whose script is not on the server's starter
       // allowlist is served stamped `meta.runtimeNotGraded` and refused the same
       // way: kept in the store, drawn again once the script is listed. The server
@@ -3789,6 +3805,8 @@ export function validateUserDefinitions(rawDefs) {
         killedIds.push(def.id)
         continue
       }
+      // ⭐⭐ HELD WITHHOLDS — a saved host copy minted before its script's narrow withholds, the same way
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a host copy
       const laneErrors = validateAstLane(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))

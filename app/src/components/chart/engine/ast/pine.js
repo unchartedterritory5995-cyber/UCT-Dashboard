@@ -187,6 +187,7 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // ⭐⭐ L1 — `import Author/Library/Version` is linked, not refused, when the library
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { versionAt, LIBRARY_VERSION } from './pineLibraryVersion.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
 import { strategyTaintSinks, STRATEGY_TAINT_ROW_SINKS, STRATEGY_TAINT_SCRIPT_SINKS } from './strategyTaint.js'
 
@@ -3088,6 +3089,15 @@ const CHART_ONLY_CALLS = Object.freeze(new Set([
  *  (`presentation.paints`, see `resolvePaints`). Still in `CHART_ONLY_CALLS`:
  *  the screener lane keeps ignoring them, as TradingView's screener does. */
 export const PAINT_CALLS = Object.freeze(new Set(['bgcolor', 'barcolor']))
+
+/** ⭐⭐ THE FAMILY LEDGER'S VOCABULARY (2026-11-19) — every call that DRAWS on a chart, from this file's own sets: the
+ *  outputs (`OUTPUT_CALLS`), the four-column candles (`MULTI_OUTPUT_CALLS`) and the chart-only calls
+ *  (`CHART_ONLY_CALLS`), less the two that draw nothing on TradingView either (`alertcondition`, `alert`). The runtime
+ *  door names every one of them a script declares and its document does not draw
+ *  (`memberPane/runtimeFamilyLedger.js`); derived, so a call these sets gain is ledgered at once. */
+export const CHART_DRAWING_CALLS = Object.freeze([...new Set([
+  ...Object.keys(OUTPUT_CALLS), ...Object.keys(MULTI_OUTPUT_CALLS), ...CHART_ONLY_CALLS,
+])].filter((c) => c !== 'alertcondition' && c !== 'alert'))
 
 // --------------------------------------------------------------------------- //
 // the derived function index
@@ -10257,8 +10267,10 @@ export class Resolver {
       // ⭐ C29 — as TEXT, in the script's own Pine version (`periodTextOf`).
       if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) {
-        const text = periodTextOf(this.periodInForce(node.name, node.tok), this.pineVersion)
-        if (!this.periodCodeRead) recordPeriodRead('timeframe.period', this.pineVersion)
+        // ⭐⭐ the version island: inside a v5 library, the library's version (`"D"`, not `"1D"`)
+        const atVersion = versionAt(node.tok, this.pineVersion)
+        const text = periodTextOf(this.periodInForce(node.name, node.tok), atVersion)
+        if (!this.periodCodeRead) recordPeriodRead('timeframe.period', atVersion)
         return text
       }
       return null
@@ -15223,11 +15235,24 @@ export class Resolver {
     // `pine.variables.test.js` — re-enters the same value binding. Routing the
     // common case through there reported `pine:cycle` for a call that simply
     // nests. Measured: it went red on the first attempt at this fix.
+    let tree
     try {
-      return bound.value.kind === 'expr'
+      tree = bound.value.kind === 'expr'
         ? this.resolve(bound.value.node)
         : this.resolveBinding(bound.value, node.tok, name)
     } finally { this.frames.pop(); this.env = prevEnv }
+    // ⭐⭐ THE VERSION ISLAND'S ONE BOUNDARY (design section 2.6; the runtime lane's own lowering asks the same,
+    // `pineRuntimeFrontend.js::islandNaBoolResult`): a function judged under another Pine version hands this code
+    // a bool that can be `na` there. What TradingView hands a v6 caller for a v5 `na` bool is not captured (LV6).
+    const defVersion = bound.defTok ? versionAt(bound.defTok, this.pineVersion) : null
+    if (defVersion !== null && defVersion !== versionAt(node.tok, this.pineVersion)
+        && islandBoolMayBeNa(tree)) {
+      throw new PineRefusal(LIBRARY_VERSION, `\`${name}\` is a Pine v${defVersion} library function that hands this `
+        + `v${this.pineVersion} script a bool that can be \`na\` in Pine v${defVersion}; a v${this.pineVersion} `
+        + 'bool is never `na`, and what TradingView hands the script there is not captured (LV6), so it is not drawn',
+      locate(node.tok))
+    }
+    return tree
   }
 
   /** ⛔ C48 — A FUNCTION THAT READS A `var` WRITTEN SINCE IT WAS DECLARED is
@@ -22351,7 +22376,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // unwitnessed `input.timeframe` text (`UNWITNESSED_TF_TEXT`: the op runs, the property is unknown).
       if (arg0 && node.args && node.args.length === 1) {
         let version = null
-        try { version = makeResolver(scopeEnv).pineVersion } catch { version = null }
+        // ⭐⭐ the version island: inside a v5 library, the library's version (`versionAt`)
+        try { version = versionAt(node.tok, makeResolver(scopeEnv).pineVersion) } catch { version = null }
         const lit = literalTostringText(arg0, { version })
         if (lit && lit.text !== undefined) return { t: 'lit', s: lit.text }
         if (lit) {
@@ -28872,7 +28898,7 @@ function translatePineResult(source, opts = {}) {
         // ⭐ ENGINE 50 — `hidesVariable`: a variable of the same name declared before this function
         // stays declared (separate namespaces), in this body and after it (`variableBeneath`)
         const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]),
-          hidesVariable: variableBeneath(env, nameTok.value) }
+          hidesVariable: variableBeneath(env, nameTok.value), defTok: nameTok }
         fnEnv.set(nameTok.value, self)
         // ⭐ WHAT THE BODY LEAVES BEHIND IS THE LAST WORD ON EACH LOCAL, exactly as
         // `finalBindings = new Map(env)` is at the top level. `foldStatements`
@@ -34428,6 +34454,22 @@ export function conditionKindOf(node, table = TABLE) {
  *  became a probe literal, and every label went unknown. */
 const NA_FALSE_LOGIC_SITES = new Set(['and', 'or', 'not', '&&', '||', '!'])
 const NEVER_NA_OPS = new Set(['<', '<=', '>', '>=', '==', '!='])
+/** ⭐⭐ THE VERSION ISLAND'S BOUNDARY — can this resolved tree, the result of a function judged under Pine v5, be an
+ *  `na` bool THERE (whatever this columnar lane holds for it)? Pine v5 (S1, F2's Q-NL): a comparison with an `na`
+ *  operand is `na`; `and` / `or` / `not` and `na()` are never `na`; a bool name, a bool call, a `?:` of those can be. */
+const ISLAND_NEVER_NA_SERIES = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+function islandBoolMayBeNa(t, d = 0) {
+  if (!t || typeof t !== 'object' || d > 64 || t.type === 'num' || !isBoolishTree(t)) return false
+  const args = Array.isArray(t.args) ? t.args : []
+  if (t.type === 'op' && ['&&', '||', '!'].includes(t.name)) return false
+  if (t.type === 'call' && t.name === 'na') return false
+  if (t.type === 'op' && NEVER_NA_OPS.has(t.name)) {
+    return !args.every((a) => !!a && ((a.type === 'num' && Number.isFinite(a.value))
+      || (a.type === 'series' && ISLAND_NEVER_NA_SERIES.has(a.name))))
+  }
+  if (t.type === 'op' && t.name === '?:') return islandBoolMayBeNa(args[1], d + 1) || islandBoolMayBeNa(args[2], d + 1)
+  return true
+}
 export function conditionNeverNa(tree) {
   if (!tree || typeof tree !== 'object') return false
   if (tree.type === 'num') return Number.isFinite(tree.value)

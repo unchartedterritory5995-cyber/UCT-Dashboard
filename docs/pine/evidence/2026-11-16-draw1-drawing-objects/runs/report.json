@@ -3,9 +3,9 @@
   "capture": {
    "scripts": 955,
    "admitted": 777,
-   "runtimeLane": 194,
-   "hostLane": 330,
-   "refused": 253,
+   "runtimeLane": 219,
+   "hostLane": 302,
+   "refused": 256,
    "coreOnly": 45
   },
   "committed": {
@@ -8492,8 +8492,8 @@
   },
   {
    "capture": "vw-bt-session-overnight-value-btcusd-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -8503,8 +8503,8 @@
   },
   {
    "capture": "vw-bt-session-overnight-value-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -8514,8 +8514,8 @@
   },
   {
    "capture": "vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -9390,8 +9390,8 @@
   },
   {
    "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -10810,8 +10810,8 @@
   },
   {
    "capture": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -10821,7 +10821,7 @@
   },
   {
    "capture": "vw-time-tf-eurusd-1d-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10832,7 +10832,7 @@
   },
   {
    "capture": "vw-time-tf-fx-eurusd-1d-2026-10-01",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10843,8 +10843,8 @@
   },
   {
    "capture": "vw-time-tf-rddt-1d-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10854,7 +10854,7 @@
   },
   {
    "capture": "vw-time-tf-spy-1-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10865,7 +10865,7 @@
   },
   {
    "capture": "vw-time-tf-spy-15-2026-10-01",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10876,8 +10876,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1d-2026-09-28",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10887,8 +10887,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1d-full-2026-10-01",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10898,8 +10898,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1d-full-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10909,8 +10909,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1m-2026-10-01",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10920,8 +10920,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1m-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10931,8 +10931,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1w-2026-10-01",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10942,8 +10942,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1w-2026-10-02",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -10953,7 +10953,7 @@
   },
   {
    "capture": "vw-time-tf-spy-240-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10964,7 +10964,7 @@
   },
   {
    "capture": "vw-time-tf-spy-30-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10975,7 +10975,7 @@
   },
   {
    "capture": "vw-time-tf-spy-5-2026-10-01",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10986,7 +10986,7 @@
   },
   {
    "capture": "vw-time-tf-spy-5-ext-2026-10-02",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -10997,7 +10997,7 @@
   },
   {
    "capture": "vw-time-tf-spy-60-2026-09-28",
-   "lane": "host",
+   "lane": "runtime",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -11296,8 +11296,8 @@
   },
   {
    "capture": "vw-w4-arm-runs-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -11307,8 +11307,8 @@
   },
   {
    "capture": "vw-w4-arm-runs-spy-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": null,
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -11391,8 +11391,8 @@
   },
   {
    "capture": "vw-w4-session-default-days-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -11402,8 +11402,8 @@
   },
   {
    "capture": "vw-w4-session-default-days-v4-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -11413,8 +11413,8 @@
   },
   {
    "capture": "vw-w4-session-overnight-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
+   "lane": "runtime",
+   "runtimeOn": "INCONCLUSIVE",
    "production": "DIVERGE",
    "caps": [
     "core",
@@ -12316,8 +12316,8 @@
   {
    "capture": "vw-int-cast-spy-1d-2026-09-27",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "INCONCLUSIVE",
+   "production": "INCONCLUSIVE",
    "caps": [
     "core",
     "fn-single",
@@ -12427,8 +12427,8 @@
   {
    "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
    "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
+   "runtimeOn": "MATCH",
+   "production": "MATCH",
    "caps": [
     "core",
     "ternary"
@@ -12447,8 +12447,8 @@
   },
   {
    "capture": "vw-time-tf-spy-1d-2026-09-27",
-   "lane": "host",
-   "runtimeOn": "INCONCLUSIVE",
+   "lane": "runtime",
+   "runtimeOn": "MATCH",
    "production": "INCONCLUSIVE",
    "caps": [
     "core",
@@ -21608,165 +21608,7 @@
    ]
   }
  ],
- "refusedByName": [
-  {
-   "capture": "vw-bt-session-overnight-value-btcusd-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-bt-session-overnight-value"
-  },
-  {
-   "capture": "vw-bt-session-overnight-value-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-bt-session-overnight-value"
-  },
-  {
-   "capture": "vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-bt-session-to-midnight-daymask"
-  },
-  {
-   "capture": "vw-fmt-tie-readings-rddt-1d-2026-11-15",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "if-block",
-    "obj:label",
-    "realtime-state"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-fmt-tie-readings"
-  },
-  {
-   "capture": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-time-tf"
-  },
-  {
-   "capture": "vw-w4-arm-runs-rddt-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "max_bars_back",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-w4-arm-runs"
-  },
-  {
-   "capture": "vw-w4-arm-runs-spy-1d-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "max_bars_back",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-w4-arm-runs"
-  },
-  {
-   "capture": "vw-w4-session-default-days-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-w4-session-default-days"
-  },
-  {
-   "capture": "vw-w4-session-default-days-v4-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-w4-session-default-days-v4"
-  },
-  {
-   "capture": "vw-w4-session-overnight-btcusd-60-2026-11-16",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-w4-session-overnight"
-  },
-  {
-   "capture": "vw-int-cast-spy-1d-2026-09-27",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "fn-single",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-int-cast"
-  },
-  {
-   "capture": "vw-nvi-pvi-spy-1d-truncated-2026-09-27",
-   "lane": "host",
-   "runtimeOn": "DIVERGE",
-   "production": "DIVERGE",
-   "caps": [
-    "core",
-    "ternary"
-   ],
-   "guard": "pine:known-divergence",
-   "slug": "vw-nvi-pvi"
-  }
- ],
+ "refusedByName": [],
  "matchToDiverge": [],
  "substitutedToDiverge": []
 }

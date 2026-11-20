@@ -219,6 +219,7 @@ export default function ContextPopover({
         >
           {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
           <span className={styles.label}>{it.label}</span>
+          {it.aside != null && <span className={styles.aside}>{it.aside}</span>}
         </Row>
       )
     })

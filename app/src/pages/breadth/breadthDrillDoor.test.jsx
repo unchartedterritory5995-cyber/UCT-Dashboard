@@ -92,6 +92,8 @@ beforeEach(() => {
 
 const mount = () => render(<MemoryRouter initialEntries={['/breadth']}><Breadth /></MemoryRouter>)
 const drillCells = (c) => Array.from(c.querySelectorAll('td[data-drill]'))
+// A cell with a stock list behind it (every other value cell opens its reading, owner 2026-11-19).
+const listCells = (c) => Array.from(c.querySelectorAll('td[data-drill-list]'))
 const rowsWithDrills = (c) =>
   Array.from(new Set(drillCells(c).map(d => d.closest('tr')))).filter(Boolean)
 
@@ -111,8 +113,10 @@ describe('a drillable cell is a real control', () => {
 
   it('is NAMED with its metric, value and session — "134" alone says nothing', () => {
     const { container } = mount()
-    const label = drillCells(container)[0].getAttribute('aria-label')
+    const label = listCells(container)[0].getAttribute('aria-label')
     expect(label).toMatch(/open the list of stocks/)
+    const reading = drillCells(container).find(td => !td.hasAttribute('data-drill-list'))
+    expect(reading.getAttribute('aria-label')).toMatch(/open its history/)
     // The metric name and the session both appear, so the control is
     // self-describing when it is read outside its table context.
     expect(label.length).toBeGreaterThan('open the list of stocks'.length + 8)
@@ -156,13 +160,13 @@ describe('it opens from the keyboard', () => {
   // did nothing".
   it('Enter opens the drill for that cell', async () => {
     const { container } = mount()
-    fireEvent.keyDown(drillCells(container)[0], { key: 'Enter' })
+    fireEvent.keyDown(listCells(container)[0], { key: 'Enter' })
     expect(await screen.findByTestId('drill-open')).toBeTruthy()
   })
 
   it('Space opens it too', async () => {
     const { container } = mount()
-    fireEvent.keyDown(drillCells(container)[0], { key: ' ' })
+    fireEvent.keyDown(listCells(container)[0], { key: ' ' })
     expect(await screen.findByTestId('drill-open')).toBeTruthy()
   })
 

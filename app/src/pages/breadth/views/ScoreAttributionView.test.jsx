@@ -31,7 +31,7 @@ describe('ScoreAttributionView', () => {
     mockData.current = {
       ok: true, date: '2026-08-28', total: 80, min_weight_met: true,
       components: [
-        { key: 'cboe_putcall', label: 'CBOE put/call (contrarian)', weight: 10, points: 0, max_points: 10, present: false, value: null },
+        { key: 'cboe_putcall', label: 'CBOE equity put/call (contrarian)', weight: 10, points: 0, max_points: 10, present: false, value: null },
       ],
       prev: null,
     }

@@ -1472,7 +1472,16 @@ export function execute(program, ctx, limits, opts) {
             }
           }
           const args = Array.prototype.slice.call(stack, sp, sp + b)
-          const out = spec.fn(args, budget, op.typeArg)
+          let out
+          if (op.version === undefined) out = spec.fn(args, budget, op.typeArg)
+          else {
+            // ⭐⭐ the version island: a v5 library's collection call inside a v6 program is judged under v5 for
+            // THIS op only (`collections.js::ruleVersion` reads `budget.opVersion` before `budget.pineVersion`),
+            // and the script's version is back before the next instruction, a stop included
+            const outer = budget.opVersion
+            budget.opVersion = op.version
+            try { out = spec.fn(args, budget, op.typeArg) } finally { budget.opVersion = outer }
+          }
           // ⛔ A VOID CALL PUSHES NOTHING. `array.push` is a statement in Pine;
           // pushing an `undefined` for it would put a value on the stack that
           // nothing pops and that no kind check would recognise later.
