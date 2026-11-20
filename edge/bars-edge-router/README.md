@@ -76,6 +76,28 @@ files in the dashboard editor). Until step 3 the path never reaches this Worker;
 answers 503. Then a browser opts in with `localStorage['uct.historyLake']='1'`
 (`app/src/data/barStore/historyFeed.js`) until the default changes.
 
+## First-frame seed: `/api/seed/*` (seed.js, not live until its route exists)
+
+`seed.js` serves the first-frame seed packs (`docs/charts/first-frame-seed-format.md`) straight from
+R2; no origin is asked:
+
+* `/api/seed/v1/latest.json` — the manifest (build id, as-of session, per-timeframe url, bytes,
+  sha256). `private, max-age=60`.
+* `/api/seed/v1/<YYYYMMDDTHHMMZ>/<tf>.ffs` (`tf` = 1 5 15 30 60 D) — one timeframe's whole pack.
+  `private, immutable` for a year; a single `Range` is answered 206 (resumed downloads); the Worker
+  keeps a copy of each whole pack in the data center's Cache API under `/api/seed/__edge/`.
+
+Entitlement is enforced exactly as on `/api/hist/` (member cookie or service header, else 401).
+Bindings: `SEED` (R2 bucket; falls back to `HISTORY`), optional `SEED_PREFIX` (default `ffseed/`,
+the prefix the worker's builder `api/services/ffseed.py` uploads under in the `DATA_SYNC_BUCKET`).
+
+To turn it on (owner): (1) arm the builder on the worker (`FFSEED_ENABLED=1`, manual worker deploy)
+and confirm `ffseed/latest.json` exists in the bucket, (2) bind that bucket to this Worker as `SEED`
+(or reuse `HISTORY` if it is the same bucket, with `SEED_PREFIX` if needed), (3) add the Worker
+Route `uctintelligence.com/api/seed/*`, (4) deploy `worker.js` + `seed.js` together. Until step 3
+the path never reaches this Worker; until step 2 it answers 503. Tests: `node --test seed.test.mjs`
+(packs built by the Python encoder, `tools/ffseed_make_js_fixture.py`).
+
 ## Phase 1 — shadow entitlement (current)
 
 The Worker reads the `uct_chart_edge` cookie, verifies it with
