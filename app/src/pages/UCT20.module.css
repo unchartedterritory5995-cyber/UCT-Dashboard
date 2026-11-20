@@ -136,6 +136,10 @@
 /* ── Ticker cell ──────────────────────────────────────────────────────────── */
 .tickerCell { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .tickerInner { flex-shrink: 0; }
+/* The badges (NEW, INSIDER, TEAM, earnings) travel as one group. On a wide screen the group is
+   not a box, so its badges sit in the ticker cell's line exactly as before; a phone gives the
+   group its own line under the ticker (the phone block below). */
+.badges { display: contents; }
 .sym { font-family: var(--font-mono); font-size: var(--text-xl); font-weight: 800; color: var(--ut-cream); cursor: pointer; }
 .sym:hover { color: var(--ut-green-bright); }
 .companyName {
@@ -284,6 +288,30 @@
   .since, .rating { font-size: var(--text-base); }
   .expanded { padding: 6px 2px 16px 6px; }
   .expandedSide { flex-direction: column; }
+
+  /* Phone fit, part 3 (2026-11-20). At 340 to 390 px the ticker, its badges and the price were
+     drawn on top of each other: the ticker column was 0 to 54 px wide and its contents spilled
+     over PRICE. Now the ticker column only has to hold the ticker (and its watch star): the
+     badges move to a second line UNDER it that runs the width of the row, so a row with a badge
+     is one line taller and a row without one is unchanged. The ticker cell steps aside
+     (display: contents) so its two parts are placed on the row's own grid. */
+  .row { row-gap: 4px; }
+  .tickerCell { display: contents; }
+  .tickerInner { grid-column: 2; grid-row: 1; min-width: 0; }
+  .badges { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 2 / -1; grid-row: 2; min-width: 0; }
+  .badges:empty { display: none; }
+
+  /* Where the table is too narrow for six columns, "Since add" folds; rating and the day's
+     change stay. The table measures ITSELF (it is 54 px narrower than the screen on the page and
+     58 px in a Terminal panel), so one rule serves both. Measured: a five-letter ticker with its
+     watch star is 73 px wide, and six columns leave it that much only from a 355 px table
+     (a screen of about 410 px). Below that the five columns sit 4 px apart, which leaves the
+     ticker 74 px in the narrowest case measured (a 282 px table: a panel on a 340 px phone). */
+  .table { container: uct20table / inline-size; }
+  @container uct20table (max-width: 354px) {
+    .headerRow, .row { grid-template-columns: 18px minmax(0, 1fr) 58px 50px 44px 14px; column-gap: 4px; }
+    .cSince { display: none; }
+  }
 }
 
 /* Touch (wave 14): Copy tickers / How it's built audited 30px. */
