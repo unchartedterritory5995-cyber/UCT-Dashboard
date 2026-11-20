@@ -15,6 +15,12 @@ FRI = date(2026, 11, 20)
 THU = date(2026, 11, 19)
 
 
+@pytest.fixture(autouse=True)
+def _private_data_dir(monkeypatch, tmp_path):
+    """Every marker and the long-tail ledger go to a private directory: never the box's real DATA_DIR."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+
+
 def et(d: date, h: int, m: int) -> int:
     return int(datetime(d.year, d.month, d.day, h, m, tzinfo=ET).timestamp())
 
@@ -105,15 +111,71 @@ def test_the_default_write_is_the_range_repair_write(monkeypatch):
 
 # ---- the retention ---------------------------------------------------------------------------
 
-def test_retention_trims_only_non_active_symbols_and_never_without_the_active_set():
+def _ledger(**symbols):
+    return {"v": 1, "symbols": {k: dict(v) for k, v in symbols.items()}}
+
+
+def test_retention_never_runs_without_the_active_set_or_when_off():
     asked = []
     prune = lambda syms, cutoff: asked.append((syms, cutoff)) or 7
-    assert onemin.retention(FRI, ["A", "B"], protected=None, keep=5, prune=prune) == {"skipped": "active set unknown"}
-    assert onemin.retention(FRI, ["A", "B"], protected=frozenset(), keep=0, prune=prune) == {"skipped": "disabled"}
+    led = _ledger(AAA={"first": "2026-11-19", "active": None})
+    assert onemin.retention(FRI, ["AAA"], protected=None, keep=5, prune=prune, ledger=led,
+                            first_ts=lambda s: None) == {"skipped": "active set unknown"}
+    assert onemin.retention(FRI, ["AAA"], protected=frozenset(), keep=0, prune=prune, ledger=led,
+                            first_ts=lambda s: None) == {"skipped": "disabled"}
     assert asked == []
-    out = onemin.retention(FRI, ["SPY", "AAA", "zzz", "BBB"], protected=frozenset({"SPY", "BBB"}), keep=5, prune=prune)
-    assert asked == [(["AAA", "ZZZ"], et(date(2026, 11, 16), 4, 0))]   # 5 sessions: Fri 20 .. Mon 16
-    assert out["deleted"] == 7 and out["protected"] == 2
+
+
+def test_retention_trims_only_what_this_pass_wrote_for_long_idle_symbols():
+    asked = []
+    prune = lambda syms, cutoff: asked.append((syms, cutoff)) or 7
+    led = _ledger(
+        FILLED={"first": "2026-11-12", "active": None},          # the pass's own: trimmed
+        IDLE={"first": "2026-11-12", "active": "2026-11-05"},    # active 15 days ago: trimmed
+        RECENT={"first": "2026-11-12", "active": "2026-11-16"},  # active 4 days ago: kept
+        ACTIVE={"first": "2026-11-12", "active": None},          # active today: kept
+        OLDER={"first": "2026-11-17", "active": None},           # holds 1m from before the pass's first fill: kept
+    )
+    first = {"FILLED": et(date(2026, 11, 12), 4, 0), "IDLE": et(date(2026, 11, 13), 9, 30),
+             "RECENT": et(date(2026, 11, 12), 4, 0), "ACTIVE": et(date(2026, 11, 12), 4, 0),
+             "OLDER": et(date(2026, 3, 2), 9, 30), "NOTFILLED": et(date(2026, 1, 2), 9, 30)}
+    out = onemin.retention(FRI, ["filled", "IDLE", "RECENT", "ACTIVE", "OLDER", "NOTFILLED"],
+                           protected=frozenset({"ACTIVE", "SPY"}), keep=5, prune=prune, ledger=led,
+                           first_ts=first.get, idle_days=10)
+    assert asked == [(["FILLED", "IDLE"], et(date(2026, 11, 16), 4, 0))]   # 5 sessions: Fri 20 .. Mon 16
+    assert out["skipped"] == {"not_filled": 1, "active": 1, "recently_active": 1, "older_rows": 1}
+    assert out["deleted"] == 7 and out["eligible"] == 2
+    assert led["symbols"]["ACTIVE"]["active"] == "2026-11-20"             # today's active set is recorded
+
+
+def test_the_ledger_records_what_the_pass_stored_and_when_each_was_active(monkeypatch):
+    monkeypatch.setattr(onemin, "protected_symbols", lambda: frozenset({"B"}))
+    stored = {"A": None, "B": None, "EMPTY": None, "BAD": None, "REJ": None, "CUR": et(FRI, 19, 0)}
+
+    def fetch(sym, frm, to):
+        if sym == "BAD":
+            raise RuntimeError("down")
+        return [] if sym == "EMPTY" else [{"t": et(FRI, 9, 30)}]
+
+    # REJ: the provider answered but the store kept none of it (every row refused): not the pass's
+    onemin.backfill(FRI, list(stored), fetch=fetch, store=lambda sym, rows, t: 0 if sym == "REJ" else len(rows),
+                    last_ts=stored.get, n_workers=1)
+    led = onemin.load_ledger()
+    assert led["symbols"] == {"A": {"first": "2026-11-19", "active": None},
+                              "B": {"first": "2026-11-19", "active": "2026-11-20"}}
+    # a later pass from a later day never moves `first` forward
+    onemin.backfill(date(2026, 11, 23), ["A"], fetch=fetch, store=lambda sym, rows, t: len(rows),
+                    last_ts=lambda s: None, n_workers=1)
+    assert onemin.load_ledger()["symbols"]["A"]["first"] == "2026-11-19"
+
+
+def test_an_unreadable_ledger_reads_as_empty_and_trims_nothing(tmp_path):
+    (tmp_path / "ffseed_1m_longtail.json").write_text("{not json", encoding="ascii")
+    assert onemin.load_ledger() == {"v": 1, "symbols": {}}
+    asked = []
+    out = onemin.retention(FRI, ["AAA"], protected=frozenset(), keep=5,
+                           prune=lambda syms, cutoff: asked.append(syms) or 0, first_ts=lambda s: None)
+    assert asked == [] and out["eligible"] == 0
 
 
 def test_the_prewarm_publishes_its_active_set_and_the_retention_reads_it(monkeypatch):
