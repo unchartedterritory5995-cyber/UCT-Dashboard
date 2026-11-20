@@ -691,6 +691,7 @@ def write_compact_map(path, m):
             pad = "\n" + " " * (depth + 1)
             return "[" + ",".join(pad + json.dumps(x, ensure_ascii=False, separators=(",", ":")) for x in v) + "\n" + " " * depth + "]"
         return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="\n") as f:
         f.write(enc(m, 0) + "\n")
