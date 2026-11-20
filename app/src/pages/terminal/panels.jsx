@@ -138,6 +138,8 @@ export const PANEL_IMPORTERS = {
   OiChange: () => import('./panels/OiChangePanel'),
   // TIDEH (2026-11-19): each finished session's Market Tide totals, from the store the server fills after the close
   TideHistory: () => import('./panels/TideHistoryPanel'),
+  // SEASB: the index funds and the sector funds, month by month (the market's SEAS).
+  SeasonalityBoard: () => import('./panels/SeasonalityBoardPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
