@@ -257,7 +257,7 @@ import popStyles from './mobile/ContextPopover.module.css'
 // "Doesn't match TradingView?" row. The dialog itself is lazy (`reportDoor.jsx`).
 import useReportsConfig from './chart/supportLoop/useReportsConfig'
 import { LazyReportMismatchDialog } from './chart/supportLoop/reportDoor'
-import { isPineOriginDoc } from './chart/engine/otherSymbols'
+import { isPineOriginDoc, sessionsSpanned, heldSessionsRung } from './chart/engine/otherSymbols'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useAutoStructuresScope, useSetupsPanelReleased } from './chart/autoStructuresGate'
@@ -5345,6 +5345,8 @@ export default function StockChart({
   const [lastBarOff, setLastBarOff] = useState(false)
   const lastBarOffRef = useRef(false)
   const barCountRef = useRef(0)
+  // ⭐⭐ (e91) the sessions the displayed bars span (`sessionsSpanned`, set where `barCountRef` is), for the held daily rows
+  const heldSessionsRef = useRef(0)
   // Identity guard so updateChart doesn't tear down + rebuild price lines on
   // every real-time tick. mergedPriceLines is useMemo'd, so when its deps
   // (priceLines prop, j2 markers) are stable across ticks the reference is
@@ -8762,14 +8764,21 @@ export default function StockChart({
   // rung (`heldSpanFor`), so a filling chart refetches a few times, never once per fill step.
   const [_heldLoaded, _setHeldLoaded] = useState(0)
   const _heldSpan = heldSpanFor(_heldLoaded, barCount)
+  // ⭐⭐ (e91, the e88 in-session capture) — AND THE SESSIONS THOSE BARS SPAN (`heldSessionsRef`, counted on the exchange
+  // calendar where the rows are bound), kept on a rung (`heldSessionsRung`), so the held daily rows reach the chart's first
+  // session: a count of bars / 78 held RDDT's regular-hours 5m chart 7 sessions short and its run was refused
+  const [_heldSessions, _setHeldSessions] = useState(0)
   useEffect(() => {
     const loaded = barCountRef.current
     if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
+    const rung = heldSessionsRung(heldSessionsRef.current)
+    if (rung !== _heldSessions) _setHeldSessions(rung)
   })
   // ⭐⭐ (2026-11-19, e83 live) — and the symbol BINDING the run is handed (`symbolMeta`), so the own-daily question
   // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta)
+    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta,
+    _heldSessions)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -10168,6 +10177,11 @@ export default function StockChart({
     return cs.heikinAshi ? toHeikinAshi(sessionAppliedBars) : sessionAppliedBars
   }, [sessionAppliedBars, cs.heikinAshi])
   barCountRef.current = displayBars?.length || 0
+  // ⭐⭐ (e91) the trading sessions the displayed bars span (0 for a daily chart's ISO dates), read by the held-sessions
+  // effect above; memoised on the first and newest bar times, so a render that moves neither recounts nothing
+  const _spanFirstT = displayBars?.length ? displayBars[0].t : null
+  const _spanLastT = displayBars?.length ? displayBars[displayBars.length - 1].t : null
+  heldSessionsRef.current = useMemo(() => sessionsSpanned(_spanFirstT, _spanLastT), [_spanFirstT, _spanLastT])
   // ⛔ The drawing overlay maps BY INDEX (future points `bars.length-1+futureBars`,
   // the nearestIndex→logicalToCoordinate fallback, toChart's logical→bar), so it must
   // see the exact array the candle series is built from — index-aligned with

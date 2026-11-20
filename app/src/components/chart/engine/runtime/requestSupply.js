@@ -390,7 +390,15 @@ function aboveChartRead(target, rows, ctx) {
     if (j < 0) withheld[i] = 1
     else index[i] = j
   }
-  return { runBars: daily, index, withheld, other }
+  // ⭐⭐ (e91, the e88 in-session capture) the first session these daily rows hold: a chart bar at or before it reads a
+  // session the rows do not reach (DEPTH, `runtimeRequestSupply`), never a hole in their history
+  // `depthEnd`: the first chart bar whose session (as THIS read assigns sessions, `sessionDaysOf`) lies after that one
+  let depthEnd = 0
+  if (days.length) {
+    depthEnd = dayOf.findIndex((d) => !!d && d > days[0])
+    if (depthEnd < 0) depthEnd = n
+  }
+  return { runBars: daily, index, withheld, other, heldFrom: days.length ? days[0] : null, depthEnd }
 }
 
 /** ⭐⭐ RS RATING L5 (d) — WHY A RUN'S REQUESTS CAN NOT BE SERVED ON ANY CHART, decided from
@@ -512,7 +520,8 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
         return out
       }
       if (read.refusal) return refuse(read.refusal)
-      aligned = { runBars: read.runBars, index: read.index, withheld: read.withheld }
+      aligned = { runBars: read.runBars, index: read.index, withheld: read.withheld, heldFrom: read.heldFrom,
+        depthEnd: read.depthEnd }
       other = read.other || 'this symbol\'s daily bars'
     }
     const code = aligned ? null : (target.code == null ? null : ladderCode(target.code))
@@ -579,13 +588,24 @@ export function runtimeRequestSupply(requests, rows, ctx = {}) {
     // ⭐⭐ (e85) WHERE EACH WITHHELD BAR LIES AGAINST THE SERIES AS HELD — before its first row (a DEPTH gap), after its
     // last (the chart's live TAIL: not arrived yet), or between them (a HOLE). Asked only of another symbol's series
     // (`srcBars`), and only where no chart-clock rule named the bar (`named`): those keep their own sentences.
-    const firstHeld = srcBars !== rows ? firstHeldTime(srcBars) : null
+    // ⭐⭐ (e91, the e88 in-session capture) — A DAILY READ ABOVE AN INTRADAY CHART HAS A FIRST SESSION TOO. ⚰️ CAPTURED
+    // (Fred RS on RDDT 5m regular hours, production engine 88, 14:46Z, the worker's own replies): the chart's 18,749 rows
+    // began 2025-10-21 09:30 ET, RDDT's own daily rows were held from 2025-10-30 (267 rows: sized at 78 bars a session,
+    // RDDT averages ~69), and `srcBars` is the chart's own rows for an above read, so no first-held time was known and every
+    // withheld bar was a "hole": the whole run refused ("`this symbol's daily bars` has no bar on 1761053400, after its
+    // history began") and the 5m pane stayed blank all session. A bar whose session is at or before the held rows' first
+    // session reads a session they do not reach: DEPTH (`knownFrom`: the run starts where every read is known), as another
+    // series' intraday depth is. A row missing INSIDE the held sessions keeps the hole's refusal.
+    const aboveFrom = aligned && typeof aligned.heldFrom === 'string' ? aligned.heldFrom : null
+    const aboveDepthEnd = aboveFrom !== null && Number.isInteger(aligned.depthEnd) ? aligned.depthEnd : -1
+    const firstHeld = srcBars !== rows ? firstHeldTime(srcBars) : aboveFrom
     const lastHeld = srcBars !== rows && !named.length && n ? lastHeldTime(srcBars, rows[n - 1] && rows[n - 1].t) : null
     // ⭐ (e85) the chart's LIVE tail: its newest bar is forming, or not known to be finished. A gap after the series' last
     // bar on a chart whose newest bar is finished is no wait: it is refused by name, and runs again on the series' update
     const live = !(ctx && ctx.newestBarIsForming === false)
     const placeOf = (i) => {
       const t = rows[i] && rows[i].t
+      if (aboveDepthEnd >= 0) return i < aboveDepthEnd ? 'depth' : 'hole'
       if (firstHeld !== null && typeof t === typeof firstHeld && t < firstHeld) return 'depth'
       if (lastHeld !== null && typeof t === typeof lastHeld && t > lastHeld) return 'tail'
       return 'hole'
