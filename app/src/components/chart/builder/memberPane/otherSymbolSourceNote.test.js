@@ -9,7 +9,7 @@
 //   2. BOTH member-door paths carry it (the host document and the runtime document), on the saved `meta.disclosures`;
 //   3. a script reading no other symbol carries none, and the chart's OWN symbol (`syminfo.tickerid`) never does;
 //   4. Fred RS carries it for its `SP:SPX` read.
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { memberPaneDefinition } from './memberPaneDefinition'
@@ -32,11 +32,14 @@ const saved = (built) => ((built.definition && built.definition.meta && built.de
   .filter((n) => n && n.note === OTHER_SYMBOL_SOURCE_NOTE(n.name))
 
 function runtimeLane(source) {
+  // the runtime pane's flags, as every door test that routes to the runtime lane stubs them (`fillAnchorDrawn.test.js`)
+  vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
+  vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
   __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests(); setRuntimeKillList([])
   return memberPaneDefinition({ source })
 }
 
-afterEach(() => { __resetRuntimePanePermission() })
+afterEach(() => { __resetRuntimePanePermission(); vi.unstubAllEnvs() })
 
 describe('1. the note: one per other symbol, the ruled sentence, named as spelled', () => {
   it('the sentence is the ruling, word for word', () => {
