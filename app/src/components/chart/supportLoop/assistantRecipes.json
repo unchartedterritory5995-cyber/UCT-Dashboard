@@ -726,6 +726,87 @@
     }
    },
    "served": true
+  },
+  {
+   "id": "average-cloud",
+   "title": "A shaded cloud between two exponential averages",
+   "asks": [
+    "ema cloud",
+    "ema clouds",
+    "cloud between two emas",
+    "shade between two moving averages",
+    "moving average cloud",
+    "shade the area between"
+   ],
+   "shows": "two plots kept in variables (`a = plot(...)`), both TITLED, and one `fill(a, b, ...)` between them whose colour says which average is on top; a fill between plots needs a script with no `var` in it",
+   "chart": "daily",
+   "source": "//@version=5\nindicator(\"Average cloud\", overlay=true)\nfastLen = input.int(8, \"Fast EMA\", minval=1)\nslowLen = input.int(21, \"Slow EMA\", minval=2)\nfast = ta.ema(close, fastLen)\nslow = ta.ema(close, slowLen)\na = plot(fast, \"Fast EMA\", color=color.teal)\nb = plot(slow, \"Slow EMA\", color=color.orange)\nfill(a, b, color=fast >= slow ? color.new(color.green, 80) : color.new(color.red, 80), title=\"Cloud\")\n",
+   "lane": "host",
+   "state": "runs",
+   "headline": "Runs on the chart and in alerts; screens and scans need a threshold",
+   "draws": false,
+   "runs": {
+    "fromListing": {
+     "ok": true,
+     "values": 1993
+    },
+    "offListing": {
+     "ok": true,
+     "values": 1993
+    }
+   },
+   "member": {
+    "fromListing": {
+     "forming": "runs",
+     "finished": "runs"
+    },
+    "offListing": {
+     "forming": "runs",
+     "finished": "runs"
+    }
+   },
+   "served": true
+  },
+  {
+   "id": "time-of-day-volume",
+   "title": "Volume so far today against the usual for this time of day",
+   "asks": [
+    "time of day volume",
+    "volume at the same time of day",
+    "same time of day",
+    "volume so far today",
+    "intraday relative volume",
+    "cumulative volume versus its average",
+    "relative volume at time"
+   ],
+   "shows": "today's running volume divided by the average, over the last N FINISHED days, of the running volume at the same bar of the day. Each finished day is one row of a flat array (`array.push` a fixed number of values per day, a short day padded with its own total; the oldest row trimmed with `array.shift` in a counted loop), today's row is rebuilt from `array.clear` at each day change, and nothing is drawn until N whole days are stored. The bars before the first day change may be part of a day and are never stored. An intraday chart only",
+   "chart": "intraday",
+   "source": "//@version=5\nindicator(\"Volume so far today against the usual\", overlay=false)\ndays = input.int(10, \"Days in the average\", minval=1, maxval=60)\nslots = input.int(100, \"Bars in a day, at most\", minval=1, maxval=500)\nnewDay = ta.change(dayofmonth) != 0\n// one row of `slots` values per finished day, oldest first: that day's volume so far at each bar of the day\nvar float[] past = array.new_float(0)\nvar float[] today = array.new_float(0)\nvar float soFar = 0.0\nvar int daysBegun = 0\nif newDay\n    // the bars before the first day change may be a part of a day: they are never stored\n    if daysBegun > 0 and array.size(today) > 0\n        full = array.last(today)\n        for i = 0 to slots - 1\n            array.push(past, i < array.size(today) ? array.get(today, i) : full)\n        if array.size(past) > days * slots\n            for i = 1 to slots\n                array.shift(past)\n    daysBegun += 1\n    array.clear(today)\n    soFar := 0.0\nsoFar += volume\narray.push(today, soFar)\nslot = array.size(today) - 1\nstored = array.size(past) / slots\nfloat usual = na\nif daysBegun > 0 and stored == days and slot < slots\n    total = 0.0\n    for d = 0 to days - 1\n        total += array.get(past, d * slots + slot)\n    usual := total / days\npct = usual > 0 ? soFar / usual * 100 : na\nplot(pct, \"Volume so far (% of usual)\", color=color.teal, linewidth=2)\nplot(100, \"Usual\", color=color.gray)\n",
+   "lane": "runtime",
+   "state": "runs-with-notes",
+   "headline": "Runs on the chart, with 1 note",
+   "draws": false,
+   "runs": {
+    "fromListing": {
+     "ok": true,
+     "values": 2262
+    },
+    "offListing": {
+     "ok": true,
+     "values": 2028
+    }
+   },
+   "member": {
+    "fromListing": {
+     "forming": "runs",
+     "finished": "runs"
+    },
+    "offListing": {
+     "forming": "runs",
+     "finished": "runs"
+    }
+   },
+   "served": true
   }
  ],
  "stops": [

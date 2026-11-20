@@ -33,6 +33,7 @@
  */
 
 import { HIST_PREFIX, handleHistory } from "./history.js";
+import { SEED_PREFIX_PATH, handleSeed } from "./seed.js";
 import { STREAM_BARS_PATH, handleStream } from "./stream.js";
 
 const BARS_ORIGIN = "https://bars-api-production-1052.up.railway.app";
@@ -308,6 +309,14 @@ export default {
     // IS enforced there, and nothing below this line changes for any other path.
     if (url.pathname.startsWith(HIST_PREFIX)) {
       return handleHistory(request, env, async (req) => {
+        const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
+        return cls === VALID || cls === SERVICE_VALID;
+      }, ctx);
+    }
+    // First-frame seed packs from R2 (seed.js): entitlement enforced, no origin asked. Reaches this Worker
+    // only once the `uctintelligence.com/api/seed/*` route exists (README, owner step).
+    if (url.pathname.startsWith(SEED_PREFIX_PATH)) {
+      return handleSeed(request, env, async (req) => {
         const cls = await classifyRequest(req, env && env.CHART_EDGE_SECRET);
         return cls === VALID || cls === SERVICE_VALID;
       }, ctx);
