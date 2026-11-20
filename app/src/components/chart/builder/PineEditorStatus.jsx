@@ -61,7 +61,7 @@ function paneThrew(e) {
   return { ok: false, reason: `the translator threw: ${String((e && e.message) || e)}`, guard: 'import:internal-error' }
 }
 
-/** ⭐⭐ THE PASTE WORKER (2026-11-20) — the chart door's answer as the page's SHARED, off-thread build hands it
+/** ⭐⭐ THE PASTE WORKER (2026-11-20): the chart door's answer as the page's SHARED, off-thread build hands it
  *  over (`memberPane/memberDoorAsync.js`): the very build the member pane draws from, so a paste costs ONE door
  *  call, not two (this panel called the door on the main thread a second time). `{source}` and
  *  `{source, id: MEMBER_PANE_DEF_PREFIX}` are one build: the door's id defaults to that prefix. */
@@ -417,7 +417,7 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
     && (report.dialect === 'pine' || report.faultDialect === 'pine'))
   // (`landed`: the admission answer for this script arrived after the pane was made; it is made again)
   const [landed, setLanded] = useState(0)
-  // ⭐⭐ THE PASTE WORKER — `paneFor` (the default) is the page's shared door build, off the main thread; a rail's
+  // ⭐⭐ THE PASTE WORKER: `paneFor` (the default) is the page's shared door build, off the main thread; a rail's
   // own `computePane` is still asked here, synchronously, as before
   const shared = computePane === paneFor
   const ownPane = useMemo(() => (isPine && !shared ? computePane(report, inspectedSource) : null),
@@ -441,7 +441,7 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
   // ⭐ beside the status, like the run: whether the answer is still out for a script the pane did not take, and why
   const admissionPending = !!(asked.pending && !(pane && pane.ok === true))
   const pendingReason = asked.reason
-  // ⭐ THE PASTE WORKER — while the chart door's build of this text runs, the panel says it is checking
+  // ⭐ THE PASTE WORKER: while the chart door's build of this text runs, the panel says it is checking
   // (`paneChecking`): nothing it would list or record yet is about the chart door's answer
   return useMemo(() => (status && (run || lostDrawings || admissionPending || pendingReason || paneChecking)
     ? { ...status, run, lostDrawings, ...(admissionPending ? { admissionPending: true } : {}), ...(pendingReason ? { pendingReason } : {}),

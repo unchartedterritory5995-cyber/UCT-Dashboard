@@ -102,11 +102,14 @@ describe('1. ONE door call per script and state', () => {
 
 describe('2. cancel-on-rebuild: never two builds racing, never a build nobody asked for', () => {
   it('⭐⭐ a newer script stops the running build; the stopped script, still wanted, is built after', async () => {
-    let inFlight = 0
+    // the builds alive when each job is posted: the held jobs of every worker not stopped, and this one
     let maxInFlight = 0
     const { factory, made } = fakeDoorWorkers(core, () => ({
       mode: 'hold',
-      onPost: () => { inFlight += 1; maxInFlight = Math.max(maxInFlight, inFlight - made.filter((w) => w.terminated).length) },
+      onPost: () => {
+        const live = made.filter((w) => !w.terminated).reduce((n, w) => n + w.held.length, 0) + 1
+        maxInFlight = Math.max(maxInFlight, live)
+      },
     }))
     const svc = createMemberDoorService({ factory })
     const a = []
@@ -253,17 +256,25 @@ describe('6. what the build did to the page is done on the page', () => {
   }, 120000)
 
   it('its warm of the runtime lane (a runtime-lane document) is made on the page', async () => {
+    // the first candidate the door draws on the runtime lane, warming it, on this thread (so the rail is not vacuous)
+    const candidates = [ADX, STOP_TAKE, corpus('twin-range-filter__xF3L2PeXm7.pine'), corpus('inside-bar-boxes__2f747d848b.pine'),
+      corpus('parabolic-sar__xoeoPMOWGJ.pine'), corpus('engulfingcandle__0df91dc775.pine')]
+    let source = null
+    for (const s of candidates) {
+      const before = runtimeLaneWarmAsks()
+      const main = memberPaneDefinition({ source: s, id: MEMBER_PANE_DEF_PREFIX })
+      if (main.ok && main.lane === 'runtime' && runtimeLaneWarmAsks() > before) { source = s; break }
+    }
+    expect(source, 'a runtime-lane script among the candidates').toBeTruthy()
     const { factory } = fakeDoorWorkers(core)
     const svc = createMemberDoorService({ factory })
-    const before = runtimeLaneWarmAsks()
     const got = []
-    const main = memberPaneDefinition({ source: ADX, id: MEMBER_PANE_DEF_PREFIX })
-    const asked = runtimeLaneWarmAsks() > before
     const mid = runtimeLaneWarmAsks()
-    const off = svc.subscribe({ source: ADX }, (l) => got.push(l))
+    const off = svc.subscribe({ source }, (l) => got.push(l))
     await until(() => got.length === 1)
-    expect(runtimeLaneWarmAsks() > mid, 'the page warmed the lane exactly when the door asks for it').toBe(asked)
-    expect(main.ok).toBe(true)
+    expect(got[0].built.lane).toBe('runtime')
+    // the worker's graph counts its own asks; only the page's warm moves THIS count
+    expect(runtimeLaneWarmAsks(), 'the page warmed the lane the door asked for').toBeGreaterThan(mid)
     off()
     svc.dispose()
   }, 120000)

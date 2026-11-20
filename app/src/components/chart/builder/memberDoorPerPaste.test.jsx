@@ -37,6 +37,7 @@ import { PINE_DEBOUNCE_MS } from './PineBox'
 import { CHECKING_TEXT } from './PineEditorStatus'
 import { AuthContext } from '../../../context/AuthContext'
 import { createMemberDoorService, __setMemberDoorServiceForTests } from './memberPane/memberDoorAsync'
+import { memberDoorStateVersion } from './memberPane/memberDoorImage'
 import * as core from './memberPane/memberDoorWorkerCore'
 import { FakeDoorWorker } from '../../../testing/builder/memberDoor.testkit.js'
 import * as engineRegistry from '../engine/nativeRegistry'
@@ -56,11 +57,18 @@ class CountingWorker extends FakeDoorWorker {
 }
 let made = []
 let svc = null
+let versions = []
 function useService(mode = 'answer') {
   made = []
-  svc = createMemberDoorService({ factory: () => { const w = new CountingWorker(core, { mode }); made.push(w); return w } })
+  versions = []
+  svc = createMemberDoorService({
+    factory: () => { const w = new CountingWorker(core, { mode }); made.push(w); return w },
+    version: () => { const v = memberDoorStateVersion(); versions.push(v); return v },
+  })
   __setMemberDoorServiceForTests(svc)
 }
+/** What the service was asked, for a failure's message: each job's script (length) and the state versions. */
+const asked = () => JSON.stringify({ jobs: made.map((w) => w.jobs.map((j) => `${j.args.id}:${j.args.source.length}`)), versions, stats: svc && svc.stats() })
 
 function stubFetch() {
   global.fetch = vi.fn(async (url, init = {}) => {
@@ -111,7 +119,7 @@ describe('⭐⭐ a paste costs ONE door call, in the worker, and none on the mai
     const before = { main: D.main, worker: D.worker }
     await paste(CLOUDS)
     expect(D.main - before.main, 'door calls on the MAIN thread during the paste').toBe(0)
-    expect(D.worker - before.worker, 'door calls in the worker during the paste').toBe(1)
+    expect(D.worker - before.worker, `door calls in the worker during the paste ${asked()}`).toBe(1)
     expect(svc.stats().posted, 'jobs posted to a worker').toBe(1)
     // the pane drew the answer, and the status panel is no longer checking: it read the same build
     expect(screen.queryByTestId('pine-member-pane') || screen.queryByTestId('pine-member-pane-refusal')).toBeTruthy()
@@ -125,7 +133,14 @@ describe('⭐ the pane while a build runs: it says so, keeps its picture, and it
   it('the first build: "checking", then the pane; a newer text: the old pane stays, Add disabled, then the new one', async () => {
     useService('hold')
     const onAttach = vi.fn(async () => ({ ok: true }))
-    const view = render(<MemberPane sym="SPY" tf="D" source={VOLUME2} onAttach={onAttach} />)
+    const wrap = (src) => (
+      <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
+          <MemberPane sym="SPY" tf="D" source={src} onAttach={onAttach} />
+        </SWRConfig>
+      </AuthContext.Provider>
+    )
+    const view = render(wrap(VOLUME2))
     await flush()
     expect(screen.getByTestId('pine-member-pane-building').textContent).toBe(CHECKING_TEXT)
     expect(screen.queryByTestId('pine-member-pane')).toBe(null)
@@ -133,7 +148,7 @@ describe('⭐ the pane while a build runs: it says so, keeps its picture, and it
     await flush()
     expect(screen.queryByTestId('pine-member-pane-building')).toBe(null)
     expect(screen.getByTestId('pine-member-pane')).toBeTruthy()
-    view.rerender(<MemberPane sym="SPY" tf="D" source={`${VOLUME2}\n// edited`} onAttach={onAttach} />)
+    view.rerender(wrap(`${VOLUME2}\n// edited`))
     await flush()
     expect(screen.getByTestId('pine-member-pane-building')).toBeTruthy()
     expect(screen.getByTestId('pine-member-pane'), 'the picture it drew stays while the newer one builds').toBeTruthy()
@@ -143,5 +158,10 @@ describe('⭐ the pane while a build runs: it says so, keeps its picture, and it
     await flush()
     expect(screen.queryByTestId('pine-member-pane-building')).toBe(null)
     expect(screen.getByTestId('pine-member-pane-attach').querySelector('button').disabled).toBe(false)
+    // ⛔ the old text is nobody's now: it is never built again, and nothing of it reaches the pane
+    await act(async () => { for (const w of made) w.release() })
+    await flush()
+    expect(svc.stats().posted, 'two builds: the first text, then the edited one').toBe(2)
+    expect(screen.queryByTestId('pine-member-pane-building')).toBe(null)
   }, 120000)
 })

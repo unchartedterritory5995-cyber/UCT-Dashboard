@@ -97,7 +97,6 @@ export function libraryLicenceProblem(entry) {
  *  remembered as UNSERVABLE, by name. */
 export function registerPineLibrary(entry) {
   if (!entry || typeof entry !== 'object') return null
-  revision += 1
   const path = String(entry.path || '')
   if (!IMPORT_PATH.test(path) || typeof entry.source !== 'string' || !entry.source) return null
   if (!entry.licence) return null
@@ -105,6 +104,7 @@ export function registerPineLibrary(entry) {
   if (denied) {
     unservable.set(path, { reason: denied, code: 'denied' })
     entries.delete(path)
+    revision += 1
     return null
   }
   const licence = libraryLicenceProblem(entry)
@@ -112,6 +112,7 @@ export function registerPineLibrary(entry) {
   if (problem) {
     unservable.set(path, { reason: problem, code: licence ? 'licence' : 'no-sha' })
     entries.delete(path)
+    revision += 1
     return null
   }
   const stored = Object.freeze({
@@ -125,6 +126,7 @@ export function registerPineLibrary(entry) {
   })
   unservable.delete(path)
   entries.set(path, stored)
+  revision += 1
   return stored
 }
 
