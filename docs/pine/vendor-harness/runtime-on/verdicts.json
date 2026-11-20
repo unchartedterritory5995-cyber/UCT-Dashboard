@@ -30043,7 +30043,7 @@
    "notCompared": [],
    "notMeasured": [],
    "verdict": "INCONCLUSIVE",
-   "reason": "refused on our side: member door refused (pine:statement) [runtime declined: runtime:object-op]: this Pine line is not a shape the translator reads (reached through `l_0236`)",
+   "reason": "refused on our side: member door refused (pine:statement) [runtime declined: runtime:statement]: this Pine line is not a shape the translator reads (reached through `l_0236`)",
    "ourNotes": []
   },
   {
