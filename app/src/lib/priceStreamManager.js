@@ -28,6 +28,7 @@
 // (getLastResume) and changes nothing else.
 
 import { registerRecoveryStream } from './recoveryRegistry'
+import { rebuildDelay } from './streamRebuildDelay'
 import * as realtimeCandle from './realtimeCandle'
 import {
   STREAM_WATCHDOG_MS, STREAM_WATCHDOG_TICK_MS, STREAM_RECONNECT_CAP_MS, LIVE_UI_CADENCE_MS,
@@ -44,6 +45,7 @@ let _lastResume = null          // the newest `event: resume` declaration, with 
 let _streamPrices = {}
 let _staleSymbols = new Set()
 let _rebuildTimer = null
+let _lastRebuildAt = -Infinity   // Date.now() of the last reconnect (streamRebuildDelay.js)
 let _watchdogTimer = null
 let _snapshot = { prices: {}, staleSymbols: new Set(), connected: false }
 
@@ -112,11 +114,12 @@ function _union() {
 
 function _scheduleRebuild() {
   if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, REBUILD_DEBOUNCE_MS)
+  _rebuildTimer = setTimeout(_rebuild, rebuildDelay(_lastRebuildAt, Date.now(), REBUILD_DEBOUNCE_MS))
 }
 
 function _rebuild() {
   _rebuildTimer = null
+  _lastRebuildAt = Date.now()
   const union = _union()
   const chunks = []
   for (let i = 0; i < union.length; i += MAX_SSE_TICKERS) {
@@ -339,6 +342,7 @@ registerRecoveryStream({ name: 'prices', reconnectNow, isConnected })
 
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
+  _lastRebuildAt = -Infinity
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
   if (_throttleTimer) { clearTimeout(_throttleTimer); _throttleTimer = null }
   _pendingPublish = false

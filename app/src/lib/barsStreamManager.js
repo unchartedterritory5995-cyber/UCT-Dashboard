@@ -28,6 +28,7 @@
 // onReconnect gap-backfill is unchanged.
 
 import { registerRecoveryStream } from './recoveryRegistry'
+import { rebuildDelay } from './streamRebuildDelay'
 import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
@@ -61,6 +62,7 @@ let _buckets = []               // [{ key, pairs:Set<string>, es, connected, ret
 const _keyState = new Map()     // 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number }
 let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _rebuildTimer = null
+let _lastRebuildAt = -Infinity   // Date.now() of the last reconnect (streamRebuildDelay.js)
 let _watchdogTimer = null
 // ⭐ KEEP THE EDGE ENTITLEMENT FRESH WHILE A LIVE CHART IS OPEN (2026-11-17, stream-edge).
 // `/api/stream/bars` may be served by stream-edge, which admits a member by the signed
@@ -207,11 +209,12 @@ function _union() {
 
 function _scheduleRebuild() {
   if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, REBUILD_DEBOUNCE_MS)
+  _rebuildTimer = setTimeout(_rebuild, rebuildDelay(_lastRebuildAt, Date.now(), REBUILD_DEBOUNCE_MS))
 }
 
 function _rebuild() {
   _rebuildTimer = null
+  _lastRebuildAt = Date.now()
   const union = _union()
   const chunks = []
   for (const sess of ['rth', 'eth']) {
@@ -438,6 +441,7 @@ registerRecoveryStream({ name: 'bars', reconnectNow, isConnected })
 
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
+  _lastRebuildAt = -Infinity
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
   if (_edgeRefreshTimer) { clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null }
   if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }
