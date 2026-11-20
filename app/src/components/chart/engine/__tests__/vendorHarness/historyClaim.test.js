@@ -9,6 +9,7 @@ import path from 'node:path'
 import { loadCapture, gradeCapture, REPO } from './harness'
 import { validateCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { runOurSide } from './ourSide'
+import { parent, joinedFromListing } from './c38Joined'
 import {
   startsAtBar0Holds, startsAtBar0Refuted, barIndexControlRow,
 } from '../../../../../../../tools/vendor_harness/history_claim.mjs'
@@ -45,11 +46,26 @@ describe('the claim as the graders read it', () => {
     expect(startsAtBar0Refuted(cap)).toBeNull()
     expect(startsAtBar0Holds(cap)).toBe(false)
   })
-  it('a row that starts at 0 but skips a bar is refuted at the bar it skips', () => {
+  it("CONTROL: a capture JOINED onto the listing (its rows only for its window) holds: the row is read at ITS bar's position", () => {
+    // ⚰️ the first version held each value to its ROW number, and refuted every joined capture (c29, c38, c45 went red)
+    const j = joinedFromListing(parent('vw-ne-na-spy-1d-2026-09-30'), { control: 'Q00_bar_index_CONTROL', id: 'claim' })
+    const row = barIndexControlRow(j)
+    expect(row.values[0]).toBeGreaterThan(1000)                  // the window's first row is deep in the listing's history
+    expect(j.bars.rows.length).toBeGreaterThan(row.values.length)
+    expect(startsAtBar0Refuted(j)).toBeNull()
+    expect(startsAtBar0Holds(j)).toBe(true)
+  })
+  it('the claim is read where the row BEGINS: a first value off by one is refuted there', () => {
+    const cap = JSON.parse(JSON.stringify(fixture(NVI_FULL)))
+    const at = cap.plotValues.fields.indexOf(barIndexControlRow(cap).id)
+    cap.plotValues.rows[0][at] = 1
+    expect(startsAtBar0Refuted(cap)).toMatch(/reads 1 on its bar 0/)
+  })
+  it('CONTROL: a row that starts at 0 and is off LATER is not refuted (that number is graded DIVERGE: C45)', () => {
     const cap = JSON.parse(JSON.stringify(fixture(NVI_FULL)))
     const at = cap.plotValues.fields.indexOf(barIndexControlRow(cap).id)
     cap.plotValues.rows[5][at] = 6
-    expect(startsAtBar0Refuted(cap)).toMatch(/reads 6 on its bar 5/)
+    expect(startsAtBar0Refuted(cap)).toBeNull()
   })
 })
 
