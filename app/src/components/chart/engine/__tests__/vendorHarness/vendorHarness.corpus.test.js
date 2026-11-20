@@ -59,7 +59,7 @@ import {
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
 import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
-import { storeHeldOf, libraryStorePins } from './storeHeld.js'
+import { storeHeldOf, libraryStorePins, supplyHeldOf, supplyHeldStorePins } from './storeHeld.js'
 import { fixturePath } from '../../ast/__tests__/licenceHeld'
 import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } from './strategyLane.js'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
@@ -164,7 +164,18 @@ const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
 // ⭐ STORE-HELD ROWS (coordinator ruling 2026-11-19): with a store loaded, every row whose script reaches a loaded
 // version records which (`storeHeld`: `path@sha256`, `./storeHeld.js`), so a run without the store skips exactly
 // those rows by name (`tools/vendor_harness/store_held.py`). Only a file that holds `import ` at all is re-read.
+// ⭐⭐ and SUPPLY-HELD ROWS (2026-11-19, the same rule): a row graded with a HELD supply record (a local record never
+// committed, `ourSide.recordedSupplyFileOf`) records it (`supplyHeld`: `supply/<id>@sha256`), and the run names the
+// held records it could read (`supplyHeldStore`), so a run without them names that row "supply-held" by name.
+const SUPPLY_HELD_LOADED = supplyHeldStorePins()
 function markStoreHeld(results) {
+  const supplied = results.map((r) => {
+    const pins = supplyHeldOf(r.id)
+    return pins.length ? { ...r, supplyHeld: pins } : r
+  })
+  return markLibraryHeld(supplied)
+}
+function markLibraryHeld(results) {
   if (!LIBRARIES_LOADED.length) return results
   return results.map((r) => {
     // a licence-held capture is read where it lives now (the local capture store), as the harness read it
@@ -226,6 +237,7 @@ describe('the vendor harness over the captures on disk', () => {
         lane,
         laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence, strategy: strategyEvidence },
         ...(LIBRARIES_LOADED.length ? { libraryStore: libraryStorePins(LIBRARIES_LOADED) } : {}),
+        ...(SUPPLY_HELD_LOADED.length ? { supplyHeldStore: SUPPLY_HELD_LOADED } : {}),
         results: markStoreHeld(run.results),
         inventory: run.inventory,
       }, null, 1) + '\n')

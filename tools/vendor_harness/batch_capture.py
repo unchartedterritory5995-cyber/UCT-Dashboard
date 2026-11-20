@@ -118,6 +118,43 @@ MIN_THROTTLE_S = 10.0
 PROVENANCE_SALT_ENV = "UCT_PROVENANCE_SALT"
 MIN_SALT_CHARS = 16
 
+#: ⭐⭐ THE CONTROL PLOT a probe draws its own `bar_index` in (`I00_bar_index_CONTROL`, `F00_bar_index_CONTROL`, or a
+#: plot titled `bar_index`). ⛔ Never a request's bar_index (`F12_W_bar_index_OFF` reads ANOTHER timeframe's index).
+BAR_INDEX_CONTROL_RX = re.compile(r"(?:^|_)bar_index_CONTROL$|^bar_index$")
+
+
+def starts_at_bar0_contradiction(capture: dict, symbol: str):
+    """⭐⭐ (coordinator, 2026-11-19) Why the capture's OWN data refutes its `history.startsAtBar0` claim, or None. A capture
+    that does not claim it is never refuted. Refuted when:
+      1. the claim's `why` names a symbol that is not the chart's (`symbol.pro_name`), or the batch asserted it for
+         another symbol (`symbol`): the 2026-09-27 wave wrote RDDT's listing on SPY / AAPL charts;
+      2. a bar_index CONTROL plot reads anything but 0 on the capture's first row (vw-int-cast-spy-1d-2026-09-27 read
+         8172 there: its history starts deep, not at bar 0)."""
+    hist = (capture or {}).get("history") or {}
+    if hist.get("startsAtBar0") is not True:
+        return None
+    sym = (capture.get("symbol") or {})
+    pro = sym.get("pro_name") or sym.get("full_name") or ""
+    if symbol and pro and not sym_match(pro, symbol):
+        return f"it was asserted for {symbol}, and the chart is {pro}"
+    why = str(hist.get("why") or "")
+    named = re.match(r"\s*([A-Z0-9_.!]+:[A-Z0-9_.!]+)\s+listed\b", why)
+    if named and pro and not sym_match(pro, named.group(1)):
+        return f"its why names {named.group(1)}, and the chart is {pro}: {why[:120]!r}"
+    plots = {p.get("id"): p.get("title") for p in ((capture.get("study") or {}).get("plots") or []) if isinstance(p, dict)}
+    pv = capture.get("plotValues") or {}
+    fields, rows = pv.get("fields") or [], pv.get("rows") or []
+    if rows and fields:
+        for col, pid in enumerate(fields):
+            title = plots.get(pid)
+            if not title or not BAR_INDEX_CONTROL_RX.search(str(title)):
+                continue
+            first = rows[0][col] if col < len(rows[0]) else None
+            if isinstance(first, (int, float)) and first != 0:
+                return f"its bar_index control plot {title!r} reads {first:g} on the capture's first row, not 0"
+    return None
+
+
 #: Listing days this tool may assert `startsAtBar0` against. A young listing is
 #: the instrument (capture-procedure.md, "BAR 0 IS NOT REACHABLE ON A LONG-HISTORY
 #: SYMBOL"): the flag is asserted ONLY when the loaded history stopped growing AND
@@ -357,6 +394,61 @@ def clean_save_refusal(state: dict, original: dict):
     if res_norm(st.get("resolution")) != res_norm((original or {}).get("resolution")):
         return f"the resolution reads {st.get('resolution')!r}, not {(original or {}).get('resolution')!r}"
     return None
+
+
+#: ⭐⭐ ONE SETTLED READ OF THE RIG (coordinator ruling, 2026-11-19): the one definition of what a fresh load READS,
+#: for every clean-check (`Driver.verify_fresh_load`, which the batch end, the repair's verify-before and the guarded
+#: clean-save's verify-after all call, and the scratchpad end-of-batch rail `rig_verify.py`).
+#: ⚰️ THE CONTRADICTION IT ENDS (2026-11-19, 03:07Z and again 21:31Z): run htfform-c's verify_fresh_load took the first
+#: read where the chart handle answered (0 studies) and called the layout clean, so the guarded clean-save never ran;
+#: the end-of-batch rail's new launch, a few seconds later, read the saved leftover UCTPROBE_RS_SEED_RSRATING. The
+#: next batch (nhdot) read it on its own fresh load and repaired it. A handle that answers is not a layout that has
+#: finished attaching its studies: an empty list read too early is not "clean".
+#: A read counts once the handle answers with a studies list and a symbol; the state is SETTLED when (symbol,
+#: resolution, study ids) is unchanged for `RIG_SETTLE_S` straight. Never settled inside `RIG_SETTLE_MAX_S`: NOT
+#: READ, which no caller may report as clean.
+#: ⛔ RIG_SETTLE_S is a CHOICE, not a measured bound: the read-only measurement of 2026-11-19 22:02Z found the layout
+#: already clean (0 studies for 30 s on a new launch and on a reload), so no attach time was measured. Every settled read
+#: records when its state last changed (`lastChangeS`, `changes`), so the ledger measures it from here on.
+RIG_SETTLE_S = 10.0
+RIG_SETTLE_MAX_S = 90.0
+
+
+def rig_state_key(st):
+    """What a settled read compares: the symbol, the resolution and the study ids, in order. None until it counts."""
+    if not st or st.get("handle") is None or st.get("studies") is None or not st.get("symbol"):
+        return None
+    return (st.get("symbol"), str(st.get("resolution")), tuple(str(s.get("id")) for s in st.get("studies") or []))
+
+
+def settled_rig_read(read, clock, poll_s, settle_s=RIG_SETTLE_S, max_s=RIG_SETTLE_MAX_S) -> dict:
+    """⭐⭐ THE settled read (see RIG_SETTLE_S). `read()` returns the page's STATE_JS answer; `clock` has `monotonic()`
+    and `sleep()`. Returns {"state", "settled", "waitedS", "answeredS", "lastChangeS", "changes"}: `changes` is every
+    distinct state seen, with the second it was first seen, so a study that attaches late is on the record."""
+    t0 = clock.monotonic()
+    last_key, since, answered, st = None, None, None, None
+    changes = []
+    while True:
+        st = read()
+        now = clock.monotonic() - t0
+        key = rig_state_key(st)
+        if key is not None:
+            if answered is None:
+                answered = now
+            if key != last_key:
+                last_key, since = key, now
+                changes.append({"atS": round(now, 2), "symbol": key[0], "resolution": key[1],
+                                "studies": [s.get("name") for s in (st.get("studies") or [])]})
+            elif now - since >= settle_s:
+                return {"state": st, "settled": True, "waitedS": round(now, 2), "answeredS": round(answered, 2),
+                        "lastChangeS": round(since, 2), "changes": changes}
+        if now >= max_s:
+            return {"state": st, "settled": False, "waitedS": round(now, 2),
+                    "answeredS": None if answered is None else round(answered, 2),
+                    "lastChangeS": None if since is None else round(since, 2), "changes": changes}
+        clock.sleep(poll_s)
+
+
 VH_CLEANUP_JS = "() => (window.__uctVH ? window.__uctVH.cleanup() : { globalsLeft: [], absent: true })"
 GLOBALS_JS = "() => Object.keys(window).filter((k) => /^__uct/.test(k))"
 
@@ -601,6 +693,9 @@ class Opts:
         self.date = kw.get("date") or _dt.datetime.now().strftime("%Y-%m-%d")
         # ⭐ the guarded clean-save (`Driver.guarded_clean_save`): OFF unless the run asks for it
         self.clean_save = bool(kw.get("clean_save", False))
+        # ⭐⭐ the settled read of the rig (`settled_rig_read`): how long its state must hold still, and the most it waits
+        self.rig_settle_s = float(kw.get("rig_settle_s", RIG_SETTLE_S))
+        self.rig_settle_max_s = float(kw.get("rig_settle_max_s", RIG_SETTLE_MAX_S))
 
 
 class Driver:
@@ -664,18 +759,19 @@ class Driver:
         ⚰️ MEASURED 2026-11-18: run l12-is-2026-11-18's last probe (UCTPROBE_RS_OWN_DAILY_INTRADAY, RDDT 5m) was removed
         and verified gone in the page, the batch restored 1D, and a fresh load read the probe on 5m: the layout had
         saved it at the add. The next batch (Q-FCMP3) stopped at its gate, and the owner's layout carried it until it
-        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`)."""
+        was cleared by hand. ⛔ Read only: it never removes or sets anything (the only repair is `guarded_clean_save`).
+        ⭐⭐ The read is THE settled read (`settled_rig_read`): the first answer is not the layout (2026-11-19, htfform-c)."""
         self.page.reload(wait_until="domcontentloaded")
-        st, ok = self.poll("verify:state", STATE_JS, None,
-                           lambda s: bool(s and s.get("handle") is not None and s.get("studies") is not None and s.get("symbol")),
-                           max(self.opts.ui_timeout_s * 6, 30))
-        st = st or {}
-        studies = [{"id": s.get("id"), "name": s.get("name")} for s in (st.get("studies") or [])]
+        s = settled_rig_read(lambda: self.ev("verify:state", STATE_JS), self.clock, self.opts.poll_s,
+                             self.opts.rig_settle_s, self.opts.rig_settle_max_s)
+        st, ok = s["state"] or {}, s["settled"]
+        studies = [{"id": x.get("id"), "name": x.get("name")} for x in (st.get("studies") or [])]
         want = {"symbol": original.get("symbol"), "resolution": original.get("resolution")}
         got = {"symbol": st.get("symbol"), "resolution": st.get("resolution")}
         clean = (ok and not studies and sym_match(got["symbol"], want["symbol"])
                  and res_norm(got["resolution"]) == res_norm(want["resolution"]))
-        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got}
+        return {"ok": bool(clean), "read": bool(ok), "studies": studies, "want": want, "got": got,
+                "settle": {k: s[k] for k in ("waitedS", "answeredS", "lastChangeS", "changes")}}
 
     def guarded_clean_save(self, original, label="repair") -> dict:
         """⭐⭐ THE GUARDED CLEAN-SAVE (owner ruling, delegated to the coordinator, 2026-11-19: "Save only through the
@@ -921,6 +1017,9 @@ class Driver:
             return False, f"no listing date is known for {o.symbol} — not asserted (first bar {first_day})"
         if first_day != o.listing_date:
             return False, f"first loaded bar {first_day} is not the listing day {o.listing_date} — not asserted"
+        # ⭐ the claim names the symbol it was derived FOR; `starts_at_bar0_contradiction` refuses a capture whose own
+        # symbol is another (2026-11-19: 17 captures of the 2026-09-27 wave carried "NYSE:RDDT listed 2024-03-21" on SPY,
+        # AAPL and other charts, 12 of them false by their own bar_index rows)
         return True, (f"{o.symbol} listed {o.listing_date}; the chart's first bar is the listing day after "
                       f"requestMoreData stopped growing ({depth.get('count')} bars, batch_capture.py)")
 
@@ -1020,6 +1119,11 @@ class Driver:
         back = self.verifier.verify_file(out)
         if not back["ok"]:
             raise Inconclusive(f"the written capture does not re-verify (exit {back['exit']}): {back['tail']}", back)
+        # ⭐⭐ A CLAIM THE CAPTURE'S OWN DATA REFUTES IS REFUSED HERE, never written as evidence (coordinator, 2026-11-19)
+        contra = starts_at_bar0_contradiction(json.loads(out.read_text(encoding="utf-8")), o.symbol)
+        if contra:
+            out.unlink()
+            raise Inconclusive(f"startsAtBar0 refused at capture time: {contra}")
         return {"capture": str(out), "captureId": capture_id, "verify": {"exit": v["exit"], "verdict": v["verdict"]},
                 "summary": {k: summary.get(k) for k in ("study", "symbol", "timeframe", "bars", "studyRows",
                                                         "plots", "objects", "warnings", "chars", "chunks")},
