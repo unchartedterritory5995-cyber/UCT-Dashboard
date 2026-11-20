@@ -146,7 +146,7 @@ describe('the scan channel', () => {
     expect(scanNeighborsFor('nope')).toEqual([])
   })
 
-  it('the switch is the stored value "1" and nothing else', () => {
+  it('the switch is ON by default; only the stored value "0" turns it off', () => {
     __setNeighborFramesForTests(null)
     try { localStorage.setItem(NEIGHBOR_FRAMES_KEY, '0') } catch { /* */ }
     expect(neighborFramesOn()).toBe(false)
@@ -155,6 +155,10 @@ describe('the scan channel', () => {
     expect(neighborFramesOn()).toBe(true)
     __setNeighborFramesForTests(null)
     try { localStorage.removeItem(NEIGHBOR_FRAMES_KEY) } catch { /* */ }
-    expect(neighborFramesOn()).toBe(false)
+    expect(neighborFramesOn()).toBe(true)
+    __setNeighborFramesForTests(null)
+    try { localStorage.setItem(NEIGHBOR_FRAMES_KEY, 'yes') } catch { /* */ }
+    expect(neighborFramesOn()).toBe(true)
+    try { localStorage.removeItem(NEIGHBOR_FRAMES_KEY) } catch { /* */ }
   })
 })
