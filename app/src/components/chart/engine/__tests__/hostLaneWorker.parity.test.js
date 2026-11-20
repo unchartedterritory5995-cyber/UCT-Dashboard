@@ -40,9 +40,7 @@ import {
 import { __setHostLaneCostClockForTests } from '../hostLaneRoute'
 import { hostObjectRun, hostObjectReaderOpts } from '../hostObjects'
 import { standInWorkers, firstDifference } from './hostLaneStandIn'
-import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from '../runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList } from '../runtimeKill'
-import { __resetHostKnownDivergence, __ignoreHostKnownDivergenceForTests } from '../hostKnownDivergence'
+import { asMember } from '../../../../testing/runtimeGate'
 
 const REPO = path.resolve(process.cwd(), '..')
 const N = Number(process.env.HOST_WORKER_PARITY_BARS || 600)
@@ -73,9 +71,6 @@ let workers
 beforeAll(() => {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '0')
-  __resetRuntimePanePermission()
-  __resetRuntimeAllowList()
-  __resetHostKnownDivergence()
   resetHostLaneAsync()
   __routeEveryHostDocumentForTests(true)
 })
@@ -85,10 +80,11 @@ afterAll(() => {
   resetHostLaneAsync()
   __setHostLaneCostClockForTests(null)
   vi.unstubAllEnvs()
-  __ignoreHostKnownDivergenceForTests()
-  __permitRuntimePaneForTests()
-  __allowEveryRuntimeScriptForTests()
 })
+// ⛔ The member's doors in a beforeEach, never a beforeAll: the test grant re-opens them before every
+// test (`src/testing/runtimeGate.js`), so a beforeAll narrowing here ran every test under the grant
+// (test-grant census, 2026-11-19; it measured green with the grant off too).
+asMember({ allow: true, pane: true, hkd: true })
 
 const corpus = path.join(REPO, 'corpus', 'committed')
 const FILES = fs.readdirSync(corpus).filter((f) => f.endsWith('.pine')).sort()

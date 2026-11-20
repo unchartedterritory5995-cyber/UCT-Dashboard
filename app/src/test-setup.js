@@ -29,11 +29,10 @@ import { configure } from '@testing-library/react'
 // the waitFor error deterministic, which is what you actually read at 2am.
 // The ceiling still dwarfs the 250ms debounce that motivated it.
 configure({ asyncUtilTimeout: 4000 })
-import { beforeEach, vi } from 'vitest'
+import { beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
-import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
 import { __ignoreHostKnownDivergenceForTests } from './components/chart/engine/hostKnownDivergence'
+import { grantRuntimeGate, gateState, gateNarrowedOutsideTest } from './testing/runtimeGate'
 // ⭐ W5-T2 — as in the app, where the registry imports it: the lower-timeframe gate is
 // registered at the door (`lowerTfServing.js`), so a suite that stubs its flag still flips it.
 import './components/chart/engine/lowerTfGate.js'
@@ -55,12 +54,32 @@ import { __setBenchmarkTailFetcherForTests } from './components/chart/engine/liv
 // the census applies the list in its predicate. ⛔ The doors themselves are railed with it reset, in
 // `components/chart/engine/hostKnownDivergence.test.js`. Also at load: a suite that measures while it is
 // COLLECTED (module scope, before any `beforeEach`) measures the engine too.
+// ── ⛔⛔ GATE-BLIND (test-grant census, 2026-11-19): the grant is re-applied before EVERY test, so a
+// suite that narrowed these doors once, in `beforeAll`, ran every "member" assertion under the grant
+// (three suites did; one hid 31 red cases). Before it re-grants, the hook below asks whether a hook
+// OUTSIDE any test moved the gate away from the grant since the last test ended, and if so fails this
+// test by name instead of silently undoing it. A suite tests the member's doors with
+// `asMember({...})` (a `beforeEach`), or inside a test body. Module / describe-body narrowing runs
+// before every hook, so it is railed statically (`testing/runtimeGateScope.rail.test.js`).
+// The decision is `testing/runtimeGate.js::gateNarrowedOutsideTest`, railed in `runtimeGate.test.js`.
 __ignoreHostKnownDivergenceForTests()
-beforeEach(() => {
-  __permitRuntimePaneForTests()
-  __allowEveryRuntimeScriptForTests()
-  __ignoreHostKnownDivergenceForTests()
+let __gateGranted = null
+let __gateAfter = null
+beforeAll(() => {
+  grantRuntimeGate()
+  __gateGranted = gateState()
+  __gateAfter = __gateGranted
 })
+beforeEach(() => {
+  const now = gateState()
+  const blind = gateNarrowedOutsideTest({ granted: __gateGranted, after: __gateAfter, now })
+  __gateAfter = now
+  if (blind) throw new Error(blind)
+  grantRuntimeGate()
+})
+// ⚠️ After-hooks run in STACK order, so this root one runs LAST: it reads the gate as the test and
+// every after-hook of its file left it.
+afterEach(() => { __gateAfter = gateState() })
 
 // ── 2026-10-06: the shared research fetchers re-ask a transient first failure once, after a
 // pause (utils/warmRetry.js: a cold pod after a deploy is not a failed read). The suites
