@@ -1,5 +1,5 @@
 {
-  "fingerprint": "pipeline:master -> production=20 master commits not promoted yet (oldest landed 2 h ago): more than 60 min outside any hold and checks are still running|tests:nightly NEW failures=run 44568753938 found 58 NEW failures against the previous valid master run",
-  "posted_at": "2026-11-20T09:26:59.358249+00:00",
+  "fingerprint": "tests:nightly NEW failures=run 44568753938 found 58 NEW failures against the previous valid master run",
+  "posted_at": "2026-11-20T09:48:35.168093+00:00",
   "reason": "new stuck item"
 }
