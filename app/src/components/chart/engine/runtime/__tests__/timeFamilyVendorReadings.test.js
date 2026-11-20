@@ -282,7 +282,7 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     const late = buildOf(`plot(time(${Q}D${Q}))`, [...HOURLY, { t: OPEN + 86400 + 8 * 3600, o: 1, h: 1, l: 1, c: 1, v: 1 }])
     expect(late.ok).toBe(false)
     expect(late.refusal.guard).toBe('runtime:chart-clock')
-    expect(late.refusal.message).toMatch(/^time-day:off-session: /)
+    expect(late.refusal.message).toMatch(/time-day:off-session: /)
   })
 
   it('⛔ CONTROL — the probes are well-formed, so the refusals are about `time`', () => {

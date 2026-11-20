@@ -411,7 +411,8 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # 288 -> 289 (2026-11-14, engine 56 A3): `boolNaWithheld`; the bar half moved 139 -> 140,
     # the scalar half is untouched at 149; this is their sum.
     # 289 -> 290 (2026-11-14, engine 56 S1): `tieNewest`; the bar half moved 140 -> 141.
-    assert len(declared) == 297, f"the table declares {len(declared)} names, not 297"
+    # (2026-11-19, U-BUILTIN B3) 297 -> 298: `asin`.
+    assert len(declared) == 298, f"the table declares {len(declared)} names, not 298"
     # +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     # +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)

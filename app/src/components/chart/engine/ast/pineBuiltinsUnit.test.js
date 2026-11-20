@@ -248,7 +248,8 @@ describe('B3 — math.asin is Math.asin, na outside [-1, 1] (the reference sente
 const programOf = (body, opts = {}) => {
   const b = buildRuntimeIr(V(6, body), { bars: [], inputs: {}, newestBarIsForming: false, ...opts })
   expect(b.ok, b.ok ? '' : `${b.refusal.guard}: ${b.refusal.message}`).toBe(true)
-  return JSON.stringify(b.ir.statements)
+  // a statement's source position (`site`) is where it was written, not what it does
+  return JSON.stringify(b.ir.statements, (k, v) => (k === 'site' ? undefined : v))
 }
 const DRAW = { objectsInRun: true }
 
