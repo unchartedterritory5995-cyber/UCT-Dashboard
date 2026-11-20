@@ -296,6 +296,35 @@ async def _lifespan(app: FastAPI):
     yield
 
 
+# -- currency pairs (Bitcoin, 2026-11-19): this tier hands them to the web pod ----------
+# A pair (`BTCUSD`) is served by the WEB pod only (`api/crypto_bars.py`, behind
+# `CRYPTO_BARS_ENABLED` and the member check). This tier has no member identity and holds
+# no pair series, and the edge Worker sends `/api/bars/BTCUSD` here first because the
+# symbol is shaped like a stock. So this tier answers a pair with 501: the Worker treats
+# every 5xx that is not a deliberate 503 shed as "ask web" and asks web at once
+# (`edge/bars-edge-router/worker.js` `routeToTier`; pinned by `tests/test_crypto_bars.py`).
+# Whatever the switch says on web, web then answers: the pair when it is on, the stock
+# path (which carries no such stock) when it is off. Nothing else reaches these lines.
+PAIR_HANDOFF_STATUS = 501
+
+
+def _pair_is_webs(ticker) -> bool:
+    try:
+        from api import crypto_bars
+        return crypto_bars.is_pair(ticker)
+    except Exception:                             # noqa: BLE001 - never between a stock and its bars
+        return False
+
+
+def _pair_handed_to_web(ticker):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=PAIR_HANDOFF_STATUS,
+        content={"ticker": str(ticker).strip().upper(), "bars": [], "error": "served_by_web",
+                 "detail": "currency pairs are served by the web pod"},
+        headers={"Cache-Control": "no-store"})
+
+
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Bars API", docs_url=None, redoc_url=None, lifespan=_lifespan)
     from api.routers.bars import serve_bars, serve_bars_history
@@ -413,6 +442,8 @@ def _build_app() -> FastAPI:
         warm: int = 0,
         session: str = "",
     ):
+        if _pair_is_webs(ticker):
+            return _pair_handed_to_web(ticker)
         return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
@@ -424,6 +455,8 @@ def _build_app() -> FastAPI:
         v: str = "",
         d: str = "",
     ):
+        if _pair_is_webs(ticker):
+            return _pair_handed_to_web(ticker)
         return serve_bars_history(ticker, tf, bars, v, d)
 
     return app
