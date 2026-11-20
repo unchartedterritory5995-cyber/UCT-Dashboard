@@ -129,22 +129,25 @@ describe('(b) the held daily rows are sized from the chart\'s span of sessions, 
   })
 })
 
-describe('(b) the hook asks the held daily rows at the chart's span', () => {
+describe("(b) the hook asks the held daily rows at the chart's span", () => {
   afterEach(() => clearSecondaryBars())
-  const ask = (heldSessions) => {
+  // the fetch starts in a microtask (`secondaryBars.fetchSecondaryBars`): read what was asked after a tick, as
+  // heldSpanFollowsChart.test.js does
+  const ask = async (heldSessions) => {
     const asked = []
     const fetcher = (...a) => { asked.push(String(a[0])); return new Promise(() => {}) }
     ensureChartSources(['SPX@D', OWN_DAILY_KEY], '5', 20000, fetcher, 'RDDT', heldSessions)
-    clearSecondaryBars()
+    await Promise.resolve()
+    await new Promise((r) => setTimeout(r, 0))
     return asked
   }
-  it('with the span (rung 512): SPX@D and this symbol's own daily rows are asked 522 deep', () => {
-    const asked = ask(512)
+  it("with the span (rung 512): SPX@D and this symbol's own daily rows are asked 522 deep", async () => {
+    const asked = await ask(512)
     expect(asked).toContain(secondaryBarsUrl('SPX', 'D', 522))
     expect(asked).toContain(secondaryBarsUrl('RDDT', 'D', 522))
   })
-  it('⛔ CONTROL: no span known (0): asked at the old count (267), exactly as before', () => {
-    const asked = ask(0)
+  it('⛔ CONTROL: no span known (0): asked at the old count (267), exactly as before', async () => {
+    const asked = await ask(0)
     expect(asked).toContain(secondaryBarsUrl('SPX', 'D', 267))
     expect(asked).toContain(secondaryBarsUrl('RDDT', 'D', 267))
   })
