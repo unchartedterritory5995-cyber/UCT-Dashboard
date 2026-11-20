@@ -374,9 +374,14 @@ export function makeBroker(cfg, data) {
   }
   /** ⭐⭐ [B-ROUND] / [B-ROUND-MARK] the nearest tick, a tie UP (Pine's own `math.round_to_mintick`), written at
    *  the tick's own decimals. The tick is the run's `syminfo.mintick` (`#symbol`); a run that was not told it
-   *  refuses by name (`needSymbol`, through `onTick`), it is never guessed. `1e-6` of a tick is `onTick`'s own
-   *  tolerance, so a price a float puts a hair under a half tick is the tie it was written as. */
-  const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5 + 1e-6) * mintick).toFixed(tickDecimals(mintick)))
+   *  refuses by name (`needSymbol`, through `onTick`), it is never guessed.
+   *  ⭐⭐ (2026-11-20, Q-SU-8) ON THE QUOTIENT AS THE FLOAT HOLDS IT, with no tolerance: a price whose `price / mintick`
+   *  lands a hair UNDER a half tick rounds DOWN. Witnessed by supertrend-strategy-deep-aapl-1d-2026-11-19: AAPL's open of
+   *  145.265 on 2022-07-08 (145.265 / 0.01 = 14526.499999999998) fills at 145.26, where every one of the 33 other ties in
+   *  the committed report captures, each an exact x.5 quotient (62.875, 113.875, 394.475, ...), fills UP. ⚰️ This added
+   *  `1e-6` (`onTick`'s tolerance) "so a price a float puts a hair under a half tick is the tie it was written as", and
+   *  filled that open at 145.27: the one tie whose float sits under the half, and TradingView's answer is the float's. */
+  const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5) * mintick).toFixed(tickDecimals(mintick)))
   /**
    * ⭐⭐ [B-ROUND] THE PRICE A FILL ON A BAR'S OPEN TAKES when that open is off the tick grid.
    *

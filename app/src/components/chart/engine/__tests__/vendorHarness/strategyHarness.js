@@ -32,6 +32,7 @@ import { strategyRecordOf } from '../../runtime/strategyRecord.js'
 import { strategyReportOf } from '../../runtime/brokerReport.js'
 import { symbolConstants, minContractOf } from '../../ast/bind.js'
 import { historyWindowBarsOf } from '../../runtime/__tests__/strategyArmed.js'
+import { toProductBars } from './ourSide.js'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { gradeStrategy, strategyFirstDifference, decodeVendorText } from '../../../../../../../tools/vendor_harness/compare.mjs'
 import { settingsAgreement, propertiesByKey, pineVersionOf, extractReportFields, isStrategyCapture } from '../../../../../../../tools/vendor_harness/strategy_capture.mjs'
@@ -97,8 +98,14 @@ export function barsTradingViewRan(capture) {
  * at build the moment its `strategy.*` reads were served.
  * @returns {{ok:true, built, drawing:boolean, drawingRefusal:(object|null)} | {ok:false, refusal}}
  */
-function buildAsTheDoorDoes(capture, bars) {
-  const opts = { bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true, ...runtimeClockOpts(capture.newestBarIsForming) }
+function buildAsTheDoorDoes(capture, bars, member = null) {
+  // ⭐⭐ (2026-11-20) `member`: a DAILY capture is built on the bars a member's daily chart hands the build (`/api/bars`'s
+  // ISO date keys, `ourSide.js::toProductBars`) with the chart's timeframe, as `runtimeColumns.js::runtimeIrOptions` builds
+  // it; `bars` (TradingView's epoch seconds) still decide where the run starts and key every point and fill
+  const opts = member
+    ? { bars: member.bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true, basePeriod: member.tf, tf: member.tf,
+      ...runtimeClockOpts(capture.newestBarIsForming, { tf: member.tf }) }
+    : { bars, inputs: {}, symbol: symbolOf(capture), strategyBroker: true, ...runtimeClockOpts(capture.newestBarIsForming) }
   // the capture says whether its newest bar had finished; the build is told through the one producer
   // (`pineRuntimeFrontendGate`: no file reaches the runtime lane without it), unknown stays unknown
   const drawing = buildRuntimeIr(capture.source.text, { ...opts, objectsInRun: true })
@@ -114,6 +121,18 @@ function buildAsTheDoorDoes(capture, bars) {
   const vr = value.refusal || {}
   const refusal = !drawing.ok && (vr.guard === 'runtime:object-op' || vr.guard === 'runtime:no-output') ? (drawing.refusal || {}) : vr
   return { ok: false, refusal }
+}
+
+const DAILY_TF = /^1?D$/i
+
+/** The member's daily chart's keys for `bars` (TradingView's epoch rows, the capture's own order): each row's ISO
+ *  date as `/api/bars` keys it (`ourSide.js::toProductBars`), or null when a row has none. */
+function memberDailyBarsOf(capture, bars) {
+  const product = toProductBars(capture)
+  const rows = capture.bars.rows
+  const keyOf = new Map(rows.map((r, i) => [r[0], product[i] && product[i].t]))
+  const out = bars.map((b) => ({ ...b, t: keyOf.get(b.t) }))
+  return out.every((b) => typeof b.t === 'string') ? { bars: out, tf: 'D' } : null
 }
 
 /**
@@ -133,7 +152,15 @@ export function runOurBroker(capture, { pins = ALL } = {}) {
   const forming = capture.newestBarIsForming === true && ranOn.unrun !== null
   const bars = forming ? barsOfCapture(capture) : ranOn.bars
   if (!bars) return { ok: false, refusal: { rule: 'harness:bars', guard: 'harness:bars', expected: false, message: 'the capture has no unix-s bars' } }
-  const made = buildAsTheDoorDoes(capture, bars)
+  // ⭐⭐ (2026-11-20, Q-SU-8) A DAILY CAPTURE IS GRADED ON THE MEMBER'S OWN BAR KEYS. The build's clock reads a bar's
+  // epoch seconds through the unit gate (`indicators.js::barOpenInstant`), whose number branch refuses anything before
+  // 1990 (it guards a `YYYYMMDD` int read as seconds), so one pre-1990 bar blanked `time` on every bar: AAPL 1D from its
+  // 1980 listing ran no `time`-windowed order at all (0 trades against TradingView's 59) on a run no member makes. A
+  // member's daily chart hands ISO dates, which the date branch reads to TradingView's own 09:30 New York instant
+  // (#1686: byte-identical records), so the build is handed those; the series, every point and every fill stay keyed
+  // by TradingView's epoch seconds, the same instants (`strategyBarTimeIdentity.test.js`).
+  const member = DAILY_TF.test(String(capture.timeframe || '')) ? memberDailyBarsOf(capture, bars) : null
+  const made = buildAsTheDoorDoes(capture, bars, member)
   if (!made.ok) {
     const r = made.refusal || {}
     const guard = r.guard || r.code || 'build'

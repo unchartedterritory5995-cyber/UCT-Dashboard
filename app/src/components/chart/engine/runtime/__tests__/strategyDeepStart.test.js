@@ -4,12 +4,15 @@
 //
 // Coordinator ruling (D9, strategy-only; the owner may veto): a DAILY chart running a strategy holds the stock's whole
 // daily history (`barsBackfill.js::fullBarsFor('D')`, pinned equal to `bars_window.STRATEGY_HISTORY_WINDOW_BARS`) and
-// its broker run starts at the listing over that window. SERVING it stays refused by name until a TradingView capture
-// witnesses where its backtest starts on such a chart (rows Q-SU-7 / Q-SU-8): the run asks the broker rule
-// [B-START-DEEP] whenever it covers more bars from the listing than the depth served before (`listingDepthBars`, the
-// shared `bars_window.HISTORY_WINDOW_BARS`, which the endpoint answers beside the strategy window), and while the
-// ledger does not pin it the backtest is refused BY NAME (the plots stay). A run no caller hands that depth runs exactly
-// as before. Nothing below the shared depth asks the rule: every chart served today is served the same.
+// its broker run starts at the listing over that window. The run asks the broker rule [B-START-DEEP] whenever it covers
+// more bars from the listing than the depth served before (`listingDepthBars`, the shared
+// `bars_window.HISTORY_WINDOW_BARS`, which the endpoint answers beside the strategy window); a ledger that does not pin
+// it refuses the backtest BY NAME (the plots stay). A run no caller hands that depth runs exactly as before. Nothing
+// below the shared depth asks the rule: every chart served today is served the same.
+// ⭐⭐ (2026-11-20) PINNED: TradingView's Strategy Tester starts at the LISTING on a chart that holds the whole history
+// (Q-SU-7: SPY 1D, `backtest.from` 1993-01-29 over 8,511 bars; Q-SU-8: AAPL 1D, 1980-12-12 over 11,572 bars, past
+// 10,000), and supertrend-strategy run from the listing over the strategy window grades MATCH on both, in the pin lane
+// and through the member door. So a member's deep daily chart is served from its listing.
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -20,6 +23,7 @@ import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
 import { BROKER_RULES } from '../brokerRules.js'
 import { pinned } from '../brokerPins.js'
+import PINS_SRC from '../brokerPins.json'
 import {
   windowOfPayload, listingDepthOfPayload, strategyNeedsFullDailyHistory, isStrategyWindowDefinition,
   loadStrategyHistoryWindow, resetStrategyHistoryWindow, strategyHistoryWindowNow, strategyListingDepthNow,
@@ -59,10 +63,11 @@ const attempt = ({ win, depth, pins = ALL, bars = bars12 }) => {
 }
 
 describe('[B-START-DEEP] the rule and the run', () => {
-  it('is a named rule with its capture row (Q-S1n), and the committed ledger does NOT pin it (serving waits on Q-SU-7 / -8)', () => {
+  it('is a named rule with its capture row (Q-S1n), pinned by exactly the two deep captures (Q-SU-7, Q-SU-8)', () => {
     expect(BROKER_RULES['B-START-DEEP'].capture).toBe('Q-S1n')
     expect(BROKER_RULES['B-START-DEEP'].what).toMatch(/Q-SU-7/)
-    expect(pinned('B-START-DEEP')).toBe(false)
+    expect(pinned('B-START-DEEP')).toBe(true)
+    expect([...PINS_SRC.rules['B-START-DEEP']].sort()).toEqual(Object.keys(DEEP).sort())
   })
 
   it('a run from the listing over MORE bars than the served depth asks it: unpinned, refused BY NAME; pinned, served', () => {
@@ -148,32 +153,43 @@ describe('the chart asks for the strategy window and its served depth (`strategy
   })
 })
 
-describe('a member\'s daily SPY chart from its 1993 listing (8,473 bars): the backtest refused by name, the plots kept', () => {
-  it('supertrend-strategy (community; MATCH on RDDT and ALAB from their listings) asks [B-START-DEEP] and is refused by name', () => {
-    vi.stubGlobal('fetch', () => Promise.reject(new Error('no network in this rail')))
-    for (const f of ['VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', 'VITE_PINE_RUNTIME_PANE_ENABLED', 'VITE_PINE_STRATEGY_BROKER_ENABLED']) {
-      vi.stubEnv(f, '1')
-    }
-    __permitRuntimePaneForTests()
-    __allowEveryRuntimeScriptForTests()
-    const ref = loadCapture(path.join(ROOT, 'tests/fixtures/vendor/harness/vw-bool-cast-spy-1d-2026-09-28.json')).capture
-    const bars = toProductBars(ref)
-    expect(bars.length).toBe(8473)
-    expect(bars[0].t).toBe('1993-01-29')
-    const source = fs.readFileSync(path.join(ROOT, 'corpus/committed/supertrend-strategy__rcRbtoBiKG.pine'), 'utf8')
-    const ctx = { tf: 'D', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false, historyFromListing: true,
-      ...chartStrategyWindowOf(ROOT) }
-    const deep = strategyServeOutcome({ source, bars, ctx, Panel: StrategyReportPanel })
-    expect(deep.third).toEqual([])
-    expect(deep).toMatchObject({ state: 'refused', guard: 'runtime:strategy-unpinned', rule: 'B-START-DEEP' })
-    expect(['report', 'run']).toContain(deep.at)
-    expect(deep.plotsDrawn).toBeGreaterThan(0)
-    // CONTROL: the shared window alone (the chart before this change) cuts the run off the listing: Q-S1n, by name
-    const shared = strategyServeOutcome({ source, bars, ctx: { ...ctx, historyWindowBars: historyWindowBarsOf(ROOT),
-      listingDepthBars: undefined }, Panel: StrategyReportPanel })
-    expect(shared).toMatchObject({ state: 'refused', guard: 'runtime:strategy-unsettled' })
-    expect(shared.sentence).toMatch(/first bar/)
-    // what a member reads is the same either way: the plots, and the backtest refused by name
-    expect(shared.plotsDrawn).toBe(deep.plotsDrawn)
-  })
+// the two captures that pin it: each chart's symbol as OUR store spells it, and its listing day
+const DEEP = Object.freeze({
+  'supertrend-strategy-deep-spy-1d-2026-11-19': { row: 'Q-SU-7', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, listing: '1993-01-29', bars: 8511 },
+  'supertrend-strategy-deep-aapl-1d-2026-11-19': { row: 'Q-SU-8', symbol: { ticker: 'AAPL', exchange: 'NASDAQ' }, listing: '1980-12-12', bars: 11572 },
+})
+
+describe('a member\'s deep daily chart from the listing (Q-SU-7 SPY, Q-SU-8 AAPL): the backtest SERVED from the listing', () => {
+  for (const [id, row] of Object.entries(DEEP)) {
+    it(`${row.row} ${row.symbol.ticker} 1D from ${row.listing} (${row.bars} bars): served with every trade of TradingView's report; control: the shared window alone refuses it by name`, () => {
+      vi.stubGlobal('fetch', () => Promise.reject(new Error('no network in this rail')))
+      for (const f of ['VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', 'VITE_PINE_RUNTIME_PANE_ENABLED', 'VITE_PINE_STRATEGY_BROKER_ENABLED']) {
+        vi.stubEnv(f, '1')
+      }
+      __permitRuntimePaneForTests()
+      __allowEveryRuntimeScriptForTests()
+      const ref = loadCapture(path.join(ROOT, `tests/fixtures/vendor/harness/${id}.json`)).capture
+      const bars = toProductBars(ref)
+      expect(bars.length).toBe(row.bars)
+      expect(bars[0].t).toBe(row.listing)
+      // the strategy window holds it and the shared depth does not: what is served is the deep start
+      const win = chartStrategyWindowOf(ROOT)
+      expect(bars.length).toBeLessThanOrEqual(win.historyWindowBars)
+      expect(bars.length).toBeGreaterThan(win.listingDepthBars)
+      const source = fs.readFileSync(path.join(ROOT, 'corpus/committed/supertrend-strategy__rcRbtoBiKG.pine'), 'utf8')
+      const ctx = { tf: 'D', symbol: row.symbol, newestBarIsForming: false, historyFromListing: true, ...win }
+      const deep = strategyServeOutcome({ source, bars, ctx, Panel: StrategyReportPanel })
+      expect(deep.third).toEqual([])
+      expect(deep.state, deep.sentence).toBe('served')
+      expect(deep.served.rulesUsed).toContain('B-START-DEEP')
+      expect(deep.served.trades).toBe(ref.provenance.report.tree.trades.length)
+      expect(deep.plotsDrawn).toBeGreaterThan(0)
+      // CONTROL: the shared window alone (the chart before this change) cuts the run off the listing: Q-S1n, by name
+      const shared = strategyServeOutcome({ source, bars, ctx: { ...ctx, historyWindowBars: win.listingDepthBars,
+        listingDepthBars: undefined }, Panel: StrategyReportPanel })
+      expect(shared).toMatchObject({ state: 'refused', guard: 'runtime:strategy-unsettled' })
+      expect(shared.sentence).toMatch(/first bar/)
+      expect(shared.plotsDrawn).toBe(deep.plotsDrawn)
+    })
+  }
 })

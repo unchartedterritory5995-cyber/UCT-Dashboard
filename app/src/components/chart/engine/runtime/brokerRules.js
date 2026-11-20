@@ -92,7 +92,7 @@ export const BROKER_RULES = Object.freeze({
   // own so that each is pinned by its own witnesses: the evidence table, capture by capture, is
   // `docs/pine/evidence/2026-11-15-strategy-readbacks/EVIDENCE.md`, re-derived from the captures alone by
   // `__tests__/vendorHarness/strategyReadbackWitness.test.js`. Asked only when a run REACHES the case.
-  'B-ROUND': Object.freeze({ capture: 'Q-S1l', what: 'a market order (an entry, strategy.order, strategy.close, strategy.close_all) or a stop order the open reached that fills on a bar open off the tick grid fills at that open rounded to the nearest tick, a tie up' }),
+  'B-ROUND': Object.freeze({ capture: 'Q-S1l', what: 'a market order (an entry, strategy.order, strategy.close, strategy.close_all) or a stop order the open reached that fills on a bar open off the tick grid fills at that open rounded to the nearest tick, a tie up, the tie read on the float quotient open / mintick (a quotient a hair under the half rounds down: AAPL 145.265 fills at 145.26, Q-SU-8)' }),
   'B-ROUND-MARK': Object.freeze({ capture: 'W9-R1i', what: 'strategy.openprofit (and so strategy.equity) marks open trades at the bar close rounded to the nearest tick, a tie up, when that close is off the tick grid' }),
   'B-TXT-CLOSE-ID': Object.freeze({ capture: 'Q-S1p', what: 'strategy.closedtrades.exit_id of a trade strategy.close(id) closed reads "Close entry(s) order <id>"' }),
   'B-TXT-CLOSE-ALL-ID': Object.freeze({ capture: 'Q-S1-core', what: 'strategy.closedtrades.exit_id of a trade strategy.close_all() closed reads "Close position order"' }),

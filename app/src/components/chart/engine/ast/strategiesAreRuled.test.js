@@ -183,9 +183,11 @@ describe('D7: the strategy-backtest scorecard wording', () => {
     // 42 at train e80 (ruling 2026-11-18 (a)): B-EXEC, pinned by the in-session capture supertrend-strategy-is-rddt-1d-2026-11-18
     // 46 since 2026-11-19 (the strategy unit): B-EXIT-NA, B-QTY-REVERSE-M0 and B-ROUND-LEVEL, pinned by the community capture
     // macd-shortlong-strategy-is-rddt-1d-2026-11-18 grading MATCH, and B-MARGIN-ZERO by w9-q-s1b-v4-shape-b grading MATCH
-    expect(pinnedBrokerRules()).toHaveLength(46)
+    // 47 since 2026-11-20 (the strategy-only daily window): B-START-DEEP, pinned by Q-SU-7 / Q-SU-8 (supertrend-strategy on
+    // SPY 1D from 1993 and AAPL 1D from 1980, each scrolled back to its listing) grading MATCH
+    expect(pinnedBrokerRules()).toHaveLength(47)
     expect(strategyScorecardWording()).toBe(
-      `46 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      `47 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
       + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
       + 'Strategy backtests are not served to members yet.')
     // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
