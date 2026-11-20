@@ -52,11 +52,11 @@ multi-timeframe-vwap-v5, orb.
 | Q-BI-ASIN | `vw-bi-asin.pine` (c0d0271e39bb0fbd) | AMEX:SPY 1D from the listing | no | every row on every bar | the LAST BIT of `math.asin`, served from the reference sentence as `Math.asin` (as `math.acos` is): A1 against `Math.asin` exactly |
 | Q-BI-ASIN4 | `vw-bi-asin-v4.pine` (1166df025c88db59) | AMEX:SPY 1D from the listing | no | the same | the v4 bare `asin` (committed:screener-mean-reversion-channel's `2 * asin(1)`) |
 
-## Not a capture
+## Not asked here (no capture row)
 
-| not a capture | disposition | reason |
-|---|---|---|
-| `chart.left_visible_bar_time` / `chart.right_visible_bar_time` | by-design | TradingView re-runs the whole script whenever the visible window changes; one value per bar cannot be right for every scroll position (`capture-queue-2026-11-16-bt-builtins-time.md`). |
-| `barstate.isnew` | ruling | `docs/pine/barstate.md`: a per-tick event this engine does not observe. |
-| `syminfo.type` / `.description` / `.volumetype` / `.prefix` / `.target_price_*` | data | the symbol store must hold the field first. |
-| `x * (math.pi / 180)` written by hand | recorded | `vw-bt-toradians-spy-1d-2026-11-16` D3 (`math.toradians(x) - x * (math.pi / 180)`) differs from TradingView by one ulp on 8,457 of 8,508 bars: TradingView's `x * (math.pi / 180)` is not IEEE `x * (Math.PI / 180)`. Below display precision; the grader's tolerance governs. `math.toradians` itself grades exact (D1, D2, E1-E3). |
+Nothing below is a row of this queue: each is listed so it is not asked again.
+
+- `chart.left_visible_bar_time` / `chart.right_visible_bar_time` (by-design): TradingView re-runs the whole script whenever the visible window changes; one value per bar cannot be right for every scroll position (`capture-queue-2026-11-16-bt-builtins-time.md`).
+- `barstate.isnew` (ruling): `docs/pine/barstate.md`: a per-tick event this engine does not observe.
+- `syminfo.type` / `.description` / `.volumetype` / `.prefix` / `.target_price_*` (engine-gap): the symbol store must hold the field first.
+- `x * (math.pi / 180)` written by hand (closed): `vw-bt-toradians-spy-1d-2026-11-16` D3 (`math.toradians(x) - x * (math.pi / 180)`) differs from TradingView by one ulp on 8,457 of 8,508 bars: TradingView's `x * (math.pi / 180)` is not IEEE `x * (Math.PI / 180)`. Below display precision; the grader's tolerance governs. `math.toradians` itself grades exact (D1, D2, E1-E3).
