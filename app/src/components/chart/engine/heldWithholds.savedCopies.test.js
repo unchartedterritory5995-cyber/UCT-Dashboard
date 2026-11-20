@@ -21,23 +21,30 @@ import {
   __ignoreHeldWithholdsForTests,
 } from './heldWithholds'
 import { validateUserDefinitions } from './nativeRegistry'
-import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
+import { memberPaneDefinition, __forceRuntimeLaneForTests } from '../builder/memberPane/memberPaneDefinition'
 import { retranslateRow } from '../builder/memberPane/savedScriptUpgrade'
 
 const REPO = path.resolve(process.cwd(), '..')
 const KEYS = JSON.parse(fs.readFileSync(path.join(REPO, 'tests', 'fixtures', 'held_withhold_keys.json'), 'utf8')).cases
-const RUNTIME_DOC = () => JSON.parse(fs.readFileSync(
-  path.join(REPO, 'tests', 'fixtures', 'runtime_documents', 'documents.json'), 'utf8')).documents[0].definition
-const corpus = (slug) => {
-  const f = fs.readdirSync(path.join(REPO, 'corpus', 'committed')).find((x) => x.startsWith(`${slug}__`))
-  return fs.readFileSync(path.join(REPO, 'corpus', 'committed', f), 'utf8')
-}
-// a runtime-lane script with paints and its own drawings (part B's door rail uses it), and a host script with labels
-const RUNTIME = corpus('inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat')
+// a script with a plot and labels minted on the host door, and one minted on the runtime door (forced, as the
+// runtime-on lane routes it). No file outside the engine is read but the key fixture (`tests/fixtures/**` triggers
+// the job that runs this rail: `whole-app-engine-rails.yml`).
 const HOST = '//@version=5\nindicator("held host", overlay = true)\nm = ta.sma(close, 10)\nplot(m, "Mean")\n'
   + 'if barstate.islast\n    label.new(bar_index, high, "top")\n'
+const RUNTIME = '//@version=5\nindicator("held runtime", overlay = true)\nvar float s = 0.0\ns := s + close - open\n'
+  + 'plot(s, "Sum")\nif barstate.islast\n    label.new(bar_index, high, "top")\n'
 const asMember = (source, withholds) => __setHeldWithholdsForTests({ scripts: [{ sha256: sha256Hex(source), withholds }] })
 const mint = (source) => memberPaneDefinition({ source, id: 'u_held_saved', name: 'held' })
+const mintRuntime = (source) => {
+  __forceRuntimeLaneForTests(true)
+  try { return mint(source) } finally { __forceRuntimeLaneForTests(false) }
+}
+const RUNTIME_DOC = () => {
+  __ignoreHeldWithholdsForTests()
+  const d = mintRuntime(RUNTIME)
+  expect(d.ok && d.definition.compute.kind).toBe('runtime')
+  return d.definition
+}
 
 beforeEach(() => {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
@@ -69,8 +76,8 @@ describe('the mint stamp: the key the door writes is the key the server reads', 
       { door: 'runtime', scope: 'output', title: 'No such row', evidence: ['cap-a'] },
       { door: 'host', scope: 'objectFamily', family: 'line', evidence: ['cap-b'] },
     ])
-    const d = mint(RUNTIME)
-    expect(d.ok && d.lane).toBe('runtime')
+    const d = mintRuntime(RUNTIME)
+    expect(d.ok && d.definition.compute.kind).toBe('runtime')
     expect(d.definition.meta[HELD_WITHHOLDS_STAMP]).toEqual(['runtime:objectFamily:label', 'runtime:output:No such row'])
   })
 })
