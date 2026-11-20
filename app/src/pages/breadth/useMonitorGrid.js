@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useRef, useState, useEffect } from 'react'
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 
 import jsonFetcher from '../../utils/jsonFetcher'
-import { DEFAULT_UNIVERSE, MONITOR_LS_KEYS, universeParam, withMarketWide } from './monitorUniverses'
+import { DEFAULT_UNIVERSE, monitorDatesLsKey, monitorRecentLsKey, universeParam, withMarketWide } from './monitorUniverses'
 
 // Windowed data source for the Monitor's virtualized, infinitely-scrollable sheet.
 //
@@ -51,28 +51,29 @@ export const monitorDatesKey = (universe = DEFAULT_UNIVERSE) =>
 // switching back to a universe already viewed paints from memory with no fetch.
 function newUniverseState(universe) {
   const cache = new Map()
-  const cached = readLS(MONITOR_LS_KEYS[universe].recent)
+  const cached = readLS(monitorRecentLsKey(universe))
   if (Array.isArray(cached)) for (const r of cached) if (r?.date) cache.set(r.date, r)
   return { cache, loaded: new Set(), loading: new Set(), failed: new Set(), idxKey: null }
 }
 
 export default function useMonitorGrid({ enabled, liveRow, universe = DEFAULT_UNIVERSE }) {
-  const keys = MONITOR_LS_KEYS[universe] ?? MONITOR_LS_KEYS[DEFAULT_UNIVERSE]
   const isUct = universe === DEFAULT_UNIVERSE
   // Seed SWR from the cached index so `allDates` is populated on the FIRST paint
   // (no wait for the /dates round-trip), then revalidate + rewrite the cache.
   const datesFallbackRef = useRef({})
-  if (!(universe in datesFallbackRef.current)) datesFallbackRef.current[universe] = readLS(keys.dates) || undefined
-  const { data: datesData, error: datesError, mutate: mutateDates } = useSWR(
+  if (!(universe in datesFallbackRef.current)) datesFallbackRef.current[universe] = readLS(monitorDatesLsKey(universe)) || undefined
+  const { data: datesData, error: datesError, mutate: mutateDates } = useMobileSWR(
     enabled ? monitorDatesKey(universe) : null, fetcher,
     {
       revalidateOnFocus: false,
       dedupingInterval: 60_000,
       // Off UCT the index also carries today's provisional row and the provisional sessions,
       // which move through the day; UCT's live row has its own feed (`liveRow`).
+      // `useMobileSWR` (pollingSites rail): the same tick on a desktop, half as often on a
+      // touch client, none while the tab is hidden.
       refreshInterval: isUct ? 0 : 60_000,
       fallbackData: datesFallbackRef.current[universe],
-      onSuccess: (d) => { if (d?.dates?.length) writeLS(keys.dates, d) },
+      onSuccess: (d) => { if (d?.dates?.length) writeLS(monitorDatesLsKey(universe), d) },
     },
   )
   // UCT: the page's live row. Elsewhere: the universe's own provisional row, with UCT's live
@@ -138,7 +139,7 @@ export default function useMonitorGrid({ enabled, liveRow, universe = DEFAULT_UN
       if (k === 0) {
         const recent = allDates.slice(0, RECENT_N)
           .map((d) => s.cache.get(d)).filter(Boolean)
-        if (recent.length) writeLS(keys.recent, recent)
+        if (recent.length) writeLS(monitorRecentLsKey(universe), recent)
       }
     } catch {
       // Left unloaded, so the next range change asks again -- and REPORTED, so the sheet says
@@ -148,7 +149,7 @@ export default function useMonitorGrid({ enabled, liveRow, universe = DEFAULT_UN
     } finally {
       s.loading.delete(k)
     }
-  }, [allDates, liveDate, st, universe, isUct, keys])
+  }, [allDates, liveDate, st, universe, isUct])
 
   // Debounced: load the visible blocks (+1 buffer each side) once the scroll settles.
   const settleRef = useRef(0)

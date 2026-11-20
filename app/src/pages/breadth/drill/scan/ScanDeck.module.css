@@ -27,7 +27,7 @@
   --dr-bright: var(--text-bright);
   --dr-dim: var(--text-muted);
   --dr-rest: var(--text-muted);
-  --dr-faint: color-mix(in srgb, var(--text-muted) 72%, var(--bg));
+  --dr-faint: var(--ink-faint);
   --dr-soft: color-mix(in srgb, var(--text-bright) 6%, transparent);
   --dr-soft-hi: color-mix(in srgb, var(--text-bright) 11%, transparent);
   --dr-soft-top: color-mix(in srgb, var(--text-bright) 8%, transparent);
@@ -51,14 +51,14 @@
   gap: 0;
   height: 100px;
   padding: 0 8px 0 0;
-  border: 1px solid var(--dr-outline);
+  border: 1px solid var(--dr-outline, var(--border-accent, var(--border)));
   border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
   min-width: 0;
-  background: var(--dr-panel);
+  background: var(--dr-panel, var(--bg-surface));
   font-family: var(--font-sans);
-  color: var(--dr-text);
+  color: var(--dr-text, var(--text));
 }
 .identity {
   display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px;
@@ -72,12 +72,12 @@
    pair reads as two matching toggles instead of a chip next to loose text. */
 .dayChip {
   display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px;
-  border: 1px solid var(--dr-line); border-radius: 7px; background: transparent; cursor: pointer; white-space: nowrap;
-  font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--dr-dim);
+  border: 1px solid var(--dr-line, var(--border)); border-radius: 7px; background: transparent; cursor: pointer; white-space: nowrap;
+  font-family: var(--font-sans); font-size: 12px; font-weight: 500; color: var(--dr-dim, var(--text-muted));
 }
 .dayChip span { font-size: 11px; line-height: 1; }
-.dayChip:hover:not(:disabled) { color: var(--dr-text); background: var(--dr-soft); }
-.dayChip[aria-pressed='true'] { color: var(--dr-bright); background: var(--dr-selected); border-color: transparent; font-weight: 600; }
+.dayChip:hover:not(:disabled) { color: var(--dr-text, var(--text)); background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); }
+.dayChip[aria-pressed='true'] { color: var(--dr-bright, var(--text-bright)); background: var(--dr-selected, color-mix(in srgb, var(--text-bright) 13%, var(--bg-surface))); border-color: transparent; font-weight: 600; }
 .dayChip[data-mode='replay'][aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--ut-gold); }
 .dayChip:disabled { opacity: .4; cursor: default; }
 .dayChip:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
@@ -85,7 +85,7 @@
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 700;
-  color: var(--dr-bright);
+  color: var(--dr-bright, var(--text-bright));
   background: transparent;
   border: 0;
   border-radius: 7px;
@@ -97,7 +97,7 @@
   line-height: 1.2;
   appearance: none;
   -webkit-appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--dr-faint) 50%), linear-gradient(135deg, var(--dr-faint) 50%, transparent 50%);
+  background-image: linear-gradient(45deg, transparent 50%, var(--dr-faint, var(--ink-faint)) 50%), linear-gradient(135deg, var(--dr-faint, var(--ink-faint)) 50%, transparent 50%);
   background-position: calc(100% - 11px) 55%, calc(100% - 7px) 55%;
   background-size: 4px 4px;
   background-repeat: no-repeat;
@@ -107,12 +107,12 @@
 .metric option { background: var(--bg-elevated); color: var(--text); font-size: var(--text-base); }
 span.metric { background-image: none; padding-right: 8px; cursor: default; }
 span.metric:hover { background-color: transparent; }
-.badge { font-size: 12px; font-weight: 600; color: var(--dr-dim); background: var(--dr-soft); border-radius: 6px; padding: 3px 7px; white-space: nowrap; }
+.badge { font-size: 12px; font-weight: 600; color: var(--dr-dim, var(--text-muted)); background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); border-radius: 6px; padding: 3px 7px; white-space: nowrap; }
 /* The shared date box sits in its own slot here, not pushed to an edge. */
 .dateWrap { display: flex; align-items: center; }
 .dateWrap > * { margin-left: 0 !important; }
-.live { display: inline-flex; align-items: center; gap: 6px; color: var(--dr-up); font-weight: 600; font-size: 12px; }
-.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--dr-up); }
+.live { display: inline-flex; align-items: center; gap: 6px; color: var(--success-ink); font-weight: 600; font-size: 12px; }
+.live i { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
 
 /* The readouts: label on top, value (with its picture) under it. */
 .tile {
@@ -121,12 +121,12 @@ span.metric:hover { background-color: transparent; }
   border-right: 1px solid var(--dr-line);
   white-space: nowrap;
 }
-.tileLbl { font-size: 11.5px; font-weight: 600; color: var(--dr-rest); }
+.tileLbl { font-size: 11.5px; font-weight: 600; color: var(--dr-rest, var(--text-muted)); }
 .tileVal { display: flex; align-items: flex-end; gap: 12px; min-width: 0; height: 40px; }
 .countNum { display: inline-flex; align-items: baseline; gap: 6px; flex: 0 0 auto; white-space: nowrap; }
-.tileVal b { font-size: 24px; font-weight: 700; color: var(--dr-bright); font-variant-numeric: tabular-nums; line-height: 1; }
+.tileVal b { font-size: 24px; font-weight: 700; color: var(--dr-bright, var(--text-bright)); font-variant-numeric: tabular-nums; line-height: 1; }
 .tileVal small { font-size: 12.5px; font-weight: 500; }
-.muted { color: var(--dr-faint); }
+.muted { color: var(--dr-faint, var(--ink-faint)); }
 .tileCount { flex: 0 1 440px; width: 440px; min-width: 300px; }
 .tileCount .tileLbl { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tileHead { display: flex; align-items: center; justify-content: space-between; gap: 14px; height: 18px; }
@@ -134,38 +134,38 @@ span.metric:hover { background-color: transparent; }
 .rangeSeg { display: inline-flex; gap: 2px; }
 .rangeSeg button {
   background: transparent; border: 0; border-radius: 6px; cursor: pointer; height: 18px;
-  padding: 0 6px; font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--dr-faint);
+  padding: 0 6px; font-family: var(--font-sans); font-size: 11px; font-weight: 600; color: var(--dr-faint, var(--ink-faint));
 }
-.rangeSeg button:hover { color: var(--dr-text); background: var(--dr-soft); }
-.rangeSeg button[aria-pressed='true'] { background: var(--dr-selected); color: var(--dr-bright); }
+.rangeSeg button:hover { color: var(--dr-text, var(--text)); background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); }
+.rangeSeg button[aria-pressed='true'] { background: var(--dr-selected, color-mix(in srgb, var(--text-bright) 13%, var(--bg-surface))); color: var(--dr-bright, var(--text-bright)); }
 .rangeSeg button:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
-.countDay { color: var(--dr-faint); }
-.tileLbl[data-past] { color: var(--dr-bright); }
+.countDay { color: var(--dr-faint, var(--ink-faint)); }
+.tileLbl[data-past] { color: var(--dr-bright, var(--text-bright)); }
 /* The bars stand on the number's baseline (owner 2026-11-19), not on the bottom of its line box. */
 .spark { flex: 1 1 0; width: 0; min-width: 0; height: 34.5px; margin-bottom: 5.5px; display: block; }
 .spark rect + rect { fill: var(--dr-bar); }
 .spark rect[data-hover] { fill: var(--dr-bright); }
 .spark rect[data-now] { fill: var(--ut-gold); }
 .tileMix { flex: 1 1 420px; max-width: 560px; min-width: 220px; }
-.headNote { flex: 1 1 220px; max-width: 360px; min-width: 0; padding: 0 18px; align-self: center; font-size: 12px; line-height: 1.45; color: var(--dr-faint); white-space: normal; }
+.headNote { flex: 1 1 220px; max-width: 360px; min-width: 0; padding: 0 18px; align-self: center; font-size: 12px; line-height: 1.45; color: var(--dr-faint, var(--ink-faint)); white-space: normal; }
 .mixGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; row-gap: 7px; }
 .mixRow { display: grid; grid-template-columns: minmax(0, auto) minmax(14px, 1fr) 24px; align-items: center; gap: 7px; font-size: 12px; cursor: default; }
-.mixName { display: flex; align-items: center; gap: 6px; color: var(--dr-rest); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+.mixName { display: flex; align-items: center; gap: 6px; color: var(--dr-rest, var(--text-muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
 .mixName i { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .mixTrack { height: 4px; border-radius: 2px; background: var(--dr-raised); overflow: hidden; }
 .mixTrack b { display: block; height: 100%; border-radius: 2px; opacity: .85; }
-.mixCount { text-align: right; color: var(--dr-dim); font-weight: 500; font-variant-numeric: tabular-nums; }
-.up { color: var(--gain); }
-.dn { color: var(--loss); }
+.mixCount { text-align: right; color: var(--dr-dim, var(--text-muted)); font-weight: 500; font-variant-numeric: tabular-nums; }
+.up { color: var(--success-ink); }
+.dn { color: var(--danger-ink); }
 
 /* Focus / Grid / Table — chips with the open view's gold underline (a §2b mark). */
 .viewTabs { display: inline-flex; gap: 2px; }
 .viewBtn {
   height: 30px; padding: 0 10px; border: 0; border-radius: 6px 6px 0 0; background: transparent; cursor: pointer;
-  font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--dr-rest); white-space: nowrap;
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--dr-rest, var(--text-muted)); white-space: nowrap;
 }
-.viewBtn:hover { color: var(--dr-bright); background: var(--dr-soft); }
-.viewBtn[aria-pressed='true'] { color: var(--dr-bright); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ut-gold); }
+.viewBtn:hover { color: var(--dr-bright, var(--text-bright)); background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); }
+.viewBtn[aria-pressed='true'] { color: var(--dr-bright, var(--text-bright)); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ut-gold); }
 .viewBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
 .headEnd { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 0 30px 0 16px; margin-left: auto; flex-shrink: 0; }
@@ -177,10 +177,10 @@ span.metric:hover { background-color: transparent; }
   display: inline-flex; align-items: center; justify-content: center;
   width: 22px; height: 22px;
   border-radius: 6px;
-  background: transparent; border: 0; color: var(--dr-faint); cursor: pointer;
+  background: transparent; border: 0; color: var(--dr-faint, var(--ink-faint)); cursor: pointer;
 }
 .closeBtn svg { width: 11px; height: 11px; }
-.closeBtn:hover { background: var(--dr-soft); color: var(--dr-text); }
+.closeBtn:hover { background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--dr-text, var(--text)); }
 .closeBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
 .spacer { flex: 1; }
@@ -205,7 +205,7 @@ span.metric:hover { background-color: transparent; }
   white-space: nowrap;
 }
 .seg button:hover { color: var(--text); }
-.seg button[aria-pressed='true'] { background: var(--dr-selected); color: var(--dr-bright); }
+.seg button[aria-pressed='true'] { background: var(--dr-selected, color-mix(in srgb, var(--text-bright) 13%, var(--bg-surface))); color: var(--dr-bright, var(--text-bright)); }
 .segSm button { font-size: 11px; padding: 3px 9px; }
 
 /* ── The 40px band (both columns) ─────────────────────────────────────────── */
@@ -247,7 +247,7 @@ span.metric:hover { background-color: transparent; }
   flex-shrink: 0;
 }
 .chip:hover { color: var(--text); border-color: var(--text-muted); }
-.chip[aria-pressed='true'] { color: var(--dr-bright); border-color: transparent; background: var(--dr-selected); }
+.chip[aria-pressed='true'] { color: var(--dr-bright, var(--text-bright)); border-color: transparent; background: var(--dr-selected, color-mix(in srgb, var(--text-bright) 13%, var(--bg-surface))); }
 .bandCount { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; }
 .bandCount b { color: var(--text); font-weight: 600; }
 /* The sector mix as a 3px rule under the band — the composition at a glance
@@ -280,7 +280,7 @@ span.metric:hover { background-color: transparent; }
 .cell { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
 .cell > * { flex: 1 1 auto; min-height: 0; }
 
-.linkBtn { background: none; border: 0; padding: 0; color: var(--dr-bright); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.linkBtn { background: none; border: 0; padding: 0; color: var(--dr-bright, var(--text-bright)); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .linkBtn:hover { text-decoration: underline; }
 
 /* ── Grid view ──────────────────────────────────────────────────────────── */
@@ -317,7 +317,7 @@ span.metric:hover { background-color: transparent; }
   display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 1 auto; height: 100%; padding: 0;
   background: transparent; border: 0; color: var(--text); font-family: var(--font-sans); text-align: left; cursor: pointer;
 }
-.floatIdBtn:hover .cardSym { color: var(--dr-bright); text-decoration: underline; text-underline-offset: 2px; }
+.floatIdBtn:hover .cardSym { color: var(--dr-bright, var(--text-bright)); text-decoration: underline; text-underline-offset: 2px; }
 .floatIdBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: -2px; border-radius: 4px; }
 .floatId { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .floatLine { display: flex; align-items: baseline; gap: 8px; min-width: 0; flex: 1 1 auto; overflow: hidden; white-space: nowrap; }
@@ -328,7 +328,7 @@ span.metric:hover { background-color: transparent; }
   flex-shrink: 0; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
 }
-.expandBtn:hover, .expandClose:hover { color: var(--dr-text); background: var(--dr-soft); }
+.expandBtn:hover, .expandClose:hover { color: var(--dr-text, var(--text)); background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); }
 .expandBtn:focus-visible, .expandClose:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .floatHead .expandBtn { width: 24px; height: 24px; }
 /* Enlarged chart: fills the grid area, the classic always-on UCT legend. */

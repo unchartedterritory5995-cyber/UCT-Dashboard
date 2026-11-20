@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './BreadthDateNav.module.css'
 import chartNav from '../charts/widgets/ChartDateNav.module.css'
+import Input from '../../components/ui/Input'
 import { CalendarPopover as ChartCalendar } from '../charts/widgets/ChartDateNav'
 
 // Breadth Time Navigator — the Monitor header's date box (the same MarketSmith-
@@ -210,7 +211,7 @@ export default function BreadthDateNav({
         aria-label="Step back one trading day"
         onClick={() => onStep(-1)}
       >◀</button>
-      <input
+      <Input
         className={chartNav.field}
         value={shown}
         placeholder="M/D/YYYY"

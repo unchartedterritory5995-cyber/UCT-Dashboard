@@ -980,11 +980,14 @@ export default function Breadth() {
     // can be judged. `import.meta.env.DEV` is false in a build: Vite drops this branch and never
     // emits devSampleList.js (devSampleList.test.js checks the built bundle).
     if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
-      req = req.catch(() => null).then(data => (data?.items?.length ? data
-        : import('./breadth/drill/devSampleList').then(m => (m.isLocalDevHost()
+      // A failed load keeps its error: with no sample (off a local dev host) it rejects with
+      // the ORIGINAL failure, so the list below still says it could not load, never "none".
+      const devFallback = (data, err) => import('./breadth/drill/devSampleList')
+        .then(m => (m.isLocalDevHost()
           ? m.devSampleList({ seed: url, count: devCount, down: /\/drill\/(down|dn|declin|magna_down|new_52w_lows|new_20d_lows)/.test(url) })
-          : data)).catch(() => data)))
-        .then(data => { if (!data) throw new Error('drill'); return data })
+          : data), () => data)
+        .then(d => { if (d) return d; throw err ?? new Error('drill') })
+      req = req.then(data => (data?.items?.length ? data : devFallback(data)), err => devFallback(null, err))
     }
     req
       .then(data => setDrill(prev => (prev && prev.url === url
@@ -1812,8 +1815,9 @@ export default function Breadth() {
                   )
                 })}
                 {/* Filler: takes the width the table gains from filling the window, so every
-                    real column keeps its natural width (owner 2026-11-19: Date had slack). */}
-                <th className={styles.fillCol} aria-hidden="true" />
+                    real column keeps its natural width (owner 2026-11-19: Date had slack).
+                    A <td>, not a <th>: an empty header cell names nothing (terminalA11yStatic). */}
+                <td className={styles.fillCol} aria-hidden="true" />
               </tr>
             </thead>
             <tbody>

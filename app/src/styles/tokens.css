@@ -51,6 +51,11 @@
   --text-muted: #cfcac0;
   --text-bright: #f8f7f3;
   --text-heading: #ffffff;
+  /* --ink-faint: the quiet tier under --text-muted (a hint, a unit, a weekday). On the dark
+     ramps it is --text-muted mixed 72% into the canvas: the Breadth sheet and drill window
+     faint role (5:1 or better on every dark theme). On a light canvas that mix reads 2.7-3.0:1,
+     so the light family (below) uses --text-muted itself. */
+  --ink-faint: color-mix(in srgb, var(--text-muted) 72%, var(--bg));
   --gain: #2faf68;
   --gain-bg: #2faf6815;
   --gain-border: #2faf6835;
@@ -218,6 +223,24 @@
   --menu-accent-bg: rgba(220, 187, 94, 0.12);
   --menu-hover: rgba(255, 255, 255, 0.055);
   --menu-shadow: rgba(0, 0, 0, 0.7);
+
+  /* UCT Signature (docs/uct-signature-style.md section 2): the graphite panel and its text
+     levels. DARK-ONLY by the spec (section 6: the light theme is not designed yet), so no theme
+     block re-points them; they are tokens so that when it is designed its column lands here
+     and every Signature surface follows. */
+  --signature-panel: #111214;
+  --signature-card: #1a1b1f;
+  --signature-well: #0f1012;
+  --signature-sel: #2c2e33;
+  --signature-line: #2a2c31;
+  --signature-outline: #383b41;
+  --signature-text: #ededed;
+  --signature-bright: #f8f7f3;
+  --signature-rest: #c9c6be;
+  --signature-dim: #a9a59b;
+  --signature-faint: #93939a;
+  --signature-down: #e8665a;
+
 
   /* Spacing scale */
   --space-xs: 4px;
@@ -762,6 +785,7 @@
   --text-muted: #57606a;
   --text-bright: #0b0e11;
   --text-heading: #161a1e;
+  --ink-faint: var(--text-muted);   /* the dark mix falls under 4.5:1 on a light canvas */
 
   /* Darkened accents — the same values the Sunset candles/volume use. */
   --ut-gold: #7a5c16;

@@ -71,9 +71,9 @@
   font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 600;
-  background: var(--dr-soft);
+  background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
   border: 0;
-  color: var(--dr-bright);
+  color: var(--dr-bright, var(--text-bright));
   border-radius: 7px;
   padding: 6px 16px;
   min-height: var(--tap-min);

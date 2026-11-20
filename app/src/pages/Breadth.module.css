@@ -22,7 +22,7 @@
   --br-text: var(--text);
   --br-bright: var(--text-bright);
   --br-rest: var(--text-muted);
-  --br-faint: color-mix(in srgb, var(--text-muted) 72%, var(--bg));
+  --br-faint: var(--ink-faint);
   --br-soft: color-mix(in srgb, var(--text-bright) 6%, transparent);
   --br-soft-hi: color-mix(in srgb, var(--text-bright) 11%, transparent);
   --br-soft-top: color-mix(in srgb, var(--text-bright) 8%, transparent);
@@ -70,7 +70,7 @@
   border-bottom: 1px solid var(--br-line);
   box-shadow: none;
 }
-.page .sigHeader h1 { font-size: 18px; font-weight: 700; color: var(--br-bright); letter-spacing: 0; }
+.page .sigHeader h1 { font-size: 18px; font-weight: 700; color: var(--br-bright, var(--text-bright)); letter-spacing: 0; }
 .page .sigHeader > div { gap: 8px; row-gap: 6px; align-items: center; flex-wrap: wrap; }
 .page .sigHeader > div:first-of-type { align-items: stretch; }
 
@@ -98,34 +98,34 @@
   border: none;
   border-radius: 0;
   background: transparent;
-  color: var(--br-rest);
+  color: var(--br-rest, var(--text-muted));
   cursor: pointer;
   transition: color 0.12s;
   white-space: nowrap;
 }
 
-.tab:hover { color: var(--br-bright); }
+.tab:hover { color: var(--br-bright, var(--text-bright)); }
 .tab:focus-visible { outline: 2px solid var(--br-ring); outline-offset: -2px; border-radius: 6px; }
 
 .tabActive {
-  color: var(--br-bright);
+  color: var(--br-bright, var(--text-bright));
   font-weight: 600;
   box-shadow: inset 0 -2px 0 var(--ut-gold);
 }
 
-.tabActive:hover { color: var(--br-bright); }
+.tabActive:hover { color: var(--br-bright, var(--text-bright)); }
 
 .heading {
   font-family: var(--font-display);
   font-size: 18px;
   font-weight: 700;
-  color: var(--br-bright);
+  color: var(--br-bright, var(--text-bright));
 }
 
 .meta {
   font-family: var(--font-sans);
   font-size: 12px;
-  color: var(--br-faint);
+  color: var(--br-faint, var(--ink-faint));
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -133,7 +133,7 @@
 .empty {
   font-family: var(--font-sans);
   font-size: 13px;
-  color: var(--br-rest); font-weight: 500;
+  color: var(--br-rest, var(--text-muted)); font-weight: 500;
   padding: 24px 0;
 }
 
@@ -245,16 +245,16 @@
   text-align: right;
   font-size: var(--br-head-fs);
   font-weight: 600;
-  color: var(--br-text);
-  background: var(--br-panel);
-  border-bottom: 1px solid var(--br-line);
+  color: var(--br-text, var(--text));
+  background: var(--br-panel, var(--bg-surface));
+  border-bottom: 1px solid var(--br-line, var(--border));
   vertical-align: middle;
   white-space: nowrap;
 }
 
 .colLabel {
   font-size: var(--br-head-fs);
-  color: var(--br-text);
+  color: var(--br-text, var(--text));
 }
 
 /* A little extra air on each metric family's first column — the families stay
@@ -282,16 +282,16 @@
   height: var(--br-row-h);
   box-sizing: border-box;
   text-align: right;
-  color: var(--br-text);
-  border-bottom: 1px solid var(--br-row);
+  color: var(--br-text, var(--text));
+  border-bottom: 1px solid var(--br-row, color-mix(in srgb, var(--border) 72%, transparent));
   font-variant-numeric: tabular-nums;
 }
 
 .dateCell {
   position: sticky;
   left: 0;
-  background: var(--br-panel);
-  color: var(--br-text);
+  background: var(--br-panel, var(--bg-surface));
+  color: var(--br-text, var(--text));
   font-weight: 500;
   text-align: left;
   padding-left: 16px;
@@ -305,8 +305,8 @@
 
 .table tbody tr:hover .dateCell {
   box-shadow: none;
-  background: color-mix(in srgb, var(--text-bright) 4%, var(--br-panel));
-  color: var(--br-text);
+  background: color-mix(in srgb, var(--text-bright) 4%, var(--br-panel, var(--bg-surface)));
+  color: var(--br-text, var(--text));
 }
 
 /* ── Signature shading by rarity (owner round 5, 2026-11-19) ────────────────
@@ -315,11 +315,11 @@
    (top/bottom 10%) faint · 2 Strong (3%) clear · 3 Extreme (0.5%) bright, bold.
    The middle 80% is unshaded. Tints of the THEME's own up / down colour. */
 .shUp1 { background: color-mix(in srgb, var(--br-up) var(--br-tint-1), transparent); }
-.shUp2 { background: color-mix(in srgb, var(--br-up) var(--br-tint-2), transparent); color: var(--br-bright); }
-.shUp3 { background: color-mix(in srgb, var(--br-up) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 700; }
+.shUp2 { background: color-mix(in srgb, var(--br-up, var(--gain)) var(--br-tint-2, 30%), transparent); color: var(--br-bright, var(--text-bright)); }
+.shUp3 { background: color-mix(in srgb, var(--br-up, var(--gain)) var(--br-tint-3, 55%), transparent); color: var(--br-bright, var(--text-bright)); font-weight: 700; }
 .shDn1 { background: color-mix(in srgb, var(--br-down) var(--br-tint-1), transparent); }
-.shDn2 { background: color-mix(in srgb, var(--br-down) var(--br-tint-2), transparent); color: var(--br-bright); }
-.shDn3 { background: color-mix(in srgb, var(--br-down) var(--br-tint-3), transparent); color: var(--br-bright); font-weight: 700; }
+.shDn2 { background: color-mix(in srgb, var(--br-down, var(--loss)) var(--br-tint-2, 30%), transparent); color: var(--br-bright, var(--text-bright)); }
+.shDn3 { background: color-mix(in srgb, var(--br-down, var(--loss)) var(--br-tint-3, 55%), transparent); color: var(--br-bright, var(--text-bright)); font-weight: 700; }
 
 /* ── The shared heat ladder (source of truth for tokens.css --heat-*) ──────────
    No longer drawn by the Monitor sheet (it uses the Signature shading above); kept
@@ -350,7 +350,7 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.thBtn:hover, .thBtn[aria-expanded='true'] { background: var(--br-soft); color: var(--br-bright); }
+.thBtn:hover, .thBtn[aria-expanded='true'] { background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-bright, var(--text-bright)); }
 .thBtn:focus-visible { outline: 2px solid var(--br-ring); outline-offset: -1px; }
 .th { overflow: visible; }
 
@@ -358,7 +358,7 @@
    row stays one line tall. */
 .colSubLabel {
   font-size: 10px;
-  color: var(--br-rest);
+  color: var(--br-rest, var(--text-muted));
   margin-left: 6px;
   font-weight: 500;
   word-spacing: 1px;
@@ -418,17 +418,17 @@
   border-radius: 7px;
   border: 0;
   background: transparent;
-  color: var(--br-rest);
+  color: var(--br-rest, var(--text-muted));
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
 
-.daysPill:hover { background: var(--br-soft); color: var(--br-bright); }
+.daysPill:hover { background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-bright, var(--text-bright)); }
 
 /* The chosen window: the Signature "selected" soft tone, never gold. */
 .daysPillActive {
-  background: var(--br-soft-hi);
-  color: var(--br-bright);
+  background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent));
+  color: var(--br-bright, var(--text-bright));
 }
 
 .sortIndicator { font-size: 10px; opacity: 0.8; }
@@ -447,27 +447,27 @@
   font-weight: 600;
   border-radius: 7px;
   border: 0;
-  background: var(--br-soft);
-  color: var(--br-text);
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+  color: var(--br-text, var(--text));
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.12s, color 0.12s;
 }
 
 .exportBtn:hover,
-.hdrBtn:hover { background: var(--br-soft-hi); color: var(--br-bright); }
+.hdrBtn:hover { background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent)); color: var(--br-bright, var(--text-bright)); }
 
 .exportBtn:focus-visible,
 .hdrBtn:focus-visible { outline: 2px solid var(--br-ring); outline-offset: 1px; }
 
 /* The "+"-less primary of the row (Columns): one step brighter. */
-.hdrBtnPrimary { background: var(--br-soft-top); color: var(--br-bright); font-size: 12.5px; padding: 0 12px; }
+.hdrBtnPrimary { background: var(--br-soft-top, color-mix(in srgb, var(--text-bright) 8%, transparent)); color: var(--br-bright, var(--text-bright)); font-size: 12.5px; padding: 0 12px; }
 .hdrBtnPrimary:hover { background: var(--br-soft-top-hi); }
-.hdrBtnOpen { background: var(--br-soft-top-hi); color: var(--br-bright); }
-.hdrChevron { color: var(--br-faint); display: inline-flex; }
+.hdrBtnOpen { background: var(--br-soft-top-hi, color-mix(in srgb, var(--text-bright) 13%, transparent)); color: var(--br-bright, var(--text-bright)); }
+.hdrChevron { color: var(--br-faint, var(--ink-faint)); display: inline-flex; }
 
 /* Icon button (spec): the refresh. */
-.refreshBtn { width: 28px; padding: 0; background: transparent; color: var(--br-rest); }
+.refreshBtn { width: 28px; padding: 0; background: transparent; color: var(--br-rest, var(--text-muted)); }
 .refreshBtn:hover { background: var(--br-soft); }
 
 .refreshBtn svg { display: block; }
@@ -492,7 +492,7 @@
 /* TERM-059 — a value CARRIED from an earlier survey / print (the age authority's
    verdict). Owner 2026-11-19: muted text, no inline label; the as-of is in the
    cell's tooltip and accessible name. Display only. */
-.carriedValue { color: var(--br-faint); }
+.carriedValue { color: var(--br-faint, var(--ink-faint)); }
 
 /* The carried cell's hover tooltip: its as-of as a sentence + the provenance badge. */
 .ageTip {
@@ -535,14 +535,14 @@
    table cell's outline is otherwise clipped by the sticky header and the
    scroll container. */
 .drillable:focus-visible {
-  outline: 2px solid var(--br-ring);
+  outline: 2px solid var(--br-ring, color-mix(in srgb, var(--text-bright) 45%, transparent));
   outline-offset: -2px;
-  color: var(--br-bright);
+  color: var(--br-bright, var(--text-bright));
 }
 
 .drillable:hover {
-  text-decoration-color: var(--br-rest);
-  color: var(--br-bright);
+  text-decoration-color: var(--br-rest, var(--text-muted));
+  color: var(--br-bright, var(--text-bright));
 }
 tbody tr { cursor: pointer; }
 
@@ -780,20 +780,20 @@ tbody tr { cursor: pointer; }
   font-family: var(--font-sans);
   font-size: 15px;
   font-weight: 700;
-  color: var(--br-bright);
+  color: var(--br-bright, var(--text-bright));
   margin: 0;
 }
 
 .analoguesSub {
   font-size: 12px;
-  color: var(--br-faint);
+  color: var(--br-faint, var(--ink-faint));
 }
 
 .analoguesNarrative {
   font-size: 13px;
-  color: var(--br-text);
-  background: var(--br-panel);
-  border: 1px solid var(--br-line);
+  color: var(--br-text, var(--text));
+  background: var(--br-panel, var(--bg-surface));
+  border: 1px solid var(--br-line, var(--border));
   border-radius: 9px;
   padding: 10px 14px;
   margin-bottom: 18px;
@@ -830,15 +830,15 @@ tbody tr { cursor: pointer; }
 .analogueDate {
   font-size: 14px;
   font-weight: 700;
-  color: var(--br-bright);
+  color: var(--br-bright, var(--text-bright));
   font-variant-numeric: tabular-nums;
 }
 
 .analogueSim {
   font-size: 12px;
   font-weight: 600;
-  color: var(--br-text);
-  background: var(--br-soft);
+  color: var(--br-text, var(--text));
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
   height: 22px;
   display: inline-flex;
   align-items: center;
@@ -866,23 +866,23 @@ tbody tr { cursor: pointer; }
 .analogueFwdLabel {
   font-size: 11px;
   font-weight: 600;
-  color: var(--br-faint);
+  color: var(--br-faint, var(--ink-faint));
   margin-bottom: 2px;
 }
 
 .analogueFwdVal {
   font-size: 13px;
   font-weight: 600;
-  color: var(--br-rest);
+  color: var(--br-rest, var(--text-muted));
   font-variant-numeric: tabular-nums;
 }
 
 .analogueGreen {
-  color: var(--br-up);
+  color: var(--success-ink);   /* the text ink of --br-up (terminalReachableContrast) */
 }
 
 .analogueRed {
-  color: var(--br-down);
+  color: var(--danger-ink);    /* the text ink of --br-down */
 }
 
 /* Metrics comparison — rows with a hairline between, no boxes */
@@ -901,14 +901,14 @@ tbody tr { cursor: pointer; }
 
 .analogueMetricLabel {
   font-size: 12px;
-  color: var(--br-rest);
+  color: var(--br-rest, var(--text-muted));
   flex: 1;
 }
 
 .analogueMetricVal {
   font-size: 12.5px;
   font-weight: 600;
-  color: var(--br-text);
+  color: var(--br-text, var(--text));
   min-width: 52px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -916,7 +916,7 @@ tbody tr { cursor: pointer; }
 
 .analogueMetricNow {
   font-size: 11.5px;
-  color: var(--br-faint);
+  color: var(--br-faint, var(--ink-faint));
   min-width: 64px;
   text-align: right;
   font-variant-numeric: tabular-nums;
@@ -924,14 +924,14 @@ tbody tr { cursor: pointer; }
 
 .analoguesEmpty {
   font-size: 13px;
-  color: var(--br-rest);
+  color: var(--br-rest, var(--text-muted));
   padding: 40px 0;
   text-align: center;
 }
 
 .analoguesFooter {
   font-size: 11.5px;
-  color: var(--br-faint);
+  color: var(--br-faint, var(--ink-faint));
   margin-top: 20px;
   line-height: 1.5;
   text-align: center;
@@ -963,8 +963,8 @@ tbody tr { cursor: pointer; }
    because the cell is sticky), bright text and a pulsing dot in the theme's up
    colour. Never gold — gold on this page is only the current tab. */
 .liveRow .dateCell {
-  background: color-mix(in srgb, var(--text-bright) 7%, var(--br-panel));
-  color: var(--br-bright);
+  background: color-mix(in srgb, var(--text-bright) 7%, var(--br-panel, var(--bg-surface)));
+  color: var(--br-bright, var(--text-bright));
 }
 
 .table tbody tr.liveRow:hover .dateCell {
@@ -1005,7 +1005,7 @@ tbody tr { cursor: pointer; }
 .skeletonRow .dateCell { opacity: 0.6; }
 
 .skelDot {
-  color: var(--br-faint);
+  color: var(--br-faint, var(--ink-faint));
   opacity: 0.35;
 }
 
@@ -1069,8 +1069,8 @@ tbody tr { cursor: pointer; }
 
 /* Today — a small quiet text button beside the chart-style date control (the
    chart calendar has no "latest" entry of its own). */
-.todayBtn { height: 24px; padding: 0 6px; background: transparent; color: var(--br-rest); font-size: 12px; }
-.todayBtn:hover { background: var(--br-soft); color: var(--br-bright); }
+.todayBtn { height: 24px; padding: 0 6px; background: transparent; color: var(--br-rest, var(--text-muted)); font-size: 12px; }
+.todayBtn:hover { background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-bright, var(--text-bright)); }
 
 /* The visible "Breadth" title is gone (owner 2026-11-17): the h1 stays for screen
    readers (same declarations as tokens.css .sr-only) and the tabs start the row,
@@ -1093,13 +1093,13 @@ tbody tr { cursor: pointer; }
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--br-rest);
+  color: var(--br-rest, var(--text-muted));
   font: 500 12px var(--font-sans);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
 }
-.status:hover { background: var(--br-soft); color: var(--br-bright); }
+.status:hover { background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-bright, var(--text-bright)); }
 .status:focus-visible { outline: 2px solid var(--br-ring); outline-offset: 1px; }
 .statusDot {
   width: 7px;
@@ -1114,8 +1114,8 @@ tbody tr { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .statusPulse { animation: none; } }
 
 /* ⋯ — the overflow menu's icon button (spec: icon button, 28px). */
-.moreBtn { width: 28px; padding: 0; background: transparent; color: var(--br-rest); }
-.moreBtn:hover, .moreBtn[aria-expanded='true'] { background: var(--br-soft); color: var(--br-bright); }
+.moreBtn { width: 28px; padding: 0; background: transparent; color: var(--br-rest, var(--text-muted)); }
+.moreBtn:hover, .moreBtn[aria-expanded='true'] { background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); color: var(--br-bright, var(--text-bright)); }
 
 @media (max-width: 1024px) {
   .status, .moreBtn { min-height: var(--tap-min); }
@@ -1148,8 +1148,8 @@ tbody tr { cursor: pointer; }
   height: calc(15px * var(--br-scale, 1));
   padding: 0 4px;
   border-radius: 4px;
-  background: color-mix(in srgb, var(--br-up) 18%, transparent);
-  color: var(--br-up);
+  background: color-mix(in srgb, var(--br-up, var(--gain)) 17%, transparent);   /* 17%: the ink reads 4.5:1 on every theme (18% was 4.47 on Sand) */
+  color: var(--success-ink);   /* the text ink of --br-up */
   font-size: calc(9.5px * var(--br-scale, 1));
   font-weight: 600;
   line-height: 1;
@@ -1170,14 +1170,14 @@ tbody tr { cursor: pointer; }
   gap: 3px;
   padding: 7px 10px 9px;
   margin-bottom: 4px;
-  border-bottom: 1px solid #2a2c31;   /* the Signature menu hairline (as the chart menu's dividers) */
+  border-bottom: 1px solid var(--signature-line);   /* the Signature menu hairline (as the chart menu's dividers) */
   text-align: left;
   white-space: normal;
 }
 /* The Signature panel is always the dark board look (#111214), in every app theme,
    so these are the spec's dark-panel text levels (docs/uct-signature-style.md §2). */
-.colInfoName { font: 600 13px/1.3 var(--font-sans); color: #f8f7f3; }   /* Text bright */
-.colInfoDesc { font: 400 12.5px/1.45 var(--font-sans); color: #ededed; } /* Text */
+.colInfoName { font: 600 13px/1.3 var(--font-sans); color: var(--signature-bright); }   /* Text bright */
+.colInfoDesc { font: 400 12.5px/1.45 var(--font-sans); color: var(--signature-text); } /* Text */
 
 /* Visually hidden, read by screen readers (tokens.css .sr-only's declarations). */
 .srOnly {
@@ -1199,8 +1199,8 @@ tbody tr { cursor: pointer; }
 
 /* ── Universe switcher (owner 2026-11-19) ─────────────────────────────────── */
 /* Off UCT: Health hidden ("—") and the not-yet-available columns ("n/a"). */
-.naCell { color: var(--br-faint); }
+.naCell { color: var(--br-faint, var(--ink-faint)); }
 /* A provisional session (the canonical one has not landed yet). */
-.provisionalDate { font-style: italic; color: var(--br-faint); }
+.provisionalDate { font-style: italic; color: var(--br-faint, var(--ink-faint)); }
 /* The universe line in a column's header menu. */
-.colInfoNote { margin-top: 6px; color: #bdbdbd; }
+.colInfoNote { margin-top: 6px; color: color-mix(in srgb, var(--signature-text) 47%, var(--signature-faint)); }   /* ~#bdbdc1 */

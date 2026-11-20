@@ -18,6 +18,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ContextPopover from '../../components/mobile/ContextPopover'
+import Input from '../../components/ui/Input'
 import { COLUMN_INFO } from './columnInfo'
 import { DEFAULT_PRESET, NAME_MAX, templateLabel, validatePresetName } from './useBreadthCustomize'
 import s from './ColumnsMenu.module.css'
@@ -66,9 +67,9 @@ function NameField({ initial = '', label, cta, onSubmit, onCancel, taken }) {
   return (
     <div className={s.fieldWrap}>
       <div className={s.field}>
-        <input ref={ref} className={s.inp} aria-label={label} value={v} maxLength={NAME_MAX + 10}
+        <Input ref={ref} className={s.inp} aria-label={label} value={v} maxLength={NAME_MAX + 10}
           placeholder="Template name"
-          aria-invalid={err ? true : undefined}
+          error={err || undefined}
           onChange={(e) => { setV(e.target.value); setErr(null) }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') { e.preventDefault(); submit() }
@@ -314,7 +315,7 @@ export default function ColumnsMenu({
           <div className={s.hr} />
           <label className={s.find}>
             <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            <input ref={findRef} data-autofocus value={q} onChange={(e) => setQ(e.target.value)}
+            <Input ref={findRef} data-autofocus value={q} onChange={(e) => setQ(e.target.value)}
               placeholder="Find a column…" aria-label="Find a column" />
           </label>
           <div className={s.list}>

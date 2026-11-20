@@ -43,6 +43,22 @@ export const MONITOR_LS_KEYS = {
   nyse: { dates: 'uct.breadth.dates.v1.nyse', recent: 'uct.breadth.recent.v1.nyse' },
 }
 
+// A universe's key, ONE RETURN PER UNIVERSE (an unknown id gets UCT's): every key a storage call
+// can be handed is then readable from the source, so the persistence census (TERM-076,
+// tools/persistence_census.mjs) declares each one exactly, never as a `*`.
+export function monitorDatesLsKey(universe) {
+  if (universe === 'us') return MONITOR_LS_KEYS.us.dates
+  if (universe === 'nasdaq') return MONITOR_LS_KEYS.nasdaq.dates
+  if (universe === 'nyse') return MONITOR_LS_KEYS.nyse.dates
+  return MONITOR_LS_KEYS.uct.dates
+}
+export function monitorRecentLsKey(universe) {
+  if (universe === 'us') return MONITOR_LS_KEYS.us.recent
+  if (universe === 'nasdaq') return MONITOR_LS_KEYS.nasdaq.recent
+  if (universe === 'nyse') return MONITOR_LS_KEYS.nyse.recent
+  return MONITOR_LS_KEYS.uct.recent
+}
+
 /** Columns that are the SAME reading on every universe (copied from UCT for the date). */
 export const MARKET_WIDE_COLS = new Set([
   'uct_exposure', 'is_ftd', 'spy_ma_stack', 'qqq_ma_stack', 'sp500_close', 'qqq_close', 'vix',
