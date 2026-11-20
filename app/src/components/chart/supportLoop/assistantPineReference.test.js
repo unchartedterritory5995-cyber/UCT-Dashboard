@@ -19,7 +19,12 @@ import { inspectSource } from '../builder/PineBox'
 import { memberPaneDefinition } from '../builder/memberPane/memberPaneDefinition'
 import { editorStatus } from '../builder/editorStatus'
 import { __permitRuntimePaneForTests } from '../engine/runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests } from '../engine/runtimeKill'
+import {
+  __allowEveryRuntimeScriptForTests, __resetRuntimeAllowList, __resetRuntimeAdmission, setRuntimeCapabilityAdmission,
+  latchRuntimeAdmission, runtimeSourceHash, runtimeAllowList, runtimeCapabilityAdmissionOn, RUNTIME_FORMING_GUARD,
+} from '../engine/runtimeKill'
+import { __resetHostKnownDivergence, hostKnownDivergenceActive } from '../engine/hostKnownDivergence'
+import { asMember, grantRuntimeGate } from '../../../testing/runtimeGate'
 import { RUNTIME_OUTPUT_CALLS } from '../engine/ast/pineRuntimeFrontend'
 import DOOR_NAMES from './doorNameCoverage.json'
 import EXAMPLE_INDEX from './assistantExamples/index.json'
@@ -28,7 +33,7 @@ import { buildAssistantGaps, GAP_KINDS } from './assistantGaps'
 import RECIPE_INDEX from './assistantRecipes/index.json'
 import {
   buildAssistantRecipes, buildRunStops, drawsObjects, drawingsMade, recipeBars, recipeContext, RECIPE_CHARTS, RECIPE_HISTORIES,
-  RUN_STOP_PROBES, WRONG_VALUE_GUARD, NEWEST_BAR_BLANK_GUARD,
+  RUN_STOP_PROBES, WRONG_VALUE_GUARD, NEWEST_BAR_BLANK_GUARD, MEMBER_ANSWER, memberProofStands,
 } from './assistantRecipes'
 import * as nativeRegistry from '../engine/nativeRegistry'
 import { RUNTIME_OBJECTS_KEY } from '../engine/runtime/runtimeObjects'
@@ -148,13 +153,14 @@ const RECIPES = RECIPE_INDEX.recipes.map((r) => ({
 const RECIPE_BARS = Object.fromEntries(RECIPE_CHARTS.map((kind) => [kind, recipeBars(kind)]))
 
 /** A real run of a script on a recipe chart: the engine's own columns and its own refusals. */
-function computeOf(source, chart, history, { dropLast = 0 } = {}) {
+function computeOf(source, chart, history, { dropLast = 0, forming = false } = {}) {
   const pane = memberPaneDefinition({ source, id: `u_recipe_${n += 1}`, name: 'recipe' })
   if (!pane.ok || !pane.definition) return { ok: false, guard: pane.guard || 'not-built', why: pane.reason || '', values: 0 }
   const bars = dropLast > 0 ? RECIPE_BARS[chart].slice(0, -dropLast) : RECIPE_BARS[chart]
   let cols
   try {
-    cols = nativeRegistry.computeFor(pane.definition, bars, undefined, recipeContext(chart, history))
+    // (`forming`: the chart's own fact about its newest bar, the one the session-hours rule reads)
+    cols = nativeRegistry.computeFor(pane.definition, bars, undefined, { ...recipeContext(chart, history), newestBarIsForming: forming === true })
   } catch (e) {
     return { ok: false, guard: (e && e.guard) || 'threw', why: String((e && e.message) || e), values: 0 }
   }
@@ -197,9 +203,50 @@ function drawingsOfRun(def, cols) {
   return { lost, made: ops, withheld: hostWithheld ? hostWithheld.guard : null, partial: false }
 }
 
+/** One run of a script, as the generator records it for a member: drawn, waiting for the bar, or the stop. */
+function memberAnswer(source, chart, history, forming) {
+  const c = computeOf(source, chart, history, { forming })
+  if (c.ok === true) return c.values > 0 && (!drawsObjects(source) || drawingsMade(c.drawings)) ? MEMBER_ANSWER.RUNS : 'drew nothing'
+  return c.guard === RUNTIME_FORMING_GUARD ? MEMBER_ANSWER.WAITS : `stopped: ${c.guard}`
+}
+
+/** The server's admission answer for a recipe: admitted, and for finished bars only when the recipe says so
+ *  (`tests/test_pine_authoring.py` holds that flag to the server's own detector, recipe by recipe). */
+const verdictFor = (waits) => ({ admitted: true, historyOnly: waits === true })
+
+/**
+ * ⭐ THE SAME SCRIPT BEHIND A MEMBER'S DOORS (2026-11-20). Everything else in this file runs under the test
+ * grant (`src/test-setup.js`: every script admitted, the host lane's known-divergence list ignored), which is
+ * how a recipe that a member's chart refused all session was once written here as served. This takes the
+ * grant back for ONE script: no allowlist, the known-divergence list applied, capability admission on, and the
+ * server's verdict latched for this exact source. Then the grant is put back, because the rest of the same
+ * test generates under it.
+ * ⛔ Called from inside a test only (the gate rails, `src/testing/runtimeGate.js`). The describe below runs the
+ * same recipes behind `asMember`, the shared way to stand behind those doors, and holds the two to each other.
+ */
+const memberSeen = new Map()
+function memberOf(source, chart, history, waits) {
+  const key = [runtimeSourceHash(source), chart, history, waits === true].join('|')
+  if (memberSeen.has(key)) return memberSeen.get(key)
+  __resetRuntimeAllowList()
+  __resetHostKnownDivergence()
+  __resetRuntimeAdmission()
+  setRuntimeCapabilityAdmission(true)
+  latchRuntimeAdmission(runtimeSourceHash(source), verdictFor(waits))
+  let out
+  try {
+    out = { forming: memberAnswer(source, chart, history, true), finished: memberAnswer(source, chart, history, false) }
+  } finally {
+    __resetRuntimeAdmission()
+    grantRuntimeGate()
+  }
+  memberSeen.set(key, out)
+  return out
+}
+
 describe('assistantRecipes.json: every recipe is proven twice, by the paste check and by a real run', () => {
   beforeAll(() => { __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests() })
-  const recipes = (over = {}) => buildAssistantRecipes({ recipes: RECIPES, verdictOf, computeOf, ...over })
+  const recipes = (over = {}) => buildAssistantRecipes({ recipes: RECIPES, verdictOf, computeOf, memberOf, ...over })
 
   it('regenerates byte-for-byte (WRITE_ASSISTANT_PINE_REFERENCE=1 rewrites it)', () => {
     const text = `${JSON.stringify(recipes(), null, 1)}${LF}`
@@ -228,11 +275,53 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
         expect(r.runs[h].ok, `${r.id} on a chart ${h}: ${r.runs[h].guard} ${r.runs[h].why || ''}`).toBe(true)
         expect(r.runs[h].values, `${r.id} on a chart ${h} has no value anywhere`).toBeGreaterThan(0)
         if (r.draws) expect(drawingsMade(r.runs[h].drawings), `${r.id} on a chart ${h}: its drawings ${JSON.stringify(r.runs[h].drawings)}`).toBe(true)
+        // as a member has it: drawn once the bar has finished, and while it forms unless the recipe says it waits
+        expect(r.member[h], `${r.id} on a chart ${h}, as a member`).toEqual({
+          forming: r.finishedBarsOnly === true ? MEMBER_ANSWER.WAITS : MEMBER_ANSWER.RUNS, finished: MEMBER_ANSWER.RUNS,
+        })
       }
       expect(r.draws, r.id).toBe(drawsObjects(r.source))
       expect(r.served, r.id).toBe(true)
     }
+    // the generator left the grant as it found it
+    expect(runtimeAllowList()).toEqual(['*'])
+    expect(runtimeCapabilityAdmissionOn()).toBe(false)
+    expect(hostKnownDivergenceActive()).toBe(false)
   }, 600_000)
+
+  it('CONTROL: a recipe is not served unless the MEMBER\'s proof stands, in either direction', () => {
+    const pasteOk = () => ({ ok: true, lane: 'runtime', state: 'runs-with-notes', headline: 'Runs' })
+    const made = { made: 3, lost: false, withheld: null, partial: false }
+    const withMember = (memberOfFake) => recipes({ verdictOf: pasteOk, computeOf: () => ({ ok: true, values: 3, drawings: made }), memberOf: memberOfFake, stopProbes: {} }).recipes
+    const honest = (_s, _c, _h, waits) => ({ forming: waits ? 'waits' : 'runs', finished: 'runs' })
+    expect(withMember(honest).every((r) => r.served === true)).toBe(true)
+    // no proof given at all: nothing is served
+    const none = buildAssistantRecipes({ recipes: RECIPES, verdictOf: pasteOk, computeOf: () => ({ ok: true, values: 3, drawings: made }), stopProbes: {} }).recipes
+    expect(none.every((r) => r.served === false && r.member.fromListing.forming === MEMBER_ANSWER.NOT_PROVEN)).toBe(true)
+    expect(withMember(() => null).every((r) => r.served === false)).toBe(true)
+    // stopped while the bar forms, on ONE history only: not served
+    const stoppedOff = withMember((s, c, h, waits) => (h === 'offListing' ? { forming: 'stopped: pane:not-graded', finished: 'runs' } : honest(s, c, h, waits)))
+    expect(stoppedOff.every((r) => r.served === false && r.member.offListing.forming === 'stopped: pane:not-graded')).toBe(true)
+    // not drawn once the bar has finished: not served
+    expect(withMember(() => ({ forming: 'runs', finished: 'stopped: x' })).every((r) => r.served === false)).toBe(true)
+    // ⛔ an UNDECLARED recipe that waits is not served (a member would read "does not run" all session) ...
+    const everyoneWaits = withMember(() => ({ forming: 'waits', finished: 'runs' }))
+    expect(everyoneWaits.filter((r) => r.finishedBarsOnly !== true).every((r) => r.served === false)).toBe(true)
+    expect(everyoneWaits.filter((r) => r.finishedBarsOnly === true).every((r) => r.served === true)).toBe(true)
+    // ... and a DECLARED one that does not wait is not served either (the member would be told it waits)
+    const nobodyWaits = withMember(() => ({ forming: 'runs', finished: 'runs' }))
+    expect(nobodyWaits.filter((r) => r.finishedBarsOnly === true).length).toBeGreaterThan(0)
+    expect(nobodyWaits.filter((r) => r.finishedBarsOnly === true).every((r) => r.served === false)).toBe(true)
+    expect(nobodyWaits.filter((r) => r.finishedBarsOnly !== true).every((r) => r.served === true)).toBe(true)
+    // the rule itself, by hand
+    const both = (forming, finished) => ({ fromListing: { forming, finished }, offListing: { forming, finished } })
+    expect(memberProofStands(both('runs', 'runs'), false)).toBe(true)
+    expect(memberProofStands(both('waits', 'runs'), true)).toBe(true)
+    expect(memberProofStands(both('waits', 'runs'), false)).toBe(false)
+    expect(memberProofStands(both('runs', 'runs'), true)).toBe(false)
+    expect(memberProofStands({ fromListing: { forming: 'runs', finished: 'runs' } }, false)).toBe(false)   // one history missing
+    expect(memberProofStands(null, false)).toBe(false)
+  })
 
   it('CONTROL: a recipe the run refuses is not served, whatever the paste check says', () => {
     const pasteOk = () => ({ ok: true, lane: 'runtime', state: 'runs-with-notes', headline: 'Runs' })
@@ -409,6 +498,59 @@ describe('assistantRecipes.json: every recipe is proven twice, by the paste chec
     expect(typeof recipeBars('daily')[0].t).toBe('string')
     expect(typeof recipeBars('intraday')[0].t).toBe('number')
   })
+})
+
+// ─── the same recipes behind `asMember`, the shared way to stand behind a member's doors ───────────────
+//
+// The generator above takes the test grant back by hand, for one script inside one test, because it must
+// generate under the grant in the same breath. This describe stands behind the doors the way every other
+// suite does (`asMember`, `src/testing/runtimeGate.js`) and asks each recipe again. The two must agree: if a
+// door is ever added to the member's side, `asMember` learns it, this goes red, and the generator's own
+// narrowing is known to be short by one.
+describe('assistantRecipes.json: what the file records for a member is what a member\'s doors give', () => {
+  const COMMITTED = JSON.parse(fs.readFileSync(RECIPES_FILE, 'utf8'))
+  asMember({
+    allow: true, hkd: true,
+    admission: Object.fromEntries(RECIPES.map((r) => [runtimeSourceHash(r.source), verdictFor(r.finishedBarsOnly === true)])),
+  })
+  // (each test hands the grant back: the describes after this one grant in `beforeAll`, and a gate left narrowed
+  // here would make that hook look like one that moved the gate behind a test's back, GATE-BLIND)
+  afterEach(() => { __resetRuntimeAdmission(); grantRuntimeGate() })
+
+  it('these tests stand behind the member\'s doors, not the grant', () => {
+    expect(runtimeAllowList()).toEqual([])
+    expect(runtimeCapabilityAdmissionOn()).toBe(true)
+    expect(hostKnownDivergenceActive()).toBe(true)
+  })
+
+  it('every recipe, forming and finished, on both histories', () => {
+    const wrong = []
+    for (const r of RECIPES) {
+      const row = COMMITTED.recipes.find((x) => x.id === r.id)
+      for (const h of RECIPE_HISTORIES) {
+        const now = { forming: memberAnswer(r.source, r.chart, h, true), finished: memberAnswer(r.source, r.chart, h, false) }
+        if (JSON.stringify(now) !== JSON.stringify(row && row.member && row.member[h])) {
+          wrong.push(`${r.id} (${h}): the file says ${JSON.stringify(row && row.member && row.member[h])}, a member's doors give ${JSON.stringify(now)}`)
+        }
+      }
+    }
+    expect(wrong).toEqual([])
+  }, 900_000)
+
+  it('CONTROL: behind these doors a script with no verdict is not drawn, and one admitted for finished bars only waits', () => {
+    const r = RECIPES.find((x) => x.id === 'fibonacci-swings')
+    // the same script, one comment longer: another source, so no verdict was latched for it
+    const unknown = `${r.source}${LF}// (no verdict for this text)${LF}`
+    expect(memberAnswer(unknown, r.chart, 'fromListing', false)).toMatch(/^stopped: /)
+    expect(memberAnswer(r.source, r.chart, 'fromListing', true)).toBe(MEMBER_ANSWER.RUNS)
+    // the forming-bar rule is live here: a recipe that reads the last bar waits while it forms, and only then
+    const waiting = RECIPES.filter((x) => x.finishedBarsOnly === true)
+    expect(waiting.map((x) => x.id).sort()).toEqual(['volume-profile', 'weekday-returns-table'])
+    for (const w of waiting) {
+      expect(memberAnswer(w.source, w.chart, 'fromListing', true), w.id).toBe(MEMBER_ANSWER.WAITS)
+      expect(memberAnswer(w.source, w.chart, 'fromListing', false), w.id).toBe(MEMBER_ANSWER.RUNS)
+    }
+  }, 600_000)
 })
 
 describe('assistantGaps.json is the engine\'s own answer on each gap probe', () => {

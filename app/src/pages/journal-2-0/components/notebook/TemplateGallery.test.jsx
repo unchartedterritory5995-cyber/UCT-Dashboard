@@ -130,9 +130,12 @@ const gateOn = () => latchNotebookFlags({ notebook_template_gallery_enabled: tru
 const door = () => screen.getByRole('button', { name: /Browse the Template library/ })
 const sentTo = (path, method) => calls.filter((c) => c.path === path && c.method === method)
 
+// ⛔ AWAITED, both ends (2026-11-20): the door renders once the picker's own chunk has loaded (its skeleton
+// stands until then), and the gallery's heading takes focus in an effect after it is in the page. A synchronous
+// read of either raced it, and lost on a saturated runner ("toHaveFocus" read before the focus move).
 async function openGallery(opts) {
   const ctx = renderPicker(opts)
-  await ctx.user.click(door())
+  await ctx.user.click(await screen.findByRole('button', { name: /Browse the Template library/ }))
   await screen.findByRole('heading', { name: 'Template library · From members' })
   return ctx
 }
@@ -165,7 +168,7 @@ describe('the door', () => {
   it('opens the gallery with focus on its heading, and Back returns focus to the door', async () => {
     gateOn()
     const { user } = await openGallery()
-    expect(screen.getByRole('heading', { name: 'Template library · From members' })).toHaveFocus()
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Template library · From members' })).toHaveFocus())
     await user.click(screen.getByRole('button', { name: 'Back to templates' }))
     await waitFor(() => expect(door()).toHaveFocus())
   })
