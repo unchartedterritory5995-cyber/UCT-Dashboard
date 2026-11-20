@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { SWRConfig } from 'swr'
-import useTickerIpo, { fetcher, prefetchTickerIpo, NON_FINAL_POLL_MS } from './useTickerIpo'
+import useTickerIpo, { fetcher, prefetchTickerIpo, NON_FINAL_POLL_MS, PENDING_IPO } from './useTickerIpo'
 
 const wrapper = ({ children }) => (
   <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
@@ -12,10 +12,49 @@ describe('useTickerIpo', () => {
   beforeEach(() => { origFetch = global.fetch; localStorage.clear() })
   afterEach(() => { global.fetch = origFetch; vi.restoreAllMocks(); localStorage.clear() })
 
-  it('returns null-safe default before/without data', () => {
+  it('returns null-safe default before/without data (marked pending while the first answer is in flight)', () => {
     global.fetch = vi.fn(() => new Promise(() => {}))
     const { result } = renderHook(() => useTickerIpo('ABNB'), { wrapper })
-    expect(result.current).toEqual({ list_date: null })
+    // ⭐⭐ (2026-11-20) the same no-date shape every reader of `list_date` sees, marked `pending` (PENDING_IPO)
+    expect(result.current).toEqual({ list_date: null, pending: true })
+    expect(result.current).toBe(PENDING_IPO)
+  })
+
+  // ⭐⭐ (coordinator ruling 2026-11-20, captured: ipocold-bgin) — THE LISTING LOOKUP IN FLIGHT IS SAID, AND ENDS
+  it('a cached answer is never pending; an answer that lands ends the wait', async () => {
+    localStorage.setItem('tipo:RDDT', JSON.stringify({ t: Date.now(), d: { list_date: '2024-03-21', first_trade_date: '2024-03-21', first_trade_final: true } }))
+    global.fetch = vi.fn(() => new Promise(() => {}))
+    const cached = renderHook(() => useTickerIpo('RDDT'), { wrapper })
+    expect(cached.result.current.pending).toBeUndefined()
+    expect(cached.result.current.first_trade_date).toBe('2024-03-21')
+    let land
+    global.fetch = vi.fn(() => new Promise((r) => { land = r }))
+    const { result } = renderHook(() => useTickerIpo('BGIN'), { wrapper })
+    expect(result.current.pending).toBe(true)
+    land({ ok: true, json: async () => ({ list_date: '2025-10-21', first_trade_date: '2025-10-21', first_trade_final: true }) })
+    await waitFor(() => expect(result.current.first_trade_date).toBe('2025-10-21'))
+    expect(result.current.pending).toBeUndefined()
+  })
+
+  it('⛔ ANOTHER SYMBOL's late answer is never this symbol's: it neither ends the wait nor names a date', async () => {
+    const resolvers = {}
+    global.fetch = vi.fn((url) => new Promise((r) => { resolvers[url.split('/').pop()] = r }))
+    const { result, rerender } = renderHook(({ sym }) => useTickerIpo(sym), { wrapper, initialProps: { sym: 'AGL' } })
+    expect(result.current.pending).toBe(true)
+    rerender({ sym: 'BGIN' })
+    expect(result.current.pending).toBe(true)
+    // AGL's answer lands late, after the chart moved to BGIN
+    resolvers.AGL({ ok: true, json: async () => ({ list_date: '2021-04-15', first_trade_date: '2021-04-15', first_trade_final: true }) })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(result.current).toBe(PENDING_IPO)                   // still waiting for BGIN's, no AGL date
+    resolvers.BGIN({ ok: true, json: async () => ({ list_date: '2025-10-21', first_trade_date: '2025-10-21', first_trade_final: true }) })
+    await waitFor(() => expect(result.current.first_trade_date).toBe('2025-10-21'))
+  })
+
+  it('no symbol is never pending', () => {
+    global.fetch = vi.fn()
+    const { result } = renderHook(() => useTickerIpo(null), { wrapper })
+    expect(result.current.pending).toBeUndefined()
   })
 
   it('returns the fetched listing date', async () => {
