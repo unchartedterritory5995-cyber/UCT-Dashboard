@@ -1,0 +1,44 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_DMI", overlay = false)
+
+// U-BUILTIN (2026-11-19). WHAT `ta.dmi(diLength, adxSmoothing)` COMPUTES, EQUAL AND UNEQUAL PERIODS.
+//
+// The reference gives no formula. The engine serves the three legs only when the two periods are equal
+// (`pine.js` dmiLeg: the table's `plusDI` / `minusDI` / `adx` take one period) and refuses by name
+// otherwise; the runtime lane has no `ta.dmi` at all. D1-D3 and U1-U4 are `ta.dmi`; W1-W4 subtract
+// TradingView's own "Directional Movement Index" indicator body written out (Wilder's RMA), so a zero on
+// every bar says the built-in IS that body for that pair of periods.
+//
+// CAPTURE: AMEX:SPY 1D from the listing and NYSE:RDDT 1D from the listing. Inputs at defaults.
+
+dirmov(len) =>
+    up = ta.change(high)
+    down = -ta.change(low)
+    plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)
+    minusDM = na(down) ? na : (down > up and down > 0 ? down : 0)
+    truerange = ta.rma(ta.tr, len)
+    plus = fixnan(100 * ta.rma(plusDM, len) / truerange)
+    minus = fixnan(100 * ta.rma(minusDM, len) / truerange)
+    [plus, minus]
+adxOf(dilen, adxlen) =>
+    [plus, minus] = dirmov(dilen)
+    sum = plus + minus
+    100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), adxlen)
+
+[p14, m14, a14] = ta.dmi(14, 14)
+[p17, m17, a17] = ta.dmi(17, 14)
+[p14b, m14b, a14b] = ta.dmi(14, 20)
+[wp17, wm17] = dirmov(17)
+
+plot(bar_index, "D0_bar_index_CONTROL")
+plot(p14, "D1_plus_14_14")
+plot(m14, "D2_minus_14_14")
+plot(a14, "D3_adx_14_14")
+plot(p17, "U1_plus_17_14")
+plot(m17, "U2_minus_17_14")
+plot(a17, "U3_adx_17_14")
+plot(a14b, "U4_adx_14_20")
+plot(p17 - wp17, "W1_plus_17_minus_body_MUST_BE_0")
+plot(m17 - wm17, "W2_minus_17_minus_body_MUST_BE_0")
+plot(a17 - adxOf(17, 14), "W3_adx_17_14_minus_body_MUST_BE_0")
+plot(a14b - adxOf(14, 20), "W4_adx_14_20_minus_body_MUST_BE_0")

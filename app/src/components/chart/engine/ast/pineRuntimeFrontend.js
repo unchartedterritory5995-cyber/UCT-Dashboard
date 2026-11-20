@@ -33,11 +33,12 @@ import {
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
-  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
+  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan, settledRequestFunctionOf,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
   legacyPeriodUndeclared, legacyPeriodRefusal,
+  TEXT_FORMAT_FLAGS, canonicalTextFormat,
   selfReferencingDeclaration, blockDeclarationReadsOwnHistory, declarationCalcBars, neverNaBoolNamesOf, isBoolishTree,
   isLegacyPineVersion,
   chartOffsetFunctions, callsInBlocks, callsInConditionalArms, legacyCarryStatements, FN_HISTORY_IN_BLOCK, CARRY_VERSIONS,
@@ -1981,8 +1982,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   /** ⭐ W4 T1 — the v1–v4 spellings of a data request (`request.*` from v5). */
   const LEGACY_REQUEST_CALLS = new Set(['security', 'security_lower_tf', 'financial'])
   /** ⭐ Engine 66 (#1473) (bt) — bare v1–v4 names of a `math.*` call-tree expansion (`callTreeExpansion`):
-   *  the migration guide's `math` table renames `avg()` to `math.avg()`. */
-  const LEGACY_MATH_CALL_TREE = new Set(['avg'])
+   *  the migration guide's `math` table renames `avg()` to `math.avg()`, and (U-BUILTIN B2) `toradians()` /
+   *  `todegrees()` to `math.toradians()` / `math.todegrees()`. */
+  const LEGACY_MATH_CALL_TREE = new Set(['avg', 'toradians', 'todegrees'])
 
   let stmts
   // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME, at the pane AND
@@ -2954,6 +2956,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   // own build where that stands, else a decline under this refusal.
   // Absent on every other build, whose options stay byte-identical.
   const objectDoorOpts = (atObjectDoor || objectsInRun) ? { objectDoor: true } : {}
+  /** ⭐⭐ (request unit PR 2, engine 90) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THE REQUEST-TIMEFRAME READER
+   *  ALONE (`pine.js::Resolver.requestSettledFunctions` → `throughSettledCall`). This lane's resolver environment
+   *  holds pure expression bindings and no user function, so `request.security(ticker, timeframe_func(), …)` (Saty
+   *  ATR Levels) was unreadable here. Each function's own kept body (`inlineBodyByName`), read through
+   *  `pine.js::settledRequestFunctionOf` (an expression body, or `x = '<text>'` + one `if` chain of `x := '<text>'`;
+   *  anything else `{refused}`, named at the request it stops: `settledCallWhy`), in the scope of the names the
+   *  script bound BEFORE the function (`settledDefEnvByName`, a snapshot taken at its definition). Memoised per name
+   *  (one object per function, so a recursion is caught by the reader's stack). */
+  const settledFunctions = { get: (name) => settledFunctionNamed(name), alias: (name) => settledAliasNamed(name) }
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
@@ -2972,10 +2983,17 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       aboveDailyReads: true,
       ...objectDoorOpts,
       // ⭐⭐ (request unit, TF-FOLD, engine 89) — a request's timeframe is read with the runtime lane's reach
-      // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms). ⛔ The HOST translator never sets it.
+      // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms, and (PR 2) a script function's settled
+      // result, `settledFunctions`). ⛔ The HOST translator never sets either.
       requestTimeframeReader: 'runtime',
+      requestSettledFunctions: settledFunctions,
+      // ⭐⭐ (request unit PR 2, EXT-OWN, engine 90) — the chart's own symbol on the extended session, at the
+      // chart's own daily timeframe on a daily chart, is the chart's own daily bars (`pine.js::extendedOwnTickerOf`),
+      // graded on Saty ATR Levels' captures. ⛔ The HOST translator never sets it.
+      requestExtendedOwn: 'daily-identity',
     }
-    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime' }
+    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime',
+      requestSettledFunctions: settledFunctions, requestExtendedOwn: 'daily-identity' }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
@@ -3678,11 +3696,54 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   }
   // RT5: an expression that picks a drawing enum (`c ? extend.right : extend.none`)
   // is a string the drawing layer reads, never a column.
+  // ⭐ U-BUILTIN B6 (2026-11-19) — AND SO DOES A NAME BOUND TO ONE. session-tpo-profile writes
+  // `ext = extend_levels ? extend.right : extend.none` and then `line.new(…, extend = ext)`: the
+  // binding is absorbed by the `env` macro path, so the argument arrived as the bare name `ext`, this
+  // test answered "no enum", and the columnar lane was asked to resolve the ternary and refused
+  // `pine:builtin` ("the engine grammar does not hold `extend.right`") about a constant the drawing
+  // layer holds (`objectEnums.js`). The binding is read through, as `holdsColour` reads one; a name
+  // already being read answers false (its cycle guard).
+  const enumNamesInFlight = new Set()
   const containsObjectEnum = (n) => {
     if (!n || typeof n !== 'object') return false
-    if (n.type === 'name') return objectEnumValue(n.name) !== undefined && !env.has(n.name)
+    if (n.type === 'name') {
+      if (objectEnumValue(n.name) !== undefined && !env.has(n.name)) return true
+      const bound = env.get(n.name)
+      if (!bound || bound.kind !== 'expr' || enumNamesInFlight.has(n.name)) return false
+      enumNamesInFlight.add(n.name)
+      try { return containsObjectEnum(bound.node) } finally { enumNamesInFlight.delete(n.name) }
+    }
     return Object.values(n).some((v) => (Array.isArray(v) ? v.some(containsObjectEnum)
       : (v && typeof v === 'object' && v.type ? containsObjectEnum(v) : false)))
+  }
+  /** ⭐ U-BUILTIN B7 (2026-11-19) — THE FLAGS A `text_format` EXPRESSION NAMES, or `null`. Pine's one
+   *  constant family that adds (`text.format_bold + text.format_italic`; `pine.js::TEXT_FORMAT_FLAGS`
+   *  says why `+`): a constant, a sum of them, or a name bound to either, read exactly as the host
+   *  object pass reads it (`textFormatFlags`), so the two lanes write the same canonical value
+   *  (`canonicalTextFormat`: `'bold_italic'`). The runtime lane had the single constant (an object enum)
+   *  and lowered the SUM as a text concatenation, `"bolditalic"`. Anything else answers `null` and is
+   *  lowered as before. */
+  const textFormatNamesInFlight = new Set()
+  const textFormatFlagsOf = (n, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 8) return null
+    if (n.type === 'paren' && n.expr) return textFormatFlagsOf(n.expr, depth + 1)
+    if (n.type === 'name') {
+      if (Object.hasOwn(TEXT_FORMAT_FLAGS, n.name) && !env.has(n.name)) {
+        const f = TEXT_FORMAT_FLAGS[n.name]
+        return f === null ? [] : [f]
+      }
+      const bound = env.get(n.name)
+      if (!bound || bound.kind !== 'expr' || textFormatNamesInFlight.has(n.name)) return null
+      textFormatNamesInFlight.add(n.name)
+      try { return textFormatFlagsOf(bound.node, depth + 1) } finally { textFormatNamesInFlight.delete(n.name) }
+    }
+    if (n.type === 'binary' && n.op === '+') {
+      const a = textFormatFlagsOf(n.left, depth + 1)
+      if (!a) return null
+      const b = textFormatFlagsOf(n.right, depth + 1)
+      return b ? [...a, ...b] : null
+    }
+    return null
   }
   // The host object lane's own split, one authority: a top-level comma between
   // statements with no block beneath (never a definition, never inside brackets).
@@ -4757,8 +4818,33 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
    *  conditions the lowering uses one screen down before it emits `naValue()`.
    *  Two places deciding what `na` means, by different rules, is exactly
    *  `lesson_a_second_authority_over_one_value`; these agree by construction. */
-  const isBuiltinNa = (node, scope) => !!node && node.type === 'name'
+  const isPlainNa = (node, scope) => !!node && node.type === 'name'
     && node.name === 'na' && scope.lookup('na') === null && !env.has('na')
+  /** ⭐⭐ U-BUILTIN B4 (2026-11-19) — `color(na)` IS `na`. The reference (v5 and v6, `color()`): "Casts
+   *  na to color", "The value of the argument after casting to color": the cast changes the TYPE and
+   *  nothing else, exactly as DRAW-1's `box(na)` is `na` (`drawingCastFamily`). So wherever this lane
+   *  asks "is this Pine's own `na`?" it is asked of the cast too (`isBuiltinNa`, below), it is lowered
+   *  as the `na` it holds (the call arm), it is never handed to the columnar lane, which has no
+   *  `color` function and refused it `pine:function` (`holdsColourNaCast`, the route), and a name
+   *  bound to it is colour-typed as `color c = na` is (`colours.js::colourTypedNamesOf`). A plot's own
+   *  `color = color(na)` therefore meets exactly what `color = na` meets. ⛔ Only `na` itself, by
+   *  position, and only when the script defines no `color` of its own. */
+  const colourNaCast = (node, scope) => !!node && node.type === 'call' && node.name === 'color'
+    && !definedNames.has('color') && !isUserFn('color')
+    && Array.isArray(node.args) && node.args.length === 1 && !!node.args[0] && !node.args[0].name
+    && isPlainNa(node.args[0].value !== undefined ? node.args[0].value : node.args[0], scope)
+  const isBuiltinNa = (node, scope) => isPlainNa(node, scope) || colourNaCast(node, scope)
+  /** ⭐ U-BUILTIN B4 — a `color(na)` anywhere in this subtree: the route decision asks it, as it asks
+   *  `holdsDrawingCast`, so the columnar lane is never asked about the cast. */
+  const holdsColourNaCast = (node, scope, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return false
+    if (colourNaCast(node, scope)) return true
+    for (const k of ['left', 'right', 'test', 'yes', 'no', 'arg', 'value', 'cond', 'recv', 'expr']) {
+      if (holdsColourNaCast(node[k], scope, depth + 1)) return true
+    }
+    return Array.isArray(node.args)
+      && node.args.some((a) => holdsColourNaCast(a && a.value !== undefined ? a.value : a, scope, depth + 1))
+  }
 
   /** ⭐ TC — the immutable bindings `holdsColour` is reading through right now (its cycle guard; see
    *  the name arm below). `touchesColour` and `fractionalColourIn` keep their own sets. */
@@ -6849,6 +6935,30 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     return false
   }
 
+  /** ⭐⭐ (request unit PR 2) — `reachesSlotThroughEnv` for a request's TIMEFRAME argument, where a call to the
+   *  script's own function the request reader reads settled (`settledFunctions`: not refused) is not a slot read in
+   *  itself: what it reads is its arguments (checked here, as any argument is) and the names bound before it, which
+   *  are this `env`'s pure bindings (a name the script reassigns never enters `env`, so a body reading one is not
+   *  settled by the reader). ⛔ Every other shape answers exactly as `reachesSlotThroughEnv`. */
+  const tfReachesSlot = (node, scope) => {
+    // a name this lane holds per bar, bound once to such a call (`settledAliasNamed`), is that call: the TOP-LEVEL
+    // name only (a block or a frame here that declares the same name shadows it, and that is a slot read)
+    if (node && node.type === 'name') {
+      let aliased = null
+      try { aliased = settledAliasNamed(node.name) } catch { aliased = null }
+      if (aliased && scope && scope.lookup(node.name) !== root.lookup(node.name)) return true
+      if (aliased) node = aliased
+    }
+    if (node && node.type === 'call' && typeof node.name === 'string' && inlineBodyByName.has(node.name)) {
+      let s = null
+      try { s = settledFunctionNamed(node.name) } catch { s = null }
+      if (s && !s.refused) {
+        return (node.args || []).some((a) => reachesSlotThroughEnv(a && a.value !== undefined ? a.value : a, scope))
+      }
+    }
+    return reachesSlotThroughEnv(node, scope)
+  }
+
   /** ⭐ C23 — could evaluating this argument change anything the run holds?
    *  True for a call to a user function (it may push into a global array or set
    *  a drawing) and for any call outside the VALUE builtins — a collection, map,
@@ -7097,6 +7207,14 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     try {
       built = BUILTIN_CALL_TREE[bare](given.map((_, k) => ({ type: 'series', name: `${HOLE}${k}` })))
     } catch { return null }
+    // ⭐ U-BUILTIN B2 — a builder that declines this call's shape (`math.toradians(a, b)`) is refused
+    // by name here, as the host lane's `resolveTableCall` refuses it, never handed on to be called an
+    // undeclared builtin.
+    if (built === null) {
+      throw new RuntimeRefusal('runtime:statement',
+        `\`${name}\` takes ${bare === 'toradians' || bare === 'todegrees' ? 'one angle' : 'other arguments'}, `
+        + `given ${given.length}`, at)
+    }
     const ARITH = new Set(['+', '-', '*', '/'])
     const toParse = (c) => {
       if (!c || typeof c !== 'object') return null
@@ -7305,6 +7423,72 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   /** name → a function body kept as an AST, so a call site can lower it in the
    *  CALLER's context when the shared frame will not do. */
   const inlineBodyByName = new Map()
+  /** ⭐⭐ (request unit PR 2) — name → the names the script had bound when it defined that function (`env`, copied
+   *  at the definition): the scope `settledFunctions` reads a settled body in. Pine lets a body read only names
+   *  declared before it. */
+  const settledDefEnvByName = new Map()
+  /** name → its settled record (`settledRequestFunctionOf`, with its definition's scope), memoised. */
+  const settledByName = new Map()
+  /** ⭐⭐ (request unit PR 2) — `settledFunctions.get`: null for a name this script did not define with a kept body. */
+  function settledFunctionNamed(name) {
+    if (settledByName.has(name)) return settledByName.get(name)
+    const inl = inlineBodyByName.get(name)
+    if (!inl) return null
+    const s = settledRequestFunctionOf(inl)
+    const rec = s.refused ? s : { ...s, env: settledDefEnvByName.get(name) || null }
+    settledByName.set(name, rec)
+    return rec
+  }
+  /** ⭐⭐ (request unit PR 2) — `settledFunctions.alias`: the call a top-level name is bound to, where the request
+   *  reads that name (`alignedTF = getAlignedTimeframe()`, TehThomas) and this lane holds it per bar (a call to the
+   *  script's own function is a slot here, never an `env` macro). Only a name declared ONCE, at the top level, as
+   *  `NAME = f(…)` (positional arguments, `f` a function this script defined with a kept body), never reassigned
+   *  (`mut`) and not an `env` binding: its value on every bar IS that call's, so where the call settles, the name
+   *  settles to the same text. Anything else is null and the request reads as it did. */
+  let settledAliases = null
+  function settledAliasNamed(name) {
+    if (!settledAliases) {
+      settledAliases = new Map()
+      const declaredAt = new Map()
+      for (const st of stmts) {
+        const h = st.header || []
+        if (!h.length || (st.sub && st.sub.length) || declarationPersists(h)) continue
+        if (h.some((x) => isPunct(x, ':=') || isPunct(x, '=>'))) continue
+        const eq = findTop(h, (x) => isPunct(x, '='))
+        const nt = eq >= 1 ? boundName(h, eq) : null
+        if (!nt) continue
+        declaredAt.set(nt.value, (declaredAt.get(nt.value) || 0) + 1)
+        let v = null
+        try { v = parseWholeExpression(h.slice(eq + 1)) } catch { v = null }
+        if (v && v.type === 'call' && typeof v.name === 'string' && (v.args || []).every((a) => a && !a.name)) {
+          settledAliases.set(nt.value, v)
+        }
+      }
+      for (const n of [...settledAliases.keys()]) if (declaredAt.get(n) !== 1) settledAliases.delete(n)
+    }
+    const call = settledAliases.get(name) || null
+    if (!call || mut.mutated.has(name) || env.has(name) || !inlineBodyByName.has(call.name)) return null
+    return call
+  }
+  /** ⭐⭐ (request unit PR 2) — WHY a request's timeframe written as a call to this script's function (directly, or
+   *  through a plain name bound to that call: `alignedTF = getAlignedTimeframe()`) was not read, as a clause for the
+   *  refusal the request takes; null where the timeframe is no such call. ⛔ It names; it decides nothing. */
+  const settledCallWhy = (tfNode, scope) => {
+    let n = tfNode
+    for (let k = 0; k < 4 && n && n.type === 'name'; k += 1) {
+      const b = env.get(n.name)
+      // a name a block or a frame here declares again is not the top-level name (`tfReachesSlot`)
+      const shadowed = !!scope && scope.lookup(n.name) !== root.lookup(n.name)
+      n = b && b.kind === 'expr' ? b.node : (b || shadowed ? null : settledAliasNamed(n.name))
+    }
+    if (!n || n.type !== 'call' || !inlineBodyByName.has(n.name)) return null
+    let s = null
+    try { s = settledFunctionNamed(n.name) } catch { s = null }
+    if (!s) return null
+    if (s.refused) return `the timeframe is \`${n.name}()\`, whose body is not settled here: ${s.refused}`
+    return `the timeframe is \`${n.name}()\`, whose result is not fixed before the first bar here (a test or an `
+      + 'argument it reads changes per bar, or is not a value written into the script or an input)'
+  }
 
   /** Lower a user function AT THE CALL SITE, substituting its arguments.
    *
@@ -7546,9 +7730,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
-        && !reachesSlotThroughEnv(t.positional[1], scope)) hostTarget = t
+        && !tfReachesSlot(t.positional[1], scope)) hostTarget = t
       if (!t || t.own === null || t.other !== null || t.code !== null) return null
-      return reachesSlotThroughEnv(t.positional[0], scope) || reachesSlotThroughEnv(t.positional[1], scope)
+      return reachesSlotThroughEnv(t.positional[0], scope) || tfReachesSlot(t.positional[1], scope)
         ? null : t
     })()
     // ⛔ IN THE CALLER'S SCOPE, and `inRequestValue` stays false: at this
@@ -7643,9 +7827,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       || (hostTarget.live === true && TF_RESAMPLABLE.includes(hostTarget.code)))
     for (const a2 of node.args) {
       if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
+        // ⭐⭐ (request unit PR 2) — a timeframe written as a call to the script's own function says why it was not read
+        const fnWhy = settledCallWhy(argOf(positional[1]), scope)
         throw new RuntimeRefusal('runtime:request',
           '`lookahead` — the realtime half of this alignment is not measured yet, '
-          + 'and a guess here reads as a number that could have been traded on', at)
+          + 'and a guess here reads as a number that could have been traded on' + (fnWhy ? ` (${fnWhy})` : ''), at)
       }
     }
 
@@ -7662,9 +7848,10 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     let tfIr = hostTarget && !tfPlain ? null : lowerExpr(tfNode, scope)
     if (hostTarget && (!tfIr || tfIr.kind !== EXPR.STR)) tfIr = str(hostTarget.code === null ? '' : String(hostTarget.code))
     if (!tfIr || tfIr.kind !== EXPR.STR) {
+      const fnWhy = settledCallWhy(tfNode, scope)
       throw new RuntimeRefusal('runtime:request',
         'the timeframe of a request has to be fixed when the script is written — '
-        + 'it decides which bars must be fetched before the run', at)
+        + 'it decides which bars must be fetched before the run' + (fnWhy ? ` (${fnWhy})` : ''), at)
     }
 
     // ⭐ RS RATING L5 — THIS chart's own symbol at another timeframe needs no text: the host
@@ -9307,6 +9494,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         && !readsPlotRef(node) && !holdsColour(node, scope) && !holdsObjectCall(node)
         // ⭐ DRAW-1 — nor a drawing cast (`box(na)`): the call arm below reads it as `na`
         && !holdsDrawingCast(node, scope)
+        // ⭐ U-BUILTIN B4 — nor a colour cast (`color(na)`), read the same way
+        && !holdsColourNaCast(node, scope)
         && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)
         // ⭐ RT5 — nor is a drawing family's live list (`label.all`), nor text
         // this run prints (`str.tostring`), which the columnar lane refuses.
@@ -9670,6 +9859,12 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         throw new RuntimeRefusal('runtime:unbound', `\`${node.name}\``, locate(node.tok))
       }
       case 'binary': {
+        // ⭐ U-BUILTIN B7 — a sum of `text.format_*` constants is ONE format, the host's canonical
+        // spelling (`textFormatFlagsOf`), never the text concatenation of their names.
+        if (node.op === '+') {
+          const fmt = textFormatFlagsOf(node)
+          if (fmt) return str(canonicalTextFormat(fmt))
+        }
         // ⭐⭐ W6-T10 — `==` / `!=` OVER ENUM VALUES: both sides of ONE enum, compared as
         // members (`enumValueKey`), never by title. Anything else beside an enum refuses.
         if (enumDecls.size && (node.op === '==' || node.op === '!=')) {
@@ -10151,6 +10346,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         // ⭐⭐ DRAW-1 — `box(na)` is `na` (the reference: "Casts na to box"); its type
         // reaches the slot through `initialiserTy` and the handle record (`noteHandle`).
         if (drawingCastFamily(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
+        // ⭐⭐ U-BUILTIN B4 — `color(na)` is `na` ("Casts na to color"), lowered as the `na` it holds.
+        if (colourNaCast(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
         // ⭐⭐ S1 — a per-trade broker function (`strategy.opentrades.entry_price(0)`).
         if (brokerMode && typeof node.name === 'string' && node.name.startsWith('strategy.')
             && !definedNames.has(node.name)) {
@@ -16010,7 +16207,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         return { params, lines: null, result: null, body: lines }
       } catch { return null }
     })()
-    if (record.inlineBody) inlineBodyByName.set(nameTok.value, record.inlineBody)
+    if (record.inlineBody) {
+      inlineBodyByName.set(nameTok.value, record.inlineBody)
+      // ⭐⭐ (request unit PR 2) — the scope a settled body is read in (`settledFunctions`)
+      settledDefEnvByName.set(nameTok.value, new Map(env))
+    }
     // ⭐ C35 — the parameters this call site fixed, by SLOT (a nested block that
     // re-declares the name is a different slot and is not touched).
     frameConsts = null

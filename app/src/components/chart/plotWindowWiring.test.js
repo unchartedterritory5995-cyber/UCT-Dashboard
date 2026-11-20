@@ -109,9 +109,17 @@ describe('the binder hands the renderer the window, and only the primary series'
     const b = squash(binder)
     expect(b).toContain('const drawn = windowedPoints(split ? split.primary : points, ctx.plotWindowFrom)')
     const at = b.indexOf('const drawn = windowedPoints(')
-    const write = b.slice(at, at + 420)
-    expect(write).toContain('attempt(() => series.setData(drawn))')
+    // ⭐ (switch smoothness, 2026-11-20) the primary series' writes: at once, queued for a later task, or through the
+    // chart's own plan (at once, or through its queued stand-in): every one of them hands `drawn`
+    const write = b.slice(at, b.indexOf('// Reconcile the run series', at))
+    expect(write).toContain('queueSeriesData(series, drawn, bars)')
+    expect(write).toContain('applySeriesData(series, drawn, bars)')
     expect(write).toContain('attempt(() => ctx.applyData(series, drawn))')
+    expect(write).toContain('queueSeriesData(series, data, bars) }, drawn))')
+    expect(write.includes('setData(points)'), 'a write of the whole series').toBe(false)
+    // and the one door to the renderer writes exactly the points it is handed
+    // (2026-11-20: it also records the symbol the series was drawn for, `drawnSym` — the MA-blip fix)
+    expect(b).toContain('function applySeriesData(series, points, from, sym = passSym) { pendingData.delete(series) attempt(() => series.setData(points))')
   })
   it('what the legend reads is still the whole series', () => {
     const b = squash(binder)

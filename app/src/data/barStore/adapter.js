@@ -29,6 +29,7 @@ import { foldOffGridBars } from '../../components/chart/offGridBars'
 import { applySessionCandle } from '../../components/chart/sessionPreview'
 import { unixToDateLabel } from './types'
 import { toHeikinAshi, heikinAshiNext } from '../../components/chart/indicators'
+import { neighborFramesOn } from '../../components/chart/neighborFrames'
 
 const INTRADAY = new Set(['1', '5', '15', '30', '60'])
 const DWM = new Set(['D', 'W', 'M'])
@@ -136,6 +137,23 @@ export function newestBarIsFormingOf(snapshot) {
 }
 
 const _legacyBarsMemo = new WeakMap()
+// ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `uct.neighborframes`) — sealed array → `{tf, dev, out}`: the last
+// sealed + developing array built for it. A NEW SNAPSHOT OF THE SAME BARS (a status or meta change: a warm's
+// answer that moved nothing, a subscribe's mem hydrate) used to append the same developing bar to the same
+// sealed rows as a NEW array, so everything filed under the old one (a row's indicators, computed ahead)
+// missed. Same sealed rows + an equal developing bar = the same array. A WeakMap keyed by the sealed array:
+// an entry lives exactly as long as the store keeps those rows, never past an eviction.
+const _withDevMemo = new WeakMap()
+const sameLegacyBar = (a, b) => !!a && !!b && a.t === b.t && a.o === b.o && a.h === b.h && a.l === b.l
+  && a.c === b.c && a.v === b.v
+function withDeveloping(sealed, dev, tf) {
+  if (!neighborFramesOn()) return [...sealed, dev]
+  const hit = _withDevMemo.get(sealed)
+  if (hit && hit.tf === tf && sameLegacyBar(hit.dev, dev)) return hit.out
+  const out = [...sealed, dev]
+  _withDevMemo.set(sealed, { tf, dev, out })
+  return out
+}
 /** Today's downstream `bars` array for a snapshot: sealed + developing appended, legacy
  *  shape. Memoized per (frozen, identity-stable) snapshot, so indicators / drawings /
  *  engine keep receiving a stable array between store revisions. */
@@ -149,7 +167,7 @@ export function legacyBars(snapshot, tf = tfOfSnapshot(snapshot, null)) {
   if (hit) return hit
   const sealed = legacySealed(snapshot, tf)
   const dev = legacyDeveloping(snapshot, tf, sealed)
-  const out = dev ? [...sealed, dev] : sealed
+  const out = dev ? withDeveloping(sealed, dev, tf) : sealed
   byTf.set(tf, out)
   return out
 }

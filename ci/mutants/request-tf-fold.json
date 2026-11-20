@@ -15,8 +15,8 @@
    "id": "TF2",
    "mutant": "the runtime lane's reach is back to the plot lane's 4 hops",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS })",
-   "to": "const REQUEST_TF_REACH = Object.freeze({ hops: 4 })",
+   "from": "const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })",
+   "to": "const REQUEST_TF_REACH = Object.freeze({ hops: 4, calls: true })",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
    "expectRed": "cppivot"
   },
@@ -24,8 +24,8 @@
    "id": "TF3",
    "mutant": "the runtime lane's reach has no bound (a chain past 16 hops is read)",
    "file": "app/src/components/chart/engine/ast/pine.js",
-   "from": "const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS })",
-   "to": "const REQUEST_TF_REACH = Object.freeze({ hops: 64 })",
+   "from": "const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })",
+   "to": "const REQUEST_TF_REACH = Object.freeze({ hops: 64, calls: true })",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/requestTimeframeReader.test.js",
    "expectRed": "past the bound"
   },

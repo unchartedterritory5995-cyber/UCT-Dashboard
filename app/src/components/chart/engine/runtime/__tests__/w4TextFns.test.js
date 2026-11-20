@@ -90,13 +90,14 @@ describe('str.replace: the Nth occurrence, literal, from 0', () => {
 })
 
 describe('str.tonumber and str.pos', () => {
-  it('tonumber reads a plain decimal', () => {
+  it('tonumber reads a plain decimal, the spaces around it dropped (STR-TONUMBER, vw-bi-str-tonumber)', () => {
     expect(run(withS('"12.5"', 'str.tonumber(s)'))).toEqual(fill(12.5))
     expect(run(withS('"-3"', 'str.tonumber(s)'))).toEqual(fill(-3))
-    expect(run(withS('"1e3"', 'str.tonumber(s)'))).toEqual(fill(1000))
+    expect(run(withS('" 3"', 'str.tonumber(s)'))).toEqual(fill(3))
+    expect(run(withS('"3 "', 'str.tonumber(s)'))).toEqual(fill(3))
   })
-  it('tonumber answers na for anything else', () => {
-    for (const bad of ['""', '"abc"', '"0x10"', '"Infinity"', '"1,5"']) {
+  it('tonumber answers na for anything else, an exponent included (TradingView: "1e3" is na)', () => {
+    for (const bad of ['""', '"abc"', '"0x10"', '"Infinity"', '"1,5"', '"1e3"', '"1E-2"']) {
       expect(run(withS(bad, 'na(str.tonumber(s)) ? 1 : 0')), bad).toEqual(fill(1))
     }
   })

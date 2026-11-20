@@ -1,0 +1,65 @@
+//@version=6
+indicator("UCTPROBE_VW_CF_CONST_FOLD", overlay = false)
+
+// Q-CF (2026-11-20). WHERE TRADINGVIEW FOLDS A CONSTANT EXPRESSION, AND TO WHAT PRECISION.
+//
+// vw-bt-toradians-spy-1d-2026-11-16 D3 (`x * (math.pi / 180)`) is bit-exact on 8,508 / 8,508 bars ONLY if
+// TradingView's `math.pi / 180` is 0.0174532925199433: the IEEE quotient 0.017453292519943295 kept to 16
+// significant digits (%.16g), one ulp above it. E3 (`y * (180 / math.pi)`, 16 digits already) is IEEE. So the
+// hypothesis: a folded constant whose double needs 17 significant digits to round-trip loses its last bit.
+// One constant is one witness. Each row here plots the constant ITSELF (a double the capture keeps exactly)
+// beside the same quotient computed at RUN time (`close * 0 + ...`, a series, never folded), so a row reads
+// the folded value directly:
+//   K*  the constant as written;  R*  the same arithmetic as a series (IEEE, the reference);
+//   D*  (K - R) * 1e18, 0 where the fold is IEEE.
+// Expected under the hypothesis (IEEE -> %.16g): pi/180 0.017453292519943295 -> 0.0174532925199433;
+// 0.1 + 0.2 0.30000000000000004 -> 0.3; 1 / 7 * 3 0.42857142857142855 -> 0.4285714285714285;
+// math.e / 7 0.3883259754941493 (16 digits: unchanged, the CONTROL).
+// WHERE: a `float` binding, an `input.float` default, a `var`, a const inside a series expression, and a
+// 17-digit literal written directly (does the PARSER round a literal too?).
+//
+// CAPTURE: AMEX:SPY 1D from the listing, >= 300 bars. Inputs at defaults. Every row's value is the same on
+// every bar except X1 / X2; a row that does not compile is a reading (record the error and the line).
+
+s0 = close * 0                       // 0 on every bar, a SERIES: what it touches is computed at run time
+
+// math.pi / 180, five ways
+float kBind = math.pi / 180
+kIn = input.float(math.pi / 180, "k from a const expression")
+var float kVar = math.pi / 180
+kSer = s0 + math.pi / 180            // a const sub-expression inside a series expression
+rPi = (s0 + math.pi) / 180           // the IEEE quotient, at run time
+
+plot(bar_index, "C0_bar_index_CONTROL")
+plot(math.pi, "C1_math_pi")
+plot(math.pi / 180, "K1_pi_over_180")
+plot(rPi, "R1_pi_over_180_series")
+plot((math.pi / 180 - rPi) * 1e18, "D1_pi_over_180_minus_series_1e18")
+plot((kBind - rPi) * 1e18, "D2_binding_minus_series_1e18")
+plot((kIn - rPi) * 1e18, "D3_input_default_minus_series_1e18")
+plot((kVar - rPi) * 1e18, "D4_var_minus_series_1e18")
+plot((kSer - rPi) * 1e18, "D5_const_in_series_minus_series_1e18")
+plot((0.017453292519943295 - rPi) * 1e18, "D6_literal_17_digits_minus_series_1e18")
+plot((0.0174532925199433 - rPi) * 1e18, "D7_literal_16_digits_minus_series_1e18")
+
+// 0.1 + 0.2: the fold, the 17-digit literal, the 16-digit literal
+rA = (s0 + 0.1) + 0.2
+plot(0.1 + 0.2, "K8_tenth_plus_fifth")
+plot(rA, "R8_tenth_plus_fifth_series")
+plot((0.1 + 0.2 - rA) * 1e18, "D8_tenth_plus_fifth_minus_series_1e18")
+plot((0.30000000000000004 - rA) * 1e18, "D9_literal_0p30000000000000004_minus_series_1e18")
+plot((0.3 - rA) * 1e18, "D10_literal_0p3_minus_series_1e18")
+plot(0.1 + 0.2 == 0.3 ? 1 : 0, "B11_fold_equals_0p3")
+
+// 1 / 7 * 3 and math.e / 7 (the control)
+rS = (s0 + 1) / 7 * 3
+rE = (s0 + math.e) / 7
+plot(1 / 7 * 3, "K12_one_seventh_times_3")
+plot((1 / 7 * 3 - rS) * 1e18, "D12_one_seventh_times_3_minus_series_1e18")
+plot(math.e / 7, "K13_e_over_7")
+plot((math.e / 7 - rE) * 1e18, "D13_e_over_7_minus_series_1e18_CONTROL")
+
+// the witness again, as a product over a full-mantissa series (vw-bt-toradians D3)
+x = close * 7.3 + bar_index * 13.17
+plot((x * (math.pi / 180) - x * rPi) * 1e18, "X1_x_times_folded_minus_x_times_series_1e18")
+plot((x * kBind - x * rPi) * 1e18, "X2_x_times_binding_minus_x_times_series_1e18")

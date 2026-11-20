@@ -206,7 +206,7 @@ export default function FlowScoreboard({ embedded = false, mine: mineProp = fals
               <span className={styles.sectionMeta}>peak-gain outcomes by flag grade</span>
             </div>
             <div className={styles.tableWrap}>
-              <table className={styles.table} aria-label="Grade calibration: peak-gain outcomes by flag grade">
+              <table className={`${styles.table} ${styles.gradeTable}`} aria-label="Grade calibration: peak-gain outcomes by flag grade">
                 <thead>
                   <tr>
                     <th scope="col">Grade</th>

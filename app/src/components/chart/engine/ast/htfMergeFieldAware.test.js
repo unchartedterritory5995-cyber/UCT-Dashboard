@@ -92,8 +92,9 @@ const SHAPES = [
     window: W13, expect: [n, n, n, n, n, n, n, n, n, n, n, 7.5, 7.5] },
   { name: 'merge(sma(high, 2)) (item 2: a window inside)', tree: () => merge(call('sma', HIGH, num(2))), window: W13,
     expect: [n, n, n, n, n, n, n, n, n, n, n, 10, 10] },
-  { name: 'merge(ema(high, 3)) (a running value inside: withheld where high is, blank through its warm-up)',
-    tree: () => merge(call('ema', HIGH, num(3))), window: W13, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+  // ⭐⭐ ITEM 4 (2026-11-19): withheld until the child's two starts agree (`walkTwoStarts`), past this window
+  { name: 'merge(ema(high, 3)) (a running value inside: withheld until its two starts agree, ITEM 4)',
+    tree: () => merge(call('ema', HIGH, num(3))), window: W13, held: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
   // ⭐ ITEM 3: a merge of close alone is the period's own close: drawn
   { name: 'KEPT merge(close) (item 3: bars 2-5 draw the partial week\'s close, the week\'s)', tree: () => merge(CLOSE),
     window: W13, expect: [n, n, 3, 3, 3, 3, 7, 7, 7, 7, 7, 12, 12] },

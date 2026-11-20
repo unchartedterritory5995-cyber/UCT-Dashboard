@@ -564,9 +564,21 @@ export const GROUPS = [
   // at its size (two more would ride with every wave 3 or wave 4 ask, and neither title has room to name them). `words` stays EMPTY
   // here: capabilities/terminalDataWave5.js arms each capability's own words only while it is registered (the server serves its
   // kind), so on a dark server this group never matches and routing is byte-identical to the base (pinned in
-  // agentTerminalDataWave5.test.js). ⚠️ This is the 47th of the 48 groups the server keeps (turn.MAX_GROUPS): one is left.
+  // agentTerminalDataWave5.test.js). This is the 47th of the 48 groups the server keeps (turn.MAX_GROUPS); wave 6 below took the 48th.
   { id: 'shortInterest', title: 'FINRA short interest: one stock\'s reports, days to cover, percent of float and daily short volume; the market list ranked by days to cover, change or float',
     domains: [], actions: ['stock.shortInterest', 'stock.shortList'], fillLast: true, wordsOnly: true,
+    words: [] },
+  // Terminal data wave 6 (stock.seasonality / stock.seasonalityBoard / stock.tideHistory / stock.oiChange / stock.treasuryYields):
+  // seasonality by calendar month, Market Tide by finished session, one stock's open interest change and US Treasury yields, ALL
+  // FIVE in ONE group of their own, because one group was all that was left. WORDS-ONLY and fillLast for wave 3's reasons, so it is
+  // never a filler and no existing group or unrecognised request changes; listed by `actions` because their `stock` domain would put
+  // them in the `data` group, which has no room under the routing budget. `words` stays EMPTY here:
+  // capabilities/terminalDataWave6.js arms each capability's own words only while it is registered (the server serves its kind), so
+  // on a dark server this group never matches and routing is byte-identical to the base (pinned in agentTerminalDataWave6.test.js).
+  // ⚠️ This is the 48th of the 48 groups the server keeps (turn.MAX_GROUPS): NONE is left. A later wave has to share a group or the
+  // cap has to be raised on the server, which is a change to the routing contract and was not made here.
+  { id: 'marketRecords', title: 'Seasonality by calendar month (one stock, or the index and sector funds), Market Tide by finished session, a stock\'s open interest change, US Treasury yields',
+    domains: [], actions: ['stock.seasonality', 'stock.seasonalityBoard', 'stock.tideHistory', 'stock.oiChange', 'stock.treasuryYields'], fillLast: true, wordsOnly: true,
     words: [] },
 ]
 // chartReplay: the replay bar's bare playback words, which route there ONLY while a chart's bar replay is on (namedGroups)

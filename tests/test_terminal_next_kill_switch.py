@@ -253,6 +253,12 @@ def _fingerprint(data_dir: Path) -> dict:
     same procedure runs before and after, so it cannot manufacture a difference
     of its own; the control below proves it can SEE one. `-shm` is excluded: it
     is SQLite's shared-memory index, rewritten by readers by design.
+
+    ⚰️ (2026-11-20) `request_timing/<date>.jsonl` is the app's own per-request timing
+    log: every request this test makes APPENDS to it, so hashing its bytes made the
+    rail flake on whatever order the requests landed in (PR jobs on #2228 and
+    fix/pine-door-deadline). It is diagnostics, not member data, so its CONTENT is not
+    compared - but its PRESENCE still is: a kill switch that deleted it would still fail.
     """
     conn = sqlite3.connect(str(data_dir / "auth.db"))
     try:
@@ -263,7 +269,11 @@ def _fingerprint(data_dir: Path) -> dict:
     files = {}
     for f in sorted(data_dir.rglob("*")):
         if f.is_file() and not f.name.endswith("-shm"):
-            files[str(f.relative_to(data_dir))] = hashlib.sha256(f.read_bytes()).hexdigest()
+            rel = f.relative_to(data_dir)
+            if rel.parts and rel.parts[0] == "request_timing":
+                files[str(rel)] = "present (append-only timing log; content not compared)"
+            else:
+                files[str(rel)] = hashlib.sha256(f.read_bytes()).hexdigest()
     return {"rows": rows, "files": files}
 
 
@@ -657,6 +667,13 @@ ACKNOWLEDGED_FRONTEND_GATES = {
     "app/src/components/NavBar.test.jsx": "TEST: fakes `cohorts` to drive the terminal gate in the nav",
     "app/src/pages/breadth/drill/BreadthDrillModal.withdrawal.test.jsx":
         "TEST: fakes `cohorts_withdrawn` to drive the drill withdrawal block",
+    # Found unacknowledged on 2026-11-20 (red on master): four tests that build a fake auth
+    # payload carrying `cohorts`. Each was read; none reads a gate.
+    "app/src/components/chart/builder/ConverseBox.script.test.jsx":
+        "TEST: fakes `cohorts: ['create-indicator']` on the AuthContext it renders under",
+    "app/src/pages/terminal/TerminalShell.boardTabs.test.jsx": "TEST: fakes `cohorts: ['terminal-next']` on a member",
+    "app/src/pages/terminal/TerminalShell.starterBoards.test.jsx": "TEST: fakes `cohorts: ['terminal-next']` on a member",
+    "app/src/pages/terminal/TerminalShell.stockBoards.test.jsx": "TEST: fakes `cohorts: ['terminal-next']` on a member",
 }
 
 
