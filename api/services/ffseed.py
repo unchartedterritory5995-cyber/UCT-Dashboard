@@ -459,14 +459,121 @@ def publish(built: dict) -> dict:
     return _publish_manifest(m)
 
 
+# --------------------------------------------------------------------------------------------
+# the daily delta (ffseed_delta): what a device holding the previous build needs
+# --------------------------------------------------------------------------------------------
+
+_CACHE_DIR = "ffseed_cache"        # <DATA_DIR>/ffseed_cache/<build>/<tf>.ffs: the newest build's packs
+
+
+def _cache_path(build_id: str, tf: str) -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), _CACHE_DIR, build_id, f"{tf}.ffs")
+
+
+def _read_published_manifest() -> Optional[dict]:
+    """The manifest devices hold now (the base of tonight's delta), or None."""
+    from api.services import data_sync
+    try:
+        raw = data_sync.get_bytes(f"{PREFIX}/latest.json")
+        m = json.loads(raw) if raw else None
+        return m if isinstance(m, dict) and m.get("kind") == fmt.KIND else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _base_pack(base_entry: dict, base_build: str, tf: str) -> Optional[bytes]:
+    """The base build's pack: this worker's local copy, else R2; only bytes whose sha256 is the base
+    manifest's are ever used."""
+    from api.services import data_sync
+    want = base_entry.get("sha256")
+    try:
+        with open(_cache_path(base_build, tf), "rb") as f:
+            data = f.read()
+        if hashlib.sha256(data).hexdigest() == want:
+            return data
+    except OSError:
+        pass
+    data = data_sync.get_bytes(base_entry["key"])
+    if data is not None and hashlib.sha256(data).hexdigest() == want:
+        return data
+    return None
+
+
+def _cache_pack(build_id: str, tf: str, data: bytes) -> None:
+    try:
+        path = _cache_path(build_id, tf)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except OSError:
+        log.warning("[ffseed] could not keep a local copy of %s/%s", build_id, tf)
+
+
+def _prune_cache(keep_build: str) -> None:
+    import shutil
+    root = os.path.join(os.environ.get("DATA_DIR", "/data"), _CACHE_DIR)
+    try:
+        for name in os.listdir(root):
+            if name != keep_build:
+                shutil.rmtree(os.path.join(root, name), ignore_errors=True)
+    except OSError:
+        pass
+
+
+def attach_delta(tf: str, data: bytes, entry: dict, base_m: Optional[dict], asof_iso: str,
+                 upload: Callable[[str, bytes], bool]) -> Optional[dict]:
+    """Build, PROVE (ffseed_delta.verify_delta) and upload the delta base -> this build for one
+    timeframe, and record it as `entry["delta"]`. Any failure: no delta, logged; never raises."""
+    from api.services import ffseed_delta
+    try:
+        if not base_m or tf not in (base_m.get("tfs") or {}):
+            return None
+        base_build = base_m["build"]
+        base = _base_pack(base_m["tfs"][tf], base_build, tf)
+        if base is None:
+            log.warning("[ffseed] no verified base pack %s/%s: no delta", base_build, tf)
+            return None
+        sp = base_m.get("splits") or {}
+        rebase = list((sp.get("symbols") or {}).keys()) if sp.get("session") == asof_iso else []
+        delta, st = ffseed_delta.build_delta(base, data, splits_symbols=rebase)
+        key = entry["key"][: -len(".ffs")] + ".delta.ffs"
+        if not upload(key, delta):
+            log.warning("[ffseed] delta upload failed: %s", key)
+            return None
+        entry["delta"] = {
+            "base": base_build, "base_asof": base_m.get("asof"), "key": key,
+            "url": entry["url"][: -len(".ffs")] + ".delta.ffs", "bytes": len(delta),
+            "sha256": hashlib.sha256(delta).hexdigest(), "symbols": st["symbols"],
+            "ops": {k: st[k] for k in ffseed_delta.OPS},
+        }
+        return entry["delta"]
+    except Exception as e:  # noqa: BLE001 - a delta is optional; the full pack is always published
+        log.warning("[ffseed] no delta for %s: %s", tf, e)
+        return None
+
+
 def build_and_publish(**kw) -> dict:
     """The nightly path: each pack is uploaded as soon as it is built and then dropped, so the
-    worker never holds more than one pack in memory; the manifest goes up last."""
+    worker never holds more than one pack in memory; next to it, when it can be PROVEN, the delta
+    from the build devices hold now; the manifest goes up last."""
     from api.services import data_sync
     if not data_sync.credentials_ok():
         raise SeedBuildError("R2 not configured")
-    built = build(on_pack=lambda tf, data, entry: _upload_pack(entry, data), **kw)
-    return _publish_manifest(built["manifest"])
+    base_m = _read_published_manifest()
+    asof = kw.pop("asof", None) or last_closed_session()
+
+    def on_pack(tf, data, entry):
+        _upload_pack(entry, data)
+        attach_delta(tf, data, entry, base_m, asof.isoformat(),
+                     lambda key, blob: data_sync.put_bytes(key, blob, CONTENT_TYPE))
+        _cache_pack(entry["key"].split("/")[1], tf, data)
+
+    built = build(on_pack=on_pack, asof=asof, **kw)
+    m = _publish_manifest(built["manifest"])
+    _prune_cache(m["build"])
+    return m
 
 
 def prune(keep: int, current: str) -> List[str]:
