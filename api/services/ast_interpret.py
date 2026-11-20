@@ -616,8 +616,8 @@ def _htf_resampled(bars: List[dict], code: str):
                 else _resample_quarterly_iso if code == "3M"
                 else bars_fetch._resample_monthly_iso)
     # ⭐⭐ RULING 2 -- every bar the series holds, as the JS lane's ``resampleTo`` keeps it: a session the exchange never
-    # held is not dropped from one lane's aggregate only (its period is withheld by name in both:
-    # ``tf_closure_session_mask``)
+    # held is not dropped from one lane's aggregate only. Whether TradingView's week holds such a bar is unmeasured
+    # (Q-REQ-CLOSURE); no series the store serves holds one (``tests/test_htf_closure_week_unreachable.py``)
     rows = [dict(b, t=d) for b, d in zip(bars, iso) if d]
     htf = resample(rows) if code == "3M" else resample(rows, sessions_only=False)
     return iso, keys, at, order, htf
@@ -4975,11 +4975,6 @@ def interpret(ast: Any, bars: List[dict],
         lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
         if lived is not None:
             column = [math.nan if lived[i] else v for i, v in enumerate(column)]
-        # ⭐⭐ RULING 2 -- ...and a week or month holding a session the exchange never held
-        # (``interpret.js::tfClosureSessionMask``).
-        closed = tf_closure_session_mask(ast, bars, opts, inputs, budget, scalars)
-        if closed is not None:
-            column = [math.nan if closed[i] else v for i, v in enumerate(column)]
         # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
         # named where it takes a drawn value away), as it stands here; the mask itself is asked LAST (below)
         named_against = list(column)
@@ -5452,120 +5447,6 @@ def _tf_live_first_period_read_mask(tree: Any, bars: List[dict], opts, inputs, b
     # ⭐⭐ ITEM 4 -- a running value over a site is drawn only where two starts agree (``_walk_two_starts``)
     return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
                             lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), sites)
-
-
-#: ⭐⭐ RULING 2 (coordinator, 2026-11-20) -- ``interpret.js::TF_CLOSURE_SESSION_CODE``: a week or month that holds a
-#: session the exchange never held (``tf_closure_session_mask``; the sentence is the JS lane's).
-TF_CLOSURE_SESSION_CODE = "request:htf-closure-session"
-
-
-def _closed_session_day(iso: Optional[str]) -> bool:
-    """``interpret.js::closedSessionDay``: a Saturday, a Sunday, or a full closure of the session calendar
-    (``NYSE_HOLIDAYS_YYYYMMDD``, ``market_calendar.json``; a year it does not cover is read for weekends alone)."""
-    if not isinstance(iso, str) or not _ISO_DAY.fullmatch(iso):
-        return False
-    day = datetime.date(int(iso[:4]), int(iso[5:7]), int(iso[8:10]))
-    return day.weekday() >= 5 or (day.year * 10000 + day.month * 100 + day.day) in _nyse_full_closures()
-
-
-def _tf_closure_session_read_mask(tree: Any, bars: List[dict], opts, inputs, budget,
-                                  scalars) -> Optional[List[int]]:
-    """⭐⭐ RULING 2 -- the port of ``interpret.js::tfClosureSessionReadMask`` (its docstring carries the rule): the root
-    bars that show, or draw from, a week or month holding a session the exchange never held (1 = withheld), or
-    ``None``."""
-    n = len(bars or [])
-    if not n:
-        return None
-    iso = _bar_days(bars)
-    if not any(d and _closed_session_day(d) for d in iso):
-        return None
-
-    def reads_bar_field(nd: Any) -> bool:
-        return _reads_partial_field(nd) or (isinstance(nd, Mapping) and nd.get("type") == "series"
-                                            and nd.get("name") == "close")
-
-    def closure_own(node: Mapping[str, Any]) -> Optional[List[int]]:
-        code = str(node.get("value"))
-        if code not in TF_LIVE_RESAMPLABLE:
-            return None
-        _iso, keys, at, _order, htf = _htf_resampled(bars, code)
-        held = [0] * len(htf)
-        for d, k in zip(iso, keys):
-            if k is not None and d and _closed_session_day(d):
-                held[at[k]] = 1
-        if not any(held):
-            return None
-        child = (node.get("args") or [None])[0]
-        u: Optional[List[int]] = held
-        if not _holds_request_or_binding(child):
-            quiet = dict(opts or {}, tf=code)
-            quiet.pop("chartClockSink", None)
-            quiet.pop("withheldBarsSink", None)
-            sites: Dict[int, List[int]] = {}
-            stack = [child]
-            seen: set = set()
-            while stack:
-                nd = stack.pop()
-                if not isinstance(nd, dict) or id(nd) in seen:
-                    continue
-                seen.add(id(nd))
-                if reads_bar_field(nd):
-                    sites[id(nd)] = list(held)
-                args = nd.get("args")
-                if isinstance(args, list):
-                    stack.extend(args)
-            u = _walk_two_starts(child, htf, inputs if inputs is not None else {}, budget, scalars, quiet,
-                                 reads_bar_field, lambda _nd: list(held), sites) if sites else None
-        if not u or not any(u):
-            return None
-        kind = node.get("type")
-        reads = _tf_merge_reads(iso, keys, at, code) if kind == "tf_merge" else None
-        m = [0] * n
-        for i, k in enumerate(keys):
-            if k is None:
-                continue
-            r = reads[i] if reads is not None else at[k] if kind == "tf_live" else at[k] - 1
-            if r >= 0 and u[r]:
-                m[i] = 1
-        return m if any(m) else None
-
-    own: Dict[int, List[int]] = {}
-    stack = [tree]
-    seen: set = set()
-    while stack:
-        node = stack.pop()
-        if not isinstance(node, Mapping) or id(node) in seen:
-            continue
-        seen.add(id(node))
-        if node.get("type") in ("tf", "tf_live", "tf_merge"):
-            m = closure_own(node)
-            if m is not None:
-                own[id(node)] = m
-            continue
-        if node.get("type") in _SCOPE_TYPES:
-            continue
-        args = node.get("args")
-        if isinstance(args, list):
-            stack.extend(args)
-    if not own:
-        return None
-    quiet = dict(opts or {})
-    quiet.pop("chartClockSink", None)
-    quiet.pop("withheldBarsSink", None)
-    sites_root = own
-    return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
-                            lambda nd: id(nd) in sites_root, lambda nd: list(sites_root[id(nd)]), sites_root)
-
-
-def tf_closure_session_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] = None,
-                            inputs: Any = None, budget: Any = None, scalars: Any = None) -> Optional[List[int]]:
-    """⭐⭐ RULING 2 -- the port of ``interpret.js::tfClosureSessionMask``, named ``TF_CLOSURE_SESSION_CODE`` when it
-    withholds a bar."""
-    mask = _tf_closure_session_read_mask(tree, bars, opts, inputs, budget, scalars)
-    if not mask or not any(mask):
-        return None
-    _name_chart_clock(opts, [TF_CLOSURE_SESSION_CODE])
-    return mask
 
 
 def tf_live_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] = None,
@@ -7160,8 +7041,6 @@ CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "request:htf-lookahead-first-period-partial",
     # PERIOD -1 -- a read of the bar, week or month before the chart's first (``history_before_chart_mask``)
     "history:before-chart",
-    # RULING 2 -- a week or month holding a session the exchange never held (``tf_closure_session_mask``)
-    "request:htf-closure-session",
     WINDOW_EXTREME_LEFT_EDGE,
 )
 

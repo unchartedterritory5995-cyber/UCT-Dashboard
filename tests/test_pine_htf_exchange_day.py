@@ -7,7 +7,9 @@ week is its sessions) then left New York's winter Friday 19:00 bar (a UTC Saturd
 indicator alerts (``alert_user_series``, intraday timeframes, a ``request.security`` weekly or monthly read), a weekly
 close or high was another number than the chart's. TradingView keys the bar to its local Friday (capture
 ``vw-bi-time-d-extended-spy-60-2026-11-19``). The SPY cases are the capture's own rows; a series holding a session the
-exchange never held keeps every bar in both lanes, and the week holding it is withheld by name.
+exchange never held keeps every bar in both lanes (one aggregate). Whether TradingView's week holds such a bar is
+unmeasured (Q-REQ-CLOSURE); ruling (C) defers the withhold, and ``tests/test_htf_closure_week_unreachable.py`` pins why
+no served series reaches it.
 """
 from __future__ import annotations
 
@@ -42,7 +44,7 @@ def _column(case, sink=None):
 def test_the_fixture_is_not_vacuous():
     assert len(CASES) >= 10
     assert len(FIX["sets"]["feb"]) == 96 and len(FIX["sets"]["nov"]) == 48
-    assert sum(any(v is None for v in c["expect"]) for c in CASES) >= 4
+    assert sum(c["set"] == "goodFriday" for c in CASES) >= 2
     assert sum(c["name"].startswith("CONTROL") for c in CASES) >= 2
 
 
@@ -87,7 +89,6 @@ def test_the_resampler_keeps_every_row_when_asked_and_drops_none_by_default():
     assert bars_fetch._resample_weekly_iso(rows)[0]["h"] == 9.5              # the store's week: its sessions
     assert bars_fetch._resample_weekly_iso(rows, sessions_only=False)[0]["h"] == 10.5
     assert bars_fetch._resample_monthly_iso(rows, sessions_only=False)[0]["c"] == 3
-    assert ast_interpret.TF_CLOSURE_SESSION_CODE in ast_interpret.CHART_CLOCK_WITHHELD_CODES
     # the interpreter's resample (the one authority over a request's higher-timeframe bars) keeps the Good Friday bar:
     # week 13's high is its 10.5, the JS lane's ``resampleTo`` answer, and every bucket has its bar
     _iso, _keys, _at, order, htf = ast_interpret._htf_resampled(FIX["sets"]["goodFriday"], "W")

@@ -12,9 +12,11 @@
 // before every winter Friday 19:00 bar (Friday 04:00 New York), day offset 0. Now both lanes key the day in New York
 // (`newYorkOffsetSeconds`, twin `_new_york_offset_seconds`).
 // A bar dated on a day the exchange held no session (a Good Friday bar: impossible for a listing the store serves, real
-// for a symbol trading on such a day) was in one lane's week and not the other's (weekly high 10.5 against 9.5). No
-// capture holds one under a weekly read, so both lanes now keep every bar the series holds, and the bars showing that
-// week (or reading it) are withheld by name, `request:htf-closure-session` (`tfClosureSessionMask`).
+// for a symbol trading on such a day) was in one lane's week and not the other's (weekly high 10.5 against 9.5). Both
+// lanes now keep every bar the series holds (one aggregate). Whether TradingView's week holds such a bar is NOT
+// measured (Q-REQ-CLOSURE): by the coordinator's ruling (C) the withhold that would name it waits for that capture,
+// because no series the store serves holds such a bar (`tests/test_htf_closure_week_unreachable.py`, the tripwire),
+// and a venue that would bring one is refused by name (below).
 //
 // THE SHARED FIXTURE `tests/fixtures/ast/htf_exchange_day.json` is WRITTEN here (HTF_EXCHANGE_DAY_WRITE=1) and READ by
 // `tests/test_pine_htf_exchange_day.py`: the bars of every set (the SPY weeks are the capture's own rows), each case's
@@ -22,8 +24,8 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { interpret, barDays, newYorkOffsetSeconds, closedSessionDay, TF_CLOSURE_SESSION_CODE, TF_CLOSURE_SESSION_SENTENCE,
-  CHART_CLOCK_WITHHELD } from './interpret'
+import { interpret, barDays, newYorkOffsetSeconds } from './interpret'
+import { translatePine } from './pine.js'
 
 const FIXTURE = path.resolve(process.cwd(), '..', 'tests', 'fixtures', 'ast', 'htf_exchange_day.json')
 const CAPTURE = path.resolve(process.cwd(), '..', 'tests', 'fixtures', 'vendor', 'harness',
@@ -85,18 +87,13 @@ const CASES = [
     set: 'nov', opts: INTRADAY, tree: () => merge(CLOSE, 'M'), pick: () => [at('nov', '2021-12-01', 4)], expect: [457.4] },
   { name: 'tf_live(M, close) on November 30th 19:00 New York: still November',
     set: 'nov', opts: INTRADAY, tree: () => live(CLOSE, 'M'), pick: () => [at('nov', '2021-11-30', 19)], expect: [457.4] },
-  // ⭐ A SESSION THE EXCHANGE NEVER HELD (Good Friday 2024-03-29, bar 9): its week (bars 5-9) is withheld where read
-  { name: 'nz(tf_merge(W, high)): the week holding the Good Friday bar is withheld where it shows (bars 9-13), by name',
+  // ⭐ A SESSION THE EXCHANGE NEVER HELD (Good Friday 2024-03-29, bar 9): ONE aggregate in both lanes, the bar kept (its
+  // high 10.5 is week 13's); whether TradingView keeps it is Q-REQ-CLOSURE's (no served series holds one: the tripwire)
+  { name: 'nz(tf_merge(W, high)) on the Good Friday series: week 13 holds its Friday bar in both lanes (10.5)',
     set: 'goodFriday', opts: DAY, tree: () => call('nz', merge(HIGH), num(0)), pick: () => [4, 5, 8, 9, 10, 13, 14],
-    expect: [5.5, 5.5, 5.5, n, n, n, 15.5] },
-  { name: 'tf_merge(W, high)[5]: the bars that read that week five bars later are withheld too',
-    set: 'goodFriday', opts: DAY, tree: () => off(5, merge(HIGH)), pick: () => [13, 14, 15], expect: [5.5, n, n] },
-  { name: "tf_merge(W, high[1]): the closure week's own value (week 12's high) is drawn; week 14's reads it, withheld",
-    set: 'goodFriday', opts: DAY, tree: () => merge(off(1, HIGH)), pick: () => [9, 10, 14, 15], expect: [5.5, 5.5, n, n] },
-  { name: 'tf_live(W, close): the week holding it is withheld on its own bars (5-9)',
-    set: 'goodFriday', opts: DAY, tree: () => live(CLOSE), pick: () => [4, 5, 9, 10], expect: [5, n, n, 15] },
-  { name: 'tf_merge(W, ema(close, 2)): a running value inside reads the withheld week, and is drawn where two starts agree',
-    set: 'goodFriday', opts: DAY, tree: () => merge(call('ema', CLOSE, num(2))), pick: () => [9, 10], expect: [n, n] },
+    expect: [5.5, 5.5, 5.5, 10.5, 10.5, 10.5, 15.5] },
+  { name: 'tf_live(W, close) on the Good Friday series: week 13 closes on its Friday bar (10)',
+    set: 'goodFriday', opts: DAY, tree: () => live(CLOSE), pick: () => [4, 5, 9, 10], expect: [5, 10, 10, 15] },
   // CONTROLS
   { name: 'CONTROL nz(tf_merge(W, high)) on the same series without the Good Friday bar (Thursday closes the week; nothing withheld)',
     set: 'noClosure', opts: DAY, tree: () => call('nz', merge(HIGH), num(0)), pick: () => [4, 8, 9, 13],
@@ -158,7 +155,8 @@ describe('⭐ TradingView keys the bar to its exchange day (the capture, read he
       expect(r[A1], `t ${r[0]}`).toBe(-54000)
       expect(r[A5], `t ${r[0]}`).toBe(0)
       // ...and this engine's day for it is that Friday, not the UTC Saturday
-      expect(closedSessionDay(dayOf.get(r[0])), `t ${r[0]}`).toBe(false)
+      const [y, m, d] = dayOf.get(r[0]).split('-').map(Number)
+      expect(new Date(Date.UTC(y, m - 1, d)).getUTCDay(), `t ${r[0]}`).toBe(5)
     }
   })
   it('the New York offset is the IANA zone\'s on every half hour 1990-2035', () => {
@@ -191,12 +189,23 @@ describe('every case is its hand-written answer', () => {
         if (c.expect[k] === null) expect(c.served[j], `${c.name} bar ${j}`).toBe(null)
         else expect(c.served[j], `${c.name} bar ${j}`).toBeCloseTo(c.expect[k], 9)
       })
-      const withheld = c.expect.some((v) => v === null)
-      expect(c.codes.includes(TF_CLOSURE_SESSION_CODE), c.name).toBe(withheld)
+      // nothing here names a closure-week withhold: ruling (C) defers it to Q-REQ-CLOSURE
+      expect(c.codes.filter((k) => k.includes('closure')), c.name).toEqual([])
     })
   }
-  it('the code is named with its sentence', () => {
-    expect(TF_CLOSURE_SESSION_CODE).toBe('request:htf-closure-session')
-    expect(CHART_CLOCK_WITHHELD[TF_CLOSURE_SESSION_CODE]()).toBe(TF_CLOSURE_SESSION_SENTENCE)
-  })
+})
+
+// ⭐⭐ THE TRIPWIRE'S CHART HALF (ruling (C)): a symbol whose own sessions fall on exchange closures (crypto, FX, futures)
+// reaches a weekly or monthly merge here only through a door that refuses it by name today. If one of these ever
+// translates, a series holding closure-day bars can reach the aggregate whose TradingView answer is unmeasured: the
+// withhold deferred to Q-REQ-CLOSURE (`vw-req-w-closure-day-eurusd-1d` / `-es1-1d`) has to land first.
+describe('⭐⭐ the tripwire: a venue whose sessions fall on exchange closures is refused by name before any weekly read', () => {
+  for (const venue of ['BINANCE:BTCUSDT', 'BITSTAMP:BTCUSD', 'FX:EURUSD', 'CME_MINI:ES1!']) {
+    it(`request.security("${venue}", "W", high) is refused by name`, () => {
+      const out = translatePine(['//@version=5', 'indicator("t")',
+        `plot(request.security("${venue}", "W", high))`, ''].join('\n'))
+      expect(out.refusal, `${venue} translated: read Q-REQ-CLOSURE before serving it`).not.toBe(null)
+      expect(String(out.refusal && out.refusal.message), venue).toContain('other-symbol:venue-foreign')
+    })
+  }
 })

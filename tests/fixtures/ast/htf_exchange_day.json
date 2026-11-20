@@ -2188,7 +2188,7 @@
    "codes": []
   },
   {
-   "name": "nz(tf_merge(W, high)): the week holding the Good Friday bar is withheld where it shows (bars 9-13), by name",
+   "name": "nz(tf_merge(W, high)) on the Good Friday series: week 13 holds its Friday bar in both lanes (10.5)",
    "set": "goodFriday",
    "opts": {
     "tf": "D",
@@ -2228,9 +2228,9 @@
     5.5,
     5.5,
     5.5,
-    null,
-    null,
-    null,
+    10.5,
+    10.5,
+    10.5,
     15.5
    ],
    "served": [
@@ -2243,136 +2243,20 @@
     5.5,
     5.5,
     5.5,
-    null,
-    null,
-    null,
-    null,
-    null,
+    10.5,
+    10.5,
+    10.5,
+    10.5,
+    10.5,
     15.5,
     null
    ],
    "codes": [
-    "request:htf-closure-session",
     "request:htf-newest-unconfirmed"
    ]
   },
   {
-   "name": "tf_merge(W, high)[5]: the bars that read that week five bars later are withheld too",
-   "set": "goodFriday",
-   "opts": {
-    "tf": "D",
-    "newestBarIsForming": false,
-    "historyFromListing": true
-   },
-   "tree": {
-    "type": "offset",
-    "value": 5,
-    "args": [
-     {
-      "type": "tf_merge",
-      "value": "W",
-      "args": [
-       {
-        "type": "series",
-        "name": "high"
-       }
-      ]
-     }
-    ]
-   },
-   "pick": [
-    13,
-    14,
-    15
-   ],
-   "expect": [
-    5.5,
-    null,
-    null
-   ],
-   "served": [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    5.5,
-    5.5,
-    5.5,
-    5.5,
-    5.5,
-    null,
-    null
-   ],
-   "codes": [
-    "request:htf-closure-session"
-   ]
-  },
-  {
-   "name": "tf_merge(W, high[1]): the closure week's own value (week 12's high) is drawn; week 14's reads it, withheld",
-   "set": "goodFriday",
-   "opts": {
-    "tf": "D",
-    "newestBarIsForming": false,
-    "historyFromListing": true
-   },
-   "tree": {
-    "type": "tf_merge",
-    "value": "W",
-    "args": [
-     {
-      "type": "offset",
-      "value": 1,
-      "args": [
-       {
-        "type": "series",
-        "name": "high"
-       }
-      ]
-     }
-    ]
-   },
-   "pick": [
-    9,
-    10,
-    14,
-    15
-   ],
-   "expect": [
-    5.5,
-    5.5,
-    null,
-    null
-   ],
-   "served": [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    5.5,
-    5.5,
-    5.5,
-    5.5,
-    5.5,
-    null,
-    null
-   ],
-   "codes": [
-    "request:htf-closure-session",
-    "request:htf-newest-unconfirmed"
-   ]
-  },
-  {
-   "name": "tf_live(W, close): the week holding it is withheld on its own bars (5-9)",
+   "name": "tf_live(W, close) on the Good Friday series: week 13 closes on its Friday bar (10)",
    "set": "goodFriday",
    "opts": {
     "tf": "D",
@@ -2397,8 +2281,8 @@
    ],
    "expect": [
     5,
-    null,
-    null,
+    10,
+    10,
     15
    ],
    "served": [
@@ -2407,11 +2291,11 @@
     5,
     5,
     5,
-    null,
-    null,
-    null,
-    null,
-    null,
+    10,
+    10,
+    10,
+    10,
+    10,
     15,
     15,
     15,
@@ -2419,68 +2303,7 @@
     15,
     16
    ],
-   "codes": [
-    "request:htf-closure-session"
-   ]
-  },
-  {
-   "name": "tf_merge(W, ema(close, 2)): a running value inside reads the withheld week, and is drawn where two starts agree",
-   "set": "goodFriday",
-   "opts": {
-    "tf": "D",
-    "newestBarIsForming": false,
-    "historyFromListing": true
-   },
-   "tree": {
-    "type": "tf_merge",
-    "value": "W",
-    "args": [
-     {
-      "type": "call",
-      "name": "ema",
-      "args": [
-       {
-        "type": "series",
-        "name": "close"
-       },
-       {
-        "type": "num",
-        "value": 2
-       }
-      ]
-     }
-    ]
-   },
-   "pick": [
-    9,
-    10
-   ],
-   "expect": [
-    null,
-    null
-   ],
-   "served": [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null
-   ],
-   "codes": [
-    "request:htf-closure-session",
-    "request:htf-newest-unconfirmed"
-   ]
+   "codes": []
   },
   {
    "name": "CONTROL nz(tf_merge(W, high)) on the same series without the Good Friday bar (Thursday closes the week; nothing withheld)",

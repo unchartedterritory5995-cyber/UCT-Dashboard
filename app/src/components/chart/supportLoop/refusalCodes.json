@@ -213,7 +213,6 @@
   "request:formula-unsupported",
   "request:htf-first-period-partial",
   "request:htf-lookahead-first-period-partial",
-  "request:htf-closure-session",
   "request:htf-lookahead-forming-unmeasured",
   "request:htf-newest-unconfirmed",
   "request:none",

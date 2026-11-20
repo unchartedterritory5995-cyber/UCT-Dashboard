@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "RULING 2 (fix/htf-exchange-day): a resampler keys an intraday series' bar's week or month by the exchange's local (New York) session date, never its UTC date; both lanes keep every bar the series holds in a higher-timeframe aggregate, and the bars that show or read a week or month holding a session the exchange never held (a weekend, an NYSE full closure) are withheld by name (request:htf-closure-session). Every rule, broken once, must turn its rail red.",
+ "about": "RULING 2 (fix/htf-exchange-day), the coordinator's ruling (C): a resampler keys an INTRADAY series' bars by the exchange's local (New York) session date, never their UTC date (a daily series keeps its dates, one stamped at midnight UTC included); both lanes keep every bar the series holds in a higher-timeframe aggregate; the closure-week withhold waits for Q-REQ-CLOSURE, and a tripwire pins why no served series reaches it. Every rule, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "X1",
@@ -19,42 +19,6 @@
    "to": "  return -5 * 3600",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
    "expectRed": "the New York offset is the IANA zone"
-  },
-  {
-   "id": "X3",
-   "mutant": "JS: a week holding a session the exchange never held never withheld",
-   "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "  if (!isos.some((d) => d && closedSessionDay(d))) return null",
-   "to": "  if (true) return null",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
-   "expectRed": "the week holding the Good Friday bar is withheld"
-  },
-  {
-   "id": "X4",
-   "mutant": "JS: an exchange holiday not read as a day without a session (weekends only)",
-   "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "  return dow === 0 || dow === 6 || holidayOn(iso) !== null",
-   "to": "  return dow === 0 || dow === 6",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
-   "expectRed": "the week holding the Good Friday bar is withheld"
-  },
-  {
-   "id": "X5",
-   "mutant": "JS: the request's child not walked (the held period alone, history inside ignored)",
-   "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    if (!holdsRequestOrBinding(child)) {",
-   "to": "    if (false) {",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
-   "expectRed": "tf_merge(W, high[1])"
-  },
-  {
-   "id": "X6",
-   "mutant": "JS: the mask not in the one withholding channel",
-   "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    tfClosureSessionMask(tree, bars, opts, inputs, budget, scalars),",
-   "to": "    null,",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
-   "expectRed": "the week holding the Good Friday bar is withheld"
   },
   {
    "id": "X7",
@@ -93,42 +57,6 @@
    "expectRed": "test_the_resampler_keeps_every_row_when_asked_and_drops_none_by_default"
   },
   {
-   "id": "PX4",
-   "mutant": "Python: a week holding a session the exchange never held never withheld",
-   "file": "api/services/ast_interpret.py",
-   "from": "    if not any(d and _closed_session_day(d) for d in iso):",
-   "to": "    if True:",
-   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
-   "expectRed": "the week holding the Good Friday bar is withheld"
-  },
-  {
-   "id": "PX5",
-   "mutant": "Python: an exchange holiday not read as a day without a session",
-   "file": "api/services/ast_interpret.py",
-   "from": "    return day.weekday() >= 5 or (day.year * 10000 + day.month * 100 + day.day) in _nyse_full_closures()",
-   "to": "    return day.weekday() >= 5",
-   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
-   "expectRed": "the week holding the Good Friday bar is withheld"
-  },
-  {
-   "id": "PX6",
-   "mutant": "Python: the request's child not walked",
-   "file": "api/services/ast_interpret.py",
-   "from": "        if not _holds_request_or_binding(child):",
-   "to": "        if False:",
-   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
-   "expectRed": "tf_merge(W, high[1])"
-  },
-  {
-   "id": "PX7",
-   "mutant": "Python: the mask not in the interpret chain",
-   "file": "api/services/ast_interpret.py",
-   "from": "        closed = tf_closure_session_mask(ast, bars, opts, inputs, budget, scalars)",
-   "to": "        closed = None",
-   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
-   "expectRed": "the week holding the Good Friday bar is withheld"
-  },
-  {
    "id": "PX8",
    "mutant": "Python: every series in unix seconds read in New York",
    "file": "api/services/ast_interpret.py",
@@ -136,6 +64,24 @@
    "to": "        if prev is not None and prev < e:",
    "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
    "expectRed": "a daily series stamped at midnight UTC keeps its dates"
+  },
+  {
+   "id": "TW1",
+   "mutant": "Tripwire: another ticker exempted from the exchange calendar (an FX daily series served)",
+   "file": "api/services/date_bar_keys.py",
+   "from": "_CRYPTO_NAMES = frozenset({\"BTC\", \"ETH\"})",
+   "to": "_CRYPTO_NAMES = frozenset({\"BTC\", \"ETH\", \"EURUSD\"})",
+   "rail": "python -m pytest tests/test_htf_closure_week_unreachable.py -q -p no:cacheprovider",
+   "expectRed": "test_only_the_crypto_spellings_escape_the_calendar"
+  },
+  {
+   "id": "TW2",
+   "mutant": "Tripwire: the serve door keeps a daily row on a day without a session",
+   "file": "api/services/bars_fetch.py",
+   "from": "        if tf == \"W\" or _dk.calendar_applies(ticker):",
+   "to": "        if tf == \"W\":",
+   "rail": "python -m pytest tests/test_htf_closure_week_unreachable.py -q -p no:cacheprovider",
+   "expectRed": "test_a_calendar_ticker_loses_every_day_without_a_session_at_the_serve_door"
   }
  ]
 }
