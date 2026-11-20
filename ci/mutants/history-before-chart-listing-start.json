@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "(coordinator ruling 2026-11-20, e90) a weekly or monthly chart whose first bar is the symbol's listing period (listingStart, the fact where the listing is not served) counts as FROM the listing for the read-before-the-chart mask: nothing withheld, nothing named; off the listing it still withholds by name. Both lanes. Each rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "LS1",
+   "mutant": "JS: the listing fact ignored (the gate as #2167 shipped it)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true && opts.listingStart !== true",
+   "to": "  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChartListingStart.test.js",
+   "expectRed": "M chart from the listing (listingStart)"
+  },
+  {
+   "id": "LS2",
+   "mutant": "JS: every chart read as from the listing (the control: off the listing must still withhold)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true && opts.listingStart !== true",
+   "to": "  const off = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChartListingStart.test.js",
+   "expectRed": "CONTROL M chart off the listing"
+  },
+  {
+   "id": "PLS1",
+   "mutant": "Python: the listing fact ignored",
+   "file": "api/services/ast_interpret.py",
+   "from": "           and o.get(\"listingStart\") is not True)",
+   "to": "           and True)",
+   "rail": "python -m pytest tests/test_pine_history_before_chart_listing_start.py -q -p no:cacheprovider",
+   "expectRed": "M chart from the listing"
+  },
+  {
+   "id": "PLS2",
+   "mutant": "Python: every chart read as from the listing",
+   "file": "api/services/ast_interpret.py",
+   "from": "    off = (o.get(\"barIndexAbsolute\") is True and o.get(\"historyFromListing\") is not True",
+   "to": "    off = (False and o.get(\"historyFromListing\") is not True",
+   "rail": "python -m pytest tests/test_pine_history_before_chart_listing_start.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL M chart off the listing"
+  }
+ ]
+}
