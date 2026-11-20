@@ -132,6 +132,8 @@ export const PANEL_IMPORTERS = {
   ShortList: () => import('./panels/ShortListPanel'),
   // DILU (2026-11-18): one company's share-issuance filings from its public SEC EDGAR filing index
   Dilution: () => import('./panels/DilutionPanel'),
+  // OIC (2026-11-19): one stock's open interest per contract against the recorded day before, from UCT's options log
+  OiChange: () => import('./panels/OiChangePanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),
