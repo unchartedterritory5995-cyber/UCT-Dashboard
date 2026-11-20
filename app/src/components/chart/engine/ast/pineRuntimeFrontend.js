@@ -1097,10 +1097,11 @@ export function naSeededSelfDeclaration(value, name) {
  *  named on `coral-trend-indicator-lazybear`: a fixed-coefficient recurrence whose
  *  input is ANOTHER recurrence, `pine:state` on `i2`/`i4`/`i6`).
  *
- *  ⛔⛔ ONLY WHEN EVERY SELF READ IS THE ONE-ARGUMENT `nz(name[k])`, `k` a whole
+ *  ⛔⛔ ONLY WHEN EVERY SELF READ IS THE ONE-ARGUMENT `nz(name[k])` (or, since ATR-POS,
+ *  `nz(name[k], 0)` with a literal zero fill), `k` a whole
  *  literal >= 1. Its bar-0 value is 0 under EITHER v1/v2 seed rule (`nz(na)` and
  *  `nz(0)` are both 0), so no unstated rule reaches an output. ⛔ NOT
- *  `nz(name[k], fill)`: that reads `fill` if the series starts at `na` and 0 if it
+ *  `nz(name[k], fill)` for any other fill: that reads `fill` if the series starts at `na` and 0 if it
  *  starts at 0, the question row W34-I4-S1 leaves open, so it is not rewritten and
  *  keeps master's answer (the host `accum`, which withholds the seed's window, or
  *  its `pine:state` refusal by name when the update never forgets). A bare self read
@@ -1123,31 +1124,38 @@ export function v2SelfReferenceStatements(stmts, version) {
     if (nameTok) declared.set(nameTok.value, (declared.get(nameTok.value) || 0) + 1)
   }
   const isIdent = (t, v) => !!t && t.kind === 'ident' && (v === undefined || t.value === v)
-  /** Every read of `name` in `rhs` is a guarded history read; at least one exists. */
+  /** Every read of `name` in `rhs` is a guarded history read; at least one exists.
+   *  ⭐⭐ ATR-POS (2026-11-19) — `nz(name[k], 0)`, the fill a LITERAL zero, is guarded too: its bar-0 value is 0
+   *  whether the series starts at `na` (the fill, 0) or at 0 (0), exactly the one-argument form's argument. Any other
+   *  fill still is not (it reads the fill or 0 by the seed rule). */
   const guardedSelfRef = (rhs, name) => {
     let reads = 0
     for (let i = 0; i < rhs.length; i += 1) {
       if (!isIdent(rhs[i], name)) continue
       if (isPunct(rhs[i - 1], '.') || isPunct(rhs[i + 1], '.')) continue
       const k = rhs[i + 2]
+      const zeroFill = isPunct(rhs[i + 4], ',') && rhs[i + 5] && rhs[i + 5].kind === 'number' && rhs[i + 5].value === 0
+        && isPunct(rhs[i + 6], ')')
       const guarded = isPunct(rhs[i - 1], '(') && isIdent(rhs[i - 2], 'nz') && !isPunct(rhs[i - 3], '.')
         && isPunct(rhs[i + 1], '[') && k && k.kind === 'number' && Number.isInteger(k.value) && k.value >= 1
-        && isPunct(rhs[i + 3], ']') && isPunct(rhs[i + 4], ')')
+        && isPunct(rhs[i + 3], ']') && (isPunct(rhs[i + 4], ')') || zeroFill)
       if (!guarded) return false
       reads += 1
     }
     return reads > 0
   }
-  /** ⛔ MEASURE-PAIR FINDING (runtime-on, `earnings-sr-levels-lazybear`, v1): a definition
-   *  carrying a `?:` or `iff` (`x = (c ? a : nz(x[1]))`) is NOT rewritten. As a slot its
-   *  test is lowered to the VM's `SELECT`, whose below-v4 `na` reading is unsettled
-   *  (`lowerIr.js::naTestsOf`, RT1), so the run declined `runtime:na-test` where master's
-   *  host fold served it (its bar 0 is `nz`'s 0 under either seed rule, so master's value
-   *  does not rest on the unknown seed). Such a definition keeps master's answer. */
-  const hasConditional = (rhs) => rhs.some((t) => isPunct(t, '?') || isIdent(t, 'iff'))
-  /** ⛔ REVIEW N1 — and one that CALLS a function this script defines (`f(a) => …`): the
-   *  callee's body may hold a `?:` the token scan above cannot see, which would reach the
-   *  VM the same way. Such a definition keeps master's answer too. */
+  /** ⭐⭐ ATR-POS (2026-11-19) — A DEFINITION CARRYING A `?:` OR `iff` IS REWRITTEN TOO.
+   *  ⚰️ It was not (MEASURE-PAIR FINDING, runtime-on, `earnings-sr-levels-lazybear`, v1): as a slot its test is lowered
+   *  to the VM's `SELECT`, whose below-v4 `na` reading was then unsettled, so the run declined `runtime:na-test`. Since
+   *  engine 56 that reading is WITNESSED for every version (`interpret.js::NA_CONDITION_FALSE_FROM_VERSION` = 1: s18
+   *  `vw-cs2-bool-na-v1-cum` / `-v3-cum`, S1 `vw-cs1-bool-na-v2`), and a run from the listing reads an `na` test as
+   *  false and counts none (`lowerIr.js`, `naFalse`). Left unrewritten, such a definition was handed to the columnar
+   *  lane as a COLUMN, whose bounded fold withholds the window its seed reaches as an UNNAMED `na`, and the run DREW
+   *  that `na` through every rule that reads it: average-true-range-trailing-stops' `pos = iff(…, nz(pos[1], 0))` was
+   *  `na` on bars 0-251, and its colour rule `pos == -1 ? red : pos == 1 ? green : blue` painted those bars blue where
+   *  TradingView, whose `pos` persists from bar 0, painted 160 of them red or green (licence-held RDDT 1D capture). */
+  /** ⛔ REVIEW N1 — a definition that CALLS a function this script defines (`f(a) => …`) keeps master's answer: the
+   *  callee's body is out of this token scan's sight, and no census has measured the rewrite through one. */
   const scriptFns = new Set()
   for (const st of stmts) {
     const toks = st.header || []
@@ -1162,8 +1170,7 @@ export function v2SelfReferenceStatements(stmts, version) {
     const nameTok = eq === 1 && isIdent(toks[0]) ? toks[0] : null
     const plain = nameTok && !(st.sub && st.sub.length) && !(st.body && st.body.length)
       && declared.get(nameTok.value) === 1 && !mut.mutated.has(nameTok.value)
-    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || hasConditional(toks.slice(eq + 1))
-        || callsScriptFn(toks.slice(eq + 1))) {
+    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || callsScriptFn(toks.slice(eq + 1))) {
       out.push(st); continue
     }
     const eqTok = toks[eq]
@@ -11961,7 +11968,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     if (node.type === 'colour') return /^#[0-9a-f]{6}(ff)?$/i.test(String(node.value))
     if (node.type === 'paren' && node.expr) return opaqueColour(node.expr, scope, depth + 1)
     if (node.type === 'name') {
-      if (lookupReadable(node.name, scope) !== null) return false
+      const slot = lookupReadable(node.name, scope)
+      // ⭐ ATR-POS — a slot bound ONCE to an expression and never reassigned (`frameLocalDefs`) holds that
+      // expression's value on every bar it is read, so it is opaque when its expression is: average-true-range-
+      // trailing-stops' `color = pos == -1 ? red : pos == 1 ? green : blue` became a slot once `pos` is one
+      // (`v2SelfReferenceStatements`), and an env macro of the same text was already read through (below)
+      if (slot !== null) {
+        const def = frameLocalDefs.get(slot)
+        return def !== undefined && opaqueColour(def.expr, def.scope, depth + 1)
+      }
       const bound = env.get(node.name)
       if (bound) return bound.kind === 'expr' && opaqueColour(bound.node, scope, depth + 1)
       return colourHexByName(node.name, versionAt(node.tok, pineVersion)) !== null
