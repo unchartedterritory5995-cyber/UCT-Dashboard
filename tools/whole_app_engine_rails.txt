@@ -16,6 +16,9 @@
 # comparison role (Pine's tolerant compare): a new call site anywhere in the app must run it.
 # 2026-11-19: + heldSpanFollowsChart.test.js, which reads app/src/components/StockChart.jsx (the held span it hands
 # useSecondarySources) and api/routers/bars.py (/api/bars's le=60000, the ladder's top rung): either can break it.
+# 2026-11-19 (engine 88 train, #2108's miss, coordinator ruling): + heldWithholds.savedCopies.test.js, which reads
+# tests/fixtures/held_withhold_keys.json (the held-withhold stamp keys the browser and the server both assert): a PR
+# that changes the key fixture and never touches the engine must run it.
 src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
 src/components/chart/engine/__tests__/controlDoorCensus.test.js
 src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
@@ -72,6 +75,7 @@ src/components/chart/engine/ast/symbolScopeProse.test.js
 src/components/chart/engine/ast/thinkscript.test.js
 src/components/chart/engine/defSchema.test.js
 src/components/chart/engine/heldSpanFollowsChart.test.js
+src/components/chart/engine/heldWithholds.savedCopies.test.js
 src/components/chart/engine/hostKnownDivergence.test.js
 src/components/chart/engine/lineIdentity.test.js
 src/components/chart/engine/nativeRegistry.test.js
