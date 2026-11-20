@@ -151,7 +151,8 @@ test('HP-7: the service adapter builds the browser worker\'s (def, rows, ctx, op
   // RS RATING L3 / L5: the browser ships every bind field and the other-symbol cache; the server
   // ships neither, and says so (DECLARED_DIFFERENCES), so the parse read them rather than skipped them
   // (2026-11-19) plus the browser's optional listing fact, `firstTradeDate` (declared browser-only in job.mjs)
-  assert.deepEqual(Object.keys(b.ctx.symbol), [...BIND_SYMBOL_FIELDS, 'firstTradeDate'])
+  // (2026-11-20) and whether that listing answer is still in flight, `firstTradeDatePending` (declared browser-only too)
+  assert.deepEqual(Object.keys(b.ctx.symbol), [...BIND_SYMBOL_FIELDS, 'firstTradeDate', 'firstTradeDatePending'])
   assert.ok('secondaryEntries' in b.ctx)
   assert.deepEqual(Object.keys(s.ctx.symbol), ['ticker', 'exchange'])
   // W9-T11: both hosts forward the window from their own ctx, never from a literal

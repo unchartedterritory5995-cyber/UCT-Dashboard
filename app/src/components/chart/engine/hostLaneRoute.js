@@ -27,9 +27,11 @@
 //   · not measured on this timeframe, but on another: the dearest such prediction, times
 //     `HOST_OTHER_TF_MARGIN` (a timeframe's rows need not cost what another's do);
 //   · not measured at all: null.
-// THE ROUTE (`computesOnMain`): the main thread when the prediction is `HOST_MAIN_BUDGET_MS` or less, or, with
-// no prediction, when the rows are a first paint's (`HOST_UNMEASURED_MAIN_ROWS`, where a document is first
-// measured: today's path for a first paint, unchanged). Everything else goes to the worker.
+// THE ROUTE (`computesOnMain`): the main thread when THIS timeframe's prediction is `HOST_MAIN_BUDGET_MS` or less,
+// or, for a document this tab has never measured, when the rows are a first paint's (`HOST_UNMEASURED_MAIN_ROWS`,
+// where a document is first measured: today's path for a first paint, unchanged). Everything else goes to the
+// worker, a document measured only on other timeframes included (2026-11-20: such a prediction sent a 73 ms values
+// pass to the main thread on a 1D -> 5m switch; see `computesOnMain`).
 //
 // ⛔ A LEAF: no imports beyond the two constants it is derived from, so its rails need no chart.
 import { LONG_TASK_MS } from './hostLaneCost.js'
@@ -133,8 +135,18 @@ export function predictedMs(doc, tf, rows) {
 }
 
 /** ⭐⭐ THE ROUTE: may the main thread compute this request's values? (`hostLaneAsync` asks it only for a
- *  document under #1711's estimate and with a worker to send it to.) */
+ *  document under #1711's estimate and with a worker to send it to.)
+ *  ⭐⭐ (switch smoothness, 2026-11-20) A DOCUMENT MEASURED ONLY ON OTHER TIMEFRAMES GOES TO THE WORKER, which
+ *  measures it on this one. MEASURED (patrick-54's trace, 1D -> 5m with Fred RS, the 28k-row path): Fred RS measured
+ *  on 1D predicted its first 5m paint at the budget or under (doubled by `HOST_OTHER_TF_MARGIN`, it was sent here),
+ *  and that paint cost 73 ms of values on the main thread (an intraday pass adds the clock and session columns and
+ *  the other symbol's alignment, which no daily pass has: `computeClock`, `symAlignmentMask` in the profile). So
+ *  another timeframe's measurement no longer routes to the main thread; `predictedMs` still
+ *  reads it (diagnostics). A document never measured in this tab keeps its first paint here, as before
+ *  (`HOST_UNMEASURED_MAIN_ROWS`: a cold tab's first picture is not held behind a worker that is not started). */
 export function computesOnMain(doc, tf, rows) {
-  const p = predictedMs(doc, tf, rows)
-  return p === null ? rows <= HOST_UNMEASURED_MAIN_ROWS : p <= HOST_MAIN_BUDGET_MS
+  const per = _memory.get(doc)
+  if (!per) return rows <= HOST_UNMEASURED_MAIN_ROWS
+  const own = fromSamples(per.get(tfKey(tf)), rows)
+  return own !== null && own <= HOST_MAIN_BUDGET_MS
 }

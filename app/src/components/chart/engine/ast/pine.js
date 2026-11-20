@@ -7409,6 +7409,12 @@ export function constantTestValue(tree) {
  *  `Resolver.objectPass`. */
 const TF_READ_HOPS = 16
 
+/** ⭐⭐ (request unit, TF-FOLD, engine 89) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
+ *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops. Handed to `ownTimeframeOf` /
+ *  `timeframeLiteralOf` by the request readers alone (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
+ *  the plot lane) keeps its own reach. */
+const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS })
+
 /* ─── ⭐⭐ ENGINE 56 (A3) — A PINE v1-v5 `bool` CAN BE `na` ──────────────────────────────────
  *
  *  WITNESSED (S1 evidence session, 2026-11-14, `tools/visual_conformance/probes/vw-cs1-*.pine`,
@@ -8623,6 +8629,16 @@ export class Resolver {
      *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
      *  is an owner-ruled act. The object pass mints no parameters. */
     this.objectPass = opts.objectPass === true
+    /** ⭐⭐ (request unit, TF-FOLD, engine 89) — THE RUNTIME LANE'S READING OF A REQUEST'S TIMEFRAME. Set by
+     *  `pineRuntimeFrontend.js` on its own resolvers (`requestTimeframeReader: 'runtime'`) and by nothing else. The
+     *  timeframe argument of a `request.security` (and only that argument: `requestTimeframeReach`) is followed
+     *  through `TF_READ_HOPS` names and ternary arms, the object pass's reach (C10), where the plot lane reads 4: the
+     *  literal a constant chain settles before the first bar (cppivot-boss-floor-pivots' six-hop
+     *  `floor_pivot_resolution`, over an input's default).
+     *  ⛔ CONFINED, and the confinement is the point: the host translator never sets it, so no plot-lane
+     *  translation moves and no parameter id is minted in a new order (the C10 reason the plot lane keeps 4;
+     *  `requestTimeframeReader.test.js` holds the plot lane byte-identical over the committed corpus). */
+    this.runtimeRequestTimeframes = opts.requestTimeframeReader === 'runtime'
     /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
      *  `pineRuntimeFrontend.js` when it builds a drawing script's values
      *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
@@ -11431,18 +11447,21 @@ export class Resolver {
    *  reads there. See `implicitBoolCast` for the rule and its evidence status.
    *  `site` names the context (`and`/`or`/`not`/`ternary`) for the observer. */
   condition(tree, site, tok) {
+    // ⭐⭐ the version island (bool na, implicit cast): a condition a v5 library writes inside a v6 script is read
+    // under v5 (`versionAt` at its token): its `na` bool reads false, a number is cast to a bool
+    const version = versionAt(tok, this.pineVersion)
     // ⭐ ENGINE 56 (A3) — a v1-v5 `bool` VALUE that is `na` (`boolNaValue`) reads false here
-    if (this.pineVersion === null || this.pineVersion === undefined || Number(this.pineVersion) <= 5) {
+    if (version === null || version === undefined || Number(version) <= 5) {
       tree = naArmsReadFalse(tree)
     }
-    const cast = implicitBoolCast(tree, this.pineVersion, this.table)
+    const cast = implicitBoolCast(tree, version, this.table)
     // ⭐ ENGINE 56 (S1, s18) — a Pine script with no `//@version` is v1, and v1-v3 read an `na`
     // operand of `and` / `or` / `not` as false like v4 / v5 (`naConditionIsFalse`)
-    const out = naOperandReadAsFalse(cast, site, this.pineScript && this.pineVersion === null ? 1 : this.pineVersion)
+    const out = naOperandReadAsFalse(cast, site, this.pineScript && version === null ? 1 : version)
     if (this.onCondition) {
       const at = locate(tok)
       this.onCondition({
-        site, kind: out.kind, cast: out.cast, version: this.pineVersion,
+        site, kind: out.kind, cast: out.cast, version,
         line: at && at.line, column: at && at.column, tree,
       })
     }
@@ -11655,6 +11674,9 @@ export class Resolver {
           if (q !== null) return cNum(q)
         }
         const mapped = PINE_OP_TO_TABLE[node.op]
+        // ⭐⭐ the version island (bool na): an operator a v5 library writes inside a v6 script holds its `na` bool as
+        // a v5 script's does (`versionAt` at its token; `boolNaOperator` below, on every path)
+        const opVersion = versionAt(node.tok, this.pineVersion)
         if (!mapped || !own(this.table.operators, mapped)) {
           throw new PineRefusal('pine:operator',
             `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
@@ -11703,7 +11725,7 @@ export class Resolver {
             const out = foldLogicalIdentity(mapped, decidedBy, rightCast, this.table)
             // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
             this.stampLogicRight(out, node, decidedBy, mapped)
-            return boolNaOperator(mapped, decidedBy, rightCast, this.pineVersion, out, node.left, node.right)
+            return boolNaOperator(mapped, decidedBy, rightCast, opVersion, out, node.left, node.right)
           }
           let right
           try {
@@ -11716,7 +11738,7 @@ export class Resolver {
           // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
           // same way (`deadLowerTfRead`): the left has decided every bar.
           if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
-          return boolNaOperator(mapped, decidedBy, right, this.pineVersion,
+          return boolNaOperator(mapped, decidedBy, right, opVersion,
             foldLogicalIdentity(mapped, decidedBy, right, this.table), node.left, node.right)
         }
         if (probed) {
@@ -11725,7 +11747,7 @@ export class Resolver {
           // ⭐⭐ engine 78 (#1858) — the v1-v4 constant fold, on this path too (`constCompareOf`)
           const constFoldP = this.constCompareOf(mapped, node, pl, pr)
           if (constFoldP !== null) return cNum(constFoldP)
-          return boolNaOperator(mapped, pl, pr, this.pineVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
+          return boolNaOperator(mapped, pl, pr, opVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
         const rl = this.resolve(node.left)
         const rr = this.resolve(node.right)
@@ -11733,7 +11755,7 @@ export class Resolver {
         // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
         const constFold = this.constCompareOf(mapped, node, rl, rr)
         if (constFold !== null) return cNum(constFold)
-        return boolNaOperator(mapped, rl, rr, this.pineVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
+        return boolNaOperator(mapped, rl, rr, opVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
       }
       case 'ternary': {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
@@ -12863,7 +12885,8 @@ export class Resolver {
         // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
         // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
         // the identity fold may have reduced it to its operand, so it is read off the source
-        const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, this.pineVersion)
+        // ⭐⭐ the version island: `na()` a v5 library writes inside a v6 script reads the v5 `bool`'s `na`
+        const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, versionAt(node.tok, this.pineVersion))
         return flag ? cOp('||', [cCall('na', [x]), flag]) : cCall('na', [x])
       }
       if (name === 'nz' && (arity === 1 || arity === 2)) {
@@ -13957,16 +13980,16 @@ export class Resolver {
    *  identifier in v2/v3 Pine and a script may reassign it; `period = "60"` means
    *  hourly, and reading it as the chart's own timeframe answers off whatever
    *  bars happen to be loaded. */
-  ownTimeframeOf(node, depth = 0) {
-    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
+  ownTimeframeOf(node, depth = 0, reach = undefined) {
+    if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
-      return taken ? this.ownTimeframeOf(taken, depth + 1) : null
+      return taken ? this.ownTimeframeOf(taken, depth + 1, reach) : null
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
       if (bound) {
-        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1) : null
+        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1, reach) : null
       }
       if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) return node.name
@@ -13974,16 +13997,22 @@ export class Resolver {
     return null
   }
 
-  timeframeLiteralOf(node, depth = 0) {
-    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
+  /** ⭐⭐ (request unit, TF-FOLD, engine 89) — the reach a REQUEST's timeframe is read with: `REQUEST_TF_REACH` on
+   *  the runtime lane's resolvers (`runtimeRequestTimeframes`), else none (each reader's own). */
+  requestTimeframeReach() {
+    return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined
+  }
+
+  timeframeLiteralOf(node, depth = 0, reach = undefined) {
+    if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'string') return node.value
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
-      return taken ? this.timeframeLiteralOf(taken, depth + 1) : null
+      return taken ? this.timeframeLiteralOf(taken, depth + 1, reach) : null
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
-      if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1)
+      if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1, reach)
       // ⭐ C33 — A PARAMETER IS ITS CALLER'S ARGUMENT. `data_adr(string tf) =>
       // request.security(…, timeframe = tf, …)` called as `data_adr(i_adr_1_tf)`
       // (average-day-range-adr-pivots) asks for the timeframe the call site
@@ -13997,7 +14026,7 @@ export class Resolver {
       // the corpus with this rule on. The request is the one the member gets by
       // writing the caller's argument at the call (`c33ObjectReads`, H5 block).
       if (bound && bound.kind === 'param') {
-        return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1))
+        return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1, reach))
       }
       return null
     }
@@ -14011,7 +14040,7 @@ export class Resolver {
       for (let i = 0; i < args.length; i += 1) {
         const a = args[i]
         if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.timeframeLiteralOf(a.value, depth + 1)
+          const folded = this.timeframeLiteralOf(a.value, depth + 1, reach)
           if (folded !== null && node.tok) {
             this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
               call: node.name,
@@ -14152,8 +14181,9 @@ export class Resolver {
   /** P0 0H — does this timeframe argument name bars OTHER than the chart's own?
    *  `timeframe.period`, `''` and a literal naming the base are the identity. */
   requestIsOtherPeriod(tfNode) {
-    if (this.ownTimeframeOf(tfNode) !== null) return false
-    const raw = this.timeframeLiteralOf(tfNode)
+    const reach = this.requestTimeframeReach()
+    if (this.ownTimeframeOf(tfNode, 0, reach) !== null) return false
+    const raw = this.timeframeLiteralOf(tfNode, 0, reach)
     if (raw === null) return true
     if (String(raw).trim() === '') return false
     const code = PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
@@ -14208,8 +14238,9 @@ export class Resolver {
     //    the bars it holds. `timeframe.period` is Pine's own name for "the chart's
     //    own timeframe", which is always servable because it is the base itself.
     const tfNode = positional[1]
-    if (this.ownTimeframeOf(tfNode) === null) {
-      const raw = this.timeframeLiteralOf(tfNode)
+    const reach = this.requestTimeframeReach()
+    if (this.ownTimeframeOf(tfNode, 0, reach) === null) {
+      const raw = this.timeframeLiteralOf(tfNode, 0, reach)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
       // ⭐ C41 — a symbol built by `ticker.modify(…)` (or any other `ticker.*`
       // modifier) never reached `requestTargetOf`'s timeframe read, so below the
@@ -14870,6 +14901,8 @@ export class Resolver {
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
+    // ⭐⭐ (request unit, TF-FOLD) — the runtime lane's reach (`requestTimeframeReach`); none elsewhere
+    const reach = this.requestTimeframeReach()
     // ⭐ C28b — AN EMPTY TIMEFRAME IS THE CHART'S OWN. Pine's reference for
     // `request.security`: "To use the chart's main timeframe, use an empty
     // string or the `timeframe.period` variable." The `''` spelling (a literal,
@@ -14877,14 +14910,14 @@ export class Resolver {
     // the same request `timeframe.period` makes. ⚰️ It fell through to
     // `pine:request`, and a colour written through it drew in the pane's gold
     // where TradingView draws the script's own (donchian-channels, RDDT 1D).
-    const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
-      || String(this.timeframeLiteralOf(tfNode) ?? '?').trim() === ''
+    const sameTimeframe = this.ownTimeframeOf(tfNode, 0, reach) !== null
+      || String(this.timeframeLiteralOf(tfNode, 0, reach) ?? '?').trim() === ''
     let code = null
     // C49 — the base period a LITERAL timeframe folded to the identity on (null for
     // `timeframe.period` / `''`, which are the chart's own on every chart)
     let folded = null
     if (!sameTimeframe) {
-      const raw = this.timeframeLiteralOf(tfNode)
+      const raw = this.timeframeLiteralOf(tfNode, 0, reach)
       // ⭐ TWO QUESTIONS, ASKED SEPARATELY: what does Pine call this, and can this
       // engine serve it? The second belongs to `TF_RESAMPLABLE` and is asked, not
       // copied — so a timeframe the engine learns to resample reaches this door on
@@ -25968,8 +26001,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // false and RUNS the else. Canonical mode only: a raw parse node is the
       // runtime lane's to lower (`pineRuntimeFrontend`), and casting a node of
       // the other language here would be the hybrid the paragraph below forbids.
+      // ⭐⭐ OBJECTS C (2026-11-19) — AND AN `else` ARM IS A `not`, READ AS ONE. The cast above reaches a NUMBER
+      // (`implicitBoolCast`: `ph != 0`), never a `bool` that can be `na` (`b := c ? true : na`, a `bool(na)` latch):
+      // its guard stayed the bare series, the arm's `!` of an `na` answered `na`, and the arm NEVER drew, where Pine
+      // reads `not na` as true and runs it (S1 / s18, `naOperandReadAsFalse`). ⚰️ relative-strength-index-divergences-
+      // libertus (RDDT 1D, licence-held capture): `l = … : pivoth ? label.new(…PIVOT…) : pivotl ? label.new(…PIVOT…)
+      // : na`, `pivoth := … ? true : na`: every low PIVOT (9 of TradingView's 48 labels) was missing, and nothing was
+      // counted as dropped. So a negated guard is read at the `not` site, where an operand that can be `na` reads false.
       if (!rawTrees && ast && (g.negate || guards.length > 1)) {
-        ast = makeResolver().condition(ast, 'guard', tok || (node && node.tok))
+        ast = makeResolver().condition(ast, g.negate ? 'not' : 'guard', tok || (node && node.tok))
       }
       // ⚰️⚰️ AND FOR A LONG TIME THE TWO LINES BELOW STILL EMITTED `op`
       // UNCONDITIONALLY, directly under the paragraph that says they must not.
@@ -31028,14 +31068,17 @@ export function isBareSource(node) {
 const NO_PALETTE_SCOPE = Symbol('no palette scope')
 let PALETTE_VERSION = NO_PALETTE_SCOPE
 
-/** Open a palette scope; returns the previous one so a caller can restore it. */
-function beginPaletteScope(version) {
+/** Open a palette scope; returns the previous one so a caller can restore it.
+ *  ⭐ (finding 4, 2026-11-20) EXPORTED for the runtime lane's front end (`pineRuntimeFrontend.js::buildRuntimeIr`),
+ *  which reaches this file's colour helpers through the shared `Resolver` and opened no scope: every colour name it
+ *  resolved (`color.r(color.red)`) stopped as `runtime:lower`, an engine defect, never a value. */
+export function beginPaletteScope(version) {
   const prior = PALETTE_VERSION
   PALETTE_VERSION = Number.isFinite(version) ? version : null
   return prior
 }
 
-function endPaletteScope(prior) { PALETTE_VERSION = prior }
+export function endPaletteScope(prior) { PALETTE_VERSION = prior }
 
 function activePaletteVersion() {
   if (PALETTE_VERSION === NO_PALETTE_SCOPE) {
@@ -31166,7 +31209,10 @@ function inputDefaultNode(node) {
 }
 
 const isColourName = (v) => !!v && v.type === 'name' && isPineColourSpelling(v.name)
-const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
+// ⭐⭐ (finding 4 x the version island, 2026-11-20) a colour name is resolved at the version of the code that WRITES
+// it: a v5 library's `color.red` inside a v6 script is v5's #FF5252 (`versionAt`; every other token reads the scope's,
+// the program's). The runtime lane reaches this through the shared `Resolver` since it opens the palette scope.
+const colourHexOf = (v) => pineColourHex(v.name, versionAt(v && v.tok, activePaletteVersion()))
 
 // ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
 // vocabularies, one letter apart, and the wrong one fails SILENTLY — every

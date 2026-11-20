@@ -198,8 +198,8 @@ class TestCurateEconEvents:
         days = {"2026-09-08": {"econ": [], "fed": []}}
         meta = {"vendor": "fmp", "freshnessClass": "end_of_day", "licensingClass": "R"}
         monkeypatch.setattr(
-            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta",
-            lambda *a, **kw: ({}, meta))
+            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_cover",
+            lambda *a, **kw: ({}, meta, {}))
         out = cal._curate_econ_events("2026-09-08", "2026-09-08", days)
         assert out is None
         ff.assert_called_once()
@@ -214,21 +214,22 @@ class TestCurateEconEvents:
         days = {"2026-09-08": {"econ": [], "fed": []}}
         meta = {"vendor": "fmp", "freshnessClass": "end_of_day", "licensingClass": "R"}
         monkeypatch.setattr(
-            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta",
+            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_cover",
             lambda *a, **kw: ({"2026-09-08": [{"event": "CPI", "estimate": None,
-                                                "prior": None, "is_fed": False}]}, meta))
+                                                "prior": None, "is_fed": False}]}, meta,
+                              {"2026-09-08": ["CPI"]}))
         out = cal._curate_econ_events("2026-09-08", "2026-09-08", days)
         assert out == meta
-        assert days["2026-09-08"]["econ"][0]["event"] == "CPI"
-        # FMP answered, so the backup is not read at all.
-        ff.assert_not_called()
+        # FMP answered and holds the release; the backup's copy of it is not added.
+        assert [e["event"] for e in days["2026-09-08"]["econ"]] == ["CPI"]
+        ff.assert_called_once()
 
     def test_returns_none_when_the_fmp_leg_fails_entirely(self, monkeypatch):
         self._pin_week(monkeypatch)
         monkeypatch.setattr(cal, "_fetch_ff_events", lambda *a, **kw: {})
         days = {"2026-09-08": {"econ": [], "fed": []}}
         monkeypatch.setattr(
-            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta",
+            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_cover",
             mock.Mock(side_effect=RuntimeError("down")))
         out = cal._curate_econ_events("2026-09-08", "2026-09-08", days)
         assert out is None
