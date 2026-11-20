@@ -6,8 +6,8 @@
    "id": "D1",
    "mutant": "no door window: only the per-translation bounds remain (the slow synthetic is served after its whole run)",
    "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
-   "from": "  const { value, tripped } = withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests)",
-   "to": "  const { value, tripped } = { value: memberPaneDefinitionWithin(args), tripped: false }",
+   "from": "  return doorAnswer(withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests), budgetMs)",
+   "to": "  return memberPaneDefinitionWithin(args)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorDeadline.test.js",
    "expectRed": "refuses a slow script BY NAME"
   },
@@ -22,12 +22,12 @@
   },
   {
    "id": "D3",
-   "mutant": "a call that ran out of time is served whatever its lanes answered (the translator's own sentence, or a picture)",
+   "mutant": "a call that ran out of time is served whatever its lanes answered (a document handed back after the trip)",
    "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
    "from": "  if (!tripped) return value",
    "to": "  if (!tripped || value) return value",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorDeadline.test.js",
-   "expectRed": "with the door sentence"
+   "expectRed": "a tripped call is refused whole"
   },
   {
    "id": "D4",
@@ -36,16 +36,16 @@
    "from": "    checkDoorClock(tok)",
    "to": "    void tok",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorDeadline.test.js",
-   "expectRed": "stopped at the call deadline"
+   "expectRed": "sampled clock check asks the door"
   },
   {
    "id": "D5",
-   "mutant": "the round trip's hash walk no longer ticks the door (it runs on for seconds after the deadline)",
+   "mutant": "the round trip's walks in parse.js no longer tick the door (they run on after the deadline)",
    "file": "app/src/components/chart/engine/ast/parse.js",
-   "from": "  doorTick() // the round trip's hash walk",
-   "to": "",
+   "from": "import { doorTick } from './doorDeadline.js'",
+   "to": "const doorTick = () => {}",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorDeadline.test.js",
-   "expectRed": "within the deadline plus the slack"
+   "expectRed": "hash walk ticks the door"
   },
   {
    "id": "D6",

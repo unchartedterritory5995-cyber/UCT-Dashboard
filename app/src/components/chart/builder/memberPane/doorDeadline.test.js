@@ -14,9 +14,11 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
   memberPaneDefinition, __setMemberDoorBudgetForTests, doorTimeoutSentence, MEMBER_DOOR_BUDGET_MS, DOOR_TIMED_OUT,
+  doorAnswer,
 } from './memberPaneDefinition'
 import { retranslateRow } from './savedScriptUpgrade'
-import { translatePine, translateBudgetExpired, withDoorDeadline } from '../../engine/ast/pine'
+import { translatePine, translateBudgetExpired, withDoorDeadline, Resolver } from '../../engine/ast/pine'
+import { TABLE, astHash } from '../../engine/ast/parse'
 import { doorWindowOpen, doorTick, DoorDeadlineError } from '../../engine/ast/doorDeadline'
 
 const LF = String.fromCharCode(10)
@@ -146,6 +148,47 @@ describe('the door deadline is ONE clock for the whole call (a clock that advanc
     expect(clock.reads).toBeGreaterThan(half)
     expect(clock.reads).toBeLessThanOrEqual(half + 8)
   }, 120000)
+})
+
+describe('each limb asks the door (a clock that jumps past any deadline on every read)', () => {
+  /** A door clock that leaps 10^6 ms on every read: the first check after the open finds the deadline passed. */
+  const leaping = () => { let t = 0; const f = () => { f.reads += 1; t += 1e6; return t }; f.reads = 0; return f }
+
+  it('a Resolver's sampled clock check asks the door, on the door's clock (its own clock never moves)', () => {
+    const r = withDoorDeadline(1000, () => {
+      new Resolver(new Map(), TABLE, new Map(), { now: () => 0 }).checkClock(null)
+      return 'not stopped'
+    }, leaping())
+    expect(r.tripped).toBe(true)
+    expect(r.value).toBe(null)
+  })
+
+  it('the round trip's hash walk ticks the door (a 16,383-node canonical tree)', () => {
+    const tree = (d) => (d === 0 ? { type: 'num', value: 1 } : { type: 'op', name: '+', args: [tree(d - 1), tree(d - 1)] })
+    const big = tree(13)
+    const clock = leaping()
+    const r = withDoorDeadline(1000, () => astHash(big), clock)
+    expect(r.tripped).toBe(true)
+    // CONTROL: with no window open, the same walk answers, and reads no clock
+    expect(astHash(big)).toMatch(/^sha256:/)
+  })
+
+  it('a tripped call is refused whole, whatever its lanes answered (a document handed back after the trip)', () => {
+    const late = withDoorDeadline(1000, () => {
+      try { new Resolver(new Map(), TABLE, new Map(), { now: () => 0 }).checkClock(null) } catch { /* a lane declines */ }
+      return { ok: true, definition: { id: 'u_late' }, notes: [], rows: [{}] }
+    }, leaping())
+    expect(late.tripped).toBe(true)
+    expect(late.value.ok).toBe(true)
+    const d = doorAnswer(late, 400)
+    expect(d.ok).toBe(false)
+    expect(d.definition).toBe(null)
+    expect(d.guard).toBe('pine:timeout')
+    expect(d.reason).toBe(doorTimeoutSentence(400))
+    // CONTROL: a call that did not trip answers exactly what its lanes answered
+    const fine = { ok: true, definition: { id: 'u_fine' } }
+    expect(doorAnswer({ value: fine, tripped: false }, 400)).toBe(fine)
+  })
 })
 
 describe('a fast script is unaffected', () => {

@@ -351,14 +351,20 @@ export function __setMemberDoorBudgetForTests(ms = null, now = null) {
  *  it from every other `pine:timeout`. */
 export const DOOR_TIMED_OUT = 'doorTimedOut'
 
-export function memberPaneDefinition(args = {}) {
-  const budgetMs = doorBudgetForTests || MEMBER_DOOR_BUDGET_MS
-  const { value, tripped } = withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests)
+/** ⛔ THE ONE RULE OF A TRIPPED CALL: whatever its lanes answered (a refusal, or a document an upgrade's decline
+ *  handed back after the clock ran out), the door refuses it whole, by name. A call that did not trip answers as it
+ *  always did. (`withDoorDeadline`'s `{ value, tripped }` in, the door's answer out.) */
+export function doorAnswer({ value, tripped }, budgetMs) {
   if (!tripped) return value
   return {
     ok: false, definition: null, reason: doorTimeoutSentence(budgetMs), guard: 'pine:timeout', [DOOR_TIMED_OUT]: true,
     translation: (value && value.translation) || null, rows: [], notes: [],
   }
+}
+
+export function memberPaneDefinition(args = {}) {
+  const budgetMs = doorBudgetForTests || MEMBER_DOOR_BUDGET_MS
+  return doorAnswer(withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests), budgetMs)
 }
 
 function memberPaneDefinitionWithin({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
