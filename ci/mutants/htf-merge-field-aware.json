@@ -48,6 +48,15 @@
    "expectRed": "sym('SPY', merge(close))"
   },
   {
+   "id": "M6",
+   "mutant": "JS: a chart that reaches the listing judged partial (the coordinator's S&R condition: TradingView's first period is partial too, so the value is provable and must stay drawn)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const first = firstPeriodPartialMask(bars, [{ code: node.value }], opts)",
+   "to": "    const first = firstPeriodPartialMask(bars, [{ code: node.value }], { ...(opts || {}), historyFromListing: false })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfMergeFieldAware.test.js",
+   "expectRed": "CONTROL S&R shape from the listing"
+  },
+  {
    "id": "PM1",
    "mutant": "Python: close counted as a partial field, so a merge of close alone is a site again (the walk's field set: `merge_own`'s early `_child_reads_partial_period` return is the walk's own answer, an early-out a mutant cannot tell apart, CI run 44653648894)",
    "file": "api/services/ast_interpret.py",
@@ -82,6 +91,15 @@
    "to": "            m = None",
    "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
    "expectRed": "sym('SPY', merge(close))"
+  },
+  {
+   "id": "PM5",
+   "mutant": "Python: a chart that reaches the listing judged partial (the S&R condition)",
+   "file": "api/services/ast_interpret.py",
+   "from": "        first = _first_period_partial_mask(bars, [(False, None, node.get(\"value\"))], opts)",
+   "to": "        first = _first_period_partial_mask(bars, [(False, None, node.get(\"value\"))], dict(opts or {}, historyFromListing=False))",
+   "rail": "python -m pytest tests/test_pine_htf_merge_field_aware.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL S&R shape from the listing"
   }
  ]
 }

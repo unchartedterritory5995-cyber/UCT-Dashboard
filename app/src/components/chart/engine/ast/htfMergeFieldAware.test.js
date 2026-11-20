@@ -64,14 +64,16 @@ const DAYS = {
 const barsOn = (days) => days.map((t, i) => ({ t, o: i + 0.5, h: i + 1.5, l: i, c: i + 1, v: 100 + i }))
 const CHART = { tf: 'D', newestBarIsForming: false }
 
-function pineTree(body) {
-  const pane = memberPaneDefinition({ source: `//@version=5\nindicator("p")\n${body}`, id: 'u_0000hmf00000', name: 'p' })
+function pineTree(body, version = 5) {
+  const head = version === 5 ? '//@version=5\nindicator("p")' : '//@version=4\nstudy("p")'
+  const pane = memberPaneDefinition({ source: `${head}\n${body}`, id: 'u_0000hmf00000', name: 'p' })
   const def = pane && pane.definition
   if (!def || !def.compute || def.compute.kind !== 'ast') throw new Error(`not a host-lane document: ${body}`)
   return def.compute.trees ? def.compute.trees[def.plots[0].key] : def.compute.ast
 }
 
 const W13 = [0, 13]
+const SR_SHAPE = "plot(security(syminfo.tickerid, 'W', valuewhen(high >= highest(high, 3), high, 0)))"
 const SHAPES = [
   // review L2's own bars, unchanged for a partial field
   { name: 'merge(high) (bars 2-5 show the partial week: withheld, as before)', tree: () => merge(), window: W13,
@@ -117,6 +119,16 @@ const SHAPES = [
   { name: 'the Pine door: request.security(syminfo.tickerid, "W", high[1]) (item 2)',
     tree: () => pineTree('plot(request.security(syminfo.tickerid, "W", high[1]))'), window: W13,
     expect: [n, n, n, n, n, n, n, n, n, n, n, 7.5, 7.5] },
+  // ⭐⭐ COORDINATOR RULING (S&R, 2026-11-19): a window that reaches into the partial first period (support-and-
+  // resistance-multi-time-frame's `valuewhen(high >= highest(high, n), high, 0)`) is UNPROVABLE on a chart whose
+  // history starts after the listing (TradingView holds the whole period): withheld until a known new extreme (weeks
+  // 0-2 here: bars 2-15). On a chart that reaches the listing TradingView's first period is partial too: drawn, nothing
+  // extra withheld (week 2's 12.5 on bars 11-15; weeks 0-1 read na: `highest` over fewer than 3 weeks)
+  { name: 'S&R shape: security(…, "W", valuewhen(high >= highest(high, 3), high, 0)) on a partial start (withheld)',
+    tree: () => pineTree(SR_SHAPE, 4), window: [0, 18], expect: [n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, n, 17.5, 17.5] },
+  { name: 'CONTROL S&R shape from the listing (a listing-reaching chart: drawn, nothing extra withheld)',
+    opts: { historyFromListing: true }, tree: () => pineTree(SR_SHAPE, 4), window: [0, 18],
+    expect: [n, n, n, n, n, n, n, n, n, n, n, 12.5, 12.5, 12.5, 12.5, 12.5, 17.5, 17.5] },
   // CONTROLS: nothing partial
   { name: 'CONTROL merge(high[1]) on the Monday set', set: 'monday', tree: () => merge(off(1, HIGH)), window: [0, 12],
     expect: [n, n, n, n, n, n, n, n, n, 5.5, 5.5, 5.5] },
@@ -217,6 +229,46 @@ describe('⭐ the two rulings, by name', () => {
     expect(FIX.cases.find((x) => x.name.startsWith('KEPT merge(close) (item 3')).served.slice(2, 6)).toEqual([3, 3, 3, 3])
     expect(codesOf(merge(CLOSE)).has(TF_MERGE_FIRST_CODE)).toBe(false)
     expect(codesOf(off(1, merge(CLOSE))).has(TF_MERGE_FIRST_CODE)).toBe(false)
+  })
+})
+
+describe('⭐⭐ the served support-and-resistance-multi-time-frame (coordinator ruling): withheld only off the listing', () => {
+  // its weekly merges read `valuewhen(high >= highest(high, 34), high, 0)`: on rising weekly highs every week from
+  // the 34th draws its own high; the 34-week window over the partial week 0 is unknown for weeks 0-33
+  const SR = path.resolve(process.cwd(), '..', 'corpus', 'committed', 'support-and-resistance-multi-time-frame__Ph230jpfC9.pine')
+  const def = memberPaneDefinition({ source: fs.readFileSync(SR, 'utf8'), id: 'u_0000hmfsr001', name: 'sr' }).definition
+  const days = weekdays('2026-09-02', '2027-12-31', ['2026-09-07'])
+  const bars = barsOn(days)
+  const weekly = (opts) => asNulls(registry.computeFor(def, bars, {}, { ...CHART, ...opts }).out3)
+  // the chart bar that CLOSES the k-th week (0-based): the last bar of that ISO week
+  const weekKey = (iso) => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10) }
+  const closes = days.map((t, i) => i + 1 < days.length && weekKey(days[i + 1]) !== weekKey(t)).reduce((a, c, i) => (c ? [...a, i] : a), [])
+  it('is the host lane, and out3 is its weekly resistance (a tf_merge over valuewhen and highest)', () => {
+    expect(def.compute.kind).toBe('ast')
+    expect(JSON.stringify(def.compute.trees.out3)).toContain('"tf_merge"')
+    expect(JSON.stringify(def.compute.trees.out3)).toContain('"highest"')
+  })
+  // the code is asked of the evaluator (`interpret` names it in the chart-clock channel; `computeFor` reports otherwise)
+  const named = (opts) => {
+    const sink = new Map()
+    interpret(def.compute.trees.out3, bars, {}, undefined, undefined, { ...CHART, ...opts, chartClockSink: sink })
+    return sink.has(TF_MERGE_FIRST_CODE)
+  }
+  it('a listing-reaching chart: week 33 draws its high from its closing bar on, and no first-period code is named', () => {
+    const col = weekly({ historyFromListing: true })
+    const c33 = closes[33]
+    expect(col[c33]).toBe(c33 + 1.5)
+    expect(col.slice(c33, closes[34]).every((v) => v === c33 + 1.5)).toBe(true)
+    expect(named({ historyFromListing: true })).toBe(false)
+  })
+  it('a partial-start chart: weeks 0-33 are withheld by name (the window reaches the partial week), week 34 is drawn', () => {
+    const col = weekly({})
+    const listing = weekly({ historyFromListing: true })
+    expect(col.slice(0, closes[34]).every((v) => v === null)).toBe(true)
+    expect(listing.slice(0, closes[34]).filter((v) => v !== null).length).toBeGreaterThan(0)
+    expect(col[closes[34]]).toBe(closes[34] + 1.5)
+    expect(col.slice(closes[34], -1)).toEqual(listing.slice(closes[34], -1))
+    expect(named({})).toBe(true)
   })
 })
 

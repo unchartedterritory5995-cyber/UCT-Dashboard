@@ -1913,6 +1913,336 @@
    ]
   },
   {
+   "name": "S&R shape: security(…, \"W\", valuewhen(high >= highest(high, 3), high, 0)) on a partial start (withheld)",
+   "set": "wednesday",
+   "opts": {},
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "!=",
+      "args": [
+       {
+        "type": "num",
+        "value": 86400
+       },
+       {
+        "type": "series",
+        "name": "periodseconds"
+       }
+      ]
+     },
+     {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "num",
+        "value": 0
+       },
+       {
+        "type": "num",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "type": "tf_merge",
+      "value": "W",
+      "args": [
+       {
+        "type": "call",
+        "name": "valuewhenOccurrence",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "call",
+            "name": "highest",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "num",
+              "value": 3
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "num",
+          "value": 0
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "window": [
+    0,
+    18
+   ],
+   "expect": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    17.5,
+    17.5
+   ],
+   "served": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    17.5,
+    17.5,
+    17.5,
+    17.5,
+    17.5,
+    22.5,
+    22.5,
+    22.5,
+    22.5,
+    22.5,
+    27.5,
+    27.5,
+    27.5,
+    27.5,
+    27.5,
+    32.5,
+    32.5,
+    32.5,
+    32.5,
+    32.5,
+    37.5,
+    37.5,
+    37.5,
+    37.5,
+    37.5,
+    42.5,
+    42.5,
+    42.5,
+    42.5,
+    42.5,
+    47.5,
+    47.5,
+    47.5,
+    47.5,
+    47.5,
+    52.5,
+    52.5,
+    null
+   ]
+  },
+  {
+   "name": "CONTROL S&R shape from the listing (a listing-reaching chart: drawn, nothing extra withheld)",
+   "set": "wednesday",
+   "opts": {
+    "historyFromListing": true
+   },
+   "symbols": false,
+   "tree": {
+    "type": "op",
+    "name": "?:",
+    "args": [
+     {
+      "type": "op",
+      "name": "!=",
+      "args": [
+       {
+        "type": "num",
+        "value": 86400
+       },
+       {
+        "type": "series",
+        "name": "periodseconds"
+       }
+      ]
+     },
+     {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "num",
+        "value": 0
+       },
+       {
+        "type": "num",
+        "value": 0
+       }
+      ]
+     },
+     {
+      "type": "tf_merge",
+      "value": "W",
+      "args": [
+       {
+        "type": "call",
+        "name": "valuewhenOccurrence",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "call",
+            "name": "highest",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "num",
+              "value": 3
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "num",
+          "value": 0
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   },
+   "window": [
+    0,
+    18
+   ],
+   "expect": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    12.5,
+    12.5,
+    12.5,
+    12.5,
+    12.5,
+    17.5,
+    17.5
+   ],
+   "served": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    12.5,
+    12.5,
+    12.5,
+    12.5,
+    12.5,
+    17.5,
+    17.5,
+    17.5,
+    17.5,
+    17.5,
+    22.5,
+    22.5,
+    22.5,
+    22.5,
+    22.5,
+    27.5,
+    27.5,
+    27.5,
+    27.5,
+    27.5,
+    32.5,
+    32.5,
+    32.5,
+    32.5,
+    32.5,
+    37.5,
+    37.5,
+    37.5,
+    37.5,
+    37.5,
+    42.5,
+    42.5,
+    42.5,
+    42.5,
+    42.5,
+    47.5,
+    47.5,
+    47.5,
+    47.5,
+    47.5,
+    52.5,
+    52.5,
+    null
+   ]
+  },
+  {
    "name": "CONTROL merge(high[1]) on the Monday set",
    "set": "monday",
    "opts": {},
