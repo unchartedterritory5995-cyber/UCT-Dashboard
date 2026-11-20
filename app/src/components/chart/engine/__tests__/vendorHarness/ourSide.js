@@ -2025,6 +2025,9 @@ function runOurSideOnTheParityClock(capture) {
         // ⚠️ review N3 — what a replayed MATCH speaks for
         speaksFor: replay ? 'the standalone daily chart (not a grid cell, which first-paints shallow; W / M stay cold)' : null },
       translationPaints: runtimeAwarePaints(built, def),
+      // ⭐⭐ (2026-11-19, held evidence) the document the grade was taken on: the host lane's or the runtime lane's
+      // (a narrow withhold is honoured by the door that drew the element)
+      door: built.lane === 'runtime' ? 'runtime' : 'host',
       // ⭐ G5 — read by `paintColours.gradePaints` where the binder drew nothing
       bindWithheldPaints,
       drawnPaints,

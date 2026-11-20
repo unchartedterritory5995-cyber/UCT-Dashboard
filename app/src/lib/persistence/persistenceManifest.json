@@ -636,6 +636,18 @@
       ]
     },
     {
+      "key": "terminal_board_tabs",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Open terminal board tabs and each tab's working copy",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/terminal/useBoardTabs.js"
+      ]
+    },
+    {
       "key": "terminal_boards",
       "store": "server-preference",
       "scope": "cross-device",

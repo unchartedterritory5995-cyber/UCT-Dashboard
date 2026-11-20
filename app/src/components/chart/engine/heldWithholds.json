@@ -1,0 +1,107 @@
+{
+ "schema": "uct.held-withholds/v1",
+ "about": "DERIVED by tools/vendor_harness/held_evidence.py --write from the committed evidence ledger: the narrow withholds licence-held captures ask for, by source hash (never hand-typed; --check is the rail).",
+ "scripts": [
+  {
+   "sha256": "0667cf43d3c4618b4431cf4e63c242bf961c46938301a006d43f6000cb62e88a",
+   "scriptKey": "average-true-range-trailing-stops-strategy-by-sylvain-vervoort",
+   "withholds": [
+    {
+     "door": "runtime",
+     "scope": "outputColour",
+     "title": "ATR Trailing Stop",
+     "why": "plot `ATR Trailing Stop`: 160 steady-state bars disagree; first at bar 92 (color: vendor #ff0000a6 vs ours #0000ffa6 at value 73.22419298307216) — scattered, last at bar 251",
+     "lanes": [
+      "runtime-on"
+     ],
+     "evidence": [
+      "average-true-range-trailing-stops-strategy-by-sylvain-vervoort-rddt-1d-2026-11-14"
+     ],
+     "engine": 86
+    }
+   ]
+  },
+  {
+   "sha256": "2f0a9c6d3d5dfb358f995a1628507c376360ede5650abe7c72006dcc7fbde366",
+   "scriptKey": "check-head-and-shouldersmask-man",
+   "withholds": [
+    {
+     "door": "runtime",
+     "scope": "output",
+     "title": "Shapes",
+     "why": "plot `Shapes`: 1 steady-state bars disagree; first at bar 6518 (na: vendor 1 vs ours na) — scattered, last at bar 6518",
+     "lanes": [
+      "runtime-on"
+     ],
+     "evidence": [
+      "check-head-and-shouldersmask-man-spy-1d-2026-11-17"
+     ],
+     "engine": 86
+    }
+   ]
+  },
+  {
+   "sha256": "3e8d45c67be1654bfa4983643716357274152802afb54e59a83a2883a4f4d953",
+   "scriptKey": "tradingviews-technical-analysis",
+   "withholds": [
+    {
+     "door": "runtime",
+     "scope": "paint",
+     "title": "Background Color",
+     "kind": "bgcolor",
+     "line": 172,
+     "why": "bgcolor (line 172) `Background Color`: notDrawn",
+     "lanes": [
+      "runtime-on"
+     ],
+     "evidence": [
+      "tradingviews-technical-analysis-rddt-1d-2026-11-17",
+      "tradingviews-technical-analysis-spy-1d-2026-11-17"
+     ],
+     "engine": 86
+    }
+   ]
+  },
+  {
+   "sha256": "8bd4717cec8ea3da7f6ff169fa356ca19d5f60ec828299de7661245ca055f6c9",
+   "scriptKey": "multi-timeframe-vwap-v5",
+   "withholds": [
+    {
+     "door": "runtime",
+     "scope": "objectFamily",
+     "family": "label",
+     "why": "label family: 1 object family differs field by field (first: labels text of label #1 — vendor \"VWAP (Week)\\n93.74\", ours \"VWAP (Day)\\n93.74\"); x: 1 graded, 0 differ (exact bar); v1: 2 object families differ (count or text); colours agree on 2 paired slots; coordinates are NOT compared by v1; not gra",
+     "lanes": [
+      "runtime-on"
+     ],
+     "evidence": [
+      "multi-timeframe-vwap-v5-rddt-1d-2026-11-16",
+      "multi-timeframe-vwap-v5-rddt-1d-2026-11-17",
+      "multi-timeframe-vwap-v5-spy-1d-2026-11-16"
+     ],
+     "engine": 86
+    }
+   ]
+  },
+  {
+   "sha256": "8c4cd2e2969aec5fc4299925aedc2054b1767db9506dc6047e0971d28844f5f6",
+   "scriptKey": "relative-strength-index-divergences-libertus",
+   "withholds": [
+    {
+     "door": "host",
+     "scope": "objectFamily",
+     "family": "label",
+     "why": "label family: 1 object family differs field by field (first: labels y of label #1 — vendor 77.67147902008467, ours 51.84328467361033); x: 0 graded (0 differ), 39 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 2 object families differ (count or text); colours agree o",
+     "lanes": [
+      "production",
+      "runtime-on"
+     ],
+     "evidence": [
+      "relative-strength-index-divergences-libertus-rddt-1d-2026-11-15"
+     ],
+     "engine": 86
+    }
+   ]
+  }
+ ]
+}
