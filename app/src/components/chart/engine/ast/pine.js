@@ -112,6 +112,7 @@ import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
 // `parse.js`, neither of which imports this file.
 import { checkBudget, DEFAULT_BUDGET, REFUSALS as BUDGET_REFUSALS } from './budget.js'
+import { openDoorWindow, closeDoorWindow, doorWindowOpen, doorTripped, openDoor, doorDeadlinePassed } from './doorDeadline.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -8341,13 +8342,77 @@ export function endTranslateBudget() {
  * difference between 10s and 46 × 10s on a 45-output script like Uncharted Clouds.
  */
 export function translateBudgetExpired() {
+  if (doorWindowOpen() && doorDeadlinePassed()) return true
   return TRANSLATE_DEADLINE !== Infinity && TRANSLATE_WINDOW_CLOCK() > TRANSLATE_DEADLINE
 }
 
 export function translateBudgetMs() { return TRANSLATE_BUDGET }
 
+/** The sentence of the whole-script refusal the output loop and the object pass raise when the
+ *  budget is gone: the door's own when the DOOR's deadline is what passed (`withDoorDeadline`). */
+function wholeScriptTimeout(sourcePath) {
+  const door = doorWindowOpen() ? doorDeadlinePassed() : null
+  if (door) return doorRefusal(door, null)
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
+    + (sourcePath ? ' translating `' + sourcePath + '`' : '')
+    + '. This is a translator defect, not a limit on the script: report it with the file.',
+    null)
+}
+
+// ─── ⭐⭐ THE DOOR DEADLINE: ONE CLOCK ACROSS A WHOLE MEMBER-DOOR CALL (`doorDeadline.js`, 2026-11-20) ─────────
+// A member door's call opens ONE window (`withDoorDeadline`), and every clock limb below also asks it: the sampled
+// check of every Resolver of the call (`checkClock`), the printer's tick, and the output loop's and object pass's
+// `translateBudgetExpired`; once it has tripped, every later resolution step refuses at once (`checkBudget`). Why the
+// per-translation bounds alone held a tab for 435 s, and the measurement: `doorDeadline.js`.
+// ⛔ Closed (no window), nothing here reads a clock and every limb answers exactly as before, byte for byte.
+
+/**
+ * Runs `fn` inside a door window of `budgetMs` on `now` (default the wall clock, `wallNow`). A window opened inside
+ * another never outlives it: each check asks every open window, innermost first.
+ * @returns {{value: *, tripped: boolean, elapsedMs: number}} `tripped` when the deadline passed while `fn` ran (a
+ *   throw after the trip is caught here: `value` is then `null`); any other throw propagates unchanged.
+ */
+export function withDoorDeadline(budgetMs, fn, now) {
+  const clock = clockOrNull(now) || wallNow
+  const t0 = clock()
+  const win = openDoorWindow(budgetMs, clock)
+  let value = null
+  try {
+    value = fn()
+  } catch (err) {
+    if (!win.tripped) throw err
+    value = null
+  } finally {
+    closeDoorWindow(win)
+  }
+  return { value, tripped: win.tripped, elapsedMs: clock() - t0 }
+}
+
+/** The translator's refusal for a passed door deadline (the door replaces it with its own sentence). */
+function doorRefusal(door, tok) {
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — the whole check of this script gave up after ${door.budgetMs}ms`,
+    tok ? locate(tok) : null)
+}
+
+/** The tripped window's one refusal, made once and thrown again at every later step (`checkBudget`). */
+function trippedDoorRefusal() {
+  const door = openDoor()
+  if (!door.refusal) door.refusal = doorRefusal(door, null)
+  return door.refusal
+}
+
+/** A checkpoint between phases (`doorDeadline.js::checkDoorDeadline`), raising the translator's own refusal. */
+function checkDoorClock(tok) {
+  if (!doorWindowOpen()) return
+  const door = doorDeadlinePassed()
+  if (door) throw doorRefusal(door, tok)
+}
+
 export function tickTranslateBudget() {
   if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
+  checkDoorClock(null)
   if (TRANSLATE_WINDOW_CLOCK() <= TRANSLATE_DEADLINE) return
   throw new PineRefusal('pine:timeout',
     `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms`
@@ -10454,6 +10519,10 @@ export class Resolver {
    */
   checkBudget(tok) {
     this.budgetSteps += 1
+    // ⭐⭐ A TRIPPED DOOR WINDOW REFUSES AT EVERY STEP (`withDoorDeadline`): a refusal a caller catches and retries
+    // around must not buy the script another 4,096 steps per retry. One property read when a window is open, and
+    // ONE refusal per window, thrown again (a fresh one captured a stack per retry: measured, ~0.6 s of a 3 s trip).
+    if (doorTripped()) throw trippedDoorRefusal()
     // ⛔ THE STEP CAP IS CHECKED OUTSIDE THE MASK. Gating it behind the same
     // 4096-step gate as the clock made any cap below 4096 UNREACHABLE — a guard
     // that cannot fire. A control asking a normal script to stop at 100 steps is
@@ -10472,6 +10541,8 @@ export class Resolver {
   /** The wall-clock half of `checkBudget`, also asked by a replayed probe
    *  (`resolveProbed`) whose charged steps cross a sampling boundary. */
   checkClock(tok) {
+    // ⭐⭐ THE DOOR'S CLOCK FIRST (`withDoorDeadline`): it bounds every Resolver of the call, however many.
+    checkDoorClock(tok)
     const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
     const tail = '. This is a translator defect, not a limit on the script: '
       + 'report it with the file.'
@@ -29810,13 +29881,7 @@ function translatePineResult(source, opts = {}) {
       // every individual guard reported itself satisfied. Inside the try on
       // purpose: this becomes a per-output refusal like any other, rather than an
       // exception escaping `translatePine`.
-      if (translateBudgetExpired()) {
-        throw new PineRefusal('pine:timeout',
-          `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
-          + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
-          + '. This is a translator defect, not a limit on the script: report it with the file.',
-          null)
-      }
+      if (translateBudgetExpired()) throw wholeScriptTimeout(opts.sourcePath)
 
       const cur = new Cursor(out.toks.slice(2))
       const args = parseArguments(cur)
@@ -30450,13 +30515,7 @@ function translatePineResult(source, opts = {}) {
     // ⛔ THE OBJECT PASS IS A SECOND ENTRY POINT AND NEEDS THE SAME BOUND. It
     // builds its own Resolver, so without this it buys a fresh step budget after
     // the output loop has already spent the script's whole wall clock.
-    if (translateBudgetExpired()) {
-      throw new PineRefusal('pine:timeout',
-        `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
-        + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
-        + '. This is a translator defect, not a limit on the script: report it with the file.',
-        null)
-    }
+    if (translateBudgetExpired()) throw wholeScriptTimeout(opts.sourcePath)
     // ⭐ `objectRawTrees` is set by the LANE ADAPTER (`runtime/objectLane.js`)
     // and by nothing else. Unset, this pass behaves byte-identically to before.
     // ⭐ C18 — `runtimeCheck` is the member door's compile check for values read

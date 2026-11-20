@@ -23,7 +23,8 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence } from '../../engine/ast/pine'
+import { checkDoorDeadline } from '../../engine/ast/doorDeadline'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence, withDoorDeadline } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
 import { THEME_FG } from '../../engine/objectTheme'
@@ -305,7 +306,57 @@ function calcBarsMeta(t) {
 let runtimeLaneForced = false
 export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on === true }
 
-export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
+// ─── ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; NUMBER PENDING) ─────────────────────────────────────
+//
+// ⚰️ THREE PUBLIC SCRIPTS HELD A MEMBER'S TAB FOR 64 s, 166 s AND 435 s. `MemberPane.jsx` builds this door
+// synchronously on the page's main thread (`useMemo`), and every bound the translator has is PER TRANSLATION: this
+// door runs many in a row (the strict host translation and its input retries, then the runtime lane's front-end
+// builds, its colour probes, its object pass), each with a fresh 10 s, so the slowest paste bought ~40 of them back to
+// back before it was refused by name. The worker watchdogs (`hostLaneAsync.js`, `runtimeAsync.js`) start only after
+// this door has answered, so they never saw it.
+// ⭐ ONE DEADLINE BOUNDS THE WHOLE CALL (`pine.js::withDoorDeadline`): every translation, retry and Resolver below
+// shares it, and past it the script is refused BY NAME (`pine:timeout`) with `DOOR_TIMEOUT_SENTENCE`. A picture
+// built while the clock ran out is never served: a tripped call is refused whole, whatever its lanes answered.
+// ⭐ THE VALUE IS MEASURED (docs/pine/evidence/2026-11-20-door-deadline/EVIDENCE.md): it sits above the slowest
+// door call of every script the door serves today, with headroom for a slower device, so a call that finishes under
+// it answers byte for byte as before (served -> refused: 0 in the scoped census, both lanes).
+
+/** The member door's whole-call deadline, in ms (see the evidence above for how it was chosen). */
+export const MEMBER_DOOR_BUDGET_MS = 30000
+
+/** What the member reads when the door's deadline ran out. */
+export function doorTimeoutSentence(budgetMs = MEMBER_DOOR_BUDGET_MS) {
+  const s = Math.round(budgetMs / 1000)
+  return `this script is not drawn: checking it took longer than ${s} seconds, and the chart stops a check `
+    + 'that long rather than keep the page waiting. That is a limit of this engine, not a mistake in the script.'
+}
+
+/** ⭐ TEST SEAM — the door's budget (and, optionally, its clock) for a rail: a synthetic slow script must not cost a
+ *  rail the real budget, and a clock that advances per read makes "time" a count of the door's own checks, the same
+ *  on every machine. `null` restores `MEMBER_DOOR_BUDGET_MS` on the wall clock. ⛔ No member surface may import it. */
+let doorBudgetForTests = null
+let doorClockForTests = null
+export function __setMemberDoorBudgetForTests(ms = null, now = null) {
+  doorBudgetForTests = Number.isFinite(ms) && ms > 0 ? ms : null
+  doorClockForTests = typeof now === 'function' ? now : null
+}
+
+/** The door's own refusal carries this mark: a deadline is a fact about the CHECK (the device, its load), never about
+ *  the script, so a reader that must not take a picture away for it (`savedScriptUpgrade.retranslateRow`) can tell
+ *  it from every other `pine:timeout`. */
+export const DOOR_TIMED_OUT = 'doorTimedOut'
+
+export function memberPaneDefinition(args = {}) {
+  const budgetMs = doorBudgetForTests || MEMBER_DOOR_BUDGET_MS
+  const { value, tripped } = withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests)
+  if (!tripped) return value
+  return {
+    ok: false, definition: null, reason: doorTimeoutSentence(budgetMs), guard: 'pine:timeout', [DOOR_TIMED_OUT]: true,
+    translation: (value && value.translation) || null, rows: [], notes: [],
+  }
+}
+
+function memberPaneDefinitionWithin({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
   })
@@ -345,6 +396,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       return no(`the translator threw: ${String((err && err.message) || err)}`)
     }
   }
+  // ⭐ door-deadline — a phase boundary: past the deadline, nothing after the host translation runs
+  checkDoorDeadline()
 
   // ⭐⭐ ENGINE 58 (review item 4, coordinator ruling) — NO `//@version` AND v4+ SYNTAX:
   // TradingView would not compile it (no pragma is v1), so it is refused BY NAME on
@@ -2135,6 +2188,8 @@ function runtimeShiftContext(source, version, specs) {
  * this answer as it stands, so they never see it.
  */
 function runtimeLaneDefinition(args) {
+  // ⭐ door-deadline — a phase boundary: a call whose deadline has passed starts no runtime lane work
+  checkDoorDeadline()
   const run = runtimeLaneDocument(args)
   if (!heldWithholdsOf(args.source, 'runtime').length) return run
   const full = runtimeLaneDocument({ ...args, ignoreHeld: true })
