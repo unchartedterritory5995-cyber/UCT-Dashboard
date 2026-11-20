@@ -13,7 +13,9 @@
 // The importers are exported so `functions.rail.test.js` can IMPORT every one and assert
 // a default-exported component — the "resolves to a real component" rail is import-based,
 // not a list typed beside this one.
+import { createElement } from 'react'
 import lazy from '../../utils/lazyWithRetry'
+import { useCryptoPair } from '../../lib/cryptoPairs'
 import { SURFACE_IMPORTERS_BY_ID, URL_WRITING_SURFACE_IDS, surfacePanel } from './surfacePanels'
 
 /** A named export served as a lazy() default (VolPanels exports several panels). */
@@ -162,12 +164,30 @@ export function panelNameFor(variant) {
   return null
 }
 
+// A CURRENCY PAIR (BTCUSD; dark behind the server switch CRYPTO_BARS_ENABLED). A pair is not a
+// company, so when a panel's security is a pair the server admits this member to, the panel is
+// handed to CurrencyPairPanel: the chart for GP, the price for DES, one sentence for the rest.
+// `useCryptoPair` sends NOTHING for any other symbol (and nothing while a panel has no
+// security), and answers null while the switch is off, so every other panel renders its own
+// component with its own props, exactly as before.
+const PairPanel = lazy(() => import('./panels/CurrencyPairPanel'))
+
+function pairAware(name, Panel) {
+  function PairAwarePanel(props) {
+    const pair = useCryptoPair(props.sym)
+    return pair ? createElement(PairPanel, { ...props, panel: name, pair, Panel }) : createElement(Panel, props)
+  }
+  PairAwarePanel.displayName = `PairAware(${name})`
+  return PairAwarePanel
+}
+
 const cache = new Map()
-/** The lazy component for a panel name (memoised: one `lazy()` per name, ever). */
+/** The component for a panel name: its lazy module, behind the pair check above (memoised:
+ *  one `lazy()` per name, ever). */
 export function panelComponent(name) {
   if (!cache.has(name)) {
     const importer = PANEL_IMPORTERS[name] || SURFACE_IMPORTERS_BY_ID[name]
-    cache.set(name, importer ? lazy(importer) : null)
+    cache.set(name, importer ? pairAware(name, lazy(importer)) : null)
   }
   return cache.get(name)
 }
