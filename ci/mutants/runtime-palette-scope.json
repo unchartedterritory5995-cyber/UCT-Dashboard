@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "Finding 4 (fix/runtime-palette-scope, NUMBER PENDING): the runtime lane's front end opens the palette scope at the script's version, so a colour name it resolves through the shared Resolver (color.r/g/b/t of a constant, a color.new, a named variable) is a value equal to the host lane's column, not a runtime:lower stop; and the scope is restored however the build ends.",
+ "about": "Finding 4 (fix/runtime-palette-scope, NUMBER PENDING): the runtime lane's front end opens the palette scope at the script's version, so a colour name it resolves through the shared Resolver (color.r/g/b/t of a constant, a color.new, a named variable) is a value equal to the host lane's column, not a runtime:lower stop; and the scope is restored however the build ends; and inside the version island (stacked on #2106) a v5 library's colour name is resolved at v5 (pine.js colourHexOf reads versionAt).",
  "mutants": [
   {
    "id": "P1",
@@ -28,6 +28,15 @@
    "to": "  palette.prior = beginPaletteScope(6)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/runtimePaletteScope.test.js",
    "expectRed": "v5 and v6 give different answers"
+  },
+  {
+   "id": "P4",
+   "mutant": "a colour name is resolved at the program's palette, not the version of the code that writes it (a v5 library's color.red inside a v6 script reads v6's)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "const colourHexOf = (v) => pineColourHex(v.name, versionAt(v && v.tok, activePaletteVersion()))",
+   "to": "const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/runtimePaletteScope.test.js",
+   "expectRed": "v5 palette"
   }
  ]
 }

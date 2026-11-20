@@ -31160,7 +31160,10 @@ function inputDefaultNode(node) {
 }
 
 const isColourName = (v) => !!v && v.type === 'name' && isPineColourSpelling(v.name)
-const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
+// ⭐⭐ (finding 4 x the version island, 2026-11-20) a colour name is resolved at the version of the code that WRITES
+// it: a v5 library's `color.red` inside a v6 script is v5's #FF5252 (`versionAt`; every other token reads the scope's,
+// the program's). The runtime lane reaches this through the shared `Resolver` since it opens the palette scope.
+const colourHexOf = (v) => pineColourHex(v.name, versionAt(v && v.tok, activePaletteVersion()))
 
 // ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
 // vocabularies, one letter apart, and the wrong one fails SILENTLY — every

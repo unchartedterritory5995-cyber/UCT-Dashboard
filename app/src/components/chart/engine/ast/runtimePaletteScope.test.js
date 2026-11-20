@@ -26,6 +26,8 @@ import { runtimeClockOpts } from './pineRuntimeClock.js'
 import { lowerIrProgram } from '../runtime/lowerIr.js'
 import { execute } from '../runtime/vm.js'
 import { pineColourHex } from '../pinePalette.js'
+import { fixtureLibraries } from './__tests__/libraryFixture.js'
+import { LIBRARY_VERSION } from './pineLibraryVersion.js'
 
 const N = 40
 const BARS = Array.from({ length: N }, (_, i) => ({
@@ -116,5 +118,50 @@ describe('⭐⭐ the runtime lane resolves a colour name at the script\'s versio
       endPaletteScope(outer)
     }
     expect(typeof probe()).toBe('symbol')
+  })
+})
+
+// ─── ⭐⭐ AND INSIDE THE VERSION ISLAND (#2106): a v5 library's colour name is resolved at v5 ────────────────────────
+// With the scope open, the runtime lane resolves a colour component through `pine.js::colourHexOf`, which reads the
+// version of the code that writes the name (`versionAt`). A v5 library's `color.r(color.red)` inside a v6 script is
+// therefore v5's #FF5252, exactly what the same library computes inside a v5 script; read at the program's palette it
+// would be v6's #F23645 (before the scope it stopped as runtime:lower).
+const MPL = '// This Pine Script code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/'
+const PALETTE_LIB = `${MPL}
+//@version=5
+library("palettelib")
+export red(float x) => color.r(color.red) + x * 0
+export teal(float x) => color.g(color.teal) + x * 0
+`
+const LIBS = fixtureLibraries({ 'tester/palettelib/1': { path: 'tester/palettelib/1', source: PALETTE_LIB, licence: 'MPL-2.0', attribution: 'palettelib (test fixture)' } })
+const ADMIT = { admit: [{ path: 'tester/palettelib/1' }] }
+function islandCols(src) {
+  const b = buildRuntimeIr(src, { ...runtimeClockOpts(false), bars: BARS, inputs: {}, libraries: LIBS, libraryCrossVersion: ADMIT })
+  if (!b.ok) return { b, cols: null, why: `${b.refusal.guard}: ${b.refusal.message}` }
+  const p = lowerIrProgram(b.ir)
+  const { outputs } = execute(p, { bars: N, series: SERIES, columns: p.columns, confirmed: true })
+  return { b, cols: outputs.map((o) => Array.from(o)) }
+}
+
+describe('⭐⭐ the palette scope inside the version island: a v5 library\'s colour component is v5\'s', () => {
+  const use = 'import tester/palettelib/1 as pl\nplot(pl.red(close))\nplot(pl.teal(close))\n'
+  it('a v5 library in a v6 script draws the v5 palette\'s components, the same library in a v5 script\'s columns', () => {
+    const inV6 = islandCols(`${head(6)}${use}`)
+    const inV5 = islandCols(`${head(5)}${use}`)
+    expect(inV6.cols, inV6.why).not.toBe(null)
+    expect(inV5.cols, inV5.why).not.toBe(null)
+    expect(inV6.cols[0].every((x) => x === channel('color.red', 5, 'r'))).toBe(true)
+    expect(inV6.cols[1].every((x) => x === channel('color.teal', 5, 'g'))).toBe(true)
+    inV6.cols.forEach((col, i) => expect(same(col, inV5.cols[i]), `column ${i}`).toBe(true))
+    // non-vacuous: the same functions pasted into the v6 script draw v6's components
+    const pastedFns = PALETTE_LIB.split('\n').slice(3).join('\n').replace(/^export /gm, '')
+    const pasted = runtimeCols(`${head(6)}${pastedFns}plot(red(close))\nplot(teal(close))\n`)
+    expect(pasted.cols, pasted.why).not.toBe(null)
+    expect(pasted.cols[0][0]).toBe(channel('color.red', 6, 'r'))
+    expect(pasted.cols[0][0]).not.toBe(inV6.cols[0][0])
+    // the host lane does not judge per token: it refuses the import by name
+    const t = translatePine(`${head(6)}${use}`, { libraries: LIBS, libraryCrossVersion: ADMIT, mode: 'host' })
+    expect(t.ok).toBe(false)
+    expect(t.refusal.guard).toBe(LIBRARY_VERSION)
   })
 })
