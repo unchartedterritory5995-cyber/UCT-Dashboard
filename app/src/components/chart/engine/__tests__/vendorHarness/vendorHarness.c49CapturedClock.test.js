@@ -418,13 +418,15 @@ describe('C49 · 4 — AMEX:SPY 15, 5 and 60 minutes: the period opens at 09:30 
         expect(T.byTitle.get(title).stats, title).toMatchObject({ matching: n, valueMismatches: 0, naMismatches: 0 })
       }
       for (const code of ['W', 'M', '3M']) {
-        expect(T.byTitle.get(EVENT_ROW[code]).stats, code).toMatchObject({ matching: n - 1, valueMismatches: 0, naMismatches: 1 })
+        // ⭐ (A) + RULING 1: bar 0 of a new-period row is withheld by name (`history:before-chart`, below) and graded
+        // "not compared" (`withheldBarsOf`); it was the one `na` mismatch. Every compared bar matches.
+        expect(T.byTitle.get(EVENT_ROW[code]).stats, code).toMatchObject({ compared: n - 1, matching: n - 1, valueMismatches: 0, naMismatches: 0 })
       }
       // wave 12 (C45): the probe's `bar_index` control row is withheld by name on these windows
       // (they do not start at the listing); every clock row above is still MATCH on every bar.
       // ⭐ RULING 1 (2026-11-20): the new-period rows T07-T09 (`ta.change(time(tf)) != 0`) read `time(tf)` on the bar
-      // before bar 0, a window off the listing, so `history:before-chart` is named too. Their grades do not move (the
-      // `naMismatches: 1` asserted above held before this rule and holds now).
+      // before bar 0, a window off the listing, so `history:before-chart` is named too, on bar 0, which is graded
+      // "not compared" since (A) (the event-row stats above).
       expect(noteCodes(T.ours)).toEqual(['bar-index:window', 'history:before-chart'])
     })
   }

@@ -8086,9 +8086,13 @@ function witnessMask(tree, bars, inputs, budget, scalars, opts, isSite, flagged,
   const shapes = walk.shapes && walk.shapes.byShape instanceof Map ? walk.shapes : null
   let memoShapes = null
   const colOf = (node) => {
-    if (colMemo && colMemo.has(node)) return toColumn(colMemo.get(node), n)
     const id = shapes !== null && !readsRecurrenceBinding(node) ? shapeIdIn(shapes, node) : undefined
     if (id !== undefined && shapes.cols.has(id)) return shapes.cols.get(id)
+    if (colMemo && colMemo.has(node)) {
+      const col = toColumn(colMemo.get(node), n)
+      if (id !== undefined) shapes.cols.set(id, col)
+      return col
+    }
     if (id !== undefined && colMemo) {
       if (memoShapes === null) {
         memoShapes = new Map()
