@@ -1,0 +1,36 @@
+//@version=5
+indicator("UCTPROBE_VW_A1_SERIES_PARAM_OFFSET", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-20 for the Pine parity programme (objects unit A1), capture queue rows Q-A1-3a/b
+// (docs/pine/capture-queue-2026-11-20-a1-series-offsets.md). NEVER COMPILED ON TRADINGVIEW.
+//
+// --- A FUNCTION PARAMETER THAT SIZES A HISTORY OFFSET, PASSED A VALUE THAT CHANGES EVERY BAR ---
+// The runtime lane reads such a parameter per bar from a ring of Pine's 5,000 (WS-C M2 / M3 / Q-MBB: TradingView reads
+// the real history for an offset known only while the bar runs). It STOPS the run by name on a negative or fractional
+// offset read on a bar, because what Pine answers for one is not captured: the siblings `-neg` (N01) and `-frac` (F01)
+// are that reading, each alone so a stop there loses no row here. A row that does not compile is a reading: record the
+// error and the line, remove only that row, and capture the rest.
+//   P01 f(close, c)            c = 1, 2, ..., 6, 0, 1, ... (a reassigned var): the close c bars back
+//   P02 Sma(close, c)          `a = ta.cum(src)`, `(a - a[math.max(p, 0)]) / math.max(p, 0)` (support-and-resistance)
+//   P03 s(close, c + 1)        a loop to a per-bar bound, guarded, reading `source[i]` (dynamic-linear-regression-channels)
+var c = 0
+c := c >= 6 ? 0 : c + 1
+
+f(src, n) => src[n]
+Sma(src, p) =>
+    a = ta.cum(src)
+    (a - a[math.max(p, 0)]) / math.max(p, 0)
+s(source, length) =>
+    float out = na
+    if length > 1
+        sum = 0.0
+        for i = 0 to length - 1
+            sum += source[i]
+        out := sum
+    out
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(c, "A01_c")
+plot(f(close, c), "P01_close_c_back")
+plot(Sma(close, c), "P02_sma_cum_c")
+plot(s(close, c + 1), "P03_loop_sum_c1")
