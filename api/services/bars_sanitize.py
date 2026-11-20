@@ -609,12 +609,18 @@ def _apply_split_adjust(bars: list[dict], splits: list[tuple[str, float]],
 
 
 # ── Step 3: lone bad-bar wick clamp (daily only) ────────────────────────────
-def _clamp_wicks(bars: list[dict]) -> list[dict]:
+def _clamp_wicks(bars: list[dict], keep: dict | None = None) -> list[dict]:
     """Clamp a single absurd wick the body AND both neighbors disagree with —
     a provider bad print (e.g. NVDA 2024-06-10 high=195.95 vs body ~121). Very
     rare (≈1 bar in NVDA's 23-year history), so the conservative threshold never
-    touches a genuinely volatile bar (whose neighbors would also be elevated)."""
+    touches a genuinely volatile bar (whose neighbors would also be elevated).
+
+    ⭐ D1 (owner decision 2026-11-20): `keep` = {date: {field: value}} from the corrections ledger
+    (`bars_corrections.keep_wicks`): wicks a second vendor independently shows (PG's 2010-05-06 flash-crash low).
+    The clamp never trims those while the bar still holds that value. Everything else is trimmed as before,
+    including pre-vendor (Yahoo-sourced) bars, which no second vendor can confirm."""
     n = len(bars)
+    keep = keep or {}
     for i in range(n):
         b = bars[i]
         o, h, l, c = b.get("o"), b.get("h"), b.get("l"), b.get("c")
@@ -625,13 +631,24 @@ def _clamp_wicks(bars: list[dict]) -> list[dict]:
         nh = bars[i + 1]["h"] if i < n - 1 else h
         pl = bars[i - 1]["l"] if i > 0 else l
         nl = bars[i + 1]["l"] if i < n - 1 else l
+        kd = keep.get(str(b.get("t"))[:10]) if keep else None
         # Upper wick: high far above the body AND above both neighbors' highs.
         if body_hi > 0 and h > body_hi * _WICK and h > max(ph, nh) * _WICK:
-            b["h"] = round(max(body_hi, ph, nh), 4)
+            if not (kd and _kept(kd.get("h"), h)):
+                b["h"] = round(max(body_hi, ph, nh), 4)
         # Lower wick: low far below the body AND below both neighbors' lows.
         if l > 0 and body_lo > 0 and l < body_lo / _WICK and l < min(pl, nl) / _WICK:
-            b["l"] = round(min(body_lo, pl, nl), 4)
+            if not (kd and _kept(kd.get("l"), l)):
+                b["l"] = round(min(body_lo, pl, nl), 4)
     return bars
+
+
+def _kept(value, current) -> bool:
+    """Does the ledger's keep value still describe this bar's wick?"""
+    if value is None:
+        return False
+    from api.services import bars_corrections as _cor
+    return _cor.same_value(current, value)
 
 
 # ── Store repair hand-off ───────────────────────────────────────────────────
@@ -918,6 +935,7 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     # (`_repair_stored`: another security's or another company's bars, unapplied splits) are not run over
     # it again. Not on the served list -> nothing changes here.
     served = None
+    src = "store"
     try:
         from api.services import bars_rebuild as _reb
         if _reb.active(ticker):
@@ -932,6 +950,7 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
                     if unadjusted:
                         rebuilt = _apply_split_adjust(rebuilt, meta["splits"], unadjusted)
                 served = rebuilt
+                src = "rebuild"
     except Exception as e:  # noqa: BLE001 - the stored path below still serves
         _log.warning("rebuilt history skipped for %s tf=%s: %s", ticker, tf, e)
     if served is None:
@@ -946,7 +965,13 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     # TestRebuiltSeriesGetsTheOneClamp.
     if tf == "D":
         try:
-            served = _clamp_wicks(served)
+            keep = {}
+            try:
+                from api.services import bars_corrections as _cor_keep
+                keep = _cor_keep.keep_wicks(ticker, src)
+            except Exception:  # noqa: BLE001 - no ledger answer: the clamp trims as before
+                keep = {}
+            served = _clamp_wicks(served, keep)
         except Exception as e:  # noqa: BLE001 - never blank a chart
             _log.warning("wick clamp failed for %s: %s", ticker, e)
     return served
