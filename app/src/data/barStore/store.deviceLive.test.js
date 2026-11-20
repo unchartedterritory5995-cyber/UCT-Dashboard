@@ -193,6 +193,48 @@ describe('a device copy current to the last closed minute', () => {
     s.store.dispose()
   })
 
+  // ⭐ TODAY'S FORMING BAR IN THE DEVICE COPY (deviceStore/forming.js, off until the evidence): the store needs
+  // nothing new. The copy's last row is a bucket the clock says has not ended, so it is the entry's developing
+  // bar (a local one); the device rule paints it with the rest, and the server's answer, whose developing bar
+  // equals it, changes no bar of that first frame.
+  it('L11 a copy ending with the forming bucket: the first frame holds it, and an equal answer changes nothing', async () => {
+    const FORMING = bar(OPEN + 2 * 3600, 1, 24)                       // 11:30, the bucket in progress
+    let release
+    const request = vi.fn(() => new Promise((r) => { release = () => r(answer()) }))
+    const { store, pf, key } = boot({ device: fakeDevice([...DEVICE, FORMING]), request })
+    expect(pf.peekDisplayable('NEWB', '5')).toBe(true)
+    expect(pf.devicePaints('NEWB', '5', { showExtended: false })).toBe(true)
+    const s0 = store.peek(key)
+    expect(s0.source).toBe('device')
+    expect(s0.developing && [s0.developing.t, s0.developing.o, s0.developing.h, s0.developing.l, s0.developing.c, s0.developing.v])
+      .toEqual([FORMING.t, FORMING.o, FORMING.h, FORMING.l, FORMING.c, FORMING.v])
+    const off = store.subscribe(key, () => {})
+    await vi.advanceTimersByTimeAsync(1)
+    const row = (b) => [b.t, b.o, b.h, b.l, b.c, b.v]
+    // what the chart draws: the sealed rows, then the developing bar (adapter.legacyBars)
+    const drawn = (snap) => [...snap.bars, ...(snap.developing ? [snap.developing] : [])].map(row)
+    const painted = drawn(store.getSnapshot(key))
+    expect(painted.at(-1)).toEqual(row(FORMING))                       // the first frame ends with it
+    release()
+    await vi.advanceTimersByTimeAsync(20)
+    const after = new Map(drawn(store.getSnapshot(key)).map((r) => [r[0], r]))
+    for (const r of painted) expect(after.get(r[0])).toEqual(r)        // every painted bar, the forming one too
+    off()
+    store.dispose()
+  })
+
+  it('L12 D mid-session: a copy ending with today\'s forming bar paints (without it, it does not: L6)', () => {
+    const days = (n, end) => Array.from({ length: n }, (_, i) => ({ t: end - (n - 1 - i) * DAY, o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+    const TODAY = Date.UTC(2026, 10, 18) / 1000
+    const rows = [...days(60, TODAY - DAY), { t: TODAY, o: 10.4, h: 10.9, l: 10.1, c: 10.6, v: 5e6 }]
+    const { store, pf } = boot({ device: fakeDevice(rows, { tf: 'D', through: THROUGH }) })
+    pf.peekBars('NEWB', 'D')
+    const s = store.peek(keyOf({ sym: 'NEWB', tf: 'D' }))
+    expect(s.developing && s.developing.t).toBe(TODAY)
+    expect(pf.devicePaints('NEWB', 'D')).toBe(true)
+    store.dispose()
+  })
+
   it('L7 the same device copy seen again is not dispatched again (the switch polls every 25 ms)', () => {
     const { store, pf } = boot({ device: fakeDevice(DEVICE) })
     pf.peekDisplayable('NEWB', '5')

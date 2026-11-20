@@ -31,8 +31,10 @@ export function periodEndOf(t, tf) {
 }
 
 /** D columns → W ('W') or M ('M') columns, labels as unix s at 00:00 UTC. Null when nothing whole.
- *  `through`: drop a newest bucket whose period has not ended by then (see the header). */
-export function deriveFromDaily(cols, tf, { through = null } = {}) {
+ *  `through`: drop a newest bucket whose period has not ended by then (see the header), unless `forming`:
+ *  the D columns end with TODAY'S forming bar (deviceStore/forming.js), so the period in progress is built
+ *  from every day of it so far and is kept, as the server's forming week / month is. */
+export function deriveFromDaily(cols, tf, { through = null, forming = false } = {}) {
   if (!cols || !cols.t?.length || (tf !== 'W' && tf !== 'M')) return null
   const n = cols.t.length
   const rows = new Array(n)
@@ -40,7 +42,7 @@ export function deriveFromDaily(cols, tf, { through = null } = {}) {
     rows[i] = { t: dayLabelOf(cols.t[i]), o: cols.o[i], h: cols.h[i], l: cols.l[i], c: cols.c[i], v: cols.v[i] }
   }
   const out = (tf === 'W' ? resampleDailyToWeekly(rows) : resampleDailyToMonthly(rows)).slice(1)
-  if (through != null && out.length && periodEndOf(unixOfLabel(out[out.length - 1].t), tf) > through) out.pop()
+  if (!forming && through != null && out.length && periodEndOf(unixOfLabel(out[out.length - 1].t), tf) > through) out.pop()
   if (!out.length) return null
   const m = out.length
   const res = { t: new Float64Array(m), o: new Float64Array(m), h: new Float64Array(m), l: new Float64Array(m),

@@ -189,6 +189,17 @@ describe('sequence gaps are detected and reach the sink', () => {
     expect(d.c.status().gaps.map((x) => [x.fromSeq, x.toSeq, x.reason])).toEqual([[591, 594, 'link-mismatch']])
   })
 
+  it('each frame tells the sink whether it carried the day volume (withAv), for the device\'s forming D bar', () => {
+    const d = liveDevice(3)
+    expect(d.sink.frames.length).toBe(4)
+    expect(d.sink.frames.every((f) => f.withAv === false)).toBe(true)          // the regular day: no av
+    const av = decodeFrame(new Uint8Array(fs.readFileSync(new URL('../../../../tests/fixtures/minute_frames/codec_with_av.bin', import.meta.url))))
+    expect(av.withAv).toBe(true)
+    const e = device(edge({ through: 0 }).fetchImpl, at(14, 0, 8))
+    e.c.applyFrame(av)
+    expect(e.sink.frames.at(-1).withAv).toBe(true)
+  })
+
   it('a device that starts after the day\'s first frame records what came before as a gap', async () => {
     const e = edge({ through: 599 })                                 // no today.bin yet
     const d = device(e.fetchImpl, at(14, 0, 8), { maxMinuteFetches: 5 })
