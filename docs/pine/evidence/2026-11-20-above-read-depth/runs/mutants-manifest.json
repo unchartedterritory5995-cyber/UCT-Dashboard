@@ -1,0 +1,93 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "D1",
+   "mutant": "(a) the above read's depth class is gone: every bar before the held rows is a hole again",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "      if (aboveDepthEnd >= 0) return i < aboveDepthEnd ? 'depth' : 'hole'",
+   "to": "      if (aboveDepthEnd >= 0) return 'hole'",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "D2",
+   "mutant": "(a) the first held session's own bars count as past it (the boundary inclusive)",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "depthEnd = dayOf.findIndex((d) => !!d && d > days[0])",
+   "to": "depthEnd = dayOf.findIndex((d) => !!d && d >= days[0])",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "D3",
+   "mutant": "(a) a hole INSIDE the held sessions is called depth",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "      if (aboveDepthEnd >= 0) return i < aboveDepthEnd ? 'depth' : 'hole'",
+   "to": "      if (aboveDepthEnd >= 0) return 'depth'",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "D4",
+   "mutant": "(a) the depth sentence names no first session",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "const firstHeld = srcBars !== rows ? firstHeldTime(srcBars) : aboveFrom",
+   "to": "const firstHeld = srcBars !== rows ? firstHeldTime(srcBars) : null",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "D5",
+   "mutant": "(a) the above read's first session never reaches the supply",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "withheld: read.withheld, heldFrom: read.heldFrom,",
+   "to": "withheld: read.withheld, heldFrom: null,",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "S1",
+   "mutant": "(b) heldDepthOf ignores the chart's span",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "const bySpan = Number.isFinite(heldSessions) && heldSessions > 0 ? Math.floor(heldSessions) + 10 : 0",
+   "to": "const bySpan = 0",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "S2",
+   "mutant": "(b) sessionsSpanned counts calendar days, not trading sessions",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "if (isTradingDay(d)) count += 1",
+   "to": "count += 1",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "S3",
+   "mutant": "(b) the ladder rounds a span sitting on a rung up one more",
+   "file": "app/src/components/chart/engine/otherSymbols.js",
+   "from": "return HELD_SESSION_LADDER.find((r) => r >= sessions) ?? HELD_DAILY_DEPTH_CAP",
+   "to": "return HELD_SESSION_LADDER.find((r) => r > sessions) ?? HELD_DAILY_DEPTH_CAP",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "S4",
+   "mutant": "(b) the hook asks a held key (SPX@D) without the span",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf, heldSessions), fetcher)",
+   "to": "const entry = ensureSecondaryBars(held.symbol, held.tf, heldDepthOf(barCount, tf), fetcher)",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "S5",
+   "mutant": "(b) the hook asks this symbol's own daily rows without the span",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "'D', heldDepthOf(barCount, tf, heldSessions), fetcher)",
+   "to": "'D', heldDepthOf(barCount, tf), fetcher)",
+   "rail": "cd app && npx vitest run src/components/chart/engine/ownDailyDepth.test.js"
+  },
+  {
+   "id": "S6",
+   "mutant": "(b) StockChart hands the hook no span",
+   "file": "app/src/components/StockChart.jsx",
+   "from": "_chartFormingOf, sym, symbolMeta,\n    _heldSessions)",
+   "to": "_chartFormingOf, sym, symbolMeta,\n    0)",
+   "rail": "cd app && npx vitest run src/components/chart/engine/heldSpanFollowsChart.test.js"
+  }
+ ]
+}

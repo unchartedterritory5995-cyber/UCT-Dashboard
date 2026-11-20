@@ -31,7 +31,8 @@ def _bars(days):
 
 def _opts(case):
     """The fixture's chart (JS spelling) in the Python lane's: ``newestBarIsForming`` is ``newest_bar_is_forming``."""
-    chart = dict(FIX["chart"], **case["opts"])
+    # a Pine document's lane facts (``ast_interpret.lane_opts_for``: what the JS lane's ``computeFor`` hands it too)
+    chart = dict(FIX["chart"], barIndexAbsolute=True, varOriginAbsolute=True, **case["opts"])
     opts = {k: v for k, v in chart.items() if k != "newestBarIsForming"}
     opts["newest_bar_is_forming"] = chart["newestBarIsForming"]
     if case.get("symbols"):

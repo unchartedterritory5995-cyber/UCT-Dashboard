@@ -801,6 +801,25 @@ export function sessionKeyedRowsOf(bars) {
 }
 /** ⭐ RS RATING L12 PR 2 — on a series of daily rows: whether its newest row is a session still in progress. */
 export const SERIES_NEWEST_FORMING = Symbol('rs:newest-forming')
+/** ⭐⭐ (e90, the e88 live capture) — on an intraday grid (`atOrBeforeGridOf`) whose held page FILLED its ask (as many
+ *  rows as the fetch asked for, `secondaryBars.js::askedBars`, so the store may hold older ones): `{from, asked}`, the
+ *  page's first row and that ask. Absent when the page holds fewer rows than it asked (the store's whole depth) or
+ *  names no ask. The run decides from it, with the chart's own row count, whether a deeper page is coming
+ *  (`runtime/requestSupply.js`); this fact alone never says so. */
+export const SERIES_PAGE_FILLED = Symbol('rs:page-filled')
+/** ⛔ The deepest window `/api/bars` answers (`bars: Query(le=60000)`, `api/routers/bars.py`): a deeper ask is a 422,
+ *  never a deeper answer. The held-span ladder's top rung (`useSecondarySources.js::HELD_SPAN_MAX`) and the run's
+ *  "a deeper page is coming" test (`runtime/requestSupply.js::pageEdgeOf`) both read it from here. ⛔ Here and not in
+ *  the bars client (`secondaryBars.js`): the run's compute closure is host-neutral (`tools/pine_runtime_closure.mjs`),
+ *  and the client's fetch, timers and wall clock may not enter it. */
+export const BARS_ASK_MAX = 60000
+/** The `{from, asked}` of a held intraday page that filled its ask, or null (`SERIES_PAGE_FILLED`). */
+function filledPageOf(entry, held) {
+  const asked = entry ? entry.askedBars : undefined
+  if (!Number.isInteger(asked) || asked < 1 || !Array.isArray(held) || held.length < asked) return null
+  const first = held.find((b) => b && typeof b.t === 'number' && Number.isFinite(b.t))
+  return first ? Object.freeze({ from: first.t, asked }) : null
+}
 /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the chart's secondary key for THIS chart symbol's own daily rows, fetched
  *  when a run reads its own symbol at "D" above an intraday chart (`useSecondarySources`). ⛔ Not a held key's
  *  shape (`heldKeyParts` reads `<TICKER>@D`, and `SELF` is a listing): it can never be mistaken for a ticker. */
@@ -1383,6 +1402,10 @@ export function resolveOtherSymbols(def, ctx = {}, confirmed = SYMBOL_EXCHANGE_C
       if (read.sample === WITNESS_PERIOD_READS.SESSION_COMPLETED) {
         Object.defineProperty(symbols[ticker], SERIES_NEWEST_FORMING, { value: entry.newestBarIsForming === true, enumerable: false })
       }
+      // ⭐⭐ (e90) an intraday grid whose page filled its ask carries that page (`SERIES_PAGE_FILLED`): the chart-timeframe
+      // series, asked at the held span (`useSecondarySources.js::heldSpanFor`), never the daily rows beside it
+      const page = !landed && read.fold === WITNESS_PERIOD_READS.AT_OR_BEFORE ? filledPageOf(entry, held) : null
+      if (page) Object.defineProperty(symbols[ticker], SERIES_PAGE_FILLED, { value: page, enumerable: false })
       if (read.sample) samples[ticker] = read.sample
       served.push(ticker)
       continue

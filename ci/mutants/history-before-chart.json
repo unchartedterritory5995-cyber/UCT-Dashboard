@@ -1,0 +1,186 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "PERIOD -1 (fix/htf-pre-chart-read): off the listing, in a Pine document, a read of the bar (or the week or month) before the chart's first is unknown, and the root bars that draw from it are withheld by name (history:before-chart), named only where a drawn value is taken away; from the listing, in a formula document and where the first bar is TradingView's bar 0 nothing changes; another symbol's series is never the chart's listing (C26); a read on other bars is walked on its own bars, never into; the Python sym arm clears the chart's listing for the other symbol (FINDING 3); both lanes. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "H1",
+   "mutant": "JS: the host chain drops the period -1 mask (master's column: nz(close[1]) draws 0 on bar 0)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column),",
+   "to": "    null,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "nz(close[1]) (bar 0"
+  },
+  {
+   "id": "H2",
+   "mutant": "JS: x[k] is no read before the first bar (only k >= 99 counts)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    && ((node.type === 'offset' && node.args.length === 1 && Number(node.value) >= 1)",
+   "to": "    && ((node.type === 'offset' && node.args.length === 1 && Number(node.value) >= 99)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "the cpr daily colour"
+  },
+  {
+   "id": "H3",
+   "mutant": "JS: a barsAgo count reaching before bar 0 is not marked (the per-bar read loses its name)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "              if (i - k < 0) { if (before) out[i] = 1 } else if (us && us[i - k]) out[i] = 1",
+   "to": "              if (i - k < 0) { if (false) out[i] = 1 } else if (us && us[i - k]) out[i] = 1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "the code is named with its sentence"
+  },
+  {
+   "id": "H4",
+   "mutant": "JS: a read on other bars is walked into (an unsupplied sym's child taints every bar)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const opaque = walk.requestSites === true",
+   "to": "  const opaque = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "KEPT nz(sym('SPY', close[1])) with no symbol supplied"
+  },
+  {
+   "id": "H5",
+   "mutant": "JS: a merge bar reading the period before the first is not unknown",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (r >= 0) { if (u && u[r]) set(i) } else if (off && b === 0) set(i)",
+   "to": "    if (r >= 0) { if (u && u[r]) set(i) }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "nz(tf_merge(W, close)) (bars 0-1"
+  },
+  {
+   "id": "H6",
+   "mutant": "JS: another symbol's series takes the chart's listing (C26 broken)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const u = preChartUnknown(child, series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined }, true,",
+   "to": "    const u = preChartUnknown(child, series, inputs, budget, scalars, { ...(opts || {}), historyFromListing: undefined }, off,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "nz(sym('SPY', close[1])) from the chart's listing"
+  },
+  {
+   "id": "H7",
+   "mutant": "JS: the listing ignored (a listing-reaching chart loses TradingView's own na reading)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const off = opts.barIndexAbsolute === true && opts.historyFromListing !== true",
+   "to": "  const off = opts.barIndexAbsolute === true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "CONTROL nz(close[1]) from the listing"
+  },
+  {
+   "id": "H8",
+   "mutant": "JS: named whether or not a drawn value is taken away",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  let drawn = column === undefined || column === null",
+   "to": "  let drawn = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "a read that stays `na` is blank as before"
+  },
+  {
+   "id": "H9",
+   "mutant": "JS: a formula document's x[1] judged as Pine's (another symbol's read in a formula document reaches the walk)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (!opts || opts.varOriginAbsolute !== true) return null",
+   "to": "  if (!opts) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "CONTROL nz(sym('SPY', close[1])) in a formula document"
+  },
+  {
+   "id": "H10",
+   "mutant": "JS: a higher-timeframe child's own history read is never before its first bar",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, off,",
+   "to": "  const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, false,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "nz(tf_live(W, close[1]))"
+  },
+  {
+   "id": "H11",
+   "mutant": "JS: a time(<period>) anchor walked (its key != key[1] taken as a read before the chart: the clock's bar 0 withheld)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor })",
+   "to": "    { exact: true, requestSites: true, beforeFirst: off === true, memo })",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
+   "expectRed": "KEPT time(\"W\")"
+  },
+  {
+   "id": "PH1",
+   "mutant": "Python: the chain drops the period -1 mask",
+   "file": "api/services/ast_interpret.py",
+   "from": "        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, column)",
+   "to": "        before = None",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "nz(close[1]) (bar 0"
+  },
+  {
+   "id": "PH2",
+   "mutant": "Python: x[k] is no read before the first bar",
+   "file": "api/services/ast_interpret.py",
+   "from": "            return len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 1",
+   "to": "            return len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 99",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "the cpr daily colour"
+  },
+  {
+   "id": "PH3",
+   "mutant": "Python: a merge bar reading the period before the first is not unknown",
+   "file": "api/services/ast_interpret.py",
+   "from": "        elif off and b == 0:",
+   "to": "        elif False:",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "nz(tf_merge(W, close)) (bars 0-1"
+  },
+  {
+   "id": "PH4",
+   "mutant": "Python: the listing ignored",
+   "file": "api/services/ast_interpret.py",
+   "from": "    off = o.get(\"barIndexAbsolute\") is True and o.get(\"historyFromListing\") is not True",
+   "to": "    off = o.get(\"barIndexAbsolute\") is True",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL nz(close[1]) from the listing"
+  },
+  {
+   "id": "PH5",
+   "mutant": "Python: a formula document's x[1] judged as Pine's (another symbol's read in a formula document reaches the walk)",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if o.get(\"varOriginAbsolute\") is not True:",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "CONTROL nz(sym('SPY', close[1])) in a formula document"
+  },
+  {
+   "id": "PH6",
+   "mutant": "Python: named whether or not a drawn value is taken away",
+   "file": "api/services/ast_interpret.py",
+   "from": "    drawn = column is None or any(",
+   "to": "    drawn = True or any(",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "KEPT close[1]"
+  },
+  {
+   "id": "PH7",
+   "mutant": "Python: a read on other bars is walked into",
+   "file": "api/services/ast_interpret.py",
+   "from": "                         request_sites=True, before_first=off is True,",
+   "to": "                         request_sites=False, before_first=off is True,",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "KEPT nz(sym('SPY', close[1])) with no symbol supplied"
+  },
+  {
+   "id": "PH8",
+   "mutant": "Python: FINDING 3 reverted (the sym arm keeps the chart's listing for the other symbol)",
+   "file": "api/services/ast_interpret.py",
+   "from": "                          scalars=scalars, opts=dict(opts or {}, historyFromListing=None)),",
+   "to": "                          scalars=scalars, opts=dict(opts or {})),",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "FINDING-3 sym('SPY', barindex)"
+  },
+  {
+   "id": "PH9",
+   "mutant": "Python: a time(<period>) anchor walked",
+   "file": "api/services/ast_interpret.py",
+   "from": "                         skip=lambda nd: period_anchor_period(nd) is not None)",
+   "to": "                         skip=None)",
+   "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
+   "expectRed": "KEPT time(\"W\")"
+  }
+ ]
+}
