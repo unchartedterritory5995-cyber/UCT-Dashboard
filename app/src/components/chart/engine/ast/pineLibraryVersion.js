@@ -34,7 +34,8 @@
 //   timeframe.period [Timeframes must include a multiplier] "D" vs "1D".
 //   color.red/teal/yellow [Color changes] the values changed.
 //   label.new       [Color changes] its default text colour changed (refused
-//                   unless the call names `textcolor`).
+//                   unless the call names `textcolor`); `box.new`'s fill and
+//                   text colour and `table.cell`'s text colour likewise.
 //   for             [Dynamic for loop boundaries] refused when the end bound
 //                   calls anything but a size read of a collection the loop does
 //                   not resize, or names a variable the loop body reassigns.
@@ -113,7 +114,8 @@ export function versionAt(tok, programVersion) {
 // lane's rules for it onto `versionAt`, with its rail: a v5 library in a v6 script computes what the same library
 // computes in a v5 script (`pineLibraryVersion.test.js`, "the version island, family by family"). A construct with
 // no family (`request.*`, `strategy.*`, `transp`/`offset`/`linewidth`, a repeated argument, a negative literal
-// index, history of a literal or a field, a const-int division, `label.new` without `textcolor`) stays refused on
+// index, history of a literal or a field, a const-int division, `label.new` without `textcolor`, `box.new` without
+// `bgcolor` / `text_color`, `table.cell` without `text_color`) stays refused on
 // every lane.
 export const ISLAND_FAMILY = Object.freeze({
   BOOL_NA: 'bool-na',
@@ -386,6 +388,22 @@ export function crossVersionDifference(kept, indents, { skip } = {}) {
         const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
         if (!args.some((a, k) => isWord(a, 'textcolor') && isPunct(args[k + 1], '='))) {
           return hit(null, { what: '`label.new` without `textcolor`', why: 'its default text colour is black in v5 and white in v6 (Color changes)', tok: t })
+        }
+      }
+      // ⭐ (libchain, 2026-11-20) the other object defaults a v5 script draws differently from this engine's v6 base
+      // (`objectDefaults.js` VERSION_DEFAULTS[5], each from a v5 capture): a box's unset fill is opaque `color.blue` at
+      // v5 and 80% transparent at v6 (`box.new`'s reference default), its unset text and a table cell's are
+      // `color.black` at v5. ⚰️ Phase B held `label.new` alone, so a v5 library's `box.new` without `bgcolor` would
+      // have drawn v6's fill inside a v6 script. Held when the call does not NAME the argument (a positional one is
+      // not read here, so it is held too).
+      if ((v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {
+        const args = toks.slice(i + 2, closeOf(toks, i + 1) - 1)
+        const named = (w) => args.some((a, k) => isWord(a, w) && isPunct(args[k + 1], '='))
+        const missing = (v === 'box.new' ? ['bgcolor', 'text_color'] : ['text_color']).find((w) => !named(w))
+        if (missing) {
+          return hit(null, { what: `\`${v}\` without \`${missing}\``, why: missing === 'bgcolor'
+            ? 'its default fill is opaque `color.blue` in v5 and 80% transparent in v6 (Color changes)'
+            : 'its default text colour is `color.black` in v5, which this engine does not draw for v6', tok: t })
         }
       }
       if ((v === 'transp' || v === 'offset' || v === 'linewidth') && !t.member && isPunct(next, '=') && (isPunct(prev, ',') || isPunct(prev, '('))) {

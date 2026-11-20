@@ -1,6 +1,6 @@
 {
  "schema": "uct.ci-mutants/v1",
- "about": "The version island, PR 2 (feat/pine-library-island-bool-na, NUMBER PENDING, stacked on #2106): a v5 library's bools are v5 bools inside the island (bool-na and implicit-cast judged per token on the runtime lane: the run's ==/not, na() and unmatched-block rules, the columnar resolver's condition, binary operators and na()), a v5 na bool never reaches v6 code through a collection or record (handed back, an element or field of one, one the script shares; LV6), the island's bool map answers na as a v5 script's does, and the link check reads a declared type and a ?:'s arms, never its condition. Every per-token read, each family's membership, each boundary exit and each link-check reading, broken once, must turn its rail red.",
+ "about": "The version island, PR 2 (feat/pine-library-island-bool-na, NUMBER PENDING, stacked on #2106): a v5 library's bools are v5 bools inside the island (bool-na and implicit-cast judged per token on the runtime lane: the run's ==/not, na() and unmatched-block rules, the columnar resolver's condition, binary operators and na()), a v5 na bool never reaches v6 code through a collection or record (handed back, an element or field of one, one the script shares; LV6), the island's bool map answers na as a v5 script's does, and the link check reads a declared type and a ?:'s arms, never its condition, and holds box.new / table.cell without their v5 object-default colours. Every per-token read, each family's membership, each boundary exit and each link-check reading, broken once, must turn its rail red.",
  "mutants": [
   {
    "id": "W1",
@@ -172,6 +172,24 @@
    "to": "function shownNotBool(span, numNames) { return false",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
    "expectRed": "declared types and `?:` arms are never bool operands"
+  },
+  {
+   "id": "W20",
+   "mutant": "the link check does not hold box.new / table.cell object defaults (Phase B's hole)",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "      if ((v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {",
+   "to": "      if (false && (v === 'box.new' || v === 'table.cell') && !t.member && isPunct(next, '(')) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "box.new without bgcolor"
+  },
+  {
+   "id": "W21",
+   "mutant": "box.new's text colour is not held",
+   "file": "app/src/components/chart/engine/ast/pineLibraryVersion.js",
+   "from": "        const missing = (v === 'box.new' ? ['bgcolor', 'text_color'] : ['text_color']).find((w) => !named(w))",
+   "to": "        const missing = (v === 'box.new' ? ['bgcolor'] : ['text_color']).find((w) => !named(w))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineLibraryVersion.test.js",
+   "expectRed": "box.new with bgcolor, without text_color"
   }
  ]
 }
