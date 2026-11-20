@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { pinWallClock } from '../../testing/pinnedWallClock'
-import { useBarSnapshotBars, chartKeyFor, replayRowsReach } from './useBarSnapshotBars'
+import { useBarSnapshotBars, chartKeyFor } from './useBarSnapshotBars'
 import { getBarStore, _resetBarStoreForTests } from '../../data/barStore/index'
 import { keyOf } from '../../data/barStore/types'
 import { memClear } from '../../utils/barsMemCache'
@@ -169,13 +169,32 @@ describe('useBarSnapshotBars — status → frame (intraday)', () => {
 })
 
 describe('useBarSnapshotBars — keys and the daily paint authority', () => {
-  it('the chart key: session-aware 60m, custom tf on its native base, replay windowed, override none', () => {
+  it('the chart key: session-aware 60m, custom tf on its native base, intraday replay windowed, override none', () => {
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: '60', showExtended: true })).toBe('AAA_60e')
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: '60', showExtended: false })).toBe('AAA_60')
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: '5', showExtended: true })).toBe('AAA_5')
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: 'D' })).toBe('AAA_D')
-    expect(chartKeyFor({ sym: 'aaa', resolvedTf: 'D', replayCutoff: '2026-03-02' })).toMatch(/^AAA_D@to=\d+$/)
+    expect(chartKeyFor({ sym: 'aaa', resolvedTf: '5', replayCutoff: '2026-03-02' })).toMatch(/^AAA_5@to=\d+$/)
     expect(chartKeyFor({ sym: 'aaa', resolvedTf: 'D', hasOverride: true })).toBeNull()
+  })
+
+  // 2026-11-20 — Breadth drill Replay: the D/W/M windowed key was a second copy of bars the plain
+  // key already holds; every flip waited on its own 12,500-bar `to=` request and a Grid of them
+  // stalled the server. D/W/M replay reads the plain key (StockChart cuts after the cutoff).
+  it('D/W/M replay reads the PLAIN key — no windowed second copy', () => {
+    for (const tf of ['D', 'W', 'M']) {
+      expect(chartKeyFor({ sym: 'aaa', resolvedTf: tf, replayCutoff: '2026-03-02' })).toBe(`AAA_${tf}`)
+    }
+  })
+
+  it('D replay: a held daily set paints on the first frame, with no request of its own', () => {
+    const KD = keyOf({ sym: 'SIMR', tf: 'D' })
+    const days = ['2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21', '2026-09-22'].map((d) => ({ t: d, o: 10, h: 11, l: 9, c: 10.5, v: 100 }))
+    act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'rest-full', key: KD, gen: st.getSnapshot(KD).gen, payload: { ticker: 'SIMR', tf: 'D', bars: days } }) })
+    const p = params({ sym: 'SIMR', resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: '2026-09-17' })
+    const { result } = renderHook(() => useBarSnapshotBars(p))
+    expect(result.current.bars?.length).toBe(days.length)   // StockChart cuts after the cutoff
+    expect(fetch.mock.calls.some(([u]) => /[?&]to=/.test(String(u)))).toBe(false)
   })
 
   it('D local copy: painted only when the daily paint verdict is ok (here: two sessions behind → refused)', () => {
@@ -187,55 +206,6 @@ describe('useBarSnapshotBars — keys and the daily paint authority', () => {
     expect(result.current.bars).toBeNull()
     act(() => { const st = getBarStore(); st.registry.dispatch(KD, { type: 'rest-full', key: KD, gen: st.getSnapshot(KD).gen, payload: { ticker: 'SIMD', tf: 'D', bars: [...days, { t: '2026-09-21', o: 10, h: 11, l: 9, c: 10.5, v: 1 }, { t: '2026-09-22', o: 10, h: 11, l: 9, c: 10.5, v: 1 }] } }) })
     expect(result.current.bars?.[result.current.bars.length - 1]?.t).toBe('2026-09-22')
-  })
-})
-
-// 2026-11-20 — Breadth drill Replay: a flip waited ~1 s per name on the windowed (`to=`) key while
-// the name's plain daily set was already held. The held set paints at once when it reaches the cutoff.
-describe('useBarSnapshotBars — replay paints from the held plain set', () => {
-  const day = (d) => ({ t: d, o: 10, h: 11, l: 9, c: 10.5, v: 100 })
-  const DAYS = ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18', '2026-09-21', '2026-09-22']
-  const holdPlain = (sym, days) => act(() => {
-    const st = getBarStore()
-    const k = keyOf({ sym, tf: 'D' })
-    st.registry.dispatch(k, { type: 'rest-full', key: k, gen: st.getSnapshot(k).gen, payload: { ticker: sym, tf: 'D', bars: days.map(day) } })
-  })
-  const replayParams = (sym, cutoff) => params({ sym, resolvedTf: 'D', _barsTf: 'D', isIntraday: false, replayCutoff: cutoff })
-
-  it('replayRowsReach: history before the cutoff AND a row on/after it', () => {
-    expect(replayRowsReach(DAYS.map(day), '2026-09-17')).toBe(true)
-    expect(replayRowsReach(DAYS.map(day), '2026-09-22')).toBe(true)
-    expect(replayRowsReach(DAYS.map(day), '2026-09-23')).toBe(false)   // ends short of the replay day
-    expect(replayRowsReach(DAYS.map(day), '2026-09-14')).toBe(false)   // nothing before it
-    expect(replayRowsReach([], '2026-09-17')).toBe(false)
-    expect(replayRowsReach(DAYS.map(day), null)).toBe(false)
-  })
-
-  it('the windowed key empty + the plain set held → the plain rows paint on the first frame', () => {
-    holdPlain('SIMR', DAYS)
-    const { result } = renderHook(() => useBarSnapshotBars(replayParams('SIMR', '2026-09-17')))
-    expect(result.current.bars?.length).toBe(DAYS.length)   // StockChart cuts after the cutoff
-  })
-
-  it('then the windowed answer takes over', () => {
-    holdPlain('SIMW', DAYS)
-    const { result } = renderHook(() => useBarSnapshotBars(replayParams('SIMW', '2026-09-17')))
-    const KW = chartKeyFor({ sym: 'SIMW', resolvedTf: 'D', replayCutoff: '2026-09-17' })
-    const win = DAYS.slice(0, 4).map(day)
-    act(() => { const st = getBarStore(); st.registry.dispatch(KW, { type: 'rest-full', key: KW, gen: st.getSnapshot(KW).gen, payload: { ticker: 'SIMW', tf: 'D', bars: win } }) })
-    expect(result.current.bars?.map((r) => r.t)).toEqual(win.map((r) => r.t))
-  })
-
-  it('a held set that ends before the cutoff is not used (it would stop short of the replay day)', () => {
-    holdPlain('SIMS', DAYS.slice(0, 3))
-    const { result } = renderHook(() => useBarSnapshotBars(replayParams('SIMS', '2026-09-21')))
-    expect(result.current.bars).toBeNull()
-  })
-
-  it('no replay → never reads another key', () => {
-    holdPlain('SIMN', DAYS)
-    const { result } = renderHook(() => useBarSnapshotBars(params({ sym: 'SIMO', resolvedTf: 'D', _barsTf: 'D', isIntraday: false })))
-    expect(result.current.bars).toBeNull()
   })
 })
 

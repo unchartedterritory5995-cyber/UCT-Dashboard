@@ -30,7 +30,6 @@ import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
 import { keyOf, parseKey, STATUS, isDateTf, dateLabelToUnix } from '../../data/barStore/types'
 import { isNativeTf, fetchTf, resampleSpec } from './timeframes'
-import { etDateLabel } from './barTime'
 import { resolveDailyTodaySeed, useCompareBars } from './useLegacyChartBars'
 import { resample, resampleForSpec } from '../../utils/resampleBars'
 import { dailyCachePaintVerdict, isDailyTodayBarStaleForPaint, expectedFormingBar } from '../../utils/marketSession'
@@ -56,8 +55,16 @@ export const DEEP_RETRIES = 3
 export function chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff, hasOverride }) {
   if (!sym || !resolvedTf || hasOverride) return null
   const custom = !isNativeTf(resolvedTf)
-  // Replay: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date).
-  const to = (replayCutoff && !custom) ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
+  // Replay, INTRADAY: the window ENDING at the cutoff (`to=` its ET date; noon UTC is that ET date) —
+  // an intraday set ending today holds only recent sessions, so an old cutoff needs its own window.
+  // ⭐ D/W/M READ THE PLAIN KEY (2026-11-20). Its full-depth set already holds every bar up to any
+  // cutoff, and StockChart cuts every bar after `replayCutoff`. The windowed key was a SECOND copy
+  // of the same bars that no list warm held: each Breadth drill flip in replay waited on its own
+  // 12,500-bar `to=` request (~1 s on production), and a Grid of them asked ~15 at once, which
+  // stalled the web server for 6-12 s (measured on production). Replay now scans exactly like
+  // the plain view.
+  const to = (replayCutoff && !custom && !isDateTf(resolvedTf))
+    ? dateLabelToUnix(String(replayCutoff).slice(0, 10)) + 43200 : null
   return viewKeyFor(sym, resolvedTf, { showExtended: !!showExtended, window: Number.isFinite(to) ? { to } : null })
 }
 
@@ -86,23 +93,6 @@ export function viewDevelopingOf(s, base, view = {}) {
   const out = resampleForSpec([...members, d], view.spec)
   const last = out?.length ? out[out.length - 1] : null
   return last ? { t: last.t, o: last.o, h: last.h, l: last.l, c: last.c, v: last.v, devRev: s.devRev } : null
-}
-
-/** The ET calendar day of a legacy row's `t` ('YYYY-MM-DD…' string or unix seconds). */
-function rowDay(t) {
-  if (typeof t === 'string') return t.slice(0, 10)
-  if (typeof t === 'number' && Number.isFinite(t)) return etDateLabel(t)
-  return null
-}
-
-/** Does a held (plain-key) series cover a replay cutoff: history BEFORE it and a row on or after
- *  it, so cutting at the cutoff leaves the chart ending on the replay day, not short of it. */
-export function replayRowsReach(rows, cutoff) {
-  const c = typeof cutoff === 'string' ? cutoff.slice(0, 10) : null
-  if (!c || !Array.isArray(rows) || rows.length < 2) return false
-  const first = rowDay(rows[0]?.t)
-  const last = rowDay(rows[rows.length - 1]?.t)
-  return !!first && !!last && first < c && last >= c
 }
 
 /** Daily value sanity of a LOCAL copy's last bar (the legacy `_idbDailyLastInsane`). */
@@ -190,21 +180,6 @@ export function useBarSnapshotBars({
     const d = _dSnap ? legacyBars(_dSnap) : null
     return d?.length ? resample(d, 'D', resolvedTf) : null
   }, [_dSnap, resolvedTf])
-  // ⭐ REPLAY PAINTS FROM THE HELD SET (2026-11-20, Breadth drill "Replay" scan ~1 s per name).
-  // A replay chart reads the WINDOWED key (`to=` the cutoff), which no list warm holds, so every
-  // flip waited on the network while the same names' plain daily sets sat warm in the store (the
-  // drill's prefetchListDeep warms them full-depth). Bars up to a past day are the same bars in
-  // both, and StockChart already cuts every bar after `replayCutoff`, so while the windowed key
-  // has no rows the plain key's rows paint at once; the windowed answer replaces them when it
-  // lands (same bars on screen). Only a plain set that REACHES the cutoff is used — one ending
-  // before it would draw a chart that stops short of the replay day.
-  const _replayPlainSnap = (replayCutoff && !all?.length && !_isCustomTf && !_hasOverride && sym && isDateTf(resolvedTf))
-    ? store.peek(chartKeyFor({ sym, resolvedTf, showExtended, replayCutoff: null, hasOverride: false })) : null
-  const _replayPlain = useMemo(() => {
-    const rows = _replayPlainSnap ? legacyBars(_replayPlainSnap) : null
-    return rows?.length && replayRowsReach(rows, replayCutoff) ? rows : null
-  }, [_replayPlainSnap, replayCutoff])
-
   let chosen = null
   if (_overrideArr) chosen = barsOverride
   else if (barsOverridePending || _econId) chosen = null
@@ -213,8 +188,7 @@ export function useBarSnapshotBars({
     if (isDateTf(resolvedTf)) chosen = _dailyLocalRefused ? null : all
     else if (status === STATUS.PROVISIONAL) chosen = _staleContext
     else if (PAINTS.has(status)) chosen = all
-  } else if (_replayPlain) chosen = _replayPlain
-  else if (_aggBars?.length) chosen = _aggBars
+  } else if (_aggBars?.length) chosen = _aggBars
 
   // ── the timeframe-switch hold (TC2000 rule): never a provably incomplete right edge ──
   const _onScr = _onScreenSrcRef.current
