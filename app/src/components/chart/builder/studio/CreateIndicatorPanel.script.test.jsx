@@ -64,7 +64,8 @@ describe('an answer that is a script', () => {
     // ⭐ this window SHOWS a script, so it is the sender that tells the door it accepts one
     expect(spy.mock.calls[0][0].gateCtx.showsScripts).toBe(true)
     const lines = [...entry().querySelectorAll(':scope > span')].map((s) => s.textContent)
-    expect(lines[0]).toMatch(/^Runs on the chart/)                          // the ENGINE's headline, first
+    // (no chart beside this dock: the script passed the check and was NOT run, and the entry says exactly that)
+    expect(lines[0]).toMatch(/^Passed the script check; not run on a chart yet/)
     expect(screen.getByTestId('create-indicator-said').textContent).toContain('A table of the ATR in the corner.')
     expect(screen.getByTestId('create-indicator-script').dataset.runs).toBe('true')
     expect(screen.getByTestId('create-indicator-script-text').textContent).toContain('table.new(position.top_right')

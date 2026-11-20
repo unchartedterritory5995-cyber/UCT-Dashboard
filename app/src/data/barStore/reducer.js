@@ -885,6 +885,12 @@ function _applyLocal(state, action, ctx, source) {
     const first = Math.min(state.restFrom ?? Infinity, state.bars[0]?.t ?? Infinity, state.developing?.t ?? Infinity)
     rows = rows.filter((r) => r.t < first)
     if (!rows.length) return state
+    // ⭐ PROVEN ROWS CARRY THEIR PROOF (2026-11-19). Every row kept here is OLDER than the answer, so
+    // the next full answer of the same series shares no bar with them: unstamped, `basisVerdict` read
+    // 'unknown' and that answer dropped them all (applyRest), the chart shrinking to the answer's
+    // window until the lake joined again. Proven on the held basis just above, they now say so; a
+    // full answer on another adj_basis still resets them ('changed').
+    if (state.restSeen && state.adjBasis != null) rows = rows.map((r) => (r.ab != null ? r : freezeBar({ ...r, ab: state.adjBasis })))
     return finalize(state, { bars: mergeRows(state, rows) }, ctx)
   }
   // No server answer yet: the local copy is the best we have. Its last row is the forming
