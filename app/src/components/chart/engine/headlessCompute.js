@@ -94,7 +94,7 @@ import { HOST_KNOWN_DIVERGENCE_GUARD, HOST_KNOWN_DIVERGENCE_STAMP } from './host
 import { HELD_DIVERGENCE_GUARD, HELD_DIVERGENCE_STAMP } from './heldWithholds.js'
 import { plotOwnTitlesOf } from './pinePresentation.js'
 import { ENGINE_ERROR } from './ast/parse.js'
-import { HISTORY_BEFORE_CHART_CODE } from './ast/interpret.js'
+import { PER_BAR_CLOCK_CODES as PER_BAR_CLOCK_CODE_LIST } from './ast/interpret.js'
 
 /** The clock the runtime lane is handed: it never moves, so no wall-clock stop decides anything. */
 const STILL_CLOCK = () => 0
@@ -264,8 +264,9 @@ function hostRefusalOf(def, out) {
   return null
 }
 
-/** The chart-clock codes a plot can carry per bar (`__withheldBars`) rather than whole. */
-const PER_BAR_CLOCK_CODES = new Set([HISTORY_BEFORE_CHART_CODE])
+/** The chart-clock codes a plot can carry per bar (`__withheldBars`) rather than whole: `interpret.js::PER_BAR_CLOCK_CODES`,
+ *  the one authority (each writes its bars there). */
+const PER_BAR_CLOCK_CODES = new Set(PER_BAR_CLOCK_CODE_LIST)
 
 function hostLane(def, rows, opts) {
   const lane = COMPUTE_LANE.AST
