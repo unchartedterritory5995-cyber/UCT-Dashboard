@@ -15,6 +15,9 @@
 # ⛔⛔ THE REPO IS PUBLIC AND MOST OF THESE SCRIPTS ARE LICENCE-HELD (docs/pine/LICENSING.md).
 #   - Nothing we hold is sent here: each shard fetches its own scripts from TradingView's public pine-facade
 #     endpoint BY THE PINNED REVISION and refuses a text whose sha256 is not the population file's.
+#   - Politeness: the shards together keep the survey's single-stream rate (each waits 1.2 s x the shard count);
+#     a 429 / 403 is a refusal: that script is recorded `unfetched` by name, the shard backs off, never retries it,
+#     and stops asking after 5 refusals in a row.
 #   - Census rows and harness verdicts quote source lines, so they leave the runner only SEALED (AES-256 under a
 #     random key, the key wrapped to the operator's public key). The job log and step summary carry counts only;
 #     every tool's own output goes to a file that is sealed, never to the log.
@@ -117,7 +120,7 @@ jobs:
           python3 -c "import json; [print(l['path'], l['pubId']) for l in json.load(open('ci/census-full/run.json'))['libraries']]" > "$RUNNER_TEMP/libs.txt"
           while read -r path pub; do
             PINE_LIBRARY_DIR="$S" python3 tools/pine_library/fetch_library.py --pub-id "$pub" "$path" > /dev/null
-            sleep 1
+            sleep 6   # politeness: up to 5 jobs fetch their 8 libraries at once
           done < "$RUNNER_TEMP/libs.txt"
           python3 tools/pine_library/promotion_check.py check --store "$S" --exact | tail -1
       - name: TradingView's reference examples (shard 1 only; a fresh extract, kept only where the sha256 matches)
@@ -134,10 +137,14 @@ jobs:
           SHARD: ${{ matrix.shard }}
           OF: ${{ needs.plan.outputs.of }}
           LIMIT: ${{ needs.plan.outputs.limit }}
-          CENSUS_FULL_DELAY: '1.2'
+          CENSUS_FULL_RETRY_BACKOFF: '30'
         run: |
           set -euo pipefail
           W="$RUNNER_TEMP/census"; mkdir -p "$W"
+          # ⛔ POLITENESS: ONE aggregate rate for the whole run, the survey's single stream (one request per 1.2 s).
+          # The shards fetch at the same time, so each waits 1.2 s x the shard count between its requests.
+          export CENSUS_FULL_DELAY=$(python3 -c "print(round(1.2 * int('$OF'), 2))")
+          echo "fetch delay per shard: $CENSUS_FULL_DELAY s ($OF shards)"
           python3 tools/pine_coverage/census_full.py shard --population docs/pine/census-full/population.json \
             --shard "$SHARD" --of "$OF" --limit "$LIMIT" --out "$W" ${EXAMPLES_REF:+--examples-ref "$EXAMPLES_REF"} > "$W/shard.log" 2>&1
           tail -1 "$W/shard.log"
@@ -175,8 +182,8 @@ jobs:
               return sum(1 for l in open(p) if l.strip()) if os.path.exists(p) else None
           rep = json.load(open(os.path.join(W, "fetch_report.json"))) if os.path.exists(os.path.join(W, "fetch_report.json")) else {}
           print("### shard %s" % os.environ["SHARD"])
-          print("rows fetched %s of %s (mismatch %d, unavailable %d), examples %s; census rows production %s, runtime-on %s" % (
-              rep.get("ok"), rep.get("rows"), len(rep.get("mismatch", [])), len(rep.get("unavailable", [])),
+          print("rows fetched %s of %s (mismatch %d, unfetched %d, refusals %s, stopped %s), examples %s; census rows production %s, runtime-on %s" % (
+              rep.get("ok"), rep.get("rows"), len(rep.get("mismatch", [])), len(rep.get("unfetched", [])), rep.get("refusals"), rep.get("stopped"),
               json.dumps(rep.get("examples")), n("prod/census.jsonl"), n("rt/census.jsonl")))
           EOF
       - uses: actions/upload-artifact@v4
@@ -226,7 +233,7 @@ jobs:
           python3 -c "import json; [print(l['path'], l['pubId']) for l in json.load(open('ci/census-full/run.json'))['libraries']]" > "$RUNNER_TEMP/libs.txt"
           while read -r path pub; do
             PINE_LIBRARY_DIR="$S" python3 tools/pine_library/fetch_library.py --pub-id "$pub" "$path" > /dev/null
-            sleep 1
+            sleep 6   # politeness: up to 5 jobs fetch their 8 libraries at once
           done < "$RUNNER_TEMP/libs.txt"
           python3 tools/pine_library/promotion_check.py check --store "$S" --exact | tail -1
       - name: Harness (production and runtime-on) and the engine door

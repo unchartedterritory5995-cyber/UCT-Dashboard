@@ -98,8 +98,12 @@ def load_json(path, default=None):
     return default
 
 
+RETRY_BACKOFF_S = float(os.environ.get("CENSUS_FULL_RETRY_BACKOFF", "2.0"))
+
+
 def http_get(url, tries=3):
-    """(status, bytes). 400/401/403/404 are ANSWERS, never retried; other failures retry with backoff."""
+    """(status, bytes). 400/401/403/404/429 are ANSWERS, never retried here (a refusal is the caller's to back off
+    from, never retried hot); a network error or 5xx retries after RETRY_BACKOFF_S, 2x, 3x."""
     last = None
     for attempt in range(tries):
         try:
@@ -108,12 +112,12 @@ def http_get(url, tries=3):
             with urllib.request.urlopen(req, timeout=45) as r:
                 return r.status, r.read()
         except urllib.error.HTTPError as e:
-            if e.code in (400, 401, 403, 404):
+            if e.code in (400, 401, 403, 404, 429):
                 return e.code, b""
             last = e
         except Exception as e:  # noqa: BLE001
             last = e
-        time.sleep(2.0 * (attempt + 1))
+        time.sleep(RETRY_BACKOFF_S * (attempt + 1))
     raise last
 
 
@@ -389,6 +393,9 @@ def cmd_population(a):
         len(rows), json.dumps({k: v["scripts"] for k, v in counts.items()}), len(exs), len(dropped), a.out))
 
 
+REFUSALS_TO_STOP = 5
+
+
 def shard_of(rows, shard, of):
     """1-based shard `shard` of `of`: every `of`-th row of the key-sorted population (populations interleave)."""
     return [r for i, r in enumerate(sorted(rows, key=lambda r: r["key"])) if i % of == shard - 1]
@@ -405,10 +412,19 @@ def cmd_shard(a):
         # a cost measurement: `limit` rows spread evenly over the shard (every population, not the first keys)
         rows = rows[::max(1, len(rows) // a.limit)][:a.limit]
     items, report = [], {"shard": a.shard, "of": a.of, "rows": len(rows), "ok": 0, "byPopulation": {},
-                         "mismatch": [], "unavailable": [], "examples": None}
+                         "delayS": DELAY, "mismatch": [], "unfetched": [], "refusals": 0, "stopped": None,
+                         "examples": None}
     t0 = time.time()
+    # ⛔ POLITENESS (coordinator, 2026-11-20): the shards share ONE aggregate rate (the workflow sets DELAY to the
+    # survey's 1.2 s x the shard count). A 429 / 403 from pine-facade is a refusal: the script is recorded
+    # `unfetched` by name, the shard backs off (60 s, doubling, at most 10 min) and never retries it; after
+    # REFUSALS_TO_STOP refusals in a row it stops asking for the rest of the shard (each recorded by name).
+    pause, in_a_row = 60.0, 0
     for i, r in enumerate(rows, 1):
         slug = r["key"].split(":", 1)[1]
+        if report["stopped"] and r["population"] != "committed":
+            report["unfetched"].append({"key": r["key"], "answer": "not-asked:stopped-after-refusals"})
+            continue
         if r["population"] == "committed":
             path = os.path.join(ROOT, "corpus", "committed", slug + ".pine")
             text = read_text(path) if os.path.exists(path) else None
@@ -421,8 +437,21 @@ def cmd_shard(a):
             text = d["source"] if d else None
             time.sleep(DELAY)
             path = os.path.join(out, "src", r["population"], slug + ".pine")
+            if answer in ("http-429", "http-403"):
+                report["refusals"] += 1
+                in_a_row += 1
+                report["unfetched"].append({"key": r["key"], "answer": answer})
+                if in_a_row >= REFUSALS_TO_STOP:
+                    report["stopped"] = "after %d refusals in a row at row %d" % (in_a_row, i)
+                    print("STOPPED fetching: %s" % report["stopped"], flush=True)
+                else:
+                    print("REFUSED (%s): backing off %.0f s" % (answer, pause), flush=True)
+                    time.sleep(pause)
+                    pause = min(pause * 2, 600.0)
+                continue
+            in_a_row, pause = 0, 60.0
         if text is None:
-            report["unavailable"].append({"key": r["key"], "answer": answer})
+            report["unfetched"].append({"key": r["key"], "answer": answer})
             continue
         if sha256_text(text) != r["sha256"]:
             report["mismatch"].append(r["key"])
@@ -438,8 +467,8 @@ def cmd_shard(a):
         report["examples"] = shard_examples(pop["examples"], a.examples_ref, os.path.join(out, "examples"), items)
     write_json(os.path.join(out, "items.json"), items)
     write_json(os.path.join(out, "fetch_report.json"), report)
-    print("SHARD %d/%d: %d of %d rows ready (mismatch %d, unavailable %d), examples %s, %.0fs" % (
-        a.shard, a.of, report["ok"], len(rows), len(report["mismatch"]), len(report["unavailable"]),
+    print("SHARD %d/%d: %d of %d rows ready (mismatch %d, unfetched %d, refusals %d), examples %s, %.0fs" % (
+        a.shard, a.of, report["ok"], len(rows), len(report["mismatch"]), len(report["unfetched"]), report["refusals"],
         json.dumps(report["examples"]), time.time() - t0))
 
 

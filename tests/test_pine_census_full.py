@@ -129,6 +129,43 @@ def test_the_shards_cover_every_row_once():
         assert max(map(len, parts)) - min(map(len, parts)) <= 1
 
 
+def _shard_run(tmp_path, monkeypatch, answers):
+    """cmd_shard over a 12-row ecosystem population whose pine-facade answers are `answers` (per row index)."""
+    import hashlib
+    rows = [{"key": "ecosystem:s%02d" % i, "population": "ecosystem", "scriptIdPart": "PUB;%02d" % i, "rev": "1.0",
+             "sha256": hashlib.sha256(("src %d" % i).encode()).hexdigest()} for i in range(12)]
+    pop = tmp_path / "pop.json"
+    pop.write_text(json.dumps({"schema": cf.POPULATION_SCHEMA, "rows": rows, "examples": []}), encoding="utf-8")
+    asked, slept = [], []
+
+    def facade(sid, rev="last"):
+        i = int(sid.split(";")[1])
+        asked.append(i)
+        a = answers(i)
+        return ({"source": "src %d" % i, "scriptAccess": "open_no_auth", "version": rev, "kind": "study"}, "ok") \
+            if a == "ok" else (None, a)
+    monkeypatch.setattr(cf, "facade", facade)
+    monkeypatch.setattr(cf.time, "sleep", lambda s: slept.append(s))
+    cf.main(["shard", "--population", str(pop), "--shard", "1", "--of", "1", "--out", str(tmp_path / "w")])
+    rep = json.loads((tmp_path / "w" / "fetch_report.json").read_text(encoding="utf-8"))
+    return rep, asked, slept
+
+
+def test_a_refusal_is_recorded_by_name_backed_off_from_and_never_retried(tmp_path, monkeypatch):
+    rep, asked, slept = _shard_run(tmp_path, monkeypatch, lambda i: "http-429" if i in (3, 7) else "ok")
+    assert sorted(asked) == list(range(12)) and len(asked) == 12, "every script asked once, a refused one never again"
+    assert [u["key"] for u in rep["unfetched"]] == ["ecosystem:s03", "ecosystem:s07"]
+    assert rep["ok"] == 10 and rep["refusals"] == 2 and rep["stopped"] is None
+    assert sum(1 for s in slept if s >= 60) == 2, "each refusal is followed by a back-off of at least 60 s"
+
+
+def test_the_shard_stops_asking_after_five_refusals_in_a_row(tmp_path, monkeypatch):
+    rep, asked, _slept = _shard_run(tmp_path, monkeypatch, lambda i: "http-403" if i >= 2 else "ok")
+    assert asked == [0, 1, 2, 3, 4, 5, 6], "five refusals in a row, then no further request"
+    assert rep["stopped"] and rep["ok"] == 2
+    assert [u["key"] for u in rep["unfetched"]] == ["ecosystem:s%02d" % i for i in range(2, 12)]
+
+
 @pytest.mark.skipif(shutil.which("openssl") is None, reason="openssl is not on this machine")
 def test_the_envelope_needs_the_private_key(tmp_path):
     priv, pub = tmp_path / "k.pem", tmp_path / "pub.pem"
