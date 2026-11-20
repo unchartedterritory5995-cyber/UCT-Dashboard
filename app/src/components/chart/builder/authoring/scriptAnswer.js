@@ -106,7 +106,7 @@ export async function checkScript(pine, { load = loadEngine, chart = null, admis
     const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason } = await load()
     // (why the server is still checking, when it said: kept on a verdict that is only CHECKING, nowhere else)
     const withReason = (v) => {
-      if (!isChecking(v) || typeof pendingReason !== 'function') return v
+      if (!isChecking(v)) return v
       const reason = pendingReason(pine)
       return PENDING_REASON_LINES[reason] ? { ...v, pendingReason: reason } : v
     }
@@ -181,8 +181,10 @@ async function loadEngine() {
     // whether the lane decided THIS script with no admission verdict in hand (`engine/runtimeKill.js`)
     consultPending: (pine) => kill.runtimeConsultPendingOf({ source: pine }),
     // why the server said "still being checked" the last time it was asked about this script, when it gave a
-    // reason (an engine that does not keep one yet has no such function: then nothing is said)
-    pendingReason: (pine) => (typeof kill.runtimePendingReasonOf === 'function' ? kill.runtimePendingReasonOf({ source: pine }) : null),
+    // reason. ⛔ READ DIRECTLY, no "is it there" guard (coordinator ruling 2026-11-20): a guard is a silent-off
+    // switch, and a renamed engine function would leave the dock saying nothing. Renamed, this throws, and the
+    // rail that walks both windows on the real engine (`builder/pendingReason.rail.test.jsx`) goes red.
+    pendingReason: (pine) => kill.runtimePendingReasonOf({ source: pine }),
     inspectSource: pineBox.inspectSource,
     memberPaneDefinition: paneDef.memberPaneDefinition,
     editorStatus: status.editorStatus,
@@ -266,6 +268,8 @@ export const UNCHECKED_STATE = 'unchecked'
  *  `scriptAnswer.test.js` holds the two equal). */
 export const STILL_CHECKING_HEADLINE = 'Still being checked on this chart'
 export const STILL_CHECKING_LINE = 'The chart had not finished checking this script. Open it in the editor to see its status; nothing needs fixing.'
+/** The editor panel's own line under "Still being checked on this chart" (`PineEditorStatus.jsx`). */
+export const CHECKING_IN_THE_EDITOR_LINE = 'UCT has not finished checking whether it can draw this script bar by bar. Nothing needs fixing: this updates by itself when the check finishes.'
 export const isChecking = (verdict) => !!verdict && verdict.runs !== true && verdict.checking === true
 /** A pause that ends early once `cancelled()` is true (asked every quarter second). */
 async function pause(ms, cancelled) {

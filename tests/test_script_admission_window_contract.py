@@ -14,7 +14,7 @@ import re
 
 from api.services import pine_authoring
 from api.services import runtime_definitions as rt
-from tests.test_script_answer_admission import ADMITTED, HISTORY, UNADMITTED, adm  # noqa: F401 -- `adm` is a fixture
+from tests._script_admission_fixtures import ADMITTED, HISTORY, UNADMITTED, adm  # noqa: F401 -- `adm` is a fixture
 
 AUTHORING = pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "components" / "chart" / "builder" / "authoring"
 KEYS = {"sha256", "admitted", "missing", "historyOnly"}

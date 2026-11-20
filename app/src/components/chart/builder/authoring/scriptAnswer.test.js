@@ -602,7 +602,7 @@ describe('stopping, and verdicts made with nothing known', () => {
 
   it('⛔ a verdict made while the chart does not know whether it may draw the script is CHECKING, never a refusal', async () => {
     // the lane declined the script for want of an admission answer: the paste check reads "does not run"
-    const pendingEngine = async () => ({ ...(await realEngine()), consultPending: () => true })
+    const pendingEngine = async () => ({ ...(await realEngine()), consultPending: () => true, pendingReason: () => null })
     const v = await checkScript(BROKEN, { load: pendingEngine })
     expect(v.runs).toBe(false)
     expect(v.checking).toBe(true)
@@ -748,10 +748,12 @@ describe('a script still being checked says why, when the server said why', () =
       expect(v.checking).toBe(true)
       expect('pendingReason' in v, String(reason)).toBe(false)
     }
-    // an engine that keeps no reason yet (no such function): nothing is said, nothing breaks
-    const older = await checkScript(BROKEN, { load: async () => ({ ...(await realEngine()), consultPending: () => true }) })
-    expect(older.checking).toBe(true)
-    expect('pendingReason' in older).toBe(false)
+    // ⛔ NO SILENT-OFF GUARD (coordinator ruling 2026-11-20): an engine without the reason reader is not quietly
+    // tolerated. The check fails loudly as "could not be checked here", which is never "runs" and never a repair.
+    const without = await checkScript(BROKEN, { load: async () => ({ ...(await realEngine()), consultPending: () => true }) })
+    expect(without.state).toBe(UNCHECKED_STATE)
+    expect(without.runs).toBe(false)
+    expect(scriptNeedsFixing(without)).toBe(false)
     // CONTROL: a verdict that is not CHECKING never carries one: not run at all, and run on a chart
     const runsFine = await checkScript(TABLE, { load: pendingEngine('busy') })
     expect('pendingReason' in runsFine).toBe(false)
