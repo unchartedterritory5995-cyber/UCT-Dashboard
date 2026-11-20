@@ -36,7 +36,9 @@ function runtimeLane(source) {
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
   __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests(); setRuntimeKillList([])
-  return memberPaneDefinition({ source })
+  // ⛔ an id and a name, as every door test minting a runtime document passes them (`fillAnchorDrawn.test.js`): a runtime
+  // document is `runtime:<id>`, so without one the door falls back to the host lane's refusal (#2137's CI, run 44671305718)
+  return memberPaneDefinition({ source, id: 'u_other_rt', name: 'other-rt' })
 }
 
 afterEach(() => { __resetRuntimePanePermission(); vi.unstubAllEnvs() })
@@ -65,6 +67,7 @@ describe('2. both member-door paths carry it, on the saved document', () => {
   it('the RUNTIME document', () => {
     const built = runtimeLane(OTHER_RT)
     expect(built.ok, built.reason).toBe(true)
+    expect(built.lane, 'the door did not mint a runtime document, so the runtime path is not under test').toBe('runtime')
     expect(built.definition.compute && built.definition.compute.kind, 'the runtime lane drew it').toBe('runtime')
     expect(sourceNotes(built).map((n) => n.name)).toEqual(['AMEX:SPY'])
     expect(saved(built).map((n) => n.note)).toEqual([RULED])
