@@ -12,7 +12,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
-import { memberPaneDefinition, __forceRuntimeLaneForTests } from './memberPaneDefinition'
+import { memberPaneDefinition } from './memberPaneDefinition'
 import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from '../../engine/runtimeKill'
 import { otherSymbolSourceNotesFor, OTHER_SYMBOL_SOURCE_NOTE } from '../../engine/ast/symbolSubstitution'
@@ -20,6 +20,9 @@ import { otherSymbolSourceNotesFor, OTHER_SYMBOL_SOURCE_NOTE } from '../../engin
 const RULED = "This script reads `AMEX:SPY`. It uses UCT's own data for that symbol, not TradingView's feed. The two "
   + "agree on most dates but not all, so values built from it can differ from TradingView's chart, most often on older bars."
 const OTHER = '//@version=6\nindicator("other")\nplot(request.security("AMEX:SPY", "D", close))\n'
+// the same read in a script the HOST lane refuses (an unbounded running total, `pine:state`): the member door routes it to the
+// RUNTIME lane, so this is the runtime document's own disclosure path
+const OTHER_RT = '//@version=6\nindicator("other-rt")\nvar float acc = 0.0\nacc += nz(request.security("AMEX:SPY", "D", close))\nplot(acc)\n'
 const NONE = '//@version=6\nindicator("none")\nplot(close)\n'
 const OWN = '//@version=6\nindicator("own")\nplot(request.security(syminfo.tickerid, "D", close))\n'
 const FRED = fs.readFileSync(path.join(path.resolve(process.cwd(), '..'), 'docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine'), 'utf8')
@@ -30,20 +33,20 @@ const saved = (built) => ((built.definition && built.definition.meta && built.de
 
 function runtimeLane(source) {
   __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests(); setRuntimeKillList([])
-  __forceRuntimeLaneForTests(true)
-  try { return memberPaneDefinition({ source }) } finally { __forceRuntimeLaneForTests(false) }
+  return memberPaneDefinition({ source })
 }
 
-afterEach(() => { __forceRuntimeLaneForTests(false); __resetRuntimePanePermission() })
+afterEach(() => { __resetRuntimePanePermission() })
 
 describe('1. the note: one per other symbol, the ruled sentence, named as spelled', () => {
   it('the sentence is the ruling, word for word', () => {
     expect(OTHER_SYMBOL_SOURCE_NOTE('AMEX:SPY')).toBe(RULED)
   })
   it('one per symbol, by its spelling; duplicates and malformed rows say nothing more', () => {
-    const got = otherSymbolSourceNotesFor([{ ticker: 'SPX', spellings: ['SP:SPX'] }, { ticker: 'SPX', spellings: ['SP:SPX'] },
-      { ticker: 'QQQ', spellings: [] }, null, { ticker: '' }, { spellings: ['X'] }])
-    expect(got.map((n) => n.name)).toEqual(['SP:SPX', 'QQQ'])
+    // a spelling is the PREFIX the script wrote (`SP` of `SP:SPX`); none, or '', names the bare ticker
+    const got = otherSymbolSourceNotesFor([{ ticker: 'SPX', spellings: ['SP'] }, { ticker: 'SPX', spellings: ['SP'] },
+      { ticker: 'QQQ', spellings: [] }, { ticker: 'SPY', spellings: [''] }, null, { ticker: '' }, { spellings: ['X'] }])
+    expect(got.map((n) => n.name)).toEqual(['SP:SPX', 'QQQ', 'SPY'])
     expect(got.every((n) => n.note === OTHER_SYMBOL_SOURCE_NOTE(n.name))).toBe(true)
     expect(otherSymbolSourceNotesFor(undefined)).toEqual([])
   })
@@ -57,7 +60,7 @@ describe('2. both member-door paths carry it, on the saved document', () => {
     expect(saved(built).map((n) => n.note)).toEqual([RULED])
   })
   it('the RUNTIME document', () => {
-    const built = runtimeLane(OTHER)
+    const built = runtimeLane(OTHER_RT)
     expect(built.ok, built.reason).toBe(true)
     expect(built.definition.compute && built.definition.compute.kind, 'the runtime lane drew it').toBe('runtime')
     expect(sourceNotes(built).map((n) => n.name)).toEqual(['AMEX:SPY'])
@@ -83,7 +86,7 @@ describe('4. Fred RS says it for its SP:SPX read', () => {
     const built = memberPaneDefinition({ source: FRED })
     expect(built.ok, built.reason).toBe(true)
     const names = sourceNotes(built).map((n) => n.name)
-    expect(names.some((n) => /SPX/.test(n)), JSON.stringify(names)).toBe(true)
+    expect(names, JSON.stringify(names)).toContain('SP:SPX')
     expect(saved(built).length).toBe(names.length)
   })
 })

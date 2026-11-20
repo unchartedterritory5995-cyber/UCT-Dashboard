@@ -48,7 +48,8 @@ const WHAT = Object.freeze({ 'syminfo.industry': 'industry', 'syminfo.sector': '
  *  our SP:SPX differs from TradingView's on 12-47% of dates, the RS line by up to 1.35e-4 relative on recent histories
  *  and up to 1.8e-2 on bars of histories reaching 1999. The grader proves that is the data (supply-attributed
  *  MATCH_SUBSTITUTED); a member was told nothing. One note per symbol, named as the script spells it, from the
- *  translation's own list (`translatePine`'s `otherSymbols`: the `sym` reads only, so the chart's own symbol never
+ *  translation's own list (`translatePine`'s `otherSymbols`: `{ticker, spellings}`, a spelling being the prefix the script
+ *  wrote, so `SP` + `SPX` names `SP:SPX`; the `sym` reads only, so the chart's own symbol never
  *  carries one). Generic by symbol, never SPX-specific. */
 export const OTHER_SYMBOL_SOURCE_NOTE = (name) => `This script reads \`${name}\`. It uses UCT's own data for that symbol, `
   + 'not TradingView\'s feed. The two agree on most dates but not all, so values built from it can differ from '
@@ -60,8 +61,10 @@ export function otherSymbolSourceNotesFor(otherSymbols) {
   const seen = new Set()
   for (const r of Array.isArray(otherSymbols) ? otherSymbols : []) {
     if (!r || typeof r.ticker !== 'string' || !r.ticker.trim()) continue
+    // a spelling is the PREFIX the script wrote before the ticker (`SP` of `SP:SPX`, `AMEX` of `AMEX:SPY`; '' when bare)
     const spelled = Array.isArray(r.spellings) ? r.spellings.find((s) => typeof s === 'string' && s.trim()) : null
-    const name = (spelled || r.ticker).trim()
+    const ticker = r.ticker.trim()
+    const name = !spelled ? ticker : (spelled.includes(':') ? spelled.trim() : `${spelled.trim()}:${ticker}`)
     if (seen.has(name)) continue
     seen.add(name)
     out.push({ name, note: OTHER_SYMBOL_SOURCE_NOTE(name) })
