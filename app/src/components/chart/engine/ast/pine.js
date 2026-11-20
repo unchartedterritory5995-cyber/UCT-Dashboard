@@ -7461,10 +7461,12 @@ export function constantTestValue(tree) {
 const TF_READ_HOPS = 16
 
 /** ⭐⭐ (request unit, TF-FOLD, engine 89) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
- *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops. Handed to `ownTimeframeOf` /
- *  `timeframeLiteralOf` by the request readers alone (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
+ *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops, and (request unit PR 2, NUMBER PENDING) a call to
+ *  a script function the runtime lane hands over settled (`calls`: `throughSettledCall`,
+ *  `settledRequestFunctionOf`). Handed to `ownTimeframeOf` / `timeframeLiteralOf` by the request readers alone
+ *  (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
  *  the plot lane) keeps its own reach. */
-const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS })
+const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })
 
 /* ─── ⭐⭐ ENGINE 56 (A3) — A PINE v1-v5 `bool` CAN BE `na` ──────────────────────────────────
  *
@@ -8690,6 +8692,28 @@ export class Resolver {
      *  translation moves and no parameter id is minted in a new order (the C10 reason the plot lane keeps 4;
      *  `requestTimeframeReader.test.js` holds the plot lane byte-identical over the committed corpus). */
     this.runtimeRequestTimeframes = opts.requestTimeframeReader === 'runtime'
+    /** ⭐⭐ (request unit PR 2, NUMBER PENDING) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THAT READER ALONE. The runtime
+     *  lane's resolver environment holds pure expression bindings and no user function, so a timeframe written as a
+     *  call (Saty ATR Levels' `timeframe_func()`, TehThomas' `getAlignedTimeframe()`) was unreadable there. The
+     *  runtime lane hands its own kept bodies (`pineRuntimeFrontend.js`: `name → settledRequestFunctionOf(body)`,
+     *  anything with a `get(name)`), read ONLY by `throughSettledCall`, ONLY under `runtimeRequestTimeframes`.
+     *  ⛔ The host translator never sets it. */
+    this.requestSettledFunctions = this.runtimeRequestTimeframes && opts.requestSettledFunctions
+      && typeof opts.requestSettledFunctions.get === 'function' ? opts.requestSettledFunctions : null
+    /** ⭐⭐ (request unit PR 2, EXT-OWN, NUMBER PENDING) — THE CHART'S OWN SYMBOL ON THE EXTENDED SESSION, READ AS THE
+     *  CHART'S OWN DAILY BARS ON A DAILY CHART. Set by `pineRuntimeFrontend.js` on its own resolvers
+     *  (`requestExtendedOwn: 'daily-identity'`) and by nothing else: `request.security(ticker.new(syminfo.prefix,
+     *  syminfo.ticker, session.extended), <the chart's own daily timeframe>, x)` is `x` (`extendedOwnTickerOf`).
+     *  TradingView's manual (Sessions): "Extended hours data is only shown on intraday timeframes; on "1D" and above,
+     *  this variable is always `false`" (`session.ispremarket` / `session.ispostmarket`). It does not say what an
+     *  extended ticker's daily bars ARE, so this is served on its captures alone: Saty ATR Levels on NYSE:RDDT and
+     *  AMEX:SPY 1D (`saty-atr-levels-{rddt,spy}-1d-2026-11-14`, licence-held; its `"D"` reads `close[1]`,
+     *  `ta.atr(14)[1]`, `high`, `low` through that ticker), graded on the runtime lane (the request unit PR 2's
+     *  evidence), and the rig's own probe when captured (capture-queue row Q-REQ5, `vw-req-extended-own.pine`).
+     *  ⛔ NOTHING WIDER: a daily chart only, the identity only. The extended ticker at another timeframe (W / M on a
+     *  daily chart, `"D"` on an intraday chart, any lower timeframe) keeps its refusal: no capture reads it, and on an
+     *  intraday chart the extended series has bars the regular one does not. */
+    this.runtimeExtendedOwnDaily = opts.requestExtendedOwn === 'daily-identity'
     /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
      *  `pineRuntimeFrontend.js` when it builds a drawing script's values
      *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
@@ -14061,11 +14085,18 @@ export class Resolver {
       const taken = this.constantBranchOf(node)
       return taken ? this.ownTimeframeOf(taken, depth + 1, reach) : null
     }
+    // ⭐⭐ (request unit PR 2) — a call to a script function the runtime lane handed over settled
+    if (reach && reach.calls && node.type === 'call') {
+      return this.throughSettledCall(node, (n) => this.ownTimeframeOf(n, depth + 1, reach))
+    }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
       if (bound) {
         return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1, reach) : null
       }
+      // ⭐⭐ (request unit PR 2) — a name the runtime lane holds per bar, bound once to a settled call
+      const aliased = reach && reach.calls ? this.settledAliasOf(node.name) : null
+      if (aliased) return this.ownTimeframeOf(aliased, depth + 1, reach)
       if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) return node.name
     }
@@ -14078,12 +14109,57 @@ export class Resolver {
     return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined
   }
 
+  /** ⭐⭐ (request unit PR 2, NUMBER PENDING) — `fn(result)` for a call to a SCRIPT function the runtime lane handed
+   *  over settled (`requestSettledFunctions`: `settledRequestFunctionOf`), where `result` is the expression its body
+   *  leaves as its value, read in the body's own scope (the names the script bound before the function, the body's
+   *  own bindings) with the call's arguments as its parameters (the frame `throughBinding` reads a parameter from,
+   *  as a helper is inlined everywhere else); null for anything else (no such function, a body not settled, a named
+   *  argument, an argument count that is not the function's, a recursion).
+   *  ⭐ Nothing is evaluated here that the same expression written out would not fold: the reader handed `result`
+   *  (`timeframeLiteralOf` / `ownTimeframeOf`) asks `constantBranchOf` of each arm, so a test that varies per bar (a
+   *  per-bar argument included) still answers null and the request keeps its refusal. */
+  /** ⭐⭐ (request unit PR 2) — the call the runtime lane says a top-level name is bound to, once and for good
+   *  (`requestSettledFunctions.alias`: `alignedTF = getAlignedTimeframe()`, a name that lane holds per bar and so
+   *  never hands this reader as a binding), or null. Read only under `requestSettledFunctions`. */
+  settledAliasOf(name) {
+    const sf = this.requestSettledFunctions
+    if (!sf || typeof sf.alias !== 'function' || this.env && this.env.has(name)) return null
+    let call = null
+    try { call = sf.alias(name) } catch { call = null }
+    return call && call.type === 'call' ? call : null
+  }
+
+  throughSettledCall(node, fn) {
+    if (!node || node.type !== 'call' || !this.requestSettledFunctions || typeof node.name !== 'string') return null
+    let s = null
+    try { s = this.requestSettledFunctions.get(node.name) } catch { s = null }
+    if (!s || !s.node || !Array.isArray(s.params)) return null
+    const args = node.args || []
+    if (args.some((a) => !a || a.name) || args.length !== s.params.length) return null
+    if (this.frames.length >= MAX_CALL_DEPTH || this.stack.has(s)) return null
+    const callerEnv = this.env
+    // the names the script bound before the function, then its parameters, then its own bindings, in order
+    const bodyEnv = new Map(s.env || callerEnv || [])
+    s.params.forEach((p, k) => bodyEnv.set(p, { kind: 'param', index: k, name: p }))
+    for (const ln of s.lines || []) bodyEnv.set(ln.name, { kind: 'expr', node: ln.node })
+    this.stack.add(s)
+    this.frames.push(args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
+    this.env = bodyEnv
+    try { return fn(s.node) } finally { this.frames.pop(); this.env = callerEnv; this.stack.delete(s) }
+  }
+
   timeframeLiteralOf(node, depth = 0, reach = undefined) {
     if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'string') return node.value
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
       return taken ? this.timeframeLiteralOf(taken, depth + 1, reach) : null
+    }
+    // ⭐⭐ (request unit PR 2) — a call to a script function the runtime lane handed over settled; any other call
+    // (an `input`, below) reads as it did
+    if (reach && reach.calls && node.type === 'call') {
+      const settled = this.throughSettledCall(node, (n) => this.timeframeLiteralOf(n, depth + 1, reach))
+      if (settled !== null) return settled
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
@@ -14103,6 +14179,9 @@ export class Resolver {
       if (bound && bound.kind === 'param') {
         return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1, reach))
       }
+      // ⭐⭐ (request unit PR 2) — a name the runtime lane holds per bar, bound once to a settled call
+      const aliased = !bound && reach && reach.calls ? this.settledAliasOf(node.name) : null
+      if (aliased) return this.timeframeLiteralOf(aliased, depth + 1, reach)
       return null
     }
     // ⭐ PLAIN `input` IS THE v3/v4 SPELLING and it is what the MTF scripts use:
@@ -14561,6 +14640,23 @@ export class Resolver {
     return this.builtinNameThrough(bound.node, depth + 1)
   }
 
+  /** ⭐⭐ (request unit PR 2, EXT-OWN, NUMBER PENDING) — is this `ticker.new(syminfo.prefix, syminfo.ticker, session =
+   *  session.extended)` (followed through plain bindings and constant ternaries, as `tickerCallIn` follows), naming
+   *  nothing else (no adjustment, no back-adjustment, no settlement)? The one spelling a capture grades
+   *  (`runtimeExtendedOwnDaily`). ⛔ The prefix and the ticker are the chart's own BY NAME (`syminfo.prefix`,
+   *  `syminfo.ticker`, unbound): a literal names another listing, which this does not read. */
+  extendedOwnTickerOf(node) {
+    const call = this.tickerCallIn(node)
+    if (!call || call.name !== 'ticker.new') return false
+    const args = (call.args || []).filter(Boolean)
+    const slotOf = (name, i) => args.find((a) => a.name === name) || (args[i] && !args[i].name ? args[i] : null)
+    if (args.length !== 3) return false
+    if (args.some((a) => a.name && !['prefix', 'ticker', 'session'].includes(a.name))) return false
+    const builtin = (a) => (a && a.value ? this.builtinNameThrough(a.value) : null)
+    return builtin(slotOf('prefix', 0)) === 'syminfo.prefix' && builtin(slotOf('ticker', 1)) === 'syminfo.ticker'
+      && builtin(slotOf('session', 2)) === 'session.extended'
+  }
+
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
     // ⭐ A CONSTANT-CONDITION TERNARY PICKS ITS BRANCH — the idiom `ownTimeframeOf`
@@ -14961,7 +15057,12 @@ export class Resolver {
 
     // 1. WHOSE BARS: this chart's own, or a ticker we can name. Anything else —
     //    a computed symbol, another venue — falls through.
-    const own = this.ownSymbolNameOf(positional[0])
+    let own = this.ownSymbolNameOf(positional[0])
+    // ⭐⭐ (request unit PR 2, EXT-OWN) — the chart's own symbol on the extended session, on a daily chart, on the
+    // runtime lane's reader alone (`runtimeExtendedOwnDaily`); held to the identity below
+    const extendedOwn = own === null && this.runtimeExtendedOwnDaily && this.basePeriod === 'D'
+      && this.extendedOwnTickerOf(positional[0])
+    if (extendedOwn) own = 'syminfo.tickerid'
     const otherSym = own === null ? this.otherSymbolOf(positional[0]) : null
     const other = otherSym ? otherSym.ticker : null
     const venue = otherSym ? otherSym.venue : null
@@ -14998,6 +15099,8 @@ export class Resolver {
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      // ⛔ (request unit PR 2, EXT-OWN) — an extended-session ticker is read at the chart's own daily timeframe only
+      if (extendedOwn && code !== this.basePeriod) return null
       // ⭐⭐ C47 — THE QUARTER, `'3M'`, FOR A LOOK-AHEAD REQUEST ON A DAILY CHART.
       // `request.security(syminfo.tickerid, '3M', x, lookahead = barmerge.
       // lookahead_on)` reads the quarter the bar is INSIDE — `tf_live`, as the
@@ -15047,7 +15150,9 @@ export class Resolver {
           column: node.tok ? node.tok.column : null,
           requested: code,
           base: this.basePeriod,
-          foldedTo: 'the chart\u2019s own series',
+          foldedTo: extendedOwn
+            ? 'the chart\u2019s own daily series (on a daily chart TradingView shows no extended-hours data)'
+            : 'the chart\u2019s own series',
         })
         folded = code
         code = null
@@ -17999,6 +18104,83 @@ function ifBranches(stmts, i) {
     }
   }
   return { branches, next: j }
+}
+
+/** ⭐⭐ (request unit PR 2, NUMBER PENDING) — A SCRIPT FUNCTION'S RESULT AS ONE EXPRESSION, for the runtime lane's
+ *  request-timeframe reader alone (`Resolver.requestSettledFunctions` → `throughSettledCall`). `inl` is the body the
+ *  runtime lane keeps for a function (`pineRuntimeFrontend.js`, `inlineBodyByName`: `{params, lines, result, body}`).
+ *  TWO SHAPES, AND NOTHING ELSE:
+ *   · an EXPRESSION body (`f(a) => expr`, or plain `name = expr` lines then a last expression, the substitution form
+ *     the runtime lane already inlines by): its `result`, with its lines as the body's own bindings;
+ *   · `X = '<text>'` (typed `string X = …` too), then ONE `if` / `else if` / … / `else` chain whose every arm is the
+ *     single statement `X := '<text>'`, then optionally `X` alone (Saty ATR Levels' `timeframe_func()`, TehThomas'
+ *     `getAlignedTimeframe()`). Pine returns a function's last value; the chain's value is the value of the arm that
+ *     ran, which is the text that arm writes to X, and so is X read after it: the ternary
+ *     `c1 ? t1 : c2 ? t2 : … : tElse`. The `else` is required (without it the chain's value where no arm runs is
+ *     `na`, and X's is its first text: two answers, neither served here).
+ *  ⛔ Anything else is refused BY NAME (`{refused: <why>}`): the runtime lane names it at the request it stops.
+ *  ⛔ It READS nothing and decides nothing: the reader asks `constantBranchOf` of each test, so a test that varies
+ *  per bar answers null there, as the same ternary written out does. */
+export function settledRequestFunctionOf(inl) {
+  const SHAPE = 'a body this lane settles is one expression, or `x = \'<text>\'` then one `if` / `else if` / `else` '
+    + 'chain whose every arm is `x := \'<text>\'` (then optionally `x`)'
+  const refuse = (what) => ({ refused: `${what}; ${SHAPE}` })
+  if (!inl || !Array.isArray(inl.params)) return refuse('its body was not kept')
+  if (inl.result && Array.isArray(inl.lines)) return { params: inl.params, lines: inl.lines, node: inl.result }
+  const body = Array.isArray(inl.body) ? inl.body : null
+  if (!body || !body.length) return refuse('its body was not kept')
+  const isText = (n) => !!n && n.type === 'string' && typeof n.value === 'string'
+  const parsed = (toks) => {
+    try { return parseWholeExpression(toks) } catch { return null }
+  }
+  // 1. `X = '<text>'`, or typed (`string X = …`, `simple string X = …`)
+  const decl = body[0]
+  const dh = (decl && decl.header) || []
+  if ((decl.sub && decl.sub.length) || dh.some((t) => isPunct(t, ':='))) return refuse('its first line is not `x = \'<text>\'`')
+  const eq = findTop(dh, (t) => isPunct(t, '='))
+  const nameTok = eq >= 1 ? dh[eq - 1] : null
+  const typed = eq >= 1 ? dh.slice(0, eq - 1) : []
+  if (!nameTok || nameTok.kind !== 'ident' || TYPE_WORDS.has(nameTok.value)
+      || !typed.every((t) => t.kind === 'ident' && ['const', 'simple', 'series', 'string'].includes(t.value))) {
+    return refuse('its first line is not `x = \'<text>\'`')
+  }
+  const name = nameTok.value
+  if (!isText(parsed(dh.slice(eq + 1)))) return refuse(`\`${name}\` does not start as text written into the script`)
+  // 2. ONE `if` chain, with an `else`, every arm the one statement `X := '<text>'`
+  const ih = (body[1] && body[1].header) || []
+  if (!ih.length || ih[0].kind !== 'ident' || ih[0].value !== 'if') return refuse(`no \`if\` chain follows \`${name} = …\``)
+  const chain = ifBranches(body, 1)
+  if (!chain || !chain.branches.length) return refuse(`no \`if\` chain follows \`${name} = …\``)
+  if (chain.branches[chain.branches.length - 1].condToks !== null) return refuse('its `if` chain has no `else`')
+  const arms = []
+  for (const br of chain.branches) {
+    const sub = Array.isArray(br.sub) ? br.sub : []
+    const st = sub.length === 1 ? sub[0] : null
+    const h = (st && st.header) || []
+    if (!st || (st.sub && st.sub.length) || h.length < 3 || h[0].kind !== 'ident' || h[0].value !== name
+        || !isPunct(h[1], ':=')) {
+      return refuse(`an arm of its \`if\` chain is not the one statement \`${name} := '<text>'\``)
+    }
+    const value = parsed(h.slice(2))
+    if (!isText(value)) return refuse(`an arm writes \`${name}\` something other than text written into the script`)
+    const test = br.condToks === null ? null : parsed(br.condToks)
+    if (br.condToks !== null && !test) return refuse('a test of its `if` chain does not read as one expression')
+    arms.push({ test, value, tok: br.tok })
+  }
+  // 3. then nothing, or `X` alone
+  const tail = body.slice(chain.next)
+  if (tail.length > 1) return refuse(`more follows its \`if\` chain than \`${name}\``)
+  if (tail.length === 1) {
+    const th = tail[0].header || []
+    if ((tail[0].sub && tail[0].sub.length) || th.length !== 1 || th[0].kind !== 'ident' || th[0].value !== name) {
+      return refuse(`more follows its \`if\` chain than \`${name}\``)
+    }
+  }
+  let node = arms[arms.length - 1].value
+  for (let k = arms.length - 2; k >= 0; k -= 1) {
+    node = { type: 'ternary', test: arms[k].test, yes: arms[k].value, no: node, tok: arms[k].tok }
+  }
+  return { params: inl.params, lines: [], node }
 }
 
 /** ⭐⭐ C43 — EVERY `runtime.error(…)` THE SCRIPT WRITES, AND WHERE IT STANDS.

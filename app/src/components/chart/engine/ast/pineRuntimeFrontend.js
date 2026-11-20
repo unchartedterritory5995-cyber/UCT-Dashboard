@@ -33,7 +33,7 @@ import {
   findTop, isPunct, boundName, locate, PineRefusal, functionParams,
   VALUE_NAMESPACES, PINE_CALL_SHAPES, PINE_NAMESPACED_TREE, colourHexByName, objectEnumValue,
   OWN_TF_NAMES, basePeriodOf, periodTextOf, notePeriodRead, BUILTIN_CALL_TREE, BUILTIN_CALL_TREE_MIN_ARGS, inputColourDefaultNode,
-  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan,
+  constantTestValue, STRATEGY_ORDER_CALLS, PINE_SHORT_FORM, positionaliseSecurityArgs, strippedForScan, settledRequestFunctionOf,
   OUTPUT_CALLS as PINE_OUTPUT_CALLS, BAR_SERIES_DEFAULTS, paramDefaultShapeOk,
   declarationWordsOf, pineConstIntValue, constIntWritesOf, pineTupleBuiltinCallParts, pineNamespacedName,
   legacyBarsSignUnstated, LEGACY_BARS_SIGN_SENTENCE, REFUSALS, selfReferenceSentence,
@@ -2956,6 +2956,15 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   // own build where that stands, else a decline under this refusal.
   // Absent on every other build, whose options stay byte-identical.
   const objectDoorOpts = (atObjectDoor || objectsInRun) ? { objectDoor: true } : {}
+  /** ⭐⭐ (request unit PR 2, NUMBER PENDING) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THE REQUEST-TIMEFRAME READER
+   *  ALONE (`pine.js::Resolver.requestSettledFunctions` → `throughSettledCall`). This lane's resolver environment
+   *  holds pure expression bindings and no user function, so `request.security(ticker, timeframe_func(), …)` (Saty
+   *  ATR Levels) was unreadable here. Each function's own kept body (`inlineBodyByName`), read through
+   *  `pine.js::settledRequestFunctionOf` (an expression body, or `x = '<text>'` + one `if` chain of `x := '<text>'`;
+   *  anything else `{refused}`, named at the request it stops: `settledCallWhy`), in the scope of the names the
+   *  script bound BEFORE the function (`settledDefEnvByName`, a snapshot taken at its definition). Memoised per name
+   *  (one object per function, so a recursion is caught by the reader's stack). */
+  const settledFunctions = { get: (name) => settledFunctionNamed(name), alias: (name) => settledAliasNamed(name) }
   const resolverOpts = opts.pane === true
     ? {
       pineVersion,
@@ -2974,10 +2983,17 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       aboveDailyReads: true,
       ...objectDoorOpts,
       // ⭐⭐ (request unit, TF-FOLD, engine 89) — a request's timeframe is read with the runtime lane's reach
-      // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms). ⛔ The HOST translator never sets it.
+      // (`pine.js::requestTimeframeReach`: `TF_READ_HOPS` names and arms, and (PR 2) a script function's settled
+      // result, `settledFunctions`). ⛔ The HOST translator never sets either.
       requestTimeframeReader: 'runtime',
+      requestSettledFunctions: settledFunctions,
+      // ⭐⭐ (request unit PR 2, EXT-OWN, NUMBER PENDING) — the chart's own symbol on the extended session, at the
+      // chart's own daily timeframe on a daily chart, is the chart's own daily bars (`pine.js::extendedOwnTickerOf`),
+      // graded on Saty ATR Levels' captures. ⛔ The HOST translator never sets it.
+      requestExtendedOwn: 'daily-identity',
     }
-    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime' }
+    : { pineVersion, pineScript: true, pineV1, declWords, ...objectDoorOpts, requestTimeframeReader: 'runtime',
+      requestSettledFunctions: settledFunctions, requestExtendedOwn: 'daily-identity' }
   const makeResolver = () => {
     const r = new Resolver(env, TABLE, new Map(), resolverOpts)
     if (inputs && typeof inputs === 'object') r.inputValues = inputs
@@ -6919,6 +6935,30 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     return false
   }
 
+  /** ⭐⭐ (request unit PR 2) — `reachesSlotThroughEnv` for a request's TIMEFRAME argument, where a call to the
+   *  script's own function the request reader reads settled (`settledFunctions`: not refused) is not a slot read in
+   *  itself: what it reads is its arguments (checked here, as any argument is) and the names bound before it, which
+   *  are this `env`'s pure bindings (a name the script reassigns never enters `env`, so a body reading one is not
+   *  settled by the reader). ⛔ Every other shape answers exactly as `reachesSlotThroughEnv`. */
+  const tfReachesSlot = (node, scope) => {
+    // a name this lane holds per bar, bound once to such a call (`settledAliasNamed`), is that call: the TOP-LEVEL
+    // name only (a block or a frame here that declares the same name shadows it, and that is a slot read)
+    if (node && node.type === 'name') {
+      let aliased = null
+      try { aliased = settledAliasNamed(node.name) } catch { aliased = null }
+      if (aliased && scope && scope.lookup(node.name) !== root.lookup(node.name)) return true
+      if (aliased) node = aliased
+    }
+    if (node && node.type === 'call' && typeof node.name === 'string' && inlineBodyByName.has(node.name)) {
+      let s = null
+      try { s = settledFunctionNamed(node.name) } catch { s = null }
+      if (s && !s.refused) {
+        return (node.args || []).some((a) => reachesSlotThroughEnv(a && a.value !== undefined ? a.value : a, scope))
+      }
+    }
+    return reachesSlotThroughEnv(node, scope)
+  }
+
   /** ⭐ C23 — could evaluating this argument change anything the run holds?
    *  True for a call to a user function (it may push into a global array or set
    *  a drawing) and for any call outside the VALUE builtins — a collection, map,
@@ -7383,6 +7423,72 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
   /** name → a function body kept as an AST, so a call site can lower it in the
    *  CALLER's context when the shared frame will not do. */
   const inlineBodyByName = new Map()
+  /** ⭐⭐ (request unit PR 2) — name → the names the script had bound when it defined that function (`env`, copied
+   *  at the definition): the scope `settledFunctions` reads a settled body in. Pine lets a body read only names
+   *  declared before it. */
+  const settledDefEnvByName = new Map()
+  /** name → its settled record (`settledRequestFunctionOf`, with its definition's scope), memoised. */
+  const settledByName = new Map()
+  /** ⭐⭐ (request unit PR 2) — `settledFunctions.get`: null for a name this script did not define with a kept body. */
+  function settledFunctionNamed(name) {
+    if (settledByName.has(name)) return settledByName.get(name)
+    const inl = inlineBodyByName.get(name)
+    if (!inl) return null
+    const s = settledRequestFunctionOf(inl)
+    const rec = s.refused ? s : { ...s, env: settledDefEnvByName.get(name) || null }
+    settledByName.set(name, rec)
+    return rec
+  }
+  /** ⭐⭐ (request unit PR 2) — `settledFunctions.alias`: the call a top-level name is bound to, where the request
+   *  reads that name (`alignedTF = getAlignedTimeframe()`, TehThomas) and this lane holds it per bar (a call to the
+   *  script's own function is a slot here, never an `env` macro). Only a name declared ONCE, at the top level, as
+   *  `NAME = f(…)` (positional arguments, `f` a function this script defined with a kept body), never reassigned
+   *  (`mut`) and not an `env` binding: its value on every bar IS that call's, so where the call settles, the name
+   *  settles to the same text. Anything else is null and the request reads as it did. */
+  let settledAliases = null
+  function settledAliasNamed(name) {
+    if (!settledAliases) {
+      settledAliases = new Map()
+      const declaredAt = new Map()
+      for (const st of stmts) {
+        const h = st.header || []
+        if (!h.length || (st.sub && st.sub.length) || declarationPersists(h)) continue
+        if (h.some((x) => isPunct(x, ':=') || isPunct(x, '=>'))) continue
+        const eq = findTop(h, (x) => isPunct(x, '='))
+        const nt = eq >= 1 ? boundName(h, eq) : null
+        if (!nt) continue
+        declaredAt.set(nt.value, (declaredAt.get(nt.value) || 0) + 1)
+        let v = null
+        try { v = parseWholeExpression(h.slice(eq + 1)) } catch { v = null }
+        if (v && v.type === 'call' && typeof v.name === 'string' && (v.args || []).every((a) => a && !a.name)) {
+          settledAliases.set(nt.value, v)
+        }
+      }
+      for (const n of [...settledAliases.keys()]) if (declaredAt.get(n) !== 1) settledAliases.delete(n)
+    }
+    const call = settledAliases.get(name) || null
+    if (!call || mut.mutated.has(name) || env.has(name) || !inlineBodyByName.has(call.name)) return null
+    return call
+  }
+  /** ⭐⭐ (request unit PR 2) — WHY a request's timeframe written as a call to this script's function (directly, or
+   *  through a plain name bound to that call: `alignedTF = getAlignedTimeframe()`) was not read, as a clause for the
+   *  refusal the request takes; null where the timeframe is no such call. ⛔ It names; it decides nothing. */
+  const settledCallWhy = (tfNode, scope) => {
+    let n = tfNode
+    for (let k = 0; k < 4 && n && n.type === 'name'; k += 1) {
+      const b = env.get(n.name)
+      // a name a block or a frame here declares again is not the top-level name (`tfReachesSlot`)
+      const shadowed = !!scope && scope.lookup(n.name) !== root.lookup(n.name)
+      n = b && b.kind === 'expr' ? b.node : (b || shadowed ? null : settledAliasNamed(n.name))
+    }
+    if (!n || n.type !== 'call' || !inlineBodyByName.has(n.name)) return null
+    let s = null
+    try { s = settledFunctionNamed(n.name) } catch { s = null }
+    if (!s) return null
+    if (s.refused) return `the timeframe is \`${n.name}()\`, whose body is not settled here: ${s.refused}`
+    return `the timeframe is \`${n.name}()\`, whose result is not fixed before the first bar here (a test or an `
+      + 'argument it reads changes per bar, or is not a value written into the script or an input)'
+  }
 
   /** Lower a user function AT THE CALL SITE, substituting its arguments.
    *
@@ -7624,9 +7730,9 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         t = targetReader.requestTargetOf(node)
       } catch { return null } // a refusal on the way is "not the identity": the path below names it
       if (t && t.lower !== true && !reachesSlotThroughEnv(t.positional[0], scope)
-        && !reachesSlotThroughEnv(t.positional[1], scope)) hostTarget = t
+        && !tfReachesSlot(t.positional[1], scope)) hostTarget = t
       if (!t || t.own === null || t.other !== null || t.code !== null) return null
-      return reachesSlotThroughEnv(t.positional[0], scope) || reachesSlotThroughEnv(t.positional[1], scope)
+      return reachesSlotThroughEnv(t.positional[0], scope) || tfReachesSlot(t.positional[1], scope)
         ? null : t
     })()
     // ⛔ IN THE CALLER'S SCOPE, and `inRequestValue` stays false: at this
@@ -7721,9 +7827,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
       || (hostTarget.live === true && TF_RESAMPLABLE.includes(hostTarget.code)))
     for (const a2 of node.args) {
       if (a2 && a2.name === 'lookahead' && !lookaheadOff) {
+        // ⭐⭐ (request unit PR 2) — a timeframe written as a call to the script's own function says why it was not read
+        const fnWhy = settledCallWhy(argOf(positional[1]), scope)
         throw new RuntimeRefusal('runtime:request',
           '`lookahead` — the realtime half of this alignment is not measured yet, '
-          + 'and a guess here reads as a number that could have been traded on', at)
+          + 'and a guess here reads as a number that could have been traded on' + (fnWhy ? ` (${fnWhy})` : ''), at)
       }
     }
 
@@ -7740,9 +7848,10 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     let tfIr = hostTarget && !tfPlain ? null : lowerExpr(tfNode, scope)
     if (hostTarget && (!tfIr || tfIr.kind !== EXPR.STR)) tfIr = str(hostTarget.code === null ? '' : String(hostTarget.code))
     if (!tfIr || tfIr.kind !== EXPR.STR) {
+      const fnWhy = settledCallWhy(tfNode, scope)
       throw new RuntimeRefusal('runtime:request',
         'the timeframe of a request has to be fixed when the script is written — '
-        + 'it decides which bars must be fetched before the run', at)
+        + 'it decides which bars must be fetched before the run' + (fnWhy ? ` (${fnWhy})` : ''), at)
     }
 
     // ⭐ RS RATING L5 — THIS chart's own symbol at another timeframe needs no text: the host
@@ -16098,7 +16207,11 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         return { params, lines: null, result: null, body: lines }
       } catch { return null }
     })()
-    if (record.inlineBody) inlineBodyByName.set(nameTok.value, record.inlineBody)
+    if (record.inlineBody) {
+      inlineBodyByName.set(nameTok.value, record.inlineBody)
+      // ⭐⭐ (request unit PR 2) — the scope a settled body is read in (`settledFunctions`)
+      settledDefEnvByName.set(nameTok.value, new Map(env))
+    }
     // ⭐ C35 — the parameters this call site fixed, by SLOT (a nested block that
     // re-declares the name is a different slot and is not touched).
     frameConsts = null
