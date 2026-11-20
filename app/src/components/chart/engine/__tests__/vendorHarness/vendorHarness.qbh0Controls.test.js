@@ -132,6 +132,29 @@ describe('⛔ Q-BH0 controls: v5 and v4 keep today\'s answer; v6 moves only befo
       }
     }, 120000)
 
+    // ⭐ a `var bool` LATCH (its update reads its own state) read below its updates: on the columnar lane the plain
+    // read over the latch's recurrence, on the run a slot. Its history before history begins is a v6 bool's, `false`
+    // (H07 / H08 witness it for a `var bool`), and every later bar is the read. (⚠️ Read ABOVE its updates, the same
+    // latch, and a self-referential `?:` one, are refused on the host lane by name, `pine:state`, measured 2026-11-20:
+    // that is why `Resolver.plainRecurrence`'s read carries no wrap.)
+    it(`a v6 \`var bool\` latch read outside its update, ${lane}: \`false\` before history, the read after`, () => {
+      enterLane(lane)
+      const bars = toProductBars(capture())
+      const src = ['//@version=6', 'indicator("qbh0 latch")', 'var bool t = false', 'if close > open', '    t := true',
+        'if close < open', '    t := false', 'plot(t[1] == false ? 1 : 0, title = "L1")', 'plot(t ? 1 : 0, title = "L0")'].join('\n')
+      const on = doorColumns(src, bars, ['L1', 'L0'])
+      const off = doorColumns(src, bars, ['L1', 'L0'], { rule: false })
+      expect(on.cols.L1[0]).toBe(1)
+      expect(off.cols.L1[0], 'non-vacuous: the rule is what answers bar 0').not.toBe(1)
+      expect(sameFrom(on.cols.L1, off.cols.L1, 1)).toBe(true)
+      expect(sameFrom(on.cols.L0, off.cols.L0, 0)).toBe(true)
+      // non-vacuous: the latch moves (it is not constant), so its history is read, and read the same, after bar 0
+      // (⚠️ measured 2026-11-20, not this rule's: the host lane's `t[1] == false` reads 0 on bar 1 where the plotted
+      // `t` read 0 on bar 0, the same with the rule off, and the run reads 1 there. Reported, not pinned.)
+      expect(new Set(on.cols.L0.filter((x) => x === 0 || x === 1)).size).toBe(2)
+      expect(new Set(on.cols.L1.slice(1).filter((x) => x === 0 || x === 1)).size).toBe(2)
+    }, 120000)
+
     it(`a v6 NUMBER's history is still \`na\` before history begins, ${lane}`, () => {
       enterLane(lane)
       const bars = toProductBars(capture())

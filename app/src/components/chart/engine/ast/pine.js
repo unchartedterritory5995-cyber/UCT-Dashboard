@@ -12042,13 +12042,15 @@ export class Resolver {
         }
         const blockRead = this.blockLocalHistory(node)
         if (blockRead !== null) return blockRead
-        // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistory`), on both reads
-        // below; inside the name's own update the read is the recurrence's `self` and keeps its own rule.
+        // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistory`), on the plain read
+        // below. ⛔ Not on a reassigned name's read here (`plainRecurrence`): inside the name's own update it is the
+        // recurrence's `self`, and above the update, measured 2026-11-20, a v6 `bool` latch read there is refused by
+        // name on this lane (`pine:state`: an `if`-block latch and a self-referential `?:` one alike), so no rail can
+        // reach a wrap there (mutation-proved: the wrap's removal survived every rail). The run reads such a latch
+        // from its slot and serves the rule (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
         const histVersion = versionAt(node.tok, this.pineVersion)
         const plain = this.plainRecurrence(node, node.tok)
-        if (plain !== null) {
-          return this.buildingRecurrence === node.arg.name ? plain : v6BoolHistory(plain, node.n, histVersion)
-        }
+        if (plain !== null) return plain
         this.guardOffsetOfMutable(node)
         // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
         // reach the seam the same way and nesting needs no special case.
