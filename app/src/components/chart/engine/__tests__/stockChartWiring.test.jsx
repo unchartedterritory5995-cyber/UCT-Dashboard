@@ -307,6 +307,14 @@ function fakeCanvasContext() {
 }
 HTMLCanvasElement.prototype.getContext = function getContext() { return fakeCanvasContext() }
 
+// ⭐ THE RENDER WINDOW IS OFF IN THIS FILE, and off means the library objects themselves (chart/windowedChart.js).
+// This file's library double records the series IT created (`H.addSeriesCalls[].series`, `H.removedSeries`) and
+// asserts identity against what the engine bound. With the window on, the app holds the facade's series for each
+// of those, so every identity assertion would compare two objects that stand for one series. The facade's own
+// contract (bindings, panes, callbacks and markers all hand back the app's objects) is proven on the real library
+// in windowedChart.realLwc.test.js.
+beforeEach(() => { localStorage.setItem('uct.renderwindow.off', '1') })
+afterEach(() => { localStorage.removeItem('uct.renderwindow.off') })
 beforeEach(() => {
   cleanup()
   H.reset()

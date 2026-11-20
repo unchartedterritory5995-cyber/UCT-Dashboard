@@ -52,6 +52,18 @@ def market_tide(scope: str = Query("all", pattern="^(all|stocks|etfs)$"),
         raise HTTPException(status_code=503, detail=f"Market Tide unavailable: {e}") from e
 
 
+@router.get("/api/options/market-tide/history",
+            dependencies=[Depends(_switch("OPTIONS_MARKET_TIDE_ENABLED"))])
+def market_tide_history(scope: str = Query("all", pattern="^(all|stocks|etfs)$"),
+                        sessions: int = Query(60),
+                        _user: dict = Depends(require_paid)):
+    """Each finished session's net call / net put premium, as stored once after its close
+    (computed). Reads the store only: it never builds a tide and never reads the tape.
+    `sessions` is clamped to 1..250 by the store. Plain `def`: a blocking SQLite read."""
+    from api.services.options_analytics import tide_history as th
+    return th.history(scope, sessions)
+
+
 # ── BRK-08 positioning: FT-047 / 049 / 050 / 052 / 055 ──────────────────────────
 # `async def` and they await the chain (gex_service's fetch, cached); bars, the vendor chain and
 # the dealer-table read run in `asyncio.to_thread` inside the service.

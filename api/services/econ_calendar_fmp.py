@@ -149,6 +149,27 @@ def _clean(v) -> str | None:
     return str(v)
 
 
+# The provider names a figure's unit in its own field, beside the bare number. Only these
+# short suffixes are joined on ("0.4" + "%" reads "0.4%", "198" + "K" reads "198K"); any other
+# unit text (a currency, a long word) is left off, so a figure is never given a unit it may
+# not have.
+_UNIT_SUFFIXES = ("%", "K", "M", "B")
+
+
+def _figure(v, unit=None) -> str | None:
+    """One released, expected or prior figure as the calendar shows it: the provider's own
+    number with its unit joined on when the unit is one of `_UNIT_SUFFIXES`. `None` stays
+    `None` (no figure is ever made up), and a figure that already ends in its unit is not
+    given it twice."""
+    text = _clean(v)
+    if text is None:
+        return None
+    suffix = unit.strip() if isinstance(unit, str) else ""
+    if suffix not in _UNIT_SUFFIXES or text.endswith(suffix):
+        return text
+    return text + suffix
+
+
 def _fetch_econ_rows_typed(from_ds: str, to_ds: str) -> tuple[list | None, dict | None]:
     """D1-typed transport shared by both functions below (2026-09-03 A5
     modernization) — replaces the raw `requests.get` call each used to make
@@ -229,16 +250,16 @@ def fetch_us_econ_week_full(from_ds: str, to_ds: str) -> dict:
         else:
             bucket["econ"].append({
                 "time": _fmt_time(dt), "event": title,
-                "estimate": _clean(row.get("estimate")),
-                "prior": _clean(row.get("previous")),
-                "actual": _clean(row.get("actual")),
+                "estimate": _figure(row.get("estimate"), row.get("unit")),
+                "prior": _figure(row.get("previous"), row.get("unit")),
+                "actual": _figure(row.get("actual"), row.get("unit")),
                 "impact": tier,
             })
     return out
 
 
 def fetch_us_econ_week(from_ds: str, to_ds: str, limit_per_day: int = 8) -> dict[str, list[dict]]:
-    """{YYYY-MM-DD (ET): [{time, event, estimate, prior, is_fed}]}.
+    """{YYYY-MM-DD (ET): [{time, event, estimate, prior, actual, is_fed, is_key}]}.
 
     At most `limit_per_day` events per day, chosen by IMPACT and then returned
     in TIME order — so a busy day keeps NFP and drops the crude-oil inventory
@@ -304,8 +325,10 @@ def _fetch_us_econ_week_impl(
         out.setdefault(ds, []).append((
             rank, dt,
             {"time": _fmt_time(dt), "event": title,
-             "estimate": _clean(row.get("estimate")),
-             "prior": _clean(row.get("previous")),
+             "estimate": _figure(row.get("estimate"), row.get("unit")),
+             "prior": _figure(row.get("previous"), row.get("unit")),
+             # The released figure, once the provider has it; `None` before the release.
+             "actual": _figure(row.get("actual"), row.get("unit")),
              "is_fed": is_fed,
              "is_key": rank == _KEY_RANK and not is_fed},
         ))

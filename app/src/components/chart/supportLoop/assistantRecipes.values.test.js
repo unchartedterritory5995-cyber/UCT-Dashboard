@@ -116,7 +116,70 @@ let runClock = null
 beforeEach(() => { runClock = steadyRunClock() })
 afterEach(() => { if (runClock) runClock.restore(); runClock = null })
 
+/** An exponential average that STARTS as the simple average of its first `n` values (no value before that). */
+function emaSeeded(src, n) {
+  const out = new Array(src.length).fill(NAN), a = 2 / (n + 1)
+  for (let i = n - 1; i < src.length; i += 1) {
+    if (i === n - 1) { let s = 0; for (let k = 0; k < n; k += 1) s += src[k]; out[i] = s / n } else out[i] = a * src[i] + (1 - a) * out[i - 1]
+  }
+  return out
+}
+
 const CHECKS = {
+  'average-cloud': () => {
+    const c = C(BARS.daily)
+    const fast = emaSeeded(c, 8), slow = emaSeeded(c, 21)
+    const cols = engineColumns('average-cloud')
+    expect(cols).toHaveLength(3)
+    same(cols[0], fast, 'fast EMA')
+    same(cols[1], slow, 'slow EMA')
+    // the cloud's colour is chosen by ONE condition, and that condition is the column: on (the first colour) on
+    // exactly the bars where the fast average is at or above the slow one, off on every other bar, the bars
+    // before either average has a value included (a comparison with no value is not true)
+    const seen = new Set()
+    for (let i = 0; i < c.length; i += 1) {
+      const want = fast[i] >= slow[i] ? 1 : 0
+      expect(cols[2][i], `cloud colour: bar ${i}`).toBe(want)
+      seen.add(want)
+    }
+    expect(seen).toEqual(new Set([0, 1]))
+    expect(slow.findIndex(ok)).toBe(20)
+  },
+  'time-of-day-volume': () => {
+    const bars = BARS.intraday, DAYS = 10, SLOTS = 100
+    const day = bars.map((b) => dayKey(b.t))
+    let soFar = 0, today = [], begun = 0
+    const past = []                                   // one array per finished day, oldest first
+    const want = bars.map((b, i) => {
+      if (i > 0 && day[i] !== day[i - 1]) {
+        // the bars before the first day change may be part of a day: never stored
+        if (begun > 0 && today.length) { past.push(today); if (past.length > DAYS) past.shift() }
+        begun += 1
+        today = []
+        soFar = 0
+      }
+      soFar += b.v
+      today.push(soFar)
+      const slot = today.length - 1
+      if (!(begun > 0 && past.length === DAYS && slot < SLOTS)) return NAN
+      let total = 0
+      for (const d of past) total += slot < d.length ? d[slot] : d[d.length - 1]       // a short day counts its own total
+      const usual = total / DAYS
+      return usual > 0 ? soFar / usual * 100 : NAN
+    })
+    const cols = engineColumns('time-of-day-volume')
+    expect(cols).toHaveLength(2)
+    const compared = same(cols[0], want, 'volume so far, percent of usual')
+    // the fixture is doing work: every day is a whole day of the same length, the first value comes after the
+    // first (never stored) day and ten stored ones, and the ratio is on both sides of 100
+    const perDay = bars.filter((_, i) => day[i] === day[0]).length
+    expect(want.findIndex(ok)).toBe(perDay * (DAYS + 1))
+    expect(compared).toBe(bars.length - perDay * (DAYS + 1))
+    const vals = want.filter(ok)
+    expect(Math.min(...vals)).toBeLessThan(95)
+    expect(Math.max(...vals)).toBeGreaterThan(105)
+    same(cols[1], want.map(() => 100), 'the usual')
+  },
   'zigzag-percent': () => {
     const b = BARS.daily, want = []
     let dir = 0, extreme = NAN, extremeBar = NAN, lastY = NAN
