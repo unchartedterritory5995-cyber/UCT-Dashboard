@@ -145,6 +145,59 @@ def test_the_destination_is_the_ops_class_at_the_highest_severity_under_this_pro
     assert posted == []
 
 
+def test_the_log_says_whether_the_page_went_and_never_where_or_what(monkeypatch):
+    """2026-11-20: the first real page could not be confirmed from the log, because success said nothing and
+    "no destination" said nothing either. Each of the three outcomes says ONE line; none carries the webhook
+    address (a credential) or the page's text."""
+    from api.services import alert_destination
+    url, text = "https://discord.invalid/api/webhooks/123/SECRETTOKEN", "PAGE-TEXT-9f3"
+    said = []
+
+    class _Log:
+        def info(self, fmt, *a, **_k):
+            said.append(("INFO", fmt % a if a else fmt))
+
+        def warning(self, fmt, *a, **_k):
+            said.append(("WARNING", fmt % a if a else fmt))
+    monkeypatch.setattr(alert, "log", _Log())
+
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_a):
+            return False
+
+        def read(self, _n):
+            return b""
+
+    class _Now:
+        def __init__(self, target=None, **_k):
+            self.target = target
+
+        def start(self):
+            self.target()
+    monkeypatch.setattr(alert.threading, "Thread", _Now)
+    # posted
+    monkeypatch.setattr(alert_destination, "ops_webhook", lambda *a, **k: url)
+    monkeypatch.setattr(alert.urllib.request, "urlopen", lambda req, timeout=0: _Resp())
+    alert._post(text)
+    assert said == [("INFO", "[llm-provider] the page was posted to the ops channel")]
+    # the channel refused it: a warning, and NOT the "posted" line
+    said.clear()
+
+    def refuse(req, timeout=0):
+        raise OSError("HTTP 404 from " + url)
+    monkeypatch.setattr(alert.urllib.request, "urlopen", refuse)
+    alert._post(text)
+    assert said == [("WARNING", "[llm-provider] the page could not be posted: OSError")]
+    # no destination: a warning that it was NOT sent
+    said.clear()
+    monkeypatch.setattr(alert_destination, "ops_webhook", lambda *a, **k: "")
+    alert._post(text)
+    assert said == [("WARNING", "[llm-provider] no ops destination is set: the page was NOT sent")]
+
+
 def test_the_conversation_door_pages_on_a_refusal_and_says_back_on_the_next_answer(conv, clean_env, monkeypatch, channel):
     from tests.test_p2_truth_server import emits, env, model
     monkeypatch.setattr(conv, "_call_model", lambda _m: (_ for _ in ()).throw(_status_error(400, "Your credit balance is too low")))
