@@ -13804,6 +13804,238 @@
         "short interest list",
         "highest days to cover"
       ]
+    },
+    {
+      "id": "stock.seasonality",
+      "source": "Terminal data wave 6 (11-20): the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES terminal panels (seasonality, Market Tide by day, open interest change, Treasury yields), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.seasonality"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.seasonality"
+      ],
+      "ownWords": [
+        "marketRecords"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.seasonality",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA"
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*seasonality\\.stock.*\"params\":\\{\"symbol\":\"NVDA\"\\}"
+        ],
+        "says": [
+          "NVDA by calendar month, close to close, from the daily bars UCT holds, Jan 4, 2016 to Oct 30, 2026",
+          "fewer than 5 years",
+          "A record of the past, not a forecast.",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA seasonality",
+        "seasonality for NVDA",
+        "best months for NVDA",
+        "how does NVDA usually do in december"
+      ]
+    },
+    {
+      "id": "stock.seasonalityBoard",
+      "source": "Terminal data wave 6 (11-20): the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES terminal panels (seasonality, Market Tide by day, open interest change, Treasury yields), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.seasonalityBoard"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.seasonalityBoard"
+      ],
+      "ownWords": [
+        "marketRecords"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.seasonalityBoard",
+            "target": "$stockData",
+            "args": {
+              "measure": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*seasonality\\.board.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "Seasonality board, 3 of the 4 index and sector funds",
+          "the median November",
+          "its history is still being read",
+          "A record of the past, not a forecast.",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "sector seasonality",
+        "seasonality board",
+        "which sectors usually do best in november",
+        "seasonality of the sector funds"
+      ]
+    },
+    {
+      "id": "stock.tideHistory",
+      "source": "Terminal data wave 6 (11-20): the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES terminal panels (seasonality, Market Tide by day, open interest change, Treasury yields), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.tideHistory"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.tideHistory"
+      ],
+      "ownWords": [
+        "marketRecords"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.tideHistory",
+            "target": "$stockData",
+            "args": {
+              "scope": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*options\\.tideHistory.*\"params\":\\{\"scope\":\"all\",\"rows\":20\\}"
+        ],
+        "says": [
+          "Market Tide by finished session, stocks and ETFs together: 3 sessions are stored",
+          "There is no backfill",
+          "This is not the tide of a session still trading.",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "market tide history",
+        "market tide by day",
+        "market tide over the last week",
+        "how has the market tide been this week"
+      ]
+    },
+    {
+      "id": "stock.oiChange",
+      "source": "Terminal data wave 6 (11-20): the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES terminal panels (seasonality, Market Tide by day, open interest change, Treasury yields), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.oiChange"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.oiChange"
+      ],
+      "ownWords": [
+        "marketRecords"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.oiChange",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "side": null,
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*options\\.oiChange.*\"params\":\\{\"symbol\":\"NVDA\",\"side\":\"any\",\"rows\":15\\}"
+        ],
+        "says": [
+          "NVDA open interest change, calls and puts: UCT's options log of Fri, Oct 30, 2026 against Oct 29, 2026.",
+          "never as a change from 0",
+          "it is not a reading of a session still trading",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "open interest change on NVDA",
+        "what is the open interest change on NVDA",
+        "NVDA open interest change",
+        "NVDA oi change"
+      ]
+    },
+    {
+      "id": "stock.treasuryYields",
+      "source": "Terminal data wave 6 (11-20): the Agent half of the SEAS, SEASB, TIDEH, OIC and RATES terminal panels (seasonality, Market Tide by day, open interest change, Treasury yields), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.treasuryYields"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.treasuryYields"
+      ],
+      "ownWords": [
+        "marketRecords"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.treasuryYields",
+            "target": "$stockData",
+            "args": {}
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*rates\\.treasury.*\"params\":\\{\\}"
+        ],
+        "says": [
+          "US Treasury yields by maturity, end-of-day figures for Fri, Oct 30, 2026",
+          "The 10-year is 0.50 points above the 2-year",
+          "not quotes from a session still trading",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "treasury yields",
+        "what is the 10-year yield",
+        "is the yield curve inverted",
+        "where are bond yields"
+      ]
     }
   ],
   "refusals": [

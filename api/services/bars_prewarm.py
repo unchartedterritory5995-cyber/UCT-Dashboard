@@ -70,6 +70,23 @@ _PREWARM_FRESH_STATE = {
 _PREWARM_STATE = dict(_PREWARM_FRESH_STATE)
 
 
+#: The ACTIVE intraday set the newest prewarm pass computed (priority + breadth drill lists +
+#: watchlists/tags/UCT20/candidates/themes): the symbols whose 1m the prewarm keeps current. None
+#: until a pass has computed it. Read by the first-frame seed's long-tail 1m retention
+#: (`ffseed_onemin.retention`), which never trims these and trims NOTHING while this is None.
+_ACTIVE_INTRADAY: "frozenset | None" = None
+
+
+def _publish_active_intraday(symbols) -> None:
+    global _ACTIVE_INTRADAY
+    _ACTIVE_INTRADAY = frozenset(str(s).upper() for s in symbols if s)
+
+
+def active_intraday_set() -> "frozenset | None":
+    """The active intraday set of the newest prewarm pass, or None before the first one."""
+    return _ACTIVE_INTRADAY
+
+
 def _reset_prewarm_state() -> None:
     """Restore the pristine heartbeat. Test seam — a module global that carries
     over between tests makes every `alive` assertion pass vacuously."""
@@ -867,6 +884,7 @@ def run_prewarmer_forever():
         _PRIORITY + _FAST_PATH
         + sorted(_active - priority_set - fast_path_set)
     )
+    _publish_active_intraday(_active_intraday)
     print(f"[prewarm] Order: {len(_PRIORITY)} priority + {len(_FAST_PATH)} breadth-list + {len(rest)} long-tail = {len(ticker_list)} tickers")
     print(f"[prewarm] Active intraday set: {len(_active_intraday)} tickers "
           f"(scoped to breadth/watchlist/UCT20/candidates/themes; "

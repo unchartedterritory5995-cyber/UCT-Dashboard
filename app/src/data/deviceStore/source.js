@@ -42,9 +42,13 @@ export function buildTimeMs(build) {
   return m ? Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : null
 }
 
+// A device copy's saved time is the moment it is COMPLETE up to (`through`, live.js / engine.js), the
+// age every local-copy rule reads (the daily paint gate in particular); the build time only when an older
+// worker sends no stamp.
 const _hit = (cols) => {
   if (!cols?.t?.length) return null
-  return { rows: columnsToRows(cols), savedAt: buildTimeMs(cols.build) }
+  const through = Number.isFinite(cols.through) ? cols.through : null
+  return { rows: columnsToRows(cols), through, savedAt: through != null ? through * 1000 : buildTimeMs(cols.build) }
 }
 
 /** A source over any client-shaped object ({peekBars, getBars}); `load` resolves it. */
@@ -61,6 +65,12 @@ export function createDeviceSource({ load = _load, current = () => _client } = {
       return Promise.resolve(current() || load())
         .then((c) => (c ? c.getBars(sym, String(tf)) : null))
         .then(_hit, () => null)
+    },
+    /** Diagnostics: the worker's rule for (sym, tf) (client.why); 'no-client' when the store never loaded. */
+    why(sym, tf) {
+      return Promise.resolve(current() || load())
+        .then((c) => (c?.why ? c.why(sym, String(tf)) : 'no-client'))
+        .then((w) => w ?? 'no-engine', () => 'error')
     },
   }
 }

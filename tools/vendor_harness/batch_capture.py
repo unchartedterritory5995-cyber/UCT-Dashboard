@@ -521,6 +521,8 @@ def utcnow() -> str:
 #: persists. The resolved session MUST read back as this (`SESSION_JS`), or the row stops by name; it is restored after.
 #: ⛔ The layout's own session is never toggled (the rig rule: AUTOSAVE is account-wide).
 ROW_SESSIONS = {"extended": "0400-2000", "regular": "0930-1600"}
+#: what a capture id says of a row's NAMED session (`capture_id_for`); one entry per `ROW_SESSIONS` key
+SESSION_SUFFIX = {"extended": "-ext", "regular": "-rth"}
 
 
 def session_spec(symbol, session) -> str:
@@ -615,9 +617,12 @@ def capture_id_for(script: dict, o: Opts) -> str:
                          abort=True)
     sym_slug = slugify(o.symbol.split(":")[-1])
     tf_slug = slugify(res_norm(o.tf) if re.fullmatch(r"\d+", res_norm(o.tf)) else "1" + res_norm(o.tf))
-    # ⭐ (2026-11-20) an EXTENDED-session row is its own capture (`vw-clock-vwap-spy-5-ext-2026-09-28`, the convention)
-    ext = "-ext" if getattr(o, "session", None) == "extended" else ""
-    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}{ext}-{o.date}"
+    # ⭐ (2026-11-20) a row that NAMES its session says it in the id: `-ext` extended (`vw-clock-vwap-spy-5-ext-2026-09-28`,
+    # the convention), `-rth` regular. ⚰️ A regular-session row was named exactly as a capture of the chart's own session,
+    # and master's `vw-bi-time-d-extended-spy-60-2026-11-19` (no suffix) holds the EXTENDED session: the next reader trusts
+    # the file name. A row that names no session keeps its name (the chart's own session, recorded in the capture).
+    sess = SESSION_SUFFIX.get(getattr(o, "session", None), "")
+    capture_id = f"{script.get('captureStem') or script['slug']}-{sym_slug}-{tf_slug}{sess}-{o.date}"
     return f"{capture_id}-{phase}" if phase else capture_id
 
 

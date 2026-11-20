@@ -201,8 +201,8 @@ export function SectorTide({ scope }) {
       {failed ? <FailedRead testId="sector-tide-unavailable" retry={retry} title="The sector tide is unavailable right now. That does not mean the tape is quiet." /> : (
         <>
           {data.sectors.length ? (
-            <div className={styles.scroll}>
-              <table className={styles.table} data-testid="sector-tide-table" aria-label="Market Tide by sector">
+            <div className={`${styles.scroll} ${styles.sectorScroll}`}>
+              <table className={`${styles.table} ${styles.sectorTable}`} data-testid="sector-tide-table" aria-label="Market Tide by sector">
                 <thead><tr><th scope="col">Sector</th><th scope="col">Net call premium</th><th scope="col">Net put premium</th><th scope="col">Net</th><th scope="col">Prints</th></tr></thead>
                 <tbody>
                   {data.sectors.map((x) => (

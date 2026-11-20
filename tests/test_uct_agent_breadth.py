@@ -211,6 +211,8 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     # earnings.reactions
     # Terminal data wave 4: the three capabilities over the isolated kinds earnings.season / earnings.callThemes / group.drill
     # Terminal data wave 5: the two capabilities over the isolated kinds short.interest / short.list
+    # Terminal data wave 6: the five capabilities over the isolated kinds seasonality.stock / seasonality.board /
+    # options.tideHistory / options.oiChange / rates.treasury
     assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
                                                      "news.movers", "rs.compare", "stock.analystActions", "stock.sessionHighsLows",
                                                      "stock.longRunLeaders", "stock.darkPoolLevels", "stock.yearlyHighsLows",
@@ -218,7 +220,9 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
                                                      "stock.callSearch", "stock.gammaLevels", "stock.topFlowPicks",
                                                      "stock.flowRecord", "stock.earningsReactions",
                                                      "stock.earningsSeason", "stock.callThemes", "stock.groupDrill",
-                                                     "stock.shortInterest", "stock.shortList"}
+                                                     "stock.shortInterest", "stock.shortList",
+                                                     "stock.seasonality", "stock.seasonalityBoard", "stock.tideHistory",
+                                                     "stock.oiChange", "stock.treasuryYields"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════

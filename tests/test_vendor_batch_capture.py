@@ -777,7 +777,7 @@ def test_an_extended_row_captures_the_extended_session_and_puts_the_chart_back(t
 def test_a_regular_row_reads_the_regular_session(tmp_path):
     page, rd, _ = _session_batch(tmp_path, [("reg", "regular")])
     assert rd.results()["reg"]["outcome"] == bc.CAPTURED, rd.results()["reg"]
-    cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-2026-09-28.json").read_text(encoding="utf-8"))
+    cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-rth-2026-09-28.json").read_text(encoding="utf-8"))
     assert cap["symbol"]["session"] == "0930-1600"
     sets = [str(a) for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"]
     assert bc.session_spec("AMEX:SPY", "regular") in sets
@@ -804,6 +804,21 @@ def test_an_extended_row_and_a_regular_row_of_one_probe_are_two_captures():
     s = {"slug": "x", "captureStem": "vw-bi-time-d-extended"}
     assert bc.capture_id_for(s, o_ext) == "vw-bi-time-d-extended-spy-60-ext-2026-09-28"
     assert bc.capture_id_for(s, o_reg) == "vw-bi-time-d-extended-spy-60-2026-09-28"
+
+
+def test_a_row_that_names_the_regular_session_says_so_in_its_id():
+    # ⚰️ (2026-11-20) a REGULAR-session row of the `vw-bi-time-d-extended` probe was named as master's EXTENDED capture
+    # (`vw-bi-time-d-extended-spy-60-2026-11-19`, no suffix): the name lied to the next reader
+    o_rth, o_none = bd.fast_opts(symbol="AMEX:SPY", tf="60"), bd.fast_opts(symbol="AMEX:SPY", tf="60")
+    o_rth.session = "regular"
+    s = {"slug": "x", "captureStem": "vw-bi-time-d-extended"}
+    assert bc.capture_id_for(s, o_rth) == "vw-bi-time-d-extended-spy-60-rth-2026-09-28"
+    assert bc.capture_id_for(s, o_none) == "vw-bi-time-d-extended-spy-60-2026-09-28"   # no session named: as before
+    assert set(bc.SESSION_SUFFIX) == set(bc.ROW_SESSIONS)                             # every session has its suffix
+    o_ext = bd.fast_opts(symbol="AMEX:SPY", tf="60")
+    o_ext.session = "extended"
+    ids = {bc.capture_id_for(s, o) for o in (o_rth, o_none, o_ext)}
+    assert len(ids) == 3
 
 
 def test_the_spec_is_tradingviews_encoding_and_the_matcher_reads_through_it():

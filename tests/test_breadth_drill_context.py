@@ -138,3 +138,30 @@ def test_route_is_member_gated():
     app.include_router(rt.router)
     r = TestClient(app).get(f"/api/breadth-monitor/{DAY}/drill/up_4pct_today_list/context")
     assert r.status_code in (401, 403)
+
+
+def test_the_list_route_starts_no_server_bar_warm(client, monkeypatch):
+    """2026-11-20: the list GET (every open AND every hover prefetch) used to warm 8,000 daily bars
+    for EVERY name, which stalled the production web process for 6-12 s. The browser warms the
+    names itself; this route only reads."""
+    _history()
+    import api.routers.bars as bars_router
+    import api.services.bars_fetch as bars_fetch
+    warmed = []
+    monkeypatch.setattr(bars_router, "warm_bars_async", lambda t, **k: warmed.extend(t), raising=False)
+    monkeypatch.setattr(bars_fetch, "warm_bars_async", lambda t, **k: warmed.extend(t))
+    monkeypatch.setattr(bm, "fill_drill_volumes", lambda d, items: items)
+    r = client.get(f"/api/breadth-monitor/{DAY}/drill/up_4pct_today_list")
+    assert r.status_code == 200
+    assert [i["t"] for i in r.json()["items"]] == ["AAA", "BBB", "CCC"]
+    assert warmed == []
+
+
+def test_get_drill_list_reads_one_key_with_the_same_answers():
+    """2026-11-20: the list is read with json_extract (one key), not by parsing the whole blob."""
+    _history()
+    assert [i["t"] for i in bm.get_drill_list(DAY, "up_4pct_today_list")] == ["AAA", "BBB", "CCC"]
+    assert bm.get_drill_list(DAY, "nope_list") is None            # no such key
+    assert bm.get_drill_list("2026-01-01", "up_4pct_today_list") is None   # no such day
+    _seed("2026-09-11", {"up_4pct_today_list": []})
+    assert bm.get_drill_list("2026-09-11", "up_4pct_today_list") == []

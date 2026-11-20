@@ -24,6 +24,13 @@ import { DEFAULT_UNIVERSE, monitorDatesLsKey, monitorRecentLsKey, universeParam,
 const fetcher = jsonFetcher
 const BLOCK = 150               // rows per fetch/window block
 const SETTLE_MS = 90            // debounce so a fast fling doesn't fetch every block it flies past
+// ⭐ THE WHOLE TIMELINE, ONCE, WHEN THE PAGE IS IDLE (2026-11-20). A jump to 2019 or 2012 (the date
+// box, a year pick) landed on skeleton rows and waited ~1-2 s for its blocks (production: ~1.1 s
+// of empty rows, then the values). History is immutable and the server keeps one cached body for
+// the full window (~4,750 rows, ~850 KB on the wire, ~0.2 s warm), so the page asks for it once in
+// idle time and every later jump paints from memory. Blocks still load on demand until it lands.
+export const FULL_HISTORY_DAYS = 8000
+const FULL_HISTORY_IDLE_TIMEOUT_MS = 4000
 
 // ── Instant open (localStorage) ────────────────────────────────────────────────
 // Breadth history is IMMUTABLE — a past day's row never changes — so the recent
@@ -182,6 +189,45 @@ export default function useMonitorGrid({ enabled, liveRow, universe = DEFAULT_UN
   }, [fetchBlock, st])
 
   useEffect(() => () => clearTimeout(settleRef.current), [])
+
+  // The full timeline in idle time (see FULL_HISTORY_DAYS). Once per universe per page; a failure
+  // leaves on-demand blocks as they were and lets a later render ask again.
+  useEffect(() => {
+    if (!enabled || !allDates.length || st.fullRequested) return undefined
+    st.fullRequested = true
+    const s = st
+    const idle = typeof window !== 'undefined' && window.requestIdleCallback
+      ? (fn) => window.requestIdleCallback(fn, { timeout: FULL_HISTORY_IDLE_TIMEOUT_MS })
+      : (fn) => setTimeout(fn, 1500)
+    const cancelIdle = typeof window !== 'undefined' && window.cancelIdleCallback ? window.cancelIdleCallback : clearTimeout
+    let fired = false
+    const id = idle(async () => {
+      fired = true
+      try {
+        const res = await fetcher(`/api/breadth-monitor?days=${FULL_HISTORY_DAYS}${universeParam(universe)}`)
+        if (!isUct && res?.universe !== universe) throw new Error('universe mismatch')
+        // Fill only what is not held: a block read (or the live row) is never replaced by the bulk copy.
+        let added = 0
+        for (const row of res?.rows ?? []) {
+          if (row?.date && !s.cache.has(row.date)) { s.cache.set(row.date, row); added += 1 }
+        }
+        // Every block now wholly held needs no request of its own.
+        const dates = allDates
+        for (let k = 0; k * BLOCK < dates.length; k++) {
+          const ds = dates.slice(k * BLOCK, (k + 1) * BLOCK).filter((d) => d !== liveDate)
+          if (ds.length && ds.every((d) => s.cache.has(d))) { s.loaded.add(k); s.failed.delete(k) }
+        }
+        if (added) setVersion((v) => v + 1)
+      } catch {
+        s.fullRequested = false
+      }
+    })
+    // Not started yet (a re-render with a new index, an unmount): withdraw it, and let the next run
+    // schedule it again. Once started it completes and fills the cache (keyed by date, always valid).
+    return () => {
+      if (!fired) { cancelIdle(id); s.fullRequested = false }
+    }
+  }, [enabled, allDates, liveDate, st, universe, isUct])
 
   // Retry: re-ask the timeline index, and every block whose read failed.
   const retry = useCallback(() => {

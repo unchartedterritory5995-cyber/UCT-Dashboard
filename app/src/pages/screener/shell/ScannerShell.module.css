@@ -398,10 +398,16 @@
 .cardSym { color: var(--ut-gold); font-weight: 700; font-size: 14px; }
 .cardCompany { flex: 1; color: var(--text-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cardPx { font-family: var(--font-mono); font-size: 12.5px; color: var(--text-bright); }
-.cardStats { display: flex; gap: 14px; }
-.cardStat { display: flex; gap: 5px; align-items: baseline; }
-.cardStatLabel { color: var(--text-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); }
+/* The stats are ONE line, always: the list places its cards a fixed 64 px apart, so a line that
+   wrapped (a long sector name, "MKT CAP" broken in two) was drawn onto the next card. A stat
+   never shrinks or breaks, except one whose value is words (.cardStatText: the sector, the
+   industry): its value is cut with an ellipsis, and ResultCards puts the full text in `title`. */
+.cardStats { display: flex; gap: 14px; min-width: 0; overflow: hidden; white-space: nowrap; }
+.cardStat { display: flex; gap: 5px; align-items: baseline; flex: 0 0 auto; }
+.cardStatText { flex: 0 1 auto; min-width: 0; }
+.cardStatLabel { flex: none; color: var(--text-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: var(--ls-label, .5px); }
 .cardStatVal { font-family: var(--font-mono); font-size: 11.5px; color: var(--text); }
+.cardStatText .cardStatVal { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .pos { color: var(--success-ink); }
 .neg { color: var(--danger-ink); }
 

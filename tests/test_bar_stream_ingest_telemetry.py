@@ -15,6 +15,14 @@ def _fresh(monkeypatch):
     monkeypatch.setattr(bs, "_ing_prev", None)
     monkeypatch.setattr(bs, "_ing_recv_ms", 0.0)
     monkeypatch.setattr(bs, "_ing_queue_source", "unavailable")
+    # ⚰️ (2026-11-20, master gate run 44808949867: `assert 3 == 4` frames) `_timed_frames`
+    # files each frame under `int(time.time() // 60)`. A test whose ~0.3 s of frames
+    # crossed a WALL-CLOCK minute boundary split them across two windows, so the outcome
+    # was a function of the second the runner started. Pin the wall clock 1 s into a
+    # fixed minute (100), advancing at the real monotonic rate, so idle/busy timings stay
+    # real and no window can roll inside a test. (time.time is restored after each test.)
+    base, t0 = 100 * 60 + 1.0, time.monotonic()
+    monkeypatch.setattr(time, "time", lambda: base + (time.monotonic() - t0))
 
 
 def _set_minute(m):

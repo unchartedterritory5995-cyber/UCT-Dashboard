@@ -208,8 +208,10 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     markDay,
     markDayColor: markColor,
     replayCutoff,
-    // The chart's "Exit Replay Mode" pill turns the option off.
+    // Replay's off switch is the header chip; the chart's "Exit Replay Mode" pill stays hidden here
+    // (`showReplayExit: false`, owner 2026-11-20). Kept callable for any other caller.
     exitReplay: () => setDayPref('replay', false),
+    showReplayExit: false,
     setGroupSym: (color, sym) => {
       baseWorkspace.setGroupSym(color, sym)
       if (color !== 'A') return

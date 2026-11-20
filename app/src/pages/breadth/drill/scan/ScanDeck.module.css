@@ -78,7 +78,8 @@
 .dayChip span { font-size: 11px; line-height: 1; }
 .dayChip:hover:not(:disabled) { color: var(--dr-text, var(--text)); background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent)); }
 .dayChip[aria-pressed='true'] { color: var(--dr-bright, var(--text-bright)); background: var(--dr-selected, color-mix(in srgb, var(--text-bright) 13%, var(--bg-surface))); border-color: transparent; font-weight: 600; }
-.dayChip[data-mode='replay'][aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--ut-gold); }
+/* On = the Selected fill + a gold icon (gold marks only the chosen; no underline, owner 2026-11-20). */
+.dayChip[aria-pressed='true'] span { color: var(--ut-gold); }
 .dayChip:disabled { opacity: .4; cursor: default; }
 .dayChip:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 .metric {
