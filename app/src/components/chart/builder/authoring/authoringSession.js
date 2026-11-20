@@ -332,7 +332,7 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
     const onChart = typeof chartOf === 'function' ? (pine) => (checkScript || defaultCheckScript)(pine, { chart: chartOf() }) : checkScript
     const settled = await settleScript(res,
       (refusal) => converse({ message: words, state: before, gateCtx, snippets, signal, scriptRefusal: refusal }),
-      onChart ? { check: onChart } : {})
+      { ...(onChart ? { check: onChart } : {}), cancelled: () => !!(signal && signal.aborted) })
     if (signal && signal.aborted) {
       return { ok: false, state: null, changed: false, outcome: 'stopped', stopped: true,
         entries: [{ role: 'uct', kind: 'stopped', lines: [STOPPED_LINE, NOTHING_CHANGED] }] }
