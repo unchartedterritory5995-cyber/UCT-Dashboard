@@ -208,9 +208,9 @@ export function createPersist({
     }
   }
 
-  async function _write(key) {
-    const w = watched.get(key)
-    const s = registry.peek(key)
+  async function _write(key, wIn = null, sIn = null) {
+    const w = wIn || watched.get(key)
+    const s = sIn || registry.peek(key)
     if (!w || !s || !s.restSeen || !s.bars.length || s.baseRev === w.written) return
     w.writing = true
     const rev = s.baseRev
@@ -227,7 +227,16 @@ export function createPersist({
     if (!w) return
     if (--w.refs > 0) return
     // A pending write still lands (the snapshot is server-backed); nothing new is watched.
-    if (w.timer != null) { clearTimer(w.timer); w.timer = null; _write(key) }
+    // ⛔ IN IDLE TIME, NEVER AT THE DETACH (2026-11-20, instant charts). A detach IS a symbol switch: the chart
+    // leaving this key is the chart drawing the next one. Written here, the save (an IDB read, a merge of
+    // thousands of rows in its onsuccess, a put that clones them: ~33 ms on a 60m series, measured) ran inside
+    // that switch on every flip of a scan, because a scan flips faster than the debounce. The snapshot is taken
+    // now, so the write is the same one; only when it runs moved.
+    if (w.timer != null) {
+      clearTimer(w.timer); w.timer = null
+      const snap = registry.peek(key)
+      idle(() => { _write(key, w, snap) })
+    }
     w.unsub?.()
     watched.delete(key)
   }
