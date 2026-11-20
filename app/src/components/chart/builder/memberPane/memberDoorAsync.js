@@ -116,15 +116,17 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
   const make = factory || defaultFactory
   const entries = new Map()   // key -> { key, args, want, landed, subs: Set, asked }
   let worker = null
+  let workerPermitted = null  // the permission the worker last latched (a latch only revokes)
   let running = null          // { entry, id, version, timer }
   let nextId = 1
   let asked = 0
   let idle = null
-  const counts = { builds: 0, posted: 0, answered: 0, shared: 0, superseded: 0, stopped: 0, watchdog: 0, died: 0, threw: 0, spawned: 0 }
+  const counts = { builds: 0, posted: 0, answered: 0, shared: 0, superseded: 0, stopped: 0, watchdog: 0, died: 0, threw: 0, spawned: 0, relatched: 0 }
 
   function kill() {
     const w = worker
     worker = null
+    workerPermitted = null
     if (!w) return
     w.onmessage = null
     w.onerror = null
@@ -225,6 +227,11 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
     }
     const r = { entry, id: nextId++, version: v, timer: null }
     running = r
+    let image = null
+    try { image = memberDoorImage() } catch { image = null }
+    const permitted = !!(image && image.permission && image.permission.permitted === true)
+    // ⛔ a worker that latched "not permitted" cannot be told "permitted" (the latch only revokes): a fresh one is
+    if (worker && workerPermitted === false && permitted) { counts.relatched += 1; kill() }
     if (!worker) worker = spawn()
     if (!worker) {
       counts.died += 1
@@ -232,7 +239,9 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
       return
     }
     try {
-      worker.postMessage({ kind: MEMBER_DOOR_JOB, id: r.id, args: entry.args, image: memberDoorImage() })
+      if (!image) throw new Error('no image')
+      worker.postMessage({ kind: MEMBER_DOOR_JOB, id: r.id, args: entry.args, image })
+      workerPermitted = permitted
     } catch {
       kill()
       counts.died += 1

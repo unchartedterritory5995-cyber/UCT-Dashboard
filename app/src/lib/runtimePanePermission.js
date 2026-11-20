@@ -44,10 +44,6 @@ let _revoked = 0
 let _fromServer = false
 let _confirmedAt = 0
 let _recheckInFlight = false
-// ⭐ THE PASTE WORKER — moves whenever the latch's answer may have moved (`memberDoorImage.memberDoorStateVersion`)
-let _revision = 0
-/** The latch's revision (its value is meaningless). */
-export function runtimePanePermissionRevision() { return _revision }
 
 /** Feed an auth payload in. The first one carrying a boolean
  *  `pine_runtime_pane_enabled` latches it. ⛔ Never throws (it runs on the auth
@@ -63,7 +59,6 @@ export function latchRuntimePanePermission(payload) {
         // ⭐ S6 — a revocation is APPLIED: the switch-off reaches this open tab.
         _permitted = false
         _revoked += 1
-        _revision += 1
         _confirmedAt = Date.now()
       } else {
         _ignored += 1
@@ -71,7 +66,6 @@ export function latchRuntimePanePermission(payload) {
       return _permitted
     }
     _permitted = v
-    _revision += 1
     _latchedAt = Date.now()
     _confirmedAt = _latchedAt
     _fromServer = true
@@ -111,24 +105,6 @@ export function runtimePanePermitted() {
   return _permitted === true
 }
 
-/** ⭐ THE PASTE WORKER (2026-11-20) — the latch as plain data, for the member door's worker
- *  (`builder/memberPane/memberDoorImage.js`): a worker is its own module graph and starts unlatched. */
-export function runtimePanePermissionImage() {
-  return { permitted: _permitted === true ? true : (_permitted === false ? false : null) }
-}
-
-/** Latch an image (`runtimePanePermissionImage`) as this module's state: the worker's side. Never re-checked
- *  there (`_fromServer` false, and a worker has no session). */
-export function applyRuntimePanePermissionImage(img) {
-  _revision += 1
-  const v = img && typeof img === 'object' ? img.permitted : null
-  _permitted = v === true ? true : (v === false ? false : null)
-  _latchedAt = _permitted === null ? null : 0
-  _fromServer = false
-  _confirmedAt = 0
-  _recheckInFlight = false
-}
-
 /** What an operator needs to tell a stale answer from a current one. */
 export const runtimePanePermissionDebug = () => ({
   permitted: _permitted, latchedAt: _latchedAt, ignoredDisagreements: _ignored,
@@ -137,7 +113,6 @@ export const runtimePanePermissionDebug = () => ({
 
 /** Rails only — the latch is module state. */
 export function __resetRuntimePanePermission() {
-  _revision += 1
   _permitted = null
   _latchedAt = null
   _ignored = 0
@@ -152,7 +127,6 @@ export function __resetRuntimePanePermission() {
  *  gate. The gate itself is railed with the latch reset
  *  (`engine/__tests__/runtimeSwitchOn.test.js`). Never called by product code. */
 export function __permitRuntimePaneForTests() {
-  _revision += 1
   _permitted = true
   _latchedAt = 0
   _ignored = 0

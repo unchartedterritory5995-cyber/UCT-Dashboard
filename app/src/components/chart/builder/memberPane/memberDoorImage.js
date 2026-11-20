@@ -9,7 +9,7 @@
 //
 //   lists       `engine/runtimeKill.js`              the kill list, the starter allowlist, capability
 //                                                    admission and this tab's per-script verdicts
-//   permission  `lib/runtimePanePermission.js`       the member's latched runtime-pane permission
+//   permission  `lib/runtimePanePermission.js`       the member's runtime-pane permission (`runtimePanePermitted`)
 //   evidence    `engine/runHalfRailSeam.js`          the run half's object evidence (the kill read's key)
 //   libraries   `engine/ast/pineLibraryStore.js`     the Pine libraries this page has fetched
 //   hkd         `engine/hostKnownDivergence.js`      the host lane's known-divergence list as consulted
@@ -23,9 +23,7 @@
 // same answer in every state each part carries.
 import { runtimeListsImage, applyRuntimeListsImage, runtimeListsRevision } from '../../engine/runtimeKill'
 import { runtimePaneEnabled, runtimePaneBuilt } from '../../engine/runtimePaneGate'
-import {
-  runtimePanePermissionImage, applyRuntimePanePermissionImage, runtimePanePermissionRevision,
-} from '../../../../lib/runtimePanePermission'
+import { runtimePanePermitted, latchRuntimePanePermission } from '../../../../lib/runtimePanePermission'
 import { runHalfEvidenceImage, applyRunHalfEvidenceImage, runHalfEvidenceRevision } from '../../engine/runHalfRailSeam'
 import { pineLibraryStoreImage, applyPineLibraryStoreImage, pineLibraryStoreRevision } from '../../engine/ast/pineLibraryStore'
 import {
@@ -43,7 +41,7 @@ import { lowerTfServingEnabled } from '../../engine/lowerTfGate'
  *  (The flags are constants in a built bundle; a rail can stub them, so they are part of the version.) */
 export function memberDoorStateVersion() {
   return [
-    runtimeListsRevision(), runtimePanePermissionRevision(), runHalfEvidenceRevision(), pineLibraryStoreRevision(),
+    runtimeListsRevision(), runtimePanePermitted() ? 1 : 0, runHalfEvidenceRevision(), pineLibraryStoreRevision(),
     hostKnownDivergenceRevision(), heldWithholdsRevision(),
     runtimePaneBuilt() ? 1 : 0, objectsOnlyPaneEnabled() ? 1 : 0, strategyBrokerEnabled() ? 1 : 0,
     lowerTfServingEnabled() ? 1 : 0,
@@ -57,7 +55,7 @@ export function memberDoorImage() {
   runtimePaneEnabled()
   return {
     lists: runtimeListsImage(),
-    permission: runtimePanePermissionImage(),
+    permission: { permitted: runtimePanePermitted() },
     evidence: runHalfEvidenceImage(),
     libraries: pineLibraryStoreImage(),
     hkd: hostKnownDivergenceImage(),
@@ -65,11 +63,20 @@ export function memberDoorImage() {
   }
 }
 
+/** The permission, latched in the worker through the latch every page uses (`latchRuntimePanePermission`; no
+ *  code of this unit sits on the permission module, which every page's first open loads). ⛔ A latch never turns
+ *  `false` into `true` (once latched, only a revocation is applied), so for that one move the page starts a FRESH
+ *  worker (`memberDoorAsync.js`); a fresh graph starts unlatched, and unlatched answers as `false` does. */
+function applyPermission(p) {
+  const v = p && typeof p === 'object' ? p.permitted : undefined
+  if (typeof v === 'boolean') latchRuntimePanePermission({ pine_runtime_pane_enabled: v })
+}
+
 /** The worker's side: hold exactly the image's state, every part of it (an absent part is that part as a fresh page holds it). */
 export function applyMemberDoorImage(img) {
   const m = img && typeof img === 'object' ? img : {}
   applyRuntimeListsImage(m.lists)
-  applyRuntimePanePermissionImage(m.permission)
+  applyPermission(m.permission)
   applyRunHalfEvidenceImage(m.evidence)
   applyPineLibraryStoreImage(m.libraries)
   applyHostKnownDivergenceImage(m.hkd)

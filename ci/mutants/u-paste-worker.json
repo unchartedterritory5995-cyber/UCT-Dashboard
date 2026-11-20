@@ -15,7 +15,7 @@
       "id": "P2",
       "mutant": "the image carries no runtime-pane permission: the worker never routes to the runtime lane",
       "file": "app/src/components/chart/builder/memberPane/memberDoorImage.js",
-      "from": "  applyRuntimePanePermissionImage(m.permission)",
+      "from": "  applyPermission(m.permission)",
       "to": "  void m.permission",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
       "expectRed": "the worker's answer is the main thread's"
@@ -181,6 +181,15 @@
       "to": "    return undefined",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
       "expectRed": "two builds"
+    },
+    {
+      "id": "S13",
+      "mutant": "a worker that latched 'not permitted' is asked a permitted job (the latch ignores it: the answer stays not permitted)",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (worker && workerPermitted === false && permitted) { counts.relatched += 1; kill() }",
+      "to": "    if (worker && workerPermitted === false && permitted) { counts.relatched += 1 }",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "answered as permitted"
     }
   ]
 }

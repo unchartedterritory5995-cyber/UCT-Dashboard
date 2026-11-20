@@ -15,6 +15,8 @@
 //   5. the CONTROL: a fast script answers at once, and its answer is the main thread's;
 //   6. what the build did to the page is done on the page: its consults (the "still being checked" mark the
 //      member pane's first-paste rule reads) and its warm of the runtime lane.
+//   7. the permission: a worker that latched "not permitted" is never asked a permitted job (a latch only revokes):
+//      a fresh worker is; a revocation needs none.
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -25,6 +27,7 @@ import {
   runtimeConsultPendingOf,
 } from '../../engine/runtimeKill'
 import { runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
+import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
 import { canonOf, fakeDoorWorkers, FakeDoorWorker } from '../../../../testing/builder/memberDoor.testkit.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
@@ -278,4 +281,45 @@ describe('6. what the build did to the page is done on the page', () => {
     off()
     svc.dispose()
   }, 120000)
+})
+
+describe('7. the permission: a worker that latched "not permitted" is never asked a permitted job', () => {
+  it('⭐⭐ false -> true starts a FRESH worker (its answer is the permitted one); true -> false needs none', async () => {
+    // three independent graphs, one per worker the service may start (a real worker is its own graph)
+    const realms = []
+    for (let i = 0; i < 3; i += 1) { vi.resetModules(); realms.push(await import('./memberDoorWorkerCore.js')) }
+    // a script whose answer the permission changes (the runtime lane draws it only when permitted)
+    const candidates = [ADX, STOP_TAKE, corpus('twin-range-filter__xF3L2PeXm7.pine'), corpus('inside-bar-boxes__2f747d848b.pine'),
+      corpus('parabolic-sar__xoeoPMOWGJ.pine'), corpus('engulfingcandle__0df91dc775.pine')]
+    let source = null
+    let permitted = null
+    for (const s of candidates) {
+      const a = memberPaneDefinition({ source: s, id: MEMBER_PANE_DEF_PREFIX })
+      if (a.ok && a.lane === 'runtime') { source = s; permitted = a; break }
+    }
+    expect(source, 'a runtime-lane script among the candidates').toBeTruthy()
+    __resetRuntimePanePermission()
+    const notPermitted = memberPaneDefinition({ source, id: MEMBER_PANE_DEF_PREFIX })
+    expect(canonOf(notPermitted), 'the control: the permission changes this answer').not.toBe(canonOf(permitted))
+    const made = []
+    const svc = createMemberDoorService({ factory: () => { const w = new FakeDoorWorker(realms[made.length]); made.push(w); return w } })
+    const got = []
+    const ask = async () => {
+      const n = got.length
+      const off = svc.subscribe({ source }, (l) => got.push(l))
+      await until(() => got.length === n + 1)
+      off()
+      return got[n].built
+    }
+    expect(canonOf(await ask())).toBe(canonOf(notPermitted))
+    __permitRuntimePaneForTests()                       // the member's permission arrives
+    expect(canonOf(await ask()), 'answered as permitted').toBe(canonOf(permitted))
+    expect(made, 'a fresh worker').toHaveLength(2)
+    expect(made[0].terminated).toBe(true)
+    expect(svc.stats().relatched).toBe(1)
+    __resetRuntimePanePermission()                      // revoked: the latch applies a revocation in place
+    expect(canonOf(await ask()), 'answered as not permitted, by the same worker').toBe(canonOf(notPermitted))
+    expect(made).toHaveLength(2)
+    svc.dispose()
+  }, 240000)
 })

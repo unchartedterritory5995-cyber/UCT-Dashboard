@@ -16,7 +16,7 @@
 // ⛔ A page state the door reads that the image does not carry answers wrong here, in the state that sets it.
 // ⭐ CONTROLS: the sample answers on the host lane, on the runtime lane and with a refusal (so "equal" is not
 // "equal because nothing was drawn"), and each image part round-trips through a fresh graph to the same image.
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPaneDefinition'
@@ -57,7 +57,9 @@ const IMPORTS = '//@version=5\nindicator("t")\nimport tester/pwlib/1 as fx\nvar 
 let core = null     // the worker's handler, in a fresh module graph
 let jobId = 1
 
-beforeAll(async () => {
+// ⭐ A FRESH GRAPH PER CASE, as the page starts a fresh worker where one would answer from a stale state: a worker that
+// latched "not permitted" cannot be told "permitted" (`memberDoorAsync.js` replaces it; railed in its own file)
+beforeEach(async () => {
   vi.resetModules()
   core = await import('./memberDoorWorkerCore.js')
 }, 120000)
@@ -173,7 +175,7 @@ describe('each image part round-trips through a fresh module graph', () => {
     setRunHalfObjectEvidence([{ sha256: runtimeSourceHash('z'), captures: [{ capture: 'c1', verdict: 'MATCH' }] }])
     __setHostKnownDivergenceForTests({ scripts: [{ sha256: runtimeSourceHash('h'), slug: 'h', reason: 'r' }] })
     const img = memberDoorImage()
-    const fresh = await import('./memberDoorImage.js')   // the fresh graph's own (beforeAll reset the registry)
+    const fresh = await import('./memberDoorImage.js')   // the fresh graph's own (beforeEach reset the registry)
     fresh.applyMemberDoorImage(structuredClone(img))
     expect(canonOf(fresh.memberDoorImage())).toBe(canonOf(img))
     // ⭐ the control: a part this rail changes is seen (the image is not compared with itself)
