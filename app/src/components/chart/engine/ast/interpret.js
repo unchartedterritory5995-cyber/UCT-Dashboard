@@ -6012,8 +6012,9 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
   'request:htf-first-period-partial': () => 'This indicator reads a weekly or monthly value with '
     + '`request.security` (look-ahead off). This chart\'s history does not begin at the symbol\'s listing, and '
     + 'its first bar is not certainly the first session of its week or month, so the first period\'s value '
-    + 'would be built from only part of that period. The bars that would show it are withheld rather than '
-    + 'drawn from part of a period; every later bar is drawn. What would settle it: a chart whose history '
+    + 'would be built from only part of that period. The bars that would show it, or a value built from it, are '
+    + 'withheld rather than drawn from part of a period; every other bar is drawn, and so is a value read from the '
+    + 'period\'s close alone, which is the whole period\'s. What would settle it: a chart whose history '
     + 'begins at a period\'s first session, or at the listing.',
   // ⭐⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — the first period of a `tf_live` read, off the listing (see
   // `tfLiveMask`); the run's request names the same code with the same sentence (`tfLiveFirstPeriodMask`).
@@ -7282,6 +7283,12 @@ export function builtinWitnessMask(tree, bars, inputs, budget, scalars, opts) {
  *  last withheld bar (3.5 on bar 6 of PR #2049's Tuesday fixture, where TradingView, holding the whole week,
  *  draws another). Which root bars READ one is engine 56's walk (`firstPeriodPartialReadMask`): `x[k]` moves
  *  them k bars later, a window or a running value over x reads them where it reads x.
+ *  ⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3, 2026-11-19) — AND THEY ARE THE MERGE'S FIELDS': only `open`, `high`, `low`,
+ *  `volume` and the bar readers of a partial period are not the period's (its close is its last session's). A merge's
+ *  own bars are the ones whose merged period its child is unknown on (`firstPeriodPartialReadMask`'s `mergeOwn`, the
+ *  walk HTF-LIVE-FIRST-PERIOD takes for `tf_live`): `tf_merge(close)` is drawn on them (item 3), `tf_merge(high[1])` is
+ *  withheld on the NEXT period's bars too (item 2). Review L2's field-unaware bars stay for a merge holding or under
+ *  another request, and for the run's request (`requestAlignment`).
  *  ⛔ NO `try` (`budget.test.js`): a refusal here must reach the caller as itself. */
 export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, scalars = undefined) {
   const n = Array.isArray(bars) ? bars.length : 0
@@ -7383,8 +7390,13 @@ function firstPeriodPartialMask(bars, found, opts) {
  *  column (1 = withheld), or null when none does.
  *
  *  A SITE is a read whose value is a merge's: a `tf_merge` under no other request, or the OUTERMOST request
- *  (`tf` / `tf_live` / `sym` / `ltf`) that holds one. Its own bars are `firstPeriodPartialMask`'s over the merges it
- *  holds, unchanged, so a lone `x` (and a merge under `sym` or another request) withholds exactly what it withheld.
+ *  (`tf` / `tf_live` / `sym` / `ltf`) that holds one. An outer request's own bars are `firstPeriodPartialMask`'s over
+ *  the merges it holds, unchanged. ⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3) — a merge's own are `mergeOwn`'s: its child
+ *  on the higher-timeframe bars (`partialPeriodUnknown`, every field but `close` unknown on the partial first one),
+ *  each chart bar reading the period the merge hands it (`tfMergeReads`); a merge of close alone is no site (item 3:
+ *  the partial period's close is the period's), `high[1]` inside reaches the next period's bars (item 2); a child
+ *  holding another request, and the run's request (`opts.requestFieldUnaware`, `requestAlignment`'s stand-in leaf),
+ *  keep `firstPeriodPartialMask`'s field-unaware bars.
  *  Which ROOT bars read them is engine 56's walk (`witnessMask`), the one `newestReadsMerge` asks about the newest
  *  bar: `x[k]` moves them k bars later; an operator or a pointwise call (`nz`, `na`, `+`) reads them on the same
  *  bar; a window over the bars it spans; `barssince` / `valuewhen` by their own rules. The walk is taken EXACTLY
@@ -7410,26 +7422,51 @@ function firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars) {
     }
     return merges
   }
+  // ⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3) — a merge's own bars, field by field (`tfLiveFirstPeriodReadMask`'s walk):
+  // its child on the higher-timeframe bars, every field but `close` unknown on the partial first one, each chart bar
+  // reading the period the merge hands it (`tfMergeReads`). A merge of close alone is no site; a child holding
+  // another request keeps review L2's field-unaware bars.
+  const mergeOwn = (node) => {
+    const child = node.args && node.args[0]
+    const first = firstPeriodPartialMask(bars, [{ code: node.value }], opts)
+    if (!first) return null
+    // ⛔ the run's request (`requestAlignment`) hands a stand-in leaf, not the field it reads: review L2's bars, as before
+    if (opts && opts.requestFieldUnaware === true) return first
+    if (!childReadsPartialPeriod(child)) return null            // item 3: a merge of close alone is drawn
+    const code = String(node.value)
+    const isos = bars.map((b) => isoDay(b && b.t))
+    const { htf, at } = resampleTo(bars, isos, code)
+    const u = partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts)
+    if (FIELD_UNAWARE === u) return first                       // a child holding another request: review L2
+    if (!u) return null
+    const reads = tfMergeReads(isos, code, at)
+    let m = null
+    for (let i = 0; i < n; i++) {
+      if (reads[i] >= 0 && u[reads[i]]) { if (!m) m = new Float64Array(n); m[i] = 1 }
+    }
+    return m
+  }
   const own = new Map()
-  let any = false
   const stack = [tree]
   const seen = new Set()
   while (stack.length) {
     const node = stack.pop()
     if (!node || typeof node !== 'object' || seen.has(node)) continue
     seen.add(node)
+    if (node.type === TF_MERGE) {
+      const m = mergeOwn(node)
+      if (m) own.set(node, m)
+      continue
+    }
     if (SCOPE_TYPES.has(node.type)) {
       const merges = mergesUnder(node)
-      if (merges.length) {
-        const m = firstPeriodPartialMask(bars, merges, opts)
-        if (m) any = true
-        own.set(node, m || new Float64Array(n))
-      }
+      const m = merges.length ? firstPeriodPartialMask(bars, merges, opts) : null
+      if (m) own.set(node, m)
       continue
     }
     if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
   }
-  if (!any) return null
+  if (!own.size) return null
   const quiet = { ...(opts || {}), chartClockSink: undefined, withheldBarsSink: undefined }
   return witnessMask(tree, bars, inputs, budget, scalars, quiet, (nd) => own.has(nd),
     (nd) => Float64Array.from(own.get(nd)), TF_MERGE_FIRST_CODE, { exact: true })
@@ -7535,7 +7572,9 @@ function childReadsPartialPeriod(child) {
  *  the first higher-timeframe bar only: `high` is unknown there, `high[1]` on the bar after it, `sma(high, 2)` on both,
  *  `close`, `close[1]` and `sma(close, 2)` nowhere. A RUNNING value over a partial field (`ema(high, 10)`) is unknown
  *  where its argument is and not after (`walk.exact`): its memory of the partial period is an open question, as for
- *  #2071's root walk, not settled here. The sinks are stripped. */
+ *  #2071's root walk, not settled here. The sinks are stripped (the code handed to the walk names nothing). One walk for
+ *  both reads: `tfLiveFirstPeriodReadMask` (a `tf_live`) and `firstPeriodPartialReadMask`'s `mergeOwn` (a `tf_merge`,
+ *  HTF-MERGE-FIELD-AWARE). */
 const FIELD_UNAWARE = 'field-unaware'
 function partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts) {
   if (!htf.length) return null
@@ -8232,7 +8271,9 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
   const liveRead = live === true && code !== null
   let tree = code !== null ? { type: liveRead ? 'tf_live' : TF_MERGE, value: code, args: [leaf] } : leaf
   if (sym !== null) tree = { type: 'sym', value: sym, args: [tree] }
-  const o = { ...(opts || {}), symbols: sym !== null ? { [sym]: src } : undefined }
+  // ⛔ `requestFieldUnaware`: the leaf above stands in for whatever field the run reads, so the merge's first period
+  // keeps review L2's field-unaware bars (`firstPeriodPartialReadMask`), unchanged by HTF-MERGE-FIELD-AWARE
+  const o = { ...(opts || {}), symbols: sym !== null ? { [sym]: src } : undefined, requestFieldUnaware: true }
   const masks = [
     code !== null && !liveRead ? tfMergeMask(tree, chartBars, o) : null,
     liveRead && o.curtained !== true ? tfLiveFirstPeriodMask(chartBars, code, o) : null,

@@ -160,6 +160,8 @@ const PINE = {
   // C49 — a request for another timeframe of the chart's own symbol
   reqD: 'plot(request.security(syminfo.tickerid, "D", close))',
   'nz(reqW)': 'plot(nz(request.security(syminfo.tickerid, "W", close)))',
+  // ⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3) — the same merge of the HIGH, a field the first partial week gets wrong
+  'nz(reqWh)': 'plot(nz(request.security(syminfo.tickerid, "W", high)))',
   reqOwn: 'plot(request.security(syminfo.tickerid, timeframe.period, close))',
 }
 /** Trees no translation writes TODAY but a saved document still carries. */
@@ -227,7 +229,7 @@ const CASES = [
   // served on a daily chart and where no timeframe is stated (the server's daily consumers),
   // withheld whole and named on a chart that states another; the chart's OWN timeframe is
   // the identity everywhere
-  ...['reqD', 'nz(reqW)', 'reqOwn'].flatMap((k) => [
+  ...['reqD', 'nz(reqW)', 'nz(reqWh)', 'reqOwn'].flatMap((k) => [
     [`${k} · weekdays · D`, k, 'weekdays', { tf: 'D' }],
     [`${k} · weekdays · no tf`, k, 'weekdays', null],
     [`${k} · rth 15m · 15`, k, 'rth15', { tf: '15' }],
@@ -610,23 +612,28 @@ describe('C36 · the fixture is not vacuous', () => {
     // ⚰️ It was `tf`: [0, 0] and bar 2 = Friday's close — one bar late on every week's close.
     // ⭐⭐ REVIEW L2 (PR #1264) — these bars do not start at the listing, and the first bar
     // (Thursday 2024-10-10) does not open its week, so the first week's value would be built from
-    // two days of it: Friday's closing bar and the next week's other bars (1-5) are withheld by
-    // name (`request:htf-first-period-partial`), never `nz`'s confident 0; Friday 10-18 (bar 6)
-    // closes a whole week and is drawn.
+    // two days of it. ⭐⭐ HTF-MERGE-FIELD-AWARE (item 3) — for a merge of CLOSE that value is the week's own
+    // close (Friday's, the week's last session), so Friday's closing bar and the next week's other bars (1-5) draw
+    // it and nothing is named; for a merge of the HIGH (`nz(reqWh)`, below) they are withheld by name
+    // (`request:htf-first-period-partial`), never `nz`'s confident 0. Friday 10-18 (bar 6) closes a whole week.
     // ⭐⭐ REVIEW L3 — the newest bar (Friday 2025-12-19) certainly closes its week on this DAILY
     // chart, so it is drawn; where no timeframe is stated nothing is certain, and it is withheld.
     const w = col('nz(reqW) · weekdays · D')
     const days = PARITY.bars.weekdays
-    expect(w.slice(0, 7)).toEqual([0, null, null, null, null, null, days[6].c])
+    expect(w.slice(0, 7)).toEqual([0, days[1].c, days[1].c, days[1].c, days[1].c, days[1].c, days[6].c])
     expect(w[w.length - 1]).toBe(days[days.length - 1].c)
-    expect(codes('nz(reqW) · weekdays · D')).toEqual(['request:htf-first-period-partial'])
+    expect(codes('nz(reqW) · weekdays · D')).toEqual([])
     const noTf = col('nz(reqW) · weekdays · no tf')
     expect(noTf.slice(0, -1)).toEqual(w.slice(0, -1))
     expect(noTf[noTf.length - 1]).toBe(null)
-    expect(codes('nz(reqW) · weekdays · no tf')).toEqual(['request:htf-first-period-partial', 'request:htf-newest-unconfirmed'])
+    expect(codes('nz(reqW) · weekdays · no tf')).toEqual(['request:htf-newest-unconfirmed'])
+    const wh = col('nz(reqWh) · weekdays · D')
+    expect(wh.slice(0, 7)).toEqual([0, null, null, null, null, null, days[6].h])
+    expect(codes('nz(reqWh) · weekdays · D')).toEqual(['request:htf-first-period-partial'])
+    expect(codes('nz(reqWh) · weekdays · no tf')).toEqual(['request:htf-first-period-partial', 'request:htf-newest-unconfirmed'])
     // ⛔ on a 15-minute and a weekly chart both are withheld on every bar — never a 15-minute
     // close under the name of the daily one, never `nz`'s confident 0
-    for (const k of ['reqD', 'nz(reqW)']) {
+    for (const k of ['reqD', 'nz(reqW)', 'nz(reqWh)']) {
       for (const chart of ['rth 15m · 15', 'weekly · W']) {
         expect(col(`${k} · ${chart}`).every((v) => v === null), `${k} ${chart}`).toBe(true)
         expect(codes(`${k} · ${chart}`), `${k} ${chart}`).toEqual(['request:other-timeframe'])
