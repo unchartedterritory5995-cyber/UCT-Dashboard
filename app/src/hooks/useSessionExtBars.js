@@ -41,12 +41,18 @@ export default function useSessionExtBars(sym, session, active, anchorDate) {
   const [state, setState] = useState({ sym: null, agg: null, ready: false })
 
   useEffect(() => {
+    const live = !!(active && sym && (session === 'pre' || session === 'post'))
     // Reset immediately so a prior symbol's aggregate never briefly applies to a
     // new symbol; the fetch below repopulates when active. One extra render on
-    // sym/session/active transitions only — not a hot path.
+    // sym/session/active transitions only.
+    // ⭐ (switch render cuts, 2026-11-20) …and NONE when the hook is idle and already empty. It IS a hot
+    // path: every chart runs this hook, idle outside a pre/post-market session candle, and a fresh
+    // `{sym, agg: null, ready: false}` on each symbol switch re-rendered the whole chart before the switch
+    // could paint, for a value that returns `{agg: null, ready: false}` either way (the return below gates
+    // on `state.sym`). A live hook still resets: its fetch settles only into a state stamped with ITS sym.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState({ sym, agg: null, ready: false })
-    if (!active || !sym || (session !== 'pre' && session !== 'post')) return undefined
+    setState((s) => (!live && s.agg === null && !s.ready ? s : { sym, agg: null, ready: false }))
+    if (!live) return undefined
     let cancelled = false
     // A settled fetch marks ready even when it yields nothing, so a symbol with no
     // extended-hours prints (or a failing endpoint) doesn't wedge the caller waiting
