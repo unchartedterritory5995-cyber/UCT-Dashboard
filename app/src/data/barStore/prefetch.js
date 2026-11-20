@@ -421,7 +421,10 @@ export function createPrefetch(o = {}) {
     if (!p || p.window || !isIntradayTf(p.tf)) return false
     const ext = session(showExtended) === 'eth'
     if (ext && Number(p.tf) >= 60) return false
-    const n = expectedBarsBehind(rows[rows.length - 1].t, p.tf, now(), { session: ext ? 'extended' : 'rth' })
+    // the DEVELOPING row counts too: at a bucket roll the just-closed bucket is still the forming row until its
+    // seal lands, and a copy holding it holds the frontier (a copy whose forming row is OLDER is still behind)
+    const tailT = Math.max(rows[rows.length - 1].t, s.developing?.t ?? -Infinity)
+    const n = expectedBarsBehind(tailT, p.tf, now(), { session: ext ? 'extended' : 'rth' })
     if (n == null || n < 1) return false
     const a = asked.get(key)
     return !(a?.answered && now() - a.at < BEHIND_RECHECK_MS)
@@ -556,7 +559,12 @@ export function createPrefetch(o = {}) {
       const s0 = await Promise.race([hyd, new Promise((resolve) => setTimer(() => resolve(undefined), HYDRATE_WAIT_MS))])
       if (s0 === undefined) {
         const req = ensure(key, { until: date ? DAILY_PREPARED : PREPARED, priority: 'visible', signal, warm: false, local: false, _s0: S().peek(key) || {}, session: session(showExtended) })
-        const localFirst = hyd.then((h) => (_localPaints(h, fetchTf(String(tf)), showExtended) && !_behindClock(key, h, showExtended) ? LOCAL_PAINTS : new Promise(() => {})))
+        // a local copy behind the clock paints after BEHIND_HOLD_MAX_MS if the answer has not won by then
+        const localFirst = hyd.then((h) => {
+          if (!_localPaints(h, fetchTf(String(tf)), showExtended)) return new Promise(() => {})
+          if (!_behindClock(key, h, showExtended)) return LOCAL_PAINTS
+          return new Promise((resolve) => setTimer(() => resolve(LOCAL_PAINTS), BEHIND_HOLD_MAX_MS))
+        })
         const won = await Promise.race([req, localFirst, _lakeAlone(lake, t0, key, fetchTf(String(tf)), showExtended)])
         if (won === LOCAL_PAINTS) { await _joined(lake); return 'current' }
         if (won === LAKE_PAINTS) return 'lake'

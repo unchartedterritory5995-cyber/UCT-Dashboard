@@ -85,12 +85,29 @@ describe('the handoff (Enter) · a copy behind the clock waits for its tail', ()
     const w = await boot()
     await heldThenLater(w, 'SPYH')
     expect(w.pf.peekDisplayable('SPYH', '1')).toBe(false)          // not painted as it is
+    const { keyOf } = await import('./types')
+    const tailOf = () => { const s = w.store.peek(keyOf({ sym: 'SPYH', tf: '1' })); return Math.max(s.bars.at(-1).t, s.developing?.t ?? 0) }
+    const before = tailOf()
     const enter = w.pf.prepareForDisplay('SPYH', '1')
     await w.server.flush(80)
     expect(ofTf(w.server.open(), '1')).toEqual(['SPYH'])            // the tail is asked
     await w.server.drain()
     await expect(enter).resolves.toBe('current')
-    expect(w.pf.peekDisplayable('SPYH', '1')).toBe(true)           // the answer is current
+    expect(tailOf()).toBeGreaterThanOrEqual(before + 2 * 60)        // the held tail moved to the clock
+    expect(w.pf.peekDisplayable('SPYH', '1')).toBe(true)
+  })
+
+  it('at a bucket roll, a copy whose FORMING row is the just-closed bucket is not behind', async () => {
+    const w = await boot()
+    await w.known('ROLL')
+    w.pf.warmTypedSymbol('ROLL', '1'); await w.server.drain()
+    const { keyOf } = await import('./types')
+    const s = w.store.peek(keyOf({ sym: 'ROLL', tf: '1' }))
+    expect(s.developing).toBeTruthy()                               // the answer carries the forming 10:02 row
+    // 10:03:01: the 10:02 bucket just closed; it is still the forming row (no seal yet), and the answer is
+    // older than the recheck window
+    vi.setSystemTime(s.developing.t * 1000 + 61_000 + 5_000)
+    expect(w.pf.peekDisplayable('ROLL', '1')).toBe(true)
   })
 
   it('a server that does not answer never pins the member: the copy paints after BEHIND_HOLD_MAX_MS', async () => {
