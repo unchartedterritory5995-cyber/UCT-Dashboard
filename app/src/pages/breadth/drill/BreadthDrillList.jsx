@@ -27,6 +27,8 @@ const pctOf = (r) => r?.pct
 // ⛔ MODULE SCOPE. `drill?.items ?? []` allocates a NEW array whenever items is
 // absent, which is a fresh identity on every render and churns every memo below.
 const NO_ITEMS = []
+// The rows warmed the moment a list arrives (before it renders and reports what is on screen).
+export const OPEN_WARM_ROWS = 16
 // Section colours, in group order (largest group first). Muted so they tag,
 // not shout.
 
@@ -172,23 +174,31 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   // helper as theirs on purpose: `prefetchListDeep` warms Daily FIRST (the timeframe
   // the chart is showing) then W/M, is idle-deferred, bounded, and self-capping at
   // DEEP_WARM_CAP — so a 2,667-name universe drill costs no more than a 40-name cell.
+  // ⛔ ONLY THE CHART'S TIMEFRAME, ONLY THE TOP OF THE LIST (2026-11-20). This warmed EVERY name
+  // (up to 120) in D, W AND M at open, and the visible-row warm below asked D/W/M again on every
+  // scroll. Each warm reads that name's whole history out of IndexedDB, and the read is unpacked on
+  // the main thread (~11 ms for a deep daily set): measured on production, a drill open queued
+  // ~180 reads and held the main thread ~95% busy for 3+ s — exactly while the member started
+  // scanning, so arrow keys lagged 1-2 s. The rows on screen are warmed by `warmVisible` (the
+  // list reports them as it renders and scrolls); here only the first rows, so the first flips
+  // are warm before the list has even measured itself. W/M warm when the chart switches to them.
+  const chartTf = (color ? groupTfs?.[color] : null) || 'D'
   const warmedRef = useRef(null)
   useEffect(() => {
     const syms = items.map(i => String(tickerOf(i) || '').toUpperCase()).filter(Boolean)
     if (!syms.length) return
     // Keyed on the CELL, not the array identity, so a re-render never re-warms.
-    const key = `${drill?.label || ''}|${drill?.date || ''}|${drill?.live ? 'live' : ''}|${syms.length}`
+    const key = `${drill?.label || ''}|${drill?.date || ''}|${drill?.live ? 'live' : ''}|${syms.length}|${chartTf}`
     if (warmedRef.current === key) return
     warmedRef.current = key
-    prefetchListDeep(syms)
-  }, [items, drill?.label, drill?.date, drill?.live])
+    prefetchListDeep(syms.slice(0, OPEN_WARM_ROWS), { tfs: [chartTf], priority: true })
+  }, [items, drill?.label, drill?.date, drill?.live, chartTf])
 
-  // What is ON SCREEN jumps ahead of that background trickle, so the row you are
-  // about to click is warm before you reach it. `prefetchListDeep` dedupes over a
-  // 5-minute window and is bounded, so firing this per scroll is cheap.
+  // What is ON SCREEN (and the rows just past it) is what a scan reaches next. `prefetchListDeep`
+  // dedupes over a 5-minute window and is bounded, so firing this per scroll is cheap.
   const warmVisible = useCallback((syms) => {
-    if (syms?.length) prefetchListDeep(syms, { cap: 60, priority: true })
-  }, [])
+    if (syms?.length) prefetchListDeep(syms, { tfs: [chartTf], cap: 60, priority: true })
+  }, [chartTf])
 
   const stockCount = items.length
   const fullCount = Number.isFinite(drill?.total) ? drill.total : stockCount
