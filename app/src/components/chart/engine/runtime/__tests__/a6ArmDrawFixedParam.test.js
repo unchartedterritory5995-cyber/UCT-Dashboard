@@ -46,13 +46,13 @@ describe('A6 — a drawing in one arm of `?:` whose test the call site fixes', (
     expect(lines(fin)).toHaveLength(2)
     expect(labels(fin)).toHaveLength(2)
     const last = BARS.length - 1
-    const ys = lines(fin).map((l) => l.y1).sort((x, y) => x - y)
+    const ys = lines(fin).map((l) => l.props.y1).sort((x, y) => x - y)
     expect(ys).toEqual([BARS[last].l, BARS[last].h].sort((x, y) => x - y))
   })
   it('a literal argument is fixed too, and the arm it does not take is not lowered at all', () => {
     const { fin } = runDrawing(v6(`${F}plot(f(false, close))\nplot(f(true, open))\n`))
     expect(lines(fin)).toHaveLength(1)
-    expect(lines(fin)[0].y1).toBe(BARS[BARS.length - 1].o)
+    expect(lines(fin)[0].props.y1).toBe(BARS[BARS.length - 1].o)
   })
   it('a caller\'s own parameter is fixed by ITS call site (the C35 chain)', () => {
     const { fin } = runDrawing(v6(`${F}g(on, y) => f(on, y)\nplot(g(true, high))\n`))
