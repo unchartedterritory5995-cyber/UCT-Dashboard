@@ -28,6 +28,7 @@ import { resetRuntimeAsync } from './runtime/runtimeAsync'
 import { __permitRuntimePaneForTests } from './runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests, setRuntimeKillList } from './runtimeKill'
 import { clearSecondaryBars } from './secondaryBars'
+import { STRATEGY_WINDOW_HISTORY } from './runtime/strategyRecord'
 
 vi.setConfig({ testTimeout: 300000 })
 
@@ -193,6 +194,23 @@ describe('the run: cut at the overnight tail, everything before drawn exactly as
     __overnightCutOffForTests(true)
     const r = run(DEF(), chartOf(5), ctxOf(5, secondaryOf(spxOf(5))))
     expect(r.err && r.err.guard).toBe(REQUEST_OVERNIGHT_GUARD)
+  })
+  // ⭐⭐ (e91) A STRATEGY'S WINDOW: the cut its window run finds is in the WINDOW's indices. ⚰️ `computeStrategyWindow`
+  // moved only `err.bar` into the chart's, so #2135's cut (e89) landed `shift` bars early on a strategy over a window
+  it('⛔ a strategy run over a window (`historyWindowBars`) is cut at the CHART's first overnight bar, not the window's index', () => {
+    const rows = chartOf(5)
+    const cut = indexAt(rows, ET(DAY, ...TF[5].nightFrom))
+    const shift = 30
+    const src = ['//@version=5', 'strategy("night-s", overlay = false)', 'plot(request.security("SP:SPX", timeframe.period, close))'].join('
+')
+    const def = { id: 'night-s', meta: { runtimeHistory: STRATEGY_WINDOW_HISTORY },
+      compute: { kind: 'runtime', fn: 'runtime:night-s', outputs: { a: 0 }, source: src } }
+    const r = run(def, rows, ctxOf(5, secondaryOf(spxOf(5)), { historyWindowBars: rows.length - shift }))
+    expect(r.err, r.err && r.err.message).toBeUndefined()
+    expect(runtimeOvernightOf(r.cols)).toMatchObject({ from: cut, bars: rows.length - cut })
+    const a = Array.from(r.cols.a)
+    expect(Number.isFinite(a[cut - 1]), 'drawn up to the cut').toBe(true)
+    for (let i = cut; i < rows.length; i += 1) expect(Number.isNaN(a[i]), `overnight bar ${i}`).toBe(true)
   })
   it('⛔ an in-session lag is a TAIL cut (e91 (2b)), never an overnight one: its own code, not `request-overnight`', () => {
     const r = run(DEF(), midday(), ctxOf(5, secondaryOf(spxOf(5, [13, 40]), { settled: false })))
