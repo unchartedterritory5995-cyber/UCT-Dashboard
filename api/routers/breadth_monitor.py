@@ -1782,6 +1782,10 @@ async def push_breadth_snapshot(request: Request):
     # push is merged UNDER the server-owned keys instead of replacing them.
     from api.services import breadth_eod_source as _eod
     metrics, _source = _eod.on_push(date_str, metrics)
+    # ⛔ cboe_putcall is the server's EQUITY ratio (breadth_putcall_backfill); the
+    # collector's TOTAL reading never lands in it.
+    from api.services import breadth_putcall_backfill as _pcb
+    metrics = _pcb.keep_stored(date_str, metrics)
     # The collector call keeps today's exact shape (two positional arguments).
     ok = (svc.store_snapshot(date_str, metrics) if _source == "collector"
           else svc.store_snapshot(date_str, metrics, source=_source))
@@ -2032,6 +2036,10 @@ async def patch_breadth_field(date_str: str, request: Request):
     value = body.get("value")
     if not key:
         raise HTTPException(status_code=400, detail="'key' required")
+    if key == "cboe_putcall":
+        # ⛔ Server-owned EQUITY ratio; the collector's `--patch-cboe-date` writes TOTAL.
+        raise HTTPException(status_code=409, detail="cboe_putcall is filled by the server "
+                            "(CBOE equity put/call); collector patches are refused")
     ok = svc.patch_field(date_str, key, value)
     if not ok:
         raise HTTPException(status_code=404, detail=f"No snapshot for {date_str}")

@@ -253,9 +253,16 @@ _SCORE_WEIGHTS = {
 _SCORE_LABELS = {
     "pct_above_50sma": "% above 50 SMA", "ratio_5day": "5-day up/down ratio",
     "magna": "13%/34d up share", "hi_ratio": "52w highs / universe",
-    "cboe_putcall": "CBOE put/call (contrarian)", "aaii_spread": "AAII spread (contrarian)",
+    "cboe_putcall": "CBOE equity put/call (contrarian)", "aaii_spread": "AAII spread (contrarian)",
     "vix": "VIX (inverted)", "stage2": "Stage 2 share", "adv_decline": "Advance/decline",
 }
+
+# ⭐ The put/call component's band (lo → 0 points, hi → full points). `cboe_putcall` is CBOE's
+# EQUITY ratio (owner 2026-11-19); the old (0.65, 0.85) band was set for the TOTAL ratio, which
+# runs higher. RETUNED TO KEEP ITS MEANING: lo / hi are the equity ratio's values at the SAME
+# percentiles that 0.65 / 0.85 held in the total series, over the sessions both exist
+# (2019-10-07 → 2026-11-18, tools/breadth/refill_equity_putcall.py's cache). Not hand-set.
+_PUTCALL_BAND = (0.37, 0.53)
 
 # Below this much available weight the remainder is not a market read, it is a
 # handful of inputs extrapolated to a 0-100 headline. Say nothing instead.
@@ -306,8 +313,8 @@ def _score_breakdown(row: dict) -> tuple[Optional[float], list[dict]]:
                                              and (mu + md) > 0) else None, 40, 70)
 
     take("hi_ratio", row.get("hi_ratio"), 0.5, 5.0)
-    # Contrarian: a higher put/call is more fearful, which is a better setup.
-    take("cboe_putcall", row.get("cboe_putcall"), 0.65, 0.85)
+    # Contrarian: a higher equity put/call is more fearful, which is a better setup.
+    take("cboe_putcall", row.get("cboe_putcall"), *_PUTCALL_BAND)
     # Contrarian: invert, so a -30 spread (very bearish) earns full points.
     spread = row.get("aaii_spread")
     take("aaii_spread", (-spread) if spread is not None else None, -30, 20)

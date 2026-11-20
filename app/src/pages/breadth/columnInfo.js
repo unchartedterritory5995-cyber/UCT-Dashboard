@@ -96,7 +96,7 @@ const INFO = {
   aaii_bears: { name: 'AAII bears', desc: 'Share of AAII survey members who expect stocks to fall over the next six months.', weekly: true },
   aaii_spread: { name: 'AAII bull-bear spread', desc: 'AAII bulls minus bears. Deeply negative readings mark pessimism, often near lows.', weekly: true },
   naaim: { name: 'NAAIM Exposure Index', desc: 'How much stock exposure active investment managers report, on average. High means managers are fully invested.', weekly: true },
-  cboe_putcall: { name: 'CBOE put/call ratio', desc: 'Put volume divided by call volume on CBOE. High readings mean traders are buying protection.' },
+  cboe_putcall: { name: 'CBOE equity put/call', desc: 'Put volume divided by call volume on CBOE stock options. High readings mean traders are buying protection.' },
 }
 
 // The medium-length titles (window titles, the drill's metric switcher). Written out in full.
@@ -124,7 +124,7 @@ const TITLES = {
   rsp_spy_ratio: 'Equal-weight vs S&P 500', iwm_qqq_ratio: 'Small caps vs Nasdaq 100',
   vix_term_structure: 'VIX term structure', cnn_fear_greed: 'CNN Fear & Greed',
   aaii_bulls: 'AAII bulls', aaii_neutral: 'AAII neutral', aaii_bears: 'AAII bears',
-  aaii_spread: 'AAII bull-bear spread', naaim: 'NAAIM Exposure Index', cboe_putcall: 'CBOE put/call ratio',
+  aaii_spread: 'AAII bull-bear spread', naaim: 'NAAIM Exposure Index', cboe_putcall: 'CBOE equity put/call',
 }
 
 export const COLUMN_INFO = Object.freeze(Object.fromEntries(
