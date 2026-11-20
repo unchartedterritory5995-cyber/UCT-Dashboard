@@ -328,10 +328,16 @@ build (`ffseed.nightly`) therefore runs, in order:
    (`FFSEED_1M_WORKERS`), at most 45 min (`FFSEED_1M_DEADLINE_S`, past it the build goes ahead with what
    it has); `FFSEED_1M_BACKFILL=0` turns it off;
 2. the build and publish (unchanged), then the marker;
-3. **the 1m retention**: every cap_universe symbol OUTSIDE the active set keeps its newest 5 sessions of
-   1m (`FFSEED_1M_KEEP_SESSIONS`, 0 = off; `bars_sqlite.prune_before`, a prefix trim that bumps the
-   series' history revision). The active set's 1m is never trimmed, and nothing is trimmed while the
-   active set is unknown (no prewarm pass in this process yet). Neither 1 nor 3 can stop a publish.
+3. **the 1m retention**: a symbol keeps its newest 5 sessions of 1m (`FFSEED_1M_KEEP_SESSIONS`, 0 = off;
+   `bars_sqlite.prune_before`, a prefix trim that bumps the series' history revision) ONLY when the pass
+   itself filled it (the long-tail ledger `<DATA_DIR>/ffseed_1m_longtail.json`: per symbol the first
+   session the pass ever fetched and the newest day it was in the active set), it is not in today's
+   active set and has not been for `FFSEED_1M_INACTIVE_DAYS` (default 10) days, and it holds no 1m older
+   than the pass's first fetch for it (so rows the pass could not have written, e.g. a once-active
+   symbol's deep history, are never touched). Nothing is trimmed while the active set is unknown (no
+   prewarm pass in this process yet). A trim does not travel through the R2 deltas (a serving pod merges
+   them by INSERT only); web and bars-api keep the rows until they install a whole snapshot. Neither 1
+   nor 3 can stop a publish.
 
 **Forcing a rebuild of a session already built** (e.g. to rebuild 2026-11-20 with full 1m over the weekend):
 set `FFSEED_FORCE_ASOF=2026-11-20` on the worker (a variable change needs the worker to restart to be read:
