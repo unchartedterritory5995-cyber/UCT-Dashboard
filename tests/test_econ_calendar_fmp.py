@@ -118,6 +118,207 @@ def test_integral_floats_render_without_a_trailing_zero():
     assert e["estimate"] == "79" and e["prior"] == "57"
 
 
+# ── the released figure, and the unit the provider names beside a number ─────
+#
+# Every figure below is invented.
+
+def _figure_row(**over):
+    row = _row("Some Release", "2026-08-04 14:00:00", "High", est=1.2, prev=0.3)
+    row.update(over)
+    return row
+
+
+def test_the_released_figure_rides_on_the_curated_row():
+    out = _fetch([_figure_row(actual=1.8)])
+    assert out["2026-08-04"][0]["actual"] == "1.8"
+
+
+def test_a_release_that_is_not_out_yet_has_no_figure():
+    """`None`, never the string "None" and never the expected figure in its place."""
+    for row in (_figure_row(), _figure_row(actual=None), _figure_row(actual="")):
+        e = _fetch([row])["2026-08-04"][0]
+        assert e["actual"] is None
+        assert e["estimate"] == "1.2"
+
+
+def test_a_released_zero_is_a_figure_not_a_missing_one():
+    e = _fetch([_figure_row(actual=0.0, estimate=0, previous=-0.1)])["2026-08-04"][0]
+    assert (e["actual"], e["estimate"], e["prior"]) == ("0", "0", "-0.1")
+
+
+def test_the_providers_unit_is_joined_onto_all_three_figures():
+    e = _fetch([_figure_row(actual=1.8, unit="%")])["2026-08-04"][0]
+    assert (e["estimate"], e["prior"], e["actual"]) == ("1.2%", "0.3%", "1.8%")
+    e = _fetch([_figure_row(estimate=198.0, previous=200.0, actual=205.0, unit="K")])["2026-08-04"][0]
+    assert (e["estimate"], e["prior"], e["actual"]) == ("198K", "200K", "205K")
+
+
+def test_only_the_short_known_units_are_joined_on():
+    for unit in ("%", "K", "M", "B"):
+        assert fmp._figure(2.5, unit) == "2.5" + unit
+    assert fmp._figure(2.5, " % ") == "2.5%"
+    # Anything else is left off: a figure is never given a unit it may not have.
+    for unit in (None, "", "USD", "Index", "k", "bps", "%%", 7, ["%"]):
+        assert fmp._figure(2.5, unit) == "2.5", unit
+
+
+def test_a_missing_figure_never_becomes_a_bare_unit():
+    assert fmp._figure(None, "%") is None
+    assert fmp._figure("", "K") is None
+
+
+def test_a_figure_that_already_carries_its_unit_is_not_given_it_twice():
+    assert fmp._figure("0.4%", "%") == "0.4%"
+    assert fmp._figure("198K", "K") == "198K"
+
+
+def test_the_full_list_joins_the_unit_too():
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result([_figure_row(actual=1.8, unit="%"),
+                                           _figure_row(event="Other Release", actual=None)])):
+        out = fmp.fetch_us_econ_week_full("2026-08-03", "2026-08-07")
+    rows = {e["event"]: e for e in out["2026-08-04"]["econ"]}
+    assert (rows["Some Release"]["estimate"], rows["Some Release"]["prior"],
+            rows["Some Release"]["actual"]) == ("1.2%", "0.3%", "1.8%")
+    assert (rows["Other Release"]["estimate"], rows["Other Release"]["actual"]) == ("1.2", None)
+
+
+# ── what FMP holds for a day, and whether another source's release is among it ──
+
+def _fetch_cover(rows):
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result(rows)):
+        return fmp.fetch_us_econ_week_with_cover("2026-08-03", "2026-08-07")
+
+
+def test_the_cover_lists_every_us_row_fmp_holds_whatever_its_impact():
+    curated, meta, cover = _fetch_cover([
+        _row("JOLTs Job Openings", "2026-08-04 14:00:00", "High"),
+        _row("Leading Index MoM (Jul)", "2026-08-04 14:00:00", "Low"),        # curated list drops it
+        _row("EIA Crude Oil Stocks Change", "2026-08-04 14:30:00", "Medium"),  # noise
+        _row("Fed Cook Speech", "2026-08-04 16:15:00", "Medium"),
+        _row("ECB Rate Decision", "2026-08-04 12:45:00", "High", country="EU"),
+        _row("Undated Row", "not a date", "High"),
+        _row("Next Week Row", "2026-08-10 12:30:00", "High"),
+        _row("", "2026-08-04 12:30:00", "High"),
+    ])
+    assert [e["event"] for e in curated["2026-08-04"]] == ["JOLTs Job Openings", "Fed Cook Speech"]
+    assert cover == {"2026-08-04": ["JOLTs Job Openings", "Leading Index MoM (Jul)",
+                                    "EIA Crude Oil Stocks Change", "Fed Cook Speech"]}
+    assert meta["vendor"] == "fmp"
+
+
+def test_the_cover_is_empty_when_the_provider_gives_nothing():
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     side_effect=RuntimeError("boom")):
+        assert fmp.fetch_us_econ_week_with_cover("2026-08-03", "2026-08-07") == ({}, None, {})
+
+
+def test_the_older_entry_points_keep_their_shapes():
+    rows = [_row("JOLTs Job Openings", "2026-08-04 14:00:00", "High")]
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result(rows)):
+        two = fmp.fetch_us_econ_week_with_meta("2026-08-03", "2026-08-07")
+        one = fmp.fetch_us_econ_week("2026-08-03", "2026-08-07")
+    assert isinstance(two, tuple) and len(two) == 2 and two[1]["vendor"] == "fmp"
+    assert isinstance(one, dict) and one == two[0]
+
+
+def test_cftc_positioning_rows_stay_off_the_curated_list_but_fmp_still_holds_them():
+    """FMP rates four of them Medium. On a quiet Friday they were the whole day."""
+    rows = [
+        _row("CFTC Gold Speculative net positions", "2026-08-07 19:30:00", "Medium"),
+        _row("CFTC S&P 500 speculative net positions", "2026-08-07 19:30:00", "Medium"),
+        _row("CFTC Nasdaq 100 speculative net positions", "2026-08-07 19:30:00", "Medium"),
+        _row("CFTC Crude Oil speculative net positions", "2026-08-07 19:30:00", "Medium"),
+        _row("Consumer Credit Change (Jun)", "2026-08-07 19:00:00", "Medium"),
+    ]
+    curated, _meta, cover = _fetch_cover(rows)
+    assert [e["event"] for e in curated["2026-08-07"]] == ["Consumer Credit Change (Jun)"]
+    assert len(cover["2026-08-07"]) == 5
+    with mock.patch("api.services.fmp_client.get_economic_calendar",
+                     return_value=_result(rows)):
+        full = fmp.fetch_us_econ_week_full("2026-08-03", "2026-08-07")
+    assert len(full["2026-08-07"]["econ"]) == 5, "the widget's full list lost the CFTC rows"
+
+
+def test_a_day_of_only_cftc_rows_has_no_curated_row_at_all():
+    curated, _meta, cover = _fetch_cover([
+        _row("CFTC Gold Speculative net positions", "2026-08-07 19:30:00", "Medium")])
+    assert "2026-08-07" not in curated
+    assert cover == {"2026-08-07": ["CFTC Gold Speculative net positions"]}
+
+
+_SAME = [
+    ("Unemployment Claims", "Initial Jobless Claims (Nov/14)"),
+    ("HPI m/m", "House Price Index MoM (Sep)"),
+    ("S&P/CS Composite-20 HPI y/y", "S&P/Case-Shiller Home Price YoY (Sep)"),
+    ("Federal Funds Rate", "Fed Interest Rate Decision"),
+    ("FOMC Statement", "Fed Interest Rate Decision"),
+    ("Non-Farm Employment Change", "Non Farm Payrolls (Oct)"),
+    ("Core PPI m/m", "Producer Price Index MoM (Oct)"),
+    ("CPI y/y", "Inflation Rate YoY (Oct)"),
+    ("CPI m/m", "Consumer Price Index MoM (Oct)"),
+    ("Core CPI m/m", "Core Inflation Rate MoM (Oct)"),
+    ("Philly Fed Manufacturing Index", "Philadelphia Fed Manufacturing Index (Nov)"),
+    ("Revised UoM Consumer Sentiment", "Michigan Consumer Sentiment (Nov)"),
+    ("Core Retail Sales m/m", "Retail Sales Ex Autos MoM (Oct)"),
+    ("FOMC Meeting Minutes", "FOMC Minutes"),
+    ("Unit Labor Costs q/q", "Unit Labour Costs QoQ Prel (Q3)"),
+    ("Trade Balance", "Balance of Trade (Sep)"),
+    ("Flash Manufacturing PMI", "S&P Global Manufacturing PMI (Nov)"),
+    ("Empire State Manufacturing Index", "NY Empire State Manufacturing Index (Nov)"),
+    ("Crude Oil Inventories", "EIA Crude Oil Stocks Change (Nov/13)"),
+    ("10-y Bond Auction", "10-Year Note Auction"),
+    ("CB Leading Index m/m", "Leading Index MoM (Oct)"),
+]
+
+_DIFFERENT = [
+    ("Revised UoM Consumer Sentiment",
+     ["CFTC Gold Speculative net positions", "Baker Hughes Oil Rig Count (Nov/20)",
+      "Fed Cook Speech", "Fed Waller Speech"]),
+    ("CB Consumer Confidence", ["Michigan Consumer Sentiment (Nov)"]),
+    ("Philly Fed Manufacturing Index", ["Fed Waller Speech", "ISM Manufacturing PMI (Nov)"]),
+    ("Existing Home Sales", ["Retail Sales MoM (Oct)", "Retail Sales Ex Autos MoM (Oct)"]),
+    ("Bank Holiday", ["Initial Jobless Claims (Nov/21)"]),
+    ("Revised UoM Inflation Expectations", ["Core Inflation Rate MoM (Oct)", "CPI (Oct)"]),
+    ("JOLTS Job Openings", ["Initial Jobless Claims (Nov/14)"]),
+    ("Unemployment Claims", []),
+    # The weekly claims are not the monthly unemployment rate.
+    ("Unemployment Claims", ["Unemployment Rate (Oct)", "Non Farm Payrolls (Oct)"]),
+]
+
+
+def test_the_same_release_under_two_wordings_is_held():
+    for other, ours in _SAME:
+        assert fmp.holds_release([ours], other), (other, ours)
+        assert fmp.holds_release(["Some Other Row", ours], other), (other, ours)
+
+
+def test_a_different_release_is_not_held():
+    for other, day in _DIFFERENT:
+        assert not fmp.holds_release(day, other), (other, day)
+    assert not fmp.holds_release(None, "Unemployment Claims")
+
+
+def test_a_title_with_nothing_to_tell_it_apart_by_counts_as_held():
+    """Nothing identifies it, so it can never be shown to be missing: never added."""
+    for title in ("", None, "Index m/m", "Core Price Index (Oct)", "Final Sales"):
+        assert fmp.holds_release([], title), title
+
+
+def test_the_period_in_brackets_and_the_kind_of_figure_are_not_identity():
+    assert fmp._identity_words("Initial Jobless Claims (Nov/14)") == {"initial", "jobless", "claims"}
+    assert fmp._identity_words("Retail Sales Ex Autos MoM (Oct)") == {"retail", "autos"}
+    assert fmp._identity_words("S&P/CS Composite-20 HPI y/y") == {
+        "case", "shiller", "composite", "house"}
+    # A word inside the brackets must not make two releases the same one.
+    assert not fmp.holds_release(["Building Permits (Claims)"], "Unemployment Claims")
+    # Whole words only: "hpi" inside another word is not the house price index.
+    assert fmp._identity_words("Shpiel Report") == {"shpiel"}
+    assert fmp._identity_words("Philly Fed Manufacturing Index") == {"philadelphia"}
+
+
 def test_never_raises_and_returns_empty_on_failure():
     with mock.patch("api.services.fmp_client.get_economic_calendar",
                      side_effect=RuntimeError("boom")):

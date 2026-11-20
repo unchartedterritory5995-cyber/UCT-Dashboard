@@ -32,6 +32,11 @@ import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { dbNameFor } from './notebookDb'
 import { drainOutbox } from './outboxDrain'
 import { NOTEBOOK_SCHEMA_HEADER } from '../notebookSchema'
+import { preloadLazyChunks, NOTE_EDITOR_CHUNKS } from '../../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTE_EDITOR_CHUNKS)
 
 vi.setConfig({ testTimeout: 60_000 })
 

@@ -792,6 +792,9 @@ const RUN_HALF_WHY = Object.freeze({
   'runtime:runtime.error': 'the script stops itself with its own error message on this chart',
   'runtime:history-start': "this chart's bars don't start at the symbol's first trading day, and where the "
     + 'drawings land depends on where the chart begins',
+  // ⭐⭐ (2026-11-20) the chart DOES start at the listing, on a timeframe not served from it yet (W / M)
+  'runtime:listing-unverified': "this chart starts at the symbol's first trading period, and drawings worked out from "
+    + 'the listing have only been checked against TradingView on daily charts so far',
   'runtime:warmup-never-converges': "this chart's bars don't start at the symbol's first trading day, and what "
     + 'the script shows depends on where the chart begins',
   'run-half:column-rail': 'running it bar by bar gives one of its plots a different value from the one drawn '

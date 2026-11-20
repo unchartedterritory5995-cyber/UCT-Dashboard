@@ -1,0 +1,15 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "OBJECTS C: an else arm of the host object program over a bool that can be na draws where the test is na (Pine reads `not na` as true). Broken once, the rail must go red.",
+ "mutants": [
+  {
+   "id": "E1",
+   "mutant": "a negated guard is read at the plain guard site again (its `!` of an na bool answers na: the else arm never draws)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "        ast = makeResolver().condition(ast, g.negate ? 'not' : 'guard', tok || (node && node.tok))",
+   "to": "        ast = makeResolver().condition(ast, 'guard', tok || (node && node.tok))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/objectElseArmNaBool.test.js",
+   "expectRed": "the else arm on f's"
+  }
+ ]
+}

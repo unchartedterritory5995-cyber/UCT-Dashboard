@@ -16,6 +16,7 @@ import pathlib
 import pytest
 
 from tools.pine_coverage import demand_ranking as dr
+from tools.pine_coverage import parity_roadmap as pr
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ROADMAP = ROOT / "docs" / "pine" / "parity-roadmap.json"
@@ -118,3 +119,25 @@ def test_the_file_holds_aggregates_only():
     body = json.dumps({k: v for k, v in doc.items() if k != "_comment"})
     for needle in ("http", "@", "committed:", "reference:", "builtin:"):
         assert needle not in body, needle
+
+
+def test_one_regenerate_moves_both_files(tmp_path, monkeypatch, capsys):
+    """`parity_roadmap.py build` rebuilds the ranking whenever it writes THE committed roadmap, so a rebuilt roadmap
+    never leaves the ranking behind. A build to any other path is a trial and touches nothing else."""
+    import argparse
+    road, rank = tmp_path / "parity-roadmap.json", tmp_path / "demand-ranking.json"
+    args = argparse.Namespace(map=str(ROOT / "docs" / "pine" / "coverage-map.json"), facts=str(ROADMAP), out=str(road))
+    monkeypatch.setattr(dr, "OUT", str(rank))
+    # a trial build (not the committed path): the roadmap is written, the ranking is not
+    pr.cmd_build(args)
+    assert road.exists() and not rank.exists()
+    # the committed path (stood in for by this file): both are written, and the ranking is that roadmap's
+    monkeypatch.setattr(pr, "ROADMAP", str(road))
+    pr.cmd_build(args)
+    capsys.readouterr()
+    assert rank.exists()
+    built = json.loads(road.read_text(encoding="utf-8"))
+    assert rank.read_text(encoding="utf-8") == dr.text_of(dr.build(built, dr.boosts_of(str(CORPUS))))
+    assert dr.check(roadmap_path=str(road), out_path=str(rank)) == []
+    # and what it built from the committed facts is the committed ranking
+    assert rank.read_text(encoding="utf-8") == RANKING.read_text(encoding="utf-8").replace("\r\n", "\n")

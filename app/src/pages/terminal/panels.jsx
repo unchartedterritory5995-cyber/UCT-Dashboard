@@ -136,6 +136,8 @@ export const PANEL_IMPORTERS = {
   Dilution: () => import('./panels/DilutionPanel'),
   // OIC (2026-11-19): one stock's open interest per contract against the recorded day before, from UCT's options log
   OiChange: () => import('./panels/OiChangePanel'),
+  // TIDEH (2026-11-19): each finished session's Market Tide totals, from the store the server fills after the close
+  TideHistory: () => import('./panels/TideHistoryPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

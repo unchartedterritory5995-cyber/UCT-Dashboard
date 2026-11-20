@@ -229,6 +229,37 @@
    "shows": "each candle is made from the bar and the candle before it: its close is the average of the bar's four prices, its open is halfway between the open and close of the candle before (the first one uses the bar's own open and close), and its high and low reach the bar's high and low. The candles are drawn in their OWN pane under the chart (a script cannot replace the chart's candles). All three colours of a candle are written (body, wick and border): a candle given only one is drawn half in the chart's default colours",
    "chart": "daily",
    "file": "heikin-ashi-candles.pine"
+  },
+  {
+   "id": "average-cloud",
+   "title": "A shaded cloud between two exponential averages",
+   "asks": [
+    "ema cloud",
+    "ema clouds",
+    "cloud between two emas",
+    "shade between two moving averages",
+    "moving average cloud",
+    "shade the area between"
+   ],
+   "shows": "two plots kept in variables (`a = plot(...)`), both TITLED, and one `fill(a, b, ...)` between them whose colour says which average is on top; a fill between plots needs a script with no `var` in it",
+   "chart": "daily",
+   "file": "average-cloud.pine"
+  },
+  {
+   "id": "time-of-day-volume",
+   "title": "Volume so far today against the usual for this time of day",
+   "asks": [
+    "time of day volume",
+    "volume at the same time of day",
+    "same time of day",
+    "volume so far today",
+    "intraday relative volume",
+    "cumulative volume versus its average",
+    "relative volume at time"
+   ],
+   "shows": "today's running volume divided by the average, over the last N FINISHED days, of the running volume at the same bar of the day. Each finished day is one row of a flat array (`array.push` a fixed number of values per day, a short day padded with its own total; the oldest row trimmed with `array.shift` in a counted loop), today's row is rebuilt from `array.clear` at each day change, and nothing is drawn until N whole days are stored. The bars before the first day change may be part of a day and are never stored. An intraday chart only",
+   "chart": "intraday",
+   "file": "time-of-day-volume.pine"
   }
  ]
 }

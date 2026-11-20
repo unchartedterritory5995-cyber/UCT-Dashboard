@@ -6439,8 +6439,31 @@ function dateKeyed(bars) {
 }
 function nameChartClock(opts, codes, tf) {
   const sink = opts && opts.chartClockSink
-  if (sink && typeof sink.set === 'function') for (const code of codes) sink.set(code, CHART_CLOCK_WITHHELD[code](tf))
+  if (!sink || typeof sink.set !== 'function') return
+  // ⭐⭐ (coordinator ruling 2026-11-20) on a chart that DOES start at the listing, on a timeframe the listing does not
+  // serve yet (`opts.listingStart`: weekly / monthly, `listingSeed.listingStartOf`), a note that says "this chart's loaded
+  // bars start later" is FALSE; the true sentence is said instead (`LISTING_UNVERIFIED_NOTE`)
+  for (const code of codes) sink.set(code, chartClockSentence(code, tf, opts))
 }
+
+/** The sentence a named withholding says on this chart: the table's, or, where the chart starts at the listing and is
+ *  not served from it and the table's sentence says it starts later, `LISTING_UNVERIFIED_NOTE`. The ONE resolver. */
+export function chartClockSentence(code, tf, opts) {
+  const atListing = !!opts && opts.listingStart === true && opts.historyFromListing !== true
+  return atListing && LISTING_LATER_NOTES.includes(code) ? LISTING_UNVERIFIED_NOTE(tf) : CHART_CLOCK_WITHHELD[code](tf)
+}
+
+/** ⭐⭐ (2026-11-20) THE NOTES WHOSE SENTENCE SAYS THE CHART'S LOADED BARS START AFTER THE LISTING. On a chart that starts
+ *  at the listing and is not served from it (`opts.listingStart`), each one is replaced by `LISTING_UNVERIFIED_NOTE`.
+ *  ⛔ A new note of this kind joins here; `listingStatement.test.js` holds the list to the table's own sentences. */
+export const LISTING_LATER_NOTES = Object.freeze(['bar-index:window', 'bar-index:early-bars', 'running-total:window',
+  'running-total:early-bars', 'bar-index:first-bar', 'var-origin:window', 'var-origin:bars', 'window-extreme:left-edge',
+  'request:htf-first-period-partial', STOCH_LEFT_EDGE, RCI_LEFT_EDGE])
+export const LISTING_UNVERIFIED_NOTE = (tf) => `This chart's bars start at the symbol's first trading ${
+  tf === 'M' ? 'month' : tf === 'W' ? 'week' : 'period'}, but a value carried from the first bar has only been checked `
+  + 'against TradingView from the listing on daily charts, not on this timeframe yet. What this indicator draws from it '
+  + 'is withheld here rather than drawn unchecked; its daily chart draws it. What would settle it: a capture of this '
+  + 'timeframe from the listing.'
 
 /** ⭐⭐ C30 / C36 / C49 — THE BARS OF A TREE WHOSE ANSWER READS A `time(<period>)`
  *  / `time_close(<period>)` WE CANNOT ANSWER, as a 0/1 column (1 = withheld), or
