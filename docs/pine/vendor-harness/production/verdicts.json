@@ -36456,9 +36456,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried,objects:partial-unpositioned",
+    "reason": "our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 13 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -36478,7 +36478,10 @@
       "family": "boxes",
       "vendor": 13,
       "ours": 3,
-      "agree": false
+      "agree": null,
+      "withheld": true,
+      "partial": true,
+      "unpositioned": true
      },
      {
       "family": "tables",
@@ -36547,37 +36550,21 @@
      "vendor": 22
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: bar0: the capture starts at the listing (history.startsAtBar0); there is no history before bar 0"
    ],
+   "ourDoor": "host",
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: boxes top of box #2 — vendor 156.35857142857142, ours 152.67); x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 156.35857142857142,
-     "ours": 152.67,
-     "vendorId": 21,
-     "ourId": 2,
-     "where": "box #2"
-    },
-    "firstWithoutX": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 156.35857142857142,
-     "ours": 152.67,
-     "vendorId": 21,
-     "ourId": 2,
-     "where": "box #2"
-    },
+    "reason": "every paired record agrees on 47 graded fields; x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 13 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 0,
      "agreeing": 0,
@@ -36586,7 +36573,9 @@
      "missingWhy": {
       "the capture records no x table (taken before U13)": 6
      },
-     "incompleteFamilies": []
+     "incompleteFamilies": [
+      "boxes"
+     ]
     },
     "families": [
      {
@@ -36635,8 +36624,8 @@
       "unpairedVendor": 10,
       "unpairedOurs": 0,
       "graded": 24,
-      "agreeing": 12,
-      "differing": 12,
+      "agreeing": 24,
+      "differing": 0,
       "notGraded": 15,
       "undecoded": {},
       "byField": {
@@ -36646,8 +36635,8 @@
         "notGraded": 3
        },
        "top": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "right": {
@@ -36656,8 +36645,8 @@
         "notGraded": 3
        },
        "bottom": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "extend": {
@@ -36701,13 +36690,13 @@
         "notGraded": 3
        },
        "border_color": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "bgcolor": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "text_color": {
@@ -36716,24 +36705,10 @@
         "notGraded": 3
        }
       },
-      "first": {
-       "field": "top",
-       "vendor": 156.35857142857142,
-       "ours": 152.67,
-       "vendorId": 21,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "firstWithoutX": {
-       "field": "top",
-       "vendor": 156.35857142857142,
-       "ours": 152.67,
-       "vendorId": 21,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
       "x": {
        "graded": 0,
        "agreeing": 0,
@@ -36744,7 +36719,9 @@
        },
        "first": null
       },
-      "xIncomplete": false,
+      "xIncomplete": true,
+      "withheldUnpaired": 10,
+      "pairedByValue": true,
       "differsOnlyByCreationOrder": false
      },
      {
@@ -36951,9 +36928,9 @@
     "absReason": "1e-6 of the tick (pricescale 100)"
    },
    "objects": {
-    "verdict": "DIVERGE",
-    "verdictWithoutColour": "DIVERGE",
-    "reason": "1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1",
+    "verdict": "INCONCLUSIVE",
+    "withheld": "objects:not-carried,objects:partial-unpositioned",
+    "reason": "our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 11 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree",
     "counts": [
      {
       "family": "lines",
@@ -36973,7 +36950,10 @@
       "family": "boxes",
       "vendor": 11,
       "ours": 3,
-      "agree": false
+      "agree": null,
+      "withheld": true,
+      "partial": true,
+      "unpositioned": true
      },
      {
       "family": "tables",
@@ -37042,37 +37022,21 @@
      "vendor": 17
     }
    },
-   "verdict": "DIVERGE",
-   "reason": "1 of 1 compared items diverge",
-   "verdictWithoutColour": "DIVERGE",
+   "verdict": "INCONCLUSIVE",
+   "reason": "1 of 1 items could not be compared",
    "ourNotes": [
     "plots/objects: replayed: 6677 bars of prehistory from vw-object-gc-b-spy-1d-2026-09-28.json (which starts at the listing: historyFromListing on), every overlapping window bar equal on time/open/high/low/close/volume; graded as the STANDALONE daily chart computes it (8477 of at most 12500 bars; a grid cell first-paints shallow, and W / M stay cold)"
    ],
+   "ourDoor": "host",
    "objectsV2": {
-    "verdict": "DIVERGE",
-    "verdictWithoutX": "DIVERGE",
-    "v1": "DIVERGE",
+    "verdict": "INCONCLUSIVE",
+    "verdictWithoutX": "INCONCLUSIVE",
+    "v1": "INCONCLUSIVE",
     "pairedNothing": false,
     "differsOnlyByCreationOrder": false,
-    "reason": "1 object family differs field by field (first: boxes top of box #2 — vendor 771.0525250000001, ours 769.64); x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: 1 object families differ (count or text); colours agree on 12 paired slots; coordinates are NOT compared by v1; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
-    "first": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 771.0525250000001,
-     "ours": 769.64,
-     "vendorId": 16,
-     "ourId": 2,
-     "where": "box #2"
-    },
-    "firstWithoutX": {
-     "family": "boxes",
-     "field": "top",
-     "vendor": 771.0525250000001,
-     "ours": 769.64,
-     "vendorId": 16,
-     "ourId": 2,
-     "where": "box #2"
-    },
+    "reason": "every paired record agrees on 47 graded fields; x: 0 graded (0 differ), 6 not resolvable to a bar (the capture records no x table (taken before U13)); v1: our lines, labels are withheld by name (objects:not-carried: No line or label is shown on this chart: the script makes them in steps this chart can't follow yet, so none are drawn here, though TradingView may draw some.); our drawing is a disclosed partial (boxes 3 of 11 drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (objects:partial-unpositioned); every other object family's counts and texts agree; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)",
+    "first": null,
+    "firstWithoutX": null,
     "x": {
      "graded": 0,
      "agreeing": 0,
@@ -37081,7 +37045,9 @@
      "missingWhy": {
       "the capture records no x table (taken before U13)": 6
      },
-     "incompleteFamilies": []
+     "incompleteFamilies": [
+      "boxes"
+     ]
     },
     "families": [
      {
@@ -37130,8 +37096,8 @@
       "unpairedVendor": 8,
       "unpairedOurs": 0,
       "graded": 24,
-      "agreeing": 12,
-      "differing": 12,
+      "agreeing": 24,
+      "differing": 0,
       "notGraded": 15,
       "undecoded": {},
       "byField": {
@@ -37141,8 +37107,8 @@
         "notGraded": 3
        },
        "top": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "right": {
@@ -37151,8 +37117,8 @@
         "notGraded": 3
        },
        "bottom": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "extend": {
@@ -37196,13 +37162,13 @@
         "notGraded": 3
        },
        "border_color": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "bgcolor": {
-        "agree": 0,
-        "differ": 3,
+        "agree": 3,
+        "differ": 0,
         "notGraded": 0
        },
        "text_color": {
@@ -37211,24 +37177,10 @@
         "notGraded": 3
        }
       },
-      "first": {
-       "field": "top",
-       "vendor": 771.0525250000001,
-       "ours": 769.64,
-       "vendorId": 16,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "firstWithoutX": {
-       "field": "top",
-       "vendor": 771.0525250000001,
-       "ours": 769.64,
-       "vendorId": 16,
-       "ourId": 2,
-       "where": "box #2"
-      },
-      "agree": false,
-      "agreeWithoutX": false,
+      "first": null,
+      "firstWithoutX": null,
+      "agree": null,
+      "agreeWithoutX": true,
       "x": {
        "graded": 0,
        "agreeing": 0,
@@ -37239,7 +37191,9 @@
        },
        "first": null
       },
-      "xIncomplete": false,
+      "xIncomplete": true,
+      "withheldUnpaired": 8,
+      "pairedByValue": true,
       "differsOnlyByCreationOrder": false
      },
      {

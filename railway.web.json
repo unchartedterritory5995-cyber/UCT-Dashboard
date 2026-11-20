@@ -71,7 +71,9 @@
       "app/src/pages/optionsFlow/flowSearchProduct.js",
       "app/src/pages/optionsFlow/flowTopPicksProduct.js",
       "app/src/utils/barsBackfill.js",
-      "app/src/utils/barsIDB.js"
+      "app/src/utils/barsIDB.js",
+      "app/src/pages/breadth/shadeCutoffs.generated.json",
+      "app/src/pages/breadth/shadeSpec.json"
     ]
   },
   "deploy": {
