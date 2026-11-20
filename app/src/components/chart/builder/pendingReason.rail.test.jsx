@@ -26,7 +26,8 @@ vi.mock('../supportLoop/supportApi', async (importOriginal) => {
   return { ...real, logImportGaps: () => true, reportsConfig: () => Promise.resolve({ reportsEnabled: false, maxSourceBytes: 131072, maxNoteChars: 1000 }) }
 })
 
-import PineEditorStatus, { usePineEditorStatus, shownStatus, PENDING_REASON_REREAD_MS } from './PineEditorStatus'
+import PineEditorStatus, { usePineEditorStatus, shownStatus } from './PineEditorStatus'
+import PANEL_SRC from './PineEditorStatus.jsx?raw'
 import { inspectSource } from './PineBox'
 import { PANEL_STATE, lineMarks } from './editorStatus'
 import { CHECKING_HEADLINE } from './runsHere'
@@ -173,12 +174,14 @@ function Panel({ source }) {
 const headline = () => screen.getByTestId('pine-status-headline')
 const checkingLines = () => screen.queryAllByTestId('pine-status-checking-line').map((n) => n.textContent)
 const tick = async (ms) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
+/** Long enough for an answer already asked for to arrive and be told to the panel; far below any retry. */
+const TOLD_MS = 50
 
 describe('the editor panel: the same reason, in the same words, and never a false "Not yet"', () => {
   it.each([...RUNTIME_PENDING_REASONS])('"%s": the panel leads with "still being checked" and says why', async (reason) => {
     door = pending(reason)
     render(<Panel source={SCRIPT} />)
-    await tick(PENDING_REASON_REREAD_MS + 100)
+    await tick(TOLD_MS)
     expect(headline().textContent).toBe(CHECKING_HEADLINE)
     expect(headline().getAttribute('data-state')).toBe(PANEL_STATE.CHECKING)
     expect(checkingLines()).toEqual([PENDING_REASON_LINES[reason], CHECKING_IN_THE_EDITOR_LINE])
@@ -192,7 +195,7 @@ describe('the editor panel: the same reason, in the same words, and never a fals
   it('CONTROL: no reason from the door: "still being checked", the one plain line, and no reason line', async () => {
     door = pending(undefined)
     render(<Panel source={SCRIPT} />)
-    await tick(PENDING_REASON_REREAD_MS + 100)
+    await tick(TOLD_MS)
     expect(headline().textContent).toBe(CHECKING_HEADLINE)
     expect(checkingLines()).toEqual([CHECKING_IN_THE_EDITOR_LINE])
     expect(screen.getByTestId('pine-status-checking-line').getAttribute('data-reason')).toBe('')
@@ -201,29 +204,29 @@ describe('the editor panel: the same reason, in the same words, and never a fals
   it('a reason that CHANGES is re-read, and the answer landing ends it: the panel then says what the script does', async () => {
     door = pending('starting')
     render(<Panel source={SCRIPT} />)
-    await tick(PENDING_REASON_REREAD_MS + 100)
+    await tick(TOLD_MS)
     expect(checkingLines()[0]).toBe(PENDING_REASON_LINES.starting)
     door = pending('busy')
-    await tick(RUNTIME_ADMISSION_PENDING_RETRY_MS + PENDING_REASON_REREAD_MS + 100)
+    await tick(RUNTIME_ADMISSION_PENDING_RETRY_MS + TOLD_MS)
     expect(checkingLines()[0]).toBe(PENDING_REASON_LINES.busy)
     // the door answers: the engine latches it, the pane is made again, and the false refusal never shows
     door = ADMITTED
-    await tick(RUNTIME_ADMISSION_PENDING_RETRY_MS + PENDING_REASON_REREAD_MS + 100)
+    await tick(RUNTIME_ADMISSION_PENDING_RETRY_MS + TOLD_MS)
     expect(runtimeAdmissionOf({ source: SCRIPT })).toMatchObject({ admitted: true })
     expect(headline().textContent).not.toBe(CHECKING_HEADLINE)
     expect(headline().textContent).toMatch(/^Runs on the chart/)
     expect(checkingLines()).toEqual([])
     expect(screen.getByTestId('pine-status-engine').getAttribute('data-lane')).toBe('runtime')
-    // and it stops reading: no timer of this panel's is left asking
+    // and nothing is left asking
     const asks = asksOf(RUNTIME_ADMISSION_PATH)
-    await tick(PENDING_REASON_REREAD_MS * 5)
+    await tick(10_000)
     expect(asksOf(RUNTIME_ADMISSION_PATH)).toBe(asks)
   }, 120_000)
 
   it('CONTROL: a script the door REFUSES is not "being checked": the panel says the refusal', async () => {
     door = REFUSED
     render(<Panel source={SCRIPT} />)
-    await tick(PENDING_REASON_REREAD_MS + 100)
+    await tick(TOLD_MS)
     expect(headline().textContent).not.toBe(CHECKING_HEADLINE)
     expect(checkingLines()).toEqual([])
     expect(headline().getAttribute('data-state')).not.toBe(PANEL_STATE.CHECKING)
@@ -246,7 +249,7 @@ describe('the editor marks no line as withheld while the script is still being c
   it('no marks while the answer is out; the same status WOULD mark lines; a refusal that is final marks them', async () => {
     door = pending('busy')
     render(<Panel source={SCRIPT} />)
-    await tick(PENDING_REASON_REREAD_MS + 100)
+    await tick(TOLD_MS)
     expect(lastStatus.admissionPending).toBe(true)
     expect(lineMarks(lastStatus, SCRIPT)).toEqual({ source: SCRIPT, marks: [] })
     // CONTROL: the fast lane's refusal is on real lines of this script, and without the "still being checked"
@@ -258,7 +261,7 @@ describe('the editor marks no line as withheld while the script is still being c
     expect(wouldMark.every((m) => m.line >= 1 && typeof m.message === 'string' && m.message.length > 0)).toBe(true)
     // the door REFUSES: nothing is being checked any more, and the lines are marked
     door = REFUSED
-    await tick(RUNTIME_ADMISSION_PENDING_RETRY_MS + PENDING_REASON_REREAD_MS + 100)
+    await tick(RUNTIME_ADMISSION_PENDING_RETRY_MS + TOLD_MS)
     expect(lastStatus.admissionPending).toBeUndefined()
     expect(lineMarks(lastStatus, SCRIPT).marks.length).toBeGreaterThan(0)
   }, 120_000)
@@ -270,5 +273,17 @@ describe('the editor marks no line as withheld while the script is still being c
       expect(lineMarks({ items: [item], admissionPending: v }, src).marks, String(v)).toHaveLength(1)
     }
     expect(lineMarks({ items: [item], admissionPending: true }, src).marks).toEqual([])
+  })
+})
+
+describe('the panel is TOLD, it does not poll', () => {
+  it('the hook that reads the reason holds no timer of its own', () => {
+    // CODE, not prose: comments are removed before looking, and the control proves the look can see a timer
+    const code = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '').split(String.fromCharCode(10)).map((l) => l.split('//')[0]).join(String.fromCharCode(10))
+    const hook = code(PANEL_SRC).split('export function useAdmissionPending')[1].split('export function usePineEditorStatus')[0]
+    expect(hook).toContain('subscribe(settle)')
+    expect(hook).not.toMatch(/setInterval|setTimeout/)
+    expect(code('x = 1 // setInterval' + String.fromCharCode(10) + 'setInterval(f, 5)')).toMatch(/setInterval\(f/)
+    expect(code('/* setInterval(f, 5) */ x = 1')).not.toMatch(/setInterval/)
   })
 })
