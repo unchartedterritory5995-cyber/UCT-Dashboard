@@ -81,3 +81,46 @@ export function listingReferenceDate(ipo) {
   if (typeof ft === 'string' && ISO_DATE.test(ft.trim())) return ft.trim()
   return typeof ipo.list_date === 'string' ? ipo.list_date : null
 }
+
+// ─── ⭐⭐ THE LISTING STATEMENT ON A WEEKLY OR MONTHLY CHART (coordinator ruling 2026-11-20) ────────────────────────
+//
+// ⚰️ MEASURED on production e86 (2026-11-20, Fred RS on NASDAQ:BGIN, listed 2025-10-21, `first_trade_final` true): the
+// weekly chart's first bar IS the listing week (`/api/bars/BGIN?tf=W` first bar `2025-10-24`, the week's last session),
+// and the member read "this chart's bars don't start at the symbol's first trading day" -- a FALSE sentence, because
+// `historyFromListingOf` above answers for a daily chart only. The door states the FACT on W and M too:
+// `listingStartOf` answers whether the chart's FIRST bar holds the symbol's first trade (its period contains the date:
+// the same ISO week, the same calendar month, whichever day the store keys that bar by: W bars are keyed by the week's
+// last session, M bars by the month's first day).
+// ⛔ THE FACT IS NOT THE PERMISSION. A state seeded from a weekly or monthly listing bar has not been graded against
+// TradingView yet, so `historyFromListing` (the switch that SERVES a run from bar 0) stays daily-only until a capture
+// grades it (`LISTING_SERVED_TFS`); where the fact holds and the run is still withheld, the door says so truthfully
+// (`runtime:listing-unverified`), never "the bars don't start at the first trading day".
+
+/** The timeframes where the listing statement also SERVES a run from bar 0. Daily only: W / M join on capture evidence. */
+export const LISTING_SERVED_TFS = Object.freeze(['D'])
+
+const DAY_MS = 86400000
+const isoWeekStart = (iso) => {
+  const t = Date.parse(`${iso}T00:00:00Z`)
+  return Number.isFinite(t) ? t - (((new Date(t).getUTCDay() + 6) % 7) * DAY_MS) : NaN
+}
+
+/**
+ * Does the chart's FIRST bar hold the symbol's first trade? Daily: exactly `historyFromListingOf`. Weekly / monthly: the
+ * first bar's period (its ISO week, its calendar month) contains the listing day. Anything else, or anything malformed:
+ * `false`.
+ * @param {{bars: Array<{t: string|number}>, tf: string, listDate: string|null|undefined}} args
+ */
+export function listingStartOf({ bars, tf, listDate } = {}) {
+  if (tf === 'D') return historyFromListingOf({ bars, tf, listDate })
+  if (tf !== 'W' && tf !== 'M') return false
+  if (typeof listDate !== 'string' || !ISO_DATE.test(listDate.trim())) return false
+  if (!Array.isArray(bars) || !bars.length) return false
+  const t = bars[0] && bars[0].t
+  if (typeof t !== 'string' || !ISO_DATE.test(t.slice(0, 10))) return false
+  const first = t.slice(0, 10)
+  const day = listDate.trim()
+  if (tf === 'M') return first.slice(0, 7) === day.slice(0, 7)
+  const a = isoWeekStart(first)
+  return Number.isFinite(a) && a === isoWeekStart(day)
+}

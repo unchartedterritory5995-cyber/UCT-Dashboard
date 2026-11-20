@@ -363,6 +363,8 @@ function messageOf(id, def, rows, ctx) {
     tf: ctx && ctx.tf,
     newestBarIsForming: ctx ? ctx.newestBarIsForming : undefined,
     historyFromListing: !!(ctx && ctx.historyFromListing === true),
+    // ⭐⭐ (2026-11-20) the listing FACT where it holds and is not served (W / M): the run's withhold says it truthfully
+    ...(ctx && ctx.listingStart === true ? { listingStart: true } : {}),
     // ⭐ UIE PHASE 2 (M4) — the member's settings (plain numbers and text)
     ...(ctx && ctx.runtimeInputs && typeof ctx.runtimeInputs === 'object'
       ? { runtimeInputs: { ...ctx.runtimeInputs } } : {}),
@@ -436,6 +438,7 @@ function coalesceKeyOf(def, ctx) {
   const s = ctx && ctx.symbol && typeof ctx.symbol === 'object' ? `${ctx.symbol.ticker}@${ctx.symbol.exchange}` : '-'
   return `${def && def.id}|${def && def.compute && def.compute.fn}|${ctx && ctx.tf}|${s}|`
     + `${ctx ? ctx.newestBarIsForming : ''}|${!!(ctx && ctx.historyFromListing === true)}`
+    + (ctx && ctx.listingStart === true ? '|listingStart' : '')
 }
 
 /** The chart pane asking (`binder.js`: its scope and the instance), or null for a request no pane owns. */

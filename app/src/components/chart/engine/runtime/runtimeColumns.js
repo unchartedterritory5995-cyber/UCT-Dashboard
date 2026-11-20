@@ -804,7 +804,8 @@ function computeRuntimeColumnsAll(def, rows, ctx, opts = {}) {
     return computeRuntimeColumnsOnce(def, rows, ctx, opts)
   } catch (err) {
     if (err && (err.name === 'runtime.error' || err.guard === RUNTIME_TIME_BUDGET_GUARD
-      || err.guard === RUNTIME_HISTORY_GUARD || err.guard === RUNTIME_WARMUP_GUARD)) throw err
+      || err.guard === RUNTIME_HISTORY_GUARD || err.guard === RUNTIME_WARMUP_GUARD
+      || err.guard === RUNTIME_LISTING_UNVERIFIED_GUARD)) throw err
     const plain = { ...def, compute: { ...compute, objects: undefined } }
     let out
     // ⭐ P3 WS-F — the plain run's TIME stop is the run's answer (WS-H, B2: wyckoff on a slow
@@ -892,6 +893,16 @@ export function warmupShiftFor(n) {
 /** The guard a document carries whose run never stops depending on its first bar. */
 export const RUNTIME_WARMUP_GUARD = 'runtime:warmup-never-converges'
 
+/** ⭐⭐ (coordinator ruling 2026-11-20) THE GUARD WHERE THE CHART DOES START AT THE LISTING, on a timeframe the listing
+ *  statement does not serve yet (weekly / monthly: `listingSeed.LISTING_SERVED_TFS`). ⚰️ NASDAQ:BGIN 1W on production
+ *  e86: its first weekly bar IS the listing week, and the member read "this chart's bars don't start at the symbol's first
+ *  trading day" -- false. Here the true sentence is said, by its own name (`ctx.listingStart`, `listingSeed.listingStartOf`). */
+export const RUNTIME_LISTING_UNVERIFIED_GUARD = 'runtime:listing-unverified'
+const listingUnserved = (ctx) => !!(ctx && ctx.listingStart === true && ctx.historyFromListing !== true)
+const LISTING_UNVERIFIED_REFUSAL = "this script is drawn bar by bar from its first bar, and this chart DOES start at the "
+  + "symbol's first trading period, but a run from the listing has only been checked against TradingView on daily charts, "
+  + 'not on this timeframe yet. Nothing is drawn rather than a guess. TO UNBLOCK: its daily chart draws it.'
+
 /**
  * ⭐⭐⭐ UIE PHASE 2 — A LISTING DOCUMENT ON A CHART THAT DOES NOT START AT THE LISTING.
  *
@@ -927,11 +938,12 @@ function computeOffListing(def, rows, ctx, opts) {
   // the columnar lane, which refuses e.g. `str.length` in renko's labels); the
   // drawings are withheld AFTER the run instead.
   const plain = { ...def, meta: { ...def.meta, runtimeHistory: undefined } }
-  const never = () => refusal(RUNTIME_WARMUP_GUARD, "this script is drawn bar by bar from its first bar, and "
+  const never = () => (listingUnserved(ctx) ? refusal(RUNTIME_LISTING_UNVERIFIED_GUARD, LISTING_UNVERIFIED_REFUSAL)
+    : refusal(RUNTIME_WARMUP_GUARD, "this script is drawn bar by bar from its first bar, and "
     + "this chart's history does not start at the symbol's first bar. Run from two different first bars, "
     + "its values never came to agree, so what it would show here depends on where the chart begins, which "
     + 'TradingView does not share. Nothing is drawn rather than a guess. TO UNBLOCK: a chart whose loaded '
-    + "history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it.")
+    + "history reaches the listing (a daily chart of a symbol listed within the bars it loads) draws it."))
   if (shift < 2) throw never()
   const clock = clockOf(opts)
   const t0 = clock()
@@ -988,10 +1000,15 @@ function computeOffListing(def, rows, ctx, opts) {
     if (verdict.same) {
       warmup.drawings = 'same-from-two-starts'
     } else {
-      withRuntimeObjects(a, { status: 'WITHHELD', live: [], guard: RUNTIME_HISTORY_GUARD,
-        reason: "its drawings are not drawn on a chart whose history does not start at the symbol's first bar: "
-          + `run from two different first bars, it ends with different drawings (${verdict.why}), so where `
-          + 'they land depends on where the chart begins. Its plots are drawn.' })
+      withRuntimeObjects(a, listingUnserved(ctx)
+        ? { status: 'WITHHELD', live: [], guard: RUNTIME_LISTING_UNVERIFIED_GUARD,
+          reason: "its drawings are not drawn here yet: this chart DOES start at the symbol's first trading period, but "
+            + 'drawings worked out from the listing have only been checked against TradingView on daily charts. Its plots '
+            + 'are drawn.' }
+        : { status: 'WITHHELD', live: [], guard: RUNTIME_HISTORY_GUARD,
+          reason: "its drawings are not drawn on a chart whose history does not start at the symbol's first bar: "
+            + `run from two different first bars, it ends with different drawings (${verdict.why}), so where `
+            + 'they land depends on where the chart begins. Its plots are drawn.' })
     }
   }
   return a
@@ -1754,6 +1771,7 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
     // the bars whose values do not depend on where the chart starts are drawn; the
     // ones before them are withheld; a script that never forgets its start is refused.
     if (opts.warmupCurtain !== false) return computeOffListing(def, rows, ctx, opts)
+    if (listingUnserved(ctx)) throw refusal(RUNTIME_LISTING_UNVERIFIED_GUARD, LISTING_UNVERIFIED_REFUSAL)
     throw refusal(RUNTIME_HISTORY_GUARD, "this script is drawn bar by bar from its first bar, and this chart's "
       + "history is not known to start at the symbol's first bar, so the values it carries from bar to bar "
       + "would start from a different bar than TradingView's. Nothing is drawn rather than a guess. "
