@@ -84,4 +84,7 @@
 .when { color: var(--text-muted); }
 
 /* Scan Deck: Filters + group switch where the list title used to be. */
-.deckControls { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.deckControls { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* In the list's one-row UCT header the scan controls sit flush in the title slot (the
+   watchlist's own header padding would push them off the row on a ~370px list). */
+:global(.uct-frame) :global([class*='pickHeader']):has(> .deckControls) { padding: 0; gap: 0; }

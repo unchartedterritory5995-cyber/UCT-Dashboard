@@ -33,7 +33,7 @@ export function FilterButton({ filters, total, shown }) {
         data-active={n > 0 || undefined} onClick={() => { setAnchorRect(btnRef.current?.getBoundingClientRect() || null); setOpen(o => !o) }} title="Filter this list"
         aria-label={n > 0 ? `Filters, ${n} applied` : "Filters"}>
         <UIcon name="sliders" size={13} gold={false} />
-        <span>Filters</span>
+        <span className={styles.filterLbl}>Filters</span>
         {n > 0 && <b className={styles.badge}>{n}</b>}
       </button>
       {open && (

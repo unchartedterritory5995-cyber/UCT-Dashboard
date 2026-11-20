@@ -65,7 +65,7 @@
   border-right: 1px solid var(--dr-line);
 }
 .idTop { display: flex; align-items: center; gap: 8px; }
-/* Mark day / Replay: two matching chips under the view tabs, flush with the close button. */
+/* Mark day / Replay: two matching chips centered under the view tabs + close (owner 2026-11-19). */
 .dayTools { display: flex; align-items: center; gap: 6px; }
 /* Both chips share one shape: a hairline outline when off, the Selected fill when on, so the
    pair reads as two matching toggles instead of a chip next to loose text. */
@@ -166,7 +166,7 @@ span.metric:hover { background-color: transparent; }
 .viewBtn[aria-pressed='true'] { color: var(--dr-bright); font-weight: 600; box-shadow: inset 0 -2px 0 var(--ut-gold); }
 .viewBtn:focus-visible { outline: 2px solid var(--dr-ring); outline-offset: 1px; }
 
-.headEnd { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 8px; padding: 0 8px 0 16px; margin-left: auto; flex-shrink: 0; }
+.headEnd { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 0 8px 0 16px; margin-left: auto; flex-shrink: 0; }
 .headEndTop { display: flex; align-items: center; gap: 10px; }
 .closeBtn {
   display: inline-flex; align-items: center; justify-content: center;

@@ -154,3 +154,12 @@
 .steps button:hover:not(:disabled) { color: var(--dr-text); background: var(--dr-soft); }
 .steps button[aria-pressed='true'] { color: var(--dr-bright); background: var(--dr-selected); }
 .steps button:disabled { opacity: .3; cursor: default; }
+
+/* In the list's one-row UCT header (owner 2026-11-19) the chips run a touch tighter so Filters and
+   All / Sector / Industry / Theme fit beside the window controls on a ~370px list. */
+:global(.uct-frame) .group button { padding: 0 5px; }
+/* there the Filters button is its icon alone (with the count badge once any apply); the
+   tooltip and the accessible name still say Filters */
+:global(.uct-frame) .filterBtn { padding: 0 6px; gap: 4px; }
+:global(.uct-frame) .filterLbl { display: none; }
+:global(.uct-frame) .group button { font-size: 11.5px; }

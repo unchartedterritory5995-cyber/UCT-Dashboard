@@ -126,7 +126,10 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
       // clock), then a single drawing-tools row — the same integrated header the /charts board
       // gives a single chart, not the old StockChart rows.
       integratedChartHeader={w.type === 'chart'}
-      uctFrame={w.type === 'chart'}
+      // Both panes wear the /charts frame (owner 2026-11-19): the list gets the UCT watchlist look
+      // (hover star, no gold header or gear) and its top edge lines up with the chart's.
+      uctFrame
+      noTabs
     />
   )
 
