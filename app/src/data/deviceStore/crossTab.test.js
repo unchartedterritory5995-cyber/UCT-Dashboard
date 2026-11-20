@@ -93,6 +93,17 @@ function tab(id, env, extra = {}) {
 }
 
 describe('device store across tabs', () => {
+  it("diagnostics: 'why' reaches the leader's engine from any tab", async () => {
+    const env = { disk: await seededDisk(), locks: fakeLocks(), bus: fakeBus() }
+    const A = tab('A', env)
+    const B = tab('B', env)
+    await settle()
+    expect((await B.ask({ op: 'why', sym: 'AAA', tf: '5' })).res).toBe('seed-only:no-overlay')
+    expect((await B.ask({ op: 'why', sym: 'ZZZ', tf: '5' })).res).toBe('missing')
+    expect((await A.ask({ op: 'why', sym: 'AAA', tf: '60' })).res).toBe('no-file')
+    A.core.close(); B.core.close()
+  })
+
   it('ONE leader opens the files; a follower reads EXACT columns through it and never opens a file', async () => {
     const env = { disk: await seededDisk(), locks: fakeLocks(), bus: fakeBus() }
     const A = tab('A', env)

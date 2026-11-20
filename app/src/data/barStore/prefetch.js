@@ -631,17 +631,34 @@ export function createPrefetch(o = {}) {
    * (deviceStore/fresh.deviceCopyFresh, on the copy's `through`). The store's status alone cannot say
    * it: W and M are never "behind" by status, and a copy warmed hours ago would read current.
    */
-  function devicePaints(sym, tf, { showExtended } = {}) {
+  function devicePaints(sym, tf, opts = {}) { return deviceVerdict(sym, tf, opts).paints }
+
+  /**
+   * The device rule's whole answer, the ONE decision devicePaints returns the first half of:
+   *   paints  true when the switch paints the device copy at once
+   *   reason  'paints', or the rule that refused: 'no-key' | 'none' (nothing held) | 'held:<source>' (another
+   *           copy holds the key: the device is not consulted) | 'server-answered' | 'ext-hours' (an extended
+   *           view of a shared key) | 'status:<status>' (not current enough by the store's status) | 'stale'
+   *           (not complete through the last 2 minutes / the last closed session, deviceStore/fresh.js)
+   *   held    what the store holds for the key right now: 'device' | 'server' (the device copy joined by an
+   *           answer) | another source | 'none'. What a chart committed now paints first.
+   */
+  function deviceVerdict(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     const p = key ? parseKey(key) : null
-    if (!p) return false
+    if (!p) return { paints: false, reason: 'no-key', held: 'none' }
     // a held copy that is not fresh is brought forward first (its synchronous half lands now)
     if (_deviceHeld(S().peek(key)) && !deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) {
       try { S().persist.refreshDevice?.(key) } catch { /* optional */ }
     }
     const s = S().peek(key)
-    if (!_deviceHeld(s) || _deviceRthOnly(s, showExtended) || !HANDOFF_PAINTS.includes(s.status)) return false
-    return deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())
+    const held = !s ? 'none' : s.source === 'device' ? (s.restSeen ? 'server' : 'device') : String(s.source || 'unknown')
+    if (!s) return { paints: false, reason: 'none', held }
+    if (!_deviceHeld(s)) return { paints: false, reason: s.source === 'device' ? 'server-answered' : `held:${held}`, held }
+    if (_deviceRthOnly(s, showExtended)) return { paints: false, reason: 'ext-hours', held }
+    if (!HANDOFF_PAINTS.includes(s.status)) return { paints: false, reason: `status:${s.status}`, held }
+    if (!deviceCopyFresh(S().persist.deviceThroughOf?.(key), p.tf, now())) return { paints: false, reason: 'stale', held }
+    return { paints: true, reason: 'paints', held }
   }
 
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?
@@ -1134,7 +1151,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1158,6 +1175,7 @@ export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDi
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
 export function devicePaints(sym, tf, opts = {}) { return _f().devicePaints(sym, tf, opts) }
+export function deviceVerdict(sym, tf, opts = {}) { return _f().deviceVerdict(sym, tf, opts) }
 export function prepareDailyForDisplay(sym, tf, opts = {}) { return _f().prepareDailyForDisplay(sym, tf, opts) }
 export function prefetchBars(tickers, tf = 'D', opts = {}) { return _f().prefetchBars(tickers, tf, opts) }
 export function prefetchBar(sym, tf = 'D') { return _f().prefetchBar(sym, tf) }

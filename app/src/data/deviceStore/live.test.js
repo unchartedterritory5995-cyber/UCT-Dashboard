@@ -121,6 +121,24 @@ describe('the live overlay', () => {
     expect(overlay.read(sym, '5', '2026-11-18')).toBeNull()            // nothing held for the new day yet
     expect(overlay.state().series).toBe(0)
   })
+  it('why() names the rule behind every read() answer, and agrees with it', () => {
+    const sym = Object.keys(DAY.expected)[0]
+    expect(createLiveOverlay().why(sym, '5', PREV)).toBe('no-day')
+    const { overlay } = replay()
+    expect(overlay.why(sym, '5', PREV)).toBe('ok')
+    expect(overlay.read(sym, '5', PREV)).not.toBeNull()
+    expect(overlay.why(sym, '5', '2026-11-10')).toBe('other-session')
+    expect(overlay.read(sym, '5', '2026-11-10')).toBeNull()
+    expect(overlay.why(sym, '2', PREV)).toBe('tf')
+    overlay.sink.stale(sym, '5')
+    expect(overlay.why(sym, '5', PREV)).toBe('bad-series')
+    expect(overlay.read(sym, '5', PREV)).toBeNull()
+    const t = Math.floor(Date.UTC(2026, 10, 18, 15, 0) / 60000)          // 10:00 ET, inside the session
+    overlay.sink.gap({ fromMinute: t, toMinute: t + 2 })
+    expect(overlay.why(sym, '15', PREV)).toBe('gap')
+    expect(overlay.read(sym, '15', PREV)).toBeNull()
+  })
+
   it('the rollup filtered to the seed\u2019s symbols holds state for those alone', () => {
     const keep = Object.keys(DAY.expected)[0]
     const overlay = createLiveOverlay({ nameOf: (x) => (x === keep ? x : null) })
