@@ -11856,8 +11856,8 @@ export default function StockChart({
         chart,
         () => (engineRef.current ? engineRef.current.binder.bindings() : []),
       )
-      setChartReady(true)
       setChartGen((g) => g + 1)
+      setChartReady(true)
       // The page's first chart exists (it is created only once its bars are in): the background
       // pack ingests may start now. Once per page; see `afterFirstChartPaint` in barsPackClient.
       markFirstChartPaint()
