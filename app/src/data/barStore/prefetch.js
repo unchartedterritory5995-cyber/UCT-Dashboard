@@ -730,22 +730,45 @@ export function createPrefetch(o = {}) {
    * render and the handoff's effect (persist.refreshDevice: only an entry with no server answer). Resolves true
    * when the entry moved. Nothing when the device store is off (no source).
    */
+  //
+  // ⛔ THE HYDRATE FIRST, FOR A KEY THE REGISTRY DOES NOT HOLD (review of #2407). refreshDevice makes the entry, and
+  // every first look hydrates only a key that has none (holdsBars, peekBars, peekDisplayable): made empty here, a
+  // deep copy in the mem cache (a row visited earlier whose entry the LRU evicted) was no longer found by the
+  // decision that follows in the same key press, the switch read "deep history still due" and the whole linked
+  // group took the round instead of one same-task render. So the hydrate runs here exactly as the first look would
+  // have run it (its mem half in this call; IndexedDB and the device read beside it), and the device read below is
+  // for an entry that already exists.
   function deviceWarm(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
     if (!key) return Promise.resolve(false)
-    try { return Promise.resolve(S().persist?.refreshDevice?.(key)).catch(() => false) } catch { return Promise.resolve(false) }
+    const st = S()
+    try { if (!st.peek(key)) _hydrate(key) } catch { /* a store with no registry: the read below still leaves */ }
+    try { return Promise.resolve(st.persist?.refreshDevice?.(key)).catch(() => false) } catch { return Promise.resolve(false) }
   }
 
   /**
    * ⭐ (2026-11-21) Call `cb` on every change of the entry `sym` / `tf` would show, WITHOUT starting its life cycle
    * (the registry's own subscription: no hydrate, no network). For a waiter that used to poll the entry (the
    * handoff's POLL_MS). Returns the unsubscribe, or null when this store has no registry to watch.
+   * ⛔ ...AND WHEN THE KEY'S ANSWER IS NOTED (review of #2407). A poll reads whatever is true at its tick; a waiter
+   * woken by the entry reads what is true INSIDE the dispatch. The network notes "a tail answer of this life has
+   * landed" (network.answered, what `heldRows(..., { answered })` and the D/W/M hold's "the answer covers the
+   * view" read) AFTER the dispatch that lands the answer, so the waiter read "not answered" and nothing woke it
+   * again until the deep history joined or its wait ran out (devgates typed-onB, LPX: tail in at +223 ms,
+   * committed at +392). The network's own signal for that moment wakes it too.
    */
   function watch(sym, tf, { showExtended } = {}, cb) {
     const key = keyFor(sym, tf, { showExtended })
-    const reg = S().registry
+    const st = S()
+    const reg = st.registry
     if (!key || !reg?.subscribe) return null
-    try { return reg.subscribe(key, () => { try { cb() } catch { /* the watcher's */ } }, { wake: 'all' }) } catch { return null }
+    const wake = () => { try { cb() } catch { /* the watcher's */ } }
+    try {
+      const offEntry = reg.subscribe(key, wake, { wake: 'all' })
+      let offAnswered = null
+      try { offAnswered = st.network?.subscribeAnswered?.(key, wake) || null } catch { offAnswered = null }
+      return () => { try { offEntry() } finally { if (offAnswered) offAnswered() } }
+    } catch { return null }
   }
 
   /** Is the lake's whole depth still due for the chart `sym` / `tf` would show (store.lakePending)?

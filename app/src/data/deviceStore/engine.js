@@ -213,15 +213,22 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
    * of that day (60m and 15m alike, 5m mostly ~12:10), their last row a bucket caught while it was forming; the
    * build before it was the same for Thursday. Stamped through the end of the as-of day, such a copy passed
    * fresh.js, and with today's bars appended it read current mid-session: a chart with a hole in yesterday.
-   * True for an intraday copy whose last row is not the last bucket of `asof`'s regular session (the page's own
-   * completeness rule, marketSession.classifyIntradayTail). D is one bar a day: never short.
+   * For an intraday copy (D is one bar a day: never short), by its LAST row:
+   *   'cut'     it is not the last bucket of its own session (the page's completeness rule,
+   *             marketSession.classifyIntradayTail): the copy stops mid-session, and that row is the one the
+   *             store caught while its bucket was forming. It is not handed out (_lookup).
+   *   'behind'  it is the last bucket of an EARLIER session than `asof` (the builder leaves such a symbol out as
+   *             stale; a file that carries one anyway holds nothing of its as-of session): its rows are whole
+   *             buckets, but the copy is not complete through `asof`.
+   *   null      the last bucket of `asof`'s session: the copy is whole.
    */
   function _shortOfClose(seed, tf, asof) {
     const mins = Number(tf)
-    if (!Number.isFinite(mins) || mins <= 0 || !seed.t.length) return false
+    if (!Number.isFinite(mins) || mins <= 0 || !seed.t.length) return null
     const last = seed.t[seed.t.length - 1]
-    if (etDateLabel(last) !== asof) return true
-    return etMinuteOfDay(last) < closeMinuteOf(asof) - mins
+    const day = etDateLabel(last)
+    if (etMinuteOfDay(last) < closeMinuteOf(day) - mins) return 'cut'
+    return day !== asof ? 'behind' : null
   }
   /** The key `sym` is held under in L ('BRK-B' or its 'BRK.B' spelling), or null. */
   function _rowName(L, sym) {
@@ -255,10 +262,22 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (!seed) return { out: null, why: 'bad' }
     // the seed is complete through the end of its as-of day (built after that day's 20:00 ET close)
     seed.through = Date.UTC(+asof.slice(0, 4), +asof.slice(5, 7) - 1, +asof.slice(8, 10)) / 1000 + 86400
-    // ...unless its rows stop before that session's last bucket (_shortOfClose): then it is complete, at most,
-    // to the START of its last row (which may itself be partial), every rule that reads `through` refuses it,
-    // and today is NEVER appended to it (the join would hide the missing hours behind a current tail).
-    if (_shortOfClose(seed, String(tf), asof)) {
+    // ...unless its rows stop before that session's last bucket (_shortOfClose). Then:
+    //  - A LAST ROW THAT STOPS MID-SESSION IS NOT HANDED OUT (review of #2407). That row was caught while its
+    //    bucket was forming, and in the store an incoming local row replaces a held one: it would overwrite a
+    //    complete bucket the lake or the pack holds, whatever its stamp says;
+    //  - the copy is complete, at most, to where its last row starts, so every rule that reads `through` refuses it;
+    //  - today is NEVER appended to it (the join would hide the missing hours behind a current tail).
+    const short = _shortOfClose(seed, String(tf), asof)
+    if (short === 'cut') {
+      const n = seed.t.length - 1
+      if (n <= 0) return { out: null, why: 'seed-short' }
+      const cut = {}
+      for (const c of ['t', 'o', 'h', 'l', 'c', 'v']) cut[c] = seed[c].slice(0, n)
+      cut.through = seed.t[n]
+      return { out: cut, why: 'seed-short' }
+    }
+    if (short === 'behind') {
       seed.through = seed.t[seed.t.length - 1]
       return { out: seed, why: 'seed-short' }
     }
@@ -334,7 +353,8 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     /**
      * Diagnostics: why read(sym, tf) answers what it does. 'ok' (seed and today's overlay), 'seed-only:<rule>'
      * (the seed alone: the overlay is absent or refused, live.js why()), 'seed-short' (the seed alone and not
-     * complete through its as-of session: its rows stop before that session's last bucket), or the rule that made it null:
+     * complete through its as-of session, _shortOfClose: without its last row when it stops mid-session, null when
+     * that was its only row), or the rule that made it null:
      * no-file (that timeframe is not held) | missing (not in the seed) | split (the split guard) | bad (the
      * row failed its checks).
      */

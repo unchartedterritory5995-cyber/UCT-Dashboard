@@ -397,9 +397,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         // of this key's life, never a saved copy alone: a copy from an earlier day is behind, and the chart
         // refuses to paint it (useBarSnapshotBars, dailyCachePaintVerdict), so committing on it would show a
         // loading chart instead of A.
-        // ⭐ (2026-11-21) woken by the entry's own changes (the device copy landing, the tail's answer), never a poll
+        // ⭐ (2026-11-21) with the device store on: woken by prefetch.watch (the device copy landing, the tail's
+        // answer being noted), never a poll; off, the POLL_MS poll as before (watchEntry)
         let devTimer = null
         let unwatch = null
+        // ⛔ ONE STOP, SAFE TO CALL AGAIN: a look at the entry can wake the watcher INSIDE it (the device rule
+        // re-reads the device), and that nested wake lands the switch and stops watching first
+        const stopWatch = () => { const u = unwatch; unwatch = null; if (u) u() }
         const ready = () => {
           if (!live) return true
           seePre()
@@ -408,13 +412,13 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
           return false
         }
         if (DEVICE || BARSTORE) {
-          unwatch = watchEntry(requestedSym, tf, {}, () => { if (unwatch && ready()) { unwatch(); unwatch = null } })
-          if (unwatch) { if (ready()) { unwatch(); unwatch = null } } else {
+          unwatch = watchEntry(requestedSym, tf, {}, () => { if (unwatch && ready()) stopWatch() })
+          if (unwatch) { if (ready()) stopWatch() } else {
             const devPoll = () => { devTimer = null; if (!ready()) devTimer = setTimeout(devPoll, POLL_MS) }
             devTimer = setTimeout(devPoll, 0)
           }
         }
-        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); if (unwatch) unwatch(); ctl.abort() }
+        return () => { live = false; clearTimeout(bound); if (devTimer) clearTimeout(devTimer); stopWatch(); ctl.abort() }
       }
 
       // displayable and whole (paintsWholeNow), or a code this coordinator does not govern: commit now. The
@@ -455,10 +459,11 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // symbol from the shared queue before our own prepare resolves — committing
       // the moment the cache is good is strictly better than waiting for our
       // request to come back.
-      // ⭐ (2026-11-21) under the BarStore it is woken by the entry's own changes (a repair, a device copy, the
-      // answer), never a POLL_MS poll; the legacy source has no store to watch and keeps the poll.
+      // ⭐ (2026-11-21) with the device store on it is woken by prefetch.watch (a repair, a device copy, the
+      // answer), never a POLL_MS poll; off (and under the legacy source) it keeps the poll (watchEntry).
       let timer = null
       let unwatchI = null
+      const stopWatchI = () => { const u = unwatchI; unwatchI = null; if (u) u() }   // (safe to call again: see stopWatch)
       const tick = () => {
         if (!alive || genRef.current !== gen) return
         seePre()
@@ -469,7 +474,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       unwatchI = watchEntry(requestedSym, fetchTf(tf), sess, () => {
         if (!unwatchI || !alive || genRef.current !== gen || committed) return
         seePre()
-        if (paintsWholeNow(requestedSym, tf, sess)) { unwatchI(); unwatchI = null; commitHere() }
+        if (paintsWholeNow(requestedSym, tf, sess)) { stopWatchI(); commitHere() }
       })
       if (!unwatchI) timer = setTimeout(tick, POLL_MS)
 
@@ -484,7 +489,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         commitHere()
       }, HANDOFF_HANG_MS)
 
-      return () => { alive = false; if (timer) clearTimeout(timer); if (unwatchI) unwatchI(); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
+      return () => { alive = false; if (timer) clearTimeout(timer); stopWatchI(); clearTimeout(deadline); if (!committed) { try { prepCtl?.abort() } catch { /* ignore */ } } }
       // ⚠️ `displayedSym` IS A DEPENDENCY, NOT A REF READ DURING RENDER. Reading a
       // ref while rendering is unsafe under concurrent rendering (and the lint rule
       // says so). Depending on it re-runs this effect exactly once after a commit,

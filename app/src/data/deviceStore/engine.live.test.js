@@ -114,6 +114,18 @@ describe('engine read with today', () => {
     expect(one.eng.read(SYM, '5')).toBeNull()
   })
 
+  // (the server's delta fixtures carry such a symbol: a halted name whose window did not change, delta.test.js SAME)
+  it("a seed whose last row is an EARLIER session's last bucket: its rows whole, but never complete through its as-of day", async () => {
+    // the file says as of 2026-11-18; this symbol's rows end with the 15:55 bucket of 2026-11-17
+    const { eng, m5 } = await engineWithToday({ asof: '2026-11-18', splits: null })
+    expect(eng.why(SYM, '5')).toBe('seed-short')
+    const got = eng.read(SYM, '5')
+    expect(got.t.length).toBe(m5.length)                                  // every row is a whole bucket: none dropped
+    expect(got.t.at(-1)).toBe(m5.at(-1).t)
+    expect(got.through).toBe(m5.at(-1).t)                                 // ...and its stamp is nowhere near the as-of close
+    expect(got.through).toBeLessThan(Date.UTC(2026, 10, 18, 14, 30) / 1000)
+  })
+
   it("THE SPLIT GUARD: past its as-of day a copy needs the next session's split list, without the symbol", async () => {
     expect((await engineWithToday()).eng.read(SYM, '5')).not.toBeNull()
     const named = await engineWithToday({ splits: { session: '2026-11-18', symbols: { [SYM]: 4 } } })
