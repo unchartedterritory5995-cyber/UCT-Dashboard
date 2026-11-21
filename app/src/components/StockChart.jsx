@@ -12136,7 +12136,9 @@ function StockChartBody({
         symbolMeta: (s) => ({ ticker: s, exchange: null, industry: null, sector: null, securityType: null }),
         emptyMeta: switchEmptyMeta,
         laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
-        closeChannel: () => { _storeDevSeriesRef.current = null; _storeDevBarRef.current = null; _storeDevPaintedRef.current = null },
+        // the developing bar the readers of `devOnScreen` are handed is the old symbol's. (Its PAINT is stopped in
+        // one place, the guard at the top of `_storeDevPaintRef.current`; the body's next pass re-arms it.)
+        closeChannel: () => { _storeDevBarRef.current = null },
         // the off-cursor readout (the legend's O/H/L/C, the indicator values, the end-tag chips) is the OLD symbol's:
         // emptied in the frame, refilled by the commit's `refreshOffCursorReadout`
         clearReadout: () => { setCrosshairData(null); setOffHoverEndTagChips(EMPTY_CHIPS) },
@@ -23163,7 +23165,7 @@ function overlayDataOf(sessionAppliedBars, resolvedOverlays, adjustTime, overlay
 
 /** The load-anchor tail of the candles (StockChart's `ohlcData` memo calls this over its own copy; the switch
  *  controller calls it over the next symbol's, with a seed and a live-sanity it can prove are not needed). */
-function ohlcLoadAnchorTail(arr, displayBars, o) {
+export function ohlcLoadAnchorTail(arr, displayBars, o) {
   const { econ, exactDateRange, entryDate, replayCutoff, resolvedTf, adjustTime, sym, dailySeed, repairToday, liveSane } = o
   // Load-anchor whitespace seed (candle series ONLY — filteredBars is untouched, so the live
   // writers / indicators / crosshair never see it). See _developingBarISO: on a cold first
@@ -23265,7 +23267,7 @@ function switchSnapshotFor(sym, tf, showExtended) {
  * returned what it returns for the render too. ⛔ And the points appended must be the framing's reserve
  * (`_intradayLoadReserve`), or the chart would translate: a disagreement is a refusal as well.
  */
-function switchTailFor(built, sym, snapshot, resolvedTf, adjustTime) {
+export function switchTailFor(built, sym, snapshot, resolvedTf, adjustTime) {
   const arr = built.ohlcBase.slice()
   const n0 = arr.length
   let asked = false
