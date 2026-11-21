@@ -8316,7 +8316,7 @@ const MAX_CALL_DEPTH = 24
  * and the picture depended on the machine's speed (e93's census: 2-3 drawn documents and 3-4 reports per lane). The
  * deterministic bound is now `PINE_TRANSLATE_CALL_MAX_STEPS`; this clock is latched (`tripWindow`: once it trips, every
  * read says so and the call answers the whole script by name), and it sits at 3.4x the slowest served script's clean,
- * uncut translate call: 117,377 ms (statistics-table, the median of three runs on master's code with nothing else
+ * uncut translate call: 117,377 ms (a public ecosystem script, licence-held: named in the private evidence; the median of three runs on master's code with nothing else
  * running; docs/pine/evidence/e93). ⛔ Lowering it refuses served scripts whole: a ruling, not a tuning.
  */
 export const PINE_TRANSLATE_BUDGET_MS = 400000
