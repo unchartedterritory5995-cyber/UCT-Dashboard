@@ -230,26 +230,48 @@ def cmd_build(a):
     print(json.dumps(stats["all"], indent=1))
 
 
-def plan_manifest(prev: dict | None, version: int, symbols, stage: str) -> dict:
+def entries_hash(entries) -> str:
+    """The content a ticker's payload carries, independent of the version it is published at."""
+    import hashlib
+    return hashlib.sha256(json.dumps(entries, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def plan_manifest(prev: dict | None, version: int, symbols, stage: str, hashes: dict | None = None) -> dict:
     """The manifest a publish writes. Versions only rise; `retired` = every symbol an earlier version listed or retired
-    that this one does not list (its history_rev epoch keeps rising, so browsers replace a corrected copy)."""
+    that this one does not list. `revs` (U5): per ticker, the version at which IT last changed: a listed ticker whose
+    content hash equals the previous manifest's keeps its rev; new, re-listed, changed and newly retired tickers get
+    `version`. Derived, never typed."""
     prev = prev or {}
+    hashes = {str(k).upper(): v for k, v in (hashes or {}).items()}
     pv = int(prev.get("version") or 0)
     if version <= pv:
         raise SystemExit(f"refused: version {version} is not above the published v{pv} (versions only rise)")
     syms = sorted({str(s).upper() for s in symbols})
-    earlier = {str(s).upper() for s in (prev.get("symbols") or ())} | {str(s).upper() for s in (prev.get("retired") or ())}
+    p_syms = {str(s).upper() for s in (prev.get("symbols") or ())}
+    p_ret = {str(s).upper() for s in (prev.get("retired") or ())}
+    p_revs = {str(k).upper(): int(v) for k, v in (prev.get("revs") or {}).items()}
+    p_hash = {str(k).upper(): v for k, v in (prev.get("hashes") or {}).items()}
+    retired = sorted((p_syms | p_ret) - set(syms))
+    revs = {}
+    for s in syms:
+        same = s in p_syms and hashes.get(s) is not None and hashes.get(s) == p_hash.get(s)
+        revs[s] = int(p_revs.get(s) or pv) if same else version
+    for s in retired:
+        revs[s] = int(p_revs.get(s) or pv) if s in p_ret else version
     return {"version": version, "built_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "stage": stage,
-            "symbols": syms, "retired": sorted(earlier - set(syms))}
+            "symbols": syms, "retired": retired, "revs": revs, "hashes": {s: hashes[s] for s in syms if s in hashes}}
 
 
 def cmd_publish(a, client=None, bucket=None):
     from api.services import bars_corrections as K
     out = Path(a.out)
     have = {p.stem for p in (out / "entries").glob("*.json")}
-    names = have if a.stage == "all" else {s for s in a.stage.split(",") if s} & have
-    if a.stage != "all" and not names:
-        raise SystemExit(f"nothing to publish: {a.stage} has no entries")
+    if a.stage == "none":
+        names = set()                                     # the revert drill: every earlier symbol retires
+    else:
+        names = have if a.stage == "all" else {s for s in a.stage.split(",") if s} & have
+        if not names:
+            raise SystemExit(f"nothing to publish: {a.stage} has no entries")
     if client is None:
         from tools.history_lake.publish import s3_client_from_env
         client, bucket = s3_client_from_env(), os.environ["DATA_SYNC_BUCKET"]
@@ -259,11 +281,14 @@ def cmd_publish(a, client=None, bucket=None):
         if "NoSuchKey" not in type(e).__name__ and "NoSuchKey" not in str(e) and "Not Found" not in str(e) and "404" not in str(e):
             raise
         prev = None
-    m = plan_manifest(prev, a.version, names, a.stage)
+    ents = {s: json.load(open(out / "entries" / f"{s}.json")) for s in sorted(names)}
+    m = plan_manifest(prev, a.version, names, a.stage, {s: entries_hash(e) for s, e in ents.items()})
     rec_dir = out / "published" / f"v{a.version}"
     rec_dir.mkdir(parents=True, exist_ok=True)
     for s in sorted(names):
-        body = K.encode_payload(s, a.version, json.load(open(out / "entries" / f"{s}.json")))
+        if m["revs"][s] != a.version:
+            continue                                       # unchanged: its payload is already at v<rev>
+        body = K.encode_payload(s, a.version, ents[s])
         K.decode_payload(body)
         if not a.dry:
             client.put_object(Bucket=bucket, Key=f"{K.PREFIX}v{a.version}/{s}.json.gz", Body=body, ContentType="application/json")
