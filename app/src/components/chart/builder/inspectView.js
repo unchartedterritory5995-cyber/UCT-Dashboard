@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/inspectView.js
 //
-// ⭐⭐ THE PASTE WORKER (2026-11-21) — WHAT PASTEBOX READS OF A REPORT, AND NOTHING ELSE CROSSES TO THE PAGE
+// ⭐⭐ THE PASTE WORKER (2026-11-21): WHAT PASTEBOX READS OF A REPORT, AND NOTHING ELSE CROSSES TO THE PAGE
 //
 // A report (`inspectSource` / `inspectPine`) carries every output's tree (`ast`), every output's read-back through the
 // formula door (`downstream`, which holds a second tree) and the script's object program (`objects`). Measured on the

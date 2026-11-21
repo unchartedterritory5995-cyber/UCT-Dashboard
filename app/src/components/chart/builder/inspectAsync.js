@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/inspectAsync.js
 //
-// ─── ⭐⭐ THE PASTE WORKER (2026-11-21) — PASTEBOX'S REPORT, COMPUTED OFF THE MAIN THREAD, ONCE PER TEXT ────────────
+// ─── ⭐⭐ THE PASTE WORKER (2026-11-21): PASTEBOX'S REPORT, COMPUTED OFF THE MAIN THREAD, ONCE PER TEXT ────────────
 //
 // docs/pine/evidence/2026-11-20-paste-worker/EVIDENCE.md. PasteBox's report of a paste (`inspectSource`, one
 // member-input translation of the text and every output measured against the downstream doors) ran on the page's

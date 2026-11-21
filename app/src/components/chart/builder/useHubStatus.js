@@ -1,6 +1,6 @@
 // app/src/components/chart/builder/useHubStatus.js
 //
-// ⭐⭐ THE PASTE WORKER (2026-11-21) — THE EDITOR STATUS PANEL'S STATUS, MADE IN THE REPORT'S WORKER (`inspectAsync.js`,
+// ⭐⭐ THE PASTE WORKER (2026-11-21): THE EDITOR STATUS PANEL'S STATUS, MADE IN THE REPORT'S WORKER (`inspectAsync.js`,
 // the hub), READ HERE BY NAME: the report's key and the door answer's key and page state (or the door answer this page
 // made, handed to the report's worker once). While the status of the current pair has not come, the status of the
 // report alone stands (it came with the report), marked pending (the panel says it is checking).

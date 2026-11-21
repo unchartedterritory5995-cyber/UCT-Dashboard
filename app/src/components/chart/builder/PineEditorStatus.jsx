@@ -434,7 +434,7 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
   const paneChecking = !!(doorArgs && door.pending)
   const asked = useAdmissionPending(isPine ? inspectedSource : '', pane, admission)
   useEffect(() => { if (asked.answers) setLanded(asked.answers) }, [asked.answers])
-  // ⭐⭐ THE PASTE WORKER (2026-11-21) — the status is made in the report's worker, where the full report and the
+  // ⭐⭐ THE PASTE WORKER (2026-11-21): the status is made in the report's worker, where the full report and the
   // chart door's full answer meet (`inspectAsync.js`, the hub), and read here by name (`useHubStatus`). While the
   // current one has not come, the last one stands, marked as checking.
   const hub = useHubStatus({ enabled: isPine, report, pane, savedRow, inspectedSource })
