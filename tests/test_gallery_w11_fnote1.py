@@ -823,47 +823,129 @@ def _many_links(n: int, sep: str = ", ") -> list:
     return out
 
 
-def _timed(content) -> float:
-    doc = {"type": "doc", "content": [{"type": "paragraph", "content": content}]}
-    t0 = time.perf_counter()
-    out = gallery._shared_outline(doc, AUTHOR)
-    took = time.perf_counter() - t0
-    assert "broker" not in json.dumps(out) and "acct" not in json.dumps(out)
-    return took
+# ⛔ COUNTED, NOT TIMED (2026-11-21). These rails held a WALL-CLOCK budget (`< 0.5` s) and the "one host" case
+# failed on a GitHub runner (6,500 links) with the code unchanged: a shared runner's clock is no reference, and
+# widening the number would only move the flake. What C-1 guards is the SHAPE of the work (linear, never every link x
+# every href) and its size, so that is what is measured: the Python lines template_gallery.py executes while it
+# reduces (`sys.settrace`), which the same input repeats exactly on any machine.
+#   * linear: 4x the links costs at most 4.4x the lines (a linear pass is 4.0x; W11-R53's every-link x every-href ~16x);
+#   * bounded: lines per link at most TWICE what master 104db22eb5 measured (tiny 239, one host 171, a URL list 226,
+#     words 449), so a constant-factor regression past 2x fails too.
+# ⚠️ A line count cannot see work inside C (a regex that backtracks, a giant join): the regex shapes have their own
+# rails below (the shape check runs 1 MB in a child process with a deadline).
+_REDUCER_FILE = gallery.__file__
+LINES_PER_LINK_BUDGET = {"tiny": 480, "host": 345, "urls": 455, "words": 900}
 
 
-@pytest.mark.parametrize("sep", [", ", " ", "\n"], ids=["comma", "space", "newline"])
-def test_1600_links_reduce_in_under_half_a_second(db, sep):
+def _reduce(content) -> str:
+    out = json.dumps(gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": content}]},
+                                             AUTHOR))
+    assert "broker" not in out and "acct" not in out
+    return out
+
+
+def _work(content) -> tuple[int, str]:
+    """(lines template_gallery.py executed, the reduced outline as JSON) for one reduce of `content`."""
+    count = 0
+
+    def tracer(frame, event, arg):
+        nonlocal count
+        if frame.f_code.co_filename != _REDUCER_FILE:
+            return None
+        if event == "line":
+            count += 1
+        return tracer
+
+    previous = sys.gettrace()
+    sys.settrace(tracer)
+    try:
+        out = _reduce(content)
+    finally:
+        sys.settrace(previous)
+    return count, out
+
+
+def _assert_linear_and_bounded(build, n: int, budget_key: str) -> str:
+    small, _ = _work(build(n))
+    big, out = _work(build(4 * n))
+    assert small >= 10 * n, f"non-vacuity: {small} lines for {n} links -- the reducer never walked them"
+    assert big <= 4.4 * small, f"not linear: {n} links cost {small} lines, {4 * n} cost {big} ({big / small:.1f}x)"
+    per = big / (4 * n)
+    assert per <= LINES_PER_LINK_BUDGET[budget_key], f"{per:.0f} lines per link, budget {LINES_PER_LINK_BUDGET[budget_key]}"
+    return out
+
+
+def _urls(sep):
+    return lambda n: _many_links(n, sep)
+
+
+@pytest.mark.parametrize("sep", [", ", " ", chr(10)], ids=["comma", "space", "newline"])
+def test_1600_links_reduce_in_linear_bounded_work(db, sep):
     """The re-review's C-1: 1,600 links, each its own href, in ONE run (23 s for 800 before W11-R53)."""
-    assert _timed(_many_links(1600, sep)) < 0.5
+    _assert_linear_and_bounded(_urls(sep), 400, "urls")
 
 
-def test_1600_word_links_that_travel_reduce_in_under_half_a_second(db):
-    """The judgement that runs for EVERY part is the one for a part that is not an address (nothing short-circuits it):
-    1,600 adjacent links of words, each its own href, are judged in linear time and every word travels."""
+def _word_links(n):
     content = []
-    for i in range(1600):
+    for i in range(n):
         content += [_lk(f"my note number {i}", f"https://site{i}.example.com/n/{i}"), {"type": "text", "text": " "}]
-    doc = {"type": "doc", "content": [{"type": "paragraph", "content": content}]}
-    t0 = time.perf_counter()
-    out = json.dumps(gallery._shared_outline(doc, AUTHOR))
-    assert time.perf_counter() - t0 < 0.5
+    return content
+
+
+def test_1600_word_links_that_travel_reduce_in_linear_bounded_work(db):
+    """The judgement that runs for EVERY part is the one for a part that is not an address (nothing short-circuits it):
+    1,600 adjacent links of words, each its own href, are judged in linear work and every word travels."""
+    out = _assert_linear_and_bounded(_word_links, 400, "words")
     assert "my note number 1599" in out and "site1599" not in out
 
 
+def _tiny(n):
+    return [x for i in range(n) for x in (_lk(f"{i}", f"https://a{i}.co/{i}"), {"type": "text", "text": " "})]
+
+
+def _one_host(n):
+    return [_lk(f"https://broker.example.com/acct/{i} ", f"https://broker.example.com/acct/{i}") for i in range(n)]
+
+
 @pytest.mark.parametrize("shape", ["tiny links, each its own host", "one host, 1 MB"])
-def test_the_one_mb_worst_case_reduces_in_under_half_a_second(db, shape):
+def test_the_one_mb_worst_case_reduces_in_linear_bounded_work(db, shape):
     """The outline cap's worst case: 1 MB of adjacent links in one run -- tiny ones with a host each (the most hrefs),
-    or all of one host (the longest stretch and joined text)."""
-    content, i = [], 0
-    while len(json.dumps(content)) < 1_000_000:
-        for _ in range(500):
-            if shape.startswith("tiny"):
-                content += [_lk(f"{i}", f"https://a{i}.co/{i}"), {"type": "text", "text": " "}]
-            else:
-                content.append(_lk(f"https://broker.example.com/acct/{i} ", f"https://broker.example.com/acct/{i}"))
-            i += 1
-    assert _timed(content) < 0.5, i
+    or all of one host (the longest stretch and joined text). The larger run is past 1 MB of JSON."""
+    build, key = (_tiny, "tiny") if shape.startswith("tiny") else (_one_host, "host")
+    n = 4_000
+    assert len(json.dumps(build(4 * n))) >= 1_000_000, "the larger run must be the 1 MB worst case"
+    _assert_linear_and_bounded(build, n, key)
+
+
+def test_the_work_count_can_fail():
+    """CONTROL: the counter sees a quadratic pass and a constant-factor slowdown (both fail the checks above)."""
+    count = 0
+
+    def tracer(frame, event, arg):
+        nonlocal count
+        if event == "line":
+            count += 1
+        return tracer
+
+    def quadratic(n):
+        hits = 0
+        for i in range(n):
+            for j in range(n):
+                hits += i == j
+        return hits
+
+    def lines_of(n):
+        nonlocal count
+        count = 0
+        previous = sys.gettrace()
+        sys.settrace(tracer)
+        try:
+            quadratic(n)
+        finally:
+            sys.settrace(previous)
+        return count
+
+    assert lines_of(80) > 4.4 * lines_of(20)            # what `not linear` refuses
 
 
 def _legacy_listing(db, n_links: int) -> str:
