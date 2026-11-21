@@ -34,8 +34,7 @@ from zoneinfo import ZoneInfo
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
-if __name__ == "__main__":
-    import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (every *_DB_PATH -> a sandbox)
+import conftest  # noqa: E402,F401 -- the census and the tripwire, before any api.* import (every *_DB_PATH -> a sandbox)
 from api.services import ffseed_delta as dl  # noqa: E402
 from api.services import ffseed_format as fmt  # noqa: E402
 
