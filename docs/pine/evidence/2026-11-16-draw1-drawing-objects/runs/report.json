@@ -4,8 +4,8 @@
    "scripts": 975,
    "admitted": 794,
    "runtimeLane": 222,
-   "hostLane": 304,
-   "refused": 268,
+   "hostLane": 306,
+   "refused": 266,
    "coreOnly": 46
   },
   "committed": {
@@ -8474,7 +8474,7 @@
   },
   {
    "capture": "vw-bi-dmi-rddt-1d-2026-11-19",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [
@@ -8489,7 +8489,7 @@
   },
   {
    "capture": "vw-bi-dmi-spy-1d-2026-11-19",
-   "lane": null,
+   "lane": "host",
    "runtimeOn": "INCONCLUSIVE",
    "production": "INCONCLUSIVE",
    "caps": [

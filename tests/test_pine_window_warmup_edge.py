@@ -52,6 +52,9 @@ def test_the_fixture_is_not_vacuous():
         assert name in names, name
     for name in ("barsAgo", "cum", "cumFrom"):
         assert name not in names, name
+    # ruling (i)'s branch of the listing check below is taken by some cases and not by others (never vacuous)
+    rec = [c["name"] for c in CASES if ast_interpret._holds_recurrence(c["tree"])]
+    assert rec and len(rec) < len(CASES), rec
 
 
 def test_the_window_edge_reads_the_same_reach_as_the_js_lane():
@@ -87,5 +90,16 @@ def test_the_python_lane_serves_the_js_column_and_the_same_name(case):
     assert (ast_interpret.HISTORY_BEFORE_CHART_CODE in sink) == case["named"], case["name"]
     assert case["served"][0] is None, case["name"]
     # from the listing nothing is withheld for a window (the window's own answer is the listing run's, not this rule's)
-    listing = _column(case["tree"], _opts({"historyFromListing": True}))
-    assert all(v is not None for v in listing), f"{case['name']} withheld from the listing"
+    # ⭐ Engine 92 train integration (coordinator ruling, 2026-11-20). RULING 1 (#2213: "a window that reaches before
+    # the chart's first bar, off the listing, is unknown there") withholds nothing from the listing. RULING (i) (#2249:
+    # "from the listing a recurrence is the chart lane's; the Python lane withholds it by name") is the specific one
+    # for a SINGLE-STATE RECURRENCE: from the listing this lane withholds it whole, named ``var-origin:listing-pass``.
+    # Which cases are such recurrences is the lane's own predicate (``ast_interpret._holds_recurrence``, the one
+    # ``interpret`` asks), never a typed list; every other case still withholds nothing from the listing.
+    lsink: dict = {}
+    listing = _column(case["tree"], _opts({"historyFromListing": True, "chartClockSink": lsink}))
+    if ast_interpret._holds_recurrence(case["tree"]):
+        assert all(v is None for v in listing), f"{case['name']} drawn from the listing (ruling (i) withholds it)"
+        assert ast_interpret.LISTING_PASS_CHART_LANE in lsink, case["name"]
+    else:
+        assert all(v is not None for v in listing), f"{case['name']} withheld from the listing"

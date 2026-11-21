@@ -179,6 +179,17 @@ describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", s
     const p = Object.fromEntries(ET.formatToParts(new Date(t * 1000)).map((x) => [x.type, x.value]))
     return [['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), Number(p.hour), Number(p.minute)]
   }
+  // ⭐ Engine 92 train integration (coordinator ruling, 2026-11-20): #2213's RULING 1 holds here. "A window that
+  // reaches before the chart's first bar, off the listing, is unknown there": on bar 0, A2 (`ta.change(time("D"))`)
+  // reads `time("D")[1]`, a bar BEFORE the chart this engine does not hold, so bar 0 is withheld by name
+  // (`history:before-chart`) even though the old value happened to match TradingView's. A deliberate one-bar
+  // narrowing of A2; every other bar of A2, and every bar of the other rows, is drawn and TradingView's.
+  const BEFORE_CHART = { A2_change_time_D: 1 }
+  const expectBar0Withheld = (p, title) => {
+    if (!BEFORE_CHART[title]) return
+    expect(p.withheldBars && p.withheldBars[0], `${title}: bar 0 is withheld (ruling 1)`).toBe(1)
+    expect(p.withheldBarsCodes, title).toContain('history:before-chart')
+  }
 
   it('the capture is what it says: AMEX:SPY with the extended session (0400-2000), 60m, every bar 04:00-19:00 New York', () => {
     const cap = capture(SPY)
@@ -205,7 +216,9 @@ describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", s
       expect(p.withheldBy, title).toBe(null)
       const r = grade(cap, p, title)
       expect(r.n).toBe(23615)
-      expect(r.drawn, title).toBe(23615)
+      // A2: 23,614 drawn, bar 0 withheld by ruling 1 (BEFORE_CHART above); every other row: all 23,615
+      expect(r.drawn, title).toBe(23615 - (BEFORE_CHART[title] || 0))
+      expectBar0Withheld(p, title)
       expect(r.bad, `${title}: first ${JSON.stringify(r.first)}`).toBe(0)
     }
     // ⛔ NON-VACUITY: the 09:30 anchor (the regular-hours reading) is wrong on every bar here, and the window
@@ -299,7 +312,9 @@ describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", s
       // every in-session bar is TradingView's (the bars are the capture's own; graded by time on THIS chart's rows)
       const r = grade(synthetic, p, title)
       expect(r.bad, `${title}: first ${JSON.stringify(r.first)}`).toBe(0)
-      expect(r.drawn, title).toBe(rows.length - night.size)
+      // A2: one fewer, bar 0 withheld by ruling 1 (BEFORE_CHART above)
+      expect(r.drawn, title).toBe(rows.length - night.size - (BEFORE_CHART[title] || 0))
+      expectBar0Withheld(p, title)
     }
     // the 04:00 bar after each night fires, as on TradingView's chart (which holds no overnight bar)
     const a2 = plot('A2_change_time_D')
