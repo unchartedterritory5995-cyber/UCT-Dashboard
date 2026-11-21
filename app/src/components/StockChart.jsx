@@ -10010,10 +10010,11 @@ function StockChartBody({
   // candle / volume / MA / live series, and the default range still computes from the
   // real bar count, so nothing that keys off barsLen is disturbed. All ops try/caught.
   // (a function, so a landed earnings estimate between renders extends the axis too: `_onMetaLanded`)
+  const _futureWsSigRef = useRef(null)   // what the future-axis series holds (`_applyFutureWs`)
   const _applyFutureWs = (events) => {
     const chart = chartRef.current
     if (!chart) return
-    const clear = () => { try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
+    const clear = () => { _futureWsSigRef.current = null; try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
     if (!filteredBars?.length) { clear(); return }
     const lastLwc = adjustTime(filteredBars[filteredBars.length - 1].t)
     const est = events.find(e => e.estimate)
@@ -10022,7 +10023,14 @@ function StockChartBody({
     const targetSlot = (typeof lastLwc === 'string' && est) ? String(est.date).slice(0, 10) : null
     const pts = buildFutureWhitespace(lastLwc, resolvedTf, FUTURE_MIN[resolvedTf] || 20, targetSlot)
     if (!pts.length) { clear(); return }
+    // (2026-11-21) THE SAME AXIS IS NOT WRITTEN TWICE. The points are a pure function of these inputs, so a call
+    // that would hand the series what it already holds does nothing: a landed metadata answer (`_onMetaLanded`)
+    // re-ran this with an unchanged axis after the bars' own pass had written it, one more setData and one more
+    // paint per switch (StockChart.neighborFrames.test.jsx: the computed switch wrote it twice, the prepared once).
+    const sig = `${lastLwc}|${resolvedTf}|${targetSlot}|${pts.length}`
+    if (futureWsSeriesRef.current && _futureWsSigRef.current === sig) return
     if (!futureWsSeriesRef.current) {
+      _futureWsSigRef.current = null
       try {
         futureWsSeriesRef.current = chart.addSeries(LineSeries, {
           color: 'rgba(0,0,0,0)', lineWidth: 1, priceScaleId: '',
@@ -10031,7 +10039,7 @@ function StockChartBody({
         })
       } catch { futureWsSeriesRef.current = null }
     }
-    try { futureWsSeriesRef.current?.setData(pts) } catch { /* series removed (chart recreate) */ }
+    try { futureWsSeriesRef.current?.setData(pts); _futureWsSigRef.current = futureWsSeriesRef.current ? sig : null } catch { _futureWsSigRef.current = null /* series removed (chart recreate) */ }
   }
   const _applyFutureWsRef = useRef(null)
   _applyFutureWsRef.current = _applyFutureWs
