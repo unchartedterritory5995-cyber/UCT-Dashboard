@@ -11,6 +11,9 @@ decoded by `api/services/minute_frames.py`) and from the server's 1m bars:
 
 and prints what the device would still need for the OFFICIAL close after 16:00 when the minutes cannot give it.
 
+    DAILY   with MINUTE_FRAMES_WITH_DAILY=1 on stream-ingest, frames from the close to 20:00 carry the server's
+            daily row (minute_frames FLAG_DAILY): the newest one per symbol must equal the served D bar exactly
+
 Measured 2026-11-20 (59 symbols, after the close): O/H/L 57/57 from regular minutes; C equal to the 15:59 close in
 9/57 (the official close is the closing auction); D volume above the regular-minute sum by a median 16%; `av` not
 yet published (0 of 289 frames). This is the follow-up run once frames carry `av`.
@@ -49,6 +52,7 @@ DEFAULT_SYMBOLS = (
     "MMU,HPI,BOKF,FISI,CCAP,NBTX,AZZ,NUTX,GYRE,TGS,DCBO,MAKO"
 )
 FLAG_AV = 1
+FLAG_DAILY = 4
 
 
 def et_parts(t: int):
@@ -93,6 +97,18 @@ def av_series(frames: list, symbols: set) -> dict:
     return out
 
 
+def daily_rows(frames: list, symbols: set) -> dict:
+    """{sym: (row, minute_of_day)}: the newest DAILY-section row per symbol (frames carry the server's
+    daily bar after the close when MINUTE_FRAMES_WITH_DAILY=1 on stream-ingest)."""
+    out: dict = {}
+    for f in frames:
+        mod = et_parts(f["minute"] * 60)[1]
+        for sym, row in (f.get("daily") or {}).items():
+            if sym in symbols:
+                out[sym] = (row, mod)
+    return out
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--symbols", default=DEFAULT_SYMBOLS)
@@ -113,7 +129,9 @@ def main(argv=None) -> int:
     frames = load_frames(s, day)
     with_av = sum(1 for f in frames if f["flags"] & FLAG_AV)
     avs = av_series(frames, set(syms))
-    print(f"{now:%Y-%m-%d %H:%M} ET  frames {len(frames)}, carrying av {with_av}")
+    with_daily = sum(1 for f in frames if f["flags"] & FLAG_DAILY)
+    drows = daily_rows(frames, set(syms))
+    print(f"{now:%Y-%m-%d %H:%M} ET  frames {len(frames)}, carrying av {with_av}, carrying the daily section {with_daily}")
 
     rows = []
     for sym in syms:
@@ -146,6 +164,9 @@ def main(argv=None) -> int:
             "av_newest": newest_av_min is not None and av[newest_av_min], "av_newest_at": newest_av_min,
         }
         row["c_eq_1600"] = bool(row["m1600"]) and r4(D["c"]) in (r4(row["m1600"]["o"]), r4(row["m1600"]["c"]))
+        fd = drows.get(sym)
+        row["frame_daily"] = fd and {"row": fd[0], "at": fd[1]}
+        row["frame_daily_eq"] = bool(fd) and all(float(a) == float(D[k]) for a, k in zip(fd[0], "ohlcv"))
         rows.append(row)
 
     ok = [x for x in rows if "D" in x]
@@ -172,10 +193,21 @@ def main(argv=None) -> int:
         print(f"  V vs {label:<32} exact {exact}/{have}   D.v / it (median, min, max) {ratios(key)}")
     if not with_av:
         print("  (no frame carries av yet: MINUTE_FRAMES_WITH_AV is off on stream-ingest)")
+    have_fd = sum(1 for x in ok if x.get("frame_daily"))
+    print(f"  frames' DAILY row == the server's D bar (o/h/l/c/v exact): {count('frame_daily_eq')}/{have_fd}"
+          f"   (symbols with a daily row in the frames: {have_fd}/{n})")
+    if not with_daily:
+        print("  (no frame carries the daily section: MINUTE_FRAMES_WITH_DAILY is off, or it is before the close)")
+    for x in ok:
+        if x.get("frame_daily") and not x["frame_daily_eq"]:
+            print("  daily row differs:", x["sym"], "frame", x["frame_daily"], "server", x["D"])
 
     after_close = not a.mid and now.hour * 60 + now.minute >= close + 5
     if after_close:
         derivable = count("c_eq_last_regular")
+        if have_fd and count("frame_daily_eq") == n:
+            print("\nTHE FRAMES CARRY THE SERVER'S DAILY BAR for every symbol: the device can paint today's "
+                  "D bar (and W/M) from the minute feed after the close.")
         print("\nOFFICIAL CLOSE: derivable from the minutes for "
               f"{derivable}/{n}. " + ("The device can take it from the minutes." if derivable == n else
               "The device needs the server's value after the close, either (1) the publisher adds the server's "
