@@ -54,7 +54,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useMarketIndicators from '../../../hooks/useMarketIndicators'
-import { pairQuoteView, pairSourceLine, useCryptoPair, useCryptoQuote } from '../../../lib/cryptoPairs'
+import { pairQuoteView, pairSourceLine, useCryptoPair, useCryptoQuote, pairCandidate } from '../../../lib/cryptoPairs'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import { useChartTickerMeta as useTickerMeta, useChartDelisted as useDelisted } from '../restedReaders'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
@@ -303,6 +303,20 @@ function ChartPane({
   // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
   const delistedInfo = useDelisted((synthDailyOnly || exhibit || isPair) ? null : sym)
   const isDelisted = !!delistedInfo
+  // ⭐ (imperative switch, stage 3) DOES THIS PANE HAND ITS CHART THE SAME PROPS FOR `s` AS FOR ANY ORDINARY
+  // TICKER? StockChart's switch controller asks before it paints a symbol without a render: everything this pane
+  // decides per symbol above (a breadth or indicator series, a theme index, a pair, an ECON id, an exhibit) is a
+  // prop the chart would otherwise carry over from the previous symbol. A delisted ticker is ordinary here (its
+  // props are the watermark's name lines, which the controller clears, and `liveUpdates`).
+  // ⛔ ONE STABLE FUNCTION (the latest rule is read through a ref): a new identity per render would re-render the
+  // memoised chart on every pane render.
+  const hostPlainRef = useRef(null)
+  hostPlainRef.current = (s) => {
+    const t = typeof s === 'string' ? s.trim() : ''
+    if (!t || exhibit || isEconomicId(t) || t.startsWith('$') || t.startsWith('^') || pairCandidate(t)) return false
+    return !breadth.get(t) && !marketIndicators.get(t)
+  }
+  const switchHostPlain = useCallback((s) => hostPlainRef.current(s), [])
   const companyName = (isPair && pair.name) || (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
@@ -1491,6 +1505,7 @@ function ChartPane({
           showRangeSelector
           onVolumePaneResize={handleVolPaneResize}
           sessionView={sessionView}
+          switchHostPlain={switchHostPlain}
           {...(stockChartProps || {})}
           /* AFTER the host spread on purpose (the last prop wins): record the
              visible time-range for journal capture, CHAINING any host-supplied

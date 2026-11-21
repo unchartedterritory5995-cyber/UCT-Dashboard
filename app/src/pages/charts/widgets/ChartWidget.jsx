@@ -151,10 +151,15 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   const paneExtRef = useRef(true)
   // `group`: the linked colour group shows a new symbol in ONE frame, every chart of it together
   // (useSymbolHandoff GROUP_SYNC_MS; owner's hard rule, 2026-11-20).
+  // ⭐ (imperative switch, docs/charts/imperative-switch-design.md §3.4) the ONE bridge between this widget's
+  // handoff and its chart's switch controller: the chart puts the controller here while the switch is on
+  // (`uct.imperativeSwitch`), and the handoff then shows a symbol by asking it to paint. Empty: today's path.
+  const switchPort = useRef(null)
   const sym = useSymbolHandoff(requestedSym, tf, {
     // ⭐ scope: the board whose setGroupSym decides the group's switch in the key handler (/charts only;
     // a host without a store, the drill or the screener, takes the round as before)
     showExtended: paneExtRef, group: chartGroupKey(activeColor), scope: groupSymsStore || null,
+    painter: switchPort,
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
   })
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
@@ -758,6 +763,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
         watermarkCustomized={!!wmPos}
         stockChartProps={{
           ...(hostPriceLines?.length ? { priceLines: hostPriceLines } : {}),
+          switchPort,
           onCrosshairMove: reportCrosshair,
           subscribeCrosshair,
           hotkeysActive: hotkeysIsActive,
