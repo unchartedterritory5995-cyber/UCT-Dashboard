@@ -65,12 +65,35 @@ def test_the_fixture_holds_the_script_cases():
 
 
 @pytest.mark.parametrize("case", SCRIPT, ids=[c["id"] for c in SCRIPT])
-def test_the_recorded_script_computes_and_draws_what_was_asked(case, graded):
+def test_the_recorded_script_is_what_its_case_says_it_is(case, graded):
+    """RIGHT, for every case but the ones recorded WRONG: a known defect of the door, named in the case, that stays
+    on the record (and counts against the lane) until a live re-run gets it right."""
     result = graded[case["id"]]
-    assert result["verdict"] == "right", (case["words"], result["lines"])
     assert result["lane"] == "script"
+    if case.get("recorded_verdict") == "wrong":
+        assert result["verdict"] == "wrong", (case["id"], "is recorded WRONG and now grades", result["verdict"], result["lines"])
+        assert any(line.lstrip().startswith("CHECK") for line in result["lines"]), result["lines"]
+        return
+    assert result["verdict"] == "right", (case["words"], result["lines"])
     # something was held (a reading that is not the one built says CHECK beside the one that is: the verdict decides)
     assert any(line.lstrip().startswith("RIGHT") for line in result["lines"]), result["lines"]
+
+
+def test_ORACLE_DRIFT_the_weekly_table_is_held_to_the_words_not_to_the_script(graded):
+    """⚰️ 2026-11-22, found in review. j06 asks "whether the close is above the 10 week moving average and above the
+    10 month moving average". Its script reads both one DAILY bar back, and the rule had come to read the week and
+    the month BEFORE the newest bar's own: it mirrored the script and called it right. On the engine's bars, which
+    end on a Friday that is also its month's last weekday, the script shows each average a whole period stale."""
+    case = next(c for c in SCRIPT if c["id"] == "j06")
+    assert case.get("recorded_verdict") == "wrong" and len(case.get("defect") or "") > 80
+    lines = " ".join(graded["j06"]["lines"])
+    assert "113.56" in lines and "120.29" in lines                   # what the script shows
+    assert "114.0490" in lines and "118.7162" in lines               # the 10 week and the 10 month average, by hand
+    # the rule holds BOTH honest readings and they are one number here: the newest bar completes its week and month
+    script_rules.bind(_lane(script_grade.script_lane.run, [{"id": "bars", "source": '//@version=5\nindicator("b")\nplot(close)\n', "chart": "daily"}])["charts"]["daily"])
+    numbers = dict((what, values) for what, values in script_rules.drawn_rules("j06")["numbers"])
+    for values in numbers.values():
+        assert len(values) == 2 and values[0] == values[1]
 
 
 @pytest.mark.parametrize("case", SCRIPT, ids=[c["id"] for c in SCRIPT])
