@@ -56,13 +56,64 @@ const BARS_TIMEOUT_MS = 8000;
 export const BARS_HEDGE_MS = 1200;
 export const HEDGE_METHODS = new Set(["GET", "HEAD"]);
 
+// ⭐⭐ A CIRCUIT BREAKER, SO A RESTART COSTS ONE HEDGE, NOT ONE PER REQUEST (2026-11-21, measured).
+// bars-api keeps bars.db on a Railway volume, so a deploy cannot overlap the old and the new container:
+// on 2026-11-21 01:30:50.9Z the old one began shutting down and the new one served its first bar at
+// 01:31:02.2Z, ~11 s with no tier. Every chart read in that window waited the full hedge (ORLY 30m:
+// first byte 4,043 ms, the hedge plus a cold web). Now the first request that finds the tier failing, or
+// that web wins by the hedge, OPENS the breaker for BARS_BREAKER_MS: GET/HEAD reads in this isolate go
+// straight to web (`X-Bars-Edge: web-breaker`), and if web itself fails they still try the tier. When the
+// window ends the next read asks the tier again, and a tier that still fails re-opens it.
+// ⚠️ THE COST: one slow tier answer (a cold read past the hedge) also sends this isolate's reads to web for
+// the window: web's store, not the tier's, for up to 20 s. The hedge fires for well under 1% of reads.
+// Never for other methods (they never hedge either), and a deliberate 503 shed is an answer, not a failure.
+export const BARS_BREAKER_MS = 20000;
+
+/** One breaker per isolate (best effort: isolates do not share it). `now` is injectable for the rails. */
+export function makeTierBreaker(now = () => Date.now()) {
+  let openUntil = 0;
+  let opens = 0;
+  return {
+    isOpen: () => now() < openUntil,
+    open(reason, ms = BARS_BREAKER_MS) {
+      const was = now() < openUntil;
+      openUntil = now() + ms;
+      if (!was) {
+        opens += 1;
+        try { console.log(JSON.stringify({ evt: "tier_breaker_open", reason, ms })); } catch (_e) { /* never */ }
+      }
+    },
+    get opens() { return opens; },
+    reset() { openUntil = 0; },
+  };
+}
+export const TIER_BREAKER = makeTierBreaker();
+
 /**
  * Ask the tier, hedge to web after `hedgeMs`, serve the first good answer.
  * `fetchImpl` is the platform fetch (a parameter so the rails can drive it).
- * Returns a Response stamped `X-Bars-Edge: tier | web-hedge | web-fallback`.
+ * Returns a Response stamped `X-Bars-Edge: tier | web-hedge | web-fallback | web-breaker`.
  */
 export async function routeToTier(fetchImpl, tierUrl, webUrl, opts,
-                                  { timeoutMs = BARS_TIMEOUT_MS, hedgeMs = BARS_HEDGE_MS } = {}) {
+                                  { timeoutMs = BARS_TIMEOUT_MS, hedgeMs = BARS_HEDGE_MS,
+                                    breaker = TIER_BREAKER } = {}) {
+  const hedgeable = HEDGE_METHODS.has(String(opts.method || "GET").toUpperCase());
+  if (hedgeable && breaker && breaker.isOpen()) {
+    try {
+      const r = await fetchImpl(webUrl, { ...opts });
+      if (r.status < 500) {
+        const out = new Response(r.body, r);
+        out.headers.set("X-Bars-Edge", "web-breaker");
+        return out;
+      }
+      try { await r.body?.cancel(); } catch (_e) { /* nothing to release */ }
+    } catch (_e) { /* web failing too: the tier is the only answer left */ }
+    return routeTier(fetchImpl, tierUrl, webUrl, opts, { timeoutMs, hedgeMs, breaker });
+  }
+  return routeTier(fetchImpl, tierUrl, webUrl, opts, { timeoutMs, hedgeMs, breaker });
+}
+
+async function routeTier(fetchImpl, tierUrl, webUrl, opts, { timeoutMs, hedgeMs, breaker }) {
   const tierAc = new AbortController();
   const webAc = new AbortController();
   const tierTimer = setTimeout(() => tierAc.abort(), timeoutMs);
@@ -91,6 +142,8 @@ export async function routeToTier(fetchImpl, tierUrl, webUrl, opts,
   }
   clearTimeout(tierTimer); if (hedgeTimer) clearTimeout(hedgeTimer);
   if (won.src === "tier") webAc.abort(); else tierAc.abort();
+  // Web answered for a tier that failed or was out-waited by the hedge: stop asking it for a while.
+  if (won.src === "web" && hedge && breaker) breaker.open(why);
   const out = new Response(won.r.body, won.r);
   out.headers.set("X-Bars-Edge", won.src === "tier" ? "tier" : why);
   return out;
