@@ -64,10 +64,18 @@ export const MEMBER_DOOR_FAILED_GUARD = 'pine:door-failed'
 
 const refusal = (reason, guard) => ({ ok: false, definition: null, reason, guard, rows: [], notes: [] })
 
+/** A refusal the page made because the worker stopped (it died, it could not answer) carries this mark: like the
+ *  door's deadline (`memberPaneDefinition.DOOR_TIMED_OUT`), it is a fact about the CHECK, never about the script, so a
+ *  reader that must not take a picture away for it (`savedScriptUpgrade`) can tell it from a refusal. */
+export const DOOR_WORKER_STOPPED = 'doorWorkerStopped'
+
 /** What a member reads when the worker building the script died or could not answer. */
 export function doorWorkerFailedAnswer(why) {
-  return refusal(`this script is not drawn: the background check of it stopped before it answered (${why}), `
-    + 'so nothing is drawn rather than a guess. Reloading the page starts a fresh check.', MEMBER_DOOR_WORKER_GUARD)
+  return {
+    ...refusal(`this script is not drawn: the background check of it stopped before it answered (${why}), `
+      + 'so nothing is drawn rather than a guess. Reloading the page starts a fresh check.', MEMBER_DOOR_WORKER_GUARD),
+    [DOOR_WORKER_STOPPED]: true,
+  }
 }
 
 /** What a member reads on the member pane when the door threw while building the script. */
