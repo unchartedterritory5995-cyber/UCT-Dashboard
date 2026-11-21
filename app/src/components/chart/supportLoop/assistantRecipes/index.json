@@ -260,6 +260,31 @@
    "shows": "today's running volume divided by the average, over the last N FINISHED days, of the running volume at the same bar of the day. Each finished day is one row of a flat array (`array.push` a fixed number of values per day, a short day padded with its own total; the oldest row trimmed with `array.shift` in a counted loop), today's row is rebuilt from `array.clear` at each day change, and nothing is drawn until N whole days are stored. The bars before the first day change may be part of a day and are never stored. An intraday chart only",
    "chart": "intraday",
    "file": "time-of-day-volume.pine"
+  },
+  {
+   "id": "distribution-days",
+   "title": "A count of distribution days in which each day stops counting after a rally",
+   "asks": [
+    "distribution day",
+    "distribution days",
+    "distribution day count"
+   ],
+   "shows": "a count over a window in which each counted bar is judged by the bars AFTER it: a loop over the window (`for i = 0 to win - 1`, reading the condition `i` bars back with `isDist[i]`) and, inside it, a loop over the later bars (`for j = 0 to i - 1`) that drops the day once a later close has risen far enough above its close. No `var` is needed (each bar counts afresh). ONE plot, the count, in its own pane",
+   "chart": "daily",
+   "file": "distribution-days.pine"
+  },
+  {
+   "id": "follow-through-day",
+   "title": "A rally attempt and its follow-through day",
+   "asks": [
+    "follow-through day",
+    "follow-through days",
+    "rally attempt",
+    "day 1 of a rally"
+   ],
+   "shows": "a state kept across bars in `var` variables (is an attempt live, which day of it this is, the low it started on), with the order of the two steps written out: FIRST the ending test and the day count of a live attempt, THEN the start test, so a new attempt may start on the bar the old one ended. The signal is one condition over that state, drawn as ONE `plotshape` under the bar and nothing else",
+   "chart": "daily",
+   "file": "follow-through-day.pine"
   }
  ]
 }
