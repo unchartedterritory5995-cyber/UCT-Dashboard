@@ -122,7 +122,8 @@ TV_VERIFIED_SPINOFFS = {
 
 
 def test_every_tradingview_verified_spin_off_lives_in_the_supplement_at_tradingview_s_factor():
-    rows = {(r["ticker"], r["execution_date"]): F.split_ratio(r["split_from"], r["split_to"]) for r in S.load()}
+    rows = {(r["ticker"], r["execution_date"]): F.split_ratio(r["split_from"], r["split_to"])
+            for r in S.load() if "drop" not in r}       # a DROP row carries no ratio of its own
     for key, factor in TV_VERIFIED_SPINOFFS.items():
         assert key in rows, f"{key}: a TradingView-verified event left to the second vendor and the cliff test"
         assert rows[key] == pytest.approx(factor, rel=1e-6), key
@@ -299,3 +300,67 @@ def test_a_small_drop_needs_a_raw_move_under_half_its_factor(tmp_path):
     with pytest.raises(S.SupplementError, match="drop evidence.raw_move"):
         S.load(_write(tmp_path, [_drop(drop=small, evidence=_ev(raw_move=1.02))]))
     assert S.load(_write(tmp_path, [_drop(drop=small, evidence=_ev(raw_move=1.005))]))[0]["drop"] == small
+
+
+
+# ── Seam-61 (2026-11-21, Q-CLOSE-SEAM61): the 2003-09-10 seam batch, sized from TradingView's own closes ──────────
+# TradingView's request.splits lists splits and stock dividends only (never a spin-off) and prints each ratio TRUNCATED to
+# 3 decimals (1.5 as 1499:1000, 3% as 1029:1000), so every size below is TradingView's step across the event against the
+# RAW day files: (raw / TradingView on the session before) / (the same on the event session). A listed split or stock
+# dividend takes the exact fraction those closes pin within 0.001% (21:20, 103:100, 11:10, 28:25, 5:2).
+
+TV_VERIFIED_SEAM61 = {
+    ("ONB", "2004-01-02"): 1.050000, ("MBWM", "2004-04-14"): 1.050000, ("CINF", "2004-04-28"): 1.050000,
+    ("VLY", "2004-04-29"): 1.050000, ("ABT", "2004-05-03"): 1.064056, ("BOKF", "2004-05-06"): 1.030000,
+    ("UNTY", "2004-06-14"): 1.050000, ("WTBA", "2004-07-22"): 1.050000, ("MYE", "2004-08-11"): 1.100000,
+    ("PRK", "2004-11-29"): 1.050000, ("ONB", "2005-01-03"): 1.050000, ("CINF", "2005-04-04"): 1.050000,
+    ("VLY", "2005-05-04"): 1.050000, ("UNTY", "2005-06-13"): 1.050000, ("MBWM", "2005-07-14"): 1.050000,
+    ("AXP", "2005-10-03"): 1.131862, ("MBWM", "2006-04-20"): 1.050000, ("VLY", "2006-05-04"): 1.050000,
+    ("UNTY", "2006-06-14"): 1.050000, ("WTBA", "2006-07-27"): 1.050000, ("VZ", "2006-11-20"): 1.035037,
+    ("CENT", "2007-02-06"): 2.955956, ("ADP", "2007-04-02"): 1.113284, ("MBWM", "2007-04-19"): 1.050000,
+    ("VLY", "2007-05-09"): 1.050000, ("UNTY", "2007-06-13"): 1.050000, ("VLY", "2008-05-07"): 1.050000,
+    ("GCO", "2008-06-06"): 1.105926, ("UNTY", "2008-06-11"): 1.050000, ("BFA", "2008-10-28"): 1.333166,
+    ("VLY", "2009-05-06"): 1.050000, ("VLY", "2010-05-05"): 1.050000, ("VZ", "2010-07-02"): 1.070230,
+    ("VSH", "2010-07-07"): 1.111637, ("WY", "2010-07-20"): 2.500000, ("DB", "2010-09-22"): 1.078074,
+    ("AIG", "2011-01-20"): 1.130011, ("NOC", "2011-03-31"): 1.102322, ("VLY", "2011-05-04"): 1.050000,
+    ("VLY", "2012-05-09"): 1.050000, ("NC", "2012-10-01"): 3.082614, ("ABT", "2013-01-02"): 2.090301,
+    ("GFI", "2013-02-21"): 1.161690, ("MUR", "2013-09-03"): 1.161305, ("DB", "2014-06-06"): 1.048000,
+    ("IP", "2014-07-02"): 1.014352, ("ADP", "2014-10-01"): 1.139904, ("OXY", "2014-12-01"): 1.042064,
+    ("VNO", "2015-01-16"): 1.104101, ("SSP", "2015-04-01"): 1.083222, ("BHP", "2015-05-18"): 1.067067,
+    ("PPL", "2015-06-02"): 1.077722, ("MAS", "2015-07-01"): 1.137405, ("APD", "2016-10-03"): 1.081661,
+    ("DB", "2017-03-21"): 1.120000, ("MET", "2017-08-07"): 1.122151, ("NC", "2017-10-02"): 4.377555,
+    ("BFA", "2018-03-01"): 1.186885, ("FMC", "2019-03-04"): 1.153946, ("VFC", "2019-05-23"): 1.062457,
+    ("JEF", "2019-09-27"): 1.068293, ("PFE", "2020-11-17"): 1.054910, ("MRK", "2021-06-03"): 1.048740,
+    ("DTE", "2021-07-01"): 1.175298, ("PUK", "2021-09-20"): 1.031832, ("IP", "2021-10-01"): 1.056091,
+    ("BHP", "2022-06-02"): 1.121350, ("JEF", "2023-01-17"): 1.046534, ("BWA", "2023-07-05"): 1.136871,
+    ("DHR", "2023-10-02"): 1.128158, ("CENT", "2024-02-09"): 1.277682, ("CMCSA", "2026-01-05"): 1.067428,
+}
+
+#: Vendor rows TradingView takes no step at and the raw day files run straight through (DROP rows).
+TV_VERIFIED_DROPS = {("CHY", "2007-09-20"): (3, 1), ("FLO", "2003-11-25"): (1, 1.5)}
+
+#: The identity-review six and ITGR (2026-11-21): no rows until their identity is reviewed (their lineage symbols too).
+IDENTITY_REVIEW = {"DOC", "PEAK", "OKE", "TEVA", "TEVJ", "S941", "CRH", "CRHC", "UMC", "RBCAA", "RBCA", "ITGR"}
+
+
+def test_every_seam61_event_lives_in_the_supplement_at_tradingview_s_factor():
+    rows = {(r["ticker"], r["execution_date"]): F.split_ratio(r["split_from"], r["split_to"])
+            for r in S.load() if "drop" not in r}
+    for key, factor in TV_VERIFIED_SEAM61.items():
+        assert key in rows, f"{key}: a TradingView-verified event left out of the supplement"
+        assert rows[key] == pytest.approx(factor, rel=1e-6), key
+
+
+def test_every_committed_drop_is_a_tradingview_verified_one_and_none_is_missing():
+    drops = {(r["ticker"], r["execution_date"]): (r["drop"]["split_from"], r["drop"]["split_to"]) for r in S.load() if "drop" in r}
+    assert drops == TV_VERIFIED_DROPS
+
+
+def test_held_events_and_identity_review_tickers_carry_no_rows():
+    """Stated, not served: VZ 2008-04-01 (TradingView steps 0.980366, the inverse of a spin-off), BP's 13 and PHG's 9 vendor
+    dividend rows, CM 2014/2015 and PEO 2024 (TradingView and the second vendor skip them, the raw day files move across
+    them: held for a ruling); and the identity-review tickers."""
+    rows = S.load()
+    assert not any(r["ticker"] == "VZ" and r["execution_date"] == "2008-04-01" for r in rows)
+    assert not any(r["ticker"] in {"BP", "PHG", "CM", "PEO", "CASS", "KMB"} for r in rows)
+    assert not any(r["ticker"] in IDENTITY_REVIEW for r in rows)
