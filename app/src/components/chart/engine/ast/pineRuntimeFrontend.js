@@ -4847,6 +4847,21 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     && Array.isArray(node.args) && node.args.length === 1 && !!node.args[0] && !node.args[0].name
     && isPlainNa(node.args[0].value !== undefined ? node.args[0].value : node.args[0], scope)
   const isBuiltinNa = (node, scope) => isPlainNa(node, scope) || colourNaCast(node, scope)
+  /** ⭐⭐ U-BUILTIN B4b (2026-11-21) — `color(x)` IS `x` WHEN `x` HOLDS A COLOUR. The reference (v5 and v6,
+   *  `color()`) returns "The value of the argument after casting to color": a colour cast to color is that colour,
+   *  value and type. bolingger-bands-inside-bar-boxes draws every box with `border_color = color(bgColor)` (an
+   *  `input.color`); this lane refused the cast `pine:function`, so DRAW-1 killed its boxes. The same guards as
+   *  `colourNaCast` (Pine's own `color`, one positional argument), and the argument must hold a colour as
+   *  `holdsColour` reads one: `color(close)` (a number) is not this cast and stays refused. It is never `na`
+   *  (`isBuiltinNa` does not ask it); it is a colour (`holdsColour`, which the route already asks, so the columnar
+   *  lane is never handed it), lowered as the colour it holds (the call arm). ⛔ A cast NESTED in an expression
+   *  the route sends to the columnar lane is not followed there (`holdsColourNaCast` is B4's alone): no measured
+   *  script needs it, and that lane refuses it by name (`pine:function`). */
+  const colourIdentityCast = (node, scope) => !!node && node.type === 'call' && node.name === 'color'
+    && !definedNames.has('color') && !isUserFn('color')
+    && Array.isArray(node.args) && node.args.length === 1 && !!node.args[0] && !node.args[0].name
+    && !colourNaCast(node, scope)
+    && holdsColour(node.args[0].value !== undefined ? node.args[0].value : node.args[0], scope)
   /** ⭐ U-BUILTIN B4 — a `color(na)` anywhere in this subtree: the route decision asks it, as it asks
    *  `holdsDrawingCast`, so the columnar lane is never asked about the cast. */
   const holdsColourNaCast = (node, scope, depth = 0) => {
@@ -4898,6 +4913,8 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
     // call, `color.red` is a name, and the literal is neither.
     if (node.type === 'colour') return true
     if (node.type === 'call' && producesColour(node.name)) return true
+    // ⭐ U-BUILTIN B4b — `color(x)` of a colour is that colour ("The value of the argument after casting to color")
+    if (node.type === 'call' && colourIdentityCast(node, scope)) return true
     // ⭐ C23 — an `input.color` is the colour its default is (`inputColourDefaultNode`).
     if (node.type === 'call' && node.name === 'input.color' && !definedNames.has(node.name)) {
       return holdsColour(inputColourDefaultNode(node), scope)
@@ -10426,6 +10443,10 @@ function buildRuntimeIrLinkedInScope(source, opts, holder, palette) {
         if (drawingCastFamily(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
         // ⭐⭐ U-BUILTIN B4 — `color(na)` is `na` ("Casts na to color"), lowered as the `na` it holds.
         if (colourNaCast(node, scope)) return lowerExpr(node.args[0].value, scope, opts)
+        // ⭐⭐ U-BUILTIN B4b — `color(x)` of a colour is `x`, lowered as the colour it holds.
+        if (colourIdentityCast(node, scope)) {
+          return lowerExpr(node.args[0].value !== undefined ? node.args[0].value : node.args[0], scope, opts)
+        }
         // ⭐⭐ S1 — a per-trade broker function (`strategy.opentrades.entry_price(0)`).
         if (brokerMode && typeof node.name === 'string' && node.name.startsWith('strategy.')
             && !definedNames.has(node.name)) {
