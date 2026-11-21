@@ -2118,10 +2118,19 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     twin = chart_twins.house_formula(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
+        # ⭐ 2026-11-21 (ruling) -- THE MEMBER'S OWN RULE WINS. Found live: asked to mark inside bars "where the
+        # high is below the prior high and the low is above the prior low", the assistant built the firm's
+        # formula (a touch allowed, on a bar that traded) and said so. Nothing was hidden, but the member had
+        # stated the rule and got ours. A house term settles what the WORD means when the member only names
+        # it (the 2026-11-18 ruling: never a question, never two formulas for one word); a member who spells
+        # the rule out has asked for that rule.
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
                        "disclose its numbers in `assumptions`. If the member gave their own "
                        "number for it (a different length or window), keep this formula's shape "
-                       "with the member's number")
+                       "with the member's number. If the member spells out the RULE itself in the "
+                       "same request (what is compared with what, and whether a touch counts), "
+                       "build THEIR rule exactly and say in `assumptions` how it differs from the "
+                       "firm's")
         subject = chart_twins.PATTERN_SUBJECT.get(t.get("name"))
         if subject:
             out["rule"] += ". " + subject
