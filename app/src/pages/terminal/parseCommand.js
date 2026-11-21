@@ -74,8 +74,10 @@ function isDeclaredArg(code, tok, { closed = false } = {}) {
   // A REST spec (IMOV's theme name) takes almost any word, so it never decides alone that a
   // token is an argument rather than a ticker: `phraseArgs` below does that.
   // `closed`: leave out a spec that takes ANY word of the right shape (`open: true`, COT's market
-  // name). Such a spec cannot tell its own argument from another function's code.
-  return specs.some((s) => s.kind !== 'code' && !s.rest && !(closed && s.open) && ARG_KINDS[s.kind]?.parse(tok) != null)
+  // name). Such a spec cannot tell its own argument from another function's code, unless the word is
+  // in the spec's own dictionary (`known`: COT's market words), which settles it: `COT OIL` is COT's.
+  return specs.some((s) => s.kind !== 'code' && !s.rest && !(closed && s.open && !ARG_KINDS[s.kind]?.known?.(tok))
+    && ARG_KINDS[s.kind]?.parse(tok) != null)
 }
 
 /** `FUNC <words…>` for a code with a REST spec (IMOV's theme name): are these words a phrase
