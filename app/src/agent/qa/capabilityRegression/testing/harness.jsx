@@ -367,7 +367,7 @@ const TERMINAL_DATA = {
   // `dilution.watch`; MD-1 §4.16): the same rule — each adapter's own data shape, made-up names and figures. `as_of` is the
   // data's own date (the time the read was computed, the newest bar judged, the newest event, the wire run, the newest
   // logged session, the newest filing; never the day of the read).
-  'market.regime': () => ({ freshness: 'periodic', as_of: '2026-11-03T15:30:00Z', data: { regime: 'bull_correction', label: 'Bull correction', band: 'YELLOW', confidence: 0.6,
+  'market.regime': () => ({ freshness: 'periodic', as_of: '2026-11-03T15:30:00Z', data: { regime: 'made_up_regime', label: 'Made-up regime', band: 'YELLOW', confidence: 0.6,
     signals: { pct_above_50ma: 48, pct_above_200ma: 61, new_highs: 40, new_lows: null, distribution_days: 4, market_phase: 'Made-up phase' },
     reasons: ['a made-up reason line'], reasons_left_out: 1, left_out: ['uct_exposure_rating', 'vix'], vocabulary_version: 'fixture', computed_at: '2026-11-03T15:30:00Z' } }),
   'stock.setups': (p) => {

@@ -14065,7 +14065,7 @@
           "^POST /api/agent/data .*market\\.regime.*\"params\":\\{\\}"
         ],
         "says": [
-          "UCT's market regime read: Bull correction, sizing band YELLOW, confidence 60%\\.",
+          "UCT's market regime read: Made-up regime, sizing band YELLOW, confidence 60%\\.",
           "• New lows: not available to the classifier",
           "that is not a figure of 0",
           "this answer never recomputes",
