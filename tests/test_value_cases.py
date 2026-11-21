@@ -62,14 +62,17 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["j06"]        # every one is named here, on purpose
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "j06"]     # every one is named here, on purpose
 
 
 @pytest.mark.parametrize("case", HERE, ids=[c["id"] for c in HERE])
 def test_the_recorded_answer_is_right_on_the_lane_the_request_belongs_on(case):
     result = G.grade_case(case)
-    assert result["verdict"] == "right", (case["words"], result["lines"])
     assert result["lane"] == case["lane"]
+    if case.get("recorded_verdict") == "wrong":                   # a known defect of the door, named in the case: never passed
+        assert result["verdict"] == "wrong", (case["id"], "is recorded WRONG and now grades", result["verdict"], result["lines"])
+        return
+    assert result["verdict"] == "right", (case["words"], result["lines"])
     if case["lane"] == "formula":
         # something was compared: "right" over no bars would be a pass by silence
         compared = [int(line.rsplit(" on ", 1)[1].split()[0]) for line in result["lines"] if " = " in line]

@@ -642,6 +642,15 @@ def rules(cid):
         from .stat_rules import stat_rules
         got = stat_rules(cid, C, V, [None if not ok(x) else x for x in SC])
         return {group: [(name, [NAN if v is None else v for v in col]) for name, col in readings] for group, readings in got.items()}
+    if cid == 'intraday-01':                                # today's low so far plus the 14 day ATR; today's high so far minus it
+        # ⚠ GRADED ON THE DAILY MARKET until the intraday market exists (the next unit): here each bar is its own
+        # day, so "today's low so far" at the bar's close is the bar's low and the 14 day ATR is the ATR of 14 bars.
+        out = {"today's low plus the 14 day ATR": [], "today's high minus the 14 day ATR": []}
+        for kind in ('rma', 'wilder', 'sma'):
+            a = atr(14, kind)
+            out["today's low plus the 14 day ATR"].append((f'ATR by {kind}', [L[i] + a[i] if ok(a[i]) else NAN for i in range(N)]))
+            out["today's high minus the 14 day ATR"].append((f'ATR by {kind}', [H[i] - a[i] if ok(a[i]) else NAN for i in range(N)]))
+        return out
     if cid == 'm07':                                        # CONTROL: "Detect Inside Bars", the term alone -> the firm's formula (a touch counts, on a bar that traded)
         return {'an inside bar, the firm\'s meaning': [('a touch counts, on a bar that traded', [NAN if i == 0 else (1.0 if H[i] > L[i] and V[i] > 0 and H[i] <= H[i - 1] and L[i] >= L[i - 1] else 0.0) for i in range(N)])]}
     return None

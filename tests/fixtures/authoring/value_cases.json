@@ -11227,6 +11227,90 @@
    }
   },
   {
+   "id": "intraday-01",
+   "lane": "formula",
+   "words": "On a 5 minute chart, plot two lines: today's low so far plus the 14 day ATR, and today's high so far minus the 14 day ATR",
+   "rule": {
+    "digest": "b40b1d880b428031",
+    "history": [
+     {
+      "digest": "b40b1d880b428031",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "recorded": {
+    "on": "2026-11-21",
+    "front": "c7f99ed2c3"
+   },
+   "recorded_verdict": "wrong",
+   "defect": "The door accepted, on the first attempt, a patch whose reply is the word \"Placeholder\" and whose two lines add a weekly read of the constant 0 where the 14 day ATR should be (`sessionLow() + tf(0, W)`): labelled \"Session low + ATR\", it draws the session low. The door now refuses a scope read of nothing and a placeholder reply, so the assistant gets its repair. Graded on the daily market until the intraday one exists.",
+   "answer": {
+    "contract": "uct.authoring.patch/1",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Session Range ATR Levels",
+      "placement": "price",
+      "primary": "lowPlusAtr",
+      "outputs": [
+       {
+        "key": "lowPlusAtr",
+        "label": "Session low + ATR",
+        "tree": {
+         "type": "op",
+         "name": "+",
+         "args": [
+          {
+           "type": "call",
+           "name": "sessionLow",
+           "args": []
+          },
+          {
+           "type": "tf",
+           "value": "W",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
+        }
+       },
+       {
+        "key": "highMinusAtr",
+        "label": "Session high - ATR",
+        "tree": {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "call",
+           "name": "sessionHigh",
+           "args": []
+          },
+          {
+           "type": "tf",
+           "value": "W",
+           "args": [
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "reply": "Placeholder"
+   }
+  },
+  {
    "id": "h03",
    "lane": "script",
    "chart": "daily",
