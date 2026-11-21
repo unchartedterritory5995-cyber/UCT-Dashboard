@@ -122,7 +122,7 @@
   height: 18px;
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-pill);
   background: transparent;
   cursor: pointer;
 }
@@ -135,7 +135,7 @@
   height: 12px;
   border-radius: 50%;
   background: var(--text-dim);
-  transition: transform 0.15s ease;
+  transition: transform var(--duration-fast) var(--ease-out);
 }
 .switchOn .switchKnob { transform: translateX(12px); background: #111214; }
 .switch:disabled { opacity: 0.5; cursor: default; }
