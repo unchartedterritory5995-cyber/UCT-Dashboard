@@ -3157,6 +3157,19 @@ def _drop_stale_sealed(c, ticker: str, tf: str, rows: list, snapped: list, check
     return k_rows, k_snap
 
 
+class AddOnlyBar(dict):
+    """A bar a writer may ADD to the store but must never let REPLACE a row the store already holds:
+    `put_bars` writes it INSERT OR IGNORE even inside a replacing write. It is the plain dict it wraps
+    (JSON, `.get`, comparisons), so a reader that is not a writer never notices it.
+
+    ⚰️ 2026-11-21, web's CX: a deep fetch's yfinance graft (bars older than Massive's 2003-09-10 floor)
+    written on Yahoo's basis, which is 1.04^4 below the vendor's for CX, REPLACED the 1,001 stored rows
+    before the floor. That put a x1.16 cliff at 2003-09-10, an overnight move that never traded. A graft
+    whose join cannot be proven (`bars_fetch._yf_join_factor` None) is AddOnlyBar
+    (`bars_fetch._merge_daily_bars`). Rails: tests/test_deep_merge_join.py."""
+    __slots__ = ()
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
              on_conflict: str = "replace", checked_at: float | None = None) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
@@ -3175,9 +3188,17 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     On ``DatabaseError: disk image is malformed`` schedules a background
     recovery (snapshot re-pull from R2) and re-raises so the caller's
     exception handler can return an empty result for this single request.
+
+    An ``AddOnlyBar`` in a replacing write is written ADD-ONLY (its own INSERT OR IGNORE
+    write): it may fill a date the store lacks, never replace a row the store holds.
     """
     if not bars:
         return 0
+    if on_conflict != "ignore" and any(isinstance(b, AddOnlyBar) for b in bars):
+        plain = [b for b in bars if not isinstance(b, AddOnlyBar)]
+        add = [b for b in bars if isinstance(b, AddOnlyBar)]
+        return ((put_bars(ticker, tf, plain, date_tf, on_conflict, checked_at) if plain else 0)
+                + put_bars(ticker, tf, add, date_tf, "ignore", checked_at))
     ticker = ticker.upper()
     bars, _rejected = _writable_bars(ticker, tf, bars)
     bars, snapped = _grid_rows(ticker, tf, bars, date_tf)

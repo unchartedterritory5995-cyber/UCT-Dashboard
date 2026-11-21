@@ -63,3 +63,61 @@ def test_an_empty_side_merges_as_before():
     assert F._merge_daily_bars([], m) is m
     y = _bars(OLD, [1.0] * 60)
     assert F._merge_daily_bars(y, []) is y
+
+
+# ── 2026-11-21: an UNJOINED graft is add-only (web's CX: a pre-join-factor graft put Yahoo's basis under the vendor's) ──
+# When `_yf_join_factor` cannot prove one basis (None), the older yfinance bars are AddOnlyBar: put_bars may ADD them
+# where the store has no row, never REPLACE a row it holds. A proven join (EMBJ) stays an ordinary, replacing write.
+
+import json                                     # noqa: E402
+
+import pytest                                   # noqa: E402
+
+from api.services import bars_sqlite as S       # noqa: E402
+
+
+@pytest.fixture
+def store(tmp_path, monkeypatch):
+    monkeypatch.setattr(S, "_DB_PATH", str(tmp_path / "bars.db"))
+    S.bump_db_epoch()
+    S.init_db()
+    yield tmp_path
+    S.bump_db_epoch()
+
+
+def _wandering():
+    yf = _bars(OLD, [17.0] * 60) + _bars(SHARED, [17.0 + (i % 5) for i in range(40)])
+    return yf, _bars(SHARED, [3.7 + 0.3 * ((i * 7) % 4) for i in range(40)])
+
+
+def test_an_unproven_join_leaves_the_older_span_add_only_and_a_proven_one_does_not():
+    out = F._merge_daily_bars(*_wandering())
+    assert all(isinstance(b, S.AddOnlyBar) for b in out[:60]) and not any(isinstance(b, S.AddOnlyBar) for b in out[60:])
+    short = F._merge_daily_bars(_bars(OLD, [60.0] * 60) + _bars(SHARED[:5], [p * 4 for p in PRICES[:5]]),
+                                _bars(SHARED, PRICES))
+    assert all(isinstance(b, S.AddOnlyBar) for b in short[:60])
+    joined = F._merge_daily_bars(_bars(OLD, [60.0] * 60) + _bars(SHARED, [p * 4 for p in PRICES]), _bars(SHARED, PRICES))
+    assert not any(isinstance(b, S.AddOnlyBar) for b in joined)
+    assert json.dumps(out[0]) == json.dumps(dict(out[0])), "an AddOnlyBar serializes as the plain bar it is"
+
+
+def test_put_bars_adds_an_add_only_bar_but_never_lets_it_replace_a_stored_row(store):
+    S.put_bars("SEAM", "D", _bars(OLD[:30], [5.0] * 30) + _bars(SHARED, [1.0] * 40), date_tf=True)
+    held = {r[0] for r in S.get_bars("SEAM", "D", 10 ** 6)}       # (the store refuses non-session dates)
+    S.put_bars("SEAM", "D", [S.AddOnlyBar(b) for b in _bars(OLD, [9.0] * 60)] + _bars(SHARED, PRICES), date_tf=True)
+    got = {r[0]: r[4] for r in S.get_bars("SEAM", "D", 10 ** 6)}
+    key = lambda d: int(d.replace("-", ""))                       # noqa: E731
+    old_held = [key(d) for d in OLD[:30] if key(d) in held]
+    added = [key(d) for d in OLD[30:] if key(d) in got]
+    assert old_held and all(got[k] == 5.0 for k in old_held), "a stored row is never replaced by an unjoined graft"
+    assert added and all(got[k] == 9.0 for k in added), "a date the store lacked is filled"
+    assert all(got[key(d)] == p for d, p in zip(SHARED, PRICES) if key(d) in got), "a plain bar still replaces"
+
+
+def test_a_deep_weekly_or_monthly_series_keeps_its_unjoined_periods_add_only(monkeypatch):
+    monkeypatch.setattr(F, "_fetch_daily", lambda t, n, deep=False: F._merge_daily_bars(*_wandering()))
+    for fetch, tf in ((F._fetch_weekly, "W"), (F._fetch_monthly, "M")):
+        out = fetch("SEAM", 10 ** 4, deep=True)
+        before = [b for b in out if b["t"] < SHARED[0][:8] + "01" or (tf == "W" and b["t"] < SHARED[0])]
+        assert before and all(isinstance(b, S.AddOnlyBar) for b in before), tf
+        assert not isinstance(out[-1], S.AddOnlyBar), tf

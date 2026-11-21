@@ -3398,7 +3398,31 @@ def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dic
     if f is not None and older_yf:
         from api.services.bars_sanitize import scale_bar
         older_yf = [scale_bar(dict(b), 1.0 / f) for b in older_yf]
+    elif older_yf:
+        # ⛔ UNPROVEN JOIN, ADD-ONLY (2026-11-21). Without one proven basis these bars may be on
+        # another one (web's CX: Yahoo's, 1.04^4 below the vendor's). They may fill dates the store
+        # lacks, never replace rows it holds (`bars_sqlite.AddOnlyBar`).
+        older_yf = [_sqlite.AddOnlyBar(b) for b in older_yf]
     return older_yf + massive_bars
+
+
+def _add_only_periods(daily: list[dict], periods: list[dict], tf: str) -> list[dict]:
+    """W/M resampled from a deep daily series: every period that STARTS before its first joined day
+    (the first non-`AddOnlyBar`) holds unjoined graft days, so it is add-only too."""
+    joined = [b["t"] for b in daily if not isinstance(b, _sqlite.AddOnlyBar)]
+    if len(joined) == len(daily):
+        return periods
+    first = min(joined) if joined else None
+    out = []
+    for p in periods:
+        try:
+            d = datetime.strptime(str(p["t"])[:10], "%Y-%m-%d")
+            start = (d - timedelta(days=d.weekday())) if tf == "W" else d.replace(day=1)
+            late = first is not None and start.strftime("%Y-%m-%d") >= first
+        except (KeyError, TypeError, ValueError):
+            late = False
+        out.append(p if late else _sqlite.AddOnlyBar(p))
+    return out
 
 
 def _fetch_daily(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
@@ -3432,7 +3456,7 @@ def _fetch_weekly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]:
         # Build deep daily series first, then resample. Need enough daily bars
         # to cover max_bars weeks: ~5 trading days/week + buffer.
         daily = _fetch_daily(ticker, max_bars * 7, deep=True)
-        weekly = _resample_weekly_iso(daily)
+        weekly = _add_only_periods(daily, _resample_weekly_iso(daily), "W")
         return weekly[-max_bars:]
     # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars
@@ -3475,7 +3499,7 @@ def _fetch_monthly(ticker: str, max_bars: int, deep: bool = False) -> list[dict]
     """Fetch monthly bars — daily from Massive (+ yfinance if deep), resampled."""
     if deep:
         daily = _fetch_daily(ticker, max_bars * 25, deep=True)  # ~21 trading days/month
-        monthly = _resample_monthly_iso(daily)
+        monthly = _add_only_periods(daily, _resample_monthly_iso(daily), "M")
         return monthly[-max_bars:]
     # Fast path: Massive recent + yfinance tail-fill when stale, resampled.
     from api.services.massive import get_agg_bars
