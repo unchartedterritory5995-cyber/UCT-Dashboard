@@ -1,0 +1,29 @@
+//@version=6
+indicator("UCTPROBE_VW_FILL_HIDDEN_ANCHORS", overlay = true)
+
+// PROVENANCE: written 2026-11-19 (Q-FILL-HID-1, docs/pine/capture-queue-2026-11-19-hline-fill.md). Our probe.
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── A FILL BETWEEN ANCHORS THE AUTHOR HID: THE SHAPE THE ENGINE REFUSES AS `pine:hidden-only` ───
+//
+// When every output that translates is a series the author hid (`display = display.none`, or an untitled `fill()`
+// anchor), the engine offers no column (`pine:hidden-only`, ruling 1.2), and what the pane may DRAW for such a script
+// has no capture: the fill between two hidden anchors, and whether an untitled anchor with no `display` argument is
+// drawn as a line (engine 75 measured `display: 15` for one such anchor; this probe asks for the pair, untitled and
+// hidden side by side). Every row is drawn on the price chart.
+//
+//   A1 / A2      high / low, untitled, display.none        → F1 between them, color.new(color.teal, 80)
+//   B1 / B2      hl2 / ohlc4, untitled, no `display` given → F2 between them, color.new(color.orange, 70)
+//   C1 / C2      open (untitled, display.none) / close (untitled, no `display`) → F3, color.new(color.purple, 85)
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; record styles / styleState (each anchor's `display` /
+// `visible`), filledAreas / filledAreaDefaults / filledAreaState (each fill's colour), and the plotted values.
+
+a1 = plot(high, display = display.none)
+a2 = plot(low, display = display.none)
+fill(a1, a2, color = color.new(color.teal, 80), title = "F1_hidden_hidden")
+b1 = plot(hl2)
+b2 = plot(ohlc4)
+fill(b1, b2, color = color.new(color.orange, 70), title = "F2_untitled_untitled")
+c1 = plot(open, display = display.none)
+c2 = plot(close)
+fill(c1, c2, color = color.new(color.purple, 85), title = "F3_hidden_untitled")

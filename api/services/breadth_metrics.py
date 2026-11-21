@@ -265,7 +265,7 @@ DESCRIPTIONS = {
     "rsp_spy_ratio": "Equal-weight S&P 500 (RSP) ÷ cap-weight S&P 500 (SPY).",
     "iwm_qqq_ratio": "Russell 2000 (IWM) ÷ Nasdaq-100 (QQQ).",
     "cnn_fear_greed": "CNN Fear & Greed Index (0 = extreme fear, 100 = extreme greed).",
-    "cboe_putcall": "CBOE put/call ratio. ⚠ Feed stale since 2026-08-07.",
+    "cboe_putcall": "CBOE equity put/call ratio (stock options), one series 2003 to today.",
     "aaii_spread": "AAII survey: % bullish minus % bearish.",
 }
 

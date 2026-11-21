@@ -122,7 +122,8 @@ def budget() -> dict:
 
 # ── Low-level transport (spec §9.2, §9.5) ───────────────────────────────────
 
-def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
+def _get_raw(path: str, params: dict, timeout: Optional[int] = None,
+             forbidden_scope: Optional[str] = None) -> Any:
     """Fires one FMP GET. Returns the parsed JSON body on a normal 200
     (which may be an empty list/dict — genuinely empty is NOT this
     function's business to classify; each typed function above applies its
@@ -137,6 +138,8 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
         raise _ERR.not_configured("FMP_API_KEY not set")
 
     forbidden_since = cache.get(f"fmp_forbidden_{path}")
+    if forbidden_since is None and forbidden_scope:
+        forbidden_since = cache.get(f"fmp_forbidden_{path}::{forbidden_scope}")
     if forbidden_since is not None:
         return _CachedForbidden(since=forbidden_since)
 
@@ -169,7 +172,10 @@ def _get_raw(path: str, params: dict, timeout: Optional[int] = None) -> Any:
         raise _ERR.rate_limited(f"FMP {path} rate-limited", status=429)
     if resp.status_code in (401, 403):
         now = time.time()
-        cache.set(f"fmp_forbidden_{path}", now, ttl=_FORBIDDEN_TTL)
+        # A scoped read (crypto) marks ONLY its own key: the same path serves stocks and
+        # indices, and FMP refusing one asset class must not blank the others for 24 h.
+        cache.set(f"fmp_forbidden_{path}::{forbidden_scope}" if forbidden_scope
+                  else f"fmp_forbidden_{path}", now, ttl=_FORBIDDEN_TTL)
         raise _ERR.auth_error(f"FMP {path} rejected ({resp.status_code})", status=resp.status_code)
     if resp.status_code >= 500:
         raise _ERR.transient(f"FMP {path} server error ({resp.status_code})", status=resp.status_code)
@@ -218,6 +224,7 @@ def _fetch(
     not_found_if: Optional[Callable[[Any], bool]] = None,
     freshness: Optional[_pe.FreshnessClass] = None, timeout: Optional[int] = None,
     observed_at_of: Optional[Callable[[Any], Optional[float]]] = None,
+    forbidden_scope: Optional[str] = None,
 ) -> _pe.ProviderResult:
     """The shared body every typed function below calls. Owns: raising
     FMPNotFound via the caller-supplied predicate (FMP has no status field
@@ -235,7 +242,10 @@ def _fetch(
     `freshness` is unaffected -- this hook is additive, not a behavior
     change for the 16 endpoints that don't opt in."""
     licensing_class = _plc.licensing_class_for("fmp", data_class)
-    raw = _get_raw(path, params, timeout=timeout)
+    # `forbidden_scope` is passed only when a caller set one, so every other read calls
+    # `_get_raw` exactly as before.
+    raw = (_get_raw(path, params, timeout=timeout, forbidden_scope=forbidden_scope)
+           if forbidden_scope else _get_raw(path, params, timeout=timeout))
     if isinstance(raw, _CachedForbidden):
         return _pe.ProviderResult(
             value=None,
@@ -431,6 +441,39 @@ def get_index_intraday(index_symbol: str, interval: str, from_date: str, to_date
                    {"symbol": _fmp_index_symbol(index_symbol), "from": from_date, "to": to_date},
                    source_activity="fmp_client.get_index_intraday", data_class="indices",
                    not_found_if=_empty_list, freshness="historical", timeout=timeout)
+
+
+#: The refusal mark of the crypto reads below. `_get_raw` keeps a 401/403 per PATH for 24 h,
+#: and these paths are the ones stock quotes and index bars use: a plan that does not carry
+#: crypto would otherwise switch those off too. With a scope, a refused crypto read marks
+#: `fmp_forbidden_<path>::crypto` only (and still honours a path-wide mark).
+_CRYPTO_SCOPE = "crypto"
+
+
+def get_crypto_history_eod_full(pair_symbol: str, from_date: str, to_date: str, *,
+                                timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """Daily OHLCV for a currency pair (`BTCUSD`) between two ISO dates, newest first: the
+    endpoint `get_index_history_eod_full` reads, asked with the pair symbol as it is (no
+    caret). The one caller is `api/crypto_bars.py`, dark behind `CRYPTO_BARS_ENABLED`.
+    `data_class="crypto"` has no row in `provider_licensing_class` (the owner has not said
+    whether FMP crypto may be shown), so the result is stamped `U`."""
+    return _fetch("/stable/historical-price-eod/full",
+                   {"symbol": pair_symbol.upper(), "from": from_date, "to": to_date},
+                   source_activity="fmp_client.get_crypto_history_eod_full", data_class="crypto",
+                   not_found_if=_empty_list, freshness="end_of_day", timeout=timeout,
+                   forbidden_scope=_CRYPTO_SCOPE)
+
+
+def get_crypto_quote(pair_symbol: str, *, timeout: Optional[int] = None) -> _pe.ProviderResult:
+    """The quote row for a currency pair (`BTCUSD`): the endpoint `get_quote` reads. The
+    row's own `timestamp` is carried as `provenance.source_observed_at`. `freshness` is
+    left None (not established): how far behind FMP's crypto quote runs has not been
+    measured, so no delay class is claimed for it."""
+    return _fetch("/stable/quote", {"symbol": pair_symbol.upper()},
+                   source_activity="fmp_client.get_crypto_quote", data_class="crypto",
+                   not_found_if=_empty_list, freshness=None,
+                   observed_at_of=_quote_observed_at, timeout=timeout,
+                   forbidden_scope=_CRYPTO_SCOPE)
 
 
 def get_earnings(ticker: str, *, limit: int = 20, timeout: Optional[int] = None) -> _pe.ProviderResult:
@@ -785,14 +828,21 @@ def get_grades_news(ticker: str, *, limit: Optional[int] = None, timeout: Option
     per date with no firm attached; this one carries the
     `gradingCompany`/`action`/`previousGrade`/`newGrade` fields.
 
-    `data_class="analyst_grades"` (not "news") because the payload IS the
-    grade action — the `newsURL`/`newsPublisher` fields are the citation
-    for it, not the content."""
+    `data_class="analyst_actions_news"` — neither "news" nor "analyst_grades"
+    (2026-11-19). The payload IS a grade action, but its ORIGIN is TheFly /
+    StreetInsider: the live capture in tests/test_analyst_intel_fmp_shapes.py
+    reads `newsPublisher: "TheFly"`, `newsURL: thefly.com/...`. Licensing
+    register T-45 names that sublicence chain and holds it at U even with the
+    DDLA, so the pair is deliberately UNREGISTERED in
+    `provider_licensing_class._TABLE` and stamps "U". ⚰️ It stamped
+    "analyst_grades" until the 2026-11-19 restatement moved that class to LA
+    (T-34): the split had to land first, or the restatement would have
+    reached a TheFly-origin feed."""
     params: dict = {"symbol": ticker.upper()}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-news", params,
-                   source_activity="fmp_client.get_grades_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 
@@ -801,12 +851,16 @@ def get_grades_latest_news(*, limit: Optional[int] = None, timeout: Optional[int
     (`/stable/grades-latest-news`) — `catalyst/sources.py`'s analyst pull.
     Market-wide, not per-symbol, so like `get_earnings_calendar` /
     `get_economic_calendar` / `get_ipo_calendar` it does NOT take
-    `ticker: str`; the caller filters by symbol from the returned rows."""
+    `ticker: str`; the caller filters by symbol from the returned rows.
+
+    `data_class="analyst_actions_news"`, unregistered, stamps "U": this is
+    the endpoint licensing register T-45 names (TheFly + StreetInsider
+    origin, DDLA U). See `get_grades_news` above."""
     params: dict = {}
     if limit is not None:
         params["limit"] = limit
     return _fetch("/stable/grades-latest-news", params,
-                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_grades",
+                   source_activity="fmp_client.get_grades_latest_news", data_class="analyst_actions_news",
                    not_found_if=_empty_list, freshness="end_of_day", timeout=timeout)
 
 

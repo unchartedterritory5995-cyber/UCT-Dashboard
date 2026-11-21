@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
+import v8 from 'node:v8'
+import vm from 'node:vm'
 import {
-  toSeries, legacyBars, staticSnapshot, composePoints, chartTimeOf, viewTransformId,
-  BASE_MEMO_MAX, _resetAdapterMemos,
+  toSeries, legacyBars, legacyDevelopingOf, staticSnapshot, composePoints, chartTimeOf, viewTransformId,
+  BASE_MEMO_MAX, MEMO_BAR_BUDGET, _resetAdapterMemos, _adapterMemoStats, _setAdapterMemoLimits,
 } from './adapter'
 import { toChartTime, etDateOf } from '../../components/chart/barTime'
 
@@ -13,6 +15,8 @@ import { toChartTime, etDateOf } from '../../components/chart/barTime'
 //  A3  legacyBars is today's {t,o,h,l,c,v} array, identity-stable per snapshot.
 //  A4  memo invalidation: (key, baseRev, vtid) is the identity; a new baseRev or a new
 //      bars array always recomputes; the memo is bounded.
+//  A6  ONE SLOT PER KEY: a key's new revision replaces its slot, so no memo keeps an old
+//      revision's arrays alive; the memos hold at most MEMO_BAR_BUDGET bars (newest stays).
 //  A5  staticSnapshot is identity-stable per array and repaints on a new array.
 
 const rng = (seed) => () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
@@ -169,5 +173,76 @@ describe('A6 RTH view on an NYSE half-day', () => {
     const last = s.base.candles[s.base.candles.length - 1].time
     expect(((last % 86400) + 86400) % 86400).toBe(12 * 3600 + 55 * 60)
     expect(s.base.candles.length).toBe((13 * 60 - 9 * 60 - 30) / 5)
+  })
+})
+
+// A real collection, so "nothing holds the old revision" is measured, not inferred.
+const gcNow = (() => { try { v8.setFlagsFromString('--expose-gc'); return vm.runInNewContext('gc') } catch { return null } })()
+const settle = () => new Promise((res) => setTimeout(res, 0))
+// D bars in the store's unit (unix seconds, 00:00 UTC of the label date): the legacy shape is a COPY.
+const unixDaily = (r, n) => dailySeries(r, n).map((b) => ({ ...b, t: Date.parse(`${b.t}T00:00:00Z`) / 1000 }))
+
+describe('A6 one slot per key, and a bar budget', () => {
+  it("five revisions of one key leave ONE slot, and only the newest revision's arrays alive", async () => {
+    expect(typeof gcNow).toBe('function')
+    const r = rng(11)
+    const refs = []
+    let keep = null
+    for (let rev = 1; rev <= 5; rev++) {
+      const sealed = unixDaily(r, 400)
+      const s = snap('AAA_D', sealed, null, rev)
+      const out = legacyBars(s, 'D')
+      expect(out).not.toBe(sealed)   // a legacy copy (D t → label)
+      toSeries(s, { tf: 'D' })        // the base memo too
+      refs.push({ sealed: new globalThis.WeakRef(sealed), out: new globalThis.WeakRef(out) })
+      keep = { s, sealed, out }
+    }
+    const st = _adapterMemoStats()
+    expect(st.legacy.keys).toEqual(['AAA_D|D'])
+    expect(st.base.slots).toBe(1)
+    await settle()
+    gcNow()
+    for (const x of refs.slice(0, -1)) {
+      expect(x.sealed.deref()).toBeUndefined()
+      expect(x.out.deref()).toBeUndefined()
+    }
+    expect(refs[4].out.deref()).toBe(keep.out)
+    expect(legacyBars(snap('AAA_D', keep.sealed, null, 5), 'D')).toBe(keep.out)   // the slot still serves it
+  })
+  it('over the bar budget the least recently used slots go; the newest stays however large', () => {
+    expect(MEMO_BAR_BUDGET).toBeGreaterThanOrEqual(2 * 56000 + 8 * 8000)   // two deep on-screen keys and neighbours
+    _setAdapterMemoLimits({ maxBars: 1000 })
+    const r = rng(12)
+    const a = unixDaily(r, 600), b = unixDaily(r, 600), c = unixDaily(r, 1500)
+    const outA = legacyBars(snap('A_D', a, null, 1), 'D')
+    legacyBars(snap('B_D', b, null, 1), 'D')
+    expect(_adapterMemoStats().legacy).toMatchObject({ slots: 1, bars: 600, keys: ['B_D|D'] })
+    legacyBars(snap('C_D', c, null, 1), 'D')
+    expect(_adapterMemoStats().legacy).toMatchObject({ slots: 1, bars: 1500, keys: ['C_D|D'] })
+    const againA = legacyBars(snap('A_D', a, null, 1), 'D')   // evicted: recomputed, never stale
+    expect(againA).not.toBe(outA)
+    expect(againA).toEqual(outA)
+    _setAdapterMemoLimits({ maxEntries: 2, maxBars: 1e9 })
+    for (const k of ['P_D', 'Q_D', 'R_D']) legacyBars(snap(k, unixDaily(r, 5), null, 1), 'D')
+    expect(_adapterMemoStats().legacy.slots).toBe(2)
+  })
+  it('the developing bar read (every tick) is the bar legacyBars appends, and needs no slot', () => {
+    const r = rng(13)
+    for (const [tf, sealed, dev] of [
+      ['D', unixDaily(r, 50), null],
+      ['5', intradaySeries(r, '5'), null],
+    ]) {
+      const last = sealed[sealed.length - 1]
+      const step = tf === 'D' ? 86400 : 300
+      const d = dev || { t: last.t + step, o: 1, h: 2, l: 0.5, c: 1.5, v: 7 }
+      const key = `DV_${tf}`
+      _resetAdapterMemos()
+      const s = snap(key, sealed, d, 1, 1)
+      expect(legacyDevelopingOf(s, tf)).toEqual(legacyBars(snap(key, sealed, d, 1, 2), tf).at(-1))
+      _resetAdapterMemos()
+      legacyDevelopingOf(s, tf)
+      expect(_adapterMemoStats().legacy.slots).toBe(0)
+      expect(legacyDevelopingOf(snap(key, sealed, { ...d, t: last.t }, 1, 3), tf)).toBe(null)   // not newer than the last sealed bar
+    }
   })
 })

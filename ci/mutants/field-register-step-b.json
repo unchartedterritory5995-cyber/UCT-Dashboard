@@ -1,0 +1,114 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "FIELD REGISTER STEP B (fix/pine-host-field-register-var-owner, on #2019): a field takes its owner's var-ness only under the ruling's conditions (`pineObjects.js::fieldOwnerVarness`): a `var` owner's field is a persistent register (Pine's 1 label), a plain owner's a register cleared every bar (Pine's 26); every other field stays untraced. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "B1",
+   "mutant": "persistence granted to a NON-var owner: a plain owner's field keeps its label across bars",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "      if (ok) (o.isVar ? varFields : plainFields).add(f)",
+   "to": "      if (ok) varFields.add(f)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "a PLAIN owner"
+  },
+  {
+   "id": "B2",
+   "mutant": "disqualifier (iii) dropped: the bare owner used as a value (`a = z`, `zs.push(z)`) no longer leaves it untraced",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "          else bad.add(head)",
+   "to": "          else void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "an alias `a = z`"
+  },
+  {
+   "id": "B3",
+   "mutant": "disqualifier (iii) dropped for a dotted use: `z.copy()` (any path that names no registered field) no longer leaves the owner untraced",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "        if (!f || ownerOf(f) !== head) { bad.add(head); continue }",
+   "to": "        if (!f || ownerOf(f) !== head) { continue }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "its copy"
+  },
+  {
+   "id": "B4",
+   "mutant": "tightening (i) dropped: an owner declared in a block is read as if it stood in the literal top scope",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "    for (const st of topScope) {",
+   "to": "    for (const st of allStmts) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "inside a block"
+  },
+  {
+   "id": "B5",
+   "mutant": "condition (i) dropped: a field whose constructor argument is not `na` is served as if it started empty",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "          const argNa = !arg || isNa(arg)",
+   "to": "          const argNa = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "constructor argument is not"
+  },
+  {
+   "id": "B6",
+   "mutant": "tightening (a) dropped: a field whose declared default is not `na` is served as if it started empty",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "          const defaultNa = fd.def === null || isNa(fd.def)",
+   "to": "          const defaultNa = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "declared default is not"
+  },
+  {
+   "id": "B7",
+   "mutant": "tightening (b) dropped: a `varip` owner is read as a `var` one",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "      if (t[0].value === 'varip') continue",
+   "to": "      if (false) continue",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "a `varip` owner"
+  },
+  {
+   "id": "B8",
+   "mutant": "tightening (c) dropped: a history-indexed read of the field (`z.lb[1]`) no longer leaves it untraced",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "        if (h.isPunct(t[i + 1], '[')) badField.add(f)",
+   "to": "        if (false) badField.add(f)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "history-indexed read"
+  },
+  {
+   "id": "B9",
+   "mutant": "disqualifier (ii) dropped: the owner written again (`z := Z.new(na)`) no longer leaves it untraced",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "          if (h.isPunct(t[i + 1], ':=')) bad.add(head)",
+   "to": "          if (h.isPunct(t[i + 1], ':=')) void 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "the owner reassigned"
+  },
+  {
+   "id": "B10",
+   "mutant": "disqualifier (iv) dropped: a function or method of the script's own called anywhere no longer leaves every field untraced",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "    if (callsOwn) return { varFields, plainFields }",
+   "to": "    if (false) return { varFields, plainFields }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "(iv) a function of the script"
+  },
+  {
+   "id": "B11",
+   "mutant": "a write to the field this program does not carry (`z.lb := spare`) no longer leaves it untraced",
+   "file": "app/src/components/chart/engine/ast/pineObjects.js",
+   "from": "          if (i !== 0 || !(create || reset)) badField.add(f)",
+   "to": "          if (false) badField.add(f)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "does not carry"
+  },
+  {
+   "id": "B12",
+   "mutant": "persistence never granted: a `var` owner's field is cleared every bar again (the 26-label picture)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (d.kind === 'local' && !persistentField) locals.push(id)",
+   "to": "      if (d.kind === 'local') locals.push(id)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostFieldRegisterUntraced.test.js",
+   "expectRed": "the function form"
+  }
+ ]
+}

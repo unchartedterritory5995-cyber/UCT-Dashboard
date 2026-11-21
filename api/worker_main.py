@@ -1273,6 +1273,13 @@ def main():
     # Universe Bars Pack builder — once/ET-day, repackages local bars.db D/W/M
     # into a static R2 artifact so browsers pre-seed IndexedDB for instant
     # first-view charts. Dark until BARSPACK_ENABLED=1; zero provider cost.
+    # The published corrections ledger (bars_corrections), so the daily pack the builder below sanitizes carries the
+    # same corrected D/W/M bars /api/bars serves. Inert with no manifest; BARS_CORRECTIONS_SERVE=0 = off.
+    try:
+        from api.services import bars_corrections as _bars_corrections
+        _bars_corrections.start_background_sync()
+    except Exception as e:
+        log.warning(f"bars-corrections sync failed to start (non-fatal): {e}")
     try:
         from api.services.barspack import start_barspack_builder
         start_barspack_builder()
@@ -1287,6 +1294,15 @@ def main():
         start_intradaypack_builder()
     except Exception as e:
         log.warning(f"intradaypack builder failed to start (non-fatal): {e}")
+
+    # First-frame seed builder: every symbol's newest N bars per timeframe (1/5/15/30/60/D), exactly as
+    # /api/bars serves them, one pack per timeframe to R2 (ffseed/), served from the edge (/api/seed/).
+    # Once per closed session after 20:15 ET. Dark until FFSEED_ENABLED=1; zero provider cost.
+    try:
+        from api.services.ffseed import start_ffseed_builder
+        start_ffseed_builder()
+    except Exception as e:
+        log.warning(f"ffseed builder failed to start (non-fatal): {e}")
 
     # Boot fingerprint — one grep-able line so an operator can confirm which
     # data-integrity guards are live in this worker deploy (mirrors the web's

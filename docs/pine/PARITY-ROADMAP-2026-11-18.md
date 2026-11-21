@@ -29,6 +29,69 @@ These are door verdicts on one daily chart (NYSE:RDDT 1D), not parity verdicts; 
 a capture exists (each unit's evidence column). Two walls the 1D census cannot see are added from
 other measurements (section 4.4).
 
+## 0. Re-measured 2026-11-19: engine 84, with production's library store
+
+`coverage-map.json` and `parity-roadmap.json` were re-measured at engine 84 (`3685713d65`, the master
+merged into the libraries chain L1 branch; no engine file differs). For the first time the census used
+**production's library store**: the 6 promoted versions (`run_census.py --library-store`). Section 9 has
+the commands. **The JSON is the authority. Sections 2 to 8 below keep the 11-18 (engine 73) prose and
+tables.**
+
+**Members are served 286 of 679 sample scripts (42.1%).** On 11-18 the figure was 275.
+
+| | 11-18, e73, no store | 11-19, e84, production's store |
+|---|---:|---:|
+| member-served (runtime-on with the server's admission) | 275 | **286** |
+| runtime-on, the census granting every script | 285 | 298 |
+| host-only | 220 | 226 |
+| runtime-added / lost | 65 / 0 | 72 / 0 |
+| served on closed-bar history only | 11 | 14 |
+| not served (fully enumerated) | 404 (201) | 393 (203) |
+| never-serve | 12 | 16 |
+| upper bound of the build order | 593 | 589 (86.7%) |
+
+The 11 scripts served now and not on 11-18 split in two. None was lost.
+
+- **5 are the store correction.** These are scripts production already serves, which the 11-18 map
+  counted as walled because it was measured with an empty store:
+  - the four TradingView built-ins importing `TradingView/ta/11`: Aroon oscillator, Chandelier exit,
+    Pring's special K and Ulcer index;
+  - `committed:all-chart-patterns-theeccentrictrader` (the theEccentricTrader libraries).
+  - KAMA and Price Momentum Oscillator also import ta/11 and stay walled. Their own refusal is
+    `pine:function-def`.
+- **6 are engine 73 -> 84:**
+  - `committed:atr-support-and-resistance`
+  - `committed:contraction-box-doji-lines`
+  - `reference:auto-length-moving-average-trend-signals-zeiierman` (U-FGS, #1952)
+  - `reference:auto-trendlines-by-pivots-perfect-non-repainting-lines-spyqqq-daily-pr`
+  - `reference:engulfing-sinyal`
+  - `reference:order-block-detector-luxalgo`
+
+Never-serve gains 4:
+- the `licence` class (section 6): 3 trendoscope scripts that import a CC-BY-NC-SA version;
+- `committed:volume-footprint-measuring-classical-indicators-by-math-geometry-intro` (footprint-ticks).
+
+Parity at engine 84, over 915 committed captures, both lanes run with the store:
+
+| lane | MATCH | MATCH_SUBSTITUTED | DIVERGE | INCONCLUSIVE |
+|---|---:|---:|---:|---:|
+| production | 198 | - | 79 | 638 |
+| runtime-on | 314 | 23 | 71 | 507 |
+
+`tests/test_pine_parity_roadmap.py::test_the_official_census_is_productions_library_store` holds the map's store
+to the allowlist's `promote` rows. A new promotion turns it red until the census is re-measured.
+
+**Re-measured again for the ta/7 promotion (libraries chain L2, same day, same engine 84).** The store is now 8
+versions: `TradingView/ta/7` and `RelativeValue/2` were promoted under the runtime-only rule.
+- Served is unchanged: **286**. Host-only is 226.
+- Runtime-on is 298 -> 299. `committed:kalman-psar-backquant` now attaches on the runtime lane and is walled
+  only by admission: `admission:import` and `admission:library:TradingView/ta/7`.
+- The other ta/7 importers lose `runtime:library` and keep their own walls:
+  - machine-learning-rsi-bullvision: conditional-history and function-global-state;
+  - smart-money-concept-tradingfinder: its five TFlab libraries and history walls;
+  - relative-volume-at-time: `pine:library-version`.
+- Each lane took its own lock hold.
+
 ## 1. What "served" and "wall" mean here
 
 - **Served (member-facing).** Production runs the runtime pane armed with capability admission on
@@ -43,6 +106,15 @@ other measurements (section 4.4).
     as the 11-17 map's section 1 did (reproduced: the e71 census through this tool gives 275, the 11-17
     figure).
   - An order-placing strategy is never served (the broker is not armed for members).
+- **Served, by what the chart draws (census tools, 2026-11-19).** Served says the door attaches the script;
+  the render sweep (`renderGaps.measure.test.js` over every capture on disk, runtime-on lane, joined by
+  `render_gaps.py`, folded by `coverage_map.py --render-gaps`) says whether every drawing lands. Member-served
+  splits three ways: **servedFully** (a capture was measured and none leaves a drawing off), **servedWithDisclosedGap**
+  (a measured capture leaves drawings off; the member's drawing note discloses them), **servedUnmeasured** (no capture
+  of it was measured). Each gap class is a ranked wall over the served scripts it touches (`renderWalls`, unit
+  `render`): `render:coordinate-unplaced` (a finite x no bar of the chart places), `render:text-withheld:<kind>`
+  (a text the run withheld, `<kind>` the run's own `format:*` name or `unnamed`), `render:drawings-withheld:<guard>`
+  (a family withheld whole by name). The classes sum to memberServed (`tests/test_pine_render_gaps.py`).
 - **Wall.** For a script that is not served, its walls are labels the census already prints:
   - the runtime lane's own walls over every peel step (`runtimeOn.walls.byScript`);
   - if it has none and the host lane attached it dirty (so the runtime lane was never offered it), the
@@ -1113,6 +1185,15 @@ symbol reached through a variable is not seen, so these counts are a floor.
 | breadth | 1 | host `pine:request` with `other-symbol:venue-foreign` / `other-symbol:class-share` on a USI: spelling | `committed:4c-nyse-market-breadth-ratio` |
 | indices | 1 | `other-symbol:witness-pending` / `other-symbol:venue-foreign` | `committed:sub` |
 | corporate-events | 4 | host `pine:request` / `pine:builtin`; runtime `runtime:request-with-state` | `builtin:volume-weighted-average-price`, `committed:black-scholes-option-pricing-model-w-greeks-loxx`, `reference:earnings-sr-levels-lazybear`, `reference:vwap-trendfollow-strategy-wbburgin` |
+| licence (added 2026-11-19) | 3 | `pine:library-licence` at the import line, both lanes (`pine_library_store.licence_problem`) | `reference:auto-chart-patterns-trendoscope`, `reference:divergence-screener-trendoscope`, `reference:recursive-reversal-chart-patterns-trendoscope` |
+
+- **`licence` (libraries chain L1, 2026-11-19).** A script that imports a library version under a
+  non-commercial licence is never served.
+  - Those versions are the allowlist's `neverPromoted` list, all CC-BY-NC-SA. `parity_roadmap.nc_library_versions`
+    reads that list fail-closed, and every reason must say non-commercial.
+  - No engine or evidence work changes this. It is a licence, not a wall.
+  - These three scripts were credited to `admit:collections:matrix`, `admit:collections:map` and
+    `admit:enum`, so the upper bound fell by 3.
 
 - **Ruled never-serve by name (coordinator, 2026-11-18, PARITY UNIT 1):** `committed:supertrend-explorer`,
   `reference:custom-screener-with-alerts` and `reference:screener-for-40-instruments` read crypto pairs as symbol
@@ -1404,6 +1485,68 @@ Probe rows this page adds (no sample script stands for them):
   the map, then `parity_roadmap.py facts` and `build`; the rail then holds the new numbers.
 
 ## 9. How it was measured
+
+### 9.0 The 2026-11-19 re-measure (engine 84, production's library store): the commands to use from now on
+
+**Setup.**
+- The worktree was at `d37693b7c1`, which is `3685713d65` (origin/master, `SCRIPT_ENGINE_VERSION = 84`)
+  merged into the libraries chain L1 branch. Only tooling and tests differ: `git diff --stat origin/master HEAD`
+  lists no engine file.
+- `git rev-parse HEAD` was identical before and after.
+- `$O/prod` and `$O/rt` are fresh copies of the same sample cache (`sample_manifest.json` sha256
+  `bfdf7ea4…`, 679 `ok`). `$REF` is the same `ref_rebuilt.json`.
+- **New: the promoted store `$S`.** It is the allowlist's `promote` rows, copied from an owner-run fetch
+  (never committed). It must pass `promotion_check.py check --exact` before the census reads it, because the
+  census refuses a store whose entries its rows did not all load.
+- **One heavy-lock hold per lane** (coordinator, 2026-11-19), so other jobs interleave.
+
+```sh
+# the store production serves: exactly the promote rows, each at its pinned sha256
+python tools/pine_library/promotion_check.py check --store $S --exact      # PROMOTION CHECK: PASS
+L="python C:/Users/Patrick/uct-clips/tools/heavy_lock.py --timeout 14400 --priority normal"
+$L --label census-production run -- python tools/pine_coverage/run_census.py --cache $O/prod --ref $REF --library-store $S
+$L --label census-runtime-on run -- python tools/pine_coverage/run_census.py --runtime-on --cache $O/rt --ref $REF --library-store $S
+# from app/: the harness links the same store
+PINE_LIBRARY_STORE=$S VENDOR_HARNESS_RUNTIME_ON=0 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT=$O/verdicts-prod \
+  $L --label harness-production run -- node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js --maxWorkers=1
+PINE_LIBRARY_STORE=$S VENDOR_HARNESS_RUNTIME_ON=1 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT=$O/verdicts-rt \
+  $L --label harness-runtime-on run -- node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js --maxWorkers=1
+COVERAGE_DOOR_OUT=$O/engine_door.json $L --label engine-door run -- node node_modules/vitest/vitest.mjs run \
+  src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js --maxWorkers=1
+# the map (refuses two lanes measured with different stores, and records `libraryStore`)
+python tools/pine_coverage/coverage_map.py --cache $O/prod --ref $REF \
+  --verdicts $O/verdicts-prod/verdicts.json --runtime-cache $O/rt --runtime-verdicts $O/verdicts-rt/verdicts.json \
+  --engine-door $O/engine_door.json --out docs/pine/coverage-map.json --measured-on 2026-11-19 --master-sha 3685713d65
+python tools/pine_coverage/parity_roadmap.py facts --ref $REF --names-ref <the whole v6 reference extract> \
+  --cache $O/prod --runtime-cache $O/rt --verdicts $O/verdicts-prod/verdicts.json \
+  --runtime-verdicts $O/verdicts-rt/verdicts.json --local-runs %LOCALAPPDATA%/uct-vendor-batch/runs --out $O/facts.json
+python tools/pine_coverage/parity_roadmap.py build --facts $O/facts.json
+python tools/pine_coverage/parity_roadmap.py check
+```
+
+**Results.**
+
+| run | result |
+|---|---|
+| census, production | 967 / 967 rows, 0 killed, 1 attempt; `LANE MEASURED: production (gate CLOSED, runtime lane reached 0, host refusals 1199)`; `LIBRARY STORE: 6 version(s)`; 26 passed, 1 skipped; 15.1 min |
+| census, runtime-on | 967 / 967 rows, 0 killed, 1 attempt; `LANE MEASURED: runtime-on (gate OPEN, runtime lane reached 1797, host refusals 1584)`; `LIBRARY STORE: 6 version(s)`; 26 passed, 1 skipped; 15.2 min |
+| harness, production | 11 passed; 915 captures: MATCH 198, DIVERGE 79, INCONCLUSIVE 638; 12.0 min |
+| harness, runtime-on | 11 passed; 915 captures: MATCH 314, MATCH_SUBSTITUTED 23, DIVERGE 71, INCONCLUSIVE 507; 13.8 min |
+| engine door | 26 passed, 1 skipped |
+| the map / roadmap | runtime-on 298/679 (runtime-attached 93); `facts` 453 not served host-only; SERVED 286/679; `check` passes; the five rails that read the map and roadmap: 122 passed |
+
+**The render sweep (census tools, 2026-11-19), after the census.** `renderGaps.measure.test.js` over the committed
+captures and the local capture store (runtime-on lane, the same `PINE_LIBRARY_STORE`), `render_gaps.py` to join the
+rows to the sample, and `coverage_map.py ... --render-gaps <json>`; `build` then splits member-served. Commands,
+results and the members of every class: `docs/pine/evidence/2026-11-19-render-gaps/EVIDENCE.md`
+(294 = fully 262 + disclosed gap 12 + unmeasured 12 + diverging 8).
+
+The `--library-store` flag (and the `libraryStore` it records) is what the 11-18 run below did not have.
+Its census linked no library, so every importer of a promoted version read as walled.
+
+### 9.1 The 2026-11-18 measurement (engine 73, no library store)
 
 The worktree was at `99de72e7c0e558dc429d18706b1da313cce0ba95` (`origin/master`,
 `SCRIPT_ENGINE_VERSION = 73`). `git rev-parse HEAD` was identical before and after every lane. Each lane

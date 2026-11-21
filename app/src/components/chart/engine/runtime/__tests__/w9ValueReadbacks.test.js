@@ -20,6 +20,8 @@ import { BROKER_RULES } from '../brokerRules.js'
 import { pinned } from '../brokerPins.js'
 import { strategyRecordOf, witnessedExitIdOf, WITNESSED_EXIT_ID_RULES, exitIdOf } from '../strategyRecord.js'
 import { strategyReportOf, REPORT_UNSTATED_GUARD } from '../brokerReport.js'
+import BROKER_PINS from '../brokerPins.json'
+import { V4_MARGIN0_SHAPES } from '../../ast/strategyBroker.js'
 
 const SYMBOL = { ticker: 'RDDT', exchange: 'NYSE' } // mintick 0.01, pointvalue 1
 const T0 = 1700000000
@@ -175,6 +177,20 @@ describe('[B-ROUND] a fill on a bar OPEN off the tick grid is that open rounded 
     expect(cols[1][4]).toBe(103.5)
     close9(cols[2][4], (103.5 - 100.01) * 2)
     expect(used).toContain('B-ROUND')
+  })
+
+  // ⭐⭐ (2026-11-20, Q-SU-8) the tie is the FLOAT's: 145.265 / 0.01 = 14526.499999999998 lands a hair under the half and
+  // TradingView fills it at 145.26 (supertrend-strategy-deep-aapl-1d-2026-11-19, 2022-07-08); an exact x.5 quotient
+  // (62.875 / 0.01 = 6287.5, and the 32 other ties of the committed captures) fills UP
+  it('a tie whose float quotient sits under the half rounds DOWN (145.265 -> 145.26); an exact x.5 rounds UP (62.875 -> 62.88)', () => {
+    const shift = (rows, d) => rows.map(([o, h, l, c]) => [o + d, h + d, l + d, c + d])
+    const down = served(SRC, { bars: barsOf([[100, 101, 99, 100], [100, 101, 99, 100], ...shift([[100.265, 101.5, 99.5, 101]], 45),
+      [146, 149, 145.5, 148.5], [148.5, 150, 147.5, 149], ...Array.from({ length: 5 }, () => [149, 150, 148.5, 149.5])]) })
+    expect(145.265 / 0.01).toBeLessThan(14526.5)
+    expect(down.trades[0].entry.price).toBe(145.26)
+    const up = served(SRC, { bars: base([62.875, 63.5, 62.5, 63]) })
+    expect(62.875 / 0.01).toBe(6287.5)
+    expect(up.trades[0].entry.price).toBe(62.88)
   })
 
   it('above a half tick rounds UP (103.506 -> 103.51); a market SELL on a tie rounds UP too (it is rounding, not slippage)', () => {
@@ -447,10 +463,37 @@ describe('ruling D12: a Pine v4 strategy that states no margin stops at bind, by
     expect(ok.rec.rulesUsed).toContain('B-V4-MARGIN0')
     const un = attempt(V4OV(''), { pins: (id) => id !== 'B-V4-MARGIN0' })
     expect(un.err && un.err.rule).toBe('B-V4-MARGIN0')
-    // one more argument is another shape: D12's bind refusal, unchanged
-    for (const extra of [', shorttitle = "s"', ', pyramiding = 1', ', initial_capital = 100000']) {
+    // one more argument is another shape: D12's bind refusal, unchanged (a `shorttitle` alone is the shape
+    // w9-q-s1b-v4-shape-a settles since 2026-11-19, below)
+    for (const extra of [', pyramiding = 1', ', initial_capital = 100000', ', shorttitle = "s", pyramiding = 1']) {
       expect(attempt(V4OV(extra)).err.setting, extra).toBe(V4_MARGIN_DEFAULT_SETTING)
     }
+  })
+
+  // ⭐⭐ D12b point 4 (2026-11-19, the strategy unit): two more shapes, each settled by its own committed report capture
+  // reading back Margin Long 0 and Margin Short 0 and grading MATCH at it (`ast/strategyBroker.js` V4_MARGIN0_SHAPES)
+  it('D12b point 4: the shapes of w9-q-s1b-v4-shape-a (+ shorttitle) and -b (+ commission, size, capital) run at margin 0', () => {
+    const SH = (decl) => `//@version=4\nstrategy(${decl})\nstrategy.entry("L", true, when = bar_index == 1)\nplot(strategy.position_size)\n`
+    for (const decl of ['title = "t", overlay = false, shorttitle = "s"', '"t", "s", overlay = true',
+      'title = "t", overlay = false, commission_type = strategy.commission.cash_per_contract, commission_value = 0.00003, '
+        + 'default_qty_value = 2, initial_capital = 1000']) {
+      const ok = served(SH(decl))
+      expect(ok.rec.rulesUsed, decl).toContain('B-V4-MARGIN0')
+      expect(ok.cols[0][2], decl).toBeGreaterThan(0)
+    }
+    // the shape is the ARGUMENT SET: shape b without its capital is no witnessed shape
+    expect(attempt(SH('title = "t", overlay = false, commission_type = strategy.commission.cash_per_contract, '
+      + 'commission_value = 0.00003, default_qty_value = 2')).err.setting).toBe(V4_MARGIN_DEFAULT_SETTING)
+  })
+
+  it('RAIL: every witnessed v4 shape names captures `brokerPins.json` lists for B-V4-MARGIN0, and the ledger pins it', () => {
+    const fixtures = new Set(BROKER_PINS.rules['B-V4-MARGIN0'])
+    for (const [shape, ids] of Object.entries(V4_MARGIN0_SHAPES)) {
+      expect(ids.length, shape).toBeGreaterThan(0)
+      for (const id of ids) expect(fixtures.has(id), `${shape}: ${id}`).toBe(true)
+    }
+    expect([...fixtures].sort()).toEqual(Object.values(V4_MARGIN0_SHAPES).flat().sort())
+    expect(pinned('B-V4-MARGIN0')).toBe(true)
   })
 
   it('ONE margin stated is still not both: it stops the same way', () => {

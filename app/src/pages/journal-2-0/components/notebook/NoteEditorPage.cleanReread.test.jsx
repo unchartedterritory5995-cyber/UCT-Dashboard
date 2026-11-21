@@ -33,6 +33,11 @@ import { __resetNotebookConnections } from '../../lib/offline/useDurableNote'
 import { useOutboxDrain } from '../../lib/offline/useOutboxDrain'
 import { OFFLINE_FLAG_KEY } from '../../lib/offline/offlineFlag'
 import { dbNameFor } from '../../lib/offline/notebookDb'
+import { preloadLazyChunks, NOTE_EDITOR_CHUNKS } from '../../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTE_EDITOR_CHUNKS)
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })

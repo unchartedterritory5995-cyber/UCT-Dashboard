@@ -14,6 +14,7 @@ import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
 import { canonicalCode, isCode } from './functions'
 import { parseAlertPrice } from './alertModel'
 import { parseScatMetric, parseScatUniverse, scatMetricLabel } from './scatterArgs'
+import { COT_WORDS } from './panels/cotModel'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -136,6 +137,21 @@ export const SHORT_RANK_WORDS = Object.freeze({
   DOWN: 'down', DECREASE: 'down', DECREASES: 'down', FALLING: 'down', COVERING: 'down',
   FLOAT: 'float', PCT: 'float', PERCENT: 'float',
 })
+// the open interest change panel: a copy of the panel model's words (args.oiChange.test.js pins it to its owner)
+export const OI_SIDE_WORDS = Object.freeze({
+  C: 'call', CALL: 'call', CALLS: 'call',
+  P: 'put', PUT: 'put', PUTS: 'put',
+})
+
+// Market Tide by day: a copy of the panel model's words (args.tideHistory.test.js pins it to its owner)
+export const TIDE_SCOPE_WORDS = Object.freeze({ STOCKS: 'stocks', STOCK: 'stocks', ETFS: 'etfs' })
+// the seasonality board: a copy of the panel model's words (args.seasonalityBoard.test.js pins it to its owner)
+export const SEAS_MEASURE_WORDS = Object.freeze({ AVG: 'average', AVERAGE: 'average', MEAN: 'average', MEDIAN: 'median' })
+// Market wave A: copies of the panel models' argument rules (args.marketWaveA.test.js pins each to its owner)
+export const COT_MARKET_SHAPE = /^[A-Z0-9&][A-Z0-9&.-]{0,11}$/
+export const ANLG_COUNT_BOUNDS = Object.freeze([3, 10])
+// INS CLUSTER: a copy of the panel model's words (args.insiderClusters.test.js pins it to its owner)
+export const INS_VIEW_WORDS = Object.freeze({ CLUSTER: 'cluster', CLUSTERS: 'cluster' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -553,6 +569,75 @@ export const ARG_KINDS = {
     },
     describe: (v) => ({ dtc: 'most days to cover first', up: 'biggest increase in short interest first',
       down: 'biggest decrease in short interest first', float: 'highest percent of float first' })[v] || v,
+  },
+  // ── open interest change (2026-11-19) ──
+  /** OIC's side (panels/oiChangeModel.js OI_SIDE_ARG_WORDS; pinned by args.oiChange.test.js). */
+  oiSide: {
+    takes: 'a side (C for calls, P for puts)',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(OI_SIDE_WORDS, key) ? OI_SIDE_WORDS[key] : null
+    },
+    describe: (v) => ({ call: 'calls only', put: 'puts only' })[v] || v,
+  },
+  // ── Market Tide by day (2026-11-19) ──
+  /** TIDEH's scope (panels/tideHistoryModel.js TIDE_SCOPE_ARG_WORDS; pinned by args.tideHistory.test.js). */
+  tideScope: {
+    takes: 'STOCKS or ETFS',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(TIDE_SCOPE_WORDS, key) ? TIDE_SCOPE_WORDS[key] : null
+    },
+    describe: (v) => ({ stocks: 'stocks only', etfs: 'ETFs and indexes only' })[v] || v,
+  },
+  // ── the seasonality board (2026-11-20) ──
+  /** SEASB's measure (panels/seasonalityBoardModel.js SEAS_MEASURE_ARG_WORDS; pinned by args.seasonalityBoard.test.js). */
+  seasMeasure: {
+    takes: 'AVG or MEDIAN',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(SEAS_MEASURE_WORDS, key) ? SEAS_MEASURE_WORDS[key] : null
+    },
+    describe: (v) => ({ average: 'the average month', median: 'the median month' })[v] || v,
+  },
+  // ── Market wave A (2026-11-20) ──
+  /** COT's market: ONE typed word, a market code or a plain word (`GOLD`, `ES`, `10Y`). Like
+   *  `groupName` it is passed through upper-cased and the PANEL resolves it against the list the
+   *  route returns, so the shell holds no market table. The shape is a pinned copy of
+   *  panels/cotModel.js COT_ARG_SHAPE (args.marketWaveA.test.js). */
+  cotMarketName: {
+    takes: 'a futures market: its code or a plain word (COT GOLD, COT ES, COT 10Y)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      return COT_MARKET_SHAPE.test(t) ? t : null
+    },
+    describe: (v) => `market "${v}"`,
+    // a word in COT's own market dictionary (OIL, GOLD, WTI…) is COT's even when it is also a function code
+    // (`OIL`, the weekly oil report): `COT OIL` is crude positioning; any other code after COT stays that code
+    known: (tok) => Object.prototype.hasOwnProperty.call(COT_WORDS, String(tok ?? '').trim().toUpperCase()),
+  },
+  /** ANLG's count: how many similar sessions, a whole number from 3 to 10 (the route's own bounds;
+   *  a pinned copy of panels/analoguesModel.js, args.marketWaveA.test.js). */
+  anlgCount: {
+    takes: 'how many similar sessions (3 to 10)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim()
+      if (!/^\d{1,2}$/.test(t)) return null
+      const n = Number(t)
+      return n >= ANLG_COUNT_BOUNDS[0] && n <= ANLG_COUNT_BOUNDS[1] ? n : null
+    },
+    describe: (v) => `${v} similar sessions`,
+  },
+  // ── INS CLUSTER (2026-11-21) ──
+  /** INS's view (panels/insiderClustersModel.js INS_VIEW_ARG_WORDS; pinned by args.insiderClusters.test.js):
+   *  `INS CLUSTER` is the cluster list from the SEC's Form 4 filings; bare `INS` stays all buys. */
+  insView: {
+    takes: 'CLUSTER',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
   },
 }
 

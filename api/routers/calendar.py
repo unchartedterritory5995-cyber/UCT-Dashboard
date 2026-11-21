@@ -5,7 +5,8 @@ Data priority:
   2. EarningsWhispers + Finviz Elite live fetch for each weekday — earnings only
   3. Empty structure — graceful fallback
 
-Economic events: always fetched live from ForexFactory (real data, never AI).
+Economic events: FMP first on every week, ForexFactory only as a backup (real data,
+never AI). `_curate_econ_events` owns the order.
 Finnhub actuals patch: applied to today's pending tickers on every cache miss.
 POST /api/calendar/refresh — rebuild cache immediately
 GET  /api/calendar/reactions?date=YYYY-MM-DD — live gap % for reported tickers (Massive)
@@ -228,7 +229,7 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date, cap_uni
             "bmo":      [_chip(c) for c in wd.get("bmo", []) if _keep(c)],
             "amc":      [_chip(c) for c in wd.get("amc", []) if _keep(c)],
             "tbd":      [],   # wire data carries only bmo/amc buckets
-            "econ":     [],   # placeholder — always overwritten by ForexFactory below
+            "econ":     [],   # placeholder — filled by `_curate_econ_events` below
             "fed":      [],
         }
     return days
@@ -1879,10 +1880,8 @@ def _build_range_week(monday: date) -> dict:
     # reporter past a session cap and get it cut.
     _resolve_tbd_sessions(days)
 
-    # Called for EVERY week now. `_curate_econ_events` owns the source decision:
-    # it skips the (slow, this-week-only) ForexFactory fetches for far weeks and
-    # goes straight to FMP, which serves any range. The old guard here predated
-    # the FMP fallback and left every week beyond ±7 days with no econ at all.
+    # Called for EVERY week. `_curate_econ_events` owns the source decision: FMP
+    # first for any week, ForexFactory only as a backup inside its own two weeks.
     econ_meta = _curate_econ_events(week_start, week_end, days)
     _attach_names(days)
     _attach_date_moves(days)
@@ -2150,8 +2149,9 @@ def _build_full_econ(week_start: str, week_end: str) -> dict:
 
 def _overlay_full_impact_econ(payload: dict) -> dict:
     """Shallow-copy a calendar payload, replacing each day's econ/fed with the FULL
-    ForexFactory set (all impacts + an `impact` level). Days FF doesn't cover keep
-    their curated econ; earnings buckets are untouched. Never mutates the cache."""
+    set (all impacts + an `impact` level) from `_build_full_econ`: FMP, with ForexFactory
+    as its backup. Days the full set does not cover keep their curated econ; earnings
+    buckets are untouched. Never mutates the cache."""
     days = payload.get("days") or {}
     ws, we = payload.get("week_start"), payload.get("week_end")
     if not days or not ws or not we:
@@ -2176,7 +2176,7 @@ def _overlay_full_impact_econ(payload: dict) -> dict:
 @router.get("/api/calendar")
 def get_calendar(week: str | None = None, full_impact: bool = False):
     """Weekly calendar. `full_impact=1` (used by the Calendar widget's star filter)
-    overlays ALL-impact ForexFactory econ; the default is the curated Med/High+Fed
+    overlays the ALL-impact econ set; the default is the curated Med/High+Fed
     set the main Calendar page + downstream consumers rely on."""
     payload = _get_calendar_payload(week)
     if full_impact:
@@ -2301,7 +2301,7 @@ def start_weekly_rewarm(delay_seconds: float = 120, interval_s: float | None = N
 
 def _build_current_week() -> dict:
     """The expensive path: EW + Finviz live, Finnhub past-day backfill, Finnhub
-    actuals patch, ForexFactory econ, names. 4.5-8s against live providers.
+    actuals patch, econ (FMP first), names. 4.5-8s against live providers.
     Writes the TTL cache itself, exactly as it did before serve-stale existed."""
     week_dates = _week_dates()
     today      = _today_et()
@@ -2396,7 +2396,7 @@ def _build_current_week() -> dict:
     _restore_sticky_reporters(days, today.isoformat())
     _merge_sticky_actuals(days, today.isoformat())
 
-    # ── 5. Econ events: ALWAYS from ForexFactory (real data, never AI) ────────
+    # ── 5. Econ events: FMP first, ForexFactory as backup (real data, never AI) ─
     #    Overlays econ/fed on whichever earnings path ran above.
     econ_meta = _curate_econ_events(week_start, week_end, days)
 
@@ -2778,63 +2778,104 @@ def _fetch_ff_events(week_start: str, week_end: str, include_low: bool = False) 
     return result
 
 
-def _curate_econ_events(week_start: str, week_end: str, days: dict) -> dict | None:
-    """Real economic events, injected in-place. ForexFactory first, FMP for gaps.
-
-    FF only publishes `ff_calendar_thisweek.json` — `…_nextweek.json` 404s — so
-    every OTHER week had no econ source at all. FMP already backs the weekly
-    Discord card (`econ_calendar_fmp`), so the page uses the same fallback.
-
-    The fallback fills DAYS FF did not cover; it never replaces an FF day, since
-    FF is the richer source (it carries `actual` once a print releases).
-
-    Returns the FMP leg's D1 provenance/freshness envelope (2026-09-03 A5
-    modernization) when that leg actually ran, else `None` — `None` covers
-    both "FF alone already covered every day" (the FMP leg never fires) and
-    "the FMP leg ran but failed entirely." A caller uses this for honest
-    per-payload disclosure; it is not required reading for the merge itself.
-    """
-    # FF publishes only `ff_calendar_thisweek.json` (nextweek 404s), so for any
-    # other week its two fetches are pure request-path waste — 2 × 12s timeouts
-    # on a cold month assembly. Skip straight to FMP there.
+def _clock_minutes(text) -> int:
+    """Minutes after midnight of a row's "8:30 AM" clock, for ordering one day's rows.
+    A clock that cannot be read sorts last, never first."""
     try:
-        ff_eligible = abs(
-            (date.fromisoformat(week_start) - _week_dates()[0]).days) <= 7
-    except (ValueError, TypeError):
-        ff_eligible = True
+        t = datetime.strptime(str(text or "").strip().upper(), "%I:%M %p")
+    except ValueError:
+        return 24 * 60
+    return t.hour * 60 + t.minute
 
-    ff: dict = {}
-    if ff_eligible:
-        try:
-            ff = _fetch_ff_events(week_start, week_end)
-        except Exception as exc:
-            _logger.warning("Calendar: FF econ fetch failed: %s", exc)
 
-    for ds, buckets in ff.items():
-        if ds in days:
-            days[ds]["econ"] = buckets["econ"]
-            days[ds]["fed"]  = buckets["fed"]
-    ff_total = sum(len(b["econ"]) + len(b["fed"]) for b in ff.values())
+# The label a row carries when it did not come from FMP in a week FMP answered.
+ECON_BACKUP_SOURCE = "ForexFactory"
 
-    missing = [ds for ds in days
-               if not days[ds].get("econ") and not days[ds].get("fed")]
-    if not missing:
-        _logger.info("Calendar: FF econ loaded %d events across %d days",
-                     ff_total, len(ff))
-        return None
 
+def _fill_econ_gaps(days: dict, ff: dict, cover: dict) -> int:
+    """Add, in place, the backup source's releases FMP does not hold. Returns how many.
+
+    Per day: a ForexFactory release is added only when `holds_release` finds no FMP row
+    for it that day, among EVERY US row FMP has (`cover`), not only the ones the curated
+    list kept, and among the rows already on the day (so a missing or short `cover` can
+    never let a release in twice). An added row says where it came from (`source`),
+    because the payload's `econ_provenance` names FMP, and it has no released figure:
+    ForexFactory's feed carries none. Fed speakers are never filled: the two sources name
+    them too differently to tell apart safely, and a speaker shown twice is worse than
+    one missed. A day's rows are put back in clock order after a fill."""
+    from api.services.econ_calendar_fmp import holds_release
+
+    added = 0
+    for ds, buckets in (ff or {}).items():
+        if ds not in days:
+            continue
+        held = list((cover or {}).get(ds) or ())
+        held += [r.get("event") or "" for kind in ("econ", "fed")
+                 for r in days[ds].get(kind) or []]
+        new_rows = []
+        for row in (buckets or {}).get("econ") or []:
+            title = (row or {}).get("event") or ""
+            # An untitled row has nothing to identify it, so it counts as held too.
+            if holds_release(held, title):
+                continue
+            # Judged against FMP only, never against another fill: two figures of one
+            # report FMP lacks (Michigan sentiment and its inflation expectations) both show.
+            new_rows.append({**row, "source": ECON_BACKUP_SOURCE})
+        if not new_rows:
+            continue
+        merged = list(days[ds].get("econ") or []) + new_rows
+        merged.sort(key=lambda r: _clock_minutes(r.get("time")))   # stable: FMP rows keep their order
+        days[ds]["econ"] = merged
+        added += len(new_rows)
+    return added
+
+
+def _curate_econ_events(week_start: str, week_end: str, days: dict) -> dict | None:
+    """Real economic events, injected in-place. FMP first, ForexFactory only as a backup.
+
+    FMP is the licensed calendar: it serves ANY week and carries the released figure
+    (`actual`) once a print is out. It is read first for every week, the same rows the
+    Calendar widget's full view and the weekly Discord card already use.
+
+    ForexFactory publishes only the current and the next week and no released figures. It
+    backs FMP up in two ways, both only inside its own two weeks:
+
+      * FMP returned no row for the whole week (no key, an outage, an empty answer): the
+        week is shown from ForexFactory.
+      * FMP answered the week but does not hold a release ForexFactory lists that day
+        (found 2026-11-20: the final Michigan consumer sentiment reading was on no FMP
+        row the morning it was due): that one release is added, marked with its
+        `source`. A release FMP holds under any name or impact is never added twice
+        (`_fill_econ_gaps`).
+
+    (Until 2026-11-20 the order was the reverse for the current and the next week:
+    ForexFactory first, FMP only for the days it did not cover, and FMP's released figure
+    was thrown away, so no released figure ever showed.)
+
+    Returns the FMP leg's D1 provenance/freshness envelope (2026-09-03 A5 modernization)
+    whenever that leg answered and the rows on screen are its own (apart from the marked
+    fills), else `None`: `None` covers both "the FMP leg failed entirely" and "ForexFactory
+    supplied the week", so the payload never names FMP as the source of rows it did not
+    supply. A caller uses this for honest per-payload disclosure; it is not required
+    reading for the merge itself.
+    """
     econ_meta = None
+    cover: dict = {}
     try:
         from api.services import econ_calendar_fmp
-        fmp, econ_meta = econ_calendar_fmp.fetch_us_econ_week_with_meta(week_start, week_end)
-        fmp = fmp or {}
+        fmp, econ_meta, cover = econ_calendar_fmp.fetch_us_econ_week_with_cover(week_start, week_end)
+        fmp, cover = fmp or {}, cover or {}
     except Exception as exc:
-        _logger.warning("Calendar: FMP econ fallback failed: %s", exc)
-        fmp = {}
+        _logger.warning("Calendar: FMP econ fetch failed: %s", exc)
+        fmp, econ_meta, cover = {}, None, {}
 
-    filled = 0
-    for ds in missing:
-        for row in fmp.get(ds) or []:
+    placed = 0
+    for ds, rows in fmp.items():
+        if ds not in days:
+            continue
+        econ: list = []
+        fed: list = []
+        for row in rows or []:
             title = row.get("event") or ""
             if not title:
                 continue
@@ -2844,22 +2885,54 @@ def _curate_econ_events(week_start: str, week_end: str, days: dict) -> dict | No
             # the calendar's own detector, the one the FF path already uses, so
             # both sources bucket Fed speakers the same way.
             if row.get("is_fed") or _is_fed_speaker(title):
-                days[ds]["fed"].append({
-                    "time": row.get("time"), "event": title, "note": "Fed",
-                })
+                fed.append({"time": row.get("time"), "event": title, "note": "Fed"})
             else:
-                days[ds]["econ"].append({
+                econ.append({
                     "time":     row.get("time"),
                     "event":    title,
                     "estimate": row.get("estimate"),
                     "prior":    row.get("prior"),
-                    "actual":   None,          # FMP does not carry actuals
+                    # The released figure, as FMP gave it; `None` until the print is out.
+                    "actual":   row.get("actual"),
                     "is_key":   _is_key_event(title),
                 })
-            filled += 1
-    _logger.info("Calendar: econ loaded — FF %d events / %d days, FMP filled %d "
-                 "across %d uncovered days", ff_total, len(ff), filled, len(missing))
-    return econ_meta
+        if econ or fed:
+            days[ds]["econ"] = econ
+            days[ds]["fed"] = fed
+            placed += len(econ) + len(fed)
+
+    # ForexFactory publishes only `thisweek` and `nextweek`, so for any other week its
+    # two fetches are pure request-path waste (2 x 12s timeouts on a cold month assembly)
+    # and are skipped.
+    try:
+        ff_eligible = abs(
+            (date.fromisoformat(week_start) - _week_dates()[0]).days) <= 7
+    except (ValueError, TypeError):
+        ff_eligible = True
+
+    ff: dict = {}
+    if ff_eligible:
+        try:
+            ff = _fetch_ff_events(week_start, week_end) or {}
+        except Exception as exc:
+            _logger.warning("Calendar: FF econ backup failed: %s", exc)
+
+    if placed:
+        filled = _fill_econ_gaps(days, ff, cover)
+        _logger.info("Calendar: econ loaded from FMP, %d events; %d filled from the backup",
+                     placed, filled)
+        return econ_meta
+
+    # FMP gave nothing for this week: the backup supplies it whole.
+    ff_total = 0
+    for ds, buckets in ff.items():
+        if ds in days:
+            days[ds]["econ"] = buckets["econ"]
+            days[ds]["fed"]  = buckets["fed"]
+            ff_total += len(buckets["econ"]) + len(buckets["fed"])
+    _logger.info("Calendar: econ, FMP gave no rows; ForexFactory backup %s, %d events",
+                 "read" if ff_eligible else "not read (outside its two weeks)", ff_total)
+    return None if ff_total else econ_meta
 
 
 # ── IPO calendar endpoint ──────────────────────────────────────────────────────
@@ -3645,9 +3718,12 @@ def _build_enrichment_for_date(target: str) -> dict:
     def _compute_hist_stats(sym: str) -> dict | None:
         """Return compact hist_stats from get_historical_earnings_moves.
 
-        Uses _fetch_quarterly_history (FMP → AV fallback) to get the AV-shaped
-        quarters list required by get_historical_earnings_moves, then computes
+        Uses _fetch_quarterly_history to get the AV-shaped quarters list
+        required by get_historical_earnings_moves, then computes
         avg_abs_move, up_count, total, and last_n (newest first, capped at 8).
+        The prices behind the moves are our own daily bars first, Yahoo when
+        they cannot answer; the read of our bars waits a bounded time, so one
+        symbol's slow read never holds this sweep.
         """
         try:
             from api.services.engine import _fetch_quarterly_history

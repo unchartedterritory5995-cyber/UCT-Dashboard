@@ -65,6 +65,7 @@ import { foldNotesForOutput } from './parse'
 import { CALL_EXPANSIONS } from './callExpansions'
 import { supertrendTreesEngine56 } from './__fixtures__/supertrendTreesEngine56.js'
 import { loadPineLibraryStoreFromEnv } from './__tests__/pineLibraryStoreLoader.js'
+import { storeHeldOf } from '../__tests__/vendorHarness/storeHeld.js'
 import {
   armedStrategyVerdict, brokerFlagOf, historyWindowBarsOf, STRATEGY_DECLARATION,
 } from '../runtime/__tests__/strategyArmed.js'
@@ -573,7 +574,10 @@ describe.skipIf(!RUN)('coverage-map door census (driven by run_census.py)', () =
         vi.unstubAllEnvs()
       }
       fs.appendFileSync(OUT, `${JSON.stringify({ key: it.key, lane: LANE, ms: Date.now() - t0,
-        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED.length } : {}), ...row })}\n`)
+        ...(LIBRARIES_LOADED.length ? { libraryStore: LIBRARIES_LOADED.length } : {}),
+        // ⭐ store-held (coordinator ruling 2026-11-19): the versions this row's door linked from the store, so a
+        // run without the store skips exactly this row by name (`tools/vendor_harness/store_held.py`)
+        ...(LIBRARIES_LOADED.length && storeHeldOf(source).length ? { storeHeld: storeHeldOf(source) } : {}), ...row })}\n`)
       n += 1
     }
     fs.writeFileSync(cur, '')

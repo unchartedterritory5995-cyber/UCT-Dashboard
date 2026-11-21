@@ -40,5 +40,19 @@
 ],"builtIns":[
 {"id":"mansfield_relative_strength","name":"Mansfield Relative Strength","indicator":"rsMansfield","builtInName":"UCT Mansfield RS"},
 {"id":"rs_rating","name":"RS Rating","indicator":"rsRating","builtInName":"UCT RS Rating"},
-{"id":"rs_phases","name":"RS Phases","indicator":"rsPhases","builtInName":"UCT RS Phases"}
+{"id":"builtin_atr_bands","name":"ATR Bands","indicator":"atrBands","builtInName":"ATR Bands"},
+{"id":"builtin_data_series","name":"Data Series","indicator":"dataSeries","builtInName":"Data Series"},
+{"id":"builtin_dollar_volume","name":"Dollar Volume","indicator":"dollarVolume","builtInName":"Dollar Volume"},
+{"id":"builtin_bull_bear_power","name":"Bull/Bear Power","indicator":"bullBearPower","builtInName":"Bull/Bear Power"},
+{"id":"builtin_ma_envelope","name":"MA Envelope","indicator":"envelope","builtInName":"MA Envelope"},
+{"id":"builtin_bollinger_percent_b","name":"Bollinger %B","indicator":"bbPercentB","builtInName":"Bollinger %B"},
+{"id":"builtin_historical_volatility","name":"Historical Volatility","indicator":"historicalVolatility","builtInName":"Historical Volatility"},
+{"id":"builtin_chaikin_oscillator","name":"Chaikin Oscillator","indicator":"chaikinOscillator","builtInName":"Chaikin Oscillator"},
+{"id":"builtin_percent_from_ma","name":"% From MA","indicator":"percentFromMa","builtInName":"% From MA"},
+{"id":"builtin_fifty_two_week","name":"52-Week High/Low","indicator":"fiftyTwoWeek","builtInName":"52-Week High/Low"},
+{"id":"builtin_uct_relative_strength","name":"UCT Relative Strength","indicator":"rsLine","builtInName":"UCT Relative Strength"},
+{"id":"builtin_uct_rs_vs_21_ema","name":"UCT RS vs 21 EMA","indicator":"rsVsEma","builtInName":"UCT RS vs 21 EMA"},
+{"id":"builtin_uct_rs_exit_warnings","name":"UCT RS Exit Warnings","indicator":"rsExit","builtInName":"UCT RS Exit Warnings"},
+{"id":"rs_phases","name":"RS Phases","indicator":"rsPhases","builtInName":"UCT RS Phases"},
+{"id":"session_vwap_bands","name":"VWAP standard deviation bands","indicator":"vwap","builtInName":"Session VWAP","setting":{"input":"bands","values":["1","2","3"]}}
 ]}

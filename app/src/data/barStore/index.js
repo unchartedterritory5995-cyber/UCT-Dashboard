@@ -51,7 +51,9 @@ export function createBarStore(o = {}) {
     registry, request: o.request, setTimer, clearTimer, now,
     ...(o.isHidden ? { isHidden: o.isHidden } : {}), ...(o.onVisible ? { onVisible: o.onVisible } : {}),
   })
-  const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}) })
+  // `o.device`: the on-device bar store (deviceStore/source); omitted = the app's, off unless switched on
+  const persist = o.persist ?? createPersist({ registry, io: o.io, setTimer, clearTimer, now, ...(o.idle ? { idle: o.idle } : {}),
+    ...(o.device !== undefined ? { device: o.device } : {}) })
   const live = o.liveFeed ?? createLiveFeed({
     registry, now, onReconnect: (key) => network.kick(key), onReanchor: (key) => network.kick(key),
     ...(o.stream ? { stream: o.stream } : {}), ...(o.candle !== undefined ? { candle: o.candle } : {}),
@@ -177,6 +179,12 @@ export function createBarStore(o = {}) {
     lakeSeed: (key) => network.lakeSeed?.(key) ?? Promise.resolve(false),
     /** Is the lake's whole depth still due for `key` (network.lakePending)? */
     lakePending: (key) => !!network.lakePending?.(key),
+    /** D/W/M: is the deep sealed history still due for `key` (network.deepPending)? */
+    deepPending: (key) => !!network.deepPending?.(key),
+    /** D/W/M: fetch `key`'s deep history now, ahead of its join (network.deepPrime). */
+    deepPrime: (key, opts) => network.deepPrime?.(key, opts) ?? Promise.resolve(false),
+    /** D/W/M: resolves when `key`'s deep history join settles, or false after `ms` (network.deepJoined). */
+    deepJoined: (key, ms) => network.deepJoined?.(key, ms) ?? Promise.resolve(true),
     /** Is `sym` in the history lake (network.lakeHas)? */
     lakeHas: (sym) => network.lakeHas?.(sym) ?? Promise.resolve(false),
     /** Does the history lake carry `key`'s scroll-back (network.lakeCarries)? */

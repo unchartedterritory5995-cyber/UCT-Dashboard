@@ -58,9 +58,13 @@ import {
   runtimeDeclineCodeIn, runtimeDeclinedTag, isGateDecline,
 } from '../../../../../../../tools/pine_coverage/runtime_lane.mjs'
 import { runHarness, loadCapture, VENDOR_DIR, REPO } from './harness'
+import { loadPineLibraryStoreFromEnv } from '../../ast/__tests__/pineLibraryStoreLoader.js'
+import { storeHeldOf, libraryStorePins, supplyHeldOf, supplyHeldStorePins } from './storeHeld.js'
+import { fixturePath } from '../../ast/__tests__/licenceHeld'
 import { strategyBrokerFlag, strategyEvidenceOf, assertStrategyLaneMeasured } from './strategyLane.js'
 import { runtimePaneEnabled, __permitRuntimePaneForTests } from '../../runtimePaneGate'
 import { __allowEveryRuntimeScriptForTests } from '../../runtimeKill'
+import { memberDoorsAtCollection } from '../../../../../testing/runtimeGate'
 import { __admitEveryRunHalfForTests } from '../../runHalfRailSeam'
 import { __serveEveryTimeframeSettingForTests } from '../../runtime/runtimeInputs.js'
 // ⭐ (2026-11-18) the engine that graded a snapshot is written INTO it: an admission rail can then hold new
@@ -97,6 +101,13 @@ if (REQUESTED) {
     // ⭐ SETTINGS PARITY (timeframe, Engine 77, #1831) — and a capture taken at a MOVED timeframe setting is
     // graded at it: the lane's grade is the evidence that would admit one (`runtimeInputs.js::movedTimeframeServed`)
     __serveEveryTimeframeSettingForTests()
+    // ⭐⭐ THE MEMBER'S HOST-KNOWN-DIVERGENCE LIST, APPLIED (coordinator ruling 2026-11-19, GATE-BLIND follow-up (a)):
+    // a member's door refuses a listed script on the host lane, so the runtime lane draws it (or the door refuses it
+    // by name), and this lane's grade must be of THAT. ⚰️ With the list ignored (the test grant), the 67 rows of the
+    // 28 listed scripts were graded on the HOST lane here, and the reach run and capability evidence read those
+    // host grades as runtime-on evidence. ⛔ The PRODUCTION lane keeps the list ignored: it grades what the host lane
+    // WOULD draw, which is what the list is derived from (`tools/vendor_harness/host_divergence.py`).
+    memberDoorsAtCollection({ hkd: true })
   }
 }
 
@@ -151,6 +162,40 @@ const dirs = process.env.VENDOR_HARNESS_DIR
   ? process.env.VENDOR_HARNESS_DIR.split(';').filter(Boolean).map((d) => path.resolve(process.cwd(), d))
   : [VENDOR_DIR]
 const OUT = process.env.VENDOR_HARNESS_OUT ? path.resolve(process.cwd(), process.env.VENDOR_HARNESS_OUT) : null
+// ⭐ LIBRARIES (libraries chain L1, 2026-11-19), OPT-IN AND MEASURE-ONLY: `PINE_LIBRARY_STORE=<store dir>` loads
+// that store into the registry BEFORE the captures are graded (collection time), so a capture of a script that
+// imports a promoted version is graded on what production draws (the roadmap's section 9 runs it with the promoted
+// store). Unset, nothing is loaded and nothing changes; `verdicts.json` names the versions only when a store was
+// loaded, so every run without one writes the file it always did. ⛔ The store is a scratch directory outside the
+// repository (library code is never committed).
+const LIBRARIES_LOADED = loadPineLibraryStoreFromEnv()
+// ⭐ STORE-HELD ROWS (coordinator ruling 2026-11-19): with a store loaded, every row whose script reaches a loaded
+// version records which (`storeHeld`: `path@sha256`, `./storeHeld.js`), so a run without the store skips exactly
+// those rows by name (`tools/vendor_harness/store_held.py`). Only a file that holds `import ` at all is re-read.
+// ⭐⭐ and SUPPLY-HELD ROWS (2026-11-19, the same rule): a row graded with a HELD supply record (a local record never
+// committed, `ourSide.recordedSupplyFileOf`) records it (`supplyHeld`: `supply/<id>@sha256`), and the run names the
+// held records it could read (`supplyHeldStore`), so a run without them names that row "supply-held" by name.
+const SUPPLY_HELD_LOADED = supplyHeldStorePins()
+function markStoreHeld(results) {
+  const supplied = results.map((r) => {
+    const pins = supplyHeldOf(r.id)
+    return pins.length ? { ...r, supplyHeld: pins } : r
+  })
+  return markLibraryHeld(supplied)
+}
+function markLibraryHeld(results) {
+  if (!LIBRARIES_LOADED.length) return results
+  return results.map((r) => {
+    // a licence-held capture is read where it lives now (the local capture store), as the harness read it
+    const at = fixturePath(r.file) || path.join(REPO, r.file)
+    let raw
+    try { raw = fs.readFileSync(at, 'utf8') } catch { return r }
+    if (!raw.includes('import ')) return r
+    const loaded = loadCapture(at)
+    const pins = storeHeldOf(loaded.capture && loaded.capture.source ? loaded.capture.source.text : '')
+    return pins.length ? { ...r, storeHeld: pins } : r
+  })
+}
 
 describe('the vendor harness over the captures on disk', () => {
   // ⛔ read at COLLECTION, in the same module state that grades the captures
@@ -199,7 +244,9 @@ describe('the vendor harness over the captures on disk', () => {
         dirs: dirs.map((d) => path.relative(REPO, d).replace(/\\/g, '/')),
         lane,
         laneEvidence: { requested: REQUESTED, objectsOnlyPane: objectsOnly, ...evidence, strategy: strategyEvidence },
-        results: run.results,
+        ...(LIBRARIES_LOADED.length ? { libraryStore: libraryStorePins(LIBRARIES_LOADED) } : {}),
+        ...(SUPPLY_HELD_LOADED.length ? { supplyHeldStore: SUPPLY_HELD_LOADED } : {}),
+        results: markStoreHeld(run.results),
         inventory: run.inventory,
       }, null, 1) + '\n')
       fs.writeFileSync(path.join(OUT, 'summary.md'), [

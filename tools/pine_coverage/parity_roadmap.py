@@ -250,12 +250,64 @@ NEVER_SERVE = [
      lambda f: bool(set(f.get("venues", ())) - US_VENUES - FUNDAMENTAL_VENUES - INDEX_VENUES - BREADTH_VENUES)
      or _starts(_names(f), ("request.currency_rate",))
      or ("other-symbol:bare" in f.get("otherSymbol", ()) and not set(f.get("venues", ())) & BREADTH_VENUES)),
+    # ⭐ libraries chain L1 (2026-11-19): a script that imports a library version under a NON-COMMERCIAL licence
+    # (CC-BY-NC-SA) can never be served on this paid product (U15 ruling 2026-11-15): the store answers it 409
+    # `library:licence` and both lanes refuse the import line by name. The versions are the committed allowlist's
+    # `neverPromoted` (`nc_library_versions`, one reader); the facts name each imported version the server does
+    # not admit (`admission.missing`, `library:<Author>/<Lib>/<N>`). Until this class, such a script was counted
+    # as an unlock of the last unit it needed (admit:collections:matrix, admit:collections:map, admit:enum).
+    ("licence", "A library imported under a non-commercial licence (CC-BY-NC-SA): never served on this paid "
+     "product unless its author relicenses (tools/pine_library/promotion_allowlist.json `neverPromoted`)",
+     "`pine:library-licence` at the import line in both lanes (`pine_library_store.licence_problem`, store answer "
+     "409 `library:licence`); with an empty store `runtime:library` / `pine:module`",
+     lambda f: bool(_imported_versions(f) & nc_library_versions())),
     ("broker", "A live broker: an order alert whose message drives a connected brokerage "
      "({{strategy.order.*}} placeholders). We simulate orders (the strategy unit); we never route them",
      "none at the door: the alert text is a string; the order it would place is the broker's",
      lambda f: bool(f.get("orderAlerts"))),
 ]
 FEATURE_ONLY = frozenset({"broker"})
+
+PROMOTION_ALLOWLIST = os.path.join(ROOT, "tools", "pine_library", "promotion_allowlist.json")
+
+
+def _allowlist():
+    try:
+        doc = json.load(open(PROMOTION_ALLOWLIST, encoding="utf-8"))
+    except (OSError, ValueError) as err:
+        raise SystemExit("tools/pine_library/promotion_allowlist.json cannot be read: %s" % err)
+    if not isinstance(doc, dict):
+        raise SystemExit("tools/pine_library/promotion_allowlist.json is not an object")
+    return doc
+
+
+def nc_library_versions():
+    """The library versions held under a NON-COMMERCIAL licence: the allowlist's `neverPromoted` paths, read only
+    while its reason says so. ⛔ Fails closed (SystemExit) on any other shape: a never-serve class must not be
+    computed from a list nobody can read."""
+    row = _allowlist().get("neverPromoted")
+    paths = row.get("paths") if isinstance(row, dict) else None
+    if (not isinstance(row, dict) or "non-commercial" not in str(row.get("reason", ""))
+            or not isinstance(paths, list) or not all(isinstance(x, str) and x.count("/") == 2 for x in paths)):
+        raise SystemExit("promotion_allowlist.json `neverPromoted` is not {reason: <non-commercial ...>, paths: [...]}")
+    return frozenset(paths)
+
+
+def promoted_store():
+    """[{path, sha256}] of the allowlist's `promote` rows: the store production serves (since 2026-11-17 the store
+    serves ONLY these, `pine_library_store.entry_status`). The official census is measured with exactly this store
+    (run_census.py --library-store), and the rail holds the committed map to it."""
+    rows = _allowlist().get("promote")
+    if not isinstance(rows, list) or not all(isinstance(r, dict) and isinstance(r.get("path"), str)
+                                             and isinstance(r.get("sha256"), str) for r in rows):
+        raise SystemExit("promotion_allowlist.json `promote` is not a list of {path, sha256, ...}")
+    return sorted(({"path": r["path"], "sha256": r["sha256"].lower()} for r in rows), key=lambda r: r["path"])
+
+
+def _imported_versions(f):
+    """The library versions a script imports that the server does not admit, from its facts (identifiers)."""
+    adm = (f or {}).get("admission") or {}
+    return {m[len("library:"):] for m in adm.get("missing") or [] if isinstance(m, str) and m.startswith("library:")}
 # ── RULED BY NAME (coordinator, 2026-11-18): a never-serve script whose class no detector above reads off its
 # source, with the witness that settled it. ⛔ A ruling, never a guess: each names the run that witnessed it.
 # These three read crypto pairs as SYMBOL INPUT DEFAULTS the facts do not hold as venues (a v4 `input('BINANCE:
@@ -416,9 +468,8 @@ def cmd_facts(a):
     rtrows = cm.read_census(a.runtime_cache, cm.LANE_RUNTIME_ON, "--runtime-cache")
     reg = rt.admitted_capabilities()
     admitted = set(reg["admitted"])
-    if any(pc.is_library_capability(c) for c in admitted):
-        sys.exit("a library version is admitted: `runtime_definitions.capability_admitted`'s import rule now "
-                 "decides scripts here, and `admission_row` does not apply it - update `_admission` first")
+    # (libraries chain, 2026-11-19) a library version is admitted: `admission_row` applies the server's import rule
+    # (`runtime_definitions.missing_capabilities`), so `_admission` answers as the server does
     allow = rt.graded_allow_list()
     history_only = set(reg.get("historyOnly") or [])
 
@@ -563,7 +614,8 @@ def member_model(m, facts):
     return served, walls, enumerated, sorted(missing_facts)
 
 
-def wall_table(walls, enumerated):
+def wall_table(walls, enumerated, unit_fn=None):
+    unit_fn = unit_fn or unit_of
     any_c, sole_c, sole_enum = collections.Counter(), collections.Counter(), collections.Counter()
     sole_keys = collections.defaultdict(list)
     for k, ws in walls.items():
@@ -576,9 +628,43 @@ def wall_table(walls, enumerated):
                 sole_enum[ws[0]] += 1
     rows = []
     for w in sorted(any_c, key=lambda w: (-sole_c[w], -any_c[w], w)):
-        rows.append({"wall": w, "unit": unit_of(w), "sole": sole_c[w], "soleFullyEnumerated": sole_enum[w],
+        rows.append({"wall": w, "unit": unit_fn(w), "sole": sole_c[w], "soleFullyEnumerated": sole_enum[w],
                      "any": any_c[w], "soleScripts": sorted(sole_keys[w])})
     return rows
+
+
+# ── THE SERVED SET, BY WHAT THE MEMBER'S CHART DRAWS (census tools, 2026-11-19). The map's `renderGaps` (the
+# runtime-on render sweep, `render_gaps.py`, folded by `coverage_map.py --render-gaps`) says, per sample script,
+# how many captures were measured and which drawings their charts leave off, by class. A served script is
+#   servedFully             measured on at least one capture, and no measured capture leaves a drawing off;
+#   servedWithDisclosedGap  a measured capture leaves drawings off: placed nowhere, or withheld by name, and
+#                           disclosed to the member by the drawing note (`objectRenderNotice.js`);
+#   servedUnmeasured        no capture of it was measured (no capture, or none our side ran);
+#   servedDiverging         a capture of it grades DIVERGE on the sweep's lane (coordinator ruling 2026-11-19: never
+#                           "fully", whatever its drawings; the REACH rules kill it or withhold it by name, so a
+#                           script here is a finding, named in `renderGaps.diverging`).
+# The four are a partition of the served set (diverging first, then a gap, then fully, else unmeasured).
+# Each gap class is a ranked wall over the served scripts it touches (`renderWalls`, unit `render`).
+RENDER_UNIT = "render"
+
+
+def render_split(served, rg):
+    """(fully, {key: sorted gap classes}, unmeasured, diverging) over the served set; None without a sweep."""
+    if not rg:
+        return None
+    sc = rg.get("scripts") or {}
+    fully, gap, unmeasured, diverging = [], {}, [], []
+    for k in sorted(served):
+        r = sc.get(k) or {}
+        if r.get("diverge"):
+            diverging.append(k)
+        elif not r.get("measured"):
+            unmeasured.append(k)
+        elif r.get("gaps"):
+            gap[k] = sorted(r["gaps"])
+        else:
+            fully.append(k)
+    return fully, gap, unmeasured, diverging
 
 
 def pair_table(walls, keyfn=lambda w: w):
@@ -619,6 +705,8 @@ def classify(f, classes):
 def build(m, facts_doc, map_sha=None):
     facts = facts_doc["scripts"]
     served, walls, enumerated, missing_facts = member_model(m, facts)
+    rg = m.get("renderGaps")
+    split = render_split(served, rg)
     N = len(m["scripts"])
     ro = m["runtimeOn"]
     host = {s["key"] for s in m["scripts"] if s["clean"]}
@@ -667,10 +755,10 @@ def build(m, facts_doc, map_sha=None):
             "evidence": evidence_status(sole_ok, facts),
         }
         if uid.startswith("admit:"):
-            # ready evidence: scripts the runtime lane already draws that use it, with a committed runtime-on MATCH
+            # ready evidence: scripts the runtime lane already draws that use it, whose committed captures grade MATCH
+            # on the members' lane (`members_lane_verdict`: one DIVERGE among them is not ready evidence)
             row["runtimeDrawnWithMatch"] = sorted(
-                k for k in members if k in added
-                and any(x.get("runtimeOn") == "MATCH" for x in (facts.get(k) or {}).get("captures") or []))
+                k for k in members if k in added and members_lane_verdict(facts.get(k)) == "MATCH")
         unit_rows.append(row)
     unit_pairs = pair_table(walls, unit_of)
     # RANKED: scripts unlocked per unit of work. Greedy: each step builds the unit whose completion frees the most
@@ -739,7 +827,10 @@ def build(m, facts_doc, map_sha=None):
 
     out = {
         "schema": SCHEMA, "generatedBy": "tools/pine_coverage/parity_roadmap.py build",
-        "map": {"measuredOn": m.get("measuredOn"), "masterSha": m.get("masterSha"), "sha256": map_sha},
+        "map": {"measuredOn": m.get("measuredOn"), "masterSha": m.get("masterSha"), "sha256": map_sha,
+                # the library store the census linked from ([{path, sha256}]; null: a census older than the record,
+                # which measured an EMPTY store). The rail holds it to `promoted_store()`: production's truth.
+                "libraryStore": m.get("libraryStore")},
         "engine": facts_doc.get("engine"),
         "headline": {
             "sample": N,
@@ -754,10 +845,18 @@ def build(m, facts_doc, map_sha=None):
             "neverServe": len(never_keys),
             "dataDecision": len(set(itertools.chain.from_iterable(data_dec.values())) - never_keys),
             "missingFacts": missing_facts,
+            # ⭐ census tools: the served set by what the member's chart draws (None: the map holds no render sweep)
+            "servedFully": len(split[0]) if split else None,
+            "servedWithDisclosedGap": len(split[1]) if split else None,
+            "servedUnmeasured": len(split[2]) if split else None,
+            "servedDiverging": len(split[3]) if split else None,
         },
         "hostLane": host_tables(m),
         "hostSoleRuntimeWalls": host_sole_runtime,
         "memberWalls": wall_table(walls, enumerated),
+        "renderGaps": {"engine": rg.get("engine"), "lane": rg.get("lane"), "fully": split[0],
+                       "withDisclosedGap": split[1], "unmeasured": split[2], "diverging": split[3]} if split else None,
+        "renderWalls": wall_table(split[1], set(split[1]), lambda w: RENDER_UNIT) if split else [],
         "memberPairs": pair_table(walls)[:60],
         "wallTokens": wall_tokens,
         "units": unit_rows,
@@ -780,17 +879,26 @@ def build(m, facts_doc, map_sha=None):
     return out
 
 
+def members_lane_verdict(f):
+    """A script's verdict on the members' lane (runtime-on) over its committed captures (`facts.captures[].runtimeOn`):
+    `coverage_map.script_verdict`, the one rule, so ANY DIVERGE dominates (coordinator ruling 2026-11-19: three MATCH
+    and one DIVERGE are not a MATCH). None when no committed capture was graded on that lane."""
+    import coverage_map as cm  # noqa: PLC0415 - as `facts` imports it
+    return cm.script_verdict([x["runtimeOn"] for x in (f or {}).get("captures") or [] if x.get("runtimeOn")])
+
+
 def evidence_status(keys, facts):
-    """For a unit's sole scripts: what TradingView evidence exists today. `committedMatch` = a committed capture
-    grading runtime-on MATCH; `committedOther` = committed captures, none MATCH runtime-on; `ledgerOnly` = only
-    licence-held ledger rows; `localOnly` = only local capture runs not graded into the ledger; `none` = no capture:
-    each of those is a capture-queue row (RDDT 1D + SPY 1D, the coordinator's convention)."""
+    """For a unit's sole scripts: what TradingView evidence exists today. `committedMatch` = committed captures whose
+    runtime-on verdict is MATCH (`members_lane_verdict`: none DIVERGEs); `committedOther` = committed captures that are
+    not; `ledgerOnly` = only licence-held ledger rows; `localOnly` = only local capture runs not graded into the
+    ledger; `none` = no capture: each of those is a capture-queue row (RDDT 1D + SPY 1D, the coordinator's
+    convention)."""
     c = collections.Counter()
     rows = []
     for k in keys:
         f = facts.get(k) or {}
         caps = f.get("captures") or []
-        if any(x.get("runtimeOn") == "MATCH" for x in caps):
+        if members_lane_verdict(f) == "MATCH":
             st = "committedMatch"
         elif caps:
             st = "committedOther"
@@ -826,15 +934,28 @@ def cmd_build(a):
     fd = fd.get("facts", fd) if fd.get("schema") == SCHEMA else fd
     out = build(m, fd, _sha(a.map))
     _write(a.out, out)
+    # ONE REGENERATE, BOTH DERIVED FILES (2026-11-20). docs/pine/demand-ranking.json is derived from this file's
+    # units (tools/pine_coverage/demand_ranking.py); left behind a rebuilt roadmap it reds its own rail. It is
+    # rebuilt here, and only when the roadmap just written IS the committed one (a build to another path is a trial).
+    if os.path.abspath(a.out) == os.path.abspath(ROADMAP):
+        from tools.pine_coverage import demand_ranking
+        demand_ranking.rebuild(out)
+        print("demand ranking rebuilt (docs/pine/demand-ranking.json)")
     h = out["headline"]
     print("SERVED %d/%d = %s%% (runtime-on %d, host-only %d; admission %s)" % (
         h["memberServed"], h["sample"], h["memberServedPct"], h["runtimeOn"], h["hostOnly"], h["admission"]))
+    if h["servedFully"] is not None:
+        print("  served fully %d + with a disclosed gap %d + unmeasured %d + diverging %d" % (
+            h["servedFully"], h["servedWithDisclosedGap"], h["servedUnmeasured"], h["servedDiverging"]))
+        for r in out["renderWalls"]:
+            print("  %-48s any=%3d sole=%3d" % (r["wall"], r["any"], r["sole"]))
     for r in out["units"]:
         print("  %-22s sole=%3d (servable %3d, enumerated %3d) any=%3d" % (
             r["unit"], r["sole"], r["soleServable"], r["soleFullyEnumerated"], r["any"]))
 
 
-DERIVED = ("headline", "hostLane", "hostSoleRuntimeWalls", "memberWalls", "memberPairs", "wallTokens", "units",
+DERIVED = ("headline", "hostLane", "hostSoleRuntimeWalls", "memberWalls", "renderGaps", "renderWalls",
+           "memberPairs", "wallTokens", "units",
            "externalWalls", "authoringClasses",
            "unitPairs",
            "buildOrder", "neverServe", "dataDecisions", "scripts")

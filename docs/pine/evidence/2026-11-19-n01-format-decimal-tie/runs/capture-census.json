@@ -1,0 +1,144 @@
+[
+ {
+  "file": "chart-vwap-rddt-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:number-pattern: #.##": 2
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "cvd-cumulative-volume-delta-candles-rddt-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:pattern-not-literal": 2
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "cvd-cumulative-volume-delta-candles-spy-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:pattern-not-literal": 2
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "cvd-cumulative-volume-delta-chart-rddt-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:pattern-not-literal": 2
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "cvd-cumulative-volume-delta-chart-spy-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:pattern-not-literal": 2
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "delta-volume-candles-lucf-rddt-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": null,
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "delta-volume-candles-lucf-spy-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": null,
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "fx-market-sessions-rddt-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": null,
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "heikin-ashi-supertrend-rddt-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:pattern-not-literal": 2,
+   "format:number-pattern:currency": 1
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "heikin-ashi-supertrend-spy-1d-2026-11-15.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:pattern-not-literal": 2,
+   "format:number-pattern:currency": 1
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "ict-killzones-pivots-tfo-rddt-1d-2026-09-28.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:element:number": 9,
+   "format:number-pattern:percent": 6
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ },
+ {
+  "file": "ict-killzones-pivots-tfo-spy-1d-2026-10-03.json",
+  "messageFormatsServed": [],
+  "textFormatRefusals": {
+   "format:element:number": 9,
+   "format:number-pattern:percent": 6
+  },
+  "verdict": "INCONCLUSIVE",
+  "objects": null,
+  "objectsV2": null,
+  "textsWithheld": null,
+  "textsWithheldWhy": null
+ }
+]

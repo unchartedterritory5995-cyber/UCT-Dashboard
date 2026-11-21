@@ -521,7 +521,9 @@ def pine_runtime_cohort_enabled_for(user_id: Optional[str]) -> bool:
 #      withholds the script, by name. (R4's `conditional-ta` is a `divergent`
 #      row until WS-C lands per-call-site history.)
 #   2. EVERY SCRIPT ON THE ALLOWLIST HAS AT LEAST ONE MATCH CAPTURE, graded
-#      with the runtime pane ON (a dark-pane grade measured the host lane).
+#      with the runtime pane ON (a dark-pane grade measured the host lane),
+#      and LISTS NO CAPTURE GRADED DIVERGE with the pane on: a DIVERGE on the
+#      members' lane dominates (coordinator ruling 2026-11-19).
 #
 # The data is `api/data/pine_runtime_allowlist.json` (`scripts[]` +
 # `capabilities{}`); `runtime_definitions.allow_list` serves only what this
@@ -530,6 +532,7 @@ def pine_runtime_cohort_enabled_for(user_id: Optional[str]) -> bool:
 
 PINE_CAPABILITY_CONFORMANT = "conformant"
 PINE_CAPTURE_MATCH = "MATCH"
+PINE_CAPTURE_DIVERGE = "DIVERGE"
 PINE_CAPTURE_PANE_ON = "on"
 
 # ⭐⭐ L7 (2026-11-14, owner ruling option (a)) — THE SUBSTITUTED ADMISSION PATH, SEPARATELY NAMED.
@@ -601,6 +604,13 @@ def pine_runtime_admission(script, registry) -> list[str]:
                 reasons.append(f"capability `{cap}` is marked conformant but names no evidence (R1)")
     captures = script.get("captures")
     captures = captures if isinstance(captures, list) else []
+    # ⛔ A DIVERGE ON THE MEMBERS' LANE IS NEVER OUTWEIGHED (coordinator ruling 2026-11-19): a record that lists a
+    # capture graded DIVERGE with the runtime pane on is withheld whatever else it lists. Three MATCH captures and one
+    # DIVERGE are a script that draws a wrong picture on one chart, not a MATCH. (Until then any listed MATCH admitted.)
+    diverging = [c["id"] for c in captures if _pine_capture_ok(c, PINE_CAPTURE_DIVERGE)]
+    if diverging:
+        reasons.append(f"lists a TradingView capture graded DIVERGE with the runtime pane on ({', '.join(diverging)}): "
+                       "a DIVERGE on the members' lane is never outweighed by a MATCH (R1)")
     admission = script.get("admission")
     if admission is None:
         matched = [c for c in captures if _pine_capture_ok(c, PINE_CAPTURE_MATCH)]
@@ -711,7 +721,11 @@ PINE_OBJECTS_X_DIVERGE = "DIVERGE"
 #: `scope: closed-bar-history`; the member door then refuses it by name on a forming bar.
 #: `varip` (coordinator ruling 2026-11-18, the varip frame rule): it differs from `var` only within
 #: a forming bar, which no capture grades, so its evidence can only ever be closed-bar history.
-PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip"})
+#: `request-other` (coordinator ruling 2026-11-19, admit:request-other): every committed capture that admits it holds a
+#: FINISHED newest bar. On a forming one a weekly / monthly read with look-ahead on is withheld by name (Q-HTF-FORM,
+#: `docs/pine/capture-queue-2026-11-19-htf-forming.md`) and the developing value with look-ahead off is witnessed only by
+#: an uncommitted probe, so it admits for closed-bar history only until that capture lands.
+PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip", "request-other"})
 #: U15 (coordinator ruling 2026-11-15): one row PER LIBRARY VERSION, `library:Author/Library/N`.
 #: The row pins the version by `sha256` (the sha of the library source the evidence graded), and an
 #: evidence entry counts only when its `library` names that path AND that sha: an entry graded

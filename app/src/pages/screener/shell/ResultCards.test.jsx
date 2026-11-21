@@ -56,4 +56,28 @@ describe('ResultCards', () => {
     expect(screen.getAllByText('RS').length).toBe(2)      // rs_rank
     expect(screen.queryByText('ADR%')).not.toBeInTheDocument() // adr_pct is the 4th — excluded
   })
+
+  // Phone fit, part 3: the stats are one line and only a stat whose value is words is cut short
+  // (ScannerShell.module.css), so that stat keeps its whole text where a reader can get it.
+  it('a words stat carries its full text in title; a number stat carries none', () => {
+    const named = [{ ...rows[0], sector: 'Communication Services', market_cap: 2.5e12, rvol: 1.3 },
+      { ...rows[1], sector: null, market_cap: 3.1e12, rvol: 0.9 }]
+    render(<ResultCards {...base} rows={named}
+      columns={['ticker', 'company', 'price', 'chg_pct_1d', 'sector', 'market_cap', 'rvol']} />)
+    const sector = screen.getByText('Communication Services')
+    expect(sector.getAttribute('title')).toBe('Communication Services')
+    expect(sector.parentElement.className).toContain('cardStatText')
+    // the numbers beside it: no title, and not the class that lets a stat shrink
+    const caps = screen.getAllByText('Mkt Cap').map((l) => l.nextElementSibling)
+    expect(caps.length).toBe(2)
+    for (const v of caps) {
+      expect(v.hasAttribute('title')).toBe(false)
+      expect(v.parentElement.className).not.toContain('cardStatText')
+    }
+    // a missing sector is a dash, not words: nothing to cut, nothing to title
+    const dash = screen.getAllByText('Sector')[1].nextElementSibling
+    expect(dash.textContent).toBe('—')
+    expect(dash.hasAttribute('title')).toBe(false)
+    expect(dash.parentElement.className).not.toContain('cardStatText')
+  })
 })

@@ -1,0 +1,96 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "HELD EVIDENCE (coordinator rulings 2026-11-19, fix/held-evidence): the narrowest withhold per element a licence-held capture finds wrong, a whole-script kill only where none isolates it, staleness asymmetric (a stale row never creates an action; an action survives a bump until a newer regrade lifts it), the door file derived from the committed ledger alone. Every condition, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "E1",
+   "mutant": "a colour-only difference withholds the whole row",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "        scope = \"outputColour\" if _colour_only(p.get(\"stats\")) else \"output\"",
+   "to": "        scope = \"output\"",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "withholds_only_its_colour"
+  },
+  {
+   "id": "E2",
+   "mutant": "a paint neither side draws is withheld too",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "            if row.get(\"differs\") is not True:",
+   "to": "            if row.get(\"differs\") is None:",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "a_paint_neither_side_draws_is_left"
+  },
+  {
+   "id": "E3",
+   "mutant": "a row graded later on an older engine overrides a newer one",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "        key = (eng0 if isinstance(eng0, int) else -1, str(r.get(\"gradedAtUTC\") or \"\"))",
+   "to": "        key = (str(r.get(\"gradedAtUTC\") or \"\"), eng0 if isinstance(eng0, int) else -1)",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "never_overrides_a_newer_engine"
+  },
+  {
+   "id": "E4",
+   "mutant": "an isolable difference kills the whole script",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "        drawn = [x for x in rows if x[\"verdict\"] == \"DIVERGE\" and x[\"kind\"] == \"drawn\" and x[\"acts\"] and not x[\"withholds\"]]",
+   "to": "        drawn = [x for x in rows if x[\"verdict\"] == \"DIVERGE\" and x[\"kind\"] == \"drawn\" and x[\"acts\"]]",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "withholds_narrowly_and_never_kills"
+  },
+  {
+   "id": "E5",
+   "mutant": "a stale row creates a withhold",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "                 if (s[\"sha256\"], _target(w)) not in had and w[\"engine\"] < cur]",
+   "to": "                 if (s[\"sha256\"], _target(w)) not in had and w[\"engine\"] < cur - 1000]",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "never_creates_a_withhold"
+  },
+  {
+   "id": "E6",
+   "mutant": "an action is dropped on an engine bump",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "    floor = None if engine_floor is None else int(engine_floor)",
+   "to": "    floor = current_engine() if engine_floor is None else int(engine_floor)",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "survives_an_engine_bump"
+  },
+  {
+   "id": "E7",
+   "mutant": "the ledger row never carries the withholds",
+   "file": "tools/vendor_harness/evidence_ledger.py",
+   "from": "        if withholds:",
+   "to": "        if withholds and False:",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "carries_first_door_and_withholds"
+  },
+  {
+   "id": "E8",
+   "mutant": "the host list never reads a held kill",
+   "file": "tools/vendor_harness/host_divergence.py",
+   "from": "    for sha, kill in held_evidence.held_kills(\"production\", ledger or held_evidence.LEDGER).items():",
+   "to": "    for sha, kill in {}.items():",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "lists_a_held_production_kill"
+  },
+  {
+   "id": "E9",
+   "mutant": "--check never fails",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "    if have != want:",
+   "to": "    if False:",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "check_fails_when_the_door_file"
+  },
+  {
+   "id": "E10",
+   "mutant": "a row filed before the held-evidence grader acts",
+   "file": "tools/vendor_harness/held_evidence.py",
+   "from": "            \"acts\": isinstance(lv.get(\"first\"), dict),",
+   "to": "            \"acts\": True,",
+   "rail": "python -m pytest tests/test_held_evidence.py -q -p no:cacheprovider",
+   "expectRed": "never_acts"
+  }
+ ]
+}

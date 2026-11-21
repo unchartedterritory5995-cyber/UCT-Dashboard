@@ -277,13 +277,14 @@ def looks_like_html(content_type: str, body: bytes) -> bool:
     return "html" in (content_type or "").lower()
 
 
-def parse_feed(body: bytes, content_type: str = "") -> tuple[list[dict], int, int]:
+def parse_feed(body: bytes, content_type: str = "", fields: Optional[tuple] = None) -> tuple[list[dict], int, int]:
     """(rows, entries, dropped) from one answer of the Treasury's feed: one row per day, oldest
     first, each `{"date": iso, "y": {key: percent or None}}`. `entries` counts the days the feed
     carried (an <entry> with no properties is the feed's way of saying "none", and is not counted).
     A row needs its date and at least one yield; a maturity whose element is absent, empty, marked
     null or not a number is None. A day sent twice keeps its first row. Raises `FeedShape` when the
-    body is not the feed."""
+    body is not the feed. `fields` reads another feed of the same family: (key, element, ...) rows
+    in place of `MATURITIES` (the real yield curve, api/services/treasury_real_yields.py)."""
     if len(body) > MAX_BYTES:
         raise FeedShape(f"an answer larger than {MAX_BYTES // 1_000_000} MB")
     if looks_like_html(content_type, body):
@@ -314,7 +315,7 @@ def parse_feed(body: bytes, content_type: str = "") -> tuple[list[dict], int, in
             dropped += 1
             continue
         ys: dict[str, Optional[float]] = {}
-        for key, field, _label, _months in MATURITIES:
+        for key, field, *_rest in (fields or MATURITIES):
             el = found.get(field)
             null = el is not None and any(_local(k) == "null" and str(v).lower() == "true" for k, v in el.attrib.items())
             ys[key] = None if el is None or null else _figure(el.text)
@@ -468,12 +469,14 @@ def _say(status: Any, text: str) -> str:
     return f"{LOG_NAME} status={status if status is not None else 'none'} {text}"
 
 
-def fetch_period(kind: str, value: str, *, may_be_empty: bool = False) -> tuple[list[dict], int]:
+def fetch_period(kind: str, value: str, *, may_be_empty: bool = False, feed: Optional[str] = None,
+                 fields: Optional[tuple] = None) -> tuple[list[dict], int]:
     """(rows, dropped) for one documented period, `('year', '2026')` or `('month', '202611')`: ONE
     request. Raises `_Stop` for a refusal, a failed read, or an answer that is not the feed. A
     period with no day in it is an answer only when `may_be_empty` (the period today falls in,
-    before its first figure is out); for a past period it is a shape mismatch."""
-    params = {"data": FEED, (YEAR_PARAM if kind == "year" else MONTH_PARAM): value}
+    before its first figure is out); for a past period it is a shape mismatch. `feed` and `fields`
+    read another feed of the same family, by the same rules (see `parse_feed`)."""
+    params = {"data": feed or FEED, (YEAR_PARAM if kind == "year" else MONTH_PARAM): value}
     try:
         status, ctype, body = _http_get(params)
     except Exception as exc:  # noqa: BLE001 -- only the error's class is ever logged, never its text
@@ -493,7 +496,7 @@ def fetch_period(kind: str, value: str, *, may_be_empty: bool = False) -> tuple[
                     note=f"unavailable (the Treasury's website refused the request for {value}; "
                          f"not asked again for {int(REFUSED_HOLD_S // 3600)}h)")
     try:
-        rows, entries, dropped = ([], 0, 0) if may_be_empty and not body.strip() else parse_feed(body, ctype)
+        rows, entries, dropped = ([], 0, 0) if may_be_empty and not body.strip() else parse_feed(body, ctype, fields)
     except FeedShape as shape:
         raise _Stop("unavailable", 200, "shape", hold=SHAPE_HOLD_S,
                     note=f"rows=0 shape mismatch ({shape.why}, for {value})") from None
@@ -721,6 +724,19 @@ def held_answer() -> tuple[Optional[dict], str]:
     with _lock:
         check = _state["check"]
     return _answer(held, check), "held"
+
+
+def held_rows(days: Optional[Any] = None) -> dict:
+    """READ ONLY: a copy of the days this module holds, `{day: {key: percent or None}}` (empty when
+    nothing is held), only the `days` named when they are given. It never starts a build. The real
+    yield block reads it for the breakevens (api/services/treasury_real_yields.py)."""
+    if _held() is None:
+        return {}
+    with _lock:
+        rows = _state["rows"]
+        if days is None:
+            return {d: dict(ys) for d, ys in rows.items()}
+        return {d: dict(rows[d]) for d in days if d in rows}
 
 
 def get_yields(*, wait_s: Optional[float] = None) -> dict:

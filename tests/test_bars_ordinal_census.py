@@ -43,7 +43,8 @@ def _census() -> dict:
 def test_the_census_is_NON_EMPTY_and_names_a_module_we_can_point_at():
     """An empty result would pass every comparison below vacuously."""
     data = _census()
-    assert data["modules_scanned"] > 100, "the walk under api/ found almost nothing"
+    # the walk count is a volatile field (not checked in since schema 2): read it off a fresh sweep
+    assert boc.census()["modules_scanned"] > 100, "the walk under api/ found almost nothing"
     assert data["modules"], "the census found zero bars-family callers"
     # `api/services/bars_fetch.py` is the module this whole checkpoint was
     # investigated around (the `_fmt_sqlite_bars` cross-function helper) —
@@ -83,8 +84,13 @@ def test_bars_ordinal_census_matches_a_fresh_derivation():
     CI/manually — asserted here too so a stale checked-in file fails the
     ordinary test suite, not just a separately-remembered command.
     """
-    fresh = boc.census()
+    # ⭐ IN ITS STABLE FORM (2026-11-20): which modules, what they call, how they read it. A source line and the walk
+    # count are not recorded, so an edit that only moves a line, or a module added anywhere under api/, no longer
+    # makes it stale (it went red the day after its last regeneration on the count alone). A new bars consumer does.
+    fresh = boc.stable(boc.census())
     checked_in = _census()
+    assert "modules_scanned" not in checked_in and '"line"' not in json.dumps(checked_in), (
+        "the checked-in census records a volatile field again")
     assert fresh == checked_in, (
         "the checked-in census is stale — regenerate with "
         "`python tools/bars_ordinal_census.py`")
@@ -105,8 +111,9 @@ def test_bars_ordinal_census_CAN_FAIL(tmp_path):
     data["modules"][target] = dict(data["modules"][target], classification="named_access")
     corrupted_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
 
-    fresh = boc.census()
+    fresh = boc.stable(boc.census())        # the same form the rail above compares (a raw census differs by lines alone)
     corrupted = json.loads(corrupted_path.read_text(encoding="utf-8"))
+    assert fresh == _census(), "CONTROL: the uncorrupted file must compare equal, or this proves nothing"
     assert fresh != corrupted, (
         "the comparison did not notice a flipped classification — it cannot fail")
     assert fresh["modules"][target] != corrupted["modules"][target]

@@ -309,11 +309,11 @@ def build_payloads(monday: date) -> tuple[list[dict], list[dict]]:
                            "is_fed": True, "is_key": False})
         econ_days.append({"label": label, "ds": ds, "events": events})
 
-    # ForexFactory's `ff_calendar_nextweek.json` 404s, so the calendar payload
-    # carries ZERO econ events for any week but the current one — a Saturday
-    # "week ahead" post would ship an empty econ card. Fall back to FMP, which
-    # covers arbitrary ranges. Only fires when the payload gave us nothing, so
-    # the current week keeps its existing ForexFactory data.
+    # The payload's econ rows are FMP's on every week (ForexFactory is only its
+    # backup, see `calendar._curate_econ_events`). If the payload still gave us
+    # nothing, a Saturday "week ahead" post would ship an empty econ card, so ask
+    # FMP directly once more, ranked to the card's own cap. Only fires when the
+    # payload gave us nothing.
     if not any(d["events"] for d in econ_days):
         from api.services.calendar_week_png import MAX_ECON_PER_DAY
         from api.services.econ_calendar_fmp import fetch_us_econ_week

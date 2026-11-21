@@ -7083,6 +7083,13 @@ async def lifespan(app: FastAPI):
         _bars_rebuild.start_background_sync()
     except Exception as e:  # noqa: BLE001
         print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
+    # The published corrections ledger for served D/W/M bars (bars_corrections); inert with no manifest.
+    # BARS_CORRECTIONS_SERVE=0 = off.
+    try:
+        from api.services import bars_corrections as _bars_corrections
+        _bars_corrections.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] bars-corrections sync start failed (non-fatal): {e}")
 
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
@@ -8401,6 +8408,11 @@ async def lifespan(app: FastAPI):
                     breadth_ma_extra.scheduled_extend()
                 except Exception as _e:
                     logging.getLogger(__name__).warning("[ma-extra] extend failed: %s", _e)
+                try:   # the pre-built per-universe Monitor rows follow their overlays
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] refresh failed: %s", _e)
 
             _scheduler.add_job(
                 _breadth_nhnl_extend,
@@ -8411,6 +8423,33 @@ async def lifespan(app: FastAPI):
                 _breadth_nhnl_extend, trigger="date",
                 run_date=_dt.now(_ET) + _td(minutes=12),
                 id="breadth_nhnl_extend_boot", replace_existing=True)
+
+            # ⭐ PRE-BUILT per-universe Monitor rows (US / Nasdaq / NYSE, the universe switcher):
+            # a full rebuild every night (a historical revision can never hide in the store), and
+            # a boot refresh that builds any universe whose store is empty. Requests only read.
+            def _breadth_universe_monitor_nightly():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.nightly()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] nightly failed: %s", _e)
+
+            def _breadth_universe_monitor_boot():
+                try:
+                    from api.services import breadth_universe_monitor
+                    breadth_universe_monitor.kick_refresh()
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[universe-monitor] boot refresh failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_universe_monitor_nightly,
+                trigger=CronTrigger(day_of_week="mon-sat", hour=3, minute=25, timezone=_ET),
+                id="breadth_universe_monitor_nightly", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            _scheduler.add_job(
+                _breadth_universe_monitor_boot, trigger="date",
+                run_date=_dt.now(_ET) + _td(minutes=15),
+                id="breadth_universe_monitor_boot", replace_existing=True)
         except Exception:
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth put/call fill")
@@ -9016,6 +9055,20 @@ async def lifespan(app: FastAPI):
                 print("[startup] market-tide RTH warm: on (2-min cadence)")
         except Exception as e:
             print(f"[scheduler] market_tide_rth_warm job registration error: {e}")
+
+        # -- Market Tide by day (terminal tide history, 2026-11-19) --
+        # Stores each finished session's tide once, after the close: 16:33, 17:33 and 20:33 ET
+        # (three tries so a late tape still lands; a thinner read never replaces a fuller one).
+        # Always registered: the job reads the tide's own switch when it RUNS and returns
+        # without reading anything while it is off.
+        try:
+            from api.services.options_analytics import tide_history as _tide_history
+            _scheduler.add_job(_tide_history.run_capture_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="16,17,20", minute=33, timezone=_ET),
+                id="market_tide_history_capture", max_instances=1, coalesce=True,
+                misfire_grace_time=1800, replace_existing=True)
+        except Exception as e:
+            print(f"[scheduler] market_tide_history_capture job registration error: {e}")
 
         # -- Twitter News Ingestion (spec 2026-05-25) ----------------------
         # Burst windows (every 2 min) cover the high-value pre-market and
@@ -10781,6 +10834,29 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] research depth job registration failed (non-fatal): {e}")
 
+        # INS CLUSTER (2026-11-21): insider cluster buys read from the SEC's own Form 4 filings
+        # (api/services/insider_clusters_sec.py). EDGAR's daily indexes are "updated nightly starting
+        # about 10:00 p.m., ET; the process is usually completed within a few hours" (the SEC's
+        # "Accessing EDGAR Data" page), so the read runs at 01:20 ET Tuesday to Saturday, the night
+        # after each weekday, clear of the 01:47 and 02:00 jobs. The job only starts the module's own
+        # thread (one run at a time) and returns; nothing on a member's request ever starts it.
+        _boot_mark("S10236")
+        try:
+            def _insider_clusters_sec_job():
+                from api.services import insider_clusters_sec as _ics
+                print(f"[scheduler] insider clusters (SEC Form 4) read: {_ics.run_nightly()}")
+
+            from api.services import insider_clusters_sec as _ics_mod
+            _scheduler.add_job(
+                _insider_clusters_sec_job,
+                trigger=CronTrigger(day_of_week="tue-sat", hour=_ics_mod.RUN_AT_ET[0],
+                                    minute=_ics_mod.RUN_AT_ET[1], timezone=_ET),
+                id="insider_clusters_sec_nightly", max_instances=1, replace_existing=True, coalesce=True,
+            )
+            print("[startup] insider clusters (SEC Form 4) scheduled -- Tue-Sat 01:20 ET")
+        except Exception as e:
+            print(f"[startup] insider clusters job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
@@ -12067,6 +12143,8 @@ app.include_router(analyst_revisions_router.router)  # /api/research/analyst-rev
 app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
 from api.routers import treasury_yields as treasury_yields_router  # noqa: E402  (RATES: Treasury yields and the curve, paid)
 app.include_router(treasury_yields_router.router)  # /api/research/treasury-yields
+from api.routers import treasury_auctions as treasury_auctions_router  # noqa: E402  (AUCT: Treasury auctions, upcoming and results, paid)
+app.include_router(treasury_auctions_router.router)  # /api/research/treasury-auctions
 app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
@@ -12155,10 +12233,16 @@ from api.routers import screen_promote as screen_promote_router  # noqa: E402  (
 app.include_router(screen_promote_router.router)
 from api.routers import list_alerts as list_alerts_router  # noqa: E402  (Terminal list alerts, dark)
 app.include_router(list_alerts_router.router)
+from api.routers import crypto as crypto_router  # noqa: E402  (Bitcoin BTC/USD from FMP, dark)
+app.include_router(crypto_router.router)
 from api.routers import short_data as short_data_router  # noqa: E402  (SHINT / SHRTS: FINRA short interest and short volume, paid)
 app.include_router(short_data_router.router)
 from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (DILU: share-issuance filings from SEC EDGAR, paid)
 app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
+from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
+app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
+app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)
@@ -14392,6 +14476,10 @@ register_static_mime_types()
 # sees its noindex.
 PUBLIC_NOTE_PATH_PREFIXES = ("/share/n", "/p")
 PUBLIC_NOTE_HEADERS = {"X-Robots-Tag": "noindex, nofollow", "Referrer-Policy": "no-referrer"}
+# The app shell allows the browser's JS Self-Profiling API (`new Profiler(...)`), so a chart
+# stall measured on the live site can be attributed to functions, not guessed at (2026-11-19).
+# Nothing in the app starts a profiler; the policy only permits one. Mirrored in front_app.py.
+SHELL_DOCUMENT_POLICY = "js-profiling"
 
 
 def is_public_note_path(full_path: str) -> bool:
@@ -14405,7 +14493,7 @@ def spa_index_response(full_path: str):
     headers on a public-note path. Defined OUTSIDE the DIST guard so the rail can serve
     it from a temp DIST; `spa_fallback` below is exactly `return spa_index_response(...)`
     (tests/test_public_note_headers.py pins that by AST)."""
-    headers = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+    headers = {"Cache-Control": "no-cache, no-store, must-revalidate", "Document-Policy": SHELL_DOCUMENT_POLICY}
     hints = early_hint_link_header()
     if hints:
         headers["Link"] = hints

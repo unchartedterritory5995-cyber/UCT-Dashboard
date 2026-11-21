@@ -637,6 +637,374 @@ def test_fresh_run_a_lasting_404_exits_2_with_the_run_cancelled_before_the_ref_i
     monkeypatch.setattr(rt, "GitHubApi",
                         lambda: real_api(runner=runner, sleep=clock.sleep, now=clock.now, log=lambda *_: None))
     monkeypatch.setattr(rt, "_delete_ref", lambda ref: events.append("delete"))
-    assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE
+    assert rt.main(["--pytest", "tests/test_a.py", "--max-wait-min", "0"]) == rt.LANE
     assert events == ["cancel", "delete"], events
     assert clock.t - 1_000_000.0 <= rt.FRESH_RUN_GRACE_S + rt.POLL_EARLY_S
+
+
+# ---- a dispatch answered 5xx (2026-11-19, run 44552655327) ---------------------------------------------------------
+# GitHub answered HTTP 500 to the dispatch; the tool exited 2 and abandoned the ref, but the run HAD started and ran
+# with nobody watching. A 5xx means the answer failed, not the dispatch: the tool looks for a run on its own ref for
+# DISPATCH_5XX_GRACE_S and follows one that appears; with none, it fails and KEEPS the ref (a late run must find it).
+_SERVER_ERROR = (500, {}, '{"message": "Server Error"}')
+
+
+@pytest.mark.parametrize("status", [500, 502, 503])
+def test_dispatch_a_5xx_then_a_run_on_our_ref_is_followed(status):
+    mine = {"workflow_runs": [{"id": 1, "display_title": "remote tests: someone else's ref"},
+                              {"id": 9, "display_title": f"remote tests: {GOOD_REF}", "html_url": "u9"}]}
+    api, fake, clock = _api([(status, {}, "oops"), _ok({"workflow_runs": []}, etag='"a"'), _ok(mine, etag='"b"')])
+    state = rt.RunState()
+    assert rt.dispatch(api, {"ref": GOOD_REF}, state=state) == ("9", "u9")
+    assert state.dispatched and state.run_id == "9"
+    assert [c[0] for c in fake.calls] == ["POST", "GET", "GET"]                   # one dispatch, never a second
+    assert clock.sleeps == [rt.FIND_RUN_POLL_S]
+
+
+def test_dispatch_a_5xx_and_no_run_fails_after_the_grace_and_keeps_the_ref():
+    api, fake, clock = _api([_SERVER_ERROR] + [_ok({"workflow_runs": []})] * 200)
+    state = rt.RunState()
+    with pytest.raises(RuntimeError, match=r"HTTP 500\) and no run on .* appeared within"):
+        rt.dispatch(api, {"ref": GOOD_REF}, state=state)
+    assert rt.DISPATCH_5XX_GRACE_S <= clock.t - 1_000_000.0 <= rt.DISPATCH_5XX_GRACE_S + rt.FIND_RUN_POLL_S
+    assert sum(1 for c in fake.calls if c[0] == "POST") == 1
+    assert state.dispatched and state.run_id is None
+    deleted = []
+    assert rt.release_ref(api, GOOD_REF, state, False, delete=deleted.append, log=lambda *_: None) == "kept"
+    assert deleted == []
+
+
+@pytest.mark.parametrize("status", [401, 404, 422])
+def test_dispatch_a_4xx_is_still_fatal_at_once_and_starts_nothing(status):
+    api, fake, clock = _api([(status, {}, '{"message": "no"}')])
+    state = rt.RunState()
+    with pytest.raises(RuntimeError, match=rf"dispatch failed \(HTTP {status}\)"):
+        rt.dispatch(api, {"ref": GOOD_REF}, state=state)
+    assert len(fake.calls) == 1 and clock.sleeps == [] and not state.dispatched
+
+
+def test_a_5xx_dispatch_whose_run_exists_is_waited_on_end_to_end(monkeypatch):
+    """Run 44552655327 end to end: the dispatch answers 500, the run is on our ref; main() must wait on THAT run,
+    and on the way out cancel it before deleting the ref (here the wait times out, so the run is still live)."""
+    events, clock, refs = [], _Clock(), []
+
+    def runner(method, path, headers, body):
+        if path == "rate_limit":
+            return 200, {}, json.dumps({"resources": {"core": {"remaining": 4000, "limit": 5000, "reset": 1}}})
+        if path.endswith("/dispatches"):
+            refs.append(body["inputs"]["ref"])
+            return _SERVER_ERROR
+        if "/runs?event=workflow_dispatch" in path:
+            return _ok({"workflow_runs": [{"id": 31, "display_title": f"remote tests: {refs[0]}", "html_url": "u31"}]})
+        if path.endswith("/cancel"):
+            events.append("cancel 31" if "/runs/31/" in path else f"cancel {path}")
+            return 202, {}, ""
+        raise AssertionError(f"unexpected request {method} {path}")
+
+    class _Proc:
+        def __init__(self, stdout=""):
+            self.stdout, self.stderr, self.returncode = stdout, "", 0
+
+    monkeypatch.setattr(rt.shutil, "which", lambda t: t)
+    monkeypatch.setattr(rt, "_run", lambda cmd, check=True, capture=True:
+                        _Proc("0123456789abcdef0123\n" if cmd[:2] == ["git", "rev-parse"] else ""))
+    real_api = rt.GitHubApi
+    monkeypatch.setattr(rt, "GitHubApi",
+                        lambda: real_api(runner=runner, sleep=clock.sleep, now=clock.now, log=lambda *_: None))
+    monkeypatch.setattr(rt, "wait_for_run", lambda api, run_id, timeout_s, log=print: events.append(f"wait {run_id}"))
+    monkeypatch.setattr(rt, "_delete_ref", lambda ref: events.append("delete"))
+    assert rt.main(["--pytest", "tests/test_a.py", "--max-wait-min", "0"]) == rt.LANE        # the stubbed wait answers "still running"
+    assert events == ["wait 31", "cancel 31", "delete"], events
+
+
+# ---- admission (2026-11-20): wait for CI room before enqueueing -------------------------------------------------------
+# 11/20 the 40-job pool was full and master deploy gate jobs waited up to 21.6 min for a runner (a 16 min gate took 44).
+# GitHub has no job priority, so the client holds back instead. Plan: docs/superpowers/plans/2026-11-20-remote-tests-admission.md
+def _now():
+    return rt._epoch("2026-11-21T03:10:00Z")
+
+
+def _run(i, status, at="2026-11-21T03:00:00Z"):
+    return {"id": i, "status": status, "created_at": at}
+
+
+def test_admission_empty_pool_dispatches():
+    assert rt.room_to_dispatch([], {}, [], [], _now()) == (True, "room")
+
+
+def test_admission_gate_job_waiting_for_a_runner_waits():
+    ok, why = rt.room_to_dispatch([_run(9, "in_progress")],
+                                  {"9": [{"status": "in_progress"}, {"status": "queued"}]}, [], [], _now())
+    assert not ok and "deploy gate run 9" in why and "1 job(s) waiting" in why
+
+
+def test_admission_gate_running_with_no_job_queued_dispatches():
+    assert rt.room_to_dispatch([_run(9, "in_progress")], {"9": [{"status": "in_progress"}]}, [], [], _now())[0]
+
+
+def test_admission_a_queued_gate_run_with_no_jobs_yet_waits():
+    gate = {**_run(9, "queued"), "updated_at": "2026-11-21T03:09:00Z"}
+    ok, why = rt.room_to_dispatch([gate], {"9": []}, [], [], _now())
+    assert not ok and "is queued" in why
+
+
+def test_admission_a_queued_gate_run_with_no_jobs_for_long_is_ignored():
+    """Review 2026-11-20: a FRESH ghost (queued, 0 jobs, like 11/11's) must not hold every request for 30 min.
+    A real gate run lists its jobs seconds after it leaves `pending` (updated_at moves then)."""
+    gate = {**_run(9, "queued", "2026-11-21T02:00:00Z"), "updated_at": "2026-11-21T02:00:00Z"}
+    assert rt.room_to_dispatch([gate], {"9": []}, [], [], _now())[0]
+
+
+def test_admission_a_queued_run_older_than_the_signal_window_is_not_a_full_pool():
+    """Rule B's queued-runs signal has its own window: a fresh ghost of ANY workflow must not read as a full pool."""
+    remote = [_run(i, "in_progress") for i in range(4)]
+    assert rt.room_to_dispatch([], {}, remote, [_run(50, "queued", "2026-11-21T00:00:00Z")], _now())[0]
+
+
+def test_admission_a_queued_gate_run_with_a_waiting_job_waits():
+    """Live 2026-11-21 03:51Z, run 44861476002: run status `queued` while 5 of its jobs ran and 7 waited."""
+    jobs = [{"status": "completed"}, {"status": "in_progress"}, {"status": "queued"}]
+    ok, why = rt.room_to_dispatch([_run(9, "queued")], {"9": jobs}, [], [], _now())
+    assert not ok and "1 job(s) waiting" in why
+
+
+def test_admission_a_queued_gate_run_whose_jobs_all_started_dispatches():
+    """The run-level `queued` label can trail its jobs: decide on the jobs, never on the label alone."""
+    jobs = [{"status": "completed"}, {"status": "in_progress"}]
+    assert rt.room_to_dispatch([_run(9, "queued")], {"9": jobs}, [], [], _now())[0]
+
+
+def test_admission_a_pending_gate_run_does_not_wait():
+    """`pending` = waiting on the previous gate's `master-deploy` concurrency group, not on a runner."""
+    assert rt.room_to_dispatch([_run(9, "pending")], {}, [], [], _now())[0]
+
+
+def test_admission_a_stale_queued_gate_run_is_ignored():
+    """The 11/11 ghost gate run (0 jobs, queued forever, GitHub refuses cancel and delete) must not hold it shut."""
+    assert rt.room_to_dispatch([_run(43096652068, "queued", "2026-11-11T20:32:25Z")], {}, [], [], _now())[0]
+
+
+def test_admission_four_remote_runs_and_a_queued_run_waits():
+    remote = [_run(i, "in_progress") for i in range(4)]
+    ok, why = rt.room_to_dispatch([], {}, remote, [_run(50, "queued")], _now())
+    assert not ok and "4 remote runs in flight" in why
+
+
+def test_admission_four_remote_runs_and_nothing_queued_dispatches():
+    assert rt.room_to_dispatch([], {}, [_run(i, "in_progress") for i in range(4)], [], _now())[0]
+
+
+def test_admission_three_remote_runs_and_queued_runs_dispatches():
+    assert rt.room_to_dispatch([], {}, [_run(i, "queued") for i in range(3)], [_run(50, "queued")], _now())[0]
+
+
+def test_admission_stale_remote_and_queued_runs_are_ignored():
+    old = "2026-11-11T20:32:25Z"
+    assert rt.room_to_dispatch([], {}, [_run(i, "queued", old) for i in range(6)], [_run(50, "queued", old)], _now())[0]
+
+
+_GATE_RUNS = "repos/{owner}/{repo}/actions/workflows/master-deploy-gate.yml/runs?per_page=10"
+_REMOTE_RUNS = "repos/{owner}/{repo}/actions/workflows/remote-tests.yml/runs?per_page=50"
+_QUEUED_RUNS = "repos/{owner}/{repo}/actions/runs?status=queued&per_page=100"
+
+
+def _at(clock):
+    import time as _t
+    return _t.strftime("%Y-%m-%dT%H:%M:%SZ", _t.gmtime(clock.t))
+
+
+def test_read_load_sends_the_four_reads_in_order():
+    clock = _Clock()
+    gate = {"id": 9, "status": "in_progress", "created_at": _at(clock)}
+    remote = [{"id": i, "status": "in_progress", "created_at": _at(clock)} for i in range(4)]
+    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": [{"status": "in_progress"}]}),
+                         _ok({"workflow_runs": remote}), _ok({"workflow_runs": []})], clock)
+    load = rt.read_load(api)
+    assert [c[1] for c in fake.calls] == [_GATE_RUNS, "repos/{owner}/{repo}/actions/runs/9/jobs?per_page=100",
+                                          _REMOTE_RUNS, _QUEUED_RUNS]
+    assert {c[0] for c in fake.calls} == {"GET"} and len(fake.calls) == 4
+    assert load.gate_runs == [gate] and load.gate_jobs == {"9": [{"status": "in_progress"}]}
+    assert load.remote_runs == remote and load.queued_runs == []
+
+
+def test_read_load_stops_after_the_gate_when_the_gate_is_waiting():
+    """Review 2026-11-20 (quota): once rule A says wait, the other reads cannot change the answer: 2 requests."""
+    clock = _Clock()
+    gate = {"id": 9, "status": "in_progress", "created_at": _at(clock)}
+    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": [{"status": "queued"}]})], clock)
+    load = rt.read_load(api)
+    assert len(fake.calls) == 2 and not rt.room_to_dispatch(load.gate_runs, load.gate_jobs, load.remote_runs,
+                                                             load.queued_runs, clock.t)[0]
+
+
+def test_read_load_skips_queued_runs_when_few_remote_runs_are_in_flight():
+    clock = _Clock()
+    remote = [{"id": i, "status": "in_progress", "created_at": _at(clock)} for i in range(3)]
+    api, fake, _ = _api([_ok({"workflow_runs": []}), _ok({"workflow_runs": remote})], clock)
+    assert rt.read_load(api) is not None
+    assert [c[1] for c in fake.calls] == [_GATE_RUNS, _REMOTE_RUNS]
+
+
+def test_read_load_reads_jobs_for_a_queued_gate_run_too():
+    clock = _Clock()
+    gate = {"id": 9, "status": "queued", "created_at": _at(clock)}
+    api, fake, _ = _api([_ok({"workflow_runs": [gate]}), _ok({"jobs": []}),
+                         _ok({"workflow_runs": []}), _ok({"workflow_runs": []})], clock)
+    assert rt.read_load(api).gate_jobs == {"9": []}
+    assert fake.calls[1][1] == "repos/{owner}/{repo}/actions/runs/9/jobs?per_page=100"
+
+
+def test_read_load_skips_jobs_when_no_gate_is_running():
+    api, fake, _ = _api([_ok({"workflow_runs": []}), _ok({"workflow_runs": []})])
+    assert rt.read_load(api) is not None
+    assert len(fake.calls) == 2 and not any("/jobs" in c[1] for c in fake.calls)
+
+
+@pytest.mark.parametrize("answer", [
+    (403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "1000900"}, "rate limit"),
+    (500, {}, ""),
+    (0, {}, ""),
+    _ok({"unexpected": 1}),
+])
+def test_read_load_returns_none_on_any_error_and_never_sleeps(answer):
+    api, fake, clock = _api([answer])
+    assert rt.read_load(api) is None
+    assert clock.sleeps == [] and len(fake.calls) == 1
+
+
+def test_read_load_repeat_check_is_conditional():
+    empty = {"workflow_runs": []}
+    api, fake, _ = _api([_ok(empty, etag='W/"g"'), _ok(empty, etag='W/"r"'), (304, {}, ""), (304, {}, "")])
+    assert rt.read_load(api) is not None and rt.read_load(api) is not None
+    assert fake.calls[2][2] == {"If-None-Match": 'W/"g"'}
+    assert api.not_modified == 2
+
+
+def _crowded(clock):
+    """A gate run with a job waiting for a runner (rule A). Jobs never fetched are unknown, never a reason to wait."""
+    return rt.Load([{"id": 9, "status": "in_progress", "created_at": _at(clock)}], {"9": [{"status": "queued"}]}, [], [])
+
+
+def _seq(*values):
+    it = iter(values)
+    return lambda: next(it)
+
+
+def test_wait_for_room_returns_at_once_when_there_is_room(monkeypatch):
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: rt.Load([], {}, [], []))
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "room"
+    assert clock.sleeps == []
+
+
+def test_wait_for_room_polls_with_jitter_until_room(monkeypatch):
+    api, _, clock = _api([])
+    loads = iter([_crowded(clock), _crowded(clock), rt.Load([], {}, [], [])])
+    monkeypatch.setattr(rt, "read_load", lambda a: next(loads))
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None, rand=_seq(0.0, 1.0)) == "room"
+    assert clock.sleeps == [60.0, 75.0]
+
+
+def test_wait_for_room_gives_up_after_max_wait_and_dispatches(monkeypatch):
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: _crowded(clock))
+    lines = []
+    assert rt.wait_for_room(api, 300, log=lines.append, rand=lambda: 0.0) == "waited-out"
+    assert sum(clock.sleeps) >= 300
+    assert any("dispatching anyway" in ln for ln in lines), lines
+
+
+def test_wait_for_room_backs_off_60_90_120_and_keeps_its_cap(monkeypatch):
+    """Review 2026-11-20 (quota): 60 s for 5 min, 90 s to 15 min, 120 s after; the cap is pinned on both sides."""
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: _crowded(clock))
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None, rand=lambda: 0.0) == "waited-out"
+    assert clock.sleeps[:5] == [60.0] * 5 and 90.0 in clock.sleeps and clock.sleeps[-1] == 120.0
+    assert 1800 <= sum(clock.sleeps) < 1800 + 120 + rt.ROOM_JITTER_S
+
+
+def test_wait_for_room_a_low_quota_stops_checking_and_dispatches(monkeypatch):
+    """11/19 the shared 5,000/h quota hit 0 and blocked every session's merges: never spend the last of it here."""
+    api, _, clock = _api([])
+    api.remaining = rt.ADMISSION_QUOTA_FLOOR - 1
+
+    def must_not_read(a):
+        raise AssertionError("read the load with the quota at the floor")
+    monkeypatch.setattr(rt, "read_load", must_not_read)
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "quota-low"
+    assert clock.sleeps == []
+
+
+def test_wait_for_room_unreadable_load_dispatches_now(monkeypatch):
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: None)
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "unreadable"
+    assert clock.sleeps == []
+
+
+def test_wait_for_room_a_bug_in_the_reader_fails_open(monkeypatch):
+    """S3: ANY exception while reading the load dispatches now; only a person's Ctrl+C (BaseException) stops it."""
+    api, _, clock = _api([])
+
+    def broken(a):
+        raise KeyError("created_at")
+    monkeypatch.setattr(rt, "read_load", broken)
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "unreadable"
+    assert clock.sleeps == []
+
+
+def test_wait_for_room_zero_skips_the_check_without_a_request():
+    api, fake, clock = _api([])
+    assert rt.wait_for_room(api, 0, log=lambda *_: None) == "skipped"
+    assert fake.calls == [] and clock.sleeps == []
+
+
+_SHA = "0123456789abcdef0123456789abcdef01234567"
+
+
+def _main_stubs(monkeypatch, record, wait):
+    class _Proc:
+        def __init__(self, stdout=""):
+            self.stdout, self.stderr, self.returncode = stdout, "", 0
+
+    def run(cmd, check=True, capture=True):
+        record.append(list(cmd))
+        return _Proc(_SHA + "\n" if cmd[:2] == ["git", "rev-parse"] else "")
+
+    timeouts = []
+    monkeypatch.setattr(rt.shutil, "which", lambda t: t)
+    monkeypatch.setattr(rt, "_run", run)
+    monkeypatch.setattr(rt.GitHubApi, "quota", lambda self: None)
+    monkeypatch.setattr(rt, "wait_for_room", wait)
+    monkeypatch.setattr(rt, "dispatch", lambda api, inputs, find_timeout_s=120, state=None: ("1", "u"))
+    monkeypatch.setattr(rt, "wait_for_run", lambda api, run_id, timeout_s, log=print: timeouts.append(timeout_s))
+    monkeypatch.setattr(rt, "_delete_ref", lambda ref: record.append(["DELETE", ref]))
+    return timeouts
+
+
+def _is_ref_push(cmd):
+    return cmd[:4] == ["git", "push", "--quiet", "origin"] and cmd[-1].startswith(f"{_SHA}:refs/remote-tests/")
+
+
+def test_main_waits_before_it_pushes_the_ref(monkeypatch):
+    record = []
+    timeouts = _main_stubs(monkeypatch, record,
+                           lambda api, max_wait_s, log=print, rand=None: record.append("WAIT") or "room")
+    assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE        # the stubbed run wait answers "still running"
+    pushes = [i for i, c in enumerate(record) if c != "WAIT" and _is_ref_push(c)]
+    assert pushes and record.index("WAIT") < pushes[0], record
+    assert timeouts == [3600]                                          # S5: the wait is not taken from --timeout-min
+
+    record.clear()
+
+    def interrupted(api, max_wait_s, log=print, rand=None):
+        raise KeyboardInterrupt
+    _main_stubs(monkeypatch, record, interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        rt.main(["--pytest", "tests/test_a.py"])
+    assert not any(c != "WAIT" and _is_ref_push(c) for c in record), record
+
+
+def test_claude_md_documents_the_admission_wait():
+    text = (ROOT / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "--max-wait-min 0" in text and "waits for room" in text

@@ -104,6 +104,8 @@ describe('drillWorkspaceValue — LIVE semantics (this host is not the frozen on
     const v = value()
     expect(v.periodSortMode).toBe(false)
     expect(v.replayCutoff).toBeNull()
+    // the drill's header chip is replay's switch: its charts show no "Exit Replay Mode" pill
+    expect(v.showReplayExit).toBe(false)
     expect(v.replayArmPick).toBe(false)
     expect(v.startMarker).toBeNull()
     expect(v.aiSearchBus.request('anything')).toBe(false)

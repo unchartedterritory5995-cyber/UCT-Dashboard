@@ -78,6 +78,24 @@ def _daily_bars(sym: str, since_iso: str) -> list[dict]:
         return []
 
 
+def daily_bars_since(sym: str, since_iso: str) -> list[dict]:
+    """`_daily_bars` for another service: the earnings enrichment's run-up and
+    past-moves reads go through this name. Its own name so that one caller can
+    be stood in for without changing this module's own reads, and from a
+    module that imports nothing heavy."""
+    return _daily_bars(sym, since_iso)
+
+
+def last_stored_daily_session(sym: str) -> int | None:
+    """The newest daily session the local bar store holds for `sym` (a YYYYMMDD
+    int), or None when it holds none. One local store read, the accessor the
+    bars reader takes its own last stored session from: no vendor call, no
+    refresh, no thread. The earnings enrichment asks this before it reads
+    daily bars at all. Its own name for the same reason as `daily_bars_since`."""
+    from api.services import bars_sqlite
+    return bars_sqlite.get_last_ts(sym.upper(), "D")
+
+
 def _pct(a, b):
     try:
         a = float(a); b = float(b)

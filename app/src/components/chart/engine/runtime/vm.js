@@ -249,6 +249,101 @@ function runRequest(program, site, otherBars, ctx, budget, requested, requestCac
   return aligned
 }
 
+// ─── ⭐⭐ PERF (Fred RS 5m profile, 2026-11-19, item c) — A REQUEST'S SUB-RUN KEEPS ONLY WHAT ITS REGION OBSERVES ───
+//
+// `runRequest` runs a region of the program over another series, and that sub-run used to pay for the WHOLE
+// program at the requested series' length: every output allocated (and filled), and every history ring of the main
+// program and of every call site committed on every requested bar. The region reads a sliver of that: the main
+// program does not run in a sub-run, so its rings hold `na` the whole time, and only the region's own EMITs land.
+// `requestRegionScopeOf` reads the region's code, and the bodies of the functions it can call through each call
+// site, and names exactly what it can observe:
+//   * `rings` — the history rings it can READ: `READ_HIST_SLOT`, `READ_HIST_SLOT_DYN`, and a window's source ring
+//               (`WINDOW` reads `historyBase + historySlot` under `propagate`), each at the base the code runs
+//               under (the main frame's 0, or the call site's own);
+//   * `outs`  — the outputs it can EMIT (a request's results are among them: `lowerIr.js` emits EMIT 0..r-1).
+// The sub-run then allocates those outputs only and commits those rings only. `committed` still advances on every
+// bar, exactly as before (a window's warm-up reads it). Nothing else in a sub-run reads the rest: the probe, the
+// checkpoint, the resume, the realtime hooks, the broker and the object store are all top-level only, and
+// `runRequest` reads the results alone. A region whose code reads no ring skips the commit loop's work entirely.
+// ⛔ THE BUDGET IS CHARGED EXACTLY AS BEFORE: every peak keeps the program's nominal size (rings, cells, outputs,
+// memory), so a run stops by name where it stopped before, with the same numbers.
+// ⛔ AN ALLOWLIST OF OPCODES, NOT A DENYLIST. A region reaching an opcode this note has not reasoned about (a
+// drawing, a broker op, one added later) runs whole, as before (`null`). Each listed op touches only the stack,
+// the constants, the bars and clock, the columns, the locals, persist, carried, window and iteration stores
+// (all still allocated whole and reset as before) or values; the three that read a ring, EMIT and CALL are read
+// above.
+const SCOPE_PLAIN_OPS = new Set([
+  OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST, OP.READ_CLOCK, OP.SESSION,
+  OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG, OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE, OP.AND, OP.OR, OP.NOT, OP.SELECT,
+  OP.HALT, OP.EMIT_ITER, OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST, OP.READ_HIST_DYN,
+  OP.READ_SERIES_HIST_DYN, OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT, OP.RET, OP.POINTWISE, OP.CARRIED, OP.CONCAT,
+  OP.TEXT, OP.ARRAY, OP.LOOP_TICK, OP.REQUEST, OP.COLOUR, OP.DROP, OP.RECORD, OP.FIELD_GET, OP.FIELD_SET,
+  OP.CARRIED2, OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST, OP.WHILE_BOUND,
+])
+/** An output a request region never EMITs: no bar is written to it, and `runRequest` reads the results alone. */
+const NO_OUTPUT = new Float64Array(0)
+const _regionScopes = new WeakMap()
+let _regionScopeOff = false
+/** Tests: run every request region whole, as before (the identity rails compare both). */
+export function __requestScopeOffForTests(off) { _regionScopeOff = !!off }
+
+/** ⭐ PERF (item c) — what the request region at `entry` can observe, or `null` (run it whole). Memoized per program.
+ *  @returns {{rings: Int32Array, outs: Int32Array}|null} */
+export function requestRegionScopeOf(program, entry) {
+  let byEntry = _regionScopes.get(program)
+  if (!byEntry) { byEntry = new Map(); _regionScopes.set(program, byEntry) }
+  if (byEntry.has(entry)) return byEntry.get(entry)
+  const scope = regionScope(program, entry)
+  byEntry.set(entry, scope)
+  return scope
+}
+
+function regionScope(program, entry) {
+  const code = program.code
+  const max = program.instructions
+  if (!Number.isInteger(entry) || entry <= 0 || entry >= max) return null
+  // A region, and a function body, is a CONTIGUOUS run of code from its entry to the next entry (`lowerIr.js`: the
+  // main program and its HALT, every function body, then every request region, each in order). Reading the whole
+  // run is a superset of what can execute, so the footprint can only be too large, never too small.
+  const starts = [...(program.functions || []).map((f) => f.entry), ...(program.requests || []).map((r) => r.entry)]
+    .filter(Number.isInteger).sort((x, y) => x - y)
+  const endOf = (s) => { for (const e of starts) if (e > s) return e; return max }
+  const fns = program.functions || []
+  const sites = program.callSites || []
+  const wins = program.windows || []
+  const hist = program.history || []
+  const rings = new Set()
+  const outs = new Set()
+  const seen = new Set()
+  const work = [{ from: entry, historyBase: 0, windowBase: 0 }]
+  while (work.length) {
+    const w = work.pop()
+    const key = `${w.from}|${w.historyBase}|${w.windowBase}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const to = endOf(w.from)
+    for (let pc = w.from; pc < to; pc += 1) {
+      const op = code[pc * 3]
+      const a = code[pc * 3 + 1]
+      if (op === OP.READ_HIST_SLOT || op === OP.READ_HIST_SLOT_DYN) rings.add(w.historyBase + a)
+      else if (op === OP.WINDOW) {
+        const win = wins[w.windowBase + a]
+        if (!win) return null
+        if (Number.isInteger(win.historySlot)) rings.add(w.historyBase + win.historySlot)
+      } else if (op === OP.CALL) {
+        const fn = fns[a]
+        const site = sites[code[pc * 3 + 2]]
+        if (!fn || !site || !Number.isInteger(fn.entry)) return null
+        work.push({ from: fn.entry, historyBase: site.historyBase || 0, windowBase: site.windowBase || 0 })
+      } else if (op === OP.EMIT) outs.add(a)
+      else if (!SCOPE_PLAIN_OPS.has(op)) return null
+    }
+  }
+  for (const r of rings) if (!hist[r]) return null
+  const sorted = (s) => Int32Array.from([...s].sort((x, y) => x - y))
+  return { rings: sorted(rings), outs: sorted(outs) }
+}
+
 // ─── ⭐⭐ (Fred RS filled chart, item 3) — A RUN THAT READS REQUESTS RESUMES ACROSS A NEW SUPPLY ───────────────────
 //
 // A checkpoint of a run that reads requested bars holds state built from the requested values of an EARLIER
@@ -342,6 +437,8 @@ export function execute(program, ctx, limits, opts) {
   // forty symbols has done forty symbols' worth of work, and a per-run budget
   // would let it do that forty times over inside one bar's allowance.
   const entryPc = (opts && Number.isInteger(opts.entry)) ? opts.entry : 0
+  // ⭐⭐ PERF (item c) — a request region's own footprint (`requestRegionScopeOf`), or null: run whole
+  const scope = entryPc > 0 && !_regionScopeOff ? requestRegionScopeOf(program, entryPc) : null
   // ⛔ WHAT THE RUN ASKED FOR AND COULD NOT GET. Shared with nested runs, so a
   // request made inside a request is reported to the same caller.
   const requested = (opts && opts.requested) || new Set()
@@ -373,7 +470,15 @@ export function execute(program, ctx, limits, opts) {
   const consts = program.consts
   const nOut = program.outputs.length
   const outputs = []
-  for (let i = 0; i < nOut; i += 1) outputs.push(new Float64Array(ctx.bars).fill(NaN))
+  if (scope) {
+    // ⭐ PERF (item c) — only the outputs the region EMITs; the rest are never written or read
+    for (let i = 0; i < nOut; i += 1) outputs.push(NO_OUTPUT)
+    for (let k = 0; k < scope.outs.length; k += 1) {
+      if (scope.outs[k] < nOut) outputs[scope.outs[k]] = new Float64Array(ctx.bars).fill(NaN)
+    }
+  } else {
+    for (let i = 0; i < nOut; i += 1) outputs.push(new Float64Array(ctx.bars).fill(NaN))
+  }
   // ⭐⭐ PER-ITERATION BUFFERS — INDEXED BY LOOP COUNTER, NOT BY BAR.
   //
   // ⛔ SIZED INDEPENDENTLY OF `ctx.bars`, DELIBERATELY. The obvious thing is
@@ -469,6 +574,8 @@ export function execute(program, ctx, limits, opts) {
   const hist = boxedRings ? new Array(histTotal).fill(NaN) : new Float64Array(histTotal).fill(NaN)
   // How many bars have been committed, so a ring position is `(committed - k) % depth`.
   let committed = 0
+  // ⭐ PERF (item c) — the rings a request region can read (`requestRegionScopeOf`); null: every ring
+  const scopeRings = scope ? scope.rings : null
 
   // ⭐⭐⭐ P7.2 — THE HELD CELL, AND IT IS TRADINGVIEW'S RULING IN ONE ARRAY.
   //
@@ -533,6 +640,10 @@ export function execute(program, ctx, limits, opts) {
     if (ctx.bars > win) {
       throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
     }
+    // ⭐⭐ [B-START-DEEP] (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at
+    // without the deep-start rule: the context's `listingDepthBars` (the chart's shared window, from the server), and
+    // absent, the window itself (every caller that hands no second value runs exactly as before)
+    const depth = Number.isInteger(ctx.listingDepthBars) && ctx.listingDepthBars > 0 ? ctx.listingDepthBars : win
     // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`. W9-T4-F1: the one product caller
     // (`runtimeColumns.js`) derives it from the symbol's witnessed `symbolScope.json::min_contract` row, the
     // value a script's own `syminfo.mincontract` folds to; no row ⇒ undefined ⇒ a cash / percent-of-equity
@@ -544,6 +655,8 @@ export function execute(program, ctx, limits, opts) {
       tradingDays: ctx.tradingDays,
       // [B-EXEC] the forming newest bar this run does not execute (below), or none: the broker asks the rule
       formingBar: ctx.confirmed === false && ctx.bars > 0 ? ctx.bars - 1 : null,
+      // [B-START-DEEP] the bar past the served depth, when the run covers more (the broker asks the rule)
+      deepFrom: ctx.bars > depth ? ctx.bars - depth : null,
     })
   }
   // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
@@ -1029,6 +1142,12 @@ export function execute(program, ctx, limits, opts) {
           // (`close[na]` is `close` on all 100 na-offset bars, no error).
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
+          // ⭐ A1 — a STRICT read (operand -1, a copy that reads a parameter per bar) stops by name on a negative or
+          // fractional offset, as `READ_HIST_SLOT_DYN`'s strict ring does: what Pine answers there is not captured
+          if (b < 0 && (!Number.isInteger(n) || n < 0)) {
+            throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — [${n}]: a history offset read on this bar `
+              + 'is negative or not a whole number, and what Pine answers for one is not captured')
+          }
           // ⭐⭐ WS-C — PAST PINE'S HISTORY BUFFER IS AN ERROR, NEVER AN ANSWER.
           // `b` is a DECLARED `max_bars_back` (0 = Pine's 5,000 ceiling). The
           // chart here may hold 32,768 bars, so without this a read 6,000 back
@@ -1051,7 +1170,19 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const live = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
-          if (!Number.isInteger(n) || n < 0) { stack[sp++] = NaN; break }
+          if (!Number.isInteger(n) || n < 0) {
+            // ⭐⭐ A1 — A STRICT RING (an offset read per bar from a call site's argument, whose bottom
+            // and wholeness nothing proved before bar 0) STOPS BY NAME here: what Pine answers for a
+            // negative or fractional history offset is not captured (DY1 covers the fractional half),
+            // and `na` would be this lane's guess drawn as an answer.
+            if (histPlan[historyBase + a].strict === true) {
+              throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — \`${histPlan[historyBase + a].name}\`[${n}]: `
+                + 'a history offset read on this bar is negative or not a whole number, and what Pine '
+                + 'answers for one is not captured')
+            }
+            stack[sp++] = NaN
+            break
+          }
           if (n === 0) { stack[sp++] = live; break }
           // WS-C — past Pine's history buffer stops the run (see READ_HIST_DYN).
           if (n > (b > 0 ? b : 5000)) {
@@ -1365,7 +1496,16 @@ export function execute(program, ctx, limits, opts) {
             }
           }
           const args = Array.prototype.slice.call(stack, sp, sp + b)
-          const out = spec.fn(args, budget, op.typeArg)
+          let out
+          if (op.version === undefined) out = spec.fn(args, budget, op.typeArg)
+          else {
+            // ⭐⭐ the version island: a v5 library's collection call inside a v6 program is judged under v5 for
+            // THIS op only (`collections.js::ruleVersion` reads `budget.opVersion` before `budget.pineVersion`),
+            // and the script's version is back before the next instruction, a stop included
+            const outer = budget.opVersion
+            budget.opVersion = op.version
+            try { out = spec.fn(args, budget, op.typeArg) } finally { budget.opVersion = outer }
+          }
           // ⛔ A VOID CALL PUSHES NOTHING. `array.push` is a statement in Pine;
           // pushing an `undefined` for it would put a value on the stack that
           // nothing pops and that no kind check would recognise later.
@@ -1794,7 +1934,19 @@ export function execute(program, ctx, limits, opts) {
     // re-executed on every tick must not advance `committed` until the bar is
     // confirmed (§27) — the counter is the only thing those features need to
     // touch, not the storage model.
-    if (nHist) {
+    if (nHist && scopeRings) {
+      // ⭐ PERF (item c) — a request region commits only the rings it can read (the same write as below);
+      // `committed` advances below, on every bar, as it does for the whole program (engine 82). ⚰️ It advanced here
+      // too, so after engine 82 moved the advance out of `if (nHist)` a scoped sub-run counted every bar twice and
+      // a window's warm-up and ring reads drifted (`requestRegionScope.test.js`, red on the e84 train).
+      for (let r = 0; r < scopeRings.length; r += 1) {
+        const i = scopeRings[r]
+        const plan = histPlan[i]
+        hist[histOffset[i] + (committed % plan.depth)] = plan.site === null
+          ? (plan.persist ? persist[plan.slot] : locals[plan.slot])
+          : held[i]
+      }
+    } else if (nHist) {
       for (let i = 0; i < nHist; i += 1) {
         const plan = histPlan[i]
         // ⭐ `committed` IS THIS BAR'S ORDINAL, which is what makes the read side

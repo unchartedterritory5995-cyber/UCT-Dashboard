@@ -69,9 +69,11 @@ def test_a_peer_sending_data_is_kept_even_without_pongs(monkeypatch):
 
 def test_the_library_keepalive_is_off():
     import inspect
-    src = inspect.getsource(bar_stream._run_websocket)
+    # the reader body lives in _connection_loop since the hot standby (2026-11-19)
+    src = inspect.getsource(bar_stream._connection_loop)
     assert "ping_interval=None" in src and "ping_timeout=None" in src
-    assert "_liveness_watch(ws)" in src
+    # HOT STANDBY: each socket's liveness reads its OWN frame count (tests/test_ingest_hot_standby.py)
+    assert "_liveness_watch(ws, frames=frames if hot else None)" in src
 
 
 def test_minute_bar_lag_is_measured(monkeypatch):

@@ -1,0 +1,31 @@
+//@version=6
+indicator("UCTPROBE_VW_HLINE_WRITTEN", overlay = false)
+
+// PROVENANCE: written 2026-11-19 (Q-HLINE-1, docs/pine/capture-queue-2026-11-19-hline-fill.md). Our probe.
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── EVERY ARGUMENT OF AN `hline` WRITTEN OUT: price, colour, line style, line width ───
+//
+// An `hline` is a metaInfo BAND, not a plot: `tv_capture.js` records `study.bands` (what the script declares),
+// `study.bandDefaults` (its declared defaults) and `study.bandState` (the chart's live values) since 2026-11-19, and
+// no committed capture holds them yet. These rows witness, one argument at a time, what TradingView keeps for each
+// hline, so the harness can grade an hline's level, colour, style and width (`compare.mjs`, a `bands` case).
+//
+//   P0           close (a plot, so the pane has a scale the hlines sit on)
+//   H1           price 100,   color.red,                 hline.style_solid,  linewidth 1
+//   H2           price 110,   color.blue,                hline.style_dashed, linewidth 2
+//   H3           price 120,   color.green,               hline.style_dotted, linewidth 3
+//   H4           price 130,   color.new(#FF8800, 40),    hline.style_solid,  linewidth 4   (a colour with transparency)
+//   H5           price 140.25 and nothing else           (TradingView's own defaults for colour, style, width)
+//   H6           price -5,    color.purple,              hline.style_dashed, linewidth 1   (a negative level)
+//   H7           price 150,   #00000000                  (a fully transparent colour: drawn, or not?)
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults; record study.bands / bandDefaults / bandState.
+
+plot(close, title = "P0_close", color = color.gray)
+hline(100, title = "H1_solid_red_w1", color = color.red, linestyle = hline.style_solid, linewidth = 1)
+hline(110, title = "H2_dashed_blue_w2", color = color.blue, linestyle = hline.style_dashed, linewidth = 2)
+hline(120, title = "H3_dotted_green_w3", color = color.green, linestyle = hline.style_dotted, linewidth = 3)
+hline(130, title = "H4_orange_t40_w4", color = color.new(#FF8800, 40), linestyle = hline.style_solid, linewidth = 4)
+hline(140.25, title = "H5_defaults")
+hline(-5, title = "H6_negative_purple", color = color.purple, linestyle = hline.style_dashed, linewidth = 1)
+hline(150, title = "H7_transparent", color = #00000000)

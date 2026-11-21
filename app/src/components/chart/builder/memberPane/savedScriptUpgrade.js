@@ -206,6 +206,9 @@ export function retranslateRow(row, memberPaneDefinition) {
   if (!built || !built.ok) {
     const reason = (built && built.reason) || 'the translator returned nothing'
     if (/^the translator threw/.test(reason)) return { status: 'inconclusive', reason }
+    // ⭐ door-deadline — the door ran out of time (`memberPaneDefinition.js::DOOR_TIMED_OUT`): a fact about this
+    // device's check, not about the script, so the stored picture is kept, never refused for it.
+    if (built && built.doorTimedOut === true) return { status: 'inconclusive', reason: `the check ran out of time: ${reason}` }
     if (runtimePaneBuilt()) return { status: 'inconclusive', reason: `runtime lane may draw it: ${reason}` }
     if (IMPORTS_LIBRARY.test(source)) return { status: 'inconclusive', reason: `imports a library: ${reason}` }
     return { status: 'refused', reason, guard: (built && built.guard) || null }
@@ -213,6 +216,14 @@ export function retranslateRow(row, memberPaneDefinition) {
   const next = built.definition
   if (!isObj(next) || !isObj(next.compute) || next.compute.kind !== 'ast') {
     return { status: 'inconclusive', reason: 'the script now translates to a different lane' }
+  }
+  // ⭐⭐ ITEM 2 (2026-11-21) — A TRANSLATION THE STORE CANNOT HOLD SAYS NOTHING ABOUT THE STORED ONE. Its size is not
+  // the engine learning the old document was wrong, so the stored document is drawn as it is and nothing is written
+  // back (the store would refuse it), with or without the runtime pane. ⚰️ The over-cap translation was drawn for one
+  // session and its write-back refused (`memberPaneDefinition.js::withOversizeKeep` names it, `pine:document-size`).
+  if (built.oversize) {
+    return { status: 'inconclusive',
+      reason: `${built.oversize.guard}: today's translation is ${built.oversize.bytes} bytes, past the store's ${built.oversize.cap}-byte cap` }
   }
   return { status: 'upgraded', definition: carryOwned(next, stored, row) }
 }

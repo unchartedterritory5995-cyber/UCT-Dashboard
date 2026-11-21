@@ -14,7 +14,7 @@
 // Drawings (lines, boxes, labels, the table's text) are not compared: what is compared is every
 // PLOTTED column, which for these recipes carries the same state the drawings are made from.
 
-import { describe, it, expect, beforeAll, vi } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
@@ -26,6 +26,7 @@ import { __allowEveryRuntimeScriptForTests } from '../engine/runtimeKill'
 import RECIPE_INDEX from './assistantRecipes/index.json'
 import GENERATED from './assistantRecipes.json'
 import { recipeBars, recipeContext } from './assistantRecipes'
+import { steadyRunClock } from './testing/steadyRunClock'
 
 const HERE = path.resolve(process.cwd(), 'src/components/chart/supportLoop')
 const flagOf = (rel) => (fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8').match(/source\.(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
@@ -109,8 +110,76 @@ const dayKey = (t) => (typeof t === 'string' ? t : new Date(t * 1000).toISOStrin
 const ymd = (t) => dayKey(t).split('-').map(Number)
 
 beforeAll(() => { __permitRuntimePaneForTests(); __allowEveryRuntimeScriptForTests() })
+// ⛔ A STEPPING CLOCK FOR EVERY TEST IN THIS FILE (`testing/steadyRunClock.js`): the engine stops a run past
+// 1,000 ms of wall clock, and these tests assert values, so their verdict must not depend on box load.
+let runClock = null
+beforeEach(() => { runClock = steadyRunClock() })
+afterEach(() => { if (runClock) runClock.restore(); runClock = null })
+
+/** An exponential average that STARTS as the simple average of its first `n` values (no value before that). */
+function emaSeeded(src, n) {
+  const out = new Array(src.length).fill(NAN), a = 2 / (n + 1)
+  for (let i = n - 1; i < src.length; i += 1) {
+    if (i === n - 1) { let s = 0; for (let k = 0; k < n; k += 1) s += src[k]; out[i] = s / n } else out[i] = a * src[i] + (1 - a) * out[i - 1]
+  }
+  return out
+}
 
 const CHECKS = {
+  'average-cloud': () => {
+    const c = C(BARS.daily)
+    const fast = emaSeeded(c, 8), slow = emaSeeded(c, 21)
+    const cols = engineColumns('average-cloud')
+    expect(cols).toHaveLength(3)
+    same(cols[0], fast, 'fast EMA')
+    same(cols[1], slow, 'slow EMA')
+    // the cloud's colour is chosen by ONE condition, and that condition is the column: on (the first colour) on
+    // exactly the bars where the fast average is at or above the slow one, off on every other bar, the bars
+    // before either average has a value included (a comparison with no value is not true)
+    const seen = new Set()
+    for (let i = 0; i < c.length; i += 1) {
+      const want = fast[i] >= slow[i] ? 1 : 0
+      expect(cols[2][i], `cloud colour: bar ${i}`).toBe(want)
+      seen.add(want)
+    }
+    expect(seen).toEqual(new Set([0, 1]))
+    expect(slow.findIndex(ok)).toBe(20)
+  },
+  'time-of-day-volume': () => {
+    const bars = BARS.intraday, DAYS = 10, SLOTS = 100
+    const day = bars.map((b) => dayKey(b.t))
+    let soFar = 0, today = [], begun = 0
+    const past = []                                   // one array per finished day, oldest first
+    const want = bars.map((b, i) => {
+      if (i > 0 && day[i] !== day[i - 1]) {
+        // the bars before the first day change may be part of a day: never stored
+        if (begun > 0 && today.length) { past.push(today); if (past.length > DAYS) past.shift() }
+        begun += 1
+        today = []
+        soFar = 0
+      }
+      soFar += b.v
+      today.push(soFar)
+      const slot = today.length - 1
+      if (!(begun > 0 && past.length === DAYS && slot < SLOTS)) return NAN
+      let total = 0
+      for (const d of past) total += slot < d.length ? d[slot] : d[d.length - 1]       // a short day counts its own total
+      const usual = total / DAYS
+      return usual > 0 ? soFar / usual * 100 : NAN
+    })
+    const cols = engineColumns('time-of-day-volume')
+    expect(cols).toHaveLength(2)
+    const compared = same(cols[0], want, 'volume so far, percent of usual')
+    // the fixture is doing work: every day is a whole day of the same length, the first value comes after the
+    // first (never stored) day and ten stored ones, and the ratio is on both sides of 100
+    const perDay = bars.filter((_, i) => day[i] === day[0]).length
+    expect(want.findIndex(ok)).toBe(perDay * (DAYS + 1))
+    expect(compared).toBe(bars.length - perDay * (DAYS + 1))
+    const vals = want.filter(ok)
+    expect(Math.min(...vals)).toBeLessThan(95)
+    expect(Math.max(...vals)).toBeGreaterThan(105)
+    same(cols[1], want.map(() => 100), 'the usual')
+  },
   'zigzag-percent': () => {
     const b = BARS.daily, want = []
     let dir = 0, extreme = NAN, extremeBar = NAN, lastY = NAN
@@ -413,6 +482,125 @@ const CHECKS = {
     same(gotRes, res, 'resistance line here', { rel: 1e-9 })
     same(gotSup, sup, 'support line here', { rel: 1e-9 })
   },
+
+  // Heikin Ashi, by the textbook: close = the average of the bar's four prices; open = halfway between
+  // the previous CANDLE's open and close (the first: the bar's own open and close); high and low reach
+  // the bar's. The four values `plotcandle` is handed, in its own order: open, high, low, close.
+  'heikin-ashi-candles': () => {
+    const b = BARS.daily, wantO = [], wantH = [], wantL = [], wantC = []
+    let o = NAN, c = NAN
+    for (let i = 0; i < b.length; i += 1) {
+      const hc = (b[i].o + b[i].h + b[i].l + b[i].c) / 4
+      const ho = i === 0 ? (b[i].o + b[i].c) / 2 : (o + c) / 2
+      wantO.push(ho); wantC.push(hc); wantH.push(Math.max(b[i].h, ho, hc)); wantL.push(Math.min(b[i].l, ho, hc))
+      o = ho; c = hc
+    }
+    const cols = engineColumns('heikin-ashi-candles')
+    expect(cols).toHaveLength(5)                                    // open, high, low, close, and which colour
+    same(cols[0], wantO, 'HA open', { rel: 1e-9 })
+    same(cols[1], wantH, 'HA high', { rel: 1e-9 })
+    same(cols[2], wantL, 'HA low', { rel: 1e-9 })
+    same(cols[3], wantC, 'HA close', { rel: 1e-9 })
+    // the colour of each candle: up (green) when its close is at or above its open
+    expect(cols[4]).toEqual(wantC.map((v, i) => (v >= wantO[i] ? 1 : 0)))
+    expect(new Set(cols[4]).size).toBe(2)                           // both colours occur on these bars
+    // not the bar's own candles: on most bars the open differs from the bar's open
+    expect(cols[0].filter((v, i) => Math.abs(v - b[i].o) > 1e-9).length).toBeGreaterThan(b.length * 0.9)
+  },
+  // ⭐ 2026-11-21: a count in which each counted bar is judged by the bars AFTER it. The reference is two plain
+  // loops written from the recipe's stated rule; it shares no code with the engine.
+  'distribution-days': () => {
+    const b = BARS.daily, c = C(b), v = V(b)
+    const WIN = 25, DROP = 0.2, EXPIRE = 5
+    const isDist = (k) => k > 0 && c[k] <= c[k - 1] * (1 - DROP / 100) && v[k] > v[k - 1]
+    const want = new Array(b.length).fill(NAN)
+    let expiredSomewhere = 0
+    for (let i = WIN; i < b.length; i += 1) {
+      let n = 0
+      for (let k = i - WIN + 1; k <= i; k += 1) {
+        if (!isDist(k)) continue
+        let expired = false
+        for (let j = k + 1; j <= i; j += 1) if (c[j] >= c[k] * (1 + EXPIRE / 100)) expired = true
+        if (expired) expiredSomewhere += 1
+        else n += 1
+      }
+      want[i] = n
+    }
+    const cols = engineColumns('distribution-days')
+    expect(cols).toHaveLength(1)                                    // ONE plot: the count and nothing else
+    same(cols[0], want, 'distribution days', { from: WIN })
+    // the reference really exercises the rule: days are counted, and days DO expire on these bars
+    expect(Math.max(...want.slice(WIN))).toBeGreaterThan(3)
+    expect(expiredSomewhere).toBeGreaterThan(100)
+    // and a count that never expired anything would be a different column on many bars
+    const never = want.map((_, i) => { if (i < WIN) return NAN; let n = 0; for (let k = i - WIN + 1; k <= i; k += 1) if (isDist(k)) n += 1; return n })
+    expect(never.filter((x, i) => i >= WIN && x !== want[i]).length).toBeGreaterThan(100)
+  },
+  // ⭐ 2026-11-21: a state machine with a reset. The reference keeps the same three facts in plain variables.
+  'follow-through-day': () => {
+    const LOOK = 60, DRAW = 5, GAIN = 1.25
+    /** The recipe's stated rule in plain variables. `minDay` and `from` exist so the bars can be shown to tell rules apart. */
+    const rule = (b, { minDay = 4, from = C } = {}) => {
+      const c = C(b), l = L(b), v = V(b), top = from(b)
+      const want = new Array(b.length).fill(NAN)
+      let live = false, start = -1, restarted = 0, starts = 0
+      for (let i = LOOK - 1; i < b.length; i += 1) {
+        const inCorrection = c[i] <= maxOf(top, i, LOOK) * (1 - DRAW / 100)
+        let ended = false
+        if (live && l[i] < l[start]) { live = false; ended = true }
+        if (!live && c[i] > c[i - 1] && inCorrection) { live = true; start = i; starts += 1; if (ended) restarted += 1 }
+        want[i] = live && i - start + 1 >= minDay && c[i] >= c[i - 1] * (1 + GAIN / 100) && v[i] > v[i - 1] ? 1 : 0
+      }
+      return { want, restarted, starts }
+    }
+    const differ = (a, z) => a.filter((x, i) => ok(x) && x !== z[i]).length
+
+    // 1. the reference's daily bars: a market that mostly rises, so attempts are few and long
+    const trend = rule(BARS.daily)
+    const cols = engineColumns('follow-through-day')
+    expect(cols).toHaveLength(1)                                    // ONE mark and nothing else
+    same(cols[0], trend.want, 'follow-through day', { from: LOOK - 1 })
+    const signals = trend.want.filter((x) => x === 1).length
+    expect(signals).toBeGreaterThan(50)
+    expect(signals).toBeLessThan(BARS.daily.length / 4)
+    // the case the recipe writes out (a new attempt starting on the bar the old one ended) happens on them
+    expect(trend.restarted).toBeGreaterThan(0)
+
+    // 2. ⛔ THOSE BARS CANNOT TELL TWO OF THE RULES APART (measured 2026-11-21: no strong bar falls on day 3 of
+    // an attempt, and no attempt starts on a bar that is a correction by the highest HIGH only), so a recipe
+    // with either rule wrong passed check 1. A market in two parts is built here; on it both rules decide bars,
+    // which the `differ` lines below hold BEFORE the engine is asked (bars that stopped deciding a rule fail
+    // there, by name, instead of passing the comparison for the wrong reason).
+    const rnd = (() => { let s = 7; return () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296 } })()
+    let prev = 100
+    const choppy = BARS.daily.slice(0, 1000).map((x, i) => {
+      let level, noise, wick
+      if (i < 300) {
+        // a quiet, gently sliding channel with long upper wicks: the highest HIGH sits well above the highest
+        // close, so "a correction" by one is not a correction by the other
+        level = 100 * (1 - 0.0005 * i); noise = 0.02; wick = 0.08
+      } else {
+        // twenty-bar swings whose troughs step lower three times and then reset: bounces that fail (the
+        // attempt ends, and a new one may start on that bar) and strong bars early in an attempt
+        const j = i - 300, k = j % 20, step = Math.floor(j / 20) % 4
+        level = 85 * (1 - 0.04 * step) * (1 + 0.2 * (k < 12 ? 1 - k / 12 : (k - 12) / 8)); noise = 0.06; wick = 0.02
+      }
+      const o = prev * (1 + (rnd() - 0.5) * 0.01)
+      const c = level * (1 + (rnd() - 0.5) * noise)
+      const bar = { t: x.t, o, h: Math.max(o, c) * (1 + rnd() * wick), l: Math.min(o, c) * (1 - rnd() * 0.02), c, v: Math.round(1e6 * (0.5 + rnd())) }
+      prev = c
+      return bar
+    })
+    const chop = rule(choppy)
+    expect(chop.starts).toBeGreaterThan(8)
+    expect(differ(chop.want, rule(choppy, { minDay: 3 }).want), 'the built bars do not decide the earliest day (one day early)').toBeGreaterThan(1)
+    expect(differ(chop.want, rule(choppy, { minDay: 5 }).want), 'the built bars do not decide the earliest day (one day late)').toBeGreaterThan(1)
+    expect(differ(chop.want, rule(choppy, { from: H }).want), 'the built bars do not decide close against high').toBeGreaterThan(1)
+    expect(chop.restarted).toBeGreaterThan(1)
+    const chopCols = engineColumns('follow-through-day', sourceOf('follow-through-day'), choppy)
+    expect(chopCols).toHaveLength(1)
+    same(chopCols[0], chop.want, 'follow-through day on choppy bars', { from: LOOK - 1 })
+  },
 }
 
 describe('what each recipe plots equals an independent calculation', () => {
@@ -434,12 +622,26 @@ describe('what each recipe plots equals an independent calculation', () => {
   // finish, and must leave the same last-bar numbers. (Found the hard way: a drawing deleted in
   // one call with `array.pop` stays in its list on this engine, and such a loop never ends.)
   const REDRAWS = RECIPE_INDEX.recipes.map((r) => r.id).filter((id) => sourceOf(id).includes('barstate.islast'))
+  const REDRAW_BARS = 300
   it('the recipes that redraw on the last bar are the ones expected', () => {
-    expect(REDRAWS.sort()).toEqual(['fibonacci-swings', 'volume-profile', 'weekday-returns-table'])
+    // (2026-11-19: `fibonacci-swings` left this list. It MOVES its lines and labels on every bar with their
+    // setters now, so it is drawn while the newest bar is forming; the two that stay loop over past bars on each
+    // update, too slow to repeat on every bar, and say so: `finishedBarsOnly` in the index)
+    expect(REDRAWS.sort()).toEqual(['volume-profile', 'weekday-returns-table'])
+    expect(RECIPE_INDEX.recipes.filter((r) => r.finishedBarsOnly === true).map((r) => r.id).sort()).toEqual(REDRAWS.sort())
+    // ⛔ and no recipe reads where the chart ends any other way (each is the same wait for the bar)
+    for (const r of RECIPE_INDEX.recipes) {
+      const reads = ['barstate.', 'last_bar_index', 'last_bar_time', 'timenow'].filter((w) => sourceOf(r.id).includes(w))
+      expect(reads.length > 0, `${r.id}: ${reads}`).toBe(r.finishedBarsOnly === true)
+    }
   })
   for (const id of REDRAWS) {
     it(`${id}: its redraw runs on every bar and ends with the same numbers`, () => {
-      const bars = BARS[chartOf(id)].slice(0, 800)
+      // ⛔ FAR FROM THE ENGINE'S TIME BUDGET, ON PURPOSE. A run is stopped by name past 1,000 ms of wall
+      // clock (`RUNTIME_PANE_TIME_BUDGET_MS`), and a redraw forced onto EVERY bar is the heaviest thing here:
+      // at 800 bars the weekday table took about 1.2 s on a busy machine and this check failed on the clock,
+      // not on the numbers (2026-11-19). 300 bars prove the same path at about a third of the work.
+      const bars = BARS[chartOf(id)].slice(0, REDRAW_BARS)
       const every = sourceOf(id).split('barstate.islast').join('true')
       expect(every).not.toBe(sourceOf(id))
       const once = engineColumns(id, sourceOf(id), bars)
@@ -523,6 +725,27 @@ describe('what each recipe plots equals an independent calculation', () => {
       expect(src).toContain('keep = input.int(40, "Labels kept"')
       expect(Math.max(...got[1].filter(ok))).toBe(40)
     }
+  }, 300_000)
+
+  it('CONTROL: the time budget is real, and it is the stepping clock that keeps it out of these checks', () => {
+    // the heaviest thing in this file: the weekday table's last-bar redraw forced onto every bar
+    const id = 'weekday-returns-table'
+    const every = sourceOf(id).split('barstate.islast').join('true')
+    const bars = BARS[chartOf(id)].slice(0, 300)
+    const run = () => {
+      const pane = memberPaneDefinition({ source: every, id: `u_value_${made += 1}`, name: 'recipe' })
+      expect(pane.ok, pane.reason || '').toBe(true)
+      const cols = registry.computeFor(pane.definition, bars, undefined, recipeContext(chartOf(id), 'fromListing'))
+      return Object.values(registry.columnErrors(cols) || {}).map((e) => e.guard)
+    }
+    // on this file's clock (a thousandth of a millisecond a read) it is computed
+    expect(run()).toEqual([])
+    const reads = runClock.reads()
+    expect(reads).toBeGreaterThan(100)                              // the run does read the clock: the stub is in its path
+    // on a clock that jumps 50 ms a read it is past 1,000 ms within a few reads, and the engine says so by name
+    runClock.restore()
+    runClock = steadyRunClock(50)
+    expect(run()).toContain('runtime:time-budget')
   }, 300_000)
 
   it('CONTROL: the comparison can fail (a recipe with one number changed is a different column)', () => {

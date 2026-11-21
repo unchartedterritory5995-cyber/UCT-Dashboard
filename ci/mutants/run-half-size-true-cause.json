@@ -1,0 +1,24 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "objects unit A6 follow-up: the run-half size decline names its true cause. A host document already past the store's cap is named as the cause, with the run half's share (vdubus-pattern-gen-v2). Where the run half is what passes the cap (dual-view-htf), the sentence still says so, with both shares.",
+ "mutants": [
+  {
+   "id": "RHS-1",
+   "mutant": "the decline blames the run half whatever the host document's size (the old sentence)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      runHalfOut = { declined: { code: 'run-half:size', why: hostBytes > DOCUMENT_BYTE_BUDGET",
+   "to": "      runHalfOut = { declined: { code: 'run-half:size', why: false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runHalf.test.jsx",
+   "expectRed": "a host document already past the cap is named as the cause"
+  },
+  {
+   "id": "RHS-2",
+   "mutant": "the host share is measured on the document WITH the run half",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "      const hostBytes = storedBytesOf(docOut)",
+   "to": "      const hostBytes = bytes",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/runHalf.test.jsx",
+   "expectRed": "where the run half is what passes the cap"
+  }
+ ]
+}

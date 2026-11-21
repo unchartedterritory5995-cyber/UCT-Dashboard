@@ -583,7 +583,7 @@ function BreadthChartsV1() {
                     className={`${styles.extremesBtn} ${notableExtremes[g.group] ? styles.extremesBtnActive : ''}`}
                     onClick={() => toggleExtremes(g.group)}
                   >
-                    <UIcon name="bolt" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Extremes
+                    <UIcon name="bolt" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 5 }} />Notable Extremes
                   </button>
                 </div>
               )}

@@ -554,7 +554,50 @@ def _load_frame(conn, tickers: list[str], dates: list[int]) -> tuple[np.ndarray,
     """
     packed = _frame_from_pack(tickers, dates)
     if packed is not None:
-        return packed
+        return _fill_pack_gaps(conn, tickers, dates, *packed)
+    return _load_frame_db(conn, tickers, dates)
+
+
+def _fill_pack_gaps(conn, tickers, dates, closes, volumes):
+    """The pack frame, with every name the pack had NOT caught up on re-read from bars.db.
+
+    ⛔⛔ (2026-11-19) A PACK THAT CONTAINS THE SESSION CAN STILL BE STALE PER NAME. The evening
+    pack builder raced the daily ingest: the 11-18 pack listed 11-18 for SPY (so it passed the
+    "pack contains L" check) while 303 of the 2,592 UCT names still ended at 11-17. Taken
+    whole, the frame had no close at L for them, so the levels priced 2,289 names and the anchor
+    the same — coverage 0.89 → `degraded` → every UCT breadth chart lost today's live bar all
+    session, while bars.db held all 303 names current. Any name with no close at the NEWEST
+    requested date is therefore read from bars.db, and its row replaced when bars.db has that
+    close. A name that genuinely did not trade stays NaN, exactly as before.
+    """
+    if not dates:
+        return closes, volumes
+    j = int(np.argmax(np.asarray(dates)))
+    stale = [i for i in range(len(tickers)) if math.isnan(closes[i, j])]
+    if not stale:
+        return closes, volumes
+    try:
+        # per-ticker PK probes (`_load_frame_by_key`): an IN-list over the 26 GB table is the
+        # known 60 s trap, and this is a few hundred names at most
+        from api.services import breadth_live_universes as _blu
+        db_c, db_v = _blu._load_frame_by_key(conn, [tickers[i] for i in stale], list(dates))
+    except Exception as e:      # noqa: BLE001 — the pack frame still beats nothing
+        print(f"[breadth_live] pack gap fill failed: {type(e).__name__}: {e}")
+        return closes, volumes
+    filled = 0
+    for k, i in enumerate(stale):
+        if not math.isnan(db_c[k, j]):
+            closes[i, :] = db_c[k, :]
+            volumes[i, :] = db_v[k, :]
+            filled += 1
+    if filled:
+        print(f"[breadth_live] pack frame: {filled}/{len(stale)} names behind the pack's "
+              f"newest session re-read from bars.db")
+    return closes, volumes
+
+
+def _load_frame_db(conn, tickers: list[str], dates: list[int]) -> tuple[np.ndarray, np.ndarray]:
+    """(closes, volumes) from bars.db alone — see `_load_frame`."""
     pos = {ts: i for i, ts in enumerate(dates)}
     tix = {t: i for i, t in enumerate(tickers)}
     n, m = len(tickers), len(dates)
@@ -1278,7 +1321,13 @@ _LEVELS_MIN_COVERAGE = int(os.environ.get("BREADTH_LEVELS_MIN_COVERAGE", "500"))
 # separates "bars.db is warm" from "bars.db is still ingesting". Looser than the
 # anchor's 0.95 because `sma_ok[200]` legitimately misses names younger than 200
 # sessions (~1% of the universe on a normal day; 2,615/2,647 on 2026-09-08).
-_LEVELS_MIN_FRACTION = float(os.environ.get("BREADTH_LEVELS_MIN_FRACTION", "0.85"))
+#
+# ⛔ (2026-11-19) RAISED 0.85 → 0.95, the anchor's bar. A levels build of 2,281/2,592 (0.88,
+# a stale bars pack) cleared 0.85, was PINNED and persisted, while the anchor built from the
+# same frame failed 0.95 — so the live row was `degraded` all session and a restart reloaded
+# the same thin snapshot. Levels the anchor would call thin cannot be the session's answer.
+# A normal day is ~0.99 (2,615/2,647), so 0.95 still leaves the young-name margin.
+_LEVELS_MIN_FRACTION = float(os.environ.get("BREADTH_LEVELS_MIN_FRACTION", "0.95"))
 
 
 def _snapshot_path(name: str) -> str:

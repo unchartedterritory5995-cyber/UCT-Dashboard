@@ -12,21 +12,39 @@ class _R:
         return self._b
 
 
-def test_fetch_reads_the_total_ratio_for_exactly_that_date():
+def test_fetch_reads_the_equity_ratio_for_exactly_that_date():
+    """⭐ EQUITY, never TOTAL (owner 2026-11-19): the column is one equity series 2003→today."""
     seen = []
 
     def get(url, **kw):
         seen.append(url)
         return _R(200, {"ratios": [{"name": "INDEX PUT/CALL RATIO", "value": "0.93"},
-                                   {"name": "TOTAL PUT/CALL RATIO", "value": "0.87"}]})
-    assert pc.fetch_for_date("2026-10-07", get=get) == 0.87
+                                   {"name": "TOTAL PUT/CALL RATIO", "value": "0.87"},
+                                   {"name": "EQUITY PUT/CALL RATIO", "value": "0.58"}]})
+    assert pc.fetch_for_date("2026-10-07", get=get) == 0.58
     assert seen == ["https://cdn.cboe.com/data/us/options/market_statistics/daily/2026-10-07_daily_options"]
 
 
 def test_unpublished_or_absurd_is_none():
     assert pc.fetch_for_date("2026-10-08", get=lambda u, **k: _R(403, {})) is None
-    assert pc.fetch_for_date("x", get=lambda u, **k: _R(200, {"ratios": [{"name": "TOTAL PUT/CALL RATIO",
+    assert pc.fetch_for_date("x", get=lambda u, **k: _R(200, {"ratios": [{"name": "EQUITY PUT/CALL RATIO",
                                                                           "value": "9.0"}]})) is None
+
+
+def test_a_day_with_only_the_total_ratio_is_not_a_reading():
+    body = {"ratios": [{"name": "TOTAL PUT/CALL RATIO", "value": "0.87"}]}
+    assert pc.fetch_for_date("2026-10-07", get=lambda u, **k: _R(200, body)) is None
+
+
+def test_a_collector_push_never_writes_the_column():
+    """The PC collector still reads TOTAL: its value is dropped, the stored equity value kept."""
+    assert pc.keep_stored("d", {"a": 1, "cboe_putcall": 0.87}, existing={"cboe_putcall": 0.58}) == \
+        {"a": 1, "cboe_putcall": 0.58}
+    assert pc.keep_stored("d", {"a": 1, "cboe_putcall": 0.87}, existing={}) == {"a": 1}
+    assert pc.keep_stored("d", {"a": 1, "cboe_putcall": None}, existing={"cboe_putcall": 0.58}) == \
+        {"a": 1, "cboe_putcall": 0.58}
+    same = {"a": 1}
+    assert pc.keep_stored("d", same, existing={"cboe_putcall": 0.58}) is same
 
 
 def test_fill_patches_only_missing_sessions_and_leaves_unpublished_null():

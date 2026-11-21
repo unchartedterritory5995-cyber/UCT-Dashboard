@@ -538,6 +538,12 @@ function scanReassigned(stmts) {
  *  target of `:=` or a compound assignment anywhere, never bound a second time.
  *  `Map<name, literal node>`. */
 export function constantVarsOf(stmts) {
+  return onceVarsOf(stmts, isLiteralNode)
+}
+
+/** `var NAME = <initialiser>` declared ONCE at the top level and never reassigned, whose initialiser
+ *  `keep` accepts: `Map<name, parse node>`. The one walk `constantVarsOf` and `textInputVarsOf` share. */
+function onceVarsOf(stmts, keep) {
   const decl = new Map()
   const count = new Map()
   const reassigned = scanReassigned(stmts)
@@ -555,7 +561,7 @@ export function constantVarsOf(stmts) {
         if (top && toks[0] && toks[0].kind === 'ident' && toks[0].value === 'var') {
           let node = null
           try { node = parseWholeExpression(toks.slice(eq + 1)) } catch { node = null }
-          if (isLiteralNode(node)) decl.set(nameTok.value, node)
+          if (keep(node, nameTok.value)) decl.set(nameTok.value, node)
         }
       }
       if (st.sub && st.sub.length) visit(st.sub, false)
@@ -565,6 +571,23 @@ export function constantVarsOf(stmts) {
   const out = new Map()
   for (const [k, node] of decl) if (count.get(k) === 1 && !reassigned.has(k)) out.set(k, node)
   return out
+}
+
+/** ⭐⭐ PINE DATA UNIT S4-1 (2026-11-19) — `var NAME = <text input>` that NOTHING reassigns.
+ *
+ *  `var anchor = input.string(defval = "Session", …)` (TradingView's own VWAP): a `var` is set once,
+ *  on the first bar, to the input's value, and never written again, so it holds the input's value on
+ *  every bar. This lane holds a `var` as a mutable slot, so a `switch anchor` read it as per-bar text.
+ *  `Map<name, input call node>`, each node stamped with its bound name (`boundName`), so a reader of
+ *  it (`admitTextInput`) takes the MEMBER'S value when one is set, exactly as for `anchor = input.string(…)`.
+ *  Same rule as `constantVarsOf`: declared once at the top level, never the target of `:=` or a
+ *  compound assignment, never bound a second time. */
+export function textInputVarsOf(stmts) {
+  return onceVarsOf(stmts, (node, name) => {
+    if (textInputKindOf(node) === null) return false
+    node.boundName = name
+    return true
+  })
 }
 
 /** ⭐ Replace, IN PLACE, every argument of an input call that names a constant `var`

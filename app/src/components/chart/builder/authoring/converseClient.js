@@ -254,6 +254,33 @@ export function scriptOf(body) {
     pine: s.pine,
     name: typeof s.name === 'string' ? s.name.slice(0, SCRIPT_LIMITS.maxName) : '',
     round: Number.isInteger(s.round) && s.round >= 0 ? s.round : 0,
+    // (only when true: the server's detector says this script reads where the chart ends. What that means on
+    // this chart depends on the lane that draws it, which only the window knows: `scriptAnswer.scriptEntry`)
+    ...(s.waits_for_the_bar === true ? { waitsForTheBar: true } : {}),
+    ...admissionOf(s.admission),
+  } }
+}
+
+/** The bounds of the admission verdict a script answer may carry (`POST .../runtime-admission`'s own body). */
+export const ADMISSION_LIMITS = Object.freeze({ maxIds: 32, maxIdChars: 80 })
+
+/**
+ * ⭐ THE ADMISSION VERDICT, IN THE ANSWER (2026-11-19). The chart may draw a script bar by bar only once the server
+ * has said so. Asked afterwards, that question could wait behind other members' traffic and the answer read "still
+ * being checked". The server now sends the verdict WITH the script: `{sha256, admitted, missing, historyOnly?}`,
+ * the body its own door answers. Kept only when it is well formed; what it is worth, and whether it is THIS
+ * script's, is decided where it is latched (`scriptAnswer.js`, by the script's own hash).
+ */
+export function admissionOf(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  if (typeof raw.sha256 !== 'string' || !/^[0-9a-fA-F]{64}$/.test(raw.sha256) || typeof raw.admitted !== 'boolean') return {}
+  const ids = (list) => Array.isArray(list) && list.length <= ADMISSION_LIMITS.maxIds
+    && list.every((x) => typeof x === 'string' && x.length > 0 && x.length <= ADMISSION_LIMITS.maxIdChars)
+  if (!ids(raw.missing)) return {}
+  if (raw.historyOnly !== undefined && !ids(raw.historyOnly)) return {}
+  return { admission: {
+    sha256: raw.sha256.toLowerCase(), admitted: raw.admitted, missing: [...raw.missing],
+    ...(raw.historyOnly !== undefined ? { historyOnly: [...raw.historyOnly] } : {}),
   } }
 }
 
@@ -269,13 +296,29 @@ export function scriptRefusalBlock(refusal) {
   return { pine: refusal.pine, errors, round: Number.isInteger(refusal.round) && refusal.round >= 1 ? refusal.round : 1 }
 }
 
-/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id only; what
- *  it means here is `builtInOffer.liveOffer`'s to say). Anything else is no offer. */
+/** The settings an offer carries (one setting of a built-in), as a small map of short words, or
+ *  null when what was sent is anything else. */
+export const OFFER_INPUTS_LIMITS = Object.freeze({ max: 4, maxChars: 40 })
+function offerInputs(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const pairs = Object.entries(raw)
+  const short = (s) => typeof s === 'string' && s.length > 0 && s.length <= OFFER_INPUTS_LIMITS.maxChars
+  if (!pairs.length || pairs.length > OFFER_INPUTS_LIMITS.max || !pairs.every(([k, v]) => short(k) && short(v))) return null
+  return Object.fromEntries(pairs)
+}
+
+/** ⭐ The one action an answer offers, as the server sent it (kind and indicator id, and the
+ *  settings of an offer that is one setting of a built-in; what it means here is
+ *  `builtInOffer.liveOffer`'s to say). Anything else is no offer. ⛔ An offer whose `inputs` do
+ *  not read is NO offer, never the same offer without them: adding the built-in without its
+ *  setting would add something other than what the answer said. */
 export function offerOf(body) {
   const o = body && body.offer
   if (!o || typeof o !== 'object' || typeof o.kind !== 'string' || typeof o.indicator !== 'string') return {}
   if (!o.indicator || o.indicator.length > BUILT_INS_LIMITS.maxChars || o.kind.length > 40) return {}
-  return { offer: { kind: o.kind, indicator: o.indicator } }
+  if (!('inputs' in o)) return { offer: { kind: o.kind, indicator: o.indicator } }
+  const inputs = offerInputs(o.inputs)
+  return inputs ? { offer: { kind: o.kind, indicator: o.indicator, inputs } } : {}
 }
 
 /** ⭐ F1: the share of today's allowance left (0 to 1) when the server sent one. */

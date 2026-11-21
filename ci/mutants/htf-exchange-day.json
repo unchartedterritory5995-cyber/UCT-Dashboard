@@ -1,0 +1,87 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "RULING 2 (fix/htf-exchange-day), the coordinator's ruling (C): a resampler keys an INTRADAY series' bars by the exchange's local (New York) session date, never their UTC date (a daily series keeps its dates, one stamped at midnight UTC included); both lanes keep every bar the series holds in a higher-timeframe aggregate; the closure-week withhold waits for Q-REQ-CLOSURE, and a tripwire pins why no served series reaches it. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "X1",
+   "mutant": "JS: an intraday bar's day read as its UTC day again",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const [y, m, d] = civilFromDays(Math.floor((t + newYorkOffsetSeconds(t)) / 86400))",
+   "to": "    const [y, m, d] = civilFromDays(Math.floor(t / 86400))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
+   "expectRed": "tf_merge(M, close) on December 1st"
+  },
+  {
+   "id": "X2",
+   "mutant": "JS: daylight time ignored (New York always UTC-5)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  return t >= on * 86400 + 7 * 3600 && t < off * 86400 + 6 * 3600 ? -4 * 3600 : -5 * 3600",
+   "to": "  return -5 * 3600",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
+   "expectRed": "the New York offset is the IANA zone"
+  },
+  {
+   "id": "X7",
+   "mutant": "JS: every series in unix seconds read in New York (a daily series stamped at midnight UTC moves a day)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (prev !== null && t > prev && t - prev < INTRADAY_SPACING_S) intraday = true",
+   "to": "    if (prev !== null && t > prev) intraday = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfExchangeDay.test.js",
+   "expectRed": "a daily series stamped at midnight UTC keeps its dates"
+  },
+  {
+   "id": "PX1",
+   "mutant": "Python: an intraday bar's day read as its UTC day again",
+   "file": "api/services/ast_interpret.py",
+   "from": "            day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(e + _new_york_offset_seconds(e)) // 86400)",
+   "to": "            day = datetime.date(1970, 1, 1) + datetime.timedelta(days=e // 86400)",
+   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
+   "expectRed": "tf_merge(M, close) on December 1st"
+  },
+  {
+   "id": "PX2",
+   "mutant": "Python: daylight time ignored",
+   "file": "api/services/ast_interpret.py",
+   "from": "    return -4 * 3600 if on * 86400 + 7 * 3600 <= t < off * 86400 + 6 * 3600 else -5 * 3600",
+   "to": "    return -5 * 3600",
+   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
+   "expectRed": "test_the_exchange_day_is_new_yorks_on_every_half_hour_1990_to_2035"
+  },
+  {
+   "id": "PX3",
+   "mutant": "Python: the interpreter's resample drops a day without a session again (one lane's week)",
+   "file": "api/services/ast_interpret.py",
+   "from": "    htf = resample(rows) if code == \"3M\" else resample(rows, sessions_only=False)",
+   "to": "    htf = resample(rows)",
+   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
+   "expectRed": "test_the_resampler_keeps_every_row_when_asked_and_drops_none_by_default"
+  },
+  {
+   "id": "PX8",
+   "mutant": "Python: every series in unix seconds read in New York",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if prev is not None and prev < e and e - prev < INTRADAY_SPACING_S:",
+   "to": "        if prev is not None and prev < e:",
+   "rail": "python -m pytest tests/test_pine_htf_exchange_day.py -q -p no:cacheprovider",
+   "expectRed": "a daily series stamped at midnight UTC keeps its dates"
+  },
+  {
+   "id": "TW1",
+   "mutant": "Tripwire: another ticker exempted from the exchange calendar (an FX daily series served)",
+   "file": "api/services/date_bar_keys.py",
+   "from": "_CRYPTO_NAMES = frozenset({\"BTC\", \"ETH\"})",
+   "to": "_CRYPTO_NAMES = frozenset({\"BTC\", \"ETH\", \"EURUSD\"})",
+   "rail": "python -m pytest tests/test_htf_closure_week_unreachable.py -q -p no:cacheprovider",
+   "expectRed": "test_only_the_crypto_spellings_escape_the_calendar"
+  },
+  {
+   "id": "TW2",
+   "mutant": "Tripwire: the serve door keeps a daily row on a day without a session",
+   "file": "api/services/bars_fetch.py",
+   "from": "        if tf == \"W\" or _dk.calendar_applies(ticker):",
+   "to": "        if tf == \"W\":",
+   "rail": "python -m pytest tests/test_htf_closure_week_unreachable.py -q -p no:cacheprovider",
+   "expectRed": "test_a_calendar_ticker_loses_every_day_without_a_session_at_the_serve_door"
+  }
+ ]
+}

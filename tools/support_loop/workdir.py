@@ -95,10 +95,14 @@ def write_report_file(report_id: str, filename: str, text: str) -> Path:
     d = report_dir(report_id)
     check_root()
     d.mkdir(parents=True, exist_ok=True)
-    p = d / (filename or "")
+    # A backslash is a separator on Windows and a legal name character on Linux, so one
+    # name could be bare on one platform and a path on the other. Read it as a separator
+    # on EVERY platform (the file may later be read on Windows), so the one guard below
+    # judges the same path everywhere.
+    p = d / (filename or "").replace("\\", "/")
     # ⭐ ONE guard, not two (lesson_a_guard_repeated_is_a_guard_unproved): the RESOLVED
     # path's parent must be the report directory itself. That alone refuses "", ".",
-    # "..", "../x", "sub/x", an absolute path and a drive-qualified one.
+    # "..", "../x", "..\\x", "sub/x", "sub\\x", an absolute path and a drive-qualified one.
     if p.resolve().parent != d.resolve():
         raise WorkdirError("path escapes the report directory")
     tmp = p.with_name(p.name + ".tmp")

@@ -4,10 +4,12 @@ import {
 import useHistoryUserId from '../useHistoryUserId'
 import { recordIndicatorChange } from '../indicatorHistoryStore'
 import { anyLabelFor as indicatorLabelFor } from '../indicatorCatalog'
-import StockChart from '../../StockChart'
+// The pane's StockChart, memoised: a parent render that only re-creates callbacks skips it (StableStockChart.jsx).
+import StableStockChart from './StableStockChart'
 import { sendSeedFrom, agentOpenOpts } from '../builder/agentSeams'
 import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
+import useRowLadder from './useRowLadder'
 import ChartIdentityRow from './ChartIdentityRow'
 import SymbolActionsMenu from './SymbolActionsMenu'
 // /charts integrated header: at or above this pane width the timeframe row joins the
@@ -52,6 +54,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useMarketIndicators from '../../../hooks/useMarketIndicators'
+import { pairQuoteView, pairSourceLine, useCryptoPair, useCryptoQuote } from '../../../lib/cryptoPairs'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import { useChartTickerMeta as useTickerMeta, useChartDelisted as useDelisted } from '../restedReaders'
 import { chordById, matchesChord } from '../../../pages/command/chords.js'
@@ -244,6 +247,16 @@ function ChartPane({
       ? String(miRec.display_symbol || miRec.symbol) : sym)
   const breadthLikeName = isBreadth ? breadthRec.name
     : (_miPrefix && _miDisplay.startsWith(_miPrefix) ? _miDisplay.slice(_miPrefix.length) : _miDisplay)
+  // A CURRENCY PAIR (BTCUSD; dark behind the server switch CRYPTO_BARS_ENABLED). `pair` is null
+  // for every other symbol (no request is sent for one), while the switch is off, and for a
+  // member it does not admit: then nothing below changes. For an admitted pair the chart is
+  // daily / weekly / monthly only (the server carries no intraday for a pair), takes no live
+  // ticks (the price stream carries stocks), shows no stock-session switch, and the header
+  // carries the pair's price with its source and that source's own time for it.
+  const pair = useCryptoPair(sym)
+  const isPair = !!pair
+  const pairQuote = useCryptoQuote(sym, isPair && !compact && !mini)
+  const pairView = isPair ? pairQuoteView(pairQuote.quote) : null
   const { isEtf } = useEtfSymbols()
   // Funds/indexes/breadth have no meaningful "market cap" — the info row shows a
   // dash for them (like Next Earnings), only real stocks get a value.
@@ -251,7 +264,7 @@ function ChartPane({
   const breadthTf = DWM.includes(tf) ? tf : 'D'
   // The timeframe the CHART actually draws -- one value for StockChart, the drawing/period
   // tools and the region's accessible name, so the name can never drift from the chart.
-  const effectiveTf = (isBreadthLike || isEcon) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)
+  const effectiveTf = (isBreadthLike || isEcon || isPair) ? breadthTf : (themeIdx.isIndex ? indexTf : tf)
   const synthDailyOnly = themeIdx.isIndex || isBreadthLike || isEcon   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
   // its header $/% change is the last bar's close vs the prior bar's close.
@@ -268,15 +281,15 @@ function ChartPane({
   // the theme name + the Uncharted Territory brand mark (it has no company ticker,
   // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
   const exhibit = identityLabel != null   // the host names the chart; `sym` is not a ticker to look up
-  const meta = useTickerMeta((synthDailyOnly || exhibit) ? null : sym)
+  const meta = useTickerMeta((synthDailyOnly || exhibit || isPair) ? null : sym)
   // DELISTED (dead company — Yahoo, Twitter, Lehman): freeze every live path. Its bars
   // still flow through /api/bars (Massive retains delisted history to ~2003), but there is
   // no live quote/stream to chase — so liveUpdates goes false, the header quote/change is
   // suppressed, the watermark uses the curated name/sector (a reused symbol's live meta is
   // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
-  const delistedInfo = useDelisted((synthDailyOnly || exhibit) ? null : sym)
+  const delistedInfo = useDelisted((synthDailyOnly || exhibit || isPair) ? null : sym)
   const isDelisted = !!delistedInfo
-  const companyName = (isDelisted && delistedInfo.name) || meta?.name || sym
+  const companyName = (isPair && pair.name) || (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
     : null
@@ -485,7 +498,6 @@ function ChartPane({
   // navigator, the day change, RTH/PM and the symbol ▾. The window controls (⚙ · + · pop out ·
   // ✕) are NEVER shed — the right cluster does not shrink; the ticker ellipsizes last.
   const [rowLevel, setRowLevel] = useState(0)
-  const rowWidthRef = useRef(null)
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -519,7 +531,7 @@ function ChartPane({
   // A breadth symbol has no intraday basis, so lock its TF bar to D/W/M (no overflow
   // escape to intraday) exactly like a host-supplied tfCodes lock. An explicit host
   // tfCodes still wins.
-  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadthLike || isEcon) ? DWM : null)
+  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : ((isBreadthLike || isEcon || isPair) ? DWM : null)
   // The /charts integrated header is ONE row at every width (owner 11-14).
   const oneRowMode = !!slots?.identityDragClass && !mini && showTfBar
   const visibleTfs = (() => {
@@ -689,22 +701,22 @@ function ChartPane({
   }, [paneWidth, headerLabel, sym])
   // One-row ladder: when anything in the row is clipped (the row itself, or the timeframe
   // strip squeezed inside it), take one more step — synchronously, before paint, until it
-  // fits. Narrowing keeps the steps already taken (it can only need more); widening, a new
-  // symbol or different info resets to the full row and re-fits. jsdom lays nothing out
-  // (every width 0), so this is inert in tests.
-  useLayoutEffect(() => {
-    if (!oneRowMode) return
-    const prev = rowWidthRef.current
-    rowWidthRef.current = paneWidth
-    if (prev == null || !Number.isFinite(paneWidth) || paneWidth > prev) setRowLevel(0)
-  }, [oneRowMode, paneWidth])
-  useLayoutEffect(() => { if (oneRowMode) setRowLevel(0) }, [oneRowMode, headerLabel, sym, infoSig, visibleTfs.length])
-  useLayoutEffect(() => {
-    if (!oneRowMode || rowLevel >= ROW_LEVEL_MAX) return
-    const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
-    const row = identityRef.current
-    const partClipped = !!row && [...row.children].some(clipped)
-    if (clipped(row) || partClipped || clipped(tfBarRef.current)) setRowLevel((l) => Math.min(ROW_LEVEL_MAX, l + 1))
+  // fits. Narrowing keeps the steps already taken (it can only need more); widening resets to
+  // the full row at once; a new symbol or different info re-fits from the full row only once
+  // it has RESTED (useRowLadder: a scan never pays the climb). jsdom lays nothing out (every
+  // width 0), so this is inert in tests.
+  useRowLadder({
+    on: oneRowMode,
+    width: paneWidth,
+    content: `${headerLabel}|${sym}|${infoSig}|${visibleTfs.length}`,
+    level: rowLevel,
+    setLevel: setRowLevel,
+    max: ROW_LEVEL_MAX,
+    isClipped: () => {
+      const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
+      const row = identityRef.current
+      return clipped(row) || (!!row && [...row.children].some(clipped)) || clipped(tfBarRef.current)
+    },
   })
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
@@ -1085,7 +1097,7 @@ function ChartPane({
     goToYear: (y) => dateNavApiRef.current?.goToYear?.(y),
     stepBar: (dir) => dateNavApiRef.current?.stepBar?.(dir),
     ensureFullHistory: () => dateNavApiRef.current?.ensureFullHistory?.(),
-    getDateMeta: () => (dateNavApiRef.current?.getDateMeta?.() || null),
+    getDateMeta: (opts) => (dateNavApiRef.current?.getDateMeta?.(opts) || null),
     // ⭐ UCT Agent: the range bar (and its Undo), Reset view, hide-all-indicators, the ◀ / ▶ step, Auto-scale and the + / - zoom, read back through getDateMeta. A VIEW; nothing saved here.
     viewDo: (op, arg) => {
       const fn = ['applyRange', 'restoreView', 'resetView', 'setIndicatorsHidden', 'stepBar', 'autoScale', 'zoom', 'positionCalc'].includes(op) ? dateNavApiRef.current?.[op]
@@ -1141,7 +1153,7 @@ function ChartPane({
   const integratedHeader = !!slots?.identityDragClass
   // Owner 11-14: ONE row at every width (the ladder above fits it), never a second row.
   const oneRowHeader = oneRowMode
-  const sessionCfg = (compact || isEcon) ? null : (isDWMtf
+  const sessionCfg = (compact || isEcon || isPair) ? null : (isDWMtf
     ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: integratedHeader || sessionForceAbbrev }
     : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: integratedHeader || sessionForceAbbrev })
   // The chart widget's symbol menu (▾ after the company name): leverage + holdings.
@@ -1151,7 +1163,7 @@ function ChartPane({
   const tfBarEl = showTfBar ? (
     <ChartTfBar
       rootRef={tfBarRef}
-      tf={(isBreadthLike || isEcon) ? breadthTf : tf}
+      tf={(isBreadthLike || isEcon || isPair) ? breadthTf : tf}
       visibleTfs={responsiveTfs}
       onTf={handleTf}
       /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
@@ -1260,6 +1272,12 @@ function ChartPane({
           showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
+          sourceNote={isPair ? {
+            text: pairView.kind === 'price'
+              ? `${pairView.price}${pairView.pct ? ` ${pairView.pct}` : ''} · ${pairView.source}${pairView.asOf ? `, ${pairView.asOf}` : ''}`
+              : `${pair.source || 'FMP'} daily bars`,
+            title: `${pairSourceLine(pairView)}. Daily, weekly and monthly bars only, with a bar for every day of the week. The price is read again every 30 seconds.`,
+          } : null}
           dayGainColors={{
             up: _hdrInk.dayChangeUp,
             down: _hdrInk.dayChangeDown,
@@ -1267,7 +1285,7 @@ function ChartPane({
           session={rowHideSession ? null : sessionCfg}
           middleSlot={oneRowHeader ? tfBarEl : null}
           afterNameSlot={symbolMenuEl}
-          showClock={!compact && !rowHideClock}
+          showClock={!compact && !rowHideClock && !isPair}
           rightSlot={integratedHeader
             ? (
               <>
@@ -1308,7 +1326,7 @@ function ChartPane({
         onClick={handleChartClick}
         onKeyDown={handleChartKeyDown}
       >
-        <StockChart
+        <StableStockChart
           sym={sym}
           nextEarningsHint={nextEarningsHintDate}
           headerCustomStats={shownCustomStats}
@@ -1351,6 +1369,14 @@ function ChartPane({
             watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
             watermarkBrandMark: true,   // UCT compass mark, not a company-logo lookup
+          } : {})}
+          {...(isPair ? {
+            // CURRENCY PAIR: /api/bars serves its daily bars (one for every day of the week),
+            // so no barsOverride. No live ticks and no today-seed (both follow the stock
+            // session), and only the D/W/M warm-up (`breadthSeries`: daily-only series).
+            liveUpdates: false,
+            breadthSeries: true,
+            watermarkName: pair.name,
           } : {})}
           {...(isEcon ? {
             // ECONOMIC SERIES: StockChart owns the data path (`useEconomicPrimary`
@@ -1436,10 +1462,11 @@ function ChartPane({
           {...(stockChartProps || {})}
           /* AFTER the host spread on purpose (the last prop wins): record the
              visible time-range for journal capture, CHAINING any host-supplied
-             handler so the multi-chart sync path keeps firing. Deliberately an
-             inline arrow — its per-render identity makes StockChart's
-             subscription effect re-run, which self-heals a lost subscription
-             if the underlying chart instance is ever recreated. */
+             handler so the multi-chart sync path keeps firing. ⭐ (2026-11-20) Its
+             per-render identity no longer reaches StockChart (StableStockChart hands
+             it one stable function, so a pane render does not re-render the chart);
+             a re-created chart instance re-subscribes through StockChart's own
+             `chartGen` instead of through this arrow's churn. */
           onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
           onDateNavApi={(api) => { dateNavApiRef.current = api; stockChartProps?.onDateNavApi?.(api) }}
           onDrawnBarCount={(n) => { noteDrawnBars(n); stockChartProps?.onDrawnBarCount?.(n) }}

@@ -444,13 +444,18 @@ describe('C45 — across the committed corpus', () => {
     // It is now named with its family (`box.set_right`, `refuseChainedElement`)
     // and so withheld here: ict-killzones 3 → 173 (its object program and the
     // table its capture matches are unchanged, C11b), and bull-vs-bear joins.
+    // ⭐ UNTRACED-HANDLE SHAPES (2026-11-19): `object.set_*` (a setter whose family the reader cannot
+    // name) reaches every family with that setter instead of none: bull-vs-bear 2 → 22, still refused.
     expect(named).toEqual([
-      'bull-vs-bear-market-intraday-sessions-kioseff-trading: 2 (not attached)',
+      'bull-vs-bear-market-intraday-sessions-kioseff-trading: 22 (not attached)',
       'correlation-matrix: 55 (not attached)',
       'fx-market-sessions: 12 (not attached)',
       'ict-institutional-order-flow-fadi: 28 (not attached)',
       'ict-killzones-pivots-tfo: 173',
       'market-structure-break-order-block: 4 (not attached)',
+      // ⭐ FIELD REGISTER STEP A + (b) (2026-11-19): its 21 setters through fields read before they are written are
+      // untraced now (`update:target`), each reaching its families; still refused.
+      'mgi-levels-suite: 77 (not attached)',
       'previous-day-high-and-low-separators-dailyweekly: 3 (not attached)',
       'sector-rotation: 6',
       'session-tpo-profile: 1 (not attached)',

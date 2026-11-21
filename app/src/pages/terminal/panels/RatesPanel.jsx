@@ -18,18 +18,25 @@
 // ⛔ NO GREEN OR RED: a rising yield is not good or bad. A change is a sign (+/-) and a number, and
 // the lines in the pictures differ by weight and dash.
 //
+// REAL YIELDS AND BREAKEVENS are their own block under the pictures, with their own date, source and
+// state: the answer's `real` (api/services/treasury_real_yields.py). A real curve that could not be
+// read is a sentence there, with the last good date when figures are still shown; it never blanks
+// the nominal yields above and is never drawn as zeros. The breakeven is the server's figure.
+//
 // WIDTH. Six short columns at 640px; at 390px the 1-year change folds away (it stays in the curve
-// picture) and the two pictures stack.
+// picture), the real block's nominal column folds away (it is in the table above) and the two
+// pictures stack.
 //
 // The read goes through marketRead.js (the terminal's one bare-SWR reader), and SWR skips ticks
 // while the app is hidden.
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { PanelSkeleton, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness } from '../../../components/terminal'
 import { formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { todayIso } from '../../calendar/earningsModalRow'
 import { WARMING_TITLE, canRetry, failureKind, failureText, useMarketRead } from './marketRead'
 import {
-  RATES_CODE, RATES_URL, SOURCE, bpText, curveGeometry, curveWords, dayText, daysBetween, etDayOf, ratesRead,
+  RATES_CODE, RATES_URL, SOURCE, bpText, breakevenSentence, curveGeometry, curveWords, dayText, daysBetween, etDayOf,
+  ratesRead, realAsOfSentence, realCheckWords, realMissingWords,
   spreadGeometry, spreadHistoryWords, spreadSentence, spreadTrendSentence, unavailableWords, yieldText,
 } from './ratesModel'
 import styles from './marketPanels.module.css'
@@ -134,13 +141,74 @@ function SpreadPicture({ view }) {
   )
 }
 
+const REAL_TITLE = 'Real yields and breakevens'
+
+/** The real yield curve and the breakevens: their own block, date, source and state. */
+function RealBlock({ real, today }) {
+  const titleId = useId()
+  if (!real) return null                       // a server that does not send the block yet
+  const shell = (body) => (
+    <section className={own.block} aria-labelledby={titleId} data-testid="terminal-rates-real" data-state={real.state}>
+      <h3 id={titleId} className={`${own.figTitle} ${own.blockTitle}`}>{REAL_TITLE}</h3>
+      {body}
+    </section>
+  )
+  if (real.state !== 'ok') {
+    return shell(<p className={styles.note} role="status" data-testid="terminal-rates-real-missing">{realMissingWords(real)}</p>)
+  }
+  const age = daysBetween(real.asOf, today)
+  const d1 = dayText(real.refDates.d1) || 'the day before'
+  const w1 = dayText(real.refDates.w1) || 'a week ago'
+  const beDay = dayText(real.breakevenAsOf)
+  return shell(
+    <>
+      {real.check ? <p className={styles.note} role="status" data-testid="terminal-rates-real-check">{realCheckWords(real.check, real.asOf)}</p> : null}
+      {age != null && age > OLD_AFTER_DAYS ? (
+        <p className={styles.note} role="status" data-testid="terminal-rates-real-old">
+          The newest real yield the site has from the Treasury is {age} days old ({dayText(real.asOf)}).
+        </p>
+      ) : null}
+      <p className={styles.muted} data-testid="terminal-rates-real-asof">{realAsOfSentence(real)}</p>
+      <div className={styles.tableBox}>
+        <table className={styles.table} data-testid="terminal-rates-real-table"
+          aria-label={`Real Treasury yields by maturity for ${dayText(real.asOf)}, with the breakeven at each maturity${beDay ? ` for ${beDay}` : ''}`}>
+          <thead>
+            <tr>
+              <th scope="col">Maturity</th>
+              <th scope="col" title="The end-of-day real yield, in percent">Real yield</th>
+              <th scope="col" title={`Change in basis points against ${d1}`}>1 day</th>
+              <th scope="col" title={`Change in basis points against ${w1}`}>1 week</th>
+              <th scope="col" className={styles.phoneHide} title={beDay ? `The nominal Treasury yield on ${beDay}, in percent` : 'The nominal Treasury yield, in percent'}>Nominal</th>
+              <th scope="col" title={beDay ? `The nominal yield minus the real yield on ${beDay}, in percent` : 'The nominal yield minus the real yield, in percent'}>Breakeven</th>
+            </tr>
+          </thead>
+          <tbody>
+            {real.rows.map((r) => (
+              <tr key={r.key} data-testid="terminal-rates-real-row" data-key={r.key}>
+                <th scope="row">{r.label}</th>
+                {r.yield == null ? <td className={styles.muted}>No figure</td> : <td>{yieldText(r.yield)}</td>}
+                <td>{bpText(r.changeBp.d1)}</td>
+                <td>{bpText(r.changeBp.w1)}</td>
+                {r.nominal == null ? <td className={`${styles.muted} ${styles.phoneHide}`}>No figure</td> : <td className={styles.phoneHide}>{yieldText(r.nominal)}</td>}
+                {r.breakeven == null ? <td className={styles.muted}>No figure</td> : <td>{yieldText(r.breakeven)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className={styles.muted} data-testid="terminal-rates-breakeven-asof">{breakevenSentence(real)}</p>
+    </>,
+  )
+}
+
 function Rates({ code, inPanel }) {
   const [today] = useState(todayIso)
   const [pace, setPace] = useState(HELD_POLL_MS)
   const read = useMarketRead(RATES_URL, { refreshInterval: pace })
   const view = useMemo(() => ratesRead(read.body), [read.body])
   // The pace follows the server's own word (adjusted during render from the last answer).
-  const wantPace = view.state === 'computing' ? COMPUTING_POLL_MS : HELD_POLL_MS
+  // (the real yield block is read a moment after the nominal answer the first time: it is asked for the same way)
+  const wantPace = view.state === 'computing' || view.real?.state === 'computing' ? COMPUTING_POLL_MS : HELD_POLL_MS
   if (wantPace !== pace) setPace(wantPace)
 
   const ok = !read.loading && !!read.body && view.state === 'ok'
@@ -240,6 +308,7 @@ function Rates({ code, inPanel }) {
         <CurvePicture view={view} />
         <SpreadPicture view={view} />
       </div>
+      <RealBlock real={view.real} today={today} />
       <p className={styles.muted} data-testid="terminal-rates-method">
         {methodSentence(view)} Steeper means the spread rose; flatter means it fell. The Treasury publishes one figure a
         day, after the bond market closes; nothing here moves during the day.

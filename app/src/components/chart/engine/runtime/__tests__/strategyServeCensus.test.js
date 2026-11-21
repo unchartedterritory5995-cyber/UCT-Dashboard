@@ -19,8 +19,9 @@
 //               (`SERVER_ADMITS`, held to the server by `tests/test_strategy_serve_arming.py`). ⚰️ Until 2026-11-18 that
 //               was "not admitted" for every strategy (`strategy-decl` had no registry row) and NOTHING was served.
 //               Since `strategy-decl` is admitted (Q-SD1 / Q-SD2, supertrend-strategy, MATCH runtime-on), 17 of the 25
-//               are admitted and the three the granted state serves are served; every other one is refused by name,
-//               an admitted strategy whose backtest rests on an unpinned rule included.
+//               were admitted, and since `request-other` is admitted (2026-11-19, #2016, closed-bar history) 22 are;
+//               the three the granted state serves are served; every other one is refused by name, an admitted
+//               strategy whose backtest rests on an unpinned rule included.
 //
 //   granted, a member's daily bars   the granted state again on the reference bars in the shape a member's DAILY chart
 //               hands the run (`ourSide.js::toProductBars`, `/api/bars`'s ISO date keys): the same answer, script by
@@ -39,6 +40,12 @@
 //       (the refused cells a member reads come out empty);
 //   C-d `memberPaneDefinition.js`: skip the runtime lane's not-graded admission                      -> production RED
 //       (the served strategies reach the broker without admission).
+// Re-latched 2026-11-19 after #2016 admitted `request-other` (the five REQUEST_OTHER_ADMITS below), mutants by hand,
+// each restored from a saved copy (recorded in the PR):
+//   C-e drop take-profit-multi-timeframe from `SERVER_ADMITS`  -> the five-admits rail RED, the count RED, and
+//       tests/test_strategy_serve_arming.py::test_the_server_admits_exactly_the_census_list RED;
+//   C-f hold pmax-explorer's kill (`status: "pending"` in the kill list) -> the five-admits rail RED (its backtest note
+//       names `runtime:function-global-state`, no longer the kill).
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -52,7 +59,7 @@ import {
 import { loadCapture } from '../../__tests__/vendorHarness/harness.js'
 import { barsOfCapture } from '../../__tests__/vendorHarness/strategyHarness.js'
 import { toProductBars } from '../../__tests__/vendorHarness/ourSide.js'
-import { historyWindowBarsOf, STRATEGY_DECLARATION } from './strategyArmed.js'
+import { chartStrategyWindowOf, STRATEGY_DECLARATION } from './strategyArmed.js'
 // the ONE pin reader production's broker run reads (`vm.js` `ledgerPinned`, `brokerPins.resolved.json`)
 import { pinned } from '../brokerPins.js'
 import { strategyServeOutcome } from './strategyServe.js'
@@ -71,10 +78,17 @@ const flagOf = (src) => (src.match(/(VITE_[A-Z0-9_]+)\s*===\s*'1'/) || [])[1]
 const FLAGS = ['objectsOnlyPaneGate.js', 'runtimePaneGate.js', 'strategyBrokerGate.js'].map((f) => flagOf(GATE(f)))
 
 /** ⭐ DATED 2026-11-17: the committed rows the coverage map counts `wouldTransferIfArmed` (docs/pine/coverage-map.json
- *  of 2026-11-17, PR #1645; 7 of 70 over the whole sample, 3 of them committed). A change here is a re-measure. */
+ *  of 2026-11-17, PR #1645; 7 of 70 over the whole sample, 3 of them committed). A change here is a re-measure.
+ *  ⭐ RE-MEASURED 2026-11-19 (the strategy unit, docs/pine/evidence/2026-11-19-strategy-unit/EVIDENCE.md): 3 more, each
+ *  on rules committed report captures now pin (MATCH): highlow-channel-swing (B-V4-MARGIN0 for its v4 shape, read back
+ *  0 by w9-q-s1b-v4-shape-a), macd-shortlong (B-EXIT-NA, B-QTY-REVERSE-M0, B-ROUND-LEVEL, its own in-session capture
+ *  macd-shortlong-strategy-is-rddt-1d-2026-11-18) and stop-loss-and-take-profit (B-EXIT-NA). */
 const ARMED_COMMITTED = Object.freeze([
   'buy-monday-exit-tuesday__8f2f69cc99',
+  'highlow-channel-swing__e3692e253c',
+  'macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99',
   'scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471',
+  'stop-loss-and-take-profit-in-example__YlblCbts4x',
   'supertrend-strategy__rcRbtoBiKG',
 ])
 
@@ -82,9 +96,11 @@ const ARMED_COMMITTED = Object.freeze([
  *  each source uses has a conformant registry row (`api/data/pine_runtime_allowlist.json`), `strategy-decl` among them.
  *  ONE LIST: `tests/test_strategy_serve_arming.py::test_the_server_admits_exactly_the_census_list` PARSES it and holds
  *  it to the server's own verdict (`runtime_definitions.capability_admitted`, admission ON) for every committed
- *  strategy, both ways. The other 8 are withheld by a capability that has no row (`request-other`, a library, `enum`). */
+ *  strategy, both ways. The other 3 are withheld by capabilities that have no row (a library version, `enum`).
+ *  ⭐ (2026-11-19, #2016) `request-other` admitted for closed-bar history: five more (REQUEST_OTHER_ADMITS). */
 const SERVER_ADMITS = Object.freeze([
   '72s-strategy-adaptive-hull-moving-average-pt1__58ujcjLFIt',
+  'ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48',
   'atr-god-strategy-by-tradesmart__4369755a29',
   'atr-trailing-stoploss-strategy__oayb1wVXkZ',
   'buy-monday-exit-tuesday__8f2f69cc99',
@@ -93,15 +109,46 @@ const SERVER_ADMITS = Object.freeze([
   'inside-bar-strategy-w-sl__b39f395d5d',
   'linear-regression-channel-breakout-strategy__3a1cf28800',
   'macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99',
+  'multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640',
   'optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84',
+  'optimized-trend-tracker__ZhWiFvtpwE',
+  'pmax-explorer__jN9HBNhynF',
   'rsi-vwap-indicator__pTI5ZVw9n4',
   'scalping-strategy-with-williams-r-macd-and-sma-1-minute-only__e247952471',
   'stop-loss-and-take-profit-in-example__YlblCbts4x',
   'supertrend-strategy__rcRbtoBiKG',
+  'take-profit-multi-timeframe__8c16588ae9',
   'tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy',
   'tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA',
   'vwap-fibo-dev-extensions-strategy__mR2vfyGjUv',
 ])
+
+/** ⭐⭐ (2026-11-19, the re-latch after #2016) THE FIVE `request-other` ADMITS AND WHAT A MEMBER GETS, MEASURED in the
+ *  production state below (closed newest bar; the same with the server's `historyOnly` latched, on a closed, forming and
+ *  unknown newest bar, and the same, row for row and sentence for sentence, as master's latch with the five NOT
+ *  admitted). None is served; each is refused BY NAME:
+ *    door        the member door refuses the script (nothing drawn, no backtest): the host lane's sentence, the runtime
+ *                lane's own reason beside it (`runtimeDeclined`, given here);
+ *    no-backtest the host lane draws it and the backtest is refused by name.
+ *  Committed captures: multi-timeframe-rsi (SPY) and take-profit (RDDT, SPY) grade INCONCLUSIVE on both lanes (refused
+ *  on our side); ai-supertrend and optimized-trend-tracker have none; pmax-explorer's RDDT and SPY captures grade
+ *  DIVERGE on both lanes, so its source is KILLED (`pine_runtime_killlist.json`, the DRAW-1 rule, #2016) and the kill
+ *  is what its backtest note names; on the host lane only its drawing differs, withheld by name
+ *  (`pine:object-ops-refused`; host_divergence: not listed), its Moving Avg Line and PMax plots MATCH. The server's
+ *  `capability_admitted` (what `SERVER_ADMITS` latches) admits pmax-explorer by capability; its verdict door answers
+ *  "not admitted" for a killed source, and the client's kill check comes first either way. */
+const REQUEST_OTHER_ADMITS = Object.freeze({
+  // runtime lane: `pine:request` (its request arguments do not fold to one symbol and one servable timeframe)
+  'ai-supertrend-x-pivot-percentile-strategy-presenttrading__3b9db05a48': { at: 'door', guard: 'pine:request' },
+  // runtime lane: `lower-tf:store-unmeasured` (a `5` timeframe, below the daily chart's, reads unmeasured intraday bars)
+  'multi-timeframe-rsi-buy-sell-strategy-tradedots__1375ad2640': { at: 'door', guard: 'pine:request' },
+  // runtime lane: `runtime:call-undeclared-builtin-state`
+  'optimized-trend-tracker__ZhWiFvtpwE': { at: 'door', guard: 'pine:function-def' },
+  // killed on the runtime lane by source hash; drawn by the host lane, its backtest refused by name (the kill named)
+  'pmax-explorer__jN9HBNhynF': { at: 'no-backtest', guard: null, says: /runtime kill list/ },
+  // runtime lane: `runtime:strategy-repaint` (a higher-timeframe value in a strategy whose trades the broker computes)
+  'take-profit-multi-timeframe__8c16588ae9': { at: 'door', guard: 'pine:request' },
+})
 
 /** the server's kill-list read payload, from the committed lists (Railway's variables are not in the repo) */
 function productionLists() {
@@ -150,7 +197,9 @@ beforeAll(() => {
   const reference = loadCapture(REFERENCE).capture
   bars = barsOfCapture(reference)
   dailyBars = toProductBars(reference)
-  ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, historyWindowBars: historyWindowBarsOf(ROOT) }
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) the window the chart hands today: the strategy window, and the
+  // shared one as the depth served without [B-START-DEEP] (RDDT's 632 bars are below both: nothing here moves)
+  ctx = { tf: 'D', symbol: SYMBOL, newestBarIsForming: false, historyFromListing: true, ...chartStrategyWindowOf(ROOT) }
   results.granted = runAll('granted')
   results.production = runAll('production')
   results.grantedDaily = runAll('granted', dailyBars)
@@ -203,21 +252,39 @@ describe('the serve census over corpus/committed, broker gate on', () => {
       expect(r.served.panel.rows, r.key).toBeGreaterThan(0)
     }
     // ⛔ CONTROL: admission is a door, not a pin. A strategy the SERVER ADMITS whose backtest rests on a broker rule no
-    // MATCHing capture pins (B-EXIT-NA, not in brokerPins.resolved.json) is still refused BY NAME, by the same guard
-    // and rule, at one of two places (engine 76 #1803, engine 77 #1833 fix/strategy-disarmed-taint):
-    //   macd-shortlong   its backtest ALONE, at the report: its six MACD plots read no broker value (its ORDER logic
-    //                    reads `strategy.position_size`), so they are drawn beside the refused backtest;
-    //   stop-loss-and-take-profit   at its run: its three plots all draw broker values (`strategy.position_avg_price`),
-    //                    so a stand-in would draw nothing and the broker's refusal stands, as before.
-    for (const [k, at] of [['macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99', 'report'],
-      ['stop-loss-and-take-profit-in-example__YlblCbts4x', 'run']]) {
-      expect(SERVER_ADMITS, k).toContain(k)
-      expect(rows.find((r) => r.key === k), k).toMatchObject({ state: 'refused', at, guard: 'runtime:strategy-unpinned', rule: 'B-EXIT-NA' })
-    }
-    expect(rows.find((r) => r.key === 'macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99').plotsDrawn).toBe(6)
-    // ⛔ CONTROL: a strategy the server does NOT admit is never served (8 of 25: a capability with no registry row)
+    // MATCHing capture pins (B-EXIT-QTY, not in brokerPins.resolved.json) is still refused BY NAME, by the same guard
+    // and rule, at its report: its plots read no broker value, so they are drawn beside the refused backtest
+    // (engine 76 #1803, engine 77 #1833). ⚰️ Until 2026-11-19 the control was B-EXIT-NA (macd-shortlong at its report,
+    // stop-loss-and-take-profit at its run); macd-shortlong's own report capture pins it now, and both are served.
+    const forex = 'tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy'
+    expect(SERVER_ADMITS, forex).toContain(forex)
+    expect(pinned('B-EXIT-QTY')).toBe(false)
+    expect(rows.find((r) => r.key === forex)).toMatchObject({ state: 'refused', at: 'report', guard: 'runtime:strategy-unpinned', rule: 'B-EXIT-QTY' })
+    expect(rows.find((r) => r.key === forex).plotsDrawn).toBeGreaterThan(0)
+    // what the two former controls show now: served, every number on a pinned rule (checked for every served row above)
+    expect(rows.find((r) => r.key === 'macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99').served.trades).toBeGreaterThan(5)
+    expect(rows.find((r) => r.key === 'stop-loss-and-take-profit-in-example__YlblCbts4x').served.trades).toBeGreaterThan(5)
+    // ⛔ CONTROL: a strategy the server does NOT admit is never served (3 of 25: a capability with no registry row;
+    // 8 until #2016 admitted `request-other`)
     expect(rows.filter((r) => !SERVER_ADMITS.includes(r.key)).map((r) => r.state).filter((s) => s !== 'refused')).toEqual([])
-    expect(scripts.length - SERVER_ADMITS.length).toBe(8)
+    expect(scripts.length - SERVER_ADMITS.length).toBe(3)
+  })
+
+  // ⭐⭐ (2026-11-19, the re-latch after #2016) — THE FIVE `request-other` ADMITS, EACH AT ITS MEASURED PLACE. Admitted by
+  // the server, none is served: each is refused by name where it was measured (REQUEST_OTHER_ADMITS). A verdict that
+  // moves (an engine change draws one on the runtime lane, a kill lifted) turns this red by name: re-measure it.
+  it('production admission: the five strategies `request-other` admits are each refused by name, where measured', () => {
+    const rows = results.production
+    const keys = Object.keys(REQUEST_OTHER_ADMITS)
+    expect(keys.length).toBe(5)
+    for (const k of keys) {
+      const want = REQUEST_OTHER_ADMITS[k]
+      expect(SERVER_ADMITS, k).toContain(k)
+      const r = rows.find((x) => x.key === k)
+      expect(r, k).toMatchObject({ state: 'refused', at: want.at, guard: want.guard })
+      expect(r.sentence, k).toBeTruthy()
+      if (want.says) expect(r.sentence, k).toMatch(want.says)
+    }
   })
 
   // ⭐⭐ (2026-11-17, strategy-epoch-bar-times) — THE MEMBER'S BAR SHAPE. A member's daily chart hands the run

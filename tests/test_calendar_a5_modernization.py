@@ -164,8 +164,9 @@ class TestFmpRangeWeek:
 # ── D1 typed transport: economic + IPO legs, and the licensing table ─────────
 
 class TestLicensingClassTable:
-    def test_economic_data_class_is_registered_r(self):
-        assert plc.licensing_class_for("fmp", "economic") == "R"
+    def test_economic_data_class_is_registered_la(self):
+        """T-37's DDLA column, in force since the register's 2026-09-19 note (restated 2026-11-19)."""
+        assert plc.licensing_class_for("fmp", "economic") == "LA"
 
     def test_ipo_data_class_is_honestly_unregistered(self):
         """No licensing-register row covers FMP's `stable/ipos-calendar`
@@ -175,40 +176,60 @@ class TestLicensingClassTable:
 
 
 class TestCurateEconEvents:
-    def test_returns_none_when_forexfactory_covers_every_day(self, monkeypatch):
+    """The source label the payload carries for its economic rows. Since 2026-11-20 FMP is
+    read first on every week and ForexFactory only as a backup, so the label is FMP's
+    whenever FMP supplied the rows and `None` whenever it did not."""
+
+    @staticmethod
+    def _pin_week(monkeypatch):
         import datetime
-        # `ff_eligible` compares week_start against the REAL current week
-        # (`_week_dates()`) -- pin it so this test doesn't depend on when it
-        # happens to run relative to 2026-09-08.
+        # The backup's two-week window compares week_start against the REAL current
+        # week (`_week_dates()`) -- pin it so these tests do not depend on when they
+        # happen to run relative to 2026-09-08.
         monkeypatch.setattr(cal, "_week_dates", lambda: [
             datetime.date(2026, 9, 7) + datetime.timedelta(days=i) for i in range(5)])
-        monkeypatch.setattr(cal, "_fetch_ff_events", lambda *a, **kw: {
+
+    def test_returns_none_when_forexfactory_supplied_the_rows(self, monkeypatch):
+        self._pin_week(monkeypatch)
+        ff = mock.Mock(return_value={
             "2026-09-08": {"econ": [{"event": "CPI"}], "fed": []},
         })
-        days = {"2026-09-08": {"econ": [], "fed": []}}
-        called = mock.Mock()
-        monkeypatch.setattr("api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta", called)
-        out = cal._curate_econ_events("2026-09-08", "2026-09-08", days)
-        assert out is None
-        called.assert_not_called()
-
-    def test_returns_the_fmp_legs_meta_when_it_actually_ran(self, monkeypatch):
-        monkeypatch.setattr(cal, "_fetch_ff_events", lambda *a, **kw: {})
+        monkeypatch.setattr(cal, "_fetch_ff_events", ff)
         days = {"2026-09-08": {"econ": [], "fed": []}}
         meta = {"vendor": "fmp", "freshnessClass": "end_of_day", "licensingClass": "R"}
         monkeypatch.setattr(
-            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta",
+            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_cover",
+            lambda *a, **kw: ({}, meta, {}))
+        out = cal._curate_econ_events("2026-09-08", "2026-09-08", days)
+        assert out is None
+        ff.assert_called_once()
+        assert days["2026-09-08"]["econ"] == [{"event": "CPI"}]
+
+    def test_returns_the_fmp_legs_meta_when_it_supplied_the_rows(self, monkeypatch):
+        self._pin_week(monkeypatch)
+        ff = mock.Mock(return_value={
+            "2026-09-08": {"econ": [{"event": "FF CPI"}], "fed": []},
+        })
+        monkeypatch.setattr(cal, "_fetch_ff_events", ff)
+        days = {"2026-09-08": {"econ": [], "fed": []}}
+        meta = {"vendor": "fmp", "freshnessClass": "end_of_day", "licensingClass": "R"}
+        monkeypatch.setattr(
+            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_cover",
             lambda *a, **kw: ({"2026-09-08": [{"event": "CPI", "estimate": None,
-                                                "prior": None, "is_fed": False}]}, meta))
+                                                "prior": None, "is_fed": False}]}, meta,
+                              {"2026-09-08": ["CPI"]}))
         out = cal._curate_econ_events("2026-09-08", "2026-09-08", days)
         assert out == meta
-        assert days["2026-09-08"]["econ"][0]["event"] == "CPI"
+        # FMP answered and holds the release; the backup's copy of it is not added.
+        assert [e["event"] for e in days["2026-09-08"]["econ"]] == ["CPI"]
+        ff.assert_called_once()
 
     def test_returns_none_when_the_fmp_leg_fails_entirely(self, monkeypatch):
+        self._pin_week(monkeypatch)
         monkeypatch.setattr(cal, "_fetch_ff_events", lambda *a, **kw: {})
         days = {"2026-09-08": {"econ": [], "fed": []}}
         monkeypatch.setattr(
-            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_meta",
+            "api.services.econ_calendar_fmp.fetch_us_econ_week_with_cover",
             mock.Mock(side_effect=RuntimeError("down")))
         out = cal._curate_econ_events("2026-09-08", "2026-09-08", days)
         assert out is None

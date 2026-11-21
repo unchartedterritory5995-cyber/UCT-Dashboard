@@ -56,7 +56,8 @@ const maskMDY = (raw) => {
   return `${month}/${day}/${d.slice(i, i + 4)}`
 }
 
-function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, onPickDate, onPickYear, onClose, themeVars }) {
+// Exported so the Breadth Monitor reuses this exact calendar (breadth/BreadthDateNav.jsx).
+export function CalendarPopover({ anchor, seedMs, minMs, maxMs, years, loadingYears, onPickDate, onPickYear, onClose, themeVars }) {
   const ref = useRef(null)
   const seed = Number.isFinite(seedMs) ? new Date(seedMs) : new Date()
   const [viewY, setViewY] = useState(seed.getUTCFullYear())
@@ -188,7 +189,8 @@ export default function ChartDateNav({ paneRef, themeVars = null }) {
     let alive = true, timer = 0
     const tick = () => {
       if (!alive) return
-      const m = paneRef?.current?.getDateMeta?.() || null
+      // lite: the five fields this field shows, not the Agent's full read-back (4×/s for the page's life)
+      const m = paneRef?.current?.getDateMeta?.({ lite: true }) || null
       const sig = m ? `${m.rightMs}|${m.firstYear}|${m.lastYear}|${m.fullyLoaded}|${m.loading}` : 'null'
       if (sig !== sigRef.current) { sigRef.current = sig; setMeta(m) }
       timer = setTimeout(tick, 250)

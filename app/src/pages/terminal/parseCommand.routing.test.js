@@ -61,7 +61,9 @@ describe('unknown codes suggest the near miss', () => {
 // Today's codes in every placement.
 const SECURITY = ['PEER', 'ETF', 'TWT', 'CHK', 'PLAN']
 // SCAT is not here: it takes a universe and axes (scatterArgs.js), so like THMS it says what it takes.
-const MARKET = ['NEWS', 'REGM', 'INS', 'RSL', 'SENT', 'BRKO']
+// INS is not here since INS CLUSTER (2026-11-21): it takes a view word (args.js `insView`), so like THMS it says what
+// it takes (its own test below).
+const MARKET = ['NEWS', 'REGM', 'RSL', 'SENT', 'BRKO']
 
 describe("today's codes, every placement", () => {
   it.each(SECURITY)('%s: NVDA X, X NVDA and lowercase all read X on NVDA; X alone waits for the linked security', (c) => {
@@ -77,6 +79,13 @@ describe("today's codes, every placement", () => {
     expect(parseCommand(`NVDA ${c}`)).toMatchObject(fn(c, 'NVDA'))
     expect(parseCommand(`${c} NVDA`)).toMatchObject(fn(c, 'NVDA'))
     expect(describeCommand(parseCommand(`${c} NVDA`)).text).toContain(`${c} is market-wide; NVDA is ignored.`)
+  })
+
+  it('INS takes a view word (CLUSTER), so INS NVDA says NVDA was not applied', () => {
+    expect(parseCommand('INS')).toMatchObject(fn('INS', null))
+    expect(parseCommand('INS CLUSTER')).toMatchObject(fn('INS', null, ['CLUSTER']))
+    expect(parseCommand('INS NVDA')).toMatchObject(fn('INS', null, ['NVDA']))
+    expect(describeCommand(parseCommand('INS NVDA')).text).toMatch(/Not applied: "NVDA"/)
   })
 
   it('THMS takes a window, so THMS NVDA says what THMS takes instead', () => {

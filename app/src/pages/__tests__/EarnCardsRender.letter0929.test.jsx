@@ -4,18 +4,28 @@
 //   - the company name wraps instead of ellipsing ("Micron Technolog…");
 //   - negative EPS reads "-$1.20", never "$-1.20";
 //   - a growth figure that rounds to 0% has no arrow and is neutral grey.
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import EarnCardsRender from '../EarnCardsRender'
 
 const enc = (obj) => btoa(unescape(encodeURIComponent(JSON.stringify(obj))))
   .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 
-function renderRows(rows) {
+async function renderRows(rows) {
   const url = `/r/earncards?w=728&data=${enc({ rows })}`
-  return render(<MemoryRouter initialEntries={[url]}><EarnCardsRender /></MemoryRouter>)
+  const view = render(<MemoryRouter initialEntries={[url]}><EarnCardsRender /></MemoryRouter>)
+  await waitFor(() => expect(view.container.querySelector('#panel-export')).not.toBeNull())
+  return view
 }
+
+// The page asks the server whether the address's token is accepted before it draws.
+beforeEach(() => {
+  vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200 })))
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
 
 const MU = {
   sym: 'MU', name: 'Micron Technology', session: 'AMC', label: 'Wed Oct 1',
@@ -24,24 +34,24 @@ const MU = {
 }
 
 describe('EarnCardsRender — 2026-09-29 rulings', () => {
-  it('prints a wire-supplied badge verbatim, even when on_board is also set', () => {
-    renderRows([{ ...MU, on_board: true, badge: 'ON OUR WATCH LIST' }])
+  it('prints a wire-supplied badge verbatim, even when on_board is also set', async () => {
+    await renderRows([{ ...MU, on_board: true, badge: 'ON OUR WATCH LIST' }])
     expect(screen.getByTestId('row-badge')).toHaveTextContent('ON OUR WATCH LIST')
     expect(screen.queryByText('ON OUR BOARD')).not.toBeInTheDocument()
   })
 
-  it('CONTROL: an old payload (on_board, no badge) still reads ON OUR BOARD', () => {
-    renderRows([{ ...MU, on_board: true }])
+  it('CONTROL: an old payload (on_board, no badge) still reads ON OUR BOARD', async () => {
+    await renderRows([{ ...MU, on_board: true }])
     expect(screen.getByTestId('row-badge')).toHaveTextContent('ON OUR BOARD')
   })
 
-  it('shows no pill at all when neither badge nor on_board is set (and a blank badge is not a badge)', () => {
-    renderRows([{ ...MU, badge: '   ' }])
+  it('shows no pill at all when neither badge nor on_board is set (and a blank badge is not a badge)', async () => {
+    await renderRows([{ ...MU, badge: '   ' }])
     expect(screen.queryByTestId('row-badge')).not.toBeInTheDocument()
   })
 
-  it('lets the company name wrap instead of ellipsing it', () => {
-    renderRows([{ ...MU, badge: 'ON OUR WATCH LIST' }])
+  it('lets the company name wrap instead of ellipsing it', async () => {
+    await renderRows([{ ...MU, badge: 'ON OUR WATCH LIST' }])
     const name = screen.getByTestId('company-name')
     expect(name).toHaveTextContent('Micron Technology')
     expect(name.style.whiteSpace).toBe('normal')
@@ -50,15 +60,15 @@ describe('EarnCardsRender — 2026-09-29 rulings', () => {
     expect(name.parentElement.style.flexWrap).toBe('wrap')
   })
 
-  it('puts the minus sign before the dollar on negative EPS', () => {
-    renderRows([{ ...MU, last_q: { eps: -5.34, rev_m: 120 }, eps_est: -1.2 }])
+  it('puts the minus sign before the dollar on negative EPS', async () => {
+    await renderRows([{ ...MU, last_q: { eps: -5.34, rev_m: 120 }, eps_est: -1.2 }])
     expect(screen.getByText('-$5.34')).toBeInTheDocument()
     expect(screen.getByText('-$1.20')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/\$-\d/)
   })
 
-  it('a growth figure that rounds to 0% shows no arrow and is grey', () => {
-    renderRows([{ ...MU, proj_eps_yoy: 0.3, proj_rev_yoy: -0.4 }])
+  it('a growth figure that rounds to 0% shows no arrow and is grey', async () => {
+    await renderRows([{ ...MU, proj_eps_yoy: 0.3, proj_rev_yoy: -0.4 }])
     const eps = document.querySelector('[data-growth="EPS"]')
     const rev = document.querySelector('[data-growth="REV"]')
     expect(eps.textContent).toBe('EPS0%')
@@ -67,8 +77,8 @@ describe('EarnCardsRender — 2026-09-29 rulings', () => {
     expect(rev.style.color).toBe('rgb(154, 160, 143)')
   })
 
-  it('CONTROL: a real move keeps its arrow and colour', () => {
-    renderRows([{ ...MU, proj_eps_yoy: 141, proj_rev_yoy: -12 }])
+  it('CONTROL: a real move keeps its arrow and colour', async () => {
+    await renderRows([{ ...MU, proj_eps_yoy: 141, proj_rev_yoy: -12 }])
     const eps = document.querySelector('[data-growth="EPS"]')
     const rev = document.querySelector('[data-growth="REV"]')
     expect(eps.textContent).toBe('EPS▲ +141%')

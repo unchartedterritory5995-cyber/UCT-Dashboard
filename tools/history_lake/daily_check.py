@@ -79,11 +79,15 @@ def main(argv=None) -> int:
 
     jar = http.cookiejar.CookieJar()
     op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
-    r = urllib.request.Request(f"https://{HOST}/api/auth/login", method="POST",
-                               data=json.dumps({"email": os.environ["BENCH_EMAIL"], "password": os.environ["BENCH_PASSWORD"]}).encode())
-    r.add_header("User-Agent", UA)
-    r.add_header("Content-Type", "application/json")
-    op.open(r, timeout=30).read()
+    op.addheaders = [("User-Agent", UA)]
+    # tools/synthetic_session.py signs this session OUT when the run ends, however it ends
+    # (the sign-out rail: tests/test_synthetic_session_signout.py).
+    try:
+        from tools import synthetic_session as S  # noqa: PLC0415 -- package import
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
+    S.sign_in_urllib(op, f"https://{HOST}", "bench", timeout=30)
     cookie = "; ".join(f"{c.name}={c.value}" for c in jar)
     conn = http.client.HTTPSConnection(HOST, timeout=90, context=ssl.create_default_context())
 

@@ -152,9 +152,11 @@ def test_S2_credit_capture_without_a_substituted_counter_credits_nothing():
     assert not v and not d
 
 
-def test_S2_script_verdict_ranks_the_bucket_below_MATCH_and_above_DIVERGE():
+def test_S2_script_verdict_ranks_the_bucket_below_MATCH_and_below_DIVERGE():
+    # (2026-11-19) any DIVERGE dominates: a substituted MATCH beside a DIVERGE is a DIVERGE (it read MATCH_SUBSTITUTED)
     assert cm.script_verdict(["MATCH_SUBSTITUTED"]) == "MATCH_SUBSTITUTED"
-    assert cm.script_verdict(["MATCH_SUBSTITUTED", "DIVERGE"]) == "MATCH_SUBSTITUTED"
+    assert cm.script_verdict(["MATCH_SUBSTITUTED", "DIVERGE"]) == "DIVERGE"
+    assert cm.script_verdict(["MATCH_SUBSTITUTED", "INCONCLUSIVE"]) == "MATCH_SUBSTITUTED"
     assert cm.script_verdict(["MATCH_SUBSTITUTED", "MATCH"]) == "MATCH"
     assert cm.script_verdict(["DIVERGE", "INCONCLUSIVE"]) == "DIVERGE"
     assert cm.script_verdict([]) is None

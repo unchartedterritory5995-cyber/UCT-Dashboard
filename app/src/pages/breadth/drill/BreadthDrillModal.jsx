@@ -13,15 +13,20 @@ import PopoutShell from '../../charts/popout/PopoutShell'
 import WidgetHost from '../../charts/WidgetHost'
 import {
   DRILL_BOARD_PREF, LIST_WIDGET_ID, CHART_WIDGET_ID, MODE_SPLIT, SCAN_MODES,
-  parseBoard, serializeBoard,
+  parseBoard, serializeBoard, readDayPrefsLocal, writeDayPrefsLocal,
 } from './drillBoardPrefs'
+import { markColorFor, scanDayView } from './scanDay'
+import DayTools from './DayTools'
 import useScanDeck from './scan/useScanDeck'
-import { dayContext, stepDate } from './scan/scanDeckModel'
+import { dayContext } from './scan/scanDeckModel'
 import { ScanHeader } from './scan/ScanDeckParts'
 import ScanGrid from './scan/ScanGrid'
 import { FilterButton, FilterChips } from './scan/ScanFilters'
 import { DRILL_POPOVER_ATTR } from './scan/scanFacets'
-import JoinedDateNav from './JoinedDateNav'
+import useDrillDateNav from './useDrillDateNav'
+import useReading from './reading/useReading'
+import HistoryDrawer, { HISTORY_DRAWER_ATTR } from './reading/HistoryDrawer'
+import { universeLabel } from '../monitorUniverses'
 import { resetDrillSort } from './drillListCols'
 import { followAppTheme } from './drillTheme'
 import styles from './BreadthDrillModal.module.css'
@@ -67,7 +72,7 @@ function scanKeyTarget(e) {
 // ChartWidget) inside a complete WorkspaceContext — only their /charts header
 // bar is hidden (`hosted`), because this window owns identity, layout and close.
 
-export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose, rows = null, drillCols = null, onNavigate = null }) {
+export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose, rows = null, drillCols = null, onNavigate = null, universe = 'uct' }) {
   const { prefs, setPref } = usePreferences()
   // Same expression ChartsWorkspace uses, deliberately — not a near-equivalent.
   const chartsTheme = prefs?.charts_theme || 'default'
@@ -78,8 +83,16 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // The app theme (Slate, Graphite, Light…). The chart and the list wear it
   // until the member changes their look themselves (see drillTheme.js).
   const appTheme = prefs?.theme ?? null
-  const [board, setBoard] = useState(() => followAppTheme(
-    parseBoard(prefs?.[DRILL_BOARD_PREF], scanSeedOpts()), appTheme, scanSeedOpts().settings))
+  const [board, setBoard] = useState(() => {
+    const raw = prefs?.[DRILL_BOARD_PREF]
+    const parsed = parseBoard(raw, scanSeedOpts())
+    // The scan day's options: the board's saved values, else the localStorage mirror.
+    let stored = {}
+    try { stored = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {} } catch { stored = {} }
+    const local = readDayPrefsLocal()
+    for (const k of ['markDay', 'replay']) if (typeof stored?.[k] !== 'boolean' && typeof local[k] === 'boolean') parsed[k] = local[k]
+    return followAppTheme(parsed, appTheme, scanSeedOpts().settings)
+  })
   // Re-skin on an app-theme switch, and notice when the member takes over a
   // widget's look (followAppTheme marks it and stops following). Adjusted while
   // rendering, not in an effect: followAppTheme returns the same board once it
@@ -176,8 +189,29 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
   // than from the workspace value, which carries refs and must not be read
   // during render.
   const [pickedSym, setSelectedSym] = useState(null)
+  // ── The scan day: "Mark day" and "Replay from this day" (owner 2026-11-19) ─────
+  // Mark day paints the drill date's candle (its session, intraday; the bar holding it, W/M) in
+  // ONE high-contrast color chosen from the chart canvas's own luminance: white on a dark
+  // canvas, black on a light one. Replay reuses the /charts Replay Mode cutoff: every chart ends
+  // on the drill date. Both ride the workspace, so the Focus chart and every Grid card agree.
+  const markOn = board.markDay !== false
+  const replayOn = !!board.replay
+  const dayIso = drill?.date || null
+  const markColor = markColorFor(drillCanvas)
+  const { markDay, replayCutoff } = scanDayView({ markDay: markOn, replay: replayOn, date: dayIso, live: !!drill?.live })
+  const setDayPref = useCallback((k, v) => {
+    onBoardChange(b => ({ ...b, [k]: v }))
+    writeDayPrefsLocal({ [k]: v })
+  }, [onBoardChange])
   const workspace = useMemo(() => ({
     ...baseWorkspace,
+    markDay,
+    markDayColor: markColor,
+    replayCutoff,
+    // Replay's off switch is the header chip; the chart's "Exit Replay Mode" pill stays hidden here
+    // (`showReplayExit: false`, owner 2026-11-20). Kept callable for any other caller.
+    exitReplay: () => setDayPref('replay', false),
+    showReplayExit: false,
     setGroupSym: (color, sym) => {
       baseWorkspace.setGroupSym(color, sym)
       if (color !== 'A') return
@@ -189,7 +223,7 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
         if (window.matchMedia('(max-width: 640px)').matches) setMobilePane('chart')
       } catch { /* no matchMedia — stay put rather than guess */ }
     },
-  }), [baseWorkspace])
+  }), [baseWorkspace, markDay, markColor, replayCutoff, setDayPref])
 
   // ── The scan deck ───────────────────────────────────────────────────────────
   const deck = useScanDeck(drill)
@@ -262,32 +296,26 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
     () => (colKey ? dayContext(ctxRows, colKey, drillDate, { live: drillLive, spark: 252 }) : null),
     [ctxRows, colKey, drillDate, drillLive],
   )
-  const prevTarget = rows && onNavigate ? stepDate(rows, drillDate, drillLive, -1) : null
-  const nextTarget = rows && onNavigate ? stepDate(rows, drillDate, drillLive, 1) : null
-  const step = useCallback((dir) => {
-    const t = dir < 0 ? prevTarget : nextTarget
-    if (t && colKey) onNavigate?.({ colKey, ...t })
-  }, [prevTarget, nextTarget, colKey, onNavigate])
-  // The date box: the same control (and calendar) the chart widget and the
-  // Monitor header use. A picked day snaps to the nearest session on or before
-  // it; a picked year opens that year's last session.
-  const settledDates = useMemo(() => (rows || []).filter(r => !r?._live && r?.date).map(r => r.date), [rows])
-  const goDate = useCallback((iso) => {
-    const hit = settledDates.find(d => d <= iso) || settledDates[settledDates.length - 1]
-    if (hit && colKey) onNavigate?.({ colKey, date: hit, live: false })
-  }, [settledDates, colKey, onNavigate])
-  const goYear = useCallback((y) => goDate(`${y}-12-31`), [goDate])
-  const dateNav = onNavigate && settledDates.length ? (
-    <JoinedDateNav
-      topDate={drillLive ? settledDates[0] : drillDate}
-      minDate={settledDates[settledDates.length - 1]}
-      maxDate={settledDates[0]}
-      canForward={!!nextTarget}
-      onStep={step}
-      onPickDate={goDate}
-      onPickYear={goYear}
-    />
-  ) : null
+  const { dateNav, step } = useDrillDateNav({ rows, colKey, date: drillDate, live: drillLive, onNavigate })
+
+  // ── The reading strip + History drawer (owner pick B, 2026-11-19) ──────────
+  // Where this day's reading sits in all its history, fetched when the window opens.
+  const { reading, loading: readingLoading, error: readingError } = useReading({
+    universe, metric: colKey, date: drillDate, live: drillLive, value: drill?.value ?? null, per: drill?.per ?? null,
+  })
+  const [histOpen, setHistOpen] = useState(false)
+  // A day outside the page's window (a similar past day) has no page history to draw: the
+  // count tile then draws this column's own readings from the reading's series.
+  const tileCtx = useMemo(() => {
+    if (ctx?.series?.some?.(Number.isFinite) || !reading?.series) return ctx
+    return { ...(ctx || {}), series: reading.series.values, seriesDates: reading.series.dates }
+  }, [ctx, reading])
+  const histOpenRef = useRef(false)
+  useEffect(() => { histOpenRef.current = histOpen }, [histOpen])
+  const toggleHistory = useCallback(() => setHistOpen(o => !o), [])
+  const pickSimilarDay = useCallback((d) => {
+    if (d && colKey) onNavigate?.({ colKey, date: d, live: false })
+  }, [colKey, onNavigate])
   const pickMetric = useCallback((key) => {
     onNavigate?.({ colKey: key, date: drillDate, live: drillLive })
   }, [onNavigate, drillDate, drillLive])
@@ -325,6 +353,8 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
       // The date box calendar closes itself on Escape; the window stays.
       if (document.querySelector('[role="dialog"][aria-label="Go to date"]')) return
       if (document.querySelector(`[${DRILL_POPOVER_ATTR}]`)) return
+      // The History drawer closes first; the window stays.
+      if (histOpenRef.current || document.querySelector(`[${HISTORY_DRAWER_ATTR}]`)) { setHistOpen(false); return }
       onClose?.()
     }
     window.addEventListener('keydown', onKey)
@@ -402,13 +432,19 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
           colKey={drill?.colKey}
           onPickMetric={onNavigate ? pickMetric : null}
           dateNav={dateNav}
-          ctx={ctx}
+          ctx={tileCtx}
           onWantDays={wantDays}
           summary={deck.summary}
           mode={mode}
           modes={SCAN_MODES}
           onMode={setMode}
           onClose={onClose}
+          reading={reading}
+          readingLoading={readingLoading}
+          onHistory={toggleHistory}
+          histOpen={histOpen}
+          badge={null}
+          dayTools={<DayTools markDay={markOn} replay={replayOn} onToggle={setDayPref} canReplay={!drill?.live} />}
         >
           <div className={styles.paneToggle} role="group" aria-label="Show list or chart">
             <button type="button" className={mobilePane === 'list' ? styles.paneOn : undefined}
@@ -420,6 +456,20 @@ export default function BreadthDrillModal({ drill, latestDate, onRetry, onClose,
 
         <div className={styles.panel}>
         {popNotice && <div className={styles.notice}>{popNotice}</div>}
+        {histOpen && (
+          <HistoryDrawer
+            label={source.label}
+            valueText={drill?.valueText ?? (drill?.items ? total.toLocaleString('en-US') : null)}
+            universeName={universeLabel(universe)}
+            date={drillDate}
+            reading={reading}
+            loading={readingLoading}
+            error={readingError}
+            fmt={drill?.fmt || ((v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('en-US') : '—'))}
+            onPickDate={onNavigate ? pickSimilarDay : null}
+            onClose={() => setHistOpen(false)}
+          />
+        )}
 
         <WorkspaceContext.Provider value={workspace}>
           <DrillSourceContext.Provider value={source}>

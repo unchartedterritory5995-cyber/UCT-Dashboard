@@ -187,6 +187,14 @@ scripts/rth-close.ps1 -text
 # documents stored with CRLF since they were written (0bb8f2a585, 3433893154). No bytes change.
 docs/agent/CHARTS_COVERAGE_MATRIX.md -text
 docs/agent/CHARTS_EXECUTION_STATUS.md -text
+# ⭐ Same rule, same derivation, found 2026-11-20 by tests/test_gitattributes_eol.py run for the lane census: six more
+# blobs stored with CR and nothing protecting them (three whole files CRLF, three with stray CRs). No bytes change.
+api/routers/push.py -text
+app/src/agent/guide/actions.js -text
+app/src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx -text
+docs/agent/program/evidence/988/whole-tree/attempt-1/head_fbd9.failing-tests.txt -text
+docs/pine/evidence/2026-11-04-w4-t8/EVIDENCE.md -text
+docs/runbooks/trade-exchange-news-retention.md -text
 
 # Economic data: agency payload fixtures are BYTE-FIDELITY artifacts (raw archive
 # hashes, byte-level XML edits in tests/econ/test_adapter_dol.py). With
@@ -209,3 +217,8 @@ tools/restore_drill_weekly.cmd text eol=crlf
 # serverBundle.rail / hostNeutralClosure.rail); with core.autocrlf=true its shebang line checks out
 # with a CR and vite's loader fails with "Invalid or unexpected token". Keep it LF.
 tools/pine_runtime_closure.mjs text eol=lf
+
+# ⛔ Universe minute frames: binary fixtures under tests/fixtures/, which the rule above makes
+# TEXT with eol=lf. A frame can contain 0x0D 0x0A anywhere, and a normalised one fails its CRC.
+# This line must stay BELOW `tests/fixtures/** text eol=lf` (the later rule wins).
+tests/fixtures/minute_frames/*.bin binary

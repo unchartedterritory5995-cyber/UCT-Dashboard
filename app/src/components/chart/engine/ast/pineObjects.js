@@ -820,6 +820,96 @@ export function collectObjectOps(stmts, h) {
     if (rootPos >= 0) stampTop(ops.slice(rootMark), rootPos, rootTok)
     rootMark = ops.length
   }
+  // ─── ⭐⭐ ONCE-EMPTY LIST (coordinator ruling (B), 2026-11-19) — A TEST OF A LIST NOTHING HAS WRITTEN YET ───────────
+  //
+  // `var ps = array.new<P>()`, and every write to `ps` stands LATER in the script, inside an `if` that is provably
+  // `barstate.islast` (`guardIsLastBarOnly`, C42): on every bar the host lane runs, a test of `ps` standing BEFORE those
+  // writes (`if ps.size() > 0`, `if array.size(ps) > 0`, `for p in ps`), in no loop, meets an EMPTY list, so the block
+  // under it runs no step. It is not walked: nothing in it is carried or counted. ⚰️ Walked, the class guard counted
+  // the deletes in it (`htf-candle-footprint-cartel-console`: `l.delete()` / `b.delete()` over the profiles an EARLIER
+  // run drew, of which a loaded chart has none) and withheld a picture its captures grade MATCH (the three body boxes,
+  // TradingView's bars and prices, `vendorHarness.c31Loops` / `f4SpyDrawings`).
+  //
+  // ⛔ SOUND IN THE HOST LANE'S EXECUTION MODEL: a chart's drawings are ONE full recompute over the bars it holds
+  // (`hostObjects.js::hostObjectRun` over the whole array, `objectRuntime.js::evaluateObjects` from a fresh state), and
+  // the newest bar is its only `barstate.islast` bar (`lastBarOnly`) — C42's premise. TradingView re-runs a last-bar
+  // block on every new realtime bar with the list committed from the bar before; that is a chart left open, which no
+  // recompute here reproduces for any script (C42), and `hostOnceEmptyList.test.js` checks the htf shape against it.
+  // ⛔ PROVED FROM THE TOKENS OR NOT AT ALL: the list is a top-level `var` made by `array.new<…>()` with nothing between
+  // the brackets; the test stands in no loop; EVERY other token naming the list stands after the
+  // test's whole block and inside such an `if`. Anything else walks the block as before.
+  const onceEmpty = (() => {
+    const lists = new Map()
+    const lastIndex = (st) => {
+      let m = -1
+      for (const x of (st && st.header) || []) if (x && Number.isFinite(x.index) && x.index > m) m = x.index
+      for (const sub of (st && st.sub) || []) { const k = lastIndex(sub); if (k > m) m = k }
+      return m
+    }
+    for (const st of stmts || []) {
+      const t = st && st.header
+      if (!t || !t.length || !(t[0].kind === 'ident' && t[0].value === 'var')) continue
+      const eq = t.findIndex((x) => h.isPunct(x, '='))
+      const nameTok = eq > 1 ? t[eq - 1] : null
+      if (!nameTok || nameTok.kind !== 'ident') continue
+      const name = String(nameTok.value)
+      const r = t.slice(eq + 1)
+      const n = r.length
+      // `array.new<T>()` (the lexer carries `<T>` on the head as `typeArgs`, `stripTypeArguments`) or
+      // `array.new_<type>()`: the call and `()` with nothing between the brackets.
+      const empty = n === 3 && r[0].kind === 'ident' && /^array\.new(?:_\w+)?$/.test(String(r[0].value))
+        && h.isPunct(r[1], '(') && h.isPunct(r[2], ')')
+      lists.set(name, empty ? { lo: t[0].index, hi: lastIndex(st) } : null)
+    }
+    if (![...lists.values()].some(Boolean)) return null
+    const refs = new Map()
+    const blocks = new Map()
+    const visit = (list, once, loop) => {
+      for (const st of list || []) {
+        const t = st && st.header
+        if (!t || !t.length) continue
+        const w = t[0].kind === 'ident' ? t[0].value : null
+        if (Number.isFinite(t[0].index)) blocks.set(t[0].index, { loop, hi: lastIndex(st) })
+        for (const x of t) {
+          if (!x || x.kind !== 'ident') continue
+          const v = String(x.value)
+          const dot = v.indexOf('.')
+          const head = dot > 0 ? v.slice(0, dot) : v
+          if (!lists.get(head)) continue
+          if (!refs.has(head)) refs.set(head, [])
+          refs.get(head).push({ at: x.index, once })
+        }
+        visit(st.sub, once || (w === 'if' && guardIsLastBarOnly(t.slice(1))), loop + (w === 'for' || w === 'while' ? 1 : 0))
+      }
+    }
+    visit(stmts, false, 0)
+    return { lists, refs, blocks }
+  })()
+  /** Is the list `name` provably EMPTY wherever the test statement `st` runs? (see `onceEmpty` above) */
+  const listEmptyOnOnce = (name, st) => {
+    const decl = onceEmpty && name ? onceEmpty.lists.get(name) : null
+    const lo = st && st.header && st.header[0] ? st.header[0].index : null
+    const me = decl && Number.isFinite(lo) ? onceEmpty.blocks.get(lo) : null
+    if (!me || me.loop !== 0) return false
+    for (const r of onceEmpty.refs.get(name) || []) {
+      if ((r.at >= decl.lo && r.at <= decl.hi) || (r.at >= lo && r.at <= me.hi)) continue
+      if (!(r.at > me.hi) || !r.once) return false
+    }
+    return true
+  }
+  /** `ps.size() > 0` / `array.size(ps) > 0` → `ps`, else null. */
+  const sizeTestedList = (c) => {
+    const zero = (x) => !!x && x.kind === 'number' && Number(x.value) === 0
+    if (c && c.length === 5 && c[0].kind === 'ident' && /^[A-Za-z_]\w*\.size$/.test(String(c[0].value))
+      && h.isPunct(c[1], '(') && h.isPunct(c[2], ')') && h.isPunct(c[3], '>') && zero(c[4])) return String(c[0].value).slice(0, -'.size'.length)
+    if (c && c.length === 6 && c[0].kind === 'ident' && c[0].value === 'array.size' && h.isPunct(c[1], '(') && c[2].kind === 'ident'
+      && h.isPunct(c[3], ')') && h.isPunct(c[4], '>') && zero(c[5])) return String(c[2].value)
+    return null
+  }
+  /** `for p in ps` → `ps`, else null. */
+  const forInList = (t) => (t && t.length === 4 && t[1].kind === 'ident' && t[2].kind === 'ident' && t[2].value === 'in'
+    && t[3].kind === 'ident' ? String(t[3].value) : null)
+
   const walk = (list, guards, inLoop, scope) => {
     // ⭐⭐ C22 — EVERY earlier condition of the chain, not the last one: see `else`.
     let prevIfConds = []
@@ -841,6 +931,8 @@ export function collectObjectOps(stmts, h) {
     const getterAliases = new Map()
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     const walkItems = splitCommaStatements(list, h)
+    // ⭐⭐ TWO-STEP REMOVAL — the delete statement a declaration above it was fused into (`twoStepRemovalFusion`).
+    let fusedNext = null
     for (let wi = 0; wi < walkItems.length; wi += 1) {
       const st = walkItems[wi]
       if (isRoot) {
@@ -875,6 +967,19 @@ export function collectObjectOps(stmts, h) {
       // change the object (see `getterAliasStep`). Only this `if`'s own condition
       // tokens are rewritten; `st` keeps its header.
       t = getterAliasStep(st, t, getterAliases)
+      // ⭐⭐ TWO-STEP REMOVAL (2026-11-19, coordinator ruling) — `old = array.shift(xs)` then `label.delete(old)` /
+      // `old.delete()` is ONE Pine program with `label.delete(array.shift(xs))`: the slot leaves the list and the object
+      // it held is deleted (array.shift: "Removes an array's first element and returns its value"). Fused, the pair walks
+      // the one-call lowering below (`emitMethodOn`, C16's `poppedFrom` branch), only where the two are ADJACENT in one
+      // statement list (same guards, nothing between them can read the list) and the name is read nowhere else. Every
+      // other declaration of a removal into a name loses its list by name (the assignment branch below), never silent.
+      // ⚰️ Before: the function form was refused (`delete:target`); the METHOD form emitted nothing and the declaration
+      // carried no removal, so the host lane drew every label the script deleted (a 3-label script showed 26).
+      if (fusedNext && fusedNext.at === wi) { t = fusedNext.toks; fusedNext = null }
+      else if (!inLoop) {
+        const fused = twoStepRemovalFusion(walkItems, wi, t)
+        if (fused) { fusedNext = { at: wi + 1, toks: fused }; continue }
+      }
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
       // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
@@ -1041,7 +1146,10 @@ export function collectObjectOps(stmts, h) {
           const f = foldLocalChain(walkItems, wi, localScope)
           if (f) pendingFold = { ...f, st }
         }
-        walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
+        // ⭐⭐ ONCE-EMPTY LIST — `if ps.size() > 0` over a list nothing has written yet runs no step (`listEmptyOnOnce`).
+        if (!listEmptyOnOnce(sizeTestedList(cond), st)) {
+          walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
+        }
         // ⭐⭐ R2 STEP 3 — A NAME THE CHAIN REASSIGNS IS A NEW BINDING FOR EVERY
         // STATEMENT AFTER IT. `string atrMultText = ''` then `atrMultText := …`
         // inside an `if` leaves TWO bindings for one name, and the cell below the
@@ -1111,6 +1219,11 @@ export function collectObjectOps(stmts, h) {
         // an unrecorded reassignment both ways, which `scopeFor` refuses by name.
         const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
         const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
+        // ⭐⭐ ONCE-EMPTY LIST — `for p in ps` over a list nothing has written yet runs no pass (`listEmptyOnOnce`).
+        if (word === 'for' && !head && listEmptyOnOnce(forInList(t), st)) {
+          if (loopRe.length) localScope = [...localScope, ...loopRe]
+          continue
+        }
         // ⭐⭐ C40 — A `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while`.
         // Both become loop ops the object runtime runs (`forInPlan`, `capWhileOf`);
         // every other shape falls through to the refusal below, unchanged.
@@ -1310,6 +1423,14 @@ export function collectObjectOps(stmts, h) {
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
+        // ⭐⭐ TWO-STEP REMOVAL — a drawing list's `shift` / `pop` / `remove` whose element goes into a name and is NOT
+        // the fused pair above: the removal is a change of the list this program does not carry, so the list is LOST
+        // by name (what reads it after is withheld), never left at its old length.
+        const removedInto = removalIntoName(rhs)
+        if (removedInto) {
+          diagnostics.unsupported.push(`array.${removedInto.method}`)
+          loseColl(removedInto.coll, `coll:${removedInto.method}-into-name`, t[0])
+        }
         // ⭐⭐ C14 — `x := label.get_y(l)` / `x = l.get_x()` on a getter-fed
         // scalar: WRITTEN HERE, in op order, under this block's guards. Nothing
         // else about the statement changes (it still joins the block scope).
@@ -2114,6 +2235,43 @@ export function collectObjectOps(stmts, h) {
     return { coll, family: d.family, method, index }
   }
 
+  /** ⭐⭐ TWO-STEP REMOVAL — a right-hand side that IS a drawing list's `shift` / `pop` / `remove` (`poppedFrom`). */
+  function removalIntoName(rhsToks) {
+    if (!rhsToks || !rhsToks.length) return null
+    let v = null
+    try { v = h.parseWholeExpression(rhsToks) } catch { v = null }
+    return v ? poppedFrom(v) : null
+  }
+  /** Does this statement, or any block under it, name `name` (as itself, a field, a method receiver or `name[n]`)? */
+  const statementNames = (it, name) => !!it && (((it.header || []).some((x) => x && x.kind === 'ident'
+    && (String(x.value) === name || String(x.value).startsWith(`${name}.`))))
+    || (it.sub || []).some((s) => statementNames(s, name)))
+  /** ⭐⭐ TWO-STEP REMOVAL — `name = <list removal>` at `items[wi]` and, IMMEDIATELY after it, `<family>.delete(name)`
+   *  or `name.delete()` with no block of its own: the delete statement's tokens as the one-call form
+   *  `<family>.delete(<list removal>)`, or null. ⛔ Never `var` / `varip`, never `:=`, never a name this walker holds
+   *  (`decls`, `scalars`), never another family's delete, never a name any later statement of this list (or a block
+   *  under it) reads: each of those keeps the declaration unfused, and it then loses its list by name. */
+  function twoStepRemovalFusion(items, wi, t) {
+    if (!t || !t.length || (t[0].kind === 'ident' && (t[0].value === 'var' || t[0].value === 'varip'))) return null
+    const at = t[0] && t[0].kind === 'ident' && t[1] && t[1].kind === 'ident' && h.isPunct(t[2], '=') ? 1 : 0
+    if (!(t[at] && t[at].kind === 'ident' && h.isPunct(t[at + 1], '='))) return null
+    const name = String(t[at].value)
+    if (name.includes('.') || decls.has(name) || scalars.has(name)) return null
+    const rhs = t.slice(at + 2)
+    const popped = removalIntoName(rhs)
+    if (!popped) return null
+    const next = items[wi + 1]
+    if (!next || !next.header || (next.sub && next.sub.length)) return null
+    const n = next.header
+    const fnForm = n.length === 4 && n[0].kind === 'ident' && n[0].value === `${popped.family}.delete`
+      && h.isPunct(n[1], '(') && n[2].kind === 'ident' && n[2].value === name && h.isPunct(n[3], ')')
+    const methodForm = n.length === 3 && n[0].kind === 'ident' && n[0].value === `${name}.delete`
+      && h.isPunct(n[1], '(') && h.isPunct(n[2], ')') && !isDefinedMethod('delete')
+    if (!fnForm && !methodForm) return null
+    if (items.slice(wi + 2).some((it) => statementNames(it, name))) return null
+    return [{ ...n[0], value: `${popped.family}.delete` }, n[1], ...rhs, n[n.length - 1]]
+  }
+
   /** The `<family>.new` this token span NAMES anywhere, or null.
    *
    *  ⛔ IT IS A DIAGNOSTIC READER, NOT A PARSER. Its only job is to tell a
@@ -2481,6 +2639,21 @@ export function collectObjectOps(stmts, h) {
     if (recv && (recv.type === 'offset' || recv.type === 'ternary')) {
       return emitOnValueReceiver(node, toks, guards, inLoop, st, scope)
     }
+    // ⭐⭐ FIELD REGISTER, STEP A (class sweep, 2026-11-19) — A DRAWING READ OUT OF A FIELD OF AN EXPRESSION:
+    // `zs.get(0).lb.delete()`, `array.get(zs, 0).lb.delete()`, `f().lb.delete()`, `(c ? a : b).lb.set_x(n)`. The
+    // handle lives in a field of an object this walker holds no register for (an array of a user type, a function's
+    // result), so the step cannot be EXECUTED, only named: a `delete` / `set_*` is `object.<method>` in `unsupported`
+    // (a removal that reaches / a lost setter, `classifyReaderName`), whatever a user method of that name might be (the
+    // tokens cannot say which one Pine calls, and both act on a drawing this program cannot address).
+    // ⚰️ Before: a `member` receiver answered false here, the bare-call branch read `zs.get` as a list method on an
+    // undeclared name and answered false too, and the statement vanished: the member door served every label the
+    // script deleted (probe: 26 where TradingView keeps 1), counting nothing.
+    if (recv && recv.type === 'member') {
+      const method = String(node.name || '')
+      if (method !== 'delete' && !method.startsWith('set_')) return false
+      diagnostics.unsupported.push(`object.${method}`)
+      return true
+    }
     // ⛔ THE ONE RECEIVER `targetRef` CAN ADDRESS. A `name` receiver never
     // reaches here — the parser folds `(b).delete()` back into the dotted name
     // `b.delete`, which is the bare-call branch's business — so this is the
@@ -2721,6 +2894,18 @@ export function collectObjectOps(stmts, h) {
       return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method, sd.family)
     }
     const d = decls.get(recv)
+    // ⭐⭐ CLASS GUARD (2026-11-19, coordinator ruling) — A DRAWING DELETE OR SETTER ON A HANDLE THIS WALKER CANNOT
+    // TRACE to a declaration it carries is COUNTED, never nothing: the delete as `delete:target` (the drawing is
+    // withheld by name, as the function form `label.delete(old)` always was), the setter as `update:target` with the
+    // families its name reaches (`pine.js::lostSetterName`). ⚰️ It returned false and the statement vanished: an
+    // `old.delete()` deleted nothing on the host lane and the member saw every object the script removed.
+    if (!d && recv !== 'array' && !scalars.has(recv) && (method === 'delete' || /^set_/.test(method))) {
+      const target = { name: null, value: { type: 'name', name: recv, tok: toks[0] }, tok: toks[0] }
+      const where = { guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line }
+      if (method === 'delete') ops.push({ k: 'delete', family: null, target, ...where })
+      else ops.push({ k: 'update', family: null, target, props: [], args: [], untraced: method, ...where })
+      return true
+    }
     // ⭐ gap (b): `m.put(k, label.new(…))` / `map.put(m, k, …)` — a map of drawings
     // is a list this program does not hold either.
     if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method) || method === 'put')
@@ -3381,5 +3566,267 @@ export function collectObjectOps(stmts, h) {
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines }
+  // ─── ⭐⭐ FIELD REGISTER, STEP A (b) (coordinator ruling 2026-11-19) — A FIELD WRITTEN BEFORE IT IS READ ────────────
+  //
+  // The host program clears every local register at the start of a bar (`pine.js`, `locals`). For a field register
+  // (`z.lb`) that clear is only ever OBSERVED by a read that runs before the bar writes the field: Pine's field keeps
+  // last bar's value (or the constructor's) there, the register reads `na`. A field whose every read is DOMINATED by an
+  // unconditional write of that exact field, earlier in the same statement list or an enclosing one, never observes the
+  // clear, so it keeps its register exactly as before Step A (`dominatedFields`): `z.b := box.new(…)` then
+  // `box.set_bgcolor(z.b, …)` draws Pine's coloured box. Every other field register is untraced (Step A).
+  // ⛔ CONSERVATIVE BY CONSTRUCTION — nothing the tokens cannot prove is dominated: a read in a loop or a function body,
+  // or in the same statement as its write; a write in a nested block (an `if` arm) or in a loop; a call to a function
+  // or method of the script's own (it may write any field) or a reassignment of the owner (`z := …`) anywhere between
+  // the write and the read, nested blocks included; and an owner used as a VALUE anywhere (`a = z`, `f(z)`, `z.copy()`,
+  // a method of its own: an alias reads and writes its fields under another name), which leaves all its fields untraced.
+  const dominatedFields = (() => {
+    const fields = [...decls.entries()].filter(([n, dd]) => dd && dd.kind === 'local' && String(n).includes('.')).map(([n]) => String(n))
+    const out = new Set()
+    if (!fields.length) return out
+    const ownerOf = (f) => f.slice(0, f.indexOf('.'))
+    const owners = new Set(fields.map(ownerOf))
+    const undominated = new Set()
+    const ALL = '\u0000all'
+    const killOwner = (w, kills, o) => { for (const f of [...w]) if (ownerOf(f) === o) w.delete(f); kills.add(o) }
+    // Walks one statement list with the fields written so far; returns what it invalidated (owners, or ALL).
+    const visit = (list, written, opaque) => {
+      const w = new Set(written)
+      const kills = new Set()
+      for (const st of list || []) {
+        const t = st && st.header
+        if (!t || !t.length) continue
+        const word = t[0].kind === 'ident' ? String(t[0].value) : null
+        const isDef = !!definitionHeader(t, h)
+        const lhs = t.length > 1 && t[0].kind === 'ident' && h.isPunct(t[1], ':=') && fields.includes(String(t[0].value))
+          ? String(t[0].value) : null
+        for (let i = 0; i < t.length; i += 1) {
+          const x = t[i]
+          if (!x || x.kind !== 'ident' || x.member) continue
+          if (lhs && i === 0) continue
+          const v = String(x.value)
+          // a call to the script's own function or method: it may write any field
+          const dot = v.lastIndexOf('.')
+          const callee = dot > 0 ? v.slice(dot + 1) : v
+          if (h.isPunct(t[i + 1], '(') && (dot > 0 ? definedMethods.has(callee) : defined.has(v))) {
+            w.clear()
+            kills.add(ALL)
+          }
+          // the owner itself: a declaration or reassignment resets its fields; any other use is an alias
+          if (owners.has(v)) {
+            if (h.isPunct(t[i + 1], '=') || h.isPunct(t[i + 1], ':=')) killOwner(w, kills, v)
+            else for (const f of fields) if (ownerOf(f) === v) undominated.add(f)
+            continue
+          }
+          const head = dot > 0 ? v.slice(0, v.indexOf('.')) : null
+          let named = false
+          for (const f of fields) {
+            if (v === f || v.startsWith(`${f}.`)) {
+              named = true
+              if (opaque || isDef || !w.has(f)) undominated.add(f)
+            }
+          }
+          // `z.copy()`, `z.m()`: the owner used through a path that names none of its fields — an alias
+          if (!named && head && owners.has(head)) for (const f of fields) if (ownerOf(f) === head) undominated.add(f)
+        }
+        const sub = st.sub || []
+        if (sub.length) {
+          const loop = word === 'for' || word === 'while'
+          const inner = visit(sub, w, opaque || isDef || loop || !(word === 'if' || word === 'else'))
+          if (inner.has(ALL)) { w.clear(); kills.add(ALL) }
+          for (const o of inner) if (o !== ALL) killOwner(w, kills, o)
+        } else if (lhs && !opaque && !isDef) {
+          w.add(lhs)
+        }
+      }
+      return kills
+    }
+    visit(stmts, new Set(), false)
+    for (const f of fields) if (!undominated.has(f)) out.add(f)
+    return out
+  })()
+
+  // ─── ⭐⭐ FIELD REGISTER, STEP B (coordinator ruling 2026-11-19) — A FIELD TAKES ITS OWNER'S `var`-NESS ─────────────
+  //
+  // Pine's `var z = Z.new(na)` makes ONE object on the first bar and keeps it, so `z.lb` keeps last bar's label; a plain
+  // `z = Z.new(na)` makes a new object every bar, so `z.lb` starts every bar `na`. Under the conditions below `z.lb` is
+  // read and written only through that one name, so it is EXACTLY a handle of the owner's kind: a `var` owner's field a
+  // persistent register (a `var label lb = na`), a plain owner's field a register cleared every bar (`pine.js`, `locals`).
+  // ALL must hold, or the field stays untraced (Step A / (b)):
+  //  (i)   the owner is declared ONCE, in the script's literal top scope, as `var o = T.new(…)` or `o = T.new(…)` (the
+  //        typed spelling `var T o = …` is the same declaration), `T` a `type` of the script's own, read whole;
+  //        the field's constructor argument is `na` or absent (a nested `o.a.lb`: `a`'s is an `A.new(…)` itself);
+  //  (a)   the field's DECLARED default in its `type` is `na` or absent;
+  //  (b)   not `varip` (a `varip` owner is not read here at all);
+  //  (ii)  the owner is never written again (`o := …`), and (iii) never used as a value: the bare name appears nowhere
+  //        but its declaration, and every dotted use of it names a drawing field this program registers (a read, a
+  //        method call on that handle, or a write it carries: `:= T.new(…)`, `:= na`). `a = o`, `f(o)`, `o.copy()`,
+  //        `o.m()`, `o[1]`, `o.a` alone, `o.x` for any other field: the owner is left untraced, every field of it;
+  //  (iv)  no function or method of the script's own is called anywhere (one may write any field through any name);
+  //  (c)   no history-indexed read of the field (`o.f[1]`, `o.f[n]`).
+  const fieldOwnerVarness = (() => {
+    const varFields = new Set()
+    const plainFields = new Set()
+    const fields = [...decls.entries()].filter(([n, dd]) => dd && dd.kind === 'local' && String(n).includes('.')).map(([n]) => String(n))
+    if (!fields.length) return { varFields, plainFields }
+    const ownerOf = (f) => f.slice(0, f.indexOf('.'))
+    // every statement, nested ones and definition bodies included; and the literal top scope alone
+    const allStmts = []
+    const every = (list) => { for (const st of list || []) { if (st && st.header && st.header.length) allStmts.push(st); every(st.sub) } }
+    every(stmts)
+    const headers = allStmts.map((st) => st.header)
+    const topScope = (stmts || []).filter((st) => st && st.header && st.header.length)
+    // (iv) — any call of a function or method the script defines, anywhere (a definition's own name is not a call)
+    let callsOwn = false
+    for (const t of headers) {
+      const def = definitionHeader(t, h)
+      for (let i = 0; i < t.length; i += 1) {
+        const x = t[i]
+        if (!x || x.kind !== 'ident' || !h.isPunct(t[i + 1], '(') || (def && i === def.open - 1)) continue
+        const v = String(x.value)
+        const dot = v.lastIndexOf('.')
+        if (x.member ? definedMethods.has(v) : dot > 0 ? definedMethods.has(v.slice(dot + 1)) : defined.has(v)) callsOwn = true
+      }
+    }
+    if (callsOwn) return { varFields, plainFields }
+    const closeAt = (t, open) => {
+      let depth = 0
+      for (let i = open; i < t.length; i += 1) {
+        if (h.isPunct(t[i], '(') || h.isPunct(t[i], '[')) depth += 1
+        else if (h.isPunct(t[i], ')') || h.isPunct(t[i], ']')) { depth -= 1; if (depth === 0) return i }
+      }
+      return -1
+    }
+    const isNa = (toks) => toks.length === 1 && toks[0].kind === 'ident' && !toks[0].member && toks[0].value === 'na'
+    // the script's own types, each read WHOLE: every field line `<type> <name>` or `<type> <name> = <default>`.
+    // ⚠️ The statement splitter folds a type's indented field lines onto its `type` line (one header, no `sub`), so the
+    // fields are read one SOURCE LINE at a time (`tok.line`); a token with no line leaves the type unread.
+    const types = new Map()
+    for (const st of stmts || []) {
+      const ht = st.header || []
+      const at = ht[0] && ht[0].value === 'export' ? 1 : 0
+      if (!(ht.length >= at + 2 && ht[at].kind === 'ident' && ht[at].value === 'type' && ht[at + 1].kind === 'ident')) continue
+      const byLine = new Map()
+      let whole = !(st.sub && st.sub.length) && ht.every((k) => k && Number.isFinite(k.line))
+      for (const k of ht) {
+        if (!byLine.has(k.line)) byLine.set(k.line, [])
+        byLine.get(k.line).push(k)
+      }
+      const lines = [...byLine.values()]
+      if (!lines.length || lines[0].length !== at + 2) whole = false
+      const fl = []
+      for (const ft of lines.slice(1)) {
+        if (ft.length >= 2 && ft[0].kind === 'ident' && ft[1].kind === 'ident' && !ft[0].member && !ft[1].member
+            && !['var', 'varip', 'const', 'series', 'simple'].includes(String(ft[0].value))
+            && (ft.length === 2 || (ft.length > 3 && h.isPunct(ft[2], '=')))) {
+          fl.push({ name: String(ft[1].value), type: String(ft[0].value), def: ft.length === 2 ? null : ft.slice(3) })
+        } else whole = false
+      }
+      types.set(String(ht[at + 1].value), whole ? fl : null)
+    }
+    // `T.new(…)` spanning exactly `t[from..]` → its arguments by field name, or null
+    const ctorArgs = (t, from, T) => {
+      const fl = types.get(T)
+      if (!fl || !t[from] || t[from].kind !== 'ident' || t[from].member || String(t[from].value) !== `${T}.new`
+          || !h.isPunct(t[from + 1], '(') || closeAt(t, from + 1) !== t.length - 1) return null
+      const args = splitArgs(t, from + 1, h.isPunct)
+      if (!args) return null
+      const byName = new Map()
+      let pos = 0
+      for (const a of args) {
+        if (!a.toks.length) return null
+        const key = a.name !== null ? a.name : (fl[pos] ? fl[pos].name : null)
+        if (a.name === null) pos += 1
+        if (key === null || byName.has(key) || !fl.some((x) => x.name === key)) return null
+        byName.set(key, a.toks)
+      }
+      return byName
+    }
+    // (i) — the owners declared in the literal top scope (`var o = T.new(…)`, `o = T.new(…)`, `var T o = …`)
+    const owners = new Map()
+    for (const st of topScope) {
+      const t = st.header || []
+      if (!t.length || t[0].kind !== 'ident') continue
+      const isVar = t[0].value === 'var' || t[0].value === 'varip'
+      if (t[0].value === 'varip') continue
+      const i = isVar ? 1 : 0
+      const typed = t[i] && t[i + 1] && t[i + 2] && t[i].kind === 'ident' && t[i + 1].kind === 'ident' && h.isPunct(t[i + 2], '=')
+      const nameAt = typed ? i + 1 : i
+      const eq = nameAt + 1
+      if (!t[nameAt] || t[nameAt].kind !== 'ident' || t[nameAt].member || String(t[nameAt].value).includes('.') || !h.isPunct(t[eq], '=')) continue
+      const rhs = t[eq + 1]
+      const T = rhs && rhs.kind === 'ident' && String(rhs.value).endsWith('.new') ? String(rhs.value).slice(0, -4) : null
+      if (!T || !types.has(T) || (typed && String(t[i].value) !== T)) continue
+      const args = ctorArgs(t, eq + 1, T)
+      if (!args) continue
+      owners.set(String(t[nameAt].value), { isVar, T, args, tok: t[nameAt] })
+    }
+    // (ii)/(iii) — every use of each owner, and (c) every history read of a field
+    const bad = new Set()
+    const badField = new Set()
+    for (const t of headers) {
+      for (let i = 0; i < t.length; i += 1) {
+        const x = t[i]
+        if (!x || x.kind !== 'ident' || x.member) continue
+        const v = String(x.value)
+        const head = v.includes('.') ? v.slice(0, v.indexOf('.')) : v
+        const o = owners.get(head)
+        if (!o) continue
+        if (v === head) {
+          if (x === o.tok) continue                       // its one declaration
+          if (h.isPunct(t[i + 1], ':=')) bad.add(head)      // (ii) — the owner written again
+          else bad.add(head)                                // (iii) — the owner used as a value (`a = o`, `f(o)`, `o[1]`)
+          continue
+        }
+        // (iii) — a dotted use names a registered drawing field of this owner, or calls a method on that handle; any
+        // other path (`o.copy()`, `o.m()`, `o.a` alone, `o.x`) uses the owner, or an object on the path, as a value
+        const f = fields.find((g) => v === g || (v.startsWith(`${g}.`) && !v.slice(g.length + 1).includes('.') && h.isPunct(t[i + 1], '(')))
+        if (!f || ownerOf(f) !== head) { bad.add(head); continue }
+        if (v !== f) continue
+        if (h.isPunct(t[i + 1], '[')) badField.add(f)       // (c) — a history-indexed read of the field
+        if (h.isPunct(t[i + 1], ':=') || h.isPunct(t[i + 1], '=')) {
+          // a write this program carries: `:= <family>.new(…)` spanning the rest, `:= na`, `:= <family>(na)`
+          const rhs = t.slice(i + 2)
+          const fam = decls.get(f) && decls.get(f).family
+          const create = rhs[0] && rhs[0].kind === 'ident' && String(rhs[0].value) === `${fam}.new`
+            && h.isPunct(rhs[1], '(') && closeAt(rhs, 1) === rhs.length - 1
+          const reset = isNa(rhs) || (rhs.length === 4 && rhs[0].kind === 'ident' && String(rhs[0].value) === fam
+            && h.isPunct(rhs[1], '(') && isNa([rhs[2]]) && h.isPunct(rhs[3], ')'))
+          if (i !== 0 || !(create || reset)) badField.add(f)
+        }
+      }
+    }
+    for (const f of fields) {
+      const head = ownerOf(f)
+      const o = owners.get(head)
+      if (!o || bad.has(head) || badField.has(f)) continue
+      // (i)/(a) — walk the path: every object on it made by its own constructor, the drawing field `na` throughout
+      const path = f.slice(head.length + 1).split('.')
+      let T = o.T
+      let args = o.args
+      let ok = true
+      for (let k = 0; k < path.length && ok; k += 1) {
+        const fl = types.get(T)
+        const fd = fl && fl.find((x) => x.name === path[k])
+        const arg = args.get(path[k])
+        if (!fd) { ok = false; break }
+        if (k === path.length - 1) {
+          const sameFamily = fd.type === (decls.get(f) || {}).family
+          const defaultNa = fd.def === null || isNa(fd.def)      // (a) — the field's declared default
+          const argNa = !arg || isNa(arg)                        // (i) — the field's constructor argument
+          ok = sameFamily && defaultNa && argNa
+        } else {
+          const inner = arg && types.has(fd.type) ? ctorArgs(arg, 0, fd.type) : null
+          if (!inner) ok = false
+          else { T = fd.type; args = inner }
+        }
+      }
+      if (ok) (o.isVar ? varFields : plainFields).add(f)
+    }
+    return { varFields, plainFields }
+  })()
+
+  return {
+    decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines, dominatedFields,
+    varFields: fieldOwnerVarness.varFields, plainFields: fieldOwnerVarness.plainFields,
+  }
 }

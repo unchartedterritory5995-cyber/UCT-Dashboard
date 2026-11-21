@@ -16,6 +16,7 @@ import {
   serverInputsParam,
   columnsFromWire,
   alignColumns,
+  BAR_ROWS_KEPT,
   barTimeKey,
   cachedColumns,
   ensureColumns,
@@ -137,6 +138,53 @@ describe('the join is BY TIME, never by index', () => {
     for (let k = 0; k < 24; k++) {
       expect([...out[`c${k}`]].map((v) => (Number.isNaN(v) ? 'NaN' : v))).toEqual([k + 0.1, 'NaN', k + 0.3, 'NaN', k + 0.5])
     }
+  })
+
+  // ⚡ 2026-11-20. A chart's five RS definitions are aligned to the SAME bars on every switch, and each parsed every
+  // bar's date again (12,000 parses each on a daily chart). The bar keys are read once per bars array now, and the
+  // row map is reused by an envelope whose times are the same values.
+  const show = (col) => [...col].map((v) => (Number.isNaN(v) ? 'NaN' : v))
+  it('⭐ …and once per BARS ARRAY: five envelopes over one bars array read each bar once (the first and last again)', () => {
+    const days = ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18']
+    let reads = 0
+    const counted = days.map((d) => ({ get t() { reads += 1; return d } }))
+    const envs = Array.from({ length: 5 }, (_, e) => ({
+      times: [20260914, 20260916, 20260918], columns: { v: new Float64Array([e + 0.1, e + 0.3, e + 0.5]) },
+    }))
+    const outs = envs.map((env) => alignColumns(env, counted))
+    expect(reads, 'each envelope after the first re-read only the first and last bar').toBe(days.length + 2 * (envs.length - 1))
+    outs.forEach((o, e) => expect(show(o.v), `envelope ${e}`).toEqual([e + 0.1, 'NaN', e + 0.3, 'NaN', e + 0.5]))
+  })
+  it('an envelope with OTHER times over the same bars joins on its own times', () => {
+    const b = bars([10, 20, 30, 40])
+    alignColumns({ times: [10, 20, 40], columns: { v: new Float64Array([1, 2, 4]) } }, b)
+    expect(show(alignColumns({ times: [20, 30], columns: { v: new Float64Array([7, 8]) } }, b).v)).toEqual(['NaN', 7, 8, 'NaN'])
+  })
+  it('a bar appended to the same array, or its last bar replaced in place, is read again', () => {
+    const env = { times: [10, 20, 30, 40], columns: { v: new Float64Array([1, 2, 3, 4]) } }
+    const grown = bars([10, 20, 30])
+    alignColumns(env, grown)
+    grown.push({ t: 40 })
+    expect(show(alignColumns(env, grown).v)).toEqual([1, 2, 3, 4])
+    const replaced = bars([10, 20, 30])
+    alignColumns(env, replaced)
+    replaced[2] = { t: 40 }
+    expect(show(alignColumns(env, replaced).v)).toEqual([1, 2, 4])
+  })
+  it(`only the ${BAR_ROWS_KEPT} most recently aligned bars arrays are remembered`, () => {
+    const env = { times: [10, 20, 30, 40], columns: { v: new Float64Array([1, 2, 3, 4]) } }
+    let reads = 0
+    const counted = () => [10, 20, 30, 40].map((t) => ({ get t() { reads += 1; return t } }))
+    const readsAfter = (others) => {
+      const first = counted()
+      alignColumns(env, first)
+      for (let i = 0; i < others; i++) alignColumns(env, counted())
+      reads = 0
+      alignColumns(env, first)
+      return reads
+    }
+    expect(readsAfter(BAR_ROWS_KEPT - 1), 'still remembered: the first and last bar only').toBe(2)
+    expect(readsAfter(BAR_ROWS_KEPT), 'the oldest array was forgotten, so it is read whole again').toBe(4)
   })
 
   it('a column shorter than its times, a repeated time, and a missing bar still land as before', () => {

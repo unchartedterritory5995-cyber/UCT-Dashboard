@@ -5,14 +5,14 @@
 // waits for window.__panelReady, and screenshots #panel-export.
 //
 // Public route (no AuthGuard). Data from /api/r/tweets?token= (token-gated public
-// twin of the auth-gated /api/tweets/*). ?token= checked against VITE_CHART_RENDER_TOKEN.
+// twin of the auth-gated /api/tweets/*). ?token= is checked by the server on that read.
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderReadError } from '../lib/renderToken'
 function timeAgo(ts) {
   if (!ts) return ''
   const s = Math.max(0, Math.floor(Date.now() / 1000 - Number(ts)))
@@ -66,11 +66,11 @@ export default function TweetsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    // The server checks ?token= on this read; a refused read (401/403) shows "unauthorized".
     fetch(`/api/r/tweets?token=${encodeURIComponent(token)}&n=${n}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => setTweets(Array.isArray(d.tweets) ? d.tweets : []))
-      .catch(() => setErr('data unavailable'))
+      .catch((e) => setErr(renderReadError(e)))
   }, [token, n])
 
   useEffect(() => {

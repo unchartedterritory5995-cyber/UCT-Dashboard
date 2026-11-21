@@ -101,13 +101,27 @@ export function sameRefusals(a, b) {
  * @param {string} pine
  * @param {object} [deps]  injectable for tests: `{ load }` returns the engine modules
  */
-export async function checkScript(pine, { load = loadEngine, chart = null } = {}) {
+export async function checkScript(pine, { load = loadEngine, chart = null, admission = null } = {}) {
   try {
-    const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart } = await load()
-    await prepare(pine)
+    const { inspectSource, memberPaneDefinition, editorStatus, prepare, runHereWhenLanded, verdictOnChart, consultPending, pendingReason } = await load()
+    // (why the server is still checking, when it said: kept on a verdict that is only CHECKING, nowhere else)
+    const withReason = (v) => {
+      if (!isChecking(v)) return v
+      const reason = pendingReason(pine)
+      return PENDING_REASON_LINES[reason] ? { ...v, pendingReason: reason } : v
+    }
+    await prepare(pine, admission)
     const report = inspectSource(pine, 'pine')
     const pane = memberPaneDefinition({ source: pine, id: SCRIPT_CHECK_ID, name: 'script' })
     const pasted = verdictFrom(editorStatus({ report, pane, savedRow: null, inspectedSource: pine }), pane)
+    // ⛔ A VERDICT MADE WHILE THE CHART DOES NOT KNOW WHETHER IT MAY DRAW THE SCRIPT IS NOT A REFUSAL (review
+    // 2026-11-19). The bar-by-bar lane declines a script whose admission has not answered (the server said
+    // "still being checked", or the question failed); the paste check then reads "does not run", with the
+    // lane's own "still being checked" sentence as its reason, and that went to the assistant for a repair of
+    // a script that was fine. Nothing is known yet: it is CHECKING, and is asked again.
+    if (!pasted.runs && typeof consultPending === 'function' && consultPending(pine)) {
+      return withReason({ ...pasted, checking: true, headline: STILL_CHECKING_HEADLINE, errors: [] })
+    }
     // ⭐⭐ 2026-11-19 -- "RUNS" MEANS IT RAN. The status above is decided before any bar is computed, and
     // says "runs" for scripts the engine refuses when it runs them (a value kept since the first bar on
     // a chart that does not reach the listing, a clock read, a loop past its limit). So a script the
@@ -115,17 +129,42 @@ export async function checkScript(pine, { load = loadEngine, chart = null } = {}
     // authority both doors use), and the run can only take "runs" away. A run that stopped goes back
     // to the assistant with the engine's own sentence, like any refusal. With no chart to run on
     // (an older caller, a chart still loading) the verdict is the paste check's, marked as such.
-    if (!pasted.runs || !chart || typeof runHereWhenLanded !== 'function') return pasted
+    if (!pasted.runs || typeof runHereWhenLanded !== 'function' || typeof verdictOnChart !== 'function') return pasted
+    // (no chart to run on: an older caller, a chart still loading. The paste check passed and nothing was run;
+    // `verdictOnChart` says exactly that, never "runs on the chart")
+    if (!chart) return verdictOnChart(pasted, { state: 'not-run', stops: [], unchecked: [], waiting: [], notes: [], why: 'there was no chart to run it on' }, SCRIPT_REFUSAL_LIMITS)
     const run = await runHereWhenLanded(pane, chart, { timeoutMs: RUN_WAIT_MS })
-    return verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS)
+    return withReason(verdictOnChart(pasted, run, SCRIPT_REFUSAL_LIMITS))
   } catch {
-    return { runs: false, attaches: false, state: 'unchecked', lane: 'host', headline: 'This script could not be checked here',
+    return { runs: false, attaches: false, state: UNCHECKED_STATE, lane: 'host', headline: 'This script could not be checked here',
       withheld: [], notes: [], errors: [] }
   }
 }
 
 /** How long the dock waits for a run handed to a worker before saying "still being checked". */
 export const RUN_WAIT_MS = 8000
+
+/**
+ * ⭐ LATCH THE VERDICT THE ANSWER CARRIED, exactly as the door's own answer is latched
+ * (`engine/runtimeKill.js::requestRuntimeAdmission`), and under the same refusals:
+ *   - only while capability admission is ON (the lists were just read);
+ *   - only when its `sha256` IS this script's own hash (a verdict for another script is never latched under this one);
+ *   - never a "still being checked" (`missing` holds `pending`): that is not a verdict, and the door is asked;
+ *   - `historyOnly` fails closed: anything present that is not an empty list reads as finished-bars-only.
+ * @returns {boolean} whether a verdict was latched
+ */
+export function latchAnswerAdmission(kill, pine, admission) {
+  if (!kill || !admission || typeof admission !== 'object' || typeof pine !== 'string' || !pine) return false
+  if (!kill.runtimeCapabilityAdmissionOn()) return false
+  if (typeof admission.sha256 !== 'string' || typeof admission.admitted !== 'boolean') return false
+  const h = kill.runtimeSourceHash(pine)
+  if (!h || admission.sha256.toLowerCase() !== h) return false
+  if (Array.isArray(admission.missing) && admission.missing.includes('pending')) return false
+  const historyOnly = admission.historyOnly !== undefined
+    && !(Array.isArray(admission.historyOnly) && admission.historyOnly.length === 0)
+  kill.latchRuntimeAdmission(h, { admitted: admission.admitted === true, historyOnly })
+  return true
+}
 
 /** The definition id a script is checked under (never stored, never installed). */
 export const SCRIPT_CHECK_ID = 'u_script_check'
@@ -139,17 +178,26 @@ async function loadEngine() {
   return {
     runHereWhenLanded: here.runHereWhenLanded,
     verdictOnChart: here.verdictOnChart,
+    // whether the lane decided THIS script with no admission verdict in hand (`engine/runtimeKill.js`)
+    consultPending: (pine) => kill.runtimeConsultPendingOf({ source: pine }),
+    // why the server said "still being checked" the last time it was asked about this script, when it gave a
+    // reason. ⛔ READ DIRECTLY, no "is it there" guard (coordinator ruling 2026-11-20): a guard is a silent-off
+    // switch, and a renamed engine function would leave the dock saying nothing. Renamed, this throws, and the
+    // rail that walks both windows on the real engine (`builder/pendingReason.rail.test.jsx`) goes red.
+    pendingReason: (pine) => kill.runtimePendingReasonOf({ source: pine }),
     inspectSource: pineBox.inspectSource,
     memberPaneDefinition: paneDef.memberPaneDefinition,
     editorStatus: status.editorStatus,
     // the runtime lane's lists and THIS script's admission, as the script pane reads them: without
     // them the lane declines every script ("still being checked"), which would read as a refusal
-    prepare: async (pine) => {
+    prepare: async (pine, admission = null) => {
       if (!gate.runtimePaneEnabled()) return
       try {
         const r = await fetch(kill.RUNTIME_KILL_PATH, { credentials: 'include', cache: 'no-store' })
         if (r && r.ok) kill.latchRuntimeLists(await r.json())
       } catch { /* the lists stay as they were: the lane fails closed */ }
+      // ⭐ the verdict that came WITH the script is latched first, so the door is not asked at all
+      latchAnswerAdmission(kill, pine, admission)
       if (kill.runtimeCapabilityAdmissionOn() && !kill.runtimeAdmissionOf({ source: pine })) {
         await kill.requestRuntimeAdmission(pine)
       }
@@ -163,13 +211,99 @@ async function loadEngine() {
  */
 export function scriptEntry({ script, reply, verdict, rounds = 0 }) {
   const lines = [verdict.headline, ...verdict.withheld, ...verdict.notes]
-  if (!verdict.runs && rounds > 0) {
+  const checking = isChecking(verdict)
+  if (checking && PENDING_REASON_LINES[verdict.pendingReason]) lines.push(PENDING_REASON_LINES[verdict.pendingReason])
+  // ⭐ "DRAWN WHEN THE BAR CLOSES" IS SAID HERE, WHERE THE LANE IS KNOWN. The server's detector says the script
+  // reads where the chart ends; that only delays it on the bar-by-bar lane (`lane === 'runtime'`). A script
+  // already WAITING on this chart says so in its headline, and one the engine refused has other news.
+  if (script.waitsForTheBar === true && verdict.runs === true && verdict.lane === 'runtime' && verdict.waits !== true) {
+    lines.push(WAITS_ON_A_LIVE_CHART_LINE)
+  }
+  if (checking) lines.push(STILL_CHECKING_LINE)
+  else if (!verdict.runs && rounds > 0) {
     lines.push(`The assistant rewrote it ${rounds === 1 ? 'once' : `${rounds} times`} and the chart still does not run it fully.`)
   }
   return {
     role: 'uct', kind: 'script', lines, said: typeof reply === 'string' ? reply : '',
-    script: { name: script.name || '', pine: script.pine, runs: verdict.runs, attaches: verdict.attaches, state: verdict.state },
+    script: {
+      name: script.name || '', pine: script.pine, runs: verdict.runs, attaches: verdict.attaches, state: verdict.state,
+      // (only when true: an entry that is not being checked is the shape it always was)
+      ...(checking ? { checking: true } : {}),
+    },
   }
+}
+
+/**
+ * ⭐ A CHECK THAT HAS NOT FINISHED IS NOT A REFUSAL (found live 2026-11-19). The chart asks the server whether it
+ * may draw a script bar by bar; under load the server answers "still being checked" for a few seconds, and the
+ * run cannot start until it has an answer. The dock used to settle on that: "Still being checked on this chart"
+ * was its last word on a script that was fine, beside a button that said "to fix it".
+ * So a verdict that is only CHECKING is asked for again, a bounded number of times, before the answer settles;
+ * and if it is still checking then, the entry says so and the button offers the editor without "to fix it".
+ */
+/** `api/services/pine_authoring.py::FINISHED_BARS_LINE`, word for word (`tests/test_script_conversation.py`). */
+export const WAITS_ON_A_LIVE_CHART_LINE = "While the market is open this is not drawn: it appears once the chart's newest bar has finished, after the close."
+export const PENDING_RECHECKS = 2
+export const PENDING_RECHECK_MS = 3000
+/**
+ * ⭐ WHY IT IS STILL BEING CHECKED, in a member's words. The server's verdict door says why it cannot answer yet
+ * (`pending_reason`; the engine keeps the last one per script, `runtimeKill.js::runtimePendingReasonOf`). A reason
+ * with no line here is not said.
+ *   busy      shared checking capacity is in use by other work: seconds
+ *   starting  the checker is starting up: a few seconds
+ *   paused    this script, or this account, is set aside after repeated checker failures: minutes. Asking again
+ *             within the same answer cannot help, so the window does not (`settledVerdict`).
+ */
+export const PENDING_REASON_LINES = Object.freeze({
+  busy: "UCT's script checker is busy with other work right now. This usually clears in a few seconds.",
+  starting: "UCT's script checker is starting up. It should be ready in a few seconds.",
+  paused: "UCT has set this script aside after its checker failed on it several times. Try again in a few minutes.",
+})
+/** Reasons after which re-checking within the same answer cannot help. */
+export const PENDING_REASONS_THAT_END_THE_WAIT = Object.freeze(['paused'])
+
+/** The verdict state of a script the window could not check at all (the engine did not load, a check threw). */
+export const UNCHECKED_STATE = 'unchecked'
+/** `runsHere.CHECKING_HEADLINE`, word for word (a copy: this module loads the engine only when a script arrives;
+ *  `scriptAnswer.test.js` holds the two equal). */
+export const STILL_CHECKING_HEADLINE = 'Still being checked on this chart'
+export const STILL_CHECKING_LINE = 'The chart had not finished checking this script. Open it in the editor to see its status; nothing needs fixing.'
+/** The editor panel's own line under "Still being checked on this chart" (`PineEditorStatus.jsx`). */
+export const CHECKING_IN_THE_EDITOR_LINE = 'UCT has not finished checking whether it can draw this script bar by bar. Nothing needs fixing: this updates by itself when the check finishes.'
+export const isChecking = (verdict) => !!verdict && verdict.runs !== true && verdict.checking === true
+/** A pause that ends early once `cancelled()` is true (asked every quarter second). */
+async function pause(ms, cancelled) {
+  const end = Date.now() + ms
+  while (Date.now() < end) {
+    if (typeof cancelled === 'function' && cancelled()) return
+    await new Promise((resolve) => { setTimeout(resolve, Math.min(250, Math.max(0, end - Date.now()))) })
+  }
+}
+
+/**
+ * A script's verdict, asked again while the chart is still checking it.
+ * ⛔ ONE BUDGET FOR THE WHOLE REQUEST (`budget.left`, review 2026-11-19): the first script and every repair draw
+ * on the same `PENDING_RECHECKS`, so a slow server cannot multiply the wait by the number of repair rounds; and
+ * a member who pressed Stop (or closed the window) is not kept waiting: `cancelled()` is asked before each
+ * re-check and ends the pause.
+ */
+async function settledVerdict(check, script, { wait, budget, cancelled }) {
+  // (the script itself rides along: its admission verdict came in the same answer, and is THIS script's only)
+  let verdict = await check(script.pine, script)
+  while (budget.left > 0 && isChecking(verdict) && !cancelled()) {
+    if (PENDING_REASONS_THAT_END_THE_WAIT.includes(verdict.pendingReason)) break
+    budget.left -= 1
+    await wait(PENDING_RECHECK_MS, cancelled)
+    if (cancelled()) break
+    verdict = await check(script.pine, script)
+  }
+  return verdict
+}
+
+/** Is the button beside a script entry an invitation to FIX it? Only when the engine REFUSED it: not while it
+ *  is being checked, and not when the window could not check it at all. */
+export function scriptNeedsFixing(script) {
+  return !!script && script.runs !== true && script.checking !== true && script.state !== UNCHECKED_STATE
 }
 
 /**
@@ -178,20 +312,26 @@ export function scriptEntry({ script, reply, verdict, rounds = 0 }) {
  * up to `MAX_REPAIR_ROUNDS` and never past a repair that changes nothing.
  * @param {object} first              the door's answer: `{script: {name, pine}, reply}`
  * @param {(refusal) => Promise<object>} repair   asks the door again with `script_refusal`
- * @param {object} [deps]  `{ check }` for tests
+ * @param {object} [deps]  `{ check, wait, cancelled }`: `wait(ms, cancelled)` is the pause before a re-check;
+ *                         `cancelled()` true (Stop pressed, the window closed) ends the waiting and sends no more repairs
  * @returns {Promise<{entry: object, rounds: number, verdict: object}>}
  */
-export async function settleScript(first, repair, { check = checkScript } = {}) {
+/** The default check: this window's engine, with the admission verdict the script's own answer carried. */
+const checkWithItsAdmission = (pine, script) => checkScript(pine, { admission: script && script.admission })
+
+export async function settleScript(first, repair, { check = checkWithItsAdmission, wait = pause, cancelled = () => false } = {}) {
+  const stopped = () => { try { return cancelled() === true } catch { return false } }
+  const waiting = { wait, budget: { left: PENDING_RECHECKS }, cancelled: stopped }
   let answer = first
-  let verdict = await check(answer.script.pine)
+  let verdict = await settledVerdict(check, answer.script, waiting)
   let rounds = 0
-  while (!verdict.runs && rounds < MAX_REPAIR_ROUNDS) {
+  while (!verdict.runs && rounds < MAX_REPAIR_ROUNDS && !stopped()) {
     const refusal = refusalOf(answer.script.pine, verdict, rounds + 1)
     if (!refusal) break
     const next = await repair(refusal)
     if (!next || !next.ok || !next.script || typeof next.script.pine !== 'string') break
     rounds += 1
-    const again = await check(next.script.pine)
+    const again = await settledVerdict(check, next.script, waiting)
     const stuck = sameRefusals(again, verdict) || next.script.pine === answer.script.pine
     answer = next
     verdict = again

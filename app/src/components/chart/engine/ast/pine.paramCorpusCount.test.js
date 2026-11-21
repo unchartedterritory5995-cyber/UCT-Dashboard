@@ -143,7 +143,11 @@ expect(withAtLeastOneParam.length, 'of those, scripts with >=1 adjustable parame
     // NOT on R-F's rolling min — its band is a SWITCHED ratchet the RANGE window decides
     // (`interpret.js::RANGE_TOP`), published only where every earlier history gives one
     // value. Its folded formula is large, which is why one script moves the locators by 596.
-expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(31)
+    // ⭐ 31 → 32 ON 2026-11-20 (RMA-SEED, engine 92), ONE named mover: `06-adx-advanced.pine` 3 → 4. Its
+    // `ADX Smoothing` input now DRIVES the ADX: `ta.dmi` is TradingView's body (`PINE_TUPLE_BUILTINS.dmi`), which
+    // smooths the ADX over the SECOND length. The house `adx` legs took one period, so that input was only compared
+    // with `DI Length` and fed no tree.
+expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts').toBe(32)
   })
 
   it('pins the OTHER candidate counting as a separate, much larger, non-"29" metric', () => {
@@ -193,7 +197,10 @@ expect(totalDistinctParams, 'sum of distinct parameter ids across all 14 scripts
     // window `i_period` feeds. Distinct ids and scripts are unchanged.
     // ⭐ 276 → 872 ON 2026-10-02 (H1), ONE named mover: `10-supertrend.pine` translates
     // again on the ratchet window (see the pins above).
-expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(872)
+    // ⭐ 872 → 1228 ON 2026-11-20 (RMA-SEED, engine 92), ONE named mover: `06-adx-advanced.pine` (now 384).
+    // Its three `ta.dmi` legs are TradingView's body over `ta.rma`, which reads `DI Length` in every `ta.rma` of
+    // both DIs and `ADX Smoothing` in the ADX's, so an edit to either rewrites every place it is read.
+expect(totalLocatorOccurrences, 'sum of AST locator occurrences across all 14 scripts').toBe(1228)
   })
 
   it('prints the per-script breakdown for anyone auditing this claim by hand', () => {

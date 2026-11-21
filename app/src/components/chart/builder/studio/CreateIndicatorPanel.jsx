@@ -40,6 +40,8 @@ const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
 import SettingsFields from './SettingsFields'
 import { restoreNote } from '../authoring/restoreVersion'
+import { scriptNeedsFixing } from '../authoring/scriptAnswer'
+import { emptyOnThisChart, emptyOnChartWords, watchEmptyOnChart } from '../authoring/emptyOnChart'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
 /** The hint inside the message box, by what the member is doing.
@@ -311,6 +313,43 @@ export default function CreateIndicatorPanel({
       shapeEdit: withPendingInputs })
   }, [previewDefinition, previewBase, open, previewCalcTf, previewChartRef, previewToken])
 
+  // ⭐ 2026-11-21 — WHAT THE PREVIEW DOES NOT SHOW ON THIS CHART (`emptyOnChart.js`). Read from what the chart
+  // drew, at a few fixed delays after the preview is installed (the chart draws in its own pass and publishes
+  // nothing when it has), stopped at the first read that finds it drawn. ⛔ The cleanup cancels every pending
+  // read: a new answer, an undo, a discard and an unmount all change `previewDefinition` or end the effect, so
+  // no timer outlives the preview it was started for. Silence when the chart never draws it.
+  // ⛔ ONE GUARD AGAINST A STALE STATEMENT, and it is the definition's IDENTITY: what was read is kept WITH the
+  // preview definition it was read for and shown only while that same object is the preview. A revision number
+  // would not do (an undo followed by another change reaches the same number with a different build).
+  const [emptyOnChart, setEmptyOnChart] = useState(null)   // {of: the preview definition it was read for, items}
+  useEffect(() => {
+    if (!previewDefinition) return undefined
+    return watchEmptyOnChart({
+      read: () => {
+        const c = chartRef.current
+        if (!c || typeof c.bindings !== 'function' || !Array.isArray(c.bars)) return null
+        return emptyOnThisChart({ bindings: c.bindings(), definition: previewDefinition, barCount: c.bars.length })
+      },
+      onResult: (items) => setEmptyOnChart({ of: previewDefinition, items }),
+    })
+  }, [previewDefinition])
+  const emptyLines = useMemo(() => {
+    if (!emptyOnChart || emptyOnChart.of !== previewDefinition || !emptyOnChart.items.length) return []
+    const outputs = (rb && rb.outputs) || []
+    const nameOf = (key) => {
+      if (outputs.length < 2) return null
+      const o = outputs.find((x) => x && x.key === key)
+      return (o && (o.name || o.label)) || null
+    }
+    return emptyOnChart.items.map((it) => emptyOnChartWords(it, { name: nameOf(it.key) })).filter(Boolean)
+  }, [emptyOnChart, previewDefinition, rb])
+  // the entry the statement belongs to: the newest applied turn of the definition now on the chart
+  const emptyEntryId = useMemo(() => {
+    if (!emptyLines.length) return null
+    const hit = [...transcript].reverse().find((t) => t && t.role === 'uct' && t.revision === state.revision && (t.kind === 'created' || t.kind === 'patched'))
+    return hit ? hit.id : null
+  }, [emptyLines, transcript, state.revision])
+
   // ⛔ THE TEARDOWN IS NOT OPTIONAL — Cancel, ✕, Save, a symbol-less remount and
   // an unmount of the chart itself all end here: no registry entry, no instance.
   const clearPreview = useCallback(() => {
@@ -373,10 +412,11 @@ export default function CreateIndicatorPanel({
    *  list's own write, and says what happened. One tap settles the offer either way. */
   const takeOffer = useCallback((entry) => {
     if (!entry || !entry.offer || busy || saving) return
-    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered })
+    // (`tf`: so the line can say when a built-in that draws only on some timeframes will not show here)
+    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered, tf })
     if (out.ok && onChange) onChange(out.next)
     conv.settleOffer(entry.id, out.ok && !onChange ? 'This chart cannot be changed from here, so nothing was added.' : out.line)
-  }, [busy, saving, conv, onChange])
+  }, [busy, saving, conv, onChange, tf])
 
   const submit = useCallback(async (text) => {
     const words = String(text ?? message).trim()
@@ -566,12 +606,36 @@ export default function CreateIndicatorPanel({
                   {(t.lines || []).map((l, i) => (
                     <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>
                   ))}
+                  {/* ⭐ 2026-11-21 — WHAT THIS BUILD DOES NOT SHOW ON THE MEMBER'S OWN CHART, read from what the
+                      chart drew. UCT's statement, not the assistant's; on the newest applied answer only. */}
+                  {emptyEntryId === t.id && (
+                    <span className={styles.said} data-testid="create-indicator-empty-on-chart" role="note">
+                      <span className={styles.saidLabel}>On this chart</span>
+                      {emptyLines.map((n, i) => <span key={i}>{n}</span>)}
+                    </span>
+                  )}
+                  {/* ⭐ 2026-11-21 — WHAT UCT ITSELF SAYS ABOUT THIS BUILD (the door's own notes: a count that
+                      stops, a window that reaches only so far back). The system's words about its own limits,
+                      so they sit with the engine's lines and above anything the assistant wrote. */}
+                  {t.notes && Array.isArray(t.notes.uct) && t.notes.uct.length > 0 && (
+                    <span className={styles.said} data-testid="create-indicator-notes-uct">
+                      <span className={styles.saidLabel}>UCT's notes on this build</span>
+                      {t.notes.uct.map((n, i) => <span key={i}>{n}</span>)}
+                    </span>
+                  )}
                   {/* ⭐ What the assistant says it built: below the engine's words, and labelled as
                       the assistant's, never mixed into them (Studio plan, section 5). Plain text. */}
                   {typeof t.said === 'string' && t.said && (
                     <span className={styles.said} data-testid="create-indicator-said">
                       <span className={styles.saidLabel}>What the assistant says it built</span>
                       {t.said}
+                    </span>
+                  )}
+                  {/* ⭐ 2026-11-21 — and what the assistant says it TOOK FOR GRANTED, labelled as the assistant's. */}
+                  {t.notes && Array.isArray(t.notes.assumed) && t.notes.assumed.length > 0 && (
+                    <span className={styles.said} data-testid="create-indicator-notes-assumed">
+                      <span className={styles.saidLabel}>What the assistant assumed</span>
+                      {t.notes.assumed.map((n, i) => <span key={i}>{n}</span>)}
                     </span>
                   )}
                   {/* ⭐ AN OFFER — the one action this answer is about (add one of UCT's own built-in
@@ -588,7 +652,7 @@ export default function CreateIndicatorPanel({
                       {onOpenScript && (
                         <button type="button" className={styles.chip} data-testid="create-indicator-open-script"
                           disabled={busy || saving} onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
-                          {t.script.runs ? 'Open this script' : 'Open this script to fix it'}
+                          {scriptNeedsFixing(t.script) ? 'Open this script to fix it' : 'Open this script'}
                         </button>
                       )}
                       <details data-testid="create-indicator-script-text">

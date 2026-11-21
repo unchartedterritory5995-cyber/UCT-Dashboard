@@ -9,7 +9,7 @@
 //   * the Agent's own door (`openCreateIndicatorFor`) never routes back to the Agent;
 //   * `openIndicatorDoor` opens the existing builder's doors on this chart, and refuses unknown doors.
 import { createRef } from 'react'
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest'
 import { render, screen, cleanup, act } from '@testing-library/react'
 import ChartToolbar from '../../ChartToolbar'
 import { mergeChartSettings } from '../../chartDefaults'
@@ -21,8 +21,18 @@ import STOCKCHART_SRC from '../../../StockChart.jsx?raw'
 import PANE_SRC from '../../pane/ChartPane.jsx?raw'
 import WIDGET_SRC from '../../../../pages/charts/widgets/ChartWidget.jsx?raw'
 import HOST_SRC from '../../../../agent/host.js?raw'
+import TOOLBAR_SRC from '../../ChartToolbar.jsx?raw'
 
 const CHART = 'w-agent-route-test'
+
+// ⛔ THE DOCK IS LOADED BEFORE ANY TEST WAITS FOR IT (2026-11-20). The toolbar loads the dock lazily, and in
+// this runner that first load is the whole engine being transformed: measured 6.9 s on the dev PC. The first
+// `findByTestId('create-indicator')` below waits 4 s (`src/test-setup.js::asyncUtilTimeout`, which a test's own
+// timeout does not raise), so the first test to open the dock was racing a module load and went red on a
+// loaded machine, for a reason that is not the route it tests. Loaded here once, with its own allowance; the
+// waits below then measure the dock opening and nothing else.
+const DOCK_MODULE = './builder/studio/CreateIndicatorPanel'
+beforeAll(async () => { await import('./CreateIndicatorPanel') }, 120_000)
 
 function mount({ role = 'admin', onOpenLibrary } = {}) {
   const ref = createRef()
@@ -51,6 +61,11 @@ afterEach(() => {
 })
 
 describe('Create Indicator → UCT Agent route', () => {
+  it('the module loaded ahead of the tests is the one the toolbar loads lazily', () => {
+    // (so a dock moved to another file fails HERE, by name, instead of bringing the race back)
+    expect(TOOLBAR_SRC).toContain(`lazy(() => import('${DOCK_MODULE}'))`)
+  })
+
   it('⭐ a registered route takes the door: the Agent is told the chart and the dock stays closed', () => {
     act(() => { setCreateIndicatorFlag(true) })
     const route = vi.fn(() => true)

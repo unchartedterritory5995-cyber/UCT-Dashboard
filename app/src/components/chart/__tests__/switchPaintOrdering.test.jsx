@@ -77,7 +77,9 @@ describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
       // ordinary path synchronous would put that work inside every 30s poll's
       // frame. If this ever becomes a layout effect, scanning gets atomic and
       // everything else gets janky.
-      expect(src).toMatch(/\/\/ Effect: update chart when data or settings change[\s\S]{0,80}?useEffect\(\(\) => \{\s*updateChart\(\)\s*\}, \[updateChart\]\)/)
+      // ⭐ 2026-11-19: ONE PASS PER SWITCH. The passive effect skips only when the layout effect already ran this
+      // very `updateChart` before paint (same render, same inputs); it stays a passive `useEffect` either way.
+      expect(src).toMatch(/\/\/ Effect: update chart when data or settings change[\s\S]{0,900}?useEffect\(\(\) => \{\s*if \(_layoutRanRef\.current === updateChart\) return\s*updateChart\(\)\s*\}, \[updateChart\]\)/)
     })
 
     it('the pre-paint apply is declared AFTER updateChart, not hoisted above it', () => {

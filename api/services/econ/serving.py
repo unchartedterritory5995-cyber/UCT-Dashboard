@@ -18,6 +18,7 @@ Public functions return (http_status, body, etag|None):
   catalog()                       -> 200 always (falls back to the registry)
   series(symbol, asof, start, end) -> 200 | 404 not_found | 404 no_data | 503
   status()                        -> 200 | 503 status_unavailable
+  latest(symbols)                 -> 200 always (each row says ok | no_data | not_found)
 """
 from __future__ import annotations
 
@@ -150,6 +151,16 @@ def _from_artifacts(sym: str, asof, start, end) -> Optional[dict]:
     return body
 
 
+def _series_body(sym: str, asof, start, end):
+    """The cached series body (or _MISS) for a RESOLVED symbol. ONE cache entry per
+    (symbol, asof, start, end), shared by `series` and `latest`."""
+    def load():
+        body = _from_db(sym, asof, start, end) if mode() == "db" else _from_artifacts(sym, asof, start, end)
+        return body if body is not None else _MISS
+
+    return _cached(f"series:{sym}:{asof}:{start}:{end}", load)
+
+
 def series(symbol: str, asof: Optional[int] = None, start: Optional[str] = None,
            end: Optional[str] = None) -> tuple[int, dict, Optional[str]]:
     entry = P.resolve(symbol)
@@ -157,11 +168,7 @@ def series(symbol: str, asof: Optional[int] = None, start: Optional[str] = None,
         return 404, {"detail": "not_found"}, None
     sym = entry["symbol"]
 
-    def load():
-        body = _from_db(sym, asof, start, end) if mode() == "db" else _from_artifacts(sym, asof, start, end)
-        return body if body is not None else _MISS
-
-    body = _cached(f"series:{sym}:{asof}:{start}:{end}", load)
+    body = _series_body(sym, asof, start, end)
     if body is _MISS:
         return 404, {"detail": "no_data", "symbol": sym}, None
     # ⛔ belt and braces: meta always from the web build's registry (the whitelist),
@@ -239,3 +246,66 @@ def status() -> tuple[int, dict, Optional[str]]:
         return 503, {"detail": "status_unavailable"}, None
     body = _sanitize_status(doc)
     return 200, body, _etag(body)
+
+
+# ─────────────────────────────────────────────────────────────── latest (many series, one read)
+
+LATEST_MAX_SYMBOLS = 40
+LATEST_POINTS = 3
+_CUR_FIELDS = ("state", "latest_period", "expected_period")
+
+
+def _currentness_view(cur) -> Optional[dict]:
+    """state / periods / next_release, whitelisted (the same fields `series` carries)."""
+    if not isinstance(cur, dict):
+        return None
+    out = {k: cur.get(k) for k in _CUR_FIELDS}
+    nr = cur.get("next_release")
+    out["next_release"] = {k: nr.get(k) for k in _NEXT_RELEASE} if isinstance(nr, dict) else None
+    return out
+
+
+def latest(symbols) -> tuple[int, dict, str]:
+    """The newest LATEST_POINTS points of each requested series in ONE answer (the Terminal's
+    economy board reads this instead of one request per series).
+
+    Reads ONLY what `series` reads -- the same cache entries over the same published artifacts
+    (or the read-only DB in db mode) -- plus the status heartbeat for each series' currentness
+    and `retrieved_at` (the econ service's last successful read of it, unix seconds). Never an
+    ingest, never a provider call. A symbol the registry does not serve is a `not_found` row and
+    one with nothing published a `no_data` row: never dropped, never a 0. At most
+    LATEST_MAX_SYMBOLS rows; a symbol asked twice (USCPI, ECON:USCPI) answers once."""
+    by_status: dict = {}
+    try:
+        code, sdoc, _ = status()
+        if code == 200:
+            by_status = {r["symbol"]: r for r in sdoc.get("series") or [] if isinstance(r, dict)}
+    except Exception:  # noqa: BLE001 -- the heartbeat is an overlay; the values answer without it
+        by_status = {}
+    rows, seen, keys = [], set(), []
+    for raw in list(symbols)[:LATEST_MAX_SYMBOLS]:
+        entry = P.resolve(raw) if isinstance(raw, str) else None
+        if entry is None:
+            rows.append({"symbol": str(raw).strip().upper()[:64], "state": "not_found"})
+            continue
+        sym = entry["symbol"]
+        if sym in seen:
+            continue
+        seen.add(sym)
+        body = _series_body(sym, None, None, None)
+        body = body if isinstance(body, dict) else {}
+        st = by_status.get(sym)
+        # artifact mode: the series artifact's own block goes stale between releases, the
+        # heartbeat does not (see _status_currentness); the artifact's is the fallback
+        cur = _currentness_view(st) if st else _currentness_view(body.get("currentness"))
+        pts = [list(p) for p in (body.get("points") or [])[-LATEST_POINTS:]]
+        for k in P.attribution_keys(entry):
+            if k not in keys:
+                keys.append(k)
+        ret = (st or {}).get("last_success_at")
+        rows.append({"symbol": sym, "state": "ok" if pts else "no_data", "meta": P.meta_for(entry),
+                     "points": pts, "currentness": cur,
+                     "retrieved_at": ret if isinstance(ret, int) and not isinstance(ret, bool) else None})
+    out = {"columns": list(P.COLUMNS), "points_per_series": LATEST_POINTS, "series": rows,
+           "attributions": P.notices(sorted(keys))}
+    return 200, out, _etag(out)

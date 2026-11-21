@@ -636,6 +636,18 @@
       ]
     },
     {
+      "key": "terminal_board_tabs",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Open terminal board tabs and each tab's working copy",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/terminal/useBoardTabs.js"
+      ]
+    },
+    {
       "key": "terminal_boards",
       "store": "server-preference",
       "scope": "cross-device",
@@ -2183,7 +2195,8 @@
       "kind": "state",
       "label": "Locked chart view (zoom and position)",
       "files": [
-        "app/src/components/StockChart.jsx"
+        "app/src/components/StockChart.jsx",
+        "app/src/components/chart/viewLockHeal.js"
       ]
     },
     {
@@ -2195,7 +2208,19 @@
       "label": "Locked view for each workspace chart",
       "pattern": true,
       "files": [
-        "app/src/components/StockChart.jsx"
+        "app/src/components/StockChart.jsx",
+        "app/src/components/chart/viewLockHeal.js"
+      ]
+    },
+    {
+      "key": "uct.charts.viewLockHeal.v1",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "One-time repair of chart views squeezed by an old scaling bug (done marker)",
+      "files": [
+        "app/src/components/chart/viewLockHeal.js"
       ]
     },
     {

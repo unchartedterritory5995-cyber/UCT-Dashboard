@@ -29,6 +29,21 @@ const _ET_PARTS = typeof Intl !== 'undefined'
   })
   : null
 
+// ⭐ ONE ET-DATE FORMATTER (2026-11-19, measured live). `toLocaleDateString('en-CA', { timeZone })`
+// builds a fresh Intl formatter on EVERY call; the per-bar date tests (IDB gap scans, the replay
+// cutoff, the D bucket) paid that thousands of times on a deep 1h ticker switch. Same output:
+// a DateTimeFormat with no component options formats the same numeric date as toLocaleDateString.
+const _ET_DATE_FMT = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
+  : null
+
+/** 'YYYY-MM-DD' of unix second `unixSec` in New York — exactly
+ *  `new Date(unixSec * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })`. */
+export function etDateLabel(unixSec) {
+  const d = new Date(unixSec * 1000)
+  return _ET_DATE_FMT ? _ET_DATE_FMT.format(d) : d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+}
+
 // The slow, authoritative read (one Intl call). Whole seconds.
 function _rawEtOffsetSec(sec) {
   const p = {}
@@ -45,11 +60,17 @@ function _rawEtOffsetSec(sec) {
 const _OFFSET_DAY_CACHE_MAX = 20000
 const _offsetByDay = new Map()
 
+// The last day asked about, in front of the map: a series walks its bars in time order, so the
+// 7-16 bars of one day ask for the same day in a row and pay one map lookup between them, not one
+// each (an hourly chart's view filter runs over 45,000 bars on every symbol flip). The answer for a
+// day never changes, so the memo needs no invalidation when the map is cleared.
+let _lastOffsetDay = NaN
+let _lastOffset
 /** ET's offset from UTC, in SECONDS, at unix second `unixSec` (-14400 | -18000). */
 export function etOffsetSec(unixSec) {
   const sec = Math.floor(unixSec)
   const day = Math.floor(sec / 86400)
-  let e = _offsetByDay.get(day)
+  let e = day === _lastOffsetDay ? _lastOffset : _offsetByDay.get(day)
   if (e === undefined) {
     const start = day * 86400
     const a = _rawEtOffsetSec(start)
@@ -68,6 +89,8 @@ export function etOffsetSec(unixSec) {
     if (_offsetByDay.size >= _OFFSET_DAY_CACHE_MAX) _offsetByDay.clear()
     _offsetByDay.set(day, e)
   }
+  _lastOffsetDay = day
+  _lastOffset = e
   return typeof e === 'number' ? e : (sec >= e.at ? e.b : e.a)
 }
 
@@ -106,16 +129,26 @@ export const RTH_CLOSE_MIN = 960   // 16:00 ET
 // Keyed by ET DAY NUMBER (floor(chartTime / 86400)) so the per-bar hot paths (RTH view
 // filters, session shading) pay a Map hit, not a Date allocation; the ISO date is built
 // only on a miss.
+// ⛔ SIZED FOR DEEP HISTORY (2026-11-19, measured live): at 4,000 a 1h chart back to 2005
+// (~5,300 trading days) emptied the map on every pass, so every bar paid a Date, an ISO string and
+// a calendar search again. 20,000 days (~55 years) matches the offset cache above.
+const _CLOSE_DAY_CACHE_MAX = 20000
 const _closeByEtDay = new Map()
+// Same one-entry memo as the offset's: consecutive bars of one day ask for the same close.
+let _lastCloseDay = NaN
+let _lastClose
 function _rthCloseOfEtDay(etDay) {
+  if (etDay === _lastCloseDay) return _lastClose
   let m = _closeByEtDay.get(etDay)
   if (m === undefined) {
     let ec = null
     try { ec = earlyCloseOn(new Date(etDay * 86400000).toISOString().slice(0, 10)) } catch { ec = null }
     m = ec ? ec.closeHour * 60 + ec.closeMinute : RTH_CLOSE_MIN
-    if (_closeByEtDay.size >= 4000) _closeByEtDay.clear()
+    if (_closeByEtDay.size >= _CLOSE_DAY_CACHE_MAX) _closeByEtDay.clear()
     _closeByEtDay.set(etDay, m)
   }
+  _lastCloseDay = etDay
+  _lastClose = m
   return m
 }
 
@@ -152,6 +185,26 @@ export function isRthChartTime(chartSec) {
 export function isRthBar(unixSec) {
   if (typeof unixSec !== 'number' || !Number.isFinite(unixSec)) return false
   return isRthChartTime(toChartTime(unixSec))
+}
+
+/** The regular-session view of a bar series: every bar whose `t` is a regular-session unix second,
+ *  plus any bar whose `t` is not a number (a D/W/M date string). The SAME array when every bar
+ *  qualifies, as an `rth` answer from the server does: an hourly flip then pays one pass over its
+ *  45,000 bars and no copy of them. */
+export function keepRthBars(bars) {
+  const n = bars.length
+  let i = 0
+  for (; i < n; i++) {
+    const t = bars[i].t
+    if (typeof t === 'number' && !isRthBar(t)) break
+  }
+  if (i === n) return bars
+  const out = bars.slice(0, i)
+  for (let j = i + 1; j < n; j++) {
+    const b = bars[j]
+    if (typeof b.t !== 'number' || isRthBar(b.t)) out.push(b)
+  }
+  return out
 }
 
 /**
@@ -273,9 +326,7 @@ export function etWeekCloseLabel(unixSec) {
  */
 export function computeBarTime(tf, tickTimeSec, opts = {}) {
   if (tf === 'D') {
-    return new Date(tickTimeSec * 1000).toLocaleDateString('en-CA', {
-      timeZone: 'America/New_York',
-    })
+    return etDateLabel(tickTimeSec)
   }
   // ⛔ W/M are pure ET-calendar math on the ET date (etDateOf → UTC date arithmetic). They
   // used to re-parse an ET wall-clock STRING in the BROWSER's zone and read it back with

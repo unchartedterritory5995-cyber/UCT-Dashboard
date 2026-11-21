@@ -134,7 +134,8 @@ def admission_row(src, admitted):
     whether it is admitted. RT1: a script on the kill list is refused at every door, whatever its
     capabilities say (`runtime_definitions.runtime_admission` answers admitted False for it)."""
     caps = pc.capabilities_of(src)
-    missing = sorted(c for c in caps if c not in admitted)
+    # the server's own rule (the generic `import` met by its libraries, U15), never restated here
+    missing = rt.missing_capabilities(caps, set(admitted))
     killed = bool(rt.killed(None, src))
     return dict(hash=rt.source_hash(src), caps=sorted(caps), admitted=not missing and not killed,
                 missing=missing, killed=killed)
@@ -192,6 +193,33 @@ def ledger_runtime_evidence(inp, lanes, ledger_rows, verdict_ids, engine):
     return out
 
 
+def library_pin(lane_row, cap):
+    """⭐ libraries chain L1 (2026-11-19): {path, sha256} of the library version `cap` (`library:<Author>/<Lib>/<N>`)
+    as the member door LINKED it for this script (the lanes measurement's `libraries`, the document's own
+    `meta.libraries` pins), or None. `rollout_gate.pine_capability_admission` counts a library row's evidence ONLY
+    when the entry names that path AND the sha the row pins, so evidence must say which code it graded; an entry
+    whose library the door did not link (no store, a refused version) is no evidence for it and is dropped."""
+    path = cap[len(pc.LIBRARY_PREFIX):]
+    for pin in (lane_row or {}).get("libraries") or []:
+        if isinstance(pin, dict) and pin.get("path") == path and isinstance(pin.get("sha256"), str):
+            return {"path": path, "sha256": pin["sha256"].lower()}
+    return None
+
+
+def _evidence_entries(caps, lane_row, base):
+    """One evidence entry per capability, a library capability carrying the pin it was graded with (or none)."""
+    out = []
+    for cap in caps:
+        if pc.is_library_capability(cap):
+            pin = library_pin(lane_row, cap)
+            if pin is None:
+                continue
+            out.append((cap, dict(base, library=pin)))
+        else:
+            out.append((cap, dict(base)))
+    return out
+
+
 def cmd_evidence(a):
     inp = {s["key"]: s for s in json.load(open(a.input, encoding="utf-8"))["scripts"]}
     lanes = {r["key"]: r for r in json.load(open(a.lanes, encoding="utf-8"))["rows"]}
@@ -202,11 +230,12 @@ def cmd_evidence(a):
     for key, hits in ledger_runtime_evidence(inp, lanes, ledger_rows, set(v), el.engine_version()).items():
         for cid, title, engine_at in hits:
             family, community = rg.pine_evidence_script(title, cid)
-            for cap in inp[key]["caps"]:
-                # `ledger` + `scriptEngineVersion`: the registry rule re-asks freshness at every admission
-                # (`rollout_gate._pine_capability_evidence_counts`), so an engine bump retires it
-                per[cap].append({"capture": cid, "script": family, "community": community, "title": title,
-                                 "ledger": True, "scriptEngineVersion": engine_at})
+            # `ledger` + `scriptEngineVersion`: the registry rule re-asks freshness at every admission
+            # (`rollout_gate._pine_capability_evidence_counts`), so an engine bump retires it
+            base = {"capture": cid, "script": family, "community": community, "title": title,
+                    "ledger": True, "scriptEngineVersion": engine_at}
+            for cap, entry in _evidence_entries(inp[key]["caps"], lanes.get(key), base):
+                per[cap].append(entry)
     for key, s in inp.items():
         if s["population"] != "capture":
             continue
@@ -216,9 +245,10 @@ def cmd_evidence(a):
         if lane != "runtime" or not el.is_match(verdict):
             continue
         family, community = rg.pine_evidence_script(v[s["capture"]].get("script"), s["capture"])
-        for cap in s["caps"]:
-            per[cap].append({"capture": s["capture"], "script": family, "community": community,
-                             "title": v[s["capture"]].get("script")})
+        base = {"capture": s["capture"], "script": family, "community": community,
+                "title": v[s["capture"]].get("script")}
+        for cap, entry in _evidence_entries(s["caps"], lanes.get(key), base):
+            per[cap].append(entry)
     out = {}
     for cap in sorted(pc.CAPABILITY_IDS | set(per)):
         ev = per.get(cap, [])
@@ -236,6 +266,35 @@ def cmd_evidence(a):
     print("runtime-drawn captures:", len(drawn), collections.Counter(x[1] for x in drawn))
 
 
+#: The lanes a member door answers with when it draws; any other answer is a refusal by name.
+DRAWN_LANES = ("runtime", "host")
+
+
+def populations_of(rep):
+    """⭐⭐ (2026-11-19, the e84 train's finding) THE POPULATION BLOCK, DERIVED FROM THE REPORT'S OWN ROWS, never kept
+    by hand. ⚰️ It was written once per run and then edited by hand beside spliced rows: git merged two units'
+    identical deltas to it as ONE (counted once), and after #1941's re-pins master's block was 4 rows off its own rows.
+    Every admitted script has exactly one row: a `captures` row (population `capture`), or an `admittedUngraded` /
+    `admittedGraded` row keyed `<population>:<name>`. `scripts` is the run's own population size
+    (`populationSizes`); a rail holds `capture` and `committed` to the snapshot and the corpus they count.
+    tests/test_pine_capability_admission.py (REACH) recomputes this from the rows and is red on any drift."""
+    rows = {pop: [] for pop in rep.get("populationSizes", {})}
+    rows.setdefault("capture", [])
+    rows["capture"].extend(rep.get("captures") or [])
+    for r in (rep.get("admittedUngraded") or []) + (rep.get("admittedGraded") or []):
+        rows.setdefault(r["key"].split(":", 1)[0], []).append(r)
+    out = {}
+    for pop in sorted(rows, key=lambda p: ("capture", "committed", "reference", "builtin").index(p)
+                      if p in ("capture", "committed", "reference", "builtin") else 9):
+        rs = rows[pop]
+        out[pop] = {"scripts": (rep.get("populationSizes") or {}).get(pop), "admitted": len(rs),
+                    "runtimeLane": sum(1 for r in rs if r.get("lane") == "runtime"),
+                    "hostLane": sum(1 for r in rs if r.get("lane") == "host"),
+                    "refused": sum(1 for r in rs if r.get("lane") not in DRAWN_LANES),
+                    "coreOnly": sum(1 for r in rs if r.get("caps") == [pc.CORE_ID])}
+    return out
+
+
 def cmd_report(a):
     inp = json.load(open(a.input, encoding="utf-8"))["scripts"]
     door = {r["key"]: r for r in json.load(open(a.door, encoding="utf-8"))["rows"]}
@@ -248,17 +307,16 @@ def cmd_report(a):
     # (`api/services/host_known_divergence.py`) is not drawn for members any more: it is refused by name
     # (`pine:known-divergence`) at every host door, and is listed under `refusedByName`, not `hostDiverge`.
     listed = hkd.committed()
-    rep = {"populations": {}, "captures": [], "admittedUngraded": [], "stops": [], "hostDiverge": [],
-           "refusedByName": [], "matchToDiverge": [], "substitutedToDiverge": []}
+    rep = {"populations": {}, "populationSizes": {}, "captures": [], "admittedUngraded": [], "admittedGraded": [],
+           "stops": [], "hostDiverge": [], "refusedByName": [], "matchToDiverge": [], "substitutedToDiverge": []}
     for pop in ("capture", "committed", "reference", "builtin"):
-        rows = [s for s in inp if s["population"] == pop]
-        adm = [s for s in rows if s["admitted"]]
-        reach = [s for s in adm if door.get(s["key"], {}).get("lane") == "runtime"]
-        host = [s for s in adm if door.get(s["key"], {}).get("lane") == "host"]
-        refused = [s for s in adm if not door.get(s["key"], {}).get("ok")]
-        rep["populations"][pop] = {"scripts": len(rows), "admitted": len(adm), "runtimeLane": len(reach),
-                                   "hostLane": len(host), "refused": len(refused),
-                                   "coreOnly": sum(1 for s in adm if s["caps"] == [pc.CORE_ID])}
+        rep["populationSizes"][pop] = sum(1 for s in inp if s["population"] == pop)
+        # ⛔ a refusal is a door that did not draw: one rule (`DRAWN_LANES`), held to the door's own `ok` here
+        adm = [s for s in inp if s["population"] == pop and s["admitted"]]
+        not_ok = sum(1 for s in adm if not door.get(s["key"], {}).get("ok"))
+        undrawn = sum(1 for s in adm if door.get(s["key"], {}).get("lane") not in DRAWN_LANES)
+        if not_ok != undrawn:
+            raise SystemExit(f"report: {pop}: {not_ok} door refusals but {undrawn} rows with no drawing lane")
     graded_hashes = {s["hash"] for s in inp if s["population"] == "capture"}
     for s in inp:
         if not s["admitted"]:
@@ -284,6 +342,10 @@ def cmd_report(a):
         elif s["hash"] not in graded_hashes:
             rep["admittedUngraded"].append({"key": s["key"], "lane": d.get("lane"), "guard": d.get("guard"),
                                             "declined": d.get("declined"), "caps": s["caps"]})
+        else:
+            # ⭐ an admitted script whose source a capture grades: its own row, so the block counts it from the rows
+            rep["admittedGraded"].append({"key": s["key"], "lane": d.get("lane"), "caps": s["caps"]})
+    rep["populations"] = populations_of(rep)
     json.dump(rep, open(a.out, "w", encoding="utf-8"), indent=1) if a.out else None
     print(json.dumps(rep["populations"], indent=1))
     print("admitted captures:", collections.Counter((c["lane"], c["runtimeOn"]) for c in rep["captures"]))

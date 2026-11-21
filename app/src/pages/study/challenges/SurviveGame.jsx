@@ -591,14 +591,13 @@ function PickScreen({ stretch, pick, setPick, onPlay, prefs, phone }) {
   }, [setPick])
   const row = (bps, i) => (
     <Tile key={bps} n={i + 1} i={i} role="radio" checked={pick === bps} state={pick === bps ? 'sel' : 'idle'} testId={`survive-pick-${bps}`}
-      className={g.pickTile} onClick={() => { setPick(bps); tapFeedback(prefs) }}
-      label={(
+      className={g.pickTile} onClick={() => { setPick(bps); tapFeedback(prefs) }}>{(
         <span className={g.risk}>
           <b>{pickLabel(bps)}</b>
           <span className={g.riskBar} aria-hidden="true"><i style={{ width: `${(bps / PICKS[PICKS.length - 1]) * 100}%` }} /></span>
           <small>{firstRisk(bps)} on trade one</small>
         </span>
-      )} />
+      )}</Tile>
   )
   const inRule = PICKS.filter((b) => b >= RULE_MIN_BPS && b <= RULE_MAX_BPS)
   const over = PICKS.filter((b) => b > RULE_MAX_BPS)

@@ -7,6 +7,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { installFetch, latchWave8Flags, Providers } from '../../a11y/fixtures'
 import NoteEditorPage from './NoteEditorPage'
+import { preloadLazyChunks, NOTE_EDITOR_CHUNKS } from '../../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTE_EDITOR_CHUNKS)
 
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {

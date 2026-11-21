@@ -9,7 +9,7 @@ import pytest
 
 from api.services.cache import cache
 
-MODS = [("financials", "research_fin"), ("estimates", "research_est"),
+MODS = [("financials", "research_fin::v2"), ("estimates", "research_est"),
         ("ownership", "research_own"), ("ratings", "research_rat")]
 
 

@@ -9,15 +9,14 @@ for lv in levels
     array.push(prices, hh - (hh - ll) * lv)
 var line[] ls = array.new_line(0)
 var label[] lbs = array.new_label(0)
-if barstate.islast
-    while array.size(ls) > 0
-        oldLine = array.pop(ls)
-        line.delete(oldLine)
-    while array.size(lbs) > 0
-        oldLabel = array.pop(lbs)
-        label.delete(oldLabel)
+if not na(hh)
     for i = 0 to array.size(prices) - 1
         y = array.get(prices, i)
-        array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))
-        array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white))
+        if array.size(ls) <= i
+            array.push(ls, line.new(bar_index - n, y, bar_index, y, extend=extend.right, color=color.gray))
+            array.push(lbs, label.new(bar_index, y, str.tostring(array.get(levels, i) * 100, "#.#") + "%", style=label.style_label_left, color=color.gray, textcolor=color.white))
+        level = array.get(ls, i)
+        line.set_xy1(level, bar_index - n, y)
+        line.set_xy2(level, bar_index, y)
+        label.set_xy(array.get(lbs, i), bar_index, y)
 plot(array.get(prices, 3), "50% level", color=color.gray)

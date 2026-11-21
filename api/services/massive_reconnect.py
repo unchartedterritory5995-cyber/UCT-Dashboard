@@ -95,14 +95,17 @@ class MaxConnLadder:
 
     # -- the three questions bar_stream asks --
 
-    def connected(self) -> None:
+    def connected(self, notify: bool = True) -> None:
         """A connection authenticated. `on_connected(n)` is told which connection
         this is (1 = first, 2+ = a reconnect). The strikes are NOT reset here (see
-        module doc): `_settle` resets them once this connection proved healthy."""
+        module doc): `_settle` resets them once this connection proved healthy.
+        `notify=False` (HOT STANDBY, bar_stream): the other connection was delivering
+        the whole time, so nothing was missed and nothing is re-seeded."""
         self.connects += 1
         self._up_since = self._mono()
         self._kicked = False
-        self.on_connected(self.connects)
+        if notify:
+            self.on_connected(self.connects)
 
     def note_status(self, status: object) -> None:
         """A non-routine status frame while streaming (bar_stream's frame loop)."""

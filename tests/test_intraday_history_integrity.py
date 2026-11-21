@@ -26,6 +26,7 @@ ET = ZoneInfo("America/New_York")
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     monkeypatch.setenv("INTRADAY_SPLIT_HEAL_MODE", "write")
+    monkeypatch.setenv("INTRADAY_SPLIT_HEAL_ALLOW", "*")   # every proven plan (#2297: write mode needs an allowlist)
     monkeypatch.setattr(bars_sqlite, "_DB_PATH", str(tmp_path / "bars.db"))
     bars_sqlite.bump_db_epoch()
     bars_sqlite.init_db()
