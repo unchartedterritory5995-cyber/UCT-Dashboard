@@ -224,8 +224,11 @@ describe('4. the queue is applied before anything that extends or reads a series
 })
 
 describe('6. the chart opts in only where the candles are the indicators\' bars, and applies the queue before it reads or writes', () => {
-  const SRC = fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')),
-    '..', '..', '..', 'StockChart.jsx'), 'utf8').replace(/^\s*\/\/.*$/gm, '')
+  // StockChart reads its bar arrays through its render box (`__heavy.x` while rendering, `__heavy.committed.x` after a
+  // commit: chart/latestCallback.js); `unbox` reads the source as the values it names, so these facts compare values, not spellings.
+  const unbox = (t) => t.split('__heavy.committed.').join('').split('__heavy.').join('').replace(/[ \t]*\/\* eslint-disable-line react-hooks\/exhaustive-deps -- the box \(__heavy\)[^*]*\*\//g, '')
+  const SRC = unbox(fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')),
+    '..', '..', '..', 'StockChart.jsx'), 'utf8').replace(/^\s*\/\/.*$/gm, ''))
   const body = (from, to) => { const a = SRC.indexOf(from); expect(a, from).toBeGreaterThan(0); return SRC.slice(a, SRC.indexOf(to, a)) }
   it('the sync is handed `deferSeriesData` only when the candles are built from the very bars the binder is', () => {
     const sync = body('engineRef.current.binder.sync({', '\n      })')
