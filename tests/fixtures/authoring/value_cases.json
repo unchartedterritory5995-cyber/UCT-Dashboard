@@ -1,6 +1,27 @@
 {
  "schema": "uct.value-cases/1",
  "about": "Plain-words requests, each with the answer the Create Indicator door gave on production (recorded as a synthetic test account). Lane \"formula\": an independent calculation in tools/value_cases/rules.py must equal what was built on every bar. Lane \"script\": the recorded script is run through the member pane's own path and held to tools/value_cases/script_rules.py, columns and drawn things alike. Lane \"wall\": the request cannot be served, and the right answer refuses and names the wall. tests/test_value_cases.py and tests/test_value_cases_scripts.py hold every recorded answer.",
+ "capabilities_without_a_case": [
+  "collections:array",
+  "conditional-ta",
+  "fn-multi",
+  "fn-single",
+  "for-in",
+  "generics",
+  "max_bars_back",
+  "method-call",
+  "obj:collection",
+  "obj:delete",
+  "obj:getter",
+  "realtime-state",
+  "switch",
+  "typed-array",
+  "udt",
+  "while"
+ ],
+ "capabilities_used_without_words": [
+  "request-other"
+ ],
  "cases": [
   {
    "id": "d01",
