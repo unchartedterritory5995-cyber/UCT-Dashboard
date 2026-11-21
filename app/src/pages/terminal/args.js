@@ -149,6 +149,8 @@ export const SEAS_MEASURE_WORDS = Object.freeze({ AVG: 'average', AVERAGE: 'aver
 // Market wave A: copies of the panel models' argument rules (args.marketWaveA.test.js pins each to its owner)
 export const COT_MARKET_SHAPE = /^[A-Z0-9&][A-Z0-9&.-]{0,11}$/
 export const ANLG_COUNT_BOUNDS = Object.freeze([3, 10])
+// INS CLUSTER: a copy of the panel model's words (args.insiderClusters.test.js pins it to its owner)
+export const INS_VIEW_WORDS = Object.freeze({ CLUSTER: 'cluster', CLUSTERS: 'cluster' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -621,6 +623,17 @@ export const ARG_KINDS = {
       return n >= ANLG_COUNT_BOUNDS[0] && n <= ANLG_COUNT_BOUNDS[1] ? n : null
     },
     describe: (v) => `${v} similar sessions`,
+  },
+  // ── INS CLUSTER (2026-11-21) ──
+  /** INS's view (panels/insiderClustersModel.js INS_VIEW_ARG_WORDS; pinned by args.insiderClusters.test.js):
+   *  `INS CLUSTER` is the cluster list from the SEC's Form 4 filings; bare `INS` stays all buys. */
+  insView: {
+    takes: 'CLUSTER',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
   },
 }
 
