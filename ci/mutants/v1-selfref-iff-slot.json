@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "ATR-POS: a v1/v2 self-reference through `iff` / `?:` and `nz(x[k], 0)` is rewritten to a persistent slot (`v2SelfReferenceStatements`), and a colour variable bound once to an opaque expression is read through for opacity (`opaqueColour`), so average-true-range-trailing-stops' stop draws with its colour by the flag where the v4 spelling does.",
+ "mutants": [
+  {
+   "id": "T1",
+   "mutant": "the zero fill `nz(x[1], 0)` is no longer a guarded self read",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        && isPunct(rhs[i + 3], ']') && (isPunct(rhs[i + 4], ')') || zeroFill)",
+   "to": "        && isPunct(rhs[i + 3], ']') && isPunct(rhs[i + 4], ')')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js",
+   "expectRed": "the zero fill `nz(x[1], 0)` is rewritten"
+  },
+  {
+   "id": "T2",
+   "mutant": "a definition carrying a `?:` or `iff` is excluded from the rewrite again (master's columnar fold)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || callsScriptFn(toks.slice(eq + 1))) {",
+   "to": "    if (!plain || !guardedSelfRef(toks.slice(eq + 1), nameTok.value) || toks.slice(eq + 1).some((t) => isPunct(t, '?') || isIdent(t, 'iff')) || callsScriptFn(toks.slice(eq + 1))) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js",
+   "expectRed": "a self-reference with a ?: or iff is rewritten"
+  },
+  {
+   "id": "T3",
+   "mutant": "a colour slot bound once is not read through for opacity (the v1 row would be withheld whole)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        return def !== undefined && opaqueColour(def.expr, def.scope, depth + 1)",
+   "to": "        return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js",
+   "expectRed": "the plot's colour output is opaque in v1 (a slot)"
+  },
+  {
+   "id": "T4",
+   "mutant": "a REASSIGNED colour slot is read as opaque too",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        return def !== undefined && opaqueColour(def.expr, def.scope, depth + 1)",
+   "to": "        return def === undefined || opaqueColour(def.expr, def.scope, depth + 1)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w34I4SelfReference.test.js",
+   "expectRed": "a colour slot that is REASSIGNED is not read through"
+  }
+ ]
+}

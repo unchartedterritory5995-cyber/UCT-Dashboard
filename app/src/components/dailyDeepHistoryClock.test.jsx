@@ -98,7 +98,7 @@ vi.mock('../context/AuthContext', () => ({
   useIsPaid: () => false,
   AuthContext: { Provider: ({ children }) => children },
 }))
-vi.mock('../hooks/livePriceStore', () => ({ getSnapshot: () => ({}), subscribe: () => () => {} }))
+vi.mock('../hooks/livePriceStore', () => ({ getSnapshot: () => ({}), subscribe: () => () => {}, registerTickers: () => () => {} }))
 vi.mock('../lib/todayPackClient', () => ({
   getTodayBar: () => null, todayPackUsable: () => false,
   touchTodayPack: () => Promise.resolve(null), ensureTodayPack: () => Promise.resolve(null),

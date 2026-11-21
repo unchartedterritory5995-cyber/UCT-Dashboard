@@ -124,12 +124,13 @@ function stripManifestProse() {
     async transform(code, id) {
       const file = id.split('\\').join('/')
       if (file.endsWith('/lib/marketClock/market_calendar.json')) {
-        // ⭐ Not prose: repetition. Lossless: `calendarCompact.test.js` proves the
-        // runtime's `expandCalendar` rebuilds the file exactly.
-        const { compactCalendar } = await import('./src/lib/marketClock/calendarCompact.js')
-        const { doc, savedBytes } = compactCalendar(JSON.parse(code))
+        // ⭐ Mostly not prose: repetition. `calendarCompact.test.js` proves the
+        // runtime's `expandCalendar` rebuilds every row exactly. The one field left
+        // out is the `source` note, which nothing in the app reads (same test).
+        const { bundleCalendar } = await import('./src/lib/marketClock/calendarCompact.js')
+        const { doc, savedBytes } = bundleCalendar(JSON.parse(code))
         // eslint-disable-next-line no-console
-        console.log(`[uct] market_calendar: rows grouped, dates as day gaps, `
+        console.log(`[uct] market_calendar: rows grouped, dates as day gaps, source note left out, `
           + `${(savedBytes / 1024).toFixed(1)}kB off the bundle`)
         return { code: JSON.stringify(doc), map: null }
       }

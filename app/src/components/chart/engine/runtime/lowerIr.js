@@ -377,10 +377,12 @@ export function lowerIrProgram(ir, opts = {}) {
         if (e.of.kind === EXPR.SERIES) {
           const si = SERIES_NAMES.indexOf(e.of.name)
           if (si < 0) throw new LoweringGap('series', `\`${e.of.name}\``)
+          // (A1's strict read is built over a COLUMN only, `pineRuntimeFrontend.js` `offset`: never here)
           emit(OP.READ_SERIES_HIST_DYN, si, e.limit || 0)
           return
         }
-        emit(OP.READ_HIST_DYN, e.of.index, e.limit || 0)
+        // ⭐ A1 — operand -1: a STRICT read (Pine's 5,000 ceiling, and a negative or fractional offset stops by name)
+        emit(OP.READ_HIST_DYN, e.of.index, e.strict === true ? -1 : (e.limit || 0))
         return
       }
       case EXPR.BINARY: {
@@ -1000,6 +1002,8 @@ export function lowerIrProgram(ir, opts = {}) {
       // its live slot at end of bar; a site entry commits what that site last
       // HELD, which is what makes a skipped call re-commit rather than blank.
       site: h.site === undefined ? null : h.site,
+      // ⭐ A1 — a STRICT ring (a copy that reads a parameter per bar): the VM stops a negative or fractional read
+      ...(h.strict === true ? { strict: true } : {}),
     })),
     version: ir.version,
   })

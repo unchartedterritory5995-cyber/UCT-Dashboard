@@ -349,7 +349,7 @@ back. `status()` reports `forced_session`.
 
 **Daily delta**: built, section 10.
 
-## 10. The daily delta (`UFFSDLT1`)
+## 10. The daily delta (`UFFSDLT2`)
 
 A device that holds build N of a timeframe downloads only what changed to reach build N+1; anyone else
 (no copy, another base, a failed check) downloads the full pack, which is always published. Builder:
@@ -374,13 +374,19 @@ A client holding exactly build `base` of that timeframe (and nothing else) may a
 
 ### Layout
 
-The pack framing of section 3 with its own magic, so neither reader can take one for the other:
+The pack framing of section 3 with its own magic, so neither reader can take one for the other, and the
+trailer GZIP-compressed (one gzip member, mtime 0; the u64 is the compressed length):
 
 ```
-blob 0 | ... | blob k-1 | trailer (ASCII JSON) | u64 trailer length | "UFFSDLT1"
+blob 0 | ... | blob k-1 | gzip(trailer, ASCII JSON) | u64 trailer length | "UFFSDLT2"
 ```
 
-Trailer: `v` 1, `kind` `"ffseed-delta"`, `tf`, `tunit`, `basis`, `grid`, `comp`, `depth`, `asof` and
+Version 1 (`"UFFSDLT1"`, the same JSON trailer uncompressed, `v` 1) is still read by the server's reader and
+the device's, never written. Why version 2: the trailer is ~0.3 MB per timeframe whatever the night changed
+(one 12-number entry per symbol), 1.75 MB of the first real nightly delta's 16.2 MB (2026-11-21; D: 0.14 MB
+of bars in a 0.43 MB delta); gzip takes it to 20-28% (0.42 MB for all six).
+
+Trailer: `v` 2 (1 under `"UFFSDLT1"`), `kind` `"ffseed-delta"`, `tf`, `tunit`, `basis`, `grid`, `comp`, `depth`, `asof` and
 `build` (the NEW build), `base` and `base_asof` (the build it applies to), `fields`, `symbols`.
 `fields` = `["op","off","len","rows","bars","first","last","asof","crc","body","pscale","vscale"]`:
 
@@ -426,3 +432,37 @@ Any difference, a base whose bytes do not match the base manifest's `sha256` (it
 worker's own copy of the last build, `<DATA_DIR>/ffseed_cache/`, else from R2), or any error: no delta
 for that timeframe, and the manifest carries none. The full packs are uploaded first and never depend on
 it.
+
+### The device (`app/src/data/deviceStore/delta.js`, `engine.js` `_ingestDelta`)
+
+The device store tries the delta first when the generation it holds for a timeframe IS `delta.base` (by its
+commit marker and by its own trailer's `build`), and takes the full pack otherwise. In order:
+
+1. **Download** `delta.url` (resolved against the manifest like the pack's) whole, into memory: exactly
+   `delta.bytes`, its sha256 equal to `delta.sha256`. No Range, no resume: a broken download is a fallback.
+2. **Parse** it (`parseDelta`: magic, `v`, `kind`, `fields`, `tf`/`tunit`, `comp`, every entry's shape). Its
+   `build` must be the manifest's, its `base` the held build and the manifest's `delta.base`. Every symbol of
+   the held build must have an entry; the new set (every entry but `remove`) must be non-empty and match the
+   manifest's `symbols` and `bars`.
+3. **Rebuild** the new pack, one symbol at a time, in code-point order, into a NEW generation file
+   (`<tf>.<gen>.pack`, no `.prog`): `replace` copies the delta's blob; an unchanged `keep` copies the held
+   blob; any other `keep` or `merge` decodes the held rows, keeps `first <= t <= last`, rescales them
+   exactly, upserts the merge rows (a tie: the blob's row), re-encodes the body (section 4) and gzips it with
+   fflate. The trailer is the pack trailer of section 3 with the new build's `asof`/`build` and each symbol's
+   NEW entry (`bars first last asof crc pscale vscale` from the delta; `off len body` where this file holds
+   it), plus the keys `via: "delta"` and `base`.
+4. **Read it all back** through the reader: the trailer parses, every symbol is there with the entry written,
+   and every record decodes (`decodeRecord`) to the new build's `bars`, `first`, `last` and column `crc`.
+   This is section 10's apply step 4 on the bytes as stored, and the device's ONE check of the result: the
+   rebuilt file is not byte-identical to the server's (another gzip encoder), so the manifest's full-pack
+   `sha256` cannot be compared.
+5. **Commit** as for a download: the marker `<tf>.<gen>.ok` (`bytes` = this file's size, `src` = the
+   manifest's full-pack `{sha256, bytes}` this generation stands for, `via: "delta"`), the swap, the older
+   generations removed. A later manifest naming the same build and full-pack `bytes` is `current`.
+
+Any failure at any step removes the new generation's file and downloads the full pack; the held
+generation serves every read until a new one is committed. A crash mid-write leaves an unmarked file no
+reader opens, removed by the next ingest. Measured (Node, this repository's dev PC, synthetic 60m records of
+1,000 bars): ~1.5-2.5 ms of worker time per symbol, the worker handing back control every 12 ms so other
+tabs' reads keep being answered. Tests: `app/src/data/deviceStore/delta.test.js` against deltas the server
+built (`tools/ffseed_make_delta_js_fixture.py`, pinned by `tests/test_ffseed_delta_js_fixture.py`).

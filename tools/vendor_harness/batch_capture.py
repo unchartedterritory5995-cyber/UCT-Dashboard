@@ -472,7 +472,7 @@ SESSION_JS = r"""() => {
   let step = null;
   for (let k = 1; k < times.length; k += 1) { const d = times[k] - times[k - 1]; if (d > 0 && (step === null || d < step)) step = d }
   return { ok: true, session: si.session || null, subsession: si.subsession_id || null,
-           interval: interval == null ? null : String(interval), bars, step, last: times.length ? times[times.length - 1] : null };
+           interval: interval == null ? null : String(interval), bars, step };
 }"""
 
 #: Ask for more history (n > 0) and read the loaded depth. Read-only at n = 0.
@@ -1224,7 +1224,9 @@ class Driver:
                     and step_range[0] <= st <= step_range[1] and isinstance(s.get("bars"), int) and s["bars"] > 1):
                 last["key"] = None
                 return False
-            key = (s.get("session"), s.get("subsession"), s.get("bars"), s.get("last"))
+            # (no newest-bar time in the key: no stale read it could tell from a fresh one, so it was strictness no
+            # rail could fail, patrick-54's Q4; the spacing above is what rejects a stale read)
+            key = (s.get("session"), s.get("subsession"), s.get("bars"))
             same, last["key"] = key == last["key"], key
             return same
         got, ok = self.poll(label, SESSION_JS, None, settled, 30)

@@ -224,6 +224,145 @@
     "withAv": true
    },
    "name": "with_av"
+  },
+  {
+   "blocks": [
+    {
+     "kind": 0,
+     "minute": 29400000,
+     "rows": {
+      "AAPL": [
+       150.2345,
+       150.5,
+       150.0,
+       150.25,
+       12345.0
+      ],
+      "ZERO": [
+       5.0,
+       5.0,
+       5.0,
+       5.0,
+       0.0
+      ]
+     }
+    }
+   ],
+   "daily": {
+    "AAPL": [
+     150.01,
+     151.25,
+     149.5,
+     150.37,
+     51234567.0
+    ],
+    "BRK-B": [
+     412.1,
+     414.0,
+     411.5,
+     413.2,
+     3000000.0
+    ],
+    "ONLYDAY": [
+     12.5,
+     12.75,
+     12.25,
+     12.5,
+     8.0
+    ],
+    "PENNY": [
+     0.00012345,
+     0.0001235,
+     0.0001234,
+     0.00012345,
+     10000000000.0
+    ],
+    "RAWP": [
+     0.30000000000000004,
+     1.0,
+     0.1,
+     0.5,
+     7.0
+    ]
+   },
+   "file": "codec_daily.bin",
+   "header": {
+    "complete": true,
+    "day": 20261118,
+    "epoch": 7,
+    "minute": 29400000,
+    "prevSeq": 719,
+    "seq": 720,
+    "withAv": false
+   },
+   "name": "daily"
+  },
+  {
+   "blocks": [
+    {
+     "kind": 0,
+     "minute": 29400000,
+     "rows": {
+      "AAPL": [
+       150.2345,
+       150.5,
+       150.0,
+       150.25,
+       12345.0,
+       51240000.0
+      ]
+     }
+    }
+   ],
+   "daily": {
+    "AAPL": [
+     150.01,
+     151.25,
+     149.5,
+     150.37,
+     51240000.0
+    ]
+   },
+   "file": "codec_daily_with_av.bin",
+   "header": {
+    "complete": true,
+    "day": 20261118,
+    "epoch": 7,
+    "minute": 29400000,
+    "prevSeq": 720,
+    "seq": 721,
+    "withAv": true
+   },
+   "name": "daily_with_av"
+  },
+  {
+   "blocks": [
+    {
+     "kind": 0,
+     "minute": 29400000,
+     "rows": {}
+    }
+   ],
+   "daily": {
+    "ZZZZZZZZZZ": [
+     1.5,
+     1.75,
+     1.25,
+     1.5,
+     1000.0
+    ]
+   },
+   "file": "codec_daily_only.bin",
+   "header": {
+    "complete": true,
+    "day": 20261118,
+    "epoch": 7,
+    "minute": 29400000,
+    "prevSeq": 721,
+    "seq": 722,
+    "withAv": false
+   },
+   "name": "daily_only"
   }
  ]
 }

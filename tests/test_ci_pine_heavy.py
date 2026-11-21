@@ -28,6 +28,8 @@ Standard library + PyYAML.
 """
 from __future__ import annotations
 
+import ast
+import functools
 import glob
 import json
 import os
@@ -130,12 +132,38 @@ def test_the_wrapper_unshares_the_network_and_drops_root():
 
 # ── the section-8 list ⊆ the pytest legs ──────────────────────────────────────
 
+def _leg_files(doc: dict | None = None, root: pathlib.Path = ROOT) -> dict[str, set[str]]:
+    """{leg: {absolute posix path, ...}} -- what each pytest leg RUNS: a `tests:` leg its globs, a `census:` leg the
+    shard tools/pine_test_census.py hands it (the step runs that tool; the files are what CI runs, so they come
+    from it here too)."""
+    if doc is None and root == ROOT and _LEG_FILES:
+        return {k: set(v) for k, v in _LEG_FILES.items()}
+    import pine_test_census as C  # noqa: E402  (tools/, on sys.path above)
+    out: dict[str, set[str]] = {}
+    for leg in (doc or _wf())["jobs"]["pytest"]["strategy"]["matrix"]["include"]:
+        files: set[str] = set()
+        for pat in str(leg.get("tests") or "").split():
+            files |= {pathlib.Path(p).as_posix() for p in glob.glob(str(root / pat))}
+        if leg.get("census"):
+            k, n = C.parse_shard(leg["census"])
+            shard = C.plan(C.census(root), n, C.recorded_ms(root))[k - 1]
+            files |= {(root / f).as_posix() for f in shard}
+        out[leg["leg"]] = files
+    if doc is None and root == ROOT:
+        _LEG_FILES.update({k: set(v) for k, v in out.items()})
+    return out
+
+
+#: the real workflow's legs, read once per session (the census scan reads every test file)
+_LEG_FILES: dict[str, set[str]] = {}
+
+
+def _covered(doc: dict | None = None, root: pathlib.Path = ROOT) -> set[str]:
+    return set().union(*_leg_files(doc, root).values())
+
+
 def test_the_gates_section8_pytest_list_is_inside_the_pytest_legs():
-    legs = _wf()["jobs"]["pytest"]["strategy"]["matrix"]["include"]
-    covered = set()
-    for leg in legs:
-        for pat in leg["tests"].split():
-            covered |= {pathlib.Path(p).as_posix() for p in glob.glob(str(ROOT / pat))}
+    covered = _covered()
     section8 = [a for c in G.gate_commands() for a in c if a.startswith("tests/") and a.endswith(".py")]
     assert len(section8) >= 10, section8                       # non-vacuity: the gate list was read
     missing = [f for f in section8 if (ROOT / f).as_posix() not in covered]
@@ -157,15 +185,163 @@ def test_a_pytest_leg_runs_the_c45_door_rail_and_what_it_reads_triggers_it():
     """2026-11-20: `test_c45_withheld_doors.py` (the C45 doors ask ast_interpret's own whole-series decision) was red
     on master from engine 78 (#1888) and again from engine 90 (#2194), with every check green: no leg ran it. A
     pytest leg names it, and a PR that changes it, the interpreter it asks, or the fixture it reads triggers this."""
-    covered = set()
-    for leg in _wf()["jobs"]["pytest"]["strategy"]["matrix"]["include"]:
-        for pat in leg["tests"].split():
-            covered |= {pathlib.Path(p).as_posix() for p in glob.glob(str(ROOT / pat))}
-    assert (ROOT / "tests/test_c45_withheld_doors.py").as_posix() in covered
+    assert (ROOT / "tests/test_c45_withheld_doors.py").as_posix() in _covered()
     rxs = [_glob_rx(p) for p in _on(_wf())["pull_request"]["paths"]]
     for p in ("tests/test_c45_withheld_doors.py", "api/services/ast_interpret.py",
               "tests/fixtures/ast/period_anchor_parity.json"):
         assert any(rx.match(p) for rx in rxs), f"a PR changing {p} does not trigger pine-heavy"
+
+
+# ── every test that imports the Pine engine runs in a leg (2026-11-20) ─────────
+# ⚰️ 67 test files importing the engine ran in no lane at all, and 32 more only in lanes that do not trigger on an
+# engine change. Four were red on master for days with every check green. The census legs run them; the rails below
+# DERIVE the set from the files' own imports (their own reading, not the tool's: a hole in the tool's definition is
+# not a hole in this rail's) and fail by name on a file no leg runs, on a census split that is not a partition, and on
+# a module those files import that does not trigger this workflow.
+
+#: a dotted module that is Pine engine code: the interpreter family, the Pine services, the Pine routers, the runtime.
+_ENGINE_RX = re.compile(r"^(?:api\.services\.(?:ast|pine)_\w+|api\.routers\.\w*pine\w*|services\.pine_runtime)(?:\.|$)")
+
+#: modules a census file imports, that import the engine themselves, and that deliberately do NOT trigger pine heavy.
+TRIGGER_EXEMPT = {
+    "api/main.py": "the app's wiring file (it imports the engine to mount its routers): nearly every backend PR "
+                   "touches it, and every pine-heavy job on each would buy nothing the engine's own paths do not",
+}
+
+
+@functools.lru_cache(maxsize=None)
+def _dotted_imports(path: pathlib.Path) -> frozenset:
+    """Every dotted module `path` imports (absolute; a relative import resolved against its package)."""
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", SyntaxWarning)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    pkg = list(path.relative_to(ROOT).parent.parts) if path.is_relative_to(ROOT) else []
+    names: set[str] = set()
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            names |= {a.name for a in n.names}
+        elif isinstance(n, ast.ImportFrom):
+            base = n.module or ""
+            if n.level:
+                up = pkg[:len(pkg) - (n.level - 1)] if n.level > 1 else pkg
+                base = ".".join(up + ([n.module] if n.module else []))
+            names.add(base)
+            names |= {f"{base}.{a.name}" for a in n.names}
+    return frozenset(m for m in names if m)
+
+
+def _imports_the_engine(path: pathlib.Path) -> bool:
+    text = path.read_text(encoding="utf-8")
+    if not re.search(r"ast_|pine", text):         # every engine module's dotted name holds one: nothing to parse
+        return False
+    return any(_ENGINE_RX.match(m) for m in _dotted_imports(path))
+
+
+def _pine_importing_tests(root: pathlib.Path = ROOT) -> set[str]:
+    return {p.as_posix() for p in (root / "tests").glob("test_*.py") if _imports_the_engine(p)}
+
+
+def _module_file(dotted: str):
+    p = ROOT.joinpath(*dotted.split("."))
+    for c in (p.with_suffix(".py"), p / "__init__.py"):
+        if c.is_file():
+            return c
+    return None
+
+
+def _census_triggers() -> dict[str, set[str]]:
+    """{repo module a census-leg file imports that must trigger pine heavy: {the files importing it}} -- engine code,
+    and any module that itself imports the engine (a consumer: an engine change reaches the test through it)."""
+    census = set().union(*[f for leg, f in _leg_files().items() if leg.startswith("pine-consumers")])
+    out: dict[str, set[str]] = {}
+    for test in sorted(census):
+        for dotted in _dotted_imports(pathlib.Path(test)):
+            if dotted.split(".")[0] not in ("api", "services"):
+                continue
+            mod = _module_file(dotted)
+            if mod is None:
+                continue
+            if _ENGINE_RX.match(dotted) or _imports_the_engine(mod):
+                out.setdefault(mod.relative_to(ROOT).as_posix(), set()).add(pathlib.Path(test).name)
+    return out
+
+
+def test_every_test_file_that_imports_the_pine_engine_is_run_by_a_pytest_leg():
+    pine = _pine_importing_tests()
+    assert len(pine) >= 150, f"only {len(pine)} Pine-importing test files: the scan is broken, not the suite"
+    missing = sorted(_rel(f) for f in pine - _covered())
+    assert not missing, (
+        "test files that import the Pine engine and that no pine-heavy pytest leg runs (tools/pine_test_census.py "
+        f"should have listed them; what does it not see?): {missing}")
+
+
+def test_the_census_legs_split_the_census_exactly_once_and_overlap_no_other_leg():
+    import pine_test_census as C  # noqa: E402
+    legs = {leg["leg"]: leg for leg in _wf()["jobs"]["pytest"]["strategy"]["matrix"]["include"] if leg.get("census")}
+    specs = sorted(C.parse_shard(leg["census"]) for leg in legs.values())
+    n = specs[0][1]
+    assert specs == [(k, n) for k in range(1, n + 1)], f"the census legs are not shards 1..N of one N: {specs}"
+    files = _leg_files()
+    shards = [files[name] for name in legs]
+    census = {(ROOT / f).as_posix() for f in C.census(ROOT)}
+    assert len(census) >= 60, f"the census holds {len(census)} files: vacuous"
+    assert all(shards), "a census shard is empty"
+    assert sum(len(s) for s in shards) == len(census) and set().union(*shards) == census, (
+        "the census shards are not a partition of the census")
+    others = set().union(*[f for name, f in files.items() if name not in legs])
+    assert not (census & others), f"files run twice (a census leg and a `tests:` leg): {sorted(map(_rel, census & others))}"
+    # one file that fails to import must not hide a shard: 2026-11-20 a collection error ran 0 of shard 1's 49 files
+    commands = [l for r in _runs(_wf()["jobs"]["pytest"]) for l in r.splitlines()
+                if "-m pytest" in l and not l.lstrip().startswith("#")]
+    assert commands and all("--continue-on-collection-errors" in l for l in commands), (
+        "the pytest legs stop at the first collection error: every other file in that leg goes unrun")
+
+
+def test_what_the_census_files_import_triggers_pine_heavy():
+    rxs = [_glob_rx(p) for p in _on(_wf())["pull_request"]["paths"]]
+    need = _census_triggers()
+    assert len(need) >= 25, f"only {len(need)} engine or consumer modules imported: the scan is broken"
+    for want in ("api/services/ast_interpret.py", "api/services/scan_definition.py",
+                 "api/services/alert_user_series.py", "api/services/user_definitions.py"):
+        assert want in need, f"CONTROL: {want} is not seen as imported by a census file"
+    stale = sorted(m for m in TRIGGER_EXEMPT if m not in need)
+    assert not stale, f"TRIGGER_EXEMPT names modules no census file imports any more: {stale}"
+    missing = {m: sorted(t)[:3] for m, t in need.items() if m not in TRIGGER_EXEMPT and not any(rx.match(m) for rx in rxs)}
+    assert not missing, f"modules census files import that do not trigger pine-heavy (module: importers): {missing}"
+
+
+def test_CONTROL_the_leg_rail_names_files_when_the_census_legs_are_gone():
+    doc = _wf()
+    doc["jobs"]["pytest"]["strategy"]["matrix"]["include"] = [
+        leg for leg in doc["jobs"]["pytest"]["strategy"]["matrix"]["include"] if not leg.get("census")]
+    missing = _pine_importing_tests() - _covered(doc)
+    assert len(missing) >= 60 and (ROOT / "tests/test_scan_definition.py").as_posix() in missing, sorted(missing)[:5]
+
+
+def test_CONTROL_the_import_reading_tells_an_engine_import_from_another(tmp_path):
+    cases = {
+        "from api.services import ast_interpret as ai\n": True,
+        "import api.services.pine_compare\n": True,
+        "from api.routers import pine_runtime\n": True,
+        "from services.pine_runtime.client import x\n": True,
+        "def f():\n    from api.services.ast_table import TABLE\n": True,     # an import inside a function counts
+        "from api.services import cache\n": False,
+        "from api.services import scan_definition\n": False,
+        "X = 'from api.services import ast_interpret'\n": False,               # prose and strings never count
+        "import importlib\nimportlib.import_module('api.services.ast_interpret')\n": False,   # the stated limit
+    }
+    for i, (src, want) in enumerate(cases.items()):
+        p = tmp_path / f"test_probe_{i}.py"
+        p.write_text(src, encoding="utf-8")
+        assert _imports_the_engine(p) is want, src
+
+
+def test_CONTROL_the_trigger_rail_names_a_module_whose_glob_is_gone():
+    rxs = [_glob_rx(p) for p in _on(_wf())["pull_request"]["paths"] if p != "api/services/scan_*.py"]
+    need = _census_triggers()
+    missing = [m for m in need if m not in TRIGGER_EXEMPT and not any(rx.match(m) for rx in rxs)]
+    assert "api/services/scan_definition.py" in missing, missing
 
 
 # ── the union rail ────────────────────────────────────────────────────────────

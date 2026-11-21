@@ -1,0 +1,16 @@
+//@version=5
+indicator("UCTPROBE_VW_A1_SERIES_PARAM_OFFSET_FRAC", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-20 for the Pine parity programme (objects unit A1), capture queue rows Q-A1-5a/b
+// (docs/pine/capture-queue-2026-11-20-a1-series-offsets.md). NEVER COMPILED ON TRADINGVIEW. The sibling of
+// `vw-a1-series-param-offset.pine`, alone so its stop (if Pine stops) costs no other row.
+//   F01 f(close, c * 0.5): a FRACTIONAL offset on odd c (c = 1, 2, ..., 6, 0, 1, ...)
+// A runtime error is a reading: record its text and the bar it names. A compile error is a reading: record it.
+var c = 0
+c := c >= 6 ? 0 : c + 1
+
+f(src, n) => src[n]
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(c, "A01_c")
+plot(f(close, c * 0.5), "F01_fractional_offset")

@@ -1,7 +1,7 @@
 """The first-frame seed's DAILY DELTA: what a device holding build N needs to reach build N+1.
 
 A device keeps one seed pack per timeframe (`ffseed_format`, "UFFSEED1"). Every night the full set is
-~72 MB; most of it is the same bars as the night before. A delta pack ("UFFSDLT1") carries, per
+~72 MB; most of it is the same bars as the night before. A delta pack ("UFFSDLT2") carries, per
 timeframe, only what changed between the base build and the new one, so a device holding the base
 downloads the delta, applies it, and holds byte-for-byte the new build's bars. Anyone else (no base,
 another base, a failed check) takes the full pack, which is always published. Spec:
@@ -20,6 +20,11 @@ Every entry carries the NEW window's `bars`, `first`, `last`, `crc` (the column 
 and the new window's `pscale`/`vscale`: a device rescales the base rows it keeps to those scales,
 applies the blob (encoded at the same scales), and checks the column CRC exactly as for a full pack.
 
+THE TRAILER IS GZIP (version 2, "UFFSDLT2"). The JSON trailer is ~0.3 MB per timeframe whatever the night
+changed (one 12-number entry per symbol): on 2026-11-21 1.75 MB of a 16.2 MB nightly delta, D's 0.43 MB
+delta holding 0.14 MB of bars. gzip takes it to ~20-28% (1.75 -> 0.42 MB). Version 1 (plain JSON trailer,
+"UFFSDLT1") is still READ, never written.
+
 FAIL-SAFE. The builder applies every delta it writes back onto the base with an INDEPENDENT reference
 applier (`apply_delta`) and compares every symbol of the result with the new pack, column for column;
 the symbol sets must match too. Any difference, any undecodable base or new entry, and the delta is not
@@ -27,16 +32,22 @@ published (`DeltaError`). It is a pure function of (base pack, new pack, splits 
 """
 from __future__ import annotations
 
+import gzip
 import json
 import struct
+import zlib
 from typing import Dict, Iterable, Optional, Tuple
 
 import numpy as np
 
 from api.services import ffseed_format as fmt
 
-MAGIC = b"UFFSDLT1"
-FORMAT_VERSION = 1
+MAGIC = b"UFFSDLT2"                 # what the builder writes: gzip trailer
+MAGIC_V1 = b"UFFSDLT1"              # read only: plain JSON trailer
+FORMAT_VERSION = 2
+_MAGIC_VERSION = {MAGIC: 2, MAGIC_V1: 1}
+#: a trailer inflating past this is not one this builder wrote (~2 KB a symbol would be 30k symbols)
+_MAX_TRAILER = 64 << 20
 KIND = "ffseed-delta"
 OPS = {"keep": 0, "merge": 1, "replace": 2, "remove": 3}
 OP_NAMES = {v: k for k, v in OPS.items()}
@@ -173,25 +184,36 @@ def build_delta(base_bytes: bytes, new_bytes: bytes, *, splits_symbols: Iterable
         "grid": ntr["grid"], "comp": comp, "depth": ntr["depth"], "asof": ntr["asof"], "build": ntr["build"],
         "base": btr["build"], "base_asof": btr["asof"], "fields": list(ENTRY_FIELDS), "symbols": entries,
     }, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("ascii")
+    trailer = gzip.compress(trailer, 9, mtime=0)       # deterministic: same inputs, same bytes
     data = b"".join(blobs) + trailer + _TAIL.pack(len(trailer)) + MAGIC
     verify_delta(base_bytes, data, new_bytes)
     stats.update({"symbols": len(entries), "bytes": len(data), "base": btr["build"], "build": ntr["build"]})
     return data, stats
 
 
+def _inflate_trailer(raw: bytes) -> bytes:
+    d = zlib.decompressobj(16 + zlib.MAX_WBITS)            # gzip framing, one member
+    out = d.decompress(raw, _MAX_TRAILER)
+    if d.unconsumed_tail or not d.eof or d.unused_data:
+        raise DeltaError("trailer is not one whole gzip member (or inflates past the limit)")
+    return out
+
+
 def read_delta_trailer(data: bytes) -> dict:
     n = len(data)
-    if n < len(MAGIC) + _TAIL.size or bytes(data[n - len(MAGIC):]) != MAGIC:
-        raise DeltaError("not a seed delta (no UFFSDLT1 end marker)")
+    version = _MAGIC_VERSION.get(bytes(data[n - len(MAGIC):])) if n >= len(MAGIC) + _TAIL.size else None
+    if version is None:
+        raise DeltaError("not a seed delta (no UFFSDLT2 / UFFSDLT1 end marker)")
     (tlen,) = _TAIL.unpack(bytes(data[n - 16:n - 8]))
     start = n - 16 - tlen
     if tlen <= 0 or start < 0:
         raise DeltaError("trailer length does not fit the file")
+    raw = bytes(data[start:start + tlen])
     try:
-        tr = json.loads(bytes(data[start:start + tlen]).decode("ascii"))
-    except (UnicodeDecodeError, ValueError) as exc:
-        raise DeltaError(f"trailer is not ASCII JSON: {exc}") from exc
-    if tr.get("v") != FORMAT_VERSION or tr.get("kind") != KIND or tr.get("fields") != list(ENTRY_FIELDS):
+        tr = json.loads((_inflate_trailer(raw) if version == 2 else raw).decode("ascii"))
+    except (UnicodeDecodeError, ValueError, zlib.error) as exc:
+        raise DeltaError(f"trailer is not {'gzip ' if version == 2 else ''}ASCII JSON: {exc}") from exc
+    if tr.get("v") != version or tr.get("kind") != KIND or tr.get("fields") != list(ENTRY_FIELDS):
         raise DeltaError("unsupported delta version, kind or entry layout")
     for sym, e in tr["symbols"].items():
         if not (isinstance(e, list) and len(e) == len(ENTRY_FIELDS) and all(fmt._is_count(x) for x in e)):

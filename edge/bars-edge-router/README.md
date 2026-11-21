@@ -27,6 +27,8 @@ copy it back into `worker.js` in the same change.
 | anything else | passed through untouched to the zone's default origin (web) |
 | tier network error, times out (8 s), 502/504, or any non-deliberate 5xx | falls back to `WEB_ORIGIN` |
 | tier DELIBERATE 503 + Retry-After (`X-Bars-Shed: warming`/`warm-shed`, or a `warming` body) | passes to the browser, `X-Bars-Edge: tier` |
+| a GET/HEAD the tier has not answered within 1.2 s (`BARS_HEDGE_MS`) | also asked of web; the first good answer is served (`X-Bars-Edge: web-hedge`) |
+| a GET/HEAD after web answered for a failing or out-waited tier (the CIRCUIT BREAKER, 2026-11-21) | straight to web for 20 s in that isolate (`BARS_BREAKER_MS`, `X-Bars-Edge: web-breaker`); a web failure still tries the tier. A tier restart (~11 s: a volume cannot be mounted twice) then costs one hedge, not one per read |
 
 **The fallback does not cover 401/403.** Those pass straight to the member. That
 is why the tier gate was a visible outage rather than a silent degradation.

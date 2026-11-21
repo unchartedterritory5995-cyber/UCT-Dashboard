@@ -123,6 +123,11 @@ jobs:
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_queue_dispositions.py -q -p no:cacheprovider
 
+      # Red on master from 2026-09-29 to 2026-11-20 (13 unregistered sites), and only the report-only nightly ran it.
+      - name: Every corporate-action site is registered with a state
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_corp_actions_census.py -q -p no:cacheprovider
+
       - name: This job mirrors the gate's static steps
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_gate_static_rails_pr.py -q -p no:cacheprovider
@@ -135,6 +140,6 @@ jobs:
           echo "Each step above carries the gate's step name and runs the gate's command. Run the red one locally:"
           echo "  python tools/check_repo_hygiene.py"
           echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
-          echo "  python -m pytest tests/test_tools_pin_the_root.py tests/test_queue_dispositions.py -q"
+          echo "  python -m pytest tests/test_tools_pin_the_root.py tests/test_queue_dispositions.py tests/test_corp_actions_census.py -q"
           echo ""
           echo "This run checks out the MERGE with master: a red this PR did not cause means master is red. Fix master forward."

@@ -68,6 +68,13 @@ vi.mock('lightweight-charts', async (importOriginal) => {
 })
 vi.mock('../utils/barsIDB', async (orig) => ({ ...(await orig()), idbGet: async () => null, idbPut: async () => {}, idbPutMonotonic: async () => {} }))
 vi.mock('../hooks/useRealtimePrices', () => ({ default: () => ({ prices: S.prices, status: 'idle' }) }))
+// ⭐ (2026-11-20) Under BARSTORE the chart reads its quote through `hooks/useQuietRealtimePrices.js` (the two feeds
+// directly, `lib/liveQuote.js`), not through the hook mocked above: the same quote rides the REST poll's store here, so
+// the BARSTORE case still HANDS the chart a quote (and still proves no legacy writer paints it).
+vi.mock('../hooks/livePriceStore', () => ({
+  registerTickers: () => () => {}, subscribe: () => () => {}, getSnapshot: () => S.prices,
+  pollNow: () => {}, setUnauthorizedHandler: () => {}, __resetForTest: () => {},
+}))
 vi.mock('../hooks/useRealtimeBars', () => ({ default: () => ({}) }))
 vi.mock('../hooks/useRealtimeBarPrices', () => ({ default: () => ({}), pickFreshPrice: () => null }))
 vi.mock('../context/AuthContext', () => ({
