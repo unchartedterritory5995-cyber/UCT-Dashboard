@@ -167,8 +167,8 @@ const Card = memo(function Card({ i, item, flagged, stage, result, attempt, rest
           </button>
         </div>
       ) : !asking ? <p className={w.note} data-testid={`watch-unchecked-${i}`}>{callLine(result)}</p> : null}
-      <Tile n={i + 1} i={i} label={asking ? (flagged ? 'On my watchlist' : 'Flag it') : flagged ? 'You flagged it' : 'You passed'} state={tile}
-        role="checkbox" checked={flagged} disabled={stage !== 'pick'} onClick={() => onToggle(i)} testId={`watch-flag-${i}`} className={w.flagTile} />
+      <Tile n={i + 1} i={i} state={tile}
+        role="checkbox" checked={flagged} disabled={stage !== 'pick'} onClick={() => onToggle(i)} testId={`watch-flag-${i}`} className={w.flagTile}>{asking ? (flagged ? 'On my watchlist' : 'Flag it') : flagged ? 'You flagged it' : 'You passed'}</Tile>
     </article>
   )
 })
