@@ -1,0 +1,42 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "ENGINE e93 (NUMBER PENDING, fix/pine-e93-deterministic-budgets): no answer depends on how fast the machine is. The translator's window trips the WHOLE call by name (a latch every clock limb sets, so a swallowed throw cannot leave a partial translation), a deterministic per-call step budget bounds the call, and the member door's own runs read a clock that never moves. Every rule, broken once, must turn its rail red.",
+  "mutants": [
+    {
+      "id": "E1",
+      "mutant": "translatePine ignores the latched trip: a partial translation leaks out",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "  if (LAST_WINDOW.trip) {",
+      "to": "  if (false && LAST_WINDOW.trip) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
+      "expectRed": "the whole script refuses by name"
+    },
+    {
+      "id": "E2",
+      "mutant": "a clock limb throws without latching the window",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "  if (!WINDOW_TRIP) WINDOW_TRIP = refusal",
+      "to": "  void refusal",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
+      "expectRed": "the whole script refuses by name"
+    },
+    {
+      "id": "E3",
+      "mutant": "the call's steps are not counted: no deterministic bound",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "  CALL_STEPS += 1",
+      "to": "  void CALL_STEPS",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
+      "expectRed": "resolution steps"
+    },
+    {
+      "id": "E4",
+      "mutant": "the member door's runs read the host's clock again",
+      "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+      "from": "    return withAmbientRunClock(STILL, fn)",
+      "to": "    return fn()",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e93.test.js",
+      "expectRed": "inside the door"
+    }
+  ]
+}

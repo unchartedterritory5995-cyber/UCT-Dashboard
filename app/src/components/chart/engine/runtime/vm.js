@@ -45,8 +45,16 @@ import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
 
 /** ⭐ P1 HARDENING — the clock `WALL_TIME` reads. Injected through `opts.now` by a
- *  test; otherwise the platform's monotonic clock. */
-const defaultNow = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+ *  test; otherwise the AMBIENT clock while one is installed (e93: the member door's own runs,
+ *  `runtimeColumns.withMemberDoorClock`), else the platform's monotonic clock. */
+let AMBIENT_NOW = null
+const defaultNow = () => (AMBIENT_NOW ? AMBIENT_NOW() : (typeof performance !== 'undefined' ? performance.now() : Date.now()))
+/** e93 — the clock every run without an injected one reads, for the length of `fn` (restored after, nesting-safe). */
+export function withAmbientRunClock(now, fn) {
+  const prior = AMBIENT_NOW
+  AMBIENT_NOW = typeof now === 'function' ? now : null
+  try { return fn() } finally { AMBIENT_NOW = prior }
+}
 import { etClockAt } from '../../indicators.js'
 import { encodeState, cloneValues } from './vmState.js'
 

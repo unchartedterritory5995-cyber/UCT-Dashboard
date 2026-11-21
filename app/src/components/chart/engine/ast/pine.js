@@ -8252,6 +8252,11 @@ const MAX_CALL_DEPTH = 24
  */
 export const PINE_TRANSLATE_BUDGET_MS = 10000
 
+/** ⭐⭐ e93 — THE DETERMINISTIC BOUND OF ONE `translatePine` CALL: every resolution step and printer tick of the call,
+ *  on every machine the same. Past it the whole script refuses by name (`countCallStep`). CALIBRATED FROM THE CENSUS
+ *  (docs/pine/evidence/e93): a stated multiple of the most step-hungry served script, so no served script reaches it. */
+export const PINE_TRANSLATE_CALL_MAX_STEPS = 400000000
+
 /**
  * ⭐⭐ AND A STEP CAP, BECAUSE WALL-CLOCK ALONE DOES NOT CATCH THIS SHAPE.
  *
@@ -8364,19 +8369,105 @@ export function withTranslateClock(now, fn) {
   try { return fn() } finally { TRANSLATE_CLOCK = prior }
 }
 
-export function beginTranslateBudget(budgetMs, sourcePath, now) {
+// ─── ⭐⭐ ENGINE e93 (NUMBER PENDING) — NO ANSWER DEPENDS ON HOW FAST THE MACHINE IS ─────────────────────────────
+//
+// ⚰️ MEASURED (#2254's paste trace, then batchD/batchF, 2026-11-21): one served script drew on one run and refused its
+// drawing on the next (`pine:object-removal-lost`), and drew three DIFFERENT documents at normal speed. The cause was
+// this window: the sampled clock check THROWS `pine:timeout` once the window has passed, and many resolve sites catch a
+// throw as "unknown" (`catch { return null }`). An expired window therefore became "this value is unknown", the step
+// was DROPPED, and the answer was whatever the machine had time for. Slowing only the translator's clock 3x reproduced
+// the refusal; freezing it gave the same document on every run.
+// So, here:
+//   · THE LATCH. A window that trips at ANY point of the call (the Resolver's sampled check, the output loop's and the
+//     object pass's direct asks, the printer's tick) is recorded, and the WHOLE call answers the named refusal
+//     (`translatePine`, after the window closes), whatever a catch in between made of the throw. Once tripped, every
+//     later step refuses at once. Never a per-output cut, never a dropped step.
+//   · THE STEP BUDGET IS THE BOUND. Every resolution step and printer tick of the call counts against
+//     `PINE_TRANSLATE_CALL_MAX_STEPS` (deterministic: the same on every machine); past it the whole call refuses by
+//     name. The wall window is the last-resort safety stop, sized so only a hang reaches it.
+//   · NESTING-SAFE: an inner window keeps the outer one's state and gives it back.
+// The per-Resolver step cap (`PINE_TRANSLATE_MAX_STEPS`) is unchanged: it was already the same on every machine.
+let CALL_STEPS = 0
+let CALL_MAX_STEPS = 0
+let WINDOW_OPEN = false
+let WINDOW_TRIP = null
+let LAST_WINDOW = { trip: null, steps: 0 }
+const OUTER_WINDOWS = []
+
+export function beginTranslateBudget(budgetMs, sourcePath, now, maxCallSteps) {
+  OUTER_WINDOWS.push({
+    open: WINDOW_OPEN, clock: TRANSLATE_WINDOW_CLOCK, budget: TRANSLATE_BUDGET, deadline: TRANSLATE_DEADLINE,
+    path: TRANSLATE_PATH, printSteps, steps: CALL_STEPS, max: CALL_MAX_STEPS, trip: WINDOW_TRIP,
+  })
   TRANSLATE_WINDOW_CLOCK = clockOrNull(now) || TRANSLATE_CLOCK || wallNow
   TRANSLATE_BUDGET = Number.isFinite(budgetMs) ? budgetMs : PINE_TRANSLATE_BUDGET_MS
   TRANSLATE_DEADLINE = TRANSLATE_BUDGET > 0 ? TRANSLATE_WINDOW_CLOCK() + TRANSLATE_BUDGET : Infinity
   TRANSLATE_PATH = typeof sourcePath === 'string' ? sourcePath : null
   printSteps = 0
+  WINDOW_OPEN = true
+  CALL_STEPS = 0
+  CALL_MAX_STEPS = Number.isFinite(maxCallSteps) ? maxCallSteps : PINE_TRANSLATE_CALL_MAX_STEPS
+  WINDOW_TRIP = null
 }
 
 export function endTranslateBudget() {
+  LAST_WINDOW = { trip: WINDOW_TRIP, steps: CALL_STEPS }
+  const outer = OUTER_WINDOWS.pop()
+  if (outer && outer.open) {
+    WINDOW_OPEN = true
+    TRANSLATE_WINDOW_CLOCK = outer.clock
+    TRANSLATE_BUDGET = outer.budget
+    TRANSLATE_DEADLINE = outer.deadline
+    TRANSLATE_PATH = outer.path
+    printSteps = outer.printSteps
+    CALL_STEPS = outer.steps
+    CALL_MAX_STEPS = outer.max
+    WINDOW_TRIP = outer.trip
+    return
+  }
+  WINDOW_OPEN = false
+  CALL_STEPS = 0
+  CALL_MAX_STEPS = 0
+  WINDOW_TRIP = null
   TRANSLATE_DEADLINE = Infinity
   TRANSLATE_PATH = null
   TRANSLATE_BUDGET = 0
   TRANSLATE_WINDOW_CLOCK = wallNow
+}
+
+/** e93 — what the window that closed last recorded: the whole-call refusal it latched (or null) and the steps it
+ *  counted (`translatePine` reads the first; a census reads the second). */
+export function lastTranslateWindow() { return LAST_WINDOW }
+
+/** The whole-call refusal of a window whose wall stop passed. */
+function windowTimeoutRefusal() {
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms for the whole script`
+    + (TRANSLATE_PATH ? ' translating `' + TRANSLATE_PATH + '`' : '')
+    + '. This is a translator defect, not a limit on the script: report it with the file.',
+    null)
+}
+
+/** e93 — latch `refusal` as the open window's answer (the first one stands) and give back the one that stands. */
+function tripWindow(refusal) {
+  if (!WINDOW_OPEN) return refusal
+  if (!WINDOW_TRIP) WINDOW_TRIP = refusal
+  return WINDOW_TRIP
+}
+
+/** e93 — one step of the call: counted against the call's budget; a tripped window refuses at once. Asked by every
+ *  Resolver step and every printer tick while a window is open. */
+function countCallStep(tok) {
+  if (!WINDOW_OPEN) return
+  if (WINDOW_TRIP) throw WINDOW_TRIP
+  CALL_STEPS += 1
+  if (CALL_MAX_STEPS > 0 && CALL_STEPS > CALL_MAX_STEPS) {
+    throw tripWindow(new PineRefusal('pine:timeout',
+      `${REFUSALS['pine:timeout']} — gave up after ${CALL_MAX_STEPS} resolution steps for the whole script`
+      + (TRANSLATE_PATH ? ' translating `' + TRANSLATE_PATH + '`' : '')
+      + '. This is a translator defect, not a limit on the script: report it with the file.',
+      tok ? locate(tok) : null))
+  }
 }
 
 /** Throws `pine:timeout` once the wall-clock budget is gone. Cheap: a masked
@@ -8394,19 +8485,23 @@ export function endTranslateBudget() {
  * difference between 10s and 46 × 10s on a 45-output script like Uncharted Clouds.
  */
 export function translateBudgetExpired() {
-  return TRANSLATE_DEADLINE !== Infinity && TRANSLATE_WINDOW_CLOCK() > TRANSLATE_DEADLINE
+  if (WINDOW_TRIP) return true
+  if (!(TRANSLATE_DEADLINE !== Infinity && TRANSLATE_WINDOW_CLOCK() > TRANSLATE_DEADLINE)) return false
+  tripWindow(windowTimeoutRefusal())
+  return true
 }
 
 export function translateBudgetMs() { return TRANSLATE_BUDGET }
 
 export function tickTranslateBudget() {
+  countCallStep(null)
   if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
   if (TRANSLATE_WINDOW_CLOCK() <= TRANSLATE_DEADLINE) return
-  throw new PineRefusal('pine:timeout',
+  throw tripWindow(new PineRefusal('pine:timeout',
     `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms`
     + (TRANSLATE_PATH ? ' translating `' + TRANSLATE_PATH + '`' : '')
     + '. This is a translator defect, not a limit on the script: report it with the file.',
-    null)
+    null))
 }
 
 /** Checked every 4096th `resolve` — `Date.now()` on every node would itself be a
@@ -10529,6 +10624,8 @@ export class Resolver {
    */
   checkBudget(tok) {
     this.budgetSteps += 1
+    // ⭐ e93 — the call's own step budget, and a tripped window refusing at once (`countCallStep`)
+    countCallStep(tok)
     // ⛔ THE STEP CAP IS CHECKED OUTSIDE THE MASK. Gating it behind the same
     // 4096-step gate as the clock made any cap below 4096 UNREACHABLE — a guard
     // that cannot fire. A control asking a normal script to stop at 100 steps is
@@ -10565,10 +10662,12 @@ export class Resolver {
     const clock = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_WINDOW_CLOCK : this.now
     if (clock() <= deadline) return
     const budget = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_BUDGET : this.budgetMs
-    throw new PineRefusal('pine:timeout',
+    const refusal = new PineRefusal('pine:timeout',
       `${REFUSALS['pine:timeout']} — gave up after ${budget}ms for the whole script`
       + where + tail,
       tok ? locate(tok) : null)
+    // ⭐⭐ e93 — THE WINDOW'S stop is the whole call's answer, whatever a catch makes of this throw (`tripWindow`)
+    throw TRANSLATE_DEADLINE !== Infinity ? tripWindow(refusal) : refusal
   }
 
   /**
@@ -28080,6 +28179,7 @@ export function translatePine(source, opts = {}) {
   PERIOD_READ_SINK = periodSink
   let t
   let libraryLink = null
+  LAST_WINDOW = { trip: null, steps: 0 }
   try {
     t = translatePineResult(source, opts)
   } finally {
@@ -28096,6 +28196,13 @@ export function translatePine(source, opts = {}) {
     setLegacyTaCall(outerLegacyTa)
   }
   if (!t || typeof t !== 'object') return t
+  // ⭐⭐ e93 — A WINDOW THAT TRIPPED ANYWHERE IN THE CALL IS THE WHOLE CALL'S ANSWER, BY NAME: never the partial result a
+  // swallowed throw left behind (`tripWindow`). Same shape as every other whole-script refusal here.
+  if (LAST_WINDOW.trip) {
+    const r = fromError(LAST_WINDOW.trip)
+    t = { ok: false, version: t.version ?? null, declaration: null, title: null, outputs: [], selected: -1, notes: [],
+      refusal: r, refusals: [r], inputParams: [] }
+  }
   // ⭐⭐ CBC-FMT — the window the host lane computes this script on (`declarationCalcBars`),
   // and whether it requests other bars (refused inside a window by name,
   // `engine/calcBarsWindow.js`): on every return. Absent for a script that declares no count.
@@ -28224,7 +28331,7 @@ function translatePineResult(source, opts = {}) {
   // this function, so every phase — resolve, print, round-trip, object pass —
   // is inside it. Opening it any later would leave the phase that actually hangs
   // outside the guard, which is the mistake this guard was written to correct.
-  beginTranslateBudget(opts.budgetMs, opts.sourcePath, opts.now)
+  beginTranslateBudget(opts.budgetMs, opts.sourcePath, opts.now, opts.maxCallSteps)
   // ⭐ THE PALETTE SCOPE IS SAVED HERE and restored in the SAME `finally` that
   // closes the budget, so a translation can never leave its version behind for
   // the next one. It is OPENED once the lexer has read the version, below.
