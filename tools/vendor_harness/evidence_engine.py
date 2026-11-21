@@ -107,9 +107,11 @@ ID_TOKEN_RX = re.compile(r"`([a-z0-9][a-z0-9.-]*-\d{4}-\d{2}-\d{2}" + el.PHASE_S
 #: Anything shaped `EXCH:SYM`, known exchange or not (an unknown one is a chart this parser cannot read).
 CHART_TOKEN_RX = re.compile(r"\b([A-Z][A-Z0-9_]{1,15}):([A-Z0-9][A-Z0-9.!]{0,14})")
 #: What `capture_stem` yields, and what follows it in an id the driver writes (`batch_capture.capture_id_for`): the
-#: chart, the day and, for a phased row, `-<phase>` (one of `evidence_ledger.CAPTURE_PHASES`, never another word).
+#: chart, for a row that names its session `-rth` / `-ext` (`evidence_ledger.SESSION_SUFFIX`), the day and, for a phased
+#: row, `-<phase>` (one of `evidence_ledger.CAPTURE_PHASES`, never another word).
 STEM_RX = re.compile(r"[a-z0-9][a-z0-9.-]*")
-TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX)
+TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])" + el.SESSION_SUFFIX_RX
+                     + r"-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX)
 #: Strongest first: where a target's chart was read. Only `default` (nothing named) is NEEDS_CHART.
 CHART_RANK = {"row": 0, "section": 1, "preamble": 2, "census": 3, "default": 4}
 
@@ -300,9 +302,10 @@ class World:
 
     @property
     def fixture_index(self) -> list:
-        """[{id, file, sha, symbol, tf, phase}] for every v1 capture ANYWHERE under the fixture root (recursive:
-        a capture beside `harness/` is as committed as one in it). `phase` is read off the id's suffix
-        (`evidence_ledger.capture_phase`): None for an unphased capture."""
+        """[{id, file, sha, symbol, tf, phase, session, xTable}] for every v1 capture ANYWHERE under the fixture root
+        (recursive: a capture beside `harness/` is as committed as one in it). `phase` is read off the id's suffix
+        (`evidence_ledger.capture_phase`): None for an unphased capture. ⭐ `session` is what the capture RECORDED
+        (`evidence_ledger.capture_session` over its own `symbol.session`), never what its id or a row says."""
         if self._fixtures is None:
             out = []
             if self.fixtures.exists():
@@ -322,9 +325,16 @@ class World:
                     out.append({"id": cid, "file": rel(f),
                                 "sha": (c.get("source") or {}).get("sha256"),
                                 "symbol": (sym.get("pro_name") or sym.get("full_name") or sym.get("name") or "").upper(),
-                                "tf": norm_tf(c.get("timeframe")), "phase": el.capture_phase(cid), "xTable": x_table})
+                                "tf": norm_tf(c.get("timeframe")), "phase": el.capture_phase(cid),
+                                "session": el.capture_session(c), "xTable": x_table})
             self._fixtures = out
         return self._fixtures
+
+    def with_docs(self, docs_dir) -> "World":
+        """The same world (probes, corpus, fixtures, census, ledger, cache) read through other queue docs: what
+        `queue --check --against` derives a ref's docs with, so only the DOCS differ between the two queues."""
+        return World(docs_dir=docs_dir, probe_dirs=self.probe_dirs, corpus=self.corpus, fixtures=self.fixtures,
+                     coverage=self.coverage_path, ledger=self.ledger_path, cache_dir=self.cache_dir)
 
     @property
     def fixture_ids(self) -> set:
@@ -731,22 +741,90 @@ def row_phase(header, cells, where: str):
 
 
 def phase_refusals(groups: dict) -> list:
-    """Why phased rows of the queue would collide, per probe source on one (symbol, tf): `groups` maps
-    (source, symbol, tf) -> [(row, phase)]. When ANY row of a group carries a phase, EVERY row of it must, and no
-    phase may repeat. ⛔ An unphased row beside phased ones would be captured in no named state, under an id the
+    """Why phased rows of the queue would collide, per probe source on one (symbol, tf, session): `groups` maps
+    (source, symbol, tf, session) -> [(row, phase)]. When ANY row of a group carries a phase, EVERY row of it must,
+    and no phase may repeat. ⛔ An unphased row beside phased ones would be captured in no named state, under an id the
     phased ones do not hold apart; a repeated phase is one capture asked twice. Groups with no phase are untouched
-    (they merge into one target, exactly as before phases existed)."""
+    (they merge into one target, exactly as before phases existed). Two sessions are two captures (`-rth` / `-ext`
+    ids), so they never collide."""
     out = []
-    for (src, sym, tf), members in sorted(groups.items()):
+    for (src, sym, tf, sess), members in sorted(groups.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
         phases = [ph for _r, ph in members]
         if not any(phases):
             continue
         named = ", ".join(f"{r['doc']}:{r['line']} {r['key'].split('#', 1)[-1]} ({ph or 'no phase'})"
                           for r, ph in members)
+        chart = f"{sym} {tf}" + (f" ({sess} hours)" if sess else "")
         if not all(phases):
-            out.append(f"{src} on {sym} {tf}: phased and unphased rows mixed: {named}")
+            out.append(f"{src} on {chart}: phased and unphased rows mixed: {named}")
         elif len(set(phases)) != len(phases):
-            out.append(f"{src} on {sym} {tf}: a phase is repeated: {named}")
+            out.append(f"{src} on {chart}: a phase is repeated: {named}")
+    return out
+
+
+#: ⭐⭐ THE SESSION DIMENSION (coordinator ruling 2026-11-21). A row may ask for an INTRADAY chart's hours, in words
+#: beside its chart: "extended hours off", "extended off", "regular session" -> regular; "extended hours on", "the
+#: EXTENDED session on" -> extended (`session_words`: this closed vocabulary, nothing else). Such a row is its own
+#: target (`<stem>@<sym>@<tf>@<session>`), answered ONLY by a capture that RECORDED that session (`World.fixture_index`:
+#: the capture's own `symbol.session`), never by its id and never by a row's label. ⚰️ The four
+#: `vw-lower-tf-bars-rddt-*-2026-11-16` captures and `vw-bi-time-close-2arg-spy-60-2026-11-19` were asked for extended
+#: hours off and recorded 0400-2000; without the dimension they read CAPTURED. A daily, weekly or monthly chart
+#: resolves 0930-1600 whatever the layout's hours (every daily capture on record), so its rows carry no session and
+#: keep their keys. A row with no session words asks for the chart's own hours, exactly as before.
+SESSION_WORD_RX = re.compile(r"\bextended(?:[ -](?:hours?|session))?\s+(on|off)\b|\b(regular)[ -]session\b", re.I)
+#: Words that say WHEN a capture is taken (a live row's clock), never the chart's hours: "during regular hours",
+#: "during RTH", "in the regular session", "after the regular session". Removed before SESSION_WORD_RX reads.
+SESSION_TIMING_RX = re.compile(r"\b(?:during|in|inside|outside|after|before|until)\s+(?:the\s+)?"
+                               r"(?:regular|extended|rth)\b(?:[ -](?:session|hours))?", re.I)
+
+
+class SessionError(ValueError):
+    """A row, or the section or preamble its chart was read from, that names both sessions beside its chart."""
+
+
+def session_words(text: str) -> set:
+    """The sessions (`evidence_ledger.SESSIONS` keys) `text` asks for, emphasis and timing words removed first."""
+    t = SESSION_TIMING_RX.sub(" ", re.sub(r"[*`]+", "", text or ""))
+    return {"regular" if m.group(2) or m.group(1).lower() == "off" else "extended" for m in SESSION_WORD_RX.finditer(t)}
+
+
+def chart_session(pieces, where: str):
+    """The one session the chart-naming `pieces` (a row's cells, or a section's or preamble's lines) ask for, or None.
+    ⛔ Both named: the queue is refused by name (one row, one chart's hours)."""
+    named = set()
+    for p in pieces:
+        named |= session_words(p)
+    if len(named) > 1:
+        said = "; ".join(re.sub(r"\s+", " ", p).strip()[:120] for p in pieces if session_words(p))
+        raise SessionError(f"{where}: names both the regular and the extended session beside its chart ({said}): "
+                           "one row asks for one chart's hours")
+    return next(iter(named), None)
+
+
+def is_intraday(tf) -> bool:
+    """A minutes chart (`5`, `60`): the only chart whose hours a row can ask for (D / W / M resolve 0930-1600)."""
+    return norm_tf(tf).isdigit()
+
+
+class TableLineError(ValueError):
+    """A table line (`| ... |`) of a queue doc that no table the parser reads holds."""
+
+
+def orphan_table_lines(lines) -> list:
+    """[(line number, line)] of every `|` line that no table `iter_tables` reads holds (a fenced block is no table).
+    ⚰️ 2026-11-21: a doc edit split a table with a line between its rows. The rows after it had no header and
+    separator, so no table held them: they read as nothing, the derived queue went from 543 targets to 540, and
+    `queue --check` passed."""
+    inside = set()
+    for start, _header, rows in iter_tables(lines):
+        inside.update((start, start + 1))
+        inside.update(ln - 1 for ln, _cells in rows)
+    out, fence = [], False
+    for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("```"):
+            fence = not fence
+        elif not fence and ln.lstrip().startswith("|") and i not in inside:
+            out.append((i + 1, ln))
     return out
 
 
@@ -784,6 +862,14 @@ def read_dispositions(path: pathlib.Path, lines) -> dict:
 def parse_doc(world: World, path: pathlib.Path) -> dict:
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
+    # ⛔ A ROW NO TABLE HOLDS REFUSES THE QUEUE, by name: it would read as nothing (`orphan_table_lines`)
+    stray_lines = orphan_table_lines(lines)
+    if stray_lines:
+        n, ln = stray_lines[0]
+        raise TableLineError(f"{path.name}:{n}: {len(stray_lines)} table line(s) outside every table, the first "
+                             f"{ln.strip()[:100]!r}: a line between a table's rows (a blank one included) ends the table, "
+                             "and the rows after it are read as nothing. Rejoin the table, or give the rest its own "
+                             "header and separator")
     dispositions = read_dispositions(path, lines)
     disposed = set()
     m = DOC_RX.match(path.stem)
@@ -868,6 +954,16 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             defaulted = chart_source == "default"
             if defaulted:
                 charts = [DEFAULT_CHART]
+            # ⭐ THE SESSION is read beside the chart, from the text the chart came from: the row's cells that name a
+            # chart (never a prose remark in another cell), or the section's / preamble's lines that name one
+            if chart_source == "row":
+                beside = [c for c in cells if parse_charts(c)]
+            elif chart_source in ("section", "preamble"):
+                beside = [ln for ln in (lead if chart_source == "section" else preamble).splitlines()
+                          if parse_charts(ln, prose=True)]
+            else:
+                beside = []
+            session = chart_session(beside, f"{path.name}:{line_no} ({rid!r})")
             listing = bool(LISTING_RX.search(rtext)
                            or (chart_source == "section" and LISTING_RX.search(lead))
                            or (chart_source == "preamble" and LISTING_RX.search(preamble)))
@@ -888,6 +984,7 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                 "needsLive": row_needs_live(header, cells, rtext, f"{path.name}:{line_no} ({rid!r})"),
                 "needsXTable": row_needs_x_table(header, cells, f"{path.name}:{line_no} ({rid!r})"),
                 "phase": row_phase(header, cells, f"{path.name}:{line_no} ({rid!r})"),
+                "session": session,
                 "needsProbe": needs_probe,
                 "guards": sorted(set(GUARD_RX.findall(rtext))),
                 "namedScripts": sorted(set(SLUG_RX.findall(rtext))),
@@ -916,17 +1013,21 @@ def licence_of(world: World, kind: str, path: pathlib.Path) -> str:
         return "held"
 
 
-def fixture_status(world: World, path, sha: str, symbol: str, tf: str, phase=None, needs_x_table=False):
+def fixture_status(world: World, path, sha: str, symbol: str, tf: str, phase=None, needs_x_table=False, session=None):
     """⛔ BY PHASE TOO: a phased target is answered only by a capture whose id carries THAT phase, an unphased
     target only by an unphased capture (an in-session capture does not answer a question asked after the close).
     ⛔ AND BY x TABLE (`X_TABLE_HEAD`): a target a row asks the x table of is answered only by a capture that records
-    one; the local ledger cannot say so, so it never answers such a target."""
+    one; the local ledger cannot say so, so it never answers such a target.
+    ⛔ AND BY SESSION (`SESSION_WORD_RX`): a target asking for an intraday chart's hours is answered only by a capture
+    that RECORDED those hours (its own `symbol.session`); a target asking none, by any. The ledger records no session,
+    so it never answers a session target."""
     t = norm_tf(tf)
     exact = [f for f in world.fixture_index if f["sha"] == sha and f["symbol"] == symbol.upper() and f["tf"] == t
-             and f["phase"] == phase and (not needs_x_table or f.get("xTable"))]
+             and f["phase"] == phase and (session is None or f.get("session") == session)
+             and (not needs_x_table or f.get("xTable"))]
     if exact:
         return "CAPTURED", [f["file"] for f in exact]
-    for r in ([] if needs_x_table else world.ledger):
+    for r in ([] if needs_x_table or session is not None else world.ledger):
         has_verdict = r.get("verdict") or any(isinstance(v, dict) and v.get("verdict")
                                               for v in (r.get("verdicts") or {}).values())
         if r.get("sourceSha256") == sha and str(r.get("symbol", "")).upper() == symbol.upper() \
@@ -936,7 +1037,8 @@ def fixture_status(world: World, path, sha: str, symbol: str, tf: str, phase=Non
     # `x-v4-...` fixture, never another corpus file's that shares the slug: that one carries its -sha8)
     lead = f"{capture_stem(world, path)}-{slugify(symbol.split(':')[-1])}-"
     stale = [f for f in world.fixture_index if f["id"].startswith(lead) and f["symbol"] == symbol.upper()
-             and f["tf"] == t and f["sha"] != sha and f["phase"] == phase]
+             and f["tf"] == t and f["sha"] != sha and f["phase"] == phase
+             and (session is None or f.get("session") == session)]
     if stale:
         return "STALE", [f["file"] for f in stale]
     return None, []
@@ -949,17 +1051,20 @@ def build_queue(world: World | None = None) -> dict:
     docs = [parse_doc(world, p) for p in sorted(world.docs_dir.glob("capture-queue-*.md"))]
     targets = {}
 
-    def target_for(kind, path, symbol, tf, listing, origin, chart_source, phase=None):
+    def target_for(kind, path, symbol, tf, listing, origin, chart_source, phase=None, session=None):
         raw = path.read_bytes()
         sha = sha256_bytes(raw)
         # ⭐ a PHASED row is its own target (`@<phase>`): one probe on one chart in two session states is two
         # captures. An unphased row's id is exactly what it was before phases existed, so it merges as it did.
-        tid = f"{path.stem}@{symbol}@{norm_tf(tf)}" + (f"@{phase}" if phase else "")
+        # ⭐ so is a row asking for an intraday chart's HOURS (`@regular` / `@extended`, before the phase, as the
+        # capture id has it); a row asking none keeps its id, and a D / W / M chart never carries one.
+        tid = f"{path.stem}@{symbol}@{norm_tf(tf)}" + (f"@{session}" if session else "") + (f"@{phase}" if phase else "")
         t = targets.get(tid)
         if t is None:
             t = targets[tid] = {
                 "id": tid, "path": path, "source": rel(path), "sourceKind": kind, "sha256": sha, "bytes": len(raw),
-                "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "phase": phase, "fromListing": False,
+                "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "phase": phase, "session": session,
+                "fromListing": False,
                 "licence": licence_of(world, kind, path), "rows": [], "origins": [],
                 "needsLive": False, "needsXTable": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
                 "publishedScript": published_script(world, path.stem) if kind == "reference" else None,
@@ -972,7 +1077,7 @@ def build_queue(world: World | None = None) -> dict:
         return t
 
     rows_out, needs_probe, not_capture = [], [], []
-    phase_groups = collections.defaultdict(list)    # (source, symbol, tf) -> [(row, phase)]: `phase_refusals`
+    phase_groups = collections.defaultdict(list)    # (source, symbol, tf, session) -> [(row, phase)]: `phase_refusals`
     for d in docs:
         for r in d["rows"]:
             rows_out.append(r)
@@ -985,9 +1090,10 @@ def build_queue(world: World | None = None) -> dict:
             for s in r["sources"]:
                 p = REPO / s["path"] if not pathlib.Path(s["path"]).is_absolute() else pathlib.Path(s["path"])
                 for sym, tf in r["charts"]:
-                    phase_groups[(rel(p), sym, norm_tf(tf))].append((r, r.get("phase")))
+                    sess = r.get("session") if is_intraday(tf) else None    # a D / W / M chart: regular by construction
+                    phase_groups[(rel(p), sym, norm_tf(tf), sess)].append((r, r.get("phase")))
                     t = target_for(s["kind"], p, sym, tf, r["fromListing"], "queue-doc", r["chartSource"],
-                                   r.get("phase"))
+                                   r.get("phase"), sess)
                     t["rows"].append(r["key"])
                     t["unparsed"].update(r["unparsedCharts"])
                     t["needsLive"] = t["needsLive"] or r["needsLive"]
@@ -1032,7 +1138,8 @@ def build_queue(world: World | None = None) -> dict:
         by_sha[f["sha"]].add(f"{f['symbol']} {f['tf']}")
     out_targets = []
     for t in targets.values():
-        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"], t["phase"], t["needsXTable"])
+        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"], t["phase"], t["needsXTable"],
+                                t["session"])
         chart_source = min(t["chartSources"], key=CHART_RANK.__getitem__)
         chart_defaulted = chart_source == "default"     # no row, section, preamble or pool named this chart
         # ⛔ THE CHART GUARD: a target whose chart nobody named is NEEDS_CHART whatever is on disk for the
@@ -1049,6 +1156,7 @@ def build_queue(world: World | None = None) -> dict:
             "id": t["id"], "status": st, "evidence": ev,
             "source": t["source"], "sourceKind": t["sourceKind"], "sha256": t["sha256"], "bytes": t["bytes"],
             "stem": t["stem"], "captureStem": capture_stem(world, t["path"]), "capturePhase": t["phase"],
+            **({"captureSession": t["session"]} if t["session"] else {}),
             "symbol": t["symbol"], "tf": t["tf"], "fromListing": t["fromListing"],
             "chartDefaulted": chart_defaulted, "chartSource": chart_source, "unparsedCharts": sorted(t["unparsed"]),
             "capturedOn": sorted(by_sha.get(t["sha256"], ())),
@@ -1140,7 +1248,7 @@ def door_flag_state():
 
 def build_manifest(queue: dict, top: int | None = None, wave: str | None = None, plan: str | None = None,
                    statuses=("QUEUED",), include_stale=False, only=None, world: World | None = None) -> dict:
-    from batch_capture import KNOWN_LISTING  # noqa: E402 — the one listing authority
+    from batch_capture import KNOWN_LISTING, SESSION_LAYOUT  # noqa: E402 — the one listing / rig-layout authority
     world = world or World()
     want = set(statuses) | ({"STALE"} if include_stale else set())
     # ⛔ A GUESSED CHART IS NEVER BATCHED, whatever statuses were asked for: no manifest takes a target
@@ -1157,9 +1265,12 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
     scripts, seen = [], set()
     for t in picked:
         phase = t.get("capturePhase")
+        session = t.get("captureSession")
         # a phased target's slug carries its phase: the slug keys the run's result and scratch files, and two
-        # phases of one probe on one chart are two scripts (an unphased slug is what it always was)
-        slug = slugify(f"{t['stem']}--{t['symbol'].split(':')[-1]}-{norm_tf(t['tf'])}" + (f"-{phase}" if phase else ""))
+        # phases of one probe on one chart are two scripts (an unphased slug is what it always was). A session
+        # target's slug carries its session the same way (`-rth` / `-ext`, as its capture id does).
+        slug = slugify(f"{t['stem']}--{t['symbol'].split(':')[-1]}-{norm_tf(t['tf'])}"
+                       + el.SESSION_SUFFIX.get(session, "") + (f"-{phase}" if phase else ""))
         if slug in seen:
             continue
         seen.add(slug)
@@ -1172,6 +1283,9 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
             "symbol": t["symbol"], "tf": t["tf"],
             "captureStem": capture_stem(world, p),
             **({"capturePhase": phase} if phase else {}),
+            # ⭐ the batch READS the row's session after its resolution (never sets it) and runs the row only on the
+            # layout saved with those hours (`batch_capture.SESSION_LAYOUT`); a target asking none names neither
+            **({"session": session, "layout": SESSION_LAYOUT[session]} if session else {}),
             "listingDate": KNOWN_LISTING.get(t["symbol"].upper()) if t["fromListing"] else None,
             "chartDefaulted": bool(t.get("chartDefaulted")), "chartSource": t.get("chartSource"),
             "queueTargetId": t["id"], "rows": t["rows"], "priority": t["priority"],
@@ -1187,8 +1301,8 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
 
 
 # ─── V: the fixture gate ─────────────────────────────────────────────────────
-ID_RX = re.compile(r"^[a-z0-9][a-z0-9.-]*-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}"
-                   + el.PHASE_SUFFIX_RX + "$")
+ID_RX = re.compile(r"^[a-z0-9][a-z0-9.-]*-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])" + el.SESSION_SUFFIX_RX
+                   + r"-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX + "$")
 
 
 def licence_of_capture(world: World, capture: dict) -> str:
@@ -1847,6 +1961,136 @@ def queue_text(q: dict) -> str:
     return dump(q)
 
 
+# ─── the derived set against a ref (`queue --check --against REF`) ──────────────
+# ⚰️ 2026-11-21: `queue --check` passed while a doc edit dropped 3 targets (a split table: 543 -> 540). It proved the
+# docs derive A queue, never that they still derive the rows they did. `--against REF` derives the queue twice, with
+# THIS code and THIS world (probes, fixtures, census): once from REF's queue docs, once from the working tree's, so the
+# docs are the only difference. A row that asked for a capture at REF (it was in a target there) must still be in a
+# target, or be disposed of in its doc (`not a capture`), or be GONE (its line deleted or rewritten). A row whose line
+# is still in the docs and that derives nothing (it now needs a probe; its table reads as a ledger or a finished
+# record; no table holds it) refuses the check by name. The pine heavy `derived-evidence` job runs it against a PR's
+# base.
+QUEUE_DOC_RX = re.compile(r"capture-queue-.*\.md")
+
+
+class RefError(RuntimeError):
+    """git could not read the queue docs at a ref."""
+
+
+def docs_at_ref(ref: str, docs_dir: pathlib.Path = DOCS) -> dict:
+    """{file name: text} of every capture-queue doc at the git `ref` (`git ls-tree`, then `git show`)."""
+    def git(*a):
+        try:
+            p = subprocess.run(["git", *a], cwd=str(REPO), capture_output=True, timeout=120)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise RefError(f"git {' '.join(a)}: {exc}") from exc
+        if p.returncode != 0:
+            raise RefError(f"git {' '.join(a)}: {p.stderr.decode('utf-8', 'replace').strip()[:300]}")
+        return p.stdout.decode("utf-8")
+    where = rel(docs_dir).rstrip("/") + "/"
+    out = {}
+    for path in git("ls-tree", "--name-only", ref, "--", where).splitlines():
+        name = path.rsplit("/", 1)[-1]
+        if QUEUE_DOC_RX.fullmatch(name):
+            out[name] = git("show", f"{ref}:{path}")
+    if not out:
+        raise RefError(f"no capture-queue doc under {where} at {ref}")
+    return out
+
+
+def doc_row_lines(world: World) -> dict:
+    """{row key: (doc name, the row's line, stripped)} for every row a queue doc's tables hold."""
+    out = {}
+    for p in sorted(world.docs_dir.glob("capture-queue-*.md")):
+        lines = p.read_text(encoding="utf-8").splitlines()
+        for r in parse_doc(world, p)["rows"]:
+            out[r["key"]] = (p.name, lines[r["line"] - 1].strip())
+    return out
+
+
+def shrink_refusals(base: World, base_q: dict, head: World, head_q: dict) -> list:
+    """Every row that asked for a capture in `base_q` and, still in `head`'s docs, derives nothing in `head_q`:
+    one sentence each, by name. A row is matched by its key or by its exact line (a doc renamed, a row renumbered)."""
+    asked = collections.defaultdict(list)            # row key -> the targets it was in at the ref
+    for t in base_q["targets"]:
+        for k in t["rows"]:
+            asked[k].append(t["id"])
+    answered = {k for t in head_q["targets"] for k in t["rows"]} | {r["key"] for r in head_q["rowsNotCaptureQuestions"]}
+    needs = {r["key"]: r["needsProbe"] for r in head_q["rowsNeedingProbe"]}
+    base_lines, head_lines = doc_row_lines(base), doc_row_lines(head)
+    by_line = collections.defaultdict(set)
+    for k, (_doc, line) in head_lines.items():
+        by_line[line].add(k)
+    every_line = set()
+    for p in head.docs_dir.glob("capture-queue-*.md"):
+        every_line.update(ln.strip() for ln in p.read_text(encoding="utf-8").splitlines())
+    out = []
+    for k in sorted(asked):
+        doc, line = base_lines.get(k, ("?", ""))
+        now = ({k} if k in head_lines else set()) | by_line.get(line, set())
+        if now & answered:
+            continue
+        held = sorted(x for x in now if x in needs)
+        if held:
+            why = f"it needs a probe now ({needs[held[0]]})"
+        elif now:
+            why = "it is a row and derives no target"
+        elif line and line in every_line:
+            why = "its line is still in the docs and no table reads it as a row (a ledger or finished-record table, or none)"
+        else:
+            continue                                  # deleted or rewritten: an edit someone made on purpose
+        out.append(f"{k} ({doc}) asked for {', '.join(sorted(asked[k]))} and derives nothing now: {why}")
+    return out
+
+
+def queue_diff_lines(base_q: dict, head_q: dict, ref: str, limit: int = 40) -> list:
+    """What changed between the two derivations, for the log: targets only at the ref, only here, and by status."""
+    b, h = _target_map(base_q), _target_map(head_q)
+    gone, new = sorted(set(b) - set(h)), sorted(set(h) - set(b))
+    moved = sorted(i for i in set(b) & set(h) if b[i]["status"] != h[i]["status"])
+    out = [f"[queue] against {ref}: {len(b)} targets there, {len(h)} here; {len(gone)} only there, {len(new)} only "
+           f"here, {len(moved)} changed status"]
+    out += [f"[queue]   only there: {i} ({b[i]['status']})" for i in gone[:limit]]
+    out += [f"[queue]   only here:  {i} ({h[i]['status']})" for i in new[:limit]]
+    out += [f"[queue]   status:     {i} {b[i]['status']} -> {h[i]['status']}" for i in moved[:limit]]
+    return out
+
+
+def _target_map(q: dict) -> dict:
+    return {t["id"]: t for t in q["targets"]}
+
+
+def check_against(world: World, head_q: dict, ref: str, reader=None) -> int:
+    """0 when every row that asked for a capture at `ref` still asks here (or was disposed of, or deleted), 1 when a
+    row still in the docs derives nothing, 2 when the ref's docs cannot be read or derived (never a pass)."""
+    try:
+        texts = (reader or docs_at_ref)(ref)
+    except RefError as exc:
+        print(f"VERDICT: INCONCLUSIVE (the queue docs at {ref} could not be read: {exc})")
+        return 2
+    with tempfile.TemporaryDirectory(prefix="uct-queue-ref-") as tmp:
+        for name, text in texts.items():
+            (pathlib.Path(tmp) / name).write_text(text, encoding="utf-8", newline="\n")
+        base = world.with_docs(tmp)
+        try:
+            base_q = build_queue(base)
+        except ValueError as exc:
+            print(f"VERDICT: INCONCLUSIVE (the queue docs at {ref} do not derive a queue with this code: {exc})")
+            return 2
+        refused = shrink_refusals(base, base_q, world, head_q)
+    for line in queue_diff_lines(base_q, head_q, ref):
+        print(line)
+    if refused:
+        for line in refused:
+            print(f"[queue] LOST {line}")
+        print(f"VERDICT: FAIL ({len(refused)} row(s) that asked for a capture at {ref} derive nothing now and are "
+              "still in the docs: restore the row's table, name its probe, or dispose of it in a `not a capture` "
+              "table with a reason)")
+        return 1
+    print(f"[queue] against {ref}: every row that asked for a capture there still does, is disposed of, or was deleted")
+    return 0
+
+
 def snapshot_tracked(path: pathlib.Path):
     """Is `path` a file git tracks? True / False, or None when git could not answer (never guessed)."""
     try:
@@ -2008,6 +2252,9 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd")
     q = sub.add_parser("queue")
     q.add_argument("--check", action="store_true", help="derive, write nothing; fails if a snapshot is committed")
+    q.add_argument("--against", default=None, metavar="REF",
+                   help="with --check: also derive REF's queue docs and fail when a row that asked for a capture "
+                        "there derives nothing here while still in the docs (check_against)")
     q.add_argument("--out", default=str(QUEUE_OUT))
 
     def sel(p):
@@ -2057,8 +2304,12 @@ def main(argv=None) -> int:
         return cmd_regrade(args.store, args.ledger, lanes, args.locked, exclude_runs=args.exclude_run)
 
     if args.cmd == "queue":
+        if args.against and not args.check:
+            print("[queue] --against is a check: run 'queue --check --against REF'")
+            return 2
         # build_queue REFUSES by name (a malformed doc, a disposition naming no row): that refusal is the check
-        qd = build_queue(World())
+        world = World()
+        qd = build_queue(world)
         text = queue_text(qd)
         out = pathlib.Path(args.out)
         if args.check:
@@ -2074,6 +2325,10 @@ def main(argv=None) -> int:
                 print(f"VERDICT: FAIL ({rel(QUEUE_OUT)} is committed. It is a local view, derived on demand: "
                       f"run 'git rm --cached {rel(QUEUE_OUT)}' and commit that)")
                 return 1
+            if args.against:
+                rc = check_against(world, qd, args.against)
+                if rc:
+                    return rc
             print(f"VERDICT: PASS (the docs derive a queue of {qd['counts']['targets']} targets; "
                   f"{rel(QUEUE_OUT)} is a local view, not committed)")
             return 0
