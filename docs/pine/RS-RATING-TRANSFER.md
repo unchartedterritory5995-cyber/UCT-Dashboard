@@ -860,6 +860,22 @@ production engine 90 (2026-11-20 18:42Z, smoke@, RDDT, the e90 live sweep):
     moves by 1 (63 against TradingView's 64).
   - No committed verdict implies a pass or a fail for it. Its supply record says `notRecorded`, so
     the harness refuses to grade it (`ourSide.js::recordedSupplyOf`).
+- **2026-11-21, the three post-close captures (coordinator ruling, Fred RS parity audit at engine 91, option (b)):**
+  - `rs-rating-fred6724-pc-{agl,nvda,rddt}-1d-2026-11-17` are not graded. Each was taken at 21:10Z with its newest bar
+    that day's settled close, and none has a record of what our server served for SPX or RSRATING on 2026-11-17.
+    Before their records they read DIVERGE on no bars (`other-symbol:no-bars`), which said nothing about Fred RS.
+  - Recording SPX for them needs the owner's FMP credential run (`record_rs_supply.py --spx` under `railway run`),
+    and the post-close state they test is already graded MATCH by `rs-rating-fred6724-pm-rddt-1d-2026-11-16`.
+    So each supply record says `notRecorded` for both symbols, and the harness refuses them by name
+    (rail: `vendorHarness.l8RecordedSupply.test.js`).
+- **The same audit's other findings (engine 91, the member lane runtime-on):**
+  - 23 of the 29 committed Fred RS captures are MATCH_SUBSTITUTED: every item agrees, with TradingView's own industry.
+  - `m-rddt-1m` matches all 33 of its bars, but all sit inside warm-up, so it stays INCONCLUSIVE.
+  - `pm-alab`'s one diverging item is the RS label on its newest bar (TradingView y 91.668, ours 89.909), the bar the
+    plot grader withholds by name (TradingView's own captures disagree on SPX there). The whole difference is the
+    2026-11-16 SPX close: ours (FMP) 7416.59, TradingView's at capture time 7561.67, which is FMP's 2026-11-13 close
+    (TradingView's series a day behind). ours/TV = 0.98081 = 7416.59/7561.67. Not an engine defect: the objects grader
+    is to honour the plot grader's per-bar withhold (assigned 2026-11-21).
   - Admission evidence comes from RDDT and NVDA only.
   - Before this ruling the repo recorded Massive Indices as `U` (403 for this key) and yfinance as
     `X` ("never a member path"), while `/api/bars/SPX` already served yfinance

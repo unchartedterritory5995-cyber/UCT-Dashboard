@@ -47,7 +47,7 @@ import { barsOfCapture } from '../../__tests__/vendorHarness/strategyHarness.js'
 import { toProductBars, tfCodeOf } from '../../__tests__/vendorHarness/ourSide.js'
 import { storeExchangeOfCapture } from '../../__tests__/vendorHarness/storeExchange.js'
 import { historyFromListingOf } from '../../listingSeed.js'
-import { historyWindowBarsOf } from './strategyArmed.js'
+import { chartStrategyWindowOf } from './strategyArmed.js'
 import { strategyServeOutcome } from './strategyServe.js'
 import StrategyReportPanel from '../../../pane/StrategyReportPanel'
 
@@ -55,7 +55,9 @@ const INPUT = process.env.STRATEGY_SERVE_INPUT
 const OUT = process.env.STRATEGY_SERVE_OUT
 const RUN = !!(INPUT && OUT)
 const PRODUCT_BARS = process.env.STRATEGY_SERVE_BARS === 'product'
-const WINDOW = historyWindowBarsOf(path.resolve(process.cwd(), '..'))
+// ⭐⭐ (2026-11-19, the strategy-only daily window) the window the chart hands today (the strategy window, and the
+// shared one as the depth served without [B-START-DEEP])
+const WINDOW = chartStrategyWindowOf(path.resolve(process.cwd(), '..'))
 const REFERENCE = path.resolve(process.cwd(), '..', process.env.STRATEGY_SERVE_REFERENCE
   || 'tests/fixtures/vendor/harness/k-clustering-rddt-1d-2026-09-28.json')
 const OTHER_REFERENCE = !!process.env.STRATEGY_SERVE_REFERENCE
@@ -87,9 +89,9 @@ describe.skipIf(!RUN)('strategy serve audit, broker gate on (measurement only)',
     const fromListing = FROM_LISTING === 'product'
       ? historyFromListingOf({ bars, tf, listDate: typeof bars[0].t === 'string' ? bars[0].t.slice(0, 10) : null })
       : true
-    const ctx = { tf, symbol, newestBarIsForming: FORMING, historyFromListing: fromListing, historyWindowBars: WINDOW }
+    const ctx = { tf, symbol, newestBarIsForming: FORMING, historyFromListing: fromListing, ...WINDOW }
     console.log(`reference ${path.basename(REFERENCE)}: ${bars.length} bars, tf ${tf}, ${symbol.exchange}:${symbol.ticker}, `
-      + `forming ${FORMING}, fromListing ${fromListing}, window ${WINDOW}`)
+      + `forming ${FORMING}, fromListing ${fromListing}, window ${WINDOW.historyWindowBars}, served depth ${WINDOW.listingDepthBars}`)
     const input = JSON.parse(fs.readFileSync(INPUT, 'utf8'))
     // ⛔ no request leaves this test: a consult that would re-read the lists or re-ask a verdict gets nothing
     vi.stubGlobal('fetch', () => Promise.reject(new Error('no network in the audit')))

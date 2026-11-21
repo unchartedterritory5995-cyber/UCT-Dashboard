@@ -68,7 +68,7 @@ import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from '
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import { useChartTickerMeta, useChartTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
-import { isStrategyWindowDefinition } from './chart/engine/strategyWindow'
+import { isStrategyWindowDefinition, strategyNeedsFullDailyHistory } from './chart/engine/strategyWindow'
 import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
 import { definitionWithholdsOffListing, wantsListingDeepen, listingDeepenGate } from './chart/engine/listingDeepen'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
@@ -1451,6 +1451,13 @@ function zoomLimitsOf(chart) {
 // path or data state produced the frame. `reserve` is non-zero only for D/W/M (a slot seeded
 // into the candle series, _intradayLoadReserve); intraday never reserves future-session slots.
 
+// ⭐ 2026-11-21 -- THE READER OF WHAT THE CHART HAS DRAWN (`engineChart.bindings`), BUILT OUT HERE for the reason
+// the debug handle below is: a closure written inside a render keeps that render's whole context alive, and
+// `engineChart` is held by the toolbar and the dock. This closure holds the ref and nothing else. Read-only.
+function drawnBindingsReader(engineRef) {
+  return () => engineRef.current?.binder?.bindings?.() || []
+}
+
 // ⛔⛔ THE DEBUG HANDLE IS BUILT OUT HERE, NOT INSIDE THE CHART (2026-11-20). A closure written inside a
 // render keeps that render's whole V8 context alive: every local any closure captures (`bars`,
 // `filteredBars`, the bar hook's callbacks and through them that render's snapshot, the memoized
@@ -1839,7 +1846,8 @@ import {
   paneOwnerOf,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
-import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
+import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
+import { healViewLocksOnce } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources, heldSpanFor } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
@@ -3804,11 +3812,79 @@ function engineFactsSigOf(meta) {
 }
 
 /**
+ * THE SETTLING FRAME (`pendingTfReframeRef`, armed by a symbol or timeframe switch): the outgoing view's zoom width
+ * with the loaded last bar pinned at the fixed right anchor (so the current candle lands where the outgoing view had
+ * it), or the default window when the switch held no width. The developing intraday bucket's slot is reserved, so
+ * `to` stays put as the newer buckets land across the phased commits (cache, network, backfill) instead of the grown
+ * newest re-pinning and sliding left; 0 off-gate and on daily.
+ * ONE derivation for the two passes that re-assert it: `updateChart` on every settling commit, and a metadata answer
+ * landing between renders (`settleOnMetaLanded`).
+ */
+function settlingFrameOf(pt, { bars, tf, plotWidthPx, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }) {
+  const rightReserve = _intradayLoadReserve(bars, tf)
+  if (pt.width > 0) return pinNewestRange(bars.length - 1, pt.width, plotWidthPx, rightReserve)
+  return computeDefaultLogicalRange(bars.length, tf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx, rightReserve })
+}
+
+/** ...and when the settling is over: the bar count stopped changing, the session candle resolved, and no developing
+ * bucket's slot is still held (`updateChart`'s settling branch says why each one holds it). */
+function settlingDone({ bars, tf, oldBarCount, sessionCandleActive, sessionExtReady }) {
+  return bars.length === oldBarCount && (!sessionCandleActive || sessionExtReady) && !(_intradayLoadReserve(bars, tf) > 0)
+}
+
+/**
+ * (2026-11-21) A METADATA ANSWER LANDING WHILE A SWITCH SETTLES RE-ASSERTS THE SETTLING FRAME, AS ITS RENDER DID.
+ * Before #2278 every late per-symbol answer (name and sector, listing date) rendered this body, and that render's
+ * `updateChart` pass re-asserted the settling frame: a range change that was not the member's (drift, to the product)
+ * was put back, and a member's move released the guard. #2278 answers between renders (`_onMetaLanded`), so nothing
+ * re-asserted and a drifted frame stayed (dailyFirstPaintAcceptance SETTLING, VISIBLE_RANGE_DRIFT). This is that
+ * pass's settling half, run straight on the chart, in the same order: the anchor owns its own frame; a member's move
+ * since the switch ends the settling WITHOUT re-asserting (NC-D); otherwise the frame is put back, and released once
+ * settled. It reads only refs and this chart's scalars (`_metaSettleRef`), never a render's closure.
+ */
+function settleOnMetaLanded(s, inp) {
+  if (!s || !inp) return
+  const pt = s.pendingRef.current
+  if (!pt || pt.tf !== inp.resolvedTf || s.entryDate || s.exactDateRange) return
+  const bars = inp.filteredBars
+  const chart = s.chartRef.current
+  if (!chart || !bars || bars.length < 2 || !(s.countRef.current > 0)) return
+  if (s.anchorRef.current && s.anchorRef.current.anchorIdx >= 0 && !s.movedRef.current) return   // the anchor's frame: `updateChart` applies it
+  if (s.movedRef.current) { s.pendingRef.current = null; return }
+  try {
+    const ts = chart.timeScale()
+    const r = settlingFrameOf(pt, { bars, tf: inp.resolvedTf, plotWidthPx: plotWidthOf(chart, s.containerRef.current),
+      dailyDefaultBars: s.dailyDefaultBars, leftBarPad: s.leftBarPad, rightPadBars: s.rightPadBars, visibleBarsOverride: s.visibleBarsOverride })
+    // `r` is in CANDLE-index space; the axis is LOGICAL, and a compare / overlay series on it adds interior times
+    // (or ends later), so the newest real candle `a` sits at timeToIndex(its time), not at `a`. Set the frame, then
+    // restate it as a distance from the newest bar, exactly as updateChart's pass does (`_logicalOffsetOf` and the
+    // RESTATE step). Already there (the frame shifted by that same offset): no write, no paint.
+    const d = s.candleRef.current?.data?.() || []
+    let a = d.length - 1
+    while (a >= 0 && isWhitespacePoint(d[a])) a--
+    const la = a >= 0 ? ts.timeToIndex?.(d[a].time, false) : null
+    const k = (typeof la === 'number' && Number.isFinite(la)) ? la - a : 0
+    const cur = ts.getVisibleLogicalRange()
+    if (cur && cur.from === r.from + k && cur.to === r.to + k) { /* already framed */ } else {
+      ts.setVisibleLogicalRange(r)
+      const now = ts.getVisibleLogicalRange()
+      const rightOffset = ts.scrollPosition?.()
+      if (a >= 0 && typeof la === 'number' && Number.isFinite(la) && now && typeof rightOffset === 'number' && Number.isFinite(rightOffset)) {
+        ts.scrollToPosition((r.to - a + la) - (now.to - rightOffset), false)
+      }
+    }
+  } catch { return /* mid-load: the next commit's pass re-asserts */ }
+  if (settlingDone({ bars, tf: inp.resolvedTf, oldBarCount: s.countRef.current, sessionCandleActive: s.sessionCandleActive, sessionExtReady: s.sessionExtReady })) {
+    s.pendingRef.current = null
+  }
+}
+
+/**
  * The chart body's metadata listener (`_onMetaLanded`): an answer landed between renders. Built HERE, out of the
  * render, on purpose: the store keeps it for the chart's whole life, and a closure written inside a render would pin
  * that render's whole scope (its bars) for as long. It holds the refs it reads, nothing else.
  */
-function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, rerender }) {
+function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, settleRef, rerender }) {
   return function _onMetaLanded() {
     const f = factsRef.current
     const inp = inputsRef.current
@@ -3822,6 +3898,7 @@ function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, f
         return
       }
     }
+    settleOnMetaLanded(settleRef?.current, inp)   // first, so the redraw below reads the settled frame
     const view = nowRef.current()
     try { drawRef.current?.(view, false, true) } catch { /* the next paint redraws */ }
     try { futureWsRef.current?.(view.earningsEvents) } catch { /* series gone */ }
@@ -3900,7 +3977,9 @@ export default function StockChart(props) {
         nextEarningsHint={nextEarningsHint}
         hintChannel={nextEarningsHintChannel || null}
       />
-      <StockChartBody {...props} metaStore={metaStore} />
+      {/* `viewLockKey` by name as well as in the spread (the same value, a no-op): the persistence census reads a
+          storage key through named props only (StableStockChart.jsx says the same; persistenceManifest.test.js). */}
+      <StockChartBody {...props} viewLockKey={props.viewLockKey} metaStore={metaStore} />
     </>
   )
 }
@@ -5941,6 +6020,7 @@ function StockChartBody({
   const readViewLock = () => {
     try {
       const k = viewLockKeyRef.current; if (!k) return null
+      healViewLocksOnce()   // ⭐ once per device, BEFORE the first read: compounded locks lose their vertical half (viewLockHeal.js)
       const raw = localStorage.getItem(k); if (!raw) return null
       const v = JSON.parse(raw)
       const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
@@ -5958,7 +6038,7 @@ function StockChartBody({
   // FRACTION (a fraction of the visible width, invariant to bar count so deep-
   // history backfill can never shift it) + the zoom width + the vertical candle
   // band. hLocked/vLocked flag whether each dimension differs from the default.
-  const _measureViewLock = (chart, prevBars) => {
+  const _measureViewLock = (chart, prevBars, opts = {}) => {
     try {
       if (!chart || !candleSeriesRef.current || !prevBars || !prevBars.length) return null
       const ts = chart.timeScale()
@@ -5981,6 +6061,12 @@ function StockChartBody({
         const s = Math.max(0, Math.floor(vr.from)), e = Math.min(oldN - 1, Math.ceil(vr.to))
         let hi = -Infinity, lo = Infinity
         for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
+        // ⭐ The band is EVERYTHING the autoscale fits, not the candles alone (joinedAutoscaleExtent:
+        // an RS line under the bars shrank them 37% → 6.5% across drag/switch rounds). Axis captures only.
+        if (opts.joined) {
+          const j = joinedAutoscaleExtent(candleSeriesRef.current, s, e)
+          if (j) { if (j.hi > hi) hi = j.hi; if (j.lo < lo) lo = j.lo }
+        }
         const series = candleSeriesRef.current
         // ⚰️⚰️ `chart.paneSize()` IS THE FIRST PANE, AND THIS MEANT "PRICE".
         //
@@ -9039,7 +9125,13 @@ function StockChartBody({
   // Override / pinned / replay charts already fetch full (_pinnedFull) or don't fetch at all.
   const _deepFirstPaint = backgroundWarm && !barsOverridePending
     && (resolvedTf === 'D' || resolvedTf === 'W' || resolvedTf === 'M')
-  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint) ? _fullTarget : Math.max(fetchDepth, _fpBars)
+  // ⭐⭐ (2026-11-19, the strategy-only daily window) a DAILY chart holding a strategy fetches its full daily history
+  // wherever it sits (`strategyWindow.js::strategyNeedsFullDailyHistory`): its run starts at the listing. Every other
+  // chart's request is unchanged (a standalone D chart already fetches full, `_deepFirstPaint`).
+  const _strategyDailyFull = useMemo(() => strategyNeedsFullDailyHistory({ tf: resolvedTf,
+    instances: cs.indicatorInstances, defOf: (id) => engineRegistry.getDefinition(id) }),
+  [cs, resolvedTf, userDefsGeneration])
+  const barCount = (_overlayActive || _pinnedFull || _deepFirstPaint || _strategyDailyFull) ? _fullTarget : Math.max(fetchDepth, _fpBars)
 
   // ─── BARS FOR EVERY CANONICAL SYMBOL THIS CHART'S INSTANCES NAME ─────────
   //
@@ -9961,10 +10053,11 @@ function StockChartBody({
   // candle / volume / MA / live series, and the default range still computes from the
   // real bar count, so nothing that keys off barsLen is disturbed. All ops try/caught.
   // (a function, so a landed earnings estimate between renders extends the axis too: `_onMetaLanded`)
+  const _futureWsSigRef = useRef(null)   // what the future-axis series holds (`_applyFutureWs`)
   const _applyFutureWs = (events) => {
     const chart = chartRef.current
     if (!chart) return
-    const clear = () => { try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
+    const clear = () => { _futureWsSigRef.current = null; try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
     if (!filteredBars?.length) { clear(); return }
     const lastLwc = adjustTime(filteredBars[filteredBars.length - 1].t)
     const est = events.find(e => e.estimate)
@@ -9973,7 +10066,14 @@ function StockChartBody({
     const targetSlot = (typeof lastLwc === 'string' && est) ? String(est.date).slice(0, 10) : null
     const pts = buildFutureWhitespace(lastLwc, resolvedTf, FUTURE_MIN[resolvedTf] || 20, targetSlot)
     if (!pts.length) { clear(); return }
+    // (2026-11-21) THE SAME AXIS IS NOT WRITTEN TWICE. The points are a pure function of these inputs, so a call
+    // that would hand the series what it already holds does nothing: a landed metadata answer (`_onMetaLanded`)
+    // re-ran this with an unchanged axis after the bars' own pass had written it, one more setData and one more
+    // paint per switch (StockChart.neighborFrames.test.jsx: the computed switch wrote it twice, the prepared once).
+    const sig = `${lastLwc}|${resolvedTf}|${targetSlot}|${pts.length}`
+    if (futureWsSeriesRef.current && _futureWsSigRef.current === sig) return
     if (!futureWsSeriesRef.current) {
+      _futureWsSigRef.current = null
       try {
         futureWsSeriesRef.current = chart.addSeries(LineSeries, {
           color: 'rgba(0,0,0,0)', lineWidth: 1, priceScaleId: '',
@@ -9982,7 +10082,7 @@ function StockChartBody({
         })
       } catch { futureWsSeriesRef.current = null }
     }
-    try { futureWsSeriesRef.current?.setData(pts) } catch { /* series removed (chart recreate) */ }
+    try { futureWsSeriesRef.current?.setData(pts); _futureWsSigRef.current = futureWsSeriesRef.current ? sig : null } catch { _futureWsSigRef.current = null /* series removed (chart recreate) */ }
   }
   const _applyFutureWsRef = useRef(null)
   _applyFutureWsRef.current = _applyFutureWs
@@ -10026,6 +10126,10 @@ function StockChartBody({
       historyFromListing,
       ...(listingUnserved ? { listingStart: true } : {}),
     },
+    // ⭐ 2026-11-21 -- WHAT THE CHART HAS DRAWN for its indicators right now (`binder.bindings()`), for a reader
+    // beside the chart that must compute nothing (`chart/builder/authoring/emptyOnChart.js`). A getter over the
+    // ref: this object's identity and its dependency list are what they were. Read-only, `[]` with no binder.
+    bindings: drawnBindingsReader(engineRef),
   }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])
 
   // ═══ A METADATA ANSWER LANDING BETWEEN RENDERS (metadata islands, 2026-11-20) ═══════════════════════════════
@@ -10059,6 +10163,8 @@ function StockChartBody({
   const _metaFactsRef = useRef(null)
   _metaFactsRef.current = { sig: engineFactsSigOf(_meta), historyFromListing, listingUnserved, read: _symbolFactsRead }
   const [, _setMetaFactsRev] = useState(0)
+  // What a landed answer's settling re-assert reads (`settleOnMetaLanded`), filled below `anchorCfgRef`.
+  const _metaSettleRef = useRef(null)
   // The metadata view now: the store's latest snapshot, derived with this render's inputs (memoised on both).
   const _metaNowMemoRef = useRef(null)
   const _metaNow = () => {
@@ -10075,12 +10181,12 @@ function StockChartBody({
   // (the listener is built outside this render, `metaLandedListener`: the store holds it for the chart's life)
   useLayoutEffect(() => metaStore.subscribe(metaLandedListener({
     metaStore, factsRef: _metaFactsRef, inputsRef: _metaInputsRef, nowRef: _metaNowRef,
-    drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, rerender: _setMetaFactsRev,
+    drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, settleRef: _metaSettleRef, rerender: _setMetaFactsRev,
   })), [metaStore])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
-  const { bars: strategyHistoryWindow, pending: strategyWindowPending } = useStrategyHistoryWindow(_holdsStrategyWindow)
+  const { bars: strategyHistoryWindow, pending: strategyWindowPending, depth: strategyListingDepth } = useStrategyHistoryWindow(_holdsStrategyWindow)
 
   // ── Countdown to bar close — last bar start time + tf-seconds ──
   const currentBarStart = useMemo(() => {
@@ -11582,6 +11688,12 @@ function StockChartBody({
   // anchor frame wins everywhere the chart would otherwise auto-frame. userViewMovedRef
   // is the same latch replay uses — one pan/zoom and all re-assertion stops.
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
+  // (refs and scalars only: the store keeps the listener that reads this for the chart's whole life)
+  _metaSettleRef.current = {
+    chartRef, containerRef, candleRef: candleSeriesRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
+    anchorRef: anchorCfgRef, entryDate, exactDateRange, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+    sessionCandleActive, sessionExtReady,
+  }
 
   // ── First-load layout race: ONE setVisibleLogicalRange does not stick ──────────
   // The chart is created with autoSize, so for several frames after first paint the
@@ -13972,6 +14084,9 @@ function StockChartBody({
         // ⭐⭐ W9-T11-F1 — the strategy window (see `strategyHistoryWindow` above). The binder hands it
         // to strategy documents only; every other document's ctx is unchanged.
         historyWindowBars: strategyHistoryWindow,
+        // ⭐⭐ (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at without the
+        // deep-start rule ([B-START-DEEP], `vm.js`): beside the window, from the same server answer
+        listingDepthBars: strategyListingDepth,
         // r1 (N3): asked, not answered yet — the binder holds a strategy run instead of refusing it
         historyWindowPending: strategyWindowPending,
         adjustTime,
@@ -14848,23 +14963,11 @@ function StockChartBody({
         // each a separate commit). This keeps the chart from snapping during the load.
         // Once the count stops changing, data has settled; release control so ordinary
         // scroll/zoom is respected again.
+        // (the frame and its release: `settlingFrameOf` / `settlingDone`, the one derivation a metadata answer landing
+        // between renders re-asserts too, `settleOnMetaLanded`. Today's developing daily bar is in the served history,
+        // server-include in api/routers/bars.py, so on daily the loaded last bar IS today.)
         const _pt = pendingTfReframeRef.current
-        let from, to
-        if (_pt.width > 0) {
-          // Pin the loaded last bar at the anchor — so the current candle lands at the
-          // SAME position the outgoing view had. Today's developing daily bar is now
-          // included in the served history (server-include, api/routers/bars.py), so the
-          // loaded last bar IS today and no slot reservation is needed.
-          const lastIdx = filteredBars.length - 1
-          // Reserve the developing intraday bucket's slot: the settling re-assert runs on EVERY
-          // phased commit (cache → fetch → backfill); reserving keeps `to` invariant as the newer
-          // buckets land instead of re-pinning the grown newest and sliding left. 0 off-gate/daily.
-          ;({ from, to } = pinNewestRange(lastIdx, _pt.width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(filteredBars, resolvedTf)))
-        } else {
-          ;({ from, to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
-          ))
-        }
+        const { from, to } = settlingFrameOf(_pt, { bars: filteredBars, tf: resolvedTf, plotWidthPx: plotWidthOf(chart, containerRef.current), dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
         try { _setFrame({ from, to }) } catch { /* mid-load */ }
         // The session preview candle is part of SETTLING, not a post-settle live bar.
         // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
@@ -14874,7 +14977,6 @@ function StockChartBody({
         // then repositions once" jitter when flipping tickers in pre/post market.
         // Holding the guard until the aggregate resolves keeps the RTH bars exactly
         // put; the preview candle just appears in the right pad.
-        const _sessionSettled = !sessionCandleActive || sessionExtReady
         // HOLD the guard while the developing bar is still MISSING (reserve > 0). A cold first paint
         // renders the stale provisional (ends at the last SEALED period); the developing bar appends
         // a SEPARATE commit later — often AFTER the count already looked "settled" — and that append
@@ -14885,8 +14987,7 @@ function StockChartBody({
         // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
         // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
         // release timing is byte-identical to before.
-        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0
-        if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
+        if (settlingDone({ bars: filteredBars, tf: resolvedTf, oldBarCount, sessionCandleActive, sessionExtReady })) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
         // Width-proportional floor (was a flat -1): LWC-side drift during a
@@ -15061,7 +15162,7 @@ function StockChartBody({
     // reasoning is at the `useInstalledUserDefinitions` call site above.
     // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
     // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
@@ -17636,7 +17737,7 @@ function StockChartBody({
       if (!carryDragPlacement || replayCutoffRef.current) return
       requestAnimationFrame(() => {
         try {
-          const m = measureViewLockRef.current(chartRef.current, prevBarsRef.current)
+          const m = measureViewLockRef.current(chartRef.current, prevBarsRef.current, { joined: axisAuthored })
           if (!m) return
           const wasH = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null
           const wasV = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null

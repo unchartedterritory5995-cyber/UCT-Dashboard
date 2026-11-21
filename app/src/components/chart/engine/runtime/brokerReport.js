@@ -135,10 +135,28 @@ const noSymbol = (label, what) => refusal({
   sentence: `${label} is not shown: it needs the symbol's ${what}, and the backtest record does not carry it.`,
 })
 
-/** D2: the start date and sentence are READ from the record (one authority), never recomputed. */
-function windowOf(w) {
+/** ⭐⭐ THE DATA-SOURCE NOTE (coordinator ruling, 2026-11-20, the strategy-only daily window). A backtest that starts
+ *  at the listing deeper than the shared window (the run asked [B-START-DEEP]) runs over decades of UCT's own daily
+ *  history, and that history is not TradingView's on every day: measured on production `/api/bars` 2026-11-20, an
+ *  open, high, low or close more than 0.2% off TradingView's on 73 of SPY 1D's 8,511 days (single bad prints;
+ *  4-decimal consolidated highs and lows from 2015) and on 1,719 of AAPL 1D's shared days (almost all before 1991),
+ *  with 7 AAPL sessions TradingView lacks and 1 it has that ours lacks.
+ *  The broker is the same broker (supertrend-strategy grades equal to TradingView's own report on both charts, on
+ *  either set of bars), but a strategy whose stops or entries sit on a differing bar can fill elsewhere
+ *  (stop-loss-and-take-profit-in-example on SPY: 17 of 301 trades). So such a report SAYS which history it runs on,
+ *  the same principle as the member door's other-symbol note. Every deep-window report carries it: any report that
+ *  reaches before about 2007 is one (5,000 daily bars), and the trigger is the run's own rule, never a date guessed
+ *  here. */
+export const DEEP_HISTORY_RULE = 'B-START-DEEP'
+export const DATA_SOURCE_SENTENCE = "This backtest runs on UCT's own price history, which agrees with TradingView's on "
+  + "almost every day but not all, so its trades and totals can differ slightly from TradingView's Strategy Tester."
+
+/** D2: the start date and sentence are READ from the record (one authority), never recomputed. The data-source
+ *  sentence rides beside it on a deep-window run only (`DATA_SOURCE_SENTENCE`), read from the record's own rules. */
+function windowOf(w, rulesUsed) {
   return { startTime: w.startTime, startDate: w.startDate, fromListing: w.fromListing === true, bars: w.bars,
-    historyWindowBars: w.historyWindowBars, asOfBar: w.asOfBar, asOfDate: startDateOf(w.asOfBar), sentence: w.startSentence }
+    historyWindowBars: w.historyWindowBars, asOfBar: w.asOfBar, asOfDate: startDateOf(w.asOfBar), sentence: w.startSentence,
+    ...(Array.isArray(rulesUsed) && rulesUsed.includes(DEEP_HISTORY_RULE) ? { dataSentence: DATA_SOURCE_SENTENCE } : {}) }
 }
 
 /**
@@ -158,7 +176,7 @@ export function strategyReportOf(rec, opts = {}) {
       refusals: [{ guard: REPORT_RECORD_GUARD, fields: shape,
         sentence: 'the backtest record is incomplete or in a form this report cannot read, so there is no report.' }] }
   }
-  const window = windowOf(rec.window)
+  const window = windowOf(rec.window, rec.rulesUsed)
   // a run-wide refusal: the report holds only the refusal (design 3.3)
   if (rec.refusals.length) {
     return { schema: STRATEGY_REPORT_SCHEMA, status: 'refused', window, metrics: null, trades: null,

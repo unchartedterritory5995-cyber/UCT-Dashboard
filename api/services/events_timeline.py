@@ -83,10 +83,16 @@ def _iso(v) -> Optional[str]:
 
 # ── sources (each returns a list of events; raising is recorded, not fatal) ──
 
-def _earnings_events(sym: str) -> tuple[list[dict], list[dict], Optional[str]]:
-    """(events, prints, why_unstaged). Cache only."""
+NOT_HELD_REASON = "the earnings history is not held on this server, so the events are not staged against a print"
+
+
+def _earnings_events(sym: str, held_only: bool = False) -> tuple[list[dict], list[dict], Optional[str]]:
+    """(events, prints, why_unstaged). Cache only. A miss schedules the earnings rebuild, unless `held_only`:
+    then nothing is scheduled and the reason says the history is not held (never "is being read")."""
     from api.services import earnings_reaction_panel as erp
-    payload = erp._cached_earnings(sym)
+    payload = erp.held_earnings(sym) if held_only else erp._cached_earnings(sym)
+    if payload is None and held_only:
+        return [], [], NOT_HELD_REASON
     if payload is None:
         return [], [], "the earnings history is being read; events are staged against the prints when it lands, and this panel fills in by itself"
     events, prints = [], []
@@ -205,13 +211,18 @@ SOURCES: dict[str, Callable[[str], list[dict]]] = {
 }
 
 
-def timeline(sym: str) -> dict:
+def timeline(sym: str, *, held_only: bool = False) -> dict:
+    """The timeline the EVTS panel draws. `held_only=True` is the READ ONLY form (the UCT Agent's
+    `stock.eventsTimeline` data kind): it reads the same stores and never schedules the earnings rebuild; an
+    earnings history that is not held is the source state `not_held`. The default call is unchanged."""
     sym = (sym or "").upper().strip()
     sources: dict[str, Any] = {}
     try:
-        events, prints, why = _earnings_events(sym)
-        sources["earnings"] = {"state": "ok" if prints else ("pending" if why and "being read" in why else "empty"),
-                               "events": len(events)}
+        events, prints, why = _earnings_events(sym, held_only) if held_only else _earnings_events(sym)
+        state = "ok" if prints else ("pending" if why and "being read" in why else "empty")
+        if held_only and why == NOT_HELD_REASON:
+            state = "not_held"
+        sources["earnings"] = {"state": state, "events": len(events)}
     except Exception as exc:  # noqa: BLE001 -- recorded per source, never fatal
         events, prints, why = [], [], "the earnings history could not be read"
         sources["earnings"] = {"state": "error", "error": type(exc).__name__}

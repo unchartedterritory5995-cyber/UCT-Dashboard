@@ -62,6 +62,8 @@ import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
+import CreateIndicatorTopBarButton from './CreateIndicatorTopBarButton'
+import { chartForCreateIndicator, openCreateIndicatorOn } from './createIndicatorEntry'
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
@@ -3623,6 +3625,22 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
       setPeriodSortPanel(panel ? { ...panel } : null)
     },
   }
+  // ⭐ THE TOP BAR'S "CREATE INDICATOR" (`createIndicatorEntry.js`). The chart is found AT THE PRESS, from
+  // what the refs hold then: the chart last clicked on this board, else the one the member is on, else the
+  // first in reading order. ⛔ Nothing here is state the board renders from on a chart switch.
+  const [createIndicatorMsg, setCreateIndicatorMsg] = useJournalToast()
+  const openCreateIndicatorFromTopBar = useCallback(() => {
+    closeToolbarMenus()
+    const clicked = selectedChartRef.current
+    const answer = openCreateIndicatorOn(chartForCreateIndicator({
+      apiById: chartApiByIdRef.current,
+      widgets: agentWidgetsRef.current,
+      selectedWidgetId: clicked && clicked.layoutId === dockActiveIdRef.current ? clicked.widgetId : null,
+      activeId: activeChartRef.current,
+    }))
+    if (!answer.ok) setCreateIndicatorMsg(answer.message)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs and a state setter: all stable
+  }, [closeToolbarMenus])
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -4026,6 +4044,7 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+        <JournalToast msg={createIndicatorMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
         {/* TERM-001: a refused add, or a board already over the bound, is stated in words.
             Nothing is removed from an over-bound board; it simply cannot grow. */}
         {/* ⭐ A1.3b — a member's layout open, undoable under the Agent's rules. When the
@@ -4301,6 +4320,10 @@ function ChartsWorkspaceBoard({ boardHidden = false }) {
             )}
           </div>
           )}
+
+          {/* CREATE INDICATOR: the page's one visible door to the builder (`createIndicatorEntry.js`).
+              A direct child of the header and never inside a `toolbarBtnGroup`: it opens no menu. */}
+          {!gridMode && <CreateIndicatorTopBarButton className={styles.tbSoft} onOpen={openCreateIndicatorFromTopBar} />}
 
           {gridMode && (
             <button type="button" className={styles.tbSoft} data-guide="workspace.exitGrid" onClick={mc.exitGrid}>

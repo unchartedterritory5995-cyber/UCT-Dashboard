@@ -64,7 +64,7 @@ function DealsTable({ days, today, caption, label, testId }) {
               const under = [r.name ? symbol : null, r.exchange].filter(Boolean)
               return (
                 <tr key={`${r.sym || ''} ${r.name || ''}`} data-testid="terminal-ipo-row" data-status={r.status || 'none'}>
-                  <td className={styles.wrapCell}>
+                  <td className={`${styles.wrapCell} ${styles.snugTight}`}>
                     {r.name || symbol}
                     {under.length ? (
                       <>
@@ -73,7 +73,7 @@ function DealsTable({ days, today, caption, label, testId }) {
                       </>
                     ) : null}
                   </td>
-                  <td className={styles.phoneWrap}>{priceWords(r.price)}</td>
+                  <td className={`${styles.phoneWrap} ${styles.snugWrap}`}>{priceWords(r.price)}</td>
                   <td className={styles.phoneHide}>{sharesWords(r.shares)}</td>
                   <td>{valueWords(r.value)}</td>
                   <td>{statusWords(r.status)}</td>

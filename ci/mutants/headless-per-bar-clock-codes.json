@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "The audit after (A), coordinator ruling 2026-11-20 (fix/headless-per-bar-clock-codes): five chart-clock codes that withhold only some bars (bar-index:early-bars, bar-index:first-bar, running-total:early-bars, window-extreme:left-edge, request:htf-newest-unconfirmed) write their bars to the plot's per-bar channel and are in interpret.js::PER_BAR_CLOCK_CODES, so the headless lane (Inspect a bar) computes the script and names them per output; every other code, var-origin:window the control, still refuses whole.",
+ "mutants": [
+  {
+   "id": "PB1",
+   "mutant": "bar-index mask: its codes' bars never written (the headless lane fails closed and refuses)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  for (const [code, bars0] of byCode) sinkPerBar(opts, code, bars0)\n",
+   "to": "\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessPerBarClockCodes.test.js",
+   "expectRed": "bar-index:early-bars: computed"
+  },
+  {
+   "id": "PB2",
+   "mutant": "window-hole mask: its bars never written",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  for (const code of codes) sinkPerBar(opts, code, mask)\n",
+   "to": "\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessPerBarClockCodes.test.js",
+   "expectRed": "window-extreme:left-edge: computed"
+  },
+  {
+   "id": "PB3",
+   "mutant": "merge mask: the newest bars never written",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    sinkPerBar(opts, TF_MERGE_NEWEST_CODE, mask)\n",
+   "to": "\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessPerBarClockCodes.test.js",
+   "expectRed": "request:htf-newest-unconfirmed: computed"
+  },
+  {
+   "id": "PB4",
+   "mutant": "the list without bar-index:first-bar (that code refused whole again)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "export const PER_BAR_CLOCK_CODES = Object.freeze([HISTORY_BEFORE_CHART_CODE, 'bar-index:early-bars', 'bar-index:first-bar',",
+   "to": "export const PER_BAR_CLOCK_CODES = Object.freeze([HISTORY_BEFORE_CHART_CODE, 'bar-index:early-bars',",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessPerBarClockCodes.test.js",
+   "expectRed": "bar-index:first-bar: computed"
+  }
+ ]
+}

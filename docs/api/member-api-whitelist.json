@@ -1387,6 +1387,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "symbols (required)",
+      "path": "/api/econ/latest",
+      "rate_limit_family": "market-analytics",
+      "tier": "member"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{symbol}, asof, start, end",
       "path": "/api/econ/series/{symbol}",
       "rate_limit_family": "market-analytics",
@@ -4387,6 +4395,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "",
+      "path": "/api/research/fed-watch",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "q (required), sym, form, section, limit=40",
       "path": "/api/research/filing-search",
       "rate_limit_family": "research",
@@ -4709,6 +4725,14 @@
       "method": "GET",
       "params": "rank, limit",
       "path": "/api/research/short-interest-list",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "",
+      "path": "/api/research/treasury-auctions",
       "rate_limit_family": "research",
       "tier": "paid"
     },

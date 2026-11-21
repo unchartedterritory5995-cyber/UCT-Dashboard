@@ -525,13 +525,23 @@ jobs:
             tools
       - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
       - name: evidence_engine.py queue --check and pins --check (offline)
+        env:
+          # ⭐ (2026-11-21) the PR's base: `queue --check --against` also fails when a row that asked for a capture
+          # there derives nothing here while still in the docs (a split table dropped 3 targets with this check green)
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          q=0; p=0
-          bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py queue --check || q=$?
+          q=0; p=0; against=""
+          if [ -n "${BASE_SHA:-}" ]; then
+            if git fetch --no-tags --depth=1 origin "$BASE_SHA"; then against="--against $BASE_SHA"
+            else echo "::error::could not fetch the PR base $BASE_SHA that queue --check --against compares with"; q=1; fi
+          fi
+          if [ "$q" -eq 0 ]; then
+            bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py queue --check $against || q=$?
+          fi
           bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py pins --check || p=$?
           echo "derived evidence: queue --check exit $q, pins --check exit $p" | tee -a "$GITHUB_STEP_SUMMARY"
-          if [ "$q" -ne 0 ]; then echo "::error::the capture queue does not derive from the docs, or docs/pine/vendor-harness/capture-queue.json is committed again (a local view since 2026-11-16: 'git rm --cached' it, never commit it). The log above says which; run 'python tools/vendor_harness/evidence_engine.py queue --check'"; fi
+          if [ "$q" -ne 0 ]; then echo "::error::the capture queue does not derive from the docs, a row that asked for a capture at the PR's base derives nothing now (LOST lines above), or docs/pine/vendor-harness/capture-queue.json is committed again (a local view since 2026-11-16: 'git rm --cached' it, never commit it). The log above says which; run 'python tools/vendor_harness/evidence_engine.py queue --check --against origin/master'"; fi
           if [ "$p" -ne 0 ]; then echo "::error::brokerPins.resolved.json is not the resolution of its sources: run 'python tools/vendor_harness/evidence_engine.py pins' and commit the file in this PR"; fi
           [ "$q" -eq 0 ] && [ "$p" -eq 0 ]
 
