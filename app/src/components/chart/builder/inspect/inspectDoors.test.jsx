@@ -46,20 +46,20 @@ describe('the three doors', () => {
     ])
   })
 
-  it('build: the door a pasted script goes through', () => {
-    const own = build(SCRIPT)
+  it('build: the door a pasted script goes through', async () => {
+    const own = await build(SCRIPT)
     expect(own.ok).toBe(true)
     expect(own.definition.compute.kind).toMatch(/^(ast|runtime)$/)
-    expect(build('').ok).toBe(false)
+    expect((await build('')).ok).toBe(false)
   })
 
-  it('compute: a refusal comes back as its sentence, never as empty columns', () => {
+  it('compute: a refusal comes back as its sentence, never as empty columns', async () => {
     const compute = computeFor({ tf: 'D', sym: 'TEST' })
-    const out = compute(build(SCRIPT).definition, BARS)
+    const out = compute((await build(SCRIPT)).definition, BARS)
     expect(Array.isArray(out.outputs)).toBe(true)
     expect(out.outputs.map((o) => o.title)).toEqual(['Fast', 'Slow'])
     // a document the engine refuses by name (the stamp a served row carries): its own sentence
-    const own = build(SCRIPT).definition
+    const own = (await build(SCRIPT)).definition
     const why = 'This script is on the list of scripts whose values differ from TradingView.'
     const refused = compute({ ...own, meta: { ...(own.meta || {}), hostKnownDivergence: why } }, BARS)
     expect(refused.outputs).toBeNull()
