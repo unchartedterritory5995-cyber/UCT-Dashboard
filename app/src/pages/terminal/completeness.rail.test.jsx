@@ -145,6 +145,7 @@ const ARG_SAMPLE = {
   cotMarketName: 'GOLD', anlgCount: '7', insView: 'CLUSTER',
   fundMetric: 'PE', fundMetrics: 'REV+EPS', fundPeers: 'AMD',
   mkthIndex: 'NDX',
+  groupsKind: 'INDUSTRIES', groupsView: 'VALUATION',
 }
 
 afterEach(cleanup)
