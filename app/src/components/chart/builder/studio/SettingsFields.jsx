@@ -58,7 +58,9 @@ function Row({ setting, onSet, disabled }) {
     <div className={styles.settingRow} data-testid="studio-setting" data-role={setting.role}>
       <label className={styles.settingCaption} htmlFor={fieldId} title={setting.captionFull || setting.caption}>
         <span>{setting.caption}</span>
-        <span className={styles.settingRole}>{setting.role}{setting.slots.length > 1 ? ` · ${setting.slots.length} places` : ''}</span>
+        {/* ⭐ 2026-11-20: "length · 2 places" read as two decimal places. It is how many places in the formula
+            hold this one number, so it says that. */}
+        <span className={styles.settingRole}>{setting.role}{setting.slots.length > 1 ? ` · used in ${setting.slots.length} places` : ''}</span>
       </label>
       <input
         id={fieldId}
