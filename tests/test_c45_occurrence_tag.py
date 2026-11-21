@@ -145,9 +145,35 @@ def test_a_period_anchor_is_not_tagged_and_the_trees_really_hold_the_call():
     assert len(holding) >= 30
     for name, tree in holding.items():
         assert requirement_tags(doc(tree)) == [], name
-    # every tree of the fixture, anchors or not, raises no tag
+    # every tree of the fixture, anchors or not, raises no OCCURRENCE tag
+    # ⭐ Engine 92 train integration (coordinator ruling, 2026-11-20): #2243 (U-BUILTIN T-D EXT) regenerated this
+    # fixture with `cum(change(D)) · extended 60m · 60 · pine`. The rule this section holds is C45's: a period anchor
+    # is bounded and is NOT tagged `occurrence_dependent`. A running total is another rule's (`window_dependent`, "a
+    # running total": its value depends on how much history was loaded), and a tree that holds one is tagged by it,
+    # correctly. So: no tree here raises the occurrence tag, and `window_dependent` is raised exactly where the tree
+    # holds a running total, read off the manifest's own roster (`_requirement_tags.window_dependent` calls and
+    # series, the walk `requirement_tags` runs), never a typed list.
+    wd = ast_table.TABLE["_requirement_tags"]["window_dependent"]
+    totals = {"call": set(wd.get("calls") or ()), "series": set(wd.get("series") or ())}
+
+    def holds_running_total(tree):
+        stack = [tree]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                if node.get("type") in totals and node.get("name") in totals[node.get("type")]:
+                    return True
+                stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+        return False
+
+    totalled = [n for n, t in trees.items() if holds_running_total(t)]
+    assert totalled, "non-vacuity: the fixture holds a running-total tree (#2243's cum case)"
     for name, tree in trees.items():
-        assert requirement_tags(doc(tree)) == [], name
+        tags = requirement_tags(doc(tree))
+        assert TAG not in tags, name
+        assert tags == (["window_dependent"] if holds_running_total(tree) else []), name
 
 
 def test_the_exemption_is_the_exact_shape_and_nothing_near_it():

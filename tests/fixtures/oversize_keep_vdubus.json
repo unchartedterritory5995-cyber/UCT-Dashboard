@@ -1,0 +1,294 @@
+{
+ "_readme": "ITEM 2: the POST body the member door sends when Add keeps vdubus-pattern-gen-v2 (committed, MPL-2.0) drawn bar by bar, its host document being past the store's 64 KiB cap. Written by oversizeKeep.test.jsx (OVERSIZE_KEEP_WRITE=1), saved and read back by tests/test_oversize_keep.py.",
+ "slug": "vdubus-pattern-gen-v2-restored-refined__66dc68412e",
+ "body": {
+  "definition": {
+   "schemaVersion": 1,
+   "id": "u_member-pane-keep",
+   "version": 1,
+   "compute": {
+    "kind": "runtime",
+    "fn": "runtime:u_member-pane-keep",
+    "rev": 1,
+    "source": "// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/\n// © Bespoke_Analysis_Engine\n\n//@version=5\nindicator(\"Vdubus Pattern Gen V2 [Restored & Refined]\", shorttitle=\"Vdubus Gen V2\", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500)\n\n// ==========================================\n// 1. SETTINGS\n// ==========================================\n\n// --- FAST STRUCTURE (Current/Entry) ---\ngrp_fast = \"Fast Structure (Entry Geometry)\"\nfastDepth = input.int(9, title=\"Fast Pattern Scale (ZigZag)\", group=grp_fast)\nshowFastLines = input.bool(false, title=\"Show Fast Lines\", group=grp_fast)\nshowFastFills = input.bool(true, title=\"Show Fast Fills\", group=grp_fast)\nshowFastLbl   = input.bool(false, title=\"Show Fast Labels\", group=grp_fast)\n\n// --- SLOW STRUCTURE (Macro/Context) ---\ngrp_slow = \"Slow Structure (Macro Context)\"\nslowDepth = input.int(24, title=\"Slow Pattern Scale (ZigZag)\", group=grp_slow)\nshowSlowLines = input.bool(true, title=\"Show Slow Lines\", group=grp_slow)\nshowSlowFills = input.bool(true, title=\"Show Slow Fills\", group=grp_slow)\nshowSlowLbl   = input.bool(true, title=\"Show Slow Labels\", group=grp_slow)\n\n// --- PROJECTION TARGETS ---\ngrp_tgt   = \"Target Projections\"\nshowTgtBox = input.bool(false, title=\"Show Target Box (Prev H/L)\", tooltip=\"Draws target box to the previous structural High/Low (Point C).\", group=grp_tgt)\n\n// --- MOMENTUM PHYSICS ---\ngrp_macd  = \"Momentum Physics (Smoothed Defaults)\"\nfastLen   = input.int(21, title=\"Fast Length\", group=grp_macd)  \nslowLen   = input.int(34, title=\"Slow Length\", group=grp_macd) \nsigLen    = input.int(5, title=\"Signal Length\", group=grp_macd) \nlookback  = input.int(3, title=\"Momentum Pivot Lookback\", group=grp_macd) \n\n// --- STYLES ---\ngrp_style = \"Style & Colors\"\ncol_bear   = input.color(color.red, title=\"Bearish Standard\", group=grp_style)\ncol_bull   = input.color(color.green, title=\"Bullish Standard\", group=grp_style)\ncol_climax = input.color(color.orange, title=\"Climax (Trap)\", group=grp_style)\ncol_round  = input.color(color.navy, title=\"Rounded Top/Bottom\", group=grp_style)\ncol_pred   = input.color(color.purple, title=\"Predator (Hidden)\", group=grp_style)\n\n// --- PATTERN TOGGLES ---\ngrp_pats  = \"Pattern Filters\"\nshowStandard = input.bool(true, title=\"Show Standard Reversals\", group=grp_pats)\nshowClimax   = input.bool(true, title=\"Show Climax Reversals\", group=grp_pats)\nshowRounded  = input.bool(true, title=\"Show Rounded Patterns\", group=grp_pats)\nshowPred     = input.bool(true, title=\"Show Predator (Hidden)\", group=grp_pats)\n\ngrp_harm  = \"Harmonic Shape Selectors\"\nshowGartley = input.bool(false, title=\"Gartley\", group=grp_harm)\nshowBat     = input.bool(false, title=\"Bat\", group=grp_harm)\nshowButterfly = input.bool(false, title=\"Butterfly\", group=grp_harm)\nshowCrab    = input.bool(false, title=\"Crab\", group=grp_harm)\nshowDeep    = input.bool(false, title=\"Deep/Shark\", group=grp_harm)\nshowHS      = input.bool(true, title=\"Head & Shoulders\", group=grp_harm)\nerr_tol     = input.float(0.15, title=\"Harmonic Tolerance\", minval=0.01, maxval=0.5, group=grp_harm)\n\n// --- DASHBOARD ---\ngrp_dash  = \"Confluence Dashboard\"\nshowDash  = input.bool(false, title=\"Show Dashboard\", group=grp_dash)\ndashPos   = input.string(\"Bottom Right\", title=\"Position\", options=[\"Top Right\", \"Bottom Right\", \"Top Left\", \"Bottom Left\"], group=grp_dash)\ntextSize  = input.string(\"Small\", title=\"Size\", options=[\"Small\", \"Normal\", \"Large\"], group=grp_dash)\n\n// ==========================================\n// 2. MOMENTUM CALCULATIONS\n// ==========================================\n[macdLine, signalLine, histLine] = ta.macd(close, fastLen, slowLen, sigLen)\n\nph_mom = ta.pivothigh(histLine, lookback, lookback)\npl_mom = ta.pivotlow(histLine, lookback, lookback)\n\nvar waveHighs_val = array.new_float()\nvar waveHighs_loc = array.new_int()\nvar waveLows_val = array.new_float()\nvar waveLows_loc = array.new_int()\n\nif not na(ph_mom)\n    array.unshift(waveHighs_val, ph_mom)\n    array.unshift(waveHighs_loc, bar_index[lookback]) \n    if array.size(waveHighs_val) > 10 \n        array.pop(waveHighs_val)\n        array.pop(waveHighs_loc)\n\nif not na(pl_mom)\n    array.unshift(waveLows_val, pl_mom)\n    array.unshift(waveLows_loc, bar_index[lookback]) \n    if array.size(waveLows_val) > 10 \n        array.pop(waveLows_val)\n        array.pop(waveLows_loc)\n\n// --- MOMENTUM VALIDATION ---\nf_checkStandardBearish() =>\n    valid = false\n    if array.size(waveHighs_val) >= 3\n        m1 = array.get(waveHighs_val, 2), m2 = array.get(waveHighs_val, 1), m3 = array.get(waveHighs_val, 0)\n        if m2 < m1 and m3 <= m2 \n            valid := true\n    valid\n\nf_checkStandardBullish() =>\n    valid = false\n    if array.size(waveLows_val) >= 3\n        m1 = array.get(waveLows_val, 2), m2 = array.get(waveLows_val, 1), m3 = array.get(waveLows_val, 0)\n        if m2 > m1 and m3 >= m2 \n            valid := true\n    valid\n\nf_checkClimaxBearish() =>\n    valid = false\n    if array.size(waveHighs_val) >= 3\n        m1 = array.get(waveHighs_val, 2), m2 = array.get(waveHighs_val, 1), m3 = array.get(waveHighs_val, 0)\n        if m2 >= m1 and m3 < m2\n            valid := true\n    valid\n\nf_checkClimaxBullish() =>\n    valid = false\n    if array.size(waveLows_val) >= 3\n        m1 = array.get(waveLows_val, 2), m2 = array.get(waveLows_val, 1), m3 = array.get(waveLows_val, 0)\n        if m2 <= m1 and m3 > m2\n            valid := true\n    valid\n\nf_checkRoundedBearish() =>\n    valid = false\n    if array.size(waveHighs_val) >= 4\n        m1 = array.get(waveHighs_val, 3), m2 = array.get(waveHighs_val, 2)\n        m3 = array.get(waveHighs_val, 1), m4 = array.get(waveHighs_val, 0)\n        if m1 > m2 and m2 > m3 and m3 > m4\n            valid := true\n    valid\n\nf_checkRoundedBullish() =>\n    valid = false\n    if array.size(waveLows_val) >= 4\n        m1 = array.get(waveLows_val, 3), m2 = array.get(waveLows_val, 2)\n        m3 = array.get(waveLows_val, 1), m4 = array.get(waveLows_val, 0)\n        if m1 < m2 and m2 < m3 and m3 < m4\n            valid := true\n    valid\n\nf_checkBearishPredator() =>\n    valid = false\n    if array.size(waveHighs_val) >= 2\n        m2 = array.get(waveHighs_val, 1), m3 = array.get(waveHighs_val, 0)\n        if m3 > m2 \n            valid := true\n    valid\n\nf_checkBullishPredator() =>\n    valid = false\n    if array.size(waveLows_val) >= 2\n        m2 = array.get(waveLows_val, 1), m3 = array.get(waveLows_val, 0)\n        if m3 < m2 \n            valid := true\n    valid\n\n// ==========================================\n// 3. DRAWING & IDENTIFICATION\n// ==========================================\n\nf_getHarmonicName(xB_ratio, xD_ratio, isBullish) =>\n    name = \"Unknown\" \n    if math.abs(xB_ratio - 0.618) < err_tol and math.abs(xD_ratio - 0.786) < err_tol\n        name := \"Gartley\"\n    else if xB_ratio >= 0.382 - err_tol and xB_ratio <= 0.5 + err_tol and math.abs(xD_ratio - 0.886) < err_tol\n        name := \"Bat\"\n    else if math.abs(xB_ratio - 0.786) < err_tol and xD_ratio >= 1.27 - err_tol and xD_ratio <= 1.618 + err_tol\n        name := \"Butterfly\"\n    else if xB_ratio >= 0.382 - err_tol and xB_ratio <= 0.618 + err_tol and math.abs(xD_ratio - 1.618) < err_tol\n        name := \"Crab\"\n    else if xD_ratio > 1.0\n        name := \"Deep Pattern\"\n    else\n        name := \"Retracement\"\n    name\n\nf_drawStruct(indices, values, col, patName, isPredator, isBullish, doLines, doFills, doLbl) =>\n    xD = array.get(indices, 0), yD = array.get(values, 0)\n    \n    // Draw Lines & Fills\n    if doLines or doFills\n        xX = array.get(indices, 4), yX = array.get(values, 4)\n        xA = array.get(indices, 3), yA = array.get(values, 3)\n        xB = array.get(indices, 2), yB = array.get(values, 2)\n        xC = array.get(indices, 1), yC = array.get(values, 1)\n        \n        w = isPredator ? 2 : 1 \n        \n        if doLines\n            line.new(xX, yX, xA, yA, color=col, width=w)\n            line.new(xA, yA, xB, yB, color=col, width=w)\n            line.new(xB, yB, xC, yC, color=col, width=w)\n            line.new(xC, yC, xD, yD, color=col, width=w)\n        \n        if doFills\n            l_xa = line.new(xX, yX, xA, yA, color=color.new(col, 100), width=0)\n            l_xb = line.new(xX, yX, xB, yB, color=color.new(col, 100), width=0)\n            l_bc = line.new(xB, yB, xC, yC, color=color.new(col, 100), width=0)\n            l_bd = line.new(xB, yB, xD, yD, color=color.new(col, 100), width=0)\n            \n            linefill.new(l_xa, l_xb, color.new(col, 92)) \n            linefill.new(l_bc, l_bd, color.new(col, 92))\n\n    // Draw Labels\n    if doLbl\n        sty = isBullish ? label.style_label_up : label.style_label_down\n        label.new(xD, yD, patName, color=col, textcolor=color.white, style=sty, size=size.small)\n\n    // Draw Target Box (Updated: Previous H/L)\n    if showTgtBox\n        // For standard M/W patterns, point C (Index 1) is the \"Previous H/L\" inside the structure.\n        yC = array.get(values, 1)\n        \n        boxTop = isBullish ? yC : yD\n        boxBot = isBullish ? yD : yC\n        \n        box.new(xD, boxTop, xD + 20, boxBot, border_color=color.new(col, 80), bgcolor=color.new(col, 95))\n\n// ==========================================\n// 4. MAIN LOGIC LOOP\n// ==========================================\nf_runEngine(depth, doLines, doFills, doLbl) =>\n    var float[] zzP = array.new_float()\n    var int[] zzL = array.new_int()\n    \n    ph = ta.pivothigh(high, depth, depth)\n    pl = ta.pivotlow(low, depth, depth)\n    \n    if not na(ph)\n        array.unshift(zzP, ph)\n        array.unshift(zzL, bar_index[depth])\n        if array.size(zzP) > 10 \n            array.pop(zzP), array.pop(zzL)\n        \n        if array.size(zzP) >= 5\n            yD = array.get(zzP, 0), yX = array.get(zzP, 4)\n            yC = array.get(zzP, 1), yB = array.get(zzP, 2), yA = array.get(zzP, 3)\n            \n            // Calc Ratios\n            xa_len = math.abs(yA - yX)\n            ab_len = math.abs(yB - yA)\n            xb_ratio = xa_len != 0 ? ab_len / xa_len : 0.0\n            \n            rawName = f_getHarmonicName(xb_ratio, 1.27, false)\n            isHS = showHS and (yB > yX and yB > yD)\n            \n            // Check Toggles\n            shouldDraw = false\n            if isHS\n                shouldDraw := true\n            else \n                if rawName == \"Gartley\" and showGartley\n                    shouldDraw := true\n                else if rawName == \"Bat\" and showBat\n                    shouldDraw := true\n                else if rawName == \"Butterfly\" and showButterfly\n                    shouldDraw := true\n                else if rawName == \"Crab\" and showCrab\n                    shouldDraw := true\n                else if rawName == \"Deep Pattern\" and showDeep\n                    shouldDraw := true\n                else if rawName == \"Retracement\" // Generic fallback\n                    shouldDraw := true\n\n            // 1. Standard\n            if showStandard and f_checkStandardBearish() and shouldDraw\n                pat = isHS ? \"Bearish H&S\" : (\"Bearish \" + rawName)\n                f_drawStruct(zzL, zzP, col_bear, pat, false, false, doLines, doFills, doLbl)\n            \n            // 2. Climax\n            if showClimax and f_checkClimaxBearish()\n                f_drawStruct(zzL, zzP, col_climax, \"CLIMAX REVERSAL\", false, false, doLines, doFills, doLbl)\n                \n            // 3. Rounded\n            if showRounded and f_checkRoundedBearish() and doLbl\n                label.new(bar_index[depth], yD, \"ROUNDED TOP\", color=col_round, style=label.style_label_down, size=size.small)\n                \n            // 4. Predator\n            if showPred and not f_checkStandardBearish() and yD < yX\n                if f_checkBearishPredator()\n                    f_drawStruct(zzL, zzP, col_pred, \"🦖 PREDATOR\", true, false, doLines, doFills, doLbl)\n\n    if not na(pl)\n        array.unshift(zzP, pl)\n        array.unshift(zzL, bar_index[depth])\n        if array.size(zzP) > 10 \n            array.pop(zzP), array.pop(zzL)\n            \n        if array.size(zzP) >= 5\n            yD = array.get(zzP, 0), yX = array.get(zzP, 4)\n            yC = array.get(zzP, 1), yB = array.get(zzP, 2), yA = array.get(zzP, 3)\n            \n            xa_len = math.abs(yA - yX)\n            ab_len = math.abs(yB - yA)\n            xb_ratio = xa_len != 0 ? ab_len / xa_len : 0.0\n            \n            rawName = f_getHarmonicName(xb_ratio, 1.27, true)\n            isInvHS = showHS and (yB < yX and yB < yD)\n            \n            shouldDraw = false\n            if isInvHS\n                shouldDraw := true\n            else \n                if rawName == \"Gartley\" and showGartley\n                    shouldDraw := true\n                else if rawName == \"Bat\" and showBat\n                    shouldDraw := true\n                else if rawName == \"Butterfly\" and showButterfly\n                    shouldDraw := true\n                else if rawName == \"Crab\" and showCrab\n                    shouldDraw := true\n                else if rawName == \"Deep Pattern\" and showDeep\n                    shouldDraw := true\n                else if rawName == \"Retracement\"\n                    shouldDraw := true\n\n            // 1. Standard\n            if showStandard and f_checkStandardBullish() and shouldDraw\n                pat = isInvHS ? \"Bullish Inv H&S\" : (\"Bullish \" + rawName)\n                f_drawStruct(zzL, zzP, col_bull, pat, false, true, doLines, doFills, doLbl)\n            \n            // 2. Climax\n            if showClimax and f_checkClimaxBullish()\n                f_drawStruct(zzL, zzP, col_climax, \"CLIMAX REVERSAL\", false, true, doLines, doFills, doLbl)\n            \n            // 3. Rounded\n            if showRounded and f_checkRoundedBullish() and doLbl\n                label.new(bar_index[depth], yD, \"ROUNDED BOTTOM\", color=col_round, style=label.style_label_up, size=size.small)\n                \n            // 4. Predator\n            if showPred and not f_checkStandardBullish() and yD > yX\n                if f_checkBullishPredator()\n                    f_drawStruct(zzL, zzP, col_pred, \"🦖 PREDATOR\", true, true, doLines, doFills, doLbl)\n\n// --- EXECUTE ENGINES ---\nf_runEngine(fastDepth, showFastLines, showFastFills, showFastLbl)\nf_runEngine(slowDepth, showSlowLines, showSlowFills, showSlowLbl)\n\n// ==========================================\n// 5. DASHBOARD\n// ==========================================\nif showDash\n    pos = (dashPos == \"Top Right\") ? position.top_right : (dashPos == \"Bottom Right\") ? position.bottom_right : (dashPos == \"Top Left\") ? position.top_left : position.bottom_left\n    sz = (textSize == \"Small\") ? size.small : (textSize == \"Large\") ? size.large : size.normal\n    \n    var table d = table.new(pos, 2, 2, bgcolor=color.new(color.black, 50), border_color=color.white, border_width=1)\n    if barstate.islast\n        table.cell(d, 0, 0, \"Opposing Force\", text_color=color.white, text_size=sz)\n        \n        last_bull_mom = array.size(waveLows_val) > 0 ? array.get(waveLows_val, 0) : 0.0\n        last_bear_mom = array.size(waveHighs_val) > 0 ? array.get(waveHighs_val, 0) : 0.0\n        \n        opp_state = \"Neutral\"\n        opp_col = color.gray\n        \n        if math.abs(last_bull_mom) > math.abs(last_bear_mom)\n            opp_state := \"Bulls Strong\"\n            opp_col := color.green\n        else\n            opp_state := \"Bears Strong\"\n            opp_col := color.red\n            \n        table.cell(d, 1, 0, opp_state, text_color=color.white, bgcolor=opp_col, text_size=sz)\n",
+    "outputs": {},
+    "objects": true
+   },
+   "meta": {
+    "name": "Vdubus Gen V2",
+    "shortName": "Vdubus Gen",
+    "category": "Custom",
+    "description": "",
+    "tags": [
+     "custom"
+    ],
+    "tier": "premium",
+    "repaint": "preview-repaints",
+    "freshness": "live",
+    "lane": "runtime",
+    "runtimeSourceHash": "821103a7605b915c3866c18e8b912bafd3bce39a35be7583b292bb78613dd343",
+    "runtimeHistory": "listing",
+    "runtimeLanguage": "pine",
+    "runtimeFrontend": 1,
+    "runtimeIr": 1,
+    "runtimeOutputSignature": [],
+    "disclosures": [
+     {
+      "name": "Drawn bar by bar",
+      "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+     },
+     {
+      "name": "Settles one bar later",
+      "note": "A point on this pane can move until the next bar arrives: the script reads `barstate.islast` (`barstate.islast` reads the chart's newest bar, which moves when a later bar arrives)."
+     },
+     {
+      "name": "Drawings",
+      "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. These replace the drawing program this pane would otherwise use, which could not make 1 of its 151 drawing calls; a kind of drawing the run holds back is named on the chart, not drawn from that program instead."
+     }
+    ],
+    "requirementTags": []
+   },
+   "placement": {
+    "target": "price",
+    "joinPriceScale": true
+   },
+   "inputs": [
+    {
+     "key": "color",
+     "type": "color",
+     "label": "Color",
+     "default": "#00000000"
+    },
+    {
+     "key": "lineWidth",
+     "type": "int",
+     "label": "Line width",
+     "default": 1,
+     "min": 1,
+     "max": 10,
+     "step": 1
+    },
+    {
+     "key": "fastDepth",
+     "type": "int",
+     "default": 9,
+     "label": "Fast Pattern Scale (ZigZag)"
+    },
+    {
+     "key": "showFastLines",
+     "type": "bool",
+     "default": false,
+     "label": "Show Fast Lines"
+    },
+    {
+     "key": "showFastFills",
+     "type": "bool",
+     "default": true,
+     "label": "Show Fast Fills"
+    },
+    {
+     "key": "showFastLbl",
+     "type": "bool",
+     "default": false,
+     "label": "Show Fast Labels"
+    },
+    {
+     "key": "slowDepth",
+     "type": "int",
+     "default": 24,
+     "label": "Slow Pattern Scale (ZigZag)"
+    },
+    {
+     "key": "showSlowLines",
+     "type": "bool",
+     "default": true,
+     "label": "Show Slow Lines"
+    },
+    {
+     "key": "showSlowFills",
+     "type": "bool",
+     "default": true,
+     "label": "Show Slow Fills"
+    },
+    {
+     "key": "showSlowLbl",
+     "type": "bool",
+     "default": true,
+     "label": "Show Slow Labels"
+    },
+    {
+     "key": "showTgtBox",
+     "type": "bool",
+     "default": false,
+     "label": "Show Target Box (Prev H/L)"
+    },
+    {
+     "key": "fastLen",
+     "type": "int",
+     "default": 21,
+     "label": "Fast Length"
+    },
+    {
+     "key": "slowLen",
+     "type": "int",
+     "default": 34,
+     "label": "Slow Length"
+    },
+    {
+     "key": "sigLen",
+     "type": "int",
+     "default": 5,
+     "label": "Signal Length"
+    },
+    {
+     "key": "lookback",
+     "type": "int",
+     "default": 3,
+     "label": "Momentum Pivot Lookback"
+    },
+    {
+     "key": "col_bear",
+     "type": "color",
+     "default": "#FF5252",
+     "label": "Bearish Standard"
+    },
+    {
+     "key": "col_bull",
+     "type": "color",
+     "default": "#4CAF50",
+     "label": "Bullish Standard"
+    },
+    {
+     "key": "col_climax",
+     "type": "color",
+     "default": "#FF9800",
+     "label": "Climax (Trap)"
+    },
+    {
+     "key": "col_round",
+     "type": "color",
+     "default": "#311B92",
+     "label": "Rounded Top/Bottom"
+    },
+    {
+     "key": "col_pred",
+     "type": "color",
+     "default": "#9C27B0",
+     "label": "Predator (Hidden)"
+    },
+    {
+     "key": "showStandard",
+     "type": "bool",
+     "default": true,
+     "label": "Show Standard Reversals"
+    },
+    {
+     "key": "showClimax",
+     "type": "bool",
+     "default": true,
+     "label": "Show Climax Reversals"
+    },
+    {
+     "key": "showRounded",
+     "type": "bool",
+     "default": true,
+     "label": "Show Rounded Patterns"
+    },
+    {
+     "key": "showPred",
+     "type": "bool",
+     "default": true,
+     "label": "Show Predator (Hidden)"
+    },
+    {
+     "key": "showGartley",
+     "type": "bool",
+     "default": false,
+     "label": "Gartley"
+    },
+    {
+     "key": "showBat",
+     "type": "bool",
+     "default": false,
+     "label": "Bat"
+    },
+    {
+     "key": "showButterfly",
+     "type": "bool",
+     "default": false,
+     "label": "Butterfly"
+    },
+    {
+     "key": "showCrab",
+     "type": "bool",
+     "default": false,
+     "label": "Crab"
+    },
+    {
+     "key": "showDeep",
+     "type": "bool",
+     "default": false,
+     "label": "Deep/Shark"
+    },
+    {
+     "key": "showHS",
+     "type": "bool",
+     "default": true,
+     "label": "Head & Shoulders"
+    },
+    {
+     "key": "err_tol",
+     "type": "float",
+     "default": 0.15,
+     "label": "Harmonic Tolerance",
+     "min": 0.01,
+     "max": 0.5
+    },
+    {
+     "key": "showDash",
+     "type": "bool",
+     "default": false,
+     "label": "Show Dashboard"
+    },
+    {
+     "key": "dashPos",
+     "type": "enum",
+     "default": "Bottom Right",
+     "label": "Position",
+     "options": [
+      "Top Right",
+      "Bottom Right",
+      "Top Left",
+      "Bottom Left"
+     ]
+    },
+    {
+     "key": "textSize",
+     "type": "enum",
+     "default": "Small",
+     "label": "Size",
+     "options": [
+      "Small",
+      "Normal",
+      "Large"
+     ]
+    }
+   ],
+   "plots": [
+    {
+     "key": "value",
+     "label": "Vdubus Gen",
+     "style": "line",
+     "color": "$color",
+     "width": "$lineWidth",
+     "role": "primary",
+     "legend": {
+      "decimals": 2
+     },
+     "hidden": true
+    }
+   ]
+  },
+  "repaint_acknowledged": true
+ }
+}

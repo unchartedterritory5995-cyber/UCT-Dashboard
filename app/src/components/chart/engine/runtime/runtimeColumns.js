@@ -436,7 +436,9 @@ function runKey(def, ctx, withSupply = true) {
   const framed = ctx && ctx.framed === true ? '|framed' : ''
   // ⭐⭐ W9-T11 — a broker run's window (`ctx.historyWindowBars`) decides which bars it trades
   const hw = ctx && Number.isInteger(ctx.historyWindowBars) ? `|hw${ctx.historyWindowBars}` : ''
-  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
+  // ⭐⭐ (2026-11-19) and the depth it is served at without [B-START-DEEP] (a different depth is a different answer)
+  const ld = ctx && Number.isInteger(ctx.listingDepthBars) ? `|ld${ctx.listingDepthBars}` : ''
+  return `${def && def.id}|${compute.fn}|${runtimeContentKey(def)}|${tf}|${forming}|${symbolKey(symbolOf(ctx))}|${listing}|${settings}${framed}${hw}${ld}${withSupply ? requestSupplyKey(compute, ctx) : ''}`
 }
 
 /** ⭐ RS RATING L5 — what a run that reads requested bars computed FROM: the chart's other-
@@ -2115,6 +2117,9 @@ function computeRuntimeColumnsOnce(def, rows, ctx, opts = {}) {
       // ⭐⭐ W9-T11 — the window the VM checks a broker run against (`vm.js`, [3.4]): the
       // context's, never a literal
       ...(ctx && ctx.historyWindowBars !== undefined ? { historyWindowBars: ctx.historyWindowBars } : {}),
+      // ⭐⭐ (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at without the
+      // deep-start rule (`vm.js` [B-START-DEEP]); absent, the window itself (every run as before)
+      ...(ctx && ctx.listingDepthBars !== undefined ? { listingDepthBars: ctx.listingDepthBars } : {}),
       // ⭐⭐ W9-T4-F1 — the symbol's `syminfo.mincontract`, from the ONE authority a script's own
       // `syminfo.mincontract` folds from (`bind.js::symbolConstants`, the witnessed
       // `symbolScope.json::min_contract` table). DERIVED from the symbol, never read from `ctx`:

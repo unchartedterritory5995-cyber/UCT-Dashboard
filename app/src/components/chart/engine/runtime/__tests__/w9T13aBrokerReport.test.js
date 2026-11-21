@@ -18,7 +18,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  strategyReportOf, SERVED_METRICS, REFUSED_METRICS, STRATEGY_REPORT_SCHEMA, startSentenceOf,
+  strategyReportOf, SERVED_METRICS, REFUSED_METRICS, STRATEGY_REPORT_SCHEMA, startSentenceOf, DATA_SOURCE_SENTENCE, DEEP_HISTORY_RULE,
   REPORT_UNSTATED_GUARD, REPORT_UNRECORDED_GUARD, REPORT_UNDEFINED_GUARD, REPORT_RECORD_GUARD,
 } from '../brokerReport.js'
 import { strategyRecordOf, strategyRecordShapeErrors } from '../strategyRecord.js'
@@ -299,6 +299,29 @@ describe('W9-T13a window and run-wide refusals', () => {
     // a from-listing record WITHOUT the sentence is not a v1 record
     const bare = { ...rec, window: { ...rec.window, startSentence: null } }
     expect(strategyReportOf(bare, { isPinned: ALL }).refusals[0].fields).toContain('window.startSentence')
+  })
+
+  // ⭐⭐ (2026-11-20, coordinator ruling, the strategy-only daily window) THE DATA-SOURCE NOTE
+  it('a deep-window run (its record used [B-START-DEEP]) says it runs on UCT own price history; control: no other run does', () => {
+    expect(DEEP_HISTORY_RULE).toBe('B-START-DEEP')
+    expect(BROKER_RULE_IDS).toContain(DEEP_HISTORY_RULE)
+    // the coordinator's wording, verbatim (2026-11-20): no claim about WHEN the histories differ (SPY's differing
+    // trades run 1994-2011 and SPY has no bar before 1993)
+    expect(DATA_SOURCE_SENTENCE).toBe("This backtest runs on UCT's own price history, which agrees with TradingView's on "
+      + "almost every day but not all, so its trades and totals can differ slightly from TradingView's Strategy Tester.")
+    const deep = { ...A, rulesUsed: [...A.rulesUsed, DEEP_HISTORY_RULE] }
+    expect(strategyRecordShapeErrors(deep)).toEqual([])
+    const rep = strategyReportOf(deep, { isPinned: ALL })
+    expect(rep.status).toBe('ok')
+    expect(rep.window.dataSentence).toBe(DATA_SOURCE_SENTENCE)
+    // CONTROL: the same record without the rule (every run within the shared window) carries no note at all
+    expect('dataSentence' in strategyReportOf(A, { isPinned: ALL }).window).toBe(false)
+    // and a run-wide refused deep run keeps it beside its refusal (the stamp is drawn there too)
+    const refusedDeep = { ...deep, refusals: [{ guard: UNPINNED_GUARD, rule: 'B-PYR-PRICE', row: null, sentence: 'refused' }] }
+    const r2 = strategyReportOf(refusedDeep, { isPinned: ALL })
+    expect(r2.status).toBe('refused')
+    expect(r2.refusals[0].rule).toBe('B-PYR-PRICE')
+    expect(r2.window.dataSentence).toBe(DATA_SOURCE_SENTENCE)
   })
 
   it('D2 ONE AUTHORITY: the report READS the record sentence, never recomputes it', () => {

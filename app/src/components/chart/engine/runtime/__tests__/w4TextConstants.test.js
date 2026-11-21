@@ -209,8 +209,10 @@ s := close > 0 ? "1000" : "1100"
   it('CONTROL: a function parameter named like a constant `var` is the call value in a branch test', () => {
     // `s` the constant is "x"; `f(s)` decides a history branch on its OWN `s`, which the call passes
     // as a value only known while the bar runs: the branch is not fixed, so the refusal stands
+    // ⭐ A4 (feat/a4-param-branch-checked) — declared `simple`, so a per-bar value stays refused (an undeclared
+    // parameter now compiles a checked copy instead); read as the constant "x" it would be fixed and build
     const r = refuse5(`${HEAD5}var string s = "x"
-f(s) =>
+f(simple string s) =>
     s ? ta.sma(close, 3) : ta.sma(open, 3)
 `
       + `plot(f(close > 0 ? "a" : "b"))

@@ -18,6 +18,7 @@
 // `findLivePublication`, and say what becomes public in the SAME sentences. Nothing here restates them.
 import { Component, Suspense, useCallback, useEffect, useId, useRef, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
+import Switch from '../../../../components/ui/Switch'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 import { lazyLeaf } from '../../lib/lazyChunk'
 import { noteShareEndpoint, noteSharePreviewEndpoint, sharedNoteUrl } from '../../lib/noteShareLink'
@@ -337,8 +338,8 @@ export default function SharePanel({ noteId, noteTitle, shareOn, publishOn, onMe
               </fieldset>
               <div className={styles.switchRow}>
                 <label htmlFor={ids.hide}>{SHARE_COPY.hidePnl}</label>
-                <input id={ids.hide} type="checkbox" role="switch" className={styles.switch}
-                  checked={hidePnl} onChange={(e) => setHidePnl(e.target.checked)} disabled={busy} />
+                <Switch id={ids.hide} className={styles.switch} checkedClassName={styles.switchOn} knobClassName={styles.switchKnob}
+                  checked={hidePnl} onClick={() => setHidePnl((v) => !v)} disabled={busy} />
                 <span className={styles.switchState} aria-hidden="true">{hidePnl ? 'On' : 'Off'}</span>
               </div>
               <p className={styles.caption}>{SHARE_COPY.typed} {SHARE_COPY.charts}</p>

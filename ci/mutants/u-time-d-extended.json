@@ -1,0 +1,114 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "U-BUILTIN T-D EXT (feat/pine-time-d-extended): time(\"D\") on an extended-hours chart is the 04:00 session open, time(\"D\", session) is the start of the window, an overnight bar is withheld by name (the 04:00 bar after it starts the day), a chart that trades around the clock is withheld whole by name; the JS lanes and the Python twin. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "X1",
+   "mutant": "the extended-hours anchor stays at 09:30 (no 04:00)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "export const EXTENDED_ANCHOR_SHIFT = SESSION_OPEN_SECONDS - EXTENDED_OPEN_SECONDS",
+   "to": "export const EXTENDED_ANCHOR_SHIFT = 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "A1_secs_time_D"
+  },
+  {
+   "id": "X2",
+   "mutant": "an overnight bar keeps its own value instead of carrying the last in-session one",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (overnight[i]) out[i] = held\n",
+   "to": "    if (false) out[i] = held\n",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "overnight bars"
+  },
+  {
+   "id": "X3",
+   "mutant": "the bar right after the overnight bars is withheld too (reach not reduced by one)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const reach = Math.max(0, rootReach - maxLookback(node) - 1)",
+   "to": "    const reach = Math.max(0, rootReach - maxLookback(node))",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "overnight bars"
+  },
+  {
+   "id": "X4",
+   "mutant": "a chart that trades around the clock is read as an extended-hours one",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    if (dow === 7 || (dow === 1 && second < EXTENDED_CLOSE_SECONDS) || (dow === 6 && second >= EXTENDED_CLOSE_SECONDS)) weekend = true",
+   "to": "    if (false) weekend = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "time-day:exchange-zone"
+  },
+  {
+   "id": "X5",
+   "mutant": "a window that starts before 04:00 is served on an extended-hours chart",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  if (kind === 'extended') return w.start * 60 >= EXTENDED_OPEN_SECONDS && w.start * 60 < EXTENDED_CLOSE_SECONDS",
+   "to": "  if (kind === 'extended') return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "D premarket"
+  },
+  {
+   "id": "X6",
+   "mutant": "a non-Pine evaluation serves the anchor on an extended-hours chart (at 09:30)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  return DAY_SERVED_KINDS.includes(kind) && (kind !== 'extended' || pineCompareOn(opts))",
+   "to": "  return DAY_SERVED_KINDS.includes(kind)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "time-day:off-session"
+  },
+  {
+   "id": "X7",
+   "mutant": "the 09:30 window is the day anchor again (04:00 on an extended-hours chart)",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      return sessionDayWindowNode(start, end, days, this.pineVersion !== null)",
+   "to": "      return start === 570 ? cOp('?:', [inside, dayAnchorNode(this.pineVersion !== null), cOp('/', [cNum(0), cNum(0)])]) : sessionDayWindowNode(start, end, days, this.pineVersion !== null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pineBuiltinsUnit.test.js",
+   "expectRed": "S1_secs_D_rth"
+  },
+  {
+   "id": "X8",
+   "mutant": "an unbounded read over the overnight bars is withheld only within its reach",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "      if (last !== -Infinity && (unbounded || i - last <= reach)) mask[i] = 1\n    }\n  }\n  nameChartClock(opts, [DAY_OVERNIGHT], tf)",
+   "to": "      if (last !== -Infinity && (i - last <= reach)) mask[i] = 1\n    }\n  }\n  nameChartClock(opts, [DAY_OVERNIGHT], tf)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "cum(change(D))"
+  },
+  {
+   "id": "X9",
+   "mutant": "regular-hours bars beside overnight ones are served as a regular-hours chart",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "  return { kind: overnight ? 'off-session' : 'regular', overnight: null }",
+   "to": "  return { kind: 'regular', overnight: null }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/periodAnchorParity.test.js",
+   "expectRed": "rth 60m, overnight bars"
+  },
+  {
+   "id": "PX1",
+   "mutant": "the Python twin keeps the extended-hours anchor at 09:30",
+   "file": "api/services/ast_interpret.py",
+   "from": "EXTENDED_ANCHOR_SHIFT = _SESSION_OPEN_SECONDS - EXTENDED_OPEN_SECONDS",
+   "to": "EXTENDED_ANCHOR_SHIFT = 0",
+   "rail": "python -m pytest -q tests/test_ast_period_anchor_parity.py",
+   "expectRed": "extended 60m"
+  },
+  {
+   "id": "PX2",
+   "mutant": "the Python twin withholds no overnight bar",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if day[\"kind\"] != \"extended\" or not day[\"overnight\"]:\n        return None",
+   "to": "    if True:\n        return None",
+   "rail": "python -m pytest -q tests/test_ast_period_anchor_parity.py",
+   "expectRed": "overnight bars"
+  },
+  {
+   "id": "PX3",
+   "mutant": "the Python twin serves a chart that trades around the clock",
+   "file": "api/services/ast_interpret.py",
+   "from": "    if weekend:\n        return {\"kind\": \"around-the-clock\", \"overnight\": None}",
+   "to": "    if False:\n        return {\"kind\": \"around-the-clock\", \"overnight\": None}",
+   "rail": "python -m pytest -q tests/test_ast_period_anchor_parity.py",
+   "expectRed": "around the clock"
+  }
+ ]
+}

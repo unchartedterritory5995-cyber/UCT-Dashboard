@@ -757,7 +757,7 @@ describe('routing words', () => {
   beforeEach(() => { reset(); vi.restoreAllMocks() })
   afterEach(() => { reset(); globalThis.fetch = realFetch })
 
-  it('the group is words-only and never a filler, routing.js lists the six by action with no word of its own, and it is the 49th of the 56 the server keeps', () => {
+  it('the group is words-only and never a filler, routing.js lists the six by action with no word of its own, and it is the 49th group', () => {
     const g = ownGroup()
     expect(g.wordsOnly && g.fillLast).toBe(true)
     expect(g.words).toEqual([])                                      // server-armed: empty until a capability registers
@@ -766,10 +766,11 @@ describe('routing words', () => {
     expect(g.id).toMatch(/^[a-z][a-zA-Z]{1,23}$/)
     expect(g.title.length).toBeLessThanOrEqual(160)                  // the server cuts a group title at 160 characters (turn.py validate_routing)
     // the server keeps only MAX_GROUPS groups. It kept 48 and all 48 were taken; the integrator's wave 7 build raised it to 56
-    // on 2026-11-20 for this group, the 49th (a builder's change, recorded in turn.py: not an owner decision)
+    // on 2026-11-20 for this group, the 49th (a builder's change, recorded in turn.py: not an owner decision). A later wave's
+    // group comes after it (agentTerminalDataWave8.test.js pins how many are left)
     const max = Number(/^MAX_GROUPS\s*=\s*(\d+)\s*$/m.exec(py('api/services/uct_agent/turn.py'))[1])
-    expect([GROUPS.length, max, max - GROUPS.length]).toEqual([49, 56, 7])
-    expect(GROUPS.map(x => x.id).slice(-4)).toEqual([WAVE4_GROUP, WAVE5_GROUP, WAVE6_GROUP, ROUTE_GROUP])
+    expect([GROUPS.map(x => x.id).indexOf(ROUTE_GROUP) + 1, max, GROUPS.length <= max]).toEqual([49, 56, true])
+    expect(GROUPS.map(x => x.id).slice(45, 49)).toEqual([WAVE4_GROUP, WAVE5_GROUP, WAVE6_GROUP, ROUTE_GROUP])
     expect(new Set(GROUPS.map(x => x.id)).size).toBe(GROUPS.length)
     // no action of this wave is in any other group's list
     for (const other of GROUPS.filter(x => x.id !== ROUTE_GROUP)) for (const n of ALL) expect(other.actions || [], `${other.id}: ${n}`).not.toContain(n)

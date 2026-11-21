@@ -63,12 +63,55 @@ def _imports_window_name(tree: ast.AST) -> bool:
 
 
 def test_the_window_module_holds_exactly_one_assignment_of_the_literal():
+    # ⭐ (2026-11-19, D9 strategy-only) and exactly ONE more: the named strategy window, its own literal
     tree = _tree(_WINDOW)
     all_assigns = [n for n in ast.walk(tree) if isinstance(n, (ast.Assign, ast.AnnAssign, ast.AugAssign))]
-    assert len(all_assigns) == 1, [a.lineno for a in all_assigns]
+    assert len(all_assigns) == 2, [a.lineno for a in all_assigns]
     (only,) = _assigns(tree, "HISTORY_WINDOW_BARS")
     assert isinstance(only.value, ast.Constant) and only.value.value == _LITERAL
     assert len(_int_literals(tree, _LITERAL)) == 1
+    (strategy,) = _assigns(tree, _STRATEGY)
+    assert isinstance(strategy.value, ast.Constant) and type(strategy.value.value) is int
+    assert strategy.value.value > _LITERAL
+
+
+# ─── ⭐⭐ (coordinator ruling 2026-11-19, D9 strategy-only) THE SECOND, NAMED CONSTANT ───────────────────────────
+# `STRATEGY_HISTORY_WINDOW_BARS`: the window a strategy run on a member's chart takes. It must never leak into the
+# shared consumers (the scan sweep, the screener backtest, the alert lanes, the server strategy route keep 5,000), it
+# has exactly ONE consumer (the chart lane's endpoint), and it equals the daily depth the chart loads, so a full daily
+# chart is never cut off its listing by the window.
+_STRATEGY = "STRATEGY_HISTORY_WINDOW_BARS"
+_STRATEGY_CONSUMERS = ("api/routers/pine_history_window.py",)
+_CHART_DEPTH = "app/src/utils/barsBackfill.js"
+
+
+def _names_strategy_window(tree: ast.AST) -> bool:
+    return any((isinstance(n, ast.Name) and n.id == _STRATEGY)
+               or (isinstance(n, ast.alias) and n.name == _STRATEGY)
+               or (isinstance(n, ast.Attribute) and n.attr == _STRATEGY) for n in ast.walk(tree))
+
+
+def test_the_strategy_window_has_exactly_its_one_consumer():
+    readers = []
+    for p in sorted((_ROOT / "api").rglob("*.py")):
+        rel = p.relative_to(_ROOT).as_posix()
+        if rel == _WINDOW:
+            continue
+        if _STRATEGY in p.read_text(encoding="utf-8", errors="replace") and _names_strategy_window(_tree(rel)):
+            readers.append(rel)
+    assert readers == list(_STRATEGY_CONSUMERS)
+    for rel in _CONSUMERS:
+        if rel not in _STRATEGY_CONSUMERS:
+            assert not _names_strategy_window(_tree(rel)), f"{rel} reads the strategy window"
+
+
+def test_the_strategy_window_equals_the_daily_depth_the_chart_loads():
+    import re
+    from api.services import bars_window
+    text = (_ROOT / _CHART_DEPTH).read_text(encoding="utf-8")
+    m = re.search(r"case 'D':\s*return\s+(\d+)", text)
+    assert m, "barsBackfill.js::fullBarsFor states no daily depth"
+    assert int(m.group(1)) == bars_window.STRATEGY_HISTORY_WINDOW_BARS
 
 
 @pytest.mark.parametrize("rel", sorted(_CONSUMERS))

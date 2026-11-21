@@ -1,41 +1,41 @@
 {
  "generatedBy": "app/src/agent/qa/capabilityRegression/inventory.test.js (UPDATE_CAPREG=1)",
  "catalog": {
-  "all": 247,
+  "all": 250,
   "withProductionKinds": 205,
-  "darkGated": 42
+  "darkGated": 45
  },
  "totals": {
-  "capabilities": 247,
-  "withAnyRegressionCase": 195,
+  "capabilities": 250,
+  "withAnyRegressionCase": 198,
   "perProtection": {
    "nl": {
-    "covered": 192,
-    "applicable": 247
+    "covered": 195,
+    "applicable": 250
    },
    "routing": {
-    "covered": 189,
-    "applicable": 247
+    "covered": 192,
+    "applicable": 250
    },
    "args": {
-    "covered": 195,
-    "applicable": 247
+    "covered": 198,
+    "applicable": 250
    },
    "execution": {
-    "covered": 192,
-    "applicable": 247
+    "covered": 195,
+    "applicable": 250
    },
    "receipt": {
-    "covered": 164,
-    "applicable": 247
+    "covered": 167,
+    "applicable": 250
    },
    "refusal": {
     "covered": 35,
-    "applicable": 247
+    "applicable": 250
    },
    "permission": {
-    "covered": 240,
-    "applicable": 247
+    "covered": 243,
+    "applicable": 250
    },
    "undo": {
     "covered": 84,
@@ -43,11 +43,11 @@
    },
    "multiStep": {
     "covered": 40,
-    "applicable": 247
+    "applicable": 250
    },
    "phrasings": {
-    "covered": 188,
-    "applicable": 247
+    "covered": 191,
+    "applicable": 250
    }
   }
  },
@@ -9746,6 +9746,60 @@
     "phrasings": []
    }
   },
+  "stock.dividendsCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.dividendsCalendar: \"next ex-dividend date for NVDA\"",
+     "stock.dividendsCalendar: \"upcoming dividends for NVDA\"",
+     "stock.dividendsCalendar: \"when is NVDA's next dividend\"",
+     "stock.dividendsCalendar: \"any upcoming splits for NVDA\""
+    ],
+    "routing": [
+     "stock.dividendsCalendar: \"next ex-dividend date for NVDA\"",
+     "stock.dividendsCalendar: \"upcoming dividends for NVDA\"",
+     "stock.dividendsCalendar: \"when is NVDA's next dividend\"",
+     "stock.dividendsCalendar: \"any upcoming splits for NVDA\""
+    ],
+    "args": [
+     "corpus stock.dividendsCalendar"
+    ],
+    "execution": [
+     "stock.dividendsCalendar (c)"
+    ],
+    "receipt": [
+     "stock.dividendsCalendar (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
   "stock.earnings": {
    "domain": "stock",
    "group": "data",
@@ -10182,6 +10236,60 @@
     ],
     "receipt": [
      "stock.groupDrill (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.ipoCalendar": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.ipoCalendar: \"IPO calendar\"",
+     "stock.ipoCalendar: \"upcoming IPOs\"",
+     "stock.ipoCalendar: \"what IPOs are coming this week\"",
+     "stock.ipoCalendar: \"which IPOs are pricing next week\""
+    ],
+    "routing": [
+     "stock.ipoCalendar: \"IPO calendar\"",
+     "stock.ipoCalendar: \"upcoming IPOs\"",
+     "stock.ipoCalendar: \"what IPOs are coming this week\"",
+     "stock.ipoCalendar: \"which IPOs are pricing next week\""
+    ],
+    "args": [
+     "corpus stock.ipoCalendar"
+    ],
+    "execution": [
+     "stock.ipoCalendar (c)"
+    ],
+    "receipt": [
+     "stock.ipoCalendar (c)"
     ],
     "refusal": [],
     "permission": [],
@@ -10891,6 +10999,60 @@
     ],
     "receipt": [
      "stock.shortList (c)"
+    ],
+    "refusal": [],
+    "permission": [],
+    "undo": [],
+    "multiStep": [],
+    "phrasings": []
+   }
+  },
+  "stock.splitsDividends": {
+   "domain": "stock",
+   "group": "marketCalendars",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false,
+   "protections": {
+    "nl": true,
+    "routing": true,
+    "args": true,
+    "execution": true,
+    "receipt": true,
+    "refusal": false,
+    "permission": true,
+    "undo": null,
+    "multiStep": false,
+    "phrasings": true
+   },
+   "phrasings": 4,
+   "evidence": {
+    "nl": [
+     "stock.splitsDividends: \"NVDA corporate actions\"",
+     "stock.splitsDividends: \"split history for NVDA\"",
+     "stock.splitsDividends: \"has NVDA ever split\"",
+     "stock.splitsDividends: \"past dividends for NVDA\""
+    ],
+    "routing": [
+     "stock.splitsDividends: \"NVDA corporate actions\"",
+     "stock.splitsDividends: \"split history for NVDA\"",
+     "stock.splitsDividends: \"has NVDA ever split\"",
+     "stock.splitsDividends: \"past dividends for NVDA\""
+    ],
+    "args": [
+     "corpus stock.splitsDividends"
+    ],
+    "execution": [
+     "stock.splitsDividends (c)"
+    ],
+    "receipt": [
+     "stock.splitsDividends (c)"
     ],
     "refusal": [],
     "permission": [],

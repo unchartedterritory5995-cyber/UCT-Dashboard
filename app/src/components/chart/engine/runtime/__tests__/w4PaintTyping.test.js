@@ -154,7 +154,9 @@ describe('a refused definition never lends its index to a colour helper', () => 
     // is the next definition and reuses that index. Reading the index alone gave `bad(close)` the
     // colour verdict of `g`, and `plot(bad(close))` was refused as a colour. Measured on the
     // runtime-on census (bollinger-band-width-percentile): a script master served.
-    const src = ['bad(float v) =>', '    v > 1 ? ta.sma(v, 3) :', '     v > 2 ? ta.ema(v, 3) :', '     na',
+    // ⭐ A4 (feat/a4-param-branch-checked) — `v` is declared `simple` so the call stays refused: an undeclared
+    // parameter passed a per-bar value now compiles a copy whose branch is checked (`a4ParamBranchChecked.test.js`)
+    const src = ['bad(simple float v) =>', '    v > 1 ? ta.sma(v, 3) :', '     v > 2 ? ta.ema(v, 3) :', '     na',
       'g(x) => x > 101 ? color.red : na', 'bgcolor(g(close))', 'plot(bad(close))', ''].join('\n')
     expect(refusal(src).guard).toBe('runtime:conditional-history')
   })

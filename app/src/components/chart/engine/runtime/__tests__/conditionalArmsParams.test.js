@@ -25,7 +25,8 @@
 //   4. A branch on a PARAMETER (deadband-hysteresis's `getBaseTau(mode, …)`,
 //      `if mode == "ATR"`) is the CALL SITE's: a call passing a value fixed
 //      before bar 0 compiles its own copy (C35) where the branch runs on every
-//      call; a per-bar argument is refused by name, naming the parameter.
+//      call; a per-bar argument (A4) compiles a copy whose branch is CHECKED to run on every call, and
+//      the run stops by name at the first call it skips.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -183,19 +184,23 @@ describe('4 — a branch on a PARAMETER is the call site\'s', () => {
     y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
     expect(refusalOf(v6(`${fn}plot(f("Percent"))\n`))).toBeNull()
   })
-  it('a call passing a per-bar text is refused by name, naming the parameter', () => {
-    const r = refusalOf(v6(`${fn}plot(f(close > open ? "ATR" : "P"))\n`))
+  // ⭐⭐ A4 (feat/a4-param-branch-checked, engine 92) — ⚰️ WAS refused at the call, naming the parameter. No
+  // call site can fix a per-bar argument, so its copy CHECKS the branch to run on every call (HIST-S3,
+  // `a4ParamBranchChecked.test.js`): never drawn off every call, it stops by name at the first call the branch skips.
+  it('a call passing a per-bar text is never drawn off every call: stopped by name where the branch skips', () => {
+    const r = notDrawnOf(v6(`${fn}plot(f(close > open ? "ATR" : "P"))\n`))
     expect(r && r.guard).toBe(R4)
-    expect(r.message).toMatch(/`mode` decides a branch of `f`/)
   })
   it('a `?:` on a parameter (MLExtensions\' filter_volatility) is the call site\'s too', () => {
     const fv = 'fv(simple int a, bool on) =>\n    on ? ta.atr(a) : 0.0\n'
     const [y] = run(v6(`${fv}plot(fv(3, true))\n`))
     const [every] = run(v6('plot(ta.atr(3))\n'))
     y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
-    const r = refusalOf(v6(`${fv}plot(fv(3, close > open))\n`))
+    // ⭐ A4 — a per-bar `on`: the copy checks the arm, and the run stops by name at the first bar it skips
+    const r = notDrawnOf(v6(`${fv}plot(fv(3, close > open))\n`))
     expect(r && r.guard).toBe(R4)
-    expect(r.message).toMatch(/`on` decides a branch of `fv`/)
+    expect(r.at).toBe('run')
+    expect(r.message).toMatch(/skips bar \d+ and runs again on bar \d+/)
   })
   // ⭐ HIST-S3 — no call site can fix a body LOCAL, so the branch is checked at run: it stops by name
   it('a branch on a body LOCAL is never drawn per run: stopped by name where it skips (no call site can fix it)', () => {

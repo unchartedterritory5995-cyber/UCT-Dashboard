@@ -330,7 +330,7 @@ def test_D2_a_FORMULA_keeps_its_64_KiB_cap(store):
          "plots": [{"key": "value", "style": "line", "role": "primary"}], "inputs": []}
     d["meta"]["description"] = "x" * (svc.MAX_DEFINITION_BYTES + 1024)
     assert svc.MAX_DEFINITION_BYTES < _blob_size(d) < rt.RUNTIME_MAX_DEFINITION_BYTES
-    with pytest.raises(ValueError, match=rf"definition exceeds {svc.MAX_DEFINITION_BYTES} bytes"):
+    with pytest.raises(ValueError, match=rf"too large to keep: .* a saved indicator may hold at most {svc.MAX_DEFINITION_BYTES}\. Nothing was saved"):
         svc.save(USER, d["id"], d)
     assert svc.get(USER, d["id"]) is None
 
