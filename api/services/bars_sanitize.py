@@ -972,6 +972,10 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     # ⭐ THE PUBLISHED CORRECTIONS LEDGER (bars_corrections), FIRST: its entries were measured on the STORED rows, so
     # they compare-and-set against the rows as stored, before any repair moves them (listing cutoff, identity, split
     # heal) and before the clamp. A rebuilt series gets its own entries inside bars_rebuild.apply.
+    # ⚠️ ROWS READ FROM THE STORE ALREADY PASSED THE READ DOOR (bars_sqlite._door, the same applier), so for them this
+    # finds nothing left to change (compare-and-set; tests/test_bars_store_door.py proves twice = once). It STAYS for the
+    # bars that reach here WITHOUT the store: bars_fetch._get_bars_inner's first-fetch path serves the provider's answer
+    # (`result_bars = raw[-bars:]`) straight through sanitize_daily_bars, and that answer carries the bad print too.
     try:
         from api.services import bars_corrections as _cor
         bars = _cor.apply(ticker, tf, bars, "store")
@@ -1024,6 +1028,12 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
             try:
                 from api.services import bars_corrections as _cor_keep
                 keep = _cor_keep.keep_wicks(ticker, src)
+                if src == "rebuild":
+                    # A rebuilt series carries the STORE's rows after the rebuild's `end`: their D1 verdicts were
+                    # measured on store rows.
+                    from api.services import bars_rebuild as _reb_end
+                    end = str(_reb_end._state.get("end") or "")
+                    keep = {**{d: v for d, v in _cor_keep.keep_wicks(ticker, "store").items() if end and d > end}, **keep}
             except Exception:  # noqa: BLE001 - no ledger answer: the clamp trims as before
                 keep = {}
             served = _clamp_wicks(served, keep)
