@@ -82,15 +82,14 @@ describe('VALUE-SHAPED: the ticker is the value of a symbol change → it runs',
   }, 60000)
 })
 
-// KNOWN (not this branch's screen): a bare "switch to AMD." / "flip it to AMD." with a trailing period is read by the instant symbol path as
-// the symbol "AMD." — it refuses and offers AMD ("Did you mean AMD …?"), nothing written. Recorded so a change there is seen.
-describe('KNOWN: a trailing period on a bare value shape is refused with a suggestion, nothing written', () => {
-  it.each(TICKERS.flatMap(T => [`switch to ${T}.`, `flip it to ${T}.`]))('"%s" (one chart): refused with a suggestion, nothing written', async (t) => {
+// FIXED (fix-symbol-trailing-punct): a bare "switch to AMD." / "flip it to AMD." with a trailing period used to be read by the
+// instant symbol path as the symbol "AMD." and refused. Trailing punctuation is now stripped: the symbol change runs.
+describe('a trailing period on a bare value shape: the symbol change runs', () => {
+  it.each(TICKERS.flatMap(T => [`switch to ${T}.`, `flip it to ${T}.`]))('"%s" (one chart): the SPY chart shows the new ticker', async (t) => {
     const m = mount(['SPY'], null)
-    const before = snapshot(m.board, ['w0'])
     await m.say(t)
-    expect(transcript()).toMatch(/Did you mean/)
-    expect(snapshot(m.board, ['w0'])).toEqual(before)
+    expect(transcript()).not.toMatch(/Did you mean|has no symbol/)
+    expect(symOf(m.board, 'w0'), transcript()).toBe(t.replace(/^.* (\S+)\.$/, '$1'))
   }, 60000)
 })
 
