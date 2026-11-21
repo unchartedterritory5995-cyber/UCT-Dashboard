@@ -246,8 +246,12 @@ export function stableSig(v) {
 }
 
 // ─── the idle queue ───────────────────────────────────────────────────────────────────────────────────
-/** The most work one idle callback does, whatever the browser offers: a frame's worth, never a long task. */
-export const IDLE_SLICE_MS = 10
+/** The most work one idle callback does, whatever the browser offers: a frame's worth, never a long task.
+ *  ⭐ 4 ms, not 10 (2026-11-21, the post-paint review): a key pressed while a slice runs waits for the slice, and
+ *  on the owner's board the 10 ms slices were back to back for the whole dwell after a switch (idle slices of
+ *  8-11 ms measured), so a member flipping again landed behind one. A short slice leaves room for the input and
+ *  the frame; the queue simply asks again (rail: neighborFrames.test.js, "at most 4 ms"). */
+export const IDLE_SLICE_MS = 4
 /** A piece is not started with less than this left in the slice. */
 export const IDLE_MIN_LEFT_MS = 2
 

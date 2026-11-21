@@ -48,13 +48,23 @@ describe('the idle queue', () => {
     const log = []
     scheduleIdle('a', 0, task(log, 'a', 20, 3))
     fireIdle(50)
-    // 3 ms pieces in a 10 ms slice: it stops once less than the minimum is left
+    // 3 ms pieces in a slice: it stops once less than the minimum is left
     expect(log.length).toBeLessThanOrEqual(Math.ceil(IDLE_SLICE_MS / 3))
     expect(log.length).toBeGreaterThan(0)
     expect(idle.length).toBe(1)
     while (fireIdle(50)) { /* drain */ }
     expect(log.length).toBe(20)
     expect(__idleQueueLength()).toBe(0)
+  })
+
+  it('⭐ one callback does at most 4 ms of work (a key pressed during a slice waits for it)', () => {
+    const log = []
+    scheduleIdle('a', 0, task(log, 'a', 40, 1))
+    const c0 = clock
+    fireIdle(50)
+    // measured 2026-11-21 on the owner's board: 10 ms slices back to back through the post-paint dwell
+    expect(clock - c0, 'work in one idle callback, ms').toBeLessThanOrEqual(4)
+    expect(log.length).toBeGreaterThan(0)
   })
 
   it('a short idle period gets a short slice', () => {
