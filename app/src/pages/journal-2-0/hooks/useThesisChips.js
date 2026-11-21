@@ -8,6 +8,7 @@
  * Returns `{}` with no request at all when the flag is off or there are no symbols --
  * the caller renders no chips, never a loading chip.
  */
+import { useMemo } from 'react'
 import useSWR from 'swr'
 import { THESIS_CHIPS_URL, thesisChipsEnabled } from '../lib/thesisChips'
 
@@ -20,7 +21,17 @@ const postFetcher = ([url, symbols]) =>
   }).then((r) => (r.ok ? r.json() : {}))
 
 export default function useThesisChips(symbols = []) {
-  const unique = [...new Set((symbols || []).filter(Boolean).map((s) => String(s).toUpperCase()))].sort()
+  // (2026-11-21, key-press CPU profile) KEYED ON THE CALLER'S ARRAY, NOT REDONE EVERY RENDER. A Watchlist
+  // widget hands its whole list here (500 symbols for the S&P 500) and renders three times between an arrow
+  // key and the chart's pixels: each render filtered, upper-cased, deduped and sorted all of them, and
+  // handed SWR a NEW array, which it then hashed entry by entry to find the same key (0.6 to 1.2 ms a
+  // switch). The same input array now gives the SAME deduped array, which SWR's key hash recognises by
+  // identity. Every caller already memoises its list; one that passes a new array each render pays what it
+  // paid before, and the key it gets is equal as before.
+  const unique = useMemo(
+    () => [...new Set((symbols || []).filter(Boolean).map((s) => String(s).toUpperCase()))].sort(),
+    [symbols],
+  )
   const key = (thesisChipsEnabled() && unique.length) ? [THESIS_CHIPS_URL, unique] : null
 
   const { data, error, isLoading } = useSWR(key, postFetcher, {
