@@ -67,10 +67,11 @@ function roleWord(slot, parent) {
 export const CAPTION_MAX = 72
 const clipMiddle = (s) => (s.length <= CAPTION_MAX ? s : `${s.slice(0, 38).trimEnd()} … ${s.slice(-28).trimStart()}`)
 
-/** The plain words of the smallest expression a number sits in ("SMA 50 (Volume)"). */
+/** The plain words of the smallest expression a number sits in ("SMA 50 (Volume)", "Williams %R 9 (High, Low)").
+ *  ⭐ 2026-11-20: in the settings row's own wording (`derivedName.CAPTION_CALL_WORDS`), which a NAME never uses. */
 function captionOf(parent, node) {
   try {
-    const words = nameOfTree(isObj(parent) ? parent : node)
+    const words = nameOfTree(isObj(parent) ? parent : node, 0, 'caption')
     return typeof words === 'string' && words.trim() ? words.trim() : null
   } catch { return null }
 }
