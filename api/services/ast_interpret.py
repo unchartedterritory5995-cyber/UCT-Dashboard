@@ -2202,6 +2202,23 @@ def _body_args_of(node: Any) -> frozenset:
     return frozenset()
 
 
+def _holds_recurrence(tree: Any) -> bool:
+    """Does the tree hold a single-state recurrence (``accum``, the call the chart lane's listing pass runs)?
+    Iterative. A multi-state ``accumK`` is answered alike by both lanes from the listing and is not counted."""
+    stack, seen = [tree], set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "call" and node.get("name") in RECURRENCES:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
 def _is_stateful_call(node: Any) -> bool:
     """Is this call bar-to-bar state of either kind (``accum``, ``accumK``)?"""
     return (isinstance(node, dict) and node.get("type") == "call"
@@ -4950,6 +4967,11 @@ def interpret(ast: Any, bars: List[dict],
         whole = _chart_clock_whole(ast, bars, inputs, budget, scalars, opts)
         if whole is not None and whole["why"]:
             return [None] * len(bars)
+        # ⭐⭐ ruling (i) -- from the listing, a recurrence is the chart lane's: withheld whole, by name, never the
+        # bounded window's number (``LISTING_PASS_CHART_LANE``)
+        if (opts or {}).get("historyFromListing") is True and _holds_recurrence(ast):
+            _name_chart_clock(opts, [LISTING_PASS_CHART_LANE])
+            return [None] * len(bars)
     column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
     if (not probing and (opts or {}).get("switchedAgreement") is not False
             and reads_switched_state(ast)):
@@ -7122,7 +7144,17 @@ CHART_CLOCK_WHOLE = (
     OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE,
     # 2026-11-19 -- U-BUILTIN T-D: ``time("D")`` off the regular session, ``time("D", session)`` off a daily chart
     "time-day:off-session", "time-session:day-on-other-chart", "time-day:no-timeframe",
+    # 2026-11-20, ruling (i) -- from the listing, a recurrence is the chart lane's (``LISTING_PASS_CHART_LANE``)
+    "var-origin:listing-pass",
 )
+#: ⭐⭐ (coordinator ruling 2026-11-20, (i)) -- FROM THE LISTING, A RECURRENCE IS THE CHART LANE'S. With
+#: ``historyFromListing`` the chart lane runs a recurrence from bar 0 (``interpret.js::listingPass``, C12w, ruling R-W),
+#: TradingView's own value (the RDDT-from-listing captures); this lane never ported that pass and answered the bounded
+#: window, a different number (bar 7 of ``tests/fixtures/ast/listing_recurrence_twin.json``: 85.05684 here, 85.05277
+#: there). So a plot whose tree holds a recurrence is withheld whole there, by this code (the sentence is
+#: ``interpret.js::CHART_CLOCK_WITHHELD``'s). ⛔ LIFT CONDITION: a server path that passes ``historyFromListing`` (none
+#: does: ``pine_strategy_backtest.py`` states it is always false) needs the full port of the listing pass here first.
+LISTING_PASS_CHART_LANE = "var-origin:listing-pass"
 #: The opening-range calls: the two whose answer depends on the chart's bar length. Mirrors
 #: ``interpret.js::OPENING_RANGE_CALLS``.
 OPENING_RANGE_CALLS = ("openingRangeHigh", "openingRangeLow")

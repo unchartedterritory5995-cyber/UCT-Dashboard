@@ -6105,7 +6105,20 @@ export const TIE_UNWITNESSED = 'pine:tie-unwitnessed'
 export const DAY_OFF_SESSION = 'time-day:off-session'
 export const DAY_SESSION_OTHER_CHART = 'time-session:day-on-other-chart'
 export const DAY_NO_TIMEFRAME = 'time-day:no-timeframe'
+/** ⭐⭐ (coordinator ruling 2026-11-20, (i)) — FROM THE LISTING, A RECURRENCE IS THIS LANE'S: the code the Python lane
+ *  (`ast_interpret.py`) withholds a plot by, whole, where this lane runs the listing pass (`listingPass`, C12w) and that
+ *  lane would answer the bounded window, a different number (`listingRecurrenceTwin.test.js`). This lane never names
+ *  it. ⛔ LIFT CONDITION: a server path that passes `historyFromListing` (none does) needs the full port of the listing
+ *  pass to the Python lane. */
+export const LISTING_PASS_CHART_LANE = 'var-origin:listing-pass'
 export const CHART_CLOCK_WITHHELD = Object.freeze({
+  [LISTING_PASS_CHART_LANE]: () => 'This indicator carries a value from bar to bar (a Pine `var`, or a running value '
+    + 'such as `x := x[1] * 0.5 + close * 0.5`). On a chart whose bars start at the listing of the symbol, the chart runs '
+    + 'it from that first bar, which is the value TradingView draws (measured on NYSE:RDDT 1D from its listing). This '
+    + 'computation runs on the server, which does not run it that way, so what the indicator draws from it is withheld '
+    + 'here rather than drawn from a shorter window, whose number differs. Off the listing it is drawn as on the chart. '
+    + 'What would settle it: the server running the listing pass, which it needs only once a server path states that a '
+    + 'series starts at the listing.',
   [DAY_OFF_SESSION]: (tf) => '`time("D")` is the open of the session the bar is in: 09:30 New York, measured '
     + 'against TradingView on AMEX:SPY daily bars and regular-hours 60-minute bars (capture '
     + `\`vw-bt-time-1440-spy-{1d,60}-2026-11-16\`). This ${tfSpelled(tf)} chart holds a bar outside 09:30-16:00 `
@@ -6361,7 +6374,7 @@ export const CHART_CLOCK_WHOLE = Object.freeze(['time-anchor:other-bars', 'time-
   'time-close:weekend-bars', 'time-clock:outside-session', 'request:other-timeframe', 'bar-index:window',
   'time-clock:weekend-session', 'running-total:window', 'var-origin:window',
   OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE, DAY_OFF_SESSION, DAY_SESSION_OTHER_CHART,
-  DAY_NO_TIMEFRAME])
+  DAY_NO_TIMEFRAME, LISTING_PASS_CHART_LANE])
 
 /** ⭐⭐ 2026-10-31 — THE CLOCK LEAVES THAT READ THE TIME OF DAY, not the date:
  *  the ones a 09:30 New York stamp answers differently from a 17:00 one. On a
