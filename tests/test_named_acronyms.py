@@ -123,8 +123,13 @@ def test_what_was_built_is_named_in_full_and_said_once(store, conv, clean_env, m
     r = conv.converse(f"Add {acronym.upper()}", user_id="u1", view=empty_view(0), chart=CHART)
     assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, r.get("reason")
     said = [a["text"] for a in r["envelope"]["assumptions"] if a.get("output") in {o["key"] for o in e["outputs"]}]
-    assert len(said) == 1, said                                             # once for the indicator, not once per output
-    assert said[0].startswith(f"Built to UCT's checked formula for {e['name']}"), said
+    built = [t for t in said if t.startswith("Built to UCT's checked formula")]
+    assert len(built) == 1, said                                            # once for the indicator, not once per output
+    assert built[0].startswith(f"Built to UCT's checked formula for {e['name']}"), said
+    # (2026-11-20) a library RUNNING TOTAL also carries the door's own note of where such a total starts, once;
+    # whether this entry is one is read from the LIBRARY's own formula, not from the door that adds the note
+    is_total = '"cum"' in json.dumps(e["outputs"])
+    assert [t for t in said if t not in built] == ([conv.RUNNING_TOTAL_NOTE] if is_total else []), said
     # and the record says it came from an acronym
     assert learned(last_turn()) == {"named_built": entry_id, "acronym_built": entry_id}
 
