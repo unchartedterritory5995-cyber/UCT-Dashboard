@@ -10,14 +10,18 @@
  * Also run by tests/test_chart_edge_worker_interop.py so it lands in the normal
  * pytest suite rather than waiting for someone to remember a second command.
  */
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import worker, {
   classifyRequest, SERVICE_VALID, SERVICE_EXPIRED, SERVICE_INVALID,
   classifyToken, readCookie, stripEdgeCookie,
   VALID, MISSING, EXPIRED, INVALID, isDeliberateTierShed, routeToTier, BARS_HEDGE_MS,
+  BARS_BREAKER_MS, TIER_BREAKER, makeTierBreaker,
 } from "./worker.js";
+
+// The isolate's breaker is module state: every test starts with it closed.
+beforeEach(() => TIER_BREAKER.reset());
 
 const SECRET = "test-edge-secret";
 const BARS = "https://bars-api-production-1052.up.railway.app";
@@ -479,6 +483,7 @@ test("⛔ the indicator list is EXACT — near-misses still reach the tier", asy
 
 /** Run the worker with the TIER answering `tierResponse()` (or throwing); web answers 200. */
 async function runTier(tierResponse) {
+  TIER_BREAKER.reset();
   const calls = [];
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (input) => {
@@ -598,6 +603,7 @@ test("a slow tier that still answers first after the hedge wins, and web is abor
 
 test("⛔ a tier FAILURE goes to web at once, without waiting for the hedge", async () => {
   for (const tier of [{ ms: 5, fail: true }, { ms: 5, status: 502 }, { ms: 5, status: 500 }]) {
+    TIER_BREAKER.reset();
     const f = fakeFetch({ tier, web: { ms: 5 } });
     const t0 = Date.now();
     const res = await routeToTier(f.fn, T, W, GET, { hedgeMs: 1000 });
@@ -637,4 +643,110 @@ test("both failing surfaces an error, as the sequential fallback did", async () 
 
 test("the production hedge delay sits between the tier's p99 and the old 8 s wait", () => {
   assert.ok(BARS_HEDGE_MS >= 800 && BARS_HEDGE_MS <= 2000, String(BARS_HEDGE_MS));
+});
+
+// ── the circuit breaker (2026-11-21) ────────────────────────────────────────────
+// A tier restart is ~11 s with no tier (a volume cannot be mounted twice): one hedge, not one per read.
+
+function clock(t = 1000) {
+  const c = { t };
+  c.now = () => c.t;
+  return c;
+}
+
+test("⭐⭐ a tier failure opens the breaker: the next reads go straight to web, without the hedge wait", async () => {
+  const c = clock(), br = makeTierBreaker(c.now);
+  let f = fakeFetch({ tier: { ms: 5, status: 502 }, web: { ms: 5 } });
+  assert.equal((await routeToTier(f.fn, T, W, GET, { hedgeMs: 1000, breaker: br })).headers.get("X-Bars-Edge"), "web-fallback");
+  assert.equal(br.isOpen(), true);
+  f = fakeFetch({ tier: { ms: 5000 }, web: { ms: 5 } });
+  const t0 = Date.now();
+  const res = await routeToTier(f.fn, T, W, GET, { hedgeMs: 1000, breaker: br });
+  assert.equal(res.headers.get("X-Bars-Edge"), "web-breaker");
+  assert.equal((await res.json()).who, "web");
+  assert.ok(Date.now() - t0 < 300, "waited for the hedge");
+  assert.deepEqual(f.calls.map((x) => x.who), ["web"]);                // the tier was not asked at all
+});
+
+test("⭐ a read that web won by the hedge opens it too", async () => {
+  const br = makeTierBreaker(clock().now);
+  const f = fakeFetch({ tier: { ms: 5000 }, web: { ms: 5 } });
+  assert.equal((await routeToTier(f.fn, T, W, GET, { hedgeMs: 30, breaker: br })).headers.get("X-Bars-Edge"), "web-hedge");
+  assert.equal(br.isOpen(), true);
+  assert.equal(br.opens, 1);
+});
+
+test("⛔ a slow tier that still answers first, a fast tier, and a deliberate shed never open it", async () => {
+  for (const [name, plan, hedgeMs] of [
+    ["slow tier wins", { tier: { ms: 90 }, web: { ms: 400 } }, 50],
+    ["fast tier", { tier: { ms: 5 }, web: { ms: 5 } }, 200],
+    ["deliberate shed", { tier: { ms: 5, status: 503, headers: { "Retry-After": "3", "X-Bars-Shed": "warming" } }, web: { ms: 5 } }, 200],
+  ]) {
+    const br = makeTierBreaker(clock().now);
+    const res = await routeToTier(fakeFetch(plan).fn, T, W, GET, { hedgeMs, breaker: br });
+    assert.equal(res.headers.get("X-Bars-Edge"), "tier", name);
+    assert.equal(br.isOpen(), false, name);
+  }
+});
+
+test("⭐ when the window ends the tier is asked again, and a tier that still fails re-opens it", async () => {
+  const c = clock(), br = makeTierBreaker(c.now);
+  br.open("test");
+  c.t += BARS_BREAKER_MS - 1;
+  assert.equal(br.isOpen(), true);
+  c.t += 1;
+  assert.equal(br.isOpen(), false);
+  let f = fakeFetch({ tier: { ms: 5 }, web: { ms: 5 } });
+  assert.equal((await routeToTier(f.fn, T, W, GET, { breaker: br })).headers.get("X-Bars-Edge"), "tier");
+  f = fakeFetch({ tier: { ms: 5, fail: true }, web: { ms: 5 } });
+  await routeToTier(f.fn, T, W, GET, { breaker: br });
+  assert.equal(br.isOpen(), true);
+  assert.equal(br.opens, 2);
+});
+
+test("⛔ while open, a web failure still reaches the tier's answer", async () => {
+  const br = makeTierBreaker(clock().now);
+  br.open("test");
+  for (const web of [{ ms: 5, fail: true }, { ms: 5, status: 502 }]) {
+    const f = fakeFetch({ tier: { ms: 5 }, web });
+    const res = await routeToTier(f.fn, T, W, GET, { hedgeMs: 1000, breaker: br });
+    assert.equal(res.headers.get("X-Bars-Edge"), "tier");
+    assert.equal((await res.json()).who, "tier");
+  }
+});
+
+test("⛔ a request with effects never uses the breaker (it never hedges either)", async () => {
+  const br = makeTierBreaker(clock().now);
+  br.open("test");
+  const f = fakeFetch({ tier: { ms: 5 }, web: { ms: 5 } });
+  const res = await routeToTier(f.fn, T, W, { method: "POST", headers: new Headers() }, { breaker: br });
+  assert.equal(res.headers.get("X-Bars-Edge"), "tier");
+  assert.deepEqual(f.calls.map((x) => x.who), ["tier"]);
+  const g = fakeFetch({ tier: { ms: 5, fail: true }, web: { ms: 5 } });
+  const br2 = makeTierBreaker(clock().now);
+  await routeToTier(g.fn, T, W, { method: "POST", headers: new Headers() }, { breaker: br2 });
+  assert.equal(br2.isOpen(), false, "a POST fallback opened it");
+});
+
+test("⭐ the handler shares one breaker per isolate: after a tier failure the next chart read skips the tier", async () => {
+  const first = await runTier(() => new Response("bad gateway", { status: 502 }));
+  assert.equal(first.res.headers.get("X-Bars-Edge"), "web-fallback");
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (input) => {
+    const url = typeof input === "string" ? input : input.url;
+    calls.push(url);
+    return new Response('{"bars":[]}', { status: 200 });
+  };
+  try {
+    const res = await worker.fetch(new Request("https://uctintelligence.com/api/bars/SOFI?tf=1&bars=600"), { CHART_EDGE_SECRET: SECRET });
+    assert.equal(res.headers.get("X-Bars-Edge"), "web-breaker");
+    assert.deepEqual(calls.map((u) => (u.startsWith(BARS) ? "tier" : "web")), ["web"]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});
+
+test("the breaker window is long enough to cover a measured tier restart, short enough to come back fast", () => {
+  assert.ok(BARS_BREAKER_MS >= 12000 && BARS_BREAKER_MS <= 60000, String(BARS_BREAKER_MS));
 });
