@@ -61,6 +61,8 @@ import {
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget, REFUSALS as BUDGET_REFUSALS } from './budget.js'
 import { TRADINGVIEW_CLOSURES_FROM, TRADINGVIEW_UNAPPLIED_CLOSURES } from '../../../../lib/marketClock/tradingViewSession.js'
+// ⭐⭐ Q-CLOSURE — the NYSE's full closures and the dataset's horizon (`sessionKeying`'s S2), read off the one calendar
+import { HOLIDAY_ROWS, horizon as calendarHorizon } from '../../../../lib/marketClock/sessionCalendar.js'
 import { EXACT_CMP, PINE_CMP, compareRange, compareNarrow, pineGt, pineLt, pineLe } from '../pineCompare.js'
 import { barIndexVerdict, thresholdUnknown, readsBarIndex, readsRunningTotal, FIRST_BAR_TEST } from './barIndexShift.js'
 
@@ -419,6 +421,9 @@ export const TF_MERGE_NEWEST_CODE = 'request:htf-newest-unconfirmed'
 /** ⭐ ENGINE 55 (review L2) — the bars of a `tf_merge` read that would draw the FIRST period's
  *  value from a part of it, on a chart that does not start at the listing (`tfMergeMask`). */
 export const TF_MERGE_FIRST_CODE = 'request:htf-first-period-partial'
+/** ⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) — the bars of a weekly / monthly read whose answer is the exchange's
+ *  own session calendar on a series whose sessions open the evening before (`htfVenueCalendarMask`). */
+export const HTF_VENUE_CALENDAR_CODE = 'request:htf-venue-calendar'
 
 /** ⭐ C41 — an `ltf` node names a whole number of MINUTES and nothing else. Which
  *  codes are SERVED is `engine/lowerTf.js`'s answer, given per binding as the
@@ -515,6 +520,39 @@ const INTRADAY_SPACING_S = 20 * 3600
  *  resample, the first-period, newest-period and read-before-the-chart masks, the run's request alignment). Python
  *  twin: `ast_interpret._bar_days`. */
 export function barDays(bars) {
+  return sessionKeying(bars).days
+}
+
+/** ⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) — A DAILY BAR IS KEYED TO ITS WEEK OR MONTH BY THE SESSION IT BELONGS
+ *  TO, NEVER BY THE CALENDAR DATE OF ITS OPEN. `barDays`' one source: `{days, evening, s0, unwitnessed}`.
+ *
+ *  TradingView stamps a daily bar at its SESSION OPEN. A stock's opens at 09:30 New York, so its date is its trading
+ *  day. An FX or futures session opens the EVENING BEFORE (FX:EURUSD 17:00 New York, CME_MINI:ES1! 17:00 Chicago), so
+ *  the date of its open is the day before its trading day, and a week keyed by that date holds the wrong bars: Monday's
+ *  session (opened Sunday) falls into the week before. Such a series is recognisable from its days alone (the bars
+ *  decide, not a label): it holds a Sunday bar and no Friday or Saturday bar (`eveningOpenShape`).
+ *  MEASURED (captures `vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20`, probe `vw-req-w-closure-day.pine`, the
+ *  harness's product dates): keyed by the open's date, a weekly read was wrong on 13,852 of 14,365 EURUSD bars and
+ *  7,160 of 7,386 ES1 bars; keyed as below, every look-ahead weekly open, high, low and close is TradingView's on both.
+ *    - S0: each bar is the session it opens, the NEXT day (`s0`).
+ *    - S2: a session dated on an NYSE full closure (`market_calendar.json`) whose next trading day holds no bar of its
+ *      own belongs to that next trading day: CME trades a holiday's Globex session for the next trade date and
+ *      TradingView holds no separate bar for it. ES1 2025-07-04 (opened Thursday 07-03 17:00 Chicago) is in the week of
+ *      07-07: TradingView's week closes Thursday 07-03 12:15 and the next opens with this bar. On the ES1 capture S2
+ *      moves a bar across a week 7 times (the July 4 / Juneteenth Fridays of 2009, 2014, 2015, 2020, 2025, 2026-06-19,
+ *      2026-07-03) and across a month twice (Memorial Day 2010-05-31, 2021-05-31), each where TradingView puts it. On
+ *      EURUSD it never fires: FX holds a Monday bar after every closure (Good Friday 2024's bar closes week 13 there,
+ *      1.07894, as TradingView's does).
+ *    - A carry outside what the captures witness is WITHHELD by name (`HTF_VENUE_CALENDAR_CODE`, `unwitnessed`): one
+ *      dated after `SESSION_CARRY_WITNESSED_THROUGH`, the newest bar on a closure (its next trading day is not known
+ *      yet), and, past the calendar's horizon, a bar whose next weekday holds no bar of its own.
+ *  ⛔ Any other series is untouched: an intraday one is keyed by its New York day (RULING 2), and every other daily
+ *  series keeps its dates (a stock's, a 24x7 symbol's, one stamped at midnight UTC). Python twin:
+ *  `ast_interpret._session_keying`. */
+export const SESSION_CARRY_WITNESSED_THROUGH = '2026-11-20'
+const NYSE_CLOSURE_DAYS = new Set(HOLIDAY_ROWS.map((h) => h.date))
+const NYSE_CALENDAR_THROUGH = calendarHorizon()
+function sessionKeying(bars) {
   const list = Array.isArray(bars) ? bars : []
   let intraday = false
   let prev = null
@@ -524,12 +562,55 @@ export function barDays(bars) {
     if (prev !== null && t > prev && t - prev < INTRADAY_SPACING_S) intraday = true
     prev = t
   }
-  return list.map((b) => {
+  const raw = list.map((b) => {
     const t = intraday ? epochSecondsOf(b && b.t) : null
     if (t === null) return isoDay(b && b.t)
     const [y, m, d] = civilFromDays(Math.floor((t + newYorkOffsetSeconds(t)) / 86400))
     return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   })
+  if (intraday || !eveningOpenShape(raw)) return { days: raw, evening: false, s0: raw, unwitnessed: [] }
+  const s0 = raw.map((d) => (d ? isoDayPlus(d, 1) : d))
+  const days = s0.slice()
+  const unwitnessed = []
+  for (let i = 0; i < s0.length; i++) {
+    const d = s0[i]
+    if (!d) continue
+    const newest = i + 1 >= s0.length
+    const next = newest ? null : s0[i + 1]
+    if (!newest && !next) continue
+    if (d > NYSE_CALENDAR_THROUGH) {
+      // past the horizon no closure is known: a next weekday with no bar of its own may be a carry
+      const to = isoDayPlus(d, isoWeekday(d) >= 5 ? 8 - isoWeekday(d) : 1)
+      if (newest || next > to) unwitnessed.push({ i, from: d, to })
+      continue
+    }
+    if (!NYSE_CLOSURE_DAYS.has(d)) continue
+    const to = nextNyseTradingDay(d)
+    if (newest) { unwitnessed.push({ i, from: d, to }); continue }
+    if (!(next > to)) continue
+    days[i] = to
+    if (d > SESSION_CARRY_WITNESSED_THROUGH) unwitnessed.push({ i, from: d, to })
+  }
+  return { days, evening: true, s0, unwitnessed }
+}
+/** Does a daily series hold a Sunday bar and no Friday or Saturday bar (its sessions open the evening before)? Returns
+ *  at the first Friday or Saturday, so a stock's series is decided on its first week. */
+function eveningOpenShape(days) {
+  let sunday = false
+  for (let i = 0; i < days.length; i++) {
+    const d = days[i]
+    if (!d) continue
+    const w = isoWeekday(d)
+    if (w === 5 || w === 6) return false
+    if (w === 7) sunday = true
+  }
+  return sunday
+}
+/** The next NYSE trading day after an ISO day: a weekday that is not a full closure. */
+function nextNyseTradingDay(iso) {
+  let d = isoDayPlus(iso, 1)
+  while (isoWeekday(d) > 5 || NYSE_CLOSURE_DAYS.has(d)) d = isoDayPlus(d, 1)
+  return d
 }
 
 /** ⭐⭐ RULING 2 (coordinator, 2026-11-20) — A RESAMPLER KEYS A BAR'S WEEK OR MONTH BY THE EXCHANGE'S LOCAL SESSION
@@ -6445,6 +6526,17 @@ export const CHART_CLOCK_WITHHELD = Object.freeze({
     + 'withheld rather than drawn from part of a period; every other bar is drawn, and so is a value read from the '
     + 'period\'s close alone, which is the whole period\'s. What would settle it: a chart whose history '
     + 'begins at a period\'s first session, or at the listing.',
+  // ⭐⭐ Q-CLOSURE (2026-11-21) — a week or month whose answer is the exchange's own calendar (`htfVenueCalendarMask`).
+  // ⛔ Literal key: `HTF_VENUE_CALENDAR_CODE` is declared above, the sentence is this one spelling.
+  'request:htf-venue-calendar': () => 'This indicator reads a weekly or monthly value with `request.security` on a '
+    + 'symbol whose daily sessions open the evening before (an FX pair or a futures contract), and each daily bar is '
+    + 'placed in the week or month of the session it opens (measured on FX:EURUSD and CME_MINI:ES1! daily, captures '
+    + '`vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20`). Two answers there are the exchange\'s own holiday calendar, '
+    + 'which this chart does not hold: with look-ahead off, a week or month that ends before a weekday holding no '
+    + 'session shows its close on its last bar or one bar later (on the E-mini, Good Friday went both ways in '
+    + 'different years); and a holiday\'s session moved into the next week or month by the exchange is measured only '
+    + `up to ${SESSION_CARRY_WITNESSED_THROUGH}. The bars whose value depends on either are withheld rather than `
+    + 'guessed; every other bar is drawn. What would settle it: a capture of this symbol that holds those dates.',
   // ⭐⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — the first period of a `tf_live` read, off the listing (see
   // `tfLiveMask`); the run's request names the same code with the same sentence (`tfLiveFirstPeriodMask`).
   'request:htf-lookahead-first-period-partial': () => TF_LIVE_FIRST_SENTENCE,
@@ -7695,6 +7787,8 @@ export function withheldReadMask(tree, bars, inputs, budget, scalars, opts, colu
     tfMergeMask(tree, bars, opts, inputs, budget, scalars),
     // ⭐⭐ HTF-LIVE-FIRST-PERIOD — a look-ahead read of a period built from part of it
     tfLiveMask(tree, bars, opts, inputs, budget, scalars),
+    // ⭐⭐ Q-CLOSURE — a weekly / monthly read whose answer is the exchange's own calendar (evening-open sessions)
+    htfVenueCalendarMask(tree, bars, opts, inputs, budget, scalars),
     windowHoleMask(tree, bars, inputs, budget, scalars, opts),
     // ⭐⭐ ENGINE 56 — the two per-bar witness masks (A3, S4-2)
     boolNaMask(tree, bars, inputs, budget, scalars, opts),
@@ -8283,6 +8377,111 @@ export function tfLiveMask(tree, bars, opts, inputs = {}, budget = undefined, sc
   if (!mask) return null
   nameChartClock(opts, [TF_LIVE_FIRST_CODE], opts && opts.tf)
   return mask
+}
+
+/** ⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) — THE BARS OF A WEEKLY OR MONTHLY READ WHOSE ANSWER IS THE EXCHANGE'S
+ *  OWN SESSION CALENDAR, on a series whose sessions open the evening before (`sessionKeying`), as a 0/1 column
+ *  (1 = withheld), or null when no bar is. Named `HTF_VENUE_CALENDAR_CODE`. A SITE is a `tf` / `tf_live` / `tf_merge` read
+ *  under no other request (its own bars are the ones below), or a `sym` read holding one over a series of that shape
+ *  (every bar: its keying is that series', not this chart's). Which ROOT bars read a site's bars is engine 56's walk
+ *  (`witnessMask`): `x[k]` moves them k bars later. A site's own bars:
+ *    - THE VENUE'S CLOSE (`tf_merge`, `W` / `M`): the bar that closes a period ending before a weekday no session of
+ *      the series opened (none is keyed to it by S0). With look-ahead off TradingView shows the period's close on that
+ *      bar or on the next one by the venue's calendar, which is not this chart's: on the ES1 capture the week before
+ *      Good Friday closed on its Thursday in 2009, 2011, 2022, 2024 and 2025 and one bar later in 2013, 2014 and
+ *      2016-2020; on EURUSD the Christmas weeks of 2009 and 2015 one bar later, 2020's on its Thursday. A weekday whose
+ *      session S2 carried into the next period IS held (TradingView's week ends before it: ES1 2025-07-03, all 7 such
+ *      weeks on their last bar), so that close is drawn.
+ *    - AN UNWITNESSED CARRY (`sessionKeying`'s `unwitnessed`): a read of either period the carry may touch, and of every
+ *      later one when the read's child is more than a field (a window or a running value over it).
+ *  Python twin: `ast_interpret.htf_venue_calendar_mask`. */
+export function htfVenueCalendarMask(tree, bars, opts, inputs = {}, budget = undefined, scalars = undefined) {
+  const n = Array.isArray(bars) ? bars.length : 0
+  if (!n) return null
+  const direct = []
+  const syms = []
+  const stack = [[tree, false]]
+  const seen = new Set()
+  while (stack.length) {
+    const [node, under] = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    const htf = node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE
+    if (htf && !under) direct.push(node)
+    if (node.type === 'sym' && !under && holdsHtfRead(node)) syms.push(node)
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push([a, under || SCOPE_TYPES.has(node.type)])
+  }
+  if (!direct.length && !syms.length) return null
+  const own = new Map()
+  const supplied = (opts && opts.symbols) || {}
+  for (const node of syms) {
+    const series = supplied[String(node.value).trim().toUpperCase()]
+    if (Array.isArray(series) && series.length && sessionKeying(series).evening) own.set(node, new Float64Array(n).fill(1))
+  }
+  if (direct.length) {
+    const k = sessionKeying(bars)
+    if (k.evening && k.days.every((d) => d)) {
+      for (const node of direct) {
+        const m = venueCalendarBars(node, bars, k)
+        if (m) own.set(node, m)
+      }
+    }
+  }
+  if (!own.size) return null
+  return witnessMask(tree, bars, inputs, budget, scalars, opts, (nd) => own.has(nd), (nd) => Float64Array.from(own.get(nd)),
+    HTF_VENUE_CALENDAR_CODE)
+}
+/** Does a request's subtree hold a weekly / monthly read? */
+function holdsHtfRead(top) {
+  const stack = [top]
+  const seen = new Set()
+  while (stack.length) {
+    const node = stack.pop()
+    if (!node || typeof node !== 'object' || seen.has(node)) continue
+    seen.add(node)
+    if (node !== top && (node.type === 'tf' || node.type === 'tf_live' || node.type === TF_MERGE)) return true
+    if (Array.isArray(node.args)) for (const a of node.args) stack.push(a)
+  }
+  return false
+}
+/** One site's own bars (see `htfVenueCalendarMask`), or null. `k` is `sessionKeying(bars)` of an evening-open series. */
+function venueCalendarBars(node, bars, k) {
+  const n = bars.length
+  const code = String(node.value)
+  const isos = k.days
+  const { at } = resampleTo(bars, isos, code)
+  const own = isos.map((d) => at.get(tfBucket(d, code)))
+  const reads = node.type === 'tf_live' ? tfLiveReads(isos, code, at)
+    : node.type === TF_MERGE ? tfMergeReads(isos, code, at) : own.map((b) => (b > 0 ? b - 1 : -1))
+  let out = null
+  const flag = (i) => { if (!out) out = new Float64Array(n); out[i] = 1 }
+  if (node.type === TF_MERGE && (code === 'W' || code === 'M')) {
+    const held = new Set(k.s0)
+    for (let i = 0; i + 1 < n; i++) {
+      if (own[i + 1] === own[i]) continue
+      const key = tfBucket(isos[i], code)
+      for (let d = isoDayPlus(isos[i], 1); tfBucket(d, code) === key; d = isoDayPlus(d, 1)) {
+        if (isoWeekday(d) <= 5 && !held.has(d)) { flag(i); break }
+      }
+    }
+  }
+  const touched = []
+  for (const c of k.unwitnessed) {
+    const a = tfBucket(c.from, code)
+    const b = tfBucket(c.to, code)
+    if (a === b) continue
+    for (const key of [a, b]) if (at.has(key)) touched.push(at.get(key))
+  }
+  if (touched.length) {
+    const child = node.args && node.args[0]
+    const field = !!child && child.type === 'series'
+    const first = Math.min(...touched)
+    for (let i = 0; i < n; i++) {
+      const r = reads[i]
+      if (r >= 0 && (field ? touched.includes(r) : r >= first)) flag(i)
+    }
+  }
+  return out
 }
 
 /** ⭐ REQ — THE NEWEST BAR OF A LOOK-AHEAD READ, UNLESS IT IS KNOWN FINISHED: a forming daily bar reads the
@@ -9384,6 +9583,8 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
     code !== null && !liveRead ? tfMergeMask(tree, chartBars, o) : null,
     liveRead && o.curtained !== true ? tfLiveFirstPeriodMask(chartBars, code, o) : null,
     liveRead ? tfLiveFormingMask(chartBars, o) : null,
+    // ⭐⭐ Q-CLOSURE — the host's own withholding of a week or month the exchange's calendar decides
+    code !== null ? htfVenueCalendarMask(tree, chartBars, o) : null,
     sym !== null ? symAlignmentMask(tree, chartBars, o) : null,
   ].filter(Boolean)
   const withheld = new Float64Array(n)
