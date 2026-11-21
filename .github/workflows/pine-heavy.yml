@@ -390,8 +390,10 @@ jobs:
             TESTS="$(python "$CI_TOOLS/tools/pine_test_census.py" --root . --shard "$CENSUS")"
             echo "census shard $CENSUS: $(echo $TESTS | wc -w) files" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+          # --continue-on-collection-errors: one file that fails to IMPORT is reported and the leg still fails, but it no
+          # longer stops every other file in the leg (2026-11-20: a collection error in census shard 1 ran 0 of its 49)
           # shellcheck disable=SC2086
-          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest $TESTS -q -p no:cacheprovider -rfE || rc=$?
+          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest $TESTS -q -p no:cacheprovider -rfE --continue-on-collection-errors || rc=$?
           echo "LEG pytest-${{ matrix.leg }} wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $rc
 

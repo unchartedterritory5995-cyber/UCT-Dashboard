@@ -291,6 +291,11 @@ def test_the_census_legs_split_the_census_exactly_once_and_overlap_no_other_leg(
         "the census shards are not a partition of the census")
     others = set().union(*[f for name, f in files.items() if name not in legs])
     assert not (census & others), f"files run twice (a census leg and a `tests:` leg): {sorted(map(_rel, census & others))}"
+    # one file that fails to import must not hide a shard: 2026-11-20 a collection error ran 0 of shard 1's 49 files
+    commands = [l for r in _runs(_wf()["jobs"]["pytest"]) for l in r.splitlines()
+                if "-m pytest" in l and not l.lstrip().startswith("#")]
+    assert commands and all("--continue-on-collection-errors" in l for l in commands), (
+        "the pytest legs stop at the first collection error: every other file in that leg goes unrun")
 
 
 def test_what_the_census_files_import_triggers_pine_heavy():
