@@ -33,6 +33,12 @@ admits the unbounded shape.
 | Q-HTF-FORM2-d | `vw-request-htf-forming-v2.pine` | AMEX:SPY 1D, NYSE:RDDT 1D | the next morning before the open, a fresh load: F13 = 0, F01 / F02 the last confirmed periods, F06 (the settled `x[1]`) and F10 / F16 on the newest bar | no | preopen |
 | Q-HTF-FORM2-e | `vw-request-htf-forming-v2.pine` | AMEX:SPY 5 | during regular hours: a weekly and a monthly read on an intraday chart, whose newest bar is always inside its week | yes | insession |
 | Q-HTF-FORM2-f | `vw-request-htf-forming-v2.pine` | AMEX:SPY 1W | during regular hours, the newest weekly bar forming: the monthly read (F02 / F04) on a weekly chart; F01 / F03 are the chart's own period | yes | insession |
+| Q-HTF-FORM2-g | `vw-htf-table-j06.pine` | AMEX:SPY 1D | during regular hours, the newest daily bar forming: the object program's TABLE reading another timeframe (the assistant's recorded j06, verbatim). Each cell's text on the newest bar: the 10 week and 10 month MA as `wMA[1]` / `mMA[1]` (on a daily chart, YESTERDAY's value of the developing week / month), and ABOVE / BELOW against the forming close | yes | insession |
+
+**Row g (coordinator ruling 2026-11-21).** The object program draws a table like the assistant's j06 all session,
+while `request-other` is admitted for closed-bar history only, so its in-session values are ungraded. The probe
+`vw-htf-table-j06.pine` is j06's recorded text, verbatim except its `UCTPROBE_` title. Its capture is the witness either
+way.
 
 **What each answer moves.** The same as v1's rows. On top of that, F10 and F16 witness what a bounded state and a
 summed window over a forming weekly read show on the newest bar, on both lanes.
