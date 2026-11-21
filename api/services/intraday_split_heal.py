@@ -65,7 +65,11 @@ its own bounded transaction (`_max_rows`, held_ms logged).
 Modes: `INTRADAY_SPLIT_HEAL_MODE=report` (DEFAULT) plans and logs
 `[intraday-split-heal] WOULD-RESCALE <tk> tfs=<tf> boundary=<ts> ratio=<r> rows=<n>` and
 counts would-be stamps (`STATS`), writing NOTHING (no rows, no stamps: the served adj_basis
-stays null, clients fall back to their ratio test); `write` applies. Hard off:
+stays null, clients fall back to their ratio test); `write` applies ONLY what
+`INTRADAY_SPLIT_HEAL_ALLOW` lists (`allowlist`; unset = nothing is written, "*" = every proven
+plan) and logs the rest as `WOULD-RESCALE ... (not allowlisted: ...)`. Every rescale keeps the exact
+pre-image of each row it touches (`bars_sqlite.split_heal_undo`, same transaction); revert one
+heal with `python -m api.services.intraday_split_heal undo TICKER TF` (compare-and-set). Hard off:
 `INTRADAY_SPLIT_HEAL_ENABLED=0` — no checks at all.
 """
 from __future__ import annotations
@@ -100,7 +104,54 @@ _checked: dict[tuple, float] = {}
 #: D2: intraday RTH close / stored daily close for one date — the same price to this much.
 _DAILY_TOL = 0.03
 #: Process counters (ops / tests): plans logged in report mode and writes in write mode.
-STATS = {"would_rescale": 0, "would_stamp": 0, "rescaled": 0, "stamped": 0}
+STATS = {"would_rescale": 0, "would_stamp": 0, "rescaled": 0, "stamped": 0, "not_allowlisted": 0}
+
+#: ⛔ WRITE MODE IS ALLOWLIST-SCOPED (2026-11-21). `INTRADAY_SPLIT_HEAL_ALLOW`, per process,
+#: entries separated by commas or spaces:
+#:   TICKER:TF:BOUNDARY_TS:RATIO:MAX_ROWS  a rescale exactly as audited (the WOULD-RESCALE line's
+#:                                         boundary and ratio; MAX_ROWS = its rows=, the most rows
+#:                                         before the boundary it may touch)
+#:   TICKER:TF                             the series' stamp-only writes (adj_basis, no rows)
+#:   *                                     every proven plan (the behaviour before this guard)
+#: A full entry also allows its series' stamp. Unset or empty: WRITE MODE WRITES NOTHING (fail
+#: closed). A malformed entry allows nothing. Rails: tests/test_intraday_split_heal_undo_allowlist.py.
+ALLOW_ENV = "INTRADAY_SPLIT_HEAL_ALLOW"
+_RATIO_MATCH = 1e-5          # the log prints %.6g: 1/15 reads 0.0666667
+
+
+def allowlist() -> dict:
+    """{"all": bool, "series": {(TICKER, tf)}, "rescale": {(TICKER, tf): [(boundary, ratio, max_rows)]}}."""
+    out = {"all": False, "series": set(), "rescale": {}}
+    for raw in os.environ.get(ALLOW_ENV, "").replace(",", " ").split():
+        if raw == "*":
+            out["all"] = True
+            continue
+        parts = raw.split(":")
+        try:
+            if len(parts) == 2 and parts[0] and parts[1]:
+                out["series"].add((parts[0].upper(), parts[1]))
+            elif len(parts) == 5 and parts[0] and parts[1]:
+                key = (parts[0].upper(), parts[1])
+                out["rescale"].setdefault(key, []).append((int(parts[2]), float(parts[3]), int(parts[4])))
+                out["series"].add(key)
+        except ValueError:
+            continue                  # malformed: allows nothing
+    return out
+
+
+def _not_allowed(allow: dict, tk: str, tf: str, plan: dict, rows_before: dict):
+    """None when `allow` permits writing this series' plan, else why not."""
+    if allow["all"]:
+        return None
+    key = (tk.upper(), str(tf))
+    if key not in allow["series"]:
+        return "series not listed"
+    for step_ts, r in plan.get("rescale") or ():
+        n = int(rows_before.get(step_ts, 0))
+        if not any(b == int(step_ts) and abs(float(r) / er - 1.0) <= _RATIO_MATCH and n <= mx
+                   for b, er, mx in allow["rescale"].get(key, ())):
+            return f"no entry for boundary={int(step_ts)} ratio={float(r):.6g} rows<={n}"
+    return None
 
 
 def enabled() -> bool:
@@ -515,6 +566,24 @@ def heal_ticker(ticker: str, *, splits: Optional[Sequence] = None,
         for p in res:
             p.setdefault("status", "unchanged")
         return res
+    # ⛔ WRITE is ALLOWLIST-SCOPED (2026-11-21): only a plan INTRADAY_SPLIT_HEAL_ALLOW names is
+    # written; every other one is reported exactly as in report mode, marked "not allowlisted".
+    allow = allowlist()
+    for tf in list(plans):
+        why = _not_allowed(allow, tk, tf, plans[tf], per[tf].get("rescale_rows") or {})
+        if why is None:
+            continue
+        plan = plans.pop(tf)
+        per[tf]["status"] = "not-allowlisted"
+        STATS["not_allowlisted"] += 1
+        for step_ts, r in plan["rescale"]:
+            _log.warning("[intraday-split-heal] WOULD-RESCALE %s tfs=%s boundary=%d ratio=%.6g rows=%d "
+                         "(not allowlisted: %s)", tk, tf, step_ts, r,
+                         per[tf].get("rescale_rows", {}).get(step_ts, 0), why)
+    if not plans:
+        for p in res:
+            p.setdefault("status", "unchanged")
+        return res
     out = bars_sqlite.apply_split_basis(tk, plans)
     for tf, r in out["by_tf"].items():
         per[tf]["status"] = r["status"]
@@ -544,3 +613,32 @@ def heal_series(ticker: str, tf: str, *, splits: Optional[Sequence] = None,
     """`heal_ticker` for one tf (tests / ops)."""
     res = heal_ticker(ticker, splits=splits, tfs=(tf,), as_of=as_of)
     return res[0] if res else {"ticker": ticker.upper(), "tf": tf, "cliffs": [], "written": 0}
+
+
+def _cli(argv: Sequence[str]) -> int:
+    """Ops, on the pod (2026-11-21):
+      python -m api.services.intraday_split_heal list TICKER TF
+      python -m api.services.intraday_split_heal undo TICKER TF [HEALED_AT_MS]
+    `undo` reverts one heal by compare-and-set (`bars_sqlite.undo_split_basis`) and drops the
+    series' served caches. ⚠️ Take the series out of INTRADAY_SPLIT_HEAL_ALLOW first, or the next
+    serve plans the same rescale again. Exit 0 = done, 1 = nothing done, 2 = usage."""
+    import json as _json
+    from api.services import bars_sqlite
+    if len(argv) < 3 or argv[0] not in ("list", "undo"):
+        print(_cli.__doc__)
+        return 2
+    cmd, tk, tf = argv[0], argv[1].upper(), str(argv[2])
+    if cmd == "list":
+        heals = bars_sqlite.list_split_heals(tk, tf)
+        print(_json.dumps(heals, indent=1))
+        return 0 if heals else 1
+    out = bars_sqlite.undo_split_basis(tk, tf, int(argv[3]) if len(argv) > 3 else None)
+    if out["restored"]:
+        _invalidate_served_caches(tk, [tf])
+    print(_json.dumps(out))
+    return 0 if out["status"] == "reverted" else 1
+
+
+if __name__ == "__main__":
+    import sys as _sys
+    _sys.exit(_cli(_sys.argv[1:]))
