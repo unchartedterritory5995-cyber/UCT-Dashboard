@@ -8059,8 +8059,8 @@ function StockChartBody({
   const presentBtnElRef = useRef(null)
   useEffect(() => {
     if (!lastBarOff || !chartReady) return undefined
-    let raf = 0, alive = true
     const BTN = 26, GAP = 9
+    let alive = true
     const position = () => {
       const el = presentBtnElRef.current
       const chart = chartRef.current
@@ -8105,9 +8105,26 @@ function StockChartBody({
       el.style.right = 'auto'
       el.style.bottom = 'auto'
     }
-    const loop = () => { if (!alive) return; position(); raf = requestAnimationFrame(loop) }
-    loop()
-    return () => { alive = false; cancelAnimationFrame(raf) }
+    // ⭐ (2026-11-21, the switch-task trace) MEASURED AFTER PAINT, AND ONLY WHILE SOMETHING MOVES. This was an
+    // unconditional per-frame loop whose first pass ran inside the commit and whose every pass read layout at the
+    // start of a frame (`clientWidth` / `getBoundingClientRect` after the frame's DOM writes: a forced layout per
+    // frame, ~4.4 per switch on the owner's board). It now runs in the slot right after a paint, where layout is
+    // already clean, through the adaptive loop (every frame while the placement changes, a safety pass when
+    // still; a pan or a data change wakes it). The button lands one frame after it appears, where it was going.
+    const afterPaint = (fn) => {
+      const h = { t: 0, f: 0 }
+      h.f = requestAnimationFrame(() => { h.f = 0; h.t = setTimeout(fn, 0) })
+      return h
+    }
+    const cancelAfterPaint = (h) => { if (!h) return; if (h.f) cancelAnimationFrame(h.f); if (h.t) clearTimeout(h.t) }
+    const fl = createAdaptiveFrameLoop({
+      tick: () => { if (!alive) return null; position(); const el = presentBtnElRef.current; return el ? `${el.style.left}|${el.style.top}` : null },
+      raf: afterPaint, caf: cancelAfterPaint,
+    })
+    let startH = afterPaint(() => { startH = null; if (alive) fl.start() })
+    const wake = () => fl.wake()
+    const unsubRange = onVisibleLogicalRange(chartRef.current, wake)
+    return () => { alive = false; cancelAfterPaint(startH); fl.stop(); try { unsubRange() } catch { /* gone */ } }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastBarOff, chartReady])
   const buildRegionSections = useCallback((region, clickPrice) => {
@@ -19276,6 +19293,14 @@ function StockChartBody({
     if (!chart || !canvas) return
     const vpCfg = cs.indicators?.volumeProfile
     const series = candleSeriesRef.current
+    // ⭐ (2026-11-21, the switch-task trace) OFF IS NOTHING. With the profile off this effect still measured the
+    // container (`offsetWidth` / `offsetHeight`: a forced layout inside every switch's commit, ~2.6 per switch on the
+    // owner's board), resized the canvas, cleared it, and subscribed a redraw to every pan. Off now clears what an
+    // earlier "on" drew, once, and stops: a profile switched on re-runs this effect (its config is a dependency).
+    if (!vpCfg?.enabled) {
+      if (canvas.width || canvas.height) { canvas.width = 0; canvas.height = 0 }
+      return undefined
+    }
 
     // Resize canvas to match container — and KEEP matching it. ⚠️ It used to be
     // sized only when the profile config or the bars changed, so any container
