@@ -17,6 +17,7 @@ import { resolvePlacement } from './placement'
 import { createFakeChart, makeBars } from './__tests__/fakeChart'
 import { __setPaneModeForTest, computePaneLayout, SEPARATOR_PX } from './paneLayout'
 import * as nativeRegistry from './nativeRegistry'
+import { __setNeighborFramesForTests } from '../neighborFrames'
 
 const N = 3200
 const START = 1200                       // the window's first row: 2,000 rows drawn
@@ -127,5 +128,33 @@ describe('with a window', () => {
   })
   it('a start before the first bar changes nothing', () => {
     for (const [key, pts] of handed(bind({ plotWindowFrom: bars[0].t - 86400 }))) expect(pts, key).toHaveLength(N)
+  })
+})
+
+// ─── ⭐ (2026-11-20) WHAT THE BINDER BUILDS, NOT ONLY WHAT IT HANDS OVER ────────────────────────────────────────────
+// A switch onto a 30,000-bar row used to build a point for every bar of every line and then cut all but the window's
+// rows off. The points are now built from the window's first bar: the same rows, the same points (the cases above),
+// for a fraction of the work. With neighbour frames off every built point stamps its own time through `adjustTime`,
+// so counting its calls counts the points made.
+describe('the points a line is built from', () => {
+  afterEach(() => __setNeighborFramesForTests(null))
+  const counted = (extra) => {
+    __setNeighborFramesForTests(false)
+    let n = 0
+    const adjustTime = (t) => { n += 1; return t }
+    const run = bind({ adjustTime, ...extra })
+    return { n, run, lines: run.binder.bindings().length }
+  }
+  it('with no window: one point per bar per line', () => {
+    const { n, lines } = counted({})
+    expect(lines).toBeGreaterThanOrEqual(5)
+    expect(n).toBe(lines * N)
+  })
+  it('with a window: one point per DRAWN bar per line (and the few times the window start is searched for)', () => {
+    const { n, lines, run } = counted({ plotWindowFrom: bars[START].t })
+    const built = lines * (N - START)
+    expect(n).toBeGreaterThanOrEqual(built)
+    expect(n - built, 'points were built for bars the renderer is never handed').toBeLessThanOrEqual(2 * Math.ceil(Math.log2(N)))
+    for (const [key, pts] of handed(run)) expect(pts, key).toHaveLength(N - START)
   })
 })

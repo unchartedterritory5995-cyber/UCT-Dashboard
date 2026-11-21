@@ -14,8 +14,14 @@
 // switch then hands `sync` what StockChart hands it: `deriveSession(legacyBars(snapshot))`, the plot window
 // (`plotWindowRows` / `plotWindowStart`) and the render window (`renderWindowRows`).
 //
-// ⛔ A MEASUREMENT, NOT A RAIL. The asserts are on what was computed (counts), never on milliseconds; the
-// numbers are printed, and written to remote-out/ when this runs on the `remote tests` lane.
+// Two halves. The RAIL (every run, a few thousand rows): a prepared row's switch computes nothing and takes every
+// instance's columns from the store, an unprepared row's computes every instance. The MEASUREMENT (12,000 / 30,000
+// rows, only on the `remote tests` lane or with BINDER_SWITCH_BENCH=1): the same assertions, plus timings and CPU
+// profiles, printed and written to remote-out/binder-switch-cost.json. ⛔ Nothing asserts on milliseconds.
+//
+// ⚠️ Read a profile as SHAPE, not as a production number: vitest resolves lightweight-charts' DEVELOPMENT build,
+// whose per-item checks (`checkLineItem`, `checkSeriesValuesType`, `checkItemsAreOrdered`) the production build
+// does not run, under jsdom, on a CI runner.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -172,7 +178,8 @@ function addProfile(agg, profile) {
     const n = byId.get(id)
     const cf = n.callFrame
     const file = cf.url ? path.basename(cf.url.split('?')[0]) : `(${cf.functionName || 'native'})`
-    if (file === '(idle)' || file === '(program)') continue
+    // the profiler's own frames (its start / stop round trips) are not the sync's
+    if (file === '(idle)' || file === '(program)' || file === '(dispatch)' || file === '(root)') continue
     agg.total += ms
     agg.byFile.set(file, (agg.byFile.get(file) || 0) + ms)
     const fk = `${cf.functionName || '(anon)'} ${file}:${cf.lineNumber + 1}`
@@ -187,7 +194,10 @@ const drain = (g) => { for (const _ of g) { /* each idle piece */ } }
 
 /**
  * One chart scanning `rows` rows of `tf`: each switch prepared (prepareRow rank 0, as the next row ahead) or not.
- * @returns {{ms: {prepared: number[], cold: number[]}, computed: object, stats: object, profile: object}}
+ * A row's server envelopes land just before the chart reaches it (as `serverWarm` lands the rows ahead), never all
+ * up front: the lane's cache is bounded (`CACHE_MAX_CELLS`), and a first draft that primed every row at the start
+ * had the oldest rows' RS envelopes evicted before the scan reached them (a server-lane MISS on those switches).
+ * @returns {{ms: {prepared: number[], cold: number[]}, idleMs: number[], computed: object, stats: object, profile: object}}
  */
 async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = 'alternate' }) {
   snaps.clear()
@@ -199,10 +209,9 @@ async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = '
   const syms = Array.from({ length: rows + warmup + 1 }, (_, i) => `S${String(i).padStart(3, '0')}`)
   syms.forEach((s, i) => {
     const key = keyOf(s, tf)
-    const snap = Object.freeze({ key, tf, bars: rowBars(tf, n, i + 1), developing: null, baseRev: 1, status: 'current', restSeen: true })
-    snaps.set(key, snap)
-    primeServer(s, tf, legacyBars(snap))
+    snaps.set(key, Object.freeze({ key, tf, bars: rowBars(tf, n, i + 1), developing: null, baseRev: 1, status: 'current', restSeen: true }))
   })
+  const land = (sym) => primeServer(sym, tf, legacyBars(snaps.get(keyOf(sym, tf))))
 
   const calls = []
   const registry = { ...nativeRegistry, computeFor: (def, ...r) => { calls.push(def.id); return nativeRegistry.computeFor(def, ...r) } }
@@ -251,12 +260,19 @@ async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = '
     return { ms, calls: [...calls], delta, prof, filtered }
   }
 
-  const out = { ms: { prepared: [], cold: [] }, computed: { prepared: {}, cold: {} }, stats: { prepared: [], cold: [] }, profile: { prepared: profAgg(), cold: profAgg() }, series: 0 }
+  const out = { ms: { prepared: [], cold: [] }, idleMs: [], computed: { prepared: {}, cold: {} }, stats: { prepared: [], cold: [] }, profile: { prepared: profAgg(), cold: profAgg() }, series: 0 }
+  land(syms[0])
   await arrive(syms[0], false)
   for (let i = 1; i < syms.length; i++) {
     const sym = syms[i]
+    land(sym)
     const prep = prepare === 'all' || (prepare === 'alternate' && i % 2 === 0)
-    if (prep) drain(prepareRow(sym, 0, pctx))
+    if (prep) {
+      // the idle work, whole (the idle queue runs it in pieces): what preparing one row costs
+      const t0 = performance.now()
+      drain(prepareRow(sym, 0, pctx))
+      if (i > warmup) out.idleMs.push(performance.now() - t0)
+    }
     const r = await arrive(sym, i > warmup)
     if (i <= warmup) continue
     const lane = prep ? 'prepared' : 'cold'
@@ -287,39 +303,64 @@ function report(label, r) {
       topSelf: top(r.profile[k].bySelf, 30, runs),
     }
   }
-  RESULTS[label] = { series: r.series, prepared: lane('prepared'), cold: lane('cold') }
-  console.log(`[binder switch cost] ${label}: series=${r.series} prepared median ${RESULTS[label].prepared.medianMs} ms (p90 ${RESULTS[label].prepared.p90Ms}), cold median ${RESULTS[label].cold.medianMs} ms (p90 ${RESULTS[label].cold.p90Ms})`)
+  RESULTS[label] = {
+    series: r.series, prepared: lane('prepared'), cold: lane('cold'),
+    idlePrepareMedianMs: +median(r.idleMs).toFixed(2), idlePrepareAllMs: r.idleMs.map((x) => +x.toFixed(2)),
+  }
+  const R0 = RESULTS[label]
+  console.log(`[binder switch cost] ${label}: series=${r.series} prepared median ${R0.prepared.medianMs} ms (p90 ${R0.prepared.p90Ms}), `
+    + `cold median ${R0.cold.medianMs} ms (p90 ${R0.cold.p90Ms}), idle prepare median ${R0.idlePrepareMedianMs} ms`)
+}
+
+/** Every switch to a prepared row took every instance's columns (and the plots' points) from the store and computed
+ *  nothing; every switch to an unprepared row computed every instance. */
+function expectHits(r, tf) {
+  const instances = MIXED(tf).length
+  expect(r.ms.prepared.length, 'no prepared switch: vacuous').toBeGreaterThan(0)
+  expect(r.ms.cold.length, 'no cold switch: vacuous').toBeGreaterThan(0)
+  for (const s of r.stats.prepared) {
+    expect(s.colsHit).toBe(instances)
+    expect(s.colsMissed).toBe(0)
+    expect(s.pointsHit).toBeGreaterThan(0)
+  }
+  expect(r.computed.prepared).toEqual({})
+  expect(Object.values(r.computed.cold).reduce((a, b) => a + b, 0)).toBe(instances * r.ms.cold.length)
 }
 
 afterAll(() => {
-  if (process.env.GITHUB_WORKFLOW !== 'remote tests') return
+  if (!Object.keys(RESULTS).length || process.env.GITHUB_WORKFLOW !== 'remote tests') return
   const dir = path.resolve(process.cwd(), '..', 'remote-out')
   fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(path.join(dir, 'binder-switch-cost.json'), JSON.stringify(RESULTS, null, 1))
 })
 
-describe('a list flip on the mixed set', () => {
-  it('daily, 12,000 rows: a prepared row computes nothing on the switch; an unprepared one computes every instance', async () => {
-    const r = await scan({ tf: 'D', n: 12_000, profile: false })
-    report('D12000', r)
-    const instances = MIXED('D').length
-    // every switch to a prepared row took every column set from the store
-    for (const s of r.stats.prepared) expect(s.colsHit).toBe(instances)
-    expect(r.computed.prepared).toEqual({})
-    for (const s of r.stats.prepared) expect(s.pointsHit).toBeGreaterThan(0)
-    // …and every switch to an unprepared one computed them all
-    expect(Object.values(r.computed.cold).reduce((a, b) => a + b, 0)).toBe(instances * r.ms.cold.length)
-  }, 240_000)
+// ─── the rail: a list flip through `prepareRow` HITS, on the real library (a few thousand rows: seconds) ──────────
+describe('a list flip on the mixed set, through the chart\'s own preparer', () => {
+  it('daily, under a plot window: a prepared row computes nothing; an unprepared one computes every instance', async () => {
+    expectHits(await scan({ tf: 'D', n: 3600, rows: 4, warmup: 1 }), 'D')
+  }, 60_000)
+  it('60m (the session filter, the server lane keyed on the forming flag): the same', async () => {
+    expectHits(await scan({ tf: '60', n: 3600, rows: 4, warmup: 1 }), '60')
+  }, 60_000)
+})
 
-  it('daily, 12,000 rows: where a switch spends its time (CPU profile of the syncs alone)', async () => {
+// ─── the measurement: 12,000 daily / 30,000 hourly rows, timed and profiled (the `remote tests` lane, or by hand) ──
+const BENCH = process.env.GITHUB_WORKFLOW === 'remote tests' || process.env.BINDER_SWITCH_BENCH === '1'
+describe.runIf(BENCH)('binder.sync on a list flip: the numbers', () => {
+  it('daily, 12,000 rows: timed', async () => {
+    const r = await scan({ tf: 'D', n: 12_000 })
+    report('D12000', r)
+    expectHits(r, 'D')
+  }, 240_000)
+  it('daily, 12,000 rows: where a switch spends its time (a CPU profile of the syncs alone)', async () => {
     report('D12000.profile', await scan({ tf: 'D', n: 12_000, profile: true, rows: 10 }))
   }, 240_000)
-
-  it('60m, 30,000 rows: prepared and not, timed and profiled', async () => {
-    const r = await scan({ tf: '60', n: 30_000, profile: false, rows: 10 })
+  it('60m, 30,000 rows: timed', async () => {
+    const r = await scan({ tf: '60', n: 30_000, rows: 10 })
     report('60m30000', r)
-    const instances = MIXED('60').length
-    for (const s of r.stats.prepared) expect(s.colsHit).toBe(instances)
+    expectHits(r, '60')
+  }, 300_000)
+  it('60m, 30,000 rows: profiled', async () => {
     report('60m30000.profile', await scan({ tf: '60', n: 30_000, profile: true, rows: 8 }))
   }, 300_000)
 })

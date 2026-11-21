@@ -64,11 +64,11 @@ const barsB = makeBars(320, 1_690_000_000).map((b, i) => ({ ...b, c: b.c * 1.3 +
  * The control: switch OFF, A then B. Returns what the B sync handed the renderer.
  * @returns {Array}
  */
-function control({ instances, bars1 = barsA, bars2 = barsB, sym2 = 'BBB', ctx2 = {} }) {
+function control({ instances, bars1 = barsA, bars2 = barsB, sym2 = 'BBB', ctx1 = {}, ctx2 = {} }) {
   __setNeighborFramesForTests(false)
   const fake = createFakeChart()
   const b = createBinder({ chart: fake.chart, LWC: fake.LWC })
-  b.sync(ctxFor({ registry: nativeRegistry, instances, bars: bars1 }))
+  b.sync({ ...ctxFor({ registry: nativeRegistry, instances, bars: bars1 }), ...ctx1 })
   fake.reset()
   b.sync(ctxFor({ registry: nativeRegistry, instances, bars: bars2, sym: sym2, ...ctx2 }))
   return handed(fake)
@@ -186,6 +186,63 @@ describe('a 13,000-bar row', () => {
     b.sync(ctxFor({ registry: nativeRegistry, instances: MIXED(), bars: long2, sym: 'BBB' }))
     expect(handed(fake)).toEqual(want)
     expect(neighborFramesStats().pointsHit).toBeGreaterThan(0)
+  })
+})
+
+// ─── ⭐ (2026-11-20) a row prepared under a PLOT WINDOW: its points are the rows the switch will draw ──────────────────
+// The chart hands each line only the bars from its window start on (`ctx.plotWindowFrom`, `plotWindow.js`). `prepare`
+// makes the points of as many of the newest bars as the last sync drew, and a window step more, never every bar;
+// a switch that draws from further back than that (the member zoomed out) builds its own. Either way the renderer
+// is handed exactly what the control hands it.
+describe('a 13,000-bar row prepared under a 2,000-row plot window', () => {
+  const long1 = makeBars(13_000, 1_000_000_000)
+  const long2 = makeBars(13_200, 900_000_000).map((b, i) => ({ ...b, c: b.c + Math.sin(i / 17) * 3 }))
+  // StockChart's `plotWindowFrom` for a window of `rows`: the chart time of the first drawn bar
+  const fromOf = (bars, rows) => ADJUST(bars[bars.length - rows].t)
+  const W = 2000
+
+  it('its points are made for the drawn rows and one window step (one slice per plot), and the switch takes them', () => {
+    const want = control({
+      instances: MIXED(), bars1: long1, bars2: long2,
+      ctx1: { plotWindowFrom: fromOf(long1, W) }, ctx2: { plotWindowFrom: fromOf(long2, W) },
+    })
+    __setNeighborFramesForTests(true)
+    const { reg, calls } = countingRegistry()
+    const fake = createFakeChart()
+    const b = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    const instances = MIXED()
+    b.sync({ ...ctxFor({ registry: reg, instances, bars: long1 }), plotWindowFrom: fromOf(long1, W) })
+    const pieces = drain(b.prepare({ bars: long2, sym: 'BBB' }))
+    const st = neighborFramesStats()
+    expect(st.pointsPrepared).toBeGreaterThan(0)
+    // one piece per compute, one for the chart times, ONE per plot's points (2,500 rows < POINTS_SLICE_BARS);
+    // every bar would be ceil(13,200 / 6,000) = 3 per plot
+    expect(W + 500).toBeLessThan(POINTS_SLICE_BARS)
+    expect(pieces).toBe(st.colsPrepared + 1 + st.pointsPrepared)
+    calls.length = 0
+    fake.reset()
+    b.sync({ ...ctxFor({ registry: reg, instances, bars: long2, sym: 'BBB' }), plotWindowFrom: fromOf(long2, W) })
+    expect(handed(fake)).toEqual(want)
+    expect(calls).toEqual([])
+    expect(neighborFramesStats().pointsHit).toBeGreaterThan(0)
+  })
+
+  it('a switch that draws from further back than was prepared (a zoom out) builds its own points: the same picture', () => {
+    const W2 = 5000
+    const want = control({
+      instances: MIXED(), bars1: long1, bars2: long2,
+      ctx1: { plotWindowFrom: fromOf(long1, W) }, ctx2: { plotWindowFrom: fromOf(long2, W2) },
+    })
+    __setNeighborFramesForTests(true)
+    const fake = createFakeChart()
+    const b = createBinder({ chart: fake.chart, LWC: fake.LWC })
+    b.sync({ ...ctxFor({ registry: nativeRegistry, instances: MIXED(), bars: long1 }), plotWindowFrom: fromOf(long1, W) })
+    drain(b.prepare({ bars: long2, sym: 'BBB' }))
+    expect(neighborFramesStats().pointsPrepared).toBeGreaterThan(0)
+    fake.reset()
+    b.sync({ ...ctxFor({ registry: nativeRegistry, instances: MIXED(), bars: long2, sym: 'BBB' }), plotWindowFrom: fromOf(long2, W2) })
+    expect(handed(fake)).toEqual(want)
+    expect(neighborFramesStats().pointsHit, 'a prepared array that starts too late was used').toBe(0)
   })
 })
 
