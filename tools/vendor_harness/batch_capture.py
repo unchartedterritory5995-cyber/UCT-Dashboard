@@ -455,11 +455,23 @@ STUDY_IDENTITY_JS = r"""() => {
 
 #: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) THE CHART'S RESOLVED SESSION, read-only: what the main series resolved
 #: (`symbolInfo().session`, e.g. '0400-2000' extended / '0930-1600' regular for a US listing, and `subsession_id`).
+#: With it, the series' own interval (read as `tv_capture.js` reads it) and its loaded bar count, so a read made while the
+#: chart is still reloading a new resolution is recognised as such (`Driver.check_row_session` waits for it to settle).
+#: ⚰️ The live probe (patrick-54, 2026-11-21 01:10Z, R4): right after a resolution change `symbolInfo()` read NULL, the new
+#: resolution's bars not yet loaded. A read taken at once there is no reading.
 SESSION_JS = r"""() => {
   const col = window._exposed_chartWidgetCollection; if (!col) return { ok: false, why: 'no _exposed_chartWidgetCollection' };
-  let si; try { si = col.activeChartWidget.value().model().mainSeries().symbolInfo() } catch (e) { return { ok: false, why: String(e) } }
+  let ms; try { ms = col.activeChartWidget.value().model().mainSeries() } catch (e) { return { ok: false, why: String(e) } }
+  let si = null; try { si = ms.symbolInfo() } catch (e) { return { ok: false, why: String(e) } }
   if (!si) return { ok: false, why: 'no symbolInfo yet' };
-  return { ok: true, session: si.session || null, subsession: si.subsession_id || null };
+  let interval = null; try { interval = ms.interval() } catch (e) {}
+  if (!interval) { try { interval = ms.properties().childs().interval.value() } catch (e) {} }
+  let bars = 0; const times = [];
+  try { const b = ms.bars(); if (b && typeof b.each === 'function') b.each((i, v) => { if (i > -1000000 && v) { bars += 1; times.push(v[0]); if (times.length > 11) times.shift() } return false }) } catch (e) {}
+  let step = null;
+  for (let k = 1; k < times.length; k += 1) { const d = times[k] - times[k - 1]; if (d > 0 && (step === null || d < step)) step = d }
+  return { ok: true, session: si.session || null, subsession: si.subsession_id || null,
+           interval: interval == null ? null : String(interval), bars, step, last: times.length ? times[times.length - 1] : null };
 }"""
 
 #: Ask for more history (n > 0) and read the loaded depth. Read-only at n = 0.
@@ -583,34 +595,76 @@ def utcnow() -> str:
     return _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
 
 
-#: ⭐⭐ (coordinator ruling 2026-11-20, (ii)) A ROW MAY NAME ITS SESSION. TradingView takes a JSON symbol spec
-#: (`={"session":"extended","symbol":"AMEX:SPY"}`), the same per-row `setSymbol` the batch already makes, so nothing new
-#: persists. The resolved session MUST read back as this (`SESSION_JS`), or the row stops by name; it is restored after.
-#: ⛔ The layout's own session is never toggled (the rig rule: AUTOSAVE is account-wide).
+#: ⭐⭐ A ROW MAY NAME ITS SESSION, AND THE BATCH ONLY READS IT (coordinator rulings 2026-11-21, #2134 (A) and (B1);
+#: ruling (ii) stands: NO session write, ever). The row's session is a PRECONDITION: read after the row's resolution is
+#: set, at that resolution (`SESSION_JS`: `symbolInfo().session`, and `subsession_id` when TradingView reports one),
+#: and a mismatch stops the row by name (`Driver.check_row_session`), nothing captured. A regular-hours row runs on a
+#: layout SAVED with regular hours (ruling B1: `RIG_REGULAR_LAYOUT_ID`, a copy of the rig made once), never a toggled one.
+#: ⚰️ 2026-11-20: the first version WROTE the session as `setSymbol('={"session":"extended","symbol":"AMEX:SPY"}')`.
+#: That string is TradingView's WIRE encoding (the series' resolve request), not a symbol name: on the live rig the
+#: chart's symbol became the literal string and `symbolInfo()` never arrived (patrick-54, 30 polls), so every session
+#: row stopped. Its double parsed the spec, and `sym_match` read THROUGH it, so its self-checks agreed with the code,
+#: not with TradingView. And its read-back ran BEFORE the resolution was set, on the batch's 1D chart, where a US
+#: listing always resolves 0930-1600 (every daily capture on record), so even a working setter read "regular" there.
 ROW_SESSIONS = {"extended": "0400-2000", "regular": "0930-1600"}
 #: what a capture id says of a row's NAMED session (`capture_id_for`); one entry per `ROW_SESSIONS` key
 SESSION_SUFFIX = {"extended": "-ext", "regular": "-rth"}
 
+#: ⭐⭐ THE LAYOUT A BATCH RUNS ON (`--layout`, ruling B1 2026-11-21). The rig layout is `01f1AcIj`, saved with EXTENDED
+#: hours (probe R1, 2026-11-21: sessionId "extended", 60m resolves 0400-2000 with 186 of 300 bars outside 09:30-16:00);
+#: regular-hours rows run on a COPY of it saved with regular hours (made once by patrick-54). ONE layout per batch: a
+#: row that names another `layout` is skipped (a later batch on that layout takes it, same run dir), and the page must
+#: be on the batch's layout before any step. The layout's hours are never typed here: each row's session is READ.
+RIG_LAYOUT_ID = LAYOUT.rstrip("/").rsplit("/", 1)[-1]
+#: ⭐ THE REGULAR-HOURS COPY (patrick-54, 2026-11-21, owner-approved, made once): "UCT CAPTURE RIG REGULAR HOURS — no
+#: studies", AMEX:SPY 1D, 0 studies, sessionId "regular", resolving 0930-1600 at 60 with 0 of 300 bars off-hours; the rig
+#: `01f1AcIj` read exactly as before afterwards (rig_verify CLEAN). Named here for manifests and `--layout`; a row's
+#: session is still READ on it, never assumed from this name.
+#: ⛔ Measured while making it: TradingView opened the copy in a NEW TAB (so a batch navigates by the id, never follows
+#: a copy), and a direct `sessionId.setValue` is NOT persisted (a fresh load reverts it; only the chart model's
+#: `changeSessionId`, an undo command, is). Selecting a layout is the mechanism, never writing a session.
+RIG_REGULAR_LAYOUT_ID = "MyS1vKSg"
+LAYOUT_ID_RX = re.compile(r"^[A-Za-z0-9]{6,16}$")
 
-def session_spec(symbol, session) -> str:
-    """The symbol spec naming a session (`=` + JSON, keys sorted: TradingView's own encoding)."""
-    return "=" + json.dumps({"session": session, "symbol": symbol}, separators=(",", ":"), sort_keys=True)
+
+def bar_step_range(tf):
+    """The spacing, in seconds, that consecutive bars of a chart at `tf` have: (low, high). None when unknown.
+    A month spans 28-31 days; everything else has one exact spacing."""
+    r = res_norm(tf)
+    if r.isdigit():
+        return (int(r) * 60, int(r) * 60)
+    m = re.fullmatch(r"(\d*)([DWM])", r)
+    if not m:
+        return None
+    n = int(m.group(1) or 1)
+    return {"D": (86400 * n, 86400 * n), "W": (604800 * n, 604800 * n), "M": (28 * 86400 * n, 31 * 86400 * n)}[m.group(2)]
 
 
-def spec_symbol(s):
-    """The plain symbol inside a spec (`={...}`), or `s` itself."""
-    t = str(s or "")
-    if t.startswith("="):
-        try:
-            return str((json.loads(t[1:]) or {}).get("symbol") or "")
-        except (ValueError, AttributeError):
-            return ""
-    return t
+def layout_url(layout_id) -> str:
+    if not LAYOUT_ID_RX.match(str(layout_id or "")):
+        raise GateFailed(f"layout {layout_id!r} is not a TradingView layout id", abort=True)
+    return f"https://www.tradingview.com/chart/{layout_id}/"
+
+
+def layout_id_of(url):
+    m = re.search(r"/chart/([A-Za-z0-9]+)", str(url or ""))
+    return m.group(1) if m else None
+
+
+def go_to_layout(page, layout_id, settle_ms=9000) -> str:
+    """Put the tab on `layout_id` AFTER the sign-in. ⛔ `pine_vendor_capture.acquire()` ends by navigating to the RIG
+    layout (`_to_layout`), whatever page it started on, so a batch on another layout must navigate after it, and
+    `run_batch` then checks the page is there (by its URL) before it reads anything. Returns the layout the page is on."""
+    if layout_id_of(getattr(page, "url", None)) != layout_id:
+        page.goto(layout_url(layout_id), wait_until="domcontentloaded")
+        page.wait_for_timeout(settle_ms)
+    return layout_id_of(getattr(page, "url", None))
 
 
 def sym_match(have, want) -> bool:
-    have, want = spec_symbol(have), spec_symbol(want)
-    if not have or not want:
+    """Is the chart on `want`? ⛔ A symbol that reads as a spec (`={…}`) is on NO symbol: TradingView keeps such a
+    string as a literal name and resolves nothing for it (2026-11-20, #2134)."""
+    if not have or not want or str(have).startswith("=") or str(want).startswith("="):
         return False
     a, b = str(have).upper(), str(want).upper()
     if ":" in a and ":" in b:
@@ -817,6 +871,21 @@ def capture_id_for(script: dict, o: Opts) -> str:
     return f"{capture_id}-{phase}" if phase else capture_id
 
 
+def session_row_refusal(scripts, opts_for) -> str | None:
+    """None, or why a row's named session can never read back: a daily, weekly or monthly chart of a US listing
+    resolves 0930-1600 whatever the layout's hours (every daily capture on record; probe R0), so an `extended` row there
+    can never pass. Refused at batch start, before any page step (patrick-54's review of #2289)."""
+    for s in scripts:
+        try:
+            o = opts_for(s)
+        except StepOutcome as so:
+            return so.reason
+        if o.session == "extended" and re.search(r"[DWM]$", res_norm(o.tf)):
+            return (f"{s.get('slug')}: an extended-hours row on a {o.tf} chart can never pass (a daily, weekly or monthly "
+                    "chart resolves 0930-1600): give it an intraday timeframe or drop its session")
+    return None
+
+
 def capture_id_refusal(scripts, opts_for) -> str | None:
     """None when every script of the manifest names its own capture id, else why the batch may not start.
     ⛔ Checked at BATCH START over the WHOLE manifest (a `--only` / `--limit` run writes into the same run dir), before
@@ -961,10 +1030,13 @@ class Opts:
         self.symbol = kw.get("symbol", "NYSE:RDDT")
         self.tf = kw.get("tf", "1D")
         self.listing_date = kw.get("listing_date", KNOWN_LISTING.get(self.symbol.upper()))
-        # ⭐⭐ (2026-11-20) the row's session (`ROW_SESSIONS`), or None: the chart's own, as before
+        # ⭐⭐ (2026-11-20) the row's session (`ROW_SESSIONS`), or None: the chart's own, as before. READ, never set
         self.session = kw.get("session")
         if self.session is not None and self.session not in ROW_SESSIONS:
             raise GateFailed(f"session {self.session!r} is not one of {sorted(ROW_SESSIONS)}", abort=True)
+        # ⭐⭐ (2026-11-21, B1) the layout this batch runs on (`--layout`); the rig's by default
+        self.layout = kw.get("layout") or RIG_LAYOUT_ID
+        layout_url(self.layout)                  # refused by name if it is not a layout id
         self.throttle_s = float(kw.get("throttle_s", 30))
         self.compute_timeout_s = float(kw.get("compute_timeout_s", 120))
         self.add_timeout_s = float(kw.get("add_timeout_s", 30))
@@ -1121,35 +1193,49 @@ class Driver:
             raise Inconclusive("the chart handle answered but getAllStudies() did not", st)
         return st
 
-    def read_session(self, label="session"):
-        r = self.ev(label, SESSION_JS)
-        return r if isinstance(r, dict) and r.get("ok") else None
+    def check_row_session(self, label="row:session"):
+        """⭐⭐ THE ROW'S SESSION, READ, NEVER SET (rulings 2026-11-21, #2134): at the row's own resolution (the caller
+        has set and read it back), the chart's RESOLVED session must be the row's, `ROW_SESSIONS[o.session]`, and a
+        `subsession_id` TradingView reports must name it too. The reading is taken only once it SETTLES (polled up to
+        30 s: `symbolInfo()` answers, the loaded bars are spaced as the row's resolution, two equal reads); never
+        settled: INCONCLUSIVE (could not measure). Settled and not the row's: the ROW stops by name (GateFailed),
+        nothing captured, nothing written. Returns the read."""
+        o = self.opts
+        name, want = o.session, ROW_SESSIONS[o.session]
+        last = {"key": None}
 
-    def set_row_session(self, symbol, session, label):
-        """setSymbol with the session spec, then the read-back: the resolved session must be `ROW_SESSIONS[session]`
-        within 30 s, or the ROW stops by name (GateFailed). Returns the session read."""
-        want = ROW_SESSIONS[session]
-        r = self.ev(f"{label}:set_symbol", SET_SYMBOL_JS, session_spec(symbol, session))
-        if not r or not r.get("ok"):
-            raise GateFailed(f"setSymbol({session_spec(symbol, session)}) refused: {r} — the row stops")
-        got, ok = self.poll(f"{label}:session", SESSION_JS, None,
-                            lambda s: isinstance(s, dict) and s.get("ok") and s.get("session") == want, 30)
+        step_range = bar_step_range(o.tf)
+
+        def settled(s):
+            # ⛔ a reading only once the ROW'S resolution has loaded: symbolInfo answers, and the BARS are the row's
+            # resolution's: the smallest spacing among the last 10 bars is the row's bar spacing (`bar_step_range`).
+            # Then two reads in a row agree. R4: right after a resolution change symbolInfo read null. And the series'
+            # interval property is NOT the freshness test: it can read the new resolution while the previous one's
+            # bars and session are still held (`test_a_stale_read_..._interval_already_new`), and 1D and 60 both held
+            # 300 bars in the probe, so a bar count cannot tell them apart either (patrick-54's review of #2289).
+            # The last 10 bars, not the last two: a newest bar that opens a session sits a session gap after the one
+            # before it.
+            st = s.get("step") if isinstance(s, dict) else None
+            if not (isinstance(s, dict) and s.get("ok") and step_range and isinstance(st, (int, float))
+                    and step_range[0] <= st <= step_range[1] and isinstance(s.get("bars"), int) and s["bars"] > 1):
+                last["key"] = None
+                return False
+            key = (s.get("session"), s.get("subsession"), s.get("bars"), s.get("last"))
+            same, last["key"] = key == last["key"], key
+            return same
+        got, ok = self.poll(label, SESSION_JS, None, settled, 30)
         if not ok:
-            raise GateFailed(f"{symbol}: the chart's session read back {(got or {}).get('session')!r}, not the {session} "
-                             f"session {want!r} — the row stops by name, nothing captured")
-        self.clock.sleep(self.opts.settle_s)
+            raise Inconclusive(f"{o.symbol} {o.tf}: the chart's session never settled in 30 s (symbolInfo answering, the "
+                               f"bars spaced as {o.tf}, two equal reads); last read {got!r}", got)
+        if got.get("session") != want or got.get("subsession") not in (None, name):
+            seen = f"session {got.get('session')!r}" + (f", subsession {got.get('subsession')!r}" if got.get("subsession") else "")
+            raise GateFailed(f"{o.symbol} {o.tf}: the chart resolves {seen}, not the {name} session {want!r}. The batch "
+                             f"reads a row's session and never sets it: run this row on a layout saved with {name} hours. "
+                             "The row stops by name, nothing captured")
         return got
 
     def ensure_symbol_tf(self, st):
         o = self.opts
-        if o.session is not None:
-            # ⭐⭐ (2026-11-20) a row that names its session: what the chart had, for the restore after this row
-            before = self.read_session("session_before")
-            self.row_session_restore = {"symbol": spec_symbol(st.get("symbol")) or o.symbol,
-                                        "session": (before or {}).get("session"),
-                                        "subsession": (before or {}).get("subsession")}
-            self.set_row_session(o.symbol, o.session, "row")
-            st = self.read_state()
         if not sym_match(st.get("symbol"), o.symbol):
             r = self.ev("set_symbol", SET_SYMBOL_JS, o.symbol)
             if not r or not r.get("ok"):
@@ -1169,18 +1255,10 @@ class Driver:
                 raise Inconclusive(f"the resolution did not read back as {o.tf}")
             self.clock.sleep(o.settle_s)
             st = self.read_state()
+        if o.session is not None:
+            # ⛔ AFTER the resolution: a daily chart of a US listing resolves 0930-1600 whatever the layout's hours
+            self.check_row_session()
         return st
-
-    def restore_session(self, back, label):
-        """The chart's session as it was before a row named its own (`back`: symbol, session, subsession), read back."""
-        now = self.read_session(f"{label}:session_now")
-        if not back.get("session") or (now and now.get("session") == back["session"]):
-            return {"ok": True, "changed": {}}
-        sub_id = back.get("subsession") or ("extended" if back["session"] == ROW_SESSIONS["extended"] else "regular")
-        self.ev(f"{label}:set_symbol", SET_SYMBOL_JS, session_spec(back["symbol"], sub_id))
-        _, ok = self.poll(f"{label}:session", SESSION_JS, None,
-                          lambda s: isinstance(s, dict) and s.get("ok") and s.get("session") == back["session"], 30)
-        return {"ok": bool(ok), "changed": {"session": bool(ok)}}
 
     def restore(self, target, label):
         """Put symbol, resolution and pane stretch back to `target`, asserting the read-back."""
@@ -1656,13 +1734,7 @@ class Driver:
             r = sub("cleanup:restore", lambda: self.restore(self.script_state, "cleanup"))
             if r is not None and not r["ok"]:
                 problems.append(f"restore did not read back: {r}")
-        # ⭐⭐ (2026-11-20) a row that named its session puts the chart's own back, read back like every restore
-        back = getattr(self, "row_session_restore", None)
-        if back:
-            self.row_session_restore = None
-            r = sub("cleanup:session", lambda: self.restore_session(back, "cleanup"))
-            if r is not None and not r.get("ok"):
-                problems.append(f"the session restore did not read back: {r}")
+        # (a row's session is read, never set, so there is no session to put back: #2134 rulings 2026-11-21)
         if self.injected:
             r = sub("vh_cleanup", lambda: self.page.evaluate(VH_CLEANUP_JS))
             if r is not None and r.get("globalsLeft"):
@@ -1787,7 +1859,7 @@ def engine_sha() -> str:
 def batch_provenance(page, rd, opts) -> dict:
     return {"runId": rd.run_id, "account": account_fingerprint(page),
             "profile": getattr(opts, "profile_leaf", None) or "unread",
-            "rigLayout": LAYOUT.rstrip("/").rsplit("/", 1)[-1], "engineSha": engine_sha()}
+            "rigLayout": getattr(opts, "layout", None) or RIG_LAYOUT_ID, "engineSha": engine_sha()}
 
 
 def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None,
@@ -1806,11 +1878,23 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
         try:
             # ⛔ BEFORE ANY PAGE STEP: every built-in row's search, identity kind and generated source (by name)
             normalize_builtin_rows(manifest["scripts"])
+            # ⛔ BEFORE ANY PAGE STEP: no row names a session its chart can never resolve
+            why = session_row_refusal(manifest["scripts"], drv.opts_for)
+            if why:
+                raise GateFailed(why, abort=True)
             # ⛔ BEFORE ANY PAGE STEP: every script's capture id, and no two the same (nothing is captured otherwise)
             clash = capture_id_refusal(manifest["scripts"], drv.opts_for)
             if clash:
                 raise GateFailed(f"capture ids: {clash}", abort=True)
+            for s in manifest["scripts"]:
+                if s.get("layout") is not None:
+                    layout_url(s["layout"])        # a row's layout is a layout id, or the batch does not start
             drv.gate("batch start")
+            # ⛔ the page is on the batch's layout (`--layout`) before anything is read or written
+            on = layout_id_of(getattr(page, "url", None))
+            if on != opts.layout:
+                raise GateFailed(f"the page is on layout {on!r}, not this batch's {opts.layout!r} (--layout): nothing "
+                                 "is read or written", abort=True)
             original = drv.read_state("state_original")
             drv.provenance = batch_provenance(page, rd, opts)
             rd.ledger("provenance", **drv.provenance)
@@ -1835,6 +1919,13 @@ def run_batch(page, manifest: dict, rd: RunDir, opts: Opts, clock, verifier=None
             return 1 if so.outcome == GATE_FAILED else 2
         processed = 0
         for script in scripts:
+            if script.get("layout") is not None and script["layout"] != opts.layout:
+                # ⭐ (B1) another layout's row: a batch on that layout takes it (the same run dir resumes it)
+                counts["SKIPPED"] += 1
+                why = f"runs on layout {script['layout']}, this batch is on {opts.layout}"
+                rd.ledger("skip", slug=script["slug"], reason=why)
+                log(f"[batch] skip {script['slug']}: {why}")
+                continue
             prior = rd.read_result(script["slug"])
             if prior and prior.get("outcome") == INCOMPLETE:
                 rd.ledger("found-incomplete", slug=script["slug"], claimedAt=prior.get("startedAtUTC"),
@@ -1971,11 +2062,12 @@ def _launch(args, body):
             return 2
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         try:
-            page.goto(LAYOUT, wait_until="domcontentloaded")
+            page.goto(layout_url(getattr(args, "layout", None) or RIG_LAYOUT_ID), wait_until="domcontentloaded")
             page.wait_for_timeout(9000)
             code = acquire(page, args.wait)
             if code != 0:
                 return code
+            go_to_layout(page, getattr(args, "layout", None) or RIG_LAYOUT_ID)   # acquire() ends on the rig layout
             page.wait_for_timeout(4000)
             return body(page)
         except Exception as exc:  # noqa: BLE001
@@ -2062,6 +2154,9 @@ def main(argv=None) -> int:
         sp.add_argument("--channel", default=None, help="chrome | msedge (see pine_vendor_capture.py)")
         sp.add_argument("--wait", type=int, default=1800, help="seconds to wait for the one-time sign-in")
         sp.add_argument("--title-selector", default=None, help="CSS for the editor's script-title control")
+        sp.add_argument("--layout", default=RIG_LAYOUT_ID,
+                        help=f"the TradingView layout id to run on (default the rig's {RIG_LAYOUT_ID}, extended hours; "
+                             f"regular-hours rows run on its regular-hours copy {RIG_REGULAR_LAYOUT_ID})")
 
     rc = sub.add_parser("recon", help="sign in + read-only readings")
     common(rc)
@@ -2120,7 +2215,7 @@ def main(argv=None) -> int:
         run_id = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
         rd = RunDir(DEFAULT_RUN_ROOT / f"repair-{run_id}", run_id)
         opts = Opts(symbol=args.symbol, tf=args.tf, title_selector=args.title_selector,
-                    profile_leaf=resolve_profile(args.profile).name, clean_save=True)
+                    profile_leaf=resolve_profile(args.profile).name, clean_save=True, layout=args.layout)
 
         def _repair(page):
             drv = Driver(page, RealClock(page), opts, rd, None)
@@ -2154,8 +2249,8 @@ def main(argv=None) -> int:
                     title_selector=args.title_selector,
                     profile_leaf=resolve_profile(args.profile).name,
                     retry=[x.strip() for x in args.retry.split(",") if x.strip()],
-                    clean_save=bool(args.clean_save))
-        print(f"[batch] run dir: {run_dir}")
+                    clean_save=bool(args.clean_save), layout=args.layout)
+        print(f"[batch] run dir: {run_dir}  layout: {opts.layout}")
         return _launch(args, lambda page: run_batch(page, manifest, rd, opts, RealClock(page),
                                                     only=args.only, limit=args.limit))
 
