@@ -51,6 +51,16 @@ export function registerComp(name, fn) {
   if (typeof name !== 'string' || !name || typeof fn !== 'function') throw new TypeError('registerComp(name, fn)')
   COMPS.set(name, fn)
 }
+/** Is `comp` a blob compression this reader can inflate? */
+export const hasComp = (comp) => COMPS.has(comp)
+/** A blob → its body (`n` = the entry's decompressed length; a record's body of another length is refused
+ *  by decodeBody's own length check). Throws DeviceFormatError. The ONE inflate of a blob: the daily delta
+ *  (delta.js) inflates through it too. */
+export function inflateBlob(comp, blob, n) {
+  const fn = COMPS.get(comp)
+  if (!fn) fail(`record: unknown comp ${JSON.stringify(comp)}`)
+  try { return fn(blob, n) } catch (e) { fail(`record: inflate: ${e?.message || e}`) }
+}
 
 // ── the container ────────────────────────────────────────────────────────────
 
@@ -119,8 +129,7 @@ function _scaleInPlace(col, scale) {
  */
 export function decodeRecord(index, i, blob) {
   const n = index.body[i]
-  let body
-  try { body = COMPS.get(index.comp)(blob, n) } catch (e) { fail(`record: inflate: ${e?.message || e}`) }
+  const body = inflateBlob(index.comp, blob, n)
   // (a body of any length but `body` is refused by decodeBody's own length check: ONE copy of that guard)
   const header = { bars: index.bars[i], first: index.first[i], last: index.last[i], tunit: index.tunit,
     vscale: index.vscale[i], body: n, crc: index.crc[i] }
