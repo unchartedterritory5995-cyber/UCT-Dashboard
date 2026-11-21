@@ -1,7 +1,8 @@
-// Phone fit, part 3 (2026-11-20): the UCT 20 list (/uct-20, U20 in the Terminal) drew the ticker, its
-// badges and the price on top of each other at 340 to 390 px: the ticker column was 0 to 54 px wide.
-// On a phone the badges now sit on their own line UNDER the ticker, and where six columns still do
-// not fit, "Since add" folds (rating and the day's change stay).
+// The UCT 20 list (/uct-20, U20 in the Terminal) fits ITSELF. Part 3 (2026-11-20) fixed a phone with
+// rules keyed to the SCREEN; a 592px desktop Terminal panel never matched them, so there the ticker,
+// its badges and the price were still drawn on top of each other (all 20 rows, by up to 51px).
+// Part 4 moved the layout onto container queries on the table's own box: the same table lays itself
+// out the same way in a phone, in a narrow panel and in a wide page, by its own width.
 // jsdom lays nothing out, so this pins the rules; the widths were measured with the private sweep.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -53,13 +54,13 @@ function outsideAtRules(css) {
 
 const squash = (s) => s.replace(/\s+/g, ' ').trim()
 
-describe('UCT 20: a row fits a small phone', () => {
+describe('UCT 20: the table fits its own width', () => {
   const jsx = read('pages/UCT20.jsx')
   const css = noComments(read('pages/UCT20.module.css'))
-  const phoneRaw = blocks(css, '@media (max-width: 640px)').join('\n')
-  const phone = squash(phoneRaw)
-  const fold = squash(blocks(phoneRaw, '@container uct20table').join('\n'))
-  const phoneOnly = squash(outsideAtRules(phoneRaw))
+  const phone = squash(blocks(css, '@media (max-width: 640px)').join('\n'))
+  const tier = (px) => squash(blocks(css, `@container uct20table (max-width: ${px}px)`).join('\n'))
+  const tiers = [920, 529, 445, 354].map(tier)
+  const [all, noTrend, phoneSix, fold] = tiers
   const wide = squash(outsideAtRules(css))
 
   it('the badges are one group inside the ticker cell, after the ticker and before the company', () => {
@@ -77,19 +78,62 @@ describe('UCT 20: a row fits a small phone', () => {
     expect((jsx.match(/className=\{styles\.badges\}/g) || []).length).toBe(1)
   })
 
-  it('on a wide screen the group is not a box, so the line reads as it did', () => {
-    expect(wide).toContain('.badges { display: contents; }')
-    expect(wide).toContain('.tickerCell { display: flex; align-items: baseline; gap: 8px; min-width: 0; }')
-    expect(wide).not.toMatch(/\.cSince\b/)
-    expect(wide).not.toMatch(/container:/)
+  it('the table and its footnote sit in one box, and that box is what the table measures itself against', () => {
+    const box = jsx.indexOf('<div className={styles.tableFit}>')
+    expect(box).toBeGreaterThan(0)
+    expect((jsx.match(/styles\.tableFit\b/g) || []).length).toBe(1)
+    expect(jsx.indexOf('<div className={styles.table}>')).toBeGreaterThan(box)
+    expect(jsx.indexOf('<p className={styles.tableFootnote}>')).toBeGreaterThan(jsx.indexOf('<div className={styles.table}>'))
+    expect(wide).toContain('.tableFit { container: uct20table / inline-size; }')
+    // a box cannot answer its own query: the table itself is never the container
+    expect(css).not.toMatch(/\.table\s*\{[^}]*container/)
+    expect((css.match(/container:/g) || []).length).toBe(1)
   })
 
-  it('on a phone the badges get their own line under the ticker, the width of the row', () => {
-    expect(phoneOnly).toContain('.tickerCell { display: contents; }')
-    expect(phoneOnly).toContain('.tickerInner { grid-column: 2; grid-row: 1; min-width: 0; }')
-    expect(phoneOnly).toContain('.badges { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 2 / -1; grid-row: 2; min-width: 0; }')
-    expect(phoneOnly).toContain('.badges:empty { display: none; }')
-    expect(phoneOnly).toContain('.row { row-gap: 4px; }')
+  it('no layout of the row hangs on the width of the SCREEN any more: a desktop panel never matched that', () => {
+    expect(phone).not.toMatch(/grid-template-columns|--cols|display: none|grid-column|@container/)
+    expect(phone).not.toMatch(/\.(badges|tickerCell|tickerInner|cSince|cTag|cRs|cDays)\b/)
+    // what is left there is about a finger and a small screen, not about columns
+    expect(phone).toContain('.row { padding: 13px 2px; min-height: var(--tap-min); box-sizing: border-box; }')
+  })
+
+  it('over 920px wide the table is the wide page it was: the group is not a box and the company shows', () => {
+    expect(wide).toContain('.badges { display: contents; }')
+    expect(wide).toContain('.tickerCell { display: flex; align-items: baseline; gap: 8px; min-width: 0; }')
+    expect(wide).not.toMatch(/\.(cSince|footSince)\b/)
+    expect(wide).toContain('--cols: 30px 94px minmax(0, 1fr) 78px 64px 54px 50px 72px 62px 22px;')
+  })
+
+  it('at 920px and under the badges get their own line under the ticker and every column still shows (the 592px panel)', () => {
+    expect(all).toContain('.tickerCell { display: contents; }')
+    expect(all).toContain('.tickerInner { grid-column: 3; grid-row: 1; min-width: 0; }')
+    expect(all).toContain('.badges { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 3 / -1; grid-row: 2; min-width: 0; }')
+    expect(all).toContain('.badges:empty { display: none; }')
+    expect(all).toContain('.row { row-gap: 4px; }')
+    // ten tracks, each with a floor it cannot go under: the ticker never gets 0px again
+    const tracks = /\.headerRow, \.row \{ grid-template-columns: ([^;]+); gap: 6px; padding-inline: 2px; \}/.exec(all)?.[1] || ''
+    expect(tracks.match(/minmax\(/g) || []).toHaveLength(10)
+    expect(tracks).toContain('minmax(74px, 1fr)')
+    expect(tracks).not.toMatch(/minmax\(0/)
+    // nothing with a number in it is hidden here: only the company name (the tooltip still carries it)
+    expect(all.match(/display: none/g) || []).toHaveLength(2)
+    expect(all).toContain('.companyName { display: none; }')
+    expect(all).toContain('.cDays { display: block; }')
+  })
+
+  it('at 529px and under the trend tag steps aside (it is a label, not a number) and the ticker moves up a column', () => {
+    expect(noTrend).toContain('.cTag { display: none; }')
+    expect(noTrend).toContain('.tickerInner { grid-column: 2; }')
+    expect(noTrend).toContain('.badges { grid-column: 2 / -1; }')
+    const tracks = /\.headerRow, \.row \{ grid-template-columns: ([^;]+); \}/.exec(noTrend)?.[1] || ''
+    expect(tracks.match(/minmax\(/g) || []).toHaveLength(9)
+    expect(noTrend.match(/display: none/g) || []).toHaveLength(1)
+  })
+
+  it('at 445px and under it is the phone table part 3 drew: six columns, RS and days folded', () => {
+    expect(phoneSix).toContain('.headerRow, .row { grid-template-columns: 20px minmax(0, 1fr) 58px 50px 56px 44px 14px; }')
+    expect(phoneSix).toContain('.cRs, .cDays { display: none; }')
+    expect(phoneSix.match(/display: none/g) || []).toHaveLength(1)
   })
 
   it('"Since add" carries its own class on the header and on the row', () => {
@@ -98,16 +142,64 @@ describe('UCT 20: a row fits a small phone', () => {
     expect((jsx.match(/styles\.cSince\b/g) || []).length).toBe(2)
   })
 
-  it('where the table is too narrow, "Since add" folds and nothing else does', () => {
-    expect(phoneOnly).toContain('.table { container: uct20table / inline-size; }')
-    expect(phone).toContain('@container uct20table (max-width: 354px) {')
+  it('"Since add" folds only on a table of 354px or less, and nothing else folds there', () => {
     // five columns: rank, ticker, price, day's change, rating, and the caret
     expect(fold).toContain('.headerRow, .row { grid-template-columns: 18px minmax(0, 1fr) 58px 50px 44px 14px; column-gap: 4px; }')
-    expect(fold).toContain('.cSince { display: none; }')
-    expect((fold.match(/display: none/g) || []).length).toBe(1)
-    // the phone never hides the price, the day's change or the rating
-    expect(phone).not.toMatch(/\.(price|chg|rating)\b[^{]*\{[^}]*display: none/)
-    // and the six-column phone grid still stands above that width
-    expect(phoneOnly).toContain('--cols: 20px minmax(0, 1fr) 58px 50px 56px 44px 14px;')
+    expect(fold).toContain('.cSince, .footSince { display: none; }')
+    expect(fold.match(/display: none/g) || []).toHaveLength(1)
+    // no wider tier touches it, so the 592px panel keeps every number
+    for (const t of [all, noTrend, phoneSix]) expect(t).not.toMatch(/\.cSince\b/)
+    expect((css.match(/\.cSince\b/g) || []).length).toBe(1)
+  })
+
+  it('the footnote stops explaining "SINCE ADD" exactly where that column folds, and nowhere else', () => {
+    const start = jsx.indexOf('<p className={styles.tableFootnote}>')
+    const note = jsx.slice(start, jsx.indexOf('</p>', start))
+    const span = note.slice(note.indexOf('<span className={styles.footSince} data-testid="uct20-foot-since">'), note.indexOf('</span>'))
+    expect(span).toContain('"SINCE ADD" reflects the no-stops')
+    expect(span).toContain('see "How it&rsquo;s built."')
+    // the first sentence is outside the span: it always shows
+    expect(note.slice(0, note.indexOf('<span'))).toContain('not investment advice')
+    expect((jsx.match(/styles\.footSince\b/g) || []).length).toBe(1)
+    // one rule hides it, the same rule that hides the column
+    expect((css.match(/\.footSince\b/g) || []).length).toBe(1)
+    expect(fold).toContain('.cSince, .footSince { display: none; }')
+  })
+
+  it('no tier hides the price, the day\'s change or the rating, and a narrower tier always comes later', () => {
+    for (const t of tiers) expect(t).not.toMatch(/\.(price|chg|rating)\b[^{]*\{[^}]*display: none/)
+    const at = [920, 529, 445, 354].map((px) => css.indexOf(`@container uct20table (max-width: ${px}px)`))
+    expect(at.every((n) => n > 0)).toBe(true)
+    expect([...at].sort((a, b) => a - b)).toEqual(at)
+    expect((css.match(/@container uct20table/g) || []).length).toBe(4)
+    // and all of them come after the two screen rules that lay the table out (the tablet columns, the phone block)
+    expect(css.indexOf('.table { --cols: 28px 86px')).toBeGreaterThan(0)
+    expect(at[0]).toBeGreaterThan(css.indexOf('.table { --cols: 28px 86px'))
+    expect(at[0]).toBeGreaterThan(css.indexOf('@media (max-width: 640px)'))
+    // the screen rules further down only set finger-target heights: none of them lays the table out again
+    const later = blocks(css.slice(at[3]), '@media')
+    expect(later.length).toBe(2)
+    for (const b of later) expect(b).not.toMatch(/--cols|grid-template|display:|\.c[A-Z]\w+/)
+  })
+
+  it('a long line of the context strip may wrap in a narrow table instead of running off the side', () => {
+    expect(all).toContain('.ctxItem { white-space: normal; }')
+  })
+})
+
+describe('UCT 20: the page does not scroll sideways on a phone', () => {
+  const css = noComments(read('pages/UCT20.module.css'))
+  const phone = squash(blocks(css, '@media (max-width: 640px)').join('\n'))
+  const header = squash(blocks(noComments(read('components/PageHeader.module.css')), '@media (max-width: 640px)').join('\n'))
+
+  it('the header bleeds by the page padding the phone really has (it assumed 16px, the page has 10: 6px past each side)', () => {
+    // the full-bleed header reads this pair on a phone, and falls back to 16px
+    expect(header).toContain('margin: calc(-1 * var(--page-pad-top-m, 16px)) calc(-1 * var(--page-pad-x-m, 16px)) 12px;')
+    const pad = /\.page \{ padding: (\S+) (\S+); --page-pad-top-m: (\S+); --page-pad-x-m: (\S+); \}/.exec(phone)
+    expect(pad?.slice(1)).toEqual(['12px', '10px', '12px', '10px'])
+  })
+
+  it('the cure is the cause: nothing clips the page to hide a bleed', () => {
+    expect(css).not.toMatch(/\.page\s*\{[^}]*overflow(-x)?:\s*(hidden|clip)/)
   })
 })

@@ -1252,11 +1252,25 @@ def test_the_tf_the_scan_hands_the_clock_is_the_STORES_OWN_CODE_and_the_two_AGRE
     # — the function `lane_opts_for` and `scan_definition.def_hash` use — so the
     # sweep evaluates a semantics-2 screen as its chart and alert do, and files it
     # under the `~s2` identity. `1` (every legacy document) is identical to absent.
-    keys = {k.value for k in opts.keys}
+    # ⭐ 2026-11-18 — AND ONE `**` SPREAD, REVIEWED HERE (7fbb1b81e1, engine 78 #1888, ruling D1): a Pine
+    # document compares two floats within TradingView's epsilon, and "Every server lane that builds its own
+    # opts passes pine_compare_opts_for". A spread has no key node (`None` in `Dict.keys`), so it is a channel
+    # this exact set cannot see: it is pinned by its EXPRESSION, and what it can add is pinned to one key.
+    spreads = [v for k, v in zip(opts.keys, opts.values) if k is None]
+    assert len(spreads) == 1, f"{len(spreads)} `**` spreads in the clock's opts: each is a channel to review"
+    (spread,) = spreads
+    assert (isinstance(spread, pyast.Call) and getattr(spread.func, "attr", None) == "pine_compare_opts_for"
+            and [getattr(a, "id", None) for a in spread.args] == ["definition"]), (
+        "the opts' spread is not the document's Pine compare, read by the one function every lane reads it with")
+    from api.services import ast_interpret
+    assert ast_interpret.pine_compare_opts_for({"meta": {"recurrenceOrigin": "pine"}}) == {"pineCompare": True}
+    assert ast_interpret.pine_compare_opts_for({"meta": {"name": "typed"}}) == {}
+    named = [(k, v) for k, v in zip(opts.keys, opts.values) if k is not None]
+    keys = {k.value for k, _ in named}
     # ⭐ 2026-11-09 — and `varOriginAbsolute`, the SAME declaration read the same way: a Pine
     # document's `var` state began on the symbol's first bar (`ast_interpret.var_origin_mask`).
     assert keys == {"tf", "symbols", "now", "barIndexAbsolute", "varOriginAbsolute", "semantics"}, keys
-    handed = dict(zip([k.value for k in opts.keys], opts.values))
+    handed = {k.value: v for k, v in named}
     assert isinstance(handed["tf"], pyast.Name) and handed["tf"].id == "tf_code", (
         "the tf handed to the clock is not the NORMALISED code the store owns")
     assert isinstance(handed["symbols"], pyast.Name) and handed["symbols"].id == "symbol_series", (

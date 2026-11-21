@@ -650,3 +650,22 @@ def test_the_sentence_about_the_bar_is_the_windows_and_word_for_word_this_one():
     # with the reply whole again, the disclosure is never cut by it
     long = pa.said_with_disclosure("x" * 2000, None)
     assert len(long) <= pa.REPLY_MAX_CHARS and long.endswith(pa.UNCHECKED_LINE)
+
+
+# ═══ rule 11: a script draws only what was asked, and offers the rest ═══════════════
+#
+# Found by a value check on a live round, 2026-11-20, and the coordinator's ruling the same day: asked to COUNT
+# something, the assistant's script counted it correctly and also drew a label on every event, a corner table, a
+# background colour and an alert condition nobody asked for. Each extra clutters the chart and is another claim
+# that has to be right. The script draws what was asked; anything more is offered in a sentence.
+
+def test_rule_eleven_a_script_draws_only_what_was_asked_and_offers_the_rest():
+    doc = pa.document()
+    rule = next(line for line in doc.split(chr(10)) if line.startswith("11. "))
+    assert rule.startswith("11. Draw ONLY what the member asked for.")
+    for extra in ("a label on every event", "a summary table", "a background colour", "extra shapes", "`alertcondition`"):
+        assert extra in rule, extra
+    assert "OFFER it in `reply`" in rule and "leave it out of the script" in rule
+    # it is a rule of the contract (ahead of the reference sections), and the last one
+    assert doc.index("11. Draw ONLY") < doc.index("## ") and not any(line.startswith("12. ") for line in doc.split(chr(10)))
+

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "generated_by": "tools/bars_ordinal_census.py",
   "what_this_is": "D2 CP5 (closes F-D2-3) — a MODULE-LEVEL census of every api/** module that calls bars_sqlite.get_bars/get_bars_before/get_bars_since, classified as named_access (goes through address_book.row_position) or positional (a fixed-ordinal tuple unpack or integer-literal subscript found anywhere in the module). Detection only — no reader listed here was migrated or modified by this checkpoint.",
   "bars_family_functions": [
@@ -7,10 +7,9 @@
     "get_bars_before",
     "get_bars_since"
   ],
-  "modules_scanned": 2360,
   "summary": {
     "named_access_count": 2,
-    "positional_count": 54,
+    "positional_count": 56,
     "named_access": [
       "api/services/canonical/resolver.py",
       "api/services/ticker_returns.py"
@@ -32,6 +31,7 @@
       "api/services/deal_status.py",
       "api/services/desk_article_anchors.py",
       "api/services/discord_render/symbols.py",
+      "api/services/ffseed.py",
       "api/services/fundamentals_pit/beta_store.py",
       "api/services/indicator_alert_evaluator.py",
       "api/services/intraday_gap_audit.py",
@@ -63,6 +63,7 @@
       "api/services/theme_index.py",
       "api/services/uct_agent/marketdata/bars_daily.py",
       "api/services/uct_agent/marketdata/rs_leadership.py",
+      "api/services/uct_agent/marketdata/seasonality_stock.py",
       "api/services/voice_deep_data_tools.py",
       "api/services/wisdom/archive/levels.py",
       "api/services/wisdom/archive/setup_map.py",
@@ -77,24 +78,19 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 632
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 921
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 939
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 6519
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 87,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -103,12 +99,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 1428
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 787,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -117,12 +111,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 65
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 68,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -131,12 +123,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 142
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 146,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -145,12 +135,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 895
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 572,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -159,12 +147,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 243
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 247,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -173,20 +159,16 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 807
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 859
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 870
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 810,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -195,12 +177,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 394
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 349,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -209,20 +189,16 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 370
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars",
-          "line": 2395
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 2679
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 371,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -231,20 +207,16 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 256
+          "function": "get_bars"
         },
         {
-          "function": "get_bars_since",
-          "line": 273
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars_since",
-          "line": 346
+          "function": "get_bars_since"
         }
       ],
       "evidence": {
-        "line": 112,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -253,104 +225,79 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_since",
-          "line": 371
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars_since",
-          "line": 991
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars_since",
-          "line": 1044
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars_since",
-          "line": 1100
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars",
-          "line": 1969
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 2521
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 2579
+          "function": "get_bars"
         },
         {
-          "function": "get_bars_since",
-          "line": 2928
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars_since",
-          "line": 2941
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars_since",
-          "line": 3096
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars",
-          "line": 3596
+          "function": "get_bars"
         },
         {
-          "function": "get_bars_before",
-          "line": 3730
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 3757
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 3874
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 3972
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_since",
-          "line": 4105
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars",
-          "line": 4109
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 4941
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 4997
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 5007
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 5132
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 5219
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 5333
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 5467
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 371,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -359,12 +306,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 89
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 92,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -373,12 +318,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 328
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 340,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -387,16 +330,13 @@
       "classification": "named_access",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 338
+          "function": "get_bars"
         },
         {
-          "function": "get_bars_before",
-          "line": 343
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 330,
         "pattern": "row_position"
       }
     },
@@ -404,12 +344,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 791
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 678,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -418,12 +356,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 48
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 52,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -432,26 +368,34 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 55
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 151,
         "pattern": "int-subscript",
         "index": 1
+      }
+    },
+    "api/services/ffseed.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars"
+        }
+      ],
+      "evidence": {
+        "pattern": "int-subscript",
+        "index": 0
       }
     },
     "api/services/fundamentals_pit/beta_store.py": {
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 51
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 53,
         "pattern": "for-unpack",
         "size": 6
       }
@@ -460,12 +404,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 1512
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 1140,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -474,16 +416,13 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_since",
-          "line": 106
+          "function": "get_bars_since"
         },
         {
-          "function": "get_bars_since",
-          "line": 171
+          "function": "get_bars_since"
         }
       ],
       "evidence": {
-        "line": 103,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -492,12 +431,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 297
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 207,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -506,12 +443,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 170
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 85,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -520,12 +455,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 186
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 108,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -534,24 +467,19 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 1152
+          "function": "get_bars"
         },
         {
-          "function": "get_bars",
-          "line": 1406
+          "function": "get_bars"
         },
         {
-          "function": "get_bars_before",
-          "line": 1590
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars",
-          "line": 2034
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 190,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -560,16 +488,13 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 207
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_since",
-          "line": 214
+          "function": "get_bars_since"
         }
       ],
       "evidence": {
-        "line": 190,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -578,12 +503,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 176
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 180,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -592,16 +515,13 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 208
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 220
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 212,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -610,12 +530,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 331
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 280,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -624,20 +542,16 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 198
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 217
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 246
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 127,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -646,12 +560,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 31
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 35,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -660,12 +572,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 31
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 32,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -674,12 +584,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_since",
-          "line": 356
+          "function": "get_bars_since"
         }
       ],
       "evidence": {
-        "line": 234,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -688,12 +596,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 79
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 85,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -702,12 +608,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 185
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 192,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -716,12 +620,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 68
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 70,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -730,12 +632,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 135
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 211,
         "pattern": "for-unpack",
         "size": 6
       }
@@ -744,12 +644,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 72
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 75,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -758,12 +656,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 49
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 52,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -772,12 +668,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 125
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 133,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -786,12 +680,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 765
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 216,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -800,12 +692,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 1052
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 1056,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -814,12 +704,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 30
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 34,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -828,12 +716,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 291
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 219,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -842,12 +728,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 312
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 215,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -856,12 +740,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 13
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 14,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -870,12 +752,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 127
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 131,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -884,16 +764,13 @@
       "classification": "named_access",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 78
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_since",
-          "line": 84
+          "function": "get_bars_since"
         }
       ],
       "evidence": {
-        "line": 65,
         "pattern": "row_position"
       }
     },
@@ -901,16 +778,13 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 149
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_before",
-          "line": 247
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 151,
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -919,12 +793,22 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 124
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 126,
+        "pattern": "known-positional-delegate",
+        "delegate": "_fmt_sqlite_bars"
+      }
+    },
+    "api/services/uct_agent/marketdata/seasonality_stock.py": {
+      "classification": "positional",
+      "calls": [
+        {
+          "function": "get_bars_before"
+        }
+      ],
+      "evidence": {
         "pattern": "known-positional-delegate",
         "delegate": "_fmt_sqlite_bars"
       }
@@ -933,12 +817,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 79
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 90,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -947,12 +829,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 178
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 132,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -961,12 +841,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars",
-          "line": 77
+          "function": "get_bars"
         }
       ],
       "evidence": {
-        "line": 78,
         "pattern": "int-subscript",
         "index": 4
       }
@@ -975,12 +853,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 104
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 88,
         "pattern": "int-subscript",
         "index": 2
       }
@@ -989,16 +865,13 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 59
+          "function": "get_bars_before"
         },
         {
-          "function": "get_bars_since",
-          "line": 64
+          "function": "get_bars_since"
         }
       ],
       "evidence": {
-        "line": 103,
         "pattern": "int-subscript",
         "index": 1
       }
@@ -1007,12 +880,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 38
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 156,
         "pattern": "int-subscript",
         "index": 0
       }
@@ -1021,12 +892,10 @@
       "classification": "positional",
       "calls": [
         {
-          "function": "get_bars_before",
-          "line": 51
+          "function": "get_bars_before"
         }
       ],
       "evidence": {
-        "line": 62,
         "pattern": "int-subscript",
         "index": 4
       }

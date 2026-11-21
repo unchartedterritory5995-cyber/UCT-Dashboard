@@ -1,0 +1,61 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "T1",
+   "mutant": "the supply's tail cut is gone: a multi-bar tail lag waits the whole run again",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "        if (!_tailCutOff) {\n",
+   "to": "        if (false) {\n",
+   "rail": "cd app && npx vitest run src/components/chart/engine/tailLag.test.js"
+  },
+  {
+   "id": "T2",
+   "mutant": "the drawings are let through on the cut bar (the cut run's own drawings returned)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "      if (!(def && def.compute && def.compute.objects)) return widened\n",
+   "to": "      return widened\n",
+   "rail": "cd app && npx vitest run src/components/chart/engine/tailLag.test.js"
+  },
+  {
+   "id": "T3",
+   "mutant": "the cut's drawings are withheld but not waiting (no pending, no series named)",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "        ...(tail.pending ? { pending: true, waitingFor: tailSeries.join(',') } : {}) })",
+   "to": "        ...({}) })",
+   "rail": "cd app && npx vitest run src/components/chart/engine/tailLag.test.js"
+  },
+  {
+   "id": "T4",
+   "mutant": "the cut lands one bar late: the first bar past SPX's newest is drawn",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "            cutAt: tail, series: [other], tailWait: true, tailPending: within }",
+   "to": "            cutAt: tail + 1, series: [other], tailWait: true, tailPending: within }",
+   "rail": "cd app && npx vitest run src/components/chart/engine/tailLag.test.js"
+  },
+  {
+   "id": "T5",
+   "mutant": "the newest bar alone is not cut: Fred RS's whole run waits there again",
+   "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+   "from": "    if (!tailCutIsOff() && rows.length > 1) {\n",
+   "to": "    if (false) {\n",
+   "rail": "cd app && npx vitest run src/components/chart/engine/tailLag.test.js"
+  },
+  {
+   "id": "T6",
+   "mutant": "a lag past the bound is called a wait (pending)",
+   "file": "app/src/components/chart/engine/runtime/requestSupply.js",
+   "from": "            cutAt: tail, series: [other], tailWait: true, tailPending: within }",
+   "to": "            cutAt: tail, series: [other], tailWait: true, tailPending: true }",
+   "rail": "cd app && npx vitest run src/components/chart/engine/tailLag.test.js"
+  },
+  {
+   "id": "T7",
+   "mutant": "the strip row of a tail cut says the overnight sentence (its own code and sentence dropped)",
+   "file": "app/src/components/chart/engine/runtime/overnightTail.js",
+   "from": "      rows: Object.freeze([Object.freeze(record && record.code\n",
+   "to": "      rows: Object.freeze([Object.freeze(false\n",
+   "rail": "cd app && npx vitest run src/components/chart/engine/tailLag.test.js"
+  }
+ ]
+}

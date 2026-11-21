@@ -69,16 +69,15 @@ describe('⭐⭐ the witness: vw-udt-fn-global-history, every plot on every bar'
     const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
     const cap = loadCapture(path.join(DIR, 'vw-udt-fn-global-history-rddt-1d-2026-11-16.json')).capture
     expect(cap.history.startsAtBar0).toBe(true)
-    // the whole probe stops at G04's wall, by name, and only there
-    const whole = runOurSide(cap)
-    expect(whole.ok).toBe(false)
-    expect(JSON.stringify(whole.refusal)).toMatch(/history-dynamic-offset/)
+    // ⭐⭐ A1 (2026-11-20): the whole probe builds now. G04 (`f4(int n) => g[n]`, called with `bar_index % 3`) was
+    // its one wall, `runtime:history-dynamic-offset`; the copy its call site compiles reads `n` per bar, and every
+    // plot, G04 included, is graded against TradingView's values below.
     expect(cap.source.text.split(G04).length).toBe(2)
-    const ours = runOurSide({ ...cap, source: { ...cap.source, text: cap.source.text.replace(G04, '\n') } })
+    const ours = runOurSide(cap)
     expect(ours.ok, JSON.stringify(ours.refusal || null)).toBe(true)
     const titles = cap.study.plots.map((p) => p.title)
-    const graded = titles.filter((t) => !t.startsWith('G04'))
-    expect(ours.plots.map((p) => p.title)).toEqual(graded)
+    expect(ours.plots.map((p) => p.title)).toEqual(titles)
+    expect(titles.some((t) => t.startsWith('G04'))).toBe(true)
     let compared = 0
     ours.plots.forEach((p) => {
       expect(p.missingReason || null, p.title).toBeNull()

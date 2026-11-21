@@ -801,14 +801,24 @@ def test_this_type_is_wired_in_main_because_CP3_IS_SIGNED_and_nowhere_else():
 
 
 def _modules_naming(needle: str) -> set:
-    """Every module under `api/` whose STRIPPED code names `needle`."""
+    """Every module under `api/` whose STRIPPED code names `needle` AS AN IDENTIFIER.
+
+    ⚰️ 2026-11-20 -- this was a SUBSTRING test, and it went red on 2026-09-20 (e2eaaf2257,
+    `alert_taxonomy/dark_report.py`) and again on 2026-10-31 (#544, `alert_erasure.py`) for two modules
+    that never touch the type module: both name the TABLE `indicator_condition_comparison_spans`, and the
+    dark report also names the sibling module `indicator_condition_compare`. A table or a longer
+    identifier that starts with the module's name does not call it. `_` is a word character, so the word
+    boundary keeps them out; `from ... import indicator_condition`, `indicator_condition.x` and a dotted
+    path ending in it still count."""
+    word = chr(92) + "b"        # a backslash-b, spelled so no heredoc can turn it into a 0x08 backspace
+    rx = re.compile(word + re.escape(needle) + word)
     out = set()
     for path in sorted((_REPO / "api").rglob("*.py")):
         try:
             code = _code_only(path)
         except SyntaxError:                                  # pragma: no cover
             continue
-        if needle in code:
+        if rx.search(code):
             out.add(path.name)
     return out
 

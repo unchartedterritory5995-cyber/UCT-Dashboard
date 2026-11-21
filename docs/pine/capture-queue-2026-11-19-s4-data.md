@@ -45,8 +45,11 @@ newest bar is not a question of whether TradingView runs it as a realtime bar. A
 The queue holds no shape for a moved setting, so these are taken by hand and graded at the settings they were
 taken at (`vendorHarness/captureInputs.js`). Each is a script the S4-1 unit reads at its default without any
 data; these show what it draws when a member moves the setting to a data anchor.
-- TradingView's built-in "Volume Weighted Average Price", `Anchor Period` = Earnings, then Dividends, then
-  Splits, each on NASDAQ:AAPL 1D and NYSE:JPM 1D (six captures), and Earnings on NASDAQ:AAPL 60.
+- TradingView's built-in VWAP (`data-id` `STD;VWAP`, dialog search "VWAP", listed as "Volume-weighted average
+  price"), `Anchor Period` = Earnings, then Dividends, then Splits, each on NASDAQ:AAPL 1D and NYSE:JPM 1D (six
+  captures), and Earnings on NASDAQ:AAPL 60. ⚰️ Not the search "Volume Weighted Average Price": it lists only
+  community scripts, and the 2026-11-20 rows that used it stopped by name. The row names the id only; the batch
+  reads the search from `BUILTIN_SEARCH` (`tools/vendor_harness/batch_capture.py`).
 - `black-scholes-option-pricing-model-w-greeks-loxx__12d143e9b2` with `Adjust for Dividends?` on and
   `Automatically Calculate Yearly Dividend Yield?` on (its default), on NASDAQ:AAPL 1D and NYSE:JPM 1D. Its own
   wall today is its library import (`pine:library-denied`), so this grades only once that library is served.

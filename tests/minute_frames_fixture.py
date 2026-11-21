@@ -11,6 +11,11 @@ Everything here is SYNTHETIC (seeded random walks): no vendor data is ever writt
   (`bar_rollup.tv_bucket_bounds` + `bar_rollup.aggregate`; D by the documented daily rule).
   app/src/lib/minuteFrames/rollup.test.js replays the frames through the browser's rollup and
   must get exactly these bars.
+* `day_daily.today.bin` + `day_daily.json`: a day whose frames carry the DAILY section after the close
+  (FLAG_DAILY: a synthetic server daily feed handed to the real Publisher), with a publisher restart
+  after the close (a new epoch: every row again), and every DAILY section as Python decodes it. The
+  device's consumer and overlay (app/src/lib/minuteFrames/consumer.test.js, deviceStore/live.test.js)
+  must end with exactly the newest row per symbol.
 
 Regenerate (only when the format or the rules change on purpose):
     UPDATE_MINUTE_FRAME_FIXTURES=1 python -m pytest tests/test_minute_frames.py -q
@@ -66,6 +71,23 @@ def codec_cases() -> list:
                                           "BRK-B": plain["BRK-B"] + (1234.5,),
                                           "NOAV": (2.0, 2.0, 2.0, 2.0, 1.0, None),
                                           "RAWV": plain["RAWV"] + (10.0 / 3.0,)})])),
+        # FLAG_DAILY: the server's day rows after the close, symbols that are in no block included
+        ("daily", dict(
+            day=20261118, seq=720, prev_seq=719, epoch=7, minute=m,
+            blocks=[(m, mf.KIND_ONTIME, {"AAPL": plain["AAPL"], "ZERO": plain["ZERO"]})],
+            daily={"AAPL": (150.01, 151.25, 149.5, 150.37, 51_234_567.0),
+                   "BRK-B": (412.1, 414.0, 411.5, 413.2, 3_000_000.0),
+                   "ONLYDAY": (12.5, 12.75, 12.25, 12.5, 8.0),
+                   "PENNY": (0.00012345, 0.0001235, 0.0001234, 0.00012345, 1e10),
+                   "RAWP": (0.1 + 0.2, 1.0, 0.1, 0.5, 7.0)})),
+        ("daily_with_av", dict(
+            day=20261118, seq=721, prev_seq=720, epoch=7, minute=m, with_av=True,
+            blocks=[(m, mf.KIND_ONTIME, {"AAPL": plain["AAPL"] + (51_240_000.0,)})],
+            daily={"AAPL": (150.01, 151.25, 149.5, 150.37, 51_240_000.0)})),
+        ("daily_only", dict(
+            day=20261118, seq=722, prev_seq=721, epoch=7, minute=m,
+            blocks=[(m, mf.KIND_ONTIME, {})],
+            daily={"ZZZZZZZZZZ": (1.5, 1.75, 1.25, 1.5, 1000.0)})),
     ]
 
 
@@ -86,6 +108,7 @@ def build_codec_fixtures() -> dict:
                        "epoch": kw["epoch"], "minute": kw["minute"],
                        "complete": kw.get("complete", True), "withAv": kw.get("with_av", False)},
             "blocks": [{"minute": bm, "kind": k, "rows": _rows_json(rows)} for bm, k, rows in kw["blocks"]],
+            **({"daily": _rows_json(kw["daily"])} if kw.get("daily") else {}),
         })
     out["codec_cases.json"] = (json.dumps({"cases": cases}, indent=1, sort_keys=True) + "\n").encode()
     return out
@@ -138,7 +161,7 @@ class _FakeR2:
 
 
 def run_publisher_day(day: str, minutes: dict, *, late=(), replace=(), down=(), restart=None,
-                      grace_s: float = 5.0, roll_every: int = 5) -> tuple:
+                      grace_s: float = 5.0, roll_every: int = 5, daily=None) -> tuple:
     """Drive the real Publisher over a session with a fake clock and R2.
 
     late:    [(sym, minute)]: that bar is held back and delivered 30 s after its frame is out
@@ -146,6 +169,8 @@ def run_publisher_day(day: str, minutes: dict, *, late=(), replace=(), down=(), 
     down:    [(from_unix_s, to_unix_s)]: the vendor socket is not live (bars emitted then are lost)
     restart: (from_unix_s, to_unix_s): the publisher process is gone; a new one (new epoch)
              starts at to_unix_s and resumes today.bin from R2
+    daily:   (day, now_s) -> {sym: (o, h, l, c, v)} or None: the server's daily rows as of now_s
+             (the Publisher's `daily` feed; the publisher itself decides when they ride)
     Returns (r2, delivered) where delivered = {minute: {sym: row}} is what members received."""
     r2 = _FakeR2()
     clock = {"ms": 0}
@@ -155,9 +180,10 @@ def run_publisher_day(day: str, minutes: dict, *, late=(), replace=(), down=(), 
         return not any(a <= s < b for a, b in down)
 
     def make(epoch):
+        feed = None if daily is None else (lambda d: daily(d, clock["ms"] // 1000))
         return mfp.Publisher(put=r2.put, get=r2.get, live=is_live, grace_s=grace_s,
                              roll_every=roll_every, epoch=epoch, now_ms=lambda: clock["ms"],
-                             prefix="live1m/")
+                             prefix="live1m/", daily=feed)
 
     pub = None
     late_set = set(late)
@@ -278,6 +304,49 @@ def _day_events(name: str, minutes: dict, day: str):
     return late, replace
 
 
+DAILY_DAY = "2026-11-19"
+# the restart: the publisher is gone 17:00:00-17:03:00, a new epoch resumes (every DAILY row again)
+DAILY_RESTART = (_unix(DAILY_DAY, 17, 0), _unix(DAILY_DAY, 17, 3))
+
+
+def daily_feed(day: int, now_s: int):
+    """A synthetic server daily feed (what bars-api's snapshot `day` rows would be) as of `now_s`: the
+    official close differs from the last regular minute's, the volume is the consolidated day's and keeps
+    growing after hours, BRK-B has no minute bar at all, LATECOMER's row first appears at 16:30."""
+    if day != int(DAILY_DAY.replace("-", "")):
+        return None
+    after = max(0, now_s - _unix(DAILY_DAY, 16, 0))
+    steps = min(after // 300, 24)                    # a new after-hours print every 5 minutes, until 18:00
+    rows = {
+        "DENSE": (100.0, 101.5, 98.25, 100.37, 1_234_500.0 + 1000.0 * steps),
+        "THIN": (7.5, 7.61, 7.42, 7.55, 52_300.0),
+        "RTHONLY": (42.0, 42.3, 41.8, 42.11, 880_000.0),
+        "BRK-B": (412.1, 414.0, 411.5, 413.2, 3_000_000.0 + 100.0 * (steps // 3)),
+        "SUBPENNY": (0.12345678, 0.1235, 0.12341, 0.12345679, 98_765_432.0),
+    }
+    if now_s >= _unix(DAILY_DAY, 16, 30):
+        rows["LATECOMER"] = (3.0, 3.1, 2.9, 3.05, 1000.0)
+    return rows
+
+
+def build_daily_day_fixture() -> dict:
+    day = DAILY_DAY
+    minutes = synthetic_minutes(day, 19)
+    r2, _delivered = run_publisher_day(day, minutes, restart=DAILY_RESTART, daily=daily_feed)
+    today = mf.maybe_gunzip(r2.objects[f"live1m/{day}/today.bin"])
+    t = mf.decode_today(today)
+    sections = [[f["seq"], f["epoch"], f["prev_seq"], _rows_json(f["daily"])] for f in t["frames"] if "daily" in f]
+    final: dict = {}
+    for _seq, _ep, _prev, rows in sections:
+        final.update(rows)
+    return {
+        "day_daily.today.bin": today,
+        "day_daily.json": (json.dumps({"day": day, "frames": len(t["frames"]), "restart": list(DAILY_RESTART),
+                                       "daily_sections": sections, "daily_final": final},
+                                      sort_keys=True, separators=(",", ":")) + "\n").encode(),
+    }
+
+
 def build_day_fixtures() -> dict:
     out = {}
     for name, cfg in DAYS.items():
@@ -297,7 +366,7 @@ def build_day_fixtures() -> dict:
 
 
 def build_all() -> dict:
-    return {**build_codec_fixtures(), **build_day_fixtures()}
+    return {**build_codec_fixtures(), **build_day_fixtures(), **build_daily_day_fixture()}
 
 
 def write_all() -> list:
