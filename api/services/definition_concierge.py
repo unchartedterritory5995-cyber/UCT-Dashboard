@@ -2673,6 +2673,22 @@ def _is_name_word(word: str) -> bool:
     return len(word) > 1 and word[0].isupper() and not word.isupper()
 
 
+def _acronym_possessive(word: str) -> bool:
+    """"SPY's", "QQQ's", "RSI's": the possessive of an all-caps word is that all-caps word.
+
+    ⭐ FOUND IN A LIVE ROUND, 2026-11-21. `_is_name_word` excludes an acronym by `isupper()`, and the
+    possessive's lowercase "s" made "SPY's" fail that test: so a request that opened with a verb the
+    opener list does not hold, followed by a symbol's possessive ("Count SPY's distribution days over
+    the last 25 bars"), read as an indicator NAMED "Count SPY's". The clause was withheld from the
+    assistant, which then asked the member for the symbol and the window they had already given.
+    A symbol or an acronym that owns the next words is a reference, never a word of a proper name.
+
+    ⛔ ONLY AN ALL-CAPS STEM. "Wilder's Smoothing" and "Brannock's Volume Oscillator" are a PERSON's
+    possessive and stay the first word of a name; a single capital ("A's") is not an acronym."""
+    stem, apostrophe, tail = word.partition("'")
+    return bool(apostrophe) and tail.lower() == "s" and len(stem) > 1 and stem.isupper()
+
+
 #: ⭐ 2026-11-18 -- THE WHOLE-PHRASE RULE (opt-in, `plan(strict_names=True)`; the chart door uses it).
 #: A NAME is short: a Title-Case run longer than this is a sentence typed in capitals, and keeps
 #: the older rule.
@@ -2768,12 +2784,17 @@ def _named_phrases(prompt: str, already_found: List[dict],
     words = list(_WORD_TOKEN.finditer(text))
     out: List[dict] = []
     i, n = 0, len(words)
+
+    def name_word(word: str) -> bool:
+        # ⭐ `strict_lexicon` only (the chart door): an acronym's or a symbol's possessive is no part of a
+        # name, so it ends the run. The other planner keeps the older reading (`_acronym_possessive`).
+        return _is_name_word(word) and not (strict_lexicon is not None and _acronym_possessive(word))
     while i < n:
-        if not _is_name_word(words[i].group(0)):
+        if not name_word(words[i].group(0)):
             i += 1
             continue
         j = i + 1
-        while (j < n and _is_name_word(words[j].group(0))
+        while (j < n and name_word(words[j].group(0))
                and text[words[j - 1].end():words[j].start()].isspace()):
             j += 1
         # ⭐ A REQUEST OPENER IS NOT PART OF A NAME (`strict_lexicon` only): "Add Inside bar" is the

@@ -52,7 +52,11 @@ describe('P3 UX — studio dock voice', () => {
     const card = screen.getByTestId('create-indicator-readback')
     expect(card.textContent).toContain('true when the 14-bar RSI of close is above 70')
     expect(card.textContent).not.toMatch(/0 otherwise/)
-    expect(lastUct().textContent).toContain('RSI 14 above 70 — true when the 14-bar RSI of close is above 70')
+    // ⭐ 2026-11-20 (owner's choice, "names only"): the FIRST answer names what was built and points at the
+    // card; the engine's description is said once, on the card above. What was assumed stays in the reply.
+    expect(lastUct().textContent).toContain('Built 1 condition: RSI 14 above 70. Details below.')
+    expect(lastUct().textContent).not.toContain('true when the 14-bar RSI of close is above 70')
+    expect(lastUct().textContent).not.toMatch(/0 otherwise/)
     expect(lastUct().textContent).toContain('Using RSI period 14.')
   })
 
