@@ -49,7 +49,7 @@ import { runtimeFamilyLedger, FAMILY_WORDS } from './runtimeFamilyLedger'
 // ⭐⭐ ENGINE 53 — ONE row pairing for both lanes (the runtime document and the run half).
 import { pairRunRows } from './runRowPairing'
 import { runtimeInputSpecsOf, plotColourInputAt } from '../../engine/runtime/runtimeInputs'
-import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash } from '../../engine/runtimeKill'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf } from '../../engine/runtimeKill'
 import { hostKnownDivergenceOf } from '../../engine/hostKnownDivergence'
 import { heldWithholdsOf, heldWithholdSentence, heldDrawingsNote, objectFamiliesOf, HELD_DIVERGENCE_GUARD,
   HELD_WITHHOLDS_STAMP, heldWithholdsStamp, heldRefusalReason } from '../../engine/heldWithholds'
@@ -58,7 +58,8 @@ import { sameDrawnSurface } from './costRoute'
 import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/objectLoss'
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
-import { storedBytesOf, sentDocument } from './storedBytes'
+import { storedBytesOf, sentDocument, pyJsonBytes } from './storedBytes'
+import { DEFAULT_LIMITS, LIMIT_PLAIN } from '../../engine/runtime/limits'
 import { runHalfProgramDigest, isGraphForm, RUN_HALF_PROGRAM_STAMP, RUN_HALF_PROGRAM_GRAPH_STAMP } from '../../engine/runHalfProgram'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
@@ -1416,7 +1417,7 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     }
     return no(installWhy.reason, installWhy.guard, t)
   }
-  return routeByCost({ source, id, name, t, no, host: {
+  return withOversizeKeep(routeByCost({ source, id, name, t, no, host: {
     ok: true,
     definition: docOut,
     reason: null,
@@ -1435,7 +1436,86 @@ function memberPaneDefinitionWithin({ source, id, name, translation = null, enum
     // declined (by code, for the census); absent for a script whose drawings are complete.
     ...(runHalfOut && runHalfOut.runtimeObjects ? { runHalf: { minted: true, columns: Object.keys(runHalfOut.runtimeObjects.outputs).length } } : {}),
     ...(runHalfOut && runHalfOut.declined ? { runHalfDeclined: runHalfOut.declined } : {}),
-  } })
+  } }), { source, id, name, t, no })
+}
+
+/** ⭐⭐ ITEM 2 — the guard a host document the store cannot hold is refused at ADD by. */
+export const DOCUMENT_SIZE_GUARD = 'pine:document-size'
+
+/** Mirrors `api/services/runtime_definitions.RUNTIME_MAX_DEFINITION_BYTES` (a runtime document's store cap;
+ *  `oversizeKeep.test.js` reads the server's line and holds the two equal). */
+export const RUNTIME_DOCUMENT_BYTE_BUDGET = 128 * 1024
+
+/** The member's sentence for a host document past the store's cap, the bytes as the store counts them. */
+export function documentSizeSentence(bytes, cap = DOCUMENT_BYTE_BUDGET) {
+  return `this script can be shown here but is too large to keep: as a saved indicator it would be ${bytes} bytes, `
+    + `and one may hold at most ${cap}`
+}
+
+/** …and, among those notes (coordinator ruling, 2026-11-21): the kept form runs bar by bar under the runtime lane's
+ *  per-bar step budget, and a chart where it passes that budget stops it BY NAME, drawing nothing rather than part of
+ *  it. ⚰️ k-clustering's kept run reached 200,090 steps on the last of 632 RDDT bars. Said before Add, in the budget's
+ *  own words and number (`runtime/limits.js`), never decided at the click (a run there would hold the page). */
+export function keepStepBudgetSentence(limit = DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR) {
+  return `On some charts this kept form may go past ${LIMIT_PLAIN.INSTRUCTIONS_PER_BAR} (at most ${limit}); `
+    + 'there it stops and says so by name, and draws nothing rather than part of it.'
+}
+
+/** …and the lead of the notes shown before Add when the bar-by-bar version is what Add keeps. */
+export function keepAnotherWaySentence(bytes, cap = DOCUMENT_BYTE_BUDGET) {
+  return `As drawn here this script is too large to keep (${bytes} bytes as a saved indicator; one may hold at most `
+    + `${cap}), so Add keeps it drawn bar by bar instead:`
+}
+
+/**
+ * ⭐⭐ ITEM 2 (2026-11-21, coordinator ruling) — A HOST DOCUMENT THE STORE CANNOT HOLD IS KEPT ANOTHER WAY, OR ITS
+ * ADD IS REFUSED UP FRONT, BY NAME. The PREVIEW is untouched: the answer is the host answer it was, drawn as before.
+ *
+ * ⚰️ vdubus-pattern-gen-v2's host document is 4,076,728 bytes as the store counts it (its object program: one
+ * ambiguity guard of a two-site `var` array window inlined once per read, 538 distinct nodes in 124,058), the store's
+ * cap is 65,536, and no tree encoding fits (its 149 drawing ops alone are ~60 KB). The door drew it, offered Add, and
+ * the store then answered 400 with its own internal sentence: a picture a member could preview and never keep.
+ *
+ * `oversize` rides on such an answer, measured by the store's own count (`storedBytesOf`):
+ *   · `saveAs` — with the runtime pane on, the RUNTIME-lane document of the same script (`runtimeLaneDefinition`,
+ *     offered as any host refusal is), when that lane builds it and it fits ITS cap: Add saves it, and the pane shows
+ *     its notes (and `forming`, the G6 sentence when the script is admitted for closed-bar history only) before the
+ *     member confirms;
+ *   · `refusal` — otherwise (pane off, the lane declined, or its document too large too): Add is refused by name,
+ *     up front, and nothing is sent.
+ * An answer the store can hold carries nothing new.
+ */
+function withOversizeKeep(answer, { source, id, name, t, no }) {
+  const doc = answer && answer.ok ? answer.definition : null
+  if (!doc || !doc.compute || doc.compute.kind !== 'ast') return answer
+  const bytes = storedBytesOf(doc)
+  if (bytes <= DOCUMENT_BYTE_BUDGET) return answer
+  const why = documentSizeSentence(bytes)
+  const base = { guard: DOCUMENT_SIZE_GUARD, bytes, cap: DOCUMENT_BYTE_BUDGET }
+  if (!runtimePaneEnabled()) return { ...answer, oversize: { ...base, refusal: why } }
+  const run = runtimeLaneDefinition({
+    source, id, name, t, no, routed: false, hostReason: why, hostGuard: DOCUMENT_SIZE_GUARD,
+  }) || {}
+  const keep = run.ok ? run.definition : null
+  if (keep && keep.compute && keep.compute.kind === 'runtime') {
+    // the store counts a runtime document as written (`user_definitions._save_runtime`); the id it mints may move
+    // this by a few bytes, and a document that then fails is refused by the store in its own member sentence
+    const keepBytes = pyJsonBytes(keep)
+    if (keepBytes <= RUNTIME_DOCUMENT_BYTE_BUDGET) {
+      return { ...answer, oversize: { ...base, saveAs: {
+        definition: keep, notes: run.notes || [], bytes: keepBytes, lead: keepAnotherWaySentence(bytes),
+        budget: keepStepBudgetSentence(),
+        forming: runtimeFormingRefusalOf({ source, newestBarIsForming: true }),
+      } } }
+    }
+    const tooBig = `its bar-by-bar version is ${keepBytes} bytes, past that one's ${RUNTIME_DOCUMENT_BYTE_BUDGET}-byte cap`
+    return { ...answer, oversize: { ...base, refusal: `${why}, and ${tooBig}`,
+      runtimeDeclined: { code: DOCUMENT_SIZE_GUARD, why: tooBig } } }
+  }
+  const declined = run.runtimeDeclined || null
+  return { ...answer, oversize: { ...base,
+    refusal: declined && declined.why ? `${why}, and its bar-by-bar version declined: ${declined.why}` : why,
+    runtimeDeclined: declined } }
 }
 
 /** ⭐⭐ ROUTE BY COST (Engine 73 (#1711), docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) —
