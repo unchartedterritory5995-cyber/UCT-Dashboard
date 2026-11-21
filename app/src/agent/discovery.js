@@ -21,7 +21,9 @@
 import { allCapabilityNames } from './capabilities'
 import { CHART_SETTING_DESCRIPTORS } from '../components/chart/chartSettingsDescriptors'
 
-const knownSettings = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent === 'known' && d.label).map(d => d.label)
+// (discovery honesty: a known row that is only a LEGACY input of a row the Agent writes — `legacyOf` — is not listed: the
+//  Agent already does what it controls)
+const knownSettings = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent === 'known' && d.label && !d.legacyOf).map(d => d.label)
 const sample = (xs, n = 6) => (xs.length > n ? `${xs.slice(0, n).join(', ')} and ${xs.length - n} more` : xs.join(', '))
 
 /**
@@ -94,7 +96,7 @@ export const TOPICS = [
     words: [/\bindicators?\b/, /\b(rsi|macd|bollinger|vwap|atr|stochastic|ema|sma|moving averages?|oscillators?|studies|study)\b/, /\bpanes?\b/, /\bauto(?:matic)?[\s-]?patterns\b|\buct intelligence (?:indicator|layers?|panel)\b/],
     caps: ['indicator.list', 'indicator.add', 'indicator.update', 'indicator.remove', 'indicator.show', 'indicator.hide', 'indicatorStyle.set', 'indicatorStyle.placeIn', 'indicatorStyle.setCalcTimeframe', 'pane.move', 'pane.resize', 'indicatorCopy.duplicate', 'indicatorCopy.copyTo', 'indicatorAlert.list', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete', 'indicatorTemplate.list', 'indicatorTemplate.apply', 'indicatorTemplate.save', 'indicatorTemplate.delete', 'uctIntelligence.set'], productHas: true,
     canDo: 'list the indicators on a chart; add one (a built-in indicator or one of your own saved ones, with its numeric settings, e.g. a 20 EMA), change its numeric settings, its colors, line width, line style and plot style, calculate it on a higher timeframe’s bars (a weekly RSI on a daily chart) or back on the chart’s own, put it on price, on volume or in its own pane, reorder and resize panes, duplicate it, copy indicators onto other charts, remove one (shown to you first, with anything it would disconnect, and undone exactly) and show or hide one — one at a time, on charts whose indicators you can change. Also: alert on an indicator that is on a chart (a level, a line crossing, a 9 / 20 moving-average cross, or one of your own yes/no signals, on that chart’s timeframe or another standard one — always shown to you first), list those alerts with what is wrong with any that can’t fire, and pause, resume or delete them; list your saved indicator templates, add one to one chart or several, save a chart’s indicators as one, and delete one (replacing or deleting a template is shown to you first); and add or remove the UCT Intelligence indicator on a chart and turn its layers on or off (Auto patterns, Pattern labels, and Support & resistance, Candlestick patterns, Setups or Caution where they are released to you) — with Undo',
-    known: () => ['classic overlay averages (Chart Settings)'],
+    known: () => ['adding a classic overlay average, or changing its color (Chart Settings → Moving averages)'],
     planned: null,
   },
   {
@@ -112,7 +114,7 @@ export const TOPICS = [
       // Drawing Boards (chart toolbar): named sheets of drawings shared by every chart
       'drawing.setActiveBoard', 'drawing.createBoard', 'drawing.renameBoard', 'drawing.deleteBoard'], productHas: true,
     canDo: 'draw a horizontal line at a price you give me and move it to a new price; draw any tool on the drawing toolbar from the dates and prices you give me (a date like Oct 15 or "last Friday", within the history the chart has loaded), including channels, pitchforks, arrows, Fibonacci extensions and Measure; move any point of a drawing; change one drawing\'s color, line style, width and the other settings in its menu (each tool has its own), and a Fibonacci\'s levels and fills; set an alert that follows a line or a Fibonacci level, or the entry, stop and target alerts of a position drawing (always shown to you first); duplicate a drawing; show or hide one drawing or all of them, lock or unlock one, remove one drawing (not one with an alert attached), clear every drawing on a symbol (always shown to you first; locked drawings and ones with alerts are kept), and list the drawings on a chart — each with Undo; on Charts, switch the Drawing Board you draw on (boards are shared by every chart and symbol), make a new board, rename one, or delete one with all its drawings (always shown to you first; deleting a board cannot be undone, and the last board is never deleted)',
-    known: () => ['Save as default, copying a drawing to a different symbol and reordering drawings — those are done on the chart'],
+    known: () => ['copying a drawing to a different symbol and reordering drawings — those are done on the chart'],
     planned: null,
   },
   {
@@ -152,23 +154,23 @@ export const TOPICS = [
     words: [/\bwatch ?lists?\b/, /\blists?\b/],
     caps: ['watchlist.list', 'watchlist.show', 'watchlist.add', 'watchlist.remove', 'watchlist.create', 'watchlist.rename', 'watchlist.clear', 'watchlist.keepOnly', 'watchlist.sortColumn', 'watchlist.setColumns', 'watchlist.arrangeColumns', 'watchlist.step', 'watchlist.readView', 'watchlist.setFlag', 'watchlist.delete', 'watchlist.open', 'watchlist.reorder', 'watchlist.setNote', 'watchlist.showList', 'watchlist.exportList'], productHas: true,
     canDo: 'show, create, rename, add to, remove from, clear and delete your watchlists, keep only the tickers you name, sort one A–Z or put tickers at the top, write a note on a ticker, copy one into a new list, and open one in your workspace; on a Watchlist or Scanner widget, sort by a column, add or hide columns, go to the next or previous ticker and read what it shows; and flag or unflag tickers',
-    known: () => ['sorting a list by price, change or other data', 'flagging (starring) tickers', 'tags and colors'],
+    known: () => ['tags and colors'],
     planned: null,
   },
   {
     id: 'alerts', title: 'Alerts',
     words: [/\balerts?\b/, /\bnotify\b/, /\bping me\b/],
-    caps: ['alert.list', 'alert.create', 'alert.delete', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete'], productHas: true,
-    canDo: 'list your price alerts, create price alerts (above/below a level) and delete them; create an indicator alert on an indicator that is on a chart (RSI above 70, MACD crossing a level, price touching a band — the alert catalog decides which), pause or resume one, and delete one. Note: UCT checks price alerts as live prices are fetched — there is no separate background monitor yet',
-    known: () => ['trendline alerts (owned by the Indicator project)', 'snoozing alerts', 'alerts on a yes/no signal (a trigger policy — set those from the chart)'],
+    caps: ['alert.list', 'alert.create', 'alert.delete', 'indicatorAlert.create', 'indicatorAlert.toggle', 'indicatorAlert.delete', 'drawing.setAlert'], productHas: true,
+    canDo: 'list your price alerts, create price alerts (above/below a level) and delete them; create an indicator alert on an indicator that is on a chart (RSI above 70, MACD crossing a level, price touching a band — the alert catalog decides which), pause or resume one, and delete one; set an alert that follows a drawing — a trendline, ray, horizontal line or one Fibonacci level (shown first). Note: UCT checks price alerts as live prices are fetched — there is no separate background monitor yet',
+    known: () => ['snoozing alerts', 'alerts on a yes/no signal (a trigger policy — set those from the chart)'],
     planned: { when: 'Batch 10', what: 'clearer alert-monitoring wording' },
   },
   {
     id: 'stockInfo', title: 'Stock information and news',
     words: [/\b(news|catalysts?|earnings|profile|fundamentals?|compare|headlines?)\b/],
-    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'chartFeatures.companyPanel', 'chartFeatures.earningsStrip', 'newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place'], productHas: true,
-    canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts; and on a chart, add, expand, collapse or remove its Company Info panel (and switch its Overview, Financials, Earnings, Ownership or News tab) or add or remove its Earnings Strip — with Undo; and in your UCT News library, save a headline you have open or name by its ticker (or take one out), add to or replace its note, create, rename or delete a collection (shown first — its headlines stay saved) and put a headline in one — with Undo',
-    known: () => ['calendar, ownership, insider, ETF holdings, options flow and themes (on their own widgets)'],
+    caps: ['stock.profile', 'stock.earnings', 'stock.compare', 'news.latest', 'news.catalysts', 'chartFeatures.companyPanel', 'chartFeatures.earningsStrip', 'newsLibrary.save', 'newsLibrary.setNote', 'newsLibrary.collection', 'newsLibrary.deleteCollection', 'newsLibrary.place', 'widget.setOption'], productHas: true,
+    canDo: 'look up a company’s profile and key numbers, its earnings, compare two stocks, and show the latest news and catalysts; and on a chart, add, expand, collapse or remove its Company Info panel (and switch its Overview, Financials, Earnings, Ownership or News tab) or add or remove its Earnings Strip — with Undo; and in your UCT News library, save a headline you have open or name by its ticker (or take one out), add to or replace its note, create, rename or delete a collection (shown first — its headlines stay saved) and put a headline in one — with Undo; open an ETF’s or a UCT index’s holdings on its chart (the chart’s View Holdings button)',
+    known: () => ['calendar, ownership, insider, options flow and themes (on their own widgets)'],
     planned: { when: 'Batch 10', what: 'more read-only data questions' },
   },
   {
@@ -222,6 +224,41 @@ export const TOPICS = [
 ]
 
 const registeredSet = () => new Set(allCapabilityNames())
+
+// ⛔ DISCOVERY HONESTY (agentDiscoveryHonesty.test.js): every "not yet" item a topic lists names the capability (or
+// capabilities) it would take. The test fails when any of them is REGISTERED — so a feature the Agent starts doing can't
+// stay listed as "not yet" — and when an item has no entry here. Keyed by the item's exact text.
+// RULE: each name here must be the capability's EVENTUAL registered id (check the open PR that will add it). The PR that
+// registers it must update or remove the item — this rail then forces it.
+export const NOT_YET = {
+  'breadth for UCT’s own universe (it is on the Breadth page) or other indexes': ['breadth.showUniverse'],
+  'live new highs / new lows (finalized closes only for now)': ['breadth.liveHighsLows'],
+  'live-versus-historical comparisons': ['breadth.compareLive'],
+  'cross-asset conditions (“when was breadth this low while QQQ was at a high?”)': ['history.crossAsset'],
+  'weekly-close searches (daily finalized sessions for now)': ['breadth.weeklySearch'],
+  'floating, popping out or merging widgets (moving one widget into another’s tabs)': ['boardDetach.float', 'boardDetach.intoTabs', 'boardDetach.setMerged', 'widget.popOut'],
+  'a widget’s look (colors, fonts), and controls that live only on the Watchlists page': ['widget.setLook'],
+  'layout version history': ['layoutHistory.list', 'layoutHistory.restore'],
+  'sharing a layout': ['layout.share'],
+  'sharing an indicator or restoring an older version of it': ['definition.share', 'definition.restoreVersion'],
+  'alerts on a new indicator (set them in Create Indicator)': ['indicator.draftAlert'],
+  'adding a classic overlay average, or changing its color (Chart Settings → Moving averages)': ['indicator.addOverlayAverage'],
+  'copying a drawing to a different symbol and reordering drawings — those are done on the chart': ['drawing.copyTo', 'drawing.reorder'],
+  'squeezing or stretching the price axis by hand': ['chart.scalePriceAxis'],
+  'overwriting an existing saved screen (waits on revision protection in the Screener)': ['screener.overwriteSaved'],
+  'field-vs-field comparisons': ['screener.fieldCompare'],
+  'formula logic and ranking in new screens': ['screener.formula'],
+  'preset scans': ['screener.runPreset'],
+  'tags and colors': ['watchlist.setTag'],
+  'snoozing alerts': ['alert.snooze'],
+  'alerts on a yes/no signal (a trigger policy — set those from the chart)': ['indicatorAlert.createSignal'],
+  'calendar, ownership, insider, options flow and themes (on their own widgets)': ['stock.ownership', 'stock.insiders', 'stock.optionsFlow'],
+  'estimates, implied moves and reactions (read them on the Calendar page)': ['calendar.estimates'],
+  'my-stocks sets and calendar filters (the page’s own controls)': ['calendar.setFilters'],
+  'logging trades, positions or accounts (personal records — not operated by the Agent)': ['journal.logTrade'],
+  'editing or deleting an existing note': ['journal.editNote', 'journal.deleteNote'],
+  'templates and journal styles': ['journal.setTemplate'],
+}
 
 /** A topic's status from the LIVE registry (a cap that isn't registered doesn't count). */
 export function topicStatus(t, reg = registeredSet()) {
