@@ -118,3 +118,28 @@ def test_only_missing_hashes_are_derived(tmp_path):
     s3 = _S3(objs)
     rep = DP.main(["--root", _root(tmp_path, V1), "--version", "2", "--stage", "all", "--dry"], client=s3, bucket="b")
     assert rep["hash_derived"] == 2 and f"{DP.PREFIX}v1/ASB.json.gz" not in s3.gets and rep["new_rev"] == 0
+
+
+# ── fail closed on retirement (2026-11-21) ──────────────────────────────────────────────────────────────────
+def test_a_plan_that_retires_an_unnamed_symbol_is_refused(tmp_path):
+    """The live dry run found a serve list 15 symbols behind the live manifest: those would retire silently."""
+    s3 = _S3(_live_v1(V1))
+    root = _root(tmp_path, {s: r for s, r in V1.items() if s != "MNST"})      # MNST missing from the serve list
+    with pytest.raises(SystemExit):
+        DP.main(["--root", root, "--version", "2", "--stage", "all"], client=s3, bucket="b")
+    assert s3.puts == []
+    with pytest.raises(SystemExit):                                           # naming the wrong one is no better
+        DP.main(["--root", root, "--version", "2", "--stage", "all", "--allow-retire", "FDX"], client=s3, bucket="b")
+    rep = DP.main(["--root", root, "--version", "2", "--stage", "all", "--dry"], client=s3, bucket="b")
+    assert rep["retired_now"] == ["MNST"] and rep["retire_refused"] and s3.puts == []
+
+
+def test_a_plan_whose_retirements_are_named_exactly_publishes(tmp_path):
+    s3 = _S3(_live_v1(V1))
+    root = _root(tmp_path, {s: r for s, r in V1.items() if s != "MNST"})
+    DP.main(["--root", root, "--version", "2", "--stage", "all", "--allow-retire", "mnst"], client=s3, bucket="b")
+    m = _manifest(s3)
+    assert m["retired"] == ["MNST"] and m["revs"]["MNST"] == 2 and m["revs"]["ASB"] == 1
+    with pytest.raises(SystemExit):                                           # naming a symbol it does NOT retire
+        DP.main(["--root", _root(tmp_path / "b", V1), "--version", "3", "--stage", "all", "--allow-retire", "ASB"],
+                client=_S3(_live_v1(V1)), bucket="b")

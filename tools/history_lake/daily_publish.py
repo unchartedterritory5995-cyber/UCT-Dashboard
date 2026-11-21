@@ -122,6 +122,7 @@ def main(argv=None, client=None, bucket=None):
     ap.add_argument("--test", default="")
     ap.add_argument("--skip-upload", action="store_true", help="manifest only (the series are already up)")
     ap.add_argument("--dry", action="store_true", help="print exactly which symbols get a new rev; write nothing")
+    ap.add_argument("--allow-retire", default="", help="EXACTLY the symbols this publish may retire (comma list)")
     a = ap.parse_args(argv)
     root = Path(a.root) / "daily-v1"
     serve = json.loads((root / "serve_list.json").read_text(encoding="utf-8"))
@@ -143,9 +144,20 @@ def main(argv=None, client=None, bucket=None):
         prev = {**prev, "hashes": {**derived, **(prev.get("hashes") or {})}}
     p = plan(prev, a.version, names, hashes)
     report = {**moved(prev, p, a.version), "hash_derived": len(derived), "hash_unreadable": failed}
+    # ⛔ FAIL CLOSED ON RETIREMENT (2026-11-21): a symbol the previous manifest served and this one does not
+    # leaves rebuild serving (back to the stored series, its history_rev re-epoched). The live dry run that day
+    # found a serve list 15 symbols behind the live manifest: a v2 from it would have retired them silently.
+    # Refused unless --allow-retire names EXACTLY those symbols (the revert drill names its own).
+    allowed = {x.strip().upper() for x in (a.allow_retire or "").split(",") if x.strip()}
+    retiring = set(report["retired_now"])
+    report["retire_refused"] = None if retiring == allowed else (
+        f"refused: this plan retires {sorted(retiring)} but --allow-retire names {sorted(allowed)} "
+        "(they must match exactly)")
     print("plan", json.dumps(report), flush=True)
     if a.dry:
         return report
+    if report["retire_refused"]:
+        raise SystemExit(report["retire_refused"])
     if failed:
         raise SystemExit(f"refused: the published payload of {len(failed)} listed symbols could not be read "
                          f"({failed[:8]}); they would re-epoch. Re-run, or retire them deliberately.")
