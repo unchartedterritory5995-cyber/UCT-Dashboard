@@ -86,7 +86,11 @@ describe('the chart feeds the hook the held span (StockChart.jsx), code, not pro
     expect(code).toMatch(/const loaded = barCountRef\.current/)
     // CONTROL: the matcher sees the real call (a reverted line, `barCount` 4th, would read here); the 9th argument is
     // the chart's symbol binding (`ownDailyFollowsChartSymbol.test.js`, the e83 live capture)
-    expect(args).toHaveLength(9)
+    expect(args).toHaveLength(10)
     expect(args[8]).toBe('symbolMeta')
+    // ⭐⭐ (e91) the 10th is the chart's span of sessions on a rung (`ownDailyDepth.test.js`), counted where the rows are bound
+    expect(args[9]).toBe('_heldSessions')
+    expect(code).toMatch(/const rung = heldSessionsRung\(heldSessionsRef\.current\)/)
+    expect(code).toMatch(/heldSessionsRef\.current = useMemo\(\(\) => sessionsSpanned\(_spanFirstT, _spanLastT\)/)
   })
 })
