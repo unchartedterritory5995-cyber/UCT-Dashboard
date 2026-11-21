@@ -1100,6 +1100,25 @@ def test_a_builtin_row_never_carries_a_hand_label(tmp_path, extra, why):
         bc._load_manifest(mpath)
 
 
+def test_a_run_whose_manifest_is_its_own_run_dirs_hand_written_copy_starts(tmp_path):
+    # ⚰️ patrick-54's review of #2284 (2026-11-21): `--manifest $RUN/manifest.json --run-dir $RUN` with a built-in row
+    # carrying no sha256 crashed `run` before any page step (KeyError 'sha256' comparing the un-normalized run-dir copy)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "manifest.json").write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": [VWAP_ROW]}),
+                                       encoding="utf-8")
+    notes = []
+    m = bc.prepare_run_manifest(run / "manifest.json", run, log=notes.append)
+    sha = hashlib.sha256(bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
+    assert m["scripts"][0]["sha256"] == sha and notes == []          # the same rows: it starts, nothing "differs"
+    assert json.loads((run / "manifest.json").read_text(encoding="utf-8"))["scripts"][0]["sha256"] == sha
+    other = tmp_path / "other.json"                                    # control: a genuinely different resume says so
+    other.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1",
+                                 "scripts": [dict(VWAP_ROW, builtinInputs={"Anchor Period": "Dividends"})]}), encoding="utf-8")
+    bc.prepare_run_manifest(other, run, log=notes.append)
+    assert len(notes) == 1 and "differs" in notes[0]
+
+
 def test_the_loaded_manifest_derives_each_builtin_rows_sha_from_its_label(tmp_path):
     mpath = tmp_path / "m.json"
     mpath.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": [VWAP_ROW]}), encoding="utf-8")
