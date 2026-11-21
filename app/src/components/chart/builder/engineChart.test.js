@@ -14,7 +14,10 @@ import process from 'node:process'
 const LF = String.fromCharCode(10)
 const read = (rel) => fs.readFileSync(path.resolve(process.cwd(), rel), 'utf8').split(String.fromCharCode(13)).join('')
 const code = (text) => text.split(LF).map((l) => l.split('//')[0].trimEnd()).filter((l) => l.trim()).join(LF)
-const CHART = read('src/components/StockChart.jsx')
+// StockChart reads its bar arrays through its render box (`__heavy.x` while rendering, `__heavy.committed.x` after a
+// commit: chart/latestCallback.js); `unbox` reads the source as the values it names, so these facts compare values, not spellings.
+const unbox = (t) => t.split('__heavy.committed.').join('').split('__heavy.').join('').replace(/[ \t]*\/\* eslint-disable-line react-hooks\/exhaustive-deps -- the box \(__heavy\)[^*]*\*\//g, '')
+const CHART = unbox(read('src/components/StockChart.jsx'))
 
 function block(text, from, to) {
   const a = text.indexOf(from)
