@@ -41,7 +41,7 @@ def test_seeding_copies_the_file_once_and_matches_it(wisdom_db):
     data = vocab.load_vocabulary()
     rows = sum(len(spec["rows"]) for spec in data["maps"].values())
     counts = vocab.seed()
-    assert counts["seeded"] and counts["inserted"] == 32 and counts["map_rows"] == rows and not counts["conflicts"]
+    assert counts["seeded"] and counts["inserted"] == len(data["entries"]) and counts["map_rows"] == rows and not counts["conflicts"]
     with store.read() as conn:
         db = {r["vocab_id"]: dict(r) for r in conn.execute("SELECT * FROM wisdom_vocab")}
         maps = conn.execute("SELECT COUNT(*) FROM wisdom_vocab_maps").fetchone()[0]
@@ -104,7 +104,7 @@ def test_lookup_reads_the_committed_file_when_wisdom_db_is_unreadable(tmp_path, 
     monkeypatch.setenv("WISDOM_DB_PATH", str(tmp_path / "never_initialised.db"))
     vocab.clear_cache()
     assert vocab.lookup("Oops Reversal") == "oops_reversal"
-    assert len(vocab.list_for_prompt()) == 32
+    assert len(vocab.list_for_prompt()) == len(vocab.load_vocabulary()["entries"])
     vocab.clear_cache()
 
 
@@ -112,7 +112,7 @@ def test_the_prompt_list_is_every_live_name_setups_first(wisdom_db):
     names = vocab.list_for_prompt()
     data = vocab.load_vocabulary()
     kinds = {e["name"]: e["kind"] for e in data["entries"]}
-    assert len(names) == 32 and set(names) == set(kinds)
+    assert len(names) == len(data["entries"]) and set(names) == set(kinds)
     order = [kinds[n] for n in names]
     assert order == sorted(order, key=vocab.KIND_ORDER.index)
     assert len(vocab.list_for_prompt(kinds=("level",))) == 5
