@@ -256,6 +256,10 @@ Nothing else about your work changes, and nothing of yours will be cancelled. No
 
 1. **Ask GitHub Support for a higher concurrency limit** (free, about 10 min; github.com/contact/support, topic Actions). Draft:
    > My account runs a public repository (UCT-Dashboard) on GitHub Pro. During working hours we regularly saturate the 40-job concurrency limit for standard Linux runners, and our deploy pipeline waits up to 20 minutes for a runner. Could you raise the concurrent job limit for this account (to 60 or more)? Happy to share run ids.
+   >
+   > Separately, 11 workflow runs from 2026-11-11 are stuck as "queued" with 0 jobs. Cancel and force-cancel return HTTP 409 ("has not been queued yet" / "is completed"), and DELETE returns HTTP 403 "Could not delete the workflow run", with an admin token that has the repo and workflow scopes. Could you clear them? Run ids: 43097842088, 43096652085, 43096652206, 43096652064, 43096652073, 43096652274, 43096652281, 43096652068, 43096652114, 43096651999, 43096651992.
+
+   (Task 1 tried on 2026-11-20 and GitHub refused every DELETE with HTTP 403. The admission rule's 6 h freshness filter (S6) is what keeps these from holding the throttle shut.)
 2. **If the limit stays at 40 and deploys still wait,** consider moving the repo into a GitHub organization on Team (60 jobs). That needs its own plan: Railway's GitHub connection, repo secrets, tokens and branch protection all move.
 
 ## Measured options NOT in this plan (decide later)
