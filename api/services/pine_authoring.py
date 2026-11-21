@@ -835,6 +835,42 @@ LAST_BAR_RECIPE_LINE = ("(This recipe waits for the last bar on purpose: keep it
                         "member when it is drawn; do not describe that yourself.)")
 
 
+def _request_calls(script: Any) -> Optional[List[str]]:
+    """Every `request.security(...)` of a script, WHOLE (symbol, timeframe, expression and options), with
+    comments and layout aside, sorted. None when one cannot be read to its closing bracket."""
+    if not isinstance(script, str):
+        return None
+    code = _code_only(script)
+    blanked = _strings_blanked(code)
+    out = []
+    for m in _REQUEST_CALL.finditer(blanked):
+        depth, i = 1, m.end()
+        while i < len(blanked) and depth:
+            depth += (blanked[i] == "(") - (blanked[i] == ")")
+            i += 1
+        if depth:
+            return None
+        out.append("".join(code[m.start():i].split()))
+    return sorted(out)
+
+
+def recipe_whose_requests_these_are(message: Any, script: Any, doc: Optional[Mapping[str, Any]] = None) -> Optional[str]:
+    """The id of the checked recipe this script is backed by AND whose `request.security` calls are EXACTLY
+    this script's, or None.
+
+    `backed_by` is a similarity (the script holds 85 percent of the recipe's tokens, in order): right for
+    saying which answers were value-checked, too wide for excusing a read. A script that resembles a recipe
+    and requests something the recipe does not (one more request, another timeframe, another expression) was
+    not checked with that request in it. So the requests are held to IDENTITY: the same calls, whole, the same
+    number of times."""
+    backed = backed_by(message, script, doc)
+    if backed is None:
+        return None
+    recipe = next((r for r in recipes(doc) if r["id"] == backed), None)
+    own = _request_calls(recipe["source"]) if recipe else None
+    return backed if own and own == _request_calls(script) else None
+
+
 def recipes_text(found: List[Mapping[str, Any]]) -> str:
     """The recipes as they ride the request, or '' for none."""
     if not found:

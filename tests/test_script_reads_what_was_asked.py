@@ -165,7 +165,7 @@ def test_a_checked_recipe_is_never_sent_back_for_its_own_read(conv, clean_env, m
     recipe = next(r for r in pa.recipes() if r["id"] == "prior-day-levels")
     words = "Add " + recipe["asks"][0]
     assert pa.other_read_asked(words, recipe["source"], DAILY)[0] == pa.OTHER_READ_NOT_ASKED      # the rule alone WOULD send it back
-    assert pa.backed_by(words, recipe["source"]) == "prior-day-levels"
+    assert pa.recipe_whose_requests_these_are(words, recipe["source"]) == "prior-day-levels"
     client = model([writes(recipe["source"], reply="Yesterday's levels.")])
     r = turn(conv, words)
     assert r["ok"] is True and len(client.calls) == 1
@@ -174,6 +174,56 @@ def test_a_checked_recipe_is_never_sent_back_for_its_own_read(conv, clean_env, m
     assert pa.backed_by(YESTERDAY_WORDS, OWN_DAILY) is None
     client = model([writes(OWN_DAILY), writes(WITHOUT)])
     assert len(client.calls) == 0 and ask(conv, YESTERDAY_WORDS)["attempts"] == 2
+
+
+def _recipe(rid):
+    return next(r for r in pa.recipes() if r["id"] == rid)
+
+
+def test_the_exemption_is_IDENTITY_of_the_requests_never_resemblance():
+    """`backed_by` is a similarity (85 percent of the recipe's tokens). Resembling a recipe excuses nothing: the
+    script's requests must be the recipe's own, whole, the same number of times."""
+    recipe = _recipe("prior-day-levels")
+    words, source = "Add " + recipe["asks"][0], recipe["source"]
+    assert pa.RECIPE_BACKED_SHARE == 0.85
+    # the recipe itself, and the recipe the way the assistant hands it back (a title, two settings, a comment, other layout)
+    handed_back = source.replace('indicator("Prior Day Levels", overlay=true)', 'indicator("Mine", overlay=true)\nlw = input.int(2, "Width")   // a setting')
+    handed_back = handed_back.replace('request.security(syminfo.tickerid, "D", high[1])', 'request.security( syminfo.tickerid,"D",high[1] )   // yesterday')
+    for script in (source, handed_back):
+        assert pa.recipe_whose_requests_these_are(words, script) == "prior-day-levels", script
+    # STILL BACKED (over 85 percent) and NOT excused: one request more, the timeframe changed, the expression changed
+    one_more = source + 'extra = request.security(syminfo.tickerid, timeframe.period, close)\nplot(extra)\n'
+    other_tf = source.replace('"D", close[1])', '"W", close[1])')
+    other_expression = source.replace('"D", low[1])', '"D", low[2])')
+    one_fewer_kind = source.replace('request.security(syminfo.tickerid, "D", close[1])', 'request.security(syminfo.tickerid, "D", high[1])')
+    for script in (one_more, other_tf, other_expression, one_fewer_kind):
+        assert script != source and pa.backed_by(words, script) == "prior-day-levels", (pa.recipe_share(source, script), script[-120:])
+        assert pa.recipe_whose_requests_these_are(words, script) is None, script[-160:]
+    # a look-alike at about half the recipe is not backed at all, so it is never excused
+    half = "\n".join(source.split("\n")[:5]) + "\nplot(pdh)\n"
+    assert 0.3 < pa.recipe_share(source, half) < 0.7 and pa.backed_by(words, half) is None
+    assert pa.recipe_whose_requests_these_are(words, half) is None
+    # a request that cannot be read to its end excuses nothing; neither does a script, or a recipe, with no request
+    assert pa._request_calls(source + 'x = request.security(syminfo.tickerid, "D", close[1]\n') is None
+    assert pa._request_calls(HEAD + "plot(close)\n") == [] and pa._request_calls(None) is None
+    zig = _recipe("zigzag-percent")
+    assert pa._request_calls(zig["source"]) == [] and pa.recipe_whose_requests_these_are("Add " + zig["asks"][0], zig["source"]) is None
+
+
+def test_a_look_alike_of_a_recipe_is_still_sent_back(conv, clean_env, model, lane):
+    recipe = _recipe("prior-day-levels")
+    words, source = "Add " + recipe["asks"][0], recipe["source"]
+    # (a) backed by the recipe (over 85 percent of it) with ONE REQUEST MORE on the chart's own timeframe: sent back
+    one_more = source + 'extra = request.security(syminfo.tickerid, timeframe.period, close)\nplot(extra)\n'
+    assert pa.backed_by(words, one_more) == "prior-day-levels"
+    client = model([writes(one_more), writes(source)])
+    r = turn(conv, words)
+    assert r["ok"] is True and len(client.calls) == 2 and r["script"]["pine"] == source
+    # (b) about half the recipe, with the recipe's own daily read: not backed, sent back
+    half = "\n".join(source.split("\n")[:5]) + "\nplot(pdh)\n"
+    assert pa.backed_by(words, half) is None
+    client = model([writes(half), writes(source)])
+    assert len(client.calls) == 0 and turn(conv, words)["ok"] is True and len(client.calls) == 2
 
 
 def test_no_recipe_of_UCT_s_own_is_sent_back_on_any_chart_it_is_asked_on(conv, clean_env, model, lane):
