@@ -108,6 +108,52 @@ def test_a_manifest_without_revs_still_means_version_for_all(vol):
     assert K.history_epoch("SPY", "D") == 4 * K.EPOCH_STEP and K.history_epoch("QQQ", "D") == 4 * K.EPOCH_STEP
 
 
+# ── deploying U5 alone moves no epoch (coordinator: rail the no-revs read) ──────────────────────────────────
+#: The SHAPES of the live manifests when U5 ships (read 2026-11-21): neither carries `revs` or `hashes`.
+LIVE_CORRECTIONS_V3 = {"version": 3, "built_at": "2026-11-21T01:33:01Z", "stage": "SPY", "symbols": ["SPY"], "retired": []}
+LIVE_REBUILD_V1 = {"version": 1, "end": "2026-11-17", "built_at": "2026-11-18T21:36:30Z", "stage": "all",
+                   "symbols": ["ASB", "MNST", "ATRO"], "amended": "20261121T013209Z +ATRO (data-identity R-B)"}
+
+
+def test_deploying_u5_alone_moves_no_epoch_on_the_live_manifest_shapes(vol, tmp_path, monkeypatch):
+    """A manifest or table WITHOUT `revs` reads as rev = version for every symbol, so every term equals what the pre-U5
+    code computed (version x STEP while corrected/served, 0 otherwise), and the rebuild wants exactly the v<version>
+    files a pod already holds: the first sync after the deploy fetches nothing and removes nothing."""
+    d = vol / "bars_corrections" / "v3"
+    d.mkdir(parents=True)
+    (d / "SPY.json.gz").write_bytes(K.encode_payload("SPY", 3, _entry("SPY", 0)))
+    (vol / "bars_corrections" / "manifest.json").write_text(json.dumps(LIVE_CORRECTIONS_V3))
+    assert K.load_local()
+    assert K.history_epoch("SPY", "D") == 3 * K.EPOCH_STEP and K.history_epoch("AAPL", "D") == 0
+
+    root = vol / "bars_rebuild" / "v1"
+    root.mkdir(parents=True)
+    for s in LIVE_REBUILD_V1["symbols"]:
+        (root / f"{s}.json.gz").write_bytes(gzip.compress(json.dumps({"sym": s, "bars": [["2005-01-03", 1, 1, 1, 1, 1]]}).encode()))
+    asked = []
+
+    class _C:
+        def get_object(self, Bucket, Key):
+            import io
+            asked.append(Key)
+            if Key == R.MANIFEST_KEY:
+                return {"Body": io.BytesIO(json.dumps(LIVE_REBUILD_V1).encode())}
+            raise KeyError(Key)
+    out = R.sync(_C(), "b")
+    assert out["ok"] and out["fetched"] == 0 and out["removed"] == 0 and asked == [R.MANIFEST_KEY]
+    assert all(R.history_epoch(s, "D") == 1 * R.EPOCH_STEP for s in LIVE_REBUILD_V1["symbols"])
+    assert R.history_epoch("SPY", "D") == 0
+
+    p = tmp_path / "identity_no_revs.json"
+    p.write_text(json.dumps({"version": 3, "symbols": {"AAA": [{"from": None, "until": "2010-01-04", "source": None}]}}))
+    monkeypatch.setattr(I, "TABLE", p)
+    I._table.cache_clear()
+    try:
+        assert I.history_epoch("AAA", "D") == 3 * I.EPOCH_STEP and I.history_epoch("BBB", "D") == 0
+    finally:
+        I._table.cache_clear()
+
+
 # ── the rebuild component ───────────────────────────────────────────────────────────────────────────────────
 def test_rebuild_revs_per_ticker_and_versions_only_rise(vol):
     root = vol / "bars_rebuild"
