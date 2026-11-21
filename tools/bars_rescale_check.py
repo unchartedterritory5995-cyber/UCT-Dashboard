@@ -30,6 +30,11 @@ _ROOT = Path(__file__).resolve().parents[1]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+# The shared-data-root census (tests/test_tools_pin_the_root.py): this tool reads only the store named by
+# --db (sqlite3, mode=ro) and imports api.* for the pure split detector. Every shared-root default is
+# redirected to a sandbox, which it never reads.
+import conftest  # noqa: E402,F401  side effect: redirects every *_DB_PATH/*_DIR to an isolated sandbox
+
 #: A close this small is at scale_bar's 4-dp floor (0.0001 / 1.05 rounds back to 0.0001).
 PINNED_MAX_CLOSE = 0.0002
 #: ... and this much volume on it is a multiplied volume, not a sub-penny listing's.
