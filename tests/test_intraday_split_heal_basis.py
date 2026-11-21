@@ -44,6 +44,8 @@ RATIOS = (2.0, 3.0, 4.0, 10.0, 0.5, 0.25, 0.1, 1.5)
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     monkeypatch.setenv("INTRADAY_SPLIT_HEAL_MODE", "write")
+    # every proven plan (the allowlist's own rails: tests/test_intraday_split_heal_undo_allowlist.py)
+    monkeypatch.setenv("INTRADAY_SPLIT_HEAL_ALLOW", "*")
     monkeypatch.setattr(bs, "_DB_PATH", str(tmp_path / "bars.db"))
     bs.bump_db_epoch()
     bs.init_db()
