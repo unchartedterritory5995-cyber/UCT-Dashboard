@@ -151,14 +151,14 @@ def test_the_size_band_is_never_looser_than_the_old_band():
 # ── F3c: zero-volume bars are not evidence ──────────────────────────────────────────────────────────────
 def test_a_step_between_zero_volume_stale_quotes_is_not_evidence():
     """HUBB 1977: flat zero-volume fillers. Here the step is an EXACT 4:3, so only F3c can refuse it."""
-    closes = [3.7271] * 20 + [2.7953] * 20
+    closes = [4.0] * 20 + [3.0] * 20                          # stand-ins: an exact 4:3
     found = S.unadjusted_splits(_bars(closes, [0] * 40), [(DAYS[20], 4 / 3)])
     assert found == []
 
 
 def test_the_same_step_with_volume_is_detected():
     """The control: the refusal above is the volume rule, not the ratio rule."""
-    closes = [3.7271] * 20 + [2.7953] * 20
+    closes = [4.0] * 20 + [3.0] * 20                          # stand-ins: an exact 4:3
     found = S.unadjusted_splits(_bars(closes), [(DAYS[20], 4 / 3)])
     assert [d.isoformat() for d, _r in found] == [DAYS[20]]
 
