@@ -231,6 +231,23 @@ def entries_for(ticker: str, tf: str, src: str) -> dict:
     return (idx or {}).get((str(tf).upper(), src)) or {}
 
 
+def keep_wicks(ticker: str, src: str) -> dict:
+    """{date: {field: value}}: daily wicks the serve-time clamp must NOT trim (owner decision D1: a second vendor
+    independently shows the same spike, so it is a real print). Op `keep_wick`: {"tf": "D", "src", "d", "field":
+    "h"|"l", "value"}. The clamp honours an entry only while the bar still holds `value` (compare-and-set again)."""
+    out: dict = {}
+    for d, es in entries_for(ticker, "D", src).items():
+        for e in es:
+            if e[0] == "keep":
+                out.setdefault(d, {})[e[1]] = e[2]
+    return out
+
+
+def same_value(a, b) -> bool:
+    """The ledger's equality (prices at 4 dp), for callers outside this module."""
+    return _eq(a, b)
+
+
 def _eq(a, b) -> bool:
     try:
         a, b = float(a), float(b)

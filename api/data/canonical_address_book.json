@@ -69,10 +69,13 @@
       ],
       "row_projection_declared_by": "get_bars_since",
       "row_projection_shared_with": [
-        "get_bars",
+        "_history_keys",
+        "_packed_self_test",
+        "_packed_sql",
+        "_rebuild_periods_from_daily",
         "get_bars_before"
       ],
-      "distinct_projections_over_this_table": 11,
+      "distinct_projections_over_this_table": 13,
       "authority": "authoritative",
       "undeclared_by_this_store": [
         "cadence",

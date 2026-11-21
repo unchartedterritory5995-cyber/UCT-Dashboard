@@ -257,7 +257,7 @@ import popStyles from './mobile/ContextPopover.module.css'
 // "Doesn't match TradingView?" row. The dialog itself is lazy (`reportDoor.jsx`).
 import useReportsConfig from './chart/supportLoop/useReportsConfig'
 import { LazyReportMismatchDialog } from './chart/supportLoop/reportDoor'
-import { isPineOriginDoc } from './chart/engine/otherSymbols'
+import { isPineOriginDoc, sessionsSpanned, heldSessionsRung } from './chart/engine/otherSymbols'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useAutoStructuresScope, useSetupsPanelReleased } from './chart/autoStructuresGate'
@@ -1448,6 +1448,122 @@ function zoomLimitsOf(chart) {
 // newest REAL bar sits a constant margin from the right edge at spacing plot/width, whatever
 // path or data state produced the frame. `reserve` is non-zero only for D/W/M (a slot seeded
 // into the candle series, _intradayLoadReserve); intraday never reserves future-session slots.
+
+// ⛔⛔ THE DEBUG HANDLE IS BUILT OUT HERE, NOT INSIDE THE CHART (2026-11-20). A closure written inside a
+// render keeps that render's whole V8 context alive: every local any closure captures (`bars`,
+// `filteredBars`, the bar hook's callbacks and through them that render's snapshot, the memoized
+// callbacks and through them OLDER renders'). The handle lives on `window` for the chart's whole life, so
+// written in the creation effect it pinned the creation render's bars for good (a heap snapshot of a jsdom
+// mount: `__uctChartDebug.main.visibleRange -> context -> sessionAppliedBars`). Here its closures hold the
+// refs they read and nothing else. Rail: StockChart.closureChains.test.jsx.
+function chartDebugHandle({
+  chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
+  userLockedViewRef, userViewLockedRef, vertMarginsRef,
+}) {
+  // StockChart's `mainPriceScale`, off the same refs (the price pane's scale, via the candle series)
+  const mainPriceScale = () => candleSeriesRef.current?.priceScale?.() ?? chartRef.current?.priceScale('right') ?? null
+  return {
+    visibleRange: () => {
+      try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
+    },
+    // Logical index of the newest REAL candle on the candle series (the framing rail,
+    // tools/intraday_symswitch_framing_harness.py: right margin = visibleRange().to - this).
+    newestIndex: () => newestLogicalIndex(chartRef.current, candleSeriesRef.current, 0),
+    // The newest candle the renderer holds: its time (unix seconds, or a date string for D/W/M)
+    // and close. The desktop all-day soak (uct-desktop scripts/proofs/soak.mjs) samples it to
+    // prove a chart left open all day is still live (time advances, close moves).
+    // What the last paint decided for the indicator window (`plotWindow.js`): the rows
+    // it holds, the first row drawn (0: every row) and that row's time.
+    plotWindow: () => ({ ...plotWindowRef.current }),
+    // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
+    // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
+    // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
+    // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
+    newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
+    // Read-only: what each ENGINE series actually handed the renderer
+    // (the fundamentals acceptance harness reads plotted values from here).
+    engineSeries: () => {
+      try {
+        return (engineRef.current?.binder?.bindings() || []).map((b) => ({
+          instanceId: b.instanceId, plotKey: b.plotKey,
+          priceFormat: b.series?.options?.()?.priceFormat?.type || null,
+          // (economic acceptance) what the renderer was actually asked to draw
+          seriesType: b.series?.seriesType?.() || null,
+          lineType: b.series?.options?.()?.lineType ?? null,
+          priceScaleId: b.series?.options?.()?.priceScaleId ?? null,
+          paneIndex: b.series?.getPane?.()?.paneIndex?.() ?? null,
+          data: b.series?.data?.() || [],
+          // ONE logical line may be drawn as several render series (gap runs).
+          runs: (b.runSeries || []).map((rs) => rs?.data?.() || []),
+        }))
+      } catch { return null }
+    },
+    // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
+    // separate. The daily regression was "Origin frames the 600-bar window
+    // instead of the true origin", and a chart holding 20 years while
+    // FRAMING the last 600 bars is pixel-identical to one that only holds
+    // 600 — so the SERIES and the WINDOW must be observable independently
+    // or the acceptance cannot tell a data bug from a framing bug. An
+    // earlier pass scored only the series, found 5,247 rows, and would
+    // have reported the pipeline healthy while the member still saw 2024.
+    // Read-only, chartId-keyed, resolved at CALL time off the live refs.
+    visibleTimeRange: () => {
+      try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
+    },
+    // (economic acceptance) the PRIMARY series' own type — never candles on ECON:*
+    primarySeriesType: () => {
+      try { return candleSeriesRef.current?.seriesType?.() || null } catch { return null }
+    },
+    renderedTail: (k = 2) => {
+      try {
+        const d = candleSeriesRef.current?.data?.()
+        if (!Array.isArray(d) || !d.length) return null
+        return d.slice(Math.max(0, d.length - k)).map(b => ({
+          time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
+        }))
+      } catch { return null }
+    },
+    // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
+    // "The chart pinches a little more every time I pan" is a claim about
+    // numbers nothing on the page reports: the candle pane's own height, the
+    // margins actually in force, whether a manual pin is live and what the
+    // stored lock says. A rig that has to infer them from pixels measures the
+    // symptom; this reads the state. Read-only, chartId-keyed, and it holds
+    // nothing — every field is resolved at CALL time off the live refs.
+    priceGeometry: () => {
+      try {
+        const series = candleSeriesRef.current
+        const pane = series?.getPane?.()
+        const panes = chartRef.current?.panes?.() || []
+        const sm = mainPriceScale()?.options?.()?.scaleMargins || null
+        return {
+          paneIndex: pane?.paneIndex?.() ?? null,
+          paneHeight: pane?.getHeight?.() ?? null,
+          paneCount: panes.length || null,
+          paneHeights: panes.map((p) => { try { return p.getHeight() } catch { return null } }),
+          // ⭐ WHAT EACH PANE ACTUALLY HOLDS. "Nothing draws here" is the
+          // only test the empty-pane reclaim makes, so a ghost strip is
+          // diagnosed by asking each rectangle what is in it — not by
+          // counting canvases, which LWC allocates per pane regardless.
+          paneSeries: panes.map((p) => {
+            try { return (p.getSeries() || []).map((x) => x.seriesType?.() || '?') } catch { return null }
+          }),
+          scaleMargins: sm ? { top: sm.top, bottom: sm.bottom } : null,
+          vertMargins: vertMarginsRef.current ? { ...vertMarginsRef.current } : null,
+          manualPin: priceManualRef.current && priceManualRangeRef.current
+            ? { ...priceManualRangeRef.current } : null,
+          viewLock: userViewLockedRef.current && userLockedViewRef.current
+            ? { ...userLockedViewRef.current } : null,
+        }
+      } catch { return null }
+    },
+    /** Price → pixel row WITHIN the candle pane (pane-relative, as the
+     *  drawing layer uses it). Lets a probe measure the candle band itself. */
+    priceToY: (price) => {
+      try { return candleSeriesRef.current?.priceToCoordinate?.(price) ?? null } catch { return null }
+    },
+  }
+}
 
 // The logical index of the newest REAL candle on the time scale (the axis every series
 // shares — a compare/overlay series adds interior times, so the candle count is not it).
@@ -5344,6 +5460,8 @@ export default function StockChart({
   const [lastBarOff, setLastBarOff] = useState(false)
   const lastBarOffRef = useRef(false)
   const barCountRef = useRef(0)
+  // ⭐⭐ (e91) the sessions the displayed bars span (`sessionsSpanned`, set where `barCountRef` is), for the held daily rows
+  const heldSessionsRef = useRef(0)
   // Identity guard so updateChart doesn't tear down + rebuild price lines on
   // every real-time tick. mergedPriceLines is useMemo'd, so when its deps
   // (priceLines prop, j2 markers) are stable across ticks the reference is
@@ -8778,14 +8896,21 @@ export default function StockChart({
   // rung (`heldSpanFor`), so a filling chart refetches a few times, never once per fill step.
   const [_heldLoaded, _setHeldLoaded] = useState(0)
   const _heldSpan = heldSpanFor(_heldLoaded, barCount)
+  // ⭐⭐ (e91, the e88 in-session capture) — AND THE SESSIONS THOSE BARS SPAN (`heldSessionsRef`, counted on the exchange
+  // calendar where the rows are bound), kept on a rung (`heldSessionsRung`), so the held daily rows reach the chart's first
+  // session: a count of bars / 78 held RDDT's regular-hours 5m chart 7 sessions short and its run was refused
+  const [_heldSessions, _setHeldSessions] = useState(0)
   useEffect(() => {
     const loaded = barCountRef.current
     if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
+    const rung = heldSessionsRung(heldSessionsRef.current)
+    if (rung !== _heldSessions) _setHeldSessions(rung)
   })
   // ⭐⭐ (2026-11-19, e83 live) — and the symbol BINDING the run is handed (`symbolMeta`), so the own-daily question
   // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
   const secondarySources = useSecondarySources(
-    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta)
+    _storedInstances, _defOf, resolvedTf, _heldSpan, instFetcher, _otherSymbolsRevalidate, _chartFormingOf, sym, symbolMeta,
+    _heldSessions)
   // ⭐ C26 — our store's exchange for each other symbol a Pine document reads
   // (`request.security("AMEX:SPY", …)`), so the bind can match the spelling.
   const otherSymbolExchangeOf = useOtherSymbolExchanges(_storedInstances, _defOf, _otherSymbolsRevalidate)
@@ -10185,6 +10310,11 @@ export default function StockChart({
     return cs.heikinAshi ? toHeikinAshi(sessionAppliedBars) : sessionAppliedBars
   }, [sessionAppliedBars, cs.heikinAshi])  // eslint-disable-line react-hooks/exhaustive-deps
   barCountRef.current = displayBars?.length || 0
+  // ⭐⭐ (e91) the trading sessions the displayed bars span (0 for a daily chart's ISO dates), read by the held-sessions
+  // effect above; memoised on the first and newest bar times, so a render that moves neither recounts nothing
+  const _spanFirstT = displayBars?.length ? displayBars[0].t : null
+  const _spanLastT = displayBars?.length ? displayBars[displayBars.length - 1].t : null
+  heldSessionsRef.current = useMemo(() => sessionsSpanned(_spanFirstT, _spanLastT), [_spanFirstT, _spanLastT])
   // ⛔ The drawing overlay maps BY INDEX (future points `bars.length-1+futureBars`,
   // the nearestIndex→logicalToCoordinate fallback, toChart's logical→bar), so it must
   // see the exact array the candle series is built from — index-aligned with
@@ -11730,107 +11860,10 @@ export default function StockChart({
       // CALL time; keyed by chartId so multi-chart pages don't collide.
       if (typeof window !== 'undefined') {
         window.__uctChartDebug = window.__uctChartDebug || {}
-        window.__uctChartDebug[chartId || 'main'] = {
-          visibleRange: () => {
-            try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
-          },
-          // Logical index of the newest REAL candle on the candle series (the framing rail,
-          // tools/intraday_symswitch_framing_harness.py: right margin = visibleRange().to - this).
-          newestIndex: () => newestLogicalIndex(chartRef.current, candleSeriesRef.current, 0),
-          // The newest candle the renderer holds: its time (unix seconds, or a date string for D/W/M)
-          // and close. The desktop all-day soak (uct-desktop scripts/proofs/soak.mjs) samples it to
-          // prove a chart left open all day is still live (time advances, close moves).
-          // What the last paint decided for the indicator window (`plotWindow.js`): the rows
-          // it holds, the first row drawn (0: every row) and that row's time.
-          plotWindow: () => ({ ...plotWindowRef.current }),
-          // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
-          // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
-          // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
-          // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
-          newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
-          // Read-only: what each ENGINE series actually handed the renderer
-          // (the fundamentals acceptance harness reads plotted values from here).
-          engineSeries: () => {
-            try {
-              return (engineRef.current?.binder?.bindings() || []).map((b) => ({
-                instanceId: b.instanceId, plotKey: b.plotKey,
-                priceFormat: b.series?.options?.()?.priceFormat?.type || null,
-                // (economic acceptance) what the renderer was actually asked to draw
-                seriesType: b.series?.seriesType?.() || null,
-                lineType: b.series?.options?.()?.lineType ?? null,
-                priceScaleId: b.series?.options?.()?.priceScaleId ?? null,
-                paneIndex: b.series?.getPane?.()?.paneIndex?.() ?? null,
-                data: b.series?.data?.() || [],
-                // ONE logical line may be drawn as several render series (gap runs).
-                runs: (b.runSeries || []).map((rs) => rs?.data?.() || []),
-              }))
-            } catch { return null }
-          },
-          // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
-          // separate. The daily regression was "Origin frames the 600-bar window
-          // instead of the true origin", and a chart holding 20 years while
-          // FRAMING the last 600 bars is pixel-identical to one that only holds
-          // 600 — so the SERIES and the WINDOW must be observable independently
-          // or the acceptance cannot tell a data bug from a framing bug. An
-          // earlier pass scored only the series, found 5,247 rows, and would
-          // have reported the pipeline healthy while the member still saw 2024.
-          // Read-only, chartId-keyed, resolved at CALL time off the live refs.
-          visibleTimeRange: () => {
-            try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
-          },
-          // (economic acceptance) the PRIMARY series' own type — never candles on ECON:*
-          primarySeriesType: () => {
-            try { return candleSeriesRef.current?.seriesType?.() || null } catch { return null }
-          },
-          renderedTail: (k = 2) => {
-            try {
-              const d = candleSeriesRef.current?.data?.()
-              if (!Array.isArray(d) || !d.length) return null
-              return d.slice(Math.max(0, d.length - k)).map(b => ({
-                time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
-              }))
-            } catch { return null }
-          },
-          // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
-          // "The chart pinches a little more every time I pan" is a claim about
-          // numbers nothing on the page reports: the candle pane's own height, the
-          // margins actually in force, whether a manual pin is live and what the
-          // stored lock says. A rig that has to infer them from pixels measures the
-          // symptom; this reads the state. Read-only, chartId-keyed, and it holds
-          // nothing — every field is resolved at CALL time off the live refs.
-          priceGeometry: () => {
-            try {
-              const series = candleSeriesRef.current
-              const pane = series?.getPane?.()
-              const panes = chartRef.current?.panes?.() || []
-              const sm = mainPriceScale()?.options?.()?.scaleMargins || null
-              return {
-                paneIndex: pane?.paneIndex?.() ?? null,
-                paneHeight: pane?.getHeight?.() ?? null,
-                paneCount: panes.length || null,
-                paneHeights: panes.map((p) => { try { return p.getHeight() } catch { return null } }),
-                // ⭐ WHAT EACH PANE ACTUALLY HOLDS. "Nothing draws here" is the
-                // only test the empty-pane reclaim makes, so a ghost strip is
-                // diagnosed by asking each rectangle what is in it — not by
-                // counting canvases, which LWC allocates per pane regardless.
-                paneSeries: panes.map((p) => {
-                  try { return (p.getSeries() || []).map((x) => x.seriesType?.() || '?') } catch { return null }
-                }),
-                scaleMargins: sm ? { top: sm.top, bottom: sm.bottom } : null,
-                vertMargins: vertMarginsRef.current ? { ...vertMarginsRef.current } : null,
-                manualPin: priceManualRef.current && priceManualRangeRef.current
-                  ? { ...priceManualRangeRef.current } : null,
-                viewLock: userViewLockedRef.current && userLockedViewRef.current
-                  ? { ...userLockedViewRef.current } : null,
-              }
-            } catch { return null }
-          },
-          /** Price → pixel row WITHIN the candle pane (pane-relative, as the
-           *  drawing layer uses it). Lets a probe measure the candle band itself. */
-          priceToY: (price) => {
-            try { return candleSeriesRef.current?.priceToCoordinate?.(price) ?? null } catch { return null }
-          },
-        }
+        window.__uctChartDebug[chartId || 'main'] = chartDebugHandle({
+          chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
+          userLockedViewRef, userViewLockedRef, vertMarginsRef,
+        })
       }
       // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
       //

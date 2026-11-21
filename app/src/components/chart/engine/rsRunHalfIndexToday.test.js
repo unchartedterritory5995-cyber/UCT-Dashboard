@@ -133,7 +133,10 @@ describe('L10 — in session, with the index answer ending at today, RS Rating d
       const def = install(build())
       const cols = registry.computeFor(def, CHART, {}, ctxWith(SPX_THROUGH_YESTERDAY))
       expect(runHalfOf(cols)).toEqual({ state: 'pending', code: 'runtime:request-pending', waitingFor: 'SPX' })
-      expect(runtimeObjectsOf(cols)).toBeNull()
+      // ⭐⭐ (e91, ruling (2b)) the run is CUT at today's bar: its drawings wait, none drawn (never on the cut bar)
+      const obj = runtimeObjectsOf(cols)
+      expect(obj === null || (obj.status === 'WITHHELD' && obj.pending === true && obj.live.length === 0),
+        JSON.stringify(obj).slice(0, 300)).toBe(true)
     })
   }
 })

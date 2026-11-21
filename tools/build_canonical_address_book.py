@@ -157,6 +157,14 @@ _RXS = chr(92) + "s"      # whitespace
 _RXW = chr(92) + "w"      # word char
 _RXB = chr(92) + "b"      # word boundary
 
+#: `SELECT c FROM t WHERE c > ? ORDER BY c [ASC] LIMIT 1` -- a seek to the next key, never a delta query
+#: (`_delta_filter_columns`). The backreference is what makes it one column: filtered, selected and ordered.
+_KEY_SEEK = re.compile(
+    r"^" + _RXS + r"*SELECT" + _RXS + r"+(" + _RXW + r"+)" + _RXS + r"+FROM" + _RXS + r"+" + _RXW + r"+"
+    + _RXS + r"+WHERE" + _RXS + r"+" + chr(92) + r"1" + _RXS + r"*>" + _RXS + r"*" + chr(92) + r"?"
+    + _RXS + r"+ORDER" + _RXS + r"+BY" + _RXS + r"+" + chr(92) + r"1(?:" + _RXS + r"+ASC)?"
+    + _RXS + r"+LIMIT" + _RXS + r"+1" + _RXS + r"*$", re.I)
+
 
 class _DropDocstrings(ast.NodeTransformer):
     """⛔⛔ CODE, NEVER PROSE — and this file nearly shipped without it.
@@ -188,6 +196,52 @@ def _string_constants(node: ast.AST) -> list:
             if isinstance(n, ast.Constant) and isinstance(n.value, str)]
 
 
+def _ddl_strings(tree: ast.Module) -> list:
+    """Every string a store module can hand `CREATE TABLE` to: its plain literals, and each f-string read
+    WHOLE with its placeholders resolved (never its pieces one by one).
+
+    ⚰️ 2026-11-11 (#1102, `bars_sqlite.ohlcv_ddl`): the bar table's ONE DDL became
+    `f"CREATE TABLE IF NOT EXISTS {name} (... ) WITHOUT ROWID"` with `name: str = "ohlcv"`, and the bare piece
+    `"CREATE TABLE IF NOT EXISTS "` was handed to the parser, which refused it. A placeholder is resolved only
+    when it is a parameter of the enclosing function with a string-literal default (the table its callers
+    create when they pass nothing: `c.execute(ohlcv_ddl())`); an f-string DDL with any other placeholder is
+    REFUSED by name, never skipped -- a skipped DDL is a store the book would address half-read.
+    """
+    pieces = {id(v) for n in ast.walk(tree) if isinstance(n, ast.JoinedStr) for v in n.values}
+    out = [n.value for n in ast.walk(tree)
+           if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in pieces]
+    owner = {}                       # id(JoinedStr) -> the innermost function holding it (absent: module level)
+    for fn in [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]:
+        for n in ast.walk(fn):
+            if isinstance(n, ast.JoinedStr):
+                owner[id(n)] = fn    # ast.walk is breadth-first: an inner function is visited later and wins
+    for js in [n for n in ast.walk(tree) if isinstance(n, ast.JoinedStr)]:
+        fn = owner.get(id(js))
+        defaults = {}
+        if fn is not None:
+            params = fn.args.posonlyargs + fn.args.args
+            defaults = dict(zip([a.arg for a in params[len(params) - len(fn.args.defaults):]], fn.args.defaults))
+            defaults.update({a.arg: d for a, d in zip(fn.args.kwonlyargs, fn.args.kw_defaults) if d is not None})
+        text, unresolved = "", []
+        for v in js.values:
+            if isinstance(v, ast.Constant):
+                text += str(v.value)
+                continue
+            d = defaults.get(v.value.id) if isinstance(v, ast.FormattedValue) and isinstance(v.value, ast.Name) else None
+            if (isinstance(d, ast.Constant) and isinstance(d.value, str)
+                    and v.conversion == -1 and v.format_spec is None):
+                text += d.value
+            else:
+                unresolved.append(ast.unparse(v))
+                text += "{?}"
+        if re.search(r"CREATE\s+TABLE", text, re.I):
+            if unresolved:
+                _fail("an f-string CREATE TABLE in %s has a placeholder that is not a parameter default: %s"
+                      % ("%s()" % fn.name if fn is not None else "module scope", unresolved))
+            out.append(text)
+    return out
+
+
 def _parse_create_table(sql: str) -> tuple:
     """(table, [(column, sqltype)], [key columns]) out of one CREATE TABLE.
 
@@ -195,8 +249,12 @@ def _parse_create_table(sql: str) -> tuple:
     anything else; a permissive parser that shrugged at an unfamiliar clause
     would silently drop a column and the book would address a store it had
     only partly read.
+
+    ⭐ ONE table option is read, `WITHOUT ROWID` (2026-11-11: `bars_sqlite.ohlcv_ddl`, #1102, and
+    `series_meta`, #1098, are clustered on their primary key). It names how rows are stored, never a
+    column, so the parse is the same; any other trailing clause is still refused.
     """
-    m = re.search(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\((.*)\)\s*$",
+    m = re.search(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\((.*)\)\s*(?:WITHOUT\s+ROWID\s*)?$",
                   sql.strip(), re.S | re.I)
     if not m:
         _fail("could not parse a CREATE TABLE out of: %r" % sql[:80])
@@ -294,6 +352,11 @@ def _delta_filter_columns(tree: ast.Module) -> dict:
     `uct://…?as_of=<instant>`, and a table nothing ever asks "since when" about
     has no instant to name. `_migrations` is read as `WHERE name=?` and is
     excluded by its own shape rather than by a list of table names here.
+
+    ⭐ A KEY SEEK IS NOT "SINCE WHEN", and it is excluded by its own shape too (`_KEY_SEEK`): a statement
+    that selects ONLY the column it filters, ordered by it, one row -- `SELECT ticker FROM ohlcv WHERE
+    ticker>? ORDER BY ticker LIMIT 1` (05ff3d9bd9, 2026-11-09: the worker's index walk to the next ticker)
+    asks "which key comes next", never "what is new since". Anything else with `> ?` still counts.
     """
     out: dict = {}
     pat = re.compile(r"FROM" + _RXS + r"(" + _RXW + r"+)" + r"(?:(?!FROM).)*?"
@@ -301,12 +364,36 @@ def _delta_filter_columns(tree: ast.Module) -> dict:
                      re.I | re.S)
     for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]:
         for sql in _string_constants(fn):
+            if _KEY_SEEK.match(sql):
+                continue
             for table, col in pat.findall(sql):
                 out.setdefault(table, {}).setdefault(col, set()).add(fn.name)
     return out
 
 
-def _delta_filter_column(tree: ast.Module, table: str, key: list) -> tuple:
+def _whole_row_delta_functions(tree: ast.Module, table: str, col: str, fns: list, columns: list, key: list) -> list:
+    """Of the functions carrying the delta query over `table`, those whose delta STATEMENT hands back a WHOLE
+    row: every column the DDL declares that is not a key, and the as-of. A statement that hands back part of
+    a row answers a narrower question and cannot declare the row's shape.
+
+    ⚰️ 2026-11-10 (#1031, `bars_sqlite.iter_ts_close`): a second `ts > ?` query, `SELECT ts, c ... ORDER BY ts
+    LIMIT ?`, a paged walk over the closes. Two carriers made the book refuse; the whole-row one,
+    `get_bars_since`'s `SELECT ts,o,h,l,c,v`, is the one that declares the shape, as it was before.
+    """
+    want = {n for n, _ in columns if n not in key} | {col}
+    sel = re.compile(r"SELECT" + _RXS + r"+([" + _RXW + r"," + _RXS + r"]+?)" + _RXS + r"+FROM" + _RXS + r"+"
+                     + re.escape(table) + _RXB + r"(?:(?!FROM).)*?" + _RXB + re.escape(col) + _RXS + r"*>"
+                     + _RXS + r"*" + chr(92) + r"?", re.I | re.S)
+    whole = set()
+    for fn in [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name in fns]:
+        for sql in _string_constants(fn):
+            for cols in sel.findall(sql):
+                if {c.strip() for c in cols.split(",") if c.strip()} >= want:
+                    whole.add(fn.name)
+    return sorted(whole)
+
+
+def _delta_filter_column(tree: ast.Module, table: str, key: list, columns: list) -> tuple:
     """The as-of column of ONE table, read off the store's own delta query.
 
     Never guessed from a name and never taken as "the last key column".
@@ -319,6 +406,8 @@ def _delta_filter_column(tree: ast.Module, table: str, key: list) -> tuple:
               % (table, sorted(found)))
     col = sorted(found)[0]
     fns = sorted(found[col])
+    if len(fns) > 1:
+        fns = _whole_row_delta_functions(tree, table, col, fns, columns, key) or fns
     if len(fns) != 1:
         _fail("more than one function carries the delta query over %s: %s — the "
               "book will not guess which one declares the row shape"
@@ -340,7 +429,7 @@ def bars_store() -> tuple:
     # a row projection by the module's own readers — a table nothing selects
     # from cannot be the subject of an address.
     ddls = {}
-    for s in _string_constants(tree):
+    for s in _ddl_strings(tree):
         if not re.search(r"CREATE\s+TABLE", s, re.I):
             continue
         table_i, columns_i, key_i = _parse_create_table(s)
@@ -360,7 +449,7 @@ def bars_store() -> tuple:
                  sorted(projections), sorted(deltas)))
     table = addressable[0]
     columns, key = ddls[table]
-    as_of, delta_fn = _delta_filter_column(tree, table, key)
+    as_of, delta_fn = _delta_filter_column(tree, table, key, columns)
     projection, projection_fns, projection_count = _row_projection(tree, table, delta_fn)
 
     missing = [c for c in projection if c not in {n for n, _ in columns}]
@@ -652,7 +741,7 @@ def breadth_store() -> tuple:
 
     monitor_tree = _module_source(_BREADTH_MONITOR_MODULE)
     ddls = {}
-    for s in _string_constants(monitor_tree):
+    for s in _ddl_strings(monitor_tree):
         if not re.search(r"CREATE\s+TABLE", s, re.I):
             continue
         table_i, columns_i, key_i = _parse_create_table(s)

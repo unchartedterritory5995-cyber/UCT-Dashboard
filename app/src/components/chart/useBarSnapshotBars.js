@@ -25,6 +25,7 @@
 // body and docs/architecture/barstore.md §P3-S1.
 import { useEffect, useRef, useState, useCallback, useMemo, useSyncExternalStore } from 'react'
 import { useBarSnapshot } from '../../data/barStore/useBarSnapshot'
+import { useLatestCallback } from './latestCallback'
 import { getBarStore } from '../../data/barStore/index'
 import { legacyBars, legacyDevelopingOf, newestBarIsFormingOf } from '../../data/barStore/adapter'
 import { prefetch as storePrefetch, viewKeyFor, LAKE_JOIN_WAIT_MS } from '../../data/barStore/prefetch'
@@ -156,7 +157,12 @@ export function useBarSnapshotBars({
   const tailT = all?.length ? all[all.length - 1].t : null
 
   // ── the daily paint authority for a LOCAL copy ───────────────────────────────
-  const _resolveDailyTodaySeed = () => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane })
+  // ⛔ (2026-11-20) STABLE, as are `mutate` below: StockChart's closures hold what this hook returns, and a
+  // function made in this render points at this render's context, which holds `snap` (and through it the
+  // store's bars and the legacy copy). Every old StockChart render a closure chain kept alive reached its
+  // own old snapshot this way (StockChart.closureChains.test.jsx). One function for the hook's life, calling
+  // the newest implementation, reaches only the current render.
+  const _resolveDailyTodaySeed = useLatestCallback(() => resolveDailyTodaySeed({ sym, resolvedTf, _developingBarISO, _effLivePrice, _liveSane }))
   const _dailyTodaySeed = resolvedTf === 'D' ? _resolveDailyTodaySeed() : null
   // ⭐ REPLAY ON A PAST DAY NEEDS NO CURRENT TAIL (2026-11-20). The verdict below asks "is this
   // copy's right edge current?", which during a session a copy from the last close never is — so
@@ -301,10 +307,10 @@ export function useBarSnapshotBars({
   // A revalidate is a KICK of the key's single slot (≤ 1 request per key). A payload handed in
   // (the frozen-chart watchdog's own full fetch) is NOT merged here: the store's next answer
   // is the one merge path (reducer), so the kick is what heals it.
-  const mutate = useCallback(() => {
+  const mutate = useLatestCallback(() => {
     if (key) { try { store.network.kick(key) } catch { /* not subscribed yet */ } }
     return Promise.resolve(undefined)
-  }, [key, store])
+  })
   barsMutateRef.current = mutate
   const isValidating = key ? store.network.inflight(key) > 0 : false
   const _histMutateRef = useRef(null)

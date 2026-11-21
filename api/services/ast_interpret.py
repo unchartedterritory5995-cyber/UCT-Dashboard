@@ -473,10 +473,80 @@ def _iso_day(t: Any) -> Optional[str]:
         if 1 <= m <= 12 and 1 <= d <= 31:
             return "%04d-%02d-%02d" % (y, m, d)
     # otherwise: unix SECONDS (the intraday spelling). Not milliseconds — this
-    # platform's unit everywhere a bar carries one, as `compute_clock` states.
+    # platform's unit everywhere a bar carries one, as `compute_clock` states. (A series' days: ``_bar_days``.)
     if 0 < n < 4102444800:                      # < 2100-01-01
-        return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+        return (datetime.date(1970, 1, 1) + datetime.timedelta(days=n // 86400)).strftime("%Y-%m-%d")
     return None
+
+
+def _epoch_seconds_of(t: Any) -> Optional[int]:
+    """``interpret.js::epochSecondsOf``: a bar's ``t`` as unix seconds when it is one (not an ISO day, not a
+    ``YYYYMMDD`` key), else ``None``."""
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or t != t or t in (math.inf, -math.inf):
+        return None
+    n = int(t)
+    if 19000101 <= n <= 99991231:
+        md = n % 10000
+        if 1 <= md // 100 <= 12 and 1 <= md % 100 <= 31:
+            return None
+    return n if 0 < n < 4102444800 else None
+
+
+#: ``interpret.js::INTRADAY_SPACING_S``: two bars closer than this are an intraday series'.
+INTRADAY_SPACING_S = 20 * 3600
+
+
+def _bar_days(bars: List[Any]) -> List[Optional[str]]:
+    """⭐⭐ RULING 2 (coordinator, 2026-11-20) -- the port of ``interpret.js::barDays`` (its note carries the rule): the
+    day of each bar of a series as a resampler keys its week or month. An INTRADAY series' bar (unix seconds, two bars
+    less than ``INTRADAY_SPACING_S`` apart) by the exchange's local session date (``_new_york_offset_seconds``), every
+    other bar as ``_iso_day`` reads it (a daily series stamped at midnight UTC is a DATE). The series decides, not the
+    bar."""
+    stamps = [b.get("t") if isinstance(b, Mapping) else None for b in (bars or [])]
+    intraday = False
+    prev = None
+    for t in stamps:
+        e = _epoch_seconds_of(t)
+        if e is None:
+            prev = None
+            continue
+        if prev is not None and prev < e and e - prev < INTRADAY_SPACING_S:
+            intraday = True
+            break
+        prev = e
+    out: List[Optional[str]] = []
+    for t in stamps:
+        e = _epoch_seconds_of(t) if intraday else None
+        if e is None:
+            out.append(_iso_day(t))
+        else:
+            day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(e + _new_york_offset_seconds(e)) // 86400)
+            out.append(day.strftime("%Y-%m-%d"))
+    return out
+
+
+def _new_york_offset_seconds(t: int) -> int:
+    """⭐⭐ RULING 2 (coordinator, 2026-11-20) -- the port of ``interpret.js::newYorkOffsetSeconds`` (its note carries the
+    rule and the measurement: capture ``vw-bi-time-d-extended-spy-60-2026-11-19``, TradingView keys a Friday 19:00 New
+    York bar to its local Friday): New York's UTC offset at unix second ``t``, -4 h in daylight time and -5 h otherwise,
+    from the United States rule in force that year. Integer arithmetic, the JS lane's, so the two cannot differ."""
+    y = (datetime.date(1970, 1, 1) + datetime.timedelta(days=t // 86400)).year
+
+    def sunday(m: int, k: int) -> int:
+        # the day number (days since 1970-01-01) of the k-th Sunday of a month (k = -1: the last); 1970-01-01 was a Thursday
+        if k > 0:
+            first = (datetime.date(y, m, 1) - datetime.date(1970, 1, 1)).days
+            return first + (7 - (first + 4) % 7) % 7 + 7 * (k - 1)
+        last = (datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.date(1970, 1, 1)).days - 1
+        return last - (last + 4) % 7
+
+    if y >= 2007:
+        on, off = sunday(3, 2), sunday(11, 1)
+    elif y >= 1987:
+        on, off = sunday(4, 1), sunday(10, -1)
+    else:
+        on, off = sunday(4, -1), sunday(10, -1)
+    return -4 * 3600 if on * 86400 + 7 * 3600 <= t < off * 86400 + 6 * 3600 else -5 * 3600
 
 
 #: ⭐⭐ U-HTF-CALENDAR (2026-11-18) -- the port of ``interpret.js::htfClosesOnNextBar`` (that file's comment
@@ -533,7 +603,7 @@ def _htf_resampled(bars: List[dict], code: str):
     ⭐ THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS. ``bars_fetch._resample_weekly_iso`` carries the
     stable-Friday-key rationale; a private aggregation here would be a second authority on it, which
     ``screener/candles.py`` already says in as many words."""
-    iso = [_iso_day(b.get("t")) for b in bars]
+    iso = _bar_days(bars)
     keys = [(_tf_bucket(d, code) if d else None) for d in iso]
     order: List[Any] = []
     at: Dict[Any, int] = {}
@@ -545,7 +615,11 @@ def _htf_resampled(bars: List[dict], code: str):
     resample = (bars_fetch._resample_weekly_iso if code == "W"
                 else _resample_quarterly_iso if code == "3M"
                 else bars_fetch._resample_monthly_iso)
-    htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
+    # ⭐⭐ RULING 2 -- every bar the series holds, as the JS lane's ``resampleTo`` keeps it: a session the exchange never
+    # held is not dropped from one lane's aggregate only. Whether TradingView's week holds such a bar is unmeasured
+    # (Q-REQ-CLOSURE); no series the store serves holds one (``tests/test_htf_closure_week_unreachable.py``)
+    rows = [dict(b, t=d) for b, d in zip(bars, iso) if d]
+    htf = resample(rows) if code == "3M" else resample(rows, sessions_only=False)
     return iso, keys, at, order, htf
 
 
@@ -853,6 +927,10 @@ def _rolling_skip(series: Sequence[float], n: int,
     """``NA_SKIP`` in one forward pass: bar ``i`` (from ``n - 1``) reads the last ``n`` FINITE values at or before it,
     oldest first, once ``n`` exist; before that, NaN. Each value is read once. O(N*n) whatever the gaps."""
     out = _nan_col(len(series))
+    # a series shorter than the window has no bar to reach, so nothing may read it, a None included (3eb37a08a8;
+    # the per-bar gather this pass replaced started at bar ``n - 1`` and never read one)
+    if len(series) < n:
+        return out
     ring = collections.deque(maxlen=n)
     for i in range(len(series)):
         v = series[i]
@@ -5089,7 +5167,7 @@ def _first_period_partial_mask(bars: List[dict], found: list,
     if (opts or {}).get("historyFromListing") is True:
         return None
     n = len(bars)
-    days = [_iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars]
+    days = _bar_days(bars)
     tf = (opts or {}).get("tf")
     daily = tf in ("D", "1D") and all(d and datetime.date.fromisoformat(d).weekday() <= 4 for d in days)
     out = None
@@ -5279,7 +5357,7 @@ def _tf_live_first_period_bars(bars: List[dict], code: Any,
     n = len(bars)
     if not n or not isinstance(code, str) or (opts or {}).get("historyFromListing") is True:
         return None
-    days = [_iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars]
+    days = _bar_days(bars)
     if any(not d for d in days):
         return [1] * n
     tf = (opts or {}).get("tf")

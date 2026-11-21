@@ -37,9 +37,10 @@ warning: a broken freeze must never become a stuck production branch.
 `api/services/measurement_window.py`, loaded BY PATH (its top level is stdlib-only)
 so this tool imports no `api.*` package and no product code in CI.
 
-⚠️ SCOPE. It holds `web` only. `worker`, `bars-api`, `flow-worker`,
-`chart-renderer` and `terminal-next-monitor` deploy from `master` on push, so a
-push inside the window still restarts them; this reader cannot see those.
+⚠️ SCOPE. It holds what deploys from `production`: `web` AND `bars-api` (measured
+2026-11-21, `railway deployment list --json` meta.branch). `worker` and `flow-worker`
+deploy from `master` on push, so a push inside the window still restarts them; this
+reader cannot see those. `chart-renderer` and `terminal-next-monitor`: unmeasured.
 
 Usage:
     python tools/deploy_freeze.py [--now 2026-10-14T13:30:00Z] [--message "..."]
