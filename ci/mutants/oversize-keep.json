@@ -100,6 +100,15 @@
    "to": "        f\"definition exceeds {cap} bytes ({size}) - this store names its caps rather than inheriting user_preferences \"",
    "rail": "python -B -m pytest tests/test_oversize_keep.py -q -p no:cacheprovider",
    "expectRed": "K12"
+  },
+  {
+   "id": "OK12",
+   "mutant": "the per-bar step budget is not said before Add",
+   "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
+   "from": "                {oversize.saveAs.budget && <li key=\"budget\" data-testid=\"pine-member-pane-keep-budget\">{oversize.saveAs.budget}</li>}",
+   "to": "                {false && <li key=\"budget\" data-testid=\"pine-member-pane-keep-budget\">{oversize.saveAs.budget}</li>}",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K7"
   }
  ]
 }

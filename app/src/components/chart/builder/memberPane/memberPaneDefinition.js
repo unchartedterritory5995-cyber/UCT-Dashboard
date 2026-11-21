@@ -58,6 +58,7 @@ import { objectLossNote, RUN_HALF_DRAWING_SENTENCE } from '../../engine/ast/obje
 // ⭐ ENGINE 53 — the run half's door reads the store's cap as the save door counts it.
 import { DOCUMENT_BYTE_BUDGET } from '../../engine/ast/graphDocument'
 import { storedBytesOf, sentDocument, pyJsonBytes } from './storedBytes'
+import { DEFAULT_LIMITS, LIMIT_PLAIN } from '../../engine/runtime/limits'
 import { runHalfProgramDigest, isGraphForm, RUN_HALF_PROGRAM_STAMP, RUN_HALF_PROGRAM_GRAPH_STAMP } from '../../engine/runHalfProgram'
 import { objectsOnlyPaneEnabled } from '../../engine/objectsOnlyPaneGate'
 import { memberInputTranslation, pineLineWidth } from '../builderInputs'
@@ -1387,6 +1388,15 @@ export function documentSizeSentence(bytes, cap = DOCUMENT_BYTE_BUDGET) {
     + `and one may hold at most ${cap}`
 }
 
+/** …and, among those notes (coordinator ruling, 2026-11-21): the kept form runs bar by bar under the runtime lane's
+ *  per-bar step budget, and a chart where it passes that budget stops it BY NAME, drawing nothing rather than part of
+ *  it. ⚰️ k-clustering's kept run reached 200,090 steps on the last of 632 RDDT bars. Said before Add, in the budget's
+ *  own words and number (`runtime/limits.js`), never decided at the click (a run there would hold the page). */
+export function keepStepBudgetSentence(limit = DEFAULT_LIMITS.INSTRUCTIONS_PER_BAR) {
+  return `On some charts this kept form may go past ${LIMIT_PLAIN.INSTRUCTIONS_PER_BAR} (at most ${limit}); `
+    + 'there it stops and says so by name, and draws nothing rather than part of it.'
+}
+
 /** …and the lead of the notes shown before Add when the bar-by-bar version is what Add keeps. */
 export function keepAnotherWaySentence(bytes, cap = DOCUMENT_BYTE_BUDGET) {
   return `As drawn here this script is too large to keep (${bytes} bytes as a saved indicator; one may hold at most `
@@ -1430,6 +1440,7 @@ function withOversizeKeep(answer, { source, id, name, t, no }) {
     if (keepBytes <= RUNTIME_DOCUMENT_BYTE_BUDGET) {
       return { ...answer, oversize: { ...base, saveAs: {
         definition: keep, notes: run.notes || [], bytes: keepBytes, lead: keepAnotherWaySentence(bytes),
+        budget: keepStepBudgetSentence(),
         forming: runtimeFormingRefusalOf({ source, newestBarIsForming: true }),
       } } }
     }

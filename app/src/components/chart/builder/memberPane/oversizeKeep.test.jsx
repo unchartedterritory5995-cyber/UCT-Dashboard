@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url'
 
 import {
   memberPaneDefinition, MEMBER_PANE_DEF_PREFIX, DOCUMENT_SIZE_GUARD, RUNTIME_DOCUMENT_BYTE_BUDGET,
-  documentSizeSentence, keepAnotherWaySentence,
+  documentSizeSentence, keepAnotherWaySentence, keepStepBudgetSentence,
 } from './memberPaneDefinition'
 import { storedBytesOf, pyJsonBytes } from './storedBytes'
 import { retranslateRow } from './savedScriptUpgrade'
@@ -91,6 +91,9 @@ describe('⭐⭐ the door: the preview stays the host answer; what Add keeps rid
     expect(d.oversize.saveAs.bytes).toBe(pyJsonBytes(keep))
     expect(d.oversize.saveAs.bytes).toBeLessThanOrEqual(DOCUMENT_BYTE_BUDGET)
     expect(d.oversize.saveAs.lead).toBe(keepAnotherWaySentence(bytes))
+    // the per-bar step budget, said before Add in the budget's own words and number (coordinator ruling 2026-11-21)
+    expect(d.oversize.saveAs.budget).toBe(keepStepBudgetSentence())
+    expect(d.oversize.saveAs.budget).toBe('On some charts this kept form may go past the number of steps a script may take on one bar (at most 200000); there it stops and says so by name, and draws nothing rather than part of it.')
     const names = d.oversize.saveAs.notes.map((n) => n.name)
     expect(names).toEqual(expect.arrayContaining(['Drawn bar by bar', 'Settles one bar later']))
     expect(keep.meta.repaint).toBe('preview-repaints')
@@ -163,6 +166,7 @@ describe('⭐⭐ the pane: Add keeps what the store can hold, and says so before
     const keep = screen.getByTestId('pine-member-pane-keep')
     expect(keep.textContent).toContain('so Add keeps it drawn bar by bar instead:')
     expect(keep.textContent).toMatch(/drawn by running it bar by bar/)
+    expect(screen.getByTestId('pine-member-pane-keep-budget').textContent).toBe(keepStepBudgetSentence())
     expect(screen.queryByTestId('pine-member-pane-keep-refusal')).toBeNull()
     // the runtime document repaints a preview: the acknowledgement is asked before Add
     const button = screen.getByTestId('pine-member-pane-attach').querySelector('button')

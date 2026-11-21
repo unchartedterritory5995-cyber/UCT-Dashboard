@@ -438,6 +438,7 @@ export default function MemberPane({
               <ul className={styles.notes}>
                 {(oversize.saveAs.notes || []).map((n) => <li key={n.name}>{withoutGuardIds(n.note)}</li>)}
                 {oversize.saveAs.forming && <li key="forming">{oversize.saveAs.forming}</li>}
+                {oversize.saveAs.budget && <li key="budget" data-testid="pine-member-pane-keep-budget">{oversize.saveAs.budget}</li>}
               </ul>
             </div>
           )}
