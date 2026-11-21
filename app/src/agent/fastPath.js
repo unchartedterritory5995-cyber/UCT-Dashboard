@@ -213,7 +213,11 @@ function safeCorrected(r) {
     return c && c.fastCorrect !== false && (c.risk || 'local') === 'local' && c.reversible !== false && !SYMBOL_ACTIONS.has(o.action)
   })
 }
+// AUDIT #1259: a trailing sentence mark (. , ! ? ; :) may change only WHETHER a phrase is read, never WHAT it reads as —
+// so the marks are dropped once, here, before any reader sees the words ("switch to W:" reads exactly as "switch to W").
+export const TRAILING_MARKS = /[\s.,!?;:]+$/
 export function fastParse(text, opts = {}) {
+  text = String(text ?? '').replace(TRAILING_MARKS, '')
   const exact = fastParseExact(text, opts)
   if (exact) return exact
   const variants = correctTypos(text, lexiconFor(opts.host || null))
