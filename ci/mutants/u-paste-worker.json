@@ -159,8 +159,8 @@
       "id": "S10",
       "mutant": "the build falls back to the main thread whenever the page has no Worker of its own (a stand-in is ignored)",
       "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
-      "from": "  const offThread = !!factory || browserCanWork()",
-      "to": "  const offThread = browserCanWork()",
+      "from": "  const offThread = !!factory || (browserCanWork() && !devServer())",
+      "to": "  const offThread = browserCanWork() && !devServer()",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
       "expectRed": "MAIN thread"
     },

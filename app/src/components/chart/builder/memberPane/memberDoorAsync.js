@@ -86,6 +86,10 @@ export function memberDoorKeyOf(args) {
 }
 
 const browserCanWork = () => typeof Worker === 'function' && typeof window !== 'undefined'
+/** ⛔ Not under the dev server: there the worker's module graph is the page's (`vite.config.js` resolves the door's
+ *  two sheet imports to the pure modules in BUILT worker bundles only, `scripts/memberDoorWorkerPure.mjs`), so it
+ *  would load the sheet, its React and its CSS into a worker. A dev page builds on its thread, as before. */
+const devServer = () => { try { return import.meta.env.DEV === true } catch { return false } }
 const defaultFactory = () => new Worker(new URL('./memberDoorWorker.js', import.meta.url), { type: 'module' })
 
 /** A consult the worker sent with its source as a mark (`{job: true}`) gets the job's source back. */
@@ -112,7 +116,7 @@ function expandConsults(list, source) {
  */
 export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DOOR_WATCHDOG_MS,
   budgetMs = MEMBER_DOOR_BUDGET_MS, version = memberDoorStateVersion } = {}) {
-  const offThread = !!factory || browserCanWork()
+  const offThread = !!factory || (browserCanWork() && !devServer())
   const make = factory || defaultFactory
   const entries = new Map()   // key -> { key, args, want, landed, subs: Set, asked }
   let worker = null
