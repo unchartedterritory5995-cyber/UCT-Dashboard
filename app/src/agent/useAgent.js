@@ -32,7 +32,7 @@ import { setOwnedDefinitionSource } from './capabilities/indicatorEdits'
 import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSaved, screenModelOps, PROPOSAL_TTL_MS, saveReferent, splitSaveAs, renameBeforeSave, explicitIndicatorCreate } from './capabilities/indicatorAuthoring'
 import { fastParse, matchPosition } from './fastPath'
 import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
-import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, lowerTickerCandidates, TARGET_CHECK_FAILED } from './deixis'
+import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts, targetTickerConflict, tickerGroundingCandidates, TARGET_CHECK_FAILED } from './deixis'
 import { screenWatchlistWidget } from './watchlistTarget'
 import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
 import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
@@ -681,10 +681,24 @@ const nameSearch = (word) => new Promise((resolve) => {
   const t = setTimeout(resolve, NAME_SEARCH_MS)
   groundSymbols([word]).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
 })
-// …several words at once (the target-ticker check's lowercase words), one bound for all of them
-const nameSearchAll = (words) => new Promise((resolve) => {
-  const t = setTimeout(resolve, NAME_SEARCH_MS)
-  groundSymbols(words).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
+/** Ticker-lookup telemetry: how many words were looked up, answered, timed out, the verdict KINDS, and the wait — numbers only. */
+export function tickerLookupStats(words, verdictOf, waitMs) {
+  const out = { ticker_lookups: 0, ticker_answered: 0, ticker_timeouts: 0, ticker_hits: 0, ticker_misses: 0, ticker_multi: 0, ticker_wait_ms: Math.max(0, Math.round(Number(waitMs) || 0)) }
+  for (const w of words || []) {
+    out.ticker_lookups++
+    const v = verdictOf(w)
+    if (!v || typeof v !== 'object') { out.ticker_timeouts++; continue }
+    out.ticker_answered++
+    if (v.kind === 'ticker' || v.kind === 'name') out.ticker_hits++
+    else if (v.kind === 'ambiguous') out.ticker_multi++
+    else out.ticker_misses++
+  }
+  return out
+}
+// a started promise, waited on for at most `ms` (the target-ticker prefetch): no answer in time resolves undefined
+const boundedWait = (p, ms) => new Promise((resolve) => {
+  const t = setTimeout(resolve, ms)
+  Promise.resolve(p).catch(() => {}).finally(() => { clearTimeout(t); resolve() })
 })
 
 // the server's stage timings (ms only) for the turn trace
@@ -1039,6 +1053,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     push({ role: 'refusal', text: `Your last change was interrupted before it finished (the page reloaded or closed)${what ? `: ${what}` : ''}. Part of it may already be on the board — check it before asking again.` })
   }, [push])
 
+  // ticker-lookup instrumentation (owner, #1283): COUNTS, DURATIONS and VERDICT KINDS only — no words, no symbols, no ids. Set by
+  // the target-ticker check, carried by the next telemetry row of the turn, then cleared (agentTickerClasses.test.jsx NO-LEAK).
+  // The server does NOT store them yet: no schema change was authorised (tests/test_uct_agent_ticker_telemetry.py holds the drop).
+  const tickerStatsRef = useRef(null)
   const record = useCallback(async (body) => {
     // ⭐ PHASE 2: a multi-step request watches what each of its steps came to (runCompound) — synchronous, before any await
     if (tapRef.current && body?.outcomeData?.kind) tapRef.current.push(body.outcomeData.kind)
@@ -1048,6 +1066,7 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
     if (body?.telemetry && body.telemetry.latency_ms == null && ms != null) body = { ...body, telemetry: { ...body.telemetry, latency_ms: ms } }
     // and when the change reached the screen and when it was read back and saved: the two times the member actually feels
     if (body?.telemetry) body = { ...body, telemetry: { ...body.telemetry, visible_ms: turnMarkMs('commit:end'), verified_ms: turnMarkMs('persist') } }
+    if (body?.telemetry && tickerStatsRef.current) { body = { ...body, telemetry: { ...body.telemetry, ...tickerStatsRef.current } }; tickerStatsRef.current = null }
     const res = await agentRecord({ conversationId: conversationRef.current, ...body })
     if (res.ok && res.data?.conversationId && res.data.conversationId !== conversationRef.current) {
       setConversationId(res.data.conversationId)
@@ -1660,6 +1679,24 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       return undefined
     }
     if (onGrid?.note) onTarget = onTarget ? `${onTarget} ${onGrid.note}` : onGrid.note
+    // ⛔ D16 (AUDIT #1283): the instant path is screened too (the model path screens every ticker itself), with NO search: a
+    // SYMBOL ON THE BOARD the words name in any slot / reading ("turn it ON", "make it weekly for NOW"), or a word typed in
+    // CAPITALS in a ticker slot ("change IT to weekly"), while the change lands on a chart showing another symbol, is ASKED —
+    // an ordinary reading never makes a wrong write. A verdict an earlier lookup cached is used; nothing new is fetched.
+    if (path !== 'model' && suggested !== 'approved' && !approval) {
+      let bc = null
+      try {
+        const said = String((typeof words === 'string' && words) || railWordsRef.current || (typeof member === 'string' ? member : '') || '')
+        const lex = lexiconFor(host)
+        const cached = (w) => { try { return groundingOf(w) } catch { return null } }
+        bc = targetTickerConflict({ host, ops: opsIn, text: said, getTargetKind, getCapability, ordinary: lex.words, lists: lex.symbols, verdict: cached, plainWord: (w) => plainSymbolWord(w, host), askUnanswered: true, askedOnly: true })
+      } catch { bc = null }
+      if (bc?.ask && !bc.failed) {
+        push({ role: 'agent', text: bc.ask.text })
+        record({ member, outcome: bc.ask.text, outcomeData: { kind: 'clarify-target-ticker', actions: (opsIn || []).map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
+        return undefined
+      }
+    }
     // ⛔ #988 (pl-auto u14-g3-05, GO bar 1): ONE gate for every card and every apply, on every path (instant, model, a resumed
     // question): a chart the member's words EXCLUDE ("this row except the TSLA one") is dropped from the plan here — never on a
     // proposal card, never applied. An apply that loses a chart this way is only proposed; nothing left → asked, with no card.
@@ -3047,6 +3084,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
         return
       }
       let res, refMap, live, nl1Body = null, nl1Sel = null, rerouted = false
+      // ticker resolution (owner D16 item 3): the words the target-ticker check may need the ticker search for are asked NOW,
+      // while the model plans — by the time the plan is screened the answer is usually in (groundSymbols caches it)
+      const tickerWords = (() => {
+        try {
+          const lex = lexiconFor(host)
+          return tickerGroundingCandidates(text, { charts: host?.charts?.list?.() || [], lists: lex.symbols, ordinary: lex.words, cached: (w) => groundingOf(w), isSymbolWord: (w) => plainSymbolWord(w, host), slotsOnly: true })
+        } catch { return null }                                                    // a lookup that cannot even start: fail closed below
+      })()
+      const tickerPrefetch = tickerWords?.length ? groundSymbols(tickerWords).catch(() => null) : null
       let answeredRefs = []        // the chart a reply to UCT's own question picked (screenUnnamedTargets)
       if (nl1) {
         // NL-1: the request's actions (nl1/selection.js: the core, pinned groups, groups its words add — every
@@ -3494,15 +3540,24 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       // verdict (groundSymbols, cached; bounded like nameSearch — no answer in time is "not known here").
       let tgtTicker = null
       try {
-        const known = new Map()
-        const live = host?.charts?.list?.() || []
         const writesChart = (screened.ops || []).some(o => { const cap = getCapability(o?.action); return !!cap && !cap.query && !!getTargetKind(cap.target) })
-        const lower = writesChart ? lowerTickerCandidates(text, live, (w) => plainSymbolWord(w, host)) : []
-        if (lower.length) {
-          await nameSearchAll(lower)
-          for (const w of lower) { const v = groundingOf(w); if (v && (v.kind === 'ticker' || v.kind === 'name') && v.ticker) known.set(w, v.ticker) }
-        }
-        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, known, ordinary: lexiconFor(host).words })
+        // the prefetch started with the model call; what is still out gets the rest of one bound (NAME_SEARCH_MS) — a word the
+        // search never answered is 'pending': in a ticker slot that is ASKED, never a stand-in chart
+        if (writesChart && tickerWords === null) throw new Error('ticker lookup could not start')
+        const lex = lexiconFor(host)
+        // the plan writes a chart: a lowercase word OUTSIDE a ticker slot is asked about now too (#1213), with what is still out
+        const later = writesChart ? tickerGroundingCandidates(text, { charts: host?.charts?.list?.() || [], lists: lex.symbols, ordinary: lex.words, cached: (w) => groundingOf(w), isSymbolWord: (w) => plainSymbolWord(w, host) })
+          .filter(w => !(tickerWords || []).includes(w)) : []
+        const outstanding = [tickerPrefetch, later.length ? groundSymbols(later).catch(() => null) : null].filter(Boolean)
+        const waitedFrom = Date.now()
+        if (writesChart && outstanding.length) await boundedWait(Promise.all(outstanding), NAME_SEARCH_MS)
+        const asked = new Set([...(tickerWords || []), ...later])
+        tickerStatsRef.current = tickerLookupStats([...asked], (w) => { try { return groundingOf(w) } catch { return null } }, writesChart && outstanding.length ? Date.now() - waitedFrom : 0)
+        // a word this turn asked about: its verdict, or 'pending' (a failing lookup throws → the catch below asks); any other
+        // word: a verdict an earlier turn already cached, if any
+        const verdict = (w) => (asked.has(w) ? groundingOf(w) || 'pending' : (() => { try { return groundingOf(w) } catch { return null } })())
+        tgtTicker = targetTickerConflict({ host, ops: screened.ops, text, pickedRefs: answeredRefs, getTargetKind, getCapability, ordinary: lex.words, lists: lex.symbols, verdict, plainWord: (w) => plainSymbolWord(w, host) })
+        if (tickerStatsRef.current) tickerStatsRef.current = { ...tickerStatsRef.current, ticker_ambiguous: tgtTicker?.ambiguous ? 1 : 0, ticker_unresolved: tgtTicker?.unresolved ? 1 : 0 }
       } catch {
         tgtTicker = { failed: true, ask: { text: TARGET_CHECK_FAILED } }        // ⛔ fail closed: an unread check never writes
       }

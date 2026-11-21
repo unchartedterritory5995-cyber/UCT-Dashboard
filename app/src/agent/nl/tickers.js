@@ -63,7 +63,10 @@ export const _resetGrounding = () => VERDICTS.clear()
 
 async function search(q, fetchFn) {
   const r = await fetchFn(`/api/ticker-search?q=${encodeURIComponent(q)}&limit=20`, { credentials: 'include' })
-  return r.ok ? ((await r.json()).results || []) : []
+  // a failed lookup THROWS (owner #1283, requirement 5): it is no answer, never "this word is not a ticker"
+  if (!r?.ok) throw new Error('ticker search failed')
+  const data = await r.json()
+  return Array.isArray(data?.results) ? data.results : []
 }
 
 /**
@@ -79,9 +82,13 @@ export async function groundSymbols(inputs, { fetchFn = (u, o) => fetch(u, o) } 
     let v = cached
     if (!v) {
       let rows = []
-      try { rows = await search(raw, fetchFn) } catch { rows = [] }
+      // a lookup that failed (an error status, a network error, an unreadable answer) is "unknown" to the callers that refuse on
+      // it — but it is NOT cached as a verdict: a check that needs a real answer (the target-ticker check) sees no answer at all
+      try { rows = await search(raw, fetchFn) } catch { out.unknown.add(key); out.failed = (out.failed || new Set()).add(key); return }
       rows = rows.filter(x => !x.delisted && !x.breadth && x.type !== 'economic' && x.ticker)
-      if (rows.some(x => String(x.ticker).toUpperCase() === key)) v = { kind: 'ticker', ticker: key }
+      const exactRow = rows.find(x => String(x.ticker).toUpperCase() === key)
+      // (the company name rides along: a homograph question names it — "the ticker ON (ON Semiconductor)")
+      if (exactRow) v = { kind: 'ticker', ticker: key, ...(exactRow.name ? { name: exactRow.name } : {}) }
       else {
         const want = normName(raw)
         const exact = want ? rows.filter(x => x.name && normName(x.name) === want) : []
