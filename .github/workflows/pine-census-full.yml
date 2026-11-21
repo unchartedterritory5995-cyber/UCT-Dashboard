@@ -1,0 +1,273 @@
+# promotion-gate: no — an ON-DEMAND measurement lane (the full-population Pine census): it never decides promotion.
+#
+# ─── PINE CENSUS, FULL POPULATION (2026-11-20) ─────────────────────────────────────────────────────────────
+#
+# WHAT. The coverage-map census (tools/pine_coverage/run_census.py: the same door, the same isClean predicate,
+# both lanes, production's library store) over EVERY open-source script in the population file
+# docs/pine/census-full/population.json (~5,000), not the 679-script sample. Few, long shards: the account's 40
+# job slots are shared by every session, so a run takes at most 4 census jobs plus one harness job at a time.
+#
+# HOW IT IS STARTED. An operator pushes a branch `census-full/run/<label>` whose commit adds
+# ci/census-full/run.json (shard count, the promoted libraries' PUB ids) and ci/census-full/pubkey.pem (an RSA
+# PUBLIC key; its private half never leaves the operator's machine). The push trigger is path-filtered to
+# run.json, so no other push runs this. tools/pine_coverage/census_full.py documents every step.
+#
+# ⛔⛔ THE REPO IS PUBLIC AND MOST OF THESE SCRIPTS ARE LICENCE-HELD (docs/pine/LICENSING.md).
+#   - Nothing we hold is sent here: each shard fetches its own scripts from TradingView's public pine-facade
+#     endpoint BY THE PINNED REVISION and refuses a text whose sha256 is not the population file's.
+#   - Politeness: the shards together keep the survey's single-stream rate (each waits 1.2 s x the shard count);
+#     a 429 / 403 is a refusal: that script is recorded `unfetched` by name, the shard backs off, never retries it,
+#     and stops asking after 5 refusals in a row.
+#   - Census rows and harness verdicts quote source lines, so they leave the runner only SEALED (AES-256 under a
+#     random key, the key wrapped to the operator's public key). The job log and step summary carry counts only;
+#     every tool's own output goes to a file that is sealed, never to the log.
+#   - Read-only token, no secrets, credentials not persisted.
+name: pine census full
+run-name: "pine census full: ${{ github.ref_name }}"
+
+on:
+  push:
+    branches: ['census-full/run/**']
+    paths: ['ci/census-full/run.json']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pine-census-full-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  UCT_VENDOR_CAPTURE_STORE: /tmp/census-full-empty-store/captures
+  UCT_HARNESS_SUPPLY_STORE: /tmp/census-full-empty-store/supply
+
+jobs:
+  plan:
+    name: read the run request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.p.outputs.shards }}
+      of: ${{ steps.p.outputs.of }}
+      limit: ${{ steps.p.outputs.limit }}
+      harness: ${{ steps.p.outputs.harness }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            ci/census-full
+            docs/pine/census-full
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - id: p
+        name: Validate run.json and the public key
+        run: |
+          python3 - <<'EOF'
+          import json, os, re
+          r = json.load(open("ci/census-full/run.json"))
+          n = int(r["shards"])
+          assert 1 <= n <= 4, "1-4 shards (the shared queue)"
+          key = open("ci/census-full/pubkey.pem").read()
+          assert key.startswith("-----BEGIN PUBLIC KEY-----") and "PRIVATE" not in key, "a PUBLIC key only"
+          for lib in r["libraries"]:
+              assert re.fullmatch(r"[A-Za-z0-9_]+/[A-Za-z0-9_]+/[0-9]+", lib["path"]), lib
+              assert re.fullmatch(r"PUB;[A-Za-z0-9]+", lib["pubId"]), lib
+          pop = json.load(open("docs/pine/census-full/population.json"))
+          assert pop["schema"] == "uct.pine-census-full-population/v1"
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("shards=%s\n" % json.dumps(list(range(1, n + 1))))
+              f.write("of=%d\n" % n)
+              f.write("limit=%d\n" % int(r.get("limit") or 0))
+              f.write("harness=%s\n" % ("true" if r.get("harness", True) else "false"))
+          print("population %d scripts, %d examples, %d shards" % (len(pop["rows"]), len(pop["examples"]), n))
+          EOF
+
+  census:
+    name: census shard ${{ matrix.shard }}/${{ needs.plan.outputs.of }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: node_modules (the pine-heavy cache, read on the same lockfile key)
+        id: nm
+        uses: actions/cache@v4
+        with:
+          path: app/node_modules
+          key: pine-heavy-nm-${{ runner.os }}-node20-${{ hashFiles('app/package-lock.json') }}
+      - name: npm ci (cache miss only)
+        if: steps.nm.outputs.cache-hit != 'true'
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Production's library store (the promoted versions, by PUB id, held to the allowlist)
+        run: |
+          set -euo pipefail
+          mkdir -p "$UCT_VENDOR_CAPTURE_STORE" "$UCT_HARNESS_SUPPLY_STORE"
+          S="$RUNNER_TEMP/store"; mkdir -p "$S"
+          python3 -c "import json; [print(l['path'], l['pubId']) for l in json.load(open('ci/census-full/run.json'))['libraries']]" > "$RUNNER_TEMP/libs.txt"
+          while read -r path pub; do
+            PINE_LIBRARY_DIR="$S" python3 tools/pine_library/fetch_library.py --pub-id "$pub" "$path" > /dev/null
+            sleep 6   # politeness: up to 5 jobs fetch their 8 libraries at once
+          done < "$RUNNER_TEMP/libs.txt"
+          python3 tools/pine_library/promotion_check.py check --store "$S" --exact | tail -1
+      - name: TradingView's reference examples (shard 1 only; a fresh extract, kept only where the sha256 matches)
+        if: matrix.shard == 1
+        run: |
+          mkdir -p "$RUNNER_TEMP/ref"
+          if node tools/pine_survey/pine_reference_extract.js --out "$RUNNER_TEMP/ref/ref.json" --cache "$RUNNER_TEMP/ref/chunks" > "$RUNNER_TEMP/ref/extract.log" 2>&1; then
+            echo "EXAMPLES_REF=$RUNNER_TEMP/ref/ref.json" >> "$GITHUB_ENV"; echo "reference extracted"
+          else
+            echo "::warning::the reference extract failed; this run measures no examples"
+          fi
+      - name: Fetch this shard by pinned revision (sha256-checked)
+        env:
+          SHARD: ${{ matrix.shard }}
+          OF: ${{ needs.plan.outputs.of }}
+          LIMIT: ${{ needs.plan.outputs.limit }}
+          CENSUS_FULL_RETRY_BACKOFF: '30'
+        run: |
+          set -euo pipefail
+          W="$RUNNER_TEMP/census"; mkdir -p "$W"
+          # ⛔ POLITENESS: ONE aggregate rate for the whole run, the survey's single stream (one request per 1.2 s).
+          # The shards fetch at the same time, so each waits 1.2 s x the shard count between its requests.
+          export CENSUS_FULL_DELAY=$(python3 -c "print(round(1.2 * int('$OF'), 2))")
+          echo "fetch delay per shard: $CENSUS_FULL_DELAY s ($OF shards)"
+          python3 tools/pine_coverage/census_full.py shard --population docs/pine/census-full/population.json \
+            --shard "$SHARD" --of "$OF" --limit "$LIMIT" --out "$W" ${EXAMPLES_REF:+--examples-ref "$EXAMPLES_REF"} > "$W/shard.log" 2>&1
+          tail -1 "$W/shard.log"
+      - name: The census, both lanes at once (production in key order, runtime-on reversed)
+        id: lanes
+        continue-on-error: true
+        run: |
+          W="$RUNNER_TEMP/census"; S="$RUNNER_TEMP/store"
+          export VITEST_MAX_WORKERS=1
+          python3 tools/pine_coverage/census_full.py lane --items "$W/items.json" --cache "$W/prod" \
+            --lane production --library-store "$S" > "$W/prod.log" 2>&1 & p1=$!
+          python3 tools/pine_coverage/census_full.py lane --items "$W/items.json" --cache "$W/rt" \
+            --lane runtime-on --library-store "$S" --reverse > "$W/rt.log" 2>&1 & p2=$!
+          r1=0; r2=0; wait $p1 || r1=$?; wait $p2 || r2=$?
+          # counts only: the driver's own progress lines (keys of killed scripts are identifiers)
+          grep -h -E "^(attempt [0-9]+ rc=|census rows:|LANE (MEASURED|production|runtime-on)|LIBRARY STORE:|WATCHDOG:|  recorded killer:)" "$W/prod.log" "$W/rt.log" || true
+          echo "production exit $r1, runtime-on exit $r2"
+          test "$r1" = 0 && test "$r2" = 0
+      - name: Seal the rows to the operator's public key
+        if: always()
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          W="$RUNNER_TEMP/census"
+          python3 tools/pine_coverage/census_full.py seal --pubkey ci/census-full/pubkey.pem --root "$W" \
+            --out "$RUNNER_TEMP/out/shard-$SHARD" "$W/fetch_report.json" "$W/items.json" "$W/shard.log" \
+            "$W/prod.log" "$W/rt.log" \
+            "$W/prod/census.jsonl" "$W/prod/lane.jsonl" "$W/prod/library_store.json" "$W/prod/watchdog.json" "$W/prod/current.txt" \
+            "$W/rt/census.jsonl" "$W/rt/lane.jsonl" "$W/rt/library_store.json" "$W/rt/watchdog.json" "$W/rt/current.txt"
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          W = os.path.join(os.environ["RUNNER_TEMP"], "census")
+          def n(p):
+              p = os.path.join(W, p)
+              return sum(1 for l in open(p) if l.strip()) if os.path.exists(p) else None
+          rep = json.load(open(os.path.join(W, "fetch_report.json"))) if os.path.exists(os.path.join(W, "fetch_report.json")) else {}
+          print("### shard %s" % os.environ["SHARD"])
+          print("rows fetched %s of %s (mismatch %d, unfetched %d, refusals %s, stopped %s), examples %s; census rows production %s, runtime-on %s" % (
+              rep.get("ok"), rep.get("rows"), len(rep.get("mismatch", [])), len(rep.get("unfetched", [])), rep.get("refusals"), rep.get("stopped"),
+              json.dumps(rep.get("examples")), n("prod/census.jsonl"), n("rt/census.jsonl")))
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: census-full-shard-${{ matrix.shard }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+          retention-days: 3
+      - name: The run's verdict
+        if: always()
+        env:
+          OUTCOME: ${{ steps.lanes.outcome }}
+        run: test "$OUTCOME" = success
+
+  harness:
+    name: vendor harness + engine door (both lanes, with the store)
+    needs: plan
+    if: needs.plan.outputs.harness == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: node_modules (the pine-heavy cache, read on the same lockfile key)
+        id: nm
+        uses: actions/cache@v4
+        with:
+          path: app/node_modules
+          key: pine-heavy-nm-${{ runner.os }}-node20-${{ hashFiles('app/package-lock.json') }}
+      - name: npm ci (cache miss only)
+        if: steps.nm.outputs.cache-hit != 'true'
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Production's library store (the promoted versions, by PUB id, held to the allowlist)
+        run: |
+          set -euo pipefail
+          mkdir -p "$UCT_VENDOR_CAPTURE_STORE" "$UCT_HARNESS_SUPPLY_STORE"
+          S="$RUNNER_TEMP/store"; mkdir -p "$S"
+          python3 -c "import json; [print(l['path'], l['pubId']) for l in json.load(open('ci/census-full/run.json'))['libraries']]" > "$RUNNER_TEMP/libs.txt"
+          while read -r path pub; do
+            PINE_LIBRARY_DIR="$S" python3 tools/pine_library/fetch_library.py --pub-id "$pub" "$path" > /dev/null
+            sleep 6   # politeness: up to 5 jobs fetch their 8 libraries at once
+          done < "$RUNNER_TEMP/libs.txt"
+          python3 tools/pine_library/promotion_check.py check --store "$S" --exact | tail -1
+      - name: Harness (production and runtime-on) and the engine door
+        id: h
+        continue-on-error: true
+        working-directory: app
+        run: |
+          W="$RUNNER_TEMP/harness"; S="$RUNNER_TEMP/store"; mkdir -p "$W"
+          T=src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js
+          PINE_LIBRARY_STORE="$S" VENDOR_HARNESS_RUNTIME_ON=0 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT="$W/verdicts-prod" \
+            node node_modules/vitest/vitest.mjs run "$T" --maxWorkers=1 > "$W/harness-prod.log" 2>&1 & p1=$!
+          PINE_LIBRARY_STORE="$S" VENDOR_HARNESS_RUNTIME_ON=1 VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT="$W/verdicts-rt" \
+            node node_modules/vitest/vitest.mjs run "$T" --maxWorkers=1 > "$W/harness-rt.log" 2>&1 & p2=$!
+          r1=0; r2=0; wait $p1 || r1=$?; wait $p2 || r2=$?
+          COVERAGE_DOOR_OUT="$W/engine_door.json" node node_modules/vitest/vitest.mjs run \
+            src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js --maxWorkers=1 > "$W/door.log" 2>&1; r3=$?
+          echo "harness production exit $r1, runtime-on exit $r2, engine door exit $r3"
+          test "$r1" = 0 && test "$r2" = 0 && test "$r3" = 0
+      - name: Seal the verdicts to the operator's public key
+        if: always()
+        run: |
+          W="$RUNNER_TEMP/harness"
+          python3 tools/pine_coverage/census_full.py seal --pubkey ci/census-full/pubkey.pem --root "$W" \
+            --out "$RUNNER_TEMP/out/harness" "$W/verdicts-prod" "$W/verdicts-rt" "$W/engine_door.json" \
+            "$W/harness-prod.log" "$W/harness-rt.log" "$W/door.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: census-full-harness
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+          retention-days: 3
+      - name: The run's verdict
+        if: always()
+        env:
+          OUTCOME: ${{ steps.h.outcome }}
+        run: test "$OUTCOME" = success
