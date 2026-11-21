@@ -31,3 +31,15 @@
 
 export const DEVICE_FORMING_INTRADAY = true
 export const DEVICE_FORMING_DAILY = false
+
+// ⭐ DEVICE_DAILY_SERVER_ROW: D (and W / M through it) from the SERVER'S OWN day row after the close, which the
+// minute frames carry once stream-ingest runs with MINUTE_FRAMES_WITH_DAILY=1 (codec FLAG_DAILY; PR #2272): the
+// row /api/bars?tf=D serves (bars-api's snapshot `day` row: the official close and the consolidated volume),
+// painted exactly as received. ON, because it is exact by construction and the SERVER flag is the gate: no frame
+// carries the section until the owner arms it, after `tools/forming_daily_check.py` reads `frames' DAILY row ==
+// the server's D bar` on a real close. Used only while the device provably holds every row (consumer.js
+// `dailyOk`); otherwise the rollup path above decides, unchanged.
+// DEVICE_FORMING_DAILY (the rollup's D bar from minutes) STAYS OFF: its volume needs the accumulated day volume
+// (`av`, a sum of minutes is not the vendor's day volume), and 1 of 56 D bars had O/H/L differ from its
+// regular-session minutes. The server's row needs neither.
+export const DEVICE_DAILY_SERVER_ROW = true

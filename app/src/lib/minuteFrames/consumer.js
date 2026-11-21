@@ -22,11 +22,27 @@
 // Replaying the day's frames in order is exactly what a device that was live all day did, so
 // the two end in the same state (rollup.test.js proves it).
 //
+// REFUSED IS A GAP, NOT A RETRY. A frame whose CRC holds but that this decoder cannot read (a flag bit it does
+// not know, a section it cannot parse: codec FrameError.frame) is the publisher's own bytes, so asking again
+// gets the same answer. It is applied as a GAP for its minute ('refused') and the stream goes on; before this a
+// refused frame was asked for every 2 s, and in a catch-up the whole day file downloaded again each time.
+// A frame that fails its CRC or is cut short (the bytes were damaged on the way) is still asked for again.
+//
+// THE SERVER'S DAILY ROWS (codec FLAG_DAILY). After the close a frame can carry the server's own day row per
+// symbol. A publisher epoch's FIRST such frame carries every row, later ones only the rows that changed, so this
+// device holds the server's rows exactly only when it applied that first frame and every frame after it. It
+// knows a frame is its epoch's first only when it has every frame published before it: the first frame of a new
+// epoch that follows an unbroken chain (a 'not-published' hole lost nothing). A not-received or link-mismatch gap,
+// or a refused frame, may have lost rows: no trust until the next epoch's full set. The sink hears each section
+// (`daily({ day, seq, minute, full, rows })`, `full`: it is that complete set) and, with every frame, whether its
+// rows are now the server's (`frameDone({ ..., dailyOk })`).
+//
 // POLLS RESPECT VISIBILITY (CLAUDE.md speed rule 6): nothing is fetched while the app is hidden
 // (`isVisible`, default lib/deskVisibility.isAppVisible); on becoming visible it catches up.
 
 import {
-  decodeFrame, todayInfo, todayFrames, inflateIfGzip, hhmmOfSeq, NO_SEQ, SESSION_MINUTES, SESSION_START_MIN,
+  decodeFrame, todayInfo, todayFrames, inflateIfGzip, hhmmOfSeq, dailyRows, FrameError, NO_SEQ, SESSION_MINUTES,
+  SESSION_START_MIN,
 } from './codec'
 import { createMinuteRollup } from './rollup'
 import { etDateLabel, etMinuteOfDay } from '../../components/chart/barTime'
@@ -64,7 +80,9 @@ export function createMinuteFrameConsumer({
   let timer = null
   let running = false
   let busy = null
-  const st = { frames: 0, todayLoads: 0, bytes: 0, gaps: [], errors: 0, lastError: null, lastAppliedAt: 0 }
+  const st = { frames: 0, refused: 0, todayLoads: 0, bytes: 0, gaps: [], errors: 0, lastError: null, lastAppliedAt: 0 }
+  /** The DAILY trust of the epoch being followed (see the header). */
+  const dly = { epoch: null, knownStart: false, seen: false, ok: false }
 
   const visible = () => {
     if (typeof isVisible === 'function') { try { return isVisible() !== false } catch { return true } }
@@ -93,7 +111,8 @@ export function createMinuteFrameConsumer({
     rollup.markGap(minuteOf(fromSeq), minuteOf(toSeq), info)
   }
 
-  /** Apply one decoded frame after checking it follows what this device holds. */
+  /** Apply one decoded frame (or a refused one: `{ refused: true, ...header }`) after checking it follows what
+   *  this device holds. */
   function applyChecked(f) {
     const fd = `${Math.floor(f.day / 10000)}-${String(Math.floor(f.day / 100) % 100).padStart(2, '0')}-${String(f.day % 100).padStart(2, '0')}`
     if (fd !== day) startDay(fd)                                     // a frame of another day starts it
@@ -101,22 +120,42 @@ export function createMinuteFrameConsumer({
     // seq -> unix minute on this frame's day (wall-clock minutes from 04:00; DST-safe within a day)
     const minuteOf = (s) => f.minute - (f.seq - s)
     const expectedFrom = lastSeq == null ? 0 : lastSeq + 1
+    let broke = false              // frames were published that this device did not apply
     if (f.seq > expectedFrom) {
       // Missing seqs. Who missed them: the publisher (prevSeq below them, or none) or this device
       // (prevSeq inside the hole: frames existed that never arrived here). A gap either way.
       const reason = f.prevSeq === NO_SEQ || f.prevSeq < expectedFrom ? 'not-published' : 'not-received'
+      broke = reason === 'not-received'
       gap(expectedFrom, f.seq - 1, lastSeq == null && f.prevSeq === NO_SEQ ? 'before-first-frame' : reason, minuteOf)
     } else if (f.prevSeq !== NO_SEQ && lastSeq != null && f.prevSeq !== lastSeq) {
+      broke = true
       gap(Math.min(f.prevSeq, lastSeq) + 1, f.seq - 1, 'link-mismatch', minuteOf)
     }
-    rollup.applyFrame(f)
-    if (!f.complete) gap(f.seq, f.seq, 'incomplete', minuteOf)
+    if (f.epoch !== dly.epoch) Object.assign(dly, { epoch: f.epoch, knownStart: !broke, seen: false, ok: false })
+    else if (broke) { dly.knownStart = false; dly.ok = false }
+    if (f.refused) {
+      // the publisher's own bytes, unreadable here: its minute is a gap, and anything it carried is lost
+      gap(f.seq, f.seq, 'refused', minuteOf)
+      dly.knownStart = false
+      dly.ok = false
+      st.refused++
+    } else {
+      rollup.applyFrame(f)
+      if (!f.complete) gap(f.seq, f.seq, 'incomplete', minuteOf)
+      if (f.daily) {
+        const full = !dly.seen && dly.knownStart
+        if (full) dly.ok = true
+        dly.seen = true
+        sink.daily?.({ day, seq: f.seq, minute: f.minute, full, rows: dailyRows(f) })
+      }
+    }
     lastSeq = f.seq
     st.frames++
     st.lastAppliedAt = now()
     // withAv: the frame carried the vendor's accumulated day volume (FLAG_AV); the device store's forming
-    // daily bar is painted only when every frame of the day did (deviceStore/forming.js)
-    sink.frameDone?.({ day, seq: f.seq, minute: f.minute, withAv: !!f.withAv })
+    // daily bar is painted only when every frame of the day did (deviceStore/forming.js). dailyOk: the DAILY
+    // rows this device holds are the server's current ones (see the header).
+    sink.frameDone?.({ day, seq: f.seq, minute: f.minute, withAv: !f.refused && !!f.withAv, dailyOk: dly.ok })
     return true
   }
 
@@ -125,6 +164,7 @@ export function createMinuteFrameConsumer({
     day = d
     lastSeq = null
     rollup.reset()
+    Object.assign(dly, { epoch: null, knownStart: false, seen: false, ok: false })
     st.gaps = []
     sink.reset?.({ day: d })
   }
@@ -141,7 +181,7 @@ export function createMinuteFrameConsumer({
     const raw = await getBytes(`${base}/${day}/today.bin`)
     const info = todayInfo(raw)
     st.todayLoads++
-    for (const f of todayFrames(raw)) {
+    for (const f of todayFrames(raw, { refused: true })) {
       if (f.seq > upTo) break
       applyChecked(f)
     }
@@ -176,13 +216,15 @@ export function createMinuteFrameConsumer({
     return { current: lastSeq != null && lastSeq >= target }
   }
 
-  /** One minute file, or null when it is not there. */
+  /** One minute file, or null when it is not there; a frame refused for good comes back as
+   *  `{ refused: true, error, ...header }` (applied as a gap, never asked for again). */
   async function fetchFrame(seq) {
     try {
       const raw = await getBytes(`${base}/${day}/${hhmmOfSeq(seq)}.bin`)
       return decodeFrame(raw)
     } catch (e) {
       if (e.status === 404) return null
+      if (e instanceof FrameError && e.frame) return { refused: true, error: e.message, ...e.frame }
       throw e
     }
   }
