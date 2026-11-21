@@ -144,6 +144,33 @@ describe('emptyOnThisChart: what the drawn preview does not show', () => {
     expect(items[0]).toMatchObject({ code: EMPTY_ON_CHART.NEWEST, blankBars: 10 })
   })
 
+  it('A CHART SHORTER THAN THE FORMULA READS: a value on the newest bar, and UCT says it comes from less history', () => {
+    // "days of the last 20 with the close above its 200 day average": reads 219 bars back
+    const DAYS_ABOVE = definitionOf([{ key: 'v', tree: P('sum(close > sma(close, 200) ? 1 : 0, 20)') }])
+    const young = pointsOf(days(150), (i) => (i < 19 ? NaN : 0))               // what the engine draws there: a confident 0
+    const got = emptyOnThisChart({ bindings: [drawn('v', young)], definition: DAYS_ABOVE, barCount: 150 })
+    expect(got.items).toHaveLength(1)
+    expect(got.items[0]).toMatchObject({ key: 'v', code: EMPTY_ON_CHART.SHORT_HISTORY, bars: 150 })
+    expect(got.items[0].reach).toBeGreaterThanOrEqual(218)
+    expect(emptyOnChartWords(got.items[0])).toBe(`This chart has 150 bars and the formula reads ${got.items[0].reach}; values here come from less history than it asks for.`)
+    expect(emptyOnChartWords(got.items[0], { name: 'Days above' })).toBe(`Days above: this chart has 150 bars and its formula reads ${got.items[0].reach}; values here come from less history than it asks for.`)
+    // CONTROL: the same build on a long chart says nothing
+    const long = pointsOf(days(700), (i) => (i < 219 ? NaN : 7))
+    expect(emptyOnThisChart({ bindings: [drawn('v', long)], definition: DAYS_ABOVE, barCount: 700 })).toEqual({ drawn: true, items: [] })
+    // CONTROL: a chart exactly one bar longer than the reach has the whole of it on its newest bar
+    const reach = got.items[0].reach
+    const enough = pointsOf(days(reach + 1), (i) => (i < reach ? NaN : 3))
+    expect(emptyOnThisChart({ bindings: [drawn('v', enough)], definition: DAYS_ABOVE, barCount: reach + 1 }).items).toEqual([])
+    expect(emptyOnThisChart({ bindings: [drawn('v', pointsOf(days(reach), () => 3))], definition: DAYS_ABOVE, barCount: reach }).items).toHaveLength(1)
+    // ⛔ SAID ONCE: an output with NO value on the chart has the reason in its own sentence and no second one
+    const never = emptyOnThisChart({ bindings: [drawn('v', pointsOf(days(700), () => NaN))], definition: DEEP, barCount: 700 })
+    expect(never.items).toHaveLength(1)
+    expect(never.items[0].code).toBe(EMPTY_ON_CHART.NEVER)
+    expect(emptyOnChartWords(never.items[0]).split('this chart has').length - 1).toBe(1)
+    // a formula whose reach is not a number (or a definition that cannot be read) gets no such note
+    expect(emptyOnThisChart({ bindings: [drawn('v', young)], definition: null, barCount: 150 }).items).toEqual([])
+  })
+
   it('the output is named only when the indicator has more than one', () => {
     const item = { key: 'v', code: EMPTY_ON_CHART.NEWEST, blankBars: 3, bars: 700 }
     expect(emptyOnChartWords(item)).toBe('It has no value on the newest 3 bars.')
