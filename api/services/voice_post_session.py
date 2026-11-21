@@ -20,7 +20,7 @@ Now:
     re-processed, so it never spends model calls on history.
   * IDEMPOTENT PER (session_id, step): before a step runs, `already_written` looks for what that step
     writes for this session (the summary row; an audit row; the bridge message, whose metadata carries
-    the session id; a suggestion with `source_type='voice_session'` and this `source_id`). Found: the
+    the session id; a suggestion whose source is `trader_profile_auto.source_id_for(session)`). Found: the
     step is marked done and not run again. So a process that died between the write and the marker
     does not double anything.
   * One process runs one session at a time (`_claims`): the after-response run and a sweep never run
@@ -102,10 +102,21 @@ _WRITTEN = {
                " AND json_extract(metadata, '$.source') = 'voice_session'"
                " AND json_extract(metadata, '$.session_id') = ? LIMIT 1",
                lambda s, u: (u, s)),
+    # the key trader_profile_auto writes (derived from it, never restated)
     "profile": ("SELECT 1 FROM j2_profile_suggestions WHERE user_id = ?"
-                " AND source_type = 'voice_session' AND source_id = ? LIMIT 1",
-                lambda s, u: (u, str(s))),
+                " AND source_type = ? AND source_id = ? LIMIT 1",
+                lambda s, u: (u, _profile_source_type(), _profile_source_id(s))),
 }
+
+
+def _profile_source_type() -> str:
+    from api.services.trader_profile_auto import SOURCE_TYPE
+    return SOURCE_TYPE
+
+
+def _profile_source_id(session_id) -> str:
+    from api.services.trader_profile_auto import source_id_for
+    return source_id_for(session_id)
 
 
 def already_written(conn, session_id: int, user_id: str, step: str) -> bool:

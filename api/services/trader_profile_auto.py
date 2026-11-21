@@ -21,6 +21,20 @@ _log = logging.getLogger(__name__)
 
 _HAIKU_MODEL = llm_models.HAIKU
 _MAX_SUGGESTIONS_PER_SESSION = 4
+
+# ⛔⛔ THE SOURCE IS 'chat', AND UNTIL 2026-11-21 IT WAS 'voice_session', WHICH NEVER SAVED ONE ROW.
+# `j2_profile_suggestions.source_type` carries a CHECK (journal_two/db.py): weekly_review, eod_recap,
+# trade_review, chat. Every insert with 'voice_session' raised "CHECK constraint failed", the loop
+# below logged it as a failed insert and moved on, so this feature has paid for a Haiku call per
+# session and stored nothing since it shipped. A voice session IS a Compass chat (spoken; the bridge
+# posts it into the same Compass thread), so 'chat' is the truthful existing value and needs no table
+# rebuild. The session rides in source_id as `voice_session:<id>`: it can never collide with a chat
+# message's id, and it is the idempotency key voice_post_session.py checks before re-running this step.
+SOURCE_TYPE = "chat"
+
+
+def source_id_for(session_id) -> str:
+    return f"voice_session:{int(session_id)}"
 _MIN_TRANSCRIPT_TURNS = 4   # Don't bother with tiny sessions
 
 _EXTRACT_SYSTEM = (
@@ -131,8 +145,8 @@ def auto_populate_after_session(session_id: int, user_id: str) -> dict[str, Any]
             create_suggestion(
                 user_id=user_id,
                 account_id=account_id,
-                source_type="voice_session",
-                source_id=str(session_id),
+                source_type=SOURCE_TYPE,
+                source_id=source_id_for(session_id),
                 suggestion=text,
             )
             created += 1

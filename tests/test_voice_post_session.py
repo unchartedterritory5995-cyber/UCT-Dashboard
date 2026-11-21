@@ -192,12 +192,12 @@ def test_the_suggestion_and_audit_keys_name_this_session_and_this_member_only():
     c = sqlite3.connect(":memory:")
     c.execute("CREATE TABLE j2_profile_suggestions (user_id TEXT, source_type TEXT, source_id TEXT)")
     c.execute("CREATE TABLE voice_hallucinations (session_id INTEGER)")
-    c.execute("INSERT INTO j2_profile_suggestions VALUES ('u1', 'voice_session', '7')")
-    c.execute("INSERT INTO j2_profile_suggestions VALUES ('u1', 'chat', '8')")
+    c.execute("INSERT INTO j2_profile_suggestions VALUES ('u1', 'chat', 'voice_session:7')")
+    c.execute("INSERT INTO j2_profile_suggestions VALUES ('u1', 'chat', '8')")             # a chat message's own
     c.execute("INSERT INTO voice_hallucinations VALUES (7)")
     assert vps.already_written(c, 7, "u1", "profile") is True
     assert vps.already_written(c, 7, "u2", "profile") is False            # another member's session 7
-    assert vps.already_written(c, 8, "u1", "profile") is False            # not a voice-session suggestion
+    assert vps.already_written(c, 8, "u1", "profile") is False            # message 8, not voice session 8
     assert vps.already_written(c, 7, "u1", "audit") is True and vps.already_written(c, 8, "u1", "audit") is False
     assert vps.already_written(c, 7, "u1", "bridge") is False             # no such table yet: nothing written
 
@@ -248,3 +248,36 @@ def test_the_sweep_is_registered_on_the_web_scheduler_soon_after_boot():
     assert added["id"] == "voice_post_session_sweep" and added["max_instances"] == 1
     lead = (added["next_run_time"] - datetime.now(timezone.utc)).total_seconds()
     assert 0 < lead <= vps.SWEEP_FIRST_AFTER_S
+
+
+def test_a_voice_sessions_profile_suggestions_are_actually_saved_and_only_once(monkeypatch):
+    """⛔ Until 2026-11-21 every one failed j2_profile_suggestions' CHECK ('voice_session' is not an
+    allowed source_type) and nothing was ever stored."""
+    from api.services import trader_profile_auto as tpa
+    uid = _user()
+    acc = get_default_account_id(uid)
+    c = get_connection()
+    try:
+        c.execute("UPDATE j2_accounts SET compass_enabled = 1 WHERE id = ?", (acc,))
+        c.commit()
+    finally:
+        c.close()
+    sid = _ended_session(uid)
+    append_transcript(sid, role="user", text="I only trade breakouts in the first hour.")
+    append_transcript(sid, role="assistant", text="Noted.")
+    monkeypatch.setattr(tpa, "extract_suggestions_from_transcript", lambda t: ["Trades breakouts in the first hour only."])
+
+    def rows():
+        c = get_connection()
+        try:
+            return c.execute("SELECT source_type, source_id, suggestion FROM j2_profile_suggestions"
+                             " WHERE user_id = ?", (uid,)).fetchall()
+        finally:
+            c.close()
+    steps = (("profile", voice._auto_populate_profile_background),)
+    vps.run(sid, uid, steps)
+    got = [tuple(r) for r in rows()]
+    assert got == [("chat", f"voice_session:{sid}", "Trades breakouts in the first hour only.")]
+    _forget_markers(sid)
+    assert vps.run(sid, uid, steps)["skipped"] == ["profile"]
+    assert len(rows()) == 1
