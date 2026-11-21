@@ -3683,6 +3683,31 @@ function engineFactsSigOf(meta) {
     i?.list_date, i?.first_trade_date, i?.first_trade_final, i?.pending].map((v) => (v == null ? '' : String(v))).join('\u0001')
 }
 
+/**
+ * The chart body's metadata listener (`_onMetaLanded`): an answer landed between renders. Built HERE, out of the
+ * render, on purpose: the store keeps it for the chart's whole life, and a closure written inside a render would pin
+ * that render's whole scope (its bars) for as long. It holds the refs it reads, nothing else.
+ */
+function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, rerender }) {
+  return function _onMetaLanded() {
+    const f = factsRef.current
+    const inp = inputsRef.current
+    if (!f || !inp) return
+    const meta = metaStore.get()
+    if (engineFactsSigOf(meta) !== f.sig) {
+      const h = historyFromListingFor(inp.filteredBars, inp.resolvedTf, meta.ipoInfo)
+      const u = listingUnservedFor(h, inp.filteredBars, inp.resolvedTf, meta.ipoInfo)
+      if (f.read || h !== f.historyFromListing || u !== f.listingUnserved) {
+        rerender((n) => n + 1)   // the engine computes on it: a render, and `updateChart` re-syncs
+        return
+      }
+    }
+    const view = nowRef.current()
+    try { drawRef.current?.(view, false, true) } catch { /* the next paint redraws */ }
+    try { futureWsRef.current?.(view.earningsEvents) } catch { /* series gone */ }
+  }
+}
+
 // ═══ THE METADATA FEED ═══════════════════════════════════════════════════════════════════════════════════
 // The ONE component that reads the chart's per-symbol metadata (the reads StockChart's body used to make; see
 // `chart/chartMetaStore.js` for the whole contract). It renders just BEFORE the body (its sibling in
@@ -9914,23 +9939,11 @@ function StockChartBody({
   }
   const _metaNowRef = useRef(_metaNow)
   _metaNowRef.current = _metaNow
-  useLayoutEffect(() => metaStore.subscribe(function _onMetaLanded() {
-    const f = _metaFactsRef.current
-    const inp = _metaInputsRef.current
-    if (!f || !inp) return
-    const meta = metaStore.get()
-    if (engineFactsSigOf(meta) !== f.sig) {
-      const h = historyFromListingFor(inp.filteredBars, inp.resolvedTf, meta.ipoInfo)
-      const u = listingUnservedFor(h, inp.filteredBars, inp.resolvedTf, meta.ipoInfo)
-      if (f.read || h !== f.historyFromListing || u !== f.listingUnserved) {
-        _setMetaFactsRev((n) => n + 1)   // the engine computes on it: a render, and `updateChart` re-syncs
-        return
-      }
-    }
-    const view = _metaNowRef.current()
-    try { _drawMetaRef.current?.(view, false, true) } catch { /* the next paint redraws */ }
-    try { _applyFutureWsRef.current?.(view.earningsEvents) } catch { /* series gone */ }
-  }), [metaStore])
+  // (the listener is built outside this render, `metaLandedListener`: the store holds it for the chart's life)
+  useLayoutEffect(() => metaStore.subscribe(metaLandedListener({
+    metaStore, factsRef: _metaFactsRef, inputsRef: _metaInputsRef, nowRef: _metaNowRef,
+    drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, rerender: _setMetaFactsRev,
+  })), [metaStore])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
