@@ -238,7 +238,9 @@ const FITS_THE_BOTTOM = [
  *  InsiderPanel.jsx (INS) was measured on 2026-11-21 (part 5): 343px past its box in the 592px panel, its role on one
  *  line. It stays here, naming no step, until its layout is decided (the part 5 report hands the choice back). */
 const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', 'EtfPanel.jsx',
-  'GroupDrillPanel.jsx', 'InsiderPanel.jsx', 'PeerPanel.jsx', 'WatchlistPanel.jsx']
+  'GroupDrillPanel.jsx', 'InsiderPanel.jsx', 'PeerPanel.jsx', 'WatchlistPanel.jsx',
+  // Market wave C (2026-11-21): no fold step measured; the phone columns fold through `phoneHide`
+  'TreasuryAuctionsPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 
