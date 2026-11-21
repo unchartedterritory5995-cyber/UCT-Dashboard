@@ -637,7 +637,7 @@ def test_fresh_run_a_lasting_404_exits_2_with_the_run_cancelled_before_the_ref_i
     monkeypatch.setattr(rt, "GitHubApi",
                         lambda: real_api(runner=runner, sleep=clock.sleep, now=clock.now, log=lambda *_: None))
     monkeypatch.setattr(rt, "_delete_ref", lambda ref: events.append("delete"))
-    assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE
+    assert rt.main(["--pytest", "tests/test_a.py", "--max-wait-min", "0"]) == rt.LANE
     assert events == ["cancel", "delete"], events
     assert clock.t - 1_000_000.0 <= rt.FRESH_RUN_GRACE_S + rt.POLL_EARLY_S
 
@@ -713,7 +713,7 @@ def test_a_5xx_dispatch_whose_run_exists_is_waited_on_end_to_end(monkeypatch):
                         lambda: real_api(runner=runner, sleep=clock.sleep, now=clock.now, log=lambda *_: None))
     monkeypatch.setattr(rt, "wait_for_run", lambda api, run_id, timeout_s, log=print: events.append(f"wait {run_id}"))
     monkeypatch.setattr(rt, "_delete_ref", lambda ref: events.append("delete"))
-    assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE        # the stubbed wait answers "still running"
+    assert rt.main(["--pytest", "tests/test_a.py", "--max-wait-min", "0"]) == rt.LANE        # the stubbed wait answers "still running"
     assert events == ["wait 31", "cancel 31", "delete"], events
 
 
@@ -824,3 +824,106 @@ def test_read_load_repeat_check_is_conditional():
     assert rt.read_load(api) is not None and rt.read_load(api) is not None
     assert fake.calls[3][2] == {"If-None-Match": 'W/"g"'}
     assert api.not_modified == 3
+
+
+def _crowded(clock):
+    return rt.Load([{"id": 9, "status": "queued", "created_at": _at(clock)}], {}, [], [])
+
+
+def _seq(*values):
+    it = iter(values)
+    return lambda: next(it)
+
+
+def test_wait_for_room_returns_at_once_when_there_is_room(monkeypatch):
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: rt.Load([], {}, [], []))
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "room"
+    assert clock.sleeps == []
+
+
+def test_wait_for_room_polls_with_jitter_until_room(monkeypatch):
+    api, _, clock = _api([])
+    loads = iter([_crowded(clock), _crowded(clock), rt.Load([], {}, [], [])])
+    monkeypatch.setattr(rt, "read_load", lambda a: next(loads))
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None, rand=_seq(0.0, 1.0)) == "room"
+    assert clock.sleeps == [60.0, 75.0]
+
+
+def test_wait_for_room_gives_up_after_max_wait_and_dispatches(monkeypatch):
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: _crowded(clock))
+    lines = []
+    assert rt.wait_for_room(api, 300, log=lines.append, rand=lambda: 0.0) == "waited-out"
+    assert sum(clock.sleeps) >= 300
+    assert any("dispatching anyway" in ln for ln in lines), lines
+
+
+def test_wait_for_room_unreadable_load_dispatches_now(monkeypatch):
+    api, _, clock = _api([])
+    monkeypatch.setattr(rt, "read_load", lambda a: None)
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "unreadable"
+    assert clock.sleeps == []
+
+
+def test_wait_for_room_a_bug_in_the_reader_fails_open(monkeypatch):
+    """S3: ANY exception while reading the load dispatches now; only a person's Ctrl+C (BaseException) stops it."""
+    api, _, clock = _api([])
+
+    def broken(a):
+        raise KeyError("created_at")
+    monkeypatch.setattr(rt, "read_load", broken)
+    assert rt.wait_for_room(api, 1800, log=lambda *_: None) == "unreadable"
+    assert clock.sleeps == []
+
+
+def test_wait_for_room_zero_skips_the_check_without_a_request():
+    api, fake, clock = _api([])
+    assert rt.wait_for_room(api, 0, log=lambda *_: None) == "skipped"
+    assert fake.calls == [] and clock.sleeps == []
+
+
+_SHA = "0123456789abcdef0123456789abcdef01234567"
+
+
+def _main_stubs(monkeypatch, record, wait):
+    class _Proc:
+        def __init__(self, stdout=""):
+            self.stdout, self.stderr, self.returncode = stdout, "", 0
+
+    def run(cmd, check=True, capture=True):
+        record.append(list(cmd))
+        return _Proc(_SHA + "\n" if cmd[:2] == ["git", "rev-parse"] else "")
+
+    timeouts = []
+    monkeypatch.setattr(rt.shutil, "which", lambda t: t)
+    monkeypatch.setattr(rt, "_run", run)
+    monkeypatch.setattr(rt.GitHubApi, "quota", lambda self: None)
+    monkeypatch.setattr(rt, "wait_for_room", wait)
+    monkeypatch.setattr(rt, "dispatch", lambda api, inputs, find_timeout_s=120, state=None: ("1", "u"))
+    monkeypatch.setattr(rt, "wait_for_run", lambda api, run_id, timeout_s, log=print: timeouts.append(timeout_s))
+    monkeypatch.setattr(rt, "_delete_ref", lambda ref: record.append(["DELETE", ref]))
+    return timeouts
+
+
+def _is_ref_push(cmd):
+    return cmd[:4] == ["git", "push", "--quiet", "origin"] and cmd[-1].startswith(f"{_SHA}:refs/remote-tests/")
+
+
+def test_main_waits_before_it_pushes_the_ref(monkeypatch):
+    record = []
+    timeouts = _main_stubs(monkeypatch, record,
+                           lambda api, max_wait_s, log=print, rand=None: record.append("WAIT") or "room")
+    assert rt.main(["--pytest", "tests/test_a.py"]) == rt.LANE        # the stubbed run wait answers "still running"
+    pushes = [i for i, c in enumerate(record) if c != "WAIT" and _is_ref_push(c)]
+    assert pushes and record.index("WAIT") < pushes[0], record
+    assert timeouts == [3600]                                          # S5: the wait is not taken from --timeout-min
+
+    record.clear()
+
+    def interrupted(api, max_wait_s, log=print, rand=None):
+        raise KeyboardInterrupt
+    _main_stubs(monkeypatch, record, interrupted)
+    with pytest.raises(KeyboardInterrupt):
+        rt.main(["--pytest", "tests/test_a.py"])
+    assert not any(c != "WAIT" and _is_ref_push(c) for c in record), record

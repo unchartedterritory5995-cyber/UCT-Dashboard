@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -498,6 +499,40 @@ def read_load(api: GitHubApi) -> Load | None:
     return Load(gate_runs, gate_jobs, remote_runs, queued_runs)
 
 
+ROOM_POLL_S = 60
+#: up to this much extra per poll, so sessions waiting at once do not all re-check (and dispatch) in lockstep
+ROOM_JITTER_S = 15
+
+
+def wait_for_room(api: GitHubApi, max_wait_s: float, log=print, rand=random.random) -> str:
+    """Wait until room_to_dispatch says yes. 'room', 'skipped' (max_wait_s <= 0: no request at all), 'unreadable'
+    (fail open: any error reading the load dispatches now) or 'waited-out' (the cap: the request is never dropped).
+    Called BEFORE the ref is pushed, so a wait that is stopped leaves no ref and no run behind."""
+    if max_wait_s <= 0:
+        return "skipped"
+    start, last = api.now(), ""
+    while True:
+        try:
+            load = read_load(api)
+            if load is None:
+                log("remote tests: CI load unreadable; dispatching now")
+                return "unreadable"
+            ok, why = room_to_dispatch(load.gate_runs, load.gate_jobs, load.remote_runs, load.queued_runs, api.now())
+        except Exception as e:  # noqa: BLE001 -- fail open: a bug here must never hold a session's tests back
+            log(f"remote tests: CI load check failed ({type(e).__name__}: {e}); dispatching now")
+            return "unreadable"
+        if ok:
+            return "room"
+        waited = api.now() - start
+        if why != last:
+            log(f"remote tests: waiting for CI room ({why}); {waited / 60:.0f} of up to {max_wait_s / 60:.0f} min")
+            last = why
+        if waited >= max_wait_s:
+            log(f"remote tests: waited {waited / 60:.0f} min for room; dispatching anyway")
+            return "waited-out"
+        api.sleep(ROOM_POLL_S + rand() * ROOM_JITTER_S)
+
+
 _REPO = "repos/{owner}/{repo}"
 
 
@@ -660,6 +695,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--label", default="", help="free text in the run name")
     ap.add_argument("--keep-ref", action="store_true", help="do not delete refs/remote-tests/<id> afterwards")
     ap.add_argument("--timeout-min", type=int, default=60)
+    ap.add_argument("--max-wait-min", type=int, default=30,
+                    help="wait up to N min for CI room before dispatching (0 = do not wait; production incidents only)")
     ap.add_argument("--env", action="append", default=[], metavar="KEY=VALUE",
                     help=f"an allowlisted measurement variable for the tests (repeatable; *_OUT must be under {OUT_DIR}/)")
     ap.add_argument("--download", metavar="DIR", help=f"copy what the tests wrote under {OUT_DIR}/ into DIR")
@@ -681,6 +718,8 @@ def main(argv: list[str] | None = None) -> int:
 
     api = GitHubApi()
     print(f"remote tests: GitHub API {quota_line(api.quota())} (shared by every session on this account)")
+    # BEFORE the push (S1): a wait that is stopped leaves no ref and no run behind
+    print(f"remote tests: admission {wait_for_room(api, a.max_wait_min * 60)}")
     print(f"remote tests: pushing {sha[:10]} to {ref} (no workflow triggers on this ref)")
     state = RunState()
     try:
