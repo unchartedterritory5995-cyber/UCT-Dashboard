@@ -29,9 +29,10 @@
 //   * An output the chart does not draw (a hidden plot kept for alerts) has no binding and gets no sentence.
 //   * The newest bar's answer is exact for every drawn output (`lastValue`). HOW MANY bars and WHEN are read
 //     from the points the chart holds, and are said only where those points are the whole line: a line the
-//     chart splits at its gaps gets the newest-bar sentence alone; on a long chart only the recent rows are
-//     handed to the renderer (`plotWindow.js`), so "on any bar" is said only when every row was drawn, and
-//     otherwise the count of rows that were.
+//     chart splits at its gaps (a pivot) says WHEN its last value was, read from its runs, and not how many
+//     bars ago (its runs are not one row per bar); on a long chart only the recent rows are handed to the
+//     renderer (`plotWindow.js`), so "on any bar" is said only when every row was drawn, and otherwise the
+//     count of rows that were.
 //   * A date is worded only for a chart whose bars are days or longer.
 import { whyEmpty, EMPTY } from '../inspect/barInspection'
 import { maxLookback, declaredInputs } from '../../engine/ast/lint'
@@ -65,12 +66,43 @@ export function dayWords(time) {
   return Number.isInteger(m) && m >= 1 && m <= 12 && Number.isInteger(d) ? `${d} ${MONTHS[m - 1]} ${y}` : null
 }
 
-/** The series' own points, or null when it cannot be read. */
-function pointsOf(binding) {
+/** A series' own points, or null when it cannot be read. */
+function dataOf(series) {
   try {
-    const data = binding && binding.series && typeof binding.series.data === 'function' ? binding.series.data() : null
+    const data = series && typeof series.data === 'function' ? series.data() : null
     return Array.isArray(data) ? data : null
   } catch { return null }
+}
+const pointsOf = (binding) => dataOf(binding && binding.series)
+
+/** A day as a number that orders it (20251231), or null. Only days are compared: an intraday time is not. */
+function dayKey(time) {
+  if (typeof time === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(time)) return Number(time.split('-').join(''))
+  if (time && typeof time === 'object' && Number.isInteger(time.year) && Number.isInteger(time.month) && Number.isInteger(time.day)) {
+    return time.year * 10000 + time.month * 100 + time.day
+  }
+  return null
+}
+
+/**
+ * The day of the last value of a line the chart drew as SEVERAL series (its first run and the runs after each
+ * gap): the latest day any of them ends a value on. null when any run cannot be read or is not on daily-or-longer
+ * bars, because a day read from only some of the runs could be an earlier one than the line's real last value.
+ */
+function lastDayOfRuns(binding) {
+  let best = null
+  for (const series of [binding.series, ...binding.runSeries]) {
+    const data = dataOf(series)
+    if (!data) return null
+    for (let i = data.length - 1; i >= 0; i -= 1) {
+      if (!finite(pointValue(data[i]))) continue
+      const key = dayKey(data[i].time)
+      if (key === null) return null
+      if (!best || key > best.key) best = { key, time: data[i].time }
+      break
+    }
+  }
+  return best ? dayWords(best.time) : null
 }
 
 /**
@@ -112,6 +144,9 @@ export function emptyOnThisChart({ bindings, definition, barCount, defId = STUDI
       }
       // `why` null: the points end on a value although the binding's newest value is blank. The two disagree,
       // so only what `lastValue` proves is said.
+    } else if (split) {
+      const day = lastDayOfRuns(b)                           // when, never how many (see the limits above)
+      if (day) item.lastDay = day
     }
     // the reason, when it is a number: the formula's own reach is longer than this chart's history
     if (item.code === EMPTY_ON_CHART.NEVER || item.code === EMPTY_ON_CHART.NEWEST_BAR) {
@@ -131,7 +166,8 @@ const count = (n) => n.toLocaleString('en-US')
 /** UCT's sentence for one item. `name` is given only when the indicator has more than one output. */
 export function emptyOnChartWords(item, { name = null } = {}) {
   if (!item) return ''
-  const lead = name ? `${name}: on this chart it` : 'On this chart it'
+  // ⭐ the block these sit in is headed "On this chart" (seen live: the sentence said it a second time)
+  const lead = name ? `${name}: it` : 'It'
   const reach = finite(item.reach) ? ` It needs ${count(item.reach)} bars of history and this chart has ${count(item.bars)}.` : ''
   switch (item.code) {
     case EMPTY_ON_CHART.NEVER:
@@ -143,7 +179,7 @@ export function emptyOnChartWords(item, { name = null } = {}) {
         ? `${lead} has no value on the newest bar${item.lastDay ? `; its last value is on ${item.lastDay}` : ''}.`
         : `${lead} has no value on the newest ${count(item.blankBars)} bars${item.lastDay ? `; its last value is on ${item.lastDay}` : ''}.`
     case EMPTY_ON_CHART.NEWEST_BAR:
-      return `${lead} has no value on the newest bar.${reach}`
+      return `${lead} has no value on the newest bar${item.lastDay ? `; its last value is on ${item.lastDay}` : ''}.${reach}`
     default:
       return ''
   }

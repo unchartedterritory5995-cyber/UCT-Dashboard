@@ -31,6 +31,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { _resetViewLockHealForTests, VIEW_LOCK_HEAL_FLAG } from './chart/viewLockHeal'
 
 // ── The renderer double, with a PRICE SCALE that has arithmetic in it ────────
 const rig = vi.hoisted(() => {
@@ -625,5 +626,36 @@ describe('⭐ RESET VIEW is canonical', () => {
     const occ = occupancy()
     for (let i = 1; i <= 10; i++) { await pan(i); await repaint(rerender) }
     expect(occupancy()).toBeCloseTo(occ, 6)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('⭐ THE ONE-TIME HEAL — a compounded stored lock is healed BEFORE the chart reads it (viewLockHeal.js)', () => {
+  // The workspace key shape, so the sweep (which scans only `uct.charts.viewLock*`) sees it.
+  const KEY = 'uct.charts.viewLock.heal-rig'
+  const H = { anchorFrac: 0.95, width: 200, tf: 'D', hLocked: true, vLocked: true }
+  const stored = () => JSON.parse(localStorage.getItem(KEY))
+  beforeEach(() => { _resetViewLockHealForTests() })
+
+  it('CONTROL: a NORMAL stored lock (measured, Fred on after #2346) is restored on load as stored', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ ...H, top: 0.2415, bottom: 0.2234 }))
+    const { rerender } = await mount({ viewLockKey: KEY })
+    await repaint(rerender, { viewLockKey: KEY })
+    expect(margins().top).toBeCloseTo(0.2415, 3)
+    expect(margins().bottom).toBeCloseTo(0.2234, 3)
+    expect(stored()).toMatchObject({ top: 0.2415, bottom: 0.2234 })
+    expect(JSON.parse(localStorage.getItem(VIEW_LOCK_HEAL_FLAG))).toMatchObject({ healed: 0 })
+  })
+
+  it('a COMPOUNDED lock (round 3, the KSS state: 0.2419 / 0.655) is never applied: its vertical half is gone, the horizontal kept, the flag counts it', async () => {
+    localStorage.setItem(KEY, JSON.stringify({ ...H, top: 0.2419, bottom: 0.655 }))
+    const { rerender } = await mount({ viewLockKey: KEY })
+    await repaint(rerender, { viewLockKey: KEY })
+    expect(margins().bottom).not.toBeCloseTo(0.655, 2)
+    expect(margins().top).not.toBeCloseTo(0.2419, 2)
+    expect(stored()?.top ?? null).toBeNull()
+    expect(stored()?.bottom ?? null).toBeNull()
+    expect(stored()).toMatchObject({ anchorFrac: 0.95, width: 200, tf: 'D' })
+    expect(JSON.parse(localStorage.getItem(VIEW_LOCK_HEAL_FLAG))).toMatchObject({ healed: 1 })
   })
 })

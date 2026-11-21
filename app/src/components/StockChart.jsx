@@ -66,7 +66,7 @@ import {
 const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
 import { createWatermarkPrimitive, composeWatermarkLines, DEFAULT_BOX_W } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
-import { useChartTickerMeta as useTickerMeta, useChartTickerIpo as useTickerIpo } from './chart/restedReaders'
+import { useChartTickerMeta, useChartTickerIpo } from './chart/restedReaders'
 import useStrategyHistoryWindow from '../hooks/useStrategyHistoryWindow'
 import { isStrategyWindowDefinition, strategyNeedsFullDailyHistory } from './chart/engine/strategyWindow'
 import { servedFromListingOf, listingReferenceDate, listingStartOf } from './chart/engine/listingSeed'
@@ -1847,6 +1847,7 @@ import {
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
 import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
+import { healViewLocksOnce } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources, heldSpanFor } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
@@ -1875,6 +1876,7 @@ import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
 import ReadoutIsland from './chart/ReadoutIsland'
 import { createReadoutStore, memoOnArg } from './chart/readoutStore'
+import { createChartMetaStore, NO_CHANNEL, memoLast } from './chart/chartMetaStore'
 import { onVisibleLogicalRange } from './chart/visibleRangeSubscription'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
@@ -3532,7 +3534,457 @@ function liveQuietOpts(symRef, wantsExtRef, onTickRef) {
 // Chosen once at module load, like every other BARSTORE fork (the ordinary hook ignores the options).
 const useChartRealtimePrices = LEGACY_LIVE ? useRealtimePrices : useQuietRealtimePrices
 
-export default function StockChart({
+// ═══ PER-SYMBOL METADATA: WHAT THE CHART DERIVES FROM IT (metadata islands, 2026-11-20) ═════════════════
+// These were `useMemo`s in the chart body. They are plain functions now because the chart computes them in TWO
+// places: its render, and the redraw that runs when an answer lands BETWEEN renders (`ChartMetaFeed` below,
+// `chart/chartMetaStore.js`). Each chart holds one `memoLast` of each (`createChartMetaView`), and both places
+// call that same instance with the same arguments, so a value either computed is the identity the other sees.
+
+// Splits + dividends: snap each event date to its containing bar (same bucketing as earnings).
+function bucketEventDate(dstr, tf) {
+  const s = String(dstr).slice(0, 10)
+  if (tf === 'W') {
+    const dt = new Date(`${s}T00:00:00Z`)
+    if (isNaN(dt.getTime())) return s
+    dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
+    return dt.toISOString().slice(0, 10)
+  }
+  if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
+  return s
+}
+
+// Earnings events (daily/weekly only) with the reporting bar's LOW, so the badge
+// primitive can hug just under the candle and click-matching has the dates. The
+// date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
+function earningsEventsOf(markersData, earningsOn, resolvedTf, filteredBars, _nextEarnOn) {
+  // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
+  // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
+  // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
+  // array on a custom intraday chart.
+  const isDailyWeekly = parseTf(resolvedTf).minutes == null
+  if (!earningsOn || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
+  // Snap each earnings DATE to the bar whose PERIOD contains it. Daily bars are
+  // keyed by the exact day, but WEEKLY bars are keyed by the week's Friday and
+  // MONTHLY by the month — so an exact date-match only ever hit on daily (and by
+  // coincidence when a report happened to land on a Friday). Bucket both the
+  // bars and the earnings dates the same way, then look up the containing bar.
+  const tf = resolvedTf
+  const bucket = (dstr) => bucketEventDate(dstr, tf)
+  const barByBucket = new Map()
+  for (const b of filteredBars) barByBucket.set(bucket(b.t), b)
+  const out = []
+  const seen = new Set()
+  // Next earnings "E" ON → it REPLACES the upcoming (estimate) badge on every timeframe (owner 11-16): the
+  // old path keeps only the reported beat / miss rows. OFF → the rows unchanged (the grey estimate badge as before).
+  for (const e of earningsBadgeRows(markersData.earnings, _nextEarnOn)) {
+    if (!e?.date) continue
+    if (e.estimate) {
+      // Upcoming report — a FUTURE date past the last candle. Key it to the timeframe's
+      // slot (bucketSlot) so it lines up with a future-whitespace point and the badge
+      // DOCKS onto that day once it scrolls into frame; off-screen right / no slot → the
+      // badge primitive pins it to the right edge. Raw date stays on `data` for the popup.
+      out.push({ date: bucketSlot(tf, e.date), low: null, beat: null, estimate: true, data: e })
+      continue
+    }
+    const bar = barByBucket.get(bucket(e.date))
+    if (!bar) continue                      // no bar in that period (outside loaded range)
+    const low = +bar.l
+    if (!Number.isFinite(low) || seen.has(bar.t)) continue  // 1 badge/bar (≤1 report/period)
+    seen.add(bar.t)
+    // Position the badge at the BAR's time (not the raw report date, which isn't
+    // a weekly/monthly bar key); the popup still shows the real report date via `data`.
+    out.push({ date: bar.t, low, beat: e.beat, data: e })
+  }
+  return out
+}
+
+function splitEventsOf(markersData, splitsOn, resolvedTf, filteredBars) {
+  const isDailyWeekly = parseTf(resolvedTf).minutes == null
+  if (!splitsOn || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
+  const barByBucket = new Map()
+  for (const b of filteredBars) barByBucket.set(bucketEventDate(b.t, resolvedTf), b)
+  const out = []
+  const seen = new Set()
+  for (const s of markersData.splits) {
+    if (!s.date) continue
+    const bar = barByBucket.get(bucketEventDate(s.date, resolvedTf))
+    if (!bar || seen.has(bar.t)) continue
+    seen.add(bar.t)
+    out.push({ date: bar.t, low: +bar.l, ratio: s.ratio })
+  }
+  return out
+}
+
+function dividendEventsOf(markersData, dividendsOn, resolvedTf, filteredBars) {
+  const isDailyWeekly = parseTf(resolvedTf).minutes == null
+  if (!dividendsOn || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
+  const barByBucket = new Map()
+  for (const b of filteredBars) barByBucket.set(bucketEventDate(b.t, resolvedTf), b)
+  const out = []
+  const seen = new Set()
+  for (const d of markersData.dividends) {
+    if (!d.date || d.amount == null) continue
+    const bar = barByBucket.get(bucketEventDate(d.date, resolvedTf))
+    if (!bar || seen.has(bar.t)) continue
+    seen.add(bar.t)
+    out.push({ date: bar.t, low: +bar.l, amount: Number(d.amount) })
+  }
+  return out
+}
+
+// ── First-bar "IPO" badge event ──
+// The gold badge marks the FIRST loaded bar as the IPO / first-listing day — but
+// ONLY when that bar actually IS the listing day (per the provider's immutable
+// `list_date`). So: present ⇒ "this is the true start of history"; absent ⇒ "more
+// history exists than is loaded (or the ticker predates Massive coverage)". This
+// is exactly the "did the chart finish loading its history?" question a trader
+// asks when the left edge looks abrupt.
+//
+// D/W/M only (like earnings/splits/dividends — numeric intraday times don't
+// bucket to a listing DATE). Matching: bucket the first bar and the list_date the
+// same way and compare; on DAILY also accept a ≤5-calendar-day gap to absorb the
+// rare off-by-a-session between the provider's first bar and the official date.
+// A partly-loaded chart's first bar sits months/years after list_date, far
+// outside that window, so it never false-positives.
+function ipoEventOf(ipoInfo, ipoOn, resolvedTf, filteredBars) {
+  const isDailyWeekly = parseTf(resolvedTf).minutes == null
+  const ld = ipoInfo?.list_date
+  if (!ipoOn || !ld || !isDailyWeekly || !filteredBars?.length) return null
+  const first = filteredBars[0]
+  if (!first || first.t == null) return null
+  const low = +first.l
+  if (!Number.isFinite(low)) return null
+  let match = bucketEventDate(first.t, resolvedTf) === bucketEventDate(ld, resolvedTf)
+  if (!match && resolvedTf === 'D') {
+    const a = Date.parse(`${String(first.t).slice(0, 10)}T00:00:00Z`)
+    const b = Date.parse(`${String(ld).slice(0, 10)}T00:00:00Z`)
+    if (Number.isFinite(a) && Number.isFinite(b)) {
+      match = Math.abs(a - b) <= 5 * 86400000  // ≤5 calendar days
+    }
+  }
+  if (!match) return null
+  return { date: first.t, low, listDate: String(ld).slice(0, 10) }
+}
+
+// ⭐⭐ C12w — DOES THE SERIES THE ENGINE COMPUTES ON START AT THE LISTING BAR? (the chart's memo's comment
+// says why; this is its ONE producer, shared with the between-render check that decides whether a landed
+// listing date changes what the engine computes)
+function historyFromListingFor(filteredBars, resolvedTf, ipoInfo) {
+  return servedFromListingOf({
+    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
+  })
+}
+function listingUnservedFor(historyFromListing, filteredBars, resolvedTf, ipoInfo) {
+  return !historyFromListing && listingStartOf({
+    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
+  })
+}
+
+// Chart Settings → Next earnings date: the payload's earnings rows while it is ON, else null (so an OFF chart's
+// updateChart never re-runs for it). The chip is placed from the loaded bars inside updateChart.
+// The markers payload's upcoming (estimate: true) row wins; when it has none, the host's header date (the same one
+// the "Next Earnings" field shows) stands in, so the chip and the header never disagree (owner test 11-16).
+function nextEarnRowsOf(_nextEarnOn, markersData, nextEarningsHint) {
+  if (!_nextEarnOn) return null
+  const rows = Array.isArray(markersData?.earnings) ? markersData.earnings : []
+  const hint = typeof nextEarningsHint === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(nextEarningsHint) ? nextEarningsHint : null
+  if (hint && !rows.some((e) => e && e.estimate === true)) return [...rows, { date: hint, estimate: true }]
+  return rows.length ? rows : null
+}
+
+function newsMarkersOf(showNews, newsData, resolvedTf) {
+  if (!showNews || !newsData?.news) return []
+  // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
+  // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
+  // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
+  // array on a custom intraday chart.
+  const isDailyWeekly = parseTf(resolvedTf).minutes == null
+  // News timestamps are unix seconds; LW Charts expects ET-offset for intraday and date strings for daily/weekly.
+  return newsData.news.map(n => {
+    const tsRaw = typeof n.time_published === 'number' ? n.time_published : Number(n.time_published)
+    if (!Number.isFinite(tsRaw)) return null
+    // For daily/weekly, convert to YYYY-MM-DD date string in ET so it aligns with daily bars
+    let time
+    if (isDailyWeekly) {
+      time = etDateLabel(tsRaw)
+    } else {
+      time = toChartTime(tsRaw)
+    }
+    return {
+      time,
+      position: 'aboveBar',
+      color: '#3b82f6',
+      shape: 'circle',
+      text: 'N',
+      size: 0.8,
+      id: `news-${tsRaw}`,
+      _newsData: n,
+      _tsRaw: tsRaw,
+    }
+  }).filter(Boolean)
+}
+
+// Watermark meta. Three cases (Model Book curates name/sector/industry):
+//  1. No curated name → use live ticker meta, but let a curated sector/industry
+//     fill any GAPS the live lookup left blank.
+//  2. Curated name that token-overlaps the live name (same company, just a tidier
+//     label) → keep the accurate live GICS sector/industry, curated fills gaps.
+//  3. Curated name that does NOT match the live name (a REUSED / renamed /
+//     delisted ticker — e.g. SQ=Square→Block, WTW=Weight Watchers, delisted WWE)
+//     → the live meta is the WRONG company, so use the curated name AND the
+//     curated historical sector/industry (so the watermark still shows them like
+//     every other stock, instead of dropping them).
+function watermarkMetaOf(watermarkName, watermarkSector, watermarkIndustry, tickerMeta) {
+  const withCuratedGaps = (base) => ({
+    ...base,
+    sector: base?.sector || watermarkSector || null,
+    industry: base?.industry || watermarkIndustry || null,
+  })
+  if (!watermarkName) {
+    return (watermarkSector || watermarkIndustry) ? withCuratedGaps(tickerMeta) : tickerMeta
+  }
+  const toks = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length >= 4)
+  const curated = toks(watermarkName), live = toks(tickerMeta?.name)
+  const sameCompany = curated.length > 0 && curated.some(w => live.includes(w))
+  if (sameCompany) return withCuratedGaps({ ...tickerMeta, name: watermarkName })
+  return { name: watermarkName, sector: watermarkSector || null, industry: watermarkIndustry || null }
+}
+
+function mergeChartMarkers(markers, j2Markers, newsMarkers, deskMarkers, flowMarkers) {
+  const all = [...(markers || []), ...(j2Markers || []), ...newsMarkers, ...deskMarkers, ...flowMarkers]
+  // Lightweight Charts requires markers sorted ascending by time. Daily/weekly
+  // use date strings (sortable lexicographically), intraday uses unix seconds.
+  return all.sort((a, b) => {
+    const ta = a?.time
+    const tb = b?.time
+    if (ta == null && tb == null) return 0
+    if (ta == null) return -1
+    if (tb == null) return 1
+    if (typeof ta === 'number' && typeof tb === 'number') return ta - tb
+    return String(ta).localeCompare(String(tb))
+  })
+}
+
+/** One chart's memoised derivations (see the block header above). */
+function createChartMetaView() {
+  return {
+    nextEarnRows: memoLast(nextEarnRowsOf),
+    newsMarkers: memoLast(newsMarkersOf),
+    deskMarkers: memoLast(buildDeskMentionMarkers),
+    watermarkMeta: memoLast(watermarkMetaOf),
+    mergedMarkers: memoLast(mergeChartMarkers),
+    earningsEvents: memoLast(earningsEventsOf),
+    splitEvents: memoLast(splitEventsOf),
+    dividendEvents: memoLast(dividendEventsOf),
+    ipoEvent: memoLast(ipoEventOf),
+  }
+}
+
+/**
+ * Everything the chart DRAWS from the metadata, for one snapshot of it and the inputs of the chart's latest
+ * render. The render computes the same values (the same `mv` calls, the same arguments) where it always did.
+ * @param {ReturnType<typeof createChartMetaView>} mv
+ */
+function chartMetaDrawView(mv, meta, inp) {
+  const newsMarkers = mv.newsMarkers(inp.showNews, meta.newsData, inp.resolvedTf)
+  const deskMarkers = mv.deskMarkers(meta.deskData?.mentions, inp.resolvedTf)
+  return {
+    meta,
+    watermarkMeta: mv.watermarkMeta(inp.watermarkName, inp.watermarkSector, inp.watermarkIndustry, meta.tickerMeta),
+    nextEarnRows: mv.nextEarnRows(inp.nextEarnOn, meta.markersData, meta.nextEarningsHint),
+    newsMarkers,
+    deskMarkers,
+    mergedMarkers: mv.mergedMarkers(inp.markers, inp.j2Markers, newsMarkers, deskMarkers, inp.flowMarkers),
+    earningsEvents: mv.earningsEvents(meta.markersData, inp.earningsOn, inp.resolvedTf, inp.filteredBars, inp.nextEarnOn),
+    splitEvents: mv.splitEvents(meta.markersData, inp.splitsOn, inp.resolvedTf, inp.filteredBars),
+    dividendEvents: mv.dividendEvents(meta.markersData, inp.dividendsOn, inp.resolvedTf, inp.filteredBars),
+    ipoEvent: mv.ipoEvent(meta.ipoInfo, inp.ipoOn, inp.resolvedTf, inp.filteredBars),
+  }
+}
+
+/** The symbol facts the ENGINE reads off the metadata (`symbolMeta`'s content, the listing facts' inputs):
+ *  equal strings ⇒ nothing the engine computes on has changed. */
+function engineFactsSigOf(meta) {
+  const t = meta.tickerMeta
+  const i = meta.ipoInfo
+  return [t?.exchange, t?.industry, t?.sector, t?.security_type,
+    i?.list_date, i?.first_trade_date, i?.first_trade_final, i?.pending].map((v) => (v == null ? '' : String(v))).join('\u0001')
+}
+
+/**
+ * THE SETTLING FRAME (`pendingTfReframeRef`, armed by a symbol or timeframe switch): the outgoing view's zoom width
+ * with the loaded last bar pinned at the fixed right anchor (so the current candle lands where the outgoing view had
+ * it), or the default window when the switch held no width. The developing intraday bucket's slot is reserved, so
+ * `to` stays put as the newer buckets land across the phased commits (cache, network, backfill) instead of the grown
+ * newest re-pinning and sliding left; 0 off-gate and on daily.
+ * ONE derivation for the two passes that re-assert it: `updateChart` on every settling commit, and a metadata answer
+ * landing between renders (`settleOnMetaLanded`).
+ */
+function settlingFrameOf(pt, { bars, tf, plotWidthPx, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }) {
+  const rightReserve = _intradayLoadReserve(bars, tf)
+  if (pt.width > 0) return pinNewestRange(bars.length - 1, pt.width, plotWidthPx, rightReserve)
+  return computeDefaultLogicalRange(bars.length, tf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx, rightReserve })
+}
+
+/** ...and when the settling is over: the bar count stopped changing, the session candle resolved, and no developing
+ * bucket's slot is still held (`updateChart`'s settling branch says why each one holds it). */
+function settlingDone({ bars, tf, oldBarCount, sessionCandleActive, sessionExtReady }) {
+  return bars.length === oldBarCount && (!sessionCandleActive || sessionExtReady) && !(_intradayLoadReserve(bars, tf) > 0)
+}
+
+/**
+ * (2026-11-21) A METADATA ANSWER LANDING WHILE A SWITCH SETTLES RE-ASSERTS THE SETTLING FRAME, AS ITS RENDER DID.
+ * Before #2278 every late per-symbol answer (name and sector, listing date) rendered this body, and that render's
+ * `updateChart` pass re-asserted the settling frame: a range change that was not the member's (drift, to the product)
+ * was put back, and a member's move released the guard. #2278 answers between renders (`_onMetaLanded`), so nothing
+ * re-asserted and a drifted frame stayed (dailyFirstPaintAcceptance SETTLING, VISIBLE_RANGE_DRIFT). This is that
+ * pass's settling half, run straight on the chart, in the same order: the anchor owns its own frame; a member's move
+ * since the switch ends the settling WITHOUT re-asserting (NC-D); otherwise the frame is put back, and released once
+ * settled. It reads only refs and this chart's scalars (`_metaSettleRef`), never a render's closure.
+ */
+function settleOnMetaLanded(s, inp) {
+  if (!s || !inp) return
+  const pt = s.pendingRef.current
+  if (!pt || pt.tf !== inp.resolvedTf || s.entryDate || s.exactDateRange) return
+  const bars = inp.filteredBars
+  const chart = s.chartRef.current
+  if (!chart || !bars || bars.length < 2 || !(s.countRef.current > 0)) return
+  if (s.anchorRef.current && s.anchorRef.current.anchorIdx >= 0 && !s.movedRef.current) return   // the anchor's frame: `updateChart` applies it
+  if (s.movedRef.current) { s.pendingRef.current = null; return }
+  try {
+    const ts = chart.timeScale()
+    const r = settlingFrameOf(pt, { bars, tf: inp.resolvedTf, plotWidthPx: plotWidthOf(chart, s.containerRef.current),
+      dailyDefaultBars: s.dailyDefaultBars, leftBarPad: s.leftBarPad, rightPadBars: s.rightPadBars, visibleBarsOverride: s.visibleBarsOverride })
+    // `r` is in CANDLE-index space; the axis is LOGICAL, and a compare / overlay series on it adds interior times
+    // (or ends later), so the newest real candle `a` sits at timeToIndex(its time), not at `a`. Set the frame, then
+    // restate it as a distance from the newest bar, exactly as updateChart's pass does (`_logicalOffsetOf` and the
+    // RESTATE step). Already there (the frame shifted by that same offset): no write, no paint.
+    const d = s.candleRef.current?.data?.() || []
+    let a = d.length - 1
+    while (a >= 0 && isWhitespacePoint(d[a])) a--
+    const la = a >= 0 ? ts.timeToIndex?.(d[a].time, false) : null
+    const k = (typeof la === 'number' && Number.isFinite(la)) ? la - a : 0
+    const cur = ts.getVisibleLogicalRange()
+    if (cur && cur.from === r.from + k && cur.to === r.to + k) { /* already framed */ } else {
+      ts.setVisibleLogicalRange(r)
+      const now = ts.getVisibleLogicalRange()
+      const rightOffset = ts.scrollPosition?.()
+      if (a >= 0 && typeof la === 'number' && Number.isFinite(la) && now && typeof rightOffset === 'number' && Number.isFinite(rightOffset)) {
+        ts.scrollToPosition((r.to - a + la) - (now.to - rightOffset), false)
+      }
+    }
+  } catch { return /* mid-load: the next commit's pass re-asserts */ }
+  if (settlingDone({ bars, tf: inp.resolvedTf, oldBarCount: s.countRef.current, sessionCandleActive: s.sessionCandleActive, sessionExtReady: s.sessionExtReady })) {
+    s.pendingRef.current = null
+  }
+}
+
+/**
+ * The chart body's metadata listener (`_onMetaLanded`): an answer landed between renders. Built HERE, out of the
+ * render, on purpose: the store keeps it for the chart's whole life, and a closure written inside a render would pin
+ * that render's whole scope (its bars) for as long. It holds the refs it reads, nothing else.
+ */
+function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, settleRef, rerender }) {
+  return function _onMetaLanded() {
+    const f = factsRef.current
+    const inp = inputsRef.current
+    if (!f || !inp) return
+    const meta = metaStore.get()
+    if (engineFactsSigOf(meta) !== f.sig) {
+      const h = historyFromListingFor(inp.filteredBars, inp.resolvedTf, meta.ipoInfo)
+      const u = listingUnservedFor(h, inp.filteredBars, inp.resolvedTf, meta.ipoInfo)
+      if (f.read || h !== f.historyFromListing || u !== f.listingUnserved) {
+        rerender((n) => n + 1)   // the engine computes on it: a render, and `updateChart` re-syncs
+        return
+      }
+    }
+    settleOnMetaLanded(settleRef?.current, inp)   // first, so the redraw below reads the settled frame
+    const view = nowRef.current()
+    try { drawRef.current?.(view, false, true) } catch { /* the next paint redraws */ }
+    try { futureWsRef.current?.(view.earningsEvents) } catch { /* series gone */ }
+  }
+}
+
+// ═══ THE METADATA FEED ═══════════════════════════════════════════════════════════════════════════════════
+// The ONE component that reads the chart's per-symbol metadata (the reads StockChart's body used to make; see
+// `chart/chartMetaStore.js` for the whole contract). It renders just BEFORE the body (its sibling in
+// `StockChart` below), stages what its hooks returned, and publishes in its layout effect. An answer landing
+// re-renders this component only.
+// ⛔ Each read keeps the exact key, fetcher and options the body used: the rest gate (`restedReaders.js`,
+// `useRestedSWR`), the per-instance switch-abort fetcher for the markers, the dedupe windows.
+function ChartMetaFeed({ store, sym, live, nextEarningsHint, hintChannel }) {
+  const cfg = useSyncExternalStore(store.subscribeConfig, store.getConfig, store.getConfig)
+  const channel = hintChannel || NO_CHANNEL
+  const channelHint = useSyncExternalStore(channel.subscribe, channel.get, channel.get)
+  const s = live ? sym : null
+  const tickerMeta = useChartTickerMeta(s)
+  const ipoInfo = useChartTickerIpo(s)       // { list_date } — official first-listing day
+  // ── Chart event markers (earnings + splits + dividends) — /api/chart/markers ──
+  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
+  const { data: markersData } = useRestedSWR(
+    // Request the full window so earnings markers load back to inception alongside
+    // the deep price history (backend caps + post-filters; badges cull off-screen).
+    cfg.markers && sym && live ? markersKeyOf(sym) : null,
+    cfg.fetcher || fetcher,
+    {
+      dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
+      revalidateOnFocus: false,
+    }
+  )
+  // ── News markers — /api/chart-news ──
+  const { data: newsData } = useSWR(
+    cfg.news && sym && live ? newsKeyOf(sym) : null,
+    newsFetch,
+    {
+      dedupingInterval: 30 * 60 * 1000,  // 30 minutes
+      revalidateOnFocus: false,
+    }
+  )
+  // ── Desk-mention markers — /api/education/tickers/{sym}/mentions ──
+  // Same shape as the news fetch above: keyed off the setting, so an OFF toggle is
+  // a NULL SWR key and no request is made at all. A non-OK response degrades to an
+  // empty list, and buildDeskMentionMarkers is null-safe on `undefined` data — an
+  // error here must never take the other marker categories down with it.
+  const { data: deskData } = useSWR(
+    cfg.desk && sym && live ? deskKeyOf(sym) : null,
+    deskFetch,
+    {
+      dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
+      revalidateOnFocus: false,
+    }
+  )
+  // ⛔ STAGED DURING RENDER, ON PURPOSE: the body renders right after this, in the same pass, and must read
+  // these very values (a render that showed the old symbol's watermark would be the bug this replaced). The
+  // write is to this chart's own store, idempotent, and a function of the props and the SWR cache.
+  store.stage({ tickerMeta, ipoInfo, markersData, newsData, deskData, nextEarningsHint: hintChannel ? channelHint : nextEarningsHint })
+  useLayoutEffect(() => { store.publish() })
+  return null
+}
+
+/**
+ * The chart. A shell around the chart body (`StockChartBody`) and its metadata feed: the feed's answers
+ * reach the body through a per-chart store, never as a body render (`chart/chartMetaStore.js`).
+ */
+export default function StockChart(props) {
+  const [metaStore] = useState(createChartMetaStore)
+  const { sym, studyMode, nextEarningsHint, nextEarningsHintChannel } = props
+  return (
+    <>
+      <ChartMetaFeed
+        store={metaStore}
+        sym={sym}
+        live={!!sym && !isEconomicId(sym) && !studyMode}
+        nextEarningsHint={nextEarningsHint}
+        hintChannel={nextEarningsHintChannel || null}
+      />
+      {/* `viewLockKey` by name as well as in the spread (the same value, a no-op): the persistence census reads a
+          storage key through named props only (StableStockChart.jsx says the same; persistenceManifest.test.js). */}
+      <StockChartBody {...props} viewLockKey={props.viewLockKey} metaStore={metaStore} />
+    </>
+  )
+}
+
+function StockChartBody({
   sym,
   tf,
   height = '100%',
@@ -3739,7 +4191,8 @@ export default function StockChart({
   hideJournalOverlay = false,
   headerCustomStats = null,   // the host header's custom stats (headerCustomStats.js entries) — values reported below
   onHeaderCustomStats = null, // ({ [cx:<id>]: result }) => void — called only when a shown value / state changes
-  nextEarningsHint = null,    // 'YYYY-MM-DD' — the host header's next-earnings date; the "E" falls back to it (owner 11-16)
+  // `nextEarningsHint` ('YYYY-MM-DD', the host header's next-earnings date; the "E" falls back to it, owner 11-16)
+  // and `nextEarningsHintChannel` (the same, from StableStockChart) are read by the shell's metadata feed, not here.
   // ── Extended-hours session preview (Charts workspace only) ──
   // null on every other surface (feature off). 'regular' | 'extended' from the
   // workspace's "Regular Hours / Include pre-market" toggle. Drives the synthetic
@@ -3823,6 +4276,8 @@ export default function StockChart({
   // so the strip reads only THIS chart's notes; absent (a grid cell, a harness), the
   // chart takes its own stable id, which no other strip reads.
   noticeScope = null,
+  // The shell's per-chart metadata store (`chart/chartMetaStore.js`): READ in render, never subscribed.
+  metaStore,
 }) {
   const ownNoticeScope = useId()
   const binderNoticeScope = typeof noticeScope === 'string' && noticeScope ? noticeScope : ownNoticeScope
@@ -4537,29 +4992,18 @@ export default function StockChart({
     } catch { /* ignore */ }
   }, [])
 
-  // (through the rest gate: a symbol the member is racing past is not asked for, lib/symbolPace.js)
-  const { data: markersData } = useRestedSWR(
-    // Request the full window so earnings markers load back to inception alongside
-    // the deep price history (backend caps + post-filters; badges cull off-screen).
-    markersEnabled && sym && !_econId && !_study ? markersKeyOf(sym) : null,
-    instFetcher,
-    {
-      dedupingInterval: 43_200_000,  // 12 hours — matches backend cache TTL
-      revalidateOnFocus: false,
-    }
-  )
-  // Chart Settings → Next earnings date: the payload's earnings rows while it is ON, else null (so an OFF chart's
-  // updateChart never re-runs for it). The chip is placed from the loaded bars inside updateChart.
+  // ⭐⭐ THE PER-SYMBOL METADATA IS READ HERE, NOT ASKED FOR HERE (metadata islands, 2026-11-20). The ticker meta,
+  // the listing date, the event / news / desk markers and the next-earnings hint are asked for by the shell's
+  // `ChartMetaFeed`, which renders just before this body and stages what it got in `metaStore`; this render reads
+  // exactly those values (no subscription). An answer that lands BETWEEN renders redraws the few things that show
+  // it straight on the chart (`_onMetaLanded` below), with no render of this body. `chart/chartMetaStore.js`.
+  // ⛔ Never subscribe this body to `metaStore` (`useSyncExternalStore`): that is the render-per-answer this
+  // replaced (`StockChart.metaRenders.test.jsx`).
+  const _meta = metaStore.get()
+  const { tickerMeta, ipoInfo, markersData, newsData, deskData } = _meta
+  const _mv = useState(createChartMetaView)[0]
+  // Chart Settings → Next earnings date (the chip's rows are `nextEarnRowsOf`, drawn by `_drawMeta`).
   const _nextEarnOn = nextEarningsMarkerOf(cs)
-  // The markers payload's upcoming (estimate: true) row wins; when it has none, the host's header date (the same one
-  // the "Next Earnings" field shows) stands in, so the chip and the header never disagree (owner test 11-16).
-  const nextEarnRows = useMemo(() => {
-    if (!_nextEarnOn) return null
-    const rows = Array.isArray(markersData?.earnings) ? markersData.earnings : []
-    const hint = typeof nextEarningsHint === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(nextEarningsHint) ? nextEarningsHint : null
-    if (hint && !rows.some((e) => e && e.estimate === true)) return [...rows, { date: hint, estimate: true }]
-    return rows.length ? rows : null
-  }, [_nextEarnOn, markersData, nextEarningsHint])
   // Chart Settings → Markers → Your activity → Price alerts (owner 11-16; priceAlertLines.js). Default OFF (absent key):
   // an OFF chart fetches nothing and draws nothing. ON: the member's ACTIVE alerts on this symbol, from the existing
   // `/api/watchlist-alerts` list (one SWR key shared with the bound-alert sync), as dashed "Alert" price lines.
@@ -4587,67 +5031,18 @@ export default function StockChart({
   useSymbolResource(markersEnabled && !_study ? markersKeyOf : null, markersWarmFetch)
   useSymbolResource(showNews && !_study ? newsKeyOf : null, newsFetch)
   useSymbolResource(deskEnabled && !_study ? deskKeyOf : null, deskFetch)
-  const { data: newsData } = useSWR(
-    showNews && sym && !_econId && !_study ? newsKeyOf(sym) : null,
-    newsFetch,
-    {
-      dedupingInterval: 30 * 60 * 1000,  // 30 minutes
-      revalidateOnFocus: false,
-    }
-  )
-  const newsMarkers = useMemo(() => {
-    if (!showNews || !newsData?.news) return []
-    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
-    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
-    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
-    // array on a custom intraday chart.
-    const isDailyWeekly = parseTf(resolvedTf).minutes == null
-    // News timestamps are unix seconds; LW Charts expects ET-offset for intraday and date strings for daily/weekly.
-    return newsData.news.map(n => {
-      const tsRaw = typeof n.time_published === 'number' ? n.time_published : Number(n.time_published)
-      if (!Number.isFinite(tsRaw)) return null
-      // For daily/weekly, convert to YYYY-MM-DD date string in ET so it aligns with daily bars
-      let time
-      if (isDailyWeekly) {
-        time = etDateLabel(tsRaw)
-      } else {
-        time = toChartTime(tsRaw)
-      }
-      return {
-        time,
-        position: 'aboveBar',
-        color: '#3b82f6',
-        shape: 'circle',
-        text: 'N',
-        size: 0.8,
-        id: `news-${tsRaw}`,
-        _newsData: n,
-        _tsRaw: tsRaw,
-      }
-    }).filter(Boolean)
-  }, [showNews, newsData, resolvedTf])
-
-  // ── Desk-mention markers — /api/education/tickers/{sym}/mentions ──
-  // Same shape as the news fetch above: keyed off the setting, so an OFF toggle is
-  // a NULL SWR key and no request is made at all. A non-OK response degrades to an
-  // empty list, and buildDeskMentionMarkers is null-safe on `undefined` data — an
-  // error here must never take the other marker categories down with it.
-  const { data: deskData } = useSWR(
-    deskEnabled && sym && !_econId && !_study ? deskKeyOf(sym) : null,
-    deskFetch,
-    {
-      dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
-      revalidateOnFocus: false,
-    }
-  )
-  // No second `deskEnabled` gate here on purpose: a null SWR key leaves `deskData`
-  // undefined, so turning the toggle off clears the markers through this memo already
-  // (asserted by the toggle-off-after-load test). A redundant ternary here would be a
-  // gate nothing can fail.
-  const deskMarkers = useMemo(
-    () => buildDeskMentionMarkers(deskData?.mentions, resolvedTf),
-    [deskData, resolvedTf],
-  )
+  // The news / desk answers come from the shell's feed with the rest (`_meta` above); their markers are the
+  // feed's answers placed on this timeframe (`newsMarkersOf`, `buildDeskMentionMarkers`). No second `deskEnabled`
+  // gate on the desk markers on purpose: a null SWR key (the feed's, off) leaves `deskData` undefined, so turning
+  // the toggle off clears the markers already (asserted by the toggle-off-after-load test). A redundant ternary
+  // here would be a gate nothing can fail.
+  const newsMarkers = _mv.newsMarkers(showNews, newsData, resolvedTf)
+  const deskMarkers = _mv.deskMarkers(deskData?.mentions, resolvedTf)
+  // What the feed reads comes from this chart's settings, which only this body resolves. Pushed in a layout effect,
+  // so a toggle reaches the feed in the same commit; the feed's answers come back through `_onMetaLanded`.
+  useLayoutEffect(() => {
+    metaStore.setConfig({ markers: !!markersEnabled, news: showNews, desk: deskEnabled, fetcher: instFetcher })
+  })
   // The trader-archive call whose levels a desk-marker click drew (archiveCallLevels). One at a
   // time; a second click on the same marker clears it, and a symbol change always clears it.
   const [deskCallLevels, setDeskCallLevels] = useState(null)
@@ -4674,19 +5069,9 @@ export default function StockChart({
     }
   }, [deskCallLevels, deskEnabled])
 
-  const chartEventMarkers = useMemo(() => {
-    // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
-    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
-    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
-    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
-    // array on a custom intraday chart.
-    const isDailyWeekly = parseTf(resolvedTf).minutes == null
-    if (!markersData || !isDailyWeekly) return []
-    // Earnings, splits, and dividends are all drawn as bottom-row "E"/"S"/"D"
-    // badges by the badge primitives (see earningsEvents/splitEvents/dividendEvents
-    // below), NOT as LWC candle markers. Nothing to emit here for them.
-    return []
-  }, [markersData, cs.markers, resolvedTf])
+  // (The `chartEventMarkers` memo that stood here always returned `[]`: earnings, splits and dividends are drawn
+  // as bottom-row "E"/"S"/"D" badges by the badge primitives, never as LWC candle markers. Removed with the
+  // metadata islands, 2026-11-20.)
 
   // { data, x, y } while an earnings popover is open (null = closed).
   // (earningsEvents itself is derived AFTER filteredBars is declared — see below.)
@@ -4837,23 +5222,8 @@ export default function StockChart({
     })
   }, [userDefsGeneration])
 
-  const mergedMarkers = useMemo(
-    () => {
-      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...deskMarkers, ...flowMarkers]
-      // Lightweight Charts requires markers sorted ascending by time. Daily/weekly
-      // use date strings (sortable lexicographically), intraday uses unix seconds.
-      return all.sort((a, b) => {
-        const ta = a?.time
-        const tb = b?.time
-        if (ta == null && tb == null) return 0
-        if (ta == null) return -1
-        if (tb == null) return 1
-        if (typeof ta === 'number' && typeof tb === 'number') return ta - tb
-        return String(ta).localeCompare(String(tb))
-      })
-    },
-    [markers, j2.markers, chartEventMarkers, newsMarkers, deskMarkers, flowMarkers],
-  )
+  // (sorted ascending by time, as Lightweight Charts requires: `mergeChartMarkers`)
+  const mergedMarkers = _mv.mergedMarkers(markers, j2.markers, newsMarkers, deskMarkers, flowMarkers)
   // The team's reference lines for the archive setup a clicked pattern detection belongs to
   // (PatternArchiveStats -> GET /api/wisdom/archive/pattern/{id}?ticker=, `lines`, flag-gated
   // server-side). Display only; a symbol change or closing the panel clears them.
@@ -5050,7 +5420,7 @@ export default function StockChart({
   const divBadgeAttachedRef = useRef(false)
   const ipoBadgeRef = useRef(null)        // first-bar "IPO" badge primitive controller
   const ipoBadgeAttachedRef = useRef(false)
-  const tickerMeta = useTickerMeta(_econId || _study ? null : sym)
+  // (`tickerMeta` and `ipoInfo` are read from the shell's metadata store above, `_meta`.)
   // ⭐⭐ R-K (2026-09-13) — THE SYMBOL OBJECT THE BIND-TIME FOLD NEEDS.
   //
   // `sym` alone is a ticker string, and `bind.js::symbolConstantsWith` returns
@@ -5079,7 +5449,7 @@ export default function StockChart({
   // one for that class or string, else OURS, tagged substituted; a missing field settles nothing.
   // ⛔ The live meta only: Model Book's curated watermark industry is a display fact, not the
   // symbol's classification.
-  const ipoInfo = useTickerIpo(_econId || _study ? null : sym)       // { list_date } — official first-listing day
+  // (`ipoInfo`: { list_date } — the official first-listing day, `useChartTickerIpo` in the shell's feed)
   // ⭐⭐ (2026-11-19, Fred RS 1h) — and the symbol's FIRST TRADE day, FINAL answers only (`/api/ticker-ipo`): the listing
   // fact a run's own-daily read rests on for the chart's first session (`requestSupply.js::aboveChartRead`). Not a
   // classification field: `bindSymbolOf` ignores it and the run cache keys do not carry it.
@@ -5103,31 +5473,8 @@ export default function StockChart({
   ), [sym, tickerMeta, _firstTradeDate, _firstTradeDatePending])
   const [ipoPopup, setIpoPopup] = useState(null)  // { date, x, y } first-trade tag
   const ipoPopupRef = useRef(null)        // the tag element (for outside-click dismiss)
-  // Watermark meta. Three cases (Model Book curates name/sector/industry):
-  //  1. No curated name → use live ticker meta, but let a curated sector/industry
-  //     fill any GAPS the live lookup left blank.
-  //  2. Curated name that token-overlaps the live name (same company, just a tidier
-  //     label) → keep the accurate live GICS sector/industry, curated fills gaps.
-  //  3. Curated name that does NOT match the live name (a REUSED / renamed /
-  //     delisted ticker — e.g. SQ=Square→Block, WTW=Weight Watchers, delisted WWE)
-  //     → the live meta is the WRONG company, so use the curated name AND the
-  //     curated historical sector/industry (so the watermark still shows them like
-  //     every other stock, instead of dropping them).
-  const watermarkMeta = useMemo(() => {
-    const withCuratedGaps = (base) => ({
-      ...base,
-      sector: base?.sector || watermarkSector || null,
-      industry: base?.industry || watermarkIndustry || null,
-    })
-    if (!watermarkName) {
-      return (watermarkSector || watermarkIndustry) ? withCuratedGaps(tickerMeta) : tickerMeta
-    }
-    const toks = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length >= 4)
-    const curated = toks(watermarkName), live = toks(tickerMeta?.name)
-    const sameCompany = curated.length > 0 && curated.some(w => live.includes(w))
-    if (sameCompany) return withCuratedGaps({ ...tickerMeta, name: watermarkName })
-    return { name: watermarkName, sector: watermarkSector || null, industry: watermarkIndustry || null }
-  }, [watermarkName, watermarkSector, watermarkIndustry, tickerMeta])
+  // Watermark meta (live ticker meta, or Model Book's curated name / sector / industry: `watermarkMetaOf`).
+  const watermarkMeta = _mv.watermarkMeta(watermarkName, watermarkSector, watermarkIndustry, tickerMeta)
 
   // ── Crosshair-legend layout ────────────────────────────────────────────────
   // Only surfaces that opt into the workspace legend (`verticalLegend`) follow the
@@ -5212,9 +5559,8 @@ export default function StockChart({
   // Explicit "adjust watermark" mode: the dragged spot is held here (pending)
   // until the user hits Confirm — so a hover-drag can't silently move the mark.
   const [wmPending, setWmPending] = useState(null)
-  // Company logo image for the watermark's optional "Logo" field (loaded async,
-  // same-origin so it never taints the canvas). null when the field is off/absent.
-  const [wmLogo, setWmLogo] = useState(null)
+  // (The company logo for the watermark's optional "Logo" field is `wmLogoRef` below: an image the loader hands
+  // the primitive directly, never state — its landing re-rendered this whole chart for one badge.)
   useWatermarkDrag({
     containerRef,
     controllerRef: wmCtrlRef,
@@ -5301,15 +5647,21 @@ export default function StockChart({
   // Load the company logo when the watermark's "Logo" field is on (default off).
   // Same-origin PNG proxy (/api/ticker-logo) → drawing it can't taint the canvas.
   const wmLogoEnabled = cs.watermark.visible && !hideWatermark && cs.watermark.lines?.logo === true && !_econId
+  // ⭐ (metadata islands, 2026-11-20) THE IMAGE GOES STRAIGHT TO THE PRIMITIVE. It was `useState`, so each logo
+  // landing (and each reset) re-ran this whole chart's render for one badge; the primitive is all that draws it.
   useEffect(() => {
     const s = watermark ?? sym
-    if (!wmLogoEnabled || !s) { setWmLogo(null); return undefined }
+    const show = (img) => {
+      wmLogoRef.current = img
+      try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabledRef.current, logoImg: img, logoScale: watermarkBrandMark ? 1.35 : 1 }) } catch { /* noop */ }
+    }
+    if (!wmLogoEnabled || !s) { if (wmLogoRef.current) show(null); return undefined }
     let cancelled = false
     const img = new Image()
     // A cold/absent logo returns a 1×1 transparent PNG (loads "ok") — treat
     // naturalWidth ≤ 2 as no logo, so the badge shows just the circle (like TSLA).
-    img.onload = () => { if (!cancelled) setWmLogo(img.naturalWidth > 2 ? img : null) }
-    img.onerror = () => { if (!cancelled) setWmLogo(null) }
+    img.onload = () => { if (!cancelled) show(img.naturalWidth > 2 ? img : null) }
+    img.onerror = () => { if (!cancelled) show(null) }
     // UCT pseudo-tickers use the bundled compass mark; real tickers use the proxy.
     img.src = watermarkBrandMark ? brandMark : `/api/ticker-logo/${encodeURIComponent(s)}`
     return () => { cancelled = true }
@@ -5325,11 +5677,10 @@ export default function StockChart({
   // below let updateChart push the same state the moment it CREATES the primitive.
   const wmLogoRef = useRef(null)
   const wmLogoEnabledRef = useRef(false)
-  wmLogoRef.current = wmLogo
   wmLogoEnabledRef.current = wmLogoEnabled
   useEffect(() => {
-    try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabled, logoImg: wmLogo, logoScale: watermarkBrandMark ? 1.35 : 1 }) } catch { /* noop */ }
-  }, [wmLogo, wmLogoEnabled, watermarkBrandMark])
+    try { wmCtrlRef.current?.setOptions?.({ logoEnabled: wmLogoEnabled, logoImg: wmLogoRef.current, logoScale: watermarkBrandMark ? 1.35 : 1 }) } catch { /* noop */ }
+  }, [wmLogoEnabled, watermarkBrandMark])
   const chartRef = useRef(null)
   const candleSeriesRef = useRef(null)
   const volumeSeriesRef = useRef(null)
@@ -5669,6 +6020,7 @@ export default function StockChart({
   const readViewLock = () => {
     try {
       const k = viewLockKeyRef.current; if (!k) return null
+      healViewLocksOnce()   // ⭐ once per device, BEFORE the first read: compounded locks lose their vertical half (viewLockHeal.js)
       const raw = localStorage.getItem(k); if (!raw) return null
       const v = JSON.parse(raw)
       const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
@@ -9687,57 +10039,8 @@ export default function StockChart({
   // date string maps 1:1 to a daily/weekly bar time (adjustTime is identity there).
   // MUST live after filteredBars is declared (it reads it) — declaring it earlier
   // hit filteredBars' temporal dead zone and crashed the whole chart (ReferenceError).
-  const earningsEvents = useMemo(() => {
-    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
-    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
-    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
-    // array on a custom intraday chart.
-    const isDailyWeekly = parseTf(resolvedTf).minutes == null
-    if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
-    // Snap each earnings DATE to the bar whose PERIOD contains it. Daily bars are
-    // keyed by the exact day, but WEEKLY bars are keyed by the week's Friday and
-    // MONTHLY by the month — so an exact date-match only ever hit on daily (and by
-    // coincidence when a report happened to land on a Friday). Bucket both the
-    // bars and the earnings dates the same way, then look up the containing bar.
-    const tf = resolvedTf
-    const bucket = (dstr) => {
-      const s = String(dstr).slice(0, 10)
-      if (tf === 'W') {
-        const dt = new Date(`${s}T00:00:00Z`)
-        if (isNaN(dt.getTime())) return s
-        dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
-        return dt.toISOString().slice(0, 10)
-      }
-      if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
-      return s                                // daily: the exact day
-    }
-    const barByBucket = new Map()
-    for (const b of filteredBars) barByBucket.set(bucket(b.t), b)
-    const out = []
-    const seen = new Set()
-    // Next earnings "E" ON → it REPLACES the upcoming (estimate) badge on every timeframe (owner 11-16): the
-    // old path keeps only the reported beat / miss rows. OFF → the rows unchanged (the grey estimate badge as before).
-    for (const e of earningsBadgeRows(markersData.earnings, _nextEarnOn)) {
-      if (!e?.date) continue
-      if (e.estimate) {
-        // Upcoming report — a FUTURE date past the last candle. Key it to the timeframe's
-        // slot (bucketSlot) so it lines up with a future-whitespace point and the badge
-        // DOCKS onto that day once it scrolls into frame; off-screen right / no slot → the
-        // badge primitive pins it to the right edge. Raw date stays on `data` for the popup.
-        out.push({ date: bucketSlot(tf, e.date), low: null, beat: null, estimate: true, data: e })
-        continue
-      }
-      const bar = barByBucket.get(bucket(e.date))
-      if (!bar) continue                      // no bar in that period (outside loaded range)
-      const low = +bar.l
-      if (!Number.isFinite(low) || seen.has(bar.t)) continue  // 1 badge/bar (≤1 report/period)
-      seen.add(bar.t)
-      // Position the badge at the BAR's time (not the raw report date, which isn't
-      // a weekly/monthly bar key); the popup still shows the real report date via `data`.
-      out.push({ date: bar.t, low, beat: e.beat, data: e })
-    }
-    return out
-  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars, _nextEarnOn])
+  // (`earningsEventsOf`, above the component: the between-render redraw computes the same value from the same memo)
+  const earningsEvents = _mv.earningsEvents(markersData, cs.markers?.earnings, resolvedTf, filteredBars, _nextEarnOn)
 
   // Future-axis extension: a hidden whitespace series pushes the time scale past the
   // newest candle on EVERY timeframe, so upcoming dates label the axis (shown by
@@ -9745,19 +10048,28 @@ export default function StockChart({
   // real day once in frame. Dedicated hidden series — it never touches the
   // candle / volume / MA / live series, and the default range still computes from the
   // real bar count, so nothing that keys off barsLen is disturbed. All ops try/caught.
-  useEffect(() => {
+  // (a function, so a landed earnings estimate between renders extends the axis too: `_onMetaLanded`)
+  const _futureWsSigRef = useRef(null)   // what the future-axis series holds (`_applyFutureWs`)
+  const _applyFutureWs = (events) => {
     const chart = chartRef.current
     if (!chart) return
-    const clear = () => { try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
+    const clear = () => { _futureWsSigRef.current = null; try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
     if (!filteredBars?.length) { clear(); return }
     const lastLwc = adjustTime(filteredBars[filteredBars.length - 1].t)
-    const est = earningsEvents.find(e => e.estimate)
+    const est = events.find(e => e.estimate)
     // For string tfs (D/W/M) the estimate is already bucketed to a slot; extend the
     // whitespace out to it so the badge has a coordinate to dock onto.
     const targetSlot = (typeof lastLwc === 'string' && est) ? String(est.date).slice(0, 10) : null
     const pts = buildFutureWhitespace(lastLwc, resolvedTf, FUTURE_MIN[resolvedTf] || 20, targetSlot)
     if (!pts.length) { clear(); return }
+    // (2026-11-21) THE SAME AXIS IS NOT WRITTEN TWICE. The points are a pure function of these inputs, so a call
+    // that would hand the series what it already holds does nothing: a landed metadata answer (`_onMetaLanded`)
+    // re-ran this with an unchanged axis after the bars' own pass had written it, one more setData and one more
+    // paint per switch (StockChart.neighborFrames.test.jsx: the computed switch wrote it twice, the prepared once).
+    const sig = `${lastLwc}|${resolvedTf}|${targetSlot}|${pts.length}`
+    if (futureWsSeriesRef.current && _futureWsSigRef.current === sig) return
     if (!futureWsSeriesRef.current) {
+      _futureWsSigRef.current = null
       try {
         futureWsSeriesRef.current = chart.addSeries(LineSeries, {
           color: 'rgba(0,0,0,0)', lineWidth: 1, priceScaleId: '',
@@ -9766,98 +10078,18 @@ export default function StockChart({
         })
       } catch { futureWsSeriesRef.current = null }
     }
-    try { futureWsSeriesRef.current?.setData(pts) } catch { /* series removed (chart recreate) */ }
-  }, [earningsEvents, resolvedTf, filteredBars, adjustTime])
+    try { futureWsSeriesRef.current?.setData(pts); _futureWsSigRef.current = futureWsSeriesRef.current ? sig : null } catch { _futureWsSigRef.current = null /* series removed (chart recreate) */ }
+  }
+  const _applyFutureWsRef = useRef(null)
+  _applyFutureWsRef.current = _applyFutureWs
+  useEffect(() => { _applyFutureWs(earningsEvents) }, [earningsEvents, resolvedTf, filteredBars, adjustTime])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Splits + dividends: snap each event date to its containing bar (same bucketing
   // as earnings) so they render as bottom-row "S"/"D" badges, one per bar.
-  const _bucketEventDate = useCallback((dstr, tf) => {
-    const s = String(dstr).slice(0, 10)
-    if (tf === 'W') {
-      const dt = new Date(`${s}T00:00:00Z`)
-      if (isNaN(dt.getTime())) return s
-      dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7)) // → Monday of its ISO week
-      return dt.toISOString().slice(0, 10)
-    }
-    if (tf === 'M') return s.slice(0, 7)   // YYYY-MM
-    return s
-  }, [])
+  // (The splits "S" and dividends "D" badge events are `splitEventsOf` / `dividendEventsOf`, drawn by `_drawMeta`.)
 
-  const splitEvents = useMemo(() => {
-    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
-    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
-    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
-    // array on a custom intraday chart.
-    const isDailyWeekly = parseTf(resolvedTf).minutes == null
-    if (!cs.markers?.splits || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
-    const barByBucket = new Map()
-    for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)
-    const out = []
-    const seen = new Set()
-    for (const s of markersData.splits) {
-      if (!s.date) continue
-      const bar = barByBucket.get(_bucketEventDate(s.date, resolvedTf))
-      if (!bar || seen.has(bar.t)) continue
-      seen.add(bar.t)
-      out.push({ date: bar.t, low: +bar.l, ratio: s.ratio })
-    }
-    return out
-  }, [markersData, cs.markers?.splits, resolvedTf, filteredBars, _bucketEventDate])
-
-  const dividendEvents = useMemo(() => {
-    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
-    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
-    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
-    // array on a custom intraday chart.
-    const isDailyWeekly = parseTf(resolvedTf).minutes == null
-    if (!cs.markers?.dividends || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
-    const barByBucket = new Map()
-    for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)
-    const out = []
-    const seen = new Set()
-    for (const d of markersData.dividends) {
-      if (!d.date || d.amount == null) continue
-      const bar = barByBucket.get(_bucketEventDate(d.date, resolvedTf))
-      if (!bar || seen.has(bar.t)) continue
-      seen.add(bar.t)
-      out.push({ date: bar.t, low: +bar.l, amount: Number(d.amount) })
-    }
-    return out
-  }, [markersData, cs.markers?.dividends, resolvedTf, filteredBars, _bucketEventDate])
-
-  // ── First-bar "IPO" badge event ──
-  // The gold badge marks the FIRST loaded bar as the IPO / first-listing day — but
-  // ONLY when that bar actually IS the listing day (per the provider's immutable
-  // `list_date`). So: present ⇒ "this is the true start of history"; absent ⇒ "more
-  // history exists than is loaded (or the ticker predates Massive coverage)". This
-  // is exactly the "did the chart finish loading its history?" question a trader
-  // asks when the left edge looks abrupt.
-  //
-  // D/W/M only (like earnings/splits/dividends — numeric intraday times don't
-  // bucket to a listing DATE). Matching: bucket the first bar and the list_date the
-  // same way and compare; on DAILY also accept a ≤5-calendar-day gap to absorb the
-  // rare off-by-a-session between the provider's first bar and the official date.
-  // A partly-loaded chart's first bar sits months/years after list_date, far
-  // outside that window, so it never false-positives.
-  const ipoEvent = useMemo(() => {
-    const isDailyWeekly = parseTf(resolvedTf).minutes == null
-    const ld = ipoInfo?.list_date
-    if (!cs.markers?.ipo || !ld || !isDailyWeekly || !filteredBars?.length) return null
-    const first = filteredBars[0]
-    if (!first || first.t == null) return null
-    const low = +first.l
-    if (!Number.isFinite(low)) return null
-    let match = _bucketEventDate(first.t, resolvedTf) === _bucketEventDate(ld, resolvedTf)
-    if (!match && resolvedTf === 'D') {
-      const a = Date.parse(`${String(first.t).slice(0, 10)}T00:00:00Z`)
-      const b = Date.parse(`${String(ld).slice(0, 10)}T00:00:00Z`)
-      if (Number.isFinite(a) && Number.isFinite(b)) {
-        match = Math.abs(a - b) <= 5 * 86400000  // ≤5 calendar days
-      }
-    }
-    if (!match) return null
-    return { date: first.t, low, listDate: String(ld).slice(0, 10) }
-  }, [ipoInfo?.list_date, cs.markers?.ipo, resolvedTf, filteredBars, _bucketEventDate])
+  // ── First-bar "IPO" badge event (`ipoEventOf`, above the component, says when it shows) ──
+  const ipoEvent = _mv.ipoEvent(ipoInfo, cs.markers?.ipo, resolvedTf, filteredBars)
 
   // ⭐⭐ C12w — DOES THE SERIES THE ENGINE COMPUTES ON START AT THE LISTING BAR?
   // Ruling R-W: only then may a translated Pine `var` seed from bar 0 and lift the
@@ -9867,15 +10099,13 @@ export default function StockChart({
   // ⭐ The reference date is `listingReferenceDate` (the corroborated first session
   // when the server sends one, else `list_date`) — NOT the IPO badge's `list_date`.
   // ⭐⭐ (2026-11-20) and a WEEKLY chart from its listing week, served on capture evidence (`servedFromListingOf`)
-  const historyFromListing = useMemo(() => servedFromListingOf({
-    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
-  }), [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  const historyFromListing = useMemo(() => historyFromListingFor(filteredBars, resolvedTf, ipoInfo),
+    [filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
   // ⭐⭐ (coordinator ruling 2026-11-20) — THE LISTING FACT ON A WEEKLY / MONTHLY CHART, stated where it holds and is NOT
   // served (`listingSeed.listingStartOf`, `LISTING_SERVED_TFS`): a run still withheld there says why TRUTHFULLY
   // (`runtime:listing-unverified`). Absent everywhere else, so every other chart's context is unchanged.
-  const listingUnserved = useMemo(() => !historyFromListing && listingStartOf({
-    bars: filteredBars, tf: resolvedTf, listDate: listingReferenceDate(ipoInfo),
-  }), [historyFromListing, filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
+  const listingUnserved = useMemo(() => listingUnservedFor(historyFromListing, filteredBars, resolvedTf, ipoInfo),
+    [historyFromListing, filteredBars, resolvedTf, ipoInfo?.list_date, ipoInfo?.first_trade_date])
   // ⭐ 2026-11-19 -- THE CHART AS THE ENGINE SEES IT, for a check made BESIDE the chart
   // (`chart/builder/runsHere.js`): the bars the binder computes on and the six facts of the compute
   // context it is handed below (`sym`, `symbol`, `tf`, `newestBarIsForming`, `historyFromListing`, and
@@ -9897,6 +10127,58 @@ export default function StockChart({
     // ref: this object's identity and its dependency list are what they were. Read-only, `[]` with no binder.
     bindings: drawnBindingsReader(engineRef),
   }), [filteredBars, sym, symbolMeta, resolvedTf, data?.newest_bar_is_forming, historyFromListing, listingUnserved])
+
+  // ═══ A METADATA ANSWER LANDING BETWEEN RENDERS (metadata islands, 2026-11-20) ═══════════════════════════════
+  // `ChartMetaFeed` publishes; this body is NOT re-rendered. What the answer changes on screen is redrawn here,
+  // straight on the chart and before the browser paints: the watermark lines, the markers, the E / S / D / IPO
+  // badges, the next-earnings chip and the future axis (`_drawMeta`, the same code `updateChart` runs).
+  // ⛔ THE ONE EXCEPTION IS THE ENGINE. It computes on the symbol facts (`symbolMeta`: exchange, industry, sector,
+  // security type, the first trade day) and the listing statement (`historyFromListing` / `listingUnserved`). A
+  // landed answer that changes the listing statement, or the symbol facts on a chart where something reads them,
+  // renders this body as before. Natives never read the symbol facts (their compute memo does not key on them), so
+  // a chart of moving averages and volume takes the redraw path for every answer.
+  // The inputs of THIS render, for the redraw to derive from exactly as this render did (`chartMetaDrawView`).
+  const _metaInputsRef = useRef(null)
+  _metaInputsRef.current = {
+    showNews, resolvedTf, watermarkName, watermarkSector, watermarkIndustry, nextEarnOn: _nextEarnOn,
+    markers, j2Markers: j2.markers, flowMarkers, filteredBars,
+    earningsOn: cs.markers?.earnings, splitsOn: cs.markers?.splits, dividendsOn: cs.markers?.dividends, ipoOn: cs.markers?.ipo,
+  }
+  // Does anything on this chart read the symbol facts? (a non-native definition, the header's custom stats, the
+  // info values; see the exception above)
+  const _symbolFactsRead = (Array.isArray(headerCustomStats) && headerCustomStats.length > 0)
+    || infoValuesOf(cs).length > 0
+    || (csView.indicatorInstances || []).some((i) => {
+      const d = i && engineRegistry.getDefinition(i.defId)
+      return !!d && d.compute?.kind !== 'native'
+    })
+  // `updateChart` re-syncs the engine when the symbol facts change only where something reads them (it named
+  // `tickerMeta` and `watermarkMeta` before: every name / sector answer re-ran the whole paint for the watermark).
+  const _engineSymbolDep = _symbolFactsRead ? symbolMeta : null
+  // What this render handed the engine, for the redraw to compare against.
+  const _metaFactsRef = useRef(null)
+  _metaFactsRef.current = { sig: engineFactsSigOf(_meta), historyFromListing, listingUnserved, read: _symbolFactsRead }
+  const [, _setMetaFactsRev] = useState(0)
+  // What a landed answer's settling re-assert reads (`settleOnMetaLanded`), filled below `anchorCfgRef`.
+  const _metaSettleRef = useRef(null)
+  // The metadata view now: the store's latest snapshot, derived with this render's inputs (memoised on both).
+  const _metaNowMemoRef = useRef(null)
+  const _metaNow = () => {
+    const meta = metaStore.get()
+    const inp = _metaInputsRef.current
+    const m = _metaNowMemoRef.current
+    if (m && m.meta === meta && m.inp === inp) return m.view
+    const view = chartMetaDrawView(_mv, meta, inp)
+    _metaNowMemoRef.current = { meta, inp, view }
+    return view
+  }
+  const _metaNowRef = useRef(_metaNow)
+  _metaNowRef.current = _metaNow
+  // (the listener is built outside this render, `metaLandedListener`: the store holds it for the chart's life)
+  useLayoutEffect(() => metaStore.subscribe(metaLandedListener({
+    metaStore, factsRef: _metaFactsRef, inputsRef: _metaInputsRef, nowRef: _metaNowRef,
+    drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, settleRef: _metaSettleRef, rerender: _setMetaFactsRev,
+  })), [metaStore])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -11395,6 +11677,12 @@ export default function StockChart({
   // anchor frame wins everywhere the chart would otherwise auto-frame. userViewMovedRef
   // is the same latch replay uses — one pan/zoom and all re-assertion stops.
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
+  // (refs and scalars only: the store keeps the listener that reads this for the chart's whole life)
+  _metaSettleRef.current = {
+    chartRef, containerRef, candleRef: candleSeriesRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
+    anchorRef: anchorCfgRef, entryDate, exactDateRange, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+    sessionCandleActive, sessionExtReady,
+  }
 
   // ── First-load layout race: ONE setVisibleLogicalRange does not stick ──────────
   // The chart is created with autoSize, so for several frames after first paint the
@@ -11490,6 +11778,140 @@ export default function StockChart({
         plotWidthPx: plotWidthOf(chart, containerRef.current) })
     try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
   }, [anchorDate, anchorIdx, filteredBars, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride])
+
+  // ⭐⭐ WHAT THE CHART DRAWS FROM THE PER-SYMBOL METADATA, IN ONE PLACE (metadata islands, 2026-11-20). These blocks
+  // stood inside `updateChart`, which still runs them at the same point of its pass (`fresh`: its `_freshChart`).
+  // The metadata redraw (`_onMetaLanded`, the store subscription above) runs them too, when an answer lands between
+  // renders: the newest render's function (`_drawMetaRef`) with the store's newest view (`_metaNow`), so the chart
+  // shows the answer with no render of this body. `withWatermark`: also re-hand the watermark its lines (updateChart
+  // sets them with the rest of the watermark's options).
+  const _watermarkLinesOf = (watermarkMeta) => ((cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
+    ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
+    : [])
+  const _drawMeta = (view, fresh, withWatermark) => {
+    if (withWatermark && wmCtrlRef.current) {
+      try { wmCtrlRef.current.setOptions({ lines: _watermarkLinesOf(view.watermarkMeta) }) } catch { /* noop */ }
+    }
+    const { mergedMarkers, nextEarnRows, earningsEvents, splitEvents, dividendEvents, ipoEvent } = view
+
+    // ── Markers (BUY/SELL arrows) ──
+    // Reuse a single controller per chart instance and feed it new markers.
+    // Without this, each updateChart() call stacks new marker layers over old
+    // ones — markers from the prior ticker leak into the new ticker's chart.
+    // Always call setMarkers (even with []) so old markers clear when the new
+    // ticker has none.
+    // Guarded on the SOURCE array's identity (mergedMarkers is memoized, so it's
+    // stable across live ticks) — the sort + dynamic import + full marker-layer
+    // rebuild used to run on every repaint. A missing controller forces a rebuild,
+    // which is what covers the two cases the identity check can't see: the series
+    // was swapped (the swap nulls the controller, since it was bound to the old
+    // series) and a fresh chart. Never skip on either, or markers silently vanish.
+    // Chart Settings → My trades (myTradeMarkers.js) rides the SAME controller: its markers join the list here, and
+    // their own effect below re-hands the list when only they changed (never a second createSeriesMarkers).
+    const _myTradeMarkers = myTradeMarkersRef.current
+    const _markersDirty = lastMarkersSrcRef.current !== mergedMarkers
+      || lastMyTradesSrcRef.current !== _myTradeMarkers
+      || !markersControllerRef.current
+      || fresh
+    if (candleSeriesRef.current && _markersDirty) {
+      lastMarkersSrcRef.current = mergedMarkers
+      lastMyTradesSrcRef.current = _myTradeMarkers
+      const allMarkers = [...(mergedMarkers || []), ...(_myTradeMarkers || [])]
+        .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+      import('lightweight-charts').then(({ createSeriesMarkers }) => {
+        if (!createSeriesMarkers || !candleSeriesRef.current) return
+        if (markersControllerRef.current && typeof markersControllerRef.current.setMarkers === 'function') {
+          markersControllerRef.current.setMarkers(allMarkers)
+        } else {
+          // window-aware: only markers inside the render window reach the plugin (chart/windowedChart.js)
+          markersControllerRef.current = createWindowedMarkers(createSeriesMarkers, candleSeriesRef.current, allMarkers)
+        }
+      }).catch(() => {})
+    }
+
+    // ── Next earnings date (Chart Settings → Markers, owner 11-16; nextEarningsMark.js) ──
+    // Default OFF (absent key). Every timeframe. A muted grey "E" chip on the bar slot where the next report falls:
+    // `{ ahead }` bars past the last LOADED bar (logical index, counted on the trading calendar) or a loaded bar
+    // `{ time }` when it reports in the last session. It REPLACES the Earnings badges' grey upcoming (estimate)
+    // badge: while it is ON, earningsEvents drops the estimate row (earningsBadgeRows), so it always draws here.
+    {
+      const _neSeries = candleSeriesRef.current
+      if (_neSeries) {
+        if (!nextEarnRef.current) nextEarnRef.current = createNextEarningsPrimitive()
+        if (nextEarnSeriesRef.current !== _neSeries) {
+          try { _neSeries.attachPrimitive(nextEarnRef.current.primitive); nextEarnSeriesRef.current = _neSeries } catch { /* primitive optional */ }
+        }
+        const _neBars = _bigRef.current?.ohlcData
+        let _neSet = null
+        if (nextEarnRows) _neSet = nextEarningsMark(_neBars, resolvedTf, nextEarnRows, { extended: !!showExtendedRef.current })
+        nextEarnRef.current.set(_neSet)
+      }
+    }
+
+    // ── Earnings "E" badge (custom v5 series primitive) ──
+    if (candleSeriesRef.current) {
+      if (!earnBadgeRef.current) earnBadgeRef.current = createEarningsBadgePrimitive({})
+      if (!earnBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(earnBadgeRef.current.primitive)
+          earnBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      const mk = cs.markers || {}
+      earnBadgeRef.current.setOptions({
+        enabled: earningsEvents.length > 0,
+        // The glyph paints the CANVAS color so the 'E' reads as cut out of the pill,
+        // showing the chart background through it at any canvas color.
+        glyphColor: canvasSample.top,
+        beatColor: mk.earningsBeat || '#1ae51a',
+        missColor: mk.earningsMiss || '#c41f2d',
+        estimateColor: mk.earningsUpcoming || '#94a3b8',   // upcoming report = medium grey
+      })
+      earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat, estimate: e.estimate })))
+    }
+
+    // ── Splits "S" + Dividends "D" badges (same bottom-row primitive as earnings) ──
+    if (candleSeriesRef.current) {
+      if (!splitBadgeRef.current) splitBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'S', color: '#f59e0b' })
+      if (!splitBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(splitBadgeRef.current.primitive)
+          splitBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      splitBadgeRef.current.setOptions({ enabled: splitEvents.length > 0, glyphColor: canvasSample.top })
+      splitBadgeRef.current.setPoints(splitEvents.map(s => ({ time: s.date, price: s.low })))
+
+      if (!divBadgeRef.current) divBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'D', color: '#3b82f6' })
+      if (!divBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(divBadgeRef.current.primitive)
+          divBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      divBadgeRef.current.setOptions({ enabled: dividendEvents.length > 0, glyphColor: canvasSample.top })
+      divBadgeRef.current.setPoints(dividendEvents.map(d => ({ time: d.date, price: d.low })))
+    }
+
+    // ── First-bar "IPO" badge (same bottom-row primitive, gold pill) ──
+    if (candleSeriesRef.current) {
+      if (!ipoBadgeRef.current) ipoBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'IPO' })
+      if (!ipoBadgeAttachedRef.current) {
+        try {
+          candleSeriesRef.current.attachPrimitive(ipoBadgeRef.current.primitive)
+          ipoBadgeAttachedRef.current = true
+        } catch { /* older series API — primitive optional */ }
+      }
+      ipoBadgeRef.current.setOptions({
+        enabled: !!ipoEvent,
+        color: cs.markers?.ipoColor || '#c9a84c',   // gold pill (fixed, like S/D)
+        glyphColor: canvasSample.top,                // "IPO" reads as cut out of the pill
+      })
+      ipoBadgeRef.current.setPoints(ipoEvent ? [{ time: ipoEvent.date, price: ipoEvent.low }] : [])
+    }
+  }
+  const _drawMetaRef = useRef(null)
+  _drawMetaRef.current = _drawMeta
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
@@ -12011,7 +12433,7 @@ export default function StockChart({
     }
     {
       const wmLines = (cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
-        ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
+        ? composeWatermarkLines(watermark ?? sym, _metaNowRef.current().watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
         : []
       // centerWatermarkOnPlot: pin the horizontal center to the middle of the
       // WHOLE widget — the candle plot PLUS the right price-axis gutter — measured
@@ -14075,41 +14497,6 @@ export default function StockChart({
       }
     }
 
-    // ── Markers (BUY/SELL arrows) ──
-    // Reuse a single controller per chart instance and feed it new markers.
-    // Without this, each updateChart() call stacks new marker layers over old
-    // ones — markers from the prior ticker leak into the new ticker's chart.
-    // Always call setMarkers (even with []) so old markers clear when the new
-    // ticker has none.
-    // Guarded on the SOURCE array's identity (mergedMarkers is memoized, so it's
-    // stable across live ticks) — the sort + dynamic import + full marker-layer
-    // rebuild used to run on every repaint. A missing controller forces a rebuild,
-    // which is what covers the two cases the identity check can't see: the series
-    // was swapped (the swap nulls the controller, since it was bound to the old
-    // series) and a fresh chart. Never skip on either, or markers silently vanish.
-    // Chart Settings → My trades (myTradeMarkers.js) rides the SAME controller: its markers join the list here, and
-    // their own effect below re-hands the list when only they changed (never a second createSeriesMarkers).
-    const _myTradeMarkers = myTradeMarkersRef.current
-    const _markersDirty = lastMarkersSrcRef.current !== mergedMarkers
-      || lastMyTradesSrcRef.current !== _myTradeMarkers
-      || !markersControllerRef.current
-      || _freshChart
-    if (candleSeriesRef.current && _markersDirty) {
-      lastMarkersSrcRef.current = mergedMarkers
-      lastMyTradesSrcRef.current = _myTradeMarkers
-      const allMarkers = [...(mergedMarkers || []), ...(_myTradeMarkers || [])]
-        .sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
-      import('lightweight-charts').then(({ createSeriesMarkers }) => {
-        if (!createSeriesMarkers || !candleSeriesRef.current) return
-        if (markersControllerRef.current && typeof markersControllerRef.current.setMarkers === 'function') {
-          markersControllerRef.current.setMarkers(allMarkers)
-        } else {
-          // window-aware: only markers inside the render window reach the plugin (chart/windowedChart.js)
-          markersControllerRef.current = createWindowedMarkers(createSeriesMarkers, candleSeriesRef.current, allMarkers)
-        }
-      }).catch(() => {})
-    }
-
     // ── Swing high/low price labels (custom v5 series primitive, above series) ──
     if (candleSeriesRef.current) {
       if (!swingCtrlRef.current) swingCtrlRef.current = createSwingLabelsPrimitive({})
@@ -14218,86 +14605,9 @@ export default function StockChart({
     // swap or a recreated chart (a new candle series) gets its alert lines back; alert changes apply in their own effect.
     syncAlertPriceLines(alertLinesRef.current, candleSeriesRef.current, alertLineOptsRef.current)
 
-    // ── Next earnings date (Chart Settings → Markers, owner 11-16; nextEarningsMark.js) ──
-    // Default OFF (absent key). Every timeframe. A muted grey "E" chip on the bar slot where the next report falls:
-    // `{ ahead }` bars past the last LOADED bar (logical index, counted on the trading calendar) or a loaded bar
-    // `{ time }` when it reports in the last session. It REPLACES the Earnings badges' grey upcoming (estimate)
-    // badge: while it is ON, earningsEvents drops the estimate row (earningsBadgeRows), so it always draws here.
-    {
-      const _neSeries = candleSeriesRef.current
-      if (_neSeries) {
-        if (!nextEarnRef.current) nextEarnRef.current = createNextEarningsPrimitive()
-        if (nextEarnSeriesRef.current !== _neSeries) {
-          try { _neSeries.attachPrimitive(nextEarnRef.current.primitive); nextEarnSeriesRef.current = _neSeries } catch { /* primitive optional */ }
-        }
-        const _neBars = _big.ohlcData
-        let _neSet = null
-        if (nextEarnRows) _neSet = nextEarningsMark(_neBars, resolvedTf, nextEarnRows, { extended: !!showExtendedRef.current })
-        nextEarnRef.current.set(_neSet)
-      }
-    }
-
-    // ── Earnings "E" badge (custom v5 series primitive) ──
-    if (candleSeriesRef.current) {
-      if (!earnBadgeRef.current) earnBadgeRef.current = createEarningsBadgePrimitive({})
-      if (!earnBadgeAttachedRef.current) {
-        try {
-          candleSeriesRef.current.attachPrimitive(earnBadgeRef.current.primitive)
-          earnBadgeAttachedRef.current = true
-        } catch { /* older series API — primitive optional */ }
-      }
-      const mk = cs.markers || {}
-      earnBadgeRef.current.setOptions({
-        enabled: earningsEvents.length > 0,
-        // The glyph paints the CANVAS color so the 'E' reads as cut out of the pill,
-        // showing the chart background through it at any canvas color.
-        glyphColor: canvasSample.top,
-        beatColor: mk.earningsBeat || '#1ae51a',
-        missColor: mk.earningsMiss || '#c41f2d',
-        estimateColor: mk.earningsUpcoming || '#94a3b8',   // upcoming report = medium grey
-      })
-      earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat, estimate: e.estimate })))
-    }
-
-    // ── Splits "S" + Dividends "D" badges (same bottom-row primitive as earnings) ──
-    if (candleSeriesRef.current) {
-      if (!splitBadgeRef.current) splitBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'S', color: '#f59e0b' })
-      if (!splitBadgeAttachedRef.current) {
-        try {
-          candleSeriesRef.current.attachPrimitive(splitBadgeRef.current.primitive)
-          splitBadgeAttachedRef.current = true
-        } catch { /* older series API — primitive optional */ }
-      }
-      splitBadgeRef.current.setOptions({ enabled: splitEvents.length > 0, glyphColor: canvasSample.top })
-      splitBadgeRef.current.setPoints(splitEvents.map(s => ({ time: s.date, price: s.low })))
-
-      if (!divBadgeRef.current) divBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'D', color: '#3b82f6' })
-      if (!divBadgeAttachedRef.current) {
-        try {
-          candleSeriesRef.current.attachPrimitive(divBadgeRef.current.primitive)
-          divBadgeAttachedRef.current = true
-        } catch { /* older series API — primitive optional */ }
-      }
-      divBadgeRef.current.setOptions({ enabled: dividendEvents.length > 0, glyphColor: canvasSample.top })
-      divBadgeRef.current.setPoints(dividendEvents.map(d => ({ time: d.date, price: d.low })))
-    }
-
-    // ── First-bar "IPO" badge (same bottom-row primitive, gold pill) ──
-    if (candleSeriesRef.current) {
-      if (!ipoBadgeRef.current) ipoBadgeRef.current = createEarningsBadgePrimitive({ glyph: 'IPO' })
-      if (!ipoBadgeAttachedRef.current) {
-        try {
-          candleSeriesRef.current.attachPrimitive(ipoBadgeRef.current.primitive)
-          ipoBadgeAttachedRef.current = true
-        } catch { /* older series API — primitive optional */ }
-      }
-      ipoBadgeRef.current.setOptions({
-        enabled: !!ipoEvent,
-        color: cs.markers?.ipoColor || '#c9a84c',   // gold pill (fixed, like S/D)
-        glyphColor: canvasSample.top,                // "IPO" reads as cut out of the pill
-      })
-      ipoBadgeRef.current.setPoints(ipoEvent ? [{ time: ipoEvent.date, price: ipoEvent.low }] : [])
-    }
+    // ── The markers and the next-earnings / E / S / D / IPO badges: `_drawMeta` (above; the same code the between-
+    // render redraw runs when a metadata answer lands). Same place in the pass, same guards.
+    _drawMetaRef.current(_metaNowRef.current(), _freshChart, false)
 
     // ⭐ EVERY FRAME THIS PASS SETS GOES THROUGH _setFrame (W-R 2026-11-11). It remembers the
     // INTENDED range, and the restate below re-applies THAT as an offset from the newest bar.
@@ -14642,23 +14952,11 @@ export default function StockChart({
         // each a separate commit). This keeps the chart from snapping during the load.
         // Once the count stops changing, data has settled; release control so ordinary
         // scroll/zoom is respected again.
+        // (the frame and its release: `settlingFrameOf` / `settlingDone`, the one derivation a metadata answer landing
+        // between renders re-asserts too, `settleOnMetaLanded`. Today's developing daily bar is in the served history,
+        // server-include in api/routers/bars.py, so on daily the loaded last bar IS today.)
         const _pt = pendingTfReframeRef.current
-        let from, to
-        if (_pt.width > 0) {
-          // Pin the loaded last bar at the anchor — so the current candle lands at the
-          // SAME position the outgoing view had. Today's developing daily bar is now
-          // included in the served history (server-include, api/routers/bars.py), so the
-          // loaded last bar IS today and no slot reservation is needed.
-          const lastIdx = filteredBars.length - 1
-          // Reserve the developing intraday bucket's slot: the settling re-assert runs on EVERY
-          // phased commit (cache → fetch → backfill); reserving keeps `to` invariant as the newer
-          // buckets land instead of re-pinning the grown newest and sliding left. 0 off-gate/daily.
-          ;({ from, to } = pinNewestRange(lastIdx, _pt.width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(filteredBars, resolvedTf)))
-        } else {
-          ;({ from, to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
-          ))
-        }
+        const { from, to } = settlingFrameOf(_pt, { bars: filteredBars, tf: resolvedTf, plotWidthPx: plotWidthOf(chart, containerRef.current), dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
         try { _setFrame({ from, to }) } catch { /* mid-load */ }
         // The session preview candle is part of SETTLING, not a post-settle live bar.
         // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
@@ -14668,7 +14966,6 @@ export default function StockChart({
         // then repositions once" jitter when flipping tickers in pre/post market.
         // Holding the guard until the aggregate resolves keeps the RTH bars exactly
         // put; the preview candle just appears in the right pad.
-        const _sessionSettled = !sessionCandleActive || sessionExtReady
         // HOLD the guard while the developing bar is still MISSING (reserve > 0). A cold first paint
         // renders the stale provisional (ends at the last SEALED period); the developing bar appends
         // a SEPARATE commit later — often AFTER the count already looked "settled" — and that append
@@ -14679,8 +14976,7 @@ export default function StockChart({
         // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
         // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
         // release timing is byte-identical to before.
-        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0
-        if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
+        if (settlingDone({ bars: filteredBars, tf: resolvedTf, oldBarCount, sessionCandleActive, sessionExtReady })) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
         // Width-proportional floor (was a flat -1): LWC-side drift during a
@@ -14855,7 +15151,7 @@ export default function StockChart({
     // reasoning is at the `useInstalledUserDefinitions` call site above.
     // ⭐ (2026-11-18) `data?.newest_bar_is_forming` is read into every run's context (the binder sync above), so it
     // is named here: a flag that lands with the same bars re-syncs, and the binder's memo (keyed on it) recomputes.
-  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars, nextEarnRows])
+  }, [volumePaneHeightPct, filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, data?.newest_bar_is_forming, sym, showVolume, markers, j2.markers, flowMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, _engineSymbolDep, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration, sessionAppliedBars, _extendOverlaysLive, liveUpdates, replayMode, calcFrames, applyAverageZOrder, showExtended, _intradayLike, fundamentalSources, marketCapAuthoritySources, economicSources, _econId, historyFromListing, listingUnserved, strategyHistoryWindow, strategyWindowPending, strategyListingDepth, otherSymbolExchangeOf, lowerTfSources, csView, secondarySources, serverColumnsGeneration, runtimeListsGeneration, compactAxes, _plotWindowFullKey, _pinnedFull, _overlayActive, _hasOverride, _study, tickLabelChars])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   // ⚡ ONE PASS PER SWITCH (2026-11-19): on a symbol / timeframe switch the layout effect below already ran
@@ -18657,10 +18953,13 @@ export default function StockChart({
   // with a tolerance of half a bar. On match → open the article URL.
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !newsMarkers?.length) return
+    if (!chart || !showNews) return
     const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
     const handler = (param) => {
       if (!param || param.time == null) return
+    // (metadata islands) the markers are read at CLICK time, so a set that landed between renders is clickable
+      const newsMarkers = _metaNowRef.current().newsMarkers
+      if (!newsMarkers.length) return
       // ⭐ UCT RS 3-09 — while a date pick is armed (or this very click made one),
       // only a click ON the news badge opens the story: news matches the whole bar
       // column, and a member anchoring the check on that day clicked the candle.
@@ -18681,7 +18980,7 @@ export default function StockChart({
     return () => {
       try { chart.unsubscribeClick(handler) } catch {}
     }
-  }, [newsMarkers, resolvedTf])
+  }, [showNews, resolvedTf, chartReady, chartGen])
 
   // ── Desk-mention marker click → the Desk session, seeked to the mention ──
   // The time matcher below is the news category's, but this handler does NOT stop
@@ -18707,12 +19006,14 @@ export default function StockChart({
   // makes Location unforgeable, so a click-wire test could not see it fire.)
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !deskMarkers?.length) return
+    if (!chart || !deskEnabled) return
     const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
     const handler = (param) => {
       if (!param || param.time == null) return
       // IF: the click landed on a desk marker object, not merely in its column.
       if (!String(param.hoveredObjectId ?? '').startsWith('desk-')) return
+    // (metadata islands) the markers are read at CLICK time, so a set that landed between renders is clickable
+      const deskMarkers = _metaNowRef.current().deskMarkers
       // WHICH: same half-bar tolerance idiom the news matcher uses.
       const matching = deskMarkers.find(m => {
         if (typeof m.time === 'number' && typeof param.time === 'number') {
@@ -18727,17 +19028,21 @@ export default function StockChart({
     }
     chart.subscribeClick(handler)
     return () => { try { chart.unsubscribeClick(handler) } catch {} }
-  }, [deskMarkers, resolvedTf])
+  }, [deskEnabled, resolvedTf, chartReady, chartGen])
 
   // ── Earnings marker click → themed earnings popover ──
   // Same time-match approach as news markers (LWC has no marker-click event).
   // Earnings markers only render on daily/weekly, whose time is a 'YYYY-MM-DD'
   // string, so match by string equality. Opens the popover at the click point.
+  useEffect(() => { if (!earningsEvents.length) setEarningsPopup(null) }, [earningsEvents])
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !earningsEvents.length) { setEarningsPopup(null); return }
+    if (!chart || !cs.markers?.earnings) return
     const handler = (param) => {
       if (!param || !param.point) return
+    // (metadata islands) the events are read at CLICK time, so a set that landed between renders is clickable
+      const earningsEvents = _metaNowRef.current().earningsEvents
+      if (!earningsEvents.length) return
       // A click on the IPO badge shares this bar's time COLUMN, and a ticker that
       // reports right after listing (e.g. LMND) carries an earnings event on the
       // very first bar — so the param.time fallback below would wrongly open
@@ -18761,7 +19066,7 @@ export default function StockChart({
     }
     chart.subscribeClick(handler)
     return () => { try { chart.unsubscribeClick(handler) } catch {} }
-  }, [earningsEvents])
+  }, [cs.markers?.earnings, chartReady, chartGen])
 
   // Chart Settings → Price alerts: an alert set, deleted or gone off (the list revalidates), a symbol switch, or the
   // switch itself redraws the lines on the current candle series — without re-running updateChart.
@@ -18834,11 +19139,15 @@ export default function StockChart({
   // Same pixel hit-test approach as the earnings badge (LWC has no marker-click
   // event). The tag pops ABOVE the badge (never over the volume pane below it) and
   // a hair to the right, anchored to the badge's own rect.
+  useEffect(() => { if (!ipoEvent) setIpoPopup(null) }, [ipoEvent])
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !ipoEvent) { setIpoPopup(null); return }
+    if (!chart || !cs.markers?.ipo) return
     const handler = (param) => {
       if (!param || !param.point) return
+    // (metadata islands) the badge is read at CLICK time, so one that landed between renders is clickable
+      const ipoEvent = _metaNowRef.current().ipoEvent
+      if (!ipoEvent) return
       // Require an actual PIXEL hit on the IPO pill (not just a click anywhere on
       // the first bar's time column) so a click on the candle or a neighbouring
       // earnings/split badge on the same bar can't open this tag.
@@ -18856,7 +19165,7 @@ export default function StockChart({
     }
     chart.subscribeClick(handler)
     return () => { try { chart.unsubscribeClick(handler) } catch {} }
-  }, [ipoEvent])
+  }, [cs.markers?.ipo, chartReady, chartGen])
 
   useEffect(() => { setIpoPopup(null) }, [sym, resolvedTf])
 

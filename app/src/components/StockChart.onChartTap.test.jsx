@@ -74,7 +74,9 @@ const fireClick = (param) => { for (const h of [...clickHandlers]) h(param) }
 describe('StockChart onChartTap', () => {
   it('subscribes one extra click handler only when the prop is given', async () => {
     const { unmount } = render(<StockChart sym="AAPL" tf="D" />)
-    await vi.waitFor(() => expect(clickHandlers.length).toBeGreaterThanOrEqual(0))
+    // Wait for the chart itself (its own click subscriber), not a fixed 50 ms: on a loaded machine the chart is
+    // created later than that, `without` read 0, and the prop's extra handler then looked like two (2026-11-21).
+    await vi.waitFor(() => expect(clickHandlers.length).toBeGreaterThan(0), { timeout: 4000 })
     await new Promise((r) => setTimeout(r, 50))
     const without = clickHandlers.length
     unmount(); clickHandlers = []
