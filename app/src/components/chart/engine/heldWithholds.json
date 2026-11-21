@@ -3,25 +3,6 @@
  "about": "DERIVED by tools/vendor_harness/held_evidence.py --write from the committed evidence ledger: the narrow withholds licence-held captures ask for, by source hash (never hand-typed; --check is the rail).",
  "scripts": [
   {
-   "sha256": "0667cf43d3c4618b4431cf4e63c242bf961c46938301a006d43f6000cb62e88a",
-   "scriptKey": "average-true-range-trailing-stops-strategy-by-sylvain-vervoort",
-   "withholds": [
-    {
-     "door": "runtime",
-     "scope": "outputColour",
-     "title": "ATR Trailing Stop",
-     "why": "plot `ATR Trailing Stop`: 160 steady-state bars disagree; first at bar 92 (color: vendor #ff0000a6 vs ours #0000ffa6 at value 73.22419298307216) — scattered, last at bar 251",
-     "lanes": [
-      "runtime-on"
-     ],
-     "evidence": [
-      "average-true-range-trailing-stops-strategy-by-sylvain-vervoort-rddt-1d-2026-11-14"
-     ],
-     "engine": 86
-    }
-   ]
-  },
-  {
    "sha256": "2f0a9c6d3d5dfb358f995a1628507c376360ede5650abe7c72006dcc7fbde366",
    "scriptKey": "check-head-and-shouldersmask-man",
    "withholds": [
