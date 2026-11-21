@@ -80,6 +80,12 @@ const visit = (n, parent, stack) => {
   for (const c of kids(n)) visit(c, n, st)
 }
 for (const s of comp.body.body) visit(s, comp.body, [])
+// ⭐ THE PASS ITSELF (imperative switch, stage 1): `updateChart`'s body is the module-level `applyFrame(ctx, frame)`
+// now, handed the box as `frame.__heavy`. It runs after a commit (from `updateChart`, or from the switch
+// controller with a box it built), so every read in it is an AFTER read, owned by `applyFrame`.
+const pass = ast.body.find((s) => s.type === 'FunctionDeclaration' && s.id && s.id.name === 'applyFrame')
+const bodyReads = reads.length
+if (pass) visit(pass.body, pass, [{ role: 'fn', name: 'applyFrame', line: pass.loc.start.line }])
 // a body-level function called while rendering (and what IT calls) runs at render time
 const bodyFn = new Map([...fnNameOf].map(([f, nm]) => [nm, f]))
 const callsIn = (f) => { const out = new Set(); const v = (n) => { if (n.type === 'CallExpression' && n.callee.type === 'Identifier') out.add(n.callee.name); for (const c of kids(n)) if (!isFn(c)) v(c) }; v(f.body); return out }
@@ -105,7 +111,11 @@ describe('StockChart: every render-box read is the right one for when it runs', 
   })
   it('the event-time readers the review named are among them', () => {
     const owners = new Set(reads.filter((r) => r.ctx === 'after' && r.committed).map((r) => r.owner))
-    for (const nm of ['updateChart', 'applyRange', 'centerFirstBar', 'replayToggle', 'replayStep', 'replayIndexChange']) expect(owners).toContain(nm)
+    for (const nm of ['applyFrame', 'applyRange', 'centerFirstBar', 'replayToggle', 'replayStep', 'replayIndexChange']) expect(owners).toContain(nm)
+    // the pass was found, its reads are the bulk of the after-commit ones, and `updateChart` only hands the box on
+    expect(pass).toBeTruthy()
+    expect(reads.length - bodyReads).toBeGreaterThan(60)
+    expect(owners.has('updateChart')).toBe(false)
     // the store's developing-bar paint (a rAF-coalesced store callback), assigned to a ref in the body
     expect(src).toMatch(/_storeDevPaintRef\.current = \(afterSetData = false\) => \{[\s\S]{0,4000}__heavy\.committed\./)
   })
