@@ -327,6 +327,21 @@ its identity is unmeasured. The capture's `source` is a label GENERATED from the
 added, how, at which settings), and the row's `sha256` is derived from it. A row carrying a `path` (a hand label)
 or another sha is refused at load.
 
+### A row's session is READ, never set (#2134, rulings 2026-11-21)
+
+A row may say `"session": "extended" | "regular"`. The batch never writes a session (ruling (ii)). After the row's
+symbol and resolution read back, it reads the chart's RESOLVED session at that resolution (`symbolInfo().session`,
+and `subsession_id` when TradingView reports one). It must be `0400-2000` / `0930-1600`, or the row stops by name
+(GATE_FAILED) and nothing is captured. The capture id says the named session (`-ext` / `-rth`).
+- A daily, weekly or monthly chart of a US listing resolves `0930-1600` whatever the layout's hours (every daily
+  capture on record), so the read is made at the row's own resolution, never on the batch's 1D chart.
+- The rig layout has resolved EXTENDED on every intraday capture since 2026-11-14. A regular-hours row runs on a
+  copy of the layout saved with regular hours (ruling B1, made once), never on a toggled one.
+- ⚰️ The first version (2026-11-20) wrote the session as `setSymbol('={"session":…,"symbol":…}')`. That string is
+  TradingView's wire encoding, not a symbol name: the live chart kept it as a literal symbol and never resolved it.
+  Its double parsed the spec and `sym_match` read through it, so the rails agreed with the code, not with
+  TradingView. Now a chart whose symbol reads `={…}` is on no symbol, and the double keeps a spec as a literal.
+
 `startsAtBar0` is asserted ONLY when the history stopped growing AND the first loaded
 bar is the symbol's listing day in its own timezone (known for `NYSE:RDDT` =
 2024-03-21; pass `--listing-date` for another young listing). `newestBarIsForming`

@@ -29,6 +29,7 @@ import base64
 import hashlib
 import json
 import pathlib
+import re
 import sys
 import tempfile
 
@@ -216,9 +217,17 @@ class RecordingTVPage:
         # ⭐ A SLOW ATTACH (2026-11-19, htfform-c): after a fresh load the chart handle answers at once, with 0 studies,
         # and the layout's saved studies attach `attach_delay_s` (virtual) seconds later. 0: they are there at once.
         self.attach_delay_s = float(attach_delay_s)
-        # ⭐ (2026-11-20) the chart's session (the rig layout's: regular), and whether a session spec is honoured
+        # ⭐ (2026-11-21, #2134) the hours the LAYOUT is saved with ("regular" | "extended"): what an INTRADAY chart
+        # resolves (`_resolved_session`); a daily, weekly or monthly chart of a US listing resolves 0930-1600 whatever it
+        # is. Nothing the batch does changes it (a row's session is read, never set). `subsession` is what
+        # `symbolInfo().subsession_id` reports: None by default (no capture records one; the live probe reads it)
         self.session_id = "regular"
-        self.honours_session = True
+        self.subsession = None
+        # ⭐ (2026-11-21, probe R4) after a resolution change `symbolInfo()` reads NULL until the new resolution's bars
+        # load: `reload_s` (virtual) seconds here; 0, at once. And the page's URL (the layout it is on, `--layout`).
+        self.reload_s = 0.0
+        self.res_changed_at = None
+        self.url = LAYOUT
         # ⭐ (2026-11-20, item 2) the Indicators dialog: what each search lists (`measured_dialog`), whether it is open,
         # and `lands_on` {data-id: metaInfo id}: an element whose click adds ANOTHER study (a moved label)
         self.dialog = measured_dialog()
@@ -305,6 +314,7 @@ class RecordingTVPage:
     def goto(self, url, **kw):
         self._check_alive()
         self._log("goto", url, None)
+        self.url = url
 
     def reload(self, **kw):
         """A fresh load: the page reads the layout's persisted copy (when one is modelled); injected globals are gone."""
@@ -362,22 +372,27 @@ class RecordingTVPage:
                 "panes": list(self.panes)}
 
     def _set_symbol(self, s):
-        # ⭐ (2026-11-20) a session spec (`={...}`) sets the symbol AND its session, as TradingView does; a plain symbol
-        # keeps the chart's session (so a row that named one must put it back). `honours_session` False: a chart that
-        # resolves the spec's symbol but not its session (the read-back must catch it)
-        if str(s).startswith("="):
-            spec = json.loads(str(s)[1:])
-            self.symbol = spec.get("symbol")
-            if self.honours_session and spec.get("session") in bc.ROW_SESSIONS:
-                self.session_id = spec["session"]
-        else:
-            self.symbol = s
+        # ⭐⭐ AS THE LIVE RIG ANSWERED (patrick-54, 2026-11-20, #2134): setSymbol takes ANY string and says ok. A session
+        # spec (`={"session":…,"symbol":…}`, TradingView's wire encoding) becomes the chart's LITERAL symbol, and
+        # `symbolInfo()` never arrives for it; only a plain symbol brings it back. The layout's hours never change.
+        self.symbol = s
         return {"ok": True}
 
+    def _resolved_session(self):
+        if re.search(r"[DWM]$", bc.res_norm(self.resolution)):
+            return bc.ROW_SESSIONS["regular"]      # every daily / weekly capture on record reads 0930-1600
+        return bc.ROW_SESSIONS[self.session_id]
+
     def _session(self, _):
-        return {"ok": True, "session": bc.ROW_SESSIONS[self.session_id], "subsession": self.session_id}
+        if str(self.symbol).startswith("="):
+            return {"ok": False, "why": "no symbolInfo yet"}
+        if self.res_changed_at is not None and self.t - self.res_changed_at < self.reload_s:
+            return {"ok": False, "why": "no symbolInfo yet"}      # the new resolution's bars are still loading
+        return {"ok": True, "session": self._resolved_session(), "subsession": self.subsession,
+                "interval": str(self.resolution), "bars": BARS}
 
     def _set_resolution(self, r):
+        self.res_changed_at = self.t
         self.resolution = r
         return {"ok": True}
 
@@ -579,7 +594,7 @@ class RecordingTVPage:
             "tool": {"snippet": "tools/vendor_harness/tv_capture.js", "version": 1},
             "page": {"url": LAYOUT, "visibilityState": "visible", "hasFocus": True},
             "symbol": {"name": "RDDT", "full_name": "NYSE:RDDT", "pro_name": "NYSE:RDDT", "exchange": "NYSE",
-                       "listed_exchange": "NYSE", "type": "stock", "session": bc.ROW_SESSIONS[self.session_id],
+                       "listed_exchange": "NYSE", "type": "stock", "session": self._resolved_session(),
                        "timezone": "America/New_York", "pricescale": 100, "minmov": 1, "currency": "USD"},
             "timeframe": "D",
             "newestBarIsForming": o.get("newestBarIsForming") if isinstance(o.get("newestBarIsForming"), bool) else None,
@@ -678,8 +693,10 @@ def run(page, manifest, run_dir, opts=None, verifier=None, **kw):
     from pine_vendor_capture import acquire
     clock = FakeClock(page)
     rd = bc.RunDir(run_dir, "selfcheck")
+    opts = opts or fast_opts()
     assert acquire(page, 5) == 0
-    code = bc.run_batch(page, manifest, rd, opts or fast_opts(), clock, verifier or bc.NodeVerifier(),
+    bc.go_to_layout(page, opts.layout)          # as `_launch`: acquire() ends on the rig layout
+    code = bc.run_batch(page, manifest, rd, opts, clock, verifier or bc.NodeVerifier(),
                         log=lambda *a: None, **kw)
     return code, rd, clock
 
