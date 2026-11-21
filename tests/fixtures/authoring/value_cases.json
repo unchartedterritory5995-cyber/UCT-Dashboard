@@ -11419,6 +11419,10 @@
    "id": "k01",
    "lane": "script",
    "chart": "daily",
+   "edge": {
+    "back": 50,
+    "othersClose": 10
+   },
    "words": "Show a table with SPY, QQQ and IWM, one row each, saying Above or Below for whether its close is above its own 50 day simple moving average",
    "rule": {
     "digest": "61b680d710388426",
@@ -11469,6 +11473,10 @@
    "id": "l01",
    "lane": "script",
    "chart": "daily",
+   "edge": {
+    "back": 252,
+    "high": true
+   },
    "words": "Draw a horizontal line at the highest high of the last 252 bars",
    "rule": {
     "digest": "15281ce6a92293da",
@@ -11519,6 +11527,10 @@
    "id": "l03",
    "lane": "script",
    "chart": "daily",
+   "edge": {
+    "back": 60,
+    "low": true
+   },
    "words": "Draw a line from the lowest low of the last 60 bars to the most recent close",
    "rule": {
     "digest": "b9a079354bdceb59",
@@ -11594,6 +11606,11 @@
    "id": "l06",
    "lane": "script",
    "chart": "daily",
+   "edge": {
+    "back": 100,
+    "high": true,
+    "low": true
+   },
    "words": "Put a label on the highest high of the last 100 bars showing that high, and a label on the lowest low of the last 100 bars showing that low",
    "rule": {
     "digest": "b95c9dcadb3760c8",

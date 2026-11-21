@@ -4,6 +4,10 @@
 one by default): {turn: 'script', script: {pine}} is run through `script_lane.run`; anything else is graded as
 the wrong lane. Returns {case id: {'verdict', 'lines', 'lane', 'not_asked_for'}}.
 
+A case may name an EDGE: one bar, exactly `back` bars before the newest, made a strict extreme. The script is
+then run on the plain chart AND on the edge chart, and is right only when it is right on both. The edge is what
+lets the check tell "the last 252 bars" from 253: on the plain bars the two often draw the same level.
+
 `rule_digests(cases)` fingerprints what each script rule SAYS on the bars the lane runs on, for the same rail the
 formula lane has: a rule that changes must say why in the case.
 """
@@ -15,6 +19,8 @@ from typing import Any, Dict, List, Optional
 from . import grade as G
 from . import script_lane, script_rules
 
+EDGE = "-edge"
+
 
 def source_of(answer: Optional[Dict[str, Any]]) -> Optional[str]:
     script = (answer or {}).get("script")
@@ -24,7 +30,7 @@ def source_of(answer: Optional[Dict[str, Any]]) -> Optional[str]:
 
 def grade_all(cases: List[Dict[str, Any]], answers: Optional[Dict[str, Any]] = None) -> Dict[str, Dict[str, Any]]:
     answers = answers or {}
-    out, jobs = {}, []
+    out, jobs, sources = {}, [], {}
     for case in cases:
         answer = answers.get(case["id"], case["answer"])
         lane = G.lane_of(answer)
@@ -33,20 +39,35 @@ def grade_all(cases: List[Dict[str, Any]], answers: Optional[Dict[str, Any]] = N
             out[case["id"]] = {"verdict": "wrong", "lane": lane, "not_asked_for": {},
                                "lines": [f"answered on the {lane} lane, the script lane expected"]}
             continue
-        jobs.append((case, source))
+        sources[case["id"]] = source
+        chart = case.get("chart", "daily")
+        jobs.append({"id": case["id"], "source": source, "chart": chart})
+        if case.get("edge"):
+            jobs.append({"id": case["id"] + EDGE, "source": source, "chart": chart, "edge": case["edge"]})
     if jobs:
-        run = script_lane.run([{"id": case["id"], "source": source, "chart": case.get("chart", "daily")} for case, source in jobs])
-        for case, source in jobs:
-            chart = run["charts"].get(case.get("chart", "daily"))
-            result = script_rules.grade_script(case["id"], source, run["scripts"].get(case["id"]), chart)
-            out[case["id"]] = {**result, "lane": "script"}
+        run = script_lane.run(jobs)
+        for case in cases:
+            cid = case["id"]
+            if cid not in sources:
+                continue
+            result = _one(cid, cid, sources[cid], run)
+            if case.get("edge") and result["verdict"] == "right":
+                edged = _one(cid, cid + EDGE, sources[cid], run)
+                result = {**edged, "lines": result["lines"] + ["  -- on the edge chart (a strict extreme one bar outside the window) --"] + edged["lines"]}
+            out[cid] = {**result, "lane": "script"}
     return out
 
 
+def _one(case_id: str, job_id: str, source: str, run: Dict[str, Any]) -> Dict[str, Any]:
+    ran = run["scripts"].get(job_id)
+    chart = run["charts"].get((ran or {}).get("chart"))
+    return script_rules.grade_script(case_id, source, ran, chart)
+
+
 def rule_digests(cases: List[Dict[str, Any]]) -> Dict[str, Optional[str]]:
-    """{case id: a fingerprint of the rule's columns and drawn expectations on the lane's own bars}"""
+    """{case id: a fingerprint of the rule's columns and drawn expectations on the lane's own (plain) bars}"""
     kinds = sorted({case.get("chart", "daily") for case in cases})
-    # the bars come from the lane (the engine's built bars); a script that plots nothing is enough to fetch them
+    # the bars come from the lane (the engine's built bars); a script that plots the close is enough to fetch them
     probe = script_lane.run([{"id": f"bars-{kind}", "source": '//@version=5\nindicator("bars")\nplot(close)\n', "chart": kind} for kind in kinds])
     out = {}
     for case in cases:

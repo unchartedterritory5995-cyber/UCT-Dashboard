@@ -55,29 +55,57 @@ function othersFor(bars) {
 }
 
 const CHARTS = {}
-function chartOf(kind) {
-  if (!CHARTS[kind]) {
-    const bars = recipeBars(kind)
-    const others = othersFor(bars)
-    const withOthers = (ctx) => ({
-      ...ctx,
-      secondary: new Map(Object.entries(others).map(([k, v]) => [k, { bars: v, status: 'ok' }])),
-      exchangeOf: (t) => (others[t] ? 'NYSE Arca' : null),
-    })
-    CHARTS[kind] = { bars, others, ctx: () => withOthers(recipeContext(kind, 'fromListing')) }
-  }
-  return CHARTS[kind]
+function chartWith(key, kind, bars, others) {
+  const withOthers = (ctx) => ({
+    ...ctx,
+    secondary: new Map(Object.entries(others).map(([k, v]) => [k, { bars: v, status: 'ok' }])),
+    exchangeOf: (t) => (others[t] ? 'NYSE Arca' : null),
+  })
+  CHARTS[key] = { bars, others, ctx: () => withOthers(recipeContext(kind, 'fromListing')) }
+  return CHARTS[key]
 }
 
-function runOne({ id, source, chart }) {
+/**
+ * The chart a script is run on. Plain: the engine's built bars. With an EDGE: the same bars with ONE bar,
+ * exactly `back` bars before the newest, made a strict extreme (the highest high and/or the lowest low of the
+ * whole chart, or another symbol's close ten times over). A request for "the last 252 bars" does not reach
+ * that bar and a script that reads 253 does: on the plain bars the two often draw the same level, and a check
+ * that cannot tell them apart proves nothing about the window.
+ */
+function chartOf(kind, edge) {
+  if (!CHARTS[kind]) {
+    const bars = recipeBars(kind)
+    chartWith(kind, kind, bars, othersFor(bars))
+  }
+  if (!edge) return { key: kind, ...CHARTS[kind] }
+  const key = `${kind}@${JSON.stringify(edge)}`
+  if (!CHARTS[key]) {
+    const base = CHARTS[kind]
+    const bars = base.bars.map((b) => ({ ...b }))
+    const i = bars.length - 1 - edge.back
+    if (edge.high) bars[i].h = Math.max(...bars.map((b) => b.h)) * 1.5
+    if (edge.low) bars[i].l = Math.min(...bars.map((b) => b.l)) * 0.5
+    const others = Object.fromEntries(Object.entries(base.others).map(([sym, series]) => [sym, series.map((b) => ({ ...b }))]))
+    if (edge.othersClose) {
+      for (const series of Object.values(others)) {
+        series[i].c *= edge.othersClose
+        series[i].h = Math.max(series[i].h, series[i].c)
+      }
+    }
+    chartWith(key, kind, bars, others)
+  }
+  return { key, ...CHARTS[key] }
+}
+
+function runOne({ id, source, chart, edge }) {
   const kind = chart === 'intraday' ? 'intraday' : 'daily'
-  const { bars, ctx } = chartOf(kind)
+  const { key, bars, ctx } = chartOf(kind, edge || null)
   const pane = memberPaneDefinition({ source, id: `u_value_case_${id}`, name: id })
-  if (!pane.ok) return { ok: false, chart: kind, reason: String(pane.reason || '').slice(0, 300) }
+  if (!pane.ok) return { ok: false, chart: key, reason: String(pane.reason || '').slice(0, 300) }
   const cols = registry.computeFor(pane.definition, bars, undefined, ctx())
   const out = {
     ok: true,
-    chart: kind,
+    chart: key,
     errors: registry.columnErrors(cols) || {},
     columns: Object.fromEntries(Object.keys(cols).filter((k) => !k.startsWith('__')).map((k) => [k, Array.from(cols[k]).map(num)])),
   }

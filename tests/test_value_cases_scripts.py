@@ -112,14 +112,16 @@ def test_CONTROL_a_script_that_does_not_build_and_a_formula_where_a_script_belon
 
 
 def _every_window_one_longer(source):
-    """The same script with EVERY whole number from 5 to 300 in its code raised by one (20 written as 21, 50 as 51).
+    """The same script reading ONE BAR FURTHER everywhere: every whole number from 5 to 300 in its code raised by one
+    (20 written as 21, 252 as 253), and every look-back one bar deeper (`high[1]` written as `high[2]`).
     The first number of a drawing script is often a style or a count of things kept, so one slip proves little."""
     lines, hits = [], 0
     for line in source.splitlines():
         code, sep, comment = line.partition("//")
         if not code.lstrip().startswith(("indicator(", "strategy(")):
-            code, n = re.subn(r"(?<![\w.\"#])(?:[5-9]|[1-9]\d|[12]\d\d|300)(?![\w.\"%])", lambda m: str(int(m.group(0)) + 1), code)
-            hits += n
+            code, n = re.subn(r"(?<![\w.\"#\[])(?:[5-9]|[1-9]\d|[12]\d\d|300)(?![\w.\"%\]])", lambda m: str(int(m.group(0)) + 1), code)
+            code, k = re.subn(r"\[(\d{1,3})\]", lambda m: "[" + str(int(m.group(1)) + 1) + "]", code)
+            hits += n + k
         lines.append(code + sep + comment)
     return "\n".join(lines), hits > 0
 
@@ -133,12 +135,24 @@ def test_a_script_with_every_window_one_longer_is_caught():
             tried.append(case)
     got = _lane(script_grade.grade_all, tried, answers)
     caught = [c["id"] for c in tried if got[c["id"]]["verdict"] != "right"]
-    # MEASURED 2026-11-21: 11 of 17. The six that stay right are drawings held on the newest bar only, where one bar
-    # more changes nothing: the highest high of 253 bars is the highest of 252, "above its 51 day average" reads
-    # the same as 50 today. A column case (a value on every bar) is caught every time; the floor is the measure.
-    assert len(tried) >= 14 and len(caught) / len(tried) >= 0.6, (sorted(caught), [c["id"] for c in tried])
-    with_columns = [c["id"] for c in tried if c["id"] in script_rules.RULES]
-    assert with_columns and set(with_columns) <= set(caught), sorted(set(with_columns) - set(caught))
+    # EVERY case, no exceptions. ⚰️ MEASURED 2026-11-21 before the edge charts: 11 of 17. The six that stayed right
+    # were drawings held on the newest bar, where on the plain bars one bar more changes nothing (the highest high of
+    # 253 bars WAS the highest of 252; "above its 51 day average" read the same as 50). A case that cannot tell an
+    # off-by-one window proves nothing about the window, so each of those names an EDGE (`case["edge"]`): one bar,
+    # just outside the window the request names, made a strict extreme.
+    assert len(tried) == len(SCRIPT) >= FLOOR
+    assert sorted(caught) == sorted(c["id"] for c in tried), sorted({c["id"] for c in tried} - set(caught))
+
+
+def test_an_edge_sits_one_bar_outside_the_window_the_request_names():
+    edged = [c for c in SCRIPT if c.get("edge")]
+    assert len(edged) >= 4
+    for case in edged:
+        edge = case["edge"]
+        assert set(edge) <= {"back", "high", "low", "othersClose"} and isinstance(edge["back"], int), case["id"]
+        assert edge.get("high") or edge.get("low") or edge.get("othersClose"), case["id"]
+        # the window is IN the member's words: "the last 252 bars" does not reach the bar 252 bars before the newest
+        assert re.search(rf"(?<!\d){edge['back']}(?!\d)", case["words"]), (case["id"], case["words"])
 
 
 # ── the rules stand apart from the product ──
