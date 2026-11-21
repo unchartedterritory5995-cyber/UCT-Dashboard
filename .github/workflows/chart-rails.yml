@@ -11,10 +11,11 @@
 # app/src/components/chart/ minus pine heavy's two roots. tests/test_ci_chart_rails.py holds this file to the tool:
 # every family file triggers this job, every StockChart test runs in a lane, and the shards partition the family.
 #
-# ⭐ MEASURED (2026-11-21, remote tests run 44873029521, master 5118264e87, 444 files on 4 runners): 12.9 min of
-# recorded test time; each runner 4-6 min wall including setup, ~21 runner-minutes in all. Cut by recorded time into
-# 3 shards here (tools/chart_rails_timings.json). Of the 150 master merges before it, 26 changed a path below (16 of
-# them StockChart.jsx): ~3.6 runner-minutes per PR on average, the whole family on a PR that changes the chart.
+# ⭐ MEASURED (2026-11-21, remote tests run 44935883412, master f61e5b31e8 with #2278 re-landed, 453 files on 4
+# runners): 15.2 min of recorded test time; each runner 4.8-6.7 min wall including setup, ~23 runner-minutes in all.
+# Cut by recorded time into 3 shards here (tools/chart_rails_timings.json). Of the 150 master merges before it, 26
+# changed a path below (16 of them StockChart.jsx): ~4 runner-minutes per PR on average, the whole family on a PR that
+# changes the chart.
 #
 # In pine heavy's environment (its setup action: Node 20, cached node_modules, EMPTY licence-held stores, the
 # no-network wrapper), with the Python the bridge rails spawn, as the remote tests lane runs them.
