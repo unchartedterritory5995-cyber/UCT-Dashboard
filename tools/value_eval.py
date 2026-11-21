@@ -47,9 +47,10 @@ def grade_run(data, run_dir):
     """{scores: {lane: {right, of}}, changed: [{id, lane, was, now, lines}], full: every case was answered}"""
     run_dir = Path(run_dir)
     scores, changed, answered = {}, [], 0
+    scripts, script_answers = [c for c in data["cases"] if c["lane"] == "script"], {}
     for case in data["cases"]:
         if case["lane"] == "script":
-            continue                                               # graded through the browser engine, not here
+            continue                                               # graded below, through the browser engine
         lane = scores.setdefault(case["lane"], {"right": 0, "of": 0})
         lane["of"] += 1
         path = run_dir / f"{case['id']}-0.body.json"
@@ -65,7 +66,28 @@ def grade_run(data, run_dir):
         if now != was:
             changed.append({"id": case["id"], "lane": case["lane"], "was": was, "now": now, "lines": lines})
     total = sum(v["of"] for v in scores.values())
-    return {"scores": scores, "changed": changed, "full": answered == total}
+    full = answered == total
+    if scripts:
+        for case in scripts:
+            path = run_dir / f"{case['id']}-0.body.json"
+            if path.exists():
+                script_answers[case["id"]] = answer_of(json.loads(path.read_text(encoding="utf-8")))
+        if script_answers:
+            lane = scores.setdefault("script", {"right": 0, "of": len(scripts)})
+            try:
+                from tools.value_cases import script_grade
+                got = script_grade.grade_all([c for c in scripts if c["id"] in script_answers], script_answers)
+            except Exception as exc:  # noqa: BLE001 -- no node here: the lane is NOT graded, and the run is not full
+                lane["not_graded"] = str(exc)[:200]
+                full = False
+            else:
+                for case in scripts:
+                    now = got[case["id"]]["verdict"] if case["id"] in got else "no answer"
+                    lane["right"] += now == "right"
+                    if now != "right":                              # the record is held right by tests/test_value_cases_scripts.py
+                        changed.append({"id": case["id"], "lane": "script", "was": "right", "now": now, "lines": (got.get(case["id"]) or {}).get("lines", [])})
+                full = full and len(script_answers) == len(scripts)
+    return {"scores": scores, "changed": changed, "full": full}
 
 
 def apply_ratchet(data, report):
@@ -94,6 +116,8 @@ def main(argv):
     if "--answers" not in argv:
         tally = {}
         for case in data["cases"]:
+            if case["lane"] == "script":
+                continue                                           # tests/test_value_cases_scripts.py, or --answers
             result = G.grade_case(case)
             tally.setdefault(case["lane"], []).append(result["verdict"])
             if result["verdict"] != "right":
