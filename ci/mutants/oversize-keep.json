@@ -1,0 +1,105 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "ITEM 2 (feat/oversize-save-runtime): a preview the store cannot hold (vdubus-pattern-gen-v2's 4 MB host document) is kept at Add as its runtime-lane document, or Add is refused up front by name; the store's size refusal is the member's sentence. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "OK1",
+   "mutant": "the cap is never asked: an over-cap host answer carries no oversize, and Add sends the 4 MB document",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (bytes <= DOCUMENT_BYTE_BUDGET) return answer",
+   "to": "  if (bytes > 0) return answer",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K1"
+  },
+  {
+   "id": "OK2",
+   "mutant": "with the runtime pane off the runtime lane is still asked (no up-front refusal of its own)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "  if (!runtimePaneEnabled()) return { ...answer, oversize: { ...base, refusal: why } }",
+   "to": "  if (false) return { ...answer, oversize: { ...base, refusal: why } }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K2"
+  },
+  {
+   "id": "OK3",
+   "mutant": "the runtime document's own cap is not honoured (every bar-by-bar version read as too large)",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "    if (keepBytes <= RUNTIME_DOCUMENT_BYTE_BUDGET) {",
+   "to": "    if (keepBytes <= 0) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K1"
+  },
+  {
+   "id": "OK4",
+   "mutant": "the closed-bar-only restriction (G6) is not said before Add",
+   "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+   "from": "        forming: runtimeFormingRefusalOf({ source, newestBarIsForming: true }),",
+   "to": "        forming: null,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K4"
+  },
+  {
+   "id": "OK5",
+   "mutant": "a refused keep still offers Add (the host document is what it would send)",
+   "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
+   "from": "  return b.oversize.saveAs ? { ...b, definition: b.oversize.saveAs.definition } : null",
+   "to": "  return b.oversize.saveAs ? { ...b, definition: b.oversize.saveAs.definition } : b",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K8"
+  },
+  {
+   "id": "OK6",
+   "mutant": "Add saves the previewed host document instead of the kept runtime one",
+   "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
+   "from": "    await attachBuilt(fn, keptBuildOf(built), needsAck && acked)",
+   "to": "    await attachBuilt(fn, built, needsAck && acked)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K7"
+  },
+  {
+   "id": "OK7",
+   "mutant": "the up-front refusal is not rendered",
+   "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
+   "from": "      {onAttach && built && built.saveable !== false && oversize && !oversize.saveAs && (",
+   "to": "      {onAttach && built && built.saveable !== false && false && (",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K8"
+  },
+  {
+   "id": "OK8",
+   "mutant": "the kept document's notes are not shown before Add",
+   "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
+   "from": "          {oversize && oversize.saveAs && (",
+   "to": "          {false && (",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K7"
+  },
+  {
+   "id": "OK9",
+   "mutant": "the repaint acknowledgement is read off the previewed host document, not the one Add keeps",
+   "file": "app/src/components/chart/builder/memberPane/MemberPane.jsx",
+   "from": "  const repaintMode = (keepDoc && keepDoc.meta && keepDoc.meta.repaint) || null",
+   "to": "  const repaintMode = (built && built.ok && built.definition && built.definition.meta && built.definition.meta.repaint) || null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K7"
+  },
+  {
+   "id": "OK10",
+   "mutant": "a saved script whose translation is now past the cap is upgraded (drawn from the new translation, written back)",
+   "file": "app/src/components/chart/builder/memberPane/savedScriptUpgrade.js",
+   "from": "  if (built.oversize) {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/oversizeKeep.test.jsx",
+   "expectRed": "K9"
+  },
+  {
+   "id": "OK11",
+   "mutant": "the store's size refusal is the developer's note again",
+   "file": "api/services/user_definitions.py",
+   "from": "        f\"this indicator is too large to keep: as saved it would be {size} bytes, and a saved indicator may \"",
+   "to": "        f\"definition exceeds {cap} bytes ({size}) - this store names its caps rather than inheriting user_preferences \"",
+   "rail": "python -B -m pytest tests/test_oversize_keep.py -q -p no:cacheprovider",
+   "expectRed": "K12"
+  }
+ ]
+}

@@ -64,6 +64,15 @@ import sheetStyles from '../BuilderSheet.module.css'
 
 const noop = () => {}
 
+/** ⭐⭐ ITEM 2 — the build Add keeps: the door's own build, or, for a preview the store cannot hold
+ *  (`built.oversize`), the same build carrying the runtime-lane document Add saves instead; null when Add is
+ *  refused up front (`oversize.refusal`), so nothing is sent. */
+function keptBuildOf(b) {
+  if (!b || !b.ok) return null
+  if (!b.oversize) return b
+  return b.oversize.saveAs ? { ...b, definition: b.oversize.saveAs.definition } : null
+}
+
 /** ⭐ The member's real chart already streams and warms this symbol; a second
  *  surface doing both would double the work for one pane. Same recipe
  *  `PreviewPane` uses, and for the same reason. */
@@ -297,8 +306,15 @@ export default function MemberPane({
   // mode (`buildDefinition` → `worstRepaint`), so `repaints` anywhere means no
   // checkbox here: the button stays as it was and the server's own refusal
   // sentence is rendered verbatim below. Never persisted, reset per document.
-  const repaintMode = (built && built.ok && built.definition && built.definition.meta
-    && built.definition.meta.repaint) || null
+  // ⭐⭐ ITEM 2 (2026-11-21, coordinator ruling) — A PREVIEW THE STORE CANNOT HOLD (`built.oversize`,
+  // `memberPaneDefinition.js::withOversizeKeep`). The preview above is the host answer, unchanged; what Add KEEPS is
+  // the runtime-lane document of the same script (`saveAs`, its notes shown before the member confirms), or nothing
+  // at all: the refusal is said up front by name and no request is sent (`refusal`). ⚰️ Add used to send the 4 MB
+  // host document and render the store's internal 400 sentence.
+  const oversize = (built && built.ok && built.oversize) || null
+  const keepDoc = oversize ? (oversize.saveAs ? oversize.saveAs.definition : null)
+    : (built && built.ok ? built.definition : null)
+  const repaintMode = (keepDoc && keepDoc.meta && keepDoc.meta.repaint) || null
   const needsAck = repaintMode === 'preview-repaints'
   const [acked, setAcked] = useState(false)
   useEffect(() => { setAcked(false) }, [built])
@@ -335,6 +351,7 @@ export default function MemberPane({
   }, [source])
   const doAttachWith = useCallback(async (fn) => {
     if (!fn || !built || !built.ok || built.saveable === false) return
+    if (!keptBuildOf(built)) return          // ITEM 2: refused up front, nothing is sent
     if (needsAck && !acked) return
     if (mintedPending) {
       setAttach({ state: 'busy', error: null, checking: true })
@@ -344,7 +361,7 @@ export default function MemberPane({
       setKillVersion((n) => n + 1)          // re-mint the preview on the answer
       return
     }
-    await attachBuilt(fn, built, needsAck && acked)
+    await attachBuilt(fn, keptBuildOf(built), needsAck && acked)
   }, [built, needsAck, acked, source, mintedPending, attachBuilt])
   useEffect(() => {
     if (!queuedAttach) return
@@ -352,10 +369,13 @@ export default function MemberPane({
     setQueuedAttach(null)
     // the member edited the script while it waited, or the re-minted build is not one this door saves: nothing attaches
     if (q.source !== source || !built || !built.ok || built.saveable === false) { setAttach({ state: 'idle', error: null }); return }
+    // ITEM 2: a re-minted build whose Add is refused up front sends nothing
+    const kept = keptBuildOf(built)
+    if (!kept) { setAttach({ state: 'idle', error: null }); return }
     // a re-minted build that asks for a repaint acknowledgement the member has not given waits for it, on screen
-    const reNeedsAck = !!(built.definition && built.definition.meta && built.definition.meta.repaint === 'preview-repaints')
+    const reNeedsAck = !!(kept.definition && kept.definition.meta && kept.definition.meta.repaint === 'preview-repaints')
     if (reNeedsAck && !q.acked) { setAttach({ state: 'idle', error: null }); return }
-    attachBuilt(q.fn, built, q.acked)
+    attachBuilt(q.fn, kept, q.acked)
   }, [queuedAttach, built, source, attachBuilt])
   const doAttach = useCallback(() => doAttachWith(onAttach), [doAttachWith, onAttach])
   const doAttachCopy = useCallback(() => doAttachWith(onAttachCopy), [doAttachWith, onAttachCopy])
@@ -405,8 +425,22 @@ export default function MemberPane({
           door for it (`api/services/runtime_definitions.py`), and while that door
           is switched off its refusal sentence is rendered verbatim below.
           `saveable: false` still hides the button for any document that says so. */}
-      {onAttach && built && built.saveable !== false && (
+      {/* ⭐⭐ ITEM 2 — A PREVIEW THE STORE CANNOT HOLD: Add refused up front, by name, and no control to press. */}
+      {onAttach && built && built.saveable !== false && oversize && !oversize.saveAs && (
+        <p data-testid="pine-member-pane-keep-refusal" role="status">{withoutGuardIds(oversize.refusal)}</p>
+      )}
+      {onAttach && built && built.saveable !== false && keptBuildOf(built) && (
         <div data-testid="pine-member-pane-attach">
+          {/* ⭐⭐ ITEM 2 — …or kept drawn bar by bar, and what that means said BEFORE the member confirms. */}
+          {oversize && oversize.saveAs && (
+            <div data-testid="pine-member-pane-keep">
+              <p>{oversize.saveAs.lead}</p>
+              <ul className={styles.notes}>
+                {(oversize.saveAs.notes || []).map((n) => <li key={n.name}>{withoutGuardIds(n.note)}</li>)}
+                {oversize.saveAs.forming && <li key="forming">{oversize.saveAs.forming}</li>}
+              </ul>
+            </div>
+          )}
           {needsAck && (
             <>
               <p data-testid="pine-member-pane-repaint-note">This script can repaint recent signals.</p>
