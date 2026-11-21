@@ -1,0 +1,213 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "PASTE WORKER (feat/pine-paste-worker): the member door builds a paste in a Web Worker, once per script and page state, and answers byte for byte as the main thread did. Every rule, broken once, must turn its rail red: off-thread equality (the image, the answer's plain copy), one build per paste, cancel-on-rebuild, the watchdog, a dead worker, the fast control, and the page effects the build makes.",
+  "mutants": [
+    {
+      "id": "P1",
+      "mutant": "the image carries no runtime lists: the worker answers with an empty kill list and allowlist",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorImage.js",
+      "from": "  applyRuntimeListsImage(m.lists)",
+      "to": "  void m.lists",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's answer is the main thread's"
+    },
+    {
+      "id": "P2",
+      "mutant": "the image carries no runtime-pane permission: the worker never routes to the runtime lane",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorImage.js",
+      "from": "  applyPermission(m.permission)",
+      "to": "  void m.permission",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's answer is the main thread's"
+    },
+    {
+      "id": "P3",
+      "mutant": "the image carries no Pine libraries: an imported library is missing in the worker",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorImage.js",
+      "from": "  applyPineLibraryStoreImage(m.libraries)",
+      "to": "  void m.libraries",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's answer is the main thread's"
+    },
+    {
+      "id": "P4",
+      "mutant": "the image carries no host known-divergence state: the worker consults the list as a fresh page does",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorImage.js",
+      "from": "  applyHostKnownDivergenceImage(m.hkd)",
+      "to": "  void m.hkd",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's answer is the main thread's"
+    },
+    {
+      "id": "P5",
+      "mutant": "the image carries no held withholds state",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorImage.js",
+      "from": "  applyHeldWithholdsImage(m.held)",
+      "to": "  void m.held",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's answer is the main thread's"
+    },
+    {
+      "id": "P6",
+      "mutant": "the answer's plain copy no longer keeps shared identity: an object reached twice crosses as two",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "  if (seen.has(value)) return seen.get(value)",
+      "to": "  void seen",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's answer is the main thread's"
+    },
+    {
+      "id": "P7",
+      "mutant": "the answer's plain copy drops a field (the notes) on the way out",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "    if (typeof v === 'function') continue",
+      "to": "    if (typeof v === 'function' || k === 'notes') continue",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "the CONTROL"
+    },
+    {
+      "id": "P8",
+      "mutant": "the worker no longer reports that a consult left the script still being checked",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "      consultPending: source !== undefined && runtimeConsultPendingOf({ source }),",
+      "to": "      consultPending: false,",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "still being checked"
+    },
+    {
+      "id": "S1",
+      "mutant": "a newer build no longer stops the running one: two builds share a worker and the old answer can land",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "      counts.superseded += 1",
+      "to": "      counts.superseded += 1; const stopRunning = () => null",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "cancel-on-rebuild"
+    },
+    {
+      "id": "S2",
+      "mutant": "no watchdog: a hung worker leaves the script waiting forever",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    }, watchdogMs)",
+      "to": "    }, watchdogMs * 1e6)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "WATCHDOG"
+    },
+    {
+      "id": "S3",
+      "mutant": "a worker that dies with an error is ignored: the script waits for an answer that never comes",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "      onDeath(w, 'it stopped with an error')",
+      "to": "      void w",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "an error it did not catch"
+    },
+    {
+      "id": "S4",
+      "mutant": "a second subscriber does not wait for the running build of its script: it starts its own",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    } else if (running && running.entry === entry && running.version === v) {",
+      "to": "    } else if (false) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "share ONE build"
+    },
+    {
+      "id": "S5",
+      "mutant": "a build that landed is not read again: every subscriber builds anew (the paste costs two door calls)",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (entry.landed && entry.landed.version === v) {",
+      "to": "    if (false) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "ONE door call"
+    },
+    {
+      "id": "S6",
+      "mutant": "the page state is not part of the build's key: a build made before a list landed is read after it",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    const v = version()",
+      "to": "    const v = '0'",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "a NEW build"
+    },
+    {
+      "id": "S7",
+      "mutant": "the build's consults are not made again on the page: the first-paste rule never sees 'still being checked'",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    replayRuntimeConsults(expandConsults(reply.consults, r.entry.args.source))",
+      "to": "    void expandConsults",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "set HERE"
+    },
+    {
+      "id": "S8",
+      "mutant": "the page never warms the runtime lane the door asked for",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "      if (reply.warmed === true) warmRuntimeLane()",
+      "to": "      void warmRuntimeLane",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "warm of the runtime lane"
+    },
+    {
+      "id": "S9",
+      "mutant": "the answer is held back after it lands (the fast control's 'at once')",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (entries.get(r.entry.key) === r.entry) land(r.entry, r.version, landed)",
+      "to": "    if (entries.get(r.entry.key) === r.entry) setTimeout(() => land(r.entry, r.version, landed), 1500)",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "the CONTROL"
+    },
+    {
+      "id": "S10",
+      "mutant": "the build falls back to the main thread whenever the page has no Worker of its own (a stand-in is ignored)",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "  const offThread = !!factory || (browserCanWork() && !devServer())",
+      "to": "  const offThread = browserCanWork() && !devServer()",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "MAIN thread"
+    },
+    {
+      "id": "S11",
+      "mutant": "the status panel builds the door on the main thread again (its own paneFor)",
+      "file": "app/src/components/chart/builder/PineEditorStatus.jsx",
+      "from": "  const shared = computePane === paneFor",
+      "to": "  const shared = false",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "MAIN thread"
+    },
+    {
+      "id": "S12",
+      "mutant": "the pane never releases the script it no longer shows: the old text is built again after the new one",
+      "file": "app/src/components/chart/builder/memberPane/useMemberDoor.js",
+      "from": "    return release",
+      "to": "    return undefined",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "two builds"
+    },
+    {
+      "id": "S13",
+      "mutant": "a worker that latched 'not permitted' is asked a permitted job (the latch ignores it: the answer stays not permitted)",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (worker && workerPermitted === false && permitted) { counts.relatched += 1; kill() }",
+      "to": "    if (worker && workerPermitted === false && permitted) { counts.relatched += 1 }",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorService.test.js",
+      "expectRed": "answered as permitted"
+    },
+    {
+      "id": "W1",
+      "mutant": "the worker resolver no longer checks the importer: every file's `../BuilderSheet` / `../FormulaField` is aliased in a worker",
+      "file": "app/scripts/memberDoorWorkerPure.mjs",
+      "from": "  if (!normalise(importer).endsWith(`/app/${MEMBER_DOOR_FILE}`)) return null",
+      "to": "  void normalise",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
+      "expectRed": "nothing else"
+    },
+    {
+      "id": "W2",
+      "mutant": "the worker resolver aliases a third specifier",
+      "file": "app/scripts/memberDoorWorkerPure.mjs",
+      "from": "  '../FormulaField': '../evaluateFormula.js',",
+      "to": "  '../FormulaField': '../evaluateFormula.js',\n  '../pineParamManifest': '../pineParamManifest.js',",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
+      "expectRed": "exactly those"
+    }
+  ]
+}

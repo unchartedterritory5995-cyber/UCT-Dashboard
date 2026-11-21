@@ -659,13 +659,16 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   // ⭐ `chart`: the chart the builder was opened over, as the engine sees it. The panel runs the script on
   // it before it says "Runs" (`PineEditorStatus.useRunOnChart`).
   const editorStatusNow = usePineEditorStatus({ enabled: statusOn, report, inspectedSource: inspected, savedRow, chart: engineChart })
+  // ⭐ THE PASTE WORKER — no marks and no recorded sentence while the chart door's build of this text still runs
+  // (`paneChecking`): the status without the door's answer is not this script's
   const statusMarks = useMemo(
-    () => (editorStatusNow ? toLineMarks(editorStatusNow, inspected) : null), [editorStatusNow, inspected])
+    () => (editorStatusNow && !editorStatusNow.paneChecking ? toLineMarks(editorStatusNow, inspected) : null),
+    [editorStatusNow, inspected])
   // ⭐ STUDIO R4 — the host is told the panel's sentence and the exact text it is about, so a save
   // of THAT text can put it on record for people the script is shared with. Null while the panel
   // is off, is still checking a newer buffer, or has no sentence: nothing is recorded then.
   const headlineNow = editorStatusNow && text === inspected && typeof editorStatusNow.headline === 'string'
-    ? editorStatusNow.headline : null
+    && !editorStatusNow.paneChecking ? editorStatusNow.headline : null
   useEffect(() => {
     if (typeof onStatusHeadline !== 'function') return
     onStatusHeadline(headlineNow ? { headline: headlineNow, source: inspected } : null)

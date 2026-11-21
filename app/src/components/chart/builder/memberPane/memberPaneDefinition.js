@@ -23,7 +23,8 @@
 // path rather than a first attempt: the rows, the manifest placements and the
 // `buildDefinition` call are the shapes it already proved land a valid document.
 import { staticPlotRefusalsOf } from '../../engine/otherSymbols.js'
-import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence } from '../../engine/ast/pine'
+import { checkDoorDeadline } from '../../engine/ast/doorDeadline'
+import { translatePine, lexPine, blockStatements, parseWholeExpression, findTop, isPunct, boundName, PAINT_RUNTIME_COLOUR, strippedForScan, OBJECT_SITE_SOURCES, COLOUR_UNREAD, COLOUR_DEFAULT_UNWITNESSED, isPreV4PineVersion, LEGACY_PLOT_DEFAULT_TRANSP, NO_VERSION_GUARD, modernPineSyntaxIn, noVersionSentence, withDoorDeadline } from '../../engine/ast/pine'
 import { withAlphaByte } from '../../designTokens'
 import { DEFAULT_SERIES_COLOUR } from '../../engine/pinePalette'
 import { THEME_FG } from '../../engine/objectTheme'
@@ -41,7 +42,12 @@ import { requestTargetsUnservable } from '../../engine/runtime/requestSupply'
 import { STRATEGY_WINDOW_HISTORY } from '../../engine/runtime/strategyRecord'
 import { runtimeRepaintOf } from '../../engine/runtime/runtimeRepaint'
 import { OHLC_DEF_STYLES } from '../../engine/defSchema'
-import { warmRuntimeLane } from '../../engine/runtime/runtimeAsync'
+import { warmRuntimeLane, runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
+/** ⭐ THE PASTE WORKER: the runtime lane's warm, and the count of asks for it, reached THROUGH this door (which
+ *  consults the runtime pane's gate before it routes). The worker counts the door's asks and the page makes the warm
+ *  (`memberDoorWorkerCore.js`, `memberDoorAsync.js`), and neither may reach the lane by a path of its own
+ *  (`engine/__tests__/memberPaneGate.test.js`). */
+export { warmRuntimeLane, runtimeLaneWarmAsks }
 // ⭐⭐ RT5 — a runtime document may draw its OWN objects (`runtimeObjectsDoor.js`).
 import { runtimeOwnObjectsOf, valueBuildDefersToDrawing } from './runtimeObjectsDoor'
 import { runtimeFamilyLedger, FAMILY_WORDS } from './runtimeFamilyLedger'
@@ -69,6 +75,12 @@ import { applyParamEdit } from '../paramEdit'
 import { buildDefinition } from '../BuilderSheet'
 import { DOOR_VERSION } from '../../engine/memberDocumentMigration'
 import { evaluateFormula } from '../FormulaField'
+// ⭐⭐ THE PASTE WORKER (2026-11-20) — THE TWO IMPORTS ABOVE ARE THE PAGE'S, AND THE WORKER RESOLVES THEM TO THE PURE
+// MODULES. `BuilderSheet.jsx` and `FormulaField.jsx` re-export `buildDefinition` and `evaluateFormula` from
+// `../buildDefinition.js` and `../evaluateFormula.js` (the SAME functions, railed: `memberDoorWorkerGraph.test.js`).
+// On the page this door imports them as it always did, so the page's chunk graph (what every route loads first) is
+// unchanged; inside a WORKER bundle `vite.config.js::memberDoorWorkerPure` resolves these two specifiers to the pure
+// modules, so the member door's worker holds no React and no sheet.
 import { BUILDER_INPUT_SCOPE, seriesNamesOf, memberInputKey } from '../builderInputs'
 // ⭐ RS RATING L3 — the substituted-value disclosure (`syminfo.industry` / `sector` from UCT data).
 import { substitutionNotesFor, otherSymbolSourceNotesFor } from '../../engine/ast/symbolSubstitution'
@@ -305,7 +317,68 @@ function calcBarsMeta(t) {
 let runtimeLaneForced = false
 export function __forceRuntimeLaneForTests(on = true) { runtimeLaneForced = on === true }
 
-export function memberPaneDefinition({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
+// ─── ⭐⭐ THE DOOR DEADLINE (door-deadline unit, 2026-11-20; NUMBER PENDING) ─────────────────────────────────────
+//
+// ⚰️ THREE PUBLIC SCRIPTS HELD A MEMBER'S TAB FOR MINUTES. `MemberPane.jsx` builds this door
+// synchronously on the page's main thread (`useMemo`), and every bound the translator has is PER TRANSLATION: this
+// door runs many in a row (the strict host translation and its input retries, then the runtime lane's front-end
+// builds, its colour probes, its object pass), each with a fresh 10 s, so the slowest paste bought ~40 of them back to
+// back before it was refused by name. The worker watchdogs (`hostLaneAsync.js`, `runtimeAsync.js`) start only after
+// this door has answered, so they never saw it.
+// ⭐ ONE DEADLINE BOUNDS THE WHOLE CALL (`pine.js::withDoorDeadline`): every translation, retry and Resolver below
+// shares it, and past it the script is refused BY NAME (`pine:timeout`) with `doorTimeoutSentence()`. A picture
+// built while the clock ran out is never served: a tripped call is refused whole, whatever its lanes answered.
+// ⭐ THE VALUE IS MEASURED (docs/pine/evidence/2026-11-20-door-deadline/EVIDENCE.md), AND IT IS A BACKSTOP, NOT A
+// SMOOTHNESS BAR. Scripts the door SERVES today take up to minutes in this same call on the dev PC (the slowest,
+// 2.6 minutes, is drawn by the host lane), so a deadline any shorter would take a correct picture away. It sits at
+// about twice the slowest served call measured, so every call that finishes under it answers byte for byte as before
+// (served -> refused: 0 in the scoped census, both lanes), and it ends the calls that ran on for longer. ⛔ Lowering
+// it refuses served scripts by name (the evidence lists them): that is a ruling, not a tuning. The main-thread time
+// itself is the job of taking this build off the main thread (evidence, section 6).
+
+/** The member door's whole-call deadline, in ms (see the evidence above for how it was chosen). */
+export const MEMBER_DOOR_BUDGET_MS = 300000
+
+/** What the member reads when the door's deadline ran out. */
+export function doorTimeoutSentence(budgetMs = MEMBER_DOOR_BUDGET_MS) {
+  const s = Math.round(budgetMs / 1000)
+  const span = s >= 120 && s % 60 === 0 ? `${s / 60} minutes` : `${s} seconds`
+  return `this script is not drawn: checking it took longer than ${span}, and the chart stops a check `
+    + 'that long rather than keep the page waiting. That is a limit of this engine, not a mistake in the script.'
+}
+
+/** ⭐ TEST SEAM — the door's budget (and, optionally, its clock) for a rail: a synthetic slow script must not cost a
+ *  rail the real budget, and a clock that advances per read makes "time" a count of the door's own checks, the same
+ *  on every machine. `null` restores `MEMBER_DOOR_BUDGET_MS` on the wall clock. ⛔ No member surface may import it. */
+let doorBudgetForTests = null
+let doorClockForTests = null
+export function __setMemberDoorBudgetForTests(ms = null, now = null) {
+  doorBudgetForTests = Number.isFinite(ms) && ms > 0 ? ms : null
+  doorClockForTests = typeof now === 'function' ? now : null
+}
+
+/** The door's own refusal carries this mark: a deadline is a fact about the CHECK (the device, its load), never about
+ *  the script, so a reader that must not take a picture away for it (`savedScriptUpgrade.retranslateRow`) can tell
+ *  it from every other `pine:timeout`. */
+export const DOOR_TIMED_OUT = 'doorTimedOut'
+
+/** ⛔ THE ONE RULE OF A TRIPPED CALL: whatever its lanes answered (a refusal, or a document an upgrade's decline
+ *  handed back after the clock ran out), the door refuses it whole, by name. A call that did not trip answers as it
+ *  always did. (`withDoorDeadline`'s `{ value, tripped }` in, the door's answer out.) */
+export function doorAnswer({ value, tripped }, budgetMs) {
+  if (!tripped) return value
+  return {
+    ok: false, definition: null, reason: doorTimeoutSentence(budgetMs), guard: 'pine:timeout', [DOOR_TIMED_OUT]: true,
+    translation: (value && value.translation) || null, rows: [], notes: [],
+  }
+}
+
+export function memberPaneDefinition(args = {}) {
+  const budgetMs = doorBudgetForTests || MEMBER_DOOR_BUDGET_MS
+  return doorAnswer(withDoorDeadline(budgetMs, () => memberPaneDefinitionWithin(args), doorClockForTests), budgetMs)
+}
+
+function memberPaneDefinitionWithin({ source, id, name, translation = null, enumInputs = true, routeHostPartial = true } = {}) {
   const no = (reason, guard = null, t = null) => ({
     ok: false, definition: null, reason, guard, translation: t, rows: [], notes: [],
   })
@@ -345,6 +418,8 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
       return no(`the translator threw: ${String((err && err.message) || err)}`)
     }
   }
+  // ⭐ door-deadline — a phase boundary: past the deadline, nothing after the host translation runs
+  checkDoorDeadline()
 
   // ⭐⭐ ENGINE 58 (review item 4, coordinator ruling) — NO `//@version` AND v4+ SYNTAX:
   // TradingView would not compile it (no pragma is v1), so it is refused BY NAME on
@@ -2151,6 +2226,8 @@ function runtimeShiftContext(source, version, specs) {
  * this answer as it stands, so they never see it.
  */
 function runtimeLaneDefinition(args) {
+  // ⭐ door-deadline — a phase boundary: a call whose deadline has passed starts no runtime lane work
+  checkDoorDeadline()
   const run = runtimeLaneDocument(args)
   if (!heldWithholdsOf(args.source, 'runtime').length) return run
   const full = runtimeLaneDocument({ ...args, ignoreHeld: true })

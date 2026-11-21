@@ -14,7 +14,9 @@
 // button opens the full panel in `mobile/Sheet`. Above that, inline.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
+import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
+import { useMemberDoor } from './memberPane/useMemberDoor'
+import { memberDoorKeyOf } from './memberPane/memberDoorAsync'
 import {
   editorStatus, PANEL_STATE, SEVERITY, stillWorksText, sourceLine,
 } from './editorStatus'
@@ -41,12 +43,31 @@ const BADGE = Object.freeze({ true: '[OK]', partial: '[~]', false: '[--]' })
  *  refuses a strategy and an objects-only script that the chart door draws, so the
  *  chart row always asks the chart door, which answers with its own refusal. */
 export function paneFor(report, source) {
-  if (!report || report.dialect !== 'pine' || report.error || report.foreign) return null
+  if (!paneEligible(report)) return null
   try {
     return memberPaneDefinition({ source })
   } catch (e) {
-    return { ok: false, reason: `the translator threw: ${String((e && e.message) || e)}`, guard: 'import:internal-error' }
+    return paneThrew(e)
   }
+}
+
+/** Whether a report is one the chart door is asked about (`paneFor`'s own first test). */
+export function paneEligible(report) {
+  return !!report && report.dialect === 'pine' && !report.error && !report.foreign
+}
+
+/** The pane's answer when the chart door threw: the engine fault, in this panel's own words. */
+function paneThrew(e) {
+  return { ok: false, reason: `the translator threw: ${String((e && e.message) || e)}`, guard: 'import:internal-error' }
+}
+
+/** ⭐⭐ THE PASTE WORKER (2026-11-20): the chart door's answer as the page's SHARED, off-thread build hands it
+ *  over (`memberPane/memberDoorAsync.js`): the very build the member pane draws from, so a paste costs ONE door
+ *  call, not two (this panel called the door on the main thread a second time). `{source}` and
+ *  `{source, id: MEMBER_PANE_DEF_PREFIX}` are one build: the door's id defaults to that prefix. */
+export function paneOfLanded(landed) {
+  if (!landed) return null
+  return landed.error ? paneThrew(landed.error) : landed.built
 }
 
 function ItemRow({ it, source, onGoToLine }) {
@@ -396,9 +417,20 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
     && (report.dialect === 'pine' || report.faultDialect === 'pine'))
   // (`landed`: the admission answer for this script arrived after the pane was made; it is made again)
   const [landed, setLanded] = useState(0)
-  const pane = useMemo(() => (isPine ? computePane(report, inspectedSource) : null),
+  // ⭐⭐ THE PASTE WORKER: `paneFor` (the default) is the page's shared door build, off the main thread; a rail's
+  // own `computePane` is still asked here, synchronously, as before
+  const shared = computePane === paneFor
+  const ownPane = useMemo(() => (isPine && !shared ? computePane(report, inspectedSource) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- landed: re-make the pane when its admission answers
-    [isPine, report, inspectedSource, computePane, landed])
+    [isPine, shared, report, inspectedSource, computePane, landed])
+  const doorArgs = isPine && shared && paneEligible(report) ? { source: inspectedSource, id: MEMBER_PANE_DEF_PREFIX } : null
+  const doorKey = doorArgs ? memberDoorKeyOf(doorArgs) : null
+  const door = useMemberDoor(doorArgs, landed)
+  // ⛔ only a build of THIS text is this text's pane (while a newer one runs, an older text's build is no answer)
+  const sharedPane = useMemo(() => (doorKey && door.key === doorKey ? paneOfLanded(door.landed) : null),
+    [doorKey, door.key, door.landed])
+  const pane = isPine ? (shared ? sharedPane : ownPane) : null
+  const paneChecking = !!(doorArgs && door.pending)
   const asked = useAdmissionPending(isPine ? inspectedSource : '', pane, admission)
   useEffect(() => { if (asked.answers) setLanded(asked.answers) }, [asked.answers])
   const status = useMemo(() => (isPine ? editorStatus({ report, pane, savedRow, inspectedSource }) : null),
@@ -409,9 +441,12 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
   // ⭐ beside the status, like the run: whether the answer is still out for a script the pane did not take, and why
   const admissionPending = !!(asked.pending && !(pane && pane.ok === true))
   const pendingReason = asked.reason
-  return useMemo(() => (status && (run || lostDrawings || admissionPending || pendingReason)
-    ? { ...status, run, lostDrawings, ...(admissionPending ? { admissionPending: true } : {}), ...(pendingReason ? { pendingReason } : {}) }
-    : status), [status, run, lostDrawings, admissionPending, pendingReason])
+  // ⭐ THE PASTE WORKER: while the chart door's build of this text runs, the panel says it is checking
+  // (`paneChecking`): nothing it would list or record yet is about the chart door's answer
+  return useMemo(() => (status && (run || lostDrawings || admissionPending || pendingReason || paneChecking)
+    ? { ...status, run, lostDrawings, ...(admissionPending ? { admissionPending: true } : {}), ...(pendingReason ? { pendingReason } : {}),
+      ...(paneChecking ? { paneChecking: true } : {}) }
+    : status), [status, run, lostDrawings, admissionPending, pendingReason, paneChecking])
 }
 
 /**
@@ -444,7 +479,7 @@ export default function PineEditorStatus({
   }, [sheetOpen, onGoToLine])
 
   if (!isPine || !status || !String(currentText || '').trim()) return null
-  const checking = currentText !== inspectedSource
+  const checking = currentText !== inspectedSource || status.paneChecking === true
   const shown = shownStatus(status)
   const headline = checking ? CHECKING_TEXT : shown.headline
   const state = checking ? PANEL_STATE.CHECKING : shown.state

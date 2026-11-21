@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url'
 // so a flip of a 30-series chart was mostly that. Three exact edits, applied to the bundle only;
 // the why, the measurements and the proof are in the module and its test.
 import { patchChartLibrary } from './scripts/chartLibraryPatch.mjs'
+// ⭐⭐ THE PASTE WORKER: inside WORKER bundles only, the member door's two sheet imports resolve to the pure modules
+// (`scripts/memberDoorWorkerPure.mjs`: two specifiers, from one file, nothing else).
+import { memberDoorWorkerPure } from './scripts/memberDoorWorkerPure.mjs'
 
 /** Pre-launch metadata swap.
  *
@@ -158,6 +161,9 @@ function stripManifestProse() {
 
 export default defineConfig({
   plugins: [react(), comingSoonMeta(), stripManifestProse(), patchChartLibrary()],
+  worker: {
+    plugins: () => [memberDoorWorkerPure()],
+  },
   // ⛔⛔ ONE `build` KEY. There were TWO top-level `build` keys from 2026-09-12 (`d261d0731`
   // added the engine floor below as a second `build: { target }` block) until 2026-09-20,
   // fixed independently on master and on wave 7 (the two fixes met in the wave-7 merge). In an

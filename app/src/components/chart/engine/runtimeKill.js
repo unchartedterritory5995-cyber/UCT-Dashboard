@@ -35,6 +35,13 @@ const HASH_RE = /^[0-9a-f]{12,64}$/
 
 let _entries = Object.freeze([])
 
+// ⭐ THE PASTE WORKER — a number that moves whenever a list or a verdict a consult answers from moves (its value
+// is meaningless): the member door shares one build between its consumers only while it stands.
+let _stateRevision = 0
+const bumpState = () => { _stateRevision += 1 }
+/** The lists' state revision (`memberDoorImage.memberDoorStateVersion`). */
+export function runtimeListsRevision() { return _stateRevision }
+
 // ─── ⭐⭐ WS-I (2026-10-31, gap S6) — THE LISTS REACH AN OPEN TAB ─────────────
 //
 // `MemberPane` reads `RUNTIME_KILL_PATH` once per mount, so a kill added (or an
@@ -145,7 +152,9 @@ export function normaliseKillList(list) {
 
 /** Latch the server's list (auth payload). An absent key means an empty list. */
 export function setRuntimeKillList(list) {
-  _entries = normaliseKillList(list)
+  const next = normaliseKillList(list)
+  if (next.join(',') !== _entries.join(',')) bumpState()
+  _entries = next
   _listsReadAt = Date.now()
 }
 
@@ -184,7 +193,9 @@ export function normaliseAllowList(list) {
 
 /** Latch the server's allowlist (`GET /api/user-definitions/runtime-kill` → `allow`). */
 export function setRuntimeAllowList(list) {
-  _allow = normaliseAllowList(list)
+  const next = normaliseAllowList(list)
+  if (_allow === ALLOW_ANY || next.join(',') !== _allow.join(',')) bumpState()
+  _allow = next
 }
 
 /** The allowlist currently latched (tests, diagnostics). */
@@ -195,9 +206,9 @@ export function runtimeAllowList() {
 /** Rails only (`src/test-setup.js`): the suites that exercise the runtime LANE
  *  run with every script graded, so they keep measuring the lane, not this list.
  *  The list itself is railed with it reset (`runtimeSwitchOn.test.js`). */
-export function __allowEveryRuntimeScriptForTests() { _allow = ALLOW_ANY }
+export function __allowEveryRuntimeScriptForTests() { bumpState(); _allow = ALLOW_ANY }
 /** Rails only. */
-export function __resetRuntimeAllowList() { _allow = Object.freeze([]) }
+export function __resetRuntimeAllowList() { bumpState(); _allow = Object.freeze([]) }
 
 // ─── ⭐⭐ WS-I PART 2 (2026-11-13) — ADMISSION BY CAPABILITY, PER-HASH VERDICTS ──
 //
@@ -255,6 +266,7 @@ function keepPendingReason(h, reason) {
 /** Latch the server's switch (`capability_admission` on the kill read). Anything but
  *  `true` is OFF, and switching it off forgets every verdict. */
 export function setRuntimeCapabilityAdmission(on) {
+  if ((on === true) !== _capabilityAdmission || (on !== true && _verdicts.size)) bumpState()
   _capabilityAdmission = on === true
   if (!_capabilityAdmission) { _verdicts.clear(); _pendingReasons.clear() }
 }
@@ -269,6 +281,8 @@ export function runtimeCapabilityAdmissionOn() {
 export function latchRuntimeAdmission(hash, verdict) {
   const h = typeof hash === 'string' ? hash.toLowerCase() : ''
   if (!/^[0-9a-f]{64}$/.test(h) || !verdict || typeof verdict.admitted !== 'boolean') return
+  const had = _verdicts.get(h)
+  if (!had || had.admitted !== verdict.admitted || had.historyOnly !== (verdict.historyOnly === true)) bumpState()
   _verdicts.delete(h)
   _pendingReasons.delete(h)      // a verdict is not pending: whatever the last pending answer said no longer holds
   _verdicts.set(h, { admitted: verdict.admitted, historyOnly: verdict.historyOnly === true, at: Date.now() })
@@ -431,6 +445,7 @@ export function runtimePendingReasonOf({ source, hash } = {}) {
 
 /** Rails only. */
 export function __resetRuntimeAdmission() {
+  bumpState()
   _capabilityAdmission = false
   _pendingReasons.clear()
   _verdicts.clear()
@@ -444,6 +459,7 @@ export function __resetRuntimeAdmission() {
  *  this tab's per-hash verdict; no verdict yet fails closed with its own sentence.
  *  @param {{source?: string, hash?: string}} arg */
 export function runtimeNotGradedOf({ source, hash } = {}) {
+  noteConsult('notGraded', { source, hash })
   if (_allow === ALLOW_ANY) return null
   maybeRefreshRuntimeLists()
   const h = typeof hash === 'string' && hash ? hash.toLowerCase()
@@ -511,10 +527,92 @@ export function runtimeSourceHash(source) {
   return sha256Hex(String(source == null ? '' : source))
 }
 
+// ─── ⭐⭐ THE PASTE WORKER (2026-11-20) — THIS TAB'S LISTS, CARRIED INTO THE MEMBER DOOR'S WORKER ──────────
+//
+// The member door builds a pasted script in a Web Worker (`builder/memberPane/memberDoorAsync.js`). A worker
+// is its own module graph: this file starts there EMPTY (nothing graded, admission off), and a worker never
+// reads the lists itself (no session there, `typeof window`). So the page hands the worker an IMAGE of every
+// list a consult answers from (`runtimeListsImage`), the worker latches it before the build
+// (`applyRuntimeListsImage`), and the door answers there exactly as it would here.
+// ⛔ The consults' SIDE EFFECTS belong to the page (the lists' re-read, an admission ask, the "still being
+// checked" mark `runtimeConsultPendingOf` reads): the worker records each consult the door made
+// (`recordRuntimeConsults`) and the page makes the same consults, in order, when the answer lands
+// (`replayRuntimeConsults`), so this tab's state moves as a build on this thread would have moved it.
+
+/** Every list a consult answers from, as plain data (the page's side of the paste worker). */
+export function runtimeListsImage() {
+  return {
+    kill: [..._entries],
+    allowAny: _allow === ALLOW_ANY,
+    allow: _allow === ALLOW_ANY ? [] : [..._allow],
+    capabilityAdmission: _capabilityAdmission,
+    verdicts: [..._verdicts].map(([h, v]) => [h, { admitted: v.admitted, historyOnly: v.historyOnly, at: v.at }]),
+    consultedPending: [..._consultedPending],
+    pendingReasons: [..._pendingReasons],
+  }
+}
+
+/** Latch an image (`runtimeListsImage`) as this module's whole state: the worker's side. Nothing is asked of
+ *  the server and no subscriber is told (a worker has neither). */
+export function applyRuntimeListsImage(img) {
+  bumpState()
+  const m = img && typeof img === 'object' ? img : {}
+  _entries = normaliseKillList(m.kill)
+  _allow = m.allowAny === true ? ALLOW_ANY : normaliseAllowList(m.allow)
+  _capabilityAdmission = m.capabilityAdmission === true
+  _verdicts.clear()
+  for (const [h, v] of Array.isArray(m.verdicts) ? m.verdicts : []) {
+    if (typeof h === 'string' && v && typeof v.admitted === 'boolean') {
+      _verdicts.set(h, { admitted: v.admitted, historyOnly: v.historyOnly === true, at: Number(v.at) || 0 })
+    }
+  }
+  _consultedPending.clear()
+  for (const h of Array.isArray(m.consultedPending) ? m.consultedPending : []) _consultedPending.add(h)
+  _pendingReasons.clear()
+  for (const [h, r] of Array.isArray(m.pendingReasons) ? m.pendingReasons : []) _pendingReasons.set(h, r)
+  _admissionInFlight.clear()
+  _askedAt.clear()
+}
+
+let _consultLog = null
+/** Record every consult a build makes into `log` (an array), or stop recording (`null`). The worker's side. */
+export function recordRuntimeConsults(log) {
+  _consultLog = Array.isArray(log) ? log : null
+}
+let _noteHashOf = { source: null, hash: null }
+function noteConsult(fn, arg) {
+  if (!_consultLog) return
+  const a = arg && typeof arg === 'object' ? arg : {}
+  // ⭐ the script's hash rides with the consult, computed HERE (the worker), so the page's replay never hashes a script:
+  // a consult given both reads the hash and keeps the source for an ask, exactly as one given the source alone
+  let hash = typeof a.hash === 'string' && a.hash ? a.hash : null
+  if (!hash && typeof a.source === 'string') {
+    if (_noteHashOf.source !== a.source) _noteHashOf = { source: a.source, hash: runtimeSourceHash(a.source) }
+    hash = _noteHashOf.hash
+  }
+  _consultLog.push({ fn, ...(typeof a.source === 'string' ? { source: a.source } : {}),
+    ...(typeof a.defId === 'string' ? { defId: a.defId } : {}), ...(hash ? { hash } : {}) })
+}
+
+/** Make, on this page, the consults a build made in the worker (`recordRuntimeConsults`), in order: the page's
+ *  side. Their answers are not read (the worker's answer stands); what they do to this tab's state is the point. */
+export function replayRuntimeConsults(log) {
+  for (const c of Array.isArray(log) ? log : []) {
+    if (!c || typeof c !== 'object') continue
+    const arg = { ...(typeof c.source === 'string' ? { source: c.source } : {}),
+      ...(typeof c.defId === 'string' ? { defId: c.defId } : {}), ...(typeof c.hash === 'string' ? { hash: c.hash } : {}) }
+    try {
+      if (c.fn === 'kill') runtimeKillOf(arg)
+      else if (c.fn === 'notGraded') runtimeNotGradedOf(arg)
+    } catch { /* a consult never throws; a replay that did must not take the answer with it */ }
+  }
+}
+
 /** Why this script is killed, or null.
  *  @param {{source?: string, defId?: string, hash?: string}} arg
  *  @returns {string|null} */
 export function runtimeKillOf({ source, defId, hash } = {}) {
+  noteConsult('kill', { source, defId, hash })
   maybeRefreshRuntimeLists()
   if (!_entries.length) return null
   const id = typeof defId === 'string' ? defId.toLowerCase() : ''
