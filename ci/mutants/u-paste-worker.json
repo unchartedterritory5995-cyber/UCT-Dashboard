@@ -406,6 +406,15 @@
       "to": "    continue\n",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
       "expectRed": "a refusal crossed with the whole text"
+    },
+    {
+      "id": "H5",
+      "mutant": "a new report worker is not handed the door answers the page made (the status with one is never made after a worker is replaced)",
+      "file": "app/src/components/chart/builder/inspectAsync.js",
+      "from": "else { resendPageAnswers(w); pair() } })",
+      "to": "else { pair() } })",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/hubPageAnswer.test.js",
+      "expectRed": "the status with the page-made door answer was made by the new worker"
     }
   ]
 }

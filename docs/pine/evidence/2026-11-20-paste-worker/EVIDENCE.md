@@ -92,8 +92,11 @@ could not be made (a dead worker, the watchdog) is the controlled error report P
   sends its last answer again to a new port). The report's worker makes the status of a report alone (sent with the
   report) and with the door's answer for its text (sent when it comes), and the page reads a status by the report's key
   and the door answer's key and page state (`useHubStatus.js`). A door answer the page made itself (a dead worker, the
-  watchdog) is handed to the report's worker once. While the status with the door's answer has not come, the status of
-  the report alone stands, marked "checking".
+  watchdog) is handed to the report's worker, and kept: the last three are handed again to every new report worker, so a
+  worker replaced before it read one does not leave the panel "checking" forever (`hubPageAnswer.test.js`). While the
+  status with the door's answer has not come, the status of the report alone stands, marked "checking". The report's
+  worker keeps the door answers of its last three texts by recency, so the newest is never the one dropped; a text
+  returned to after three others has its door built again, and its answer comes again.
 - **The light report** (`inspectView.reportForPage`). PasteBox reads, of the trees and the program: each output's input
   placements (`placementsOf`), whether each column is a number (`numericOf`), the non-Pine verdict (`verdictOf`), of each
   read-back `ok`, `readback`, `guard`, `error`, and the program only when the member presses Use. The worker derives the
@@ -198,10 +201,10 @@ worker is its own graph), over a structured clone of the real message.
 - `inspectService.test.js`, `memberDoorWorkerGraph.test.js`: the report service; the worker graph's resolution and its
   registrations (with controls).
 
-Mutants `ci/mutants/u-paste-worker.json` (45): P1-P8 the image and the copy; S1-S13 the service, the pane and
+Mutants `ci/mutants/u-paste-worker.json` (46): P1-P8 the image and the copy; S1-S13 the service, the pane and
 the status panel; W1-W3 the worker resolution and registrations; F1-F2 the faithful transport; I1-I4 the report and the
-status off the main thread; H1-H4 the hub (the status without the door's answer, the translation crossing, the workers
-never linked, the door not sending its answer); L1-L11 the light report (a tree, a read-back's tree or the program
+status off the main thread; H1-H5 the hub (the status without the door's answer, the translation crossing, the workers
+never linked, the door not sending its answer, a new report worker not handed the page-made answers); L1-L11 the light report (a tree, a read-back's tree or the program
 crossing; PasteBox parsing, judging or placing on the main thread; a Use dropping the program; a worker not remaking a
 report; a dead worker's question not asked again; a refusal's text not put back, or crossing whole). Each was checked red locally on this head: mutated, its rail red with its expected text, the exact bytes restored and hash-verified (never `git checkout`).
 
@@ -211,5 +214,3 @@ report; a dead worker's question not asked again; a refusal's text not put back,
   it is the member's own typing, not the paste.
 - A Use's object program is received on the main thread when the member presses Use (the heaviest committed program,
   395 KB; A's: measured with A and B's rows).
-- A door answer the page made itself is handed to the report's worker once; if that worker is replaced before the status
-  is made, the panel keeps the status of the report alone, marked "checking", until the next answer.
