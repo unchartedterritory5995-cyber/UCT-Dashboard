@@ -44,8 +44,9 @@ def derive() -> list[str]:
     ⛔ `--cached`. The working tree is not evidence: `core.autocrlf=true` has already
     put CRLF on everything there, so a working-tree scan reports the whole repo.
     """
-    cr = (git("grep", "--cached", "-l", "-P", r"\r") or "").split()
-    nul = set((git("grep", "--cached", "-l", "-P", r"\x00") or "").split())
+    # one path per LINE (a path may hold a space; whitespace splitting cut it into fragments)
+    cr = (git("grep", "--cached", "-l", "-P", r"\r") or "").splitlines()
+    nul = set((git("grep", "--cached", "-l", "-P", r"\x00") or "").splitlines())
     return sorted(c for c in cr if c not in nul)
 
 
@@ -78,12 +79,28 @@ def test_the_derivation_actually_finds_files():
 def test_git_grep_cached_and_working_tree_disagree_which_is_the_whole_point():
     """⛔ The control for `--cached`. If these two ever returned the same set, the
     scan would be reading the wrong thing and nobody would notice."""
-    cached = set((git("grep", "--cached", "-l", "-P", r"\r") or "").split())
-    worktree = set((git("grep", "-l", "-P", r"\r") or "").split())
-    assert len(worktree) > len(cached) * 2, (
-        "the working tree should carry CRLF on far more files than the index does "
-        f"(index {len(cached)}, worktree {len(worktree)}) — if not, autocrlf is off "
-        "on this box and this rail's premise needs re-checking")
+    # ⚰️ 2026-11-20 -- this compared EVERY file with a CR byte, and `git grep -l` lists binary files too (an image
+    # carries 0x0D anywhere). By November thousands of committed binaries did, in the index and the working tree
+    # alike, so the ratio stopped meaning anything (this box: index 10,506, worktree 18,486, not > 2x), and on a
+    # Linux runner, where nothing converts, it could never hold (10,506 vs 10,507). The question is about TEXT,
+    # so both sides drop the files with a NUL, which is how `derive` already reads the index. Lines, not
+    # whitespace: a path with a space was being split into fragments.
+    def text_with_cr(*where):
+        cr = set((git("grep", *where, "-l", "-P", r"\r") or "").splitlines())
+        nul = set((git("grep", *where, "-l", "-P", r"\x00") or "").splitlines())
+        return cr - nul
+
+    cached, worktree = text_with_cr("--cached"), text_with_cr()
+    assert cached, "CONTROL: no text blob in the index carries a CR -- the query is broken, not the repo"
+    if (git("config", "--get", "core.autocrlf") or "").strip().lower() == "true":
+        assert len(worktree) > len(cached) * 2, (
+            "with core.autocrlf=true the working tree should carry CRLF on far more text files than the index "
+            f"does (index {len(cached)}, worktree {len(worktree)})")
+    else:
+        # nothing converts on this box, so the working tree cannot tell the two readings apart; what MUST still
+        # hold is that every CR-bearing text blob checks out with its CR (the `-text` entries keep it)
+        assert cached <= worktree, (
+            f"index text blobs with CR that the working tree lost: {sorted(cached - worktree)[:10]}")
 
 
 def test_every_derived_path_is_declared_text_unset():
@@ -165,7 +182,13 @@ def test_the_entries_use_minus_text_and_never_binary():
     text = (REPO / ".gitattributes").read_text(encoding="utf-8")
     block = text.split("BLOBS ALREADY STORED WITH CR", 1)
     assert len(block) == 2, "the S1 block is missing from .gitattributes"
-    for line in block[1].splitlines():
+    # ⚰️ 2026-11-20: this read to the END OF THE FILE, so `tests/fixtures/minute_frames/*.bin binary` (#2157, a
+    # later section that must stay BELOW `tests/fixtures/** text eol=lf`) failed it. The S1 block ends at its first
+    # blank line; the sections after it have their own reasons and are not this rail's.
+    s1 = block[1].split("\n\n", 1)[0]
+    assert sum(1 for l in s1.splitlines() if l.strip().endswith(" -text")) >= 10, (
+        "CONTROL: the S1 block read here lost its entries -- the blank-line boundary moved")
+    for line in s1.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue

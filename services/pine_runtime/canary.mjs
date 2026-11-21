@@ -30,10 +30,13 @@ import { BUSY_GUARD } from './pool.mjs'
  *  value). All on the 1,500-bar `listing` set: cheap enough to run every 15 minutes on a busy pool. */
 // Engine 21 (W6-T5) serves arrays_sort, so its withheld slot moved to h_request_security (runtime:request,
 // refused at build: cheap, and a by-name refusal the engine must keep giving).
+// RMA-SEED (#2187) serves dmi_adx (`ta.dmi`, the reference's body), so its withheld slot moved to h_recursion
+// (runtime:lower, refused before the run: cheap, and a refusal Pine itself gives, since a Pine function cannot
+// call itself).
 export const CANARY_CASES = Object.freeze([
   'ema_macd@listing', 'rsi_stoch@listing', 'supertrend@listing', 'bollinger@listing',
   'dmi_manual@listing', 'pivots@listing', 'rma_alma_hma@listing', 'methods_udt@listing',
-  'h_request_security@listing', 'dmi_adx@listing',
+  'h_request_security@listing', 'h_recursion@listing',
 ])
 /** The lowest priority: a canary must never take a worker from an alert. */
 export const CANARY_PROFILE = 'sweep'

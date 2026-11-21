@@ -379,17 +379,42 @@ def _record_handler(monkeypatch, **params):
     return body, log
 
 
-def _record_direct(monkeypatch, q):
+def _record_lexical(monkeypatch, q):
+    """Lane I's lexical list alone: `notes.list_and_count_notes`, recorded. Returns (log, rows)."""
     from api.services.journal_two import notes
     from api.services.auth_db import get_connection as real
     log: list = []
     monkeypatch.setattr(notes, "get_connection", lambda: Recorder(real(), log))
-    notes.list_and_count_notes(U, folder_id=None, tag=None, ticker=None, q=q,
-                               embed_symbol=None, embed_widget=None, sort="updated",
-                               limit=100, offset=0, deleted=False, date_from=None,
-                               date_to=None, symbol_in=None, property_filter=None,
-                               property_sort=None, property_filter_strict=True)
+    rows, _total = notes.list_and_count_notes(U, folder_id=None, tag=None, ticker=None, q=q,
+                                              embed_symbol=None, embed_widget=None, sort="updated",
+                                              limit=100, offset=0, deleted=False, date_from=None,
+                                              date_to=None, symbol_in=None, property_filter=None,
+                                              property_sort=None, property_filter_strict=True)
+    return log, rows
+
+
+def _record_computed(rows):
+    """The list's own computed-values step (lane 11B, `note_computed.values_for_notes`) on a page of rows, recorded
+    through the same function the handler calls. ⚰️ It ran only behind NOTEBOOK_FORMULAS_ENABLED until 7b8dc5c3b0
+    (2026-11-04) retired that flag; from then every live page reads the member's property definitions once, and the
+    flag-off equality below went red on that read, which is the list's step and not the meaning search's."""
+    from api.services.journal_two import note_computed
+    from api.services.auth_db import get_connection as real
+    log: list = []
+    if rows:
+        conn = Recorder(real(), log)
+        try:
+            note_computed.values_for_notes(conn, U, [r["id"] for r in rows],
+                                           {r["id"]: r.get("propertiesJson") or {} for r in rows})
+        finally:
+            conn.close()
     return log
+
+
+def _record_direct(monkeypatch, q):
+    """What the handler runs with no meaning search: the lexical list, then the computed step on its page."""
+    log, rows = _record_lexical(monkeypatch, q)
+    return log + _record_computed(rows)
 
 
 @pytest.mark.parametrize("q", ["why did I cut my winners early", "NVDA", None])
@@ -410,9 +435,11 @@ def test_PLAN_RAIL_CONTROL_flag_on_a_natural_language_query_adds_only_bounded_re
     _note(U, "Winners diary", "why did I cut my winners early today")
     ns.index_member(U)
     body, handler = _record_handler(monkeypatch, q="why did I cut my winners early")
-    direct = _record_direct(monkeypatch, "why did I cut my winners early")
-    extra = handler[len(direct):]
-    assert [s for s, _ in handler[:len(direct)]] == [s for s, _ in direct]   # lexical first, unchanged
+    lexical, _ = _record_lexical(monkeypatch, "why did I cut my winners early")
+    computed = _record_computed(body["notes"])          # the list's own last step, on the page it returned
+    assert [s for s, _ in handler[:len(lexical)]] == [s for s, _ in lexical]   # lexical first, unchanged
+    assert [s for s, _ in handler[len(handler) - len(computed):]] == [s for s, _ in computed]   # computed last
+    extra = handler[len(lexical):len(handler) - len(computed)]
     assert any("j2_note_embeddings" in s for s, _ in extra)
     # ⛔ never a second whole-library pass: every extra read is the member's
     # vectors or a by-id fetch of the hits

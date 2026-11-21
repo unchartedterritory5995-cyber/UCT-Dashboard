@@ -65,9 +65,13 @@ function compare(src, bars) {
   return { both, wrong, extra, served }
 }
 
+// ⭐ RULING 1 (2026-11-20) — btc-charlie's `out6` 2000 -> 1976 (AGEN) and 632 -> 608 (RDDT): off the listing its first
+// 24 bars read a window that reaches before bar 0, and they are withheld by name (`history:before-chart`). They equal
+// the listing run here, but the curtain cannot know bar 0 is the listing: on 15 charts cut from longer histories all
+// 360 of those bars (24 a chart) were wrong (truth proxy, `out6`: 384 wrong bars -> 24). Every other plot is unchanged.
 const SERVED = {
-  [`${CHARLIE}|AGEN`]: { out2: 1989, out3: 1976, out4: 1964, out5: 1964, out6: 2000, out7: 1964, out8: 1964, out9: 1976, out10: 1964 },
-  [`${CHARLIE}|RDDT`]: { out2: 621, out3: 608, out4: 598, out5: 598, out6: 632, out7: 598, out8: 598, out9: 608, out10: 598 },
+  [`${CHARLIE}|AGEN`]: { out2: 1989, out3: 1976, out4: 1964, out5: 1964, out6: 1976, out7: 1964, out8: 1964, out9: 1976, out10: 1964 },
+  [`${CHARLIE}|RDDT`]: { out2: 621, out3: 608, out4: 598, out5: 598, out6: 608, out7: 598, out8: 598, out9: 608, out10: 598 },
   [`${KELTNER}|AGEN`]: { out2: 1750, out3: 1980, out4: 1980, out5: 1980, out6: 1980, out7: 1750, out19: 1750, out20: 2000 },
   [`${KELTNER}|RDDT`]: { out2: 382, out3: 612, out4: 612, out5: 612, out6: 612, out7: 382, out19: 382, out20: 632 },
 }

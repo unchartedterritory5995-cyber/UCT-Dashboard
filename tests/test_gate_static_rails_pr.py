@@ -56,6 +56,9 @@ PR_ONLY = {
     "Every corporate-action site is registered with a state":
         "tests/test_corp_actions_census.py was red on master 2026-09-29..2026-11-20 (13 unregistered sites) and "
         "only the report-only nightly ran it",
+    "Every test file lands in a lane, a queued domain, or EXEMPT":
+        "tests/test_domain_test_census.py, the lane census (2026-11-20: 2,741 of 3,450 test files ran in no lane); "
+        "a PR adding a test file is the one that must say where it runs",
     "This job mirrors the gate's static steps":
         "this file",
 }

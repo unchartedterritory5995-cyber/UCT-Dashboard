@@ -26,7 +26,7 @@ import process from 'node:process'
 
 import { translatePine, canonicalTextFormat } from './pine'
 import { parseFormula } from './parse'
-import { interpret, isDayAnchor, isSessionDayGate } from './interpret'
+import { interpret, isDayAnchor, isSessionDayGate, sessionDayWindowOf } from './interpret'
 import { buildRuntimeIr } from './pineRuntimeFrontend'
 import { lowerIrProgram } from '../runtime/lowerIr'
 import { execute } from '../runtime/vm'
@@ -134,16 +134,202 @@ describe('T-D — time("D") is the 09:30 session open; time("D", "0930-1600") re
     }
   })
 
-  it('the trees: the anchor shape, the 09:30 window reads it, any other window is the daily gate', () => {
+  it('the trees: the anchor shape; every window of one day is the daily gate, the 09:30 one included', () => {
     const tree = (body) => { const t = translatePine(V(6, body), { strict: true }); expect(t.ok).toBe(true); return t.outputs[t.selected].ast }
     expect(isDayAnchor(tree('plot(time("D"))'))).toBe(true)
     expect(isDayAnchor(tree('plot(time("1D"))'))).toBe(true)
+    // ⭐ T-D EXT (2026-11-20): a 09:30 window is the window's own start, not the anchor (they part on an
+    // extended-hours chart: S1 reads 09:30 where A1 reads 04:00)
     const rth = tree('plot(time("D", "0930-1600"))')
-    expect(rth.type === 'op' && rth.name === '?:' && isDayAnchor(rth.args[1])).toBe(true)
-    expect(isSessionDayGate(tree('plot(time("D", "1000-1100"))'))).toBe(true)
+    expect(isSessionDayGate(rth)).toBe(true)
+    expect(sessionDayWindowOf(rth)).toEqual({ start: 570, end: 960, days: null, ms: true })
+    expect(sessionDayWindowOf(tree('plot(time("D", "1000-1100:23456"))'))).toEqual({ start: 600, end: 660, days: [2, 3, 4, 5, 6], ms: true })
+    // a window that wraps past midnight, or names a fixed zone, is the gate but not a served window
+    for (const body of ['plot(time("D", "1800-0200"))', 'plot(time("D", "0930-1600", "GMT-5"))']) {
+      const t = tree(body)
+      expect(isSessionDayGate(t), body).toBe(true)
+      expect(sessionDayWindowOf(t), body).toBe(null)
+    }
     // ⛔ the chart's own timeframe keeps its own tree (no anchor, no gate)
     const own = tree('plot(time(timeframe.period, "0930-1600"))')
     expect(isSessionDayGate(own) || isDayAnchor(own.args && own.args[1])).toBe(false)
+  })
+})
+
+// ─── T-D EXT ──────────────────────────────────────────────────────────────────────────────────────
+
+describe('T-D EXT — on an extended-hours chart time("D") is 04:00; time("D", sess) is the window start; 24-hour charts withhold', () => {
+  // `vw-bi-time-d-extended.pine`. Three rows are refused by name before this unit, and in strict mode one refused
+  // output refuses the whole script, so they are taken out: S5 (`time("1440")`, B1), and A4 / A5, which read
+  // `hour(time("D"))` / `dayofmonth(time("D"))` (a clock function of a computed timestamp: `pine:builtin`, railed
+  // below). A3 (`timeframe.change("D")`) is another built-in's and is not graded here.
+  const TEXT = (cap) => without(cap.source.text, /time\("1440"|"A4_|"A5_/)
+  const SPY = 'vw-bi-time-d-extended-spy-60-2026-11-19'
+  const BTC = 'vw-bi-time-d-extended-btcusd-60-2026-11-19'
+  const ROWS = ['A1_secs_time_D', 'A2_change_time_D',
+    'S1_secs_D_rth', 'S2_secs_D_extended', 'S3_secs_D_after_open', 'S4_secs_D_after_hours']
+  const col = (cap, title) => {
+    const j = 1 + cap.study.plots.map((p) => p.title).indexOf(title)
+    expect(j, title).toBeGreaterThan(0)
+    return cap.plotValues.rows.map((r) => r[j])
+  }
+  /** ET wall clock of a unix-second instant: [weekday 0-6 (Sunday 0), hour, minute]. */
+  const ET = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  const etOf = (t) => {
+    const p = Object.fromEntries(ET.formatToParts(new Date(t * 1000)).map((x) => [x.type, x.value]))
+    return [['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), Number(p.hour), Number(p.minute)]
+  }
+  // ⭐ Engine 92 train integration (coordinator ruling, 2026-11-20): #2213's RULING 1 holds here. "A window that
+  // reaches before the chart's first bar, off the listing, is unknown there": on bar 0, A2 (`ta.change(time("D"))`)
+  // reads `time("D")[1]`, a bar BEFORE the chart this engine does not hold, so bar 0 is withheld by name
+  // (`history:before-chart`) even though the old value happened to match TradingView's. A deliberate one-bar
+  // narrowing of A2; every other bar of A2, and every bar of the other rows, is drawn and TradingView's.
+  const BEFORE_CHART = { A2_change_time_D: 1 }
+  const expectBar0Withheld = (p, title) => {
+    if (!BEFORE_CHART[title]) return
+    expect(p.withheldBars && p.withheldBars[0], `${title}: bar 0 is withheld (ruling 1)`).toBe(1)
+    expect(p.withheldBarsCodes, title).toContain('history:before-chart')
+  }
+
+  it('the capture is what it says: AMEX:SPY with the extended session (0400-2000), 60m, every bar 04:00-19:00 New York', () => {
+    const cap = capture(SPY)
+    // ⛔ the session is read INSIDE the capture, never from the file name
+    expect(cap.symbol.session).toBe('0400-2000')
+    expect(cap.symbol.timezone).toBe('America/New_York')
+    expect(cap.timeframe).toBe('60')
+    const hours = new Set(cap.bars.rows.map(([t]) => etOf(t)[1]))
+    expect([...hours].sort((a, b) => a - b)).toEqual([4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19])
+  })
+
+  it('A4 / A5 (a clock function of `time("D")`) refuse by name, as any computed timestamp does', () => {
+    const t = translatePine(V(6, 'plot(hour(time("D")) * 100 + minute(time("D")))'), { strict: true })
+    expect(t.ok).toBe(false)
+    expect(t.refusal.guard).toBe('pine:builtin')
+  })
+
+  it('host lane: A1, A2 and S1-S4 are TradingView on all 23,615 bars', () => {
+    const cap = capture(SPY)
+    const { plot } = door(cap, 'host', TEXT(cap))
+    for (const title of ROWS) {
+      const p = plot(title)
+      expect(p, title).toBeTruthy()
+      expect(p.withheldBy, title).toBe(null)
+      const r = grade(cap, p, title)
+      expect(r.n).toBe(23615)
+      // A2: 23,614 drawn, bar 0 withheld by ruling 1 (BEFORE_CHART above); every other row: all 23,615
+      expect(r.drawn, title).toBe(23615 - (BEFORE_CHART[title] || 0))
+      expectBar0Withheld(p, title)
+      expect(r.bad, `${title}: first ${JSON.stringify(r.first)}`).toBe(0)
+    }
+    // ⛔ NON-VACUITY: the 09:30 anchor (the regular-hours reading) is wrong on every bar here, and the window
+    // start is not the anchor: S1 (09:30) and A1 (04:00) differ on every bar inside the regular session
+    const a1 = col(cap, 'A1_secs_time_D')
+    const s1 = col(cap, 'S1_secs_D_rth')
+    const regularAnchor = cap.bars.rows.map(([t]) => { const [, h, m] = etOf(t); return 34200 - (h * 3600 + m * 60) })
+    expect(a1.filter((v, i) => v === regularAnchor[i]).length).toBe(0)
+    const inside = s1.map((v, i) => [v, a1[i]]).filter(([v]) => v !== -1)
+    expect(inside.length).toBeGreaterThan(8000)
+    expect(inside.every(([v, a]) => v !== a)).toBe(true)
+    // the new day starts on the 04:00 bar, and only there
+    const a2 = col(cap, 'A2_change_time_D')
+    const fires = cap.bars.rows.filter((_, i) => a2[i] === 1).map(([t]) => etOf(t)[1])
+    expect(fires.length).toBeGreaterThan(1400)
+    expect(new Set(fires)).toEqual(new Set([4]))
+  })
+
+  it('runtime lane: the anchor and the windows read from runtime state are TradingView on every bar the run draws', () => {
+    const RT = [`//@version=6`, 'indicator("UCTPROBE_VW_BI_TIME_D_EXTENDED", overlay = false)',
+      'secs(t) => na(t) ? -1.0 : (t - time) / 1000.0', 'a = array.new_float(4, 0.0)',
+      'array.set(a, 0, secs(time("D")))', 'array.set(a, 1, ta.change(time("D")) != 0 ? 1 : 0)',
+      'array.set(a, 2, secs(time("D", "0930-1600")))', 'array.set(a, 3, secs(time("D", "1000-1100")))',
+      'plot(array.get(a, 0), "A1_secs_time_D")', 'plot(array.get(a, 1), "A2_change_time_D")',
+      'plot(array.get(a, 2), "S1_secs_D_rth")', 'plot(array.get(a, 3), "S3_secs_D_after_open")'].join(NL)
+    const cap = capture(SPY)
+    const { side, plot } = door(cap, 'runtime', RT)
+    expect(side.door).toBe('runtime')
+    for (const title of ['A1_secs_time_D', 'A2_change_time_D', 'S1_secs_D_rth', 'S3_secs_D_after_open']) {
+      const r = grade(cap, plot(title), title)
+      expect(r.drawn, title).toBeGreaterThanOrEqual(23000)
+      expect(r.bad, `${title}: first ${JSON.stringify(r.first)}`).toBe(0)
+    }
+  })
+
+  it('BITSTAMP:BTCUSD 60 (exchange zone UTC): every row is withheld by name on every bar, both lanes', () => {
+    const cap = capture(BTC)
+    expect(cap.symbol.timezone).toBe('Etc/UTC')
+    expect(cap.symbol.session).toBe('24x7')
+    const { plot } = door(cap, 'host', TEXT(cap))
+    for (const title of ROWS) expect(plot(title).withheldBy, title).toBe('time-day:exchange-zone')
+    // ⛔ NON-VACUITY: TradingView's day starts at 00:00 UTC; midnight New York (this engine's clock) and the
+    // 04:00 anchor are both wrong on every bar of the capture
+    const a1 = col(cap, 'A1_secs_time_D')
+    const nyMidnight = cap.bars.rows.map(([t]) => { const [, h, m] = etOf(t); return -(h * 3600 + m * 60) })
+    expect(a1.filter((v, i) => v === nyMidnight[i] || v === nyMidnight[i] + 14400).length).toBe(0)
+    expect(a1.every((v, i) => v === -(cap.bars.rows[i][0] % 86400))).toBe(true)
+    const rt = door(cap, 'runtime', [`//@version=6`, 'indicator("t", overlay = false)',
+      'a = array.new_float(1, 0.0)', 'array.set(a, 0, (time("D") - time) / 1000)', 'plot(array.get(a, 0), "A1_secs_time_D")'].join(NL))
+    // the runtime lane declines a run whose columnar lane withholds a `time-*` code, by name (`columnSinkRefusal`)
+    const p = rt.plot('A1_secs_time_D')
+    expect(p.column, 'the runtime lane draws nothing for it').toBe(null)
+    expect(p.missingReason).toMatch(/runtime:chart-clock/)
+  })
+
+  it('an OVERNIGHT bar never reads a value (time-day:overnight); the 04:00 bar after it starts the new day', () => {
+    // the capture's first 30 sessions with an overnight bar at 20:00, 23:00, 02:00 and 03:00 between each pair
+    // of sessions on consecutive days (Monday-Thursday nights: a Friday-night bar is no US equity session at
+    // all, and reads as a chart that trades around the clock)
+    const cap = capture(SPY)
+    const days = []
+    for (const r of cap.bars.rows) {
+      if (etOf(r[0])[1] === 4) days.push([])
+      days[days.length - 1].push(r)
+    }
+    const rows = []
+    const night = new Set()
+    days.slice(0, 30).forEach((day, k) => {
+      rows.push(...day)
+      if (k === 29) return
+      const last = day[day.length - 1][0]
+      const next = days[k + 1][0][0]
+      if (next - last > 12 * 3600) return
+      for (const t of [last + 3600, last + 4 * 3600, next - 2 * 3600, next - 3600]) {
+        rows.push([t, 1, 1, 1, 1, 1])
+        night.add(t)
+      }
+    })
+    rows.sort((a, b) => a[0] - b[0])
+    const synthetic = { ...cap, bars: { ...cap.bars, rows, count: rows.length } }
+    const { plot } = door(synthetic, 'host', TEXT(cap))
+    for (const title of ['A1_secs_time_D', 'A2_change_time_D', 'S1_secs_D_rth', 'S2_secs_D_extended']) {
+      const p = plot(title)
+      expect(p.withheldBy, title).toBe(null)
+      rows.forEach(([t], i) => {
+        if (!night.has(t)) return
+        expect(p.column[i] !== p.column[i], `${title} reads a value on the overnight bar ${t}`).toBe(true)
+        expect(p.withheldBars && p.withheldBars[i], `${title} at ${t}`).toBe(1)
+      })
+      expect(p.withheldBarsCodes, title).toContain('time-day:overnight')
+      // every in-session bar is TradingView's (the bars are the capture's own; graded by time on THIS chart's rows)
+      const r = grade(synthetic, p, title)
+      expect(r.bad, `${title}: first ${JSON.stringify(r.first)}`).toBe(0)
+      // A2: one fewer, bar 0 withheld by ruling 1 (BEFORE_CHART above)
+      expect(r.drawn, title).toBe(rows.length - night.size - (BEFORE_CHART[title] || 0))
+      expectBar0Withheld(p, title)
+    }
+    // the 04:00 bar after each night fires, as on TradingView's chart (which holds no overnight bar)
+    const a2 = plot('A2_change_time_D')
+    const after = rows.map(([t], i) => [t, i]).filter(([t], i) => i > 0 && night.has(rows[i - 1][0]) && !night.has(t))
+    expect(after.length).toBe(night.size / 4)
+    expect(after.length).toBeGreaterThan(15)
+    for (const [t, i] of after) {
+      expect(etOf(t)[1]).toBe(4)
+      expect(a2.column[i]).toBe(1)
+    }
+    // the runtime lane, which serves no per-bar withholding of a clock, declines this chart by name
+    const rtSide = door(synthetic, 'runtime', [`//@version=6`, 'indicator("t", overlay = false)',
+      'a = array.new_float(1, 0.0)', 'array.set(a, 0, (time("D") - time) / 1000)', 'plot(array.get(a, 0), "A1_secs_time_D")'].join(NL))
+    expect(rtSide.plot('A1_secs_time_D').column).toBe(null)
+    expect(rtSide.plot('A1_secs_time_D').missingReason).toMatch(/runtime:chart-clock/)
   })
 })
 

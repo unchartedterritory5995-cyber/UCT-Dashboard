@@ -1,0 +1,286 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "The session dimension (tools/queue-session-dimension, coordinator ruling 2026-11-21): a queue target asks for an intraday chart's hours and a capture answers by the hours it recorded; one capture-id grammar for the writer and every reader; the derived set cannot shrink silently (a table line no table holds, queue --check --against). The same mutations tools/vendor_harness/evidence_engine_mutations.py records (its 30 new entries and the 5 it re-points), each run against its named rail. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "S1",
+   "mutant": "per-script chart ignored",
+   "file": "tools/vendor_harness/batch_capture.py",
+   "from": "        if not any(script.get(k) for k in (\"symbol\", \"tf\", \"listingDate\", \"session\")):\n",
+   "to": "        if True:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_the_driver_sets_each_scripts_own_symbol_and_tf_and_files_provenance"
+  },
+  {
+   "id": "S2",
+   "mutant": "a capture of another phase answers the target",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "and f[\"tf\"] == t\n             and f[\"phase\"] == phase and (session",
+   "to": "and f[\"tf\"] == t\n             and (session",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_fixture_status_matches_a_capture_by_its_phase"
+  },
+  {
+   "id": "S3",
+   "mutant": "a capture of another phase makes the target stale",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": " and f[\"sha\"] != sha and f[\"phase\"] == phase\n",
+   "to": " and f[\"sha\"] != sha\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_fixture_status_matches_a_capture_by_its_phase"
+  },
+  {
+   "id": "S4",
+   "mutant": "the manifest slug drops the phase",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "+ el.SESSION_SUFFIX.get(session, \"\") + (f\"-{phase}\" if phase else \"\"))",
+   "to": "+ el.SESSION_SUFFIX.get(session, \"\"))",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_the_manifest_carries_each_phase_as_its_own_script"
+  },
+  {
+   "id": "S5",
+   "mutant": "a capture without the x table answers a row that asks for it",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "             and (not needs_x_table or f.get(\"xTable\"))]",
+   "to": "]",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_row_asking_for_the_x_table_is_not_answered_by_a_capture_without_one"
+  },
+  {
+   "id": "S6",
+   "mutant": "THE DIMENSION DROPPED: a session row is not its own target",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": " + (f\"@{session}\" if session else \"\") + (f\"@{phase}\" if phase else \"\")",
+   "to": " + (f\"@{phase}\" if phase else \"\")",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_row_is_its_own_target_and_a_daily_chart_keeps_its_key"
+  },
+  {
+   "id": "S7",
+   "mutant": "THE DIMENSION DROPPED: no row reads its session",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "            session = chart_session(beside, f\"{path.name}:{line_no} ({rid!r})\")\n",
+   "to": "            session = None\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_row_is_its_own_target_and_a_daily_chart_keeps_its_key"
+  },
+  {
+   "id": "S8",
+   "mutant": "a capture of other hours answers a session target",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": " and f[\"phase\"] == phase and (session is None or f.get(\"session\") == session)\n",
+   "to": " and f[\"phase\"] == phase\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_fixture_status_matches_a_capture_by_the_session_it_recorded_never_by_its_id"
+  },
+  {
+   "id": "S9",
+   "mutant": "the session is read off the capture's id, not its recording",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "\"session\": el.capture_session(c), \"xTable\"",
+   "to": "\"session\": (\"regular\" if \"-rth-\" in cid else \"extended\" if \"-ext-\" in cid else el.capture_session(c)), \"xTable\"",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_fixture_status_matches_a_capture_by_the_session_it_recorded_never_by_its_id"
+  },
+  {
+   "id": "S10",
+   "mutant": "an older capture of other hours makes a session target stale",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "\n             and (session is None or f.get(\"session\") == session)]",
+   "to": "]",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_fixture_status_matches_a_capture_by_the_session_it_recorded_never_by_its_id"
+  },
+  {
+   "id": "S11",
+   "mutant": "the ledger answers a session target",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "if needs_x_table or session is not None else",
+   "to": "if needs_x_table else",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_fixture_status_matches_a_capture_by_the_session_it_recorded_never_by_its_id"
+  },
+  {
+   "id": "S12",
+   "mutant": "a daily chart carries a session",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "sess = r.get(\"session\") if is_intraday(tf) else None",
+   "to": "sess = r.get(\"session\")",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_row_is_its_own_target_and_a_daily_chart_keeps_its_key"
+  },
+  {
+   "id": "S13",
+   "mutant": "timing words read as hours",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "    t = SESSION_TIMING_RX.sub(\" \", re.sub(r\"[*`]+\", \"\", text or \"\"))",
+   "to": "    t = re.sub(r\"[*`]+\", \"\", text or \"\")",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_rows_session_is_read_from_its_closed_vocabulary_and_timing_words_are_not_hours"
+  },
+  {
+   "id": "S14",
+   "mutant": "a remark in a cell that names no chart is read",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "beside = [c for c in cells if parse_charts(c)]",
+   "to": "beside = list(cells)",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_cell_naming_both_sessions_refuses_the_queue_by_name"
+  },
+  {
+   "id": "S15",
+   "mutant": "both sessions beside one chart are admitted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "    if len(named) > 1:\n",
+   "to": "    if False:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_cell_naming_both_sessions_refuses_the_queue_by_name"
+  },
+  {
+   "id": "S16",
+   "mutant": "a section's hours are not read",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "            elif chart_source in (\"section\", \"preamble\"):\n",
+   "to": "            elif False:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_row_is_its_own_target_and_a_daily_chart_keeps_its_key"
+  },
+  {
+   "id": "S17",
+   "mutant": "phase groups ignore the session",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "phase_groups[(rel(p), sym, norm_tf(tf), sess)]",
+   "to": "phase_groups[(rel(p), sym, norm_tf(tf), None)]",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_two_sessions_of_one_phase_are_two_captures_never_a_repeated_phase"
+  },
+  {
+   "id": "S18",
+   "mutant": "a target carries no captureSession",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "            **({\"captureSession\": t[\"session\"]} if t[\"session\"] else {}),\n",
+   "to": "",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_row_is_its_own_target_and_a_daily_chart_keeps_its_key"
+  },
+  {
+   "id": "S19",
+   "mutant": "the manifest drops the session and its layout",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "            **({\"session\": session, \"layout\": SESSION_LAYOUT[session]} if session else {}),\n",
+   "to": "",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_the_manifest_carries_a_session_target_as_its_own_script_on_its_layout"
+  },
+  {
+   "id": "S20",
+   "mutant": "the manifest slug drops the session",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "+ el.SESSION_SUFFIX.get(session, \"\") + (f\"-{phase}\"",
+   "to": "+ (f\"-{phase}\"",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_the_manifest_carries_a_session_target_as_its_own_script_on_its_layout"
+  },
+  {
+   "id": "S21",
+   "mutant": "the ledger's id grammar has no session suffix",
+   "file": "tools/vendor_harness/evidence_ledger.py",
+   "from": "[0-9]+[dwm])\" + SESSION_SUFFIX_RX + r\"-",
+   "to": "[0-9]+[dwm])\" + r\"-",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_capture_id_parses_back_to_its_stem_and_phase_and_passes_the_gate_grammar"
+  },
+  {
+   "id": "S22",
+   "mutant": "the session suffix admits any word",
+   "file": "tools/vendor_harness/evidence_ledger.py",
+   "from": "SESSION_SUFFIX_RX = \"(?:\" + \"|\".join(re.escape(s) for s in SESSION_SUFFIX.values()) + \")?\"",
+   "to": "SESSION_SUFFIX_RX = \"(?:-[a-z]+)?\"",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_capture_id_parses_back_to_its_stem_and_phase_and_passes_the_gate_grammar"
+  },
+  {
+   "id": "S23",
+   "mutant": "the gate's tail grammar has no session suffix",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "[0-9]+[dwm])\" + el.SESSION_SUFFIX_RX\n                     + r\"-",
+   "to": "[0-9]+[dwm])\"\n                     + r\"-",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_the_gate_admits_a_session_id_on_its_capture_stem"
+  },
+  {
+   "id": "S24",
+   "mutant": "the gate's id grammar has no session suffix",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "[0-9]+[dwm])\" + el.SESSION_SUFFIX_RX\n                   + r\"-",
+   "to": "[0-9]+[dwm])\"\n                   + r\"-",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_session_capture_id_parses_back_to_its_stem_and_phase_and_passes_the_gate_grammar"
+  },
+  {
+   "id": "S25",
+   "mutant": "batch_capture restates the session vocabulary",
+   "file": "tools/vendor_harness/batch_capture.py",
+   "from": "ROW_SESSIONS = SESSIONS\n",
+   "to": "ROW_SESSIONS = {\"extended\": \"0400-2000\", \"regular\": \"0930-1600\"}\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_the_session_vocabulary_is_defined_once_and_never_restated"
+  },
+  {
+   "id": "S26",
+   "mutant": "the regular row runs on the rig layout",
+   "file": "tools/vendor_harness/batch_capture.py",
+   "from": "SESSION_LAYOUT = {\"extended\": RIG_LAYOUT_ID, \"regular\": RIG_REGULAR_LAYOUT_ID}",
+   "to": "SESSION_LAYOUT = {\"extended\": RIG_LAYOUT_ID, \"regular\": RIG_LAYOUT_ID}",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_the_manifest_carries_a_session_target_as_its_own_script_on_its_layout"
+  },
+  {
+   "id": "S27",
+   "mutant": "a table line no table holds is admitted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "    if stray_lines:\n",
+   "to": "    if False:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_table_line_outside_every_table_refuses_the_queue_by_name"
+  },
+  {
+   "id": "S28",
+   "mutant": "a fenced line is read as a table line",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "        if ln.lstrip().startswith(\"```\"):\n",
+   "to": "        if False:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_table_line_outside_every_table_refuses_the_queue_by_name"
+  },
+  {
+   "id": "S29",
+   "mutant": "a row that needs a probe now still counts as asking",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "        if now & answered:\n",
+   "to": "        if now:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_row_that_asked_for_a_capture_at_a_ref_and_derives_nothing_now_is_named"
+  },
+  {
+   "id": "S30",
+   "mutant": "a row whose line is still in the docs counts as deleted",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "        elif line and line in every_line:\n",
+   "to": "        elif False:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_row_that_asked_for_a_capture_at_a_ref_and_derives_nothing_now_is_named"
+  },
+  {
+   "id": "S31",
+   "mutant": "a row is matched by its key only",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "        now = ({k} if k in head_lines else set()) | by_line.get(line, set())\n",
+   "to": "        now = ({k} if k in head_lines else set())\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_a_row_that_asked_for_a_capture_at_a_ref_and_derives_nothing_now_is_named"
+  },
+  {
+   "id": "S32",
+   "mutant": "queue --check ignores --against",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "            if args.against:\n",
+   "to": "            if False:\n",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_queue_check_against_a_ref_fails_by_name_when_a_row_stops_deriving"
+  },
+  {
+   "id": "S33",
+   "mutant": "an unreadable ref passes",
+   "file": "tools/vendor_harness/evidence_engine.py",
+   "from": "could not be read: {exc})\")\n        return 2",
+   "to": "could not be read: {exc})\")\n        return 0",
+   "rail": "python -B -m pytest tests/test_evidence_engine.py -q -p no:cacheprovider -k test_queue_check_against_a_ref_fails_by_name_when_a_row_stops_deriving"
+  },
+  {
+   "id": "S34",
+   "mutant": "the PR step drops --against",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "then against=\"--against $BASE_SHA\"",
+   "to": "then against=\"\"",
+   "rail": "python -B -m pytest tests/test_ci_pine_heavy.py -q -p no:cacheprovider -k test_on_a_pr_the_queue_check_runs_against_the_prs_base_and_a_base_it_cannot_fetch_fails"
+  },
+  {
+   "id": "S35",
+   "mutant": "a PR base the step cannot fetch passes",
+   "file": ".github/workflows/pine-heavy.yml",
+   "from": "that queue --check --against compares with\"; q=1; fi",
+   "to": "that queue --check --against compares with\"; q=0; fi",
+   "rail": "python -B -m pytest tests/test_ci_pine_heavy.py -q -p no:cacheprovider -k test_on_a_pr_the_queue_check_runs_against_the_prs_base_and_a_base_it_cannot_fetch_fails"
+  }
+ ]
+}

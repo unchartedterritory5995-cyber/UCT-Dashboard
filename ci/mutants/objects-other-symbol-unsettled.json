@@ -1,0 +1,51 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Objects grader honours the plot grade's per-bar otherSymbolUnsettled withhold (fix/objects-grader-other-symbol-unsettled): a drawing placed on a bar TradingView's own captures disagree about is not compared, by the same name. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "OU-M1",
+   "mutant": "the objects grade is not handed the plot grade's unsettled bars",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "      unsettledBarsOf(base.plots, capture))",
+   "to": "      null)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsOtherSymbolUnsettled.test.js",
+   "expectRed": "OU1"
+  },
+  {
+   "id": "OU-M2",
+   "mutant": "every paired record is taken out, whatever bar it sits on",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  const onUnsettled = (pair) => (pair.fields || []).some((r) => r.x === true",
+   "to": "  const onUnsettled = (pair) => true || (pair.fields || []).some((r) => r.x === true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsOtherSymbolUnsettled.test.js",
+   "expectRed": "OU4"
+  },
+  {
+   "id": "OU-M3",
+   "mutant": "v2 grades the records v1 took out",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  const unsettledOut = Array.isArray(v1.otherSymbolUnsettled) ? v1.otherSymbolUnsettled : []",
+   "to": "  const unsettledOut = []",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsOtherSymbolUnsettled.test.js",
+   "expectRed": "OU3"
+  },
+  {
+   "id": "OU-M4",
+   "mutant": "a drawing with nothing left to compare reads as its empty grade (MATCH) instead of INCONCLUSIVE",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (!cut.remaining && graded.verdict !== 'DIVERGE') {",
+   "to": "  if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsOtherSymbolUnsettled.test.js",
+   "expectRed": "OU5"
+  },
+  {
+   "id": "OU-M5",
+   "mutant": "a text the counted texts do not hold is dropped anyway (the cut no longer fails closed)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "        if (!drop(vt, e.vendorText) || !drop(ot, e.ourText)) return null",
+   "to": "        drop(vt, e.vendorText); drop(ot, e.ourText)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsOtherSymbolUnsettled.test.js",
+   "expectRed": "OU6"
+  }
+ ]
+}
