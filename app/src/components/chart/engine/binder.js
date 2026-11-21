@@ -131,7 +131,7 @@ import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './obj
 import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
 import { ThinVolumeSeries } from '../thinVolumeSeries'
 import { isRthBar } from '../barTime'
-import { windowedPoints } from './plotWindow'
+import { windowedPoints, firstIndexAtOrAfter, PLOT_WINDOW_STEP } from './plotWindow'
 import { FIRST_PAINT_MAX } from '../../../utils/barsBackfill'
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
@@ -404,21 +404,30 @@ export function displacedColumn(column, d) {
  *  string the host lane's palette uses for its `na` leaf. */
 const PACKED_NA_POINT = 'rgba(0, 0, 0, 0)'
 
-function toPoints(column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false, times = null) {
-  return toPointsInto(new Array(bars.length), 0, bars.length, column, bars, adjustTime, signColors, colColors, condColumn,
-    unknownNone, times)
+/**
+ * One point per bar from bar `start` on (`start` 0: every bar). ⭐ (2026-11-20) THE ROWS THE RENDERER IS HANDED,
+ * NOT EVERY ROW: with a plot window (`ctx.plotWindowFrom`) the series is given the bars from its start only
+ * (`windowedPoints`), so a switch that built a point for each of 30,000 bars and then cut 28,000 of them off
+ * builds the 2,000 it hands over. Point i of the result is bar `start + i`'s point, exactly as the whole array's.
+ */
+function toPoints(column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false, times = null, start = 0) {
+  const s = start > 0 ? Math.min(Math.floor(start), bars.length) : 0
+  return toPointsInto(new Array(bars.length - s), s, bars.length, column, bars, adjustTime, signColors, colColors, condColumn,
+    unknownNone, times, s)
 }
 
-/** ⭐ NEIGHBOR FRAMES — `toPoints`' body over bars [from, to) of `out` (prepare fills one array in slices). */
+/** ⭐ NEIGHBOR FRAMES — `toPoints`' body over bars [from, to) of `out` (prepare fills one array in slices); bar i is
+ *  written at `out[i - base]` (`base` 0: the whole array; `toPoints` from a window start passes the start). */
 function toPointsInto(out, from, to, column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false,
-  times = null) {
+  times = null, base = 0) {
   for (let i = from; i < to; i++) {
     // ⭐ NEIGHBOR FRAMES — `times` is `chartTimesFor(bars, adjustTime)`: these values, built once per bars
     const time = times ? times[i] : adjustTime(bars[i].t)
     const v = column ? column[i] : NaN
-    if (!Number.isFinite(v)) { out[i] = { time }; continue }
+    const at = i - base
+    if (!Number.isFinite(v)) { out[at] = { time }; continue }
     if (signColors) {
-      out[i] = { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
+      out[at] = { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
       continue
     }
     // ⭐⭐ C1 — PER-POINT COLOUR FROM A COMPUTED COLUMN (`colorMode: 'column:'`).
@@ -427,13 +436,13 @@ function toPointsInto(out, from, to, column, bars, adjustTime, signColors, colCo
     // series colour there. Owner ruling 2 (2026-09-28) replaced it with Pine's
     // rule — an `na` condition takes the ELSE branch — see `pointColour`.
     const colour = pointColour(colColors, condColumn, i, unknownNone)
-    if (colour) { out[i] = { time, value: v, color: colour }; continue }
+    if (colour) { out[at] = { time, value: v, color: colour }; continue }
     // ⭐⭐ RT6 — a run's `na` colour draws NOTHING at that point (TradingView
     // hides a plot point whose colour is `na`) — the transparent entry a
     // palette's `na` leaf already draws (`pine.js` TRANSPARENT_PALETTE_ENTRY),
     // never the series colour, which would be a colour the script never chose.
-    if (colColors && colColors.packed) { out[i] = { time, value: v, color: PACKED_NA_POINT }; continue }
-    out[i] = { time, value: v }
+    if (colColors && colColors.packed) { out[at] = { time, value: v, color: PACKED_NA_POINT }; continue }
+    out[at] = { time, value: v }
   }
   return out
 }
@@ -1852,12 +1861,15 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // bars array → Map(instanceId → `{registry, def, key, token, cols}`), at most PREPARED_BARS_MAX arrays
   // (oldest dropped: a scan moves on, and a 30,000-bar column set is megabytes).
   let preparedCols = new Map()
-  /** column (by identity) → `{column, bars, adjustTime, up, down, palette, cond, unknownNone, points}`. */
+  /** column (by identity) → `{column, bars, adjustTime, up, down, palette, cond, unknownNone, from, points}`
+   *  (`points[i]` is bar `from + i`'s point). */
   let preparedPoints = new WeakMap()
   /** The last enabled sync's ctx: what `prepare` asks the same questions with, for another row's bars. */
   let lastPrepCtx = null
   /** …and its planned bindings (`planBindings`' `bind`: key, instanceId, plot, def), whose points it makes. */
   let lastPlanBindings = []
+  /** …and how many of its newest bars it handed the renderer (its plot window), or null for every bar. */
+  let lastDrawRows = null
   /** The symbol of the last enabled sync (diagnostics: a pass for another symbol is a switch). */
   let lastSyncSym = null
   const takePrepared = (registry, def, inst, calcBars, sourceCols, keyCtx) => {
@@ -2068,6 +2080,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
     preparedPoints = new WeakMap()
     lastPrepCtx = null
     lastPlanBindings = []
+    lastDrawRows = null
     pendingLayout = null
     pendingLaidOut = false
     mismatchRun = 0
@@ -2853,10 +2866,25 @@ export function createBinder({ chart, LWC, scope = '' }) {
       removeRunSeries(chart, b.from)
     }
 
+    // ⭐ (2026-11-20) THE FIRST BAR THE RENDERER IS HANDED: `ctx.plotWindowFrom` (a chart time) as an index into
+    // these bars, found once per pass by the very search `windowedPoints` cuts with, so a line's points are built
+    // from there (`toPoints`' `start`) and the cut below hands the renderer that array as it is. 0: every bar.
+    // ⛔ Never past the second-to-last bar: the binding's `lastValue` / `prevValue` read the last two points.
+    let drawStart = null
+    const drawStartOf = () => {
+      if (drawStart === null) {
+        const at = firstIndexAtOrAfter(bars.length,
+          nfTimes ? (i) => nfTimes[i] : (i) => adjustTime(bars[i].t), ctx.plotWindowFrom)
+        drawStart = Math.max(0, Math.min(at, bars.length - 2))
+      }
+      return drawStart
+    }
+
     /** The column→LWC-points mapping, reused whenever nothing it depends on has
      *  moved. `adjustTime` is part of the key because it is what stamps every
-     *  `time`; it is a stable `useCallback` in `StockChart`, so this hits. */
-    const pointsFor = (b, rawColumn) => {
+     *  `time`; it is a stable `useCallback` in `StockChart`, so this hits.
+     *  `whole`: every bar's point (a gap-split line splits all of them). */
+    const pointsFor = (b, rawColumn, whole = false) => {
       // ⭐ ONE ADAPTER, TWO SHAPES. The memo is keyed on the payload's IDENTITY
       // exactly as it is on a column's, so a candle binding that did not change
       // re-uses its points for the same reason a line does.
@@ -2875,18 +2903,24 @@ export function createBinder({ chart, LWC, scope = '' }) {
         return pts
       }
       const { sc, cc, cond, up, down, palette, unknownNone } = k
+      const from = whole ? 0 : drawStartOf()
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would
       // serve the previous pass's colours — the memo would be answering a
       // question nobody asked.
-      if (samePointsKey(m, column, bars, adjustTime, k)) return m.points
-      // ⭐⭐ NEIGHBOR FRAMES — the same points, made ahead for this very column (`prepare`)
+      // ⛔ …AND SO DOES WHERE ITS POINTS BEGIN: an array built from a later bar cannot serve a pass that draws from
+      // an earlier one (the window grew, or the line went whole); one that begins at or before it can (the cut below).
+      if (samePointsKey(m, column, bars, adjustTime, k) && (m.from || 0) <= from) return m.points
+      // ⭐⭐ NEIGHBOR FRAMES — the same points, made ahead for this very column (`prepare`), from a bar at or before
+      // this pass's first drawn one
       const pre = preparedPoints.get(column)
       let points
-      if (samePointsKey(pre, column, bars, adjustTime, k)) { points = pre.points; nfCount('pointsHit') }
-      else points = toPoints(column, bars, adjustTime, sc, cc, cond, unknownNone, nfTimes)
-      pointMemo.set(b.key, { column, bars, adjustTime, up, down, palette, cond, unknownNone, points })
+      let pointsFrom = 0
+      if (samePointsKey(pre, column, bars, adjustTime, k) && (pre.from || 0) <= from) {
+        points = pre.points; pointsFrom = pre.from || 0; nfCount('pointsHit')
+      } else { points = toPoints(column, bars, adjustTime, sc, cc, cond, unknownNone, nfTimes, from); pointsFrom = from }
+      pointMemo.set(b.key, { column, bars, adjustTime, up, down, palette, cond, unknownNone, from: pointsFrom, points })
       return points
     }
 
@@ -3353,7 +3387,6 @@ export function createBinder({ chart, LWC, scope = '' }) {
       }
 
       // ── TRAP #1: a first bind is setData, whatever the plan says ──
-      const points = pointsFor(b, columns.get(b.key))
       // ⛔⛔ A CANONICAL GAP IS A BREAK, NOT A MISSING POINT (`gapRuns.js`). A
       // connected line of fundamental lineage is split into one render series per
       // valid run; the primary keeps the newest run and every time slot, the rest
@@ -3364,6 +3397,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // connected line, so each valued run is drawn as its own series instead.
       const gapBreak = isConnectedPool(b.poolKey)
         && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
+      // a split line's runs are split from EVERY bar (its run series stay whole); every other line's points are
+      // built from the first bar it is handed (`drawStartOf`)
+      const points = pointsFor(b, columns.get(b.key), gapBreak)
       const split = gapBreak ? splitFor(points) : null
       // ⭐ 2026-11-13 — ONLY THE ROWS FROM THE WINDOW START ARE HANDED TO THE RENDERER
       // (`plotWindow.js`; `ctx.plotWindowFrom`, a bar time, absent = every row). The
@@ -3499,6 +3535,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // ask for again — a memo that only grows is a leak wearing a cache's clothes.
     const boundKeys = new Set(next.map(n => n.key))
     for (const key of pointMemo.keys()) if (!boundKeys.has(key)) pointMemo.delete(key)
+    // ⭐ NEIGHBOR FRAMES — the rows this pass handed the renderer, for the points `prepare` makes ahead
+    if (nf) lastDrawRows = ctx.plotWindowFrom == null || !(drawStartOf() > 0) ? null : bars.length - drawStartOf()
 
     held = next
 
@@ -3742,19 +3780,28 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // ── the points of the plots this chart draws now, from the columns above ──
     const times = chartTimesFor(bars, adjustTime)
     yield
+    // ⭐ (2026-11-20) ONLY THE ROWS THE SWITCH WILL HAND THE RENDERER (`drawStartOf` in `sync`): as many of the newest
+    // bars as the last sync drew, and one window step more (the chart places a window start in PLOT_WINDOW_STEP steps,
+    // so the same zoom on another row starts at most a step further back). Every bar when the last sync drew every
+    // bar. A switch that draws from further back than this (a zoom out meanwhile) builds its own, as it always did.
+    const start = lastDrawRows ? Math.max(0, bars.length - lastDrawRows - PLOT_WINDOW_STEP) : 0
     for (const b of lastPlanBindings) {
       const raw = b ? cols.get(b.key) : undefined
       if (!raw || isOhlcPayload(raw)) continue
       const k = pointsInputsOf(b, raw, (key) => cols.get(key), base.cs)
-      if (k.ohlc || samePointsKey(preparedPoints.get(k.column), k.column, bars, adjustTime, k)) continue
-      const points = new Array(bars.length)
-      for (let from = 0; from < bars.length; from += POINTS_SLICE_BARS) {
+      // a gap-split line splits every bar (`sync`'s `gapBreak`)
+      const whole = isConnectedPool(b.poolKey) && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
+      const from0 = whole ? 0 : start
+      const had = preparedPoints.get(k.column)
+      if (k.ohlc || (samePointsKey(had, k.column, bars, adjustTime, k) && (had.from || 0) <= from0)) continue
+      const points = new Array(bars.length - from0)
+      for (let from = from0; from < bars.length; from += POINTS_SLICE_BARS) {
         toPointsInto(points, from, Math.min(bars.length, from + POINTS_SLICE_BARS), k.column, bars, adjustTime,
-          k.sc, k.cc, k.cond, k.unknownNone, times)
+          k.sc, k.cc, k.cond, k.unknownNone, times, from0)
         yield
       }
       preparedPoints.set(k.column, { column: k.column, bars, adjustTime, up: k.up, down: k.down,
-        palette: k.palette, cond: k.cond, unknownNone: k.unknownNone, points })
+        palette: k.palette, cond: k.cond, unknownNone: k.unknownNone, from: from0, points })
       nfCount('pointsPrepared')
     }
   }

@@ -18,7 +18,8 @@
 // into a cleared overlay, exactly what a device that was live all day holds. Bounded (RESYNC_MIN_MS
 // apart, RESYNC_MAX_PER_DAY a day): a gap the PUBLISHER has (`not-published`, `incomplete`) is in
 // the day file too, so re-reading cannot repair it; the overlay stays unusable until tomorrow and
-// the charts ask the server (live.js). A new seed with more symbols re-syncs too (resync('seed')).
+// the charts ask the server (live.js). Nor does a frame the decoder REFUSED (`refused`: the publisher's
+// own bytes, the same in the day file). A new seed with more symbols re-syncs too (resync('seed')).
 
 import { createMinuteFrameConsumer } from '../../lib/minuteFrames/consumer'
 import { etDateLabel } from '../../components/chart/barTime'
@@ -61,6 +62,8 @@ export function createLiveFeed({ overlay, load = _bundled, now = () => Date.now(
       stale: (...a) => { if (live()) overlay.sink.stale(...a) },
       reset: (info) => { if (live()) overlay.sink.reset(info) },
       frameDone: (info) => { if (live()) overlay.sink.frameDone(info) },
+      // the server's day rows after the close (codec FLAG_DAILY; live.js)
+      daily: (info) => { if (live()) overlay.sink.daily?.(info) },
       gap(info) {
         if (!live()) return
         overlay.sink.gap(info)

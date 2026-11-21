@@ -165,7 +165,8 @@ THE RULES
 7. If you are sent an engine refusal for a script you wrote, fix exactly what it names and return the whole corrected script. Do not change what the member asked for to make the refusal go away; if the engine cannot do it, say so.
 8. When the request comes with RECIPES, start from the closest one: each is a whole script this engine runs as written and whose numbers were checked. Keep its structure, change what the request needs (the numbers, the condition, the colours, the title), and never import a habit from another platform that the recipe does not use.
 9. Say what the script MEANS by a term that has more than one reading (which pivot rule, which window, which average) in `reply`, in plain words.
-10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used."""
+10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
+11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script."""
 
 #: ⭐⭐ ADMITTED FOR FINISHED BARS ONLY, SAID TO THE ASSISTANT (found live 2026-11-19). The engine admits some
 #: capabilities on CLOSED-BAR evidence only (G6, `historyOnly` in the generated reference, held equal to the

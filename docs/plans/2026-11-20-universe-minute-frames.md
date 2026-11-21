@@ -85,6 +85,20 @@ the CRC): varint count, then records in the block layout without `av`, one per s
   stream-ingest): `railway variables --service stream-ingest --set MINUTE_FRAMES_WITH_DAILY=1`.
   Check after the close: `python tools/forming_daily_check.py` prints
   `frames' DAILY row == the server's D bar` per symbol. Rollback: `--set MINUTE_FRAMES_WITH_DAILY=0`.
+  ⚠️ A device still running a bundle from BEFORE the client half refuses those frames. The pre-client
+  consumer then RETRIES the refused minute every 2 s, and in a catch-up downloads `today.bin` again on
+  every retry, until the member reloads. So arm only once the client half has been live long enough
+  for open tabs to have reloaded (the device store is off by default: `uct.deviceStore`).
+- **The device (client half).**
+  - `codec.js` decodes the section (`f.daily`). It refuses any flag bit it does not know, for good:
+    `FrameError.frame` carries the header.
+  - `consumer.js` applies a refused frame as a gap (`refused`) and goes on. It also knows when the
+    device holds the server's rows exactly (`dailyOk`): it applied the epoch's first section, which
+    is the full set, and every frame after it. A missed or refused frame ends that until the next
+    epoch's full set (a re-sync of the day file restores it).
+  - `deviceStore/live.js` paints today's D bar from the row, as received, while `dailyOk` holds
+    (`forming.js DEVICE_DAILY_SERVER_ROW`); W and M form from it. Otherwise the rollup path decides.
+  - Fixtures: `day_daily.today.bin` and `codec_daily*.bin`, from this publisher and encoder.
 
 ## Channel: R2 + the edge, not a broadcast on stream-edge
 

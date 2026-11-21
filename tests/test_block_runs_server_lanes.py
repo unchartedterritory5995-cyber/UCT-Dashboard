@@ -251,7 +251,15 @@ def test_the_guard_is_evaluated_under_the_trees_own_opts():
     guard_opts = next(n.value for n in pyast.walk(fn("_block_runs_withheld"))
                       if isinstance(n, pyast.Assign) and getattr(n.targets[0], "id", None) == "opts")
     assert isinstance(tree_opts, pyast.Dict) and isinstance(guard_opts, pyast.Dict)
-    assert [pyast.dump(k) for k in guard_opts.keys] == [pyast.dump(k) for k in tree_opts.keys]
+
+    # A `**spread` entry has no key node (`None` in `Dict.keys`); its expression is in `Dict.values`, compared
+    # below. 2026-11-18 (7fbb1b81e1, engine 78 #1888, ruling D1): both dicts gained
+    # `**ast_interpret.pine_compare_opts_for(definition)` -- "Every server lane that builds its own opts passes
+    # pine_compare_opts_for" -- and `ast.dump(None)` raised here, so the spread is named by its position instead.
+    def keys(d):
+        return ["**" if k is None else pyast.dump(k) for k in d.keys]
+
+    assert keys(guard_opts) == keys(tree_opts)
     assert [pyast.dump(v) for v in guard_opts.values] == [pyast.dump(v) for v in tree_opts.values]
     # …and the call that hands them over passes the names the tree's opts read
     call_site = next(n for n in pyast.walk(fn("evaluate_one"))

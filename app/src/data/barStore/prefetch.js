@@ -492,6 +492,18 @@ export function createPrefetch(o = {}) {
     return !!s && (s.bars.length > 0 || !!s.developing)
   }
 
+  /** SYNCHRONOUS: how many rows (closed + the developing one) the store holds for the chart `sym` / `tf`
+   *  would show, with no legacy array built. 0 for nothing held, and, with `answered`, 0 until the server
+   *  has answered the key in this life (network.answered: never a saved copy alone). Never hydrates: the
+   *  handoff asks it after its own peek, which already did. */
+  function heldRows(sym, tf, { showExtended, answered = false } = {}) {
+    const key = keyFor(sym, tf, { showExtended })
+    const s = key ? S().peek(key) : null
+    if (!s) return 0
+    if (answered && !(s.restSeen && S().network?.answered?.(key))) return 0
+    return s.bars.length + (s.developing ? 1 : 0)
+  }
+
   function _own(key) { preparing.set(key, (preparing.get(key) || 0) + 1) }
   function _release(key) { const n = (preparing.get(key) || 1) - 1; if (n > 0) preparing.set(key, n); else preparing.delete(key) }
 
@@ -1206,7 +1218,7 @@ export function createPrefetch(o = {}) {
   }
 
   return {
-    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict,
+    keyFor, peek, ensure, prefetch, peekDisplayable, peekBars, holdsBars, heldRows, prepareForDisplay, prepareDailyForDisplay, lakePending, deepPending, devicePaints, deviceVerdict,
     prefetchBars, prefetchBar, prefetchBarsToIDB, prefetchAllTimeframes, prefetchListAllTimeframes,
     prefetchGridWarm, warmMemFromIDB, prewarmVisibleList, prefetchListDeep, prefetchReplayTimeframes,
     prefetchBarOnIntent, warmTypedSymbol, createNeighborHold, edgeWarmList,
@@ -1226,6 +1238,7 @@ export const prefetch = (keys, opts) => _f().prefetch(keys, opts)
 export function peekDisplayable(sym, tf, opts = {}) { return _f().peekDisplayable(sym, tf, opts) }
 export function peekBars(sym, tf, opts = {}) { return _f().peekBars(sym, tf, opts) }
 export function holdsBars(sym, tf, opts = {}) { return _f().holdsBars(sym, tf, opts) }
+export function heldRows(sym, tf, opts = {}) { return _f().heldRows(sym, tf, opts) }
 export function prepareForDisplay(sym, tf, opts = {}) { return _f().prepareForDisplay(sym, tf, opts) }
 export function lakePending(sym, tf, opts = {}) { return _f().lakePending(sym, tf, opts) }
 export function deepPending(sym, tf, opts = {}) { return _f().deepPending(sym, tf, opts) }
