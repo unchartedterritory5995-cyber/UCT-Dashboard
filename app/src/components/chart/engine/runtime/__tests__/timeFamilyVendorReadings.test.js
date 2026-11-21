@@ -278,11 +278,22 @@ describe('⭐⭐ the `time()` family — the vendor readings, finally pinned', (
     expect(new Set(d).size).toBe(2)
     // ⛔ NON-VACUITY: bare `time` really does take a new value on every bar
     expect(new Set(t).size).toBe(M)
-    // ⛔ OFF THE REGULAR SESSION IT IS REFUSED BY NAME, never drawn off the wrong day: an hourly bar at 17:30
-    const late = buildOf(`plot(time(${Q}D${Q}))`, [...HOURLY, { t: OPEN + 86400 + 8 * 3600, o: 1, h: 1, l: 1, c: 1, v: 1 }])
+    // ⛔ BARS OF NEITHER SHAPE ARE REFUSED BY NAME, never drawn off the wrong day: regular-hours bars beside an
+    // overnight one at 21:30 and no pre-market or after-hours bar (U-BUILTIN T-D EXT: `chartDayRegime` "off-session")
+    const late = buildOf(`plot(time(${Q}D${Q}))`, [...HOURLY, { t: OPEN + 86400 + 12 * 3600, o: 1, h: 1, l: 1, c: 1, v: 1 }])
     expect(late.ok).toBe(false)
     expect(late.refusal.guard).toBe('runtime:chart-clock')
     expect(late.refusal.message).toMatch(/time-day:off-session: /)
+    // ⭐ T-D EXT — an after-hours bar at 17:30 makes it an extended-hours chart: the anchor is then 04:00 on every
+    // bar (`vw-bi-time-d-extended-spy-60-2026-11-19` A1), 5.5 hours before the regular open
+    const ext = [...HOURLY, { t: OPEN + 86400 + 8 * 3600, o: 1, h: 1, l: 1, c: 1, v: 1 }]
+    const built = buildOf(`plot(time(${Q}D${Q}))`, ext)
+    expect(built.ok, built.ok ? '' : String((built.refusal || {}).guard)).toBe(true)
+    const prog = lowerIrProgram(built.ir)
+    const r = execute(prog, { bars: ext.length, series: ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(ext.map((b) => b[k]))),
+      columns: prog.columns, confirmed: true, barTimes: ext.map((b) => b.t) })
+    const ed = Array.from(r.outputs[0])
+    for (let i = 0; i < M; i += 1) expect(ed[i]).toBe(d[i] - 19800 * 1000)
   })
 
   it('⛔ CONTROL — the probes are well-formed, so the refusals are about `time`', () => {
