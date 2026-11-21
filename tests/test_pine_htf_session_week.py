@@ -114,3 +114,54 @@ def test_committed_spy_and_btcusd_daily_captures_keep_their_dates_and_their_aggr
         for field in ("open", "high", "low", "close", "volume"):
             got = _column({"type": "tf_live", "value": code, "args": [{"type": "series", "name": field}]}, bars, opts)
             assert got == _reference(bars, days, code, field[0]), (file, code, field)
+
+
+def _capture(cid):
+    """A committed Q-CLOSURE capture's bars as the harness hands them: each dated by its open's calendar date in the
+    exchange's zone (``ourSide.js::toProductBars``), and a TradingView plot by title, per bar."""
+    from zoneinfo import ZoneInfo
+    cap = json.loads((HARNESS / f"vw-req-w-closure-day-{cid}-1d-2026-11-20.json").read_text(encoding="utf-8"))
+    zone = ZoneInfo(cap["symbol"]["timezone"])
+    bars = [{"t": datetime.datetime.fromtimestamp(t, datetime.timezone.utc).astimezone(zone).strftime("%Y-%m-%d"),
+             "o": o, "h": h, "l": lo, "c": c, "v": 0 if v is None else v}
+            for t, o, h, lo, c, v in (r[:6] for r in cap["bars"]["rows"])]
+    titles = [p.get("title") or p.get("id") for p in cap["study"]["plots"]]
+
+    def tv(title):
+        j = 1 + titles.index(title)
+        at = {r[0]: r[j] for r in cap["plotValues"]["rows"]}
+        return [at.get(r[0]) for r in cap["bars"]["rows"]]
+    return bars, tv
+
+
+@pytest.mark.parametrize("cid", ["eurusd", "es1"])
+def test_the_python_lane_gives_tradingviews_look_ahead_weekly_close_on_both_captures(cid):
+    bars, tv = _capture(cid)
+    want = tv("W_close_on")
+    got = _column({"type": "tf_live", "value": "W", "args": [{"type": "series", "name": "close"}]}, bars,
+                  {"tf": "D", "newest_bar_is_forming": False, "historyFromListing": False})
+    compared = 0
+    for i, (g, w) in enumerate(zip(got, want)):
+        if w is None:
+            continue
+        compared += 1
+        assert g == pytest.approx(w, abs=1e-9), (cid, i, bars[i]["t"], g, w)
+    assert compared > 7000
+
+
+def test_s2_on_the_captures_is_exactly_the_witnessed_list():
+    def crossings(bars):
+        out = []
+        for b, d in zip(bars, ast_interpret._bar_days(bars)):
+            s0 = (datetime.date.fromisoformat(b["t"]) + datetime.timedelta(days=1)).isoformat()
+            x, y = datetime.date.fromisoformat(s0), datetime.date.fromisoformat(d)
+            if d != s0 and (x.isocalendar()[:2] != y.isocalendar()[:2] or (x.year, x.month) != (y.year, y.month)):
+                out.append((b["t"], s0, d))
+        return out
+    assert crossings(_capture("eurusd")[0]) == []
+    assert crossings(_capture("es1")[0]) == [
+        ("2009-07-02", "2009-07-03", "2009-07-06"), ("2010-05-30", "2010-05-31", "2010-06-01"),
+        ("2014-07-03", "2014-07-04", "2014-07-07"), ("2015-07-02", "2015-07-03", "2015-07-06"),
+        ("2020-07-02", "2020-07-03", "2020-07-06"), ("2021-05-30", "2021-05-31", "2021-06-01"),
+        ("2025-07-03", "2025-07-04", "2025-07-07"), ("2026-06-18", "2026-06-19", "2026-06-22"),
+        ("2026-07-02", "2026-07-03", "2026-07-06")]

@@ -319,6 +319,64 @@ describe('⭐⭐ controls on committed captures: SPY 1D and BITSTAMP:BTCUSD 1D',
   }
 })
 
+// ⭐⭐ THE CAPTURES THEMSELVES (committed by #2275): the keying and the grade, read here as the harness hands the bars
+// (each bar dated by its open's calendar date in the exchange's zone, `ourSide.js::toProductBars`)
+describe('⭐⭐ the two captures: vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20', () => {
+  const load = (id) => {
+    const cap = JSON.parse(fs.readFileSync(path.join(HARNESS, `vw-req-w-closure-day-${id}-1d-2026-11-20.json`), 'utf8'))
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: cap.symbol.timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    const bars = cap.bars.rows.map(([t, o, h, l, c, v]) => ({ t: fmt.format(new Date(t * 1000)), o, h, l, c, v: v ?? 0 }))
+    const plots = cap.study.plots.map((p) => p.title || p.id)
+    const tv = (title) => { const j = 1 + plots.indexOf(title); const at = new Map(cap.plotValues.rows.map((r) => [r[0], r[j]])); return cap.bars.rows.map((r) => at.get(r[0])) }
+    return { cap, bars, tv }
+  }
+  const wk = (d) => { const z = Date.parse(`${d}T00:00:00Z`) / 86400000; return z - (((z + 3) % 7) + 7) % 7 }
+  const crossings = (bars) => {
+    const days = barDays(bars)
+    return bars.map((b, i) => [b.t, plus(b.t, 1), days[i]])
+      .filter(([, s0, d]) => d !== s0 && (wk(s0) !== wk(d) || s0.slice(0, 7) !== d.slice(0, 7))).map(([o, s0, d]) => [o, s0, d])
+  }
+  for (const id of ['eurusd', 'es1']) {
+    it(`${id}: every look-ahead weekly close is TradingView's, and the look-ahead-off close only where the venue's calendar does not decide`, () => {
+      const { bars, tv } = load(id)
+      const want = tv('W_close_on')
+      const got = Array.from(interpret(live(CLOSE), bars, {}, undefined, undefined, { ...DAY, historyFromListing: false }))
+      let compared = 0
+      for (let i = 0; i < bars.length; i++) {
+        if (want[i] === null || want[i] === undefined) continue
+        compared += 1
+        expect(got[i], `${id} bar ${i} (${bars[i].t})`).toBeCloseTo(want[i], 9)
+      }
+      expect(compared).toBeGreaterThan(7000)
+      const off = tv('W_close_off')
+      const held = new Map()
+      const merged = Array.from(interpret(merge(CLOSE), bars, {}, undefined, undefined, { ...DAY, historyFromListing: false, withheldBarsSink: held }))
+      const venue = held.get(HTF_VENUE_CALENDAR_CODE)
+      let withheld = 0
+      for (let i = 0; i < bars.length; i++) {
+        if (venue && venue[i]) { withheld += 1; continue }
+        if (off[i] === null || off[i] === undefined || !Number.isFinite(merged[i])) continue
+        expect(merged[i], `${id} merge bar ${i} (${bars[i].t})`).toBeCloseTo(off[i], 9)
+      }
+      expect(withheld, `${id}: the venue closes withheld`).toBe(id === 'eurusd' ? 34 : 37)
+    })
+  }
+  it('S2 on the captures: never on EURUSD; on ES1 exactly the 9 witnessed crossings, and none after the witnessed span', () => {
+    expect(crossings(load('eurusd').bars)).toEqual([])
+    expect(crossings(load('es1').bars)).toEqual([
+      ['2009-07-02', '2009-07-03', '2009-07-06'], ['2010-05-30', '2010-05-31', '2010-06-01'],
+      ['2014-07-03', '2014-07-04', '2014-07-07'], ['2015-07-02', '2015-07-03', '2015-07-06'],
+      ['2020-07-02', '2020-07-03', '2020-07-06'], ['2021-05-30', '2021-05-31', '2021-06-01'],
+      ['2025-07-03', '2025-07-04', '2025-07-07'], ['2026-06-18', '2026-06-19', '2026-06-22'],
+      ['2026-07-02', '2026-07-03', '2026-07-06']])
+    // the witnessed span ends at the captures' newest session
+    for (const id of ['eurusd', 'es1']) {
+      const { bars } = load(id)
+      expect(plus(bars[bars.length - 1].t, 1), id).toBe(SESSION_CARRY_WITNESSED_THROUGH)
+    }
+  })
+})
+
 describe('the run\'s request (`requestAlignment`) withholds the same bars', () => {
   it('EURUSD Christmas 2015: the venue close, and nothing else in its week', () => {
     const sink = new Map()
