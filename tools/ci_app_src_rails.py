@@ -99,8 +99,6 @@ KNOWN_RED: dict[str, str] = {
         "cannot be COLLECTED: _ohlcv_ddl() asserts one ohlcv DDL in CODE and finds 0 (the parametrize runs at import)",
     "tests/test_a12_s6_consistency_rail.py::test_column_presets_have_a_typed_store_now":
         "AssertionError: the write side is gone (the column-presets store this rail pins moved)",
-    "tests/test_entitlements_manifest.py::test_the_checked_in_manifest_IS_what_the_declarations_derive":
-        "the checked-in entitlements manifest is not what the declarations derive: regenerate it",
     "tests/test_gate_box_lock.py::test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded":
         "dev-PC lock (scripts/gate_shards.py's box lock): on a runner a live pid reads as the holder (LockHeld)",
     "tests/test_gate_box_lock.py::test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED":
