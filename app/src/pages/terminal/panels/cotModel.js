@@ -12,6 +12,7 @@
 // (pages/cot/cotRead.js, the same arithmetic the COT Data page draws), never a second formula.
 import { GROUPS, INDEX_WINDOW, computeSnapshot } from '../../cot/cotRead'
 import { dayWords } from './tideHistoryModel'
+import { formatCompact, formatNumber } from '../../../lib/presentation/presentationPrimitives'
 
 export const COT_CODE = 'COT'
 /** The thing read, as a failed read names it ("Futures positioning could not be read just now."). */
@@ -145,14 +146,18 @@ export const cotCommandArgs = ({ market } = {}) => (parseCotArg(market) ? [parse
 
 // ── words ────────────────────────────────────────────────────────────────────────────────────
 
+const CONTRACT_TIERS = Object.freeze([
+  Object.freeze({ at: 1e6, suffix: 'M', decimals: 2 }),
+  Object.freeze({ at: 1e3, suffix: 'K', decimals: 1 }),
+])
+
 /** Contracts, compact, no sign: "1.25M", "212.4K", "860"; "n/a" with no figure. */
 export function contractsText(v) {
   const n = finite(v)
   if (n == null) return 'n/a'
   const a = Math.abs(n)
-  if (a >= 1e6) return `${(a / 1e6).toFixed(2)}M`
-  if (a >= 1e4) return `${(a / 1e3).toFixed(1)}K`
-  return Math.round(a).toLocaleString('en-US')
+  // Under ten thousand the whole figure reads better than "9.5K"; from there up, the shared ladder.
+  return a >= 1e4 ? formatCompact(a, { tiers: CONTRACT_TIERS }) : formatNumber(Math.round(a), { decimals: 0 })
 }
 
 /** Contracts with a sign: "+212.4K" (net long, or a rise), "-85.1K" (net short, or a fall), "0". */
