@@ -38,6 +38,13 @@ Owner decision of 2026-11-10: "Re-measure #1016's execution coverage using a cor
 
 OLD = the voided run on the stale install; NEW = this run. Per-area table and per-row ledger: `attempt-2/compare.md`, `attempt-2/ledger.md`. 0 rows differ between OLD and NEW. A weakness the method keeps: 37 VERIFIED rows (34 in C3) are proved only at file level, because their citation names no test the recount can match.
 
+## Update 2026-11-18: News filter presets (C3-140, agent/pl/news-filter-presets)
+
+The News (Trade Exchange) widget's own Filters menu → Presets, as one more control and one more item list of `widget.setOption` (no new action; the manifest is byte-neutral): `preset` applies one (the menu's applyPreset: the preset's categories, Linked, watchlist and display into opts, and its search into the box); `presets` saves the widget's current filters under a name (its Save), renames one (its Rename), deletes one (its Delete), through the widget's door (`TradeExchangeNewsWidget` useWidgetDoor). Apply: exact Undo (opts back whole, the search box back through its own writer: a control's `carries`), stale once the member types a new search. Rename: Undo renames it back. Save and delete: shown first, no Undo (AUDIT S1-C). A taken name, a full menu (12) and a name past the box's 40 characters are refused in words. Test: `app/src/agent/qa/chartsOutcome/newsPresets.outcome.test.jsx` (real panel beside the REAL widget, scripted model, jsdom, SIMULATED; a second News widget is the untouched control) and `app/src/agent/agentNewsPresets.test.js` (limits pinned to the product's source; 81 class-generated routing phrasings). Held-out phrasings: `app/src/agent/agentNewsPresetHeldOut.test.js`, committed before the change (pre-change: 21 failed | 2 passed).
+
+- VERIFIED (1): C3-140; was MISSING (1): C3-140.
+- Counts are not changed here: the summary numbers and tables are recounted at merge (row C3-140 is the only change).
+
 ## Update 2026-11-11: chart zoom (C1-028) and C1-022 log / arithmetic (agent/pl/chart-zoom)
 
 New capability `chartSetup.zoom` {direction in | out, steps 1-10}: the + / - keys' own writer (`StockChart.zoomTimeAxis`, which the key handler now calls), reached through `ChartPane.viewDo('zoom')`, read back from `getDateMeta().frame` (the window width moved the asked way, to the width asked), refused at the time scale's bar-spacing limit (`getDateMeta().zoomLimits`), exact Undo through `restoreView`. C1-022's log and arithmetic were not driven by an outcome test; two cases now are. Evidence: vitest, scripted model, jsdom; the zoom row is † (the chart's view is a stand-in inside the test; StockChart's half is a source check). PR doc: `docs/agent/program/PR-chart-zoom.md`.
@@ -825,7 +832,7 @@ Every file:line citation in the control column was checked against this tree: 33
 | C3-137 | News | Send the feed to Journal | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | widgetJournal.outcome.test.jsx: C3-137 "put the news and catalysts feed in a fresh journal note" | pass 7/7 | panel, scripted model |
 | C3-138 | TE News | Search headlines | VERIFIED (SIMULATED outcome test, scripted model, jsdom) | teNewsWatchlist.outcome.test.jsx: "C3-138: search the News widget through its own search box" (held-out phrasings, clear, NEGATIVE); agentExecReach.test.jsx: search held-out7 (routing reach only); see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
 | C3-139 | TE News | Filter by category, linked symbol or watchlist | PARTIAL (SIMULATED) — covered: the watchlist filter (watchlistId and the shown headlines read back, Undo, NEGATIVE); not covered: the category filter and the linked-symbol filter | teNewsWatchlist.outcome.test.jsx: "C3-139: the News widget filtered to one of the member's watchlists, through its own select"; see docs/agent/program/EXEC-CITED-RERUN.md | pass 9/9 | panel, scripted model |
-| C3-140 | TE News | Apply, rename or delete a filter preset | MISSING | none | n/a | none |
+| C3-140 | TE News | Apply, rename or delete a filter preset | VERIFIED | app/src/agent/qa/chartsOutcome/newsPresets.outcome.test.jsx | pass 22/22 | panel, scripted model |
 | C3-141 | TE News | Save or unsave a headline | MISSING | none | n/a | none |
 | C3-142 | TE News | Add or edit a headline note | MISSING | none | n/a | none |
 | C3-143 | TE News | Manage collections | MISSING | none | n/a | none |
