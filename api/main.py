@@ -7083,6 +7083,13 @@ async def lifespan(app: FastAPI):
         _bars_rebuild.start_background_sync()
     except Exception as e:  # noqa: BLE001
         print(f"[startup] rebuilt-history sync start failed (non-fatal): {e}")
+    # The published corrections ledger for served D/W/M bars (bars_corrections); inert with no manifest.
+    # BARS_CORRECTIONS_SERVE=0 = off.
+    try:
+        from api.services import bars_corrections as _bars_corrections
+        _bars_corrections.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        print(f"[startup] bars-corrections sync start failed (non-fatal): {e}")
 
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
