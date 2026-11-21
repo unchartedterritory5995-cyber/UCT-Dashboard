@@ -2800,7 +2800,14 @@ def _fill_daily_tail_with_yf(ticker: str, massive_iso: list[dict]) -> list[dict]
     }
     for b in massive_iso:
         by_date[b["t"]] = b  # Massive wins overlap
-    return [by_date[k] for k in sorted(by_date)]
+    out = [by_date[k] for k in sorted(by_date)]
+    if not massive_iso and out:
+        # ⛔ No Massive answer at all: this is yfinance's WHOLE history, unjoined (ruling 2026-11-21). Held
+        # history (every session before the newest) may only fill dates the store lacks. The newest session
+        # is the mutable tail (bars_sqlite.history_floor: D/W/M history is every row before the tail), so it
+        # may still update, as the tail-fill always could.
+        out = [_sqlite.AddOnlyBar(b) for b in out[:-1]] + out[-1:]
+    return out
 
 
 def _recent_daily_iso(ticker: str, days: int) -> list[dict]:
@@ -3391,7 +3398,11 @@ def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dic
     if not yf_bars:
         return massive_bars
     if not massive_bars:
-        return yf_bars
+        # ⛔ An EMPTY Massive answer (an outage, a refusal) is an unjoined source too (ruling 2026-11-21):
+        # yfinance's whole series may only ADD dates the store lacks, never rewrite held history onto
+        # another basis. A brand-new ticker still gets every row (nothing is held), with its provenance
+        # recorded (`bars_sqlite.unjoined_writes`); a later proven join rebases them (a plain write).
+        return [_sqlite.AddOnlyBar(b) for b in yf_bars]
     cutoff = massive_bars[0]["t"]  # ISO date string sorts lexically
     older_yf = [b for b in yf_bars if b["t"] < cutoff]
     f = _yf_join_factor(yf_bars, massive_bars)
