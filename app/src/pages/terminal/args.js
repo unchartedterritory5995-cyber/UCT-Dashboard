@@ -166,6 +166,24 @@ export const HILO_GROUP_WORDS = Object.freeze({
 })
 /** The cadences `cadence` accepts (RRG's daily or weekly closes; panels/RrgPanel.jsx RRG_CADENCES). */
 export const CADENCES = Object.freeze(['D', 'W'])
+// FUND (2026-11-21): a copy of the panel model's metric words (functions.fundMetrics.test.js pins it to its owner)
+export const FUND_METRIC_WORDS = Object.freeze({
+  REV: 'revenue_ttm', REVQ: 'revenue_q', NETINC: 'net_income_ttm', NETINCQ: 'net_income_q',
+  EPS: 'eps_ttm', EPSQ: 'eps_q', OCF: 'operating_cash_flow_ttm', FREECF: 'fcf_ttm',
+  REVG: 'revenue_growth_ttm', REVGQ: 'revenue_growth_q', EPSG: 'eps_growth_ttm', EPSGQ: 'eps_growth_q',
+  GROSSM: 'gross_margin', OPM: 'operating_margin', NETM: 'net_margin', FCFM: 'fcf_margin', ROE: 'roe', ROA: 'roa',
+  CASHEQ: 'cash', ASSETS: 'total_assets', LIAB: 'total_liabilities', EQUITY: 'shareholders_equity',
+  SHARES: 'shares_outstanding',
+  MCAP: 'market_cap', PE: 'pe_ttm', PS: 'ps_ttm', PBOOK: 'pb', FCFY: 'fcf_yield',
+  BETA1Y: 'beta_1y_spy',
+})
+export const FUND_MAX_METRICS = 12
+export const FUND_MAX_PEERS = 3
+const FUND_WORD_OF = Object.freeze(Object.fromEntries(Object.entries(FUND_METRIC_WORDS).map(([w, id]) => [id, w])))
+const fundMetricOf = (tok) => {
+  const k = String(tok ?? '').trim().toUpperCase()
+  return Object.prototype.hasOwnProperty.call(FUND_METRIC_WORDS, k) ? FUND_METRIC_WORDS[k] : null
+}
 
 /**
  * Each kind: `parse(token, ctx)` → a value or null (not this kind), `describe(value)` → the
@@ -638,6 +656,45 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
     },
     describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
+  },
+  // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
+  /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */
+  fundMetric: {
+    takes: 'a metric to draw as a line (PE, REV, EPS, NETM, FCFM, ROE)',
+    parse: (tok) => fundMetricOf(tok),
+    describe: (v) => `line of ${FUND_WORD_OF[v] || v}`,
+  },
+  /** FUND's rows: metric words joined by + (`REV+EPS+PE`, `REV+` for one), at most twelve (parseFundMetrics). */
+  fundMetrics: {
+    takes: 'the rows, metric words joined by + (REV+EPS+PE)',
+    parse: (tok) => {
+      const t = String(tok ?? '').trim().toUpperCase()
+      if (!t.includes('+')) return null
+      const parts = t.split('+').filter(Boolean)
+      if (!parts.length || parts.length > FUND_MAX_METRICS) return null
+      const ids = parts.map(fundMetricOf)
+      return ids.some((x) => !x) || new Set(ids).size !== ids.length ? null : ids
+    },
+    describe: (v) => `rows ${v.map((id) => FUND_WORD_OF[id] || id).join(', ')}`,
+  },
+  /** FUND's compared tickers: a REST kind (`rest: true` on the spec), every ticker after the code, at most
+   *  three, none twice (parseFundPeers). A REST spec never decides on its own that a word is an argument
+   *  rather than the stock (parseCommand.js isDeclaredArg), so `FUND NVDA AMD` keeps NVDA as the stock. A
+   *  function code or a metric word is a ticker here only with `$`, as everywhere on the command line. */
+  fundPeers: {
+    takes: 'up to three tickers to compare (NVDA FUND AMD AVGO)',
+    parse: (tok) => {
+      const words = String(tok ?? '').trim().split(/\s+/).filter(Boolean)
+      if (!words.length || words.length > FUND_MAX_PEERS) return null
+      const out = []
+      for (const w of words) {
+        const s = ARG_KINDS.symbol.parse(w)
+        if (!s || out.includes(s) || (!String(w).startsWith('$') && fundMetricOf(s))) return null
+        out.push(s)
+      }
+      return out
+    },
+    describe: (v) => `compared with ${v.join(', ')}`,
   },
 }
 
