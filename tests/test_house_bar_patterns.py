@@ -23,6 +23,9 @@ No paid calls: every model call is the scripted stub of ``test_p2_truth_server``
 """
 from __future__ import annotations
 
+import json
+import re
+
 import pytest
 
 from api.services import ast_interpret
@@ -31,7 +34,8 @@ from api.services.pattern_engine.detectors.classical import outside_bar
 from api.services.pattern_engine.detectors.uct import uct_inside_day
 from api.services.screener import candles
 from tests.test_house_indicators_values import _walk
-from tests.test_p2_truth_server import conv  # noqa: F401 -- fixture by name
+from tests.test_p2_truth_server import conv, emits, empty_view, env, model  # noqa: F401 -- fixtures by name
+from tests.test_p2x_truth_converse import clean_env  # noqa: F401 -- fixture by name
 
 CHART = {"sym": "NVDA", "tf": "D"}
 INSIDE, OUTSIDE = chart_twins.PATTERNS["inside_day"], chart_twins.PATTERNS["outside_day"]
@@ -211,6 +215,86 @@ def test_the_word_reaches_the_assistant_with_the_house_formula(conv, words, key)
 def test_other_uses_of_the_words_are_untouched(conv, words):
     got = conv.understand_turn(words, CHART)
     assert not ({"inside_day", "outside_day"} & {t.get("entry") for t in (got.get("notes") or {}).get("matched_terms") or []}), words
+
+
+# ═══ 3b. the member's own rule wins (ruling 2026-11-21) ══════════════════
+#
+# A house term settles what the WORD means when the member only names it. A member who spells the rule
+# out has asked for that rule: it is built, and the assistant says how it differs from the firm's.
+
+_S = lambda n: {"type": "series", "name": n}  # noqa: E731
+_AGO = lambda node: {"type": "offset", "value": 1, "args": [node]}  # noqa: E731
+_OP = lambda name, a, b: {"type": "op", "name": name, "args": [a, b]}  # noqa: E731
+#: the rule a member spelled out: the high BELOW the prior high and the low ABOVE the prior low (no touch)
+MEMBERS_STRICT_INSIDE = _OP("&&", _OP("<", _S("high"), _AGO(_S("high"))), _OP(">", _S("low"), _AGO(_S("low"))))
+SPELLED_OUT = "Mark inside bars where the high is below the prior high and the low is above the prior low"
+NAMED_ONLY = "Mark inside bars"
+
+
+@pytest.mark.parametrize("words", [SPELLED_OUT, NAMED_ONLY, "Mark outside days"])
+def test_the_rule_handed_with_a_house_term_says_whose_rule_wins(conv, words):
+    got = conv.understand_turn(words, CHART)
+    (term,) = [t for t in got["notes"]["matched_terms"] if t["entry"] in chart_twins.PATTERNS]
+    rule = term["rule"]
+    assert rule.startswith("the firm's meaning of this term on a chart: use this formula")        # named only: ours
+    assert "keep this formula's shape with the member's number" in rule                            # their number: our shape
+    assert "If the member spells out the RULE itself in the same request" in rule                 # their rule: theirs
+    assert "build THEIR rule exactly and say in `assumptions` how it differs from the firm's" in rule
+    assert "whether a touch counts" in rule
+    # the firm's formula still travels with it: the assistant needs it to say how the member's differs
+    assert term["chart_formula"] == conv.dc.formula_for(chart_twins.PATTERNS[term["entry"]])
+
+
+def test_the_members_strict_rule_and_the_firms_are_different_formulas_on_real_ties():
+    """The sentence is not about wording: on a tie the two rules disagree, so which one is built is a number
+    on the member's chart."""
+    ours = chart_twins.PATTERNS["inside_day"]
+    differ = 0
+    for seed in range(1, 9):
+        bars = _walk(seed, n=600)
+        differ += sum(1 for a, b in zip(fires(ours, bars), fires(MEMBERS_STRICT_INSIDE, bars)) if bool(a) != bool(b))
+    # (a random walk of floats almost never ties; the tie cases below are exact)
+    for name, (bars, want) in INSIDE_CASES.items():
+        got_ours = bool(fires(ours, bars)[-1])
+        got_theirs = bool(fires(MEMBERS_STRICT_INSIDE, bars)[-1])
+        assert got_ours is want, name
+        if got_ours != got_theirs:
+            differ += 1
+    assert differ > 0, "no bar tells the member's strict rule from the firm's: the cases prove nothing"
+
+
+def test_the_door_accepts_the_members_own_rule_as_built(conv, clean_env, model):
+    """Nothing after the model call puts the firm's formula back: the member's tree is what the door returns."""
+    patch = env(0, [{"op": "create", "name": "Inside bar", "placement": "price",
+                     "outputs": [{"key": "inside", "label": "Inside bar", "tree": MEMBERS_STRICT_INSIDE}]}],
+                assumptions=[{"text": "Strictly inside, as you described: a bar that only touches the prior high or low is not "
+                                      "counted. UCT's own inside-bar rule counts a touch.", "output": "inside"}])
+    client = model([emits(patch)])
+    r = conv.converse(SPELLED_OUT, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, r
+    (create,) = [o for o in r["envelope"]["ops"] if o["op"] == "create"]
+    assert create["outputs"][0]["tree"] == MEMBERS_STRICT_INSIDE
+    assert create["outputs"][0]["tree"] != chart_twins.PATTERNS["inside_day"]
+    assert any("touch" in a["text"] for a in r["envelope"]["assumptions"])
+    # the rule the model was sent for this request is the one that says so
+    assert "build THEIR rule exactly" in json.dumps(client.calls[0], default=str)
+
+
+def test_CONTROL_naming_the_term_alone_is_still_answered_with_the_firms_formula(conv, clean_env, model):
+    patch = env(0, [{"op": "create", "name": "Inside bar", "placement": "price",
+                     "outputs": [{"key": "inside", "label": "Inside bar", "tree": chart_twins.PATTERNS["inside_day"]}]}],
+                assumptions=[{"text": "UCT's inside-bar rule: the high at or below the prior high and the low at or above "
+                                      "the prior low, on a bar that traded.", "output": "inside"}])
+    client = model([emits(patch)])
+    r = conv.converse(NAMED_ONLY, user_id="u1", view=empty_view(0), chart=CHART)
+    assert r["ok"] is True and r["disposition"] == "change" and len(client.calls) == 1, r
+    (create,) = [o for o in r["envelope"]["ops"] if o["op"] == "create"]
+    assert create["outputs"][0]["tree"] == chart_twins.PATTERNS["inside_day"]
+    # and the firm's formula was in what the model was sent, as before
+    sent = json.dumps(client.calls[0], default=str)
+    # the inclusive rule, written out (the request's data block may escape the comparison signs)
+    plain = re.sub(r"\\+u003c", "<", re.sub(r"\\+u003e", ">", sent))
+    assert "high <= high[1]" in plain and "low >= low[1]" in plain, plain[plain.find("chart_formula"):][:300]
 
 
 def test_the_patterns_use_only_names_of_the_closed_table():
