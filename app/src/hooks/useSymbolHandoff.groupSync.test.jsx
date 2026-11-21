@@ -26,6 +26,7 @@ vi.mock('../components/chart/engine/serverCompute', () => ({
 }))
 
 import useSymbolHandoff, { GROUP_SYNC_MS, __resetGroupRoundsForTests } from './useSymbolHandoff'
+import { GROUP_HANG_MS } from './handoffGroups'
 
 beforeEach(() => { vi.useFakeTimers(); st.ready = { '30': true, '60': true }; for (const k of Object.keys(resolvers)) delete resolvers[k]; __resetGroupRoundsForTests() })
 afterEach(() => { vi.useRealTimers() })
@@ -64,16 +65,39 @@ describe('a linked group shows the new symbol in one frame', () => {
     expect(mixed(seen)).toEqual([])
   })
 
-  it(`bounded: a sibling that is never ready does not hold the other past ${GROUP_SYNC_MS} ms`, async () => {
+  it(`⛔⛔ NEVER A PART OF THE GROUP: a slow sibling (600 ms, past the old ${GROUP_SYNC_MS} ms split) holds both, then both show`, async () => {
     st.ready['60'] = false
-    const { h } = twoCharts()
+    const { h, seen } = twoCharts()
     act(() => { h.rerender({ s: 'BBB' }) })
-    await act(async () => { await vi.advanceTimersByTimeAsync(GROUP_SYNC_MS - 10) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(GROUP_SYNC_MS + 50) })
+    expect(h.result.current).toEqual(['AAA', 'AAA'])        // the ready 30m chart did NOT show B alone
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
     expect(h.result.current).toEqual(['AAA', 'AAA'])
-    await act(async () => { await vi.advanceTimersByTimeAsync(20) })
-    expect(h.result.current).toEqual(['BBB', 'AAA'])        // the ready one, after the budget
     await act(async () => { st.ready['60'] = true; resolvers['60']('current'); await Promise.resolve() })
-    expect(h.result.current).toEqual(['BBB', 'BBB'])        // the straggler at once when it is ready
+    expect(h.result.current).toEqual(['BBB', 'BBB'])
+    expect(mixed(seen)).toEqual([])                          // not one frame with the two apart
+  })
+
+  it('a sibling whose prepare never answers is bounded by its OWN hang guard: both show together then, never apart', async () => {
+    st.ready['60'] = false
+    const { h, seen } = twoCharts()
+    act(() => { h.rerender({ s: 'BBB' }) })
+    await act(async () => { await vi.advanceTimersByTimeAsync(3900) })
+    expect(h.result.current).toEqual(['AAA', 'AAA'])
+    await act(async () => { await vi.advanceTimersByTimeAsync(200) })   // past HANDOFF_HANG_MS (4000)
+    expect(h.result.current).toEqual(['BBB', 'BBB'])
+    expect(mixed(seen)).toEqual([])
+  })
+
+  it(`only a member that never reports ready at all is let go, past GROUP_HANG_MS (${GROUP_HANG_MS} ms)`, async () => {
+    const G = await import('./handoffGroups')
+    const shown = []
+    G.groupJoin('charts:Z', 'BBB', 1); G.groupJoin('charts:Z', 'BBB', 2)
+    G.groupReady('charts:Z', 'BBB', 1, () => shown.push(1))
+    await act(async () => { await vi.advanceTimersByTimeAsync(GROUP_HANG_MS - 10) })
+    expect(shown).toEqual([])                                // member 2 never reports: still held
+    await act(async () => { await vi.advanceTimersByTimeAsync(20) })
+    expect(shown).toEqual([1])
   })
 
   it('a newer symbol starts its OWN round: grouped again, and the old round never shows B late', async () => {
