@@ -98,8 +98,8 @@ function Entry({ qn, pick, state, row, onPick }) {
           const st = tileState(n, ctx)
           return (
             <div key={n} className={`${g.lineRow} ${g['row_' + st] || ''}`} style={{ '--i': n - 1 }} data-testid={`mistake-line-${n}`} data-state={st}>
-              <Tile n={n} i={n - 1} label={lines ? lines[n - 1] : choiceFor(qn, n)} role="radio" checked={pick === n} state={st} disabled={!asking}
-                onClick={() => onPick(n)} testId={`mistake-tile-${n}`} className={`${g.line} ${lines ? g.lineText : ''}`} />
+              <Tile n={n} i={n - 1} role="radio" checked={pick === n} state={st} disabled={!asking}
+                onClick={() => onPick(n)} testId={`mistake-tile-${n}`} className={`${g.line} ${lines ? g.lineText : ''}`}>{lines ? lines[n - 1] : choiceFor(qn, n)}</Tile>
               {!asking && row && row.truth ? <LineNote n={n} row={row} /> : null}
             </div>
           )
