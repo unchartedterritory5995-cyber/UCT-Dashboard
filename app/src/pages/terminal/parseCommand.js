@@ -379,6 +379,14 @@ function parseCore(raw) {
     && BY_CODE[FIRST].ticker && !isTickerCollision(FIRST) && isTickerCollision(second)) {
     return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: second.toUpperCase(), args: rest }
   }
+  // `LEAD IPO`: IPO is a function code AND the word LEAD declares for its new-listings lens. When
+  // neither code takes a ticker, "IPO on a ticker called LEAD" means nothing, so a word the first
+  // code declares as its argument is that argument. `$LEAD IPO` still forces the ticker reading.
+  if (second && !forced && isCode(FIRST) && isCode(second) && !second.startsWith('$')
+    && !BY_CODE[FIRST].ticker && !BY_CODE[second.toUpperCase()].ticker && !isTickerCollision(FIRST)
+    && isDeclaredArg(FIRST, second)) {
+    return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
+  }
   // TICKER FUNC [args]  — the canonical order; a code in second place makes the first a ticker.
   if (second && isCode(second)) {
     const sym = normalizeSym(firstTok)
