@@ -568,12 +568,28 @@ export default function CreateIndicatorPanel({
                   {(t.lines || []).map((l, i) => (
                     <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>
                   ))}
+                  {/* ⭐ 2026-11-21 — WHAT UCT ITSELF SAYS ABOUT THIS BUILD (the door's own notes: a count that
+                      stops, a window that reaches only so far back). The system's words about its own limits,
+                      so they sit with the engine's lines and above anything the assistant wrote. */}
+                  {t.notes && Array.isArray(t.notes.uct) && t.notes.uct.length > 0 && (
+                    <span className={styles.said} data-testid="create-indicator-notes-uct">
+                      <span className={styles.saidLabel}>UCT's notes on this build</span>
+                      {t.notes.uct.map((n, i) => <span key={i}>{n}</span>)}
+                    </span>
+                  )}
                   {/* ⭐ What the assistant says it built: below the engine's words, and labelled as
                       the assistant's, never mixed into them (Studio plan, section 5). Plain text. */}
                   {typeof t.said === 'string' && t.said && (
                     <span className={styles.said} data-testid="create-indicator-said">
                       <span className={styles.saidLabel}>What the assistant says it built</span>
                       {t.said}
+                    </span>
+                  )}
+                  {/* ⭐ 2026-11-21 — and what the assistant says it TOOK FOR GRANTED, labelled as the assistant's. */}
+                  {t.notes && Array.isArray(t.notes.assumed) && t.notes.assumed.length > 0 && (
+                    <span className={styles.said} data-testid="create-indicator-notes-assumed">
+                      <span className={styles.saidLabel}>What the assistant assumed</span>
+                      {t.notes.assumed.map((n, i) => <span key={i}>{n}</span>)}
                     </span>
                   )}
                   {/* ⭐ AN OFFER — the one action this answer is about (add one of UCT's own built-in
