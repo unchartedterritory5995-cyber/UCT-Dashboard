@@ -206,6 +206,9 @@ export function retranslateRow(row, memberPaneDefinition) {
   if (!built || !built.ok) {
     const reason = (built && built.reason) || 'the translator returned nothing'
     if (/^the translator threw/.test(reason)) return { status: 'inconclusive', reason }
+    // ⭐ door-deadline — the door ran out of time (`memberPaneDefinition.js::DOOR_TIMED_OUT`): a fact about this
+    // device's check, not about the script, so the stored picture is kept, never refused for it.
+    if (built && built.doorTimedOut === true) return { status: 'inconclusive', reason: `the check ran out of time: ${reason}` }
     if (runtimePaneBuilt()) return { status: 'inconclusive', reason: `runtime lane may draw it: ${reason}` }
     if (IMPORTS_LIBRARY.test(source)) return { status: 'inconclusive', reason: `imports a library: ${reason}` }
     return { status: 'refused', reason, guard: (built && built.guard) || null }
