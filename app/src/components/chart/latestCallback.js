@@ -12,7 +12,7 @@
 // it points at nothing but its holder; the holder keeps only the newest `fn` (the current render). For
 // EVENT-STYLE callbacks only: its identity never changes, so it must not stand in for a callback whose
 // identity is a dependency that should re-run an effect or recompute a memo.
-import { useState } from 'react'
+import { useInsertionEffect, useState } from 'react'
 
 function makeHolder() {
   let latest = null
@@ -33,15 +33,35 @@ export function useLatestCallback(fn) {
 // and, through the memoized callbacks it holds, older renders' contexts (StockChart.closureChains.test.jsx:
 // every link of such a chain carried that render's bars). `useRenderBox()` is ONE object for the
 // component's life, made out here (it points at nothing of a render); each render `put`s its newest values
-// and closures read `box.name` when they run. A closure therefore sees the NEWEST value, which for an effect
-// body, a handler or a memo factory is its own render's (React flushes effects before the next render).
+// and closures read `box.name` when they run.
+//
+// ⛔⛔ TWO READS, BY WHEN THE CLOSURE RUNS (2026-11-20, the #2307 review). `box.name` is the NEWEST render's
+// value, and a render can be ABANDONED after its `put`s: an interrupted transition (Watchlists' startTransition
+// over memo(StockChart), a quick down-then-up) renders B, never commits it, and the committed chart still shows A.
+//   • code that runs DURING a render (the body, a memo factory, a function the body calls) reads `box.name`:
+//     the render in progress;
+//   • code that runs AFTER a commit (a handler, a subscription, a timer, a paint function, `updateChart`) reads
+//     `box.committed.name`: the values of the last render React COMMITTED. Read `box.name` there and an
+//     abandoned render's bars are indexed by a chart that shows another symbol.
+// An effect body may read either: React flushes a render's effects before it starts the next one, so at
+// effect time the two agree.
+// `commit` runs in an INSERTION effect (no deps, every committed render): insertion effects run before EVERY
+// layout effect of the commit, children's included, so no layout effect or ref callback can read a stale copy.
+const BOX_OWN = new Set(['put', 'commit', 'committed'])
 function makeBox() {
-  const box = { put(name, value) { box[name] = value; return value } }
+  const committed = {}
+  const box = {
+    put(name, value) { box[name] = value; return value },
+    committed,
+    commit() { for (const k of Object.keys(box)) if (!BOX_OWN.has(k)) committed[k] = box[k] },
+  }
   return box
 }
 
-/** One object for the component's life holding the newest value of each heavy local (`put` each render). */
+/** One object for the component's life holding the newest value of each heavy local (`put` each render),
+ *  and in `.committed` the values of the last committed render (copied in an insertion effect). */
 export function useRenderBox() {
   const [b] = useState(makeBox)
+  useInsertionEffect(() => { b.commit() })
   return b
 }
