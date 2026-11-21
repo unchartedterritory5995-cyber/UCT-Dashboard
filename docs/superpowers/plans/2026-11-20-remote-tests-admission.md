@@ -43,6 +43,14 @@ A gate run that is `pending` (waiting on the previous gate's concurrency group) 
 - `ROOM_POLL_S = 60`, `ROOM_JITTER_S = 15`
 - `--max-wait-min 30`
 
+**As shipped, after the final review (2026-11-20; supersedes the lines above where they differ):**
+- A queued gate run with no job listed counts as waiting only within `GATE_NO_JOBS_GRACE_S = 600` of its `updated_at`, so a fresh ghost cannot hold every request.
+- Jobs never fetched for a live gate run are unknown and are never a reason to wait.
+- Rule B reads only runs queued within `QUEUED_SIGNAL_S = 2 h`.
+- The reads are lazy. They stop after the gate when rule A waits (2 requests), and skip the queued-runs read when fewer than 4 remote runs are in flight.
+- The poll backs off: 60 s for 5 min, 90 s to 15 min, 120 s after, plus 0-15 s jitter.
+- Below `ADMISSION_QUOTA_FLOOR = 500` requests left in the shared hour, it stops checking and dispatches (`quota-low`).
+
 **Safety properties:**
 - **S1.** It waits BEFORE `git push` of the ref, so a wait that is interrupted leaves no ref and no run behind.
 - **S2.** It never cancels, deletes or changes another session's run or ref.
@@ -234,7 +242,12 @@ def test_claude_md_documents_the_admission_wait():
 - [ ] **Step 4: Smoke test from this worktree after merging master.** Run `python tools/remote_tests.py --pytest tests/test_remote_tests_lane.py --label admission-smoke`. Expected: a `remote tests: admission room` line (or `waiting` lines while busy), then GREEN.
 - [ ] **Step 5: Measure in the next busy period** (30 or more jobs running). For each `master deploy gate` run, compute the largest `started_at - created_at` over its jobs:
   `gh api "repos/unchartedterritory5995-cyber/UCT-Dashboard/actions/runs/<gate id>/jobs?per_page=100" -q '[.jobs[] | select(.started_at) | ((.started_at|fromdate) - (.created_at|fromdate))] | max / 60'`
-  Target: under 5 min (it was 21.6 min on 2026-11-20). Record the numbers in the PR thread. If it is over target while remote runs are waiting, rule A is not firing: debug before changing any constant.
+  Target: under 5 min (it was 21.6 min on 2026-11-20). Record the numbers in the PR thread.
+  ⚠️ (Final review) Read this measurement with GitHub's queue order in mind:
+  - If GitHub assigns runners roughly first-in-first-out, a gate job already queued is not delayed by requests that arrive after it. Rule A then mainly protects the gate's later jobs and the NEXT gate run.
+  - Record each wave of gate jobs separately, and count the jobs queued ahead of each one.
+  - Do this before concluding that rule A is not firing, and before changing any constant.
+  - When PR checks alone fill the pool (as at 9:50 PM CT on 11/20, with 0 remote runs in flight), no setting here can help. The Team-org move is the lever for that.
 
 ---
 
@@ -254,13 +267,15 @@ Nothing else about your work changes, and nothing of yours will be cancelled. No
 
 ## Owner actions (not code)
 
-1. **Ask GitHub Support for a higher concurrency limit** (free, about 10 min; github.com/contact/support, topic Actions). Draft:
-   > My account runs a public repository (UCT-Dashboard) on GitHub Pro. During working hours we regularly saturate the 40-job concurrency limit for standard Linux runners, and our deploy pipeline waits up to 20 minutes for a runner. Could you raise the concurrent job limit for this account (to 60 or more)? Happy to share run ids.
+⛔ **CORRECTED 2026-11-20.** The higher-limit ask below is WRONG. GitHub Support already DECLINED it on 11/18 (ticket #5020263): concurrency increases are only for org or enterprise accounts, and 40 is the hard ceiling on personal Pro. The real path is already planned: the Team-org move (`northstar-quarry`, 60 jobs; `C:/Users/Patrick/reports/github-org-migration-PLAN-2026-11-18.md`), then that plan's C1 ticket FROM THE ORG for 80.
+
+1. **Add the 11 stuck runs to the org's C1 ticket** (60 -> 80) after the move. Use only the second paragraph of this draft; the first is kept as a record of the mistake:
+   > ~~My account runs a public repository (UCT-Dashboard) on GitHub Pro. ... Could you raise the concurrent job limit for this account (to 60 or more)?~~
    >
    > Separately, 11 workflow runs from 2026-11-11 are stuck as "queued" with 0 jobs. Cancel and force-cancel return HTTP 409 ("has not been queued yet" / "is completed"), and DELETE returns HTTP 403 "Could not delete the workflow run", with an admin token that has the repo and workflow scopes. Could you clear them? Run ids: 43097842088, 43096652085, 43096652206, 43096652064, 43096652073, 43096652274, 43096652281, 43096652068, 43096652114, 43096651999, 43096651992.
 
    (Task 1 tried on 2026-11-20 and GitHub refused every DELETE with HTTP 403. The admission rule's 6 h freshness filter (S6) is what keeps these from holding the throttle shut.)
-2. **If the limit stays at 40 and deploys still wait,** consider moving the repo into a GitHub organization on Team (60 jobs). That needs its own plan: Railway's GitHub connection, repo secrets, tokens and branch protection all move.
+2. **Org move: already in progress** (the owner is waiting for a safe window). The admission rules do not depend on the pool size, so nothing here changes at 60 or 80. One cutover gap concerns this tool. Between the transfer (migration step B2) and `git remote set-url` (B7), it still addresses the old owner. GitHub redirects GETs, but whether a POST dispatch is redirected is UNVERIFIED (the rehearsal tested `git push` only). The worst case is exit 2 ("lane could not run"), with nothing lost, so rerun after B7. Suggest that the B1 freeze also asks sessions to hold remote tests until B7.
 
 ## Measured options NOT in this plan (decide later)
 
