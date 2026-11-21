@@ -3847,8 +3847,24 @@ function settleOnMetaLanded(s, inp) {
     const ts = chart.timeScale()
     const r = settlingFrameOf(pt, { bars, tf: inp.resolvedTf, plotWidthPx: plotWidthOf(chart, s.containerRef.current),
       dailyDefaultBars: s.dailyDefaultBars, leftBarPad: s.leftBarPad, rightPadBars: s.rightPadBars, visibleBarsOverride: s.visibleBarsOverride })
+    // `r` is in CANDLE-index space; the axis is LOGICAL, and a compare / overlay series on it adds interior times
+    // (or ends later), so the newest real candle `a` sits at timeToIndex(its time), not at `a`. Set the frame, then
+    // restate it as a distance from the newest bar, exactly as updateChart's pass does (`_logicalOffsetOf` and the
+    // RESTATE step). Already there (the frame shifted by that same offset): no write, no paint.
+    const d = s.candleRef.current?.data?.() || []
+    let a = d.length - 1
+    while (a >= 0 && isWhitespacePoint(d[a])) a--
+    const la = a >= 0 ? ts.timeToIndex?.(d[a].time, false) : null
+    const k = (typeof la === 'number' && Number.isFinite(la)) ? la - a : 0
     const cur = ts.getVisibleLogicalRange()
-    if (!cur || cur.from !== r.from || cur.to !== r.to) ts.setVisibleLogicalRange(r)
+    if (cur && cur.from === r.from + k && cur.to === r.to + k) { /* already framed */ } else {
+      ts.setVisibleLogicalRange(r)
+      const now = ts.getVisibleLogicalRange()
+      const rightOffset = ts.scrollPosition?.()
+      if (a >= 0 && typeof la === 'number' && Number.isFinite(la) && now && typeof rightOffset === 'number' && Number.isFinite(rightOffset)) {
+        ts.scrollToPosition((r.to - a + la) - (now.to - rightOffset), false)
+      }
+    }
   } catch { return /* mid-load: the next commit's pass re-asserts */ }
   if (settlingDone({ bars, tf: inp.resolvedTf, oldBarCount: s.countRef.current, sessionCandleActive: s.sessionCandleActive, sessionExtReady: s.sessionExtReady })) {
     s.pendingRef.current = null
@@ -11636,7 +11652,7 @@ function StockChartBody({
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
   // (refs and scalars only: the store keeps the listener that reads this for the chart's whole life)
   _metaSettleRef.current = {
-    chartRef, containerRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
+    chartRef, containerRef, candleRef: candleSeriesRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
     anchorRef: anchorCfgRef, entryDate, exactDateRange, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
     sessionCandleActive, sessionExtReady,
   }

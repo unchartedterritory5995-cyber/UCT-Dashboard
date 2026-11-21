@@ -172,10 +172,14 @@ describe('a Notebook chart block clears --tap-min on phone AND tablet (wave 14, 
     const open = STOCK_JSX.indexOf('{chipMenu && (() => {')
     const shut = STOCK_JSX.indexOf('})()}', open)
     expect(open).toBeGreaterThan(0)
+    // The component whose render holds that block, derived from where the block IS (it was `StockChart` until #2278
+    // moved the body into `StockChartBody`; a hard-coded name went red on that split, 2026-11-21).
+    const popoverHost = enclosingFunction(open)
+    expect(popoverHost, 'the chip popover block sits inside a named component').toBeTruthy()
     for (const name of POPOVER_PAGES) {
       for (const m of STOCK_JSX.matchAll(new RegExp(`<${name}\\b`, 'g'))) {
         const host = enclosingFunction(m.index)
-        const inPopover = host === 'StockChart' ? (m.index > open && m.index < shut) : POPOVER_PAGES.includes(host)
+        const inPopover = host === popoverHost ? (m.index > open && m.index < shut) : POPOVER_PAGES.includes(host)
         expect(inPopover, `<${name}> rendered by ${host} at offset ${m.index}, outside the chip popover`).toBe(true)
       }
     }
