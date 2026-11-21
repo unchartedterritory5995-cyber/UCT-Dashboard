@@ -1,13 +1,16 @@
-// app/src/data/deviceStore/delta.js — the first-frame seed's DAILY DELTA (`UFFSDLT1`), as the device applies it.
+// app/src/data/deviceStore/delta.js — the first-frame seed's DAILY DELTA (`UFFSDLT2`), as the device applies it.
 //
 // ⭐ THE CONTRACT IS docs/charts/first-frame-seed-format.md section 10; the server's builder and reference
 // applier are api/services/ffseed_delta.py (`build_delta`, `apply_delta_iter`). A device holding build N of a
 // timeframe downloads the delta N → N+1 instead of the whole pack and rebuilds the new pack's records from its
 // own copy of N:
 //
-//     blob 0 | ... | blob k-1 | trailer (ASCII JSON) | u64 LE trailer length | "UFFSDLT1"
+//     blob 0 | ... | blob k-1 | trailer (gzip of ASCII JSON) | u64 LE trailer length | "UFFSDLT2"
 //
-// trailer = {v:1, kind:"ffseed-delta", tf, tunit, comp, build (NEW), base, base_asof, asof, depth, basis, grid,
+// Version 1 ("UFFSDLT1", the same JSON uncompressed, `v` 1) is still read; the server writes version 2 (the
+// JSON trailer is ~0.3 MB a timeframe, gzip takes it to ~0.06-0.09 MB).
+//
+// trailer = {v:2, kind:"ffseed-delta", tf, tunit, comp, build (NEW), base, base_asof, asof, depth, basis, grid,
 //            fields:[12 names], symbols:{SYM:[op,off,len,rows,bars,first,last,asof,crc,body,pscale,vscale]}}
 // op: 0 keep · 1 merge · 2 replace · 3 remove. `bars first last crc pscale vscale` are the NEW window's, exactly
 // as the new full pack's entry states them.
@@ -24,16 +27,17 @@
 // Production encodes here and only here: a keep/merge window is a new body (format section 4). The test
 // encoder (testing/fixtures.js) builds packs from served rows; this one encodes exact integer columns.
 
-import { gzipSync } from 'fflate'
+import { gunzipSync, gzipSync } from 'fflate'
 import { DeviceFormatError, PACK_TAIL_BYTES, SEED_TUNIT, hasComp, inflateBlob } from './codec'
 
-export const DELTA_MAGIC = 'UFFSDLT1'
-/** A delta entry's 12 numbers, in order (fixed in version 1). */
+export const DELTA_MAGIC = 'UFFSDLT2'
+/** The magics this reader takes → their version (2: gzip trailer; 1: plain JSON trailer). */
+export const DELTA_VERSIONS = new Map([[DELTA_MAGIC, 2], ['UFFSDLT1', 1]])
+/** A delta entry's 12 numbers, in order (the same in versions 1 and 2). */
 export const DELTA_FIELDS = Object.freeze(['op', 'off', 'len', 'rows', 'bars', 'first', 'last', 'asof', 'crc', 'body', 'pscale', 'vscale'])
 export const OP = Object.freeze({ keep: 0, merge: 1, replace: 2, remove: 3 })
 
 const fail = (m) => { throw new DeviceFormatError(m) }
-const MAGIC_BYTES = new TextEncoder().encode(DELTA_MAGIC)
 const POWERS_OF_TEN = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9]
 const MAX = Number.MAX_SAFE_INTEGER
 const _utf8 = new TextDecoder('utf-8', { fatal: true })
@@ -52,19 +56,23 @@ const COMPRESS = new Map([
 /**
  * Parse a whole delta file. `tf` = the timeframe it was downloaded for (must be the trailer's). Returns
  * {tf, tunit, comp, build, base, baseAsof, asof, depth, basis, grid, dataEnd, symbols: Map sym → entry[12]}.
- * Throws DeviceFormatError on anything a version-1 delta cannot be.
+ * Throws DeviceFormatError on anything a version-2 (or version-1) delta cannot be.
  */
 export function parseDelta(bytes, { tf = null } = {}) {
   if (!(bytes instanceof Uint8Array) || bytes.length < PACK_TAIL_BYTES + 2) fail('delta: too small')
   const n = bytes.length
-  for (let i = 0; i < 8; i++) if (bytes[n - 8 + i] !== MAGIC_BYTES[i]) fail('delta: not a UFFSDLT1 file')
+  const version = DELTA_VERSIONS.get(String.fromCharCode(...bytes.subarray(n - 8)))
+  if (!version) fail('delta: not a UFFSDLT2 or UFFSDLT1 file')
   const dv = new DataView(bytes.buffer, bytes.byteOffset + n - PACK_TAIL_BYTES, 8)
   const tlen = dv.getUint32(0, true) + dv.getUint32(4, true) * 4294967296
   const dataEnd = n - PACK_TAIL_BYTES - tlen
   if (!Number.isSafeInteger(tlen) || tlen < 2 || dataEnd < 0) fail('delta: bad trailer length')
   let tr
-  try { tr = JSON.parse(_utf8.decode(bytes.subarray(dataEnd, dataEnd + tlen))) } catch { fail('delta: trailer is not JSON') }
-  if (!tr || typeof tr !== 'object' || tr.v !== 1 || tr.kind !== 'ffseed-delta') fail('delta: not an ffseed-delta v1 trailer')
+  try {
+    const raw = bytes.subarray(dataEnd, dataEnd + tlen)
+    tr = JSON.parse(_utf8.decode(version === 2 ? gunzipSync(raw) : raw))
+  } catch { fail(`delta: trailer is not ${version === 2 ? 'gzip ' : ''}JSON`) }
+  if (!tr || typeof tr !== 'object' || tr.v !== version || tr.kind !== 'ffseed-delta') fail(`delta: not an ffseed-delta v${version} trailer`)
   if (!Array.isArray(tr.fields) || tr.fields.length !== DELTA_FIELDS.length || tr.fields.some((f, i) => f !== DELTA_FIELDS[i])) {
     fail('delta: unknown entry fields')
   }

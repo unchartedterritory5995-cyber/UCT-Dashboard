@@ -349,7 +349,7 @@ back. `status()` reports `forced_session`.
 
 **Daily delta**: built, section 10.
 
-## 10. The daily delta (`UFFSDLT1`)
+## 10. The daily delta (`UFFSDLT2`)
 
 A device that holds build N of a timeframe downloads only what changed to reach build N+1; anyone else
 (no copy, another base, a failed check) downloads the full pack, which is always published. Builder:
@@ -374,13 +374,19 @@ A client holding exactly build `base` of that timeframe (and nothing else) may a
 
 ### Layout
 
-The pack framing of section 3 with its own magic, so neither reader can take one for the other:
+The pack framing of section 3 with its own magic, so neither reader can take one for the other, and the
+trailer GZIP-compressed (one gzip member, mtime 0; the u64 is the compressed length):
 
 ```
-blob 0 | ... | blob k-1 | trailer (ASCII JSON) | u64 trailer length | "UFFSDLT1"
+blob 0 | ... | blob k-1 | gzip(trailer, ASCII JSON) | u64 trailer length | "UFFSDLT2"
 ```
 
-Trailer: `v` 1, `kind` `"ffseed-delta"`, `tf`, `tunit`, `basis`, `grid`, `comp`, `depth`, `asof` and
+Version 1 (`"UFFSDLT1"`, the same JSON trailer uncompressed, `v` 1) is still read by the server's reader and
+the device's, never written. Why version 2: the trailer is ~0.3 MB per timeframe whatever the night changed
+(one 12-number entry per symbol), 1.75 MB of the first real nightly delta's 16.2 MB (2026-11-21; D: 0.14 MB
+of bars in a 0.43 MB delta); gzip takes it to 20-28% (0.42 MB for all six).
+
+Trailer: `v` 2 (1 under `"UFFSDLT1"`), `kind` `"ffseed-delta"`, `tf`, `tunit`, `basis`, `grid`, `comp`, `depth`, `asof` and
 `build` (the NEW build), `base` and `base_asof` (the build it applies to), `fields`, `symbols`.
 `fields` = `["op","off","len","rows","bars","first","last","asof","crc","body","pscale","vscale"]`:
 

@@ -178,8 +178,64 @@ def test_a_delta_is_never_mistaken_for_a_full_pack_or_the_reverse():
     with pytest.raises(dl.DeltaError):
         dl.read_delta_trailer(new)
     # the magic alone refuses it: a delta wearing the full pack's end marker is not read as a delta
-    with pytest.raises(dl.DeltaError, match="UFFSDLT1"):
+    with pytest.raises(dl.DeltaError, match="UFFSDLT2 / UFFSDLT1"):
         dl.read_delta_trailer(delta[:-8] + fmt.MAGIC)
+
+
+def _reframe(delta: bytes, *, gz: bool, magic: bytes, edit=None) -> bytes:
+    """`delta` with its trailer re-written (plain JSON or gzip) under `magic`; the blobs unchanged."""
+    import gzip
+    import struct
+    (tlen,) = struct.unpack("<Q", delta[-16:-8])
+    start = len(delta) - 16 - tlen
+    raw = delta[start:start + tlen]
+    tr = json.loads(gzip.decompress(raw) if delta[-8:] == dl.MAGIC else raw)
+    if edit:
+        edit(tr)
+    t = json.dumps(tr, sort_keys=True, separators=(",", ":")).encode("ascii")
+    t = gzip.compress(t, 9, mtime=0) if gz else t
+    return delta[:start] + t + struct.pack("<Q", len(t)) + magic
+
+
+def test_the_builder_writes_a_gzip_trailer_deterministically_and_version_1_still_reads():
+    import gzip
+    base, new = _packs(_series())
+    delta, _ = dl.build_delta(base, new)
+    again, _ = dl.build_delta(base, new)
+    assert delta[-8:] == b"UFFSDLT2" and delta == again                       # same inputs, same bytes
+    tr = dl.read_delta_trailer(delta)
+    assert tr["v"] == 2
+    v1 = _reframe(delta, gz=False, magic=b"UFFSDLT1", edit=lambda t: t.update(v=1))
+    assert len(v1) > len(delta)                                               # the gzip trailer is the smaller
+    t1 = dl.read_delta_trailer(v1)
+    assert t1["symbols"] == tr["symbols"] and t1["blob_bytes"] == tr["blob_bytes"]
+    dl.verify_delta(base, v1, new)                                            # a v1 file applies exactly too
+    (tlen,) = __import__("struct").unpack("<Q", delta[-16:-8])
+    gz = delta[len(delta) - 16 - tlen:len(delta) - 16]
+    assert gzip.decompress(gz).startswith(b"{") and gz[4:8] == b"\0\0\0\0"    # gzip MTIME 0: no clock in it
+
+
+@pytest.mark.parametrize("bad", ["plain trailer under v2", "v2 json under v1", "v1 json under v2",
+                                 "gzip with trailing bytes", "truncated gzip"])
+def test_a_trailer_that_does_not_match_its_version_is_refused(bad):
+    import gzip
+    import struct
+    base, new = _packs(_series())
+    delta, _ = dl.build_delta(base, new)
+    if bad == "plain trailer under v2":
+        d = _reframe(delta, gz=False, magic=b"UFFSDLT2")
+    elif bad == "v2 json under v1":
+        d = _reframe(delta, gz=False, magic=b"UFFSDLT1")
+    elif bad == "v1 json under v2":
+        d = _reframe(delta, gz=True, magic=b"UFFSDLT2", edit=lambda t: t.update(v=1))
+    else:
+        (tlen,) = struct.unpack("<Q", delta[-16:-8])
+        start = len(delta) - 16 - tlen
+        gz = delta[start:start + tlen]
+        gz = gz + b"\x00junk" if bad == "gzip with trailing bytes" else gz[:-6]
+        d = delta[:start] + gz + struct.pack("<Q", len(gz)) + dl.MAGIC
+    with pytest.raises(dl.DeltaError):
+        dl.read_delta_trailer(d)
 
 
 def test_the_vectorized_decoder_equals_the_reference_decoder():
