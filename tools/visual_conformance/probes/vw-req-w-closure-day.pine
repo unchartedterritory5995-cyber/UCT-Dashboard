@@ -1,0 +1,25 @@
+//@version=6
+indicator("UCTPROBE_VW_REQ_W_CLOSURE_DAY", overlay = false)
+
+// Q-REQ-CLOSURE (2026-11-20, HTF partial-period programme, ruling 2): DOES TRADINGVIEW'S WEEKLY / MONTHLY request.security
+// AGGREGATE INCLUDE A BAR DATED ON AN NYSE CLOSURE DAY? FX:EURUSD's daily series holds Good Friday 2025-04-18 and
+// 2025-07-04 (both Fridays, the week's last bar); our JS lane keeps such a bar in the week, the Python resampler dropped it,
+// so that week is withheld by name (`request:htf-closure-session`) until this settles it. Each value in its own plot:
+//   W* the weekly open / high / low / close / volume, look-ahead OFF and ON; M_close_off the monthly close;
+//   time("W") / time_close("W") the clock control; C0 bar_index the row control.
+// CAPTURE: FX:EURUSD 1D (and CME_MINI:ES1! 1D) from the listing (the batch loads the whole history), a finished newest bar.
+
+plot(bar_index, "C0_bar_index_CONTROL")
+plot(request.security(syminfo.tickerid, "W", open), "W_open_off")
+plot(request.security(syminfo.tickerid, "W", high), "W_high_off")
+plot(request.security(syminfo.tickerid, "W", low), "W_low_off")
+plot(request.security(syminfo.tickerid, "W", close), "W_close_off")
+plot(request.security(syminfo.tickerid, "W", volume), "W_volume_off")
+plot(request.security(syminfo.tickerid, "W", open, lookahead = barmerge.lookahead_on), "W_open_on")
+plot(request.security(syminfo.tickerid, "W", high, lookahead = barmerge.lookahead_on), "W_high_on")
+plot(request.security(syminfo.tickerid, "W", low, lookahead = barmerge.lookahead_on), "W_low_on")
+plot(request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on), "W_close_on")
+plot(request.security(syminfo.tickerid, "W", volume, lookahead = barmerge.lookahead_on), "W_volume_on")
+plot(request.security(syminfo.tickerid, "M", close), "M_close_off")
+plot(time("W"), "T1_time_W_CONTROL")
+plot(time_close("W"), "T2_time_close_W_CONTROL")

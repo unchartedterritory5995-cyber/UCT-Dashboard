@@ -3371,12 +3371,18 @@ gets.** C1–C3 still carry the real argument (the incoming commits cannot inter
 branch); what is gone is the net that was believed to be under it. When in doubt, re-gate.
 
 ⭐ **What C5 DOES do, and it is not nothing:** its verdict decides whether `production` is
-promoted, and **`web` deploys from `production`** — so a red gate stops the member-facing
-deploy. ⚠️ The other five services (`worker`, `bars-api`, `chart-renderer`, `flow-worker`,
-`terminal-next-monitor`) deploy from **`master`** and are NOT gated by it. Measured
-2026-09-20, `railway status --json`. This also supersedes `master-deploy-gate.yml`'s own
-*"a RED gate still deploys"* line, which was true on 2026-09-14 and stopped being true for
-`web` at the cutover.
+promoted, and **`web` AND `bars-api` deploy from `production`** — so a red gate stops both
+member-facing serving tiers. ⚠️ `worker` and `flow-worker` deploy from **`master`** and are NOT
+gated by it. Measured 2026-11-21, read-only `railway deployment list --service <svc> --json`
+(each SUCCESS row's `meta.branch`): web `production`, bars-api `production` (the same
+`createdAt` as web's deploy of each commit), worker `master`, flow-worker `master`;
+`chart-renderer` and `terminal-next-monitor` listed no SUCCESS deployment, so their branch is
+UNMEASURED — measure before relying on it. ⚰️ This line said "the other five services (incl.
+`bars-api`) deploy from `master`" (measured 2026-09-20); bars-api moved to `production` since,
+and the stale line was taken as fact on 2026-11-20 (docs/incidents/
+2026-11-20-index-intraday-tail-goes-back.md § Deploy). This also supersedes
+`master-deploy-gate.yml`'s own *"a RED gate still deploys"* line, which was true on 2026-09-14
+and stopped being true for `web` at the cutover.
 
 ⛔ **Any of C1–C3 failing ⇒ local re-gate.** The "third supersession = STOP" rule counts
 C1–C3 failures **only** — disjoint commits that carry are not supersessions.

@@ -594,6 +594,12 @@ def _ohlcv_ddl() -> str:
     contains THREE string constants matching `CREATE TABLE`; one of them is a
     docstring saying a recovery helper "would run `CREATE TABLE` against
     damage". A scan that counted it would be measuring the module's explanation.
+
+    ⚰️ 2026-11-11 (#1102): the ONE DDL became a function, `ohlcv_ddl(name: str = "ohlcv")`, returning an
+    f-string -- `f"CREATE TABLE IF NOT EXISTS {name} (... ) WITHOUT ROWID"` -- whose callers pass nothing
+    (`c.execute(ohlcv_ddl())`). An f-string is read WHOLE here, its placeholder resolved from the enclosing
+    function's literal default; its pieces are never counted one by one. The scan found ZERO from that
+    commit on and this file failed to collect.
     """
     import re as _re
     src = ast.parse(_BARS_MODULE.read_text(encoding="utf-8"))
@@ -601,10 +607,24 @@ def _ohlcv_ddl() -> str:
         if (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
                 and isinstance(node.value.value, str)):
             node.value.value = ""
-    hits = [n.value for n in ast.walk(src)
-            if isinstance(n, ast.Constant) and isinstance(n.value, str)
-            and _re.search(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?ohlcv", n.value, _re.I)]
+    pieces = {id(v) for n in ast.walk(src) if isinstance(n, ast.JoinedStr) for v in n.values}
+    texts = [n.value for n in ast.walk(src)
+             if isinstance(n, ast.Constant) and isinstance(n.value, str) and id(n) not in pieces]
+    read = set()
+    for fn in reversed([n for n in ast.walk(src) if isinstance(n, ast.FunctionDef)]):   # innermost first
+        named = fn.args.args[len(fn.args.args) - len(fn.args.defaults):]
+        default = {a.arg: d.value for a, d in zip(named, fn.args.defaults)
+                   if isinstance(d, ast.Constant) and isinstance(d.value, str)}
+        for js in [n for n in ast.walk(fn) if isinstance(n, ast.JoinedStr) and id(n) not in read]:
+            read.add(id(js))
+            texts.append("".join(
+                v.value if isinstance(v, ast.Constant)
+                else default.get(getattr(v.value, "id", None), "{?}") for v in js.values))
+    hits = [t for t in texts if _re.search(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?ohlcv\b", t, _re.I)]
     assert len(hits) == 1, f"expected one ohlcv DDL in CODE, found {len(hits)}"
+    # and it is the statement the store itself executes (the function, called the way its callers call it)
+    from api.services import bars_sqlite
+    assert hits[0] == bars_sqlite.ohlcv_ddl(), "the DDL read out of the source is not the one the store runs"
     return hits[0]
 
 
@@ -678,12 +698,25 @@ def test_the_as_of_column_is_the_one_the_store_asks_SINCE_WHEN_about():
     own `… ts>? ORDER BY ts ASC` is that question written down. A rail that
     matched on the column being called `ts` would pass for a store that called
     it `updated_at` and filtered on something else.
+
+    ⭐ EVERY `> ?` STATEMENT OVER THE TABLE, NOT THE FIRST ONE IN THE FILE, and a KEY SEEK is not one
+    of them. ⚰️ 2026-11-09 (05ff3d9bd9) the worker's index walk added `SELECT ticker FROM ohlcv WHERE
+    ticker>? ORDER BY ticker LIMIT 1`, which asks "which ticker comes next", never "what is new since";
+    the first-match scan read it as the as-of. A statement that selects only the column it filters,
+    ordered by it, one row, is that seek and nothing else; every other `> ?` over the table still counts.
     """
     import re as _re
     store = _bars_store()
-    src = _BARS_MODULE.read_text(encoding="utf-8")
-    pat = _re.compile(r"FROM\s+" + store["table"] + r"\b.*?\b(\w+)\s*>\s*\?", _re.I | _re.S)
-    found = {m.group(1) for m in [pat.search(s) for s in [src]] if m}
+    src = ast.parse(_BARS_MODULE.read_text(encoding="utf-8"))
+    for node in ast.walk(src):
+        if (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+                and isinstance(node.value.value, str)):
+            node.value.value = ""
+    statements = [n.value for n in ast.walk(src) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
+    seek = _re.compile(r"^\s*SELECT\s+(\w+)\s+FROM\s+\w+\s+WHERE\s+\1\s*>\s*\?\s+ORDER\s+BY\s+\1(?:\s+ASC)?"
+                       r"\s+LIMIT\s+1\s*$", _re.I)
+    pat = _re.compile(r"FROM\s+" + store["table"] + r"\b(?:(?!FROM).)*?\b(\w+)\s*>\s*\?", _re.I | _re.S)
+    found = {m.group(1) for s in statements if not seek.match(s) for m in pat.finditer(s)}
     assert found == {store["as_of_column"]}, (
         f"the store's delta filter is over {sorted(found)}, the book says "
         f"{store['as_of_column']!r}")

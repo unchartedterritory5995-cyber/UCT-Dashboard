@@ -169,6 +169,15 @@ def build_one(con: sqlite3.Connection, t: str, lin: dict, by_sym: Dict[str, list
     return {"sym": t, "since": lin["since"], "segments": lin["segments"], "splits": table, "bars": bars}
 
 
+def load_split_rows(root: Path) -> list:
+    """The split reference the rebuild applies: the vendor's ref/splits.json, plus the declared events it lacks
+    (tools/history_lake/split_supplement.json, each price-verified). An event the vendor files itself is never applied
+    twice (split_supplement.merge)."""
+    from tools.history_lake import split_supplement
+    vendor = json.loads((Path(root) / "ref" / "splits.json").read_text(encoding="utf-8"))["rows"]
+    return split_supplement.merge(vendor, split_supplement.load())
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=("ingest", "build"))
@@ -186,7 +195,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print("needed vendor symbols", len(needed), flush=True)
         print("rows", ingest(root, needed, db))
         return 0
-    split_rows = json.loads((root / "ref" / "splits.json").read_text(encoding="utf-8"))["rows"]
+    split_rows = load_split_rows(root)
     as_of = time.strftime("%Y-%m-%d")
     by_sym = factors.build_factor_tables(split_rows, as_of)
     con = sqlite3.connect(db)

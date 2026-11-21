@@ -1010,6 +1010,10 @@ def _rolling_skip(series: Sequence[float], n: int,
     """``NA_SKIP`` in one forward pass: bar ``i`` (from ``n - 1``) reads the last ``n`` FINITE values at or before it,
     oldest first, once ``n`` exist; before that, NaN. Each value is read once. O(N*n) whatever the gaps."""
     out = _nan_col(len(series))
+    # a series shorter than the window has no bar to reach, so nothing may read it, a None included (3eb37a08a8;
+    # the per-bar gather this pass replaced started at bar ``n - 1`` and never read one)
+    if len(series) < n:
+        return out
     ring = collections.deque(maxlen=n)
     for i in range(len(series)):
         v = series[i]
