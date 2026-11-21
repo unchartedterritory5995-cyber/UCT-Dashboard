@@ -57,7 +57,9 @@ def _table() -> dict:
             good.append({"from": lo, "until": hi, "source": str(src).upper() if src else None})
         if good:
             out[str(sym).upper()] = good
-    return {"version": int(doc.get("version") or 0), "symbols": out}
+    revs = {str(k).upper(): int(v) for k, v in (doc.get("revs") or {}).items()}
+    retired = frozenset(str(s).upper() for s in (doc.get("retired") or ()))
+    return {"version": int(doc.get("version") or 0), "symbols": out, "revs": revs, "retired": retired}
 
 
 def windows_for(ticker: str) -> list:
@@ -67,9 +69,15 @@ def windows_for(ticker: str) -> list:
 def history_epoch(ticker: str, tf: str) -> int:
     """What to add to `ticker`'s served history_rev at `tf`: the table epoch for a corrected D/W/M
     series, else 0."""
-    if str(tf).upper() not in DATE_TFS or not windows_for(ticker):
+    if str(tf).upper() not in DATE_TFS:
         return 0
-    return _table()["version"] * EPOCH_STEP
+    t = _table()
+    sym = str(ticker or "").upper()
+    # ⭐ PER-ENTRY REVS (U5): each symbol's epoch is the table version at which ITS windows last changed, and a
+    # symbol is never removed from the table (it moves to `retired`), so its term only rises.
+    if sym not in t["retired"] and not windows_for(ticker):
+        return 0
+    return int(t["revs"].get(sym) or t["version"]) * EPOCH_STEP
 
 
 def _span(t: str, tf: str):

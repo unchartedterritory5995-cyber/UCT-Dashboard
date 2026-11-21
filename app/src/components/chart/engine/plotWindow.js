@@ -106,6 +106,26 @@ function compareTimes(a, b) {
 const _cut = new WeakMap()   // points array -> { from, out }: one slice per array per window start
 
 /**
+ * The index of the first of `n` times in order (`timeAt(i)`) at or after `fromTime`: 0 when there is no
+ * window, and 0 (every row) when the times cannot be ordered against it (fail open). ONE search for the two
+ * readers: `windowedPoints` cuts a points array with it, and the binder asks it which bar the drawn rows start
+ * at, so the rows it builds are exactly the rows `windowedPoints` would have kept.
+ */
+export function firstIndexAtOrAfter(n, timeAt, fromTime) {
+  if (fromTime === null || fromTime === undefined || !(n > 0)) return 0
+  let lo = 0
+  let hi = n
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    const c = compareTimes(timeAt(mid), fromTime)
+    if (c === null) return 0
+    if (c < 0) lo = mid + 1
+    else hi = mid
+  }
+  return lo
+}
+
+/**
  * The points at or after `fromTime`: the SAME array when there is no window, when no
  * point is before it, or when the times cannot be ordered against it (fail open: every
  * row drawn). Points are in time order (they are built one per bar). The cut is
@@ -115,15 +135,7 @@ export function windowedPoints(points, fromTime) {
   if (fromTime === null || fromTime === undefined || !Array.isArray(points) || points.length === 0) return points
   const hit = _cut.get(points)
   if (hit && hit.from === fromTime) return hit.out
-  let lo = 0
-  let hi = points.length
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1
-    const c = compareTimes(points[mid] ? points[mid].time : undefined, fromTime)
-    if (c === null) return points
-    if (c < 0) lo = mid + 1
-    else hi = mid
-  }
+  const lo = firstIndexAtOrAfter(points.length, (i) => (points[i] ? points[i].time : undefined), fromTime)
   const out = lo === 0 ? points : points.slice(lo)
   _cut.set(points, { from: fromTime, out })
   return out

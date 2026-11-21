@@ -30,6 +30,13 @@
 // so the chart asks the server, exactly as before. liveFeed.js re-syncs from the day file when the
 // device merely MISSED frames that exist.
 //
+// ⭐ THE SERVER'S OWN DAY ROW AFTER THE CLOSE (forming.js DEVICE_DAILY_SERVER_ROW). When the frames carry it
+// (codec FLAG_DAILY) and the consumer vouches that this device holds every row (`dailyOk`: it applied the
+// epoch's full set and every frame since), today's D bar IS that row: O/H/L/C/V exactly as received (the server's
+// check compares the raw row with the served D bar, so no rounding here), `forming: 'D'` until the 20:00 end of
+// the D bucket (W / M then form from it, engine.js). Minute gaps and a bad D rollup do not touch it: it is not
+// built from minutes. Without a row, or without `dailyOk`, the rollup path decides exactly as before.
+//
 // ⭐ JOINED ONLY ACROSS ONE NIGHT. A symbol's overlay is appended only when its seed window ends at the
 // session right before the overlay's day (the seed entry's `asof`); a seed built after today's close
 // already holds today (the overlay is not used), and an older seed would leave a whole session missing
@@ -38,7 +45,7 @@
 import { isRthBar } from '../../components/chart/barTime'
 import { bucketOf } from '../../lib/minuteFrames/rollup'
 import { serverPrice } from './price'
-import { DEVICE_FORMING_INTRADAY, DEVICE_FORMING_DAILY } from './forming'
+import { DEVICE_FORMING_INTRADAY, DEVICE_FORMING_DAILY, DEVICE_DAILY_SERVER_ROW } from './forming'
 import { prevSessionISO } from './sessions'
 import { STORED_TFS } from './tfs'
 
@@ -71,15 +78,19 @@ function grow(s) {
  *   seed does not hold it (only those are kept)
  * @param {boolean} [o.formingIntraday]  hand out the 5/15/30/60 bucket in progress (forming.js; default its constant)
  * @param {boolean} [o.formingDaily]     hand out today's forming D bar (forming.js; default its constant)
+ * @param {boolean} [o.dailyServerRow]   today's D bar from the server's own row after the close (forming.js
+ *   DEVICE_DAILY_SERVER_ROW; the frames' DAILY section, consumer.js)
  */
 export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEVICE_FORMING_INTRADAY,
-  formingDaily = DEVICE_FORMING_DAILY } = {}) {
+  formingDaily = DEVICE_FORMING_DAILY, dailyServerRow = DEVICE_DAILY_SERVER_ROW } = {}) {
   let day = null                 // 'YYYY-MM-DD' of the bars held
   let lastMinute = null          // unix minute of the newest frame applied (its minute is complete)
   let gapRth = false             // a gap overlapping the regular session since the day began
   let gapAny = false             // any gap since the day began
   let avAll = true               // every frame applied today carried the accumulated day volume (FLAG_AV)
   const series = new Map()       // `${tf}|${SYM}` → series
+  const dailyRows = new Map()    // SYM (the seed's name) → { o, h, l, c, v }: the server's day row (FLAG_DAILY)
+  let dailyOk = false            // the consumer vouches: those rows are the server's current ones
   const stats = { upserts: 0, kept: 0, gaps: 0, stale: 0, resets: 0 }
 
   const keyOf = (sym, tf) => `${tf}|${sym}`
@@ -145,12 +156,24 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
       gapAny = false
       avAll = true
       series.clear()
+      dailyRows.clear()
+      dailyOk = false
+    },
+    /** The server's day rows from a frame's DAILY section (consumer.js): a full set replaces, changes merge. */
+    daily(info) {
+      if (!dailyServerRow || !info || (day && info.day && info.day !== day)) return
+      if (info.full) dailyRows.clear()
+      for (const r of info.rows || []) {
+        const name = nameOf(r.sym)
+        if (name) dailyRows.set(name, { o: r.o, h: r.h, l: r.l, c: r.c, v: r.v })
+      }
     },
     frameDone(info) {
       if (info?.day && info.day !== day) day = info.day
       if (Number.isFinite(info?.minute) && (lastMinute == null || info.minute > lastMinute)) lastMinute = info.minute
       // ⛔ fail closed: a frame that does not SAY it carried the day volume did not (consumer.js passes withAv)
       if (info?.withAv !== true) avAll = false
+      dailyOk = info?.dailyOk === true
     },
   }
 
@@ -162,8 +185,16 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
     if (!day || lastMinute == null) return { res: null, why: 'no-day' }
     if (!_TFS.has(tf)) return { res: null, why: 'tf' }
     if (seedAsof !== prevSessionISO(day)) return { res: null, why: 'other-session' }
-    if (gapRth || (tf === 'D' && gapAny)) return { res: null, why: 'gap' }
     const through = (lastMinute + 1) * 60
+    // the server's own day row after the close (see the header): ahead of every minute-built rule
+    if (tf === 'D' && dailyServerRow && dailyOk && dailyRows.has(sym)) {
+      const r = dailyRows.get(sym)
+      const t = Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)) / 1000
+      const cols = { t: Float64Array.of(t), o: Float64Array.of(r.o), h: Float64Array.of(r.h), l: Float64Array.of(r.l),
+        c: Float64Array.of(r.c), v: Float64Array.of(r.v) }
+      return { res: through < bucketEndOf(t, 'D') ? { cols, through, forming: 'D' } : { cols, through }, why: 'ok' }
+    }
+    if (gapRth || (tf === 'D' && gapAny)) return { res: null, why: 'gap' }
     const s = series.get(keyOf(sym, tf))
     if (s?.bad) return { res: null, why: 'bad-series' }
     if (!s || !s.n) return { res: { cols: null, through }, why: 'ok' }
@@ -196,9 +227,9 @@ export function createLiveOverlay({ nameOf = (sym) => sym, formingIntraday = DEV
     /** Diagnostics: 'ok', or the rule that made read() answer null: no-day | tf | other-session | gap | bad-series. */
     why: (sym, tf, seedAsof) => _read(sym, tf, seedAsof).why,
     /** The day held and the newest minute applied (unix minute), for diagnostics and freshness. */
-    state: () => ({ day, lastMinute, gapRth, gapAny, series: series.size, ...stats }),
+    state: () => ({ day, lastMinute, gapRth, gapAny, series: series.size, dailyRows: dailyRows.size, dailyOk, ...stats }),
     /** Drop everything (a re-sync replays the day into a clean overlay). */
-    clear() { day = null; lastMinute = null; gapRth = false; gapAny = false; avAll = true; series.clear() },
+    clear() { day = null; lastMinute = null; gapRth = false; gapAny = false; avAll = true; series.clear(); dailyRows.clear(); dailyOk = false },
     get day() { return day },
   }
 }

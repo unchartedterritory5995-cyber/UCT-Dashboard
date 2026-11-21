@@ -30,6 +30,8 @@ Never raises: any failure serves the bars exactly as they came in.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import gzip
 import json
 import logging
@@ -62,7 +64,12 @@ _CACHE_MAX = 64
 _CACHE_ENTRIES_MAX = 200_000
 
 _lock = threading.Lock()
-_state = {"version": 0, "symbols": frozenset(), "retired": frozenset(), "loaded": False}
+
+#: ⭐ PER-TICKER REVS (U5, 2026-11-21). The manifest's `revs` = {SYM: rev} for symbols AND retired: rev is the version
+#: at which THAT ticker last changed (its payload bytes, newly listed, re-listed, retired). Its payload lives at
+#: v<rev>/<SYM>.json.gz and its epoch is rev x EPOCH_STEP, so a publish that changes one ticker moves one ticker's
+#: history_rev, and every term only rises. A manifest without `revs` (the first versions) means rev = version for all.
+_state = {"version": 0, "symbols": frozenset(), "retired": frozenset(), "revs": {}, "loaded": False}
 _cache: dict = {}           # (sym, version) -> ({(tf, src): {date: [compact entry, ...]}}, n_entries)
 _counts: Counter = Counter()
 _thread: Optional[threading.Thread] = None
@@ -80,7 +87,8 @@ def _set_manifest(m: dict) -> None:
     with _lock:
         _state.update(version=int(m.get("version") or 0),
                       symbols=frozenset(str(s).upper() for s in (m.get("symbols") or ())),
-                      retired=frozenset(str(s).upper() for s in (m.get("retired") or ())), loaded=True)
+                      retired=frozenset(str(s).upper() for s in (m.get("retired") or ())),
+                      revs={str(k).upper(): int(v) for k, v in (m.get("revs") or {}).items()}, loaded=True)
         _cache.clear()
 
 
@@ -92,6 +100,12 @@ def load_local() -> bool:
         return False
     _set_manifest(m)
     return True
+
+
+def _rev(sym: str, revs=None, version=None) -> int:
+    """The version a ticker's payload was published at (its file locator and its epoch)."""
+    revs = _state["revs"] if revs is None else revs
+    return int(revs.get(sym) or (_state["version"] if version is None else version))
 
 
 def _write_atomic(path: Path, data: bytes) -> None:
@@ -136,14 +150,15 @@ def sync(client=None, bucket: Optional[str] = None) -> dict:
             _log.warning("[bars-corrections] %s", out["reason"])
             return out
         syms = sorted({str(s).upper() for s in (m.get("symbols") or ())})
-        d = local_dir() / f"v{version}"
+        revs = {str(k).upper(): int(v) for k, v in (m.get("revs") or {}).items()}
         for s in syms:
-            p = d / f"{s}.json.gz"
+            rv = _rev(s, revs, version)
+            p = local_dir() / f"v{rv}" / f"{s}.json.gz"
             if not p.exists():
-                body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{version}/{s}.json.gz")["Body"].read()
+                body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{rv}/{s}.json.gz")["Body"].read()
                 doc = decode_payload(body)                     # a body that does not parse is never kept
-                if int(doc.get("version") or -1) != version or str(doc.get("sym") or "").upper() != s:
-                    raise ValueError(f"payload for {s} does not name v{version}/{s}")
+                if int(doc.get("version") or -1) != rv or str(doc.get("sym") or "").upper() != s:
+                    raise ValueError(f"payload for {s} does not name v{rv}/{s}")
                 _write_atomic(p, body)
                 out["fetched"] += 1
         _write_atomic(local_dir() / "manifest.json", json.dumps(m).encode("utf-8"))
@@ -181,13 +196,14 @@ def _index(ticker: str) -> Optional[dict]:
     """{(tf, src): {date: [entry, ...]}} for `ticker`, or None (not listed, not on this volume, unreadable)."""
     if not active(ticker):
         return None
-    sym, version = str(ticker).upper(), _state["version"]
-    key = (sym, version)
+    sym = str(ticker).upper()
+    rv = _rev(sym)
+    key = (sym, rv)
     hit = _cache.get(key)
     if hit is not None:
         return hit[0]
     try:
-        doc = decode_payload((local_dir() / f"v{version}" / f"{sym}.json.gz").read_bytes())
+        doc = decode_payload((local_dir() / f"v{rv}" / f"{sym}.json.gz").read_bytes())
     except Exception:  # noqa: BLE001 - not on the volume (yet): nothing is applied
         return None
     idx: dict = {}
@@ -212,7 +228,7 @@ def _compact(e: dict):
         op = e.get("op")
         if op == "set":
             f = tuple((k, float(p[0]), float(p[1])) for k, p in (e.get("f") or {}).items()
-                      if k in ("o", "h", "l", "c") and isinstance(p, (list, tuple)) and len(p) == 2)
+                      if k in ("o", "h", "l", "c", "v") and isinstance(p, (list, tuple)) and len(p) == 2)
             chk = tuple((k, float(v)) for k, v in (e.get("chk") or {}).items() if k in ("o", "h", "l", "c"))
             return ("set", f, chk) if f else None
         if op == "drop":
@@ -284,6 +300,8 @@ def _set(bar: dict, e: tuple) -> Optional[dict]:
         if _eq(bar.get(f), old):
             nb = nb or dict(bar)
             nb[f] = new
+        elif _eq(bar.get(f), new):
+            _counts["set_already"] += 1          # a second pass (door, then serve) over a corrected bar: not a miss
         else:
             _counts["set_missed_field"] += 1
     if nb is not None and not _consistent(nb):
@@ -298,6 +316,70 @@ def _drop(bar: dict, e: tuple) -> bool:
     if not ok:
         _counts["drop_missed"] += 1
     return ok
+
+
+_raw = contextvars.ContextVar("bars_corrections_raw_reads", default=False)
+
+
+@contextlib.contextmanager
+def raw_reads():
+    """Inside this block the store's read door (`bars_sqlite._door`) returns rows EXACTLY AS STORED. For every
+    read-modify-write caller: a correction read through the door and written back would be baked into the row, and
+    no later ledger version could take it back. tests/test_bars_store_door.py names who must use it."""
+    token = _raw.set(True)
+    try:
+        yield
+    finally:
+        _raw.reset(token)
+
+
+def _apply_one(b: dict, es: list):
+    """The ONE per-bar application: the bar after `es` (one date's entries), the same dict when nothing applied, or
+    None when a drop matched. `apply` (served dicts) and `apply_rows` (the store door's tuples) both run this."""
+    cur = b
+    for e in es:
+        op = e[0]
+        if op == "drop" and _drop(cur, e):
+            _counts["drop_applied"] += 1
+            return None
+        if op == "set":
+            nb = _set(cur, e)
+            if nb is not None:
+                cur = nb
+                _counts["set_applied"] += 1
+    return cur
+
+
+def apply_rows(ticker: str, tf: str, rows: list, src: str = "store") -> list:
+    """The store read door's form of `apply`: `rows` are (ts YYYYMMDD, o, h, l, c, v) tuples. Inside `raw_reads()`
+    they come back untouched. Returns the SAME list when nothing applies; never raises."""
+    if not rows or _raw.get() or str(tf).upper() not in DATE_TFS:
+        return rows
+    try:
+        by_d = entries_for(ticker, tf, src)
+        if not by_d:
+            return rows
+        out, changed = [], False
+        for r in rows:
+            s = str(r[0])
+            es = by_d.get(f"{s[:4]}-{s[4:6]}-{s[6:8]}") if len(s) == 8 else None
+            if not es:
+                out.append(r)
+                continue
+            b = {"t": s, "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+            nb = _apply_one(b, es)
+            if nb is None:
+                changed = True
+                continue
+            if nb is b:
+                out.append(r)
+                continue
+            changed = True
+            out.append((r[0], nb["o"], nb["h"], nb["l"], nb["c"], nb["v"]) + tuple(r[6:]))
+        return out if changed else rows
+    except Exception as e:  # noqa: BLE001 - the stored rows still read
+        _log.warning("[bars-corrections] apply_rows failed for %s tf=%s: %s", ticker, tf, e)
+        return rows
 
 
 def apply(ticker: str, tf: str, bars: list, src: str) -> list:
@@ -315,19 +397,8 @@ def apply(ticker: str, tf: str, bars: list, src: str) -> list:
             if not es:
                 out.append(b)
                 continue
-            cur, dropped = b, False
-            for e in es:
-                op = e[0]
-                if op == "drop" and _drop(cur, e):
-                    dropped = True
-                    _counts["drop_applied"] += 1
-                    break
-                if op == "set":
-                    nb = _set(cur, e)
-                    if nb is not None:
-                        cur = nb
-                        _counts["set_applied"] += 1
-            if dropped:
+            cur = _apply_one(b, es)
+            if cur is None:
                 changed = True
                 continue
             changed = changed or cur is not b
@@ -345,11 +416,11 @@ def history_epoch(ticker: str, tf: str) -> int:
         return 0
     sym = str(ticker or "").upper()
     if sym in _state["retired"]:
-        return int(_state["version"]) * EPOCH_STEP
+        return _rev(sym) * EPOCH_STEP
     # ⛔ Only while the payload is ON THIS VOLUME: a pod still syncing serves uncorrected bars and must not label
     # them with the newer history (a browser would keep them as the new history).
     if sym in _state["symbols"] and _index(sym) is not None:
-        return int(_state["version"]) * EPOCH_STEP
+        return _rev(sym) * EPOCH_STEP
     return 0
 
 

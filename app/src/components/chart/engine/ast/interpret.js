@@ -492,6 +492,78 @@ export function isoDay(t) {
   return null
 }
 
+/** A bar's `t` as unix seconds when it is one (not an ISO day, not a `YYYYMMDD` key: `isoDay`'s own reading), else null. */
+function epochSecondsOf(t) {
+  if (typeof t !== 'number' || !Number.isFinite(t)) return null
+  const n = Math.trunc(t)
+  if (n >= 19000101 && n <= 99991231) {
+    const m = Math.trunc((n % 10000) / 100)
+    const d = n % 100
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return null
+  }
+  return n > 0 && n < 4102444800 ? n : null
+}
+/** Two bars of a series closer than this are an INTRADAY series' (an hour bar is 3,600 s apart, a 4-hour 14,400); a
+ *  daily one's are a day or more apart, 23 hours across a daylight-time change at the least. */
+const INTRADAY_SPACING_S = 20 * 3600
+/** ⭐⭐ RULING 2 (coordinator, 2026-11-20) — THE DAY OF EACH BAR OF A SERIES, AS A RESAMPLER KEYS ITS WEEK OR MONTH: an
+ *  INTRADAY series' bar (unix seconds, two bars less than `INTRADAY_SPACING_S` apart) by the exchange's local session
+ *  date (`newYorkOffsetSeconds`), never its UTC date; every other bar as `isoDay` reads it (an ISO day, a `YYYYMMDD`
+ *  key, and a daily series stamped in unix seconds at midnight UTC, which is a DATE: read in New York it would be the
+ *  day before). The series decides, not the bar: a winter Friday 19:00 New York bar is 00:00 UTC exactly, the same
+ *  stamp as a daily bar's. The one authority for every higher-timeframe keying of a series in this lane (the
+ *  resample, the first-period, newest-period and read-before-the-chart masks, the run's request alignment). Python
+ *  twin: `ast_interpret._bar_days`. */
+export function barDays(bars) {
+  const list = Array.isArray(bars) ? bars : []
+  let intraday = false
+  let prev = null
+  for (let i = 0; i < list.length && !intraday; i++) {
+    const t = epochSecondsOf(list[i] && list[i].t)
+    if (t === null) { prev = null; continue }
+    if (prev !== null && t > prev && t - prev < INTRADAY_SPACING_S) intraday = true
+    prev = t
+  }
+  return list.map((b) => {
+    const t = intraday ? epochSecondsOf(b && b.t) : null
+    if (t === null) return isoDay(b && b.t)
+    const [y, m, d] = civilFromDays(Math.floor((t + newYorkOffsetSeconds(t)) / 86400))
+    return `${String(y).padStart(4, '0')}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  })
+}
+
+/** ⭐⭐ RULING 2 (coordinator, 2026-11-20) — A RESAMPLER KEYS A BAR'S WEEK OR MONTH BY THE EXCHANGE'S LOCAL SESSION
+ *  DATE, NEVER ITS UTC DATE. An intraday bar's `t` is unix seconds; read as a UTC day, New York's extended-hours bars
+ *  after 19:00 in winter (20:00 in summer) landed on the NEXT day: a Friday evening bar on a Saturday (the Python
+ *  resampler, whose week is its sessions, then left it out of the week: the merged high and close of 96 winter weeks
+ *  of SPY's 60-minute history differed between the lanes), a month's last evening bar in the next month (both lanes).
+ *  MEASURED: capture `vw-bi-time-d-extended-spy-60-2026-11-19` (SPY 60 minutes, 04:00-20:00, 23,615 bars): on every one
+ *  of its 96 Friday 19:00 bars in winter TradingView's `time("D")` is 54,000 s before the bar (Friday 04:00 New York)
+ *  and the day offset is 0: TradingView keys the bar to its local Friday (`barDays` reads an intraday series' days
+ *  through this). New York's UTC offset, in seconds, at unix
+ *  second `t` (−4 h in daylight time, −5 h otherwise), from the United States rule in force that year (from 2007 the
+ *  second Sunday of March to the first Sunday of November; 1987-2006 the first Sunday of April to the last of October;
+ *  before, the last Sunday of April to the last of October), the change at 02:00 local. Integer arithmetic only (this
+ *  module holds no `Date`); held to the IANA zone over 1990-2035 by `htfExchangeDay.test.js`. The engine's calendar is
+ *  New York's (its sessions, its closures: `htfClosesOnNextBar`); another exchange's zone is not this function's. Python
+ *  twin: `ast_interpret._new_york_offset_seconds`. */
+export function newYorkOffsetSeconds(t) {
+  const y = civilFromDays(Math.floor(t / 86400))[0]
+  // the day number of the n-th Sunday of a month (n = -1: the last); 1970-01-01 was a Thursday
+  const sunday = (m, k) => {
+    if (k > 0) {
+      const first = daysFromCivil(y, m, 1)
+      const dow = (((first + 4) % 7) + 7) % 7
+      return first + ((7 - dow) % 7) + 7 * (k - 1)
+    }
+    const last = daysFromCivil(m === 12 ? y + 1 : y, m === 12 ? 1 : m + 1, 1) - 1
+    return last - ((((last + 4) % 7) + 7) % 7)
+  }
+  const [on, off] = y >= 2007 ? [sunday(3, 2), sunday(11, 1)]
+    : y >= 1987 ? [sunday(4, 1), sunday(10, -1)] : [sunday(4, -1), sunday(10, -1)]
+  return t >= on * 86400 + 7 * 3600 && t < off * 86400 + 6 * 3600 ? -4 * 3600 : -5 * 3600
+}
+
 /** Days since 1970-01-01 \u2192 (year, month, day), and back. Howard Hinnant's civil
  *  algorithms, in integer arithmetic only.
  *
@@ -7571,7 +7643,7 @@ export function tfMergeMask(tree, bars, opts, inputs = {}, budget = undefined, s
 function firstPeriodPartialMask(bars, found, opts) {
   if (opts && opts.historyFromListing === true) return null
   const n = bars.length
-  const days = bars.map((b) => isoDay(b && b.t))
+  const days = barDays(bars)
   const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && days.every((d) => d && isoWeekday(d) <= 5)
   let out = null
   for (const code of new Set(found.map((f) => f.code))) {
@@ -7645,7 +7717,7 @@ function firstPeriodPartialReadMask(tree, bars, opts, inputs, budget, scalars) {
     if (opts && opts.requestFieldUnaware === true) return first
     if (!childReadsPartialPeriod(child)) return null            // item 3: a merge of close alone is drawn
     const code = String(node.value)
-    const isos = bars.map((b) => isoDay(b && b.t))
+    const isos = barDays(bars)
     const { htf, at } = resampleTo(bars, isos, code)
     const u = partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts)
     if (FIELD_UNAWARE === u) return first                       // a child holding another request: review L2
@@ -7716,7 +7788,7 @@ function tfLiveFirstPeriodMask(bars, code, opts) {
 function tfLiveFirstPeriodBars(bars, code, opts) {
   const n = bars.length
   if (!n || typeof code !== 'string' || (opts && opts.historyFromListing === true)) return null
-  const days = bars.map((b) => isoDay(b && b.t))
+  const days = barDays(bars)
   if (days.some((d) => !d)) return new Float64Array(n).fill(1)
   const daily = !!opts && (opts.tf === 'D' || opts.tf === '1D') && days.every((d) => isoWeekday(d) <= 5)
   if (daily) {
@@ -7863,7 +7935,7 @@ function tfLiveFirstPeriodReadMask(tree, bars, opts, inputs, budget, scalars) {
     if (!childReadsPartialPeriod(child)) return null
     const first = tfLiveFirstPeriodBars(bars, code, opts)
     if (!first) return null
-    const isos = bars.map((b) => isoDay(b && b.t))
+    const isos = barDays(bars)
     if (isos.some((d) => !d)) return first                                // every bar: no first period to place
     const { htf, at } = resampleTo(bars, isos, code)
     const u = partialPeriodUnknown(child, htf, code, inputs, budget, scalars, opts)
@@ -8437,7 +8509,7 @@ function requestBeforeFirst(node, bars, inputs, budget, scalars, opts, off, memo
     return m
   }
   const code = String(node.value)
-  const isos = bars.map((b) => isoDay(b && b.t))
+  const isos = barDays(bars)
   const { htf, at } = resampleTo(bars, isos, code)
   const u = htf.length ? preChartUnknown(child, htf, inputs, budget, scalars, { ...(opts || {}), tf: code }, off,
     scoped(`tf\u0001${code}`)) : null
@@ -8766,7 +8838,7 @@ export function requestAlignment({ chartBars, srcBars, code = null, other = null
   let runBars = src
   let srcRead = null
   if (code !== null) {
-    const isos = src.map((b) => isoDay(b && b.t))
+    const isos = barDays(src)
     const { htf, at } = resampleTo(src, isos, code)
     runBars = htf
     srcRead = live === true ? tfLiveReads(isos, code, at) : tfMergeReads(isos, code, at)
@@ -9258,7 +9330,7 @@ function interpretOnce(ast, bars, inputs, budget, scalars, opts) {
               + `resampled out of '${String(base)}'.`)
           }
         }
-        const isos = bars.map((b) => isoDay(b && b.t))
+        const isos = barDays(bars)
         const { htf, at } = resampleTo(bars, isos, code)
         // \u2b50 THE CHILD IS EVALUATED ON THE HIGHER-TIMEFRAME BARS, which is the whole
         // value of the node: `tf(sma(close, 20), 'W')` is the 20-WEEK average, not the
