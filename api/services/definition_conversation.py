@@ -853,6 +853,18 @@ CONVERSE_SYSTEM_PROMPT = (
     "An opening range needs bars that divide it (30 minutes on a 1, 5, 15 or 30-minute chart); on "
     "longer bars it is withheld and says so, so mention that an opening range is for intraday "
     "charts.\n"
+    "  A VALUE THAT RESTARTS WITH THE CALENDAR on every year, quarter, month or week (\"year to date "
+    "percent change\", \"month to date\", \"this year's high\", \"the high so far this month\", \"since the "
+    "start of each month\") is built from the bar's OWN calendar and NEVER from a date, so it is right on "
+    "every year of the chart and stays right after the year turns. The restart is `year != offset 1 of "
+    "year` for a year, `monthfirst` for a month, `weekfirst` for a week, and `monthfirst && (month == 1 || "
+    "month == 4 || month == 7 || month == 10)` for a quarter. The year to date percent change is the close "
+    "against the prior year's last close: valuewhen(year != offset 1 of year, offset 1 of close, 300). This "
+    "year's running high is accum(high, year != offset 1 of year ? high : max(self, high), 300). The last "
+    "argument of `valuewhen` is a WINDOW in bars and must reach back past the event (a year of daily bars "
+    "is about 252): never 1, which is blank on every bar but the event's own. These need no date, so never "
+    "ask for one. The dates of the next paragraph are for an ANCHOR only (an anchored VWAP from the start "
+    "of this year).\n"
     "  A DATE THE MEMBER NAMES BY THE CALENDAR (\"this year\", \"year to date\", \"this quarter\", \"since the start of the month\", \"this week\"): you do NOT know today's date, so never work out "
     "the year, quarter, month or week yourself. `uct_language_notes.calendar` gives today's date and the exact "
     "start of each, in New York time, as the number `avwap(...)` takes. Use that number as it is and say the "
@@ -1031,9 +1043,13 @@ DATA_PREAMBLE = dc.DATA_PREAMBLE
 #: the member's words name a calendar start, the turn carries today's date and the exact start of
 #: this year, quarter, month and week (`calendar_notes`), and the instructions forbid working any of
 #: them out. Any other turn is byte for byte what it was (nothing is added, the clock is not read).
+#: ⭐ 2026-11-21 -- "this CALENDAR year" names one too (it was unmatched, so the assistant asked for a
+#: date the door had). And the dates are for an ANCHOR only: a value that RESTARTS each year, month or
+#: week is built from the bar's own calendar (the instructions' paragraph above the dated one), since a
+#: date written into such a value is blank or wrong on every other year and goes stale when the year turns.
 _CALENDAR_WORDS = re.compile(
-    r"\b(?:this|current)\s+(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
-    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
+    r"\b(?:this|current)\s+(?:calendar\s+)?(?:year|quarter|month|week)\b|\byear[\s-]+to[\s-]+date\b|\bytd\b|\bqtd\b|\bmtd\b|"
+    r"\bstart\s+of\s+(?:the\s+|this\s+)?(?:calendar\s+)?(?:year|quarter|month|week)\b|\b(?:yearly|quarterly|monthly|weekly)\s+(?:anchored\s+)?vwap\b",
     re.I)
 CALENDAR_TZ = "America/New_York"
 
@@ -2460,6 +2476,43 @@ def _refuse_infinity_in_a_window(trees: List[Tuple[str, Any]]) -> None:
                     "`assumptions` that the window reaches back past other bars.")
 
 
+#: The call whose last argument is how far BACK it looks for the bar it reads from, and the smallest window
+#: that can reach a bar other than this one.
+_VALUE_AT_AN_EVENT = "valuewhen"
+_SMALLEST_WINDOW_THAT_LOOKS_BACK = 2
+
+
+def _refuse_a_value_at_an_event_that_cannot_look_back(trees: List[Tuple[str, Any]]) -> None:
+    """2026-11-21 -- `valuewhen(cond, value, 1)` READS ONLY THIS BAR.
+
+    Found by a value check. Asked for the year to date change, the assistant read "the prior year's last
+    close" as ``valuewhen(<a bar of an earlier year>, close, 1)``. The last argument is a WINDOW in bars: the
+    value comes from the most recent of the last N bars where the condition was true. With N = 1 that is this
+    bar or nothing, so the line had a value only where the condition itself was true and was blank on every
+    bar after the event it was meant to remember, under a reply that described a held level.
+
+    Refused: a literal window below 2. Written honestly that formula is ``cond ? value : 0 / 0``, which is
+    not refused, so nothing a member can ask for is lost. A window that is too short for the event's spacing
+    cannot be seen from the formula; the window's own statement of what is empty on the chart answers that.
+    """
+    for where, tree in trees:
+        for node in _walk(tree):
+            if node.get("type") != "call" or node.get("name") != _VALUE_AT_AN_EVENT:
+                continue
+            args = node.get("args")
+            window = _is_literal_number(args[-1]) if isinstance(args, list) and len(args) == 3 else None
+            if window is not None and window < _SMALLEST_WINDOW_THAT_LOOKS_BACK:
+                raise _Refused(
+                    "envelope:reference",
+                    f"{where}: `{_VALUE_AT_AN_EVENT}` is given a window of {window:g} bar. Its last argument is how "
+                    "many bars it looks BACK for the most recent bar where the condition was true, so this reads "
+                    "only the bar itself: a value where the condition is true and NO VALUE on every bar after "
+                    "it. To hold the value from the last time the condition was true, give it a window that "
+                    "reaches back past that event (500 unless the member names one; a year of daily bars is "
+                    "about 252). If a value on only the bars where the condition is true is what the member "
+                    "asked for, write that as a choice: cond ? value : 0 / 0.")
+
+
 _EXTREMES_OF_A_WINDOW = frozenset({"highest", "lowest"})
 
 
@@ -3880,6 +3933,7 @@ def check_envelope(envelope: Any, revision: int, view: Any = None) -> Dict[str, 
     _refuse_unsupported_nodes(_trees_of(envelope))
     _refuse_negative_bars_back(_trees_of(envelope))
     _refuse_infinity_in_a_window(_trees_of(envelope))
+    _refuse_a_value_at_an_event_that_cannot_look_back(_trees_of(envelope))
     _refuse_a_stand_in_drawn_as_a_value(_trees_of(envelope))
     _refuse_a_reading_compared_with_itself(_trees_of(envelope))
     _refuse_scalars(_trees_of(envelope))
