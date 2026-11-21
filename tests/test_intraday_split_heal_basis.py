@@ -506,3 +506,81 @@ def test_M_a_series_deeper_than_the_transaction_cap_is_refused(store, monkeypatc
     res = ish.heal_series("CAP", "5", splits=[(days[12].isoformat(), 2.0)])
     assert not res["rescale"] and res["refused"][0]["why"] == "too-deep"
     assert _rows("CAP", "5") == before
+
+
+# ── F3b' in the bar scan (2026-11-21): an ordinary bar move is never "split-sized" ──
+# For a 5:4 (r = 1.25) the band alone (|q/r - 1| <= 0.15) takes any bar that DROPS 6-30%
+# (q = prev/c in 1.0625-1.4375) or RISES 4-47% (q near 1/r). bars_sanitize._within_split_size
+# (|ln(q/r)| <= 0.25 |ln r|) keeps only q in 1.183-1.322, as the daily detector does since #2260.
+# Before this, one ordinary 7-10% bar anywhere in the series made scan_series see a second
+# "split" step: a series with an applied 5:4 was left UNKNOWN ("hidden-step"), and a real 5:4
+# cliff was refused ("step-not-unique"). Neither wrote a wrong row; both refused silently.
+
+ORDINARY_MOVES = [pytest.param(1 / 1.08, id="a 7.4% bar drop"), pytest.param(1.10, id="a 10% bar rise")]
+
+
+def _move(base, at, f):
+    """Every bar from `at` on x f: a real move, the price stays there."""
+    return [dict(b, o=b["o"] * f, h=b["h"] * f, l=b["l"] * f, c=b["c"] * f) if b["t"] >= at else b
+            for b in base]
+
+
+@pytest.mark.parametrize("f", ORDINARY_MOVES)
+def test_F3b_an_ordinary_bar_move_far_from_an_applied_5_4_is_not_a_hidden_step(store, f):
+    days = _sessions(24)
+    base = _move(_truth(random.Random(51), _grid("5", days)), _ts(days[18], 11, 0), f)
+    bs.put_bars("ORD", "5", base)
+    _put_daily("ORD", base)
+    splits = [(days[6].isoformat(), 1.25)]          # applied by the vendor: no cliff anywhere
+    before = _rows("ORD", "5")
+    res = ish.heal_series("ORD", "5", splits=splits)
+    assert not res["refused"], res["refused"]
+    assert not res["rescale"] and _rows("ORD", "5") == before
+    assert bs.series_meta("ORD", "5")["adj_basis"] == ab.target_basis_id(splits)
+
+
+@pytest.mark.parametrize("f", ORDINARY_MOVES)
+def test_F3b_an_ordinary_bar_move_does_not_make_a_real_5_4_cliff_non_unique(store, f):
+    days = _sessions(24)
+    truth = _move(_truth(random.Random(52), _grid("5", days)), _ts(days[18], 11, 0), f)
+    j = _ts(days[10], 9, 30)
+    bs.put_bars("UNQ", "5", [_old_basis(b, 1.25) if b["t"] < j else b for b in truth])
+    _put_daily("UNQ", truth)
+    splits = [(days[10].isoformat(), 1.25)]
+    res = ish.heal_series("UNQ", "5", splits=splits)
+    assert res["status"] == "applied" and res["rescale"] == [(j, 1.25)], res["refused"]
+    assert _on_basis(_rows("UNQ", "5"), truth, r_tol=2)
+    assert bs.series_meta("UNQ", "5")["adj_basis"] == ab.target_basis_id(splits)
+
+
+@pytest.mark.parametrize("r", [1.25, 2.0, 0.5])
+def test_F3b_an_inverse_step_still_blocks_a_mixed_series_the_daily_proof_would_pass(store, r):
+    """New-basis rows a deep fetch prepended BELOW an old-basis span. The junction step is
+    unique, and the daily proof (3 sessions either side of it) passes, so only the INVERSE
+    step at the span's start keeps the new-basis rows below it from being divided by r."""
+    days = _sessions(24)
+    truth = _truth(random.Random(54), _grid("5", days))
+    j, deep = _ts(days[14], 9, 30), _ts(days[4], 9, 30)
+    bs.put_bars("INV", "5", [_old_basis(b, r) if deep <= b["t"] < j else b for b in truth])
+    _put_daily("INV", truth)
+    before = _rows("INV", "5")
+    res = ish.heal_series("INV", "5", splits=[(days[14].isoformat(), r)])
+    assert not res["rescale"] and res["refused"][0]["why"] == "step-not-unique", res["refused"]
+    assert _rows("INV", "5") == before and bs.series_meta("INV", "5")["adj_basis"] is None
+
+
+def test_F3b_a_split_sized_lone_print_still_blocks_a_small_split(store):
+    """The size band narrows what counts as a step; it never hides a real one. A lone print
+    at 1/r (a bad tick on the old basis, far from the split) still makes the 5:4 unprovable."""
+    days = _sessions(24)
+    truth = _truth(random.Random(53), _grid("5", days))
+    j = _ts(days[10], 9, 30)
+    stored = [_old_basis(b, 1.25) if b["t"] < j else b for b in truth]
+    k = next(i for i, b in enumerate(stored) if b["t"] >= _ts(days[18], 11, 0))
+    stored[k] = _old_basis(stored[k], 1.25)
+    bs.put_bars("PRT", "5", stored)
+    _put_daily("PRT", truth)
+    before = _rows("PRT", "5")
+    res = ish.heal_series("PRT", "5", splits=[(days[10].isoformat(), 1.25)])
+    assert not res["rescale"] and res["refused"][0]["why"] == "step-not-unique"
+    assert _rows("PRT", "5") == before and bs.series_meta("PRT", "5")["adj_basis"] is None

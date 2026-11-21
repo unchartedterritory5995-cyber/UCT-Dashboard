@@ -244,7 +244,14 @@ def scan_series(rows, ratios: Sequence[float], tol: float) -> dict:
     """ONE streamed pass over `(ts, close)` rows (oldest first): per-session last closes,
     per-session last RTH closes, and — per ratio r — `(ts, rows_before)` of every bar whose
     step from the previous bar (`close[k-1] / close[k]`) matches r ("fwd") or 1/r ("inv")
-    to `tol`. O(sessions) memory."""
+    to `tol` AND is the size of that split (F3b', `bars_sanitize._within_split_size`, the
+    same test the daily detector applies). O(sessions) memory.
+
+    ⚰️ 2026-11-21: the band alone took an ordinary bar as a split step for every small r. For
+    a 5:4 that is any bar that drops 6-30% or rises 4-47%. One such bar anywhere in the series
+    made an applied 5:4 "hidden-step" (basis unknown) and a real 5:4 cliff "step-not-unique"
+    (refused). Rails: tests/test_intraday_split_heal_basis.py::test_F3b_*."""
+    from api.services import bars_sanitize as _san
     last: dict[str, float] = {}
     rth: dict[str, float] = {}
     fwd = {r: [] for r in ratios}
@@ -269,10 +276,11 @@ def scan_series(rows, ratios: Sequence[float], tol: float) -> dict:
         if prev is not None:
             q = prev / c
             for r in ratios:
-                if _within(q, r, tol):
+                if _within(q, r, tol) and _san._within_split_size(q, r):
                     if len(fwd[r]) <= _MAX_STEP_MATCHES:
                         fwd[r].append((int(ts), n))
-                elif _within(q, 1.0 / r, tol) and len(inv[r]) <= _MAX_STEP_MATCHES:
+                elif (_within(q, 1.0 / r, tol) and _san._within_split_size(q, 1.0 / r)
+                      and len(inv[r]) <= _MAX_STEP_MATCHES):
                     inv[r].append((int(ts), n))
         n += 1
         prev = c
