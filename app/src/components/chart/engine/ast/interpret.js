@@ -2425,8 +2425,26 @@ const SMOOTH_CELLS = 3            // [prev, count, sum]
 
 function smoothInit(st, o) { st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0 }
 
-/** One bar of a smoother. Returns the value to emit (NaN while warming). */
-const smoothStepOf = (recur) => function smoothStepWith(st, o, v, n, k) {
+/** ⭐⭐ RMA-SEED (NUMBER PENDING) — THE ONE SEED RULE OF EVERY WILDER SMOOTHER A PINE DOCUMENT IS SERVED:
+ *  `ta.rma`'s first value is the EXACTLY ROUNDED sum of its first `n` values, divided by `n` (`exactSum`).
+ *  Pine's published `ta.rma` seeds with `ta.sma(src, length)`, and TradingView's `ta.sma` IS the exactly
+ *  rounded window sum (SMA-EXACT, `exactSum` above). WITNESSED where the two seeds part:
+ *  `vw-bi-dmi-{spy,rddt}-1d-2026-11-19`, whose `ta.dmi` legs are `ta.rma` bodies (W1-W4 read 0 on every bar):
+ *  of the six ADX seeds, three separate a left-to-right sum from this one (U3 on SPY bar 30 and RDDT bar 30,
+ *  U4 on SPY bar 33) and all three are this one; with it, all seven `ta.dmi` columns on both symbols are
+ *  TradingView's bit for bit on every bar. Every consumer reads it from here: `ta.rma` and `ta.atr` through
+ *  `CARRIED.rma` (both lanes), `ta.rsi` through `rsiPineStep` (runtime) and `FN_PINE.rsi` (`computeRSI`'s
+ *  `seedMean`, host). Python twin: `ast_interpret._rma_seed_mean`.
+ *  `docs/pine/evidence/2026-11-20-rma-seed-dmi/EVIDENCE.md`. */
+export const rmaSeedMean = (values, lo, n) => exactSum(values, lo, lo + n - 1) / n
+/** How many seed values a Wilder smoother keeps: its length when that is a positive whole number, else none
+ *  (a length that is not one never completes a seed, exactly as before: the count never equals it). */
+const rmaSeedCells = (n) => (Number.isInteger(n) && n > 0 ? n : 0)
+
+/** One bar of a smoother. Returns the value to emit (NaN while warming). `exactSeed` keeps the first `n`
+ *  values after the three scalars and seeds with `rmaSeedMean` (RMA-SEED); without it the seed is the
+ *  running sum in cell 2 (`ema`, unmeasured, unchanged). */
+const smoothStepOf = (recur, exactSeed = false) => function smoothStepWith(st, o, v, n, k) {
   if (!Number.isFinite(v)) {
     // ⭐⭐⭐ HOLD. VENDOR-PINNED 2026-09-08, AND WE USED TO RESET HERE.
     //
@@ -2454,9 +2472,17 @@ const smoothStepOf = (recur) => function smoothStepWith(st, o, v, n, k) {
     return NaN
   }
   if (Number.isNaN(st[o])) {
-    st[o + 2] += v
-    st[o + 1] += 1
-    if (st[o + 1] === n) { st[o] = st[o + 2] / n; return st[o] }
+    const seen = st[o + 1]
+    if (!exactSeed) st[o + 2] += v
+    else if (seen < rmaSeedCells(n)) st[o + SMOOTH_CELLS + seen] = v
+    st[o + 1] = seen + 1
+    if (seen + 1 === n) {
+      st[o] = exactSeed ? rmaSeedMean(st, o + SMOOTH_CELLS, n) : st[o + 2] / n
+      // ⭐ the seed values are spent: cleared, so the state after the seed is the recurrence's alone (two runs
+      // whose `prev` agree hold the same state, which the warm-up curtain's early stop reads, `warmupProbe.js`)
+      if (exactSeed) st.fill(0, o + SMOOTH_CELLS, o + SMOOTH_CELLS + n)
+      return st[o]
+    }
     return NaN
   }
   st[o] = recur(st[o], v, n, k)
@@ -2475,8 +2501,14 @@ const smoothStep = smoothStepOf((prev, v, n, k) => prev * (1 - k) + v * k)
  *  rest: one unit in the last place, which a tenth-decimal tie in `str.tostring` printed as a
  *  different digit (label 437 of W3N-D1c SPY). The house `rsi`, `atr` and `adx` kernels already
  *  used this order. Python twin: `ast_interpret._smooth_col(..., wilder=True)`.
- *  `docs/pine/evidence/2026-11-16-rma-summation/EVIDENCE.md`. */
-const rmaStep = smoothStepOf((prev, v, n) => (prev * (n - 1) + v) / n)
+ *  `docs/pine/evidence/2026-11-16-rma-summation/EVIDENCE.md`.
+ *  ⭐⭐ RMA-SEED (NUMBER PENDING): its SEED is `rmaSeedMean` (the exactly rounded sum of the first `n`
+ *  values / `n`), not the running sum `smoothStep` keeps, so it holds those `n` values (`RMA_CELLS`). */
+const rmaStep = smoothStepOf((prev, v, n) => (prev * (n - 1) + v) / n, true)
+/** `rmaStep`'s cells: the three scalars, then the seed values. `bars` (the column driver's series length)
+ *  caps the seed store where the length is longer than the series, which then never seeds anyway; the
+ *  runtime VM passes the length alone, as it does for every member whose cells grow with it. */
+const RMA_CELLS = (n, bars = Infinity) => SMOOTH_CELLS + Math.min(rmaSeedCells(n), bars)
 
 function smoothCol(series, n, k) {
   const out = nan(series.length)
@@ -2608,6 +2640,9 @@ const RSI_PINE_CELLS = 6            // [prev x, changes seen, sum up, sum down, 
 function rsiPineInit(st, o) {
   st[o] = NaN; st[o + 1] = 0; st[o + 2] = 0; st[o + 3] = 0; st[o + 4] = NaN; st[o + 5] = NaN
 }
+/** ⭐ RMA-SEED — `ta.rsi` is two `ta.rma`s (its published body), so its two seeds are `rmaSeedMean`'s: the
+ *  first `n` gains after the six scalars, then the first `n` losses. */
+const RSI_PINE_SEEDED_CELLS = (n) => RSI_PINE_CELLS + 2 * rmaSeedCells(n)
 function rsiPineStep(st, o, v, n) {
   const diff = v - st[o]
   st[o] = v
@@ -2615,9 +2650,13 @@ function rsiPineStep(st, o, v, n) {
   const gain = diff > 0 ? diff : 0
   const loss = diff < 0 ? -diff : 0
   if (Number.isNaN(st[o + 4])) {
-    st[o + 2] += gain; st[o + 3] += loss; st[o + 1] += 1
-    if (st[o + 1] < n) return NaN
-    st[o + 4] = st[o + 2] / n; st[o + 5] = st[o + 3] / n
+    const seen = st[o + 1]
+    const cap = rmaSeedCells(n)
+    if (seen < cap) { st[o + RSI_PINE_CELLS + seen] = gain; st[o + RSI_PINE_CELLS + cap + seen] = loss }
+    st[o + 1] = seen + 1
+    if (seen + 1 < n) return NaN
+    st[o + 4] = rmaSeedMean(st, o + RSI_PINE_CELLS, n); st[o + 5] = rmaSeedMean(st, o + RSI_PINE_CELLS + cap, n)
+    st.fill(0, o + RSI_PINE_CELLS, o + RSI_PINE_CELLS + 2 * cap)   // spent (`smoothStepOf`'s reason)
   } else {
     st[o + 4] = (st[o + 4] * (n - 1) + gain) / n
     st[o + 5] = (st[o + 5] * (n - 1) + loss) / n
@@ -3320,7 +3359,8 @@ const pivotPineStep = (beats) => (st, off, v, n, _k, right) => {
 
 export const CARRIED = Object.freeze({
   ema: { cells: SMOOTH_CELLS, init: smoothInit, step: smoothStep, alpha: (n) => 2 / (n + 1) },
-  rma: { cells: SMOOTH_CELLS, init: smoothInit, step: rmaStep, alpha: (n) => 1 / n },
+  // ⭐ RMA-SEED — its cells grow with the length: the seed values `rmaSeedMean` sums (`RMA_CELLS`)
+  rma: { cells: RMA_CELLS, init: smoothInit, step: rmaStep, alpha: (n) => 1 / n },
   // ⭐ NO `alpha`. These two carry a COUNT, not an average, so the fourth
   // argument their step ignores is the same slot `ema`/`rma` use for a decay —
   // one signature, two uses, which is what lets one driver serve the table.
@@ -3387,7 +3427,7 @@ export const CARRIED = Object.freeze({
   // no column of this key to compare with, and the key is not a table name so a
   // bare-name lookup can never reach it from the columnar lane. It is held to the
   // shipped `computeRSI` in `runtimeRsiHma.test.js` instead.
-  rsiPine: { cells: RSI_PINE_CELLS, init: rsiPineInit, step: rsiPineStep, runtimeOnly: true },
+  rsiPine: { cells: RSI_PINE_SEEDED_CELLS, init: rsiPineInit, step: rsiPineStep, runtimeOnly: true },
   // ⭐⭐ W4 T10 — the state kernels (see the block above `CARRIED`). `runtimeOnly`
   // for the reason `rsiPine` is: the derived `ta.<key>(source, 6)` differential
   // would spell a key that is not a Pine name. `w4StateKernels.test.js` holds each
@@ -3616,6 +3656,12 @@ export const CARRIED2 = Object.freeze({
   vwapPine: { cells: VWAP_PINE_CELLS, init: vwapPineInit, step: vwapPineStep, inputs: 3 },
 })
 
+/** ⭐ RMA-SEED — how many cells a carried member holds at length `n`: a number for a fixed handful of scalars,
+ *  a function of the length for a member whose store grows with it (`rma`'s seed values, the pivots' ring).
+ *  `bars` (a column driver's series length) caps a store that only fills while the series lasts. The runtime VM
+ *  sizes its own flat store the same way (`vm.js::carCellsOf`, the length alone). */
+export const carriedCellsOf = (spec, n, bars) => (typeof spec.cells === 'function' ? spec.cells(n, bars) : spec.cells)
+
 /** ⛔ THE COLUMN DRIVER IS DERIVED FROM THE TABLE, so `FN.ema` and the runtime
  *  cannot drift: both reach `CARRIED[name].step` and nothing else computes an
  *  exponential average in this file. */
@@ -3625,8 +3671,10 @@ const carriedFn = (name, table = CARRIED) => (series, n) => {
   // `smoothCol` directly, which silently made "carried" mean "exponential
   // average" and would have refused `rising`/`falling` a seat at the table they
   // belong to. The alpha is now just the fourth argument some steps read.
-  const st = new Float64Array(spec.cells)
-  spec.init(st, 0)
+  // ⭐ RMA-SEED — a member whose cells grow with its length (`rma`'s seed values) is sized by `carriedCellsOf`,
+  // capped at the series' own length (a longer length never completes its seed); a fixed handful stays a number.
+  const st = new Float64Array(carriedCellsOf(spec, n, series.length))
+  spec.init(st, 0, n)
   const k = spec.alpha ? spec.alpha(n) : undefined
   const out = nan(series.length)
   for (let i = 0; i < series.length; i++) out[i] = spec.step(st, 0, series[i], n, k)
@@ -3987,7 +4035,11 @@ export const CARRIED_PINE = Object.freeze({
   falling: { ...CARRIED.falling, step: fallingStepPine },
 })
 const PINE_DMI = Object.freeze({ gt: pineGt })
+/** ⭐ RMA-SEED — Pine's `ta.rsi` seeds its two averages as `ta.rma` does (`rmaSeedMean`); `FN.rsi`, the
+ *  formula language's and the native chart's, keeps `computeRSI`'s running-sum seed. */
+const PINE_RSI = Object.freeze({ seedMean: rmaSeedMean })
 export const FN_PINE = Object.freeze({
+  rsi: (s, n) => bindShipped(['c'], [s], s.length, (bars) => computeRSI(bars, n, PINE_RSI)),
   rising: carriedFn('rising', CARRIED_PINE),
   falling: carriedFn('falling', CARRIED_PINE),
   percentrank: (series, n) => {

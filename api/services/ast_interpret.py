@@ -1115,6 +1115,15 @@ def _exact_sum(series: Sequence[float], lo: int, hi: int) -> float:
     return total
 
 
+def _rma_seed_mean(values: Sequence[float]) -> float:
+    """⭐⭐ RMA-SEED (NUMBER PENDING) -- THE ONE SEED RULE of every Wilder smoother a Pine document is served,
+    the twin of ``interpret.js::rmaSeedMean``: the EXACTLY ROUNDED sum of the first ``n`` values (``_exact_sum``,
+    ``math.fsum``) divided by ``n``. Pine's ``ta.rma`` seeds with ``ta.sma``, which TradingView sums exactly
+    (SMA-EXACT); witnessed where a left-to-right seed parts from it on ``vw-bi-dmi-{spy,rddt}-1d-2026-11-19``
+    (3 of 6 ADX seeds, all this one). ``_rma_col`` (``ta.rma``, ``ta.atr``) and ``FN_PINE["rsi"]`` read it."""
+    return _exact_sum(values, 0, len(values) - 1) / len(values)
+
+
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
     """``ta.sma``: the EXACTLY ROUNDED window sum over its length (``math.fsum``), the twin of
     ``interpret.js::windowMean`` / ``exactSum`` (SMA-EXACT, Engine 65 (#1484)): TradingView's sma
@@ -1644,16 +1653,22 @@ def _smooth_col(series: Sequence[float], n: int, k: float, wilder: bool = False)
     prev = NAN
     count = 0
     total = 0.0
+    seed: List[float] = []
     for i in range(len(series)):
         v = series[i]
         if not math.isfinite(v):
             # HOLD: state untouched, this bar answers `na`.
             continue
         if math.isnan(prev):
-            total += v
+            if wilder:
+                seed.append(v)
+            else:
+                total += v
             count += 1
             if count == n:
-                prev = total / n
+                # ⭐ RMA-SEED -- Wilder's seed is ``_rma_seed_mean`` (the exactly rounded sum / n), ``ema``'s the
+                # running sum (unmeasured, unchanged)
+                prev = _rma_seed_mean(seed) if wilder else total / n
                 out[i] = prev
         else:
             # ⭐⭐ LANDING TRAIN 1 -- ``ta.rma`` in TradingView's own arithmetic (``interpret.js::rmaStep``,
@@ -3192,6 +3207,11 @@ def _adx_pine(k: int):
 
 
 FN_PINE: Dict[str, Callable[..., List[float]]] = {
+    # ⭐ RMA-SEED -- Pine's ``ta.rsi`` seeds its two averages as ``ta.rma`` does (``_rma_seed_mean``); ``FN["rsi"]``
+    # (the formula language's, the native RSI's) keeps the running-sum seed. Twin of ``interpret.js::FN_PINE.rsi``.
+    "rsi": lambda s, n: _bind_shipped(("c",), (s,), len(s),
+                                      lambda bars: compute_rsi_raw([b["c"] for b in bars], n,
+                                                                   seed_mean=_rma_seed_mean)),
     "rising": lambda series, n: _monotone_col(series, n, True, pine=True),
     "falling": lambda series, n: _monotone_col(series, n, False, pine=True),
     "percentrank": lambda series, n: [

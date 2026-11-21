@@ -1279,7 +1279,11 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // refuses every other source by name. See the `key === 'vwap'` branch there.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
-  // these keys are synthetic and `dmiParts` is their only caller.
+  // these keys are synthetic. ⚰️ RMA-SEED (NUMBER PENDING): their only caller,
+  // `dmiParts`, is gone — `ta.dmi` is `PINE_TUPLE_BUILTINS.dmi`, TradingView's body
+  // over `ta.rma` — so no translation of `ta.dmi` emits them any more. They stay
+  // declared only for what already names them (a formula translated before this
+  // engine number reads `plusDI` / `minusDI` / `adx`, `FN_PINE`'s).
   //
   // ⛔ THEY ARE DECLARED HERE RATHER THAN BUILT AT THE DESTRUCTURE, and that is
   // the point of this table: the manifest states what KIND each argument is and
@@ -4157,39 +4161,6 @@ function eqAtDmi(toks, close) {
   return rel < 0 ? -1 : close + 1 + rel
 }
 
-/** `[a, b, c] = ta.dmi(diLen, adxLen)` → three bindings, or `null`.
- *
- *  ⛔ NOTHING IS INVENTED HERE. Each part is an ordinary Pine call node naming a
- *  function the MANIFEST declares (`plusDI`/`minusDI`/`adx`), handed to the same
- *  resolver every other call goes through — so the arity, the argument roles and
- *  the lookback all come from the table rather than from this function. */
-function dmiParts(toks, close, names, env, first) {
-  if (names.length !== 3) return null
-  const eq = eqAtDmi(toks, close)
-  let call = null
-  try { call = parseWholeExpression(toks.slice(eq + 1)) } catch { return null }
-  // `ta.dmi` and a bare `dmi` are the same call; `normaliseName` lowercases and
-  // drops underscores but keeps the namespace, so the segment is taken here.
-  const bare = normaliseName(String(call.name).split('.').pop())
-  if (!call || call.type !== 'call' || bare !== 'dmi') return null
-  const args = (call.args || []).map((a) => a.value)
-  if (args.length !== 2) return null
-  const at = locate(first)
-  // Each leg is an ordinary Pine call whose ROLE ORDER is declared in
-  // `PINE_CALL_SHAPES`, so the three series come from the table's own statement
-  // of them rather than from this function. (Filling them here refused at
-  // `pine:role-order`, correctly.)
-  // ⛔ THE TWO PERIODS ARE COMPARED AT RESOLVE TIME, NOT HERE. At fold time a
-  // name is not a value, so the first cut compared the two argument nodes by
-  // SPELLING — which refused `ta.dmi(diLen, adxSmooth)` even when both inputs
-  // hold 14, and that is exactly the call the corpus's ADX script makes.
-  // Deferring it is the same shape `switch` and a tuple part already use.
-  const leg = (pineName) => ({
-    kind: 'dmiLeg', pineName, a: args[0], b: args[1], env: new Map(env), at,
-  })
-  return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
-}
-
 /** ⭐⭐ THE BUILT-IN TUPLES THIS ENGINE CAN TAKE APART, each part written as an
  *  ordinary PINE expression over the caller's own argument nodes.
  *
@@ -4294,6 +4265,60 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       return [mid, bin('+', mid, band), bin('-', mid, band)]
     },
   },
+  // ⭐⭐ DMI — `[diPlus, diMinus, adx] = ta.dmi(diLength, adxSmoothing)` (RMA-SEED, NUMBER PENDING), TradingView's
+  // own "Directional Movement Index" body, written out over `ta.rma` on BOTH lanes (the runtime lane takes these
+  // same trees through `pineTupleBuiltinCallParts`):
+  //   up = ta.change(high), down = -ta.change(low)
+  //   plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)      (minusDM the mirror)
+  //   truerange = ta.rma(ta.tr, diLength)
+  //   plus = fixnan(100 * ta.rma(plusDM, diLength) / truerange)    (minus the mirror)
+  //   adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), adxSmoothing), sum = plus + minus
+  // ⭐ WITNESSED, not assumed: `vw-bi-dmi-{spy,rddt}-1d-2026-11-19` W1-W4 subtract this body from TradingView's
+  // `ta.dmi` and read 0 on every bar, for (17, 14) and (14, 20) — so the ADX smooths over the SECOND length,
+  // and an unequal pair is served (it refused `pine:tuple` while the legs were the house table's one-period
+  // `adx`). With `ta.rma`'s exactly rounded seed (`interpret.js::rmaSeedMean`) all seven of its columns are
+  // TradingView's bit for bit on both symbols; the house `computeADX` this replaced (a Wilder SUM, not `ta.rma`)
+  // missed the last bit on 6,703 / 8,497 SPY bars of +DI alone. `>` and `==` are the Pine document's own
+  // (TradingView's epsilon, `pineCompare.js`), as the built-in's are (vw-fcmp-builtins B32-B34).
+  // ⛔ The native chart / screener ADX (`indicators.js::computeADX`) is not this and is untouched: it is not
+  // Pine-served.
+  dmi: {
+    arity: 2,
+    parts: 3,
+    // both lengths are the member's inputs whichever leg is read (the ADX alone reads the second)
+    resolveEveryArg: true,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const nm = (name) => ({ type: 'name', name, tok })
+      const num = (value) => ({ type: 'number', value, tok })
+      const tern = (test, yes, no) => ({ type: 'ternary', test, yes, no, tok })
+      const off = (arg, n) => ({ type: 'offset', arg, n, tok })
+      // ⛔ NO STATEFUL CALL IN A `?:` ARM. The body names `up`, `down` and `sum` as variables, computed on every
+      // bar; written inline, a call inside an arm runs in Pine only on the bars the arm is taken. The member door
+      // refuses `ta.change` there (`pine:block`, `armRunsWhy`), and the runtime lane stops by name on a chart
+      // where `sum == 0` skips the `ta.rma`s inside `sum` (`CallSiteRunsStop`; a run of inside bars does it). So
+      // `ta.change(high)` is spelled `high - high[1]` (its definition, the same subtraction bit for bit) and the
+      // ADX's `sum == 0 ? 1 : sum` as `sum + (sum == 0 ? 1 : 0) * (1 - sum)`:
+      // where `sum == 0` (within TradingView's epsilon) that is `sum + (1 - sum)`, which rounds to exactly 1 for
+      // 0 <= sum <= 1e-10 (|1 - sum - (1 - sum)rounded| <= 2^-54, so `sum + fl(1 - sum)` is 1 within half an ulp,
+      // ties to even); elsewhere `sum + 0 * (1 - sum)` is `sum` exactly, and `na` stays `na`. The DIs are never
+      // negative, so `sum` is not either. Railed bit for bit on both lanes, every bar (`rmaSeedDmi.test.js`).
+      const up = bin('-', nm('high'), off(nm('high'), 1))
+      const down = { type: 'unary', op: '-', arg: bin('-', nm('low'), off(nm('low'), 1)), tok }
+      const dm = (x, y) => tern(pc('na', [x]), nm('na'),
+        tern(bin('and', bin('>', x, y), bin('>', x, num(0))), x, num(0)))
+      const truerange = pc('ta.rma', [nm('ta.tr'), a[0]])
+      const di = (move) => pc('fixnan', [bin('/', bin('*', num(100), pc('ta.rma', [move, a[0]])), truerange)])
+      const plus = di(dm(up, down))
+      const minus = di(dm(down, up))
+      const sum = bin('+', plus, minus)
+      const denominator = bin('+', sum, bin('*', tern(bin('==', sum, num(0)), num(1), num(0)), bin('-', num(1), sum)))
+      const adx = bin('*', num(100), pc('ta.rma', [
+        bin('/', pc('math.abs', [bin('-', plus, minus)]), denominator), a[1]]))
+      return [plus, minus, adx]
+    },
+  },
   // ⭐⭐ SUPERTREND — `[st, dir] = ta.supertrend(factor, atrPeriod)`. Not a stateless
   // expansion: each leg is `callExpansions.js::supertrendTrees`, the three bounded
   // `accum` recurrences that KEEP the band ratchet and the direction flip (see the
@@ -4340,6 +4365,10 @@ function builtinTupleParts(toks, close, names, env, first) {
   // being guessed at.
   const built = spec.build(raw.map((a) => a.value), first)
   if (!built) return null
+  // ⭐ RMA-SEED — an entry that names every argument has each one resolved with any part (`mintArgs`, `resolveBinding`)
+  if (spec.resolveEveryArg) {
+    return built.map((node) => Object.assign(exprBinding(node, new Map(env), at), { mintArgs: raw.map((a) => a.value) }))
+  }
   return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
@@ -9101,6 +9130,16 @@ export class Resolver {
     // and refused for being too deep HAS been read, and re-resolving it in the
     // closing pass would report the same exhaustion twice under a worse name.
     if (bound && typeof bound === 'object') bound.read = true
+    // ⭐ RMA-SEED — a part of a tuple built-in that names every argument (`PINE_TUPLE_BUILTINS.dmi`,
+    // `resolveEveryArg`): each argument is resolved first, for what resolving does to the script's inputs (an
+    // `input.int` length is minted as the member's parameter whichever leg is read). ⚰️ `dmiParts`' legs resolved
+    // both lengths to compare them, so a script reading only +DI / -DI still listed its "DMI Smoothing" input, and
+    // its frozen parameter ids (`paramIdLegacy.js`) address it; TradingView lists it too.
+    if (bound && bound.kind === 'expr' && Array.isArray(bound.mintArgs)) {
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try { for (const a of bound.mintArgs) this.resolve(a) } finally { this.env = prevEnv }
+    }
     // ⭐⭐ C31 — see `foldStatements`' conditional-call mark. Only a Resolver
     // that asks (`refuseCondCalls`, the object pass's) refuses it.
     // ⭐⭐ C42 — where the block runs exactly ONCE the fold also built what the
@@ -9477,33 +9516,6 @@ export class Resolver {
           + 'and there is no default', bound.at || locate(tok))
       }
       return this.resolveBinding(picked, tok, name)
-    }
-    // ⭐ ONE LEG OF `ta.dmi`, with its two periods compared HERE where they are
-    // values rather than names.
-    //
-    // ⛔ PINE SMOOTHS THE ADX OVER ITS SECOND ARGUMENT while the DI legs use the
-    // first; this table's `adx` takes ONE period for both. So an unequal pair
-    // refuses rather than quietly returning a 14/14 ADX — the identical decision
-    // `ADX14.20` makes on the TC2000 side, and the same reason: a member who
-    // asked for 14/20 must not be handed a number that is not the indicator they
-    // asked for.
-    if (bound.kind === 'dmiLeg') {
-      const prevEnv = this.env
-      this.env = bound.env || prevEnv
-      try {
-        const a = this.resolve(bound.a)
-        const b = this.resolve(bound.b)
-        const same = a.type === 'num' && b.type === 'num' && a.value === b.value
-        if (!same) {
-          throw new PineRefusal('pine:tuple',
-            `${REFUSALS['pine:tuple']} — \`ta.dmi\` smooths its ADX over the SECOND period `
-            + 'and this table uses one period for both, so the two must agree',
-            bound.at || locate(tok))
-        }
-        return this.resolve({
-          type: 'call', name: bound.pineName, args: [{ value: bound.a }], tok,
-        })
-      } finally { this.env = prevEnv }
     }
     // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
     // is `[a,…,h] = request.security(syminfo.tickerid, 'D', f_getDailyData(),
@@ -19418,9 +19430,9 @@ function destructureBindings(toks, env, first) {
   const names = toks.slice(1, close)
     .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
 
-  const dmi = eqAtDmi(toks, close) >= 0 ? dmiParts(toks, close, names, env, first) : null
-  if (dmi) return { names, bindings: dmi }
-
+  // ⭐ RMA-SEED — `ta.dmi` is an ordinary `PINE_TUPLE_BUILTINS` member now (its body over `ta.rma`), so it is
+  // taken apart here like `ta.bb`; ⚰️ its own arm (`dmiParts`, three legs of the house table's one-period `adx`,
+  // refusing an unequal pair) is gone.
   const builtin = builtinTupleParts(toks, close, names, env, first)
   if (builtin) return { names, bindings: builtin }
 
@@ -19604,7 +19616,7 @@ function tupleRefusalTail(call, names, env) {
     return '`' + shown + '`' + ' could not be taken apart'
   }
   // ⭐ THE LIST IS DERIVED so it cannot go stale the day another tuple is added.
-  const known = [...Object.keys(PINE_TUPLE_BUILTINS), 'dmi'].sort()
+  const known = Object.keys(PINE_TUPLE_BUILTINS).sort()
     .map((k) => '`' + 'ta.' + k + '`').join(', ')
   return 'this engine has no tuple form for ' + '`' + shown + '`'
     + ' — the ones it can take apart are ' + known

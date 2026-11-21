@@ -73,7 +73,8 @@ def test_fn_pine_serves_a_pine_document_and_fn_a_native_one():
     h, l, c = [b["h"] for b in BARS], [b["l"] for b in BARS], [b["c"] for b in BARS]  # noqa: E741
     assert _close(A.FN_PINE["plusDI"](h, l, c, 14)[5333], TV[5333][0])
     assert not _close(A.FN["plusDI"](h, l, c, 14)[5333], TV[5333][0])
-    assert sorted(A.FN_PINE) == ["adx", "falling", "minusDI", "percentrank", "plusDI", "rising"]
+    # RMA-SEED (NUMBER PENDING): ``rsi`` joins FN_PINE for its SEED (``_rma_seed_mean``), not for a compare
+    assert sorted(A.FN_PINE) == ["adx", "falling", "minusDI", "percentrank", "plusDI", "rising", "rsi"]
 
 
 def test_rising_falling_percentrank_within_the_epsilon():

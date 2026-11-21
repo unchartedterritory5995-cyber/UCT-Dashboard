@@ -193,52 +193,40 @@ describe('a `var` may read its own previous bar inside its own update', () => {
 
 // ─── ta.dmi — the one BUILTIN tuple in the corpus ───────────────────────────
 //
-// Pine answers `[+DI, -DI, ADX]` and this table declares all three by name, so
-// this is an exact mapping rather than a judgement.
-describe('`ta.dmi` hands out three legs the table already declares', () => {
+// ⭐ RMA-SEED (NUMBER PENDING): Pine answers `[+DI, -DI, ADX]`, and each leg is TradingView's own
+// "Directional Movement Index" body over `ta.rma` (`PINE_TUPLE_BUILTINS.dmi`), witnessed bit for bit on
+// `vw-bi-dmi-{spy,rddt}-1d-2026-11-19` (`rmaSeedDmi.test.js`). ⚰️ It was three legs of the house table's
+// one-period `adx` / `plusDI` / `minusDI`, which refused an unequal pair (`pine:tuple`); the ADX smooths over
+// the SECOND length, measured (W3 / W4), so an unequal pair is now served.
+describe('`ta.dmi` hands out TradingView\'s three legs, over `ta.rma`', () => {
   const dmi = (plot, args = '14, 14') =>
     one(`${head}[p, m, a] = ta.dmi(${args})\nplot(${plot})`)
 
-  it('each leg resolves to its own declared function', () => {
-    expect(dmi('p').formula).toBe('plusDI(high, low, close, 14)')
-    expect(dmi('m').formula).toBe('minusDI(high, low, close, 14)')
-    expect(dmi('a').formula).toBe('adx(high, low, close, 14)')
+  it('each leg is the body: +DI / -DI carried over `na` (fixnan) from `rma`s over the first length', () => {
+    const p = dmi('p').formula
+    const m = dmi('m').formula
+    expect(p.startsWith('valuewhenOccurrence(!na(100 * rma(na(high - high[1]) ? 0 / 0 : high - high[1] > -(low - low[1])')).toBe(true)
+    expect(m.startsWith('valuewhenOccurrence(!na(100 * rma(na(-(low - low[1])) ? 0 / 0 : -(low - low[1]) > high - high[1]')).toBe(true)
+    for (const f of [p, m]) {
+      expect(f).toContain('rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14)')
+      expect(f).not.toContain('DI(')
+    }
   })
 
-  it('⛔ the three SERIES come from a declared role order, not from the mapper', () => {
-    // Filling `high, low, close` inside the destructure refused at
-    // `pine:role-order`, correctly — the manifest states what KIND each argument
-    // is and never what ROLE it plays. The order is declared in
-    // `PINE_CALL_SHAPES` and the read-back says the series out loud.
-    expect(dmi('a').formula).toContain('high, low, close')
+  it('the ADX smooths over the SECOND length (W3 / W4 read 0 against the body on every bar)', () => {
+    const a = dmi('a').formula
+    expect(a.startsWith('100 * rma(abs(valuewhenOccurrence(')).toBe(true)
+    expect(a.endsWith(', 14)')).toBe(true)
+    const a20 = dmi('a', '14, 20')
+    expect(a20.ok, a20.msg).toBe(true)
+    expect(a20.formula.endsWith(', 20)')).toBe(true)
+    expect(a20.formula).not.toContain('adx(')
   })
 
-  it('🔴 MISMATCHED periods REFUSE — no quietly-14/14 ADX', () => {
-    // Pine smooths ADX over its SECOND argument while the DI legs use the first;
-    // this table's `adx` takes one period for both. Identical decision to
-    // `ADX14.20` on the TC2000 side, and the same reason: a member who asked for
-    // 14/20 must not be handed a number that is not the indicator they asked for.
-    expect(dmi('a', '14, 20').ok).toBe(false)
-  })
-
-  it('⭐ two DIFFERENT names that hold the SAME number are accepted', () => {
-    // ⚠️ SUPERSEDED THE SAME DAY, AND THE OLD CLAIM IS WORTH KEEPING VISIBLE.
-    // This asserted that `ta.dmi(diLen, adxSmooth)` must refuse because proving
-    // two names equal "needs a constant folder". It got one: the comparison moved
-    // from fold time — where a name is only a name, so the two were compared by
-    // SPELLING — to resolve time, where both are values. Corpus script 06 makes
-    // exactly this call and now translates.
-    const r = one(`${head}a1 = input.int(14)\na2 = input.int(14)\n[p, m, a] = ta.dmi(a1, a2)\nplot(a)`)
-    expect(r.ok, r.msg).toBe(true)
-    expect(r.formula).toBe('adx(high, low, close, 14)')
-  })
-
-  it('🔴 …and two names holding DIFFERENT numbers still refuse', () => {
-    // ⛔ The rule did not weaken, it got more precise. What must never happen is
-    // a 14/20 request quietly answered with a 14/14 ADX.
+  it('⭐ the lengths may be names: the second one is still the ADX\'s', () => {
     const r = one(`${head}a1 = input.int(14)\na2 = input.int(20)\n[p, m, a] = ta.dmi(a1, a2)\nplot(a)`)
-    expect(r.ok).toBe(false)
-    expect(r.guard).toBe('pine:tuple')
+    expect(r.ok, r.msg).toBe(true)
+    expect(r.formula).toBe(dmi('a', '14, 20').formula)
   })
 
   // ⚰️ ALSO SPENT (R18). Its NAME said "some OTHER builtin" and its BODY used
@@ -247,8 +235,8 @@ describe('`ta.dmi` hands out three legs the table already declares', () => {
   // name always promised: R18 must widen `destructureBindings` for `request.security`
   // and for nothing else.
   it('a destructure of some OTHER builtin is untouched', () => {
-    // `ta.dmi` has its own arm and its own refusal (see above); a builtin with
-    // neither still refuses `pine:tuple`, exactly as before R18.
+    // `ta.dmi` is a tuple built-in (see above); a builtin that is not one still
+    // refuses `pine:tuple`, exactly as before R18.
     const r = one(`${head}[a, b] = ta.percentrank(close, 14)\nplot(a)`)
     expect(r.ok).toBe(false)
     expect(r.guard).toBe('pine:tuple')
