@@ -359,7 +359,10 @@ export const boardKind = {
       if (!o) continue
       set[id] = { ...set[id], opts: o.opts === undefined ? null : clone(o.opts) }
       const ctrl = widgetControls(o.type)
-      for (const k of Object.keys(vals)) {
+      // C3-140: a control whose door write also moves another of the widget's own controls (`carries`: a News preset types its
+      // search into the box) puts that one back through its own writer too
+      const keys = [...new Set(Object.keys(vals).flatMap(k => [k, ...(ctrl.find(f => f.key === k)?.carries || [])]))]
+      for (const k of keys) {
         if (ctrl.find(f => f.key === k)?.inOpts) continue
         out.doors ||= {}
         out.doors[id] = { ...out.doors[id], [k]: clone(item.before?.doors?.[id]?.[k] ?? null) }
@@ -392,7 +395,10 @@ export const boardKind = {
     const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...Object.keys(p.doors || {}), ...(p.itemOps || []).map(o => o.widget), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
     return JSON.stringify(ids.map(id => {
       const w = s.raw.find(x => x.id === id)
-      const own = [...Object.keys(p.doors?.[id] || {}), ...(p.itemOps || []).filter(o => o.widget === id).map(o => o.key)].map(k => s.doors?.[id]?.[k] ?? null)
+      // a `carries` control's companion (C3-140: the News search box a preset typed into) is part of what this change touched
+      const ctrl = w ? widgetControls(w.type) : []
+      const doorKeys = Object.keys(p.doors?.[id] || {}).flatMap(k => [k, ...(ctrl.find(f => f.key === k)?.carries || [])])
+      const own = [...new Set([...doorKeys, ...(p.itemOps || []).filter(o => o.widget === id).map(o => o.key)])].map(k => s.doors?.[id]?.[k] ?? null)
       return w ? [id, ...FIELDS.map(f => fieldFp(w, f)), ...own] : [id, 'gone']
     }))
   },
@@ -1242,13 +1248,22 @@ export function registerBoardCapabilities() {
       if (!l.ops.includes('create')) return `The ${label(t.type)} can't create a ${l.noun} from here.`
       // a NAMED item (a saved look): the name is the member's, said; one of the same name is replaced, as the widget's own Save does
       if (l.named && !String(io.item || '').trim()) return `Say the name to save the ${l.noun} as.`
-      return doorFor(env, t) ? null : `The ${label(t.type)} isn't showing right now, so I can't reach its New control.`
+      if (!doorFor(env, t)) return `The ${label(t.type)} isn't showing right now, so I can't reach its New control.`
+      // C3-140: a list whose own Save APPENDS (News filter presets) — a taken name is refused, never a second item of that name;
+      // its own limit and its name box's length are the widget's, said in words
+      const items = itemsNow(st, t, l)
+      const name = String(io.item || '').trim()
+      if (l.nameMax && name.length > l.nameMax) return `A ${l.noun} name takes at most ${l.nameMax} characters.`
+      if (l.unique && items.some(x => norm(x.name) === norm(name))) return `You already have a ${l.noun} named “${name}”. Rename or delete that one first.`
+      if (l.max && items.length >= l.max) return `The ${label(t.type)} keeps at most ${l.max} ${l.noun}s, and you have ${items.length}. Delete one first.`
+      return null
     }
     const r = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
     if (r.why) return r.why
     if (io.op === 'rename') {
       const name = String(io.name || '').trim()
       if (!name) return `Say the new name for “${r.it.name}”.`
+      if (l.nameMax && name.length > l.nameMax) return `A ${l.noun} name takes at most ${l.nameMax} characters.`
       if (r.items.some(x => x.id !== r.it.id && norm(x.name) === norm(name))) return `You already have a ${l.noun} named “${name}”.`
     }
     return null
