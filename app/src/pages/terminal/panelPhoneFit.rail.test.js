@@ -249,7 +249,10 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   // ECON (2026-11-21): one four-column table of merged two- and three-line cells that wrap between words; nothing folds
   'EconomyPanel.jsx',
   // LIQ (2026-11-21): one three-column table (the parts) of two-line cells that wrap between words; nothing folds
-  'LiquidityPanel.jsx']
+  'LiquidityPanel.jsx',
+  // FUND (2026-11-21): the period table scrolls sideways in its own box (SidewaysScroll) with the label column
+  // pinned, as FA and EE; nothing folds
+  'FundMetricsPanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 

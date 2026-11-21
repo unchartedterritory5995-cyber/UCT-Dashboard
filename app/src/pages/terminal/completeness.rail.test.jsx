@@ -143,6 +143,7 @@ const ARG_SAMPLE = {
   tideScope: 'ETFS',
   seasMeasure: 'AVG',
   cotMarketName: 'GOLD', anlgCount: '7',
+  fundMetric: 'PE', fundMetrics: 'REV+EPS', fundPeers: 'AMD',
 }
 
 afterEach(cleanup)

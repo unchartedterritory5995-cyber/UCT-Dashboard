@@ -607,6 +607,16 @@ export const FUNCTIONS = [
   // from what the econ service already published. No argument. LIQ is not in the site's universe.
   { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
     market: { panel: 'Liquidity' } },
+  // FUND (2026-11-21): one company's metrics over time, point in time from its SEC filings (revenue, EPS,
+  // margins, cash flow, and the valuation ratios composed with UCT's stored closes), one column per fiscal
+  // quarter, and up to three more companies beside it, lined up by calendar quarter. GET /api/fundamentals/
+  // pit/catalog + /series/{SYM} (FUNDAMENTALS_PIT_ENABLED, the chart-data gate) and, for a valuation row, the
+  // chart's weekly bars. `NVDA FUND AMD AVGO` compares (the tickers are ONE rest argument, so `FUND NVDA AMD`
+  // keeps NVDA as the stock); `NVDA FUND PE` draws P/E as a line; `NVDA FUND REV+EPS+ROE` picks the rows.
+  // FUND is not in the site's universe.
+  { code: 'FUND', label: 'Company metrics over time (revenue, EPS, margins, cash flow, valuation; point in time from SEC filings)', group: 'Security',
+    ticker: { panel: 'FundMetrics', args: [{ kind: 'fundMetric', prop: 'line' }, { kind: 'fundMetrics', prop: 'metrics' },
+      { kind: 'fundPeers', prop: 'peers', rest: true }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -937,6 +947,11 @@ const FUNCTION_WORDS = {
   LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
     'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
     note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
+  // 'fundamentals', 'revenue', 'income statement' and 'financials' stay with FA, 'eps' with EE, 'valuation'
+  // with PEER: each of those words still finds its own function first.
+  FUND: { example: 'NVDA FUND', keywords: ['fundamentals history', 'metrics', 'revenue history', 'eps history', 'margins',
+    'fcf', 'roe', 'pe history', 'valuation history', 'financial history'],
+    note: "Point in time from SEC filings: each figure dated by when its filing became public. Valuation is composed with UCT's stored prices." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
