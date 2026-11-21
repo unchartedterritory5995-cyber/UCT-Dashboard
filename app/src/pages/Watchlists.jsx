@@ -1847,8 +1847,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         // event, so these two updates rendered the whole list AND the linked chart synchronously
         // (~50 ms a press on the Breadth drill, production profile); a fast scan queued them and
         // the chart landed ~0.5-1 s after the last key. As a transition, a press made while the
-        // previous render is still running interrupts it: the list and chart jump straight to the
-        // newest row instead of rendering every row in between.
+        // previous render is still running interrupts it: the list jumps straight to the newest row
+        // instead of rendering every row in between, and so does a chart whose host keeps the group
+        // symbol in React state (the Breadth drill).
+        // ⛔ (corrected 2026-11-21) NOT the /charts board's charts: they read the group symbol through
+        // useSyncExternalStore (groupSymsStore.js), and React renders a store change made inside a
+        // transition as BLOCKING, so they render synchronously on every press. What keeps a fast scan
+        // there from drawing every row is the handoff's settle rule (useSymbolHandoff), and the board's
+        // setGroupSym decides the switch in this press (hooks/handoffGroups.js): one render, one frame.
         navPendingRef.current = { sym: nextSym, base: selectedSym }
         startTransition(() => {
           if (nextSym !== selectedSym) setSelectedSym(nextSym)

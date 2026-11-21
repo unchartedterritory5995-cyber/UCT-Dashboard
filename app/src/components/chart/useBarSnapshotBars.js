@@ -109,8 +109,9 @@ function lastDailyBarInsane(arr) {
 export function useBarSnapshotBars({
   sym, resolvedTf, _barsTf, _econId, showExtended, isIntraday, breadthSeries, replayCutoff,
   compareSymbol, backgroundWarm, deepWarm, barsOverride, barsOverridePending, _liveSane,
-  _gridQ, instFetcher, _pinnedFull, _overlayActive, barCount, _intradayDeepArmed,
-  _setIntradayDeepArmed, axisWidthRatchetRef, barsMutateRef, _timingIdRef, activeTfRef,
+  // (`_intradayDeepArmed` / `_setIntradayDeepArmed` are the legacy source's; this one arms by deadline, below)
+  _gridQ, instFetcher, _pinnedFull, _overlayActive, barCount,
+  axisWidthRatchetRef, barsMutateRef, _timingIdRef, activeTfRef,
   _onScreenSrcRef, tfSwitchHoldRef, _developingBarISO, _effLivePrice,
   _intradayDeepBackfillEnabled, _intradaySmoothSwitchEnabled,
   // P3-S1 review fix 1 — the developing bar's OWN channel (StockChart's refs; the legacy hook
@@ -224,15 +225,19 @@ export function useBarSnapshotBars({
   // the chart's own request answered. So the hold ends only on this life's answer, or on a right
   // edge the store itself calls current (status context | current — and a local copy only when its
   // forming bucket is in it, `_localTailComplete`).
+  const _isTfSwitch = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
+    && !!_onScr && _onScr.sym === sym && _onScr.ext === showExtended && _onScr.tf !== resolvedTf
+  // ⭐ (2026-11-20) …READ AT EVERY RENDER, SUBSCRIBED ONLY WHILE A TIMEFRAME SWITCH CAN HOLD ON IT. `_answered` decides
+  // nothing else (`_tfSwitchHold` below), yet its subscription re-rendered the whole chart when the new key's first
+  // answer landed on EVERY symbol switch, a render that changed nothing on screen (`StockChart.switchStateRenders.test`).
+  // Off a timeframe switch the hook reads the store's value as it renders and is not woken by it.
   const _answered = useSyncExternalStore(
-    useCallback((cb) => (key ? store.network.subscribeAnswered(key, cb) : () => {}), [store, key]),
+    useCallback((cb) => (key && _isTfSwitch ? store.network.subscribeAnswered(key, cb) : () => {}), [store, key, _isTfSwitch]),
     () => (key ? store.network.answered(key) : false),
     () => false,
   )
   const _edgeProvisional = !!snap && (_localLayer ? !_localTailComplete
     : (chosen == null || (snap.restSeen && status !== STATUS.CURRENT && status !== STATUS.CONTEXT)))
-  const _isTfSwitch = isIntraday && !_isCustomTf && !_hasOverride && !replayCutoff
-    && !!_onScr && _onScr.sym === sym && _onScr.ext === showExtended && _onScr.tf !== resolvedTf
   // ⭐ ONE PAINT ON A TIMEFRAME SWITCH TOO (2026-11-18). The symbol handoff already waits (bounded)
   // for the lake's whole depth before it commits (#1774, prefetch LAKE_JOIN_WAIT_MS); a timeframe
   // button did not, so 1h/30m/5m painted the server's few hundred bars and then grew in steps for
@@ -447,25 +452,33 @@ export function useBarSnapshotBars({
       }
     }, () => null)
   }, [store])
+  // ⭐ 250 ms (was 900): the wait exists so a held key or a fast scan never starts a window per
+  // row. A held key steps every ~40 ms and a deliberate tap-scan every ~700 ms; 250 ms still
+  // skips the first and lets the chart a member stops on fill 650 ms sooner.
+  // ⭐⭐ (2026-11-20) THE WAIT IS A DEADLINE, NOT A STATE. It was `_intradayDeepArmed`, StockChart state flipped true
+  // 250 ms after each intraday switch (and back to false at the next one, in StockChart's render): two renders of the
+  // whole chart per switch whose only consumer is the effect below. The deadline is noted when the symbol or the
+  // timeframe changes, and the effect waits out what is left of it; leaving the row first cancels the wait (the
+  // effect's cleanup), as clearing the timer did. (The legacy source still arms through the state.)
+  const _deepArmRef = useRef({ k: null, at: 0 })
+  useEffect(() => {
+    _deepArmRef.current = { k: `${sym}|${resolvedTf}`, at: Date.now() + DEEP_ARM_MS }
+  }, [sym, resolvedTf])
+  const _histHasBase = !!snap && (snap.bars.length > 0 || !!snap.developing)
   useEffect(() => {
     if (!_intradayDeepBackfillEnabled()) return undefined
     if (!isIntraday || !sym || _isCustomTf) return undefined
-    if (_intradayDeepArmed) return undefined
-    // ⭐ 250 ms (was 900): the wait exists so a held key or a fast scan never starts a window per
-    // row. A held key steps every ~40 ms and a deliberate tap-scan every ~700 ms; 250 ms still
-    // skips the first and lets the chart a member stops on fill 650 ms sooner.
-    const id = setTimeout(() => _setIntradayDeepArmed(true), DEEP_ARM_MS)
-    return () => clearTimeout(id)
-  }, [sym, resolvedTf, isIntraday, _isCustomTf, _intradayDeepArmed])  // eslint-disable-line react-hooks/exhaustive-deps
-  const _histHasBase = !!snap && (snap.bars.length > 0 || !!snap.developing)
-  useEffect(() => {
-    if (!_histPrependOn || !_intradayDeepArmed || !_histHasBase || !key) return undefined
+    if (!_histPrependOn || !_histHasBase || !key) return undefined
     // Grid cells (backgroundWarm=false) load windows only when SCROLLED (the 2026-05-24 herd).
     if (!backgroundWarm && !deepWarm) return undefined
     let cancelled = false
     let waitId = null
     const wait = (ms) => new Promise((resolve) => { waitId = setTimeout(resolve, ms) })
+    const arm = _deepArmRef.current
+    const armLeft = arm.k === `${sym}|${resolvedTf}` ? Math.max(0, arm.at - Date.now()) : DEEP_ARM_MS
     ;(async () => {
+      if (armLeft > 0) await wait(armLeft)
+      if (cancelled) return
       let tries = 0
       for (let i = 0; i < PREFETCH_WINDOWS && !cancelled;) {
         // deeper where the lake carries the key (historyPrepend.prefetchTargetBars)
@@ -485,7 +498,7 @@ export function useBarSnapshotBars({
       }
     })()
     return () => { cancelled = true; if (waitId != null) clearTimeout(waitId) }
-  }, [_histPrependOn, _intradayDeepArmed, _histHasBase, key, _loadOlder, backgroundWarm, deepWarm])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [_histPrependOn, _histHasBase, key, _loadOlder, backgroundWarm, deepWarm, sym, resolvedTf, isIntraday, _isCustomTf])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── background warm of the other timeframes: store prefetches at background rank ──
   useEffect(() => {
