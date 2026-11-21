@@ -3366,7 +3366,13 @@ def _yf_join_factor(yf_bars: list[dict], massive_bars: list[dict]) -> float | No
     the first `_MERGE_JOIN_SESSIONS` shared sessions, they are one security on two bases, and
     that ratio joins them. When the ratio wanders, they are different securities (GEN: Massive's
     per-ticker GenOn against yfinance's Symantec) and nothing is rescaled: that is a lineage
-    question (bars_identity), not a basis one."""
+    question (bars_identity), not a basis one.
+
+    ⭐ 2026-11-21: a PROVEN SAME basis returns 1.0, not None. One ratio over the window, within
+    `_MERGE_JOIN_MIN_GAP` of 1, proves both vendors are on one basis, so the graft is a join of
+    1.0: an ordinary replacing write that can repair a store whose pre-floor rows sit on a third
+    basis (web's ADSK / BSX / KIM x2). None now means UNPROVEN only (too short an overlap, a
+    wandering ratio), and `_merge_daily_bars` makes that graft add-only."""
     by_t = {b.get("t"): b for b in yf_bars}
     ratios = []
     for m in massive_bars:
@@ -3382,10 +3388,10 @@ def _yf_join_factor(yf_bars: list[dict], massive_bars: list[dict]) -> float | No
     if len(ratios) < _MERGE_JOIN_SESSIONS:
         return None
     med = sorted(ratios)[len(ratios) // 2]
-    if abs(med - 1.0) <= _MERGE_JOIN_MIN_GAP:
-        return None
     if any(abs(r / med - 1.0) > _MERGE_JOIN_TOL for r in ratios):
-        return None
+        return None                       # the ratio wanders: unproven
+    if abs(med - 1.0) <= _MERGE_JOIN_MIN_GAP:
+        return 1.0                        # proven: one basis already
     return med
 
 
@@ -3406,7 +3412,9 @@ def _merge_daily_bars(yf_bars: list[dict], massive_bars: list[dict]) -> list[dic
     cutoff = massive_bars[0]["t"]  # ISO date string sorts lexically
     older_yf = [b for b in yf_bars if b["t"] < cutoff]
     f = _yf_join_factor(yf_bars, massive_bars)
-    if f is not None and older_yf:
+    if f == 1.0 and older_yf:
+        older_yf = [dict(b) for b in older_yf]          # a proven same basis: a plain, replacing write
+    elif f is not None and older_yf:
         from api.services.bars_sanitize import scale_bar
         older_yf = [scale_bar(dict(b), 1.0 / f) for b in older_yf]
     elif older_yf:

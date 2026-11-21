@@ -163,3 +163,16 @@ def test_the_fast_path_tail_fill_keeps_history_add_only_when_massive_is_empty(mo
     assert [b["t"] for b in out] == OLD
     assert all(isinstance(b, S.AddOnlyBar) for b in out[:-1]) and not isinstance(out[-1], S.AddOnlyBar), \
         "held history is add-only; only the newest (mutable tail) session may update"
+
+
+def test_a_proven_same_basis_is_a_join_of_one_and_replaces():
+    """Ruling 2026-11-21 (#2315's third commit): 20 shared sessions, all within 1% of a median within 1% of 1.0, PROVE one
+    basis. That is a join of 1.0, an ordinary replacing write (a re-graft can then repair a store whose pre-floor rows
+    sit on some third basis: web's ADSK / BSX / KIM x2). Only an UNPROVEN join (short overlap, wandering ratio) is None."""
+    yf = _bars(OLD, [16.0] * 60) + _bars(SHARED, [p * 1.004 for p in PRICES])
+    assert F._yf_join_factor(yf, _bars(SHARED, PRICES)) == 1.0
+    out = F._merge_daily_bars(yf, _bars(SHARED, PRICES))
+    assert [b["c"] for b in out[:60]] == [16.0] * 60
+    assert not any(isinstance(b, S.AddOnlyBar) for b in out), "a proven same basis is a replacing write"
+    assert F._yf_join_factor(*_wandering()) is None
+    assert F._yf_join_factor(_bars(OLD, [60.0] * 60) + _bars(SHARED[:5], PRICES[:5]), _bars(SHARED, PRICES)) is None
