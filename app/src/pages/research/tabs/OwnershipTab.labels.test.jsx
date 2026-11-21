@@ -7,7 +7,7 @@
 // itself. Both now read the Form 13F summary, and the labels still have to say
 // what each one is. This pins that they never collapse back to the same words.
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 
 const data = {
   sym: 'ATROB',
@@ -59,6 +59,6 @@ describe('OwnershipTab — the two ownership figures are distinguishable', () =>
   it('the 13F block still carries the quarter it belongs to', () => {
     render(<OwnershipTab sym="ATROB" />)
     // Without the quarter, "Held by 13F filers" is an undated claim.
-    expect(screen.getByText(/2026Q2/)).toBeInTheDocument()
+    expect(within(screen.getByTestId('ownership-funds')).getByText(/Q2 2026/)).toBeInTheDocument()
   })
 })

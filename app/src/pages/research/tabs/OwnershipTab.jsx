@@ -18,6 +18,8 @@ import { formatCompactTerminal, formatNumber, formatPercent } from '../../../lib
 import { pctUpTo } from '../researchFormat'
 import { holdersByOwnership, institutionalNote, quarterLabel, shortMissingWords } from '../../charts/widgets/ownershipModel'
 import { SOURCE as SHORT_SOURCE, dayText, floatWords } from '../../terminal/panels/shortInterestModel'
+import { FUNDS_TITLE, LEG_13F_WORDS } from '../../terminal/panels/fundHoldersModel'
+import FundHoldersBlock from './FundHoldersBlock'
 import { themeInk } from '../themeInk'
 import ResearchLoading from '../ResearchLoading'
 import styles from '../ResearchPage.module.css'
@@ -310,7 +312,7 @@ export default function OwnershipTab({ sym }) {
               Form 13F card below, read from the same block. */}
           <div className={styles.srcNote} data-testid="ownership-institutional-source">
             Source: Form 13F filings, through FMP{instQuarter ? ` · ${instQuarter}` : ''}.
-            {tf?.holders?.length ? ' Each holder, with the change in its position, is in the Form 13F table below.' : ''}
+            {tf?.holders?.length ? ` Each holder, with the change in its position, is in the ${FUNDS_TITLE} table below.` : ''}
           </div>
         </section>
 
@@ -350,9 +352,9 @@ export default function OwnershipTab({ sym }) {
       </div>
 
       {tf && (
-        <section className={styles.card}>
+        <section className={styles.card} data-testid="ownership-funds">
           {/* Wave 3 (OWN P2 #12): a missing quarter printed a dangling "· " and "…holders, undefined". */}
-          <div className={styles.ct}>Form 13F · institutional activity{tf.quarter ? <span className={styles.muted}> · {tf.quarter}</span> : null}</div>
+          <div className={styles.ct}>{FUNDS_TITLE}{instQuarter ? <span className={styles.muted}> · {instQuarter}</span> : null}</div>
           <div className={`${styles.statRow} ${styles.statRowGap}`}>
             {/* The same Form 13F summary figure as "% of shares outstanding" in the
                 card above (that card reads it through `institutional.pct_held`,
@@ -376,42 +378,13 @@ export default function OwnershipTab({ sym }) {
               <div>{fmtMoney(tfs.total_invested)} {signed(tfs.total_invested_change, fmtMoney) && <span className={`${chgClass(tfs.total_invested_change)} ${styles.statChg}`}>{signed(tfs.total_invested_change, fmtMoney)}</span>}</div>
             </div>
           </div>
-          {/* Position flow this quarter */}
-          <div className={styles.flowCounts}>
-            <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.new_positions)}</b> new</span>
-            <span className={styles.muted}><b className={styles.up}>{fmtNum(tfs.increased_positions)}</b> increased</span>
-            <span className={styles.muted}><b className={styles.down}>{fmtNum(tfs.reduced_positions)}</b> reduced</span>
-            <span className={styles.muted}><b className={styles.down}>{fmtNum(tfs.closed_positions)}</b> closed</span>
-          </div>
-
-          {!!tf.holders?.length && (
-            <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
-              <table className={styles.fgrid} aria-label={tf.quarter ? `Form 13F top holders, ${tf.quarter}` : 'Form 13F top holders'}>
-                <thead><tr><th scope="col">Top holder</th><th scope="col">Shares</th><th scope="col">Δ Shares</th><th scope="col">% Own</th><th scope="col">Value (USD)</th></tr></thead>
-                <tbody>
-                  {tf.holders.map((h, i) => (
-                    <tr key={`${h.name}-${i}`}>
-                      <td className={`${styles.fperiod} ${styles.holderName}`}>
-                        {h.name}
-                        {/* !! -- a vendor 0/1 flag would otherwise render a stray "0" beside the name */}
-                        {!!h.is_new && <span className={`${styles.up} ${styles.holderBadge}`} data-holder-badge="new">NEW</span>}
-                        {!!h.is_sold_out && <span className={`${styles.down} ${styles.holderBadge}`} data-holder-badge="sold">SOLD</span>}
-                      </td>
-                      <td>{fmtShares(h.shares)}</td>
-                      <td className={chgClass(h.change_shares)}>{signed(h.change_shares, fmtShares) ?? '—'}</td>
-                      <td>{formatPercent(h.ownership, { decimals: 1 })}</td>
-                      <td>{fmtMoney(h.market_value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* The quarter's position counts in one line, the quarter end and the 45-day filing rule,
+              and every holder figure the answer carries, sortable, 20 rows and the rest on request
+              (FundHoldersBlock + fundHoldersModel). Keyed on the symbol so a new stock starts on the
+              default sort with the list folded. */}
+          <FundHoldersBlock key={s} tf={tf} failed={failed.includes(LEG_13F_WORDS)} />
           <ThirteenFListLine block={o.thirteen_f_list} sym={o.sym || sym} />
           <TrustStrip meta={tf._meta} sessionContext={sessionContext} />
-          {/* 13F filings lag ~45 days by nature — the freshness badge above
-              reflects D1's provenance, this states the structural lag itself. */}
-          <div className={styles.srcNoteTight}>13F filings lag roughly 45 days after quarter-end.</div>
         </section>
       )}
 
