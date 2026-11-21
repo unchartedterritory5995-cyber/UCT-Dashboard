@@ -152,6 +152,17 @@ export const COT_MARKET_SHAPE = /^[A-Z0-9&][A-Z0-9&.-]{0,11}$/
 export const ANLG_COUNT_BOUNDS = Object.freeze([3, 10])
 // INS CLUSTER: a copy of the panel model's words (args.insiderClusters.test.js pins it to its owner)
 export const INS_VIEW_WORDS = Object.freeze({ CLUSTER: 'cluster', CLUSTERS: 'cluster' })
+// DVD MARKET, MNA MARKET, IDXC MARKET: a copy of the shared market view word (panels/marketViewModel.js;
+// functions.marketView.test.js pins it to its owner)
+export const MARKET_VIEW_WORDS = Object.freeze({ MARKET: 'market', MKT: 'market' })
+// SEG: copies of the panel model's words (functions.revenueSegments.test.js pins each to its owner)
+export const SEG_VIEW_WORDS = Object.freeze({
+  PRODUCT: 'product', PRODUCTS: 'product', REGION: 'region', REGIONS: 'region', GEOGRAPHY: 'region',
+})
+export const SEG_PERIOD_WORDS = Object.freeze({ ANNUAL: 'annual', YEARLY: 'annual', QUARTERLY: 'quarter', QTRLY: 'quarter' })
+// IDXC: a copy of the panel model's words (functions.indexChanges.test.js pins it to its owner). SP500, SPX, NDX, DOW
+// and DJIA are COT's own market words, so they are not IDXC's.
+export const IDXC_INDEX_WORDS = Object.freeze({ 'S&P500': 'sp500', NASDAQ100: 'nasdaq100', DOW30: 'dow' })
 /** A typed `MM/DD` for ERNS is the nearest such day; past this many days away it is the next or the last year's. */
 export const EARNINGS_DAY_REACH = 183
 export const RS_SCREEN_ARG_WORDS = Object.freeze({
@@ -656,6 +667,48 @@ export const ARG_KINDS = {
       return Object.prototype.hasOwnProperty.call(INS_VIEW_WORDS, key) ? INS_VIEW_WORDS[key] : null
     },
     describe: (v) => (v === 'cluster' ? 'insider cluster buys' : v),
+  },
+  // ── DVD MARKET, MNA MARKET, IDXC MARKET (2026-11-21) ──
+  /** The whole market, whatever stock the panel follows (panels/marketViewModel.js MARKET_VIEW_ARG_WORDS; pinned
+   *  by functions.marketView.test.js). DVD, MNA and IDXC declare it on BOTH variants: a panel that follows a
+   *  group's stock resolves to the per-stock variant, and the word must still reach it. */
+  marketView: {
+    takes: 'MARKET',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(MARKET_VIEW_WORDS, key) ? MARKET_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'market' ? 'the whole market' : v),
+  },
+  // ── SEG (2026-11-21): the panel model's words (panels/revenueSegmentsModel.js; pinned by functions.revenueSegments.test.js) ──
+  /** SEG's split: by product (the default) or by region. */
+  segView: {
+    takes: 'PRODUCT or REGION',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(SEG_VIEW_WORDS, key) ? SEG_VIEW_WORDS[key] : null
+    },
+    describe: (v) => (v === 'region' ? 'revenue by region' : 'revenue by product'),
+  },
+  /** SEG's periods: annual (the default) or quarterly. */
+  segPeriod: {
+    takes: 'ANNUAL or QUARTERLY',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(SEG_PERIOD_WORDS, key) ? SEG_PERIOD_WORDS[key] : null
+    },
+    describe: (v) => (v === 'quarter' ? 'quarter by quarter' : 'year by year'),
+  },
+  // ── IDXC (2026-11-21) ──
+  /** IDXC's index (panels/indexChangesModel.js IDXC_INDEX_ARG_WORDS; pinned by functions.indexChanges.test.js):
+   *  one of the three; bare `IDXC` is all three. */
+  idxcIndex: {
+    takes: 'S&P500, NASDAQ100 or DOW30',
+    parse: (tok) => {
+      const key = String(tok ?? '').trim().toUpperCase()
+      return Object.prototype.hasOwnProperty.call(IDXC_INDEX_WORDS, key) ? IDXC_INDEX_WORDS[key] : null
+    },
+    describe: (v) => ({ sp500: 'the S&P 500', nasdaq100: 'the Nasdaq 100', dow: 'the Dow 30' })[v] || v,
   },
   // ── FUND (2026-11-21): the panel model's words (panels/fundMetricsModel.js; pinned by functions.fundMetrics.test.js) ──
   /** FUND's line: ONE metric word draws that metric as a line (parseFundMetric). */

@@ -216,6 +216,53 @@ def fetch_ticker_dividends(ticker: str, *, gte: str | None = None,
     return rows
 
 
+#: One date-range read of the whole market: 1,000 rows a page, so past 10,000 dividends in one window
+#: the read refuses (`massive_adapter.get_pages` raises) rather than hand back a truncated window.
+_MARKET_READ_MAX_PAGES = 10
+
+
+def fetch_market_dividends_strict(from_iso: str, to_iso: str) -> list[dict[str, Any]]:
+    """Every cash dividend across the market with an ex-date in [from_iso, to_iso], oldest ex-date
+    first: `{ticker, ex_dividend_date, cash_amount, currency, frequency, dividend_type, pay_date,
+    declaration_date, record_date}`. The market-wide sibling of `fetch_ticker_dividends` (the same
+    endpoint, the same client, the same data class), queried by ex-date RANGE with no ticker, for
+    the Terminal's market dividend calendar (`api/services/dividends_market.py`, `DVD MARKET`).
+
+    The range filter (`ex_dividend_date.gte` / `.lte`), `order`, `sort` and the 1,000-row page are
+    Massive's own parameters for `/v3/reference/dividends` (its public docs page "Dividends
+    (Deprecated)", read 2026-11-21; the per-ticker read above already sends the same range keys).
+    A row without a ticker or an ex-date is not returned. RAISES `CorpActionsUnavailable` when
+    Massive could not give the whole window, so `[]` means Massive answered and lists none."""
+    from api.services import massive_adapter
+
+    try:
+        rows = massive_adapter.get_pages(
+            "/v3/reference/dividends",
+            params={"ex_dividend_date.gte": from_iso, "ex_dividend_date.lte": to_iso,
+                    "order": "asc", "sort": "ex_dividend_date", "limit": 1000},
+            data_class="reference", activity="reference_corp_actions.fetch_market_dividends",
+            max_pages=_MARKET_READ_MAX_PAGES,
+        ).value
+    except Exception as e:
+        raise CorpActionsUnavailable(f"Massive /v3/reference/dividends failed: {type(e).__name__}") from e
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        if not isinstance(r, dict) or not r.get("ticker") or not r.get("ex_dividend_date"):
+            continue
+        out.append({
+            "ticker": str(r["ticker"]).upper(),
+            "ex_dividend_date": str(r["ex_dividend_date"])[:10],
+            "cash_amount": r.get("cash_amount"),
+            "currency": r.get("currency"),
+            "frequency": r.get("frequency"),
+            "dividend_type": r.get("dividend_type"),
+            "pay_date": r.get("pay_date"),
+            "declaration_date": r.get("declaration_date"),
+            "record_date": r.get("record_date"),
+        })
+    return out
+
+
 def split_ratio(split_from, split_to) -> float | None:
     """Shares after per share before (4.0 = 4-for-1, 0.1 = 1-for-10 reverse) —
     the same float yfinance's `.splits` series carried, so consumers keep their

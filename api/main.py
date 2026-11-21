@@ -12243,6 +12243,14 @@ from api.routers import corporate_actions as corporate_actions_router  # noqa: E
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
+from api.routers import market_dividends as market_dividends_router  # noqa: E402  (DVD MARKET: the market's ex-dividend dates and splits, this week and next, paid)
+app.include_router(market_dividends_router.router)  # /api/research/market-dividends
+from api.routers import revenue_segments as revenue_segments_router  # noqa: E402  (SEG: one stock's revenue by product and by region, paid)
+app.include_router(revenue_segments_router.router)  # /api/research/revenue-segments/{ticker}
+from api.routers import mergers as mergers_router  # noqa: E402  (MNA: the latest M&A deals, or one company's, paid)
+app.include_router(mergers_router.router)  # /api/research/mergers
+from api.routers import index_changes as index_changes_router  # noqa: E402  (IDXC: S&P 500, Nasdaq 100 and Dow additions and removals, paid)
+app.include_router(index_changes_router.router)  # /api/research/index-changes
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

@@ -4467,6 +4467,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "index=all, sym",
+      "path": "/api/research/index-changes",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}",
       "path": "/api/research/iv-history/{sym}",
       "rate_limit_family": "research",
@@ -4483,6 +4491,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "",
+      "path": "/api/research/market-dividends",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}, days=90",
       "path": "/api/research/mention-series/{sym}",
       "rate_limit_family": "research",
@@ -4493,6 +4509,14 @@
       "method": "GET",
       "params": "{sym}, window=1m, sort=newest, source=all, label=all, limit=50",
       "path": "/api/research/mention-series/{sym}/polarity",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "sym",
+      "path": "/api/research/mergers",
       "rate_limit_family": "research",
       "tier": "paid"
     },
@@ -4701,6 +4725,14 @@
       "method": "GET",
       "params": "{sym}",
       "path": "/api/research/rename-notice/{sym}",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
+      "params": "{ticker}, period=annual",
+      "path": "/api/research/revenue-segments/{ticker}",
       "rate_limit_family": "research",
       "tier": "paid"
     },
