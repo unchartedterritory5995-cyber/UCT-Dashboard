@@ -48,7 +48,7 @@ def test_a_run_is_refused_before_the_browser_when_the_account_is_not_synthetic(m
     assert "REFUSED" in said and "BENCH_EMAIL" in said
     assert not (tmp_path / "run").exists()                         # nothing was even prepared
     monkeypatch.setenv("SMOKE_EMAIL", "smoke@uctintelligence.internal")
-    monkeypatch.delenv("SMOKE_PASSWORD")
+    monkeypatch.delenv("SMOKE_PASSWORD", raising=False)           # not set at all on a runner; set on a dev box
     assert value_record.main([str(tmp_path / "run"), "--account", "smoke"]) == 2
 
 
