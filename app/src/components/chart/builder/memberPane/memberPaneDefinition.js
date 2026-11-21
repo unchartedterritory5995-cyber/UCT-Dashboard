@@ -1321,8 +1321,17 @@ export function memberPaneDefinition({ source, id, name, translation = null, enu
     if (bytes > DOCUMENT_BYTE_BUDGET) {
       docOut = withoutRunHalf(definition)
       notesOut = notes.map(withoutRunHalfSentence)
-      runHalfOut = { declined: { code: 'run-half:size', why: `with the run half the document is ${bytes} bytes as `
-        + `the store counts it, past its ${DOCUMENT_BYTE_BUDGET}-byte cap` } }
+      // ⭐ A6 — THE SENTENCE NAMES THE TRUE CAUSE. ⚰️ It always blamed the run half: vdubus-pattern-gen-v2 read
+      // "with the run half the document is 4095605 bytes", when its host document alone is 4,077,043 bytes (its
+      // `objects` program) and the run half adds 18,539. The host share is the store's own measure of the document
+      // the door writes without the run half (`withoutRunHalf`, the same `storedBytesOf`).
+      const hostBytes = storedBytesOf(docOut)
+      const share = bytes - hostBytes
+      runHalfOut = { declined: { code: 'run-half:size', why: hostBytes > DOCUMENT_BYTE_BUDGET
+        ? `the document is ${hostBytes} bytes as the store counts it WITHOUT the run half, already past its `
+          + `${DOCUMENT_BYTE_BUDGET}-byte cap; the run half would add ${share} bytes`
+        : `with the run half the document is ${bytes} bytes as the store counts it, past its `
+          + `${DOCUMENT_BYTE_BUDGET}-byte cap (${hostBytes} without it; the run half adds ${share})` } }
     }
   }
   // ⛔⛔ DOOR-ROBUSTNESS — A DOCUMENT THE INSTALL DOOR WILL REFUSE IS REFUSED HERE, BY NAME.

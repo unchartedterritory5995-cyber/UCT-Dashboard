@@ -408,6 +408,36 @@
       },
       "liftWhen": "B4 color(): the builtins unit lowers `color(x)` over a colour in the drawing build (its follow-up to #2175's `color(na)`; the stop is `border_color = color(bgColor)`, lines 140 and 145), so the run draws its boxes, then a runtime-on re-grade to MATCH on bolingger-bands-inside-bar-boxes-rddt-1d-2026-11-14, -rddt-1d-2026-11-17 and -spy-1d-2026-11-17",
       "addedBy": "DRAW-1 (2026-11-20, coordinator ruling on A1): the per-bar offset copy (objects unit A1) lets its values build stand, so it is newly drawn by the runtime lane with a committed capture grading DIVERGE"
+    },
+    {
+      "slug": "vw-bi-str-tonumber",
+      "sha256": "5360e5fc15ce646b8a9b483d59a8b9cfc354eb3cec27a387fc5be068d6425d5e",
+      "source": "tools/visual_conformance/probes/vw-bi-str-tonumber.pine",
+      "reason": "str.tonumber padded/exponent strings diverge at engine 89 (N05-N08)",
+      "evidence": {
+        "capture": "vw-bi-str-tonumber-spy-1d-2026-11-19",
+        "verdict": "DIVERGE",
+        "production": "INCONCLUSIVE",
+        "lanes": "member's runtime lane DIVERGE on N05_lead_space and N06_trail_space (ours -999, TradingView 3) and N07_exponent and N08_exponent_neg (ours 1000 / 0.01, TradingView -999); host lane draws no plot (INCONCLUSIVE)",
+        "session": "vendor harness runtime-on lane at engine 89, #2184's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json); the member door (CAPADMIT_MODE=admission) draws it on the runtime lane, a REACH stop"
+      },
+      "liftWhen": "a snapshot regen at engine >= 90 grades it MATCH: #2182 (e90, on master) fixes str.tonumber",
+      "addedBy": "#2184 snapshot regen (coordinator ruling 2026-11-20): a probe the registry admits whose new capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
+    },
+    {
+      "slug": "vw-v6-bool-history-bar0",
+      "sha256": "07212c5896ff3e5cb517bb43b283d4ad27b73a3705c3bb5783d19b31b6e95040",
+      "source": "tools/visual_conformance/probes/vw-v6-bool-history-bar0.pine",
+      "reason": "v6 bool history before bar 0 reads false in TradingView; ours na (Q-BH0)",
+      "evidence": {
+        "capture": "vw-v6-bool-history-bar0-rddt-1d-2026-11-19",
+        "verdict": "DIVERGE",
+        "production": "DIVERGE",
+        "lanes": "both lanes DIVERGE on bar 0 only, on both captures (vw-v6-bool-history-bar0-rddt-1d-2026-11-19 and vw-v6-bool-history-bar0-spy-1d-2026-11-19): H01_b1_eq_false, H03_not_b1 and H04_b1_ne_true read 0 where TradingView reads 1; the host lane refuses it by name (host known-divergence list), so the member door draws it on the runtime lane",
+        "session": "vendor harness runtime-on lane at engine 89, #2184's regenerated snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json); a REACH stop on both captures"
+      },
+      "liftWhen": "the Q-BH0 fix PR lands and a regrade MATCHes both captures",
+      "addedBy": "#2184 snapshot regen (coordinator ruling 2026-11-20): a probe the registry admits whose new capture the member door draws on the runtime lane and grades DIVERGE (a REACH stop) is killed by source hash"
     }
   ]
 }

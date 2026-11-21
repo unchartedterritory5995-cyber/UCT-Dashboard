@@ -71,6 +71,12 @@ function _writeSym(sym, updated) {
 
 // ── Registry internals ──────────────────────────────────────────────────────
 function _buildSnapshot(e) {
+  // ⭐ (switch render cuts, 2026-11-20) NOTHING DRAWN, NO HISTORY → THE SAME FROZEN SNAPSHOT a symbol with no
+  // entry reads. A chart switching to a symbol renders that symbol's snapshot BEFORE its subscription creates
+  // the entry (the lazy load lives in `subscribe`, never in `getSnapshot`), so `useSyncExternalStore` compares
+  // `EMPTY_SNAPSHOT` with the new entry's snapshot right after the switch commits. A fresh-but-equal object
+  // there re-rendered the whole StockChart, before the switch could paint, on every symbol with no drawings.
+  if (!e.drawings.length && !e.past.length && !e.future.length) return EMPTY_SNAPSHOT
   return { drawings: e.drawings, canUndo: e.past.length > 0, canRedo: e.future.length > 0 }
 }
 

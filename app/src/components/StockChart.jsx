@@ -297,6 +297,8 @@ const EMPTY_INSTANCES = Object.freeze([])
 // the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
+// The comparison legend's framed rows when there are none (one value, so clearing an empty list is no change).
+const NO_FRAMED_COMPARISONS = Object.freeze([])
 /** `paneLegendKeys`' empty value. A stable identity, so the state write below
  *  can bail on "still nothing" without allocating a fresh `[]` every layout. */
 const NO_PANE_KEYS = Object.freeze([])
@@ -1745,6 +1747,8 @@ import { armRuntimeLaneWarm, whenIdle } from './chart/engine/runtimeLaneWarm'
 import { readSuccessBody } from '../lib/responseBody'
 import { archiveHref } from '../utils/traderArchive'
 import { createAdaptiveFrameLoop } from './chart/adaptiveFrameLoop'
+import ReadoutIsland from './chart/ReadoutIsland'
+import { createReadoutStore, memoOnArg } from './chart/readoutStore'
 import { onVisibleLogicalRange } from './chart/visibleRangeSubscription'
 import { markFirstChartPaint, afterFirstChartPaint } from '../lib/barsPackClient'
 import { armSymbolResourceWarm, useSymbolResource } from '../lib/symbolResourceWarm'
@@ -4155,6 +4159,12 @@ export default function StockChart({
   // re-subscribing on every render of updateChart (which would happen ~once
   // per real-time tick and visibly stutter the crosshair).
   const [chartReady, setChartReady] = useState(false)
+  // ⭐ (switch render cuts, 2026-11-20) WHICH chart instance: bumped each time one is created. A host's
+  // subscription to the visible range rides the chart's own time scale, so it must re-subscribe on a NEW
+  // instance (development's StrictMode removes and re-creates one inside a mount, and `chartReady` stays
+  // true across it). That re-run used to come for free from the pane's inline `onTimeRangeChange`, a new
+  // function every pane render; the pane now hands StockChart one stable function (StableStockChart.jsx).
+  const [chartGen, setChartGen] = useState(0)
 
   // ── Dark Pool overlay state ──────────────────────────────────────────────
   // Hover tooltip — fixed-position div near the cursor when hovering a bar.
@@ -5809,7 +5819,14 @@ export default function StockChart({
 
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
-  const [crosshairData, setCrosshairData] = useState(null)
+  // ⭐ (switch render cuts, 2026-11-20) THE READOUT IS NOT STOCKCHART STATE. It lives in this chart's
+  // readout store, and only the `<ReadoutIsland>`s that print it re-render when it changes: a symbol
+  // switch's readout (written in the switch applier's layout effect) and every hover frame used to re-run
+  // this whole component for a few rows of numbers. `crosshairData` is deliberately NOT a name in this
+  // scope any more: each island receives it as its render function's argument, so a reader left outside
+  // an island is an undefined name (lint), not a stale value. See `chart/readoutIsland.jsx`.
+  const readoutStore = useState(() => createReadoutStore(EMPTY_CHIPS))[0]
+  const setCrosshairData = readoutStore.setCrosshairData
   /**
    * ⭐ F3 (2026-11-10) — THE LINE-END TAGS WHILE THERE IS NO READOUT PAYLOAD.
    *
@@ -5827,7 +5844,8 @@ export default function StockChart({
    * reads them whenever `crosshairData` is absent. ⛔ END TAGS ONLY — the ranks
    * strip stays a readout surface and keeps the legend's gates.
    */
-  const [offHoverEndTagChips, setOffHoverEndTagChips] = useState(EMPTY_CHIPS)
+  // (In the readout store with `crosshairData`, for the same reason; the price-pane host island reads it.)
+  const setOffHoverEndTagChips = readoutStore.setOffHoverEndTagChips
   // Responsive vertical legend. "Collapsed" = the legend's full height reaches the
   // range-selector band (just above the price/volume boundary). At that point we
   // (a) hide the range bar, (b) switch the legend to HOVER-ONLY (like a multi-chart
@@ -5913,13 +5931,20 @@ export default function StockChart({
   // every enter/leave.
   const legendRowSigRef = useRef(null)
   useEffect(() => {
-    if (!crosshairData) return
-    const sig = `${crosshairData.overlays?.length ?? 0}:${crosshairData.chips?.length ?? 0}`
-    if (legendRowSigRef.current === sig) return
-    legendRowSigRef.current = sig
-    lastFullBottomRef.current = 0
-    setCompactLegend(false)
-  }, [crosshairData])
+    // Subscribed to the readout store (the payload is no longer state, so no render carries it here);
+    // run once on subscribing too, for a payload written before this effect ran.
+    const onReadout = () => {
+      const crosshairData = readoutStore.get().crosshairData
+      if (!crosshairData) return
+      const sig = `${crosshairData.overlays?.length ?? 0}:${crosshairData.chips?.length ?? 0}`
+      if (legendRowSigRef.current === sig) return
+      legendRowSigRef.current = sig
+      lastFullBottomRef.current = 0
+      setCompactLegend(false)
+    }
+    onReadout()
+    return readoutStore.subscribe(onReadout)
+  }, [readoutStore])
   // Off-hover legend persistence is suppressed while collapsed → hover-only.
   //
   // ⚰️ `&& legendMode === 'always'` STOOD HERE FOR ONE ROUND AND WAS WRONG —
@@ -7314,10 +7339,12 @@ export default function StockChart({
   // ⭐ B8 vs the tap floor (review, 2026-11-07). On the phone shell each chip's
   // 44 px tap box overhangs its 18 px line (IndicatorChip.module.css), which is
   // only safe while the chips sit on ONE line: a wrapped second line's boxes would
-  // cover the first line's chips. After every render this marks the legend when
+  // cover the first line's chips. After every render of the legend this marks it when
   // its chips occupy more than one line, and the stylesheet then gives each line
   // its full 44 px. A DOM attribute, not state: no re-render, no loop.
-  useLayoutEffect(() => {
+  // ⭐ Run by the legend's `ReadoutIsland` after each of ITS commits (`afterCommit`): the legend
+  // re-renders without StockChart on a readout change, and with it on every StockChart render.
+  const markChipsWrapped = () => {
     const el = legendRef.current
     if (!el || !paneTextChips) return
     const tops = new Set()
@@ -7330,7 +7357,7 @@ export default function StockChart({
       if (wrapped) el.setAttribute('data-chips-wrapped', '')
       else el.removeAttribute('data-chips-wrapped')
     }
-  })
+  }
   const handleChipSettings = useCallback((instanceId) => {
     // ⭐ Decision C5 — ON THE PHONE SHELL THE MENU'S SETTINGS ROW OPENS THE SAME
     // STUDY EDITOR A CHIP TAP OPENS. A readout chip's tap now opens this menu, so
@@ -8087,7 +8114,7 @@ export default function StockChart({
       upColor: _upColor, downColor: _downColor,
       companyName: watermarkMeta?.name || tickerMeta?.name || null,
       container: cont,
-      crosshairData,
+      crosshairData: readoutStore.get().crosshairData,
       volPos: relPos(volLegendRef.current),
       bgColor,
       textColor: axisAuto.ink,   // canvas-contrast axis ink → header blends with it
@@ -8103,7 +8130,7 @@ export default function StockChart({
         fontPx: sl.fontPx,
       },
     }
-  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, modelBookLook, axisAuto])
+  }, [sym, resolvedTf, watermarkMeta, tickerMeta, readoutStore, cs, canvasTheme, userCanvas, boldCandles, modelBookLook, axisAuto])
 
   const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
@@ -10869,18 +10896,22 @@ export default function StockChart({
   // RangeChange hands us {from,to} float indices on every pan/zoom, and we map those
   // straight onto our OWN base-bar array (filteredBars) — no chart time API involved.
   // Held in a ref so the subscription callback always sees the latest bars/comparisons.
-  const [comparisonFramed, setComparisonFramed] = useState([])
+  // ⭐ (switch render cuts, 2026-11-20) EMPTY IS ONE FROZEN ARRAY, and "no comparisons" writes it only when the
+  // list is not already empty. The effect below runs on every symbol switch, and a fresh `[]` each time is a
+  // new state value: it re-ran the whole StockChart render, before the switch could paint, to print nothing.
+  const [comparisonFramed, setComparisonFramed] = useState(NO_FRAMED_COMPARISONS)
+  const clearComparisonFramed = () => setComparisonFramed((prev) => (prev.length ? NO_FRAMED_COMPARISONS : prev))
   const framedSrcRef = useRef({ bars: null, comps: [], cmpData: null })
   framedSrcRef.current = { bars: filteredBars, comps: enabledComparisons, cmpData: comparisonsData }
   const sameAnchorLiRef = useRef(-1)  // last visible-left index the 'same' lines were re-anchored to
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !chartReady) { setComparisonFramed([]); return undefined }
+    if (!chart || !chartReady) { clearComparisonFramed(); return undefined }
     const ts = chart.timeScale()
     let raf = 0
     const compute = (range) => {
       const { bars: fbars, comps, cmpData } = framedSrcRef.current
-      if (!comps.length || !cmpData) { setComparisonFramed([]); return }
+      if (!comps.length || !cmpData) { clearComparisonFramed(); return }
       let lr = range
       if (!lr) { try { lr = ts.getVisibleLogicalRange() } catch { /* mid-load */ } }
       // Left/right visible bar TIME from our base-bar array (adjustTime space) — the
@@ -11839,6 +11870,7 @@ export default function StockChart({
         chart,
         () => (engineRef.current ? engineRef.current.binder.bindings() : []),
       )
+      setChartGen((g) => g + 1)
       setChartReady(true)
       // The page's first chart exists (it is created only once its bars are in): the background
       // pack ingests may start now. Once per page; see `afterFirstChartPaint` in barsPackClient.
@@ -16490,7 +16522,7 @@ export default function StockChart({
     return () => {
       try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch {}
     }
-  }, [onTimeRangeChange, chartReady])
+  }, [onTimeRangeChange, chartReady, chartGen])
 
   // ── Multi-chart sync: follow another chart's time range (Task 5 Step 4) ──
   // Off the sync bus, imperatively (see subscribeCrosshair). Compared against what
@@ -17543,9 +17575,11 @@ export default function StockChart({
    * actually is.
    *
    * ⚠️ AND IT IS A MEMO, NOT A REF-READ, because it feeds JSX: it has to recompute
-   * when the crosshair payload changes, which is exactly when the chart re-renders.
+   * when the crosshair payload changes. ⭐ (2026-11-20) The payload reaches the volume strip's
+   * `ReadoutIsland` without a StockChart render, so this is the memo's FUNCTION, keyed on the
+   * payload (`memoOnArg`) and rebuilt when its other inputs change: the same recomputations.
    */
-  const volPaneRows = useMemo(() => {
+  const volPaneRowsOf = useMemo(() => memoOnArg((crosshairData) => {
     if (!crosshairData) return EMPTY_CHIPS
     const rows = []
     const volHidden = cs.volume?.visible === false
@@ -17682,7 +17716,7 @@ export default function StockChart({
     // Volume's row and opens Volume's menu — so the grouping `orderPaneRows`
     // already does by id is exactly right for it, with nothing special-cased.
     return orderPaneRows(cs, VOLUME_PANE, rows, (r) => r.rowId)
-  }, [crosshairData, cs, chipPaneHost, chipHandlers, legendRowHandlers, openVolumeMenu, handleRowMenu])
+  }), [cs, chipPaneHost, chipHandlers, legendRowHandlers, openVolumeMenu, handleRowMenu])
   /** ⚰️ `legBaseVol` STOOD HERE — one memoised `{color}` shared by the six hand
    *  written spans the volume strip used to emit. The strip renders `LegendRow`s
    *  now (one component, one ink rule, the same `baseColor` prop every other row
@@ -17825,7 +17859,7 @@ export default function StockChart({
    * plot is ~286 px and the strip (~230 px) steps aside, as it does in a pane, and
    * the same numbers stay one tap away in the readout's Rating card.
    */
-  const pinPriceTable = useCallback((el) => {
+  const pinPriceTable = useCallback(function pinPriceTable(el) {   // named: a layout read in a stack says whose it is
     if (!el) return
     try {
       const chart = chartRef.current, host = wrapperRef.current
@@ -17865,6 +17899,12 @@ export default function StockChart({
       }
     } catch { /* pane API missing → the CSS default */ }
   }, [paneBandOf])
+  // ⭐ (switch render cuts, 2026-11-20) THE STRIP'S REF IS ONE FUNCTION FOR THE CHART'S LIFE. An inline arrow is a new
+  // ref every render, so React detached and re-attached it on EVERY commit and each re-attach ran `pinPriceTable`:
+  // two `getBoundingClientRect` reads forcing a layout in the middle of the commit (2-6 ms of a symbol switch, and a
+  // switch commits up to four times). Attached once, it pins at mount; after that the price-chrome frame loop
+  // (`createAdaptiveFrameLoop` below, woken by the candles' data change) re-pins it before the frame paints.
+  const priceTableRefCb = useCallback((el) => { priceTableRef.current = el; if (el) pinPriceTable(el) }, [pinPriceTable])
 
   /**
    * ⭐ UCT RS split, U2 — THE LINE-END TAG (`plots[].endLabel`): `RS 96` at the last
@@ -19692,7 +19732,6 @@ export default function StockChart({
             : volItems.map((it) => chipMenuSigRow(it.key === 'move' && !it.disabled
               ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
               : it))
-          const volValue = crosshairData && crosshairData.volume != null ? formatVolume(crosshairData.volume) : ''
           return (
             <ContextPopover
               guide="chart.chipMenu"
@@ -19705,7 +19744,10 @@ export default function StockChart({
               signature
               /* UCT Signature: no sub-line — "Display in" already names the placement. */
               header={onMovePage ? null : (
-                <LegendMenuHeader label="Volume" hidden={volHiddenNow} value={volValue} sig />
+                <ReadoutIsland store={readoutStore} render={(crosshairData) => (
+                  <LegendMenuHeader label="Volume" hidden={volHiddenNow}
+                    value={crosshairData && crosshairData.volume != null ? formatVolume(crosshairData.volume) : ''} sig />
+                )} />
               )}
               items={volPage}
               sheetClassName={sheetCls + ' ' + popStyles.signature} /* the touch sheet's UCT Signature look rides the Sheet's class (ContextPopover: Notebook bytes) */
@@ -20654,7 +20696,8 @@ export default function StockChart({
           PROPS, shared by all three legend layouts. Written once because the
           three branches below have drifted from each other before — the header
           day-change colour was fixed in one of them and read as a no-op. */}
-      {crosshairData && !hideLegend && legendMode !== 'off'
+      <ReadoutIsland store={readoutStore} afterCommit={markChipsWrapped} render={(crosshairData) =>
+        crosshairData && !hideLegend && legendMode !== 'off'
         && (legendMode !== 'hold' || legendHeld) && (() => {
         // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
         // the base classes' own color; change%/overlays/indicators are intentionally
@@ -21310,7 +21353,7 @@ export default function StockChart({
           )}
         </div>
         )
-      })()}
+      })()} />
       {/* Watermark ADJUST mode — a floating confirm/cancel bar (mirrors the
           highlight-period toolbar). While it's up the watermark drag is unlocked
           and armed; drag it anywhere, then Confirm to keep it or Cancel to revert. */}
@@ -21631,7 +21674,9 @@ export default function StockChart({
           now — the same `LegendRow` contract, the same popover, the same verbs —
           which is also what makes the rail mean something: one rule, one row, one
           series, one menu. */}
-      {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady
+      <ReadoutIsland store={readoutStore} render={(crosshairData) => {
+        const volPaneRows = volPaneRowsOf(crosshairData)
+        return !blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady
         && crosshairData && volPaneRows.length > 0 && (
         <div ref={volLegendRef} className={styles.volLegend}>
           {volPaneRows.map((r, ri) => (
@@ -21659,7 +21704,8 @@ export default function StockChart({
             />
           ))}
         </div>
-      )}
+        )
+      }} />
       {/* ── EACH OSCILLATOR PANE'S OWN TOP-LEFT READOUT ────────────────────────
           "RSI(14) 59.0" at the top-left of the RSI pane — the thing the volume
           pane has always had (`.volLegend`, directly above) and every indicator
@@ -21711,7 +21757,8 @@ export default function StockChart({
           keeping it means this change moves no pixel-parity baseline. Showing it
           is one selector in that file — a decision about the newsletter, taken
           there, not smuggled in from here. */}
-      {chartReady && !indicatorsHidden && paneLegendKeys.length > 0 && crosshairData
+      <ReadoutIsland store={readoutStore} render={(crosshairData) => chartReady && !indicatorsHidden
+        && paneLegendKeys.length > 0 && crosshairData
         && (() => {
         // ⭐ ONE STRIP PER CHART (2026-11-12, observed live on QQQ): with the RS
         // line and RS Rating both on, the same ranks strip drew on the price pane
@@ -21853,7 +21900,7 @@ export default function StockChart({
         </Fragment>
         )
       })
-      })()}
+      })()} />
       {/* ⭐ UCT RS split, U2 — WHAT THE PRICE PANE HOSTS BESIDES ITS LEGEND.
           (a) The ranks strip (`meta.paneTable`) for an instance drawn with the
               candles — the same `PaneRanksTable`, same markup, same classes as the
@@ -21868,7 +21915,8 @@ export default function StockChart({
               payload (the phone shell, a legend folded to hover-only) the host
               reads `offHoverEndTagChips`, which carries tags only, so the strip
               still waits for a payload. */}
-      {chartReady && !indicatorsHidden && (crosshairData || offHoverEndTagChips.length) ? (() => {
+      <ReadoutIsland store={readoutStore} render={(crosshairData, offHoverEndTagChips) => chartReady && !indicatorsHidden
+        && (crosshairData || offHoverEndTagChips.length) ? (() => {
         priceChromeRef.current = { legendFlush, toolbarCollapsed }
         const hosted = priceHostChips(crosshairData ? crosshairData.chips : offHoverEndTagChips, chipPaneHost, resolvedTf)
         // ⛔ one chip carries BOTH the tag and the strip (the RS line's): off the
@@ -21883,7 +21931,7 @@ export default function StockChart({
                 paneKey="price"
                 host="price"
                 canvas={topCanvasIsLight ? 'light' : 'dark'}
-                ref={(el) => { priceTableRef.current = el; if (el) pinPriceTable(el) }}
+                ref={priceTableRefCb}
               />
             ) : null}
             {hosted.ends.map((c) => {
@@ -21907,7 +21955,7 @@ export default function StockChart({
             })}
           </Fragment>
         )
-      })() : null}
+      })() : null} />
       {/* ONE pattern engine draws at a time (owner, 2026-11-01): while Chart IQ is drawing this daily chart, Auto Structures'
           overlay steps aside, and it is back the moment Chart IQ is off or the chart leaves 1D. Nothing is retired. */}
       {!disablePatterns && !chartIqActive && bars?.length > 0 && (

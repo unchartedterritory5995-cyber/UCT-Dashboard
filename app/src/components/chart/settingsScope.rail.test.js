@@ -63,7 +63,8 @@ const READ_ONLY_OVERRIDE_HOSTS = {
   'app/src/pages/ChartRender.jsx': 'headless bot renderer; no member interacts with it',
 }
 
-const CHART_HOSTS = new Set(['StockChart', 'ChartPane'])
+// StableStockChart (chart/pane): the pane's StockChart behind a memo boundary, the same props (2026-11-20)
+const CHART_HOSTS = new Set(['StockChart', 'ChartPane', 'StableStockChart'])
 const elName = (opening) => (opening.name?.type === 'JSXIdentifier' ? opening.name.name : null)
 /** ⛔ An attribute whose value is a literal `null` / `undefined` is NOT passed:
  *  `onSettingsPersist={null}` would otherwise satisfy the rail and leak exactly as
@@ -80,7 +81,7 @@ const hasSpread = (opening) => opening.attributes.some((a) => a.type === 'JSXSpr
 
 /** The two chart component MODULES (repo-relative), resolved from import paths. */
 const CHART_MODULES = new Set(['app/src/components/StockChart.jsx',
-  'app/src/components/chart/pane/ChartPane.jsx'])
+  'app/src/components/chart/pane/ChartPane.jsx', 'app/src/components/chart/pane/StableStockChart.jsx'])
 
 /** ⭐ The local names a module gives the two chart components, resolved by import
  *  PATH (independent QA 2026-11-02): an alias (`import Chart from '…/StockChart'`)
