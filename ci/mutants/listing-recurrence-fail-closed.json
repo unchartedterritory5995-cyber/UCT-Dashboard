@@ -1,0 +1,33 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Ruling (i), 2026-11-20 (fix/py-listing-recurrence-fail-closed): from the listing (historyFromListing) the Python lane withholds a plot whose tree holds a recurrence whole, by name (var-origin:listing-pass), where the chart lane runs the listing pass (C12w) and the bounded window would be a different number; off the listing nothing changes. Lift condition: a server path passing historyFromListing needs the full port first.",
+ "mutants": [
+  {
+   "id": "LP1",
+   "mutant": "Python: from the listing a recurrence answers the bounded window again",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if (opts or {}).get(\"historyFromListing\") is True and _holds_recurrence(ast):",
+   "to": "        if False:",
+   "rail": "python -m pytest tests/test_pine_listing_recurrence_fail_closed.py -q -p no:cacheprovider",
+   "expectRed": "test_bar_7_from_the_listing_is_withheld_by_name_never_the_bounded_window"
+  },
+  {
+   "id": "LP2",
+   "mutant": "Python: every tree read as holding a recurrence (the control is withheld)",
+   "file": "api/services/ast_interpret.py",
+   "from": "        if node.get(\"type\") == \"call\" and node.get(\"name\") in RECURRENCES:\n            return True",
+   "to": "        if True:\n            return True",
+   "rail": "python -m pytest tests/test_pine_listing_recurrence_fail_closed.py -q -p no:cacheprovider",
+   "expectRed": "test_control_no_recurrence_computes_from_the_listing_as_the_chart_lane_does"
+  },
+  {
+   "id": "LP3",
+   "mutant": "Python: the plot withheld without its name",
+   "file": "api/services/ast_interpret.py",
+   "from": "            _name_chart_clock(opts, [LISTING_PASS_CHART_LANE])\n            return [None] * len(bars)",
+   "to": "            return [None] * len(bars)",
+   "rail": "python -m pytest tests/test_pine_listing_recurrence_fail_closed.py -q -p no:cacheprovider",
+   "expectRed": "test_bar_7_from_the_listing_is_withheld_by_name_never_the_bounded_window"
+  }
+ ]
+}

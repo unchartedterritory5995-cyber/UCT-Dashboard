@@ -63,7 +63,57 @@ def plan(prev: dict | None, version: int, names, hashes: dict) -> dict:
     return {"symbols": names, "retired": retired, "revs": revs, "hashes": {s: hashes[s] for s in names if s in hashes}}
 
 
-def main(argv=None) -> int:
+def read_manifest(client, bucket):
+    """The published manifest, or None when there is none yet. ⛔ ONLY a missing key means "first publish": any other
+    error raises. Read as "first", a transient error would plan every symbol as new and forget the retired list (whose
+    terms would then fall to 0, and browsers would keep the old copies)."""
+    try:
+        return json.loads(client.get_object(Bucket=bucket, Key=f"{PREFIX}manifest.json")["Body"].read())
+    except Exception as e:  # noqa: BLE001
+        if "NoSuchKey" in type(e).__name__ or "NoSuchKey" in str(e) or "404" in str(e) or "Not Found" in str(e):
+            return None
+        raise
+
+
+def published_hashes(prev: dict | None, client, bucket, names) -> tuple[dict, list]:
+    """(hashes, failed): sha256 of the PUBLISHED payload body of every symbol `names` shares with the previous manifest
+    whose hash that manifest does not carry (v1 predates `hashes`, U5c). The body is the bytes `payload_body` produces,
+    so an unchanged series hashes identically (measured on ASB BCPC MNST BALL FDX 2026-11-21) and keeps its rev."""
+    import hashlib
+    prev = prev or {}
+    pv = int(prev.get("version") or 0)
+    p_syms = {str(s).upper() for s in (prev.get("symbols") or ())}
+    p_hash = {str(k).upper() for k in (prev.get("hashes") or {})}
+    p_revs = {str(k).upper(): int(v) for k, v in (prev.get("revs") or {}).items()}
+    got, failed = {}, []
+    for s in sorted((p_syms & {str(n).upper() for n in names}) - p_hash):
+        try:
+            body = client.get_object(Bucket=bucket, Key=f"{PREFIX}v{int(p_revs.get(s) or pv)}/{s}.json.gz")["Body"].read()
+            try:
+                body = gzip.decompress(body)
+            except OSError:
+                pass                                          # a client that already decoded ContentEncoding: gzip
+            got[s] = hashlib.sha256(body).hexdigest()
+        except Exception:  # noqa: BLE001 - reported; a real publish refuses
+            failed.append(s)
+    return got, failed
+
+
+def moved(prev: dict | None, p: dict, version: int) -> dict:
+    """Exactly which symbols this publish gives a new rev (their history_rev rises), by reason."""
+    prev = prev or {}
+    p_syms = {str(s).upper() for s in (prev.get("symbols") or ())}
+    p_ret = {str(s).upper() for s in (prev.get("retired") or ())}
+    new = sorted(s for s, r in p["revs"].items() if r == version)
+    listed = set(p["symbols"])
+    return {"new_rev": len(new), "kept": len(p["revs"]) - len(new),
+            "changed": [s for s in new if s in listed and s in p_syms],
+            "added": [s for s in new if s in listed and s not in p_syms and s not in p_ret],
+            "relisted": [s for s in new if s in listed and s in p_ret],
+            "retired_now": [s for s in new if s not in listed]}
+
+
+def main(argv=None, client=None, bucket=None):
     import os
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default="D:/uct-history")
@@ -71,21 +121,46 @@ def main(argv=None) -> int:
     ap.add_argument("--stage", choices=("test", "all"), required=True)
     ap.add_argument("--test", default="")
     ap.add_argument("--skip-upload", action="store_true", help="manifest only (the series are already up)")
+    ap.add_argument("--dry", action="store_true", help="print exactly which symbols get a new rev; write nothing")
+    ap.add_argument("--allow-retire", default="", help="EXACTLY the symbols this publish may retire (comma list)")
     a = ap.parse_args(argv)
     root = Path(a.root) / "daily-v1"
     serve = json.loads((root / "serve_list.json").read_text(encoding="utf-8"))
-    bucket = os.environ["DATA_SYNC_BUCKET"]
-    s3 = s3_client_from_env()
+    if client is None:
+        bucket = os.environ["DATA_SYNC_BUCKET"]
+        client = s3_client_from_env()
+    s3 = client
     import hashlib
     vp = f"{PREFIX}v{a.version}/"
-    try:
-        prev = json.loads(s3.get_object(Bucket=bucket, Key=f"{PREFIX}manifest.json")["Body"].read())
-    except Exception:  # noqa: BLE001 - the first manifest
-        prev = None
+    prev = read_manifest(s3, bucket)
     names = serve if a.stage == "all" else [s for s in a.test.split(",") if s in serve]
     recs = {sym: json.loads((root / "joined" / f"{sym}.json").read_text(encoding="utf-8")) for sym in serve}
     hashes = {sym: hashlib.sha256(payload_body(recs[sym])).hexdigest() for sym in names}
+    # ⭐ U5c: a previous manifest without `hashes` (the live v1) would make every symbol read as changed and re-epoch all
+    # of them; derive the missing hashes from what was PUBLISHED. A symbol that cannot be read is refused, never
+    # silently re-epoched.
+    derived, failed = published_hashes(prev, s3, bucket, names)
+    if derived:
+        prev = {**prev, "hashes": {**derived, **(prev.get("hashes") or {})}}
     p = plan(prev, a.version, names, hashes)
+    report = {**moved(prev, p, a.version), "hash_derived": len(derived), "hash_unreadable": failed}
+    # ⛔ FAIL CLOSED ON RETIREMENT (2026-11-21): a symbol the previous manifest served and this one does not
+    # leaves rebuild serving (back to the stored series, its history_rev re-epoched). The live dry run that day
+    # found a serve list 15 symbols behind the live manifest: a v2 from it would have retired them silently.
+    # Refused unless --allow-retire names EXACTLY those symbols (the revert drill names its own).
+    allowed = {x.strip().upper() for x in (a.allow_retire or "").split(",") if x.strip()}
+    retiring = set(report["retired_now"])
+    report["retire_refused"] = None if retiring == allowed else (
+        f"refused: this plan retires {sorted(retiring)} but --allow-retire names {sorted(allowed)} "
+        "(they must match exactly)")
+    print("plan", json.dumps(report), flush=True)
+    if a.dry:
+        return report
+    if report["retire_refused"]:
+        raise SystemExit(report["retire_refused"])
+    if failed:
+        raise SystemExit(f"refused: the published payload of {len(failed)} listed symbols could not be read "
+                         f"({failed[:8]}); they would re-epoch. Re-run, or retire them deliberately.")
     end = None
     t0 = time.time()
     for k, sym in enumerate(serve):
@@ -102,9 +177,11 @@ def main(argv=None) -> int:
                 "stage": a.stage, **p}
     s3.put_object(Bucket=bucket, Key=f"{PREFIX}manifest.json", Body=json.dumps(manifest).encode("utf-8"),
                   ContentType="application/json", CacheControl="no-store")
-    print("manifest", {k: (v if k != "symbols" else len(v)) for k, v in manifest.items()}, "serving", names[:12])
-    return 0
+    print("manifest", {k: (v if k not in ("symbols", "revs", "hashes", "retired") else len(v)) for k, v in manifest.items()},
+          "serving", names[:12])
+    return report
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
+    sys.exit(0)

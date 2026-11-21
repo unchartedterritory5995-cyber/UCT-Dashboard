@@ -1,0 +1,51 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "objects unit A6: a drawing made in one arm of `?:` in a function body, on a test over the frame's parameters, is lowered as the taken arm in the copy compiled for a call site that fixes them (C35 frameConsts, pineRuntimeFrontend.js::fixedFrameTestOf); the shared frame names the parameter (drawArmParam) so the call site can fix it; a per-bar argument keeps the refusal naming the parameter; a getter in an arm stays served.",
+ "mutants": [
+  {
+   "id": "A6-1",
+   "mutant": "the copy never folds the test with its fixed parameters",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (fixedHere !== null) return lowerExpr(fixedHere ? node.yes : node.no, scope)",
+   "to": "          if (false) return lowerExpr(fixedHere ? node.yes : node.no, scope)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a6ArmDrawFixedParam.test.js",
+   "expectRed": "calls passing an input at true draw their line and label"
+  },
+  {
+   "id": "A6-2",
+   "mutant": "the shared frame's refusal does not name the parameter for the call site",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            err.drawArmParam = true",
+   "to": "            err.drawArmParamUnread = true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a6ArmDrawFixedParam.test.js",
+   "expectRed": "calls passing an input at true draw their line and label"
+  },
+  {
+   "id": "A6-3",
+   "mutant": "the call site never compiles the copy for a drawing held in an arm",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    const heldDrawArm = !!held && held.drawArmParam === true && held.guard === 'runtime:object-op'",
+   "to": "    const heldDrawArm = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a6ArmDrawFixedParam.test.js",
+   "expectRed": "calls passing an input at true draw their line and label"
+  },
+  {
+   "id": "A6-4",
+   "mutant": "a per-bar argument's refusal loses its sentence (falls to the window-size one)",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (err.drawArmParam === true) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a6ArmDrawFixedParam.test.js",
+   "expectRed": "a per-bar argument keeps the refusal, now naming the parameter"
+  },
+  {
+   "id": "A6-5",
+   "mutant": "a getter in an arm is held like a drawing that makes something",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        && Object.prototype.hasOwnProperty.call(OBJECT_OPS, n.name) && !isArmSafeObjectOp(n.name)) return n.name",
+   "to": "        && Object.prototype.hasOwnProperty.call(OBJECT_OPS, n.name)) return n.name",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/a6ArmDrawFixedParam.test.js",
+   "expectRed": "a GETTER in an arm makes nothing"
+  }
+ ]
+}

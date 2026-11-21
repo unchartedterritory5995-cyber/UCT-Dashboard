@@ -172,14 +172,17 @@ describe('a Notebook chart block clears --tap-min on phone AND tablet (wave 14, 
     const open = STOCK_JSX.indexOf('{chipMenu && (() => {')
     const shut = STOCK_JSX.indexOf('})()}', open)
     expect(open).toBeGreaterThan(0)
-    // The component whose render holds that block, derived from where the block IS (it was `StockChart` until #2278
-    // moved the body into `StockChartBody`; a hard-coded name went red on that split, 2026-11-21).
-    const popoverHost = enclosingFunction(open)
-    expect(popoverHost, 'the chip popover block sits inside a named component').toBeTruthy()
+    // ⛔ The function that HOLDS the popover block is DERIVED, never named. This read
+    // `host === 'StockChart'`, and #2278 (7297f69f3f, 2026-11-20) moved the chart's body into
+    // `StockChartBody` behind a `StockChart` shell: every page site then read as "outside" and
+    // this went red. #2278 was reverted (104db22eb5) to be landed again; either shape answers here.
+    const POPOVER_HOST = enclosingFunction(open)
+    expect(POPOVER_HOST, 'the popover block sits inside a top-level function').toBeTruthy()
+    expect(POPOVER_PAGES).not.toContain(POPOVER_HOST)
     for (const name of POPOVER_PAGES) {
       for (const m of STOCK_JSX.matchAll(new RegExp(`<${name}\\b`, 'g'))) {
         const host = enclosingFunction(m.index)
-        const inPopover = host === popoverHost ? (m.index > open && m.index < shut) : POPOVER_PAGES.includes(host)
+        const inPopover = host === POPOVER_HOST ? (m.index > open && m.index < shut) : POPOVER_PAGES.includes(host)
         expect(inPopover, `<${name}> rendered by ${host} at offset ${m.index}, outside the chip popover`).toBe(true)
       }
     }

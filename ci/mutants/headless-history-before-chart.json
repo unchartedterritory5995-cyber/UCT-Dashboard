@@ -1,0 +1,42 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "(A), coordinator ruling 2026-11-20 (fix/headless-history-before-chart): the headless lane reports history:before-chart PER OUTPUT (withheld: [{code, bars}], from the plot's __withheldBars, written by interpret.js::historyBeforeChartMask) and computes the script, where every named chart-clock row refused it whole; every other chart-clock code, and a named plot with no per-bar column, still refuses.",
+ "mutants": [
+  {
+   "id": "HB1",
+   "mutant": "headless: every named chart-clock row refuses the whole script again (the filter dropped)",
+   "file": "app/src/components/chart/engine/headlessCompute.js",
+   "from": "    .filter((p) => !(PER_BAR_CLOCK_CODES.has(w.code) && perBar[p] && perBar[p][w.code]))",
+   "to": "    .filter(() => true)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessHistoryBeforeChart.test.js",
+   "expectRed": "computes off the listing"
+  },
+  {
+   "id": "HB2",
+   "mutant": "interpret: the per-bar column never written (the headless lane then fails closed and refuses)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "    const sink = opts.withheldBarsSink\n    if (sink && typeof sink.set === 'function') {\n      const taken = new Float64Array(mask.length)",
+   "to": "    const sink = null\n    if (sink && typeof sink.set === 'function') {\n      const taken = new Float64Array(mask.length)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/inspect/inspectHistoryBeforeChart.test.js",
+   "expectRed": "computed, every bar shown except the named ones"
+  },
+  {
+   "id": "HB3",
+   "mutant": "headless: every chart-clock code read as per-bar (the control's whole withholding no longer refuses)",
+   "file": "app/src/components/chart/engine/headlessCompute.js",
+   "from": "    .filter((p) => !(PER_BAR_CLOCK_CODES.has(w.code) && perBar[p] && perBar[p][w.code]))",
+   "to": "    .filter(() => false)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessHistoryBeforeChart.test.js",
+   "expectRed": "CONTROL"
+  },
+  {
+   "id": "HB4",
+   "mutant": "interpret: a bar already blank counted as taken (the count names bars nothing was drawn on)",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "        taken[i] = mask[i] && (column === undefined || column === null || Number.isFinite(column[i])) ? 1 : 0",
+   "to": "        taken[i] = mask[i] ? 1 : 0",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/headlessHistoryBeforeChart.test.js",
+   "expectRed": "a bar already blank is not counted"
+  }
+ ]
+}

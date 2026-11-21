@@ -160,7 +160,7 @@ def test_GT_D2_a_runtime_document_over_the_RUNTIME_cap_is_refused_by_name(store,
     pad = rt.RUNTIME_MAX_DEFINITION_BYTES - _blob_size(d) + 64
     d["meta"]["description"] = (d["meta"].get("description") or "") + "x" * pad
     assert _blob_size(d) > rt.RUNTIME_MAX_DEFINITION_BYTES
-    with pytest.raises(ValueError, match=rf"definition exceeds {rt.RUNTIME_MAX_DEFINITION_BYTES} bytes"):
+    with pytest.raises(ValueError, match=rf"too large to keep: .* a saved indicator may hold at most {rt.RUNTIME_MAX_DEFINITION_BYTES}\. Nothing was saved"):
         svc.save(USER, d["id"], d)
     assert svc.get(USER, d["id"]) is None
 
