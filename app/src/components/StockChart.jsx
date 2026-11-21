@@ -9205,6 +9205,9 @@ function StockChartBody({
   // changing it, so SP:SPX was held 600 bars deep and the RS line was blank on every older bar. The loaded row count
   // (`barCountRef`, set where the rows are bound) is read after each render and kept only when it crosses a ladder
   // rung (`heldSpanFor`), so a filling chart refetches a few times, never once per fill step.
+  // ⭐ (2026-11-20) …and NO ROWS IS NOT A DEPTH. Between a symbol switch and its bars the chart holds no rows, and
+  // reading that 0 dropped the held span to the bottom rung and back up a render later: two re-renders of the whole
+  // chart on every switch, for a span that ended where it started. A chart with no rows keeps the span it had.
   const [_heldLoaded, _setHeldLoaded] = useState(0)
   const _heldSpan = heldSpanFor(_heldLoaded, barCount)
   // ⭐⭐ (e91, the e88 in-session capture) — AND THE SESSIONS THOSE BARS SPAN (`heldSessionsRef`, counted on the exchange
@@ -9213,9 +9216,10 @@ function StockChartBody({
   const [_heldSessions, _setHeldSessions] = useState(0)
   useEffect(() => {
     const loaded = barCountRef.current
-    if (heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
+    // (a chart with no rows keeps both: the sessions of no rows are no sessions, the same false dip)
+    if (loaded > 0 && heldSpanFor(loaded, 0) !== heldSpanFor(_heldLoaded, 0)) _setHeldLoaded(loaded)
     const rung = heldSessionsRung(heldSessionsRef.current)
-    if (rung !== _heldSessions) _setHeldSessions(rung)
+    if (loaded > 0 && rung !== _heldSessions) _setHeldSessions(rung)
   })
   // ⭐⭐ (2026-11-19, e83 live) — and the symbol BINDING the run is handed (`symbolMeta`), so the own-daily question
   // is asked of the script as the run builds it (Fred RS branches on `syminfo.industry`)
@@ -10622,7 +10626,14 @@ function StockChartBody({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chartReady, cs.showMaLabels, hideLastValue, cs.showPriceLabels])
   // Re-evaluate on a bar-set change (new bar / symbol / tf) without re-subscribing.
-  useEffect(() => { try { visLabelApplyRef.current?.() } catch { /* */ } }, [filteredBars])
+  // ⭐ (2026-11-20) IN THE NEXT FRAME, NOT AT THE COMMIT. A switch to a row with more bars commits its bars before the
+  // chart has framed them: read then, the old view's right edge sat left of the new last bar, `lastBarOff` flipped true
+  // and back a frame later, and each flip re-rendered the whole chart (`StockChart.switchStateRenders.test`). The view's own
+  // range change already re-evaluates in a frame (`onRange`); a new bar set waits for the same frame.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => { try { visLabelApplyRef.current?.() } catch { /* */ } })
+    return () => cancelAnimationFrame(raf)
+  }, [filteredBars])
 
   // Right-axis session tags — green locked at the last RTH close (from the pure
   // regular-session bars) + orange Pre/Post tag at the live ext price. Merged
@@ -19321,9 +19332,15 @@ function StockChartBody({
     // nudge + crosshair skitter). Deep history still loads on PAN (the pan-backfill above),
     // where a re-anchor is natural. D/W/M keep the dwell (a no-op for daily anyway). Inert at PCT=0.
     if (isIntraday && _intradaySmoothSwitchEnabled()) return undefined
+    // ⭐ (2026-11-20) ON THE BAR STORE A DEPTH THE REQUEST ALREADY HAS IS A RENDER FOR NOTHING. The snapshot hook reads
+    // the depth only as `barCount`, and a D/W/M chart that first-paints its full depth (`_deepFirstPaint`) already asks
+    // for `_fullTarget`: the bump moved `fetchDepth` 600 -> 12,500, changed no request, and re-rendered the chart 900 ms
+    // after every daily switch (and again at the next switch's reset). The legacy source reads `fetchDepth` itself
+    // (`fetchDepth > _fpBars` forces a full fetch), so it keeps the bump.
+    if (BARSTORE && barCount >= _fullTarget) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff, isIntraday])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff, isIntraday, barCount])
 
   // ⭐⭐ B1P — A GRID CELL'S DAILY SERIES DEEPENS TO THE LISTING, BOUNDED.
   // A grid cell (`backgroundWarm={false}`) first-paints FIRST_PAINT_BARS and never
