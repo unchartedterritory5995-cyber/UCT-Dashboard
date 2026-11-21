@@ -42,7 +42,8 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 OUT_PATH = _ROOT / "api" / "data" / "bars_ordinal_census.json"
-SCHEMA_VERSION = 1
+#: 2 (2026-11-20): the checked-in census no longer records the volatile fields (`stable`)
+SCHEMA_VERSION = 2
 
 #: The bars-family functions this census tracks. Extendable (per the approved
 #: scope) if a fourth function returning the same shape is ever added to
@@ -353,8 +354,25 @@ def census() -> dict:
     }
 
 
+#: Fields the sweep reports but the CHECKED-IN census does not record: a source line, and how many modules were walked.
+#: ⚰️ 2026-11-17 -> 11-20 the census was red the day after its last regeneration because ONE module was ADDED
+#: anywhere under api/ (`modules_scanned` 2360 -> 2361, #1709), and every line shift in a scanned module did the
+#: same, so tools/bars_gate_rails.py excluded it ("gate it once the census compares classifications, not line
+#: numbers"). What the census holds is WHICH modules call the bars family, what they call, and how they read it.
+VOLATILE_FIELDS = ("line", "modules_scanned")
+
+
+def stable(data):
+    """`data` without `VOLATILE_FIELDS`, at any depth: the form the census is checked in, and compared, as."""
+    if isinstance(data, dict):
+        return {k: stable(v) for k, v in data.items() if k not in VOLATILE_FIELDS}
+    if isinstance(data, list):
+        return [stable(v) for v in data]
+    return data
+
+
 def _dumps(data: dict) -> str:
-    return json.dumps(data, indent=2, ensure_ascii=False, sort_keys=False) + "\n"
+    return json.dumps(stable(data), indent=2, ensure_ascii=False, sort_keys=False) + "\n"
 
 
 def main(argv=None) -> int:
