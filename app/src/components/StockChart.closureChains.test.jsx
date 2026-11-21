@@ -215,7 +215,7 @@ describe("a symbol switch keeps none of the outgoing symbol's data alive (closur
   // renders), and every link carries that render's `bars`, `filteredBars`, `displayBars`,
   // `sessionAppliedBars` and `sessionBars`, so the old symbols' LEGACY copies survive. This strict form turns
   // on with that refactor (the heavy arrays read through refs at use time, so no closure captures them).
-  it.skip('STRICT, pending the heavy-locals refactor: nothing of the first four symbols survives, legacy copies included', async () => {
+  it('STRICT: nothing of the first four symbols survives, legacy copies included', async () => {
     const report = await walk({ tf: 'D', settings: {} })
     for (const r of report) expect(r.watched).toBeGreaterThanOrEqual(3)
     expect(report.map((r) => lineOf(r, () => true))).toEqual(report.map((r) => `${r.sym}: none`))
