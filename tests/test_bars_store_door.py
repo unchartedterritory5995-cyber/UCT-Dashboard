@@ -212,3 +212,73 @@ def test_store_keeps_after_the_rebuild_end_reach_the_clamp(tmp_path, monkeypatch
         R._cache.clear()
         K._state.update(version=0, symbols=frozenset(), retired=frozenset(), loaded=False)
         K._cache.clear()
+
+
+# ── twice = once (coordinator review of #2265) ─────────────────────────────────────────────────────────────
+def test_door_then_serve_equals_one_application_and_counts_once(store, tmp_path):
+    """A stored row passes the read door AND sanitize_daily_bars' own apply. Compare-and-set makes the second a no-op:
+    sets, drops, keep_wick and chk give exactly what ONE application gives, and nothing is counted twice."""
+    from api.services import bars_fetch as F
+    from api.services import bars_sanitize as S
+    filler = DAYS[5].isoformat()
+    bars_sqlite.put_bars("SPY", "D", [{"t": filler, "o": 120.0, "h": 120.0, "l": 120.0, "c": 120.0, "v": 0}], date_tf=True)
+    other = DAYS[10].isoformat()
+    ents = [{"tf": "D", "src": "store", "d": ISO, "op": "set", "f": {"l": [112.09, 119.57]}, "chk": {"c": 119.63}},
+            {"tf": "D", "src": "store", "d": filler, "op": "drop", "old": [120.0, 120.0, 120.0, 120.0, 0]},
+            {"tf": "D", "src": "store", "d": other, "op": "set", "f": {"h": [121.0, 120.9]}, "chk": {"c": 99.0}},  # chk refuses
+            {"tf": "D", "src": "store", "d": DAYS[15].isoformat(), "op": "keep_wick", "field": "l", "value": 119.0}]
+    (tmp_path / "bars_corrections" / "v5").mkdir(parents=True)
+    (tmp_path / "bars_corrections" / "v5" / "SPY.json.gz").write_bytes(K.encode_payload("SPY", 5, ents))
+    (tmp_path / "bars_corrections" / "manifest.json").write_text(json.dumps({"version": 5, "symbols": ["SPY"]}))
+    assert K.load_local()
+    with K.raw_reads():
+        raw = bars_sqlite.get_bars("SPY", "D", 100)
+    once = K.apply_rows("SPY", "D", raw)
+    K._counts.clear()
+    door = bars_sqlite.get_bars("SPY", "D", 100)
+    assert door == once
+    served = S.sanitize_daily_bars("SPY", F._fmt_sqlite_bars(door, "D", None), "D")      # the serve path's own apply
+    expect = S._clamp_wicks(F._fmt_sqlite_bars(once, "D", None), K.keep_wicks("SPY", "store"))
+    assert [b["t"] for b in served] == [b["t"] for b in expect] and served == expect
+    assert K._counts["set_applied"] == 1 and K._counts["drop_applied"] == 1
+    assert K._counts["set_missed_field"] == 0                 # the second pass counts "already", never a miss
+
+
+# ── every writer, named (coordinator review of #2265) ──────────────────────────────────────────────────────
+#: Paths that WRITE bars and how each stays raw. The R2 snapshot writer and the restore read ohlcv with SQL of
+#: their own and never touch the door, so a published correction can never be baked into a snapshot.
+DIRECT_SQL_NEVER_THE_DOOR = ("api/services/data_sync.py", "api/services/bars_restore.py",
+                             "api/services/bars_reconciliation.py", "api/services/bars_live_store.py")
+
+
+@pytest.mark.parametrize("rel", DIRECT_SQL_NEVER_THE_DOOR)
+def test_the_snapshot_writer_and_its_kin_never_read_the_door(rel):
+    calls = door_calls(ast.parse((REPO / rel).read_text(encoding="utf-8")))
+    assert calls == [], f"{rel} reads the store door: a correction could be written into a snapshot or a row"
+
+
+# ── threads (coordinator review of #2265) ──────────────────────────────────────────────────────────────────
+THREAD_HOPS = re.compile(r"\.submit\(|run_in_executor|\bThread\(|to_thread\(|\.map\(")
+
+
+def raw_blocks_that_hop(root=REPO):
+    """raw_reads() is a ContextVar: it does not follow into an executor or a new thread. Any `with ...raw_reads():`
+    block that hands work to one is named."""
+    bad = []
+    for p in sorted((root / "api").rglob("*.py")):
+        src = p.read_text(encoding="utf-8", errors="ignore")
+        if "raw_reads" not in src:
+            continue
+        for n in ast.walk(ast.parse(src)):
+            if isinstance(n, ast.With) and any("raw_reads" in ast.unparse(i.context_expr) for i in n.items):
+                body = "\n".join(ast.unparse(b) for b in n.body)
+                if THREAD_HOPS.search(body):
+                    bad.append(f"{p.relative_to(root).as_posix()}:{n.lineno}")
+    return bad
+
+
+def test_no_raw_block_hands_its_read_to_another_thread(tmp_path):
+    assert raw_blocks_that_hop() == []
+    (tmp_path / "api").mkdir()
+    (tmp_path / "api" / "x.py").write_text("def f(pool, K):\n    with K.raw_reads():\n        pool.submit(print)\n")
+    assert raw_blocks_that_hop(tmp_path) == ["api/x.py:2"]

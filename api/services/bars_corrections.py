@@ -286,6 +286,8 @@ def _set(bar: dict, e: tuple) -> Optional[dict]:
         if _eq(bar.get(f), old):
             nb = nb or dict(bar)
             nb[f] = new
+        elif _eq(bar.get(f), new):
+            _counts["set_already"] += 1          # a second pass (door, then serve) over a corrected bar: not a miss
         else:
             _counts["set_missed_field"] += 1
     if nb is not None and not _consistent(nb):
