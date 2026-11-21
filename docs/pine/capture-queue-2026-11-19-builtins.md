@@ -52,6 +52,13 @@ multi-timeframe-vwap-v5, orb.
 | Q-BI-ASIN | `vw-bi-asin.pine` (c0d0271e39bb0fbd) | AMEX:SPY 1D from the listing | no | every row on every bar | the LAST BIT of `math.asin`, served from the reference sentence as `Math.asin` (as `math.acos` is): A1 against `Math.asin` exactly |
 | Q-BI-ASIN4 | `vw-bi-asin-v4.pine` (1166df025c88db59) | AMEX:SPY 1D from the listing | no | the same | the v4 bare `asin` (committed:screener-mean-reversion-channel's `2 * asin(1)`) |
 
+⚠️ **WHAT WAS RECORDED for Q-BI-TC2-a (2026-11-21 audit, #2134):** it asked for extended hours off, and its capture
+`vw-bi-time-close-2arg-spy-60-2026-11-19` recorded **EXTENDED hours** (`symbol.session` `0400-2000`). The rig layout
+was extended-hours and the batch did not read the session. TC2-a is not answered as asked: the capture shows
+`time_close(tf, session)` on extended-hours 60m bars only, and no claim about regular-hours bars may be drawn from it.
+The regular-hours re-take is owed on the rig's regular-hours layout. (The probe header says "extended hours off".
+Its bytes are the capture's `source.sha256`, so it is corrected here.)
+
 ## Not asked here (no capture row)
 
 Nothing below is a row of this queue: each is listed so it is not asked again.
