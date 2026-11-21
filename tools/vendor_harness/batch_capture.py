@@ -23,7 +23,9 @@ the window this tool opens, and every later step is this process.
     fresh `Create new > Indicator` buffer, and the add is gated on the corrected
     BINDING GATE (own-text `Add to chart` exactly once, `Update on chart` never),
     checked in Python AND again inside the same page evaluation as the click.
-    A gate that refuses NEVER clicks.
+    A gate that refuses NEVER clicks. The click is the editor dialog's OWN
+    button (`#pine-editor-dialog`), and each menu row is a `[role="menuitem"]`
+    of an open menu: exactly one, uncovered, or nothing (`rig_controls.js`).
   * saves anything, or calls `chart.exportData()` (plan-gated).
   * records the account name, or an unsalted hash of it: provenance keeps HMAC-SHA256 of the
     name under a LOCAL salt (`$UCT_PROVENANCE_SALT`, >= 16 characters), or `no-salt` without one.
@@ -332,16 +334,21 @@ RIG_VIEWPORT = {"width": 1760, "height": 1000}
 #: before it decides. Read the instant the fresh model appears, it counted 0 / 0 (2026-11-16).
 BINDING_SETTLE_S = 15.0
 
-#: A visible menu row by OWN text; `a.rightOf` picks a submenu row to the right.
-MENU_ITEM_JS = r"""(a) => {
-  const own = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ').trim();
-  const hits = [...document.querySelectorAll('*')].filter((el) => {
-    if (own(el) !== a.text) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0;
-  }).map((el) => el.getBoundingClientRect());
-  const ok = a.rightOf ? hits.filter((r) => r.left >= a.rightOf.right - 8) : hits;
-  if (!ok.length) return { ok: false, found: hits.length };
-  const r = ok[0];
-  return { ok: true, x: r.left + r.width / 2, y: r.top + r.height / 2, rect: { left: r.left, right: r.right, top: r.top, bottom: r.bottom } };
+#: ⭐⭐ THE ONE CONTROL A STEP CLICKS, FOUND INSIDE ITS CONTAINER (patrick-54's review, coordinator ruling 2026-11-21):
+#: `rig_controls.js` (one function expression; its leading comment dropped), railed over the rig's recorded DOM in
+#: app/src/components/chart/engine/__tests__/vendorHarness/rigControls.test.js. A menu row is a `[role="menuitem"]`
+#: inside an open `[role="menu"]`; `Add to chart` is inside `#pine-editor-dialog`; exactly one visible control of the
+#: text, which a pointer at its centre would hit, or NOTHING is clicked (`STOP` when it found several, or a covered one).
+#: ⚰️ Both searched own text over the WHOLE page and took the first hit: one attempt clicked an unrelated "Save" behind
+#: a modal ("Save" has 4 own-text matches on the rig page, 2026-11-21 04:10Z, `D:/uct-rig-facts/dom_facts_2026-11-21.json`).
+_RIG_CONTROLS_SRC = (HERE / "rig_controls.js").read_text(encoding="utf-8")
+CONTROL_FINDER_JS = _RIG_CONTROLS_SRC[_RIG_CONTROLS_SRC.index("(a) =>"):].strip()
+
+#: A visible menu row by OWN text inside an open menu (`rig_controls.js`, `within: 'menu'`); `a.rightOf` picks a submenu
+#: row to the right of the row that opened it. Read only: the Driver moves and clicks the REAL pointer at `x, y`.
+MENU_ITEM_JS = "(a) => {\n  const f = (" + CONTROL_FINDER_JS + r""")({ text: a.text, rightOf: a.rightOf, within: 'menu' });
+  if (!f.ok) return { ok: false, STOP: !!f.STOP, found: f.found, covered: !!f.covered, why: f.why };
+  return { ok: true, x: f.x, y: f.y, rect: f.rect };
 }"""
 
 #: WRITE (the unsaved buffer only), behind the pre-write gate IN THE SAME
@@ -366,12 +373,11 @@ ADD_JS = r"""() => {
   const gate = (""" + BINDING_JS + r""")();
   const vis = document.visibilityState;
   if (vis !== 'visible' || !gate.gate) return { STOP: true, vis, gate };
-  const own = (el) => [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(' ').trim();
-  const el = [...document.querySelectorAll('button, a, [role="button"], div, span')].find((e) => {
-    const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && !e.disabled && own(e) === 'Add to chart';
-  });
-  if (!el) return { STOP: true, vis, gate, why: 'the gated control vanished before the click' };
-  el.click();
+  // ⭐⭐ the ONE `Add to chart` inside the Pine editor dialog (`rig_controls.js`): the gate above counts the whole page
+  // (exactly one, no `Update on chart`), and the click is the dialog's own button or nothing
+  const f = (""" + CONTROL_FINDER_JS + r""")({ text: 'Add to chart', within: 'editor' });
+  if (!f.ok) return { STOP: true, vis, gate, found: f.found, covered: !!f.covered, why: f.why };
+  f.el.click();
   return { clicked: true, vis, gate };
 }"""
 
@@ -850,6 +856,18 @@ def throttle_refusal(throttle_s) -> str | None:
     return None
 
 
+def menu_answered(r) -> bool:
+    """A menu-row read that settles the poll: the one row, or a STOP (several rows, or a covered one)."""
+    return bool(r and (r.get("ok") or r.get("STOP")))
+
+
+def menu_refusal(r, text: str) -> None:
+    """⛔ A menu read that STOPPED (`rig_controls.js`: several rows of the text in the open menus, or one another element
+    covers) fails the row by name before the pointer touches any row."""
+    if r and r.get("STOP"):
+        raise GateFailed(f"the menu row `{text}` was not clicked: {r.get('why')}", r)
+
+
 def capture_id_for(script: dict, o: Opts) -> str:
     """⭐ THE capture id the driver writes for `script` on the chart `o` names (`Driver.opts_for`):
     `<captureStem>-<sym>-<tf>-<yyyy-mm-dd>`, then `-<capturePhase>` when the manifest entry carries one. ONE authority:
@@ -1323,15 +1341,17 @@ class Driver:
         self.step("click:title")
         self.page.mouse.click(title["x"], title["y"])
         self.menu_open = True
-        cn, ok = self.poll("menu:Create new", MENU_ITEM_JS, {"text": "Create new"},
-                           lambda r: bool(r and r.get("ok")), self.opts.ui_timeout_s)
+        cn, ok = self.poll("menu:Create new", MENU_ITEM_JS, {"text": "Create new"}, menu_answered,
+                           self.opts.ui_timeout_s)
+        menu_refusal(cn, "Create new")
         if not ok:
             raise Inconclusive("the script-title menu showed no `Create new` row")
         self.step("hover:Create new")
         self.page.mouse.move(cn["x"], cn["y"])
         self.clock.sleep(0.8)
         ind, ok = self.poll("menu:Indicator", MENU_ITEM_JS, {"text": "Indicator", "rightOf": cn["rect"]},
-                            lambda r: bool(r and r.get("ok")), self.opts.ui_timeout_s)
+                            menu_answered, self.opts.ui_timeout_s)
+        menu_refusal(ind, "Indicator")
         if not ok:
             raise Inconclusive("`Create new` opened no `Indicator` row (the submenu needs a real hover)")
         self.step("click:Indicator")

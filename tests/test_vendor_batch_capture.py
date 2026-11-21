@@ -1218,3 +1218,73 @@ def test_the_search_table_is_the_measured_one_and_only_pine_ids_are_added():
             bc.builtin_spec(row)
     # an unmeasured id that names its own search is allowed: its first live run is the proof (the pre-click gate)
     assert bc.builtin_spec({"slug": "e", "builtin": {"id": "STD;Not_Measured", "search": "Not Measured"}})["search"] == "Not Measured"
+
+
+# ── the controls a step clicks: inside their containers, exactly one (patrick-54's review, coordinator 2026-11-21) ─────
+# ⚰️ The menu rows and `Add to chart` were searched by own text over the whole page and the first hit taken; one attempt
+# clicked an unrelated "Save" behind a modal. The finder is `rig_controls.js` (railed over the rig's recorded DOM in
+# vendorHarness/rigControls.test.js); these rails hold the DRIVER to it on the double, which models the containers.
+def _one_script(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    return manifest, bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+
+
+def _pointer_at(page, xy):
+    return [k for k, n, _ in page.calls if k in ("click", "move") and n == f"{xy[0]:.0f},{xy[1]:.0f}"]
+
+
+def test_an_add_to_chart_outside_the_editor_dialog_is_never_clicked(tmp_path):
+    manifest, page = _one_script(tmp_path)
+    # the dialog lost its own button and a modal holds one: the page holds EXACTLY ONE, so the binding gate passes
+    page.add_in_dialog, page.add_outside = False, 1
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["x"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "nothing clicked" in res["reason"] and "no visible 'Add to chart' in #pine-editor-dialog" in res["reason"]
+    assert page.adds == [("add", False)] and not page.studies              # nothing was added
+    # ✅ CONTROL: with its own button the dialog's add is clicked, and the row is captured
+    manifest2, page2 = _one_script(tmp_path / "b")
+    _, rd2, _ = bd.run(page2, manifest2, tmp_path / "b" / "run", bd.fast_opts())
+    assert rd2.results()["x"]["outcome"] == bc.CAPTURED and page2.adds == [("add", True)]
+
+
+def test_a_covered_add_to_chart_is_never_clicked(tmp_path):
+    manifest, page = _one_script(tmp_path)
+    page.covered.add("Add to chart")
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["x"]
+    assert res["outcome"] == bc.GATE_FAILED and "covered at its centre" in res["reason"], res
+    assert page.adds == [("add", False)] and not page.studies
+
+
+def test_two_create_new_rows_stop_the_row_before_the_pointer_touches_either(tmp_path):
+    manifest, page = _one_script(tmp_path)
+    page.menu_rows["Create new"] = 2
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["x"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "the menu row `Create new` was not clicked: 2 visible 'Create new' in an open menu" in res["reason"]
+    assert not _pointer_at(page, bd.CREATE_XY) and not _pointer_at(page, bd.INDICATOR_XY)
+    assert "SET_SOURCE" not in page.names() and "ADD" not in page.names()
+
+
+def test_a_covered_indicator_row_is_not_clicked(tmp_path):
+    manifest, page = _one_script(tmp_path)
+    page.covered.add("Indicator")
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["x"]
+    assert res["outcome"] == bc.GATE_FAILED and "the menu row `Indicator` was not clicked" in res["reason"], res
+    assert _pointer_at(page, bd.CREATE_XY) == ["move"]                     # hovered `Create new`, as before
+    assert not _pointer_at(page, bd.INDICATOR_XY) and "SET_SOURCE" not in page.names()
+
+
+def test_the_menu_and_add_scripts_evaluate_the_railed_finder_in_its_container():
+    src = (REPO / "tools" / "vendor_harness" / "rig_controls.js").read_text(encoding="utf-8")
+    assert bc.CONTROL_FINDER_JS == src[src.index("(a) =>"):].strip()        # the file vitest rails, verbatim
+    assert bc.CONTROL_FINDER_JS in bc.MENU_ITEM_JS and "within: 'menu'" in bc.MENU_ITEM_JS
+    assert bc.CONTROL_FINDER_JS in bc.ADD_JS and "within: 'editor'" in bc.ADD_JS
+    # ⛔ no whole-page own-text search is left to click from: the gate's count is the only one, and the one click is
+    # the finder's element
+    rest = bc.ADD_JS.replace(bc.BINDING_JS, "").replace(bc.CONTROL_FINDER_JS, "")
+    assert "querySelectorAll" not in rest and "querySelectorAll" not in bc.MENU_ITEM_JS.replace(bc.CONTROL_FINDER_JS, "")
+    assert bc.ADD_JS.count(".click()") == 1 and "f.el.click()" in bc.ADD_JS

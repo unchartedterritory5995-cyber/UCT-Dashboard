@@ -260,7 +260,9 @@ target whose chart was defaulted, whatever statuses a selection asks for.
 
 gate v2.1 -> still signed in -> scratch layout `01f1AcIj` reads 0 studies (else STOP) ->
 the script's own symbol and timeframe set and READ BACK -> `Create new > Indicator` ->
-binding gate -> source through the Monaco handle, buffer sha compared -> Add to chart ->
+binding gate -> source through the Monaco handle, buffer sha compared -> Add to chart (the one button inside
+`#pine-editor-dialog`; each menu row the one `[role="menuitem"]` of the text in an open menu, never one another element
+covers: `tools/vendor_harness/rig_controls.js`, railed over the rig's recorded DOM in `rigControls.test.js`) ->
 compute -> `requestMoreData` until history stops growing -> `tv_capture.js` reads the chart
 model (`metaInfo().plots`, `data()`, `bars()`, `graphics()`, `properties().state()`) ->
 chunks verbatim -> `verify_capture.mjs --assemble` -> cleanup always (remove only the study it
