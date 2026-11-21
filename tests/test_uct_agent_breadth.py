@@ -216,6 +216,8 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     # options.tideHistory / options.oiChange / rates.treasury
     # Terminal data wave 7: the six capabilities over the isolated kinds market.regime / stock.setups / stock.eventsTimeline /
     # uct20.list / options.ivHistory / dilution.watch
+    # Terminal data wave 8: the three capabilities over the isolated kinds stock.corporateActions / calendar.ipos /
+    # calendar.dividends
     assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
                                                      "news.movers", "rs.compare", "stock.analystActions", "stock.sessionHighsLows",
                                                      "stock.longRunLeaders", "stock.darkPoolLevels", "stock.yearlyHighsLows",
@@ -227,7 +229,8 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
                                                      "stock.seasonality", "stock.seasonalityBoard", "stock.tideHistory",
                                                      "stock.oiChange", "stock.treasuryYields",
                                                      "stock.marketRegime", "stock.setups", "stock.eventsTimeline",
-                                                     "stock.uct20List", "stock.ivHistory", "stock.dilutionWatch"}
+                                                     "stock.uct20List", "stock.ivHistory", "stock.dilutionWatch",
+                                                     "stock.splitsDividends", "stock.ipoCalendar", "stock.dividendsCalendar"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════

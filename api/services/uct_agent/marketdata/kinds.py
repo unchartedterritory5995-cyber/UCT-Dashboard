@@ -42,6 +42,11 @@ Terminal data wave 7 (terminal-data): `market.regime`, `stock.setups`, `stock.ev
 `options.ivHistory`, `dilution.watch` — the Agent half of the REGM / TECH (confirmed setups) / EVTS / UCT 20 / IVH /
 DILU surfaces. All six default OFF, all six MODEL-ISOLATED, and none ever starts a compute, a build, a download or
 a vendor request: each reads only what its service or store already holds (MD-1 §4.16).
+
+Terminal data wave 8 (terminal-data): `stock.corporateActions`, `calendar.ipos`, `calendar.dividends` — the Agent half
+of the CACT / IPO / DVD terminal panels. All three default OFF, all three MODEL-ISOLATED, and none ever starts a build
+or a vendor request: each reads only what its service already holds (MD-1 §4.17). The MKTS board gets no kind: its
+figures are live quotes the existing `quotes` and `rates.treasury` kinds already read.
 """
 from __future__ import annotations
 
@@ -59,6 +64,7 @@ from api.services.uct_agent.marketdata import (oi_change_read, seasonality_board
                                                tide_history_read, treasury_read)
 from api.services.uct_agent.marketdata import (dilution_read, events_timeline_read, iv_history_read, regime_read,
                                                setups_read, uct20_read)
+from api.services.uct_agent.marketdata import corporate_actions_read, dividends_calendar_read, ipo_calendar_read
 from api.services.uct_agent.research import rs1
 
 # Symbols one read may name. A request-shape bound per kind, not a toolkit cap: the cap numbers live only
@@ -550,6 +556,47 @@ def register(registry) -> None:
                     "server already holds, never a request to the SEC ('not held' otherwise); as_of is the newest "
                     "filing's day, never the time of the read. Shown to the member only. "
                     f"Params: {{symbol, rows (1-{dilution_read.MAX_ROWS})}}.",
+    ))
+    # Terminal data wave 8 (owner: terminal-data): three more kinds, the Agent half of the CACT, IPO and DVD panels.
+    # Default OFF like every kind (UCT_AGENT_DATA_KINDS); ALL THREE are model-isolated, so each also needs its own
+    # UCT_AGENT_ISOLATED_KINDS entry (ADR-005) and its capability is local-only. None asks a vendor: where the member
+    # route can (the IPO calendar's two vendor reads, the dividend calendar's reference reads), the adapter reads the
+    # held-only reader beside the service and answers `unavailable`, with the reason, when nothing is held (MD-1 §4.17).
+    registry.register(Kind(
+        name=corporate_actions_read.KIND, fn=corporate_actions_read.read_corporate_actions,
+        validate=corporate_actions_read.validate,
+        # declared `periodic` (the record is rebuilt when the chart is opened and it is old); every read is `historical`
+        freshness="periodic", owner="terminal-data", max_symbols=ONE_SYMBOL, model_isolated=True,
+        description="One stock's splits and cash dividends as UCT holds them beside its chart: splits back 45 years "
+                    "and cash dividends back 5 years by ex-date, each block newest first with its own count and newest "
+                    "date; dividend amounts split-adjusted. The name and ticker record is left out. Only the record "
+                    "the server already holds, never a vendor request ('not held' otherwise); as_of is the newest "
+                    "event, never the time of the read. Shown to the member only. "
+                    f"Params: {{symbol, rows (1-{corporate_actions_read.MAX_ROWS} per block)}}.",
+    ))
+    registry.register(Kind(
+        name=ipo_calendar_read.KIND, fn=ipo_calendar_read.read_ipos, validate=ipo_calendar_read.validate,
+        # declared `periodic` (one range is held for at most six hours); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=NO_SYMBOL, model_isolated=True,
+        description="The IPO calendar for the IPO panel's window (last week's Monday to next week's Friday) as UCT "
+                    "holds it, merged from two vendor calendars: each deal's day, company, symbol, exchange, price or "
+                    "range, shares, value and status, today and ahead soonest first, earlier newest first. Only the "
+                    "calendar the server already holds, never a vendor request ('not held' otherwise); the calendars "
+                    "carry no as-of, so as_of is null and the time UCT read them rides beside it, never the time of "
+                    f"the read. Shown to the member only. Params: {{rows (1-{ipo_calendar_read.MAX_ROWS})}}.",
+    ))
+    registry.register(Kind(
+        name=dividends_calendar_read.KIND, fn=dividends_calendar_read.read_dividends,
+        validate=dividends_calendar_read.validate,
+        # declared `periodic` (one stock's answer is held for at most twelve hours); every read is `periodic`
+        freshness="periodic", owner="terminal-data", max_symbols=dividends_calendar_read.MAX_SYMBOLS,
+        model_isolated=True,
+        description="The dividends and splits declared ahead for the stocks named, one stock at a time as UCT holds "
+                    "them: each stock's next ex-dividend date with the cash amount as declared, and every split ahead, "
+                    "soonest first. Never the member's own lists. Only what the server already holds, never a vendor "
+                    "request ('not held' otherwise, per stock); a forward calendar carries no as-of, so as_of is null "
+                    "and the time UCT read each stock rides beside it, never the time of the read. Shown to the member "
+                    f"only. Params: {{symbols (1-{dividends_calendar_read.MAX_SYMBOLS} tickers)}}.",
     ))
     # W2-B1 (agent-rs, RS-1 v1): a COMPOSED kind. It reads the served kinds above (purpose "research", so a
     # model-isolated kind refuses before admission) and the turn's one web search; every fact's figures come from
