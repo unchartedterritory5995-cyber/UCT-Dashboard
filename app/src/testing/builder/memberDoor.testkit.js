@@ -9,7 +9,7 @@
  *  worker boundary), a class instance as its own enumerable fields (an error with its name and message first),
  *  Map/Set/undefined/NaN/-0 tagged, and a second visit of one object as a back-reference, so shared identity is
  *  compared too. Two answers with one canonical text are one answer to every reader. */
-export function canonOf(value) {
+export function canonOf(value, { hidden = false } = {}) {
   const seen = new Map()
   const out = []
   const key = (k, v) => { out.push(JSON.stringify(k), ':'); walk(v); out.push(',') }
@@ -27,6 +27,12 @@ export function canonOf(value) {
     if (Array.isArray(v)) {
       out.push('[')
       for (const x of v) { if (typeof x === 'function') out.push('u'); else walk(x); out.push(',') }
+      if (hidden) {
+        for (const k of Object.getOwnPropertyNames(v)) {
+          if (Object.prototype.propertyIsEnumerable.call(v, k) || k === 'length') continue
+          if (typeof v[k] !== 'function') key(`~${k}`, v[k])
+        }
+      }
       out.push(']')
       return
     }
@@ -43,6 +49,14 @@ export function canonOf(value) {
     for (const k of ks) {
       if (v instanceof Error && (k === 'name' || k === 'message')) continue
       if (typeof v[k] !== 'function') key(k, v[k])
+    }
+    // ⭐ `hidden`: every non-enumerable own property too (marked `~`), so a faithful crossing is compared with what
+    // the synchronous call returned field for field (`memberDoorProtocol.js`)
+    if (hidden && !(v instanceof Error)) {
+      for (const k of Object.getOwnPropertyNames(v)) {
+        if (Object.prototype.propertyIsEnumerable.call(v, k) || (Array.isArray(v) && k === 'length')) continue
+        if (typeof v[k] !== 'function') key(`~${k}`, v[k])
+      }
     }
     out.push('}')
   }
@@ -83,7 +97,8 @@ export class FakeDoorWorker {
     if (this.terminated) return
     if (this.mode === 'die') { if (this.onerror) this.onerror({ message: 'boom', preventDefault() {} }); return }
     if (this.mode === 'garble') { if (this.onmessageerror) this.onmessageerror({}); return }
-    const reply = structuredClone(this.core.answerMemberDoorJob(job))
+    const answer = this.core.answerJobOfKind || this.core.answerMemberDoorJob
+    const reply = structuredClone(answer(job))
     if (!this.terminated && this.onmessage) this.onmessage({ data: reply })
   }
 
@@ -105,4 +120,28 @@ export function fakeDoorWorkers(core, opts = {}) {
     return w
   }
   return { factory, made }
+}
+
+/**
+ * ⭐ THE WORKER'S OWN MODULE GRAPH, for a rail's stand-in worker: a FRESH graph (`vi.resetModules()`) in which the
+ * imports `vite.config.js` resolves differently inside a worker bundle (`scripts/memberDoorWorkerPure.mjs`) resolve as
+ * they do there (each component a pure function was taken through is the pure module), then the worker's handler
+ * (`memberDoorWorkerCore.js`). So a stand-in answers from the graph the real worker has, registrations and all, not
+ * from the page's. `vi` is the calling rail's; returns the handler module.
+ */
+export async function importWorkerCore(vi) {
+  const path = await import('node:path')
+  const fs = await import('node:fs')
+  const { WORKER_PURE_RESOLUTIONS } = await import('../../../scripts/memberDoorWorkerPure.mjs')
+  const app = path.resolve(__dirname, '../../..')
+  const file = (base) => [base, `${base}.js`, `${base}.jsx`].find((x) => fs.existsSync(x) && fs.statSync(x).isFile())
+  vi.resetModules()
+  for (const [importer, table] of Object.entries(WORKER_PURE_RESOLUTIONS)) {
+    for (const [spec, to] of Object.entries(table)) {
+      const dir = path.dirname(path.join(app, importer))
+      const target = file(path.resolve(dir, to))
+      vi.doMock(file(path.resolve(dir, spec)), () => import(target))
+    }
+  }
+  return import('../../components/chart/builder/memberPane/memberDoorWorkerCore.js')
 }

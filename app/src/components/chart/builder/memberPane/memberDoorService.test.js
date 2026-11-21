@@ -28,7 +28,7 @@ import {
 } from '../../engine/runtimeKill'
 import { runtimeLaneWarmAsks } from '../../engine/runtime/runtimeAsync'
 import { __resetRuntimePanePermission, __permitRuntimePaneForTests } from '../../engine/runtimePaneGate'
-import { canonOf, fakeDoorWorkers, FakeDoorWorker } from '../../../../testing/builder/memberDoor.testkit.js'
+import { canonOf, fakeDoorWorkers, FakeDoorWorker, importWorkerCore } from '../../../../testing/builder/memberDoor.testkit.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const corpus = (n) => fs.readFileSync(path.join(REPO, 'corpus/committed', n), 'utf8')
@@ -38,8 +38,7 @@ const STOP_TAKE = corpus('stop-loss-and-take-profit-in-example__YlblCbts4x.pine'
 
 let core = null
 beforeAll(async () => {
-  vi.resetModules()
-  core = await import('./memberDoorWorkerCore.js')
+  core = await importWorkerCore(vi)
 }, 120000)
 beforeEach(() => {
   vi.stubEnv('VITE_PINE_MEMBER_PANE_ENABLED', '1')

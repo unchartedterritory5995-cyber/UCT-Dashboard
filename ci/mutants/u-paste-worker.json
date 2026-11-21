@@ -193,21 +193,84 @@
     },
     {
       "id": "W1",
-      "mutant": "the worker resolver no longer checks the importer: every file's `../BuilderSheet` / `../FormulaField` is aliased in a worker",
+      "mutant": "the worker resolver no longer checks the importer: the first file's specifiers are aliased from every file",
       "file": "app/scripts/memberDoorWorkerPure.mjs",
-      "from": "  if (!normalise(importer).endsWith(`/app/${MEMBER_DOOR_FILE}`)) return null",
-      "to": "  void normalise",
+      "from": "    if (!from.endsWith(`/app/${file}`)) continue",
+      "to": "    void from",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
-      "expectRed": "BuilderSheet from"
+      "expectRed": "../BuilderSheet from"
     },
     {
       "id": "W2",
-      "mutant": "the worker resolver aliases a third specifier",
+      "mutant": "the worker resolver aliases a third specifier from the chart door",
       "file": "app/scripts/memberDoorWorkerPure.mjs",
-      "from": "  '../FormulaField': '../evaluateFormula.js',",
-      "to": "  '../FormulaField': '../evaluateFormula.js',\n  '../pineParamManifest': '../pineParamManifest.js',",
+      "from": "    '../FormulaField': '../evaluateFormula.js',\n",
+      "to": "    '../FormulaField': '../evaluateFormula.js',\n    '../pineParamManifest': '../pineParamManifest.js',\n",
       "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
       "expectRed": "pineParamManifest"
+    },
+    {
+      "id": "W3",
+      "mutant": "the worker's handler no longer loads the run half's object rail: the page's registrations are missing in the worker",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "import '../../engine/runHalfObjectRail.js'\n",
+      "to": "\n",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorWorkerGraph.test.js",
+      "expectRed": "registrations the page makes"
+    },
+    {
+      "id": "F1",
+      "mutant": "the page no longer puts back the non-enumerable properties an answer carried",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorProtocol.js",
+      "from": "  for (const h of hidden) {",
+      "to": "  for (const h of []) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "the worker's report is the main thread's"
+    },
+    {
+      "id": "F2",
+      "mutant": "the worker no longer records the non-enumerable properties of what it answers",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorWorkerCore.js",
+      "from": "  if (!acc || value instanceof Error) return",
+      "to": "  return",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/memberDoorOffThread.test.js",
+      "expectRed": "main thread's"
+    },
+    {
+      "id": "I1",
+      "mutant": "PasteBox's report is computed on the page's main thread again",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (!offThread) {",
+      "to": "    if (!offThread || job.kind === 'inspect') {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "PasteBox reports computed on the MAIN thread"
+    },
+    {
+      "id": "I2",
+      "mutant": "PasteBox never takes the report that landed",
+      "file": "app/src/components/chart/builder/PineBox.jsx",
+      "from": "    if (!landed || inspection.seq === takenSeq.current) return",
+      "to": "    if (landed || !landed) return",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "PasteBox shows the report that landed"
+    },
+    {
+      "id": "I3",
+      "mutant": "the report service reads the plain clone, without the non-enumerable properties put back",
+      "file": "app/src/components/chart/builder/inspectAsync.js",
+      "from": "    if (reply.ok === true) return { report: restoreFaithful({ value: reply.answer, hidden: reply.hidden }), offThread: true, ms: reply.ms }\n    const err",
+      "to": "    if (reply.ok === true) return { report: reply.answer, offThread: true, ms: reply.ms }\n    const err",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/inspectService.test.js",
+      "expectRed": "the worker's report is the main thread's"
+    },
+    {
+      "id": "I4",
+      "mutant": "the editor status panel's status is computed on the page's main thread again",
+      "file": "app/src/components/chart/builder/memberPane/memberDoorAsync.js",
+      "from": "    if (!offThread) {",
+      "to": "    if (!offThread || job.kind === 'editor-status') {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberDoorPerPaste.test.jsx",
+      "expectRed": "editor statuses computed on the MAIN thread"
     }
   ]
 }

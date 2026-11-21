@@ -1,16 +1,16 @@
 // app/src/components/chart/builder/memberPane/memberDoorWorker.js
 //
 // ⭐⭐ THE PASTE WORKER (2026-11-20) — the member door's Web Worker entry (`memberDoorAsync.js` spawns it). The
-// whole job is `memberDoorWorkerCore.answerMemberDoorJob`; this file only wires it to the worker's own
-// messages, so the handler stays importable (and testable) without a worker.
+// whole job is `memberDoorWorkerCore.answerJobOfKind` (a chart door build or PasteBox's report); this file only wires it
+// to the worker's own messages, so the handler stays importable (and testable) without a worker.
 //
 // ⛔ AN ANSWER THAT CANNOT BE POSTED IS SAID, NEVER DROPPED: a structured clone refuses a function, and a
 // door answer that grew one would otherwise leave the page waiting for its watchdog. The page refuses the
 // script by name with the reason (`memberDoorAsync.js`).
-import { answerMemberDoorJob } from './memberDoorWorkerCore.js'
+import { answerJobOfKind } from './memberDoorWorkerCore.js'
 
 self.onmessage = (event) => {
-  const reply = answerMemberDoorJob(event.data)
+  const reply = answerJobOfKind(event.data)
   try {
     self.postMessage(reply)
   } catch (err) {

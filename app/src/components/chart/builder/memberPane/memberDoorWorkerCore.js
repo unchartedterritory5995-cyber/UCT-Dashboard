@@ -20,9 +20,20 @@
 import { memberPaneDefinition, runtimeLaneWarmAsks } from './memberPaneDefinition.js'
 import { applyMemberDoorImage } from './memberDoorImage.js'
 import { recordRuntimeConsults, runtimeConsultPendingOf } from '../../engine/runtimeKill.js'
+import { inspectSource, inspectPine } from '../inspectSource.js'
+import { inspectLibrary } from '../libraryIntake.js'
+import { editorStatus } from '../editorStatus.js'
+import { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, STATUS_JOB, restoreFaithful } from './memberDoorProtocol.js'
 
-/** The message kind a member-door job carries. */
-export const MEMBER_DOOR_JOB = 'member-door'
+export { MEMBER_DOOR_JOB, INSPECT_JOB, INSPECT_LIBRARY_JOB, STATUS_JOB }
+// ⛔⛔ THE REGISTRATIONS A CHART PAGE MAKES WHEN IT LOADS ARE MADE HERE TOO. On the page the door's graph is
+// BuilderSheet's (the binder registers the run half's object rail, `runHalfObjectRail.js`, and with it the host lane's
+// `runtime.error` stop, `runtimeErrorStop.js`); in the worker `vite.config.js` resolves the door's sheet imports to the
+// pure modules, so nothing else would make them, and an answer computed without them is not the page's. Here, in the
+// handler, so a rail's stand-in worker (this module in a fresh graph) holds them as the real worker does. The worker
+// graph holds every load-time registration of the page's door graph that is not a page's own (streams, preferences,
+// drawings): `memberDoorWorkerGraph.test.js`, with a control.
+import '../../engine/runHalfObjectRail.js'
 
 const PASS_THROUGH = (v) => v instanceof Date || v instanceof RegExp || ArrayBuffer.isView(v) || v instanceof ArrayBuffer
 
@@ -37,6 +48,36 @@ const PASS_THROUGH = (v) => v instanceof Date || v instanceof RegExp || ArrayBuf
  * IS; the census proves the page reads the same document and the same status from it.
  */
 export function plainAnswerOf(value, seen = new Map()) {
+  return copyOf(value, seen, null)
+}
+
+/**
+ * ⭐ THE ANSWER AS IT CROSSES, FAITHFULLY (`memberDoorProtocol.js`): `plainAnswerOf`'s copy, plus every NON-ENUMERABLE
+ * own property of an object or array in it (`hidden`: the copy it belongs to, its key, its value copied the same way,
+ * and its descriptor's `writable` / `configurable`), which the page puts back before anyone reads the answer
+ * (`restoreFaithful`). `lost` counts what no clone can carry (a function or an accessor held non-enumerably, a symbol
+ * key); a rail holds it at zero for what the door and PasteBox answer. An error is copied as `plainAnswerOf` copies it.
+ * @returns {{value: any, hidden: object[], lost: number}}
+ */
+export function faithfulAnswerOf(value) {
+  const acc = { hidden: [], lost: 0 }
+  const out = copyOf(value, new Map(), acc)
+  return { value: out, hidden: acc.hidden, lost: acc.lost }
+}
+
+function copyHidden(value, out, seen, acc) {
+  if (!acc || value instanceof Error) return
+  acc.lost += Object.getOwnPropertySymbols(value).length
+  for (const k of Object.getOwnPropertyNames(value)) {
+    if (Object.prototype.propertyIsEnumerable.call(value, k)) continue
+    if (Array.isArray(value) && k === 'length') continue
+    const d = Object.getOwnPropertyDescriptor(value, k)
+    if (!d || !('value' in d) || typeof d.value === 'function') { acc.lost += 1; continue }
+    acc.hidden.push({ node: out, key: k, value: copyOf(d.value, seen, acc), writable: d.writable, configurable: d.configurable })
+  }
+}
+
+function copyOf(value, seen, acc) {
   if (value === null || typeof value !== 'object') return typeof value === 'function' ? undefined : value
   if (seen.has(value)) return seen.get(value)
   if (PASS_THROUGH(value)) return value
@@ -45,20 +86,21 @@ export function plainAnswerOf(value, seen = new Map()) {
     seen.set(value, out)
     for (let i = 0; i < value.length; i += 1) {
       const v = value[i]
-      out.push(typeof v === 'function' ? undefined : plainAnswerOf(v, seen))
+      out.push(typeof v === 'function' ? undefined : copyOf(v, seen, acc))
     }
+    copyHidden(value, out, seen, acc)
     return out
   }
   if (value instanceof Map) {
     const out = new Map()
     seen.set(value, out)
-    for (const [k, v] of value) if (typeof v !== 'function' && typeof k !== 'function') out.set(plainAnswerOf(k, seen), plainAnswerOf(v, seen))
+    for (const [k, v] of value) if (typeof v !== 'function' && typeof k !== 'function') out.set(copyOf(k, seen, acc), copyOf(v, seen, acc))
     return out
   }
   if (value instanceof Set) {
     const out = new Set()
     seen.set(value, out)
-    for (const v of value) if (typeof v !== 'function') out.add(plainAnswerOf(v, seen))
+    for (const v of value) if (typeof v !== 'function') out.add(copyOf(v, seen, acc))
     return out
   }
   const out = {}
@@ -67,8 +109,9 @@ export function plainAnswerOf(value, seen = new Map()) {
   for (const k of Object.keys(value)) {
     const v = value[k]
     if (typeof v === 'function') continue
-    out[k] = plainAnswerOf(v, seen)
+    out[k] = copyOf(v, seen, acc)
   }
+  copyHidden(value, out, seen, acc)
   return out
 }
 
@@ -107,10 +150,13 @@ export function answerMemberDoorJob(msg) {
     } finally {
       recordRuntimeConsults(null)
     }
+    const crossing = faithfulAnswerOf(built)
     return {
       id: m.id,
       ok: true,
-      answer: plainAnswerOf(built),
+      answer: crossing.value,
+      hidden: crossing.hidden,
+      lost: crossing.lost,
       consults: compactConsults(log, source),
       warmed: runtimeLaneWarmAsks() > warm0,
       consultPending: source !== undefined && runtimeConsultPendingOf({ source }),
@@ -126,4 +172,68 @@ export function answerMemberDoorJob(msg) {
       ms: clock() - t0,
     }
   }
+}
+
+/** A job's answer, faithfully, over the page's state: `compute(args)` with the runtime lists' consult log open. */
+function answerJob(m, compute) {
+  const t0 = clock()
+  const args = m.args && typeof m.args === 'object' ? m.args : {}
+  const source = typeof args.source === 'string' ? args.source : undefined
+  const log = []
+  try {
+    applyMemberDoorImage(m.image)
+    recordRuntimeConsults(log)
+    let value
+    try {
+      value = compute(args)
+    } finally {
+      recordRuntimeConsults(null)
+    }
+    const crossing = faithfulAnswerOf(value)
+    return { id: m.id, ok: true, answer: crossing.value, hidden: crossing.hidden, lost: crossing.lost,
+      consults: compactConsults(log, source), ms: clock() - t0 }
+  } catch (err) {
+    return { id: m.id, ok: false, error: { name: (err && err.name) || 'Error', message: String((err && err.message) || err) },
+      consults: compactConsults(log, source), ms: clock() - t0 }
+  }
+}
+
+/**
+ * ⭐ PASTEBOX'S REPORT OF ONE TEXT, off the page's main thread: exactly what PasteBox asks of it
+ * (`dialect` absent -> `inspectPine(source, opts)`, else `inspectSource(source, dialect, opts)`).
+ * @param {{kind: string, id: number, args: {source: string, dialect?: string, opts?: object}, image: object}} msg
+ */
+export function answerInspectJob(msg) {
+  return answerJob(msg || {}, (a) => (a.dialect === undefined || a.dialect === null
+    ? inspectPine(a.source, a.opts == null ? undefined : a.opts)
+    : inspectSource(a.source, a.dialect, a.opts == null ? undefined : a.opts)))
+}
+
+/** ⭐ The report of a paste holding several scripts (`libraryIntake.inspectLibrary`), off the main thread. */
+export function answerInspectLibraryJob(msg) {
+  return answerJob(msg || {}, (a) => inspectLibrary(a.scripts))
+}
+
+/**
+ * ⭐ THE EDITOR STATUS PANEL'S STATUS, off the main thread: `editorStatus` of PasteBox's report and the chart door's
+ * answer, each restored here as faithfully as it reached the page (the page hands on the tables it was given,
+ * `memberDoorProtocol.hiddenTableOf`).
+ * @param {{args: {report, reportHidden?, pane?, paneHidden?, savedRow?, inspectedSource?}}} msg
+ */
+export function answerStatusJob(msg) {
+  return answerJob(msg || {}, (a) => editorStatus({
+    report: restoreFaithful({ value: a.report, hidden: a.reportHidden }),
+    pane: a.pane ? restoreFaithful({ value: a.pane, hidden: a.paneHidden }) : null,
+    savedRow: a.savedRow ?? null,
+    inspectedSource: a.inspectedSource ?? null,
+  }))
+}
+
+/** One job, by its kind (`memberDoorProtocol.js`). */
+export function answerJobOfKind(msg) {
+  const kind = msg && msg.kind
+  if (kind === INSPECT_JOB) return answerInspectJob(msg)
+  if (kind === INSPECT_LIBRARY_JOB) return answerInspectLibraryJob(msg)
+  if (kind === STATUS_JOB) return answerStatusJob(msg)
+  return answerMemberDoorJob(msg)
 }

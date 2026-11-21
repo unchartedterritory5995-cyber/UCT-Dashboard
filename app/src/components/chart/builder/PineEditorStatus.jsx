@@ -15,10 +15,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { memberPaneDefinition, MEMBER_PANE_DEF_PREFIX } from './memberPane/memberPaneDefinition'
-import { useMemberDoor } from './memberPane/useMemberDoor'
+import { useMemberDoor, useWorkerJob } from './memberPane/useMemberDoor'
+import { statusService, statusArgsOf } from './inspectAsync'
 import { memberDoorKeyOf } from './memberPane/memberDoorAsync'
 import {
-  editorStatus, PANEL_STATE, SEVERITY, stillWorksText, sourceLine,
+  PANEL_STATE, SEVERITY, stillWorksText, sourceLine,
 } from './editorStatus'
 import { importGaps, gapLogPayload } from '../supportLoop/importGaps'
 import useReportsConfig from '../supportLoop/useReportsConfig'
@@ -433,8 +434,14 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
   const paneChecking = !!(doorArgs && door.pending)
   const asked = useAdmissionPending(isPine ? inspectedSource : '', pane, admission)
   useEffect(() => { if (asked.answers) setLanded(asked.answers) }, [asked.answers])
-  const status = useMemo(() => (isPine ? editorStatus({ report, pane, savedRow, inspectedSource }) : null),
+  // ⭐⭐ THE PASTE WORKER (2026-11-21) — the status is computed off the main thread, once per (report, door answer,
+  // saved row, text) (`inspectAsync.js::statusService`). While a newer one computes, the last one stands, marked as
+  // checking (nothing it lists or records is about the newest answer yet).
+  const statusArgs = useMemo(() => (isPine ? statusArgsOf({ report, pane, savedRow, inspectedSource }) : null),
     [isPine, report, pane, savedRow, inspectedSource])
+  const statusJob = useWorkerJob(statusService(), statusArgs, null)
+  const status = isPine && statusJob.landed ? statusJob.landed.status : null
+  const statusChecking = !!(statusArgs && statusJob.pending)
   // ⭐ the real run, and the drawings the lane lost: beside the status, never inside it (see above)
   const run = useRunOnChart(status ? pane : null, chart, runOnChart ? { run: runOnChart } : undefined)
   const lostDrawings = useMemo(() => (status ? drawingLossOf(pane) : null), [status, pane])
@@ -443,10 +450,11 @@ export function usePineEditorStatus({ enabled, report, inspectedSource = '', sav
   const pendingReason = asked.reason
   // ⭐ THE PASTE WORKER: while the chart door's build of this text runs, the panel says it is checking
   // (`paneChecking`): nothing it would list or record yet is about the chart door's answer
-  return useMemo(() => (status && (run || lostDrawings || admissionPending || pendingReason || paneChecking)
+  const checking = paneChecking || statusChecking
+  return useMemo(() => (status && (run || lostDrawings || admissionPending || pendingReason || checking)
     ? { ...status, run, lostDrawings, ...(admissionPending ? { admissionPending: true } : {}), ...(pendingReason ? { pendingReason } : {}),
-      ...(paneChecking ? { paneChecking: true } : {}) }
-    : status), [status, run, lostDrawings, admissionPending, pendingReason, paneChecking])
+      ...(checking ? { paneChecking: true } : {}) }
+    : status), [status, run, lostDrawings, admissionPending, pendingReason, checking])
 }
 
 /**

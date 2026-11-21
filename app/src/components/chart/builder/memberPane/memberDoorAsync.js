@@ -42,7 +42,7 @@ import {
   memberPaneDefinition, doorAnswer, MEMBER_DOOR_BUDGET_MS, MEMBER_PANE_DEF_PREFIX, warmRuntimeLane,
 } from './memberPaneDefinition'
 import { memberDoorImage, memberDoorStateVersion } from './memberDoorImage'
-import { MEMBER_DOOR_JOB } from './memberDoorWorkerCore'
+import { MEMBER_DOOR_JOB, restoreFaithful } from './memberDoorProtocol'
 import { replayRuntimeConsults, runtimeConsultPendingOf } from '../../engine/runtimeKill'
 
 /** How long past the door's own deadline a silent worker is given (its bundle load included) before the
@@ -92,6 +92,13 @@ const browserCanWork = () => typeof Worker === 'function' && typeof window !== '
 const devServer = () => { try { return import.meta.env.DEV === true } catch { return false } }
 const defaultFactory = () => new Worker(new URL('./memberDoorWorker.js', import.meta.url), { type: 'module' })
 
+/** ⭐ A User Timing mark per job event (`uct-worker-job:<kind>:<event>`: post, land, supersede, stop, died,
+ *  watchdog), so a trace of a real page shows each job's life on the timeline (how many builds a paste made, and
+ *  whether one was stopped). Marks only: nothing reads them, and a host without User Timing has none. */
+function mark(kind, event) {
+  try { if (typeof performance !== 'undefined' && typeof performance.mark === 'function') performance.mark(`uct-worker-job:${kind}:${event}`) } catch { /* no timeline here */ }
+}
+
 /** A consult the worker sent with its source as a mark (`{job: true}`) gets the job's source back. */
 function expandConsults(list, source) {
   return (Array.isArray(list) ? list : []).map((c) => {
@@ -99,6 +106,38 @@ function expandConsults(list, source) {
     const { job: _mark, ...rest } = c
     return { ...rest, source }
   })
+}
+
+/** ⭐ THE CHART DOOR'S JOB, for `createKeyedWorkerService`: what is the door's own in the service below. */
+function doorJob(budgetMs) {
+  return {
+    kind: MEMBER_DOOR_JOB,
+    keyOf: memberDoorKeyOf,
+    // ⭐ the build's arguments are the KEY's, whoever asked first: the id the door would default to, named
+    argsOf: (a) => ({ source: a.source, id: a.id || MEMBER_PANE_DEF_PREFIX, ...(a.name != null ? { name: a.name } : {}) }),
+    // ⭐ no workers here: the build and the read right after it, on this thread, exactly as before
+    runHere(args) {
+      let built = null
+      let error = null
+      try {
+        built = memberPaneDefinition(args)
+      } catch (err) {
+        error = { message: String((err && err.message) || err) }
+      }
+      return { built, error, consultPending: runtimeConsultPendingOf({ source: args.source }), offThread: false }
+    },
+    fromReply(reply) {
+      if (reply.ok === true) {
+        if (reply.warmed === true) warmRuntimeLane()
+        return { built: restoreFaithful({ value: reply.answer, hidden: reply.hidden }), error: null,
+          consultPending: reply.consultPending === true, offThread: true, ms: reply.ms }
+      }
+      return { built: null, error: { message: (reply.error && reply.error.message) || 'no message' }, consultPending: false, offThread: true }
+    },
+    failed: (why) => ({ built: doorWorkerFailedAnswer(why), error: null, consultPending: false, offThread: true }),
+    // ⛔ THE WATCHDOG'S ANSWER: the deadline's own, by name (`pine:timeout`), as a deadline the worker saw would give
+    timedOut: () => ({ built: doorAnswer({ value: null, tripped: true }, budgetMs), error: null, consultPending: false, offThread: true }),
+  }
 }
 
 /**
@@ -116,6 +155,19 @@ function expandConsults(list, source) {
  */
 export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DOOR_WATCHDOG_MS,
   budgetMs = MEMBER_DOOR_BUDGET_MS, version = memberDoorStateVersion } = {}) {
+  return createKeyedWorkerService({ job: doorJob(budgetMs), factory, watchdogMs, version })
+}
+
+/**
+ * ⭐⭐ ONE KEYED, SHARED, OFF-THREAD COMPUTATION PER (ARGS, PAGE STATE): the member door's service, for any job the
+ * member door's worker answers (`memberDoorProtocol.js`). `job` names what is the job's own: its message `kind`, its
+ * `keyOf(args)` and `argsOf(args)`, how it runs on this thread where there are no workers (`runHere(args)`), what a
+ * reply lands as (`fromReply(reply, entry)`), and what a member reads when the worker died (`failed(why, entry)`) or
+ * the watchdog stopped it (`timedOut(entry)`). The consults a job made are replayed here, in order, before anyone reads
+ * its answer. Each service holds its OWN worker, so two services compute at once.
+ */
+export function createKeyedWorkerService({ job, factory = null, watchdogMs = MEMBER_DOOR_WATCHDOG_MS,
+  version = memberDoorStateVersion } = {}) {
   const offThread = !!factory || (browserCanWork() && !devServer())
   const make = factory || defaultFactory
   const entries = new Map()   // key -> { key, args, want, landed, subs: Set, asked }
@@ -149,6 +201,7 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
 
   /** An entry's answer, to every subscriber it has now. */
   function land(entry, v, landed) {
+    if (landed && landed.offThread) mark(job.kind, 'land')
     entry.landed = { ...landed, version: v }
     for (const fn of [...entry.subs]) fn(entry.landed)
   }
@@ -177,14 +230,9 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
     if (w !== worker || !r || !reply || reply.id !== r.id) return
     // ⭐ what the build did to the page, done on the page, in order, before anyone reads the answer
     replayRuntimeConsults(expandConsults(reply.consults, r.entry.args.source))
-    if (reply.ok === true) {
-      counts.answered += 1
-      if (reply.warmed === true) warmRuntimeLane()
-      finish(r, { built: reply.answer, error: null, consultPending: reply.consultPending === true, offThread: true, ms: reply.ms })
-      return
-    }
-    counts.threw += 1
-    finish(r, { built: null, error: { message: (reply.error && reply.error.message) || 'no message' }, consultPending: false, offThread: true })
+    if (reply.ok === true) counts.answered += 1
+    else counts.threw += 1
+    finish(r, job.fromReply(reply, r.entry))
   }
 
   function onDeath(w, why) {
@@ -192,7 +240,8 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
     const r = running
     kill()
     counts.died += 1
-    if (r) finish(r, { built: doorWorkerFailedAnswer(why), error: null, consultPending: false, offThread: true })
+    mark(job.kind, 'died')
+    if (r) finish(r, job.failed(why, r.entry))
   }
 
   function spawn() {
@@ -213,20 +262,13 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
     if (running) {
       // ⛔ THE NEWEST FIRST: the running build stops (its script is built again later if still wanted)
       counts.superseded += 1
+      mark(job.kind, 'supersede')
       stopRunning()
     }
     counts.builds += 1
     const v = entry.want
     if (!offThread) {
-      // ⭐ no workers here: the build and the read right after it, on this thread, exactly as before
-      let built = null
-      let error = null
-      try {
-        built = memberPaneDefinition(entry.args)
-      } catch (err) {
-        error = { message: String((err && err.message) || err) }
-      }
-      land(entry, v, { built, error, consultPending: runtimeConsultPendingOf({ source: entry.args.source }), offThread: false })
+      land(entry, v, job.runHere(entry.args, entry))
       return
     }
     const r = { entry, id: nextId++, version: v, timer: null }
@@ -239,41 +281,42 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
     if (!worker) worker = spawn()
     if (!worker) {
       counts.died += 1
-      finish(r, { built: doorWorkerFailedAnswer('it could not be started'), error: null, consultPending: false, offThread: true })
+    mark(job.kind, 'died')
+      finish(r, job.failed('it could not be started', entry))
       return
     }
     try {
       if (!image) throw new Error('no image')
-      worker.postMessage({ kind: MEMBER_DOOR_JOB, id: r.id, args: entry.args, image })
+      worker.postMessage({ kind: job.kind, id: r.id, args: entry.args, image })
       workerPermitted = permitted
     } catch {
       kill()
       counts.died += 1
-      finish(r, { built: doorWorkerFailedAnswer('its job could not be sent'), error: null, consultPending: false, offThread: true })
+    mark(job.kind, 'died')
+      finish(r, job.failed('its job could not be sent', entry))
       return
     }
     counts.posted += 1
+    mark(job.kind, 'post')
     r.timer = setTimeout(() => {
       r.timer = null
       if (running !== r) return
       // ⛔ THE WATCHDOG: past the door's deadline and its grace, the worker is stopped and the script refused with
       // the deadline's own answer, by name (`pine:timeout`), as a deadline the worker saw would have refused it
       counts.watchdog += 1
+      mark(job.kind, 'watchdog')
       kill()
-      finish(r, { built: doorAnswer({ value: null, tripped: true }, budgetMs), error: null, consultPending: false, offThread: true })
+      finish(r, job.timedOut(r.entry))
     }, watchdogMs)
   }
 
   function subscribe(args, onAnswer) {
-    const key = memberDoorKeyOf(args)
+    const key = job.keyOf(args)
     if (idle !== null) { clearTimeout(idle); idle = null }
     const v = version()
     let entry = entries.get(key)
     if (!entry) {
-      const a = args || {}
-      // ⭐ the build's arguments are the KEY's, whoever asked first: the id the door would default to, named
-      entry = { key, args: { source: a.source, id: a.id || MEMBER_PANE_DEF_PREFIX, ...(a.name != null ? { name: a.name } : {}) },
-        want: v, landed: null, subs: new Set(), asked: 0 }
+      entry = { key, args: job.argsOf(args || {}), want: v, landed: null, subs: new Set(), asked: 0 }
       entries.set(key, entry)
     }
     entry.asked = ++asked
@@ -298,6 +341,7 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
       if (entries.get(key) === entry) entries.delete(key)
       if (running && running.entry === entry) {
         counts.stopped += 1
+        mark(job.kind, 'stop')
         stopRunning()
         next()
       }
@@ -319,6 +363,7 @@ export function createMemberDoorService({ factory = null, watchdogMs = MEMBER_DO
     dispose,
     stats: () => ({ ...counts, busy: !!running, alive: !!worker, held: entries.size }),
     offThread,
+    keyOf: job.keyOf,
   }
 }
 

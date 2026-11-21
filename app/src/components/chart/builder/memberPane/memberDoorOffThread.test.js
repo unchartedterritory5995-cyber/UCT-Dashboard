@@ -32,7 +32,9 @@ import { __setHeldWithholdsForTests } from '../../engine/heldWithholds'
 import { registerPineLibrary, clearPineLibraries } from '../../engine/ast/pineLibraryStore'
 import { setRunHalfObjectEvidence } from '../../engine/runHalfRailSeam'
 import { fixtureLibrary } from '../../engine/ast/__tests__/libraryFixture.js'
-import { canonOf } from '../../../../testing/builder/memberDoor.testkit.js'
+import { canonOf, importWorkerCore } from '../../../../testing/builder/memberDoor.testkit.js'
+import { restoreFaithful, INSPECT_JOB } from './memberDoorProtocol'
+import { inspectSource } from '../inspectSource'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const corpus = (n) => fs.readFileSync(path.join(REPO, 'corpus/committed', n), 'utf8')
@@ -60,8 +62,7 @@ let jobId = 1
 // ⭐ A FRESH GRAPH PER CASE, as the page starts a fresh worker where one would answer from a stale state: a worker that
 // latched "not permitted" cannot be told "permitted" (`memberDoorAsync.js` replaces it; railed in its own file)
 beforeEach(async () => {
-  vi.resetModules()
-  core = await import('./memberDoorWorkerCore.js')
+  core = await importWorkerCore(vi)
 }, 120000)
 
 beforeEach(() => {
@@ -91,7 +92,10 @@ function sameEverywhere(names) {
     const main = memberPaneDefinition({ source, id: MEMBER_PANE_DEF_PREFIX })
     const reply = offThread(source)
     expect(reply.ok, `${name}: the worker answered`).toBe(true)
-    expect(canonOf(reply.answer), `${name}: the worker's answer is the main thread's`).toBe(canonOf(main))
+    expect(reply.lost, `${name}: nothing the clone could not carry`).toBe(0)
+    // ⭐ field for field, the non-enumerable ones too (`memberDoorProtocol.js`), as the page reads it
+    const landed = restoreFaithful({ value: reply.answer, hidden: reply.hidden })
+    expect(canonOf(landed, { hidden: true }), `${name}: the worker's answer is the main thread's`).toBe(canonOf(main, { hidden: true }))
     seen.push({ name, ok: !!main.ok, lane: main.ok ? (main.lane || 'host') : null, guard: main.guard || null, reply })
   }
   return seen
@@ -182,4 +186,28 @@ describe('each image part round-trips through a fresh module graph', () => {
     setRuntimeKillList([])
     expect(canonOf(memberDoorImage())).not.toBe(canonOf(img))
   }, 120000)
+})
+
+describe("⭐⭐ PasteBox's report crosses faithfully: the worker's report is the main thread's, field for field", () => {
+  /** The report job as the page posts it, answered in the worker's graph, the reply cloned back. */
+  const inspectOff = (source, dialect = 'auto') => structuredClone(core.answerInspectJob(structuredClone(
+    { kind: INSPECT_JOB, id: jobId++, args: { source, dialect }, image: memberDoorImage() })))
+  it('every sample script: the same report, non-enumerable properties included; a plain clone would differ', () => {
+    let tagged = 0
+    let plainWouldDiffer = 0
+    for (const [name, source] of Object.entries({ ...SAMPLE, imports: IMPORTS })) {
+      if (name === 'imports') registerPineLibrary(LIB)
+      const main = inspectSource(source, 'auto')
+      const reply = inspectOff(source)
+      expect(reply.ok, `${name}: the worker answered`).toBe(true)
+      expect(reply.lost, `${name}: nothing the clone could not carry`).toBe(0)
+      tagged += reply.hidden.length
+      const landed = restoreFaithful({ value: reply.answer, hidden: reply.hidden })
+      expect(canonOf(landed, { hidden: true }), `${name}: the worker's report is the main thread's`).toBe(canonOf(main, { hidden: true }))
+      // ⛔ THE CONTROL: the same reply WITHOUT its hidden properties put back is not the main thread's report
+      if (reply.hidden.length && canonOf(reply.answer, { hidden: true }) !== canonOf(main, { hidden: true })) plainWouldDiffer += 1
+    }
+    expect(tagged, 'the sample carries non-enumerable properties (parameter ids, row handoffs)').toBeGreaterThan(10)
+    expect(plainWouldDiffer, 'a plain clone loses them: the rail can tell').toBeGreaterThan(0)
+  }, 240000)
 })
