@@ -153,7 +153,11 @@ export function objectsV2Of(capture, ours, verdict, paired = undefined) {
     && ours && ours.ok && ours.objects && ours.objects.ok && Array.isArray(ours.objects.held)
     ? pairRecords(capture, ours.objects)
     : null
-  return compareObjectsV2(verdict.objects, pairing, (ours && ours.objects && ours.objects.withheldFamilies) || [])
+  // ⭐ (2026-11-21) where v2 overruled a v1 MATCH (`compare.mjs::v2Overrules`) the report is built on v1's OWN grade,
+  // kept beside the verdict, so it says what v1 read and what v2 found, exactly as it did before the rule
+  const o = verdict.objects
+  const v1 = o.overruledBy === 'objectsV2' ? { ...o, verdict: o.v1Verdict, reason: o.v1Reason } : o
+  return compareObjectsV2(v1, pairing, (ours && ours.objects && ours.objects.withheldFamilies) || [])
 }
 
 /**

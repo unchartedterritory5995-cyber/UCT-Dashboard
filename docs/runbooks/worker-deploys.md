@@ -25,6 +25,14 @@ set 2026-11-13 03:09 UTC) needs the base build to run for hours uninterrupted.
 3. **Verify:** the new deployment's commit is the one you meant, then `/internal/health` on the
    pod (below) shows `uploader_alive: true` within ~25 minutes.
 
+## The 2026-11-21 org move: reconnected, and auto deploy had to be switched off again
+
+The repo moved to `northstar-quarry/UCT-Dashboard` and Railway's link to it went dead. `worker` was
+reconnected on 2026-11-21 20:02 UTC (deployment `f936a01b`, commit `6f989fd1d4`). ⛔ **The reconnect
+turned auto deploy ON**; it was disabled again about 65 seconds later and no push landed in between.
+After any change to worker's Source settings, reload Settings → Source and confirm it reads
+**"Auto deploy is disabled"**. Steps and the other traps: `railway-repo-reconnect.md`.
+
 ## How to read the uploader's state
 
 ```sh

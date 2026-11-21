@@ -12264,6 +12264,8 @@ from api.routers import corporate_actions as corporate_actions_router  # noqa: E
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
+from api.routers import market_history as market_history_router  # noqa: E402  (MKTH: corrections, bear markets, the rallies and their leaders, paid)
+app.include_router(market_history_router.router)  # /api/research/market-history
 from api.routers import group_stats as group_stats_router  # noqa: E402  (GRP / GRPS: group fundamentals and breadth, built each evening, paid)
 app.include_router(group_stats_router.router)  # /api/research/group-stats
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)

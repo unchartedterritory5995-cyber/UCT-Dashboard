@@ -1,0 +1,69 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "Three grader faults in the objects grade (fix/objects-grader-v2-verdict, coordinator rulings 2026-11-21): orphan fill records are named, not counted (LF); a drawing on the forming newest bar whose other-symbol supply predates the session is not compared, by name (SB); a v1 objects MATCH cannot stand when objectsV2 DIVERGEs (V2).",
+ "mutants": [
+  {
+   "id": "LF-M1",
+   "mutant": "every fill record is drawable again (orphans are counted as a fill difference)",
+   "file": "app/src/components/chart/engine/__tests__/vendorHarness/objectRecords.js",
+   "from": "    const drawable = (x) => !linesReadable || (vendorLineIds.has(x.line1) && vendorLineIds.has(x.line2))",
+   "to": "    const drawable = (x) => true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsV2Verdict.test.js",
+   "expectRed": "LF1"
+  },
+  {
+   "id": "LF-M2",
+   "mutant": "the v2 family row drops the orphan count (the orphans are no longer named)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    if (Number.isInteger(p.orphanVendor) && p.orphanVendor > 0) row.orphanVendor = p.orphanVendor",
+   "to": "    if (false) row.orphanVendor = p.orphanVendor",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsV2Verdict.test.js",
+   "expectRed": "LF2"
+  },
+  {
+   "id": "SB-M1",
+   "mutant": "the drawings are not handed the plot grade's supply-behind bar",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  const behind = (plots || []).map((p) => p && p.supplyBehind).filter((s) => s && Number.isFinite(s.time))",
+   "to": "  const behind = []",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsV2Verdict.test.js",
+   "expectRed": "SB2"
+  },
+  {
+   "id": "SB-M2",
+   "mutant": "v2 grades the records v1 took out for the supply-behind bar",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  const behindOut = Array.isArray(v1.supplyBehind) ? v1.supplyBehind : []",
+   "to": "  const behindOut = []",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsV2Verdict.test.js",
+   "expectRed": "SB3"
+  },
+  {
+   "id": "V2-M1",
+   "mutant": "a v1 MATCH stands whatever v2 found (v2 is a report again, not the verdict)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (!v1 || v1.verdict !== 'MATCH' || !records) return v1",
+   "to": "  return v1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsV2Verdict.test.js",
+   "expectRed": "V2R1"
+  },
+  {
+   "id": "V2-M2",
+   "mutant": "a colour-only v2 difference also moves the verdict without colour (C44 broken)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "    ...(v1.verdictWithoutColour === 'MATCH' && v2DiffersBeyondColour(v2) ? { verdictWithoutColour: 'DIVERGE' } : {}),",
+   "to": "    ...(v1.verdictWithoutColour === 'MATCH' ? { verdictWithoutColour: 'DIVERGE' } : {}),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsV2Verdict.test.js",
+   "expectRed": "V2R3"
+  },
+  {
+   "id": "V2-M3",
+   "mutant": "a v2 DIVERGE that is only creation order overrules v1 too (a correct picture graded DIVERGE)",
+   "file": "tools/vendor_harness/compare.mjs",
+   "from": "  if (!v2 || v2.verdict !== 'DIVERGE' || v2.differsOnlyByCreationOrder === true) return v1",
+   "to": "  if (!v2 || v2.verdict !== 'DIVERGE') return v1",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/vendorHarness.objectsV2Verdict.test.js",
+   "expectRed": "V2R5"
+  }
+ ]
+}
