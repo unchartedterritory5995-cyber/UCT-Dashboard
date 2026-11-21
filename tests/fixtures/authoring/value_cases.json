@@ -7985,11 +7985,16 @@
    "lane": "formula",
    "words": "On the daily chart, plot last week's high and last week's low as two lines",
    "rule": {
-    "digest": "ce0b5433a3c00e0a",
+    "digest": "c46106f52ba640c5",
     "history": [
      {
       "digest": "ce0b5433a3c00e0a",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "c46106f52ba640c5",
+      "quote": "last week's high",
+      "reason": "the rule listed three readings these words do not hold and no recorded answer needed: the FORMING week's high so far (this week is not last week), the whole week from its first bar (it knows Friday's high on Monday) and TWO completed weeks back. A rule that lists them passes a formula that looks ahead or is a week stale. Removed."
      }
     ]
    },
@@ -8058,11 +8063,16 @@
    "lane": "formula",
    "words": "On the daily chart, plot the 10 week simple moving average of the weekly close",
    "rule": {
-    "digest": "ea117b6e9df348a9",
+    "digest": "315a2a607cab3066",
     "history": [
      {
       "digest": "ea117b6e9df348a9",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "315a2a607cab3066",
+      "quote": "10 week simple moving average of the weekly close",
+      "reason": "the rule listed two readings these words do not hold and no recorded answer needed: the whole week from its first bar (it knows Friday's close on Monday) and TWO completed weeks back. Removed; the forming week as it stands and the last completed week remain."
      }
     ]
    },
@@ -8113,11 +8123,16 @@
    "lane": "formula",
    "words": "On the daily chart, plot the highest weekly high of the last 4 weeks",
    "rule": {
-    "digest": "46a566ad52021bdc",
+    "digest": "3bf9a64845002b80",
     "history": [
      {
       "digest": "46a566ad52021bdc",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "3bf9a64845002b80",
+      "quote": "highest weekly high of the last 4 weeks",
+      "reason": "the rule listed two readings these words do not hold and no recorded answer needed: the whole week from its first bar (it knows the week's high before it is made) and TWO completed weeks back. Removed."
      }
     ]
    },
@@ -11417,11 +11432,16 @@
    "chart": "daily",
    "words": "Show a table in the corner that says whether the close is above the 10 week moving average and above the 10 month moving average",
    "rule": {
-    "digest": "22471dd72492f9d6",
+    "digest": "2dc1da21af9a677e",
     "history": [
      {
       "digest": "22471dd72492f9d6",
       "reason": "written from the request's words before the answer was read"
+     },
+     {
+      "digest": "2dc1da21af9a677e",
+      "quote": "the 10 week moving average and above the 10 month moving average",
+      "reason": "ORACLE DRIFT, found in review on 2026-11-22: the rule read the week and the month BEFORE the newest bar's own, whatever that bar was. That is what the recorded script shows (`wMA[1]`, one DAILY bar back outside the weekly read), not what the words ask. The words ask for the average as it stands, or read conservatively the last FINISHED period's; on a bar that completes its week and its month the two are one number, and the script is a whole period stale. The rule now holds both honest readings and nothing further back. The recorded answer is WRONG by it."
      }
     ]
    },
@@ -11429,6 +11449,8 @@
     "on": "2026-11-21",
     "front": "104db22eb5"
    },
+   "recorded_verdict": "wrong",
+   "defect": "The script reads the weekly and the monthly average one DAILY bar back (`wMA[1]` outside `request.security`). On a bar that completes its week or month it shows the average one whole period stale (113.56 where the 10 week average is 114.05; 120.29 where the 10 month average is 118.72, on the engine's built bars). Mid-period it equals the last finished period's. Open: the script door has no wording for reading another timeframe, so nothing tells the assistant where a look-back goes.",
    "answer": {
     "turn": "script",
     "script": {

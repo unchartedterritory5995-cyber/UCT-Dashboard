@@ -557,17 +557,21 @@ def rules(cid):
         def readings(done, forming):
             """done(w): the value at COMPLETED week w (NAN if not enough weeks). forming(i): the value with the forming week as it stands at bar i."""
             at = lambda w: done(w) if w >= 0 else NAN   # noqa: E731
-            return [
+            # ⚰️ Two more readings stood here until 2026-11-22 and no recorded answer ever needed them: "the whole
+            # of this week from its first bar", which knows Friday's close on Monday, and "TWO completed weeks
+            # back". Neither is a reading of any of these requests' words; a rule that lists them passes a
+            # formula that looks ahead or is a week stale.
+            out = [
                 ('the last COMPLETED week, held all week', [at(wk[i] - 1) for i in range(N)]),
                 ('the finished week on its last bar, the one before until then (TradingView history)', [at(wk[i] if last[i] else wk[i] - 1) for i in range(N)]),
-                ('the FORMING week as it stands on each bar', [forming(i) for i in range(N)]),
-                ('the whole of this week from its first bar (looks ahead)', [at(wk[i]) for i in range(N)]),
-                ('TWO completed weeks back, held all week', [at(wk[i] - 2) for i in range(N)]),
             ]
+            if forming is not None:
+                out.append(('the FORMING week as it stands on each bar', [forming(i) for i in range(N)]))
+            return out
         run_hi = lambda i: max(H[k] for k in members[wk[i]] if k <= i)   # noqa: E731
         run_lo = lambda i: min(L[k] for k in members[wk[i]] if k <= i)   # noqa: E731
         if cid == 'j01':
-            return {"last week's high": readings(lambda w: w_hi[w], run_hi), "last week's low": readings(lambda w: w_lo[w], run_lo)}
+            return {"last week's high": readings(lambda w: w_hi[w], None), "last week's low": readings(lambda w: w_lo[w], None)}
         if cid == 'j02':
             done = lambda w: sum(w_cl[w - 9:w + 1]) / 10 if w >= 9 else NAN   # noqa: E731
             forming = lambda i: (sum(w_cl[wk[i] - 9:wk[i]]) + C[i]) / 10 if wk[i] >= 9 else NAN   # noqa: E731

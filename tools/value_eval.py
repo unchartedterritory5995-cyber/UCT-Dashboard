@@ -105,8 +105,9 @@ def grade_run(data, run_dir):
                     now = got[case["id"]]["verdict"] if case["id"] in got else "no answer"
                     verdicts[case["id"]] = now
                     lane["right"] += now == "right"
-                    if now != "right":                              # the record is held right by tests/test_value_cases_scripts.py
-                        changed.append({"id": case["id"], "lane": "script", "was": "right", "now": now, "lines": (got.get(case["id"]) or {}).get("lines", [])})
+                    was = case.get("recorded_verdict", "right")     # the record is held by tests/test_value_cases_scripts.py
+                    if now != was:
+                        changed.append({"id": case["id"], "lane": "script", "was": was, "now": now, "lines": (got.get(case["id"]) or {}).get("lines", [])})
                 full = full and len(script_answers) == len(scripts)
     full_lanes = sorted(name for name, v in scores.items() if v["answered"] == v["of"] and "not_graded" not in v)
     return {"scores": scores, "changed": changed, "full": full, "full_lanes": full_lanes, "verdicts": verdicts, "answers": fresh}
@@ -128,6 +129,8 @@ def adopt(data, report, stamps):
     for case in data["cases"]:
         if report["verdicts"].get(case["id"]) == "right" and case["id"] in report["answers"]:
             case["answer"] = record_of(case, report["answers"][case["id"]])
+            case.pop("recorded_verdict", None)                     # a known defect the door now gets right is one no longer
+            case.pop("defect", None)
             case["recorded"] = {"on": str(stamps.get("started") or "")[:10], "front": stamps.get("front"), "model": stamps.get("model")}
             adopted.append(case["id"])
         else:

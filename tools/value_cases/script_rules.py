@@ -200,7 +200,6 @@ def rule_j06():
     w_sma = lambda w: (sum(cl[w - 9:w + 1]) / 10 if w >= 9 else None)  # noqa: E731
     for name, col in _readings(w_sma, 0).items():
         out.append((f'10 week average ({name})', col, 'week'))
-        out.append((f'10 week average ({name}), read one daily bar back', [None] + col[:-1], 'week'))
     # months
     mk, order = [], []
     for b in B:
@@ -214,7 +213,6 @@ def rule_j06():
     for name, pick in (('the last COMPLETED month, all month', lambda i: mk[i] - 1), ('the finished month only on its last bar', lambda i: mk[i] if m_last[i] else mk[i] - 1)):
         col = [m_sma(pick(i)) if pick(i) >= 0 else None for i in range(N)]
         out.append((f'10 month average ({name})', col, 'month'))
-        out.append((f'10 month average ({name}), read one daily bar back', [None] + col[:-1], 'month'))
     return out
 
 
@@ -380,8 +378,11 @@ def drawn_rules(sid):
         return {'words': [('the regime on the newest bar', 'risk on' if on else 'risk off', 'risk off' if on else 'risk on')]}
     if sid == 'j06':
         wk, _hi, _lo, cl, _last = _weeks()
-        w = wk[LAST] - 1
-        w_sma = sum(cl[w - 9:w + 1]) / 10
+        newest = _dt.date.fromisoformat(T[LAST])
+        w = wk[LAST]
+        w_stands = sum(cl[w - 9:w + 1]) / 10                       # the average as it stands on the newest bar
+        week_is_whole = newest.weekday() == 4                      # the newest bar is its week's Friday
+        w_done = w_stands if week_is_whole else sum(cl[w - 10:w]) / 10
         months, order = [], []
         for t in T:
             k = t[:7]
@@ -389,11 +390,16 @@ def drawn_rules(sid):
                 order.append(k)
             months.append(len(order) - 1)
         m_cl = [[C[i] for i in range(N) if months[i] == m][-1] for m in range(len(order))]
-        m = months[LAST] - 1
-        m_sma = sum(m_cl[m - 9:m + 1]) / 10
-        return {'numbers': [('the 10 week average of the last finished week', [w_sma]), ('the 10 month average of the last finished month', [m_sma])],
-                'rows': [('close against the 10 week average', w_sma, 'above' if C[LAST] > w_sma else 'below'),
-                         ('close against the 10 month average', m_sma, 'above' if C[LAST] > m_sma else 'below')]}
+        m = months[LAST]
+        m_stands = sum(m_cl[m - 9:m + 1]) / 10
+        following = newest + _dt.timedelta(days=3 if newest.weekday() == 4 else 1)          # the next weekday
+        month_is_whole = following.month != newest.month           # the newest bar is its month's last weekday
+        m_done = m_stands if month_is_whole else sum(m_cl[m - 10:m]) / 10
+        word = lambda v: 'above' if C[LAST] > v else 'below'  # noqa: E731
+        return {'numbers': [('the 10 week average (as it stands, or of the last finished week)', [w_stands, w_done]),
+                            ('the 10 month average (as it stands, or of the last finished month)', [m_stands, m_done])],
+                'rows_any': [('close against the 10 week average', [(w_stands, word(w_stands)), (w_done, word(w_done))]),
+                             ('close against the 10 month average', [(m_stands, word(m_stands)), (m_done, word(m_done))])]}
     return None
 
 
@@ -425,6 +431,16 @@ def check_drawn(sid, s):
         ok = any(must in c for c in low) and not any(must_not in c for c in low)
         _say(f"  {'RIGHT' if ok else 'CHECK'}  table says {what}: expected {must!r}, never {must_not!r}")
         good = good and ok
+    for what, readings in rules.get('rows_any', []):                # a row that shows ONE honest reading and says its word
+        hit = None
+        for value, word in readings:
+            row = next((r for t in tables for r in t['grid'] if _shows([c for c in r if c], value)), None)
+            if row and any(word in (c or '').lower() for c in row) and not any(('above' if word == 'below' else 'below') in (c or '').lower() for c in row):
+                hit = (value, word, row)
+                break
+        _say(f"  {'RIGHT' if hit else 'CHECK'}  table row for {what}: " + (f'{hit[1].upper()} beside {hit[0]:.2f}; row {hit[2]}' if hit else
+             'no row shows ' + ' or '.join(f'{v:.2f} ({w.upper()})' for v, w in readings) + f'; tables {[t["grid"] for t in tables]}'))
+        good = good and bool(hit)
     for what, value, word in rules.get('rows', []):
         row = next((r for t in tables for r in t['grid'] if _shows([c for c in r if c], value)), None)
         ok = bool(row) and any(word in (c or '').lower() for c in row) and not any(('above' if word == 'below' else 'below') in (c or '').lower() for c in row)
