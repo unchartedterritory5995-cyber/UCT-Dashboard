@@ -69,6 +69,8 @@ export const ECON_THEMES = Object.freeze([
   Object.freeze({ key: 'rates', title: 'Rates and money', missing: Object.freeze([]), rows: Object.freeze([
     Object.freeze({ key: 'fed_funds', label: 'Effective fed funds rate', symbol: 'USEFFR' }),
     Object.freeze({ key: 'ten_year', label: '10-year Treasury yield', symbol: 'UST10Y' }),
+    // the Fed Board's Nominal Broad U.S. Dollar Index (H.10, daily), not ICE's DXY: an index level and its change
+    Object.freeze({ key: 'dollar', label: 'Broad dollar index (Fed)', symbol: 'USDOLLARIDX' }),
   ]) }),
 ])
 
@@ -303,20 +305,22 @@ const keysOf = (meta) => {
  * Every source's credit line, once per source shown, in the order the board first shows it. The
  * line is the agency's own required wording (`attributions` in the answer, from the registry's
  * attributions.json) with its blanks filled: {access_date} = the newest day the econ service read
- * that agency's series, {data_name} = the series' names, {publisher}, {year}. A source whose line
- * did not come with the answer still gets its name.
+ * that agency's series, {publication_date} = the newest day a figure shown from that agency was
+ * released (the EIA asks for it), {data_name} = the series' names, {publisher}, {year}. A source
+ * whose line did not come with the answer still gets its name.
  */
 export function creditLines(rows, attributions, { today = null, publisher = ECON_PUBLISHER } = {}) {
   const atts = isObj(attributions) ? attributions : {}
   const by = new Map()
-  const add = (meta, retrievedAt) => {
+  const add = (meta, retrievedAt, releasedAt = null) => {
     const ag = isObj(meta.source) ? str(meta.source.agency) : null
     for (const k of keysOf(meta)) {
-      if (!by.has(k)) by.set(k, { key: k, names: [], retrieved: null, derived: false, agency: null, derivedFrom: null })
+      if (!by.has(k)) by.set(k, { key: k, names: [], retrieved: null, published: null, derived: false, agency: null, derivedFrom: null })
       const c = by.get(k)
       const name = str(meta.name)
       if (name && !c.names.includes(name)) c.names.push(name)
       if (Number.isInteger(retrievedAt) && (c.retrieved == null || retrievedAt > c.retrieved)) c.retrieved = retrievedAt
+      if (Number.isFinite(releasedAt) && (c.published == null || releasedAt > c.published)) c.published = releasedAt
       if (isObj(meta.derivation)) {
         c.derived = true
         // a UCT calculation names its agency as "UCT (derived from FHFA)": the agency is the part inside
@@ -326,7 +330,7 @@ export function creditLines(rows, attributions, { today = null, publisher = ECON
   }
   for (const r of rows) {
     if (r.state !== 'ok') continue
-    add(r.meta, r.retrievedAt)
+    add(r.meta, r.retrievedAt, isObj(r.latest) ? r.latest.t : null)
     if (r.alt) add(r.alt.meta || {}, null)
   }
   const year = isDay(today) ? today.slice(0, 4) : ''
@@ -334,8 +338,10 @@ export function creditLines(rows, attributions, { today = null, publisher = ECON
     const n = isObj(atts[c.key]) ? atts[c.key] : {}
     const agency = str(n.agency) || c.agency || c.derivedFrom || c.key
     const access = c.retrieved != null ? etDateOf(c.retrieved) : 'a date not held here'
+    // 'Nov 18, 2026': the year always, as the EIA's own example carries it ("(Oct 2008)")
+    const published = c.published != null ? shortDate(etDateOf(c.published), { nowIso: '0000' }) : 'a date not held here'
     const text = str(n.text)
-      ? n.text.replaceAll('{access_date}', access).replaceAll('{data_name}', c.names.join(' and ') || agency)
+      ? n.text.replaceAll('{access_date}', access).replaceAll('{publication_date}', published).replaceAll('{data_name}', c.names.join(' and ') || agency)
         .replaceAll('{publisher}', publisher).replaceAll('{year}', year)
       : `Source: ${agency}.`
     return { key: c.key, agency, text, derived: c.derived }

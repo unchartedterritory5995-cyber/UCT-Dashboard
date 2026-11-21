@@ -157,10 +157,17 @@ describe('the three codes', () => {
   it('no market code or plain word is a function code, and the codes are not words another code takes', () => {
     // a code in second place makes the first token a ticker, so a market word that was a function
     // code would turn `COT XX` into "the XX function on a ticker called COT"
+    // OIL is the one market word that is also a function code (the weekly oil report, 2026-11-21): COT's own
+    // dictionary settles `COT OIL` as COT's (args.js `known`), so it is allowed here and pinned below
+    const BOTH = new Set(['OIL'])
     for (const word of [...Object.keys(COT_WORDS), ...serverMarketCodes()]) {
-      expect(isCode(word), word).toBe(false)
+      if (!BOTH.has(word)) expect(isCode(word), word).toBe(false)
       expect(parseCommand(`COT ${word}`), word).toMatchObject({ ok: true, code: 'COT', sym: null, args: [word] })
     }
+    expect([...BOTH].every((w) => isCode(w))).toBe(true)
+    expect(parseCommand('OIL')).toMatchObject({ ok: true, code: 'OIL', sym: null })
+    // a code that is NOT one of COT's market words still reads as that code on a ticker called COT
+    expect(parseCommand('COT CAL')).toMatchObject({ ok: true, code: 'CAL', sym: 'COT' })
     expect(isCode('RATES')).toBe(true)                               // the control: isCode can say yes
     for (const code of ['COT', 'ANLG', 'MKTS']) {
       for (const [kind, spec] of Object.entries(ARG_KINDS)) {

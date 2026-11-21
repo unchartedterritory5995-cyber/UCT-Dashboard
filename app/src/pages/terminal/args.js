@@ -14,6 +14,7 @@ import { currentWeekMonday, mondayOf } from '../calendar/weekAnchor'
 import { canonicalCode, isCode } from './functions'
 import { parseAlertPrice } from './alertModel'
 import { parseScatMetric, parseScatUniverse, scatMetricLabel } from './scatterArgs'
+import { COT_WORDS } from './panels/cotModel'
 
 /** The chart's timeframe codes (StockChart `tf`), with the spellings a member types. */
 export const TIMEFRAMES = {
@@ -611,6 +612,9 @@ export const ARG_KINDS = {
       return COT_MARKET_SHAPE.test(t) ? t : null
     },
     describe: (v) => `market "${v}"`,
+    // a word in COT's own market dictionary (OIL, GOLD, WTI…) is COT's even when it is also a function code
+    // (`OIL`, the weekly oil report): `COT OIL` is crude positioning; any other code after COT stays that code
+    known: (tok) => Object.prototype.hasOwnProperty.call(COT_WORDS, String(tok ?? '').trim().toUpperCase()),
   },
   /** ANLG's count: how many similar sessions, a whole number from 3 to 10 (the route's own bounds;
    *  a pinned copy of panels/analoguesModel.js, args.marketWaveA.test.js). */

@@ -68,8 +68,6 @@ EXEMPT: dict[str, str] = {}
 #: 44618956890): drift and ratchet rails that other PRs broke while no PR job ran them, the class this file closes.
 #: ⚰️ formulaReference.route and AdoptSheet left the same day: #2077's own run found them PASSING (the strict step).
 KNOWN_RED: dict[str, str] = {
-    "app/src/pages/command/keyListenerCensus.test.js":
-        "TERM-063 ratchet: raw key listeners added outside the shortcut registry, and the baseline (164) is over CEILING 111",
     "app/src/lib/swallowedFetch.census.test.js":
         "TERM-033 shrink-only census: 3 new `.catch(() => null)` sites (use sectionFetcher, which throws)",
     "app/src/pages/terminal/a11y/terminalReachableContrast.test.js":
@@ -97,6 +95,11 @@ DECLARED: dict[str, tuple[tuple[str, ...], str]] = {
     # never ran it: it was red from 11-03 (#559's unnamed lab inputs) to 11-20 with every PR check green
     "app/src/components/ui/formControls.census.test.js": (("app/src",),
         "the form-control census (TERM-067): every app/src file is a control site it counts, so any app/src change runs it"),
+    # 2026-11-21: the persistence manifest rail runs `census(repoSources())` over every app/src source, which the
+    # static scan sees only as tools/persistence_census.mjs and its own manifest, so a PR persisting a new key anywhere
+    # never ran it (red on master until #2345). A ~5 s static scan.
+    "app/src/lib/persistence/persistenceManifest.test.js": (("app/src", "tools/persistence_census.mjs"),
+        "the persistence manifest (TERM-076): every app/src source is a key site it counts, so any app/src change runs it"),
     "app/src/components/dailyDeepHistoryClock.test.jsx": (_DAILY_FIRST_PAINT_CODE,
         "daily deep history in every session window: the chart holds the deep set, the library its newest rows, Origin bar 0"),
     "app/src/components/dailyFirstPaintAcceptance.test.jsx": (_DAILY_FIRST_PAINT_CODE,
@@ -107,6 +110,11 @@ DECLARED: dict[str, tuple[tuple[str, ...], str]] = {
         "the incidental daily first-paint cases (the ones outside the matrix) on the same chart and bar paths"),
     "app/src/components/dailyFirstPaintPerf.test.jsx": (_DAILY_FIRST_PAINT_CODE,
         "the daily first-paint latency budgets: a cached daily chart paints inside its budget, never behind the server"),
+    # 2026-11-21 (ruled): out of KNOWN_RED, where a strict xfail by FILE let it grow 164 -> 166 unseen, onto an interim
+    # baseline (151, the dev-only Study workbench left out where the member app cannot reach it). It walks every
+    # app/src file, so any app/src change runs it: the 152nd raw key listener fails that PR.
+    "app/src/pages/command/keyListenerCensus.test.js": (("app/src",),
+        "the raw key-listener ratchet (TERM-063): every app/src file is a listener site it counts, so any app/src change runs it"),
 }
 
 #: A PR that changes one of these runs every listed reader: each can change how all of them run.
