@@ -156,6 +156,8 @@ export const PANEL_IMPORTERS = {
   Economy: () => import('./panels/EconomyPanel'),
   // LIQ (2026-11-21): net liquidity (a UCT calculation from the Fed and Treasury figures), its changes, two years of it, the parts
   Liquidity: () => import('./panels/LiquidityPanel'),
+  // MKTH (2026-11-21): every correction and bear market of the S&P 500 or the Nasdaq-100, the rally after each low, its leaders
+  MarketHistory: () => import('./panels/MarketHistoryPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

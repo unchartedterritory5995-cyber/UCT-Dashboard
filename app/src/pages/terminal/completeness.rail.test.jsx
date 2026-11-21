@@ -143,6 +143,7 @@ const ARG_SAMPLE = {
   tideScope: 'ETFS',
   seasMeasure: 'AVG',
   cotMarketName: 'GOLD', anlgCount: '7',
+  mkthIndex: 'NDX',
 }
 
 afterEach(cleanup)

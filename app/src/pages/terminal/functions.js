@@ -607,6 +607,14 @@ export const FUNCTIONS = [
   // from what the econ service already published. No argument. LIQ is not in the site's universe.
   { code: 'LIQ', label: 'Liquidity (Fed balance sheet, TGA, reverse repo, net liquidity)', group: 'Market',
     market: { panel: 'Liquidity' } },
+  // MKTH (2026-11-21): market history. Every decline of 10% or more in the S&P 500 or the Nasdaq-100
+  // on closing prices (a correction to 20%, a bear market past it), newest first, each with its peak,
+  // low, sessions down and the day the peak was regained; open one for the index 1, 3, 6 and 12 months
+  // after the low and the 25 stocks that rose most in the 63 sessions after it, with sector medians
+  // (GET /api/research/market-history, worked out by the server from its stored closes each evening).
+  // `MKTH NDX` for the Nasdaq-100. MKTH is not in the site's stock universe.
+  { code: 'MKTH', label: 'Market history (corrections, bear markets, rallies and their leaders)', group: 'Market',
+    market: { panel: 'MarketHistory', args: [{ kind: 'mkthIndex', prop: 'index' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -937,6 +945,9 @@ const FUNCTION_WORDS = {
   LIQ: { example: 'LIQ', keywords: ['liquidity', 'net liquidity', 'fed balance sheet', 'reverse repo', 'rrp', 'tga',
     'qt', 'quantitative tightening', 'm2', 'money supply', 'reserves'],
     note: 'Net liquidity is a UCT calculation from the Fed and Treasury figures, each part beside it. No forecasts.' },
+  MKTH: { example: 'MKTH', keywords: ['market history', 'corrections', 'bear markets', 'drawdowns', 'rallies', 'past corrections',
+    'rally leaders'],
+    note: 'Every decline of 10% or more on closing prices, the rally after each low and its leaders. A record, not a forecast.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
