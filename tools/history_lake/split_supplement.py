@@ -23,6 +23,11 @@ This module reads the supplement and merges it into the vendor's rows, in the ve
   (`raw_move`) continuous: within DROP_RAW_CONTINUOUS and under half the dropped factor (log terms). `merge` raises when
   no vendor row matches it within DROP_NEAR_DAYS, or more than one does: never a silent no-op. A drop never shares its
   event (+-DROP_NEAR_DAYS) with an add, a replace or another drop.
+- A SMALL-EVENT drop (evidence.form "small-event", ruled 2026-11-21): vendor dividend rows (BP scrip, PHG's stock-dividend
+  option, CM, PEO) that TradingView AND the second vendor both leave unadjusted. The raw close moves across them (the
+  dividend plus the market), so raw continuity cannot speak; instead the second vendor's step (`second_vendor_step`)
+  must be within DROP_TV_TOL of 1 as well as TradingView's. HARD CAP: the dropped factor lies within DROP_SMALL_CAP of 1,
+  so this form can never drop a real split.
 Rails: tests/test_history_lake_split_supplement.py."""
 from __future__ import annotations
 
@@ -45,6 +50,8 @@ class SupplementError(ValueError):
 DROP_TV_TOL = 0.0005
 #: ... and the raw day files continuous across it: the raw close moves less than this (|ln|), an ordinary session.
 DROP_RAW_CONTINUOUS = 0.05
+#: A SMALL-EVENT drop may only remove a factor within this of 1 (|factor - 1|): never a real split.
+DROP_SMALL_CAP = 0.05
 #: A drop matches its vendor row within this many days, and no other row may name an event this close to it (the
 #: same-event window of daily_join.heal_splits).
 DROP_NEAR_DAYS = 3
@@ -72,11 +79,22 @@ def _load_drop(r: Mapping, where: str) -> dict:
     ev = r.get("evidence")
     if not isinstance(ev, Mapping) or not str(ev.get("capture") or "").strip() or ev.get("price_verified") is not True:
         raise SupplementError(f"{where}: drop evidence needs evidence.capture and evidence.price_verified true")
+    form = ev.get("form", "raw-continuous")
+    if form not in ("raw-continuous", "small-event"):
+        raise SupplementError(f"{where}: drop evidence.form must be raw-continuous or small-event, got {form!r}")
     tv, raw = ev.get("tv_step"), ev.get("raw_move")
     if not _num(tv) or abs(tv - 1) > DROP_TV_TOL:
         raise SupplementError(f"{where}: drop evidence.tv_step must show TradingView takes no step there "
                               f"(within {DROP_TV_TOL:.2%} of 1), got {tv!r}")
-    if not _num(raw) or abs(math.log(raw)) > DROP_RAW_CONTINUOUS or abs(math.log(raw)) >= abs(math.log(ratio)) / 2:
+    if form == "small-event":
+        if abs(ratio - 1) > DROP_SMALL_CAP + 1e-12:
+            raise SupplementError(f"{where}: a small-event drop may only remove a factor within {DROP_SMALL_CAP:.0%} of 1, "
+                                  f"got {ratio:.6f}: never a real split")
+        sv = ev.get("second_vendor_step")
+        if not _num(sv) or abs(sv - 1) > DROP_TV_TOL:
+            raise SupplementError(f"{where}: drop evidence.second_vendor_step must show the second vendor takes no step "
+                                  f"there either (within {DROP_TV_TOL:.2%} of 1), got {sv!r}")
+    elif not _num(raw) or abs(math.log(raw)) > DROP_RAW_CONTINUOUS or abs(math.log(raw)) >= abs(math.log(ratio)) / 2:
         raise SupplementError(f"{where}: drop evidence.raw_move must show the raw day files continuous across the date "
                               f"(|ln| within {DROP_RAW_CONTINUOUS} and under half the dropped factor), got {raw!r}")
     return {"ticker": r["ticker"], "execution_date": r["execution_date"],
