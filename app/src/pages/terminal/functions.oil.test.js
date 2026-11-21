@@ -16,8 +16,9 @@ import { OIL_CODE } from './panels/oilModel'
 const OIL_WORDS = ['oil', 'crude', 'crude inventories', 'eia', 'oil inventories', 'gasoline', 'distillates', 'refinery', 'spr']
 
 describe('OIL in the registry', () => {
-  it('no keyword makes a generic single word find OIL ("gas prices" made "prices" find it)', () => {
-    expect(codesForWords('prices')).not.toContain('OIL')
+  it('no keyword is a generic phrase ("gas prices" would make the word "prices" a keyword hit; the label words "pump prices" still find it)', () => {
+    expect(BY_CODE.OIL.keywords).toEqual(OIL_WORDS)
+    expect(BY_CODE.OIL.keywords).not.toContain('gas prices')
   })
 
   it('the model names the code, it is registered once, in the Market group, market-wide, with no argument', () => {
