@@ -238,3 +238,17 @@ def test_CONTROL_on_a_five_minute_chart_yesterday_is_another_timeframe_and_the_s
     assert pa.other_read_asked(YESTERDAY_WORDS, OWN_DAILY, FIVE_MIN) == (pa.OTHER_READ_ASKED, [])
     assert r["ok"] is True and len(client.calls) == 1 and r["script"]["pine"] == OWN_DAILY          # asked for, kept, no second call
     assert r["script"]["waits_for_the_bar"] is True
+
+
+def test_the_repair_is_ONE_even_when_the_turn_could_afford_more(conv, clean_env, model, lane, monkeypatch):
+    """⚰️ The deliberate break "the repair may be sent twice" was NOT RED on its first run: with two calls a turn the
+    call limit alone stops a second repair, so the one-repair guard could not be shown to hold anything. With a
+    third call allowed, a second answer that still reads what nobody asked for must be KEPT, not sent back again."""
+    monkeypatch.setattr(sc, "MAX_SCRIPT_CALLS", 3)
+    client = model([writes(OWN_DAILY), writes(OWN_DAILY), writes(WITHOUT)])
+    r = ask(conv, YESTERDAY_WORDS)
+    assert r["ok"] is True and len(client.calls) == 2 and r["script"]["pine"] == OWN_DAILY
+    # CONTROL: the third call IS there to be had (a shape repair after the one repair still gets it)
+    client = model([writes(OWN_DAILY), writes(WITHOUT.replace("version=5", "version=6")), writes(WITHOUT)])
+    r = ask(conv, YESTERDAY_WORDS)
+    assert r["ok"] is True and len(client.calls) == 3 and r["script"]["pine"] == WITHOUT
