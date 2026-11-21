@@ -264,14 +264,17 @@ export function runtimeCapabilityAdmissionOn() {
   return _capabilityAdmission
 }
 
-/** Latch one verdict. Only a 64-hex hash, a boolean `admitted` and a boolean `historyOnly`
- *  (G6: admitted for CLOSED-BAR HISTORY only, `runtimeFormingRefusalOf`) are kept. */
+/** Latch one verdict. Only a 64-hex hash, a boolean `admitted`, a boolean `historyOnly`
+ *  (G6: admitted for CLOSED-BAR HISTORY only, `runtimeFormingRefusalOf`) and the capability ids
+ *  that made it so (`historyOnlyIds`: strings only, the server's own names) are kept. */
 export function latchRuntimeAdmission(hash, verdict) {
   const h = typeof hash === 'string' ? hash.toLowerCase() : ''
   if (!/^[0-9a-f]{64}$/.test(h) || !verdict || typeof verdict.admitted !== 'boolean') return
   _verdicts.delete(h)
   _pendingReasons.delete(h)      // a verdict is not pending: whatever the last pending answer said no longer holds
-  _verdicts.set(h, { admitted: verdict.admitted, historyOnly: verdict.historyOnly === true, at: Date.now() })
+  const historyOnlyIds = Array.isArray(verdict.historyOnlyIds)
+    ? verdict.historyOnlyIds.filter((id) => typeof id === 'string' && id) : []
+  _verdicts.set(h, { admitted: verdict.admitted, historyOnly: verdict.historyOnly === true, historyOnlyIds, at: Date.now() })
   while (_verdicts.size > RUNTIME_ADMISSION_MAX) _verdicts.delete(_verdicts.keys().next().value)
   notifyRuntimeLists()          // ⭐ a verdict that lands later changes the answer too
 }
@@ -331,11 +334,14 @@ export function requestRuntimeAdmission(source, _attempt = 0) {
           if (_attempt + 1 >= RUNTIME_ADMISSION_PENDING_RETRIES) return null
           return { retry: true }
         }
-        // ⭐ G6 — `historyOnly` (the ids admitted for closed-bar history only) latches as ONE boolean.
-        // ⛔ FAIL CLOSED: anything present that is not an empty list reads as history-only.
+        // ⭐ G6 — `historyOnly` (the ids admitted for closed-bar history only) latches as a boolean
+        // AND as the ids themselves, so the refusal can name the reason the server gave (a script
+        // that reads another symbol is not a script that reads barstate).
+        // ⛔ FAIL CLOSED: anything present that is not an empty list reads as history-only, ids or not.
         const historyOnly = d.historyOnly !== undefined
           && !(Array.isArray(d.historyOnly) && d.historyOnly.length === 0)
-        latchRuntimeAdmission(h, { admitted: d.admitted === true, historyOnly })
+        const historyOnlyIds = Array.isArray(d.historyOnly) ? d.historyOnly.filter((id) => typeof id === 'string') : []
+        latchRuntimeAdmission(h, { admitted: d.admitted === true, historyOnly, historyOnlyIds })
         return _verdicts.get(h) || null
       })
       .catch(noAdmissionVerdict)
@@ -487,7 +493,29 @@ export function runtimeNotGradedOf({ source, hash } = {}) {
 /** The guard a refused forming-bar run carries (runtime documents, run halves, run colours). */
 export const RUNTIME_FORMING_GUARD = 'pane:forming-ungraded'
 
+/** What a script does that is admitted for finished bars only, by the server's capability id
+ *  (`rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED`). Each phrase completes "this script ...". */
+export const FORMING_REASON_BY_ID = Object.freeze({
+  'realtime-state': 'reads the state of the bar as it forms (barstate or the clock)',
+  varip: 'keeps a `varip` value that changes within a forming bar',
+  'request-other': 'reads another symbol or timeframe',
+})
+/** ⛔ FAIL CLOSED: an id this tab does not know, or no id at all, is still a refusal, said plainly. */
+export const FORMING_REASON_UNKNOWN = 'uses a part of Pine'
+
+/** The reason words for a latched verdict's ids: each id once, in the server's order, joined by "and". */
+export function formingReasonOf(ids) {
+  const said = []
+  for (const id of Array.isArray(ids) ? ids : []) {
+    const phrase = Object.prototype.hasOwnProperty.call(FORMING_REASON_BY_ID, id) ? FORMING_REASON_BY_ID[id] : FORMING_REASON_UNKNOWN
+    if (!said.includes(phrase)) said.push(phrase)
+  }
+  return said.length ? said.join(' and ') : FORMING_REASON_UNKNOWN
+}
+
 /** Why this script is NOT drawn bar by bar on THIS chart's newest bar (G6), or null.
+ *  The reason is the one the server named (`historyOnlyIds`), never a fixed sentence: a script that
+ *  reads another symbol was told it "reads the state of the bar as it forms" (found by Deepvue).
  *  @param {{source?: string, hash?: string, newestBarIsForming?: boolean|null}} arg */
 export function runtimeFormingRefusalOf({ source, hash, newestBarIsForming } = {}) {
   if (_allow === ALLOW_ANY || !_capabilityAdmission) return null
@@ -497,11 +525,12 @@ export function runtimeFormingRefusalOf({ source, hash, newestBarIsForming } = {
   const v = _verdicts.get(h)
   if (!v || !v.admitted || !v.historyOnly) return null
   if (newestBarIsForming === false) return null
+  const reason = formingReasonOf(v.historyOnlyIds)
   return newestBarIsForming === true
-    ? 'this script reads the state of the bar as it forms (barstate or the clock), and that has only '
+    ? `this script ${reason}, and that has only `
       + 'been checked against TradingView on finished bars, so it is not drawn bar by bar while this '
       + "chart's newest bar is still forming"
-    : 'this script reads the state of the bar as it forms (barstate or the clock), and that has only '
+    : `this script ${reason}, and that has only `
       + "been checked against TradingView on finished bars; this chart cannot say yet whether its newest "
       + 'bar has finished, so the script is not drawn bar by bar'
 }

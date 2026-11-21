@@ -150,7 +150,8 @@ export const RUN_WAIT_MS = 8000
  *   - only while capability admission is ON (the lists were just read);
  *   - only when its `sha256` IS this script's own hash (a verdict for another script is never latched under this one);
  *   - never a "still being checked" (`missing` holds `pending`): that is not a verdict, and the door is asked;
- *   - `historyOnly` fails closed: anything present that is not an empty list reads as finished-bars-only.
+ *   - `historyOnly` fails closed: anything present that is not an empty list reads as finished-bars-only;
+ *     its string ids ride along (`historyOnlyIds`) so the forming refusal names the server's reason.
  * @returns {boolean} whether a verdict was latched
  */
 export function latchAnswerAdmission(kill, pine, admission) {
@@ -162,7 +163,8 @@ export function latchAnswerAdmission(kill, pine, admission) {
   if (Array.isArray(admission.missing) && admission.missing.includes('pending')) return false
   const historyOnly = admission.historyOnly !== undefined
     && !(Array.isArray(admission.historyOnly) && admission.historyOnly.length === 0)
-  kill.latchRuntimeAdmission(h, { admitted: admission.admitted === true, historyOnly })
+  const historyOnlyIds = Array.isArray(admission.historyOnly) ? admission.historyOnly.filter((id) => typeof id === 'string') : []
+  kill.latchRuntimeAdmission(h, { admitted: admission.admitted === true, historyOnly, historyOnlyIds })
   return true
 }
 
