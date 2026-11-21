@@ -535,6 +535,8 @@ describe('⛔ PRICE IS SEMANTIC, NOT PHYSICAL — every topology', () => {
 // /charts) into those margins. With the RS line parked under the bars the stored band
 // is short by the line's share — every capture loses it again.
 describe('⛔⛔ A LINE THAT JOINS THE AUTOSCALE — the stored band is everything the autoscale fits', () => {
+  // ⚠️ 3 decimals (|Δ| < 5e-4), not 4: the stored margins are rounded to 4 decimals (viewLockFractions), so an exact
+  // fixed point re-reads within ~1e-4. The compounding this rail exists for moved the candles by ~0.1 per switch.
   const switchTo = async (rerender, sym) => { rerender(view({ sym })); await frames(); await frames() }
 
   it('RS line under the candles: compress, switch ticker — the candles land where the member left them', async () => {
@@ -544,7 +546,7 @@ describe('⛔⛔ A LINE THAT JOINS THE AUTOSCALE — the stored band is everythi
     await dragPriceAxis(1.6)
     const afterDrag = occupancy()
     await switchTo(rerender, 'MSFT')
-    expect(occupancy(), 'the switch re-applied a band the autoscale then over-filled').toBeCloseTo(afterDrag, 4)
+    expect(occupancy(), 'the switch re-applied a band the autoscale then over-filled').toBeCloseTo(afterDrag, 3)
   })
 
   it('three drag → switch rounds never compound', async () => {
@@ -556,7 +558,7 @@ describe('⛔⛔ A LINE THAT JOINS THE AUTOSCALE — the stored band is everythi
       await dragPriceAxis(k)
       const before = occupancy()
       await switchTo(rerender, sym)
-      expect(occupancy(), `drag ×${k} then ${sym}`).toBeCloseTo(before, 4)
+      expect(occupancy(), `drag ×${k} then ${sym}`).toBeCloseTo(before, 3)
     }
   })
 
@@ -567,7 +569,7 @@ describe('⛔⛔ A LINE THAT JOINS THE AUTOSCALE — the stored band is everythi
     await dragPriceAxis(1.5)
     const afterDrag = occupancy()
     await switchTo(rerender, 'MSFT')
-    expect(occupancy()).toBeCloseTo(afterDrag, 4)
+    expect(occupancy()).toBeCloseTo(afterDrag, 3)
   })
 
   it('CONTROL — no overlay: the switch is a fixed point', async () => {
@@ -577,7 +579,7 @@ describe('⛔⛔ A LINE THAT JOINS THE AUTOSCALE — the stored band is everythi
     await dragPriceAxis(1.6)
     const afterDrag = occupancy()
     await switchTo(rerender, 'MSFT')
-    expect(occupancy()).toBeCloseTo(afterDrag, 4)
+    expect(occupancy()).toBeCloseTo(afterDrag, 3)
   })
 
   it('⛔ a line EXCLUDED from the autoscale is not counted (the band stays the candles\')', async () => {
@@ -587,7 +589,7 @@ describe('⛔⛔ A LINE THAT JOINS THE AUTOSCALE — the stored band is everythi
     await dragPriceAxis(1.6)
     const afterDrag = occupancy()
     await switchTo(rerender, 'MSFT')
-    expect(occupancy(), 'an excluded line was counted into the band').toBeCloseTo(afterDrag, 4)
+    expect(occupancy(), 'an excluded line was counted into the band').toBeCloseTo(afterDrag, 3)
   })
 
   it('⭐ an untouched chart with a joined line still authors no vertical lock on pan/zoom', async () => {

@@ -1839,7 +1839,7 @@ import {
   paneOwnerOf,
 } from './chart/engine/displayTarget'
 import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
-import { chromePlan, capturedPriceRange, viewLockFractions, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
+import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
 import { useSecondarySources, useOtherSymbolExchanges, useLowerTfSources, heldSpanFor } from './chart/engine/useSecondarySources'
 import { useCalcFrames } from './chart/engine/useCalcFrames'
@@ -5679,7 +5679,7 @@ export default function StockChart({
   // FRACTION (a fraction of the visible width, invariant to bar count so deep-
   // history backfill can never shift it) + the zoom width + the vertical candle
   // band. hLocked/vLocked flag whether each dimension differs from the default.
-  const _measureViewLock = (chart, prevBars) => {
+  const _measureViewLock = (chart, prevBars, opts = {}) => {
     try {
       if (!chart || !candleSeriesRef.current || !prevBars || !prevBars.length) return null
       const ts = chart.timeScale()
@@ -5702,6 +5702,12 @@ export default function StockChart({
         const s = Math.max(0, Math.floor(vr.from)), e = Math.min(oldN - 1, Math.ceil(vr.to))
         let hi = -Infinity, lo = Infinity
         for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
+        // ⭐ The band is EVERYTHING the autoscale fits, not the candles alone (joinedAutoscaleExtent:
+        // an RS line under the bars shrank them 37% → 6.5% across drag/switch rounds). Axis captures only.
+        if (opts.joined) {
+          const j = joinedAutoscaleExtent(candleSeriesRef.current, s, e)
+          if (j) { if (j.hi > hi) hi = j.hi; if (j.lo < lo) lo = j.lo }
+        }
         const series = candleSeriesRef.current
         // ⚰️⚰️ `chart.paneSize()` IS THE FIRST PANE, AND THIS MEANT "PRICE".
         //
@@ -17404,7 +17410,7 @@ export default function StockChart({
       if (!carryDragPlacement || replayCutoffRef.current) return
       requestAnimationFrame(() => {
         try {
-          const m = measureViewLockRef.current(chartRef.current, prevBarsRef.current)
+          const m = measureViewLockRef.current(chartRef.current, prevBarsRef.current, { joined: axisAuthored })
           if (!m) return
           const wasH = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null
           const wasV = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null
