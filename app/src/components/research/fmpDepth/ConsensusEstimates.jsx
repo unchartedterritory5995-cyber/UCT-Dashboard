@@ -26,6 +26,7 @@ import { AuthContext } from '../../../context/AuthContext'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
 import { WARMING_UP, useWarming } from '../../../utils/warmRetry'
 import SourceLine from './SourceLine'
+import SidewaysScroll from './SidewaysScroll'
 import { EarningsTradeCardForSym } from '../EarningsTradeCard'
 import { UNKNOWN_CCY, fmtCount, fmtEps, fmtGrowth, fmtMoney } from './depthFormat'
 import { formatNumber, isForeignCurrency, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
@@ -44,7 +45,7 @@ function ConsensusTable({ rows, basis, ccy }) {
   const eps = (v) => fmtEps(v, ccy)
   const money = (v) => fmtMoney(v, ccy)
   return (
-    <div className={styles.scroll}>
+    <SidewaysScroll label="Estimates by period, scrolls sideways">
       <table className={styles.table} aria-label={`Analyst consensus, ${basis === 'annual' ? 'annual' : 'quarterly'}`}>
         <thead>
           <tr>
@@ -72,7 +73,7 @@ function ConsensusTable({ rows, basis, ccy }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </SidewaysScroll>
   )
 }
 
@@ -86,7 +87,7 @@ const yahooEps = (rc) => (isForeignCurrency(rc) ? (v) => formatNumber(v, { decim
 function YahooForward({ rows, rc }) {
   const eps = yahooEps(rc)
   return (
-    <div className={styles.scroll}>
+    <SidewaysScroll label="Forward estimates by period, scrolls sideways">
       <table className={styles.table} aria-label="Forward estimates, Yahoo Finance">
         <thead>
           <tr><th scope="col">Period</th><th scope="col">EPS</th><th scope="col">EPS low – high</th>
@@ -105,14 +106,14 @@ function YahooForward({ rows, rc }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </SidewaysScroll>
   )
 }
 
 function Revisions({ rows, rc }) {
   const eps = yahooEps(rc)
   return (
-    <div className={styles.scroll}>
+    <SidewaysScroll label="Estimate revisions by period, scrolls sideways">
       <table className={styles.table} aria-label="EPS estimate revisions, Yahoo Finance">
         <thead>
           <tr><th scope="col">Period</th><th scope="col">Current</th><th scope="col">30d ago</th>
@@ -131,7 +132,7 @@ function Revisions({ rows, rc }) {
           ))}
         </tbody>
       </table>
-    </div>
+    </SidewaysScroll>
   )
 }
 

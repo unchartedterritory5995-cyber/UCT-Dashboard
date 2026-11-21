@@ -13,6 +13,7 @@ import { EmptyState } from '../../research-kit'
 import { FETCH_FAILED, sectionFetcher } from '../sections/sectionFetch'
 import { STATEMENTS, UNKNOWN_CCY, buildTable, rowLabel } from './depthFormat'
 import { reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
+import SidewaysScroll from './SidewaysScroll'
 import styles from './FmpDepth.module.css'
 
 export const historyKey = (sym, period) => `/api/research/financial-history/${sym}?period=${period}`
@@ -51,7 +52,7 @@ export default function StatementTables({ sym }) {
     body = <p className={styles.note}>FMP holds no {shownPeriod === 'annual' ? 'annual' : 'quarterly'} statements for this ticker.</p>
   } else {
     body = (
-      <div className={styles.scroll}>
+      <SidewaysScroll label="Financials by period, scrolls sideways">
         <table className={styles.table} aria-label={`${STATEMENTS.find((s) => s.key === statement).label}, ${shownPeriod === 'annual' ? 'annual' : 'quarterly'}, newest first`}>
           <thead>
             <tr>
@@ -73,7 +74,7 @@ export default function StatementTables({ sym }) {
             ))}
           </tbody>
         </table>
-      </div>
+      </SidewaysScroll>
     )
   }
 
