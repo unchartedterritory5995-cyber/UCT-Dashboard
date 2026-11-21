@@ -164,3 +164,12 @@ test('W9-T11: the window is in the result key only when the job states one (ever
   assert.notEqual(a, canonicalCtx(base))
   assert.notEqual(a, b)
 })
+
+test('(2026-11-20) the served depth is in the result key only when the job states one (every older key unchanged)', () => {
+  const base = { newestBarIsForming: false, historyFromListing: true, runtimeInputs: { a: 1 }, historyWindowBars: 12500 }
+  assert.equal(canonicalCtx(base).includes('depth='), false)
+  const a = canonicalCtx({ ...base, listingDepthBars: 5000 })
+  const b = canonicalCtx({ ...base, listingDepthBars: 4999 })
+  assert.notEqual(a, canonicalCtx(base))
+  assert.notEqual(a, b)
+})
