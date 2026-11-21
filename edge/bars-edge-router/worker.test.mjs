@@ -17,7 +17,7 @@ import worker, {
   classifyRequest, SERVICE_VALID, SERVICE_EXPIRED, SERVICE_INVALID,
   classifyToken, readCookie, stripEdgeCookie,
   VALID, MISSING, EXPIRED, INVALID, isDeliberateTierShed, routeToTier, BARS_HEDGE_MS,
-  BARS_BREAKER_MS, TIER_BREAKER, makeTierBreaker,
+  BARS_BREAKER_MS, TIER_BREAKER, makeTierBreaker, hedgeFor,
 } from "./worker.js";
 
 // The isolate's breaker is module state: every test starts with it closed.
@@ -749,4 +749,71 @@ test("⭐ the handler shares one breaker per isolate: after a tier failure the n
 
 test("the breaker window is long enough to cover a measured tier restart, short enough to come back fast", () => {
   assert.ok(BARS_BREAKER_MS >= 12000 && BARS_BREAKER_MS <= 60000, String(BARS_BREAKER_MS));
+});
+
+
+// ── history_rev-bearing reads are never hedged (2026-11-21 stopgap) ─────────────────
+// history_rev is comparable only within one store, and web's and bars-api's differ for every series
+// measured (72/72): a web answer re-points the browser at web's history, which then refuses bars-api's.
+const NOHEDGE = { hedgeMs: null };
+
+test("⭐⭐ a history_rev read with a SLOW tier waits for the tier: web is never asked", async () => {
+  const br = makeTierBreaker(clock().now);
+  const f = fakeFetch({ tier: { ms: 150 }, web: { ms: 5 } });
+  const res = await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
+  assert.equal(res.headers.get("X-Bars-Edge"), "tier");
+  assert.deepEqual(f.calls.map((x) => x.who), ["tier"]);
+  assert.equal(br.isOpen(), false);
+});
+
+test("⭐ a history_rev read whose tier FAILS goes to web at once, and opens a failure window it honours", async () => {
+  const br = makeTierBreaker(clock().now);
+  let f = fakeFetch({ tier: { ms: 5, status: 502 }, web: { ms: 5 } });
+  assert.equal((await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br })).headers.get("X-Bars-Edge"), "web-fallback");
+  assert.equal(br.isOpen(true), true);
+  f = fakeFetch({ tier: { ms: 5000 }, web: { ms: 5 } });
+  const res = await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
+  assert.equal(res.headers.get("X-Bars-Edge"), "web-breaker");
+  assert.deepEqual(f.calls.map((x) => x.who), ["web"]);
+});
+
+test("⛔ a breaker opened only by a HEDGE win does not send history_rev reads to web", async () => {
+  const br = makeTierBreaker(clock().now);
+  let f = fakeFetch({ tier: { ms: 5000 }, web: { ms: 5 } });
+  assert.equal((await routeToTier(f.fn, T, W, GET, { hedgeMs: 30, breaker: br })).headers.get("X-Bars-Edge"), "web-hedge");
+  assert.equal(br.isOpen(), true);
+  assert.equal(br.isOpen(true), false);
+  f = fakeFetch({ tier: { ms: 20 }, web: { ms: 5 } });
+  const res = await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
+  assert.equal(res.headers.get("X-Bars-Edge"), "tier");
+  assert.deepEqual(f.calls.map((x) => x.who), ["tier"]);
+  // ...and a later failure inside that window makes it a failure window for everyone
+  f = fakeFetch({ tier: { ms: 5, status: 502 }, web: { ms: 5 } });
+  await routeToTier(f.fn, T, W, GET, { ...NOHEDGE, breaker: br });
+  assert.equal(br.isOpen(true), true);
+});
+
+test("⭐ hedgeFor: /api/bars/<sym> is never hedged; /api/bars-history keeps the hedge", () => {
+  assert.deepEqual(hedgeFor("/api/bars/KO"), NOHEDGE);
+  assert.deepEqual(hedgeFor("/api/bars/BRK.B"), NOHEDGE);
+  assert.deepEqual(hedgeFor("/api/bars-history/KO"), {});
+  assert.deepEqual(hedgeFor("/api/hist/KO"), {});
+});
+
+test("⭐ the worker's own route passes hedgeFor: a slow tier on /api/bars/<sym> is waited for", async () => {
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (input, init) => {
+    const url = typeof input === "string" ? input : input.url;
+    calls.push(url.startsWith(BARS) ? "tier" : "web");
+    await sleep(url.startsWith(BARS) ? BARS_HEDGE_MS + 150 : 5);
+    return new Response('{"bars":[]}', { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    const res = await worker.fetch(new Request("https://uctintelligence.com/api/bars/KO?tf=D"), { CHART_EDGE_SECRET: SECRET });
+    assert.equal(res.headers.get("X-Bars-Edge"), "tier");
+    assert.deepEqual(calls, ["tier"]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });

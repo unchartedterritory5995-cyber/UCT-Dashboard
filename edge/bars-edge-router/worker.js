@@ -73,10 +73,14 @@ export const BARS_BREAKER_MS = 20000;
 export function makeTierBreaker(now = () => Date.now()) {
   let openUntil = 0;
   let opens = 0;
+  let failed = false;          // was this window opened by a tier FAILURE (not only by a hedge win)?
   return {
-    isOpen: () => now() < openUntil,
+    // `failuresOnly`: true for a read that must not leave the tier merely because it was slow
+    // (a `history_rev`-bearing read, see `hedgeFor`).
+    isOpen: (failuresOnly = false) => now() < openUntil && (!failuresOnly || failed),
     open(reason, ms = BARS_BREAKER_MS) {
       const was = now() < openUntil;
+      failed = (was && failed) || reason === "web-fallback";
       openUntil = now() + ms;
       if (!was) {
         opens += 1;
@@ -84,10 +88,28 @@ export function makeTierBreaker(now = () => Date.now()) {
       }
     },
     get opens() { return opens; },
-    reset() { openUntil = 0; },
+    reset() { openUntil = 0; failed = false; },
   };
 }
 export const TIER_BREAKER = makeTierBreaker();
+
+// ⛔⛔ A `history_rev`-BEARING READ IS NEVER HEDGED TO WEB (2026-11-21, stopgap, measured).
+// `/api/bars/<sym>` JSON carries the bar contract's `history_rev`, and that number is comparable only
+// within ONE store (docs/architecture/bar-contract.md). The browser refuses an answer whose history_rev
+// is LOWER than the one it holds, and re-reads in full on a HIGHER one (barStore reducer `staleReason` /
+// `histRose`). Measured 2026-11-21 on production series_meta: for 72 of 72 series (24 tickers x D/W/M)
+// web's base and bars-api's base DIFFER (web higher on 42; the two pods' floors are 7.7 h apart). So one
+// hedge won by web re-points a browser at web's history, and it then refuses bars-api's answers,
+// corrections included, until bars-api's number passes web's. A hedge is a latency win for under 1% of
+// reads, and it then opens the breaker for 20 s of web answers in that isolate.
+// So these reads wait for the tier and leave it only when the tier FAILS (network error, non-deliberate
+// 5xx, the 8 s timeout), and only a FAILURE-opened breaker sends them straight to web. `/api/bars-history`
+// carries no history_rev and keeps the hedge. ⚠️ THE COST: a read the tier accepted and never answered
+// waits the full BARS_TIMEOUT_MS again (the 2026-11-15 restart stall), but only the FIRST such read per
+// isolate: its failure opens the breaker and the rest of the window goes to web.
+export function hedgeFor(pathname) {
+  return /^\/api\/bars\/[^\/?#]+/.test(String(pathname || "")) ? { hedgeMs: null } : {};
+}
 
 /**
  * Ask the tier, hedge to web after `hedgeMs`, serve the first good answer.
@@ -98,7 +120,7 @@ export async function routeToTier(fetchImpl, tierUrl, webUrl, opts,
                                   { timeoutMs = BARS_TIMEOUT_MS, hedgeMs = BARS_HEDGE_MS,
                                     breaker = TIER_BREAKER } = {}) {
   const hedgeable = HEDGE_METHODS.has(String(opts.method || "GET").toUpperCase());
-  if (hedgeable && breaker && breaker.isOpen()) {
+  if (hedgeable && breaker && breaker.isOpen(hedgeMs == null)) {
     try {
       const r = await fetchImpl(webUrl, { ...opts });
       if (r.status < 500) {
@@ -120,7 +142,8 @@ async function routeTier(fetchImpl, tierUrl, webUrl, opts, { timeoutMs, hedgeMs,
   let why = "web-fallback";
   let openWeb;
   const webGate = new Promise((res) => { openWeb = res; });
-  const hedge = HEDGE_METHODS.has(String(opts.method || "GET").toUpperCase());
+  const hedgeable = HEDGE_METHODS.has(String(opts.method || "GET").toUpperCase());
+  const hedge = hedgeable && hedgeMs != null;            // null: never hedged (`hedgeFor`)
   const hedgeTimer = hedge ? setTimeout(() => { why = "web-hedge"; openWeb(); }, hedgeMs) : null;
 
   const tierP = (async () => {
@@ -143,7 +166,7 @@ async function routeTier(fetchImpl, tierUrl, webUrl, opts, { timeoutMs, hedgeMs,
   clearTimeout(tierTimer); if (hedgeTimer) clearTimeout(hedgeTimer);
   if (won.src === "tier") webAc.abort(); else tierAc.abort();
   // Web answered for a tier that failed or was out-waited by the hedge: stop asking it for a while.
-  if (won.src === "web" && hedge && breaker) breaker.open(why);
+  if (won.src === "web" && hedgeable && breaker) breaker.open(why);
   const out = new Response(won.r.body, won.r);
   out.headers.set("X-Bars-Edge", won.src === "tier" ? "tier" : why);
   return out;
@@ -444,6 +467,7 @@ export default {
 
     if (isBreadth) return fetch(target(WEB_ORIGIN), opts);
 
-    return routeToTier((u, o) => fetch(u, o), target(BARS_ORIGIN), target(WEB_ORIGIN), opts);
+    return routeToTier((u, o) => fetch(u, o), target(BARS_ORIGIN), target(WEB_ORIGIN), opts,
+                       hedgeFor(url.pathname));
   },
 };
