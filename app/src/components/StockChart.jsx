@@ -3897,8 +3897,12 @@ function settleOnMetaLanded(s, inp) {
  * render, on purpose: the store keeps it for the chart's whole life, and a closure written inside a render would pin
  * that render's whole scope (its bars) for as long. It holds the refs it reads, nothing else.
  */
-function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, settleRef, rerender }) {
+function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, settleRef, rerender, stale = null }) {
   return function _onMetaLanded() {
+    // ⛔ (imperative switch) while a switch painted another symbol and React has not committed it, these refs are the
+    // OLD symbol's: an answer landing now would draw its markers and badges on the new candles. The commit's own
+    // feed publishes the new symbol's.
+    if (stale && stale()) return
     const f = factsRef.current
     const inp = inputsRef.current
     if (!f || !inp) return
@@ -10194,7 +10198,8 @@ function StockChartBody({
   useLayoutEffect(() => metaStore.subscribe(metaLandedListener({
     metaStore, factsRef: _metaFactsRef, inputsRef: _metaInputsRef, nowRef: _metaNowRef,
     drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, settleRef: _metaSettleRef, rerender: _setMetaFactsRev,
-  })), [metaStore])
+    stale: switchCtl ? () => !!switchCtl.pendingSym() : null,
+  })), [metaStore])  // eslint-disable-line react-hooks/exhaustive-deps -- `switchCtl` is this chart's for its life
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
   // binder hands no document a window. Fixed for the tab once it lands.
@@ -12132,6 +12137,9 @@ function StockChartBody({
         emptyMeta: switchEmptyMeta,
         laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
         closeChannel: () => { _storeDevSeriesRef.current = null; _storeDevBarRef.current = null; _storeDevPaintedRef.current = null },
+        // the off-cursor readout (the legend's O/H/L/C, the indicator values, the end-tag chips) is the OLD symbol's:
+        // emptied in the frame, refilled by the commit's `refreshOffCursorReadout`
+        clearReadout: () => { setCrosshairData(null); setOffHoverEndTagChips(EMPTY_CHIPS) },
         clearLayers: () => clearSymbolLayers({
           markersControllerRef, lastMarkersSrcRef, lastMyTradesSrcRef, nextEarnRef,
           earnBadgeRef, splitBadgeRef, divBadgeRef, ipoBadgeRef,

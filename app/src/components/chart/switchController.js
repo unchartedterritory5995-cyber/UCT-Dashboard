@@ -150,6 +150,7 @@ const blankDiag = () => ({
   tail: {},            // the candles' tail of each applied switch: none / whitespace
   catchUp: { noop: 0, repaint: 0 },   // the React pass after a switch: handed the renderer nothing / painted again
   stale: 0,            // React passes of the old symbol skipped while a switch was pending
+  views: 0,            // commits of the chart's body (each writes its view): a switch that adds none rendered nothing
   last: null,          // { sym, ok, why }
 })
 
@@ -237,7 +238,7 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       }
     },
     /** What the chart committed (written each commit). */
-    noteView(v) { view = v },
+    noteView(v) { view = v; diag.views += 1 },
     /** A React pass of the symbol a switch replaced, while React has not caught up: it must not paint. */
     staleFor(sym) {
       const stale = !!pending && sym === pending.fromSym && sym !== pending.sym
@@ -269,6 +270,7 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       }
       pending = { sym, tf: t.tf, fromSym: t.fromSym }
       applyFrame(passCtx, t.frame)
+      v.clearReadout()                 // the old symbol's numbers are not left over the new candles
       appliedKey = `${sym}_${t.tf}`
       diag.applied += 1
       diag.tail[t.tail] = (diag.tail[t.tail] || 0) + 1

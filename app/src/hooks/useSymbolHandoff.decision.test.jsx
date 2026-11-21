@@ -73,7 +73,12 @@ describe('the key handler decides the group switch', () => {
     expect(commits).toEqual(['BBB/BBB'])
   })
 
-  it("a member that painted it itself ('applied') does not take it in render", () => {
+  it("a member marked 'applied' takes it in render too (the hook returns the HOST's symbol)", () => {
+    // (imperative switch, stage 3) A chart whose controller painted the symbol answers 'applied'. What this hook
+    // returns is the host's symbol (the header changes with the candles), so it is taken in render 1 like any
+    // other member's; what waits for the paint is the chart BODY's symbol, which the hook holds only when it
+    // called the controller itself (useSymbolHandoff.painter.test.jsx). It read 'AAA/AAA' here while the hook's
+    // one output was the body's.
     const { h, commits } = twoCharts()
     act(() => {
       expect(decideGroupShow(scope, G, 'BBB')).toBe(true)
@@ -81,7 +86,7 @@ describe('the key handler decides the group switch', () => {
       for (const id of Object.keys(d.tfs)) d.applied[id] = true   // as an imperative controller would answer
       h.rerender({ s: 'BBB', tf1: '30' })
     })
-    expect(commits[0]).toBe('AAA/AAA')                 // React's copy follows on its own path, not in render 1
+    expect(commits[0]).toBe('BBB/BBB')
   })
 
   it('control, today\'s path (no scope: never decided): the first commit still shows the old symbol', () => {

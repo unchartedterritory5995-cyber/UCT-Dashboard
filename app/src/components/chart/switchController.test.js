@@ -135,6 +135,7 @@ const makeView = (sym, over = {}) => ({
   laneShows: (s) => log.push(`lane:${s}`),
   closeChannel: () => log.push('channel:closed'),
   clearLayers: () => { layers += 1; log.push('layers:cleared') },
+  clearReadout: () => log.push('readout:cleared'),
   ...over,
 })
 /** A controller whose chart has painted `sym` through React once. */
@@ -150,10 +151,10 @@ const painted = (sym = 'AAA', viewOver = {}, frameOver = {}) => {
 beforeEach(() => { log = []; passes = []; layers = 0 })
 
 describe('apply: the new symbol\'s frame, whole', () => {
-  it('paints in today\'s order: the lane hears the symbol, the old channel closes, the pass runs, the layers are cleared in it', () => {
+  it('paints in today\'s order: the lane hears the symbol, the old channel closes, the pass runs (the layers cleared in it), the old readout is emptied', () => {
     const { c } = painted()
     expect(c.apply('BBB')).toBe('applied')
-    expect(log).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'layers:cleared'])
+    expect(log).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'layers:cleared', 'readout:cleared'])
   })
 
   it('hands the pass a frame of the new symbol: BUILT from its bars, CLEARED layers, a closed channel, the rest carried', () => {
@@ -329,6 +330,17 @@ describe('the numbers the harness reads', () => {
     expect(d.refused).toEqual({ 'same-symbol': 1 })
     expect(d.asked).toBe(d.applied + Object.values(d.refused).reduce((a, b) => a + b, 0))
     expect(d.tail).toEqual({ whitespace: 2 })
+  })
+})
+
+describe('the body\'s commits are counted (a switch that adds none rendered nothing)', () => {
+  it('`views` moves once per view the chart writes, and a paint moves it not at all', () => {
+    const { c } = painted()
+    const n = c.diag.views
+    c.apply('BBB')
+    expect(c.diag.views).toBe(n)
+    c.noteView(makeView('BBB'))
+    expect(c.diag.views).toBe(n + 1)
   })
 })
 

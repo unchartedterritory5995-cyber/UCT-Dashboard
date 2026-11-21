@@ -8,6 +8,8 @@
 //   (c) a render of the old symbol between the paint and the commit paints nothing;
 //   (d) the old symbol's per-symbol layers (its price lines, its markers) are gone in the frame of the paint;
 //   (f) an old-symbol tick between the paint and the commit writes nothing, and the new symbol ticks after it;
+//   (g) as far as jsdom shows framing: the paint keeps the member's zoom (the width of the view), the commit
+//       after it does not move the view, and the view is the one the React path sets;
 //   OFF the controller is never made (and StockChart.applyFrameParity is the log of that path).
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { Profiler } from 'react'
@@ -17,7 +19,7 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 
 const FLAG = 'uct.imperativeSwitch'
-const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0 }))
+const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false }))
 const digest = (v) => {
   const json = JSON.stringify(v, (k, x) => (typeof x === 'function' ? 'ƒ' : x && typeof x === 'object' && typeof x.nodeType === 'number' ? '‹node›' : x))
   if (json === undefined) return 'undefined'
@@ -60,8 +62,10 @@ vi.mock('lightweight-charts', async (importOriginal) => {
     }
   }
   const ts = {
-    applyOptions: () => {}, fitContent: () => {}, setVisibleLogicalRange: (r) => put('timeScale', 'setVisibleLogicalRange', r),
-    getVisibleLogicalRange: () => null, setVisibleRange: () => {}, scrollToPosition: () => {},
+    // (g) only: a time scale that remembers its range, so the pass's keep-the-view branches run
+    applyOptions: () => {}, fitContent: () => {},
+    setVisibleLogicalRange: (r) => { if (S.stateful) S.range = r; put('timeScale', 'setVisibleLogicalRange', r) },
+    getVisibleLogicalRange: () => (S.stateful ? S.range : null), setVisibleRange: () => {}, scrollToPosition: () => {},
     subscribeVisibleLogicalRangeChange: () => {}, unsubscribeVisibleLogicalRangeChange: () => {},
     timeToCoordinate: () => 0, coordinateToTime: () => null, resetTimeScale: () => {}, options: () => ({}), width: () => 600,
     logicalToCoordinate: () => 0, subscribeSizeChange: () => {}, unsubscribeSizeChange: () => {},
@@ -170,13 +174,13 @@ const lastSetData = (log) => { const out = {}; for (const l of log) { const m = 
 const lastOf = (log, re) => log.filter((l) => re.test(l)).at(-1)
 
 /** Mount AAA (with a price line and a marker of its own), hold BBB in the store: the chart, ready to switch. */
-async function mounted(on, tf, ofAAA = {}) {
-  S.log.length = 0; S.n = 0; S.commits = 0
+async function mounted(on, tf, ofAAA = {}, ofBoth = {}) {
+  S.log.length = 0; S.n = 0; S.commits = 0; S.range = null
   stubBars()
   const M = await loadGraph(on)
   M.nf.__setNeighborFramesForTests(true)
   const port = { current: null }
-  const base = { tf, backgroundWarm: false, settingsOverride: SETTINGS, onSettingsPersist: noop, switchPort: port, switchHostPlain: () => true }
+  const base = { tf, backgroundWarm: false, settingsOverride: SETTINGS, onSettingsPersist: noop, switchPort: port, switchHostPlain: () => true, ...ofBoth }
   const el = (sym, extra) => (
     <Profiler id="chart" onRender={() => { S.commits += 1 }}>
       <M.StockChart sym={sym} {...base} {...extra} />
@@ -210,16 +214,17 @@ describe('daily: the controller paints BBB over AAA', () => {
       const token = ctl ? ctl.canApply('BBB') : null
       const refusedAs = ctl ? JSON.stringify(ctl.diag.last) : 'no controller'
       S.log.length = 0; S.commits = 0
+      const viewsBefore = ctl ? ctl.diag.views : -1
       let result = null
       act(() => { result = ctl && token ? ctl.apply('BBB', token) : null })
       const applyLog = S.log.slice()
-      const commitsInApply = S.commits
+      const viewsInApply = ctl ? ctl.diag.views - viewsBefore : -1
       const pendingAfter = ctl ? ctl.pendingSym() : null
       S.log.length = 0; S.commits = 0
       t.view.rerender(t.el('BBB'))
       await wait(600)
       on = {
-        flag: t.M.flag, hasCtl: !!ctl, refusedAs, result, mountLog: t.mountLog, applyLog, commitsInApply, pendingAfter,
+        flag: t.M.flag, hasCtl: !!ctl, refusedAs, result, mountLog: t.mountLog, applyLog, viewsInApply, pendingAfter,
         catchUpLog: S.log.slice(), commitsInCatchUp: S.commits, diag: ctl ? JSON.parse(JSON.stringify(ctl.diag)) : null,
         pendingEnd: ctl ? ctl.pendingSym() : null,
         winDiag: typeof window.__uctSwitchDiag === 'object' ? Object.keys(window.__uctSwitchDiag) : [],
@@ -243,8 +248,9 @@ describe('daily: the controller paints BBB over AAA', () => {
       const ctl = t.port.current
       act(() => { if (ctl) ctl.apply('BBB') })
       S.log.length = 0
-      // AAA again, with a prop that re-creates `updateChart` (its passive effect would run the pass)
-      t.view.rerender(t.el('AAA', { ...OF_AAA, watermarkOpacity: 0.5 }))
+      // AAA again, with a prop that re-creates `updateChart` (its passive effect would run the pass), and a
+      // metadata answer landing for it (the feed publishes: its listener would redraw AAA's markers)
+      t.view.rerender(t.el('AAA', { ...OF_AAA, watermarkOpacity: 0.5, nextEarningsHint: '2026-12-01' }))
       await wait(300)
       stale = { log: S.log.slice(), stale: ctl ? ctl.diag.stale : -1, pending: ctl ? ctl.pendingSym() : null }
       t.done()
@@ -262,8 +268,10 @@ describe('daily: the controller paints BBB over AAA', () => {
     expect(on.result, `refused as ${on.refusedAs}`).toBe('applied')
   })
 
-  it('(a) the switch painted with NO React commit: candles, volume, the indicators and the frame, for BBB', () => {
-    expect(on.commitsInApply).toBe(0)
+  it('(a) the switch painted with NO render of the chart body: candles, volume, the indicators and the frame, for BBB', () => {
+    // `views` counts the body's commits (each writes its view to the controller): the paint added none. (The
+    // small readout islands do commit in it: the controller empties the old symbol's numbers.)
+    expect(on.viewsInApply).toBe(0)
     expect(on.applyLog.some((l) => /^candle#\d+ setData \[380\]sha:/.test(l)), 'candles').toBe(true)
     expect(on.applyLog.some((l) => /^histogram#\d+ setData \[380\]sha:/.test(l)), 'volume').toBe(true)
     expect(on.applyLog.some((l) => /^binder sync "BBB" "D" 380 /.test(l)), 'binder.sync for BBB').toBe(true)
@@ -303,6 +311,8 @@ describe('daily: the controller paints BBB over AAA', () => {
   it('(c) a render of AAA between the paint and the commit paints nothing', () => {
     expect(stale.log.filter(isPass)).toEqual([])
     expect(stale.log.filter((l) => / createPriceLine /.test(l))).toEqual([])
+    // …and a metadata answer that lands for AAA in between does not put its markers back
+    expect(stale.log.filter((l) => /^markers set [1-9]/.test(l))).toEqual([])
     expect(stale.stale).toBeGreaterThanOrEqual(1)
     expect(stale.pending).toBe('BBB')
   })
@@ -311,6 +321,65 @@ describe('daily: the controller paints BBB over AAA', () => {
     expect(off.hadPort).toBe(null)
     expect(off.winDiag).toBe(undefined)
     expect(off.switchLog.some((l) => /^candle#\d+ setData \[380\]sha:/.test(l))).toBe(true)
+  })
+})
+
+describe('(g) framing, as far as jsdom shows it: the member\'s zoom is kept and the commit does not move the view', () => {
+  let clock
+  beforeAll(() => { clock = pinWallClock('2026-11-14T16:00:00Z') })
+  afterAll(() => { clock.restore(); S.stateful = false })
+  const rangeOf = (line) => (line ? JSON.parse(line.replace(/^timeScale setVisibleLogicalRange /, '')) : null)
+  const ZOOM = 100   // the width of the view the member set, in bars
+  let on
+  let off
+
+  /** Mount (the /charts props that keep the view across a symbol), zoom to ZOOM bars at the right edge, switch. */
+  async function run(flagOn) {
+    S.stateful = true
+    const t = await mounted(flagOn, 'D', {}, { keepPresentOnSymbolChange: true })
+    const first = S.range
+    S.range = first ? { from: first.to - ZOOM, to: first.to } : null   // the member's zoom
+    const ctl = t.port.current
+    S.log.length = 0
+    let result = null
+    if (flagOn) act(() => { result = ctl ? ctl.apply('BBB') : null })
+    const paintLog = S.log.slice()
+    S.log.length = 0
+    t.view.rerender(t.el('BBB'))
+    await wait(600)
+    const out = { first, result, refusedAs: ctl ? JSON.stringify(ctl.diag.last) : null, paintLog, commitLog: S.log.slice(), end: S.range }
+    t.done()
+    S.stateful = false
+    return out
+  }
+  beforeAll(async () => { on = await run(true); off = await run(false) }, 120_000)
+
+  it('the mount framed the chart, and the chart painted BBB imperatively', () => {
+    expect(on.first && on.first.to > on.first.from).toBe(true)
+    expect(on.result, `refused as ${on.refusedAs}`).toBe('applied')
+  })
+
+  it('ZOOM_CHANGED 0: the paint frames BBB at the width the member had', () => {
+    const r = rangeOf(lastOf(on.paintLog, /^timeScale setVisibleLogicalRange/))
+    expect(r).toBeTruthy()
+    expect(Math.abs((r.to - r.from) - ZOOM)).toBeLessThan(1e-6)
+  })
+
+  it('VISIBLE_RANGE_DRIFT 0: the commit after the paint does not move the view', () => {
+    const painted = rangeOf(lastOf(on.paintLog, /^timeScale setVisibleLogicalRange/))
+    // (the settling frame may be re-asserted by a later pass: the same range again is not a move)
+    const moved = on.commitLog.filter((l) => /^timeScale setVisibleLogicalRange/.test(l)).map(rangeOf)
+      .filter((r) => r.from !== painted.from || r.to !== painted.to)
+    expect(moved).toEqual([])
+    expect(on.end).toEqual(painted)
+  })
+
+  it('the view is the one the React path sets for the same switch', () => {
+    expect(off.result).toBe(null)
+    const want = rangeOf(lastOf(off.commitLog, /^timeScale setVisibleLogicalRange/))
+    expect(want).toBeTruthy()
+    expect(Math.abs((want.to - want.from) - ZOOM)).toBeLessThan(1e-6)   // the React path keeps the zoom too (non-vacuity)
+    expect(on.end).toEqual(off.end)
   })
 })
 

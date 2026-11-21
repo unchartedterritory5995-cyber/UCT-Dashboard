@@ -1,10 +1,13 @@
 // ⭐⭐ THE IMPERATIVE SWITCH IN THE HANDOFF (stage 3, part 2; docs/charts/imperative-switch-design.md §3.4).
 //
 // A chart whose host hands the handoff a `painter` ref (the chart's `switchPort`) is SHOWN by its switch
-// controller painting it, in the same task every sibling is shown in; the React state follows after the paint.
+// controller painting it, in the same task every sibling is shown in. The host's symbol (what the hook returns:
+// the header, the badge) moves in that task too; the chart BODY's symbol (`painter.bodySym`) is held and follows
+// after the paint. Each commit below is logged as `host:body/host:body` for the two charts.
 //   (b) a linked group: every member's paint is in ONE task, through the key handler's decision (all members
 //       asked before the first one paints) and through the round (the fallback);
-//   • the deferred commit is a functional update: it never overwrites a switch React committed meanwhile;
+//   • the body's hold is released after the paint to whatever is displayed then: it never overwrites a switch
+//     React committed meanwhile, and it never renders a symbol that was already replaced;
 //   • a controller that refuses, or an empty ref, is today's path, unchanged;
 //   • this hook imports nothing of the controller (the ref is the whole bridge).
 // The controllers here are fakes that record what they were asked and when; the real one is railed on the real
@@ -82,7 +85,7 @@ function twoCharts({ a = null, b = null, withScope = true } = {}) {
   const h = renderHook(({ s }) => {
     const x = useSymbolHandoff(s, '30', { group: G, scope: withScope ? scope : null, painter: pa })
     const y = useSymbolHandoff(s, '60', { group: G, scope: withScope ? scope : null, painter: pb })
-    useLayoutEffect(() => { commits.push(`${x}/${y}`) })
+    useLayoutEffect(() => { commits.push(`${x}:${pa.bodySym}/${y}:${pb.bodySym}`) })
     return [x, y]
   }, { initialProps: { s: 'AAA' } })
   commits.length = 0
@@ -97,6 +100,8 @@ function press(h, sym) {
 const afterPaint = () => act(() => { vi.advanceTimersByTime(40) })
 const ticksOf = (re) => events.filter((e) => re.test(e)).map((e) => Number(/@(\d+)/.exec(e)[1]))
 const applies = () => events.filter((e) => /:apply:/.test(e))
+/** Was a chart BODY ever rendered with `sym`, in any commit so far? */
+const bodyEver = (commits, sym) => commits.some((c) => c.split('/').some((one) => one.split(':')[1] === sym))
 
 describe('(b) the key handler\'s decision: every member of the group paints in one task', () => {
   it('both controllers are asked first, then both paint, in the press; the React state follows after the paint', () => {
@@ -104,31 +109,32 @@ describe('(b) the key handler\'s decision: every member of the group paints in o
     expect(press(h, 'BBB')).toBe(true)
     // all the answers before the first paint, the paints from the tokens, all in one task
     expect(events).toEqual(['a:can:BBB@0', 'b:can:BBB@0', 'a:apply:BBB@0:token', 'b:apply:BBB@0:token'])
-    // React still shows the old symbol: neither chart rendered the new one before the paint
-    expect(commits.every((c) => c === 'AAA/AAA')).toBe(true)
+    // ONE commit in the press: both hosts show BBB (the label changes with the candles), and neither BODY was
+    // rendered with it before the paint
+    expect(commits).toEqual(['BBB:AAA/BBB:AAA'])
     afterPaint()
-    expect(commits.at(-1)).toBe('BBB/BBB')
+    expect(commits.at(-1)).toBe('BBB:BBB/BBB:BBB')
     // …and neither was shown a second time (no warm, no round, no second paint for a painted request)
     expect(applies()).toHaveLength(2)
     act(() => { vi.advanceTimersByTime(GROUP_HANG_MS + 100) })
     expect(applies()).toHaveLength(2)
-    expect(commits.at(-1)).toBe('BBB/BBB')
+    expect(commits.at(-1)).toBe('BBB:BBB/BBB:BBB')
   })
 
   it('a mixed group (one controller, one chart without): both are shown in the press, one by a paint, one by React', () => {
     const { h, commits } = twoCharts({ a: fakePainter('a'), b: null })
     expect(press(h, 'BBB')).toBe(true)
     expect(events).toEqual(['a:can:BBB@0', 'a:apply:BBB@0:token'])
-    expect(commits[0]).toBe('AAA/BBB')     // b took it in render 1 (before the paint); a was painted, its state follows
+    expect(commits).toEqual(['BBB:AAA/BBB:BBB'])   // one commit: b's body took it in render 1; a was painted, its body follows
     afterPaint()
-    expect(commits.at(-1)).toBe('BBB/BBB')
+    expect(commits.at(-1)).toBe('BBB:BBB/BBB:BBB')
   })
 
   it('a controller that refuses the symbol: that chart takes it in render 1, exactly as with no controller', () => {
     const { h, commits } = twoCharts({ a: fakePainter('a', false), b: fakePainter('b', false) })
     expect(press(h, 'BBB')).toBe(true)
     expect(events).toEqual(['a:can:BBB@0', 'b:can:BBB@0'])   // asked, refused, never told to paint
-    expect(commits).toEqual(['BBB/BBB'])
+    expect(commits).toEqual(['BBB:BBB/BBB:BBB'])
   })
 
   it('one member cannot show it now (its rows are not ready): no decision, and no controller is asked to paint in the press', () => {
@@ -146,9 +152,10 @@ describe('(b) the round (no decision): every ready member paints in the round\'s
     const t = ticksOf(/:apply:BBB/)
     expect(applies()).toEqual([`a:apply:BBB@${t[0]}:built`, `b:apply:BBB@${t[0]}:built`])
     expect(t[0]).toBe(t[1])
-    expect(commits.every((c) => c === 'AAA/AAA')).toBe(true)
+    expect(commits.at(-1)).toBe('BBB:AAA/BBB:AAA')   // both hosts show it; both bodies held
+    expect(bodyEver(commits, 'BBB')).toBe(false)
     afterPaint()
-    expect(commits.at(-1)).toBe('BBB/BBB')
+    expect(commits.at(-1)).toBe('BBB:BBB/BBB:BBB')
     expect(applies()).toHaveLength(2)
   })
 
@@ -156,31 +163,33 @@ describe('(b) the round (no decision): every ready member paints in the round\'s
     const { h, commits } = twoCharts({ a: fakePainter('a', false), b: fakePainter('b', false), withScope: false })
     press(h, 'BBB')
     expect(applies()).toHaveLength(2)                // asked once each, both refused
-    expect(commits.at(-1)).toBe('BBB/BBB')           // shown through React in the round's task, no timer needed
+    expect(commits.at(-1)).toBe('BBB:BBB/BBB:BBB')   // shown through React in the round's task, no timer needed
   })
 })
 
-describe('the deferred commit', () => {
-  it('is a functional update: a switch React committed meanwhile is not overwritten', () => {
-    // BBB is painted; CCC is refused by the controllers, so React shows it in render 1, before BBB's commit runs
+describe('the body\'s hold and its release', () => {
+  it('a switch React shows meanwhile releases the hold in its own render, and the older release changes nothing', () => {
+    // BBB is painted; CCC is refused by the controllers, so React shows it in render 1, before BBB's release runs
     const can = (sym) => sym === 'BBB'
     const { h, commits } = twoCharts({ a: fakePainter('a', can), b: fakePainter('b', can) })
     expect(press(h, 'BBB')).toBe(true)
     expect(press(h, 'CCC')).toBe(true)
-    expect(commits.at(-1)).toBe('CCC/CCC')
-    afterPaint()                                     // BBB's deferred commits run now
-    expect(commits.at(-1)).toBe('CCC/CCC')
-    expect(commits.slice(commits.indexOf('CCC/CCC')).some((c) => c.includes('BBB'))).toBe(false)
+    expect(commits.at(-1)).toBe('CCC:CCC/CCC:CCC')   // hosts and bodies, both charts, one commit
+    const n = commits.length
+    afterPaint()                                     // BBB's release runs now
+    expect(commits.slice(n).every((c) => c === 'CCC:CCC/CCC:CCC')).toBe(true)
+    expect(bodyEver(commits, 'BBB')).toBe(false)     // no body was ever rendered with the symbol that was replaced
   })
 
-  it('two paints before React caught up: the state goes to the symbol on screen, once', () => {
+  it('two paints before the release: the body goes from the symbol it showed to the one on screen, once', () => {
     const { h, commits } = twoCharts({ a: fakePainter('a'), b: fakePainter('b') })
     press(h, 'BBB')
     press(h, 'CCC')
     expect(applies().map((e) => e.split('@')[0])).toEqual(['a:apply:BBB', 'b:apply:BBB', 'a:apply:CCC', 'b:apply:CCC'])
+    expect(commits.at(-1)).toBe('CCC:AAA/CCC:AAA')
     afterPaint()
-    expect(commits.at(-1)).toBe('CCC/CCC')
-    expect(commits.some((c) => c.includes('BBB'))).toBe(false)   // React never rendered the symbol that was replaced
+    expect(commits.at(-1)).toBe('CCC:CCC/CCC:CCC')
+    expect(bodyEver(commits, 'BBB')).toBe(false)
   })
 })
 
@@ -188,7 +197,7 @@ describe('no controller', () => {
   it('an empty ref is today\'s path: the first commit after the press shows the symbol on both charts', () => {
     const { h, commits } = twoCharts({ a: null, b: null })
     expect(press(h, 'BBB')).toBe(true)
-    expect(commits).toEqual(['BBB/BBB'])
+    expect(commits).toEqual(['BBB:BBB/BBB:BBB'])
     expect(events).toEqual([])
   })
 })

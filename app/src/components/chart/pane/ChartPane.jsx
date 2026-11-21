@@ -171,6 +171,10 @@ function ChartPane({
   chartId = null,
   chartsTheme = null,
   stockChartProps = null,
+  // (imperative switch) the symbol to render the chart BODY with, when the host holds it a frame behind `sym`
+  // (ChartWidget, while the chart's switch controller has painted `sym` and React has not rendered the body yet).
+  // null: the body is rendered with `sym`, as every other host does.
+  chartSym = null,
   slots = null,
   onActivate = undefined,
   showTfBar = true,
@@ -1373,7 +1377,7 @@ function ChartPane({
         onKeyDown={handleChartKeyDown}
       >
         <StableStockChart
-          sym={sym}
+          sym={chartSym || sym}
           nextEarningsHint={nextEarningsHintDate}
           headerCustomStats={shownCustomStats}
           onHeaderCustomStats={shownCustomStats ? onHeaderCustomStats : null}

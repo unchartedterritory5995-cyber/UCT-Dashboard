@@ -162,6 +162,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     painter: switchPort,
     settle: { debounceMs: symDebounceMs, isWarm: symIsWarm },
   })
+  // The symbol the chart BODY is rendered with (the handoff writes it on the port each render). It is `sym` except
+  // for the frame or two after the chart's controller painted a symbol: this widget and the pane's header take the
+  // new symbol at once, with the candles, while the body's own render waits until after the paint.
+  const chartSym = switchPort.bodySym || sym
   // A host outside /charts may add price lines for the symbol on show (chartHostOverlay.js).
   const hostPriceLines = hostOverlay?.priceLinesFor?.(sym) || null
 
@@ -745,6 +749,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       <ChartPane
         ref={paneRef}
         sym={sym}
+        chartSym={chartSym}
         tf={tf}
         onSymbolChange={handleSymbolChange}
         onTfChange={setTf}
