@@ -56,6 +56,11 @@ def writes(pine, *, reply="A table.", tokens=(900, 400)):
               usage=_B(input_tokens=tokens[0], output_tokens=tokens[1]))
 
 
+def turn(conv, words, chart=DAILY):
+    """`script_turn` itself: the one function every script answer comes out of."""
+    return sc.script_turn(words, user_id="u1", chart=chart, cap_usd=5.0, calls=[], revision=0, contract=conv.PATCH_CONTRACT)
+
+
 def ask(conv, words, chart=DAILY):
     return conv.converse(words, user_id="u1", view=empty_view(0), chart=chart, admin=True, accepts=ACCEPTS)
 
@@ -151,6 +156,36 @@ def test_THE_FINDING_a_read_nobody_asked_for_is_sent_back_once_and_the_rewrite_i
     for piece in ("the chart's own symbol on the chart's own timeframe", "did not ask for another symbol or timeframe",
                   "Return the WHOLE script without `request.security`", "that is the prior day", "Change nothing else about what it computes"):
         assert piece in told["content"], piece
+
+
+def test_a_checked_recipe_is_never_sent_back_for_its_own_read(conv, clean_env, model, lane):
+    """Found by the door lane before this merged: `prior-day-levels`, one of UCT's own checked recipes, reads the
+    daily bar through a request, and on a daily chart that is "the chart's own timeframe". It is the checked
+    answer to these words and is right; a repair would trade it for an unchecked rewrite."""
+    recipe = next(r for r in pa.recipes() if r["id"] == "prior-day-levels")
+    words = "Add " + recipe["asks"][0]
+    assert pa.other_read_asked(words, recipe["source"], DAILY)[0] == pa.OTHER_READ_NOT_ASKED      # the rule alone WOULD send it back
+    assert pa.backed_by(words, recipe["source"]) == "prior-day-levels"
+    client = model([writes(recipe["source"], reply="Yesterday's levels.")])
+    r = turn(conv, words)
+    assert r["ok"] is True and len(client.calls) == 1
+    assert r["script"]["pine"] == recipe["source"] and r["script"]["reference"] == "prior-day-levels"
+    # CONTROL: the same read in a script that is NOT the recipe is still sent back (the finding)
+    assert pa.backed_by(YESTERDAY_WORDS, OWN_DAILY) is None
+    client = model([writes(OWN_DAILY), writes(WITHOUT)])
+    assert len(client.calls) == 0 and ask(conv, YESTERDAY_WORDS)["attempts"] == 2
+
+
+def test_no_recipe_of_UCT_s_own_is_sent_back_on_any_chart_it_is_asked_on(conv, clean_env, model, lane):
+    """Every recipe, asked for by its own words, on a daily and on a 5 minute chart: one call, the recipe kept."""
+    judged = 0
+    for recipe in pa.recipes():
+        for chart in (DAILY, FIVE_MIN):
+            client = model([writes(recipe["source"])])
+            r = turn(conv, "Add " + recipe["asks"][0], chart)
+            assert r["ok"] is True and len(client.calls) == 1, (recipe["id"], chart["tf"], r.get("gate"))
+            judged += 1
+    assert judged == 2 * len(pa.recipes()) and judged >= 20
 
 
 def test_a_read_the_member_asked_for_is_kept_with_no_second_call(conv, clean_env, model, lane):

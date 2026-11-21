@@ -284,6 +284,12 @@ def script_turn(message: str, *, user_id: Any, chart: Any, cap_usd: float, calls
         # reads it is KEPT (the window says what the limit is), and "unsure" is never repaired.
         if problem is None and not other_read_repaired and attempts < MAX_SCRIPT_CALLS and tool_use_id:
             asked, unasked = pine_authoring.other_read_asked(message, pine, chart)
+            # ⛔ NEVER AWAY FROM A CHECKED RECIPE. A script that IS one of UCT's own recipes for these words
+            # (`backed_by`) was checked whole, on every timeframe it is for: its daily read on a daily chart is
+            # yesterday's bar and right. Sending it back would trade a checked script for an unchecked rewrite.
+            if asked == pine_authoring.OTHER_READ_NOT_ASKED and pine_authoring.backed_by(message, pine) is not None:
+                trace["script"]["other_read"] = {"repaired": False, "recipe": True}
+                asked = pine_authoring.OTHER_READ_ASKED
             if asked == pine_authoring.OTHER_READ_NOT_ASKED:
                 other_read_repaired = True
                 trace["script"]["other_read"] = {"repaired": True, "unasked": list(unasked)}
