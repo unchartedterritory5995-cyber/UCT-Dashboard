@@ -391,7 +391,11 @@ def audit_ticker(
             error=f"canonical fetch failed: {fetch_err}",
         )
 
-    cached_rows = bars_sqlite.get_bars(ticker, tf, bars)
+    # RAW: the audit compares the rows AS STORED with the vendor (bars_corrections.raw_reads); a corrected value would
+    # read as drift on every corrected bar.
+    from api.services import bars_corrections as _cor
+    with _cor.raw_reads():
+        cached_rows = bars_sqlite.get_bars(ticker, tf, bars)
     cached = [
         {"t": row[0], "o": row[1], "h": row[2], "l": row[3], "c": row[4], "v": row[5]}
         for row in cached_rows

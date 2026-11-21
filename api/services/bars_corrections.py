@@ -30,6 +30,8 @@ Never raises: any failure serves the bars exactly as they came in.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import gzip
 import json
 import logging
@@ -212,7 +214,7 @@ def _compact(e: dict):
         op = e.get("op")
         if op == "set":
             f = tuple((k, float(p[0]), float(p[1])) for k, p in (e.get("f") or {}).items()
-                      if k in ("o", "h", "l", "c") and isinstance(p, (list, tuple)) and len(p) == 2)
+                      if k in ("o", "h", "l", "c", "v") and isinstance(p, (list, tuple)) and len(p) == 2)
             chk = tuple((k, float(v)) for k, v in (e.get("chk") or {}).items() if k in ("o", "h", "l", "c"))
             return ("set", f, chk) if f else None
         if op == "drop":
@@ -300,6 +302,70 @@ def _drop(bar: dict, e: tuple) -> bool:
     return ok
 
 
+_raw = contextvars.ContextVar("bars_corrections_raw_reads", default=False)
+
+
+@contextlib.contextmanager
+def raw_reads():
+    """Inside this block the store's read door (`bars_sqlite._door`) returns rows EXACTLY AS STORED. For every
+    read-modify-write caller: a correction read through the door and written back would be baked into the row, and
+    no later ledger version could take it back. tests/test_bars_store_door.py names who must use it."""
+    token = _raw.set(True)
+    try:
+        yield
+    finally:
+        _raw.reset(token)
+
+
+def _apply_one(b: dict, es: list):
+    """The ONE per-bar application: the bar after `es` (one date's entries), the same dict when nothing applied, or
+    None when a drop matched. `apply` (served dicts) and `apply_rows` (the store door's tuples) both run this."""
+    cur = b
+    for e in es:
+        op = e[0]
+        if op == "drop" and _drop(cur, e):
+            _counts["drop_applied"] += 1
+            return None
+        if op == "set":
+            nb = _set(cur, e)
+            if nb is not None:
+                cur = nb
+                _counts["set_applied"] += 1
+    return cur
+
+
+def apply_rows(ticker: str, tf: str, rows: list, src: str = "store") -> list:
+    """The store read door's form of `apply`: `rows` are (ts YYYYMMDD, o, h, l, c, v) tuples. Inside `raw_reads()`
+    they come back untouched. Returns the SAME list when nothing applies; never raises."""
+    if not rows or _raw.get() or str(tf).upper() not in DATE_TFS:
+        return rows
+    try:
+        by_d = entries_for(ticker, tf, src)
+        if not by_d:
+            return rows
+        out, changed = [], False
+        for r in rows:
+            s = str(r[0])
+            es = by_d.get(f"{s[:4]}-{s[4:6]}-{s[6:8]}") if len(s) == 8 else None
+            if not es:
+                out.append(r)
+                continue
+            b = {"t": s, "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]}
+            nb = _apply_one(b, es)
+            if nb is None:
+                changed = True
+                continue
+            if nb is b:
+                out.append(r)
+                continue
+            changed = True
+            out.append((r[0], nb["o"], nb["h"], nb["l"], nb["c"], nb["v"]) + tuple(r[6:]))
+        return out if changed else rows
+    except Exception as e:  # noqa: BLE001 - the stored rows still read
+        _log.warning("[bars-corrections] apply_rows failed for %s tf=%s: %s", ticker, tf, e)
+        return rows
+
+
 def apply(ticker: str, tf: str, bars: list, src: str) -> list:
     """`bars` (ascending {t, o, h, l, c, v} dicts) with the ledger's entries for (ticker, tf, src) applied by
     compare-and-set. Returns the SAME list object when nothing applies; never mutates the input dicts; never raises."""
@@ -315,19 +381,8 @@ def apply(ticker: str, tf: str, bars: list, src: str) -> list:
             if not es:
                 out.append(b)
                 continue
-            cur, dropped = b, False
-            for e in es:
-                op = e[0]
-                if op == "drop" and _drop(cur, e):
-                    dropped = True
-                    _counts["drop_applied"] += 1
-                    break
-                if op == "set":
-                    nb = _set(cur, e)
-                    if nb is not None:
-                        cur = nb
-                        _counts["set_applied"] += 1
-            if dropped:
+            cur = _apply_one(b, es)
+            if cur is None:
                 changed = True
                 continue
             changed = changed or cur is not b

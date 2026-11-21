@@ -969,6 +969,12 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
             try:
                 from api.services import bars_corrections as _cor_keep
                 keep = _cor_keep.keep_wicks(ticker, src)
+                if src == "rebuild":
+                    # A rebuilt series carries the STORE's rows after the rebuild's `end`: their D1 verdicts were
+                    # measured on store rows.
+                    from api.services import bars_rebuild as _reb_end
+                    end = str(_reb_end._state.get("end") or "")
+                    keep = {**{d: v for d, v in _cor_keep.keep_wicks(ticker, "store").items() if end and d > end}, **keep}
             except Exception:  # noqa: BLE001 - no ledger answer: the clamp trims as before
                 keep = {}
             served = _clamp_wicks(served, keep)
