@@ -1900,6 +1900,11 @@ import { buildFrame } from './chart/switchFrame'
 import { chartKeyFor } from './chart/useBarSnapshotBars'
 import { resolveDailyTodaySeed } from './chart/useLegacyChartBars'
 import { getBarStore } from '../data/barStore/index'
+// what the app already holds of a symbol's metadata, read outside a render (as lib/symbolResourceWarm.js reads it)
+import { cache as swrCache } from 'swr/_internal'
+import { tickerMetaKey } from '../hooks/tickerMetaKey'
+import { tickerIpoKey } from '../hooks/tickerIpoKey'
+import { storedTickerMeta } from '../hooks/useTickerMeta'
 import {
   LEGACY_LIVE, devOnScreenSource, liveAfterSetData, liveAfterVolumeSetData,
   useLegacyGapWatchdog, useLegacyLiveReset, useLegacyWriterA, useLegacyPushWriterB, useLegacyHeldPushFold,
@@ -11741,7 +11746,9 @@ function StockChartBody({
   const _watermarkLinesOf = (watermarkMeta) => ((cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
     ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines, tfWatermarkLabel(resolvedTf))
     : [])
-  const _drawMeta = (view, fresh, withWatermark) => {
+  // (`over`, imperative switch: the controller draws the NEXT symbol's metadata with this render's function, so
+  // the two inputs below that are this render's symbol's, its trade markers and its candles, are handed in.)
+  const _drawMeta = (view, fresh, withWatermark, over = null) => {
     if (withWatermark && wmCtrlRef.current) {
       try { wmCtrlRef.current.setOptions({ lines: _watermarkLinesOf(view.watermarkMeta) }) } catch { /* noop */ }
     }
@@ -11761,7 +11768,7 @@ function StockChartBody({
     // series) and a fresh chart. Never skip on either, or markers silently vanish.
     // Chart Settings → My trades (myTradeMarkers.js) rides the SAME controller: its markers join the list here, and
     // their own effect below re-hands the list when only they changed (never a second createSeriesMarkers).
-    const _myTradeMarkers = myTradeMarkersRef.current
+    const _myTradeMarkers = over ? over.myTradeMarkers : myTradeMarkersRef.current
     const _markersDirty = lastMarkersSrcRef.current !== mergedMarkers
       || lastMyTradesSrcRef.current !== _myTradeMarkers
       || !markersControllerRef.current
@@ -11794,7 +11801,7 @@ function StockChartBody({
         if (nextEarnSeriesRef.current !== _neSeries) {
           try { _neSeries.attachPrimitive(nextEarnRef.current.primitive); nextEarnSeriesRef.current = _neSeries } catch { /* primitive optional */ }
         }
-        const _neBars = _bigRef.current?.ohlcData
+        const _neBars = over ? over.ohlcData : _bigRef.current?.ohlcData
         let _neSet = null
         if (nextEarnRows) _neSet = nextEarningsMark(_neBars, resolvedTf, nextEarnRows, { extended: !!showExtendedRef.current })
         nextEarnRef.current.set(_neSet)
@@ -12099,6 +12106,8 @@ function StockChartBody({
         refuse: !BARSTORE ? 'legacy-live'
           : !_nfRecipes ? 'neighbor-frames-off'
           : !_nfRecipes.plain ? 'not-plain'
+          // W / M: their load-anchor tail (one slot at the developing period) has no rail yet
+          : (resolvedTf === 'W' || resolvedTf === 'M') ? 'weekly-monthly'
           : _econId ? 'econ'
           : typeof switchHostPlain !== 'function' ? 'no-host'
           : !switchHostPlain(sym) ? 'host-symbol'
@@ -12128,12 +12137,22 @@ function StockChartBody({
         tail: (built, s, snap) => switchTailFor(built, s, snap, resolvedTf, adjustTime),
         overlayData: (bars) => overlayDataOf(bars, resolvedOverlays, adjustTime, overlaysFromStart),
         shadeBands: (bars) => (_shadeOn ? computeSessionBands(bars, adjustTime) : EMPTY_BANDS),
-        listing: (bars) => {
-          const h = historyFromListingFor(bars, resolvedTf, null)
-          return { historyFromListing: h, listingUnserved: listingUnservedFor(h, bars, resolvedTf, null) }
+        // the listing date the app holds for the symbol, or none (as a render before it lands)
+        listing: (bars, s) => {
+          const ipo = switchPeek(tickerIpoKey(s)) || SWITCH_NO_IPO
+          const h = historyFromListingFor(bars, resolvedTf, ipo)
+          return { historyFromListing: h, listingUnserved: listingUnservedFor(h, bars, resolvedTf, ipo) }
         },
         symbolMeta: (s) => ({ ticker: s, exchange: null, industry: null, sector: null, securityType: null }),
-        emptyMeta: switchEmptyMeta,
+        // ⭐ THE NEW SYMBOL'S METADATA, AS FAR AS THE APP ALREADY HOLDS IT: what the metadata feed's hooks would be
+        // handed for it on their first render (the SWR cache, the stored ticker meta), put through the same view
+        // functions. Its name is on the watermark and its event badges on the candles in the frame of the paint;
+        // what the app does not hold yet arrives with the body's render, as it does on the React path.
+        metaFor: (s, built) => switchMetaFor(s, built, metaStore.getConfig(), !_study, _metaInputsRef.current),
+        // …drawn by this render's own `_drawMeta`, with the two inputs that are the symbol's handed in
+        drawMeta: (m, fresh, tail) => _drawMeta(m, fresh, false, { myTradeMarkers: SWITCH_NO_MARKERS, ohlcData: tail.ohlcData }),
+        // the chart's own pass of the symbol React shows, in full (`switchController.replay`)
+        reactRepaint: () => { updateChart(); if (chartReady) refreshOffCursorReadout() },
         laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
         // the developing bar the readers of `devOnScreen` are handed is the old symbol's. (Its PAINT is stopped in
         // one place, the guard at the top of `_storeDevPaintRef.current`; the body's next pass re-arms it.)
@@ -12141,10 +12160,6 @@ function StockChartBody({
         // the off-cursor readout (the legend's O/H/L/C, the indicator values, the end-tag chips) is the OLD symbol's:
         // emptied in the frame, refilled by the commit's `refreshOffCursorReadout`
         clearReadout: () => { setCrosshairData(null); setOffHoverEndTagChips(EMPTY_CHIPS) },
-        clearLayers: () => clearSymbolLayers({
-          markersControllerRef, lastMarkersSrcRef, lastMyTradesSrcRef, nextEarnRef,
-          earnBadgeRef, splitBadgeRef, divBadgeRef, ipoBadgeRef,
-        }),
       })
       if (switchPort) switchPort.current = switchCtl
       if (typeof window !== 'undefined') {
@@ -13422,6 +13437,10 @@ function StockChartBody({
     // we update at most once per animation frame (~60Hz). Read data from refs
     // so the subscription survives live ticks without tearing down.
     const processCrosshair = (param) => {
+      // ⛔ (imperative switch) between a switch's paint and this body's render the refs below are the OLD symbol's
+      // (its averages, its name): a hover would print them beside the new candle's prices, and report the old
+      // symbol to the linked charts. Nothing is read or reported until the body has rendered the new symbol.
+      if (switchCtl && switchCtl.pendingSym()) return
       const overlayData = overlayDataRef.current
       const comparisonData = comparisonDataRef.current
       const livePrices = livePricesRef.current
@@ -23274,19 +23293,45 @@ export function switchTailFor(built, sym, snapshot, resolvedTf, adjustTime) {
   return { ok: true, ohlcData: arr, kind: appended ? 'whitespace' : 'none' }
 }
 
-/** What the pass reads of the metadata when none has landed (the watermark's name lines). */
-function switchEmptyMeta() { return SWITCH_EMPTY_META }
-const SWITCH_EMPTY_META = Object.freeze({ watermarkMeta: watermarkMetaOf(null, null, null, null) })
+const SWITCH_NO_MARKERS = Object.freeze([])
+const SWITCH_NO_IPO = Object.freeze({ list_date: null })
+/** What SWR holds under `key` right now, or undefined (read outside a render; nothing is fetched). */
+function switchPeek(key) {
+  if (!key) return undefined
+  try { const hit = swrCache.get(key); return hit ? hit.data : undefined } catch { return undefined }
+}
 
-/** CLASS C, CLEARED IN THE FRAME: the old symbol's markers (events, news, desk, journal, flow, my trades), its
- *  next-earnings mark and its E / S / D / IPO badges. Their own code redraws them after the deferred commit: the
- *  `last…SrcRef`s are reset so that redraw is not skipped as "nothing changed". */
-function clearSymbolLayers(r) {
-  try { r.markersControllerRef.current?.setMarkers?.([]) } catch { /* series gone */ }
-  r.lastMarkersSrcRef.current = undefined
-  r.lastMyTradesSrcRef.current = undefined
-  try { r.nextEarnRef.current?.set(null) } catch { /* primitive optional */ }
-  for (const b of [r.earnBadgeRef, r.splitBadgeRef, r.divBadgeRef, r.ipoBadgeRef]) {
-    try { b.current?.setPoints([]) } catch { /* primitive optional */ }
+/**
+ * The metadata view of a symbol the chart has not rendered: what `ChartMetaFeed`'s hooks would be handed for it
+ * on their first render (SWR's cache; for the ticker meta also its stored copy, the hook's own first-paint
+ * fallback), through `chartMetaDrawView`, the function a render uses. Nothing is fetched.
+ *
+ * Per layer, what the paint of a new symbol shows:
+ *   • watermark name / sector / industry: DRAWN when the app holds the ticker meta (cache or stored copy);
+ *   • earnings / split / dividend badges, the next-earnings mark, news and desk markers: DRAWN when the feed is
+ *     on and its answer for the symbol is in the cache; otherwise empty, as on a render before the answer lands;
+ *   • the IPO badge: DRAWN when the listing date is in the cache;
+ *   • the member's own markers (journal, my trades, flow) and a host's `markers` prop: EMPTY. Only a render of
+ *     the symbol holds them (hook state, host props); a render before they land shows none either;
+ *   • a curated watermark name (a host prop for one symbol): not carried.
+ * @param {object} cfg   the feed's config (`metaStore.getConfig()`: which answers the chart asks for at all)
+ * @param {boolean} live the feed's own `live` (false in study mode: it asks for nothing)
+ * @param {object} inp   the chart's metadata inputs of its last render (settings; the symbol's own are replaced)
+ */
+function switchMetaFor(sym, built, cfg, live, inp) {
+  const on = live && !!sym
+  const meta = {
+    tickerMeta: on ? (switchPeek(tickerMetaKey(sym)) || storedTickerMeta(sym) || null) : null,
+    ipoInfo: on ? (switchPeek(tickerIpoKey(sym)) || SWITCH_NO_IPO) : SWITCH_NO_IPO,
+    markersData: on && cfg.markers ? switchPeek(markersKeyOf(sym)) : undefined,
+    newsData: on && cfg.news ? switchPeek(newsKeyOf(sym)) : undefined,
+    deskData: on && cfg.desk ? switchPeek(deskKeyOf(sym)) : undefined,
+    nextEarningsHint: null,
   }
+  return chartMetaDrawView(createChartMetaView(), meta, {
+    ...inp,
+    filteredBars: built.filteredBars,
+    markers: null, j2Markers: null, flowMarkers: SWITCH_NO_MARKERS,
+    watermarkName: null, watermarkSector: null, watermarkIndustry: null,
+  })
 }

@@ -238,6 +238,20 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
   const chartSym = bodyHold != null ? bodyHold : displayedSym
   const bodyRef = useRef(chartSym)
   bodyRef.current = chartSym
+  const shownRef = useRef(displayedSym)
+  shownRef.current = displayedSym
+  const paintSeqRef = useRef(0)
+  // ⛔ THE CONTROLLER IS TOLD WHAT THE HOST SHOWS, whenever a symbol is shown through React and at each release.
+  // If the host is back on the symbol the body is still rendered with while another one is painted, the body will
+  // not render (its prop does not change): the controller then ends its switch and puts that symbol's own frame
+  // back (`reconcile`). Without this the canvas kept the painted symbol under the old one's label.
+  const tellRef = useRef(null)
+  if (!tellRef.current) {
+    tellRef.current = (sym) => {
+      const p = painter && painter.current
+      if (p && typeof p.reconcile === 'function') { try { p.reconcile(sym) } catch { /* the next pass paints */ } }
+    }
+  }
   const paintRef = useRef(null)
   if (!paintRef.current) {
     /** Ask the chart's controller to paint `sym` (`token`: what its `canApply` built in this task, if any).
@@ -250,7 +264,16 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       if (r !== 'applied') return false
       const from = bodyRef.current
       setBodyHold((h) => (h != null ? h : from))
-      const release = () => setTimeout(() => setBodyHold(null), 0)
+      // ⛔ ONE RELEASE PER HOLD, THE NEWEST PAINT'S: an older paint's release must not let the body render before
+      // the newest paint is on screen (a held key).
+      const seq = ++paintSeqRef.current
+      const release = () => setTimeout(() => {
+        if (paintSeqRef.current !== seq) return
+        setBodyHold(null)
+        const now = painter && painter.current
+        if (now && typeof now.noteReleased === 'function') { try { now.noteReleased() } catch { /* a counter */ } }
+        tellRef.current(shownRef.current)
+      }, 0)
       if (typeof requestAnimationFrame === 'function') requestAnimationFrame(release)
       else release()
       return true
@@ -298,6 +321,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
         lastOutcomeRef.current = null   // the synchronous warm path, as the effect's same-tick commit records it
         noteDeviceFor(sym, viewRef.current.tf, sessOf(viewRef.current.showExtended), null)
         if (token && token.paint && paintRef.current(sym, token.paint)) return 'applied'
+        tellRef.current(sym)   // shown through React in this task: the controller hears which symbol
         return undefined
       },
     })
@@ -359,7 +383,7 @@ export default function useSymbolHandoff(requestedSym, tf, { enabled = true, sho
       // held until after the paint. No controller, or it refuses this symbol: the body follows now, as before.
       const show = () => {
         if (genRef.current !== gen) return
-        if (!paintRef.current(requestedSym)) setBodyHold(null)
+        if (!paintRef.current(requestedSym)) { tellRef.current(requestedSym); setBodyHold(null) }
         setDisplayedSym(requestedSym)
       }
       const commitNow = () => { if (genRef.current === gen) groupReady(group, requestedSym, memberIdRef.current, show, String(tf)) }

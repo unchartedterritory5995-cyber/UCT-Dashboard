@@ -19,6 +19,9 @@ const NULLS = Object.freeze({
 const LS_PREFIX = 'tmeta:'
 const LS_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
 
+/** The stored copy of a symbol's meta (the hook's own first-paint fallback), for a reader outside a render. */
+export function storedTickerMeta(sym) { return sym ? lsGet(sym) : undefined }
+
 function lsGet(sym) {
   try {
     const raw = localStorage.getItem(LS_PREFIX + sym)

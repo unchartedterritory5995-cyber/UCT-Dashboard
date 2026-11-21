@@ -57,8 +57,8 @@ describe('FRAME_RULES: one rule per name the pass reads off its frame', () => {
 
   it('the symbol, its bars and everything derived from them are BUILT; the per-symbol layers are CLEARED', () => {
     const kind = (n) => FRAME_RULES[n].kind
-    for (const n of ['sym', '_exKey', '__heavy', 'volMaData', 'overlayData', 'sessionShadeBands', 'historyFromListing', 'listingUnserved', 'symbolMeta']) expect(kind(n), n).toBe('built')
-    for (const n of ['allPriceLines', 'mergedMarkers', 'dpZones', 'swingPoints']) expect(kind(n), n).toBe('cleared')
+    for (const n of ['sym', '_exKey', '__heavy', 'volMaData', 'overlayData', 'sessionShadeBands', 'historyFromListing', 'listingUnserved', 'symbolMeta', 'mergedMarkers']) expect(kind(n), n).toBe('built')
+    for (const n of ['allPriceLines', 'dpZones', 'swingPoints']) expect(kind(n), n).toBe('cleared')
     for (const n of ['_paintStoreDev', 'devOnScreen']) expect(kind(n), n).toBe('channel')
     // an indicator input of the symbol is never carried: it is "nothing", or the switch is refused
     for (const n of ['secondarySources', 'lowerTfSources', 'fundamentalSources', 'marketCapAuthoritySources', 'economicSources', 'calcFrames', 'comparisonData']) expect(kind(n), n).toBe('none')
@@ -131,10 +131,8 @@ const makeView = (sym, over = {}) => ({
   shadeBands: (bars) => ['bands', bars[0].s],
   listing: () => ({ historyFromListing: false, listingUnserved: false }),
   symbolMeta: (s) => ({ ticker: s }),
-  emptyMeta: () => ({ watermarkMeta: null }),
   laneShows: (s) => log.push(`lane:${s}`),
   closeChannel: () => log.push('channel:closed'),
-  clearLayers: () => { layers += 1; log.push('layers:cleared') },
   clearReadout: () => log.push('readout:cleared'),
   // (review of #2400) the chart's own pass of the symbol React shows, and the peeked metadata of the next one
   reactRepaint: () => log.push('react:repaint'),
@@ -155,10 +153,10 @@ const painted = (sym = 'AAA', viewOver = {}, frameOver = {}) => {
 beforeEach(() => { log = []; passes = []; layers = 0 })
 
 describe('apply: the new symbol\'s frame, whole', () => {
-  it('paints in today\'s order: the lane hears the symbol, the old channel closes, the pass runs (the layers cleared in it), the old readout is emptied', () => {
+  it('paints in today\'s order: the lane hears the symbol, the old channel closes, the pass runs (the new symbol\'s metadata drawn in it), the old readout is emptied', () => {
     const { c } = painted()
     expect(c.apply('BBB')).toBe('applied')
-    expect(log).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'layers:cleared', 'readout:cleared'])
+    expect(log).toEqual(['lane:BBB', 'channel:closed', 'pass:BBB', 'meta:drawn', 'readout:cleared'])
   })
 
   it('hands the pass a frame of the new symbol: BUILT from its bars, CLEARED layers, a closed channel, the rest carried', () => {
@@ -194,7 +192,7 @@ describe('apply: the new symbol\'s frame, whole', () => {
     const pc = passes[0].ctx
     expect(pc.alertLineOptsRef.current).toEqual([])
     expect(pc.wmLogoRef.current).toBe(null)
-    expect(pc._metaNowRef.current()).toEqual({ watermarkMeta: null })
+    expect(pc._metaNowRef.current()).toEqual({ watermarkMeta: { name: 'BBB Inc' }, mergedMarkers: [] })   // the NEW symbol's, as held
     expect(layers).toBe(1)
     expect(log).not.toContain('drawMeta:react')
     // …and the chart's own refs are untouched (the React effects still own them)
@@ -439,7 +437,7 @@ describe('review finding 2: the new symbol\'s metadata the app already holds is 
     c.apply('BBB')
     expect(passes[0].ctx._metaNowRef.current().watermarkMeta).toEqual({ name: 'BBB Inc' })
     expect(log).toContain('meta:drawn')
-    expect(log).not.toContain('layers:cleared')
+    expect(log).not.toContain('drawMeta:react')   // never the old render's own draw of the old symbol
   })
 })
 

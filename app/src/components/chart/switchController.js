@@ -22,8 +22,13 @@
 //            ECON id, the settings are not clamped for either, the instance list does not follow the symbol.
 //   NONE     carried only while it is its "nothing" value (null / empty / false); anything else REFUSES by name.
 //   BUILT    made for the new symbol (the bars and what derives from them).
-//   CLEARED  a per-symbol layer: emptied in the frame, redrawn by its own React effect after the deferred commit.
-//            The old symbol's markers, lines and zones are never drawn on the new candles.
+//   CLEARED  a per-symbol layer whose data only a render holds (the host's price lines, the signature zones, the
+//            swing points): emptied in the frame, redrawn by its own React code at the body's render. That is
+//            what the React path shows on its first frame when the data is not cached. The old symbol's lines
+//            and zones are never drawn on the new candles.
+//            ⭐ The metadata layers are NOT cleared blind: `view.metaFor(sym)` reads what the app already holds
+//            for the new symbol (its name, its event markers, its listing date) and the pass draws THAT, so a
+//            symbol the app has met is painted with its name and its badges in the frame.
 //   CHANNEL  the developing-bar channel: closed for the old symbol in `apply`, opened for the new one by the
 //            React commit (the store subscription is the hook's; a second subscriber here would be a second
 //            writer of the candle series).
@@ -72,7 +77,7 @@ export const FRAME_RULES = Object.freeze({
   symbolMeta: { kind: BUILT, from: (b) => b.symbolMeta },
   // ── per-symbol layers: emptied in the frame ──
   allPriceLines: { kind: CLEARED, value: () => NO_LINES },
-  mergedMarkers: { kind: CLEARED, value: () => NO_MARKERS },
+  mergedMarkers: { kind: BUILT, from: (b) => b.meta.mergedMarkers || NO_MARKERS },
   dpZones: { kind: CLEARED, value: () => NO_ZONES },
   swingPoints: { kind: CLEARED, value: () => NO_POINTS },
   fadeCutoff: { kind: CLEARED, value: () => null },
@@ -144,9 +149,12 @@ export const FRAME_RULES = Object.freeze({
 })
 
 const blankDiag = () => ({
-  asked: 0,            // canApply / apply questions
-  applied: 0,          // switches painted here
-  refused: {},         // reason -> count (the rest of `asked`)
+  asked: 0,            // questions answered: ALWAYS `applied` + the sum of `refused`
+  applied: 0,          // switches painted here (a replay of React's own frame included: `replayed`)
+  refused: {},         // reason -> count. `group-veto`: a frame this chart built that a sibling's no kept unpainted
+  replayed: 0,         // switches back to the symbol React still showed: the chart's own pass, no built frame
+  released: 0,         // the body's holds released by the handoff (one per paint that was not overtaken)
+  lateBoxReads: 0,     // reads of a built frame's box AFTER its pass: a closure the pass installed kept it (must be 0)
   tail: {},            // the candles' tail of each applied switch: none / whitespace
   catchUp: { noop: 0, repaint: 0 },   // the React pass after a switch: handed the renderer nothing / painted again
   stale: 0,            // React passes of the old symbol skipped while a switch was pending
@@ -165,18 +173,46 @@ export function createSwitchController({ applyFrame, buildFrame }) {
   let appliedKey = null
   const subs = new Set()
   const diag = blankDiag()
+  let open = null        // a frame `canApply` built that has not been painted: { sym }
   const refuse = (sym, why) => {
+    diag.asked += 1
     diag.refused[why] = (diag.refused[why] || 0) + 1
     diag.last = { sym, ok: false, why }
     return { ok: false, why }
   }
+  /** A yes that was never painted was a sibling's veto of the group's decision, unless the same symbol is asked
+   *  again (the round, for the same press): then it is one question, answered when that one is. */
+  const settleOpen = (sym) => {
+    if (open && open.sym !== sym) refuse(open.sym, 'group-veto')
+    open = null
+  }
+  const publish = (key) => {
+    appliedKey = key
+    for (const fn of [...subs]) { try { fn(appliedKey) } catch { /* one reader never blocks the rest */ } }
+  }
+  /**
+   * ⛔ BACK TO THE SYMBOL REACT STILL SHOWS. A switch was painted here (`pending`), the chart's body is still
+   * rendered with the symbol it replaced, and that symbol is wanted again. Its body will not render (its prop
+   * does not change), so nothing would ever end the pending switch: the canvas would keep the painted symbol
+   * under the old one's label, every later pass skipped as stale. So the switch ends HERE, and the chart's own
+   * pass of the symbol React shows runs again, in full: its candles, its lines, its markers, its name.
+   */
+  const replay = () => {
+    pending = null
+    ctx.lastCfgSigRef.current = null       // the next pass is a full one…
+    ctx.prevPaintBarsRef.current = null    // …whatever was painted in between
+    view.reactRepaint()
+    diag.replayed += 1
+    publish(frame && typeof frame._exKey === 'string' ? frame._exKey : null)
+  }
 
   /** Everything the new symbol's pass will be handed, or the refusal. Touches no chart. */
   function build(sym) {
-    diag.asked += 1
     if (!ctx || !frame || !view) return refuse(sym, 'no-pass')
     if (!ctx.chartRef.current || !ctx.candleSeriesRef.current) return refuse(sym, 'no-chart')
     if (!sym || typeof sym !== 'string') return refuse(sym, 'no-symbol')
+    // the symbol React still shows is never refused and never built: it is replayed (see `replay`)
+    if (pending && sym === pending.fromSym) return { ok: true, sym, replay: true, view }
     if (sym === (pending ? pending.sym : frame.sym)) return refuse(sym, 'same-symbol')
     // the render React last committed must be the one whose pass we hold (a commit whose pass has not run yet
     // would make `frame` a symbol behind `view`)
@@ -201,19 +237,23 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       tail,
       overlayData: view.overlayData(built.sessionAppliedBars),
       shadeBands: view.shadeBands(built.filteredBars),
-      listing: view.listing(built.filteredBars),
+      listing: view.listing(built.filteredBars, sym),
       symbolMeta: view.symbolMeta(sym),
+      // what the app already holds of the new symbol's metadata (its name, its event markers), or nothing
+      meta: view.metaFor(sym, built),
     }
-    // the box the pass reads its bars from: the same field names as the render box's committed copy
-    b.box = {
-      committed: {
-        filteredBars: built.filteredBars,
-        displayBars: built.displayBars,
-        sessionAppliedBars: built.sessionAppliedBars,
-        data: { newest_bar_is_forming: built.newestBarIsForming },
-        _big: { ohlcData: tail.ohlcData, closeData: built.closeData, volData: built.volData },
-      },
+    // the box the pass reads its bars from: the same field names as the render box's committed copy.
+    // ⛔ It is a throwaway: it never updates. A closure the pass installed that kept it would read these bars for
+    // good, so every read after the pass is counted (`lateBoxReads`), and the rails hold the count at 0.
+    const committed = {
+      filteredBars: built.filteredBars,
+      displayBars: built.displayBars,
+      sessionAppliedBars: built.sessionAppliedBars,
+      data: { newest_bar_is_forming: built.newestBarIsForming },
+      _big: { ohlcData: tail.ohlcData, closeData: built.closeData, volData: built.volData },
     }
+    let sealed = false
+    b.box = { get committed() { if (sealed) diag.lateBoxReads += 1; return committed } }
     const next = {}
     for (const name of Object.keys(frame)) {
       const rule = FRAME_RULES[name]
@@ -223,7 +263,10 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       else if (rule.kind === BUILT) next[name] = rule.from(b)
       else next[name] = rule.value()
     }
-    return { ok: true, sym, tf: view.tf, fromSym: frame.sym, frame: next, tail: tail.kind, view }
+    return {
+      ok: true, sym, tf: view.tf, fromSym: frame.sym, frame: next, tail: tail.kind, tailData: tail, meta: b.meta, view,
+      seal: () => { sealed = true },
+    }
   }
 
   return {
@@ -251,35 +294,57 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     },
     /** Can this chart paint `sym` whole, now? A token for `apply`, or null. Pure: paints nothing. */
     canApply(sym) {
+      settleOpen(sym)
       const r = build(sym)
+      if (r.ok) open = { sym }
       return r.ok ? r : null
     },
+    /**
+     * The handoff says what the host shows (when it shows a symbol through React, and at each release of the
+     * body). If that is the symbol React still shows while another one is painted here, the body will not render:
+     * the switch is ended and React's frame replayed (`replay`). Anything else: nothing.
+     */
+    reconcile(hostSym) {
+      if (pending && hostSym === pending.fromSym && pending.sym !== hostSym) { try { replay() } catch { /* the next pass paints */ } }
+    },
+    /** The handoff released the body's hold. */
+    noteReleased() { diag.released += 1 },
     /**
      * Paint `sym`. `token`: what `canApply` returned in this task (built once, never twice).
      * @returns {'applied'|false}
      */
     apply(sym, token = null) {
+      settleOpen(sym)
       const t = token && token.ok && token.sym === sym && token.view === view ? token : build(sym)
       if (!t.ok) return false
+      if (t.replay) {
+        replay()
+        diag.asked += 1
+        diag.applied += 1
+        diag.last = { sym, ok: true, why: null }
+        return 'applied'
+      }
       const v = t.view
       v.laneShows(sym)                 // the server-compute lane hears the symbol first (today's effect order)
       v.closeChannel()                 // an old-symbol tick paints nothing from here on
       const passCtx = {
         ...ctx,
-        // the per-symbol layers the pass would otherwise redraw from the old render's closures
-        _drawMetaRef: { current: () => v.clearLayers() },
-        _metaNowRef: { current: v.emptyMeta },
-        alertLineOptsRef: { current: NO_LINES },
-        wmLogoRef: { current: null },
+        // the metadata the pass reads and draws: the NEW symbol's, as far as the app holds it (never the old
+        // render's closures over the old symbol's)
+        _metaNowRef: { current: () => t.meta },
+        _drawMetaRef: { current: (m, fresh) => v.drawMeta(m, fresh, t.tailData) },
+        alertLineOptsRef: { current: NO_LINES },   // the member's alerts on the old symbol (a render holds the new one's)
+        wmLogoRef: { current: null },              // the old symbol's logo image (its effect loads the new one)
       }
       pending = { sym, tf: t.tf, fromSym: t.fromSym }
       applyFrame(passCtx, t.frame)
+      t.seal()
       v.clearReadout()                 // the old symbol's numbers are not left over the new candles
-      appliedKey = t.frame._exKey
+      diag.asked += 1
       diag.applied += 1
       diag.tail[t.tail] = (diag.tail[t.tail] || 0) + 1
       diag.last = { sym, ok: true, why: null }
-      for (const fn of [...subs]) { try { fn(appliedKey) } catch { /* one reader never blocks the rest */ } }
+      publish(t.frame._exKey)
       return 'applied'
     },
     /** The symbol on screen that React has not committed yet, or null. */
