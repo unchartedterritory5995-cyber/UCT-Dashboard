@@ -81,7 +81,8 @@ describe('the dock says what a built line does not show on this chart', () => {
     const b = block()
     expect(b).not.toBeNull()
     expect(b.textContent).toContain('On this chart')
-    expect(b.textContent).toMatch(/it has no value on the newest 40 bars; its last value is on \d{1,2} [A-Z][a-z]{2} 2026\./)
+    expect(b.textContent.split('On this chart').length - 1).toBe(1)          // the heading says it; the sentence does not say it again
+    expect(b.textContent).toMatch(/It has no value on the newest 40 bars; its last value is on \d{1,2} [A-Z][a-z]{2} 2026\./)
     expect(entries().at(-1).contains(b)).toBe(true)              // inside the applied answer's own entry
     // and the reads stop at the first hit: no timer is pending and the chart is not read again
     const reads = c.reads
@@ -206,7 +207,7 @@ describe('the dock says what a built line does not show on this chart', () => {
     await say('two lines')
     await tick(0)
     const text = block().textContent
-    expect(text).toMatch(/: on this chart it has no value on the newest 40 bars/)
-    expect(text.split('on this chart it has no value').length - 1).toBe(1)        // only the empty one
+    expect(text).toMatch(/: it has no value on the newest 40 bars/)
+    expect(text.split('it has no value').length - 1).toBe(1)                      // only the empty one
   })
 })

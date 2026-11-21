@@ -56,7 +56,7 @@ describe('emptyOnThisChart: what the drawn preview does not show', () => {
     expect(items).toHaveLength(1)
     expect(items[0]).toMatchObject({ key: 'v', code: EMPTY_ON_CHART.NEWEST, blankBars: 700 - 1 - lastIn2025, lastDay: '31 Dec 2025' })
     expect(items[0].blankBars).toBeGreaterThan(200)
-    expect(emptyOnChartWords(items[0])).toBe(`On this chart it has no value on the newest ${items[0].blankBars} bars; its last value is on 31 Dec 2025.`)
+    expect(emptyOnChartWords(items[0])).toBe(`It has no value on the newest ${items[0].blankBars} bars; its last value is on 31 Dec 2025.`)
   })
 
   it('NO VALUE AT ALL, AND WHY IN NUMBERS: the formula reaches further back than the chart has bars', () => {
@@ -65,12 +65,12 @@ describe('emptyOnThisChart: what the drawn preview does not show', () => {
     expect(items).toHaveLength(1)
     expect(items[0].code).toBe(EMPTY_ON_CHART.NEVER)
     expect(items[0].reach).toBeGreaterThanOrEqual(960)
-    expect(emptyOnChartWords(items[0])).toBe(`On this chart it has no value on any bar. It needs ${items[0].reach.toLocaleString('en-US')} bars of history and this chart has 700.`)
+    expect(emptyOnChartWords(items[0])).toBe(`It has no value on any bar. It needs ${items[0].reach.toLocaleString('en-US')} bars of history and this chart has 700.`)
     // with history to spare there is no such reason to give (an event that has not happened on this chart)
     const long = emptyOnThisChart({ bindings: [drawn('v', pointsOf(days(1500), () => NaN))], definition: DEEP, barCount: 1500 }).items[0]
     expect(long.code).toBe(EMPTY_ON_CHART.NEVER)
     expect(long.reach).toBeUndefined()
-    expect(emptyOnChartWords(long)).toBe('On this chart it has no value on any bar.')
+    expect(emptyOnChartWords(long)).toBe('It has no value on any bar.')
   })
 
   it('A RIGHT ANSWER THAT IS BLANK AT THE END gets the true sentence, never a refusal: a pivot, and a single blank bar', () => {
@@ -79,10 +79,10 @@ describe('emptyOnThisChart: what the drawn preview does not show', () => {
     const lastPivot = Math.max(...t.map((_, i) => (i % 31 === 7 && i < 670 ? i : -1)))
     const { items } = emptyOnThisChart({ bindings: [drawn('v', pivot)], definition: LINE, barCount: 700 })
     expect(items[0]).toMatchObject({ code: EMPTY_ON_CHART.NEWEST, blankBars: 699 - lastPivot })
-    expect(emptyOnChartWords(items[0])).toMatch(/^On this chart it has no value on the newest \d+ bars; its last value is on \d{1,2} [A-Z][a-z]{2} 20\d\d\.$/)
+    expect(emptyOnChartWords(items[0])).toMatch(/^It has no value on the newest \d+ bars; its last value is on \d{1,2} [A-Z][a-z]{2} 20\d\d\.$/)
     const one = emptyOnThisChart({ bindings: [drawn('v', pointsOf(t, (i) => (i === 699 ? NaN : 1)))], definition: LINE, barCount: 700 }).items[0]
     expect(one.blankBars).toBe(1)
-    expect(emptyOnChartWords(one)).toBe('On this chart it has no value on the newest bar; its last value is on 19 Nov 2026.')
+    expect(emptyOnChartWords(one)).toBe('It has no value on the newest bar; its last value is on 19 Nov 2026.')
   })
 
   it('NOT DRAWN (yet): no binding of the preview is "not drawn", never "nothing is empty"', () => {
@@ -100,11 +100,27 @@ describe('emptyOnThisChart: what the drawn preview does not show', () => {
     // a long chart draws its recent rows: all 2,000 drawn rows blank is "none of the newest 2,000", not "any bar"
     const windowed = emptyOnThisChart({ bindings: [drawn('v', pointsOf(t.slice(-2000), () => NaN))], definition: LINE, barCount: 3000 }).items[0]
     expect(windowed).toMatchObject({ code: EMPTY_ON_CHART.NONE_DRAWN, rows: 2000 })
-    expect(emptyOnChartWords(windowed)).toBe('On this chart it has no value on any of the newest 2,000 bars.')
-    // a line the chart splits at its gaps: the newest-bar sentence alone
-    const split = emptyOnThisChart({ bindings: [drawn('v', pointsOf(t, (i) => (i < 100 ? 5 : NaN)), { runSeries: [{ data: () => [] }] })], definition: LINE, barCount: 3000 }).items[0]
+    expect(emptyOnChartWords(windowed)).toBe('It has no value on any of the newest 2,000 bars.')
+    // a line the chart splits at its gaps (a pivot): WHEN its last value was, from its runs; never how many bars ago
+    const run = (from, to) => ({ data: () => pointsOf(t.slice(from, to), () => 7) })
+    const splitLine = (runSeries, lastOfFirstRun = 100) => emptyOnThisChart({ bindings: [drawn('v', pointsOf(t, (i) => (i < lastOfFirstRun ? 5 : NaN)), { lastValue: undefined, runSeries })],
+      definition: LINE, barCount: 3000 }).items[0]
+    const split = splitLine([run(400, 410), run(2900, 2950), run(1200, 1210)])       // the runs are in no order: the LATEST day wins
     expect(split.code).toBe(EMPTY_ON_CHART.NEWEST_BAR)
-    expect(emptyOnChartWords(split)).toBe('On this chart it has no value on the newest bar.')
+    expect(split.blankBars).toBeUndefined()
+    expect(split.lastDay).toBe(dayWords(t[2949]))
+    expect(emptyOnChartWords(split)).toBe(`It has no value on the newest bar; its last value is on ${dayWords(t[2949])}.`)
+    // the first run can hold the last value too
+    expect(splitLine([run(10, 20)], 2000).lastDay).toBe(dayWords(t[1999]))
+    // ⛔ a run that cannot be read: no day at all (a day from only SOME of the runs could be an earlier one)
+    const unreadable = splitLine([run(400, 410), { data: () => { throw new Error('gone') } }])
+    expect(unreadable.lastDay).toBeUndefined()
+    expect(emptyOnChartWords(unreadable)).toBe('It has no value on the newest bar.')
+    // ⛔ and intraday runs: no day
+    const intradayRun = { data: () => [{ time: 1_760_000_000, value: 3 }] }
+    expect(splitLine([intradayRun]).lastDay).toBeUndefined()
+    // an empty run adds nothing and takes nothing away
+    expect(splitLine([{ data: () => [] }]).lastDay).toBe(dayWords(t[99]))
     // the points end on a value although the binding's newest value is blank: they disagree, so only the binding is believed
     const odd = emptyOnThisChart({ bindings: [drawn('v', pointsOf(t, () => 5), { lastValue: undefined })], definition: LINE, barCount: 3000 }).items[0]
     expect(odd.code).toBe(EMPTY_ON_CHART.NEWEST_BAR)
@@ -116,7 +132,7 @@ describe('emptyOnThisChart: what the drawn preview does not show', () => {
     const intraday = emptyOnThisChart({ bindings: [drawn('v', secs)], definition: LINE, barCount: 400 }).items[0]
     expect(intraday).toMatchObject({ code: EMPTY_ON_CHART.NEWEST, blankBars: 100 })
     expect(intraday.lastDay).toBeUndefined()
-    expect(emptyOnChartWords(intraday)).toBe('On this chart it has no value on the newest 100 bars.')
+    expect(emptyOnChartWords(intraday)).toBe('It has no value on the newest 100 bars.')
   })
 
   it('a candle payload is read by its close, and each output is spoken for once', () => {
@@ -130,8 +146,8 @@ describe('emptyOnThisChart: what the drawn preview does not show', () => {
 
   it('the output is named only when the indicator has more than one', () => {
     const item = { key: 'v', code: EMPTY_ON_CHART.NEWEST, blankBars: 3, bars: 700 }
-    expect(emptyOnChartWords(item)).toBe('On this chart it has no value on the newest 3 bars.')
-    expect(emptyOnChartWords(item, { name: 'Year to date' })).toBe('Year to date: on this chart it has no value on the newest 3 bars.')
+    expect(emptyOnChartWords(item)).toBe('It has no value on the newest 3 bars.')
+    expect(emptyOnChartWords(item, { name: 'Year to date' })).toBe('Year to date: it has no value on the newest 3 bars.')
     expect(emptyOnChartWords(null)).toBe('')
     expect(emptyOnChartWords({ code: 'something-else' })).toBe('')
   })
