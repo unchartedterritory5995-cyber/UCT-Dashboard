@@ -160,6 +160,8 @@ export const PANEL_IMPORTERS = {
   Oil: () => import('./panels/OilPanel'),
   // FUND (2026-11-21): one company's metrics over time from its SEC filings, up to three more beside it
   FundMetrics: () => import('./panels/FundMetricsPanel'),
+  // GRPS (2026-11-21): every sector or industry, one row each: median growth, margins, valuation and breadth
+  GroupTable: () => import('./panels/GroupTablePanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

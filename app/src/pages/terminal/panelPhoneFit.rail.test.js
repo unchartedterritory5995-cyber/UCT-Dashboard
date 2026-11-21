@@ -258,7 +258,10 @@ const NOT_MEASURED = ['CongressLatestPanel.jsx', 'EarningsReactionsPanel.jsx', '
   'OilPanel.jsx',
   // FUND (2026-11-21): the period table scrolls sideways in its own box (SidewaysScroll) with the label column
   // pinned, as FA and EE; nothing folds
-  'FundMetricsPanel.jsx']
+  'FundMetricsPanel.jsx',
+  // GRPS (2026-11-21): every sector or industry, one row each; the table scrolls sideways in its own box
+  // (SidewaysScroll) with the name column pinned, as FUND; nothing folds
+  'GroupTablePanel.jsx']
 const FOLD_SHEETS = ['marketPanels.module.css', 'moversPanel.module.css', 'myNamesPanel.module.css', 'earningsSeason.module.css', 'comparePanels.module.css']
 const stepsIn = (src) => [...src.matchAll(/data-fold=(?:"([^"]*)"|\{paired \? undefined : '([^']*)'\})/g)].map((m) => m[1] ?? m[2])
 

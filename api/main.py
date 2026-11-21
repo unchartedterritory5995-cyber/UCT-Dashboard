@@ -11171,6 +11171,27 @@ async def lifespan(app: FastAPI):
             print("[startup] notebook passed-setups nightly registered (17:40 ET weekdays)")
         except Exception as e:
             print(f"[startup] notebook passed-setups registration failed (non-fatal): {e}")
+        # GRP / GRPS (2026-11-21) -- group fundamentals and breadth: every sector and industry's medians
+        # from the point-in-time filings store and its breadth from stored closes, built ONCE each evening
+        # on a background thread and held (api/services/group_stats.py). Each tick starts the build only
+        # in the quiet span (from 20:15 ET on a weekday, or a weekend) and only when the held answer is
+        # older than the newest session's evening (or that evening fell short and is retried, at most
+        # three times), so the eight evening ticks build once; the boot tick catches an evening a
+        # restart missed. Never on a member's request. Rail: tests/test_group_stats.py.
+        _boot_mark("GRPS-evening")
+        try:
+            from datetime import datetime as _grp_dt, timedelta as _grp_td
+            from api.services import group_stats as _group_stats
+            _scheduler.add_job(_group_stats.scheduled_refresh,
+                               trigger=CronTrigger(hour="20-23", minute="20,50", timezone=_ET),
+                               id="group_stats_evening", max_instances=1, coalesce=True,
+                               misfire_grace_time=1200, replace_existing=True)
+            _scheduler.add_job(_group_stats.scheduled_refresh, trigger="date",
+                               run_date=_grp_dt.now(_ET) + _grp_td(seconds=600),
+                               id="group_stats_boot", replace_existing=True)
+            print("[startup] group fundamentals and breadth registered (evening ticks 20:20-23:50 ET, boot +10 min)")
+        except Exception as e:
+            print(f"[startup] group fundamentals and breadth registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 
@@ -12243,6 +12264,8 @@ from api.routers import corporate_actions as corporate_actions_router  # noqa: E
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
 from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
 app.include_router(fed_watch_router.router)  # /api/research/fed-watch
+from api.routers import group_stats as group_stats_router  # noqa: E402  (GRP / GRPS: group fundamentals and breadth, built each evening, paid)
+app.include_router(group_stats_router.router)  # /api/research/group-stats
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

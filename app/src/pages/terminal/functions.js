@@ -626,6 +626,14 @@ export const FUNCTIONS = [
   { code: 'FUND', label: 'Company metrics over time (revenue, EPS, margins, cash flow, valuation; point in time from SEC filings)', group: 'Security',
     ticker: { panel: 'FundMetrics', args: [{ kind: 'fundMetric', prop: 'line' }, { kind: 'fundMetrics', prop: 'metrics' },
       { kind: 'fundPeers', prop: 'peers', rest: true }] } },
+  // GRPS (2026-11-21): every sector (or industry) one row, sortable by any column: the median revenue and EPS growth,
+  // margins, ROE and valuation of its stocks from their SEC filings as known that day (point in time), and its breadth
+  // from UCT's stored closes (above the 20, 50 and 200-day averages, near the 52-week high, highs minus lows), worked
+  // out once each evening (GET /api/research/group-stats, paid). GRP shows one sector's or industry's in full above
+  // its ranked stocks. `GRPS INDUSTRIES`, `GRPS VALUATION`. A new code, not a view of SCTR: SCTR ranks the 11 sector
+  // FUNDS by their price over a window. GRPS is not in the site's universe.
+  { code: 'GRPS', label: 'Every sector or industry: median growth, margins, valuation and breadth', group: 'Market',
+    market: { panel: 'GroupTable', args: [{ kind: 'groupsKind', prop: 'kind' }, { kind: 'groupsView', prop: 'view' }] } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -966,6 +974,10 @@ const FUNCTION_WORDS = {
   FUND: { example: 'NVDA FUND', keywords: ['fundamentals history', 'metrics', 'revenue history', 'eps history', 'margins',
     'fcf', 'roe', 'pe history', 'valuation history', 'financial history'],
     note: "Point in time from SEC filings: each figure dated by when its filing became public. Valuation is composed with UCT's stored prices." },
+  // 'breadth' stays with BRD, 'sectors' with RRG and 'sector performance' with SCTR: each still finds its own first.
+  GRPS: { example: 'GRPS INDUSTRIES', keywords: ['sector fundamentals', 'industry fundamentals', 'sector breadth', 'industry breadth',
+    'sector valuation', 'sector margins', 'group fundamentals', 'sector table', 'industry table'],
+    note: "Medians of each group's stocks from their SEC filings as known that day, and its breadth from stored closes; worked out each evening." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

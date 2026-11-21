@@ -32,6 +32,7 @@ import useWarmingPoll from './warmingPoll'
 import { PERIOD_RANGES, breadthOf, periodGroupsRead, periodGroupsUrl, periodRead, periodRequest } from './periodChangeModel'
 import { CONFLUENCE_URL, confluenceRead } from './confluenceModel'
 import { THEMES_URL, imovCommand } from './imovModel'
+import GroupStatsSections from './GroupStatsSections'
 import {
   DEFAULT_GROUP_SORT, GROUP_DRILL_CODE, GROUP_KINDS, GROUP_MAX_ROWS, GROUP_PAGE_ROWS, GROUP_RS_URL, GROUP_SORTS, SECTOR_FUNDS,
   combineGroupLists, flowBoard, flowWords, groupDrillCommandArgs, groupDrillRows, groupKindsToRead, groupSortWords, normGroupRange,
@@ -332,6 +333,8 @@ function Drill({ query, req, code, sort, onSort, onPick, onResolved }) {
           <button type="button" className={styles.linkBtn} onClick={() => onPick(o)}>Open the {GROUP_KINDS[o.kind].one}</button>
         </p>
       ))}
+      {/* the group's own fundamentals and breadth (GET /api/research/group-stats), above the list and apart from it */}
+      <GroupStatsSections kind={group.kind} name={group.name} />
       {!stocks.read.loading && stocks.view.state === 'computing' ? (
         <p className={styles.note} role="status" data-testid="terminal-grp-stocks-computing">
           The server is still working out each stock&apos;s own change. This panel asks again every 5 seconds and fills

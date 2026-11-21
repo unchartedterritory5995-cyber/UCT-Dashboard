@@ -4459,6 +4459,14 @@
     {
       "limit": "600/minute",
       "method": "GET",
+      "params": "kind=sector, name",
+      "path": "/api/research/group-stats",
+      "rate_limit_family": "research",
+      "tier": "paid"
+    },
+    {
+      "limit": "600/minute",
+      "method": "GET",
       "params": "{sym}, days=90",
       "path": "/api/research/history/{sym}",
       "rate_limit_family": "research",

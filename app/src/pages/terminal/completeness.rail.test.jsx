@@ -144,6 +144,7 @@ const ARG_SAMPLE = {
   seasMeasure: 'AVG',
   cotMarketName: 'GOLD', anlgCount: '7', insView: 'CLUSTER',
   fundMetric: 'PE', fundMetrics: 'REV+EPS', fundPeers: 'AMD',
+  groupsKind: 'INDUSTRIES', groupsView: 'VALUATION',
 }
 
 afterEach(cleanup)
