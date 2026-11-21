@@ -193,6 +193,10 @@ def apply(ticker: str, bars: list, tf: str, head: bool = False) -> Optional[list
         end = _state["end"]
         if not reb or not end:
             return None
+        # The corrections ledger's entries measured on the REBUILT series (bars_corrections, src "rebuild"), applied
+        # to the daily bars BEFORE the W / M resample, so weekly and monthly derive from the corrected dailies.
+        from api.services import bars_corrections as _cor
+        reb = _cor.apply(ticker, "D", reb, "rebuild")
         reb = [b for b in reb if b["t"] <= end]
         if tf == "D":
             out = [dict(b) for b in reb] + [b for b in bars if str(b.get("t"))[:10] > end]
