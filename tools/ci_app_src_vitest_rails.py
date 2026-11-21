@@ -97,6 +97,11 @@ DECLARED: dict[str, tuple[tuple[str, ...], str]] = {
     # never ran it: it was red from 11-03 (#559's unnamed lab inputs) to 11-20 with every PR check green
     "app/src/components/ui/formControls.census.test.js": (("app/src",),
         "the form-control census (TERM-067): every app/src file is a control site it counts, so any app/src change runs it"),
+    # 2026-11-21: the persistence manifest rail runs `census(repoSources())` over every app/src source, which the
+    # static scan sees only as tools/persistence_census.mjs and its own manifest, so a PR persisting a new key anywhere
+    # never ran it (red on master until #2345). A ~5 s static scan.
+    "app/src/lib/persistence/persistenceManifest.test.js": (("app/src", "tools/persistence_census.mjs"),
+        "the persistence manifest (TERM-076): every app/src source is a key site it counts, so any app/src change runs it"),
     "app/src/components/dailyDeepHistoryClock.test.jsx": (_DAILY_FIRST_PAINT_CODE,
         "daily deep history in every session window: the chart holds the deep set, the library its newest rows, Origin bar 0"),
     "app/src/components/dailyFirstPaintAcceptance.test.jsx": (_DAILY_FIRST_PAINT_CODE,
