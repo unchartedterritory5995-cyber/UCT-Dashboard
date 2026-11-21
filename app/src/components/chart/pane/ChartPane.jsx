@@ -80,6 +80,20 @@ const TICKER_KEY_RE = /^[A-Za-z.]$/
 
 const DWM = ['D', 'W', 'M']
 
+/** What can change a header row's width WITHOUT asking for a layout: its text, how many elements it holds and their
+ *  classes (an abbreviated label, a shed button, a bolded active timeframe). The fit checks below read layout
+ *  (`scrollWidth`) only when this, the pane width or their own steps moved (2026-11-21, the switch-task trace). */
+function rowFitSig(el) {
+  if (!el) return '-'
+  const all = el.getElementsByTagName('*')
+  let cls = 0
+  for (let i = 0; i < all.length; i++) {
+    const c = all[i].className
+    cls += typeof c === 'string' ? c.length : (c && typeof c.baseVal === 'string' ? c.baseVal.length : 0)
+  }
+  return `${el.textContent.length}:${all.length}:${cls}`
+}
+
 // S2 CP3 — this pane is the ORIGINAL Shift+F flag-ticker implementation; Watchlists.jsx,
 // ThemeTrackerPage.jsx and TickerPopup.jsx each say in their own comments "ChartPane.jsx
 // is the shape copied." Reading the declared chord table here (rather than the fourth
@@ -688,10 +702,18 @@ function ChartPane({
   // the live %-change growing wide enough to touch the session buttons, not just
   // resizes. Sheds monotonically: session buttons first, then the title. The reset
   // below restores both when the pane widens or the symbol changes.
+  // ⭐ (2026-11-21, the switch-task trace) still every render, but the layout read only when the row's TEXT, the
+  // pane width or the shed steps moved since the last read (`rowFitSig`, no layout to compute); the same row at the
+  // same width gives the same answer. Every ChartPane commit inside a switch forced a layout here.
+  const identityFitRef = useRef(null)
   useLayoutEffect(() => {
     if (mini || oneRowMode) return
     const el = identityRef.current
-    if (!el || el.scrollWidth <= el.clientWidth + 1) return
+    if (!el) return
+    const sig = `${paneWidth}|${sessionForceAbbrev ? 1 : 0}${titleForceCollapse ? 1 : 0}|${rowFitSig(el)}`
+    if (identityFitRef.current === sig) return
+    identityFitRef.current = sig
+    if (el.scrollWidth <= el.clientWidth + 1) return
     if (!sessionForceAbbrev) setSessionForceAbbrev(true)
     else if (!titleForceCollapse) setTitleForceCollapse(true)
   })
@@ -699,6 +721,7 @@ function ChartPane({
     setSessionForceAbbrev(false)
     setTitleForceCollapse(false)
   }, [paneWidth, headerLabel, sym])
+  const ladderFitRef = useRef(null)
   // One-row ladder: when anything in the row is clipped (the row itself, or the timeframe
   // strip squeezed inside it), take one more step — synchronously, before paint, until it
   // fits. Narrowing keeps the steps already taken (it can only need more); widening resets to
@@ -713,9 +736,18 @@ function ChartPane({
     setLevel: setRowLevel,
     max: ROW_LEVEL_MAX,
     isClipped: () => {
-      const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
+      // ⭐ (2026-11-21, the switch-task trace) the layout read only when the row's text, the timeframe strip's,
+      // the width or the level moved since the last read; otherwise the last answer stands (it was taken on this
+      // very row). This ran on every ChartPane render: 62-78 forced layouts over 8 switches on the owner's board.
       const row = identityRef.current
-      return clipped(row) || (!!row && [...row.children].some(clipped)) || clipped(tfBarRef.current)
+      const tf = tfBarRef.current
+      const sig = `${paneWidth}|${rowLevel}|${rowFitSig(row)}|${rowFitSig(tf)}`
+      const last = ladderFitRef.current
+      if (last && last.sig === sig) return last.clipped
+      const clipped = (el) => !!el && el.scrollWidth > el.clientWidth + 1
+      const out = clipped(row) || (!!row && [...row.children].some(clipped)) || clipped(tf)
+      ladderFitRef.current = { sig, clipped: out }
+      return out
     },
   })
 
