@@ -12150,7 +12150,20 @@ function StockChartBody({
         // what the app does not hold yet arrives with the body's render, as it does on the React path.
         metaFor: (s, built) => switchMetaFor(s, built, metaStore.getConfig(), !_study, _metaInputsRef.current),
         // …drawn by this render's own `_drawMeta`, with the two inputs that are the symbol's handed in
-        drawMeta: (m, fresh, tail) => _drawMeta(m, fresh, false, { myTradeMarkers: SWITCH_NO_MARKERS, ohlcData: tail.ohlcData }),
+        drawMeta: (m, fresh, tail) => {
+          // ⛔ THE MARKERS ARE SET HERE, IN THE PAINT'S OWN TASK. `_drawMeta` sets them after a dynamic import, which
+          // is fine for a render and late for this frame: the old symbol's markers would sit on the new candles
+          // until it resolved. So the layer that exists is handed the new symbol's markers (none, when the app
+          // holds none) now, and `_drawMeta` finds them already drawn.
+          const layer = markersControllerRef.current
+          if (layer && typeof layer.setMarkers === 'function') {
+            const all = [...(m.mergedMarkers || [])].sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0))
+            try { layer.setMarkers(all) } catch { /* series gone */ }
+            lastMarkersSrcRef.current = m.mergedMarkers
+            lastMyTradesSrcRef.current = SWITCH_NO_MARKERS
+          }
+          _drawMeta(m, fresh, false, { myTradeMarkers: SWITCH_NO_MARKERS, ohlcData: tail.ohlcData })
+        },
         // the chart's own pass of the symbol React shows, in full (`switchController.replay`)
         reactRepaint: () => { updateChart(); if (chartReady) refreshOffCursorReadout() },
         laneShows: (s) => chartShows(laneSlotRef.current, s, resolvedTf),
@@ -13632,6 +13645,9 @@ function StockChartBody({
     }
 
     const handler = (param) => {
+      // ⛔ (imperative switch) the same rule as in `processCrosshair`, for the pointer LEAVING the chart: its
+      // off-hover readout and its `null` report are computed from this render's refs, the old symbol's.
+      if (switchCtl && switchCtl.pendingSym()) return
       // Empty-state events bypass the rAF queue so the legend clears immediately
       if (!param.point || !param.time) {
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }

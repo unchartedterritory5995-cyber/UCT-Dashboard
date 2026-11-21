@@ -25,7 +25,7 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 import { loadWithBarStore } from '../testing/barStoreModes'
 
 const FLAG = 'uct.imperativeSwitch'
-const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshair: null, raf: null }))
+const S = vi.hoisted(() => ({ log: [], n: 0, commits: 0, range: null, stateful: false, crosshairs: [] }))
 const digest = (v) => {
   const json = JSON.stringify(v, (k, x) => (typeof x === 'function' ? 'ƒ' : x && typeof x === 'object' && typeof x.nodeType === 'number' ? '‹node›' : x))
   if (json === undefined) return 'undefined'
@@ -80,7 +80,10 @@ vi.mock('lightweight-charts', async (importOriginal) => {
   const chart = {
     addSeries: (type) => make(type), addCustomSeries: () => make(null), removeSeries: () => {}, applyOptions: () => {},
     priceScale: () => scale(), timeScale: () => ts, paneSize: () => ({ width: 600, height: 300 }),
-    subscribeCrosshairMove: (fn) => { S.crosshair = fn }, unsubscribeCrosshairMove: () => {}, subscribeClick: () => {}, unsubscribeClick: () => {},
+    // every subscriber of the crosshair (the legend's handler is one of several)
+    subscribeCrosshairMove: (fn) => { S.crosshairs.push(fn) },
+    unsubscribeCrosshairMove: (fn) => { const i = S.crosshairs.indexOf(fn); if (i >= 0) S.crosshairs.splice(i, 1) },
+    subscribeClick: () => {}, unsubscribeClick: () => {},
     subscribeDblClick: () => {}, unsubscribeDblClick: () => {}, panes: () => [pane(0)],
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
     chartElement: () => document.createElement('div'), options: () => ({}),
@@ -213,7 +216,7 @@ const lastOf = (log, re) => log.filter((l) => re.test(l)).at(-1)
 
 /** Mount AAA (with a price line and a marker of its own), hold BBB in the store: the chart, ready to switch. */
 async function mounted(on, tf, ofAAA = {}, ofBoth = {}) {
-  S.log.length = 0; S.n = 0; S.commits = 0; S.range = null
+  S.log.length = 0; S.n = 0; S.commits = 0; S.range = null; S.crosshairs.length = 0
   stubBars()
   const M = await loadGraph(on)
   M.nf.__setNeighborFramesForTests(true)
@@ -300,9 +303,13 @@ describe('daily: the controller paints BBB over AAA', () => {
       const spy = vi.fn()
       const t = await mounted(true, 'D', OF_AAA, { onCrosshairMove: spy })
       const ctl = t.port.current
+      // the pointer moves over a bar, then leaves the chart (each a report to the host: a payload, then null)
+      const fire = (param) => { for (const fn of [...S.crosshairs]) { try { fn(param) } catch { /* another subscriber's business */ } } }
       const hover = () => act(async () => {
-        if (S.crosshair) S.crosshair({ time: '2026-11-13', point: { x: 100, y: 100 }, seriesData: { get: () => ({ time: '2026-11-13', open: 1, high: 2, low: 0.5, close: 1.5 }) } })
+        fire({ time: '2026-11-13', point: { x: 100, y: 100 }, seriesData: { get: () => ({ time: '2026-11-13', open: 1, high: 2, low: 0.5, close: 1.5 }) } })
         await new Promise((r) => setTimeout(r, 60))
+        fire({})
+        await new Promise((r) => setTimeout(r, 30))
       })
       await hover()
       const hoverBefore = spy.mock.calls.length
@@ -415,9 +422,9 @@ describe('daily: the controller paints BBB over AAA', () => {
   })
 
   it('(review 3) a hover between the paint and the body\'s render reports nothing; before and after it reports', () => {
-    expect(own.hoverBefore).toBeGreaterThan(0)
+    expect(own.hoverBefore).toBeGreaterThanOrEqual(2)   // the move's payload and the leave's null
     expect(own.hoverBetween).toBe(0)
-    expect(own.hoverAfter).toBeGreaterThan(0)
+    expect(own.hoverAfter).toBeGreaterThanOrEqual(2)
   })
 
   it('(review 4) nothing the pass installed kept its throwaway box: no read of it after the pass', () => {
@@ -506,8 +513,10 @@ describe('(review) the seam: the real handoff drives the real controller on the 
 
   /** AAA -> BBB (painted), then BBB -> AAA before the body's hold is released. */
   async function run(controllerRefusesTheWayBack) {
-    S.log.length = 0; S.n = 0; S.range = null
+    S.log.length = 0; S.n = 0; S.range = null; S.crosshairs.length = 0
     stubBars()
+    // the app's cache is one for the whole file: AAA's name as the server answers it, whatever a run before left
+    await swrMutate('/api/ticker-meta/AAA', NAMES.AAA, false)
     const M = await loadGraph(true)
     M.nf.__setNeighborFramesForTests(true)
     const port = { current: null }
