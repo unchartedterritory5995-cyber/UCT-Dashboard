@@ -18,6 +18,15 @@
 // on `build` (the vite plugin is `apply: 'build'`). The Python lane
 // (`session_calendar.py`) and every test read the full document, and
 // `expandCalendar` hands a full document back unchanged, so both shapes work.
+//
+// ⭐ ONE FIELD IS LEFT OUT OF THE BUNDLE: `source` (2026-11-20). It is 1.2 kB of
+// provenance prose (which libraries the dates were derived from and checked
+// against) that every browser downloaded on every route and nothing in the app
+// reads: `sessionCalendar.js` is the file's only importer, keeps the document
+// private, and `calendarCompact.test.js` fails if it ever reads the field. First
+// open stood 28 B under its budget; the prose goes, not the budget. This is
+// `bundleCalendar`, the step the vite build calls. `compactCalendar` itself stays
+// lossless.
 
 const COMPACT = '_compact'
 
@@ -83,6 +92,21 @@ export function compactCalendar(doc) {
   }
   const savedBytes = JSON.stringify(doc).length - JSON.stringify(out).length
   return { doc: out, savedBytes }
+}
+
+/** What the browser bundle leaves out: prose the runtime never reads. */
+export const BUNDLE_DROPS = Object.freeze(['source'])
+
+/**
+ * The document the browser bundle carries: the fields in `BUNDLE_DROPS` left out,
+ * then `compactCalendar`. `expandCalendar` rebuilds every other field exactly.
+ * @param {object} doc the parsed `market_calendar.json`
+ * @returns {{doc: object, savedBytes: number}}
+ */
+export function bundleCalendar(doc) {
+  const kept = Object.fromEntries(Object.entries(doc).filter(([k]) => !BUNDLE_DROPS.includes(k)))
+  const savedBytes = JSON.stringify(doc).length - JSON.stringify(compactCalendar(kept).doc).length
+  return { doc: compactCalendar(kept).doc, savedBytes }
 }
 
 /**

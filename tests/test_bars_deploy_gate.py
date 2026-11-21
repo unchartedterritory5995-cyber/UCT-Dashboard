@@ -89,8 +89,8 @@ def test_problems_can_fire(tmp_path):
     t = tmp_path / "tests"
     t.mkdir()
     assert any("empty" in p for p in tool.problems(tmp_path, {}))
-    for name in ("test_bar_contract.py", "test_bars_server_include_today.py", "test_index_developing_bar.py",
-                 "test_intraday_tail_currentness.py", "test_bars_x.py"):
+    # every file the tool names or requires, read off the tool (a typed copy here went stale the day NAMED grew)
+    for name in sorted({pathlib.Path(n).name for n in tool.NAMED + tool.REQUIRED} | {"test_bars_x.py"}):
         (t / name).write_text("", encoding="utf-8")
     assert tool.problems(tmp_path, {}) == []
     assert any("REQUIRED file is excluded" in p

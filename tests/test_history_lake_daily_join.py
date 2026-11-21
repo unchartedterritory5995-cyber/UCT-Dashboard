@@ -54,6 +54,27 @@ def test_an_event_the_reference_already_applied_is_never_applied_again():
     assert J.heal_splits(rec, [[days[30], 2.0]])["healed_splits"] == []
 
 
+def test_a_second_vendor_event_beside_a_table_event_is_the_same_event_whatever_its_ratio():
+    """2026-11-21. The split table already carries an event (the vendor's, or a TradingView-verified supplement
+    row); the second vendor files the same event a day off at another ratio, and the rebuilt series still shows a
+    step of THAT size (an event-day move). Before: the 2% ratio test said "a different event", the cliff test
+    agreed, and the event was applied twice (ATRO 2018: the vendor's 1.15 on 10-11 plus Yahoo's 1.182 on 10-10).
+    Now any second-vendor event within +-3 days of a table event is that event: never applied again."""
+    days = DAYS[:60]
+    closes = [39.0] * 31 + [30.0] * 29                       # a 1.30 step on DAYS[31]
+    rec = {"sym": "DUP", "splits": [[days[30], 1.25]], "bars": [[d, c, c, c, c, 100] for d, c in zip(days, closes)]}
+    out = J.heal_splits(rec, [[days[31], 1.30]])
+    assert out["healed_splits"] == [] and out["bars"] == rec["bars"]
+
+
+def test_a_second_vendor_event_well_away_from_every_table_event_is_still_its_own_event():
+    days = DAYS[:60]
+    closes = [39.0] * 40 + [30.0] * 20                       # a real 1.30 cliff on DAYS[40], ten days later
+    rec = {"sym": "TWO", "splits": [[days[30], 1.25]], "bars": [[d, c, c, c, c, 100] for d, c in zip(days, closes)]}
+    out = J.heal_splits(rec, [[days[40], 1.30]])
+    assert out["healed_splits"] == [[days[40], 1.30]]
+
+
 def test_too_short_an_overlap_joins_nothing():
     rec = _rec(DAYS[:50], [10.0] * 50)
     yf = [["2003-06-02", 10.0, 10.0, 10.0, 10.0, 1]] + [[d, 10.0, 10.0, 10.0, 10.0, 1] for d in DAYS[:50]]

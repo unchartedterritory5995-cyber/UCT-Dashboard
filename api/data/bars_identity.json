@@ -1,6 +1,8 @@
 {
   "version": 3,
   "generated": "2026-11-18",
+  "revs": {"META": 3, "CALY": 3, "CCC": 3, "MSGE": 3, "STRC": 3, "GEN": 3, "ACT": 3, "ADPT": 3, "ALF": 3, "AMR": 3, "BOX": 3, "CAI": 3, "CRC": 3, "FIG": 3, "FRSH": 3, "FSBC": 3, "GIW": 3, "MDA": 3, "NINE": 3, "PBA": 3, "RVI": 3, "SE": 3, "SLS": 3, "SOLS": 3, "SUNC": 3, "TLN": 3, "VAL": 3, "VIA": 3, "B": 3, "DOC": 3, "ARIS": 3, "ACIC": 3},
+  "retired": [],
   "how": "Every symbol another company held before (52, from the vendor's ticker events, tools/history_lake/identity.py) was checked against production's daily series for a price break at the edges of the other company's window. These five serve another company inside a window. GEN (2026-11-18) was found by a census of every universe daily series for price breaks and checked day by day against an independent vendor's per-company series: its earlier holders are delisted, so the events file cannot name them. `source`: the symbol the current company traded as during the window (its bars replace the window's); null: it did not trade yet (the window is dropped). `from` null: everything before `until`. Dates are ET trading dates, `until` exclusive.",
   "symbols": {
     "META": [

@@ -480,6 +480,37 @@ export const BASIS_EPS = 0.005
 export const BASIS_VOL_TOL = 0.05
 const BASIS_MAX_PAIRS = 64
 
+/** `ref`'s row at time `t`, as a lookup. ⭐ (2026-11-20, switch profile) Every array the store holds is strictly
+ *  ascending in a numeric `t` (its bars), and `basisVerdict` pairs at most 64 rows of it: so such an array is
+ *  SEARCHED (binary search, nothing allocated) instead of copied whole into a Map of every row, which on a list
+ *  flip was ~4 ms of a two-chart switch (`applyLocal` → `heldBasisProof`, thousands of held rows, a Map entry
+ *  and an array per row for 64 lookups). Any other array (unsorted, a duplicate or a non-numeric `t`) keeps
+ *  the Map, so the answer is the Map's in every case: the same row for every `t`. */
+function _rowAtOf(ref) {
+  if (ref instanceof Map) return (t) => ref.get(t)
+  const rows = ref || []
+  let sorted = true
+  for (let i = 0; i < rows.length; i++) {
+    const t = rows[i]?.t
+    if (typeof t !== 'number' || t !== t || (i > 0 && !(rows[i - 1].t < t))) { sorted = false; break }
+  }
+  if (!sorted) {
+    const byT = new Map(rows.map((r) => [r.t, r]))
+    return (t) => byT.get(t)
+  }
+  return (t) => {
+    let lo = 0, hi = rows.length - 1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const x = rows[mid].t
+      if (x === t) return rows[mid]
+      if (x < t) lo = mid + 1
+      else hi = mid - 1
+    }
+    return undefined
+  }
+}
+
 /**
  * THE client basis test for rows WITHOUT a usable stamp (legacy copies). `local` = held
  * rows, `ref` = the server's rows (array or Map t → row). Pairs rows by `t`, oldest first
@@ -496,11 +527,11 @@ const BASIS_MAX_PAIRS = 64
  * basis change has. Pure.
  */
 export function basisVerdict(local, ref) {
-  const byT = ref instanceof Map ? ref : new Map((ref || []).map((r) => [r.t, r]))
+  const rowAt = _rowAtOf(ref)
   let same = 0, n = 0
   const scaled = []
   for (const a of local || []) {
-    const b = byT.get(a.t)
+    const b = rowAt(a.t)
     if (!b) continue
     if (++n > BASIS_MAX_PAIRS) break
     const rs = [b.o / a.o, b.h / a.h, b.l / a.l, b.c / a.c]

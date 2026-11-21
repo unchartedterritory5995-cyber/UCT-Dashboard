@@ -361,6 +361,33 @@ def test_day_fixture_frames_carry_the_late_bar_and_the_exact_correction():
     assert all(f["prev_seq"] == (f["seq"] - 1 if f["seq"] else mf.NO_SEQ) for f in t["frames"])
 
 
+def test_daily_day_fixture_each_epochs_first_post_close_frame_carries_every_row():
+    """What the device's trust rule (app/src/lib/minuteFrames/consumer.js, DAILY) stands on, read from frames the
+    real Publisher wrote: no section before the close; an epoch's FIRST section holds every row the feed has; every
+    later one only rows that changed; the restart is a new epoch whose first frame links to the last published one
+    (a hole the publisher has, which loses no row) and carries every row again."""
+    t = mf.decode_today((fx.FIXTURE_DIR / "day_daily.today.bin").read_bytes())
+    close = mfp.regular_close_seq(20261119)
+    frames = t["frames"]
+    assert all("daily" not in f for f in frames if f["seq"] < close)
+    with_daily = [f for f in frames if "daily" in f]
+    assert with_daily[0]["seq"] == close
+    epochs = sorted({f["epoch"] for f in with_daily})
+    assert len(epochs) == 2
+    for ep in epochs:
+        mine = [f for f in with_daily if f["epoch"] == ep]
+        first = mine[0]
+        held = dict(first["daily"])
+        assert set(first["daily"]) >= {"DENSE", "THIN", "RTHONLY", "BRK-B", "SUBPENNY"}
+        for f in mine[1:]:
+            assert all(held.get(s) != r for s, r in f["daily"].items()), f["seq"]   # only changes ride
+            held.update(f["daily"])
+    second = next(f for f in frames if f["epoch"] == epochs[1])
+    before = [f for f in frames if f["seq"] < second["seq"]][-1]
+    assert second["prev_seq"] == before["seq"] and second["seq"] > before["seq"] + 1
+    assert set(next(f for f in with_daily if f["epoch"] == epochs[1])["daily"]) == set(fx.daily_feed(20261119, fx.DAILY_RESTART[1]))
+
+
 def test_status_carries_the_publisher_only_when_on(monkeypatch):
     monkeypatch.delenv("MINUTE_FRAMES_ENABLED", raising=False)
     assert "minute_frames" not in bars_live_ingest.status()
@@ -542,6 +569,19 @@ def test_the_poll_reads_today_only_after_the_close_and_only_once_the_session_ope
     opened["v"] = True
     assert mfp.poll_daily_once(fx._unix("2026-11-27", 13, 0))[0] == 20261127
     assert mfp.poll_daily_once(fx._unix("2026-11-27", 12, 59)) is None
+
+
+def test_the_browser_decoder_knows_every_flag_the_encoder_can_set():
+    """ONE FACT IN TWO FILES: a flag bit the publisher can set and codec.js does not know is a frame every device
+    refuses (consumer.js applies it as a gap). So a new FLAG_* here goes red until the browser decoder reads it,
+    BEFORE anything arms it on stream-ingest. Parsed from codec.js, never restated."""
+    import re
+    js = (ROOT / "app" / "src" / "lib" / "minuteFrames" / "codec.js").read_text(encoding="utf-8")
+    js_flags = {m[1]: int(m[2], 16) for m in re.finditer(r"export const (FLAG_[A-Z_]+) = 0x([0-9A-Fa-f]+)", js)}
+    py_flags = {k: v for k, v in vars(mf).items() if k.startswith("FLAG_") and isinstance(v, int)}
+    assert py_flags and js_flags == py_flags, (js_flags, py_flags)
+    known = re.search(r"export const KNOWN_FLAGS = ([A-Z_ |]+)\n", js)[1]
+    assert {s.strip() for s in known.split("|")} == set(py_flags), known
 
 
 def test_the_monday_check_reads_the_newest_daily_row_per_symbol_from_the_frames():

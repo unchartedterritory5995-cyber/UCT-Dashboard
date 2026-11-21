@@ -749,53 +749,113 @@ def test_same_period_reads_the_iso_week_across_a_year():
     assert not bc.same_period("2024-12-31", "2024-12-31", "D") and not bc.same_period("x", "2024-12-31", "W")
 
 
-# ── a row names its SESSION in the symbol spec; read back, stopped by name, restored (coordinator ruling 2026-11-20) ──
-# ⛔ The layout's own session is never toggled (AUTOSAVE is account-wide): the same per-row setSymbol the batch already makes.
-def _session_batch(tmp_path, rows, honours=True):
+# ── a row's SESSION is READ, never set (#2134 rulings 2026-11-21; ruling (ii) stands: no session write, ever) ─────────
+# ⚰️ 2026-11-20 the first mechanism WROTE it as setSymbol(<spec>): on the live rig the symbol became the literal string and
+# symbolInfo never arrived; its double parsed the spec and sym_match read through it, so its rails agreed with the code.
+SPEC = '={"session":"extended","symbol":"AMEX:SPY"}'      # TradingView's WIRE encoding of a session, not a symbol name
+
+
+def _session_batch(tmp_path, rows, hours="extended", subsession=None):
+    """The rig as measured: the layout sits at 1D and is saved with `hours`; each row is AMEX:SPY 60."""
     manifest, beh = bd.make_manifest(tmp_path, [(slug, 'indicator("X")\nplot(close)\n', {}) for slug, _ in rows])
     for script, (_, session) in zip(manifest["scripts"], rows):
         script.update({"symbol": "AMEX:SPY", "tf": "60", "captureStem": "vw-bi-time-d-extended"})
         if session is not None:
             script["session"] = session
-    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
-    page.honours_session = honours
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, resolution="1D")
+    page.session_id, page.subsession = hours, subsession
     code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
     return page, rd, code
 
 
-def test_an_extended_row_captures_the_extended_session_and_puts_the_chart_back(tmp_path):
+def _spec_writes(page):
+    return [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL" and str(a).startswith("=")]
+
+
+def _captures(tmp_path):
+    return sorted(p.name for p in (tmp_path / "run" / "captures").glob("*.json"))
+
+
+def test_an_extended_row_on_an_extended_layout_captures_and_writes_no_session(tmp_path):
     page, rd, _ = _session_batch(tmp_path, [("ext", "extended")])
     res = rd.results()["ext"]
     assert res["outcome"] == bc.CAPTURED, res
     cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-ext-2026-09-28.json").read_text(encoding="utf-8"))
     assert cap["symbol"]["session"] == "0400-2000"                            # the capture records the session it read
-    sets = [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"]
-    assert bc.session_spec("AMEX:SPY", "extended") in [str(x) for x in sets]
-    assert page.session_id == "regular"                                       # restored after the row, read back
+    assert not _spec_writes(page) and page.session_id == "extended"           # nothing written, the layout as found
+    steps = res["steps"]
+    assert steps.index("set_resolution") < steps.index("row:session")         # read AT THE ROW'S resolution (60)
 
 
-def test_a_regular_row_reads_the_regular_session(tmp_path):
+def test_a_daily_chart_resolves_regular_whatever_the_layouts_hours():
+    # every daily capture on record reads 0930-1600; the same rig at 60 reads its hours (the timeline, 2026-11-14..20)
+    page = bd.RecordingTVPage(resolution="1D")
+    page.session_id = "extended"
+    assert page.evaluate(bc.SESSION_JS)["session"] == "0930-1600"
+    page.evaluate(bc.SET_RESOLUTION_JS, "60")
+    assert page.evaluate(bc.SESSION_JS)["session"] == "0400-2000"
+
+
+def test_an_extended_row_on_a_regular_layout_stops_by_name_and_writes_nothing(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("ext", "extended")], hours="regular")
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "the chart resolves session '0930-1600', not the extended session '0400-2000'" in res["reason"]
+    assert "never sets it" in res["reason"] and "a layout saved with extended hours" in res["reason"]
+    assert not _spec_writes(page) and page.session_id == "regular" and not _captures(tmp_path)
+
+
+def test_a_regular_row_on_the_extended_rig_stops_by_name(tmp_path):
+    # tonight's TD1c / SFB-b-rth / TC2-rth on the rig as it is: refused by name, never toggled
     page, rd, _ = _session_batch(tmp_path, [("reg", "regular")])
+    res = rd.results()["reg"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "resolves session '0400-2000', not the regular session '0930-1600'" in res["reason"]
+    assert not _spec_writes(page) and page.session_id == "extended" and not _captures(tmp_path)
+
+
+def test_a_regular_row_on_a_layout_saved_with_regular_hours_captures_as_rth(tmp_path):
+    page, rd, _ = _session_batch(tmp_path, [("reg", "regular")], hours="regular")
     assert rd.results()["reg"]["outcome"] == bc.CAPTURED, rd.results()["reg"]
-    cap = json.loads((tmp_path / "run" / "captures" / "vw-bi-time-d-extended-spy-60-rth-2026-09-28.json").read_text(encoding="utf-8"))
-    assert cap["symbol"]["session"] == "0930-1600"
-    sets = [str(a) for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"]
-    assert bc.session_spec("AMEX:SPY", "regular") in sets
+    assert _captures(tmp_path) == ["vw-bi-time-d-extended-spy-60-rth-2026-09-28.json"]
+    cap = json.loads((tmp_path / "run" / "captures" / _captures(tmp_path)[0]).read_text(encoding="utf-8"))
+    assert cap["symbol"]["session"] == "0930-1600" and not _spec_writes(page)
+
+
+def test_a_subsession_tradingview_reports_must_name_the_rows_session(tmp_path):
+    _, rd, _ = _session_batch(tmp_path, [("ext", "extended")], subsession="regular")
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.GATE_FAILED and "subsession 'regular'" in res["reason"], res
+    _, rd2, _ = _session_batch(tmp_path / "b", [("ext", "extended")], subsession="extended")
+    assert rd2.results()["ext"]["outcome"] == bc.CAPTURED
 
 
 def test_a_row_that_names_no_session_never_asks_for_one(tmp_path):
     page, rd, _ = _session_batch(tmp_path, [("plain", None)])
     assert rd.results()["plain"]["outcome"] == bc.CAPTURED
     assert not [n for k, n, _ in page.calls if k == "evaluate" and n == "SESSION"]
-    assert not [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL" and str(a).startswith("=")]
+    assert not _spec_writes(page)
 
 
-def test_an_extended_row_whose_read_back_is_not_extended_stops_by_name(tmp_path):
-    page, rd, _ = _session_batch(tmp_path, [("ext", "extended")], honours=False)
-    res = rd.results()["ext"]
-    assert res["outcome"] == bc.GATE_FAILED, res
-    assert "session read back '0930-1600', not the extended session '0400-2000'" in json.dumps(res)
-    assert not list((tmp_path / "run" / "captures").glob("*.json"))         # nothing captured
+def test_the_double_keeps_a_spec_as_a_literal_symbol_and_resolves_nothing_for_it():
+    # as the live rig answered (patrick-54, 2026-11-20): ok, the literal string, and symbolInfo never arrives
+    page = bd.RecordingTVPage()
+    assert page.evaluate(bc.SET_SYMBOL_JS, SPEC) == {"ok": True}
+    assert page.evaluate(bc.STATE_JS)["symbol"] == SPEC
+    assert page.evaluate(bc.SESSION_JS)["ok"] is False
+    page.evaluate(bc.SET_SYMBOL_JS, "AMEX:SPY")
+    assert page.evaluate(bc.SESSION_JS)["ok"] is True                        # only a plain symbol brings it back
+
+
+def test_a_chart_reading_a_spec_is_on_no_symbol_and_the_row_sets_the_plain_one(tmp_path):
+    assert not bc.sym_match(SPEC, "AMEX:SPY") and not bc.sym_match("AMEX:SPY", SPEC) and not bc.sym_match(SPEC, SPEC)
+    assert not [n for n in ("session_spec", "spec_symbol", "set_row_session") if hasattr(bc, n) or hasattr(bc.Driver, n)]
+    page = bd.RecordingTVPage(symbol=SPEC, resolution="1D")                  # the first mechanism's leftover
+    page.session_id = "extended"
+    drv = _drv(page, tmp_path, symbol="AMEX:SPY", tf="60", session="extended")
+    drv.ensure_symbol_tf(drv.read_state())
+    assert page.symbol == "AMEX:SPY" and page.resolution == "60"
+    assert [a for k, n, a in page.calls if k == "evaluate" and n == "SET_SYMBOL"] == ["AMEX:SPY"]
 
 
 def test_an_extended_row_and_a_regular_row_of_one_probe_are_two_captures():
@@ -821,9 +881,340 @@ def test_a_row_that_names_the_regular_session_says_so_in_its_id():
     assert len(ids) == 3
 
 
-def test_the_spec_is_tradingviews_encoding_and_the_matcher_reads_through_it():
-    assert bc.session_spec("AMEX:SPY", "extended") == '={"session":"extended","symbol":"AMEX:SPY"}'
-    assert bc.sym_match('={"session":"extended","symbol":"AMEX:SPY"}', "AMEX:SPY")
-    assert not bc.sym_match('={"session":"extended","symbol":"AMEX:QQQ"}', "AMEX:SPY")
+def test_the_session_is_read_only_once_the_rows_resolution_has_loaded(tmp_path):
+    # ⚰️ probe R4 (2026-11-21): right after a resolution change symbolInfo read NULL. The read waits for the new bars.
+    manifest, beh = bd.make_manifest(tmp_path, [("ext", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "60", "session": "extended", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, resolution="1D")
+    page.session_id, page.reload_s = "extended", 6
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.CAPTURED, res
+    reads = [a for k, n, a in page.calls if k == "evaluate" and n == "SESSION"]
+    assert len(reads) >= 3 and res["steps"].count("row:session") == len(reads)      # it waited, then two equal reads
+
+
+@pytest.mark.parametrize("mode", ["held", "bars"])
+def test_a_stale_read_of_the_previous_resolution_never_captures_a_regular_row_on_the_extended_rig(tmp_path, mode):
+    # ⚰️ patrick-54's review of #2289 (N1): the dangerous case. The rig is extended-hours and sits at 1D; a regular row at
+    # 60 would be CAPTURED as regular if a stale 1D read (0930-1600) held for two polls were taken as the 60m answer.
+    # "held": the previous resolution's session, interval and bars; "bars": the interval property already reads 60
+    # while the 1D bars and session are still held, the case an interval test lets through.
+    manifest, beh = bd.make_manifest(tmp_path, [("reg", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "60", "session": "regular", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, resolution="1D")
+    page.session_id, page.stale_polls, page.stale_mode = "extended", 4, mode
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["reg"]
+    assert res["outcome"] == bc.GATE_FAILED, res                       # never CAPTURED from the stale 1D read
+    assert "resolves session '0400-2000', not the regular session '0930-1600'" in res["reason"]
+    assert page.stale_served == 4 and not _captures(tmp_path)         # all 4 stale reads were offered, and waited out
+
+
+def test_an_extended_row_on_a_daily_chart_is_refused_at_load(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("ext", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "1D", "session": "extended", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    abort = [e for e in _ledger(tmp_path / "run") if e["event"] == "abort"]
+    assert code == 1 and abort and "can never pass" in abort[0]["reason"], abort
+    assert "STATE" not in page.names() and not rd.results()
+    assert bc.session_row_refusal([{"slug": "r", "session": "regular", "tf": "1D"}], lambda s: bd.fast_opts(
+        tf=s["tf"], session=s["session"])) is None                    # a regular row on a daily chart is fine
+
+
+def _run_session_js(times, session="0400-2000", interval="60", si=True):
+    """The REAL `SESSION_JS`, executed in node against a fake main series (patrick-54's Q2, review of #2289: the double
+    answers the snippet by its text and never runs it, so the gate's one computation was proven nowhere)."""
+    import subprocess
+    fake = {"times": times, "session": session, "interval": interval, "si": si}
+    js = ("const F = " + json.dumps(fake) + ";\n"
+          "const ms = { symbolInfo: () => (F.si ? { session: F.session, subsession_id: null } : null),\n"
+          "  interval: () => F.interval,\n"
+          "  bars: () => ({ each: (cb) => { for (let i = 0; i < F.times.length; i += 1) {"
+          " if (cb(i, [F.times[i], 1, 1, 1, 1, 1])) break } } }) };\n"
+          "globalThis.window = { _exposed_chartWidgetCollection: { activeChartWidget: { value: () => ({"
+          " model: () => ({ mainSeries: () => ms }) }) } } };\n"
+          "const f = (" + bc.SESSION_JS + ");\n"
+          "process.stdout.write(JSON.stringify(f()));\n")
+    out = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=60)
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+def test_the_in_page_session_read_computes_the_smallest_spacing_of_the_last_ten_bars():
+    h = 3600
+    t0 = 1763000000 - (1763000000 % h)
+    early = [t0 - 50 * h + k * 1800 for k in range(3)]       # a 30-minute pair, OUTSIDE the last 11 bars
+    day = [t0 + k * h for k in range(9)]                      # nine consecutive 60-minute bars
+    times = early + day + [day[-1] + 12 * h]                  # and the newest bar opens the next session
+    r = _run_session_js(times)
+    assert r["ok"] and r["bars"] == len(times) and r["interval"] == "60" and r["session"] == "0400-2000", r
+    assert r["step"] == h               # the SMALLEST spacing of the last 10: never the 12 h gap, never the old pair
+    assert _run_session_js([t0])["step"] is None                              # one bar has no spacing
+    assert _run_session_js(times, si=False) == {"ok": False, "why": "no symbolInfo yet"}
+
+
+def test_the_bar_spacing_of_a_resolution():
+    assert bc.bar_step_range("60") == (3600, 3600) and bc.bar_step_range("5") == (300, 300)
+    assert bc.bar_step_range("1D") == bc.bar_step_range("D") == (86400, 86400)
+    assert bc.bar_step_range("W") == (604800, 604800) and bc.bar_step_range("M") == (28 * 86400, 31 * 86400)
+    assert bc.bar_step_range("1S") is None
+
+
+def test_a_session_that_never_settles_is_inconclusive_not_a_verdict(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("ext", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0].update({"symbol": "AMEX:SPY", "tf": "60", "session": "extended", "captureStem": "s"})
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, resolution="1D")
+    page.session_id, page.reload_s = "extended", 1000
+    _, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    res = rd.results()["ext"]
+    assert res["outcome"] == bc.INCONCLUSIVE and "never settled" in res["reason"], res
+    assert not _captures(tmp_path)
+
+
+# ── the layout a batch runs on (`--layout`, ruling B1 2026-11-21): one per batch, rows name theirs ─────────────────────
+RTH_COPY = "RthCopy01"          # a stand-in id for the regular-hours copy of the rig layout
+
+
+def test_a_batch_on_another_layout_than_the_page_reads_and_writes_nothing(tmp_path):
+    # a navigation that did not land (the page still on the rig): the batch refuses before any read
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0
+    rd = bc.RunDir(tmp_path / "run", "t")
+    code = bc.run_batch(page, manifest, rd, bd.fast_opts(layout=RTH_COPY), bd.FakeClock(page), bc.NodeVerifier(),
+                        log=lambda *_: None)
+    abort = [e for e in _ledger(tmp_path / "run") if e["event"] == "abort"]
+    assert code == 1 and abort and "not this batch's 'RthCopy01'" in abort[0]["reason"], abort
+    assert "STATE" not in page.names() and not rd.results()
+
+
+def test_the_sign_in_ends_on_the_rig_so_a_batch_navigates_to_its_layout_after_it(tmp_path):
+    # ⚰️ pine_vendor_capture.acquire() ends with page.goto(<the rig layout>): opened on the copy, the tab is back on the rig
+    page = bd.RecordingTVPage()
+    page.goto(bc.layout_url(RTH_COPY))
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0 and bc.layout_id_of(page.url) == bc.RIG_LAYOUT_ID
+    assert bc.go_to_layout(page, RTH_COPY, settle_ms=0) == RTH_COPY
+    gotos = [n for k, n, _ in page.calls if k == "goto"]
+    assert gotos[-1] == bc.layout_url(RTH_COPY)
+    assert bc.go_to_layout(page, RTH_COPY, settle_ms=0) == RTH_COPY and [n for k, n, _ in page.calls if k == "goto"] == gotos
+
+
+def test_each_layouts_rows_run_on_their_own_layout_and_one_run_dir_takes_both(tmp_path):
+    manifest, beh = bd.make_manifest(tmp_path, [("ext", 'indicator("X")\nplot(close)\n', {}),
+                                                ("reg", 'indicator("Y")\nplot(open)\n', {})])
+    ext, reg = manifest["scripts"]
+    for s, session, layout in ((ext, "extended", bc.RIG_LAYOUT_ID), (reg, "regular", RTH_COPY)):
+        s.update({"symbol": "AMEX:SPY", "tf": "60", "session": session, "layout": layout, "captureStem": "two"})
+    rig = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, resolution="1D")
+    rig.session_id = "extended"
+    bd.run(rig, manifest, tmp_path / "run", bd.fast_opts())
+    res = bc.RunDir(tmp_path / "run", "t").results()
+    assert res["ext"]["outcome"] == bc.CAPTURED and "reg" not in res                  # reg: another layout's row
+    skips = [e for e in _ledger(tmp_path / "run") if e["event"] == "skip"]
+    assert [(e["slug"], e["reason"]) for e in skips] == [("reg", f"runs on layout {RTH_COPY}, this batch is on {bc.RIG_LAYOUT_ID}")]
+    copy = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()}, resolution="1D")
+    copy.session_id, copy.url = "regular", bc.layout_url(RTH_COPY)
+    bd.run(copy, manifest, tmp_path / "run", bd.fast_opts(layout=RTH_COPY))
+    res = bc.RunDir(tmp_path / "run", "t").results()
+    assert res["reg"]["outcome"] == bc.CAPTURED and res["reg"]["provenance"]["rigLayout"] == RTH_COPY
+    assert _captures(tmp_path) == ["two-spy-60-ext-2026-09-28.json", "two-spy-60-rth-2026-09-28.json"]
+    assert not _spec_writes(rig) and not _spec_writes(copy)
+    assert rig.session_id == "extended" and copy.session_id == "regular"               # neither layout was touched
+
+
+def test_a_layout_is_a_layout_id_or_nothing_starts(tmp_path):
+    assert bc.layout_url("01f1AcIj") == "https://www.tradingview.com/chart/01f1AcIj/" == bc.LAYOUT
+    assert bc.layout_id_of("https://www.tradingview.com/chart/01f1AcIj/?symbol=X") == "01f1AcIj"
+    assert bc.layout_url(bc.RIG_REGULAR_LAYOUT_ID).endswith("/chart/MyS1vKSg/") and bc.RIG_REGULAR_LAYOUT_ID != bc.RIG_LAYOUT_ID
+    for bad in ("", "../x", "01f1AcIj/../y", "a b"):
+        with pytest.raises(bc.GateFailed):
+            bc.layout_url(bad)
+    manifest, beh = bd.make_manifest(tmp_path, [("x", 'indicator("X")\nplot(close)\n', {})])
+    manifest["scripts"][0]["layout"] = "not a layout"
+    page = bd.RecordingTVPage(behaviours={sha: b for sha, b in beh.values()})
+    code, _, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    assert code == 1 and "STATE" not in page.names()
+
+
+def test_an_unknown_session_is_refused():
     with pytest.raises(bc.GateFailed):
         bc.Opts(session="overnight")
+
+
+# ── a TradingView BUILT-IN from the Indicators dialog: two gates, the measured search, the generated label ──────────────
+# (coordinator ruling 2026-11-20, item 2: patrick-54's scratchpad `batch_builtin.py` moved into the repo)
+VWAP_ROW = {"slug": "vwap-earn", "builtin": {"id": "STD;VWAP"}, "builtinInputs": {"Anchor Period": "Earnings"},
+            "captureStem": "builtin-vwap-anchor-earnings"}
+
+
+def _builtin_batch(tmp_path, rows, page=None):
+    manifest = {"schema": "uct.vendor-batch-manifest/v1", "scripts": [json.loads(json.dumps(r)) for r in rows]}
+    page = page or bd.RecordingTVPage()
+    code, rd, _ = bd.run(page, manifest, tmp_path / "run", bd.fast_opts())
+    return page, rd, code, manifest
+
+
+def test_a_builtin_is_added_from_the_dialog_by_its_measured_search_and_its_identity_is_read_back(tmp_path):
+    page, rd, code, manifest = _builtin_batch(tmp_path, [VWAP_ROW])
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.CAPTURED and code == 0, res
+    steps = res["steps"]
+    want = ["gate:before add", "builtin:open_dialog", "builtin:search_and_click", "builtin:closed",
+            "builtin:identity", "builtin:input_ids", "builtin:input-in_1", "compute", "inject", "vh_capture", "verify"]
+    pos = [steps.index(w) for w in want]
+    assert pos == sorted(pos), steps
+    assert not {"open_editor", "title", "binding_gate", "set_source", "add"} & set(steps)   # no editor at all
+    assert page.searches == ["VWAP"]                       # the measured term, from the table: the row named none
+    cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
+    assert cap["study"]["id"] == "Script$STD;VWAP@tv-scripting"
+    assert {"id": "in_1", "value": "Earnings"} in cap["study"]["inputs"]
+    assert cap["source"]["text"] == bc.builtin_label(VWAP_ROW)                  # the GENERATED label, verbatim
+    assert cap["source"]["sha256"] == manifest["scripts"][0]["sha256"] == hashlib.sha256(
+        bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
+    assert res["cleanup"]["ok"] and not page.studies and not page.dialog_open
+
+
+def test_the_refuted_vwap_search_is_refused_before_any_page_step(tmp_path):
+    # ⚰️ 2026-11-20: "Volume Weighted Average Price" lists 36 community scripts and not the built-in (7 of 7 rows stopped)
+    row = dict(VWAP_ROW, builtin={"id": "STD;VWAP", "search": "Volume Weighted Average Price"})
+    page, rd, code, _ = _builtin_batch(tmp_path, [row])
+    assert code == 1
+    abort = [e for e in _ledger(tmp_path / "run") if e["event"] == "abort"]
+    assert abort and "the measured dialog search is 'VWAP'" in abort[0]["reason"], abort
+    assert "OPEN_DIALOG" not in page.names() and not page.searches
+
+
+def test_a_search_that_does_not_list_the_id_clicks_nothing_and_stops_by_name(tmp_path, monkeypatch):
+    # the PRE-CLICK gate, live: an unmeasured search for an id the dialog does not list under it
+    monkeypatch.setattr(bc, "BUILTIN_SEARCH", {k: v for k, v in bc.BUILTIN_SEARCH.items() if k != "STD;VWAP"})
+    row = dict(VWAP_ROW, builtin={"id": "STD;VWAP", "search": "Volume Weighted Average Price"})
+    page, rd, _, _ = _builtin_batch(tmp_path, [row])
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert 'no element with data-id STD;VWAP after searching "Volume Weighted Average Price"' in res["reason"]
+    assert "nothing clicked" in res["reason"]
+    assert page.next_id == 100 and not page.studies                 # no element was clicked, so no study was ever added
+    assert "builtin:identity" not in res["steps"] and not page.dialog_open
+    assert not list((tmp_path / "run" / "captures").glob("*.json"))
+
+
+def test_a_click_that_lands_another_study_stops_by_name_and_the_study_is_removed(tmp_path):
+    # the POST-ADD gate: the element carries the row's data-id, but what it added is another study (a moved label)
+    page = bd.RecordingTVPage()
+    page.lands_on = {"STD;VWAP": "Script$PUB;dc6dc22f6df34a818f00858fdbd237b1@tv-scripting"}
+    _, rd, _, _ = _builtin_batch(tmp_path, [VWAP_ROW], page=page)
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.GATE_FAILED, res
+    assert "landed on ['Script$PUB;dc6dc22f6df34a818f00858fdbd237b1@tv-scripting']" in res["reason"]
+    assert "not ['Script$STD;VWAP@tv-scripting']" in res["reason"]
+    assert res["cleanup"]["ok"] and res["cleanup"]["removed"] and not page.studies
+    assert not list((tmp_path / "run" / "captures").glob("*.json"))
+
+
+def _vwap_dirty_batch(tmp_path, clean_save):
+    """The measured rig (an add is autosaved, a widget-API removal is not) with the built-in VWAP, whose census title
+    ("VWAP") is not its `getAllStudies()` name ("Volume-weighted average price")."""
+    page = bd.RecordingTVPage(autosave="tradingview")
+    manifest = {"schema": "uct.vendor-batch-manifest/v1", "scripts": [json.loads(json.dumps(VWAP_ROW))]}
+    from pine_vendor_capture import acquire
+    assert acquire(page, 5) == 0
+    rd = bc.RunDir(tmp_path / "run", "selfcheck")
+    code = bc.run_batch(page, manifest, rd, bd.fast_opts(clean_save=clean_save), bd.FakeClock(page), bc.NodeVerifier(),
+                        log=lambda *_: None)
+    return page, rd, code
+
+
+def test_a_builtin_is_owned_by_its_chart_name_not_its_census_title_and_the_clean_save_removes_it(tmp_path):
+    # ⚰️ 2026-11-21, the s4 VWAP retake 2 (patrick-54): ownership was the census title "VWAP", `getAllStudies()` names the
+    # study "Volume-weighted average price", so the batch's own leftover read as foreign and the guard refused the save
+    page, rd, code = _vwap_dirty_batch(tmp_path, clean_save=True)
+    res = rd.results()["vwap-earn"]
+    assert res["outcome"] == bc.CAPTURED, res
+    cap = json.loads(pathlib.Path(res["capture"]).read_text(encoding="utf-8"))
+    assert cap["study"]["title"] == "VWAP" and cap["study"]["description"] == "Volume-weighted average price"  # the split
+    rows = [r for r in _ledger(tmp_path / "run") if r.get("event") == "clean-save"]
+    assert len(rows) == 1 and "refused" not in rows[0], rows
+    assert [s["name"] for s in rows[0]["found"]] == ["Volume-weighted average price"]       # the leftover the add saved
+    assert rows[0]["saved"] is True and rows[0]["ok"] is True and rows[0]["after"]["studies"] == []
+    assert code == 0 and page.persisted["studies"] == []                                       # a fresh load reads clean
+
+
+def test_control_without_the_clean_save_the_builtins_leftover_leaves_the_rig_dirty(tmp_path):
+    # the rail above can fail: the dialog add persisted a study the in-page removal never unsaved
+    page, rd, code = _vwap_dirty_batch(tmp_path, clean_save=False)
+    assert rd.results()["vwap-earn"]["outcome"] == bc.CAPTURED and code == bc.RIG_DIRTY
+    (v,) = _verify_rows(tmp_path / "run")
+    assert [s["name"] for s in v["studies"]] == ["Volume-weighted average price"]
+
+
+@pytest.mark.parametrize("extra, why", [
+    ({"path": "probes/studio/builtin-vwap-anchor-earnings.label.txt"}, "drop `path`"),
+    ({"sha256": "1f4c9ba0c2a9d8c4e3c6cd20f03ae6c72c23693203ca0abb8180d5612a1c331d"}, "is not the generated label's"),
+])
+def test_a_builtin_row_never_carries_a_hand_label(tmp_path, extra, why):
+    # ⚰️ the retake2 rows' hand label said search "Volume Weighted Average Price" while the add typed "VWAP"
+    page, _, code, _ = _builtin_batch(tmp_path, [dict(VWAP_ROW, **extra)])
+    abort = [e for e in _ledger(tmp_path / "run") if e["event"] == "abort"]
+    assert code == 1 and abort and why in abort[0]["reason"], abort
+    assert "OPEN_DIALOG" not in page.names()
+    mpath = tmp_path / "m.json"
+    mpath.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": [dict(VWAP_ROW, **extra)]}),
+                     encoding="utf-8")
+    with pytest.raises(SystemExit, match="vwap-earn"):
+        bc._load_manifest(mpath)
+
+
+def test_a_run_whose_manifest_is_its_own_run_dirs_hand_written_copy_starts(tmp_path):
+    # ⚰️ patrick-54's review of #2284 (2026-11-21): `--manifest $RUN/manifest.json --run-dir $RUN` with a built-in row
+    # carrying no sha256 crashed `run` before any page step (KeyError 'sha256' comparing the un-normalized run-dir copy)
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "manifest.json").write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": [VWAP_ROW]}),
+                                       encoding="utf-8")
+    notes = []
+    m = bc.prepare_run_manifest(run / "manifest.json", run, log=notes.append)
+    sha = hashlib.sha256(bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
+    assert m["scripts"][0]["sha256"] == sha and notes == []          # the same rows: it starts, nothing "differs"
+    assert json.loads((run / "manifest.json").read_text(encoding="utf-8"))["scripts"][0]["sha256"] == sha
+    other = tmp_path / "other.json"                                    # control: a genuinely different resume says so
+    other.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1",
+                                 "scripts": [dict(VWAP_ROW, builtinInputs={"Anchor Period": "Dividends"})]}), encoding="utf-8")
+    bc.prepare_run_manifest(other, run, log=notes.append)
+    assert len(notes) == 1 and "differs" in notes[0]
+
+
+def test_the_loaded_manifest_derives_each_builtin_rows_sha_from_its_label(tmp_path):
+    mpath = tmp_path / "m.json"
+    mpath.write_text(json.dumps({"schema": "uct.vendor-batch-manifest/v1", "scripts": [VWAP_ROW]}), encoding="utf-8")
+    row = bc._load_manifest(mpath)["scripts"][0]
+    assert row["sha256"] == hashlib.sha256(bc.builtin_label(VWAP_ROW).encode("utf-8")).hexdigest()
+    assert row["path"] is None
+
+
+def test_the_generated_label_says_what_was_added_how_and_at_which_settings():
+    assert bc.builtin_label(VWAP_ROW) == (
+        'TradingView built-in STD;VWAP added from the Indicators dialog (search "VWAP"), not pasted Pine: '
+        "Anchor Period = Earnings, every other setting at its default. "
+        "Label generated by batch_capture.builtin_label from the manifest row.")
+    assert bc.builtin_label({"slug": "d", "builtin": {"id": "STD;DPO"}}).endswith(
+        "not pasted Pine: every setting at its default. Label generated by batch_capture.builtin_label from the manifest row.")
+    assert "published script PUB;b96fdd470dac47d1a227d8aae88bdbb4" in bc.builtin_label(
+        {"slug": "p", "builtin": {"id": "PUB;b96fdd470dac47d1a227d8aae88bdbb4"}})
+
+
+def test_the_search_table_is_the_measured_one_and_only_pine_ids_are_added():
+    assert bc.BUILTIN_SEARCH["STD;VWAP"] == "VWAP"
+    assert all(k.startswith(tuple(bc.BUILTIN_ID_KINDS)) and v.strip() for k, v in bc.BUILTIN_SEARCH.items())
+    assert bc.builtin_identity("STD;VWAP") == "Script$STD;VWAP@tv-scripting"
+    for row, why in (({"slug": "a", "builtin": {"id": "VWAPAA@tv-basicstudies", "search": "VWAP"}}, "not a Pine script id"),
+                     ({"slug": "b", "builtin": {"id": "STD;Not_Measured"}}, "no measured dialog search"),
+                     ({"slug": "c", "builtin": {"id": "STD;VWAP", "search": ""}}, "non-empty string"),
+                     ({"slug": "d", "builtin": "STD;VWAP"}, "`builtin` must be")):
+        with pytest.raises(bc.GateFailed, match=why):
+            bc.builtin_spec(row)
+    # an unmeasured id that names its own search is allowed: its first live run is the proof (the pre-click gate)
+    assert bc.builtin_spec({"slug": "e", "builtin": {"id": "STD;Not_Measured", "search": "Not Measured"}})["search"] == "Not Measured"

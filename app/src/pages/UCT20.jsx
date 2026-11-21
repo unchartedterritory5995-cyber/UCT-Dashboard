@@ -222,8 +222,8 @@ function StockCard({ item, rank, expanded, onToggle, posData, isNew, liveData, h
               <span className={styles.sym}>{sym}</span>
             </PanelTicker>
           </span>
-          {/* The badges are one group so a phone can give them their own line under the ticker
-              (UCT20.module.css, the phone block). On a wide screen the group is not a box
+          {/* The badges are one group so a narrow table can give them their own line under the ticker
+              (UCT20.module.css, "The table fits ITSELF"). On a wide screen the group is not a box
               (display: contents), so the line reads exactly as it did. No badge = an empty group. */}
           <span className={styles.badges}>
             {isNew && <span className={styles.newBadge}>NEW</span>}
@@ -628,6 +628,10 @@ export default function UCT20() {
               : 'Holding history could not be read right now, so days held, return since added and the NEW marks are not shown. That is a gap in what we could read, not a change to the list.'}
           </p>
         )}
+        {/* The box the table measures itself against (UCT20.module.css, "The table fits ITSELF"):
+            the list and its footnote share it, so the footnote's SINCE ADD sentence can fold on
+            the same rule as the column. */}
+        <div className={styles.tableFit}>
         {rowsError && !rows ? (
           <div className={styles.emptyState} data-testid="uct20-error">
             <p className={styles.emptyStateTitle}>The UCT 20 could not be read right now</p>
@@ -722,9 +726,13 @@ export default function UCT20() {
         )}
         <p className={styles.tableFootnote}>
           Systematic momentum ranking for research and education — not investment advice
-          or a recommendation to buy any security. "SINCE ADD" reflects the no-stops
-          tracking portfolio below, not the risk-managed Book — see "How it&rsquo;s built."
+          or a recommendation to buy any security.{' '}
+          <span className={styles.footSince} data-testid="uct20-foot-since">
+            "SINCE ADD" reflects the no-stops
+            tracking portfolio below, not the risk-managed Book — see "How it&rsquo;s built."
+          </span>
         </p>
+        </div>
       </TileCard>
       <TileCard title="UCT 20 Performance">
         <UCT20Performance />

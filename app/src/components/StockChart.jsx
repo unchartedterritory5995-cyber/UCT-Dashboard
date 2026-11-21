@@ -277,6 +277,8 @@ import { claimShareState } from '../lib/chartDeepLink'
 import SharedIndicatorsPrompt from './chart/SharedIndicatorsPrompt'
 import UnavailableIndicators from './chart/UnavailableIndicators'
 import useRealtimePrices from '../hooks/useRealtimePrices'
+import useQuietRealtimePrices from '../hooks/useQuietRealtimePrices'
+import { readLiveQuote, readLiveFeed } from '../lib/liveQuote'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
 import { _packStillIngesting, setPrefetchShowExtended, barsBeforeUrl, registerSymbolWarmer } from '../utils/prefetchBars'
 import { resolveShowExtended } from '../utils/viewSession'
@@ -1449,6 +1451,122 @@ function zoomLimitsOf(chart) {
 // path or data state produced the frame. `reserve` is non-zero only for D/W/M (a slot seeded
 // into the candle series, _intradayLoadReserve); intraday never reserves future-session slots.
 
+// ⛔⛔ THE DEBUG HANDLE IS BUILT OUT HERE, NOT INSIDE THE CHART (2026-11-20). A closure written inside a
+// render keeps that render's whole V8 context alive: every local any closure captures (`bars`,
+// `filteredBars`, the bar hook's callbacks and through them that render's snapshot, the memoized
+// callbacks and through them OLDER renders'). The handle lives on `window` for the chart's whole life, so
+// written in the creation effect it pinned the creation render's bars for good (a heap snapshot of a jsdom
+// mount: `__uctChartDebug.main.visibleRange -> context -> sessionAppliedBars`). Here its closures hold the
+// refs they read and nothing else. Rail: StockChart.closureChains.test.jsx.
+function chartDebugHandle({
+  chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
+  userLockedViewRef, userViewLockedRef, vertMarginsRef,
+}) {
+  // StockChart's `mainPriceScale`, off the same refs (the price pane's scale, via the candle series)
+  const mainPriceScale = () => candleSeriesRef.current?.priceScale?.() ?? chartRef.current?.priceScale('right') ?? null
+  return {
+    visibleRange: () => {
+      try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
+    },
+    // Logical index of the newest REAL candle on the candle series (the framing rail,
+    // tools/intraday_symswitch_framing_harness.py: right margin = visibleRange().to - this).
+    newestIndex: () => newestLogicalIndex(chartRef.current, candleSeriesRef.current, 0),
+    // The newest candle the renderer holds: its time (unix seconds, or a date string for D/W/M)
+    // and close. The desktop all-day soak (uct-desktop scripts/proofs/soak.mjs) samples it to
+    // prove a chart left open all day is still live (time advances, close moves).
+    // What the last paint decided for the indicator window (`plotWindow.js`): the rows
+    // it holds, the first row drawn (0: every row) and that row's time.
+    plotWindow: () => ({ ...plotWindowRef.current }),
+    // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
+    // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
+    // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
+    // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
+    newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
+    // Read-only: what each ENGINE series actually handed the renderer
+    // (the fundamentals acceptance harness reads plotted values from here).
+    engineSeries: () => {
+      try {
+        return (engineRef.current?.binder?.bindings() || []).map((b) => ({
+          instanceId: b.instanceId, plotKey: b.plotKey,
+          priceFormat: b.series?.options?.()?.priceFormat?.type || null,
+          // (economic acceptance) what the renderer was actually asked to draw
+          seriesType: b.series?.seriesType?.() || null,
+          lineType: b.series?.options?.()?.lineType ?? null,
+          priceScaleId: b.series?.options?.()?.priceScaleId ?? null,
+          paneIndex: b.series?.getPane?.()?.paneIndex?.() ?? null,
+          data: b.series?.data?.() || [],
+          // ONE logical line may be drawn as several render series (gap runs).
+          runs: (b.runSeries || []).map((rs) => rs?.data?.() || []),
+        }))
+      } catch { return null }
+    },
+    // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
+    // separate. The daily regression was "Origin frames the 600-bar window
+    // instead of the true origin", and a chart holding 20 years while
+    // FRAMING the last 600 bars is pixel-identical to one that only holds
+    // 600 — so the SERIES and the WINDOW must be observable independently
+    // or the acceptance cannot tell a data bug from a framing bug. An
+    // earlier pass scored only the series, found 5,247 rows, and would
+    // have reported the pipeline healthy while the member still saw 2024.
+    // Read-only, chartId-keyed, resolved at CALL time off the live refs.
+    visibleTimeRange: () => {
+      try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
+    },
+    // (economic acceptance) the PRIMARY series' own type — never candles on ECON:*
+    primarySeriesType: () => {
+      try { return candleSeriesRef.current?.seriesType?.() || null } catch { return null }
+    },
+    renderedTail: (k = 2) => {
+      try {
+        const d = candleSeriesRef.current?.data?.()
+        if (!Array.isArray(d) || !d.length) return null
+        return d.slice(Math.max(0, d.length - k)).map(b => ({
+          time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
+        }))
+      } catch { return null }
+    },
+    // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
+    // "The chart pinches a little more every time I pan" is a claim about
+    // numbers nothing on the page reports: the candle pane's own height, the
+    // margins actually in force, whether a manual pin is live and what the
+    // stored lock says. A rig that has to infer them from pixels measures the
+    // symptom; this reads the state. Read-only, chartId-keyed, and it holds
+    // nothing — every field is resolved at CALL time off the live refs.
+    priceGeometry: () => {
+      try {
+        const series = candleSeriesRef.current
+        const pane = series?.getPane?.()
+        const panes = chartRef.current?.panes?.() || []
+        const sm = mainPriceScale()?.options?.()?.scaleMargins || null
+        return {
+          paneIndex: pane?.paneIndex?.() ?? null,
+          paneHeight: pane?.getHeight?.() ?? null,
+          paneCount: panes.length || null,
+          paneHeights: panes.map((p) => { try { return p.getHeight() } catch { return null } }),
+          // ⭐ WHAT EACH PANE ACTUALLY HOLDS. "Nothing draws here" is the
+          // only test the empty-pane reclaim makes, so a ghost strip is
+          // diagnosed by asking each rectangle what is in it — not by
+          // counting canvases, which LWC allocates per pane regardless.
+          paneSeries: panes.map((p) => {
+            try { return (p.getSeries() || []).map((x) => x.seriesType?.() || '?') } catch { return null }
+          }),
+          scaleMargins: sm ? { top: sm.top, bottom: sm.bottom } : null,
+          vertMargins: vertMarginsRef.current ? { ...vertMarginsRef.current } : null,
+          manualPin: priceManualRef.current && priceManualRangeRef.current
+            ? { ...priceManualRangeRef.current } : null,
+          viewLock: userViewLockedRef.current && userLockedViewRef.current
+            ? { ...userLockedViewRef.current } : null,
+        }
+      } catch { return null }
+    },
+    /** Price → pixel row WITHIN the candle pane (pane-relative, as the
+     *  drawing layer uses it). Lets a probe measure the candle band itself. */
+    priceToY: (price) => {
+      try { return candleSeriesRef.current?.priceToCoordinate?.(price) ?? null } catch { return null }
+    },
+  }
+}
+
 // The logical index of the newest REAL candle on the time scale (the axis every series
 // shares — a compare/overlay series adds interior times, so the candle count is not it).
 // Falls back to the candle count when the time scale cannot answer (mid-load / stand-ins).
@@ -1675,7 +1793,8 @@ import { createHistoryLoader, wantsOlder, PREFETCH_WINDOWS, HISTORY_PREFETCH_TAR
 import { memPeek } from '../utils/barsMemCache'
 import { timingStart, timingMark, timingMarkPaint, timingMarkEmpty } from '../utils/intradayTiming'
 import { makeLiveSane } from './chart/liveTickBaseline'
-import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isTradingSessionTodayET, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { isCurrentEnoughForPaint, dailyMissingSessionsForPaint, DAILY_PAINT_MAX_GAP, isHolidayISO, intradayBarCurrentness, isCurrentnessSettled } from '../utils/marketSession'
+import { tradingSessionTodayET } from './chart/tradingTodayMemo'   // isTradingSessionTodayET, one answer per minute
 import { tailRetriesExhausted, liveBadgeState } from '../utils/intradayTailPoll'
 import { parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -2729,7 +2848,7 @@ export function _intradayLoadReserve(bars, tf) {
     // session walk is the wrong instrument here; W/M keep the single-slot rule until
     // their own period semantics are designed. The scope of this change is DAILY.
     if (typeof lt !== 'string' || lt.length < 10) return 0
-    if (!isTradingSessionTodayET()) return 0
+    if (!tradingSessionTodayET()) return 0
     const ps = _etPeriodStartISO(tf)
     return (ps && lt < ps) ? 1 : 0
   }
@@ -2772,7 +2891,7 @@ export { DAILY_PAINT_MAX_GAP }   // owned by marketSession (dailyCachePaintVerdi
 // stops the "today's candle opens on tomorrow, then snaps back" slide.
 export function _developingBarISO(tf) {
   if (!(tf === 'D' || tf === 'W' || tf === 'M')) return null
-  if (!isTradingSessionTodayET()) return null
+  if (!tradingSessionTodayET()) return null
   try {
     const iso = computeBarTime(tf, Date.now() / 1000)
     return (typeof iso === 'string' && iso.length >= 10) ? iso : null
@@ -3376,6 +3495,35 @@ function instanceMenuSuffixes(cs, instIds) {
     return resolvedInputsOf(engineRegistry.getDefinition(inst.defId), inst.inputs)
   }))
 }
+
+// ═══ THE LIVE QUOTE, WITHOUT A RENDER PER TICK (2026-11-20, `lib/liveQuote.js`) ═══════════════════════════════
+// Under BARSTORE the developing candle is painted from the bar store (its own tick path), the legend reads the
+// store's bar, and the quote reaches the chart only as: the feed badge (connected / stale), the extended-hours
+// Pre/Post price (its tags, and the include-mode session candle), the screenshot's price, and refs the readout
+// reads at use time. None of that needs a StockChart render per publish of the shared stream, which is what
+// `useRealtimePrices` cost: a fresh `prices` object at every publish, for ANY symbol in the tab (state probe on
+// the owner's layout, 2026-11-20: 19 renders per typed switch after it settled, 6-10 in its first 1.5 s, ~4
+// more from the 2 s poll).
+// So the chart reads it through `useQuietRealtimePrices` (`hooks/useQuietRealtimePrices.js`): its render re-runs only
+// when `liveRenderKey` (the badge, and the ext price where the render draws it) changes, it reads the quote at render time, and the between-render work
+// (the session tags, the screenshot refs, `livePricesRef`) runs in `_onLiveTick`.
+// ⛔ The legacy bar path (BARSTORE off) keeps `useRealtimePrices` exactly: its Writer A paints the developing
+// candle FROM `livePrices` on every tick, in an effect, and is what that path is.
+const EMPTY_LIVE_PRICES = Object.freeze({})
+const _extPriceOf = (q) => ((q && q.ext_session && Number.isFinite(q.ext_price) && q.ext_price > 0) ? q.ext_price : null)
+/** What a chart's RENDER shows of the feed: the badge, and the ext price only where the render draws it. */
+function liveRenderKey(sym, wantsExt) {
+  const f = readLiveFeed(sym)
+  const ext = wantsExt && sym ? _extPriceOf(readLiveQuote(sym)) : null
+  return `${f.isStreaming ? 1 : 0}${f.isStale ? 1 : 0}|${ext == null ? '' : ext}`
+}
+/** The hook's quiet-mode options for one chart, built OUT of the render (it holds them for the chart's life, and a
+ *  closure written in a render would pin that render's scope): refs only. */
+function liveQuietOpts(symRef, wantsExtRef, onTickRef) {
+  return { onTickRef, renderKey: () => liveRenderKey(symRef.current, wantsExtRef.current) }
+}
+// Chosen once at module load, like every other BARSTORE fork (the ordinary hook ignores the options).
+const useChartRealtimePrices = LEGACY_LIVE ? useRealtimePrices : useQuietRealtimePrices
 
 export default function StockChart({
   sym,
@@ -8978,8 +9126,15 @@ export default function StockChart({
   const showNoData = _serverNoData && !showFatalError
   const showWarmingTimedOut = _warmingTimedOut && !showNoData
 
-  // Real-time price streaming for live candle updates
-  const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
+  // Real-time price streaming. Under BARSTORE through the quiet hook (`liveQuietOpts` above): a publish renders
+  // this chart only when what its render shows changed; `_onLiveTick` below does the rest between renders.
+  const _liveWantsExtRef = useRef(false)   // the include-mode session candle draws the ext price (set below)
+  const _onLiveTickRef = useRef(null)
+  const _liveSymRef = useRef(null)
+  _liveSymRef.current = liveUpdates && sym ? sym : null
+  const _liveQuietRef = useRef(null)
+  if (_liveQuietRef.current === null) _liveQuietRef.current = LEGACY_LIVE ? false : liveQuietOpts(_liveSymRef, _liveWantsExtRef, _onLiveTickRef)
+  const { prices: livePrices, staleSymbols, isStreaming } = useChartRealtimePrices(liveUpdates && sym ? [sym] : [], _liveQuietRef.current || undefined)
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
   const feed = streamStatus({ isStreaming, isStale })
   // ── BAR CURRENTNESS (2026-09-28) — separate from FEED CONNECTIVITY ─────────────
@@ -9039,9 +9194,9 @@ export default function StockChart({
 
   // Keep lastPriceRef / lastChangePctRef in sync for screenshot composition.
   // Prefers live stream values; falls back to last bar close / intra-bar change.
-  useEffect(() => {
+  // (a function: `_onLiveTick` runs it on a publish between renders, the effect on a render)
+  const _syncLastPrice = (live) => {
     const _tail = devOnScreen.tail()   // P3-S2: the developing bar on screen (legacy refs | store)
-    const live = sym ? livePrices[sym] : null
     const _livePx = _effLivePrice(live)
     if (live && Number.isFinite(_livePx)) {
       lastPriceRef.current = _livePx
@@ -9061,7 +9216,10 @@ export default function StockChart({
         lastChangePctRef.current = ((_tail.close - _tail.open) / _tail.open) * 100
       }
     }
-  }, [livePrices, sym])
+  }
+  const _syncLastPriceRef = useRef(null)
+  _syncLastPriceRef.current = _syncLastPrice
+  useEffect(() => { _syncLastPrice(sym ? livePrices[sym] : null) }, [livePrices, sym])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Memoized data transforms (only recompute when bars change) ─────────────
 
@@ -9296,6 +9454,9 @@ export default function StockChart({
   // internal replayMode does: a live "Post" price tag is meaningless on a replayed
   // historical period (owner request). Restored the moment replay is exited.
   const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode && !replayCutoff
+  // The include-mode session candle is built FROM the ext price (`sessionAppliedBars`): only then does a new ext
+  // price render this chart (`liveRenderSig`). The Pre/Post tags follow it without a render (`_onLiveTick`).
+  _liveWantsExtRef.current = !!sessionCandleActive
   // Regular-mode post-market: freeze today's candle at the 4pm close (don't let
   // the live writers fold post-market prints into it). Pre-market regular mode
   // already leaves yesterday's bar untouched (day_open==0 → classifyLiveBar skip).
@@ -10267,15 +10428,18 @@ export default function StockChart({
   // Right-axis session tags — green locked at the last RTH close (from the pure
   // regular-session bars) + orange Pre/Post tag at the live ext price. Merged
   // into the price-line applier via allPriceLines below.
-  const sessionTagLines = useMemo(() => {
+  // (a function of the ext price, so `_onLiveTick` places a new one between renders exactly as this memo would)
+  const _sessionTagLinesFor = (extPrice) => {
     if (!sessionTagsActive || !filteredBars?.length) return null
     const effUp = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
     const effDown = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     return computeSessionTagLines({
-      rthBars: filteredBars, session: marketSession, extPrice: sessionExtPrice,
+      rthBars: filteredBars, session: marketSession, extPrice,
       upColor: effUp, downColor: effDown, extColor: SESSION_EXT_COLOR,
     })
-  }, [sessionTagsActive, filteredBars, marketSession, sessionExtPrice, boldCandles, modelBookLook, cs.candles.upColor, cs.candles.downColor])
+  }
+  const sessionTagLines = useMemo(() => _sessionTagLinesFor(sessionExtPrice),
+    [sessionTagsActive, filteredBars, marketSession, sessionExtPrice, boldCandles, modelBookLook, cs.candles.upColor, cs.candles.downColor])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Intraday (1m..1h) version of the Pre/Post tag. ONE tag only, by owner request:
   // during pre/post the price scale carries just the orange Pre/Post price — no
@@ -10292,7 +10456,7 @@ export default function StockChart({
   // whole ~1900-line repaint body once a second in extended hours (the reported
   // pre-market crosshair/pan stutter). `sessionExtPrice` is null unless
   // `_sessionLive` exists, so the object check it replaced was redundant anyway.
-  const intradaySessionTagLines = useMemo(() => {
+  const _intradaySessionTagLinesFor = (sessionExtPrice) => {
     if (!sessionTagsIntraday) return null
     // Seed price only. The chip's live PRICE is driven by the rAF sync effect below,
     // which glues it to the developing candle's drawn close (liveBarRef) so the chip
@@ -10306,7 +10470,16 @@ export default function StockChart({
       axisLabelVisible: true, lineVisible: false,
       title: marketSession === 'post' ? 'Post' : 'Pre', _sessionTag: 'ext',
     }]
-  }, [sessionTagsIntraday, sessionExtPrice, marketSession])
+  }
+  const intradaySessionTagLines = useMemo(() => _intradaySessionTagLinesFor(sessionExtPrice),
+    [sessionTagsIntraday, sessionExtPrice, marketSession])  // eslint-disable-line react-hooks/exhaustive-deps
+  /** The session tags this chart shows for an ext price (daily OR intraday — mutually exclusive by timeframe). */
+  const _activeSessionTagsFor = (extPrice) => {
+    const d = _sessionTagLinesFor(extPrice)
+    if (d?.length) return d
+    const i = _intradaySessionTagLinesFor(extPrice)
+    return i?.length ? i : null
+  }
 
   // The dynamic session tags (daily OR intraday — mutually exclusive by timeframe).
   // These are applied by their OWN effect below, NOT folded into `allPriceLines`:
@@ -11744,107 +11917,10 @@ export default function StockChart({
       // CALL time; keyed by chartId so multi-chart pages don't collide.
       if (typeof window !== 'undefined') {
         window.__uctChartDebug = window.__uctChartDebug || {}
-        window.__uctChartDebug[chartId || 'main'] = {
-          visibleRange: () => {
-            try { return chartRef.current?.timeScale().getVisibleLogicalRange() || null } catch { return null }
-          },
-          // Logical index of the newest REAL candle on the candle series (the framing rail,
-          // tools/intraday_symswitch_framing_harness.py: right margin = visibleRange().to - this).
-          newestIndex: () => newestLogicalIndex(chartRef.current, candleSeriesRef.current, 0),
-          // The newest candle the renderer holds: its time (unix seconds, or a date string for D/W/M)
-          // and close. The desktop all-day soak (uct-desktop scripts/proofs/soak.mjs) samples it to
-          // prove a chart left open all day is still live (time advances, close moves).
-          // What the last paint decided for the indicator window (`plotWindow.js`): the rows
-          // it holds, the first row drawn (0: every row) and that row's time.
-          plotWindow: () => ({ ...plotWindowRef.current }),
-          // ⛔ O(log n), NOT a copy: the tick-latency proof reads this on every animation frame for
-          // every chart, and `series.data()` rebuilds the whole series each call (2026-11-16: 4.4 s
-          // of main thread per 90 s with 4 charts, a quarter of the page's measured work). The newest
-          // bar is one by-index lookup; `count` (rarely read) still walks the series, on demand.
-          newestBar: () => { try { return newestSeriesBar(candleSeriesRef.current) } catch { return null } },
-          // Read-only: what each ENGINE series actually handed the renderer
-          // (the fundamentals acceptance harness reads plotted values from here).
-          engineSeries: () => {
-            try {
-              return (engineRef.current?.binder?.bindings() || []).map((b) => ({
-                instanceId: b.instanceId, plotKey: b.plotKey,
-                priceFormat: b.series?.options?.()?.priceFormat?.type || null,
-                // (economic acceptance) what the renderer was actually asked to draw
-                seriesType: b.series?.seriesType?.() || null,
-                lineType: b.series?.options?.()?.lineType ?? null,
-                priceScaleId: b.series?.options?.()?.priceScaleId ?? null,
-                paneIndex: b.series?.getPane?.()?.paneIndex?.() ?? null,
-                data: b.series?.data?.() || [],
-                // ONE logical line may be drawn as several render series (gap runs).
-                runs: (b.runSeries || []).map((rs) => rs?.data?.() || []),
-              }))
-            } catch { return null }
-          },
-          // ⭐ THE TWO READINGS THIS FIX IS ACCEPTED ON, and they have to be
-          // separate. The daily regression was "Origin frames the 600-bar window
-          // instead of the true origin", and a chart holding 20 years while
-          // FRAMING the last 600 bars is pixel-identical to one that only holds
-          // 600 — so the SERIES and the WINDOW must be observable independently
-          // or the acceptance cannot tell a data bug from a framing bug. An
-          // earlier pass scored only the series, found 5,247 rows, and would
-          // have reported the pipeline healthy while the member still saw 2024.
-          // Read-only, chartId-keyed, resolved at CALL time off the live refs.
-          visibleTimeRange: () => {
-            try { return chartRef.current?.timeScale().getVisibleRange() || null } catch { return null }
-          },
-          // (economic acceptance) the PRIMARY series' own type — never candles on ECON:*
-          primarySeriesType: () => {
-            try { return candleSeriesRef.current?.seriesType?.() || null } catch { return null }
-          },
-          renderedTail: (k = 2) => {
-            try {
-              const d = candleSeriesRef.current?.data?.()
-              if (!Array.isArray(d) || !d.length) return null
-              return d.slice(Math.max(0, d.length - k)).map(b => ({
-                time: b.time, open: b.open, high: b.high, low: b.low, close: b.close,
-              }))
-            } catch { return null }
-          },
-          // ⭐ THE VERTICAL HALF, for the same reason the horizontal half is here.
-          // "The chart pinches a little more every time I pan" is a claim about
-          // numbers nothing on the page reports: the candle pane's own height, the
-          // margins actually in force, whether a manual pin is live and what the
-          // stored lock says. A rig that has to infer them from pixels measures the
-          // symptom; this reads the state. Read-only, chartId-keyed, and it holds
-          // nothing — every field is resolved at CALL time off the live refs.
-          priceGeometry: () => {
-            try {
-              const series = candleSeriesRef.current
-              const pane = series?.getPane?.()
-              const panes = chartRef.current?.panes?.() || []
-              const sm = mainPriceScale()?.options?.()?.scaleMargins || null
-              return {
-                paneIndex: pane?.paneIndex?.() ?? null,
-                paneHeight: pane?.getHeight?.() ?? null,
-                paneCount: panes.length || null,
-                paneHeights: panes.map((p) => { try { return p.getHeight() } catch { return null } }),
-                // ⭐ WHAT EACH PANE ACTUALLY HOLDS. "Nothing draws here" is the
-                // only test the empty-pane reclaim makes, so a ghost strip is
-                // diagnosed by asking each rectangle what is in it — not by
-                // counting canvases, which LWC allocates per pane regardless.
-                paneSeries: panes.map((p) => {
-                  try { return (p.getSeries() || []).map((x) => x.seriesType?.() || '?') } catch { return null }
-                }),
-                scaleMargins: sm ? { top: sm.top, bottom: sm.bottom } : null,
-                vertMargins: vertMarginsRef.current ? { ...vertMarginsRef.current } : null,
-                manualPin: priceManualRef.current && priceManualRangeRef.current
-                  ? { ...priceManualRangeRef.current } : null,
-                viewLock: userViewLockedRef.current && userLockedViewRef.current
-                  ? { ...userLockedViewRef.current } : null,
-              }
-            } catch { return null }
-          },
-          /** Price → pixel row WITHIN the candle pane (pane-relative, as the
-           *  drawing layer uses it). Lets a probe measure the candle band itself. */
-          priceToY: (price) => {
-            try { return candleSeriesRef.current?.priceToCoordinate?.(price) ?? null } catch { return null }
-          },
-        }
+        window.__uctChartDebug[chartId || 'main'] = chartDebugHandle({
+          chartRef, candleSeriesRef, plotWindowRef, engineRef, priceManualRangeRef, priceManualRef,
+          userLockedViewRef, userViewLockedRef, vertMarginsRef,
+        })
       }
       // ⭐ THE PANE MANIFEST'S ONE LINE — the chart announces ITSELF (Task 3 → 4).
       //
@@ -14947,7 +15023,8 @@ export default function StockChart({
   // render-plan diff, an O(n) session-band pass, a marker-layer rebuild) — the
   // pre-market pan/crosshair stutter. Here a price move is a single applyOptions on
   // an existing price line: no teardown, no axis rebuild, no bar-array work.
-  useEffect(() => {
+  // (a function: `_onLiveTick` applies a new ext price through it between renders, the effect on a render)
+  const _applySessionTags = (activeSessionTags) => {
     const series = candleSeriesRef.current
     if (!chartReady || !series) return
     // A recreated series has no price lines of ours; drop the stale handles so the
@@ -15004,7 +15081,30 @@ export default function StockChart({
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])
+  }
+  useEffect(() => { _applySessionTags(activeSessionTags) },
+    [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels, lastBarOff, extTagInline])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ⭐ A PUBLISH BETWEEN RENDERS (2026-11-20, `useQuietRealtimePrices`): what it changes that this chart shows without a render.
+  // The newest render's function, so it reads that render's settings; the quote is read fresh.
+  const _liveExtAppliedRef = useRef(undefined)
+  _liveExtAppliedRef.current = sessionExtPrice   // what this render's tags were built from
+  const _applySessionTagsRef = useRef(null)
+  _applySessionTagsRef.current = _applySessionTags
+  const _activeSessionTagsForRef = useRef(null)
+  _activeSessionTagsForRef.current = _activeSessionTagsFor
+  _onLiveTickRef.current = () => {
+    const s = _liveSymRef.current
+    const q = s ? readLiveQuote(s) : null
+    livePricesRef.current = q ? { [s]: q } : EMPTY_LIVE_PRICES
+    _syncLastPriceRef.current?.(q)
+    // the Pre/Post tags at a new ext price: placed straight on the price lines
+    const ext = _extPriceOf(q)
+    if (ext !== _liveExtAppliedRef.current) {
+      _liveExtAppliedRef.current = ext
+      try { _applySessionTagsRef.current?.(_activeSessionTagsForRef.current?.(ext) ?? null) } catch { /* series gone */ }
+    }
+  }
 
   // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
   // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
