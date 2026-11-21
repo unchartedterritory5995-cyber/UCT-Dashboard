@@ -816,9 +816,11 @@ describe('⭐⭐ island PR 3: a v5 library\'s label, box and table cell draw v5\
       expect(pasted.why).toBe(undefined)
       if (v6Differs) expect(pasted).not.toEqual(v5)
       else expect(pasted).toEqual(v5)
-      // the host lane does not judge per token: it refuses the import by name
+      // the host lane does not judge per token: it refuses the import by name where the versions differ; a cell's
+      // unset text no longer does (e93), so a library whose only object is that cell links on the host lane too
       const t = translatePine(`${V6}${imp}${use}`, { libraries: LIBS, libraryCrossVersion: ADMIT, mode: 'host' })
-      expect(t.refusal && t.refusal.guard).toBe(LIBRARY_VERSION)
+      if (v6Differs) expect(t.refusal && t.refusal.guard).toBe(LIBRARY_VERSION)
+      else expect(t.refusal && t.refusal.guard, t.refusal && t.refusal.message).not.toBe(LIBRARY_VERSION)
     })
   }
   it('a colour the library names is its own, never replaced; the script\'s own label keeps v6\'s default', () => {
