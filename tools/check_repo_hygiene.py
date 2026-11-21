@@ -86,6 +86,11 @@ BIG_ALLOWLIST = {
     "tests/fixtures/vendor/harness/vw-bi-pivot-point-levels-b-spy-1d-2026-11-19.json",
     "tests/fixtures/vendor/harness/vw-bi-time-d-extended-btcusd-60-2026-11-19.json",
     "tests/fixtures/vendor/harness/vw-bi-time-d-extended-spy-60-2026-11-19.json",
+    # 2026-11-21: one HTF-forming capture fixture (our own vw-request-htf-forming probe, nothing licence-held) is
+    # 6.15 MB: AMEX:SPY 5-minute, in session, the intraday history TradingView loads from the listing window. Same
+    # corpus and same reason as the blocks above; a capture cannot be trimmed after the fact (its receipt binds
+    # every bar). The capture program may shrink or split it and delete this line.
+    "tests/fixtures/vendor/harness/vw-request-htf-forming-spy-5-2026-11-19-insession.json",
     # 2026-11-18: one e73 capture fixture (10.2 MB, filed by 9ab9a7b457 "evidence: tonight's captures filed at e73",
     # read by vendorHarness.b1Paints.test.js and the evidence ledger) turned the master deploy gate red at 04:15 UTC
     # and held every deploy for 90 minutes. Same corpus and same reason as the S9 lines above; listed to unblock the
