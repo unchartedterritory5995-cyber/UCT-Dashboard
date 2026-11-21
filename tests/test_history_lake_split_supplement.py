@@ -69,8 +69,14 @@ def test_a_row_without_evidence_or_well_formed_facts_is_refused(tmp_path, bad):
         S.load(_write(tmp_path, [_row(**bad)]))
 
 
+def _with_dropped(vendor):
+    """`vendor` plus the vendor rows the committed DROP rows name: a drop that matches no vendor row fails loudly,
+    so a fixture reference must carry them (the real ref/splits.json does)."""
+    return list(vendor) + [{"ticker": r["ticker"], **r["drop"]} for r in S.load() if "drop" in r]
+
+
 def test_the_merged_table_carries_the_missing_events():
-    table = F.build_factor_tables(S.merge(VENDOR_CX, S.load()), "2026-11-21")["CX"]
+    table = F.build_factor_tables(S.merge(_with_dropped(VENDOR_CX), S.load()), "2026-11-21")["CX"]
     dates = [d for d, _ in table]
     assert dates == ["2006-07-24"] + CX_VERIFIED + ["2015-04-28", "2016-04-29", "2017-05-03"]
 
@@ -78,7 +84,7 @@ def test_the_merged_table_carries_the_missing_events():
 def test_an_event_the_vendor_files_itself_is_not_applied_twice():
     """The vendor fixes its reference later, three days off our date: its row wins and ours is not added."""
     vendor = VENDOR_CX + [{"ticker": "CX", "execution_date": "2009-06-01", "split_from": 25, "split_to": 26}]
-    merged = S.merge(vendor, S.load())
+    merged = S.merge(_with_dropped(vendor), S.load())
     table = F.build_factor_tables(merged, "2026-11-21")["CX"]
     in_2009 = [d for d, _ in table if d.startswith("2009")]
     assert in_2009 == ["2009-06-01"]
@@ -92,7 +98,7 @@ def test_a_different_ratio_on_a_nearby_date_is_not_the_same_event(tmp_path):
 
 def test_the_rebuild_reads_the_supplement_with_the_vendor_reference(tmp_path):
     (tmp_path / "ref").mkdir()
-    (tmp_path / "ref" / "splits.json").write_text(json.dumps({"rows": VENDOR_CX}), encoding="utf-8")
+    (tmp_path / "ref" / "splits.json").write_text(json.dumps({"rows": _with_dropped(VENDOR_CX)}), encoding="utf-8")
     rows = B.load_split_rows(tmp_path)
     assert {(r["ticker"], r["execution_date"]) for r in rows} >= {("CX", d) for d in CX_VERIFIED}
     assert len([r for r in rows if r["ticker"] == "CX"]) == len(VENDOR_CX) + len(CX_VERIFIED)
@@ -172,3 +178,124 @@ def test_a_row_can_replace_the_vendor_s_own_wrong_event_and_nothing_else(tmp_pat
 def test_a_malformed_replaces_is_refused(tmp_path, bad):
     with pytest.raises(S.SupplementError):
         S.load(_write(tmp_path, [_row(replaces=bad)]))
+
+
+# ── DROP rows (2026-11-21, seam-61): a vendor row TradingView AND the raw day files both contradict ─────────────
+# CHY 2007-09-20: the vendor files a 1:3 reverse split, but the raw day files and the second vendor run on (14.80 the day
+# after 15.07). Applied, the table multiplies every earlier CHY bar by 3: a cliff that never traded. A DROP row removes
+# exactly the vendor row it names. Ruled (patrick-2b): (a) it names the vendor row (date + ratio); (b) its evidence is
+# TradingView's step across the date (no step) AND the raw day files continuous; (c) it fails loudly when no vendor row
+# matches within the same-event +-3 days (never a silent no-op); (d) it never coexists with an add or a replace for its
+# event.
+
+PHANTOM = {"ticker": "ZZ", "execution_date": "2007-09-20", "split_from": 3, "split_to": 1}
+OTHER = {"ticker": "ZZ", "execution_date": "2013-06-20", "split_from": 2, "split_to": 3}
+ELSEWHERE = {"ticker": "YY", "execution_date": "2007-09-20", "split_from": 3, "split_to": 1}
+
+
+def _drop(**over):
+    r = {"ticker": "ZZ", "execution_date": "2007-09-20",
+         "drop": {"execution_date": "2007-09-20", "split_from": 3, "split_to": 1},
+         "evidence": {"capture": "Q-CLOSE-SEAM61 test capture", "price_verified": True, "tv_step": 1.0002,
+                      "raw_move": 1.0182, "check": "test"}}
+    r.update(over)
+    return r
+
+
+def _ev(**over):
+    ev = dict(_drop()["evidence"])
+    ev.update(over)
+    return {k: v for k, v in ev.items() if v is not None}
+
+
+def test_a_drop_row_removes_exactly_the_vendor_row_it_names_and_adds_nothing(tmp_path):
+    """(a) The named row goes; the ticker's other rows and the same date under another ticker stay; nothing is added."""
+    rows = S.load(_write(tmp_path, [_drop()]))
+    merged = S.merge([PHANTOM, OTHER, ELSEWHERE], rows)
+    assert merged == [OTHER, ELSEWHERE]
+    with pytest.raises(S.SupplementError):    # the same date at ANOTHER ratio is not the row the drop names
+        S.merge([{**PHANTOM, "split_from": 2}, OTHER], rows)
+
+
+@pytest.mark.parametrize("ev", [
+    _ev(tv_step=None),                 # no TradingView step recorded
+    _ev(tv_step=1.01),                 # TradingView DOES step across the date
+    _ev(tv_step="1.0"),                # not a number
+    _ev(raw_move=None),                # no raw-continuity reading
+    _ev(raw_move=3.0),                 # the raw day files show the event itself
+    _ev(raw_move=1.18),                # a real move (AIG 2011): not continuous
+    _ev(price_verified=False),
+    _ev(capture=""),
+])
+def test_a_drop_row_without_no_step_and_continuity_evidence_is_refused(tmp_path, ev):
+    """(b) TradingView's closes across the date show no step, AND the raw day files run on."""
+    with pytest.raises(S.SupplementError, match="drop evidence"):
+        S.load(_write(tmp_path, [_drop(evidence=ev)]))
+
+
+def test_a_drop_that_matches_no_vendor_row_fails_loudly(tmp_path):
+    """(c) A drop whose vendor row is gone (or never was) raises: the rebuild must not run on a stale belief."""
+    rows = S.load(_write(tmp_path, [_drop()]))
+    with pytest.raises(S.SupplementError, match="no vendor row"):
+        S.merge([OTHER], rows)
+    # the vendor re-files the same wrong row two days off: still that row, still dropped
+    assert S.merge([{**PHANTOM, "execution_date": "2007-09-18"}, OTHER], rows) == [OTHER]
+    with pytest.raises(S.SupplementError):    # four days off is not the same event
+        S.merge([{**PHANTOM, "execution_date": "2007-09-24"}, OTHER], rows)
+    with pytest.raises(S.SupplementError):    # two candidate rows: ambiguous, never a guess
+        S.merge([PHANTOM, {**PHANTOM, "execution_date": "2007-09-21"}, OTHER], rows)
+
+
+def test_a_drop_never_coexists_with_an_add_or_replace_for_its_event(tmp_path):
+    """(d) One event, one answer: a drop beside an add, a replace or a second drop within +-3 days is refused."""
+    add = _row(ticker="ZZ", execution_date="2007-09-21", split_from=1, split_to=1.05)
+    rep = _row(ticker="ZZ", execution_date="2007-09-20", split_from=1, split_to=1.2,
+               replaces={"execution_date": "2007-09-20", "split_from": 3, "split_to": 1})
+    again = _drop(execution_date="2007-09-19", drop={"execution_date": "2007-09-19", "split_from": 3, "split_to": 1})
+    for other in (add, rep, again):
+        with pytest.raises(S.SupplementError, match="same event"):
+            S.load(_write(tmp_path, [_drop(), other]))
+    far = _row(ticker="ZZ", execution_date="2008-09-22", split_from=1, split_to=1.05)
+    assert len(S.load(_write(tmp_path, [_drop(), far]))) == 2
+    other_ticker = _row(ticker="YY", execution_date="2007-09-20", split_from=1, split_to=1.05)
+    assert len(S.load(_write(tmp_path, [_drop(), other_ticker]))) == 2
+
+
+@pytest.mark.parametrize("bad", [
+    {"split_from": 3, "split_to": 1},                                                  # a drop carries no ratio
+    {"replaces": {"execution_date": "2007-09-20", "split_from": 3, "split_to": 1}},     # nor a replaces
+    {"drop": {"execution_date": "2007-9-20", "split_from": 3, "split_to": 1}},
+    {"drop": {"execution_date": "2007-09-20", "split_from": 0, "split_to": 1}},
+    {"drop": {"execution_date": "2007-09-21", "split_from": 3, "split_to": 1}},       # names another date than its row
+    {"drop": "CHY"},
+])
+def test_a_malformed_drop_row_is_refused(tmp_path, bad):
+    with pytest.raises(S.SupplementError, match="drop"):
+        S.load(_write(tmp_path, [_drop(**bad)]))
+
+
+def test_a_dropped_phantom_leaves_the_rebuilt_series_continuous(tmp_path):
+    """End to end: raw closes run on across the vendor's phantom 1:3; without the drop the rebuild multiplies every earlier
+    bar by 3, with it the series is the raw one."""
+    import sqlite3
+    days = [f"2007-{8 + i // 28:02d}-{1 + i % 28:02d}" for i in range(60)]
+    con = sqlite3.connect(":memory:")
+    con.execute("CREATE TABLE day (ticker TEXT, ymd INTEGER, o REAL, h REAL, l REAL, c REAL, v REAL)")
+    con.executemany("INSERT INTO day VALUES ('ZZ', ?, 15, 15, 15, 15, 1000)", [(int(d.replace("-", "")),) for d in days])
+    phantom = {**PHANTOM, "execution_date": days[30]}
+    lin = {"since": None, "segments": [], "cut": False}
+    bad = B.build_one(con, "ZZ", lin, F.build_factor_tables([phantom], "2026-11-21"))
+    assert {b[4] for b in bad["bars"][:30]} == {45.0}, "the fixture must draw the phantom cliff without the drop"
+    drop = _drop(execution_date=days[30], drop={k: v for k, v in phantom.items() if k != "ticker"})
+    merged = S.merge([phantom], S.load(_write(tmp_path, [drop])))
+    good = B.build_one(con, "ZZ", lin, F.build_factor_tables(merged, "2026-11-21"))
+    assert {b[4] for b in good["bars"]} == {15.0}
+
+
+def test_a_small_drop_needs_a_raw_move_under_half_its_factor(tmp_path):
+    """A phantom 3% stock dividend: a 2% raw move is an ordinary session, but it is too close to the dropped 1.03 to call
+    the raw day files continuous across it; a 0.5% move is."""
+    small = {"execution_date": "2007-09-20", "split_from": 100, "split_to": 103}
+    with pytest.raises(S.SupplementError, match="drop evidence.raw_move"):
+        S.load(_write(tmp_path, [_drop(drop=small, evidence=_ev(raw_move=1.02))]))
+    assert S.load(_write(tmp_path, [_drop(drop=small, evidence=_ev(raw_move=1.005))]))[0]["drop"] == small
