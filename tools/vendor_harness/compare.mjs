@@ -1089,8 +1089,11 @@ export function compareCapture(capture, ours, opts = {}) {
   for (const o of map.unmappedOurs) base.notCompared.push({ ours: o.key, title: o.title, why: 'our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)' })
 
   // Objects — counts of what each side KEEPS, and the text they carry.
+  // ⭐ OTHER-SYMBOL UNSETTLED, FOR THE DRAWINGS TOO (`unsettledBarsOf`): a drawing placed on a bar the plot grade
+  // found unsettled is not compared, by the same name.
   if (capture.objects || (ours.objects && ours.objects.drawsObjects)) {
-    base.objects = compareObjects(capture.objects || null, ours.objects || null, opts.objectColours || null, opts.objectRecords || null)
+    base.objects = compareObjects(capture.objects || null, ours.objects || null, opts.objectColours || null, opts.objectRecords || null,
+      unsettledBarsOf(base.plots, capture))
   }
 
   // Paints — `bgcolor` / `barcolor` (B1, step 61). Graded only where the caller
@@ -1286,10 +1289,123 @@ function subMultiset(sub, all) {
   return true
 }
 
+// ── OTHER-SYMBOL UNSETTLED, FOR THE DRAWINGS (coordinator, 2026-11-21) ─────────────────────
+//
+// The plot grade leaves a bar UNSETTLED where TradingView's own captures disagree about another symbol's value there
+// (`unsettledRecord`): that bar is not compared, by name. A drawing PLACED on such a bar reads the same unsettled value,
+// so it is not compared either, by the same name: a paired record (lines, labels, boxes: `objectRecords.js::pairRecords`)
+// any of whose x coordinates resolves, on either side, to an unsettled bar is taken out of the counts, the texts and the
+// records before the drawing is graded, and named on the grade (`otherSymbolUnsettled`). The verdict follows from the
+// drawings that remain; with none left on either side it is INCONCLUSIVE.
+// ⚰️ rs-rating-fred6724-pm-alab-1d-2026-11-16: its plots agree on 667 of 668 bars and the newest is unsettled (SPX
+// 7416.59 in this capture, 7561.67 in the other three of that date), yet the RS label drawn ON that bar graded DIVERGE
+// (y 91.6678 vs 89.9090: exactly the SPX ratio; text "74" vs "69").
+// ⛔ FAIL CLOSED: only PAIRED records are taken out (an unpaired one stays a count difference), a text that cannot be
+// matched to the counted texts leaves the grade exactly as it was, and a colour the colour pairing grades is not touched.
+
+/** The capture-bar indexes the plot grade left unsettled (`otherSymbolUnsettled`, by time), or null. */
+export function unsettledBarsOf(plots, capture) {
+  const recs = (plots || []).flatMap((p) => (p && Array.isArray(p.otherSymbolUnsettled) ? p.otherSymbolUnsettled : []))
+  if (!recs.length) return null
+  const rows = (capture && capture.bars && capture.bars.rows) || []
+  const at = new Map(rows.map((r, i) => [r[0], i]))
+  const bars = new Set()
+  const names = new Map()
+  for (const r of recs) {
+    const i = at.get(r.time)
+    if (!Number.isInteger(i)) continue
+    bars.add(i)
+    names.set(i, { time: r.time, symbol: r.symbol, date: r.date })
+  }
+  return bars.size ? { bars, names } : null
+}
+
+const UNSETTLED_FAMILIES = ['lines', 'labels', 'boxes']
+
+/** Both sides with the paired records placed on an unsettled bar taken out, and the list of what was, or null when
+ *  nothing is taken out (or the cut cannot be made exactly: then the grade is the one it always was). */
+export function unsettledCutOf(vendorObjs, ourObjs, records, unsettled) {
+  if (!unsettled || !unsettled.bars || !unsettled.bars.size || !records || !records.families) return null
+  if (!vendorObjs || !ourObjs || !ourObjs.ok || ourObjs.drawsObjects === false) return null
+  const onUnsettled = (pair) => (pair.fields || []).some((r) => r.x === true
+    && ((Number.isInteger(r.vendor) && unsettled.bars.has(r.vendor)) || (Number.isInteger(r.ours) && unsettled.bars.has(r.ours))))
+  const excluded = []
+  const families = { ...records.families }
+  for (const f of UNSETTLED_FAMILIES) {
+    const p = records.families[f]
+    if (!p || !Array.isArray(p.pairs)) continue
+    const out = p.pairs.filter(onUnsettled)
+    if (!out.length) continue
+    families[f] = { ...p, pairs: p.pairs.filter((x) => !onUnsettled(x)) }
+    for (const pair of out) {
+      const xr = (pair.fields || []).find((r) => r.x === true
+        && ((Number.isInteger(r.vendor) && unsettled.bars.has(r.vendor)) || (Number.isInteger(r.ours) && unsettled.bars.has(r.ours))))
+      const bar = unsettled.bars.has(xr.vendor) ? xr.vendor : xr.ours
+      const text = (pair.fields || []).find((r) => r.field === 'text')
+      excluded.push({ family: f, vendorId: pair.vendorId, ourId: pair.ourId, where: pair.where, bar, ...unsettled.names.get(bar),
+        ...(text ? { vendorText: text.vendor, ourText: text.ours } : {}) })
+    }
+  }
+  if (!excluded.length) return null
+  const vCounts = { ...(vendorObjs.counts || {}) }
+  const oCounts = { ...(ourObjs.counts || {}) }
+  for (const e of excluded) {
+    if (!Number.isFinite(vCounts[e.family]) || !Number.isFinite(oCounts[e.family])) return null
+    vCounts[e.family] -= 1
+    oCounts[e.family] -= 1
+  }
+  // a label's text leaves the counted texts with it: one occurrence each side, or no cut at all
+  const drop = (list, x) => {
+    const i = list.indexOf(x)
+    if (i < 0) return false
+    list.splice(i, 1)
+    return true
+  }
+  const vTexts = { ...(vendorObjs.texts || {}) }
+  const oTexts = { ...(ourObjs.texts || {}) }
+  const labels = excluded.filter((e) => e.family === 'labels')
+  if (labels.length) {
+    const vt = Array.isArray(vTexts.labels) ? vTexts.labels.map(String) : null
+    const ot = Array.isArray(oTexts.labels) ? oTexts.labels.map(String) : null
+    if (vt && ot) {
+      for (const e of labels) {
+        if (typeof e.vendorText !== 'string' || typeof e.ourText !== 'string') return null
+        if (!drop(vt, e.vendorText) || !drop(ot, e.ourText)) return null
+      }
+      vTexts.labels = vt
+      oTexts.labels = ot
+    }
+  }
+  const remaining = UNSETTLED_FAMILIES.concat(['tables', 'tableCells'])
+    .reduce((n, f) => n + (Number.isFinite(vCounts[f]) ? vCounts[f] : 0) + (Number.isFinite(oCounts[f]) ? oCounts[f] : 0), 0)
+  return {
+    vendor: { ...vendorObjs, counts: vCounts, texts: vTexts },
+    ours: { ...ourObjs, counts: oCounts, texts: oTexts },
+    records: { ...records, families },
+    excluded: excluded.map(({ vendorText, ourText, ...e }) => ({ verdict: 'INCONCLUSIVE', ...e })),
+    remaining,
+  }
+}
+
 /** @param {object|null} [records] `objectRecords.js::pairRecords`' pairing (by value where counts differ): a family
  *  our side drew fewer of BY NAME (`ourObjs.partialFamilies`, coordinator ruling 2026-11-19) is graded on what it
- *  draws. `null` grades exactly as before. */
-export function compareObjects(vendorObjs, ourObjs, colour = null, records = null) {
+ *  draws. `null` grades exactly as before.
+ *  @param {object|null} [unsettled] `unsettledBarsOf`: the drawings placed on those bars are not compared, by name. */
+export function compareObjects(vendorObjs, ourObjs, colour = null, records = null, unsettled = null) {
+  const cut = unsettledCutOf(vendorObjs, ourObjs, records, unsettled)
+  if (!cut) return gradeObjects(vendorObjs, ourObjs, colour, records)
+  const graded = gradeObjects(cut.vendor, cut.ours, colour, cut.records)
+  const symbols = [...new Set(cut.excluded.map((e) => e.symbol).filter(Boolean))].join(', ') || 'another symbol'
+  const said = `${cut.excluded.length} drawing object(s) placed on a bar where TradingView's own captures disagree on ${symbols} are not compared (otherSymbolUnsettled)`
+  // (a DIVERGE that remains, a colour the colour pairing grades among them, is never softened)
+  if (!cut.remaining && graded.verdict !== 'DIVERGE') {
+    return { ...graded, verdict: 'INCONCLUSIVE', ...(graded.verdictWithoutColour ? { verdictWithoutColour: 'INCONCLUSIVE' } : {}),
+      reason: `every drawing object is on such a bar: ${said}`, otherSymbolUnsettled: cut.excluded }
+  }
+  return { ...graded, reason: `${graded.reason}; ${said}`, otherSymbolUnsettled: cut.excluded }
+}
+
+function gradeObjects(vendorObjs, ourObjs, colour = null, records = null) {
   if (!vendorObjs) return { verdict: 'INCONCLUSIVE', reason: 'our side draws objects but the capture recorded none — re-capture with graphics' }
   // ⭐ OUR SCRIPT HAS NO DRAWING PROGRAM AT ALL. That is an answer, not a missing
   // one: if TradingView drew nothing either, the two agree; if it drew something,
@@ -1669,6 +1785,18 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
     // ⚠️ `pairedNothing`: this verdict is v1's, carried; v2 graded nothing (review #1150 note 6)
     return { verdict: v1.verdict, verdictWithoutX: v1.verdict, v1: v1.verdict, pairedNothing: true, x: null, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
   }
+  // ⭐ OTHER-SYMBOL UNSETTLED (`unsettledCutOf`): the records v1 took out, by their pair, are not graded here either —
+  // ONE decision, v1's, read off its own list
+  const unsettledOut = Array.isArray(v1.otherSymbolUnsettled) ? v1.otherSymbolUnsettled : []
+  if (unsettledOut.length) {
+    const out = new Set(unsettledOut.map((e) => `${e.family}|${e.vendorId}|${e.ourId}`))
+    const fams = { ...pairing.families }
+    for (const f of UNSETTLED_FAMILIES) {
+      const p = pairing.families[f]
+      if (p && Array.isArray(p.pairs)) fams[f] = { ...p, pairs: p.pairs.filter((x) => !out.has(`${f}|${x.vendorId}|${x.ourId}`)) }
+    }
+    pairing = { ...pairing, families: fams }
+  }
   const families = []
   // ⛔ A FAMILY v1 FOUND WITHHELD BY NAME (W-C22-DEL / OZ: `counts[].withheld`)
   // is a gap with a name, already graded as one; v2 does not pair it again and
@@ -1811,6 +1939,7 @@ export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
     x: { ...xt, incompleteFamilies: incomplete.map((r) => r.family) },
     families,
     ungraded,
+    ...(unsettledOut.length ? { otherSymbolUnsettled: unsettledOut } : {}),
   }
 }
 
