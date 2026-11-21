@@ -135,7 +135,8 @@ describe('LEAD IPO is still LEAD\'s new-listings lens', () => {
     expect(marketOnly.length).toBeGreaterThan(20)
     const pairs = []
     for (const first of marketOnly) {
-      const specs = (BY_CODE[first].market?.args || []).filter((s) => s.kind !== 'code' && !s.rest)
+      // an `open` spec (COT's market name) takes any word, so the rule leaves it out
+      const specs = (BY_CODE[first].market?.args || []).filter((s) => s.kind !== 'code' && !s.rest && !s.open)
       for (const second of marketOnly) {
         if (specs.some((s) => ARG_KINDS[s.kind]?.parse(second) != null)) pairs.push(`${first} ${second}`)
       }
@@ -148,6 +149,14 @@ describe('LEAD IPO is still LEAD\'s new-listings lens', () => {
     }
     expect(applyArgs(BY_CODE.TOPF.market, ['LIVE']).props).toEqual({ status: 'open' })
     expect(parseCommand('$TOPF LIVE')).toMatchObject({ ok: true, type: 'function', code: 'LIVE', sym: 'TOPF' })
+  })
+
+  it('a code that takes any word as its argument (COT) does not swallow another function code', () => {
+    // non-vacuity: COT's market name really parses a function code as a word
+    expect(BY_CODE.COT.market.args[0].open).toBe(true)
+    expect(ARG_KINDS.cotMarketName.parse('CAL')).not.toBeNull()
+    expect(parseCommand('COT CAL')).toMatchObject({ ok: true, type: 'function', code: 'CAL', sym: 'COT' })
+    expect(parseCommand('COT GOLD')).toMatchObject({ ok: true, type: 'function', code: 'COT', sym: null, args: ['GOLD'] })
   })
 
   it('DVD and CACT are not words another code takes', () => {

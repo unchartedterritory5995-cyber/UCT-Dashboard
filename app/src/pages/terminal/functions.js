@@ -550,9 +550,11 @@ export const FUNCTIONS = [
   // COT: futures positioning from the CFTC's weekly Commitments of Traders report (GET /api/cot/*,
   // the routes the COT Data page reads). `COT` = every market, one row each; `COT GOLD` / `COT ES`
   // / `COT 10Y` = one market, by its code or a plain word (resolved in the panel against the
-  // route's own list). COT is not in the site's stock universe.
+  // route's own list). COT is not in the site's stock universe. `open: true`: the market name is
+  // any word of the right shape, so it never outranks another function's code (`COT CAL` keeps the
+  // canonical order; parseCommand.js, the `LEAD IPO` branch).
   { code: 'COT', label: 'Futures positioning (Commitments of Traders)', group: 'Market',
-    market: { panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market' }] } },
+    market: { panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market', open: true }] } },
   // ANLG: the past sessions whose breadth looked most like the newest one, and what the S&P 500
   // did after each (GET /api/breadth-monitor/analogues, the answer the Analogue Deck on Breadth
   // draws). `ANLG` = the 5 closest, `ANLG 8` = that many (3 to 10). Not in the stock universe.

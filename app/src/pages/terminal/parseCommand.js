@@ -64,7 +64,7 @@ export function normalizeInput(input) {
 }
 
 /** Does `tok` fit one of the arguments `code` declares (GP's timeframe, CAL's day…)? */
-function isDeclaredArg(code, tok) {
+function isDeclaredArg(code, tok, { closed = false } = {}) {
   const fn = BY_CODE[String(code || '').toUpperCase()]
   if (!fn) return false
   // A code that reads as another with no ticker (ERN's `marketAs: 'CAL'`) takes that code's
@@ -73,7 +73,9 @@ function isDeclaredArg(code, tok) {
   const specs = [...(fn.ticker?.args || []), ...(fn.market?.args || []), ...via]
   // A REST spec (IMOV's theme name) takes almost any word, so it never decides alone that a
   // token is an argument rather than a ticker: `phraseArgs` below does that.
-  return specs.some((s) => s.kind !== 'code' && !s.rest && ARG_KINDS[s.kind]?.parse(tok) != null)
+  // `closed`: leave out a spec that takes ANY word of the right shape (`open: true`, COT's market
+  // name). Such a spec cannot tell its own argument from another function's code.
+  return specs.some((s) => s.kind !== 'code' && !s.rest && !(closed && s.open) && ARG_KINDS[s.kind]?.parse(tok) != null)
 }
 
 /** `FUNC <words…>` for a code with a REST spec (IMOV's theme name): are these words a phrase
@@ -384,7 +386,7 @@ function parseCore(raw) {
   // code declares as its argument is that argument. `$LEAD IPO` still forces the ticker reading.
   if (second && !forced && isCode(FIRST) && isCode(second) && !second.startsWith('$')
     && !BY_CODE[FIRST].ticker && !BY_CODE[second.toUpperCase()].ticker && !isTickerCollision(FIRST)
-    && isDeclaredArg(FIRST, second)) {
+    && isDeclaredArg(FIRST, second, { closed: true })) {
     return { ok: true, type: 'function', code: canonicalCode(FIRST), sym: null, args: [second, ...rest] }
   }
   // TICKER FUNC [args]  — the canonical order; a code in second place makes the first a ticker.
