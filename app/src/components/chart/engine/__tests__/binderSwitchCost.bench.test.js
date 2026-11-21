@@ -21,11 +21,19 @@
 //
 // ⚠️ Read a profile as SHAPE, not as a production number: vitest resolves lightweight-charts' DEVELOPMENT build,
 // whose per-item checks (`checkLineItem`, `checkSeriesValuesType`, `checkItemsAreOrdered`) the production build
-// does not run, under jsdom, on a CI runner.
+// does not run, under jsdom, on a CI runner. The MEASUREMENT therefore runs the build production ships (`libFor`:
+// the published production file through `patchLightweightCharts`, as `vite build` does); the rails keep the dev one.
+//
+// ⭐ (paint, 2026-11-21) THE PAINT HALF. A switch is not over when `sync` returns: the library paints in its own
+// animation frames. The scan now runs those frames itself after each switch (`runFrames`) and reports how many the
+// switch took and how long their JavaScript ran (the canvas is a stub, so no pixels). Each build is measured against
+// its CONTROL, `.writeAll` (series that cannot say what they hold, so every set is written on every sync, as before
+// `binder.optionsHeld`), the two alternated after a warm-up scan.
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import inspector from 'node:inspector'
+import { fileURLToPath } from 'node:url'
 
 const snaps = new Map()
 const fakeStore = {
@@ -48,17 +56,65 @@ const { createWindowedChart, renderWindowRows } = await import('../../windowedCh
 const { plotWindowRows, plotWindowStart } = await import('../plotWindow')
 const { eligibleInstances } = await import('../eligibility')
 
-const ENGINE_LWC = {
-  LineSeries: LWC.LineSeries, HistogramSeries: LWC.HistogramSeries, AreaSeries: LWC.AreaSeries,
-  BaselineSeries: LWC.BaselineSeries, LineStyle: LWC.LineStyle, LineType: LWC.LineType,
-  CandlestickSeries: LWC.CandlestickSeries, BarSeries: LWC.BarSeries,
+const { patchLightweightCharts } = await import('../../../../../scripts/chartLibraryPatch.mjs')
+
+/** The series constructors the binder is handed (StockChart's `engineLwc`), from one build of the library. */
+const engineLwc = (L) => ({
+  LineSeries: L.LineSeries, HistogramSeries: L.HistogramSeries, AreaSeries: L.AreaSeries,
+  BaselineSeries: L.BaselineSeries, LineStyle: L.LineStyle, LineType: L.LineType,
+  CandlestickSeries: L.CandlestickSeries, BarSeries: L.BarSeries,
+})
+
+// ─── which build of the library: what vitest resolves, or what production ships ────────────────────────────────
+// `dev`      the DEVELOPMENT build vitest resolves (unpatched, with its per-item checks): the rails use it.
+// `prod`     the PRODUCTION build as published.
+// `patched`  the production build through `patchLightweightCharts`: what `vite build` ships.
+// Each is the library's own file, evaluated as a function of its one import (as chartLibraryPatch.behaviour.test.js
+// does): a module file cannot be imported here, and the variants must not be written into the project.
+const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..')
+const LIBS = { dev: LWC }
+async function libFor(name) {
+  if (LIBS[name]) return LIBS[name]
+  const shipped = fs.readFileSync(path.join(APP, 'node_modules', 'lightweight-charts', 'dist', 'lightweight-charts.production.mjs'), 'utf8')
+  const canvas = await import('fancy-canvas')
+  const code = name === 'prod' ? shipped : patchLightweightCharts(shipped)
+  const IMPORT = /import\{([^}]*)\}from"fancy-canvas";/
+  const EXPORT = /export\{([^}]*)\};?\s*$/
+  const imported = IMPORT.exec(code)
+  const exported = EXPORT.exec(code)
+  if (!imported || !exported) throw new Error('the library file is no longer one import, a body and one export')
+  const takes = imported[1].split(',').map((x) => x.trim().split(' as ')).map(([from, to]) => `${from}:${to || from}`).join(',')
+  const gives = exported[1].split(',').map((x) => x.trim().split(' as ')).map(([local, nm]) => `${nm || local}:${local}`).join(',')
+  const body = code.replace(IMPORT, () => `const{${takes}}=uctCanvas;`).replace(EXPORT, () => `return{${gives}}`)
+  LIBS[name] = new Function('uctCanvas', `"use strict";${body}`)(canvas)
+  return LIBS[name]
+}
+
+// ─── the library's frames, run when the scan says so (the paint half of a switch) ───────────────────────────────
+// Every `requestAnimationFrame` lands in `frameQueue`; `runFrames` runs them a frame at a time (what one vsync
+// runs) until none is asked for, and reports how many frames the switch took and how long their callbacks ran.
+// Under jsdom the canvas calls are no-ops (the stub context below), so the milliseconds are the paint's
+// JAVASCRIPT: the views' rebuilds, the layout, the marks and labels. Not the pixels.
+const frameQueue = []
+function runFrames(max = 12) {
+  let frames = 0
+  let ms = 0
+  while (frameQueue.length && frames < max) {
+    const now = frameQueue.splice(0)
+    frames += 1
+    const t0 = performance.now()
+    for (const cb of now) cb(t0)
+    ms += performance.now() - t0
+  }
+  return { frames, ms }
 }
 
 beforeAll(() => {
   const ctx = new Proxy({}, {
     get: (_t, k) => {
       if (k === 'canvas') return { width: 1200, height: 700 }
-      if (k === 'measureText') return () => ({ width: 30, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 2 })
+      // a label as wide as its text, so a price axis re-fits when the labels change (as a real one does)
+      if (k === 'measureText') return (text) => ({ width: 7 * String(text).length, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 2 })
       if (k === 'createLinearGradient') return () => ({ addColorStop() {} })
       if (k === 'getImageData') return () => ({ data: new Uint8ClampedArray(4) })
       return () => {}
@@ -66,6 +122,8 @@ beforeAll(() => {
     set: () => true,
   })
   HTMLCanvasElement.prototype.getContext = () => ctx
+  vi.stubGlobal('requestAnimationFrame', (cb) => { frameQueue.push(cb); return frameQueue.length })
+  vi.stubGlobal('cancelAnimationFrame', () => {})
   Object.defineProperty(window, 'devicePixelRatio', { value: 1, configurable: true })
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', { get() { return 1200 }, configurable: true })
   Object.defineProperty(HTMLElement.prototype, 'clientHeight', { get() { return 700 }, configurable: true })
@@ -199,7 +257,9 @@ const drain = (g) => { for (const _ of g) { /* each idle piece */ } }
  * had the oldest rows' RS envelopes evicted before the scan reached them (a server-lane MISS on those switches).
  * @returns {{ms: {prepared: number[], cold: number[]}, idleMs: number[], computed: object, stats: object, profile: object}}
  */
-async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = 'alternate' }) {
+async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = 'alternate', lib = 'dev', writeEverySet = false }) {
+  const L = await libFor(lib)
+  frameQueue.length = 0
   snaps.clear()
   nf.__resetDerivedForTests()
   nf.__resetNeighborFramesStatsForTests()
@@ -217,10 +277,16 @@ async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = '
   const registry = { ...nativeRegistry, computeFor: (def, ...r) => { calls.push(def.id); return nativeRegistry.computeFor(def, ...r) } }
   const el = document.createElement('div')
   document.body.appendChild(el)
-  const chart = createWindowedChart(LWC.createChart(el, { width: 1200, height: 700 }), { disabled: () => false })
-  const candles = chart.addSeries(LWC.CandlestickSeries, {})
+  const chart = createWindowedChart(L.createChart(el, { width: 1200, height: 700 }), { disabled: () => false })
+  const candles = chart.addSeries(L.CandlestickSeries, {})
   chart.window.setPrimary(candles)
-  const binder = createBinder({ chart, LWC: ENGINE_LWC, scope: 'bench' })
+  if (writeEverySet) {
+    // THE CONTROL: a series that cannot say what it holds is handed its whole set on every sync (the binder as it
+    // was before `optionsHeld`)
+    const add = chart.addSeries.bind(chart)
+    chart.addSeries = (...a) => { const s = add(...a); s.options = () => null; return s }
+  }
+  const binder = createBinder({ chart, LWC: engineLwc(L), scope: 'bench' })
   const engineRef = { current: { chart, binder } }
   const view = { tf, showExtended: false }
   const pctx = { recipes: () => R, view: () => view, engineRef }
@@ -255,12 +321,13 @@ async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = '
     const st = nf.neighborFramesStats()
     const delta = {}
     for (const k of ['colsHit', 'colsMissed', 'pointsHit']) delta[k] = st[k] - st0[k]
-    // let the library paint (rAF) and the facade's microtasks run between switches, as a member's frames do
+    // the facade's microtasks, then the library's frames, as a member's frames run them
     await new Promise((r) => setTimeout(r, 0))
-    return { ms, calls: [...calls], delta, prof, filtered }
+    const painted = runFrames()
+    return { ms, calls: [...calls], delta, prof, filtered, painted }
   }
 
-  const out = { ms: { prepared: [], cold: [] }, idleMs: [], computed: { prepared: {}, cold: {} }, stats: { prepared: [], cold: [] }, profile: { prepared: profAgg(), cold: profAgg() }, series: 0 }
+  const out = { ms: { prepared: [], cold: [] }, paintMs: { prepared: [], cold: [] }, frames: { prepared: [], cold: [] }, idleMs: [], computed: { prepared: {}, cold: {} }, stats: { prepared: [], cold: [] }, profile: { prepared: profAgg(), cold: profAgg() }, series: 0 }
   land(syms[0])
   await arrive(syms[0], false)
   for (let i = 1; i < syms.length; i++) {
@@ -277,6 +344,8 @@ async function scan({ tf, n, rows = 14, warmup = 4, profile = false, prepare = '
     if (i <= warmup) continue
     const lane = prep ? 'prepared' : 'cold'
     out.ms[lane].push(r.ms)
+    out.paintMs[lane].push(r.painted.ms)
+    out.frames[lane].push(r.painted.frames)
     out.stats[lane].push(r.delta)
     for (const id of r.calls) out.computed[lane][id] = (out.computed[lane][id] || 0) + 1
     if (r.prof) addProfile(out.profile[lane], r.prof)
@@ -296,6 +365,9 @@ function report(label, r) {
     return {
       switches: ms.length,
       medianMs: +median(ms).toFixed(2), p90Ms: +p90(ms).toFixed(2), allMs: ms.map((x) => +x.toFixed(2)),
+      // the library's frames after the sync: how many, and their callbacks' JavaScript (jsdom: no pixels)
+      paintMedianMs: +median(r.paintMs[k]).toFixed(2), paintAllMs: r.paintMs[k].map((x) => +x.toFixed(2)),
+      framesPerSwitch: r.frames[k],
       computedPerSwitch: Object.fromEntries(Object.entries(r.computed[k]).map(([id, c]) => [id, +(c / runs).toFixed(2)])),
       hits: r.stats[k],
       profileMsPerSwitch: +(r.profile[k].total / runs).toFixed(2),
@@ -309,7 +381,8 @@ function report(label, r) {
   }
   const R0 = RESULTS[label]
   console.log(`[binder switch cost] ${label}: series=${r.series} prepared median ${R0.prepared.medianMs} ms (p90 ${R0.prepared.p90Ms}), `
-    + `cold median ${R0.cold.medianMs} ms (p90 ${R0.cold.p90Ms}), idle prepare median ${R0.idlePrepareMedianMs} ms`)
+    + `cold median ${R0.cold.medianMs} ms (p90 ${R0.cold.p90Ms}), idle prepare median ${R0.idlePrepareMedianMs} ms; `
+    + `paint median ${R0.prepared.paintMedianMs} / ${R0.cold.paintMedianMs} ms in ${JSON.stringify(R0.prepared.framesPerSwitch)} frames`)
 }
 
 /** Every switch to a prepared row took every instance's columns (and the plots' points) from the store and computed
@@ -346,22 +419,44 @@ describe('a list flip on the mixed set, through the chart\'s own preparer', () =
 
 // ─── the measurement: 12,000 daily / 30,000 hourly rows, timed and profiled (the `remote tests` lane, or by hand) ──
 const BENCH = process.env.GITHUB_WORKFLOW === 'remote tests' || process.env.BINDER_SWITCH_BENCH === '1'
-describe.runIf(BENCH)('binder.sync on a list flip: the numbers', () => {
-  it('daily, 12,000 rows: timed', async () => {
-    const r = await scan({ tf: 'D', n: 12_000 })
-    report('D12000', r)
-    expectHits(r, 'D')
-  }, 240_000)
-  it('daily, 12,000 rows: where a switch spends its time (a CPU profile of the syncs alone)', async () => {
-    report('D12000.profile', await scan({ tf: 'D', n: 12_000, profile: true, rows: 10 }))
-  }, 240_000)
-  it('60m, 30,000 rows: timed', async () => {
-    const r = await scan({ tf: '60', n: 30_000, rows: 10 })
-    report('60m30000', r)
-    expectHits(r, '60')
-  }, 300_000)
-  it('60m, 30,000 rows: profiled', async () => {
-    report('60m30000.profile', await scan({ tf: '60', n: 30_000, profile: true, rows: 8 }))
-  }, 300_000)
-})
+// the builds measured (BINDER_SWITCH_LIBS narrows them by hand); `.writeAll` is the control that writes every set
+const BENCH_LIBS = (process.env.BINDER_SWITCH_LIBS || 'patched').split(',')
+const BENCH_ROWS = Number(process.env.BINDER_SWITCH_ROWS) || 0
+/** Two scans merged: their switches, timings and frames, one after the other. */
+function merged(a, b) {
+  const out = { ...a, ms: {}, paintMs: {}, frames: {}, stats: {}, computed: { prepared: {}, cold: {} }, idleMs: [...a.idleMs, ...b.idleMs] }
+  for (const k of ['prepared', 'cold']) {
+    out.ms[k] = [...a.ms[k], ...b.ms[k]]
+    out.paintMs[k] = [...a.paintMs[k], ...b.paintMs[k]]
+    out.frames[k] = [...a.frames[k], ...b.frames[k]]
+    out.stats[k] = [...a.stats[k], ...b.stats[k]]
+    for (const src of [a.computed[k], b.computed[k]]) for (const [id, c] of Object.entries(src)) out.computed[k][id] = (out.computed[k][id] || 0) + c
+  }
+  return out
+}
 
+/** The change and its control (`writeEverySet`), alternated after a warm-up scan, so neither runs on colder code. */
+async function measurePair(label, opts, tf) {
+  await scan({ ...opts, rows: 4 })
+  const a1 = await scan(opts)
+  const b1 = await scan({ ...opts, writeEverySet: true })
+  const b2 = await scan({ ...opts, writeEverySet: true })
+  const a2 = await scan(opts)
+  const a = merged(a1, a2)
+  report(label, a)
+  expectHits(a, tf)
+  report(`${label}.writeAll`, merged(b1, b2))
+}
+
+describe.runIf(BENCH)('binder.sync on a list flip: the numbers, per build of the library', () => {
+  for (const lib of BENCH_LIBS) {
+    it(`${lib}: daily, 12,000 rows, timed against its control, then profiled`, async () => {
+      await measurePair(`${lib}.D12000`, { tf: 'D', n: 12_000, lib, rows: BENCH_ROWS || 12 }, 'D')
+      report(`${lib}.D12000.profile`, await scan({ tf: 'D', n: 12_000, profile: true, rows: BENCH_ROWS || 10, lib }))
+    }, 600_000)
+    it(`${lib}: 60m, 30,000 rows, timed against its control, then profiled`, async () => {
+      await measurePair(`${lib}.60m30000`, { tf: '60', n: 30_000, lib, rows: BENCH_ROWS || 10 }, '60')
+      report(`${lib}.60m30000.profile`, await scan({ tf: '60', n: 30_000, profile: true, rows: BENCH_ROWS || 8, lib }))
+    }, 600_000)
+  }
+})
