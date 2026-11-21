@@ -12,6 +12,9 @@ This module reads the supplement and merges it into the vendor's rows, in the ve
   factors.SAME_EVENT_DAYS days, ratio within factors.SAME_EVENT_TOL), the vendor's row wins and the supplement's is
   skipped. factors.build_factor_tables dedupes only by EXACT date, so a vendor fix filed a few days off ours would
   otherwise multiply the factor twice.
+- A row may name the vendor's OWN wrong figure for its event in `replaces` (execution_date, split_from,
+  split_to). `merge` then drops exactly that vendor row (TKC 2006-06-26: the vendor's 100:102.78, where
+  TradingView's step against the raw day files is 1.186057). Nothing else is dropped.
 Rails: tests/test_history_lake_split_supplement.py."""
 from __future__ import annotations
 
@@ -49,8 +52,24 @@ def load(path: Path = SUPPLEMENT) -> List[dict]:
         ev = r.get("evidence")
         if not isinstance(ev, Mapping) or not str(ev.get("capture") or "").strip() or ev.get("price_verified") is not True:
             raise SupplementError(f"{where}: needs evidence.capture and evidence.price_verified true")
-        out.append({k: r[k] for k in ("ticker", "execution_date", "split_from", "split_to", "evidence")})
+        row = {k: r[k] for k in ("ticker", "execution_date", "split_from", "split_to", "evidence")}
+        if "replaces" in r:
+            rep = r["replaces"]
+            if (not isinstance(rep, Mapping) or not _iso(rep.get("execution_date"))
+                    or _F.split_ratio(rep.get("split_from"), rep.get("split_to")) is None):
+                raise SupplementError(f"{where}: replaces must name a vendor row (ISO execution_date, split_from/split_to)")
+            row["replaces"] = {k: rep[k] for k in ("execution_date", "split_from", "split_to")}
+        out.append(row)
     return out
+
+
+def _replaced(v: Mapping, s: Mapping) -> bool:
+    """`v` (a vendor row) is the one supplement row `s` names in `replaces`: same ticker, date and ratio."""
+    rep = s.get("replaces")
+    if not rep or str(v.get("ticker")) != str(s.get("ticker")) or v.get("execution_date") != rep["execution_date"]:
+        return False
+    rv, rr = _F.split_ratio(v.get("split_from"), v.get("split_to")), _F.split_ratio(rep["split_from"], rep["split_to"])
+    return rv is not None and abs(rv / rr - 1) <= 1e-6
 
 
 def _same_event(a: Mapping, b: Mapping) -> bool:
@@ -64,8 +83,10 @@ def _same_event(a: Mapping, b: Mapping) -> bool:
 
 
 def merge(vendor_rows: Iterable[Mapping], supplement_rows: Iterable[Mapping]) -> List[dict]:
-    """The vendor's rows plus every supplement row the vendor does not already carry as the same event."""
-    vendor = [dict(r) for r in vendor_rows]
+    """The vendor's rows plus every supplement row the vendor does not already carry as the same event. A vendor row
+    a supplement row names in `replaces` (the vendor's own wrong figure for that event, TKC 2006) is dropped first."""
+    supplement_rows = list(supplement_rows)
+    vendor = [dict(r) for r in vendor_rows if not any(_replaced(r, s) for s in supplement_rows)]
     by_ticker: dict = {}
     for r in vendor:
         by_ticker.setdefault(str(r.get("ticker")), []).append(r)

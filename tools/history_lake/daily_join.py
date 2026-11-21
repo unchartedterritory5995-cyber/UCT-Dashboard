@@ -25,6 +25,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))   # the repo root: `api.services.bars_sanitize`
 
 JOIN_SESSIONS, JOIN_TOL, CHUNK = 250, 0.02, 40
+#: A second-vendor split this close to an event the split table already carries is that event (heal_splits).
+SAME_EVENT_NEAR_DAYS = 3
 
 
 def clean_split_ratio(r: float) -> bool:
@@ -51,9 +53,16 @@ def heal_splits(rec: dict, yf_splits: list) -> dict:
 
     def _already(d: str, r: float) -> bool:
         """The same event the reference already applied, filed a few days apart (BMI 2016: applied twice
-        otherwise, the rebuild read half the price for 43 years)."""
+        otherwise, the rebuild read half the price for 43 years).
+        ⭐ 2026-11-21: ANY event the split table carries within SAME_EVENT_NEAR_DAYS is that event, whatever the
+        second vendor's ratio. The table holds the vendor's events and the TradingView-verified supplement rows
+        (split_supplement.json); a second vendor's different ratio for one of them is its error, never a second
+        event. ⚰️ ATRO 2018: the vendor's 1.15 on 10-11 plus Yahoo's 1.182 on 10-10 put every bar before it
+        15.4% below the vendor basis. FTI 2021 (TradingView 1.2216, Yahoo 1.344) and the other verified
+        spin-offs rely on this: the rebuild never leaves a verified event to the cliff test."""
         x = _dt.date.fromisoformat(d)
-        return any(abs((x - hd).days) <= 14 and abs(r / hr - 1) <= 0.02 for hd, hr in have)
+        return any(abs((x - hd).days) <= SAME_EVENT_NEAR_DAYS
+                   or (abs((x - hd).days) <= 14 and abs(r / hr - 1) <= 0.02) for hd, hr in have)
 
     # ⭐ Spin-offs count too. The second vendor files them in its split list at the price ratio they caused
     # (REZI 2026-08-04 = 1.437, VYX 2023 = 1.63, NTGR 2019 = 1.612, ABT 2013 = 2.0842), and the served
