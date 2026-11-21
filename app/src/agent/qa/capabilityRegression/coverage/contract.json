@@ -2255,6 +2255,19 @@
    ],
    "fast": false
   },
+  "stock.auctionCalendar": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.callSearch": {
    "domain": "stock",
    "group": "data",
@@ -2437,6 +2450,19 @@
    ],
    "fast": false
   },
+  "stock.fomcWatch": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
+  },
   "stock.gammaLevels": {
    "domain": "stock",
    "group": "marketBoards",
@@ -2553,6 +2579,19 @@
     "*"
    ],
    "fast": true
+  },
+  "stock.realCurve": {
+   "domain": "stock",
+   "group": "marketRates",
+   "target": "market",
+   "risk": "local",
+   "reversible": true,
+   "undo": "none",
+   "query": true,
+   "surfaces": [
+    "*"
+   ],
+   "fast": false
   },
   "stock.seasonality": {
    "domain": "stock",

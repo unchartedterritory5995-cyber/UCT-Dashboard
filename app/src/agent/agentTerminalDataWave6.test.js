@@ -34,6 +34,9 @@ import { HORIZONS, SOURCE as RATES_SOURCE, ratesRead } from '../pages/terminal/p
 import { LIVE_WORDS } from './capabilities/terminalDataFormat'
 import { _resetCotForTest, CAPABILITY as COT_CAPABILITY, KIND as COT_KIND } from './capabilities/cot'
 import { _resetTerminalDataForTest } from './capabilities/terminalData'
+import { CAPABILITIES as WAVE7_CAPS } from './capabilities/terminalDataWave7'
+import { CAPABILITIES as WAVE8_CAPS } from './capabilities/terminalDataWave8'
+import { CAPABILITIES as WAVE9_CAPS } from './capabilities/terminalDataWave9'
 import { _resetTerminalLocalForTest, TERMINAL_ROUTE_WORDS } from './capabilities/terminalDataLocal'
 import { _resetTerminalWave2ForTest, WAVE2_ROUTE_WORDS } from './capabilities/terminalDataWave2'
 import { _resetTerminalWave3ForTest, WAVE3_ROUTE_WORDS } from './capabilities/terminalDataWave3'
@@ -892,11 +895,15 @@ describe('routing words', () => {
 
   const FIXED_WORDS = ['etfs', 'median', 'seasonality', 'tide', 'treasury', 'yields']
   it('the typo lexicon: registering the five changes no correction of any OTHER capability\'s capreg corpus phrasing', async () => {
-    // A summary's and a hint's lowercase words join the typo lexicon (nl/lexicon.js). This wave's own phrasings are left out.
+    // A summary's and a hint's lowercase words join the typo lexicon (nl/lexicon.js). This wave's own phrasings are left out,
+    // and so are the LATER waves' (7 to 9): they were written with this wave's words already known ("treasury", "yields"),
+    // and each later wave pins its own corrections in its own test file (agentTerminalDataWave7/8/9.test.js).
+    const LATER = new Set([...Object.values(WAVE7_CAPS), ...Object.values(WAVE8_CAPS), ...Object.values(WAVE9_CAPS)])
+    expect(LATER.size).toBe(12)
     wire([])
     await loadAgentConfig()
     registerServerGatedBuiltins()
-    const texts = [...new Set(allPhrasings().filter(p => !ALL.includes(p.intent.id)).map(p => p.ph.text)), 'walk me through the setup on NVDA', 'wipe the Momentum list', 'sort ascending by change', 'ascending order',
+    const texts = [...new Set(allPhrasings().filter(p => !ALL.includes(p.intent.id) && !LATER.has(p.intent.id)).map(p => p.ph.text)), 'walk me through the setup on NVDA', 'wipe the Momentum list', 'sort ascending by change', 'ascending order',
       'show me the leeders', 'chnage the theme', 'make it shorter', 'sorted results', 'hover over it', 'recover the layout', 'floating window', 'rank them', 'interesting names today', 'whats the reprot date',
       'the newst one', 'offen', 'the sme one', 'bset setups', 'frist one', 'munth view', 'each one', 'ago', 'weak names', 'the bord', 'yeild', 'curv', 'sesonal', 'maturity', 'a yaer', 'monts', 'quoet',
       'avrage', 'stoks', 'calender', 'weekdya', 'sesion', 'backfil', 'contrat', 'basis ponts', 'spraed', 'positoning', 'dividned']
