@@ -144,6 +144,10 @@ export const PANEL_IMPORTERS = {
   Cot: () => import('./panels/CotPanel'),
   Analogues: () => import('./panels/AnaloguesPanel'),
   MarketsBoard: () => import('./panels/MarketsBoardPanel'),
+  // IPO / DVD / CACT (2026-11-20): the IPO calendar, the dividends and splits ahead, one stock's held corporate actions
+  IpoCalendar: () => import('./panels/IpoCalendarPanel'),
+  DividendCalendar: () => import('./panels/DividendCalendarPanel'),
+  CorporateActions: () => import('./panels/CorporateActionsPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

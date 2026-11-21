@@ -110,7 +110,7 @@ describe('the ANLG count matches the panel that owns the bounds', () => {
 describe('the three codes', () => {
   it('each is market-wide, in the Market group, registered once, and its model names it', () => {
     expect([COT_CODE, ANLG_CODE, MKTS_CODE]).toEqual(['COT', 'ANLG', 'MKTS'])
-    expect(BY_CODE.COT.market).toEqual({ panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market' }] })
+    expect(BY_CODE.COT.market).toEqual({ panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market', open: true }] })
     expect(BY_CODE.ANLG.market).toEqual({ panel: 'Analogues', args: [{ kind: 'anlgCount', prop: 'count' }] })
     expect(BY_CODE.MKTS.market).toEqual({ panel: 'MarketsBoard' })
     expect(BY_CODE.COT.label).toBe('Futures positioning (Commitments of Traders)')

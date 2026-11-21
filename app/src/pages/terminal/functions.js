@@ -550,9 +550,11 @@ export const FUNCTIONS = [
   // COT: futures positioning from the CFTC's weekly Commitments of Traders report (GET /api/cot/*,
   // the routes the COT Data page reads). `COT` = every market, one row each; `COT GOLD` / `COT ES`
   // / `COT 10Y` = one market, by its code or a plain word (resolved in the panel against the
-  // route's own list). COT is not in the site's stock universe.
+  // route's own list). COT is not in the site's stock universe. `open: true`: the market name is
+  // any word of the right shape, so it never outranks another function's code (`COT CAL` keeps the
+  // canonical order; parseCommand.js, the `LEAD IPO` branch).
   { code: 'COT', label: 'Futures positioning (Commitments of Traders)', group: 'Market',
-    market: { panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market' }] } },
+    market: { panel: 'Cot', args: [{ kind: 'cotMarketName', prop: 'market', open: true }] } },
   // ANLG: the past sessions whose breadth looked most like the newest one, and what the S&P 500
   // did after each (GET /api/breadth-monitor/analogues, the answer the Analogue Deck on Breadth
   // draws). `ANLG` = the 5 closest, `ANLG 8` = that many (3 to 10). Not in the stock universe.
@@ -563,6 +565,19 @@ export const FUNCTIONS = [
   // No argument. MKTS is not in the site's stock universe.
   { code: 'MKTS', label: 'Markets board (index funds, volatility, rates, Bitcoin)', group: 'Market',
     market: { panel: 'MarketsBoard' } },
+  // IPO / DVD / CACT (2026-11-20): three reads of what the calendar and the chart already hold.
+  // IPO: the IPO calendar day by day (GET /api/calendar/ipos, the Calendar page's own route). The
+  // stocks listed in the last year stay on LEAD's lens (`LEAD IPO`), which the panel links to.
+  // DVD: the declared dividends and splits AHEAD. The route answers for a list of stocks, not the
+  // whole market: bare `DVD` = the member's own stocks, `NVDA DVD` = one stock. It holds nothing past.
+  // CACT: one stock's held splits and dividends (GET /api/research/corporate-actions/{ticker}, which
+  // never asks a vendor) and its name or ticker changes. None of the three is in the stock universe.
+  { code: 'IPO', label: 'IPO calendar (upcoming and priced deals)', group: 'Calendar',
+    market: { panel: 'IpoCalendar' } },
+  { code: 'DVD', label: 'Dividend calendar (next ex-dates and splits ahead)', group: 'Calendar',
+    ticker: { panel: 'DividendCalendar' }, market: { panel: 'DividendCalendar' } },
+  { code: 'CACT', label: 'Corporate actions (splits, dividends, name changes)', group: 'Security',
+    ticker: { panel: 'CorporateActions' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -869,6 +884,14 @@ const FUNCTION_WORDS = {
     note: 'Past sessions with similar breadth and what the S&P 500 did after each. A record, not a forecast.' },
   MKTS: { example: 'MKTS', keywords: ['markets', 'cross asset', 'indexes', 'vix', 'bitcoin', 'markets board'],
     note: 'Index funds, VIX, Treasury yields and Bitcoin, each with its own source and time. No futures or commodity prices.' },
+  IPO: { example: 'IPO', keywords: ['ipo', 'ipos', 'ipo calendar', 'new issues', 'upcoming ipos', 'priced ipos'],
+    note: 'Deals from last week to next week, day by day. Stocks listed in the last year are on LEAD IPO.' },
+  DVD: { example: 'DVD', keywords: ['dividend', 'dividends', 'dividend calendar', 'ex dividend', 'ex-date', 'upcoming dividends',
+    'upcoming splits'],
+    note: 'Declared dividends and splits ahead for your stocks, or for one stock (NVDA DVD). Nothing past.' },
+  CACT: { example: 'NVDA CACT', keywords: ['corporate actions', 'splits', 'stock split', 'dividend history', 'name change',
+    'ticker change', 'past dividends'],
+    note: 'Only what the server already holds for the stock: splits, dividends by ex-date and ticker changes.' },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]
