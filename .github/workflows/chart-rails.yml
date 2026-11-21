@@ -1,0 +1,133 @@
+# promotion-gate: no — PR-only. It never runs on a master push; a red here holds the PR, before the merge.
+# ─── THE CHART'S OWN TESTS, ON EVERY PR THAT CHANGES THE CHART ─────────────────────────────────────────────────
+#
+# ⚰️ WHY (2026-11-21). The StockChart merges of 2026-11-20 (#2251, #2276, #2278) broke StockChart.liveCandle (12
+# tests), neighborFrames, onChartTap, dailyFirstPaintAcceptance and ChartEmbed.touchTargets, and every PR check and the
+# master deploy gate stayed green: no job ran the chart's own tests. pine heavy runs app/src/components/chart/engine/
+# and builder/ (its VITEST_ROOTS); nothing ran the rest.
+#
+# THE FAMILY IS DERIVED (tools/ci_chart_rails.py, never a hand list): every app/src/components/StockChart*.test.*, the
+# other app/src/components/*.test.* files that import ./StockChart, and every vitest file under
+# app/src/components/chart/ minus pine heavy's two roots. tests/test_ci_chart_rails.py holds this file to the tool:
+# every family file triggers this job, every StockChart test runs in a lane, and the shards partition the family.
+#
+# ⭐ MEASURED (2026-11-21, remote tests run 44873029521, master 5118264e87, 444 files on 4 runners): 12.9 min of
+# recorded test time; each runner 4-6 min wall including setup, ~21 runner-minutes in all. Cut by recorded time into
+# 3 shards here (tools/chart_rails_timings.json). Of the 150 master merges before it, 26 changed a path below (16 of
+# them StockChart.jsx): ~3.6 runner-minutes per PR on average, the whole family on a PR that changes the chart.
+#
+# In pine heavy's environment (its setup action: Node 20, cached node_modules, EMPTY licence-held stores, the
+# no-network wrapper), with the Python the bridge rails spawn, as the remote tests lane runs them.
+# No secrets, no pull_request_target, read-only token.
+name: chart rails (PR)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'app/src/components/StockChart*'
+      - 'app/src/components/chart/**'
+      - '!app/src/components/chart/engine/**'
+      - '!app/src/components/chart/builder/**'
+      # the other app/src/components/*.test.* files that import ./StockChart (derived: tests/test_ci_chart_rails.py
+      # names any one missing here)
+      - 'app/src/components/TickerPopup.chipsClearAxis.test.js'
+      - 'app/src/components/dailyDeepHistoryClock.test.jsx'
+      - 'app/src/components/dailyFirstPaint.probe.test.jsx'
+      - 'app/src/components/dailyFirstPaintAcceptance.test.jsx'
+      - 'app/src/components/dailyFirstPaintIncidental.test.jsx'
+      - 'app/src/components/dailyFirstPaintPerf.test.jsx'
+      # this job's own definition, tooling and environment
+      - '.github/workflows/chart-rails.yml'
+      - '.github/actions/pine-heavy-setup/**'
+      - 'tools/ci_chart_rails.py'
+      - 'tools/chart_rails_timings.json'
+      - 'tests/test_ci_chart_rails.py'
+      - 'app/package.json'
+      - 'app/package-lock.json'
+      - 'app/vite.config.js'
+      - 'app/src/test-setup.js'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # ⛔ the out-of-git stores, pinned to directories the setup action creates EMPTY (and refuses if not), as pine heavy
+  UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
+  UCT_HARNESS_SUPPLY_STORE: /tmp/pine-heavy-empty-store/supply
+  CI_TOOLS: .pine-heavy-ci
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  plan:
+    name: chart rails (the family and its shards)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      n: ${{ steps.plan.outputs.n }}
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: This file follows the tool (tests/test_ci_chart_rails.py)
+        run: |
+          python -m pip install --quiet pytest pyyaml
+          python -m pytest tests/test_ci_chart_rails.py -q -p no:cacheprovider
+      - name: The family and its shards (tools/ci_chart_rails.py)
+        id: plan
+        run: |
+          set -euo pipefail
+          python tools/ci_chart_rails.py --check
+          python tools/ci_chart_rails.py --plan | tee -a "$GITHUB_OUTPUT"
+
+  chart:
+    name: chart rails (shard ${{ matrix.shard }}/${{ needs.plan.outputs.n }})
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # full history, as the remote tests lane checks out: a rail may read git objects or an older commit
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      # rails that spawn Python bridges import the app: the production set, as the remote tests lane installs it
+      - name: Install the Python the bridge rails spawn
+        run: python -m pip install --quiet -r requirements.txt
+      - name: The chart family, this shard (tools/ci_chart_rails.py --write-files)
+        env:
+          SHARD: ${{ matrix.shard }}
+          N: ${{ needs.plan.outputs.n }}
+        run: |
+          set -euo pipefail
+          python tools/ci_chart_rails.py --write-files chart-files.txt --shard "$SHARD/$N"
+          mapfile -t files < chart-files.txt
+          test "${#files[@]}" -gt 0
+          start=$(date +%s); rc=0
+          (cd app && bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run "${files[@]}" --maxWorkers=2 \
+            --reporter=default --reporter=json --outputFile=../chart-rails.json) || rc=$?
+          echo "chart rails, shard $SHARD/$N: ${#files[@]} files, wall $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # every file of the shard ran (a vitest that silently matched fewer files is not a pass)
+          python -c "import json,sys; r=json.load(open('chart-rails.json')); n=len(r.get('testResults') or []); print(f'{n} test files reported'); sys.exit(0 if n == int(sys.argv[1]) else 1)" "${#files[@]}" || rc=1
+          exit $rc
