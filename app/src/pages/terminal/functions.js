@@ -260,8 +260,10 @@ export const FUNCTIONS = [
     market: { panel: 'MarketNews' } },
   { code: 'REGM', label: 'Market regime and exposure call', group: 'Market',
     market: { panel: 'Regime' } },
+  // INS CLUSTER (2026-11-21): the stocks 3 or more insiders bought within 10 business days, built
+  // each night from the SEC's own Form 4 filings (GET /api/insider/clusters). Bare INS is unchanged.
   { code: 'INS', label: 'Insider buying (market-wide, last 7 days)', group: 'Market',
-    market: { panel: 'InsiderBuys' } },
+    market: { panel: 'InsiderBuys', args: [{ kind: 'insView', prop: 'view' }] } },
   { code: 'RSL', label: 'RS leaderboard (top names by RS rank)', group: 'Market',
     market: { panel: 'RsLeaders' } },
   // THMS 1W: the UCT theme leaderboard over a window (1D 1W 1M 3M; 1Y and YTD are chips in the panel).
@@ -842,7 +844,7 @@ const FUNCTION_WORDS = {
   COMM: { keywords: ['community', 'chat'] },
   NEWS: { keywords: ['market news', 'news tape', 'headlines'] },
   REGM: { keywords: ['regime', 'market regime', 'exposure', 'market trend'] },
-  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4'] },
+  INS: { keywords: ['insider', 'insider buying', 'insiders', 'form 4', 'cluster buys', 'insider clusters', 'insider cluster buys'] },
   RSL: { keywords: ['relative strength', 'rs rank', 'rs leaders', 'leaders'] },
   THMS: { example: 'THMS 1W', keywords: ['theme', 'themes', 'groups', 'industries', 'leading themes'] },
   SENT: { keywords: ['sentiment', 'aaii', 'naaim', 'fear and greed', 'put call', 'macro', 'economy'],

@@ -237,6 +237,10 @@ const FITS_THE_BOTTOM = [
   // THMS, measured 2026-11-21 (part 5) in the 592px panel: its two tables sat side by side in 278px each and the
   // 1D column was cut (7 and 11px). They now stack until each has about 311px (splitRoomy, as HILO): 314 and 318.
   ['ThemeBoardPanel.jsx', 'THMS (leaders, laggards)', 318],
+  // INS CLUSTER, measured 2026-11-21 at 1536, 1180 and 340px (sample data): one-line rows in the 640px panel; in a
+  // 462px one the stock and insider cells give back their floor and the money and close words wrap (snugTight,
+  // snugWrap), 338px with every column showing + 29. On a phone the close column folds (phoneHide).
+  ['InsiderClustersPanel.jsx', 'INS CLUSTER', 367],
 ]
 /** Tables with no sample rows: never measured, so they must not fold on a desktop panel above the bottom of the ladder.
  *  (InsiderPanel.jsx left this list on 2026-11-21: see INS in MEASURED.) */
@@ -490,6 +494,7 @@ describe('each fitted panel still opts in', () => {
     ['CallThemesPanel.jsx', { phoneTight: 4, phoneWrap: 2 }],
     ['UpgradesPanel.jsx', { phoneTight: 1, phoneWrap: 0 }],        // UPDG: the rating (340 and 360px, 2026-11-20)
     ['ExpectedMovePanel.jsx', { phoneTight: 2, phoneWrap: 0 }],    // EXMV: the actual move, header and cell (340px)
+    ['InsiderClustersPanel.jsx', { phoneTight: 2, phoneWrap: 3 }], // INS CLUSTER: stock, insiders; the money and close words
   ])('fold: %s', (file, want) => {
     const src = read(file)
     for (const [cls, n] of Object.entries(want)) expect([file, cls, uses(src, cls)]).toEqual([file, cls, n])
@@ -507,6 +512,7 @@ describe('each fitted panel still opts in', () => {
     ['CallThemesPanel.jsx', { snugTight: 4, snugWrap: 0, mediumTight: 0, mediumWrap: 0 }],        // CEOS: Phrase, Companies (it then fits a 461px panel and never folds on a laptop)
     ['CotPanel.jsx', { snugTight: 0, snugWrap: 6, mediumTight: 0, mediumWrap: 0 }],               // COT: the board's four value headers and two net cells
     ['IpoCalendarPanel.jsx', { snugTight: 1, snugWrap: 1, mediumTight: 0, mediumWrap: 0 }],       // IPO: Company, Price (it then fits a 461px panel too)
+    ['InsiderClustersPanel.jsx', { snugTight: 2, snugWrap: 3, mediumTight: 0, mediumWrap: 0 }],   // INS CLUSTER: stock, insiders; money, close
   ])('snug and medium: %s', (file, want) => {
     const src = read(file)
     for (const [cls, n] of Object.entries(want)) expect([file, cls, uses(src, cls)]).toEqual([file, cls, n])
@@ -528,7 +534,7 @@ describe('each fitted panel still opts in', () => {
 
   it('every phoneTight, snugTight or mediumTight cell is a wrap cell (the helper only loosens a cell that already wraps)', () => {
     const files = ['PerformancePanel.jsx', 'ConfluencePanel.jsx', 'RepeatContractsPanel.jsx', 'CallThemesPanel.jsx', 'FlowListsPanel.jsx', 'RsScreensPanel.jsx',
-      'IpoCalendarPanel.jsx']
+      'IpoCalendarPanel.jsx', 'InsiderClustersPanel.jsx']
     let cells = 0
     for (const file of files) {
       for (const line of read(file).split('\n').filter((l) => /styles\.(phone|snug|medium)Tight\b/.test(l))) {

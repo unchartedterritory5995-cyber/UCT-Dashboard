@@ -8,7 +8,12 @@
 //
 // A ticker opens its DES beside the list; typing a row number loads the name into the linked group.
 // ⛔ A failed read is an error with Retry, never "no insider buys".
+//
+// `INS CLUSTER` (2026-11-21, args.js `insView`): the cluster list built each night from the SEC's own
+// Form 4 filings, its own panel body (InsiderClustersPanel.jsx). The default view below is unchanged.
 import { useMemo, useState } from 'react'
+import InsiderClustersPanel from './InsiderClustersPanel'
+import { normInsView } from './insiderClustersModel'
 import {
   PanelSkeleton, PanelSymbol, PanelState, panelAsOf, useInTerminalPanel, usePanelFreshness, usePanelSymbolRows,
 } from '../../../components/terminal'
@@ -65,7 +70,14 @@ const isNumeric = (key) => !TEXT_KEYS.has(key)
 const firstDirFor = (key) => (key === 'sym' || key === 'name' ? 'asc' : 'desc')
 const byOrder = (a, b) => a.order - b.order
 
-export default function InsiderPanel() {
+/** `INS` (all buys, below) or `INS CLUSTER` (the cluster list). Outside the shell the cluster view's
+ *  chip back to all buys switches here, in this panel's own state. */
+export default function InsiderPanel({ view: viewProp } = {}) {
+  const [view, setView] = useState(() => normInsView(viewProp))
+  return view === 'cluster' ? <InsiderClustersPanel onView={setView} /> : <InsiderBuysView />
+}
+
+function InsiderBuysView() {
   const inPanel = useInTerminalPanel()
   const read = useMarketRead(INSIDER_URL, { refreshInterval: POLL_MS })
   const base = useMemo(() => insiderRows(read.body), [read.body])
