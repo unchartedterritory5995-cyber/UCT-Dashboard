@@ -923,6 +923,38 @@ def test_an_extended_row_on_a_daily_chart_is_refused_at_load(tmp_path):
         tf=s["tf"], session=s["session"])) is None                    # a regular row on a daily chart is fine
 
 
+def _run_session_js(times, session="0400-2000", interval="60", si=True):
+    """The REAL `SESSION_JS`, executed in node against a fake main series (patrick-54's Q2, review of #2289: the double
+    answers the snippet by its text and never runs it, so the gate's one computation was proven nowhere)."""
+    import subprocess
+    fake = {"times": times, "session": session, "interval": interval, "si": si}
+    js = ("const F = " + json.dumps(fake) + ";\n"
+          "const ms = { symbolInfo: () => (F.si ? { session: F.session, subsession_id: null } : null),\n"
+          "  interval: () => F.interval,\n"
+          "  bars: () => ({ each: (cb) => { for (let i = 0; i < F.times.length; i += 1) {"
+          " if (cb(i, [F.times[i], 1, 1, 1, 1, 1])) break } } }) };\n"
+          "globalThis.window = { _exposed_chartWidgetCollection: { activeChartWidget: { value: () => ({"
+          " model: () => ({ mainSeries: () => ms }) }) } } };\n"
+          "const f = (" + bc.SESSION_JS + ");\n"
+          "process.stdout.write(JSON.stringify(f()));\n")
+    out = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=60)
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+def test_the_in_page_session_read_computes_the_smallest_spacing_of_the_last_ten_bars():
+    h = 3600
+    t0 = 1763000000 - (1763000000 % h)
+    early = [t0 - 50 * h + k * 1800 for k in range(3)]       # a 30-minute pair, OUTSIDE the last 11 bars
+    day = [t0 + k * h for k in range(9)]                      # nine consecutive 60-minute bars
+    times = early + day + [day[-1] + 12 * h]                  # and the newest bar opens the next session
+    r = _run_session_js(times)
+    assert r["ok"] and r["bars"] == len(times) and r["interval"] == "60" and r["session"] == "0400-2000", r
+    assert r["step"] == h               # the SMALLEST spacing of the last 10: never the 12 h gap, never the old pair
+    assert _run_session_js([t0])["step"] is None                              # one bar has no spacing
+    assert _run_session_js(times, si=False) == {"ok": False, "why": "no symbolInfo yet"}
+
+
 def test_the_bar_spacing_of_a_resolution():
     assert bc.bar_step_range("60") == (3600, 3600) and bc.bar_step_range("5") == (300, 300)
     assert bc.bar_step_range("1D") == bc.bar_step_range("D") == (86400, 86400)
