@@ -2013,8 +2013,8 @@ def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
         cur.close()
     except Exception:                         # noqa: BLE001 — nothing depends on the abandoned cursor
         pass
-    packed = _packed_rows(ticker, tf, max_bars)
-    return _door(ticker, tf, packed if packed is not None else _get_bars_rows(ticker, tf, max_bars))
+    packed = get_bars_packed(ticker, tf, max_bars)          # already through the door
+    return packed if packed is not None else _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
 
 
 def _door(ticker: str, tf: str, rows):
@@ -2237,9 +2237,9 @@ def get_bars_fast(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     if get_bars is not ROW_READER:
         return get_bars(ticker, tf, max_bars)
     if os.environ.get("RS_PACKED_READS", "1").strip() != "0":
-        rows = _packed_rows(ticker, tf, max_bars)
+        rows = get_bars_packed(ticker, tf, max_bars)         # already through the door
         if rows is not None:
-            return _door(ticker, tf, rows)
+            return rows
     return _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
 
 
