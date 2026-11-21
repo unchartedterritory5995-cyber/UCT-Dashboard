@@ -3804,11 +3804,63 @@ function engineFactsSigOf(meta) {
 }
 
 /**
+ * THE SETTLING FRAME (`pendingTfReframeRef`, armed by a symbol or timeframe switch): the outgoing view's zoom width
+ * with the loaded last bar pinned at the fixed right anchor (so the current candle lands where the outgoing view had
+ * it), or the default window when the switch held no width. The developing intraday bucket's slot is reserved, so
+ * `to` stays put as the newer buckets land across the phased commits (cache, network, backfill) instead of the grown
+ * newest re-pinning and sliding left; 0 off-gate and on daily.
+ * ONE derivation for the two passes that re-assert it: `updateChart` on every settling commit, and a metadata answer
+ * landing between renders (`settleOnMetaLanded`).
+ */
+function settlingFrameOf(pt, { bars, tf, plotWidthPx, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }) {
+  const rightReserve = _intradayLoadReserve(bars, tf)
+  if (pt.width > 0) return pinNewestRange(bars.length - 1, pt.width, plotWidthPx, rightReserve)
+  return computeDefaultLogicalRange(bars.length, tf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx, rightReserve })
+}
+
+/** ...and when the settling is over: the bar count stopped changing, the session candle resolved, and no developing
+ * bucket's slot is still held (`updateChart`'s settling branch says why each one holds it). */
+function settlingDone({ bars, tf, oldBarCount, sessionCandleActive, sessionExtReady }) {
+  return bars.length === oldBarCount && (!sessionCandleActive || sessionExtReady) && !(_intradayLoadReserve(bars, tf) > 0)
+}
+
+/**
+ * (2026-11-21) A METADATA ANSWER LANDING WHILE A SWITCH SETTLES RE-ASSERTS THE SETTLING FRAME, AS ITS RENDER DID.
+ * Before #2278 every late per-symbol answer (name and sector, listing date) rendered this body, and that render's
+ * `updateChart` pass re-asserted the settling frame: a range change that was not the member's (drift, to the product)
+ * was put back, and a member's move released the guard. #2278 answers between renders (`_onMetaLanded`), so nothing
+ * re-asserted and a drifted frame stayed (dailyFirstPaintAcceptance SETTLING, VISIBLE_RANGE_DRIFT). This is that
+ * pass's settling half, run straight on the chart, in the same order: the anchor owns its own frame; a member's move
+ * since the switch ends the settling WITHOUT re-asserting (NC-D); otherwise the frame is put back, and released once
+ * settled. It reads only refs and this chart's scalars (`_metaSettleRef`), never a render's closure.
+ */
+function settleOnMetaLanded(s, inp) {
+  if (!s || !inp) return
+  const pt = s.pendingRef.current
+  if (!pt || pt.tf !== inp.resolvedTf || s.entryDate || s.exactDateRange) return
+  const bars = inp.filteredBars
+  const chart = s.chartRef.current
+  if (!chart || !bars || bars.length < 2 || !(s.countRef.current > 0)) return
+  if (s.anchorRef.current && s.anchorRef.current.anchorIdx >= 0 && !s.movedRef.current) return   // the anchor's frame: `updateChart` applies it
+  if (s.movedRef.current) { s.pendingRef.current = null; return }
+  try {
+    const ts = chart.timeScale()
+    const r = settlingFrameOf(pt, { bars, tf: inp.resolvedTf, plotWidthPx: plotWidthOf(chart, s.containerRef.current),
+      dailyDefaultBars: s.dailyDefaultBars, leftBarPad: s.leftBarPad, rightPadBars: s.rightPadBars, visibleBarsOverride: s.visibleBarsOverride })
+    const cur = ts.getVisibleLogicalRange()
+    if (!cur || cur.from !== r.from || cur.to !== r.to) ts.setVisibleLogicalRange(r)
+  } catch { return /* mid-load: the next commit's pass re-asserts */ }
+  if (settlingDone({ bars, tf: inp.resolvedTf, oldBarCount: s.countRef.current, sessionCandleActive: s.sessionCandleActive, sessionExtReady: s.sessionExtReady })) {
+    s.pendingRef.current = null
+  }
+}
+
+/**
  * The chart body's metadata listener (`_onMetaLanded`): an answer landed between renders. Built HERE, out of the
  * render, on purpose: the store keeps it for the chart's whole life, and a closure written inside a render would pin
  * that render's whole scope (its bars) for as long. It holds the refs it reads, nothing else.
  */
-function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, rerender }) {
+function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, futureWsRef, settleRef, rerender }) {
   return function _onMetaLanded() {
     const f = factsRef.current
     const inp = inputsRef.current
@@ -3822,6 +3874,7 @@ function metaLandedListener({ metaStore, factsRef, inputsRef, nowRef, drawRef, f
         return
       }
     }
+    settleOnMetaLanded(settleRef?.current, inp)   // first, so the redraw below reads the settled frame
     const view = nowRef.current()
     try { drawRef.current?.(view, false, true) } catch { /* the next paint redraws */ }
     try { futureWsRef.current?.(view.earningsEvents) } catch { /* series gone */ }
@@ -10055,6 +10108,8 @@ function StockChartBody({
   const _metaFactsRef = useRef(null)
   _metaFactsRef.current = { sig: engineFactsSigOf(_meta), historyFromListing, listingUnserved, read: _symbolFactsRead }
   const [, _setMetaFactsRev] = useState(0)
+  // What a landed answer's settling re-assert reads (`settleOnMetaLanded`), filled below `anchorCfgRef`.
+  const _metaSettleRef = useRef(null)
   // The metadata view now: the store's latest snapshot, derived with this render's inputs (memoised on both).
   const _metaNowMemoRef = useRef(null)
   const _metaNow = () => {
@@ -10071,7 +10126,7 @@ function StockChartBody({
   // (the listener is built outside this render, `metaLandedListener`: the store holds it for the chart's life)
   useLayoutEffect(() => metaStore.subscribe(metaLandedListener({
     metaStore, factsRef: _metaFactsRef, inputsRef: _metaInputsRef, nowRef: _metaNowRef,
-    drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, rerender: _setMetaFactsRev,
+    drawRef: _drawMetaRef, futureWsRef: _applyFutureWsRef, settleRef: _metaSettleRef, rerender: _setMetaFactsRev,
   })), [metaStore])
   // ⭐⭐ W9-T11-F1 — the window a strategy run takes (design 3.4, "The chart"), from the server's
   // `bars_window` (`strategyWindow.js`). null with the broker gate off: nothing is fetched and the
@@ -11571,6 +11626,12 @@ function StockChartBody({
   // anchor frame wins everywhere the chart would otherwise auto-frame. userViewMovedRef
   // is the same latch replay uses — one pan/zoom and all re-assertion stops.
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
+  // (refs and scalars only: the store keeps the listener that reads this for the chart's whole life)
+  _metaSettleRef.current = {
+    chartRef, containerRef, pendingRef: pendingTfReframeRef, movedRef: userViewMovedRef, countRef: lastBarCountRef,
+    anchorRef: anchorCfgRef, entryDate, exactDateRange, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+    sessionCandleActive, sessionExtReady,
+  }
 
   // ── First-load layout race: ONE setVisibleLogicalRange does not stick ──────────
   // The chart is created with autoSize, so for several frames after first paint the
@@ -14837,23 +14898,11 @@ function StockChartBody({
         // each a separate commit). This keeps the chart from snapping during the load.
         // Once the count stops changing, data has settled; release control so ordinary
         // scroll/zoom is respected again.
+        // (the frame and its release: `settlingFrameOf` / `settlingDone`, the one derivation a metadata answer landing
+        // between renders re-asserts too, `settleOnMetaLanded`. Today's developing daily bar is in the served history,
+        // server-include in api/routers/bars.py, so on daily the loaded last bar IS today.)
         const _pt = pendingTfReframeRef.current
-        let from, to
-        if (_pt.width > 0) {
-          // Pin the loaded last bar at the anchor — so the current candle lands at the
-          // SAME position the outgoing view had. Today's developing daily bar is now
-          // included in the served history (server-include, api/routers/bars.py), so the
-          // loaded last bar IS today and no slot reservation is needed.
-          const lastIdx = filteredBars.length - 1
-          // Reserve the developing intraday bucket's slot: the settling re-assert runs on EVERY
-          // phased commit (cache → fetch → backfill); reserving keeps `to` invariant as the newer
-          // buckets land instead of re-pinning the grown newest and sliding left. 0 off-gate/daily.
-          ;({ from, to } = pinNewestRange(lastIdx, _pt.width, plotWidthOf(chart, containerRef.current), _intradayLoadReserve(filteredBars, resolvedTf)))
-        } else {
-          ;({ from, to } = computeDefaultLogicalRange(
-            filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current), rightReserve: _intradayLoadReserve(filteredBars, resolvedTf) }
-          ))
-        }
+        const { from, to } = settlingFrameOf(_pt, { bars: filteredBars, tf: resolvedTf, plotWidthPx: plotWidthOf(chart, containerRef.current), dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride })
         try { _setFrame({ from, to }) } catch { /* mid-load */ }
         // The session preview candle is part of SETTLING, not a post-settle live bar.
         // It lands ~1s after the RTH bars (separate per-symbol /api/bars?tf=5 fetch),
@@ -14863,7 +14912,6 @@ function StockChartBody({
         // then repositions once" jitter when flipping tickers in pre/post market.
         // Holding the guard until the aggregate resolves keeps the RTH bars exactly
         // put; the preview candle just appears in the right pad.
-        const _sessionSettled = !sessionCandleActive || sessionExtReady
         // HOLD the guard while the developing bar is still MISSING (reserve > 0). A cold first paint
         // renders the stale provisional (ends at the last SEALED period); the developing bar appends
         // a SEPARATE commit later — often AFTER the count already looked "settled" — and that append
@@ -14874,8 +14922,7 @@ function StockChartBody({
         // ends the guard before this branch (the `userViewMovedRef` arm above, the one place that
         // rule lives), so a deliberate scroll is never fought, and off-gate the reserve is 0 so the
         // release timing is byte-identical to before.
-        const _reserveHolding = _intradayLoadReserve(filteredBars, resolvedTf) > 0
-        if (filteredBars.length === oldBarCount && _sessionSettled && !_reserveHolding) pendingTfReframeRef.current = null
+        if (settlingDone({ bars: filteredBars, tf: resolvedTf, oldBarCount, sessionCandleActive, sessionExtReady })) pendingTfReframeRef.current = null
       } else {
         // "Was viewing the latest": last bar visible with a normal (not huge) right gap.
         // Width-proportional floor (was a flat -1): LWC-side drift during a
