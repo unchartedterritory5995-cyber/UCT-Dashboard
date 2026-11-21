@@ -677,3 +677,19 @@ def test_rule_eleven_a_script_draws_only_what_was_asked_and_offers_the_rest():
     # it is a rule of the contract (ahead of the reference sections), and the last one
     assert doc.index("11. Draw ONLY") < doc.index("## ") and not any(line.startswith("12. ") for line in doc.split(chr(10)))
 
+
+def test_rule_eleven_the_plot_a_drawing_only_request_keeps_is_invisible():
+    """Seen in a live round: asked ONLY for a box, a line or two labels, half the scripts also drew the value the
+    drawing is made from as a faint visible line. The plot is worth keeping (a script with one works in alerts),
+    so the rule says to keep it and hide it. What the engine does with such a plot is held on the member's own
+    path by `supportLoop/invisiblePlotCarriesDrawings.test.js`, whose colour this sentence must match."""
+    rule = next(line for line in pa.document().split(chr(10)) if line.startswith("11. "))
+    assert "ONLY a drawing (a box, a line, labels, a table)" in rule and "names no plotted line" in rule
+    assert "used in alerts" in rule                                   # the reason the plot stays
+    assert "`plot(level, \"Level\", color=color.new(color.gray, 100))`" in rule      # the form, written out
+    assert "a hidden plot is there for alerts" in rule                # and the member is told
+    assert rule.rstrip().endswith("Never hide a plot the member asked to see.")
+    # the same colour the engine test proves, read from that file so the two cannot drift apart
+    import pathlib
+    proof = (pathlib.Path(__file__).resolve().parent.parent / "app/src/components/chart/supportLoop/invisiblePlotCarriesDrawings.test.js").read_text(encoding="utf-8")
+    assert "color=color.new(color.gray, 100))" in proof
