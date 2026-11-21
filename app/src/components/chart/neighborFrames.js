@@ -132,18 +132,38 @@ export function __resetScanForTests() { _scan.clear(); _scanSubs.clear() }
 // most recently used SOURCES_KEPT sources keep their derived values (the rows around the selection on two
 // charts, the row on screen and the one just left), and an older one's are dropped as a new one arrives.
 export const SOURCES_KEPT = 10
+// ⛔ (2026-11-20) THE RECENCY LIST HOLDS EACH SOURCE WEAKLY. It held them strongly, so the last
+// SOURCES_KEPT source arrays stayed alive after the store had let them go: old revisions of a key and
+// symbols long switched away from (a heap snapshot of a jsdom chart walking eight symbols: three of the
+// first four symbols' legacy bars held by nothing but this list). A source the store dropped is now
+// collected with its derived values; the bound on how many sources keep derived values is unchanged.
+// Rail: StockChart.closureChains.test.jsx.
+const _WeakRef = typeof globalThis !== 'undefined' ? globalThis.WeakRef : undefined
 function _lru() {
-  const order = new Map()   // source -> true, oldest first (strong refs, at most SOURCES_KEPT)
-  const store = new WeakMap()
+  const store = new WeakMap()     // source -> value
+  const tokens = new WeakMap()    // source -> its one recency token
+  const order = new Set()         // tokens, oldest first; a token holds its source weakly (strongly where WeakRef is missing)
+  const tokenOf = (src) => {
+    let t = tokens.get(src)
+    if (!t) { t = _WeakRef ? new _WeakRef(src) : { deref: () => src }; tokens.set(src, t) }
+    return t
+  }
+  const touch = (src) => { const t = tokenOf(src); order.delete(t); order.add(t) }
   return {
-    get(src) { const v = store.get(src); if (v) { order.delete(src); order.set(src, true) } return v },
+    get(src) { const v = store.get(src); if (v) touch(src); return v },
     make(src, v) {
       store.set(src, v)
-      order.delete(src); order.set(src, true)
-      while (order.size > SOURCES_KEPT) { const old = order.keys().next().value; order.delete(old); store.delete(old) }
+      touch(src)
+      for (const t of order) if (!t.deref()) order.delete(t)   // sources already collected
+      while (order.size > SOURCES_KEPT) {
+        const old = order.values().next().value
+        order.delete(old)
+        const s = old.deref()
+        if (s) store.delete(s)
+      }
       return v
     },
-    clear() { for (const k of order.keys()) store.delete(k); order.clear() },
+    clear() { for (const t of order) { const s = t.deref(); if (s) store.delete(s) } order.clear() },
   }
 }
 
