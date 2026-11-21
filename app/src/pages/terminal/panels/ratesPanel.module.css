@@ -125,6 +125,19 @@
   color: var(--text-bright);
 }
 
+/* the real yield block: its own title, date and table, under the nominal table */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.blockTitle {
+  margin: 0;
+  font-weight: inherit;
+}
+
 /* PHONE: the two pictures stack (the grid already folds below two 15rem columns), and the curve's
    eleven maturity labels tighten so they stay on one line at 390px. */
 @media (max-width: 640px) {

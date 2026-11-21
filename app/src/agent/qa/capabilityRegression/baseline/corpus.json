@@ -14318,6 +14318,152 @@
         "share offerings NVDA filed",
         "NVDA share issuance filings"
       ]
+    },
+    {
+      "id": "stock.splitsDividends",
+      "source": "Terminal data wave 8 (11-21): the Agent half of the CACT, IPO and DVD terminal panels (one stock's corporate actions, the IPO calendar, dividends and splits declared ahead), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.splitsDividends"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.splitsDividends"
+      ],
+      "ownWords": [
+        "marketCalendars"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.splitsDividends",
+            "target": "$stockData",
+            "args": {
+              "symbol": "NVDA",
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*stock\\.corporateActions.*\"params\":\\{\"symbol\":\"NVDA\",\"rows\":12\\}"
+        ],
+        "says": [
+          "NVDA's splits and cash dividends as UCT holds them beside its chart, newest first:",
+          "• May 14, 2019: 3 for 2",
+          "• Aug 14, 2026: \\$0\\.1375",
+          "not the amounts as declared",
+          "The newest event in the record is Fri, Aug 14, 2026: the record's own date, never the time of this answer\\.",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "NVDA corporate actions",
+        "split history for NVDA",
+        "has NVDA ever split",
+        "past dividends for NVDA"
+      ]
+    },
+    {
+      "id": "stock.ipoCalendar",
+      "source": "Terminal data wave 8 (11-21): the Agent half of the CACT, IPO and DVD terminal panels (one stock's corporate actions, the IPO calendar, dividends and splits declared ahead), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.ipoCalendar"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.ipoCalendar"
+      ],
+      "ownWords": [
+        "marketCalendars"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.ipoCalendar",
+            "target": "$stockData",
+            "args": {
+              "rows": null
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*calendar\\.ipos.*\"params\":\\{\"rows\":20\\}"
+        ],
+        "says": [
+          "The IPO calendar for Mon, Oct 26, 2026 to Fri, Nov 13, 2026 as UCT holds it, merged from two vendors' calendars:",
+          "• Nov 5, 2026: Made-up Robotics Inc \\(ZZQA\\), NASDAQ: \\$18\\.00 to \\$20\\.00, 12\\.5M shares, value \\$250\\.0M, expected",
+          "• Nov 10, 2026: Made-up Foods Corp: price not given, shares not given, value not given, expected",
+          "that is not 0",
+          "The calendars give no as-of time of their own",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "IPO calendar",
+        "upcoming IPOs",
+        "what IPOs are coming this week",
+        "which IPOs are pricing next week"
+      ]
+    },
+    {
+      "id": "stock.dividendsCalendar",
+      "source": "Terminal data wave 8 (11-21): the Agent half of the CACT, IPO and DVD terminal panels (one stock's corporate actions, the IPO calendar, dividends and splits declared ahead), plain member phrasings",
+      "kinds": "ALL",
+      "capabilities": [
+        "stock.dividendsCalendar"
+      ],
+      "board": "ONE",
+      "needs": [
+        "stock.dividendsCalendar"
+      ],
+      "ownWords": [
+        "marketCalendars"
+      ],
+      "model": {
+        "ops": [
+          {
+            "action": "stock.dividendsCalendar",
+            "target": "$stockData",
+            "args": {
+              "symbols": [
+                "NVDA"
+              ]
+            }
+          }
+        ]
+      },
+      "expect": {
+        "reads": [
+          "^POST /api/agent/data .*calendar\\.dividends.*\"params\":\\{\"symbols\":\\[\"NVDA\"\\]\\}"
+        ],
+        "says": [
+          "Dividends and splits declared ahead for NVDA, soonest first, as UCT read them:",
+          "• Nov 20, 2026: NVDA goes ex-dividend, \\$0\\.26 a share as declared",
+          "• Dec 15, 2026: NVDA splits 4 for 1",
+          "A forward calendar has no as-of time of its own",
+          "UCT's own time"
+        ],
+        "unchanged": true,
+        "modelTurns": 1,
+        "refusal": false
+      },
+      "phrasings": [
+        "next ex-dividend date for NVDA",
+        "upcoming dividends for NVDA",
+        "when is NVDA's next dividend",
+        "any upcoming splits for NVDA"
+      ]
     }
   ],
   "refusals": [

@@ -12120,6 +12120,8 @@ app.include_router(analyst_revisions_router.router)  # /api/research/analyst-rev
 app.include_router(iv_history_router.router)  # /api/research/iv-history/{sym}[/implied-vs-realized] — our own options log, paid, read-only, DARK (IV_HISTORY_ENABLED)
 from api.routers import treasury_yields as treasury_yields_router  # noqa: E402  (RATES: Treasury yields and the curve, paid)
 app.include_router(treasury_yields_router.router)  # /api/research/treasury-yields
+from api.routers import treasury_auctions as treasury_auctions_router  # noqa: E402  (AUCT: Treasury auctions, upcoming and results, paid)
+app.include_router(treasury_auctions_router.router)  # /api/research/treasury-auctions
 app.include_router(options_screener_router.router)  # /api/options-screener/{screen,unusual-volume,iv-percentile} — COV-02/03 over our own options log, paid, read-only, DARK (OPTIONS_SCREENER_ENABLED)
 app.include_router(yf_guard_router.router, dependencies=_OPEN_READS)  # /api/admin/yfinance-guard — breaker observability
 app.include_router(catalysts_router.router)
@@ -12216,6 +12218,8 @@ from api.routers import dilution_watch as dilution_watch_router  # noqa: E402  (
 app.include_router(dilution_watch_router.router)  # /api/research/dilution-watch/{ticker}
 from api.routers import corporate_actions as corporate_actions_router  # noqa: E402  (CACT: splits and dividends the server already holds, paid)
 app.include_router(corporate_actions_router.router)  # /api/research/corporate-actions/{ticker}
+from api.routers import fed_watch as fed_watch_router  # noqa: E402  (FED: Fed statements, speeches, headlines, the next meeting, paid)
+app.include_router(fed_watch_router.router)  # /api/research/fed-watch
 from api.routers import screener_new_today as screener_new_today_router  # noqa: E402  (dark)
 app.include_router(screener_new_today_router.router)
 from api.routers import screener_nl as screener_nl_router  # noqa: E402  (FT-024/030, dark)

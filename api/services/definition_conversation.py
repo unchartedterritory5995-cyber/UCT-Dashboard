@@ -901,10 +901,11 @@ CONVERSE_SYSTEM_PROMPT = (
     "between 0 and 1. `warmup` is a plain whole number up to 960: use 300 unless the member "
     "asks. `self` exists ONLY inside an accum's update; one accum never sits inside another "
     "(give the inner one its own output's formula instead). A TOTAL THAT NEVER FORGETS (on-balance "
-    "volume, an accumulation and distribution line, any \"running total\" with no window) is not what an "
-    "accum gives: an accum over W bars is that total's CHANGE across the last W bars, a different line. "
-    "Build it, and name and label the output for what it is (\"Net volume, last 300 bars\"), never \"On "
-    "Balance Volume\" or \"cumulative\".\n"
+    "volume, an accumulation and distribution line, any \"running total\" or \"cumulative\" value with no "
+    "window) is cum(x): the running total of x over every bar of the loaded history. On-balance volume is "
+    "cum(close > offset 1 of close ? volume : close < offset 1 of close ? 0 - volume : 0). It is NEVER an "
+    "accum: an accum over W bars is that total's CHANGE across the last W bars, a different line. Only "
+    "when the member names a window (\"over the last 300 bars\") is it sum(x, N).\n"
     "  SEVERAL RUNNING VALUES THAT FEED EACH OTHER are accum2, accum3 or accum4: accumK(which, "
     "warmup, start1..startK, update1..updateK). All K values are replaced together on each bar. "
     "Inside the updates `state1`..`stateK` are their PREVIOUS values, and `which` (a plain whole "
@@ -2117,10 +2118,19 @@ def _matched_term(t: Mapping[str, Any]) -> Dict[str, Any]:
     twin = chart_twins.house_formula(t.get("name")) if isinstance(t.get("name"), str) else None
     if twin is not None:
         out["chart_formula"] = dc.formula_for(twin)
+        # ⭐ 2026-11-21 (ruling) -- THE MEMBER'S OWN RULE WINS. Found live: asked to mark inside bars "where the
+        # high is below the prior high and the low is above the prior low", the assistant built the firm's
+        # formula (a touch allowed, on a bar that traded) and said so. Nothing was hidden, but the member had
+        # stated the rule and got ours. A house term settles what the WORD means when the member only names
+        # it (the 2026-11-18 ruling: never a question, never two formulas for one word); a member who spells
+        # the rule out has asked for that rule.
         out["rule"] = ("the firm's meaning of this term on a chart: use this formula and "
                        "disclose its numbers in `assumptions`. If the member gave their own "
                        "number for it (a different length or window), keep this formula's shape "
-                       "with the member's number")
+                       "with the member's number. If the member spells out the RULE itself in the "
+                       "same request (what is compared with what, and whether a touch counts), "
+                       "build THEIR rule exactly and say in `assumptions` how it differs from the "
+                       "firm's")
         subject = chart_twins.PATTERN_SUBJECT.get(t.get("name"))
         if subject:
             out["rule"] += ". " + subject
@@ -4361,7 +4371,43 @@ def running_value_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
                         f"and levels restart {window} bars back. A chart computed from the symbol's "
                         "first bar can differ.")
             notes.append({"output": key, "text": text})
-    return notes[:RUNNING_VALUE_NOTE_MAX]
+    return (notes + running_total_notes(envelope))[:RUNNING_VALUE_NOTE_MAX]
+
+
+#: A total over every bar of the loaded history (the table's own function; `ta.cum` on the Pine lane is this call).
+RUNNING_TOTAL_FN = "cum"
+RUNNING_TOTAL_NOTE = ("This is a running total from the first bar of the loaded history, so its level depends on "
+                      "where that history starts. Its bar-to-bar changes do not.")
+
+
+def running_total_notes(envelope: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    """2026-11-20 -- One assumption per output this patch builds from a TRUE running total (`cum`): where it
+    starts, in the member's words. The same honesty by shape as a running value's note, and for the same
+    reason: the door says it itself, the model is not trusted to remember to. The level of such a total moves
+    when more history is loaded (the table's `window_dependent` tag); its changes from bar to bar do not."""
+    notes: List[Dict[str, Any]] = []
+    for op in envelope.get("ops") or []:
+        if not isinstance(op, Mapping):
+            continue
+        if op.get("op") == "create":
+            outputs = [(o.get("key"), o.get("tree")) for o in op.get("outputs") or [] if isinstance(o, Mapping)]
+        elif op.get("op") == "add_output":
+            outputs = [(op.get("key"), op.get("tree"))]
+        elif op.get("op") == "set_output_tree":
+            outputs = [(op.get("output"), op.get("tree"))]
+        else:
+            continue
+        for key, tree in outputs:
+            stack, total = [tree], False
+            while stack and not total:
+                node = stack.pop()
+                if isinstance(node, dict):
+                    total = _is_call(node, (RUNNING_TOTAL_FN,))
+                    if isinstance(node.get("args"), list):
+                        stack.extend(node["args"])
+            if total and isinstance(key, str):
+                notes.append({"output": key, "text": RUNNING_TOTAL_NOTE})
+    return notes
 
 
 def with_running_value_notes(envelope: Dict[str, Any]) -> Dict[str, Any]:

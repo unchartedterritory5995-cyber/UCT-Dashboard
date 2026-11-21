@@ -125,10 +125,16 @@ def test_the_words_reach_the_house_term_and_say_what_it_is_about(conv):
     # the distance column is still its own term, and the pattern did not take its phrase
     u = conv.understand_turn("percent from the 52 week high", CHART)
     assert [t["entry"] for t in u["notes"]["matched_terms"]] == ["dist_52w_high_pct"]
-    # a term with no subject note is the sentence it always was
+    # a term with no subject note ends where the house rule itself ends: nothing is appended to it
+    # (2026-11-21: the house rule gained its last sentence, "a rule the member spells out is built as theirs")
     u = conv.understand_turn("mark inside days", CHART)
     term = next(t for t in u["notes"]["matched_terms"] if t["entry"] == "inside_day")
-    assert term["rule"].endswith("with the member's number")
+    assert term["rule"].endswith("build THEIR rule exactly and say in `assumptions` how it differs from the firm's")
+    assert "with the member's number. If the member spells out the RULE itself" in term["rule"]
+    # and a term WITH a subject note carries it after that same ending
+    u = conv.understand_turn("Mark new 52 week highs", CHART)
+    term = next(t for t in u["notes"]["matched_terms"] if t["entry"] == "new_52w_high")
+    assert "how it differs from the firm's. " in term["rule"] and not term["rule"].endswith("the firm's")
 
 
 def test_the_built_in_the_vwap_decline_points_at_has_that_setting():

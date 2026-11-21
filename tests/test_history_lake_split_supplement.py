@@ -415,9 +415,22 @@ def test_held_events_and_identity_review_tickers_carry_no_rows():
     """Stated, not served: CASS (the vendor's raw prints, not corporate actions), KMB (no TradingView capture yet), DB's
     unplaced 1.0582 (its three placed events are rows; nothing else for DB), and the identity-review tickers."""
     rows = S.load()
-    assert not any(r["ticker"] in {"CASS", "KMB"} for r in rows)
-    assert sorted(r["execution_date"] for r in rows if r["ticker"] == "DB") == ["2010-09-22", "2014-06-06", "2017-03-21"]
+    assert not any(r["ticker"] == "CASS" for r in rows)
+    assert sorted(r["execution_date"] for r in rows if r["ticker"] == "DB") == ["2008-05-30", "2010-09-22", "2014-06-06", "2017-03-21"]
     assert not any(r["ticker"] in IDENTITY_REVIEW for r in rows)
+
+
+#: Seam-61 follow-ups (ruled 2026-11-21): TradingView is the reference; each oddity stated by name in the row's evidence.
+TV_VERIFIED_FOLLOWUPS = {("DB", "2008-05-30"): 1.058201, ("KMB", "2004-12-01"): 1.034521, ("KMB", "2014-11-03"): 1.088548}
+
+
+def test_the_db_and_kmb_follow_ups_live_in_the_supplement_at_tradingview_s_step_and_state_their_oddity():
+    rows = {(r["ticker"], r["execution_date"]): r for r in S.load() if "drop" not in r}
+    for key, factor in TV_VERIFIED_FOLLOWUPS.items():
+        assert key in rows, key
+        assert F.split_ratio(rows[key]["split_from"], rows[key]["split_to"]) == pytest.approx(factor, rel=1e-6), key
+    assert "dividend ex-date" in rows[("DB", "2008-05-30")]["evidence"]["check"]
+    assert "SQUARED" in rows[("KMB", "2014-11-03")]["evidence"]["check"]
 
 
 def test_the_vz_2008_fairpoint_row_follows_tradingview_s_own_inverse_step():

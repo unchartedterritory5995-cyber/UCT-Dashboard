@@ -414,6 +414,32 @@ const TERMINAL_DATA = {
       shelves: [{ form: 'S-3', filed: '2025-06-02', effective: '2025-06-20', expires_estimate: '2028-06-20', state: 'live', offerings: 1, latest_offering: '2026-10-21' }],
       rows, count: rows.length, total: all.length, cut: rows.length < all.length, as_of: '2026-10-27', read_at: '2026-11-03T15:40:00Z', last_good: false } }
   },
+  // Terminal data wave 8 (dark kinds `stock.corporateActions`, `calendar.ipos`, `calendar.dividends`; MD-1 §4.17): the same
+  // rule — each adapter's own data shape, made-up names, tickers, dates and figures. `as_of` is the data's own date (the newest
+  // event of the corporate actions record), or null where the data has none (the two forward calendars), with the time UCT
+  // read it beside it; never the day of the read.
+  'stock.corporateActions': (p) => {
+    const splits = [{ date: '2019-05-14', ratio: '3:2', to_factor: 1.5 }].slice(0, p.rows || 12)
+    const dividends = [{ date: '2026-08-14', amount: 0.1375 }, { date: '2026-05-15', amount: 0.13 }].slice(0, p.rows || 12)
+    return { freshness: 'historical', as_of: '2026-08-14T04:00:00Z', data: { symbol: String(p.symbol || '').toUpperCase(), state: 'ok',
+      splits: { rows: splits, count: splits.length, total: 1, cut: splits.length < 1, window_years: 45, as_of: '2019-05-14' },
+      dividends: { rows: dividends, count: dividends.length, total: 2, cut: dividends.length < 2, window_years: 5, as_of: '2026-08-14', basis: 'split_adjusted' },
+      as_of: '2026-08-14', read_at: '2026-11-03T15:40:00Z', left_out: ['names'] } }
+  },
+  'calendar.ipos': (p) => {
+    const ahead = [{ symbol: 'ZZQA', name: 'Made-up Robotics Inc', date: '2026-11-05', exchange: 'NASDAQ', price_range: '$18.00-$20.00', shares: 12500000, value: 250000000, status: 'expected' },
+      { symbol: null, name: 'Made-up Foods Corp', date: '2026-11-10', exchange: null, price_range: null, shares: null, value: null, status: 'expected' }].slice(0, p.rows || 20)
+    const earlier = [{ symbol: 'ZZQB', name: 'Made-up Bio Ltd', date: '2026-10-29', exchange: 'NASDAQ', price_range: '$21.00', shares: 8000000, value: 168000000, status: 'priced' }].slice(0, p.rows || 20)
+    return { freshness: 'periodic', as_of: null, data: { window: { from: '2026-10-26', to: '2026-11-13' }, split_day: '2026-11-03',
+      ahead: { rows: ahead, count: ahead.length, total: 2, cut: ahead.length < 2 }, earlier: { rows: earlier, count: earlier.length, total: 1, cut: earlier.length < 1 },
+      total: 3, dropped: 0, as_of: null, read_at: '2026-11-03T15:40:00Z' } }
+  },
+  'calendar.dividends': (p) => {
+    const symbols = Array.isArray(p.symbols) ? p.symbols : []
+    const rows = symbols.flatMap(s => [{ symbol: s, type: 'dividend', date: '2026-11-20', amount: 0.26, ratio: null }, { symbol: s, type: 'split', date: '2026-12-15', amount: null, ratio: '4:1' }])
+    return { freshness: 'periodic', as_of: null, data: { symbols, stocks: symbols.map(s => ({ symbol: s, state: 'complete', read_at: '2026-11-03T15:40:00Z', events: 2 })),
+      rows, count: rows.length, total: rows.length, cut: false, as_of: null, read_at: '2026-11-03T15:40:00Z' } }
+  },
 }
 /** Wave 6's made-up calendar months: ten years each, except a month nobody counted (February) and a thin one (March). */
 function SEASON_MONTHS(shift) {
@@ -612,7 +638,7 @@ export function mountCase(boardName = 'ONE', { kinds = PROD_KINDS, seed = {}, st
     if (u === '/api/agent/data' && ['index.quote', 'commodity.quote', 'crypto.quote'].includes(body?.kind)) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'refused', freshness: 'unavailable', as_of: null, stale: false, notes: ['no licensed source'], data: null })
     }
-    // terminal data waves 1 to 7 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
+    // terminal data waves 1 to 8 (dark): a SYNTHETIC answer in each kind's own data shape (TERMINAL_DATA above; no market value)
     if (u === '/api/agent/data' && TERMINAL_DATA[body?.kind]) {
       return json({ contract: 'MD-1.0', kind: body.kind, params_echo: body.params, status: 'ok', freshness: 'periodic', as_of: null, fetched_at: '2026-11-03T16:00:00Z', delay_s: null,
         stale: false, source: 'fixture', coverage: null, notes: [], provider_calls: 0, ...TERMINAL_DATA[body.kind](body.params || {}) })
