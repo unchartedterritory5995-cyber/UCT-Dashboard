@@ -140,6 +140,10 @@ export const PANEL_IMPORTERS = {
   TideHistory: () => import('./panels/TideHistoryPanel'),
   // SEASB: the index funds and the sector funds, month by month (the market's SEAS).
   SeasonalityBoard: () => import('./panels/SeasonalityBoardPanel'),
+  // Market wave A (2026-11-20): futures positioning, days like today, the markets board
+  Cot: () => import('./panels/CotPanel'),
+  Analogues: () => import('./panels/AnaloguesPanel'),
+  MarketsBoard: () => import('./panels/MarketsBoardPanel'),
   // the earnings season screen (owner pick, 2026-11-17)
   EarningsSeason: () => import('./panels/EarningsSeasonPanel'),
   ThemeBoard: () => import('./panels/ThemeBoardPanel'),

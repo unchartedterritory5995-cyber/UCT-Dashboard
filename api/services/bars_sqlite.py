@@ -1998,22 +1998,38 @@ def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     """Return up to max_bars rows as (ts, o, h, l, c, v), oldest-first.
 
     Row by row while the rows come at once; in chunks from the moment they do not (the block
-    above). The answer is the row reader's, value for value, whichever way it was read."""
+    above). The answer is the row reader's, value for value, whichever way it was read. D/W/M rows then pass the store's read door (`_door`: the published corrections
+    ledger, unless the caller is inside `bars_corrections.raw_reads()`)."""
     if not _packed_default_on():
-        return _get_bars_rows(ticker, tf, max_bars)
+        return _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
     cur = _conn().execute(_ROWS_SQL, (ticker.upper(), tf, max_bars))
     try:
         rows = _rows_while_fast(cur)
     except AttributeError:                    # a stand-in connection without `fetchmany`: its rows, its way
-        return cur.fetchall()
+        return _door(ticker, tf, cur.fetchall())
     if rows is not None:
-        return rows
+        return _door(ticker, tf, rows)
     try:
         cur.close()
     except Exception:                         # noqa: BLE001 — nothing depends on the abandoned cursor
         pass
-    packed = get_bars_packed(ticker, tf, max_bars)
-    return packed if packed is not None else _get_bars_rows(ticker, tf, max_bars)
+    packed = get_bars_packed(ticker, tf, max_bars)          # already through the door
+    return packed if packed is not None else _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
+
+
+def _door(ticker: str, tf: str, rows):
+    """⭐ THE STORE'S READ DOOR for D/W/M rows: the published corrections ledger (`bars_corrections.apply_rows`,
+    compare-and-set, the ONE applier the serve path also runs), so every reader of the store API -- the chart, RS
+    Rating, the screener, the alert evaluator -- reads one authority. A read-modify-write caller (split repair, the
+    audits) reads inside `bars_corrections.raw_reads()` and gets the rows exactly as stored, so a correction is never
+    written into a row. Never raises; intraday rows pass untouched."""
+    if not rows or tf not in ("D", "W", "M"):
+        return rows
+    try:
+        from api.services import bars_corrections as _cor
+        return _cor.apply_rows(ticker, tf, rows)
+    except Exception:  # noqa: BLE001 — the stored rows still read
+        return rows
 
 
 #: The store's own reader, by identity. A caller that goes around it to the packed read does
@@ -2190,6 +2206,12 @@ def get_bars_packed(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
     the proven range, a fractional volume, a sqlite without JSON functions): read the rows
     with `get_bars` instead. A database error other than a missing JSON function is the row
     reader's to raise."""
+    rows = _packed_rows(ticker, tf, max_bars)
+    return None if rows is None else _door(ticker, tf, rows)
+
+
+def _packed_rows(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
+    """`get_bars_packed` before the read door (the rows exactly as stored)."""
     if not packed_reads_proven():
         return None
     try:
@@ -2215,32 +2237,32 @@ def get_bars_fast(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     if get_bars is not ROW_READER:
         return get_bars(ticker, tf, max_bars)
     if os.environ.get("RS_PACKED_READS", "1").strip() != "0":
-        rows = get_bars_packed(ticker, tf, max_bars)
+        rows = get_bars_packed(ticker, tf, max_bars)         # already through the door
         if rows is not None:
             return rows
-    return _get_bars_rows(ticker, tf, max_bars)
+    return _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
 
 
 def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
     """Up to max_bars rows with ts <= to_key, oldest-first — the pre-cutoff window used
     by replay mode. Uses the (ticker, tf, ts DESC) index, so it's a fast index seek even
-    for a deep window. (ts is YYYYMMDD for D/W/M, unix seconds for intraday.)"""
-    return _conn().execute(
+    for a deep window. (ts is YYYYMMDD for D/W/M, unix seconds for intraday.) D/W/M rows pass the read door."""
+    return _door(ticker, tf, _conn().execute(
         """SELECT ts,o,h,l,c,v FROM (
                SELECT ts,o,h,l,c,v FROM ohlcv
                WHERE ticker=? AND tf=? AND ts<=?
                ORDER BY ts DESC LIMIT ?
            ) ORDER BY ts ASC""",
         (ticker.upper(), tf, int(to_key), max_bars),
-    ).fetchall()
+    ).fetchall())
 
 
 def get_bars_since(ticker: str, tf: str, since_ts: int) -> list[tuple]:
-    """Return bars with ts > since_ts, oldest-first (for browser delta sync)."""
-    return _conn().execute(
+    """Return bars with ts > since_ts, oldest-first (for browser delta sync). D/W/M rows pass the read door."""
+    return _door(ticker, tf, _conn().execute(
         "SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf=? AND ts>? ORDER BY ts ASC",
         (ticker.upper(), tf, since_ts),
-    ).fetchall()
+    ).fetchall())
 
 
 def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2) -> dict:

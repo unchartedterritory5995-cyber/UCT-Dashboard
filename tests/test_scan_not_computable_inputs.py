@@ -158,12 +158,18 @@ def _bars_from_rows(rows):
             for r in rows]
 
 
-def _instant_bars(n=120):
+def _instant_bars(n=200):
     """Bars whose `t` is a REAL unix instant, crossing an ET session boundary.
 
     ⚠️ TWO ET DAYS, DELIBERATELY. A session accumulator does not answer for bars
     whose session boundary is not visible in the series, so a single-day fixture
     here would be a control that agrees with the subject for the wrong reason.
+
+    ⭐ AND THE SECOND DAY'S REGULAR SESSION OPENS INSIDE IT (2026-11-20). Five bar readers read the
+    regular session itself (8e2ecf6105, 2026-11-17, #1731: `openingRangeHigh/Low`, `sessionHigh/Low/Open`),
+    and 120 bars from 19:00 ET end at 05:00, so none of them could compute and the sweep's own vacuity check
+    named `openingRangeHigh`. 200 bars run to 11:35 ET: the 09:30 open is bar 174, the last 26 bars are regular
+    session.
     """
     out = []
     t0 = 1781046000                      # 2026-06-09 19:00 ET
@@ -415,7 +421,10 @@ def test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST():
         assert any(isinstance(v, float) and math.isfinite(v) for v in column), (
             f"{name}: the 'computable' fixture produced no value at all, so the "
             "'holed' assertions below would pass for the wrong reason")
-        assert ast_interpret.unresolved_inputs(tree, {}, met, -1) == [], (
+        # asked under the opts it was evaluated under, as the sweep asks it (`scan_evaluator`: `opts={"tf": tf_code}`):
+        # an opening range's answer depends on the chart's bar length (8e2ecf6105), so a question with no `tf` is
+        # a different question
+        assert ast_interpret.unresolved_inputs(tree, {}, met, -1, opts={"tf": "5"}) == [], (
             f"{name}: reported unresolvable on bars it CAN compute over — this "
             "rail would refuse a working screen")
 
@@ -426,13 +435,24 @@ def test_EVERY_declared_BAR_READER_is_swept__DERIVED_FROM_THE_MANIFEST():
             if ast_interpret.interpret(node, sample,
                                        opts={"tf": TF})[-1] is not None:
                 continue
+            # ⭐ 2026-11-17 (8e2ecf6105; `ast_interpret.opening_range_refusal`): an entry whose answer depends on the
+            # chart's bar length is WITHHELD WHOLE, BY NAME, where it cannot be read (an opening range on daily bars),
+            # so nothing is laundered and the door refuses the tree (`whole_series_withheld`, C45). That is this rail's
+            # premise met a layer earlier, not dissolved: it counts as a hole only if EVERY bar is no number.
+            whole = ast_interpret.whole_series_withheld(tree, sample, opts={"tf": TF})
+            if whole:
+                withheld = ast_interpret.interpret(tree, sample, opts={"tf": TF})
+                assert all(v is None for v in withheld), (
+                    f"{name}: named withheld whole ({whole}) with {why}, yet the comparison answers on some bar")
+                holed.append(f"{why} (withheld whole: {', '.join(whole)})")
+                continue
             laundered = ast_interpret.interpret(tree, sample, opts={"tf": TF})
             assert laundered[-1] == 0.0, (
                 f"{name}: the premise moved — with {why}, the comparison no "
                 f"longer launders this entry's hole into a confident 0.0 (got "
                 f"{laundered[-1]!r}). Do not leave a passing test whose reason "
                 "has dissolved.")
-            assert ast_interpret.unresolved_inputs(tree, {}, sample, -1) == [name], (
+            assert ast_interpret.unresolved_inputs(tree, {}, sample, -1, opts={"tf": TF}) == [name], (
                 f"{name}: declares reads:'bars' and is NOT asked about before "
                 f"the sweep evaluates ({why}) — the hole is laundered and the "
                 "receipt says the symbol was answered")

@@ -230,8 +230,8 @@ export default function BreakoutPanel() {
             data-testid="terminal-brko-sort-reset">Closest to pivot first</button>
         </div>
       ) : null}
-      <div className={styles.tableBox}>
-        <table className={styles.table} data-testid="terminal-brko-table" aria-label={`${board.rows.length} breakout-ready names, sortable`}>
+      <div className={styles.tableBox} data-fold="570">
+        <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-brko-table" aria-label={`${board.rows.length} breakout-ready names, sortable`}>
           <thead>
             <tr>
               {COLUMNS.map((c) => (
@@ -251,8 +251,8 @@ export default function BreakoutPanel() {
             {rows.map((x) => (
               <tr key={x.sym} data-testid={`terminal-brko-row-${x.sym}`}>
                 <td className={styles.rowNum}>{x.order + 1}</td>
-                <td><PanelSymbol sym={x.sym} className={styles.sym} /></td>
-                <td className={`${styles.wrapCell} ${styles.phoneTight}`}>{x.setup}</td>
+                <td className={styles.markRoom}><PanelSymbol sym={x.sym} className={styles.sym} /></td>
+                <td className={`${styles.wrapCell} ${styles.phoneTight} ${styles.snugTight}`}>{x.setup}</td>
                 <td className={styles.phoneWrap}>{pivotText(x.dist)}</td>
                 <td className={styles.phoneHide}>{formatCurrency(x.pivot, { absent: 'n/a' })}</td>
                 <td>{formatNumber(x.rs, { decimals: 0, absent: 'n/a' })}</td>

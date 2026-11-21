@@ -11,9 +11,14 @@
   container-type: inline-size;
   container-name: mw;
   width: 100%;
-  /* Full-bleed PageHeader sits flush at the top (no page padding to escape). */
+  /* Full-bleed PageHeader sits flush at the top (no page padding to escape). On a phone the
+     header reads the second pair (PageHeader.module.css, the phone rule): without it the header
+     assumed 16 px of padding, ran 16 px past each side of the screen and the page scrolled
+     sideways by 16 px (panel fit, part 4). */
   --page-pad-top: 0px;
   --page-pad-x: 0px;
+  --page-pad-top-m: 0px;
+  --page-pad-x-m: 0px;
 }
 
 .page {
